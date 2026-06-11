@@ -105,6 +105,9 @@ npm run build   # production build (CI gate)
 
 - Branches: `feature/...`, `fix/...`, `chore/...`, `codex/...` — never commit directly to `main`
 - Conventional commits: `feat: add gallery grid`, `fix: focus trap in lightbox`, `chore: bump deps`
+- Reference the Azure Boards work item in the PR description with `AB#<id>`
+  (`Fixes AB#5` closes the work item on merge); include `AB#<id>` in commit messages
+  when the commit clearly belongs to one work item
 - **Do not create commits automatically when a task appears complete.** Suggest a
   conventional commit message at useful review points; the user reviews and commits.
 - When a task's requirements are implemented, report that clearly and suggest the final
