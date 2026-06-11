@@ -1,36 +1,93 @@
 # PhotoSite Starter
 
-A modern, cloud-ready photography website built with Next.js.
+A modern, clonable photography website template built with Next.js.
 
 ## Purpose
-PhotoSite Starter is a modular, high-performance photography website designed as both:
-- a real-world client project
-- a reusable starter/template for other photographers
 
-## Goals
-- Fast, SEO-friendly frontend (SSG / ISR)
-- High-quality photo galleries
-- Client and proof galleries (future phase)
-- Professional DevOps practices
+PhotoSite Starter is a high-quality photography website foundation designed to serve two roles:
 
-## Tech Stack
-- Next.js (App Router, TypeScript)
-- Tailwind CSS
-- Headless CMS (planned: Sanity)
-- Azure DevOps (Boards, Repos, CI/CD)
+- **A template** that a technically oriented photographer can clone, brand, connect to their own CMS, and deploy on their preferred hosting.
+- **A real production site** — the first implementation replaces an existing Joomla 3 photography site.
 
-## Project Structure
-- `src/app` – routing and layouts
-- `src/components` – reusable UI components
-- `src/lib` – shared logic and configuration
+This is **not** a SaaS or multi-tenant system. Each photographer runs their own clone.
 
-## Roadmap
-- [x] Project setup
-- [ ] Base layout and navigation
-- [ ] Gallery MVP
-- [ ] CMS integration
-- [ ] Client proof galleries
-- [ ] Cloud deployment
+## Core principles
+
+- MVP first — keep the architecture simple, extend only when there is a real need
+- Photos are the main content: fast, high-quality, distraction-free galleries
+- Video is a natural companion to photos: the media model must not assume photo-only
+  content; playback via self-hosted MP4/WebM or click-to-load embeds (no auto-loading
+  third-party players)
+- Generic by design: no hardcoded names, brand colors, or contact details in components or schemas — these come from site settings or the CMS
+- One gallery core serves the public portfolio, blog mini-galleries, and (later) private client galleries
+- Privacy-friendly: no tracking cookies, no cookie banner if avoidable
+- Accessibility target: WCAG 2.1 AA (where applicable)
+
+## Tech stack
+
+- [Next.js](https://nextjs.org) (App Router, TypeScript)
+- [Tailwind CSS](https://tailwindcss.com) v4
+- Headless CMS (planned: [Sanity](https://www.sanity.io); mock data first)
+- GitHub for source code
+- Azure DevOps (Boards for project management, Pipelines for CI)
+
+## Project structure
+
+- `src/app` – App Router routes and layouts
+- `src/components` – reusable UI components *(added as features land)*
+- `src/lib` – shared logic, configuration, and data access *(added as features land)*
+
+Import alias: `@/*` → `src/*`
+
+## Getting started
+
+```bash
+npm ci
+npm run dev
+```
+
+Other scripts:
+
+```bash
+npm run lint    # ESLint
+npm run build   # production build
+```
+
+## CI
+
+Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build on pushes and pull requests to `main`.
+
+## MVP scope
+
+- [x] Next.js App Router project setup (TypeScript, Tailwind, `src/`)
+- [x] CI pipeline (lint + build)
+- [ ] Responsive base layout with header and footer
+- [ ] Site settings (name, branding, contact, navigation)
+- [ ] Home page
+- [ ] Services listing and individual service pages
+- [ ] Portfolio galleries with fullscreen lightbox
+- [ ] Blog / article content type (supports long story articles)
+- [ ] Contact form
+- [ ] Basic SEO (metadata, sitemap, robots.txt)
+- [ ] CMS integration (Sanity) or clear mock data layer first
+- [ ] Production deployment
+- [ ] Redirects for important legacy URLs (first implementation)
+
+## Later roadmap (not in MVP)
+
+- Video showcase in galleries, articles, and service pages; video delivery/sharing
+  in client galleries
+- Private client galleries (token/PIN access, noindex, expiration)
+- Proof galleries with photo selection and extra-photo pricing
+- Multilingual content
+- EXIF display with per-category visibility
+- Service-specific testimonials
+- Cookieless analytics
+
+## License
+
+[MIT](LICENSE)
 
 ## Status
-🚧 Work in progress
+
+🚧 Work in progress — pre-MVP skeleton.
