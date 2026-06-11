@@ -12,10 +12,10 @@ pool:
   vmImage: "ubuntu-latest"
 
 steps:
-  - task: NodeTool@0
+  - task: UseNode@1
     inputs:
-      versionSpec: "20.x"
-    displayName: "Use Node.js 20"
+      version: "22.x"
+    displayName: "Use Node.js 22"
 
   - script: |
       npm ci
@@ -25,7 +25,7 @@ steps:
       npm run lint
     displayName: "Lint"
 
-  # Lisää vasta kun testit olemassa.
+  # Enable once tests exist.
   # - script: |
   #     npm test
   #   displayName: "Test"
