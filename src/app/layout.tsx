@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { getSiteSettings } from "@/lib/site-settings";
+import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,16 +19,22 @@ export const metadata: Metadata = {
   description: "A modern, clonable photography website template",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const settings = await getSiteSettings();
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <SiteHeader
+          siteName={settings.siteName}
+          navigation={settings.navigation}
+        />
         {children}
       </body>
     </html>
