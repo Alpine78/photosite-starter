@@ -15,6 +15,9 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 
 - MVP first — keep the architecture simple, extend only when there is a real need
 - Photos are the main content: fast, high-quality, distraction-free galleries
+- **Images are never cropped** — thumbnails and previews always preserve the original
+  aspect ratio and full frame. A cropped preview misrepresents the photo, and a strong
+  image can go unseen because of it; compositions are shown exactly as taken
 - Video is a natural companion to photos: the media model must not assume photo-only
   content; playback via self-hosted MP4/WebM or click-to-load embeds (no auto-loading
   third-party players)
