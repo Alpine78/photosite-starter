@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { getSiteSettings } from "@/lib/site-settings";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,13 +30,19 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}
       >
         <SiteHeader
           siteName={settings.siteName}
           navigation={settings.navigation}
         />
-        {children}
+        <div className="flex-1">{children}</div>
+        <SiteFooter
+          contact={settings.contact}
+          socialLinks={settings.socialLinks}
+          footerLinks={settings.footerLinks}
+          copyrightHolder={settings.copyrightHolder}
+        />
       </body>
     </html>
   );
