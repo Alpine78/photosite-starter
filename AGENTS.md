@@ -103,7 +103,7 @@ npm run build   # production build (CI gate)
 
 ## Git workflow
 
-- Branches: `feature/...`, `fix/...`, `chore/...`, `codex/...` — never commit directly to `main`
+- Branches: `feature/<id>-short-description`, `fix/<id>-short-description`, `chore/...`, `codex/...` — never commit directly to `main`. Include the work item id in the branch name when the branch belongs to one story (e.g. `feature/6-responsive-header`).
 - Conventional commits: `feat: add gallery grid`, `fix: focus trap in lightbox`, `chore: bump deps`
 - Reference the Azure Boards work item in the PR description with `AB#<id>`
   (`Fixes AB#5` closes the work item on merge); include `AB#<id>` in commit messages
