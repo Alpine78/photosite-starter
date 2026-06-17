@@ -22,11 +22,17 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   multilingual, EXIF toggles, analytics) before they are explicitly prioritized.
 - **Minimal dependencies.** Do not add a library without a clear, stated need.
 - **Small, reviewable changes.** No large rewrites without an explicit request.
-- **Never crop images.** Gallery and preview images (thumbnails included) must always
-  show their original aspect ratio and full frame — no `object-cover`, no fixed-aspect
-  crop cells, no `<Image fill>` cover. Use layouts that respect each image's native
-  ratio (masonry, or `object-contain`). A cropped preview misrepresents the work and
-  can make a strong image go unseen.
+- **Never crop images.** Gallery, preview (thumbnails included), and hero/banner images
+  must always show their original aspect ratio and full frame — no `object-cover`, no
+  fixed-aspect crop cells, no `<Image fill>` cover. Use layouts that respect each image's
+  native ratio (masonry, or `object-contain`). A cropped preview misrepresents the work
+  and can make a strong image go unseen.
+- **Hero convention.** Heroes display at the image's *native* ratio — whatever it is
+  (16:9, 3:2, 4:5, …) — via `h-auto w-full` plus the asset's real `width`/`height`; the
+  code imposes no aspect ratio and never crops. The "full-width banner" look comes from
+  the *photographer supplying a wide-format image*, not from a fixed-height crop band.
+  Always pass the asset's true pixel dimensions so the ratio (and CLS reservation) is
+  correct.
 - **Privacy by default.** No tracking cookies, no Google Analytics, no auto-loading
   third-party embeds. Goal: no cookie banner.
 - **Accessibility:** target WCAG 2.1 AA. Keyboard navigation matters, especially in galleries.
