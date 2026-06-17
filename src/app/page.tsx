@@ -24,20 +24,21 @@ export default async function Home() {
           unoptimized
           className="h-auto w-full"
         />
-        {/* Scrim keeps overlaid text legible over any image */}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-6 pt-16 sm:px-6 sm:pb-10 sm:pt-28">
+        {/* Scrim keeps overlaid text legible over any image. A taller,
+            deeper gradient gives the title room to read big and bold. */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pb-8 pt-28 sm:px-6 sm:pb-14 sm:pt-40 lg:pb-20">
           <div className="mx-auto max-w-6xl">
-            <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-5xl">
+            <h1 className="text-4xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-6xl lg:text-7xl">
               {settings.siteName}
             </h1>
             {settings.tagline && (
-              <p className="mt-2 max-w-xl text-base text-white/85 sm:text-lg">
+              <p className="mt-3 max-w-2xl text-lg text-white/90 drop-shadow-sm sm:text-xl">
                 {settings.tagline}
               </p>
             )}
             <Link
               href="/portfolio"
-              className="mt-5 inline-flex items-center rounded-full bg-white px-5 py-2.5 text-sm font-medium text-black transition-colors hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="mt-6 inline-flex items-center rounded-full bg-white px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:mt-8 sm:text-base"
             >
               View portfolio
             </Link>

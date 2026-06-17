@@ -35,10 +35,10 @@ export type HomeContent = {
 const mockHomeContent: HomeContent = {
   hero: {
     image: {
-      src: "/hero-placeholder.svg",
+      src: "/hero-sample.jpg",
       alt: "Placeholder hero image",
-      width: 1600,
-      height: 1000,
+      width: 1920,
+      height: 1080,
     },
   },
   intro:
