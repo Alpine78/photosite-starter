@@ -1,0 +1,148 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getArticle, getArticles } from "@/lib/articles";
+import { ArticleBody } from "@/components/article-body";
+
+type ArticlePageProps = {
+  params: Promise<{ slug: string }>;
+};
+
+export async function generateStaticParams() {
+  const articles = await getArticles();
+  return articles.map((a) => ({ slug: a.slug }));
+}
+
+export async function generateMetadata({
+  params,
+}: ArticlePageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const article = await getArticle(slug);
+  if (!article) return {};
+  return {
+    title: article.title,
+    description: article.excerpt,
+  };
+}
+
+export default async function ArticlePage({ params }: ArticlePageProps) {
+  const { slug } = await params;
+  const [article, allArticles] = await Promise.all([
+    getArticle(slug),
+    getArticles(),
+  ]);
+  if (!article) notFound();
+
+  const index = allArticles.findIndex((a) => a.slug === slug);
+  const prev = index > 0 ? allArticles[index - 1] : null;
+  const next = index < allArticles.length - 1 ? allArticles[index + 1] : null;
+
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+      {/* Breadcrumb */}
+      <nav aria-label="Breadcrumb" className="text-sm text-foreground/60">
+        <ol className="flex flex-wrap items-center gap-1">
+          <li>
+            <Link
+              href="/blog"
+              className="hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Blog
+            </Link>
+          </li>
+          <li aria-hidden="true">/</li>
+          <li className="truncate text-foreground/80">{article.title}</li>
+        </ol>
+      </nav>
+
+      {/* Header */}
+      <header className="mt-6">
+        <div className="flex flex-wrap gap-1.5">
+          {article.categories.map((cat) => (
+            <Link
+              key={cat.slug}
+              href={`/blog?category=${cat.slug}`}
+              className="rounded-full bg-black/5 px-2.5 py-0.5 text-xs font-medium hover:bg-black/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 dark:bg-white/10 dark:hover:bg-white/20"
+            >
+              {cat.name}
+            </Link>
+          ))}
+        </div>
+        <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+          {article.title}
+        </h1>
+        <time
+          dateTime={article.publishedAt}
+          className="mt-2 block text-sm text-foreground/60"
+        >
+          {new Date(article.publishedAt).toLocaleDateString("en-GB", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+        </time>
+      </header>
+
+      {/* Body */}
+      <div className="mt-10">
+        <ArticleBody blocks={article.body} />
+      </div>
+
+      {/* Tags */}
+      {article.tags && article.tags.length > 0 && (
+        <footer className="mt-12 border-t border-black/10 pt-6 dark:border-white/15">
+          <p className="text-xs font-medium uppercase tracking-wider text-foreground/50">
+            Tags
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {article.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded border border-black/10 px-2.5 py-0.5 text-sm text-foreground/70 dark:border-white/15"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </footer>
+      )}
+
+      {/* Prev / next navigation */}
+      <nav
+        aria-label="Article navigation"
+        className="mt-10 grid grid-cols-2 gap-4 border-t border-black/10 pt-8 dark:border-white/15"
+      >
+        <div>
+          {prev && (
+            <Link
+              href={`/blog/${prev.slug}`}
+              className="group flex flex-col gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              <span className="text-xs font-medium uppercase tracking-wider text-foreground/50">
+                ← Previous
+              </span>
+              <span className="text-sm font-medium leading-snug group-hover:underline">
+                {prev.title}
+              </span>
+            </Link>
+          )}
+        </div>
+        <div className="text-right">
+          {next && (
+            <Link
+              href={`/blog/${next.slug}`}
+              className="group flex flex-col gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              <span className="text-xs font-medium uppercase tracking-wider text-foreground/50">
+                Next →
+              </span>
+              <span className="text-sm font-medium leading-snug group-hover:underline">
+                {next.title}
+              </span>
+            </Link>
+          )}
+        </div>
+      </nav>
+    </main>
+  );
+}

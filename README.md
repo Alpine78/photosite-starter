@@ -69,7 +69,7 @@ Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build
 - [ ] Home page
 - [x] Services listing and individual service pages
 - [ ] Portfolio galleries with fullscreen lightbox
-- [ ] Blog / article content type (supports long story articles)
+- [x] Blog / article content type (supports long story articles)
 - [ ] Contact form
 - [ ] Basic SEO (metadata, sitemap, robots.txt)
 - [ ] CMS integration (Sanity) or clear mock data layer first
