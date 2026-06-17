@@ -67,7 +67,7 @@ Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build
 - [ ] Responsive base layout with header and footer
 - [ ] Site settings (name, branding, contact, navigation)
 - [ ] Home page
-- [ ] Services listing and individual service pages
+- [x] Services listing and individual service pages
 - [ ] Portfolio galleries with fullscreen lightbox
 - [ ] Blog / article content type (supports long story articles)
 - [ ] Contact form
