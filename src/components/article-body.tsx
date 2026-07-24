@@ -58,20 +58,23 @@ export function ArticleBody({ blocks }: ArticleBodyProps) {
               </blockquote>
             );
 
-          case "image":
+          case "media":
+            if (block.media.type !== "image") return null;
             return (
               <figure key={index}>
                 <Image
-                  src={block.src}
-                  alt={block.alt}
-                  width={block.width}
-                  height={block.height}
+                  src={block.media.src}
+                  alt={block.media.alt}
+                  width={block.media.width}
+                  height={block.media.height}
                   unoptimized
                   className="h-auto w-full rounded-lg"
                 />
-                {block.caption && (
+                {(block.media.caption || block.media.credit) && (
                   <figcaption className="mt-2 text-sm text-foreground/60">
-                    {block.caption}
+                    {block.media.caption}
+                    {block.media.caption && block.media.credit && " — "}
+                    {block.media.credit}
                   </figcaption>
                 )}
               </figure>

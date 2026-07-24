@@ -31,7 +31,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
   const service = await getService(slug);
   if (!service) notFound();
 
-  const { name, description, coverImage, pricing } = service;
+  const { name, description, coverMedia, pricing } = service;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
@@ -64,12 +64,12 @@ export default async function ServicePage({ params }: ServicePageProps) {
               </p>
             ))}
           </div>
-          {coverImage && (
+          {coverMedia?.type === "image" && (
             <Image
-              src={coverImage.src}
-              alt={coverImage.alt}
-              width={coverImage.width}
-              height={coverImage.height}
+              src={coverMedia.src}
+              alt={coverMedia.alt}
+              width={coverMedia.width}
+              height={coverMedia.height}
               unoptimized
               className="mt-8 h-auto w-full rounded-lg"
             />

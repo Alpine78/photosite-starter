@@ -66,12 +66,12 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                 href={`/blog/${article.slug}`}
                 className="group flex h-full flex-col overflow-hidden rounded-lg border border-black/10 transition-colors hover:border-black/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/15 dark:hover:border-white/40"
               >
-                {article.coverImage && (
+                {article.coverMedia?.type === "image" && (
                   <Image
-                    src={article.coverImage.src}
-                    alt={article.coverImage.alt}
-                    width={article.coverImage.width}
-                    height={article.coverImage.height}
+                    src={article.coverMedia.src}
+                    alt={article.coverMedia.alt}
+                    width={article.coverMedia.width}
+                    height={article.coverMedia.height}
                     unoptimized
                     className="h-auto w-full"
                   />

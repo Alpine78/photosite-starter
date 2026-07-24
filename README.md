@@ -38,7 +38,7 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 
 - `src/app` – App Router routes and layouts
 - `src/components` – reusable UI components *(added as features land)*
-- `src/lib` – shared logic, configuration, and data access *(added as features land)*
+- `src/lib` – shared logic, configuration, data access, and the generic media model
 
 Import alias: `@/*` → `src/*`
 

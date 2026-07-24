@@ -3,20 +3,11 @@
  * Mock data for now; will be served by the CMS once integrated, which is
  * why the accessor is async — mirrors src/lib/site-settings.ts.
  *
- * Media is modeled to leave room for video later: the hero holds an
- * `image` today, and a `video` could be added without reshaping this.
- * We don't build video features yet, but we don't bake photo-only
- * assumptions into the data model either.
+ * Media uses the shared discriminated model. Only images are rendered today;
+ * video playback remains a later feature.
  */
 
-export type HeroImage = {
-  src: string;
-  /** Descriptive alt text; empty string only if the image is purely decorative. */
-  alt: string;
-  /** Intrinsic dimensions, required so next/image can reserve space (no CLS). */
-  width: number;
-  height: number;
-};
+import type { Media } from "@/lib/media";
 
 export type HomeSectionLink = {
   title: string;
@@ -26,7 +17,7 @@ export type HomeSectionLink = {
 
 export type HomeContent = {
   hero: {
-    image: HeroImage;
+    media: Media;
   };
   intro: string;
   sections: HomeSectionLink[];
@@ -34,7 +25,8 @@ export type HomeContent = {
 
 const mockHomeContent: HomeContent = {
   hero: {
-    image: {
+    media: {
+      type: "image",
       src: "/hero-sample.jpg",
       alt: "Placeholder hero image",
       width: 1920,
