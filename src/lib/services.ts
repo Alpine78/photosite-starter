@@ -9,14 +9,7 @@
  * per service, so a card renders cleanly with or without them.
  */
 
-export type ServiceImage = {
-  src: string;
-  /** Descriptive alt text; empty string only if the image is purely decorative. */
-  alt: string;
-  /** Intrinsic dimensions, required so next/image can reserve space (no CLS). */
-  width: number;
-  height: number;
-};
+import type { Media } from "@/lib/media";
 
 export type ServicePricePackage = {
   /** Package name, e.g. "Half day", "Full day". */
@@ -35,8 +28,8 @@ export type Service = {
   shortDescription: string;
   /** Full description as paragraphs; rendered on the detail page. */
   description: string[];
-  /** Optional cover image; the listing card and detail page work without it. */
-  coverImage?: ServiceImage;
+  /** Optional cover media; current views render its image variant. */
+  coverMedia?: Media;
   /**
    * Optional scannable "from" price for the listing card, e.g. "From 450 €".
    * Pre-formatted string, not a number — currency and wording come from content.
@@ -56,7 +49,8 @@ const mockServices: Service[] = [
       "A short, friendly session focused on natural light and genuine expressions. We start with a quick chat about the look you want, then shoot in a location that suits you — studio, home, or outdoors.",
       "You receive a curated set of edited images, delivered through an online gallery. Placeholder copy; replaced with real wording from the CMS.",
     ],
-    coverImage: {
+    coverMedia: {
+      type: "image",
       src: "/hero-placeholder.svg",
       alt: "Placeholder portrait session cover",
       width: 1600,
@@ -85,7 +79,8 @@ const mockServices: Service[] = [
       "Documentary-style coverage that captures the day as it unfolds, with a calm, unobtrusive presence. Every wedding is quoted individually based on hours, locations, and second-shooter needs.",
       "Placeholder copy; replaced with real wording from the CMS.",
     ],
-    coverImage: {
+    coverMedia: {
+      type: "image",
       src: "/hero-placeholder.svg",
       alt: "Placeholder wedding cover",
       width: 1600,
@@ -106,7 +101,7 @@ const mockServices: Service[] = [
     ],
   },
   {
-    // Intentionally has no cover image: the card must render cleanly without one.
+    // Intentionally has no cover media: the card must render cleanly without one.
     slug: "events",
     name: "Events",
     shortDescription:
@@ -134,7 +129,8 @@ const mockServices: Service[] = [
       "Commissioned photography for businesses — product shoots, interiors, team portraits, and brand campaigns. Every project is scoped and quoted individually, so there is no fixed price list.",
       "Get in touch with a brief and I'll prepare a tailored proposal. Placeholder copy; replaced with real wording from the CMS.",
     ],
-    coverImage: {
+    coverMedia: {
+      type: "image",
       src: "/hero-placeholder.svg",
       alt: "Placeholder commercial photography cover",
       width: 1600,

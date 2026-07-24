@@ -12,18 +12,21 @@ export default async function Home() {
 
   return (
     <main>
-      {/* Hero — full width, native aspect ratio, never cropped. Height
-          follows the image's own ratio; width/height reserve space (no CLS). */}
+      {/* Hero image — full width, native aspect ratio, never cropped. Height
+          follows its own ratio; width/height reserve space (no CLS).
+          Video rendering is intentionally outside the current scope. */}
       <section className="relative">
-        <Image
-          src={hero.image.src}
-          alt={hero.image.alt}
-          width={hero.image.width}
-          height={hero.image.height}
-          priority
-          unoptimized
-          className="h-auto w-full"
-        />
+        {hero.media.type === "image" && (
+          <Image
+            src={hero.media.src}
+            alt={hero.media.alt}
+            width={hero.media.width}
+            height={hero.media.height}
+            priority
+            unoptimized
+            className="h-auto w-full"
+          />
+        )}
         {/* Scrim keeps overlaid text legible over any image. A taller,
             deeper gradient gives the title room to read big and bold. */}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pb-8 pt-28 sm:px-6 sm:pb-14 sm:pt-40 lg:pb-20">

@@ -8,27 +8,20 @@
  * is a mapping exercise rather than a model rewrite.
  */
 
-import type { ServiceImage } from "@/lib/services";
+import type { Media } from "@/lib/media";
 
 export type ArticleCategory = {
   slug: string;
   name: string;
 };
 
-// Re-use the image shape from services for consistency.
-export type ArticleImage = ServiceImage;
-
 export type ContentBlock =
   | { type: "paragraph"; text: string }
   | { type: "heading"; level: 2 | 3; text: string }
   | { type: "blockquote"; text: string; attribution?: string }
   | {
-      type: "image";
-      src: string;
-      alt: string;
-      width: number;
-      height: number;
-      caption?: string;
+      type: "media";
+      media: Media;
     }
   | { type: "list"; ordered: boolean; items: string[] }
   | {
@@ -47,8 +40,8 @@ export type Article = {
   excerpt: string;
   categories: ArticleCategory[];
   tags?: string[];
-  /** Optional cover image; listing card and detail page work without one. */
-  coverImage?: ArticleImage;
+  /** Optional cover media; current views render its image variant. */
+  coverMedia?: Media;
   body: ContentBlock[];
 };
 
@@ -76,7 +69,8 @@ const mockArticles: Article[] = [
       "Focal length and maximum aperture are only the start. Here is what I look for after years of shooting sports and wildlife with long glass.",
     categories: [{ slug: "gear", name: "Gear" }],
     tags: ["lenses", "telephoto", "sports photography"],
-    coverImage: {
+    coverMedia: {
+      type: "image",
       src: "/hero-placeholder.svg",
       alt: "Placeholder telephoto lens cover",
       width: 1600,
@@ -109,13 +103,16 @@ const mockArticles: Article[] = [
         ],
       },
       {
-        type: "image",
-        src: "/hero-placeholder.svg",
-        alt: "Placeholder: telephoto lens mounted on a camera body",
-        width: 1600,
-        height: 1067,
-        caption:
-          "A telephoto mounted on a tripod collar — essential for long focal lengths.",
+        type: "media",
+        media: {
+          type: "image",
+          src: "/hero-placeholder.svg",
+          alt: "Placeholder: telephoto lens mounted on a camera body",
+          width: 1600,
+          height: 1067,
+          caption:
+            "A telephoto mounted on a tripod collar — essential for long focal lengths.",
+        },
       },
       { type: "heading", level: 2, text: "Video walkthrough" },
       {
@@ -142,7 +139,8 @@ const mockArticles: Article[] = [
       "Aperture, shutter speed, and ISO are taught as separate controls, but mastering them means learning to trade one against another fluently.",
     categories: [{ slug: "technique", name: "Technique" }],
     tags: ["exposure", "basics", "technique"],
-    coverImage: {
+    coverMedia: {
+      type: "image",
       src: "/hero-placeholder.svg",
       alt: "Placeholder exposure triangle cover",
       width: 1600,
@@ -159,13 +157,16 @@ const mockArticles: Article[] = [
         text: "A wide aperture (small f-number) gathers more light and compresses depth of field. This is desirable for portraits and isolating subjects, but counterproductive for landscapes where front-to-back sharpness is the goal. Placeholder copy.",
       },
       {
-        type: "image",
-        src: "/hero-placeholder.svg",
-        alt: "Placeholder: two photos showing shallow vs. deep depth of field",
-        width: 1600,
-        height: 800,
-        caption:
-          "Left: f/1.8 — shallow depth of field. Right: f/11 — foreground to background in focus.",
+        type: "media",
+        media: {
+          type: "image",
+          src: "/hero-placeholder.svg",
+          alt: "Placeholder: two photos showing shallow vs. deep depth of field",
+          width: 1600,
+          height: 800,
+          caption:
+            "Left: f/1.8 — shallow depth of field. Right: f/11 — foreground to background in focus.",
+        },
       },
       { type: "heading", level: 2, text: "Shutter speed: motion and camera shake" },
       {
@@ -191,7 +192,7 @@ const mockArticles: Article[] = [
     ],
   },
   {
-    // No cover image — listing card and detail page must work without one.
+    // No cover media — listing card and detail page must work without one.
     slug: "packing-for-a-photo-trip",
     title: "What I pack for a week-long photo trip",
     publishedAt: "2024-05-20",
@@ -238,7 +239,8 @@ const mockArticles: Article[] = [
       "Modern sensors have changed what is possible hand-held after dark. Here is how I approach concerts, street scenes, and indoor events.",
     categories: [{ slug: "technique", name: "Technique" }],
     tags: ["low light", "technique", "ISO"],
-    coverImage: {
+    coverMedia: {
+      type: "image",
       src: "/hero-placeholder.svg",
       alt: "Placeholder low-light cover",
       width: 1600,
@@ -261,12 +263,15 @@ const mockArticles: Article[] = [
         ],
       },
       {
-        type: "image",
-        src: "/hero-placeholder.svg",
-        alt: "Placeholder: concert shot at ISO 6400",
-        width: 1600,
-        height: 1067,
-        caption: "ISO 6400, f/2.8, 1/250 s — placeholder EXIF example.",
+        type: "media",
+        media: {
+          type: "image",
+          src: "/hero-placeholder.svg",
+          alt: "Placeholder: concert shot at ISO 6400",
+          width: 1600,
+          height: 1067,
+          caption: "ISO 6400, f/2.8, 1/250 s — placeholder EXIF example.",
+        },
       },
       { type: "heading", level: 2, text: "Post-processing" },
       {
