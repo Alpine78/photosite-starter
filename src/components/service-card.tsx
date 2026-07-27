@@ -30,7 +30,7 @@ export function ServiceCard({ service }: ServiceCardProps) {
           alt={coverMedia.alt}
           width={coverMedia.width}
           height={coverMedia.height}
-          unoptimized
+          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
           className="h-auto w-full"
         />
       )}

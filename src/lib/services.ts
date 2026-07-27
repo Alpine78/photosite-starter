@@ -7,6 +7,12 @@
  * Generic by design: no real photographer's service names, prices, or copy
  * are baked into the template. Both the cover image and pricing are optional
  * per service, so a card renders cleanly with or without them.
+ *
+ * Covers are never cropped, so a card is as tall as its cover's native ratio
+ * makes it. In a multi-column card grid that means wildly different ratios
+ * (a 2:3 portrait beside a 3:2 landscape) tear large gaps into the rows.
+ * Keep demo covers within a similar ratio range; tall frames belong in the
+ * portfolio masonry and in article bodies, which are single-column.
  */
 
 import type { Media } from "@/lib/media";
@@ -51,10 +57,10 @@ const mockServices: Service[] = [
     ],
     coverMedia: {
       type: "image",
-      src: "/hero-placeholder.svg",
-      alt: "Placeholder portrait session cover",
-      width: 1600,
-      height: 1000,
+      src: "/gallery/coastal-landscape.webp",
+      alt: "Rocky shoreline beside calm water under an overcast sky",
+      width: 1536,
+      height: 1024,
     },
     startingPrice: "From 250 €",
     pricing: [
@@ -81,10 +87,10 @@ const mockServices: Service[] = [
     ],
     coverMedia: {
       type: "image",
-      src: "/hero-placeholder.svg",
-      alt: "Placeholder wedding cover",
-      width: 1600,
-      height: 1067,
+      src: "/gallery/open-marsh.webp",
+      alt: "Reflective water channel winding through an open marsh",
+      width: 1536,
+      height: 1024,
     },
     startingPrice: "From 1 400 €",
     pricing: [
@@ -131,10 +137,10 @@ const mockServices: Service[] = [
     ],
     coverMedia: {
       type: "image",
-      src: "/hero-placeholder.svg",
-      alt: "Placeholder commercial photography cover",
-      width: 1600,
-      height: 1000,
+      src: "/gallery/lakeside-reeds.webp",
+      alt: "Golden reeds moving beside blue lake water",
+      width: 1254,
+      height: 1254,
     },
   },
 ];

@@ -23,7 +23,7 @@ export default async function Home() {
             width={hero.media.width}
             height={hero.media.height}
             priority
-            unoptimized
+            sizes="100vw"
             className="h-auto w-full"
           />
         )}

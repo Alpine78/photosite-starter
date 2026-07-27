@@ -67,7 +67,7 @@ export function ArticleBody({ blocks }: ArticleBodyProps) {
                   alt={block.media.alt}
                   width={block.media.width}
                   height={block.media.height}
-                  unoptimized
+                  sizes="(min-width: 768px) 768px, 100vw"
                   className="h-auto w-full rounded-lg"
                 />
                 {(block.media.caption || block.media.credit) && (

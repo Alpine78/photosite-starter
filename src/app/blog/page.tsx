@@ -72,7 +72,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                     alt={article.coverMedia.alt}
                     width={article.coverMedia.width}
                     height={article.coverMedia.height}
-                    unoptimized
+                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
                     className="h-auto w-full"
                   />
                 )}

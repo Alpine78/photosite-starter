@@ -15,10 +15,23 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "PhotoSite Starter",
-  description: "A modern, clonable photography website template",
-};
+/**
+ * Root metadata comes from SiteSettings, never from hardcoded strings: a clone
+ * rebrands by editing site settings (later, the CMS) and nothing else. The
+ * template applies to child pages that set only a `title`, so each page defines
+ * its own name and the site name is appended here.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { siteName, defaultSeo } = await getSiteSettings();
+
+  return {
+    title: {
+      default: siteName,
+      template: defaultSeo.titleTemplate,
+    },
+    description: defaultSeo.description,
+  };
+}
 
 export default async function RootLayout({
   children,
@@ -30,7 +43,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col font-sans antialiased`}
       >
         <SiteHeader
           siteName={settings.siteName}

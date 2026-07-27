@@ -70,7 +70,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
               alt={coverMedia.alt}
               width={coverMedia.width}
               height={coverMedia.height}
-              unoptimized
+              sizes="(min-width: 1024px) 784px, 100vw"
               className="mt-8 h-auto w-full rounded-lg"
             />
           )}

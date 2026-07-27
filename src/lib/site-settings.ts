@@ -50,13 +50,14 @@ const mockSiteSettings: SiteSettings = {
   siteName: "Studio Example",
   photographerName: "Jane Example",
   tagline: "Timeless photography for life's important moments",
+  // Only routes that exist are listed. "About" and "Contact" are added here
+  // once those pages land (contact form: AB#12) — a nav entry without a route
+  // is a 404 on every page of the site.
   navigation: [
     { label: "Home", href: "/" },
     { label: "Services", href: "/services" },
     { label: "Portfolio", href: "/portfolio" },
     { label: "Blog", href: "/blog" },
-    { label: "About", href: "/about" },
-    { label: "Contact", href: "/contact" },
   ],
   contact: {
     email: "hello@studio-example.com",
@@ -79,7 +80,7 @@ const mockSiteSettings: SiteSettings = {
   footerLinks: [
     { label: "Services", href: "/services" },
     { label: "Portfolio", href: "/portfolio" },
-    { label: "Contact", href: "/contact" },
+    { label: "Blog", href: "/blog" },
   ],
   copyrightHolder: "Studio Example",
   defaultSeo: {
