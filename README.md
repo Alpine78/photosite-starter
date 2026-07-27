@@ -93,7 +93,23 @@ Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) for the project's own source.
+
+Third-party material — the Geist typefaces and two vendored agent skills — stays under
+its own license. Attribution is in [NOTICE](NOTICE), full license texts in
+[licenses/](licenses/), and the audit behind both, covering every shipped asset, in
+[docs/asset-inventory.md](docs/asset-inventory.md).
+
+The demo photographs in `public/gallery/` are AI-generated placeholders owned by the
+project author. They are meant to be replaced with the photographer's own work.
+
+## Contributing
+
+**This project does not accept external contributions.** The repository is public to be
+read, cloned, and rebranded, but pull requests are not accepted. This keeps future
+licensing decisions unencumbered without the overhead of a contributor agreement.
+
+Found a bug or have an idea? Open an issue — that is welcome.
 
 ## Status
 

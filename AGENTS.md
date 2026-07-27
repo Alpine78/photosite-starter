@@ -157,6 +157,8 @@ This is the complete set — there is no other documentation to hunt for:
 | `AGENTS.md` | all AI agents (canonical) | project-level working rules or conventions change |
 | `CLAUDE.md` | Claude Code only | a Claude-specific skill or workflow changes — it imports this file, so put shared rules here |
 | `docs/adr/` | future maintainers | a hard-to-reverse technical decision is made (see below) |
+| `docs/asset-inventory.md` | licensing audit | any third-party asset, font, or shipped dependency is added or removed |
+| `NOTICE`, `licenses/` | anyone receiving the product | a third-party component with an attribution requirement is added |
 | `.claude/skills/`, `.agents/skills/` | agents | a recurring workflow needs a skill; duplicate into both, no symlinks |
 
 Rules:
@@ -170,6 +172,14 @@ Rules:
   UI is built around, a data model boundary, a hosting or CMS commitment, a product
   boundary. See `docs/adr/README.md` for naming and format. Routine choices do not need
   one.
+- **Anything third-party that ships gets recorded before it lands** — a font, an image,
+  an icon set, a vendored skill, a runtime dependency. Add it to
+  `docs/asset-inventory.md` with source, author, license, attribution requirement, and
+  commercial-use status; if the license requires attribution, add it to `NOTICE` and put
+  the license text in `licenses/`. This project is redistributed to people who rebrand
+  and deploy it, so "it's only a placeholder" is not an exemption.
+- **The project accepts no external contributions** (see `README.md`). Do not add
+  contribution guides, PR templates, or CLA tooling.
 
 ## Definition of Done (summary)
 
