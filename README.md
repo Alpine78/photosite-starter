@@ -39,8 +39,11 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 - `src/app` – App Router routes and layouts
 - `src/components` – reusable UI components *(added as features land)*
 - `src/lib` – shared logic, configuration, data access, and the generic media model
+- `docs/adr` – architecture decision records ([conventions](docs/adr/README.md))
 
 Import alias: `@/*` → `src/*`
+
+Working rules for AI coding agents live in [AGENTS.md](AGENTS.md).
 
 ## Getting started
 

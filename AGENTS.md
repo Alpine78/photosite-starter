@@ -133,7 +133,11 @@ npm run build   # production build (CI gate)
   commit message.
 - When a change is ready, provide a PR title and description without waiting for a separate
   request: concise summary, key implementation details, validation performed, and any
-  validation that could not be run and why.
+  validation that could not be run and why. Deliver it as a **fenced Markdown block that
+  can be copied straight into the PR form** — it is pasted verbatim, so chat formatting
+  has to be stripped by hand otherwise.
+- **No AI attribution** in commit messages or PR descriptions — no "Generated with…"
+  footers or equivalent. End the description at the last substantive line.
 
 ## CI / project management
 
@@ -143,11 +147,29 @@ npm run build   # production build (CI gate)
   (Agile process: Epic → Feature → User Story → Task)
 - Workflow: feature branch → PR → review → CI → merge to `main`
 
-## Documentation updates
+## Documentation
 
-- Update `README.md` when scope, structure, or setup changes
-- Update `AGENTS.md` only when project-level working rules or conventions change
-- Keep documentation changes in the same PR as the change they describe
+This is the complete set — there is no other documentation to hunt for:
+
+| File | Audience | Update it when |
+| --- | --- | --- |
+| `README.md` | humans evaluating or cloning the project | scope, structure, setup, or MVP progress changes |
+| `AGENTS.md` | all AI agents (canonical) | project-level working rules or conventions change |
+| `CLAUDE.md` | Claude Code only | a Claude-specific skill or workflow changes — it imports this file, so put shared rules here |
+| `docs/adr/` | future maintainers | a hard-to-reverse technical decision is made (see below) |
+| `.claude/skills/`, `.agents/skills/` | agents | a recurring workflow needs a skill; duplicate into both, no symlinks |
+
+Rules:
+
+- Keep documentation changes in the same PR as the change they describe.
+- **Status text goes stale silently.** The MVP checklist in `README.md` and the feature
+  status in this file describe a moving target. When you finish a story, check both —
+  the code and Azure Boards are authoritative, and prose that contradicts them is worse
+  than no prose.
+- Record hard-to-reverse technical decisions as an ADR in `docs/adr/`: a dependency the
+  UI is built around, a data model boundary, a hosting or CMS commitment, a product
+  boundary. See `docs/adr/README.md` for naming and format. Routine choices do not need
+  one.
 
 ## Definition of Done (summary)
 
