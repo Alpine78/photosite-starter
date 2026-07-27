@@ -1,0 +1,57 @@
+PhotoSite Starter
+Copyright (c) Ilkka Rytkönen
+
+This product includes third-party material. The components below are NOT covered
+by this project's MIT LICENSE; each remains under its own license, reproduced in
+the licenses/ directory.
+
+The full audit — source, author, attribution requirement, and commercial-use
+status for every shipped asset — is in docs/asset-inventory.md.
+
+-------------------------------------------------------------------------------
+Geist and Geist Mono (typefaces)
+-------------------------------------------------------------------------------
+Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font)
+Licensed under the SIL Open Font License, Version 1.1 — see licenses/OFL-1.1.txt
+
+The font files are not stored in this repository. They are fetched at build time
+by next/font and embedded, self-hosted, into the build output. A deployed site
+therefore redistributes them, and the OFL requires this copyright notice and the
+license to accompany that redistribution.
+
+-------------------------------------------------------------------------------
+architecture skill (.claude/skills/architecture, .agents/skills/architecture)
+-------------------------------------------------------------------------------
+Source: https://github.com/anthropics/knowledge-work-plugins
+        engineering/skills/architecture/SKILL.md
+Licensed under the Apache License, Version 2.0 — see licenses/Apache-2.0.txt
+
+Vendored unmodified (verified byte-identical to upstream after line-ending
+normalization). The upstream repository ships no NOTICE file.
+
+-------------------------------------------------------------------------------
+security-review skill (.claude/skills/security-review, .agents/skills/...)
+-------------------------------------------------------------------------------
+Copyright (c) 2026 Affaan Mustafa
+Source: https://github.com/affaan-m/ECC (formerly affaan-m/everything-claude-code)
+        skills/security-review/SKILL.md
+Licensed under the MIT License — see licenses/MIT-affaan-m-ECC.txt
+
+Vendored, then diverged from upstream — see docs/asset-inventory.md.
+
+-------------------------------------------------------------------------------
+Demo photographs (public/gallery/)
+-------------------------------------------------------------------------------
+Generated with OpenAI services. Under OpenAI's Terms of Use, OpenAI assigns all
+of its right, title, and interest in the output to the user, so these are owned
+by this project's author and are distributed under the project's MIT LICENSE.
+They are placeholder content, intended to be replaced with the photographer's
+own work.
+
+-------------------------------------------------------------------------------
+npm dependencies
+-------------------------------------------------------------------------------
+Not redistributed by this repository: the project is distributed as source and
+each clone installs its own dependencies. Their licenses are recorded in
+docs/asset-inventory.md and must be re-reviewed if the distribution model ever
+changes to a bundled or binary deliverable (AB#42).

@@ -1,0 +1,11 @@
+# Line-ending normalization, enforced by the repository rather than left to each
+# machine's core.autocrlf setting. Objects are stored as LF; Windows working
+# copies still get CRLF on checkout.
+* text=auto
+
+# Vendored third-party text is stored byte-identical to its upstream source, so
+# provenance can be verified with a plain diff (see docs/asset-inventory.md).
+# Note that a Windows *working copy* is still CRLF — normalize before diffing.
+licenses/**            text eol=lf
+.claude/skills/**      text eol=lf
+.agents/skills/**      text eol=lf
