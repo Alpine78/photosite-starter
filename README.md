@@ -64,15 +64,16 @@ Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build
 
 - [x] Next.js App Router project setup (TypeScript, Tailwind, `src/`)
 - [x] CI pipeline (lint + build)
-- [ ] Responsive base layout with header and footer
-- [ ] Site settings (name, branding, contact, navigation)
-- [ ] Home page
+- [x] Responsive base layout with header and footer
+- [x] Site settings (name, branding, contact, navigation)
+- [x] Home page
 - [x] Services listing and individual service pages
-- [ ] Portfolio galleries with fullscreen lightbox
+- [x] Shared generic media model (photo and video capable)
 - [x] Blog / article content type (supports long story articles)
+- [ ] Portfolio galleries with fullscreen lightbox — *grid done, lightbox pending*
 - [ ] Contact form
-- [ ] Basic SEO (metadata, sitemap, robots.txt)
-- [ ] CMS integration (Sanity) or clear mock data layer first
+- [ ] Basic SEO (metadata, sitemap, robots.txt) — *root metadata done, sitemap/robots pending*
+- [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`*
 - [ ] Production deployment
 - [ ] Redirects for important legacy URLs (first implementation)
 
@@ -93,4 +94,6 @@ Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build
 
 ## Status
 
-🚧 Work in progress — pre-MVP skeleton.
+🚧 Work in progress — MVP in progress. The public pages (home, services, blog, portfolio
+grid) are built against a mock data layer; the lightbox, contact form, and CMS integration
+are still open. See the MVP scope checklist above.

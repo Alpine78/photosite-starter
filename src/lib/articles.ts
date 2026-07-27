@@ -6,6 +6,11 @@
  *
  * Body is a typed block list (Portable Text shape), so the CMS migration
  * is a mapping exercise rather than a model rewrite.
+ *
+ * Cover media appears in the multi-column listing grid, where images are never
+ * cropped and card height therefore follows the cover's native ratio: keep
+ * covers within a similar ratio range so rows don't tear open. Body media is
+ * single-column, so any ratio works there.
  */
 
 import type { Media } from "@/lib/media";
@@ -71,10 +76,10 @@ const mockArticles: Article[] = [
     tags: ["lenses", "telephoto", "sports photography"],
     coverMedia: {
       type: "image",
-      src: "/hero-placeholder.svg",
-      alt: "Placeholder telephoto lens cover",
-      width: 1600,
-      height: 1067,
+      src: "/gallery/open-marsh.webp",
+      alt: "Reflective water channel winding through an open marsh",
+      width: 1536,
+      height: 1024,
     },
     body: [
       {
@@ -106,12 +111,12 @@ const mockArticles: Article[] = [
         type: "media",
         media: {
           type: "image",
-          src: "/hero-placeholder.svg",
-          alt: "Placeholder: telephoto lens mounted on a camera body",
-          width: 1600,
-          height: 1067,
+          src: "/gallery/misty-birch.webp",
+          alt: "Silver birch standing in a misty green forest",
+          width: 1024,
+          height: 1536,
           caption:
-            "A telephoto mounted on a tripod collar — essential for long focal lengths.",
+            "Placeholder image and caption; replaced with real photography from the CMS.",
         },
       },
       { type: "heading", level: 2, text: "Video walkthrough" },
@@ -141,10 +146,10 @@ const mockArticles: Article[] = [
     tags: ["exposure", "basics", "technique"],
     coverMedia: {
       type: "image",
-      src: "/hero-placeholder.svg",
-      alt: "Placeholder exposure triangle cover",
-      width: 1600,
-      height: 1000,
+      src: "/gallery/coastal-landscape.webp",
+      alt: "Rocky shoreline beside calm water under an overcast sky",
+      width: 1536,
+      height: 1024,
     },
     body: [
       {
@@ -160,12 +165,12 @@ const mockArticles: Article[] = [
         type: "media",
         media: {
           type: "image",
-          src: "/hero-placeholder.svg",
-          alt: "Placeholder: two photos showing shallow vs. deep depth of field",
-          width: 1600,
-          height: 800,
+          src: "/gallery/forest-stream.webp",
+          alt: "Forest stream flowing over dark moss-covered stones",
+          width: 1024,
+          height: 1536,
           caption:
-            "Left: f/1.8 — shallow depth of field. Right: f/11 — foreground to background in focus.",
+            "Placeholder image and caption; replaced with real photography from the CMS.",
         },
       },
       { type: "heading", level: 2, text: "Shutter speed: motion and camera shake" },
@@ -241,10 +246,10 @@ const mockArticles: Article[] = [
     tags: ["low light", "technique", "ISO"],
     coverMedia: {
       type: "image",
-      src: "/hero-placeholder.svg",
-      alt: "Placeholder low-light cover",
-      width: 1600,
-      height: 1067,
+      src: "/gallery/lichen-stones.webp",
+      alt: "Rain-darkened stones patterned with pale lichen",
+      width: 1254,
+      height: 1254,
     },
     body: [
       {
@@ -266,11 +271,12 @@ const mockArticles: Article[] = [
         type: "media",
         media: {
           type: "image",
-          src: "/hero-placeholder.svg",
-          alt: "Placeholder: concert shot at ISO 6400",
-          width: 1600,
-          height: 1067,
-          caption: "ISO 6400, f/2.8, 1/250 s — placeholder EXIF example.",
+          src: "/gallery/misty-birch.webp",
+          alt: "Silver birch standing in a misty green forest",
+          width: 1024,
+          height: 1536,
+          caption:
+            "Placeholder image and caption; replaced with real photography from the CMS.",
         },
       },
       { type: "heading", level: 2, text: "Post-processing" },

@@ -5,6 +5,14 @@
  *
  * Media uses the shared discriminated model. Only images are rendered today;
  * video playback remains a later feature.
+ *
+ * The hero renders at the image's native ratio and is never cropped, so the
+ * wide-banner look comes from the photographer supplying a wide-format image,
+ * not from a fixed-height crop band. The placeholder here is a 3:2 frame from
+ * the demo gallery.
+ *
+ * Demo assets must stay generic: no watermark, signature, studio name, or URL
+ * burned into the pixels. A clone inherits every file in `public/`.
  */
 
 import type { Media } from "@/lib/media";
@@ -27,10 +35,10 @@ const mockHomeContent: HomeContent = {
   hero: {
     media: {
       type: "image",
-      src: "/hero-sample.jpg",
-      alt: "Placeholder hero image",
-      width: 1920,
-      height: 1080,
+      src: "/gallery/coastal-landscape.webp",
+      alt: "Rocky shoreline beside calm water under an overcast sky",
+      width: 1536,
+      height: 1024,
     },
   },
   intro:
@@ -47,9 +55,9 @@ const mockHomeContent: HomeContent = {
       description: "Selected work across recent projects.",
     },
     {
-      title: "Contact",
-      href: "/contact",
-      description: "Get in touch to discuss your project.",
+      title: "Blog",
+      href: "/blog",
+      description: "Notes on gear, technique, and work in progress.",
     },
   ],
 };

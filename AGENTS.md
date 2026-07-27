@@ -17,7 +17,9 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
 
 - **Keep it generic.** Never hardcode a photographer's name, location, contact details,
   brand colors, or service categories into components, schemas, or data models. These
-  belong in site settings (`SiteSettings`) or CMS content.
+  belong in site settings (`SiteSettings`) or CMS content. This covers **assets**, not
+  just code: a clone inherits every file in `public/`, so demo images must carry no
+  watermark, signature, studio name, or URL burned into the pixels.
 - **MVP first.** Do not build roadmap features (client galleries, proof selection,
   multilingual, EXIF toggles, analytics) before they are explicitly prioritized.
 - **Minimal dependencies.** Do not add a library without a clear, stated need.
@@ -65,9 +67,15 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
 
 ## Feature status awareness
 
-Current state: **pre-MVP skeleton** — create-next-app base, CI pipeline, no features yet.
-The MVP checklist lives in `README.md`. Before starting work, check the current state of
-the code and the relevant work item scope; do not assume a feature exists or is missing.
+Current state: **MVP in progress.** Built and merged: site settings mock layer, responsive
+header and footer, home page, services listing and detail pages, article/blog listing and
+detail pages, the shared generic media model, and the portfolio thumbnail grid. Not yet
+built: lightbox, contact form, SEO metadata/sitemap/robots, CMS integration, deployment.
+
+This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
+checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
+check the current state of the code and the relevant work item scope; do not assume a
+feature exists or is missing.
 
 ## Implementation strategy
 
