@@ -32,11 +32,14 @@ Two conventions on top of the template:
 
 ## Index
 
-*No ADRs recorded yet.* Expected first entries:
+| ADR | Work item | Decision | Status |
+| --- | --- | --- | --- |
+| [0001](0001-lightbox-library.md) | AB#13 | Lightbox library: PhotoSwipe over react-photo-view | Accepted |
+
+Expected further entries:
 
 | Work item | Decision |
 | --- | --- |
-| AB#13 | Lightbox library: PhotoSwipe vs. React Photo View |
 | AB#41 | Customer customization and upstream update boundaries |
 | AB#42 | Free Core vs. Premium product boundary |
 
