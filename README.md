@@ -73,7 +73,9 @@ Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build
 - [x] Services listing and individual service pages
 - [x] Shared generic media model (photo and video capable)
 - [x] Blog / article content type (supports long story articles)
-- [ ] Portfolio galleries with fullscreen lightbox — *grid done, lightbox pending*
+- [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
+- [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
+  and optional long-form body content — *thumbnail grid done*
 - [ ] Contact form
 - [ ] Basic SEO (metadata, sitemap, robots.txt) — *root metadata done, sitemap/robots pending*
 - [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`*
@@ -82,9 +84,13 @@ Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build
 
 ## Later roadmap (not in MVP)
 
+- Keyword-driven dynamic galleries generated from one or more hierarchical keywords
+  using AND matching, shareable URLs, and the same paginated grid and lightbox as
+  curated galleries
 - Video showcase in galleries, articles, and service pages; video delivery/sharing
   in client galleries
-- Private client galleries (token/PIN access, noindex, expiration)
+- Private client galleries, subject to a separate security and storage decision
+  covering revocable/expiring access, noindex/no-store behavior, retention, and downloads
 - Proof galleries with photo selection and extra-photo pricing
 - Optional image sales and fulfilment (enquiry first; checkout and cart only
   after a separate product, legal, security, and delivery decision)
@@ -115,6 +121,8 @@ Found a bug or have an idea? Open an issue — that is welcome.
 
 ## Status
 
-🚧 Work in progress — MVP in progress. The public pages (home, services, blog, portfolio
-grid) are built against a mock data layer; the lightbox, contact form, and CMS integration
-are still open. See the MVP scope checklist above.
+🚧 Work in progress — MVP in progress. The public pages (home, services, blog, and the
+initial portfolio grid) are built against a mock data layer. The hierarchical content
+tree, shared paginated gallery experience, lightbox, contact form, and CMS integration
+are still open. Keyword-driven dynamic galleries remain post-MVP. See the MVP scope
+checklist above.
