@@ -86,6 +86,8 @@ Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build
   in client galleries
 - Private client galleries (token/PIN access, noindex, expiration)
 - Proof galleries with photo selection and extra-photo pricing
+- Optional image sales and fulfilment (enquiry first; checkout and cart only
+  after a separate product, legal, security, and delivery decision)
 - Multilingual content
 - EXIF display with per-category visibility
 - Service-specific testimonials
