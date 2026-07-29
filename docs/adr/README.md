@@ -35,11 +35,15 @@ Two conventions on top of the template:
 | ADR | Work item | Decision | Status |
 | --- | --- | --- | --- |
 | [0001](0001-lightbox-library.md) | AB#13 | Lightbox library: PhotoSwipe over react-photo-view | Accepted |
+| [0002](0002-media-identity-and-placement-boundary.md) | AB#64 | Shared media identity and placement metadata boundary | Accepted |
 
 Expected further entries:
 
 | Work item | Decision |
 | --- | --- |
+| AB#66 | Curated and dynamic gallery query contract |
+| AB#95 | Image sales, checkout, and fulfilment boundary |
+| AB#122 | Private gallery security, delivery, and retention boundary |
 | AB#41 | Customer customization and upstream update boundaries |
 | AB#42 | Free Core vs. Premium product boundary |
 
