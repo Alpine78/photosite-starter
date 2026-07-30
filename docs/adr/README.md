@@ -36,6 +36,7 @@ Two conventions on top of the template:
 | --- | --- | --- | --- |
 | [0001](0001-lightbox-library.md) | AB#13 | Lightbox library: PhotoSwipe over react-photo-view | Accepted |
 | [0002](0002-media-identity-and-placement-boundary.md) | AB#64 | Shared media identity and placement metadata boundary | Accepted |
+| [0003](0003-public-content-tree-and-url-structure.md) | AB#102 | Public content tree, category taxonomy, and localized URL structure | Proposed |
 
 Expected further entries:
 
