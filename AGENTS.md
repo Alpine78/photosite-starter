@@ -21,7 +21,10 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   just code: a clone inherits every file in `public/`, so demo images must carry no
   watermark, signature, studio name, or URL burned into the pixels.
 - **MVP first.** Do not build roadmap features (client galleries, proof selection,
-  multilingual, EXIF toggles, analytics) before they are explicitly prioritized.
+  multilingual authoring and AI translation, EXIF toggles, analytics) before they are
+  explicitly prioritized. **Locale-aware public routing is prioritized:** ADR-0003 makes
+  unprefixed default-locale Finnish routes and `/en/…` English routes a first-launch
+  requirement. The authoring workflow around them is not.
 - **Minimal dependencies.** Do not add a library without a clear, stated need.
 - **Small, reviewable changes.** No large rewrites without an explicit request.
 - **Never crop images.** Gallery, preview (thumbnails included), and hero/banner images
