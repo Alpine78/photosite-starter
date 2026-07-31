@@ -98,6 +98,9 @@ Then iterate.
 
 - App Router under `src/app`, shared components in `src/components`, shared logic in `src/lib`
 - Import alias `@/*` → `src/*`
+- Browser-free TypeScript tests use Vitest, live in `src/**/*.test.ts`, and must stay
+  deterministic with no browser, external network, secrets, personal data, or live
+  CMS/email dependencies. Playwright is reserved for separate public-journey tests.
 - TypeScript strict mode; build must pass with `npm run build`
 - Tailwind CSS v4 (CSS-based config via `@tailwindcss/postcss`, no `tailwind.config` file)
 - Mobile-first, semantic HTML, visible focus states
@@ -120,6 +123,7 @@ Then iterate.
 ```bash
 npm run dev     # dev server
 npm run lint    # ESLint (CI gate)
+npm test        # browser-free TypeScript tests (CI gate, one run)
 npm run build   # production build (CI gate)
 ```
 
@@ -145,7 +149,7 @@ npm run build   # production build (CI gate)
 ## CI / project management
 
 - Source code: GitHub (public, `Alpine78/photosite-starter`)
-- CI: Azure Pipelines (`azure-pipelines.yml`) — lint + build on push/PR to `main`
+- CI: Azure Pipelines (`azure-pipelines.yml`) — lint + test + build on push/PR to `main`
 - Project management: Azure DevOps Boards, org `ilkkarytkonen`, project `photosite-starter`
   (Agile process: Epic → Feature → User Story → Task)
 - Workflow: feature branch → PR → review → CI → merge to `main`
@@ -186,8 +190,8 @@ Rules:
 
 ## Definition of Done (summary)
 
-Acceptance criteria met, TypeScript build passes, lint passes, responsiveness and
-accessibility checked, documentation updated, PR approved.
+Acceptance criteria met, tests pass, TypeScript build passes, lint passes, responsiveness
+and accessibility checked, documentation updated, PR approved.
 
 ## Final principle
 

@@ -25,10 +25,9 @@ steps:
       npm run lint
     displayName: "Lint"
 
-  # Enable once tests exist.
-  # - script: |
-  #     npm test
-  #   displayName: "Test"
+  - script: |
+      npm test
+    displayName: "Test"
 
   - script: |
       npm run build

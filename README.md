@@ -55,18 +55,28 @@ npm run dev
 Other scripts:
 
 ```bash
-npm run lint    # ESLint
-npm run build   # production build
+npm run lint   # ESLint
+npm test       # browser-free TypeScript tests (one run)
+npm run build  # production build
 ```
+
+## Testing
+
+[Vitest](https://vitest.dev) is the single browser-free runner for deterministic
+domain, query, adapter, and server-validation tests. `npm test` runs
+`src/**/*.test.ts` in Node and exits after one run. Tests must not depend on a browser,
+external network, live CMS or email services, secrets, or production/personal fixture
+content. Playwright remains the separate public-journey layer.
 
 ## CI
 
-Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build on pushes and pull requests to `main`.
+Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint, tests, and build
+on pushes and pull requests to `main`.
 
 ## MVP scope
 
 - [x] Next.js App Router project setup (TypeScript, Tailwind, `src/`)
-- [x] CI pipeline (lint + build)
+- [x] CI pipeline (lint + test + build)
 - [x] Responsive base layout with header and footer
 - [x] Site settings (name, branding, contact, navigation)
 - [x] Home page

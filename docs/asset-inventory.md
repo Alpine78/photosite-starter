@@ -4,7 +4,7 @@ Audit of everything non-original that ships in this project, per AB#43. Records 
 source, author, license, attribution requirement, and commercial-use status of each
 item so the Free Core / Premium boundary (AB#42) can be decided on facts.
 
-**Audited:** 2026-07-27 · **Against commit:** `7b5f30f`
+**Audited:** 2026-07-31 · **Against dependency tree:** current `package-lock.json`
 
 ## Distribution model assumed by this audit
 
@@ -62,15 +62,17 @@ Two caveats worth carrying forward:
 
 ## npm dependencies — recorded, not redistributed
 
-337 packages resolved. Licence distribution:
+394 packages are installed in the audited Windows x64 dependency tree. Platform-specific
+optional packages for other targets remain recorded in `package-lock.json` but are not
+included in this installed-tree count. Licence distribution:
 
 | License | Packages |
 | --- | --- |
-| MIT | 286 |
-| Apache-2.0 | 21 |
-| ISC | 13 |
+| MIT | 333 |
+| Apache-2.0 | 23 |
+| ISC | 19 |
 | BSD-2-Clause | 7 |
-| MPL-2.0 | 3 |
+| MPL-2.0 | 5 |
 | BSD-3-Clause | 2 |
 | Apache-2.0 AND LGPL-3.0-or-later | 1 |
 | Python-2.0, CC-BY-4.0, CC0-1.0, 0BSD | 1 each |
