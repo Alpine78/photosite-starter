@@ -1,6 +1,6 @@
 # ADR-0003: Public content tree and URL structure
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-07-29
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
@@ -23,7 +23,7 @@ a page body is not automatically a gallery item and does not enter the gallery r
 set or lightbox sequence.
 
 This ADR was completed in small decisions. Every decision in the AB#102 scope is now
-recorded; the status stays `Proposed` until the project owner accepts it.
+recorded, and the project owner accepted the completed decision on 2026-07-31.
 
 ## Decision
 
@@ -85,7 +85,8 @@ The canonical first page of a gallery renders in this document order:
 3. content-derived page-jump navigation when a long body exists;
 4. optional long body;
 5. gallery section controls; and
-6. image grid.
+6. optional selected-section introduction; and
+7. image grid.
 
 The short lead introduces the gallery. A gallery may consist of the lead and curated
 gallery alone; a long body is not required. When present, the long body provides
@@ -121,11 +122,20 @@ The exact responsive control form and section-selection behavior belong to the g
 section story. This ADR requires equivalent access on mobile and desktop rather than
 assuming that a desktop control row will fit a narrow viewport.
 
-Cursor continuation pages do not repeat the lead, page-jump navigation, or long body.
-They retain a compact visible `h1` identifying the gallery and continuation, followed by
-the section controls and grid. This preserves page context and heading semantics without
-duplicating the editorial content. Cursor URL canonical and indexing policy is decided
-separately in this ADR.
+A named gallery section may have a short optional locale-specific introduction. The
+first page of the selected section renders its authored label as a level-2 heading and
+the introduction after the section controls and before the grid. The introduction uses
+a deliberately small content subset: paragraphs, ordered or unordered lists, and inline
+links and emphasis. It cannot contain headings, media, or embeds. This supports concise
+context such as an ordered event result beneath a `Palkintojenjako` section without
+turning the section into a nested content page. The parameter-free `All` view does not
+concatenate section introductions; it uses the gallery's own lead and optional body.
+
+Cursor continuation pages do not repeat the lead, page-jump navigation, long body, or
+selected-section introduction. They retain a compact visible `h1` identifying the
+gallery and continuation, followed by the section controls and grid. This preserves page
+context and heading semantics without duplicating the editorial content. Cursor URL
+canonical and indexing policy is decided separately in this ADR.
 
 ### 4. An ordered category tree with a maximum depth of five
 
@@ -207,54 +217,64 @@ This is content placement, not media placement. ADR-0002's canonical media conte
 identifies one photograph's public home; this decision identifies one gallery or
 article page's home in the public content tree.
 
-### 6. Locale-prefixed public story namespaces from the first production launch
+### 6. Localized public story namespaces with an unprefixed default locale
 
 Place the category tree and its canonical gallery and article pages beneath one shared,
 human-facing namespace. The English segment is `stories`; the Finnish segment is
 `tarinat`.
 
 The first production deployment publishes Finnish and English content from its first
-launch. Every localized public content-tree route carries an explicit locale prefix,
-including the default Finnish locale:
+launch. The default Finnish locale omits a locale prefix, while every non-default locale
+carries an explicit prefix:
 
-- Finnish: `/fi/tarinat/...`
+- Finnish: `/tarinat/...`
 - English: `/en/stories/...`
 
-Supported locales and their story namespaces are deployment-owned route configuration
-chosen before launch. The first production deployment configures `fi` and `en`. Locale
-prefixes and namespace segments are not editable CMS content: adding or removing a
-supported locale, or changing a live namespace, is a route migration that requires an
-explicit compatibility and redirect plan.
+Supported locales, the default locale, non-default locale prefixes, and story namespaces
+are deployment-owned route configuration chosen before launch. The first production
+deployment configures Finnish as the default locale and English beneath `/en`. These
+values are not editable CMS content. Adding a non-default locale does not move existing
+default-locale URLs, but removing a locale, changing the default locale, or changing a
+live prefix or namespace is a route migration that requires an explicit compatibility
+and redirect plan.
 
-Finnish is the default locale of the first production deployment. The default locale
-receives no privilege in the URL space: it carries its prefix like every other locale, so
-which locale is default stays a configuration value rather than a property baked into
-every canonical path.
+Every configured non-default locale prefix is reserved at the root. A default-language
+static route cannot claim `/en` or any other configured locale prefix, and configuration
+validation rejects that collision before deployment.
 
-The unprefixed site root `/` owns no content. It redirects permanently to the default
-locale's home route — `/fi` for the first production deployment — never to the story
-root, and never on the basis of the visitor's browser language. Changing which locale is
-the default therefore moves one redirect target rather than every published URL, but it
-is still a deliberate route change, not a content edit.
+Finnish owns the unprefixed visitor-facing route space in the first production
+deployment. The site root `/` serves the Finnish home page directly; it is not a language
+chooser and never redirects according to browser language. Changing the configured
+default locale would change which language owns the unprefixed canonical routes, so it
+requires a deliberate migration of the affected visitor-facing URLs.
 
-Routes that are not visitor-facing prose stay unprefixed and outside the locale
-contract: `/robots.txt`, `/sitemap.xml`, the favicon, and any later machine endpoint.
+Canonical Finnish URLs never use `/fi`. A request carrying that redundant default-locale
+prefix redirects permanently to the corresponding unprefixed canonical route only when
+that exact Finnish route exists. An unknown `/fi/...` path follows normal not-found
+behavior rather than receiving a blanket redirect.
+
+Language-neutral machine routes keep fixed, unlocalized root paths outside the
+visitor-facing locale contract: `/robots.txt`, `/sitemap.xml`, the favicon, and any
+later machine endpoint.
 
 Alternate-language metadata on a localized page names every published version of the same
 stable identity, including a self-referencing entry, plus an `x-default` entry pointing at
-the default locale's version. When the default locale has no published version of that
-content, `x-default` is omitted rather than pointed at another language.
+the default locale's version. For the first deployment, `hreflang="fi"` and `x-default`
+therefore point to the same unprefixed Finnish canonical URL. When the default locale has
+no published version of that content, both its locale alternate and `x-default` are
+omitted rather than pointed at another language.
 
-A clone that supports only one locale still uses the prefix contract. The template offers
-no unprefixed single-locale mode, because adding a second locale would then move every
-canonical URL the clone had already published — the migration this decision exists to
-avoid.
+A clone that supports only one locale publishes that default locale without a prefix.
+Adding a non-default language later gives only the new language a prefix and does not
+move the existing default-language URLs. Changing which language is default remains a
+route migration.
 
-The namespace owns these route shapes:
+Let `<locale-base>` be empty for the default locale and `/<locale-prefix>` for every
+non-default locale. The namespace owns these route shapes:
 
-- `/<locale>/<story-namespace>`: public content-tree root;
-- `/<locale>/<story-namespace>/<category-path>`: category branch; and
-- `/<locale>/<story-namespace>/<canonical-category-path>/<content-slug>`: canonical
+- `<locale-base>/<story-namespace>`: public content-tree root;
+- `<locale-base>/<story-namespace>/<category-path>`: category branch; and
+- `<locale-base>/<story-namespace>/<canonical-category-path>/<content-slug>`: canonical
   gallery or article detail.
 
 The content variant is not encoded in the path. Changing between `gallery` and `article`
@@ -268,7 +288,8 @@ collision. Validation rejects ambiguity before publication; the route resolver n
 guesses whether a path identifies a category or content.
 
 Localized static routes remain outside the story namespace. Home, services, and contact
-keep their own route owners but compose with the same explicit locale-prefix contract.
+keep their own route owners but compose with the same default-unprefixed,
+non-default-prefixed locale contract.
 The current `/portfolio`, `/blog`, and `/blog/<slug>` routes are reserved for
 compatibility and redirects rather than new canonical content. AB#104 owns the portfolio
 migration and AB#124 owns the article-route migration.
@@ -279,7 +300,7 @@ it as a hand-maintained link list. How that navigation is presented — and to w
 is an implementation decision, not a route decision.
 
 Reserve a separate localized top-level route for later virtual keyword queries:
-`/en/search` in English and `/fi/haku` in Finnish. These routes do not identify persisted
+`/en/search` in English and `/haku` in Finnish. These routes do not identify persisted
 category nodes and are not implemented by this ADR.
 
 Category and content labels and slugs may be localized, while immutable category and
@@ -320,8 +341,8 @@ The Finnish alternatives considered were `valokuvat` — the segment the current
 site uses — together with `kuvat`, `galleriat`, and `tarinat`. The first three name
 photographs, while the namespace also holds editorial articles, so `tarinat` was selected
 as the segment that carries the same breadth as `stories` in its own language. Keeping
-`valokuvat` would have preserved no legacy URL either: the locale prefix moves every path
-regardless.
+`valokuvat` would still leave gallery detail routes to migrate into the shared
+`tarinat` namespace.
 
 ### 7. Stable slugs, permanent redirect history, and locale-switch fallback
 
@@ -351,7 +372,7 @@ may be detached. Unpublishing content without a genuine replacement produces a p
 404 in the MVP; it does not invent a redirect. An explicit successor may receive a
 redirect when the editorial relationship is real.
 
-Content-managed history, locale-prefix migrations, and deployment-specific legacy
+Content-managed history, locale-route migrations, and deployment-specific legacy
 mappings are separate redirect sources combined into one validated route registry.
 AB#19 owns the first production site's Joomla mappings. Collision, loop, and chain
 checks apply across all sources.
@@ -374,7 +395,9 @@ The switch communicates when it will open a parent category instead of an exact 
 translation. A valid localized public tree guarantees that the required parent ancestry
 exists; the target-language story root is the defensive fallback for invalid or stale
 data. Language switching does not automatically redirect a visitor based on browser
-language.
+language. It resolves the target by stable identity rather than editing path strings:
+switching to Finnish emits the unprefixed canonical URL, while switching to English emits
+the `/en`-prefixed canonical URL.
 
 ### 8. Lowercase gallery URLs with section filters and opaque cursor continuation
 
@@ -382,10 +405,10 @@ Canonical path slugs use lowercase letters and hyphens between words. Display la
 and titles retain their authored casing, so a category labelled `WRC` and a page titled
 `Neste Rally Finland 2008` may have these public views:
 
-- `/fi/tarinat/wrc/neste-rally-finland-2008`;
-- `/fi/tarinat/wrc/neste-rally-finland-2008?section=palkintojenjako`;
-- `/fi/tarinat/wrc/neste-rally-finland-2008?cursor=<opaque-token>`; and
-- `/fi/tarinat/wrc/neste-rally-finland-2008?section=palkintojenjako&cursor=<opaque-token>`.
+- `/tarinat/wrc/neste-rally-finland-2008`;
+- `/tarinat/wrc/neste-rally-finland-2008?section=palkintojenjako`;
+- `/tarinat/wrc/neste-rally-finland-2008?cursor=<opaque-token>`; and
+- `/tarinat/wrc/neste-rally-finland-2008?section=palkintojenjako&cursor=<opaque-token>`.
 
 The route resolver never treats differently cased paths as separate content. Canonical
 paths also carry no trailing slash. A request that differs from the canonical path only by
@@ -406,6 +429,13 @@ category, content page, or separately authored route. The default values `sectio
 and an empty section parameter normalize to the parameter-free first page. Selecting a
 different section always removes the previous cursor and opens that section's first
 page.
+
+Each named section has a stable gallery-local identity, an authored label, a slug, an
+explicit order, and an optional localized introduction as defined in decision 3.
+Section membership belongs to a gallery media placement rather than to the underlying
+media asset, so assigning or moving an item does not move the source asset or affect its
+use in another gallery. The exact provider schema and section authoring interface remain
+AB#105's responsibility.
 
 Section slugs are lowercase and hyphenated, unique within their gallery, and validated
 against the reserved token `all`, so an authored section can never shadow the unfiltered
@@ -482,7 +512,7 @@ known.
 Legacy routes follow these target rules:
 
 - a Finnish gallery, article, or category route maps directly to its current Finnish
-  canonical route beneath `/fi/tarinat`;
+  canonical route beneath `/tarinat`;
 - an English gallery, article, or category route maps directly to its current English
   canonical route beneath `/en/stories`;
 - language aliases and other historical aliases map directly to the same final target,
@@ -523,9 +553,9 @@ rather than silently rewriting the migration evidence.
 This ADR decides the public content tree and its URL contract; it does not authorize
 building every capability it names. The MVP implements the variant boundary, the shared
 body-block set, gallery page order and section controls, the category tree and its
-validation, canonical and secondary placement, the localized story namespace with `fi` and
-`en` prefixes, slug stability with redirect history, and the section and cursor URL
-contract.
+validation, canonical and secondary placement, the localized story namespace with
+unprefixed Finnish and prefixed English routes, slug stability with redirect history,
+and the section and cursor URL contract.
 
 Named here and built by their own stories: locale-aware routing and language switching
 (AB#128), the localized-version authoring workflow (AB#125), AI editorial assistance
@@ -933,8 +963,8 @@ page's deliberate variant becomes a route migration.
 **Pros:** one route owner handles categories and both content variants; static pages and
 future keyword queries remain separate; the public term is not an implementation type.
 
-**Cons:** each supported locale requires an explicit prefix-to-namespace configuration
-and locale-aware metadata.
+**Cons:** each supported locale requires an explicit locale/default/namespace
+configuration and locale-aware metadata.
 
 **Accepted for this part of the ADR.**
 
@@ -963,7 +993,7 @@ content slugs are localized.
 | Cross-language association | Uses stable content/category identities |
 | Launch cost | Locale-aware routing and metadata required |
 
-**Pros:** `/en/stories` and `/fi/tarinat` are natural in their own languages; stable
+**Pros:** `/en/stories` and `/tarinat` are natural in their own languages; stable
 identifiers, not translated strings, associate variants.
 
 **Cons:** locale-aware routing and language-specific canonical metadata are required
@@ -1177,38 +1207,59 @@ can leave the index until crawlers observe their 404 responses.
 | --- | --- |
 | Initial implementation | Smallest |
 | Existing English routes | Lose same-language targets |
-| Future URL migration | Adds locale prefixes later |
+| Adding English later | Can add `/en` without moving Finnish URLs |
 | Fit with the production inventory | Poor |
 
 **Pros:** multilingual routing, metadata, and content association remain outside the
 first launch.
 
 **Cons:** the existing English galleries and pages cannot receive honest same-language
-redirects, and adding English later moves every unprefixed Finnish canonical URL.
+redirects, and multilingual routing and version association are merely deferred.
 
 **Rejected** because a production replacement should not knowingly break useful
-published English content or require a second site-wide route migration.
+published English content.
 
-### Option AN: Launch with explicit Finnish and English locale prefixes
+### Option AN: Prefix every locale, including the default
+
+| Dimension | Assessment |
+| --- | --- |
+| Initial implementation | Larger but bounded |
+| Finnish URL length | Adds `/fi` to every visitor-facing route |
+| Default-locale change | Canonical paths stay stable |
+| Site root | Redirect or separate language chooser required |
+
+**Pros:** no canonical URL depends on which locale is default, and every locale follows
+the same visible prefix shape.
+
+**Cons:** the primary-language URLs carry an unnecessary segment, the shape differs from
+the current site's default-language convention, and `/` cannot serve the ordinary home
+page directly.
+
+**Rejected** because shorter primary-language URLs are preferred and the project accepts
+that changing the default locale later would require a controlled route migration.
+
+### Option AO: Launch bilingually with an unprefixed default locale
 
 | Dimension | Assessment |
 | --- | --- |
 | Initial implementation | Larger but bounded |
 | Existing English routes | Preserve same-language targets |
-| Future URL migration | Avoided for these locales |
+| Finnish URL length | No locale prefix |
+| Default-locale change | Requires a route migration |
 | Translation completeness | May remain asymmetric |
 
-**Pros:** Finnish and English have stable canonical namespaces from the first launch;
-the existing English content can be migrated without requiring every new page to be
-translated; language switching uses stable identities.
+**Pros:** Finnish routes remain short, `/` serves the ordinary Finnish home page, the
+current default-language convention remains familiar, and existing English content can
+receive stable `/en` canonical targets without requiring every new page to be
+translated.
 
-**Cons:** locale-aware routing, metadata integration, and public version association
-become launch requirements even though copy and AI-assisted translation workflows remain
-later work.
+**Cons:** the default locale becomes part of route identity; root-level locale prefixes
+must be reserved; changing the default locale later moves affected canonical routes and
+requires direct permanent redirects.
 
 **Accepted for the first production deployment.**
 
-### Option AO: Redirect old English pages to Finnish equivalents
+### Option AP: Redirect old English pages to Finnish equivalents
 
 | Dimension | Assessment |
 | --- | --- |
@@ -1272,18 +1323,18 @@ stable URL, smaller redirect surface, and unambiguous sitemap.
 A shared story namespace adds one URL segment but prevents generated categories from
 competing with static site routes. Keeping the variant out of the path preserves URL
 identity if editorial intent changes. Localizing the namespace makes public vocabulary
-coherent in each language. Explicit `fi` and `en` prefixes add launch work for routing,
-metadata, and version association, but preserve existing same-language links and avoid
-a later migration of every Finnish canonical URL.
+coherent in each language. Bilingual launch adds bounded work for routing, metadata, and
+version association, but preserves existing useful same-language content and links.
 
-Prefixing the default locale too costs one segment on the most-visited paths and buys the
-property that no canonical URL depends on which locale is default. The unprefixed root
-then has to mean something, and a permanent redirect to the default locale's home is the
-option that stays honest: a language chooser at `/` would add a page nobody asked for, and
-browser-language detection would override a deliberate choice the visitor may have made.
-Requiring the prefix even in a single-locale clone looks like needless ceremony until the
-clone adds a second language, which is precisely when an unprefixed mode would force it
-to move every URL it had published.
+Omitting the default-locale prefix keeps the most-used paths short and follows the
+current site's familiar default-language convention. It also lets `/` remain the
+ordinary home page and lets a single-locale clone add a prefixed second language later
+without moving its existing routes. The trade-off is deliberate: the configured default
+locale is baked into visitor-facing URL identity. Changing it later moves affected
+canonical route families and requires flattened permanent redirects. Non-default locale
+prefixes must also be reserved at the root so a default-language static route cannot
+claim `/en` or another configured prefix. Browser-language detection remains rejected
+because it would override a visitor's deliberate language choice.
 
 Reusing the gallery continuation contract on category listings avoids inventing a second
 pagination shape for the same problem. Fixing a deterministic default order costs some
@@ -1359,6 +1410,10 @@ a broad redirect when a Joomla system view or retired page has no genuine replac
 - Level-2 headings in a long body become a table of contents in both variants.
 - Section controls stay reachable throughout a large grid without permanently consuming
   viewport space.
+- A named gallery section may add a short localized introduction before its first image
+  slice, including an ordered result list, without becoming a category or content page.
+- The `All` view never concatenates section introductions, and cursor continuation pages
+  do not repeat them.
 - Cursor continuation pages omit repeated editorial content but retain a compact visible
   page heading and section controls.
 - The public taxonomy has one implicit root, unique category ancestry, and at most five
@@ -1380,16 +1435,19 @@ a broad redirect when a Joomla system view or retired page has no genuine replac
 - Categories and canonical content live beneath one localized story namespace:
   `stories` in English and `tarinat` in Finnish.
 - The first production deployment publishes canonical content-tree routes beneath
-  `/fi/tarinat` and `/en/stories` from its first launch.
-- Finnish is the default locale, and the unprefixed root `/` redirects permanently to
-  `/fi` rather than serving content or detecting a browser language.
-- No canonical URL depends on which locale is default, so changing the default moves one
-  redirect target instead of every path.
+  `/tarinat` and `/en/stories` from its first launch.
+- Finnish is the default locale, owns the unprefixed visitor-facing routes, and serves
+  its home page directly at `/`; browser language never selects or redirects it.
+- Canonical Finnish URLs never carry `/fi`; a redundant default-locale prefix redirects
+  only when the corresponding unprefixed Finnish route exists.
+- Changing the default locale moves affected canonical route families and therefore
+  requires a deliberate compatibility and redirect plan.
 - `x-default` names the default locale's version and is omitted rather than pointed at
   another language when that version does not exist.
-- A single-locale clone still publishes prefixed URLs, so adding a second language later
-  moves nothing.
-- `/robots.txt`, `/sitemap.xml`, and the favicon stay unprefixed.
+- A single-locale clone publishes unprefixed default-language URLs; adding a prefixed
+  non-default language later does not move them.
+- `/robots.txt`, `/sitemap.xml`, and the favicon retain fixed language-neutral root
+  routes.
 - Existing useful English content receives English canonical targets, while a new
   Finnish page may publish without an English version.
 - Child categories and canonical content share a collision-checked local slug namespace.
@@ -1398,8 +1456,10 @@ a broad redirect when a Joomla system view or retired page has no genuine replac
   story namespace.
 - Content navigation derives from the public tree's top-level categories; site settings
   own only static links.
-- Locale prefixes, supported locales, and namespace localization are project-owned route
-  configuration, not editable CMS fields.
+- The default locale, supported locales, non-default prefixes, and localized namespaces
+  are project-owned route configuration, not editable CMS fields.
+- Configured non-default locale prefixes reserve their root segments against
+  default-language static-route collisions.
 - A future locale-copy action creates a linked draft from existing structure and media,
   leaving translation, review, and publication deliberate.
 - Published labels and titles may change without changing their stable slugs.
@@ -1457,8 +1517,10 @@ a broad redirect when a Joomla system view or retired page has no genuine replac
 - **A clone needs a sixth category level** → the limit is a validation constant, but
   raising it re-opens navigation, breadcrumb, and URL-depth design rather than just the
   number.
-- **A locale is added, removed, or made default** → route configuration plus a
-  compatibility and redirect plan; canonical paths stay put by construction.
+- **A locale is added, removed, or made default** → adding a prefixed non-default locale
+  reserves a new root segment without moving existing routes; removing a locale or
+  changing the default requires a compatibility plan and direct flattened redirects for
+  every affected canonical route.
 - **Authors ask for breadcrumbs that follow the referring secondary category** → revisit
   Option U deliberately instead of generating a second detail route, which is the failure
   Option T was rejected for.
@@ -1474,19 +1536,22 @@ a broad redirect when a Joomla system view or retired page has no genuine replac
 Decisions 1–9 of the AB#102 scope are recorded above: variant boundary, shared body
 blocks, gallery page order, category tree, canonical placement, story namespace and
 locales, slug and redirect lifecycle, section and cursor URLs, and legacy target classes.
-What remains is acceptance, and the work those decisions hand to other stories.
+The decision is accepted. Remaining implementation belongs to the stories named below.
 
-1. [ ] Accept the ADR (`Proposed` → `Accepted`) and update its status in the ADR index.
-2. [ ] Update `README.md` and `AGENTS.md` in this PR: locale-prefixed public routing is a
+1. [x] Accept the ADR (`Proposed` → `Accepted`) and update its status in the ADR index.
+2. [x] Update `README.md` and `AGENTS.md` in this PR: locale-aware public routing is a
        launch requirement, not a post-MVP roadmap item.
-3. [ ] Implement locale-prefixed Finnish and English routing in AB#128, including the
-       `/` → `/fi` redirect, per-locale `<html lang>`, locale-aware date formatting, and
-       `hreflang` with `x-default`. `src/app/layout.tsx` currently hardcodes `lang="en"`
-       and the blog pages format dates with `en-GB`.
+3. [ ] Implement default-unprefixed Finnish and `/en`-prefixed English routing in
+       AB#128, including `/` as the Finnish home, exact `/fi/...` normalization,
+       per-locale `<html lang>`, locale-aware date formatting, and `hreflang` with
+       `x-default`. `src/app/layout.tsx` currently hardcodes `lang="en"` and the blog
+       pages format dates with `en-GB`.
 4. [ ] Carry the cursor durability requirement into AB#66 so indexed continuation URLs
        survive ordinary gallery editing.
-5. [ ] Give AB#105 the section slug rules: lowercase, gallery-unique, `all` reserved,
-       immutable after publication behind a warned change action.
+5. [x] Give AB#105 the section identity and authoring rules: label, explicit order,
+       optional localized introduction, placement-owned membership, lowercase
+       gallery-unique slug, reserved `all`, and slug immutability after publication
+       behind a warned change action.
 6. [ ] Build the category listing route with the continuation contract and ordering rule
        decided here.
 7. [ ] Record the deployment-specific legacy mapping in AB#19 against the target classes
@@ -1507,8 +1572,9 @@ What remains is acceptance, and the work those decisions hand to other stories.
   types both satisfy the variant boundary.
 - **The gallery query itself is AB#66's.** Page size, ordering, and cursor encoding are
   decided there; this ADR only transports the token and states one durability requirement.
-- **Section storage and authoring UI are AB#105's.** This ADR decides only the section's
-  URL form and slug rules.
+- **Section storage and authoring UI are AB#105's.** This ADR decides the section's
+  public identity, introduction boundary, placement-owned membership, URL form, and slug
+  rules without choosing the provider schema or admin interaction design.
 - **Rendition and delivery URLs remain out of scope**, as in ADR-0002; AB#108 owns them.
 - **Visual design is not decided.** Listing entries, breadcrumb rendering, navigation
   presentation, and the section control's responsive form are implementation work; only

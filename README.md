@@ -74,8 +74,8 @@ Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build
 - [x] Shared generic media model (photo and video capable)
 - [x] Blog / article content type (supports long story articles)
 - [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
-- [ ] Locale-prefixed public routing — Finnish default (`/fi/…`) alongside English (`/en/…`),
-  language switching, and `hreflang` metadata
+- [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
+  (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
   and optional long-form body content — *thumbnail grid done*
@@ -99,7 +99,7 @@ Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint and build
   after a separate product, legal, security, and delivery decision)
 - Multilingual authoring workflow: creating a linked localized draft from an existing page
   in one action, and optional provider-neutral AI translation assistance. The public
-  locale-prefixed routing itself is in the MVP above, not here
+  locale-aware routing itself is in the MVP above, not here
 - EXIF display with per-category visibility
 - Service-specific testimonials
 - Cookieless analytics
@@ -127,7 +127,8 @@ Found a bug or have an idea? Open an issue — that is welcome.
 ## Status
 
 🚧 Work in progress — MVP in progress. The public pages (home, services, blog, and the
-initial portfolio grid) are built against a mock data layer and are still single-language
-and unprefixed. The hierarchical content tree, locale-prefixed routing, shared paginated
-gallery experience, lightbox, contact form, and CMS integration are still open. Keyword-driven dynamic galleries remain post-MVP. See the MVP scope
-checklist above.
+initial portfolio grid) are built against a mock data layer and do not yet implement the
+accepted locale-aware route contract. The hierarchical content tree, localized routing,
+shared paginated gallery experience, lightbox, contact form, and CMS integration are
+still open. Keyword-driven dynamic galleries remain post-MVP. See the MVP scope checklist
+above.

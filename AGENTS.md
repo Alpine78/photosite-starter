@@ -22,8 +22,8 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   watermark, signature, studio name, or URL burned into the pixels.
 - **MVP first.** Do not build roadmap features (client galleries, proof selection,
   multilingual authoring and AI translation, EXIF toggles, analytics) before they are
-  explicitly prioritized. **Locale-prefixed public routing is prioritized:** ADR-0003
-  makes Finnish and English public routes (`/fi/…` default, `/en/…`) a first-launch
+  explicitly prioritized. **Locale-aware public routing is prioritized:** ADR-0003 makes
+  unprefixed default-locale Finnish routes and `/en/…` English routes a first-launch
   requirement. The authoring workflow around them is not.
 - **Minimal dependencies.** Do not add a library without a clear, stated need.
 - **Small, reviewable changes.** No large rewrites without an explicit request.
