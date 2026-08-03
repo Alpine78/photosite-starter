@@ -1,8 +1,10 @@
+import { builtInLabels } from "@/lib/deployment-config";
+
 /**
- * Site-wide settings: all brand, contact, and navigation data lives here,
- * never hardcoded in components. Currently backed by mock data; will be
- * served by the CMS (Sanity) once integrated, which is why the accessor
- * is async.
+ * Site-wide brand, contact, and navigation settings live here, never
+ * hardcoded in components. Currently backed by mock data; authored values
+ * will be served by the CMS (Sanity) once integrated, which is why the
+ * accessor is async.
  */
 
 export type NavigationItem = {
@@ -50,14 +52,15 @@ const mockSiteSettings: SiteSettings = {
   siteName: "Studio Example",
   photographerName: "Jane Example",
   tagline: "Timeless photography for life's important moments",
-  // Only routes that exist are listed. "About" and "Contact" are added here
-  // once those pages land (contact form: AB#12) — a nav entry without a route
-  // is a 404 on every page of the site.
+  // These labels describe application-owned static routes, so they come from
+  // deployment config rather than authored CMS content. Only routes that exist
+  // are listed; a nav entry without a route is a 404 on every page of the site.
+  // "About" and "Contact" are added once those pages land (contact: AB#12).
   navigation: [
-    { label: "Home", href: "/" },
-    { label: "Services", href: "/services" },
-    { label: "Portfolio", href: "/portfolio" },
-    { label: "Blog", href: "/blog" },
+    { label: builtInLabels.pages.home, href: "/" },
+    { label: builtInLabels.pages.services, href: "/services" },
+    { label: builtInLabels.pages.portfolio, href: "/portfolio" },
+    { label: builtInLabels.pages.blog, href: "/blog" },
   ],
   contact: {
     email: "hello@studio-example.com",
@@ -78,9 +81,9 @@ const mockSiteSettings: SiteSettings = {
     },
   ],
   footerLinks: [
-    { label: "Services", href: "/services" },
-    { label: "Portfolio", href: "/portfolio" },
-    { label: "Blog", href: "/blog" },
+    { label: builtInLabels.pages.services, href: "/services" },
+    { label: builtInLabels.pages.portfolio, href: "/portfolio" },
+    { label: builtInLabels.pages.blog, href: "/blog" },
   ],
   copyrightHolder: "Studio Example",
   defaultSeo: {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { builtInLabels } from "@/lib/deployment-config";
 import type {
   ContactInfo,
   NavigationItem,
@@ -43,7 +44,7 @@ export function SiteFooter({
               id="footer-contact-heading"
               className="text-sm font-semibold tracking-tight"
             >
-              Contact
+              {builtInLabels.footer.contact}
             </h2>
             <address className="mt-3 flex flex-col gap-1 text-sm not-italic text-foreground/70">
               <a href={`mailto:${contact.email}`} className={linkClasses}>
@@ -58,14 +59,20 @@ export function SiteFooter({
                 </a>
               )}
               {contact.address && <span>{contact.address}</span>}
-              {contact.businessId && <span>Business ID: {contact.businessId}</span>}
+              {contact.businessId && (
+                <span>
+                  {builtInLabels.footer.businessId}: {contact.businessId}
+                </span>
+              )}
             </address>
           </section>
 
           {/* Quick navigation */}
           {footerLinks.length > 0 && (
-            <nav aria-label="Footer">
-              <h2 className="text-sm font-semibold tracking-tight">Explore</h2>
+            <nav aria-label={builtInLabels.navigation.footer}>
+              <h2 className="text-sm font-semibold tracking-tight">
+                {builtInLabels.footer.explore}
+              </h2>
               <ul className="mt-3 flex flex-col gap-1">
                 {footerLinks.map((item) => (
                   <li key={item.href}>
@@ -88,7 +95,7 @@ export function SiteFooter({
                 id="footer-social-heading"
                 className="text-sm font-semibold tracking-tight"
               >
-                Follow
+                {builtInLabels.footer.follow}
               </h2>
               <ul className="mt-3 flex flex-col gap-1">
                 {socialLinks.map((social) => (
@@ -110,7 +117,7 @@ export function SiteFooter({
         </div>
 
         <p className="mt-8 border-t border-black/10 pt-6 text-sm text-foreground/60 dark:border-white/15">
-          © {year} {copyrightHolder}. All rights reserved.
+          © {year} {copyrightHolder}. {builtInLabels.footer.rightsReserved}
         </p>
       </div>
     </footer>

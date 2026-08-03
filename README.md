@@ -47,6 +47,20 @@ Working rules for AI coding agents live in [AGENTS.md](AGENTS.md).
 
 ## Getting started
 
+Copy `.env.example` to `.env.local`, then set the values for the deployment.
+The application fails during development or build if a required value is missing
+or invalid.
+
+| Setting | Purpose |
+| --- | --- |
+| `SITE_LOCALE` | BCP 47 locale for the document language and date formatting |
+| `SITE_CANONICAL_BASE_URL` | Absolute public base URL used by URL-based metadata |
+| `SITE_DEFAULT_SOCIAL_IMAGE` | Absolute HTTP(S) URL or image path reserved for the default social preview |
+
+`SITE_LOCALE` does not translate the application-owned UI labels. For a
+non-English single-locale deployment, update `builtInLabels` in
+`src/lib/deployment-config.ts` to match. AB#128 owns later per-route locale behavior.
+
 ```bash
 npm ci
 npm run dev
@@ -78,7 +92,7 @@ on pushes and pull requests to `main`.
 - [x] Next.js App Router project setup (TypeScript, Tailwind, `src/`)
 - [x] CI pipeline (lint + test + build)
 - [x] Responsive base layout with header and footer
-- [x] Site settings (name, branding, contact, navigation)
+- [x] Site and deployment settings (branding, contact, navigation, locale, canonical base URL, default social image, built-in labels)
 - [x] Home page
 - [x] Services listing and individual service pages
 - [x] Shared generic media model (photo and video capable)
@@ -90,7 +104,7 @@ on pushes and pull requests to `main`.
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
   and optional long-form body content — *thumbnail grid done*
 - [ ] Contact form
-- [ ] Basic SEO (metadata, sitemap, robots.txt) — *root metadata done, sitemap/robots pending*
+- [ ] Basic SEO (metadata, sitemap, robots.txt) — *root title/description and metadata base done; per-route canonical/Open Graph output and sitemap/robots pending*
 - [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`*
 - [ ] Production deployment
 - [ ] Redirects for important legacy URLs (first implementation)

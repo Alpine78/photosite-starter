@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { GalleryGrid } from "@/components/gallery-grid";
+import { builtInLabels } from "@/lib/deployment-config";
 import { getPortfolioGallery } from "@/lib/gallery";
 
 export const metadata: Metadata = {
-  title: "Portfolio",
+  title: builtInLabels.pages.portfolio,
 };
 
 export default async function PortfolioPage() {
@@ -20,7 +21,10 @@ export default async function PortfolioPage() {
         )}
       </header>
 
-      <section aria-label={`${gallery.title} images`} className="mt-12">
+      <section
+        aria-label={`${gallery.title} ${builtInLabels.gallery.images}`}
+        className="mt-12"
+      >
         <GalleryGrid gallery={gallery} />
       </section>
     </main>

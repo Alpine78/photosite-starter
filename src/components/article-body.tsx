@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ContentBlock } from "@/lib/articles";
+import { builtInLabels } from "@/lib/deployment-config";
 import { YoutubeEmbed } from "@/components/youtube-embed";
 
 type ArticleBodyProps = {
@@ -109,7 +110,15 @@ export function ArticleBody({ blocks }: ArticleBodyProps) {
             );
 
           case "youtube":
-            return <YoutubeEmbed key={index} videoId={block.videoId} title={block.title} />;
+            return (
+              <YoutubeEmbed
+                key={index}
+                videoId={block.videoId}
+                title={block.title}
+                labels={builtInLabels.media}
+                watchLabel={builtInLabels.actions.watchOnYouTube}
+              />
+            );
         }
       })}
     </div>

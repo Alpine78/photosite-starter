@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArticle, getArticles } from "@/lib/articles";
+import { formatDate } from "@/lib/date-format";
+import {
+  builtInLabels,
+  getDeploymentConfig,
+} from "@/lib/deployment-config";
 import { ArticleBody } from "@/components/article-body";
 
 type ArticlePageProps = {
@@ -27,6 +32,7 @@ export async function generateMetadata({
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = await params;
+  const { locale } = getDeploymentConfig();
   const [article, allArticles] = await Promise.all([
     getArticle(slug),
     getArticles(),
@@ -40,14 +46,17 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
       {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="text-sm text-foreground/60">
+      <nav
+        aria-label={builtInLabels.navigation.breadcrumb}
+        className="text-sm text-foreground/60"
+      >
         <ol className="flex flex-wrap items-center gap-1">
           <li>
             <Link
               href="/blog"
               className="hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
-              Blog
+              {builtInLabels.pages.blog}
             </Link>
           </li>
           <li aria-hidden="true">/</li>
@@ -75,11 +84,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           dateTime={article.publishedAt}
           className="mt-2 block text-sm text-foreground/60"
         >
-          {new Date(article.publishedAt).toLocaleDateString("en-GB", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
+          {formatDate(article.publishedAt, locale)}
         </time>
       </header>
 
@@ -92,7 +97,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       {article.tags && article.tags.length > 0 && (
         <footer className="mt-12 border-t border-black/10 pt-6 dark:border-white/15">
           <p className="text-xs font-medium uppercase tracking-wider text-foreground/50">
-            Tags
+            {builtInLabels.blog.tags}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             {article.tags.map((tag) => (
@@ -109,7 +114,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
       {/* Prev / next navigation */}
       <nav
-        aria-label="Article navigation"
+        aria-label={builtInLabels.navigation.article}
         className="mt-10 grid grid-cols-2 gap-4 border-t border-black/10 pt-8 dark:border-white/15"
       >
         <div>
@@ -119,7 +124,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               className="group flex flex-col gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               <span className="text-xs font-medium uppercase tracking-wider text-foreground/50">
-                ← Previous
+                <span aria-hidden="true">← </span>
+                {builtInLabels.actions.previousArticle}
               </span>
               <span className="text-sm font-medium leading-snug group-hover:underline">
                 {prev.title}
@@ -134,7 +140,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               className="group flex flex-col gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               <span className="text-xs font-medium uppercase tracking-wider text-foreground/50">
-                Next →
+                {builtInLabels.actions.nextArticle}
+                <span aria-hidden="true"> →</span>
               </span>
               <span className="text-sm font-medium leading-snug group-hover:underline">
                 {next.title}

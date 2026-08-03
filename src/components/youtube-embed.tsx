@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import type { BuiltInLabels } from "@/lib/deployment-config";
 
 type YoutubeEmbedProps = {
   videoId: string;
   title: string;
+  labels: BuiltInLabels["media"];
+  watchLabel: BuiltInLabels["actions"]["watchOnYouTube"];
 };
 
 /**
@@ -15,7 +18,12 @@ type YoutubeEmbedProps = {
  * Uses youtube-nocookie.com for the embed to minimise tracking even after
  * the user opts in.
  */
-export function YoutubeEmbed({ videoId, title }: YoutubeEmbedProps) {
+export function YoutubeEmbed({
+  videoId,
+  title,
+  labels,
+  watchLabel,
+}: YoutubeEmbedProps) {
   const [loaded, setLoaded] = useState(false);
 
   if (loaded) {
@@ -34,16 +42,17 @@ export function YoutubeEmbed({ videoId, title }: YoutubeEmbedProps) {
 
   return (
     <div className="flex flex-col items-center gap-4 rounded-lg border border-black/10 px-6 py-10 text-center dark:border-white/15">
-      <p className="text-sm text-foreground/60">Video</p>
+      <p className="text-sm text-foreground/60">{labels.video}</p>
       <p className="font-medium">{title}</p>
       <button
         onClick={() => setLoaded(true)}
         className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
       >
-        ▶ Watch on YouTube
+        <span aria-hidden="true">▶</span>
+        {watchLabel}
       </button>
       <p className="text-xs text-foreground/50">
-        Opens an embedded YouTube player. YouTube may set cookies.
+        {labels.youtubePrivacyNotice}
       </p>
     </div>
   );

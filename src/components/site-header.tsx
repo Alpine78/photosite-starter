@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import type { BuiltInLabels } from "@/lib/deployment-config";
 import type { NavigationItem } from "@/lib/site-settings";
 
 type SiteHeaderProps = {
   siteName: string;
   navigation: NavigationItem[];
+  labels: BuiltInLabels["navigation"];
 };
 
 /**
@@ -20,7 +22,7 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
+export function SiteHeader({ siteName, navigation, labels }: SiteHeaderProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -35,7 +37,7 @@ export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
         </Link>
 
         {/* Desktop navigation */}
-        <nav aria-label="Main" className="hidden sm:block">
+        <nav aria-label={labels.main} className="hidden sm:block">
           <ul className="flex items-center gap-6">
             {navigation.map((item) => {
               const active = isActive(pathname, item.href);
@@ -66,7 +68,7 @@ export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
           aria-controls="mobile-nav"
           className="inline-flex items-center gap-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:hidden"
         >
-          {menuOpen ? "Close" : "Menu"}
+          {menuOpen ? labels.closeMenu : labels.menu}
         </button>
       </div>
 
@@ -74,7 +76,7 @@ export function SiteHeader({ siteName, navigation }: SiteHeaderProps) {
       {menuOpen && (
         <nav
           id="mobile-nav"
-          aria-label="Main"
+          aria-label={labels.main}
           className="border-t border-black/10 px-4 pb-4 dark:border-white/15 sm:hidden"
         >
           <ul className="flex flex-col gap-1 pt-2">

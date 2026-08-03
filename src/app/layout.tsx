@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import {
+  builtInLabels,
+  getDeploymentConfig,
+} from "@/lib/deployment-config";
 import { getSiteSettings } from "@/lib/site-settings";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -23,8 +27,12 @@ const geistMono = Geist_Mono({
  */
 export async function generateMetadata(): Promise<Metadata> {
   const { siteName, defaultSeo } = await getSiteSettings();
+  // Loading the complete deployment config also validates the social image.
+  // AB#17 owns emitting that value in Open Graph metadata.
+  const deployment = getDeploymentConfig();
 
   return {
+    metadataBase: deployment.canonicalBaseUrl,
     title: {
       default: siteName,
       template: defaultSeo.titleTemplate,
@@ -39,15 +47,17 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const settings = await getSiteSettings();
+  const deployment = getDeploymentConfig();
 
   return (
-    <html lang="en">
+    <html lang={deployment.locale}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col font-sans antialiased`}
       >
         <SiteHeader
           siteName={settings.siteName}
           navigation={settings.navigation}
+          labels={builtInLabels.navigation}
         />
         <div className="flex-1">{children}</div>
         <SiteFooter
