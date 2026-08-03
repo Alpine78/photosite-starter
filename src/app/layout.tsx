@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { getDeploymentConfig } from "@/lib/deployment-config";
+import {
+  builtInLabels,
+  getDeploymentConfig,
+} from "@/lib/deployment-config";
 import { getSiteSettings } from "@/lib/site-settings";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -54,7 +57,7 @@ export default async function RootLayout({
         <SiteHeader
           siteName={settings.siteName}
           navigation={settings.navigation}
-          labels={deployment.labels.navigation}
+          labels={builtInLabels.navigation}
         />
         <div className="flex-1">{children}</div>
         <SiteFooter

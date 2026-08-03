@@ -57,6 +57,10 @@ or invalid.
 | `SITE_CANONICAL_BASE_URL` | Absolute public base URL used by URL-based metadata |
 | `SITE_DEFAULT_SOCIAL_IMAGE` | Absolute HTTP(S) URL or image path reserved for the default social preview |
 
+`SITE_LOCALE` does not translate the application-owned UI labels. For a
+non-English single-locale deployment, update `builtInLabels` in
+`src/lib/deployment-config.ts` to match. AB#128 owns later per-route locale behavior.
+
 ```bash
 npm ci
 npm run dev

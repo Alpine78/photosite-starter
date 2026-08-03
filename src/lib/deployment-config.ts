@@ -56,12 +56,13 @@ export type DeploymentConfig = {
   readonly canonicalBaseUrl: URL;
   /** Validated here; AB#17 owns emitting it as Open Graph metadata. */
   readonly defaultSocialImage: URL;
-  readonly labels: BuiltInLabels;
 };
 
 /**
  * Application-owned copy that a clone can adjust without editing route or
  * component markup. Authored content and brand data remain in SiteSettings.
+ * SITE_LOCALE does not translate these single-locale labels; keep the copy in
+ * sync with that setting until AB#128 introduces per-route locale behavior.
  */
 export const builtInLabels = {
   pages: {
@@ -186,7 +187,6 @@ export function loadDeploymentConfig(
     locale,
     canonicalBaseUrl,
     defaultSocialImage,
-    labels: builtInLabels,
   };
 }
 
