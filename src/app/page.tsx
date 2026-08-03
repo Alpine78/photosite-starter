@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { builtInLabels } from "@/lib/deployment-config";
 import { getSiteSettings } from "@/lib/site-settings";
 import { getHomeContent } from "@/lib/home-content";
 
@@ -43,7 +44,7 @@ export default async function Home() {
               href="/portfolio"
               className="mt-6 inline-flex items-center rounded-full bg-white px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:mt-8 sm:text-base"
             >
-              View portfolio
+              {builtInLabels.actions.viewPortfolio}
             </Link>
           </div>
         </div>

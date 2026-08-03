@@ -1541,11 +1541,11 @@ The decision is accepted. Remaining implementation belongs to the stories named 
 1. [x] Accept the ADR (`Proposed` → `Accepted`) and update its status in the ADR index.
 2. [x] Update `README.md` and `AGENTS.md` in this PR: locale-aware public routing is a
        launch requirement, not a post-MVP roadmap item.
-3. [ ] Implement default-unprefixed Finnish and `/en`-prefixed English routing in
+3. [ ] AB#40 supplies the deployment-default `<html lang>` and date-formatting locale.
+       Implement default-unprefixed Finnish and `/en`-prefixed English routing in
        AB#128, including `/` as the Finnish home, exact `/fi/...` normalization,
-       per-locale `<html lang>`, locale-aware date formatting, and `hreflang` with
-       `x-default`. `src/app/layout.tsx` currently hardcodes `lang="en"` and the blog
-       pages format dates with `en-GB`.
+       replacing the deployment-wide defaults with per-route locale behavior, and
+       `hreflang` with `x-default`.
 4. [ ] Carry the cursor durability requirement into AB#66 so indexed continuation URLs
        survive ordinary gallery editing.
 5. [x] Give AB#105 the section identity and authoring rules: label, explicit order,

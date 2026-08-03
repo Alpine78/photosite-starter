@@ -2,9 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { getArticles, getBlogIntro, ARTICLE_CATEGORIES } from "@/lib/articles";
+import { formatDate } from "@/lib/date-format";
+import {
+  builtInLabels,
+  getDeploymentConfig,
+} from "@/lib/deployment-config";
 
 export const metadata: Metadata = {
-  title: "Blog",
+  title: builtInLabels.pages.blog,
 };
 
 type BlogPageProps = {
@@ -13,6 +18,7 @@ type BlogPageProps = {
 
 export default async function BlogPage({ searchParams }: BlogPageProps) {
   const { category } = await searchParams;
+  const { locale } = getDeploymentConfig();
   const [articles, intro] = await Promise.all([
     getArticles(category),
     getBlogIntro(),
@@ -22,13 +28,16 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <header className="max-w-2xl">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Blog
+          {builtInLabels.pages.blog}
         </h1>
         <p className="mt-3 text-foreground/70">{intro}</p>
       </header>
 
       {/* Category filter — link-based, no client JS required */}
-      <nav aria-label="Filter by category" className="mt-8 flex flex-wrap gap-2">
+      <nav
+        aria-label={builtInLabels.navigation.categoryFilter}
+        className="mt-8 flex flex-wrap gap-2"
+      >
         <Link
           href="/blog"
           className={`rounded-full border px-4 py-1.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
@@ -37,7 +46,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               : "border-black/20 hover:border-black/40 dark:border-white/20 dark:hover:border-white/40"
           }`}
         >
-          All
+          {builtInLabels.blog.allCategories}
         </Link>
         {ARTICLE_CATEGORIES.map((cat) => (
           <Link
@@ -56,7 +65,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
 
       {articles.length === 0 ? (
         <p className="mt-12 text-foreground/60">
-          No articles in this category yet.
+          {builtInLabels.blog.emptyCategory}
         </p>
       ) : (
         <ul className="mt-10 grid items-start gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -97,11 +106,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                     dateTime={article.publishedAt}
                     className="mt-4 text-xs text-foreground/50"
                   >
-                    {new Date(article.publishedAt).toLocaleDateString("en-GB", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
+                    {formatDate(article.publishedAt, locale)}
                   </time>
                 </div>
               </Link>

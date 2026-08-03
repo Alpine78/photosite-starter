@@ -70,10 +70,11 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
 
 ## Feature status awareness
 
-Current state: **MVP in progress.** Built and merged: site settings mock layer, responsive
-header and footer, home page, services listing and detail pages, article/blog listing and
-detail pages, the shared generic media model, and the portfolio thumbnail grid. Not yet
-built: lightbox, contact form, SEO metadata/sitemap/robots, CMS integration, deployment.
+Current state: **MVP in progress.** Built and merged: site settings mock layer, typed
+deployment configuration, responsive header and footer, home page, services listing and
+detail pages, article/blog listing and detail pages, the shared generic media model, and
+the portfolio thumbnail grid. Not yet built: lightbox, contact form, per-route canonical
+and Open Graph metadata, sitemap/robots, CMS integration, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,

@@ -1,3 +1,5 @@
+import { builtInLabels } from "@/lib/deployment-config";
+
 /**
  * Site-wide settings: all brand, contact, and navigation data lives here,
  * never hardcoded in components. Currently backed by mock data; will be
@@ -54,10 +56,10 @@ const mockSiteSettings: SiteSettings = {
   // once those pages land (contact form: AB#12) — a nav entry without a route
   // is a 404 on every page of the site.
   navigation: [
-    { label: "Home", href: "/" },
-    { label: "Services", href: "/services" },
-    { label: "Portfolio", href: "/portfolio" },
-    { label: "Blog", href: "/blog" },
+    { label: builtInLabels.pages.home, href: "/" },
+    { label: builtInLabels.pages.services, href: "/services" },
+    { label: builtInLabels.pages.portfolio, href: "/portfolio" },
+    { label: builtInLabels.pages.blog, href: "/blog" },
   ],
   contact: {
     email: "hello@studio-example.com",
@@ -78,9 +80,9 @@ const mockSiteSettings: SiteSettings = {
     },
   ],
   footerLinks: [
-    { label: "Services", href: "/services" },
-    { label: "Portfolio", href: "/portfolio" },
-    { label: "Blog", href: "/blog" },
+    { label: builtInLabels.pages.services, href: "/services" },
+    { label: builtInLabels.pages.portfolio, href: "/portfolio" },
+    { label: builtInLabels.pages.blog, href: "/blog" },
   ],
   copyrightHolder: "Studio Example",
   defaultSeo: {

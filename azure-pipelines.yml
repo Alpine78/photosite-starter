@@ -32,3 +32,7 @@ steps:
   - script: |
       npm run build
     displayName: "Build"
+    env:
+      SITE_LOCALE: "en-GB"
+      SITE_CANONICAL_BASE_URL: "https://example.com"
+      SITE_DEFAULT_SOCIAL_IMAGE: "/gallery/coastal-landscape.webp"

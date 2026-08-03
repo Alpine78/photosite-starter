@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { builtInLabels } from "@/lib/deployment-config";
 import { getServices, getServicesIntro } from "@/lib/services";
 import { ServiceCard } from "@/components/service-card";
 
 export const metadata: Metadata = {
-  title: "Services",
+  title: builtInLabels.pages.services,
 };
 
 export default async function ServicesPage() {
@@ -16,7 +17,7 @@ export default async function ServicesPage() {
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <header className="max-w-2xl">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Services
+          {builtInLabels.pages.services}
         </h1>
         <p className="mt-3 text-foreground/70">{intro}</p>
       </header>
