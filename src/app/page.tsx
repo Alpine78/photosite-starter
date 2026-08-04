@@ -3,6 +3,7 @@ import Link from "next/link";
 import { builtInLabels } from "@/lib/deployment-config";
 import { getSiteSettings } from "@/lib/site-settings";
 import { getHomeContent } from "@/lib/home-content";
+import { HERO_IMAGE_SIZES } from "@/lib/image-delivery";
 
 export default async function Home() {
   const [settings, home] = await Promise.all([
@@ -19,12 +20,12 @@ export default async function Home() {
       <section className="relative">
         {hero.media.type === "image" && (
           <Image
-            src={hero.media.src}
+            src={hero.media.rendition.src}
             alt={hero.media.alt}
-            width={hero.media.width}
-            height={hero.media.height}
-            priority
-            sizes="100vw"
+            width={hero.media.rendition.width}
+            height={hero.media.rendition.height}
+            preload
+            sizes={HERO_IMAGE_SIZES}
             className="h-auto w-full"
           />
         )}

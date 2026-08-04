@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { Gallery } from "@/lib/gallery";
+import { imageRenderProfiles } from "@/lib/image-delivery";
 
 type GalleryGridProps = {
   gallery: Gallery;
@@ -17,18 +18,15 @@ export function GalleryGrid({ gallery }: GalleryGridProps) {
         const { media } = item;
 
         return (
-          <li key={item.id} className="mb-4 break-inside-avoid">
-            <figure
-              tabIndex={0}
-              className="overflow-hidden rounded-sm bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 dark:bg-white/5"
-            >
+          <li key={item.placementId} className="mb-4 break-inside-avoid">
+            <figure className="overflow-hidden rounded-sm bg-black/5 dark:bg-white/5">
               <Image
-                src={media.src}
+                src={media.rendition.src}
                 alt={media.alt}
-                width={media.width}
-                height={media.height}
+                width={media.rendition.width}
+                height={media.rendition.height}
                 loading="lazy"
-                sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                sizes={imageRenderProfiles.portfolioGrid.sizes}
                 className="h-auto w-full"
               />
               {media.caption && (

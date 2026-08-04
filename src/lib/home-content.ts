@@ -16,6 +16,7 @@
  */
 
 import type { Media } from "@/lib/media";
+import { mockImages } from "@/lib/mock-media";
 
 export type HomeSectionLink = {
   title: string;
@@ -33,13 +34,7 @@ export type HomeContent = {
 
 const mockHomeContent: HomeContent = {
   hero: {
-    media: {
-      type: "image",
-      src: "/gallery/coastal-landscape.webp",
-      alt: "Rocky shoreline beside calm water under an overcast sky",
-      width: 1536,
-      height: 1024,
-    },
+    media: mockImages.coastalLandscape,
   },
   intro:
     "A short introduction to the studio and the work — replaced with real copy from the CMS. Structure and responsiveness first, visual polish later.",

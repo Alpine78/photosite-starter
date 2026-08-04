@@ -5,7 +5,8 @@ import { loadDeploymentConfig } from "@/lib/deployment-config";
 const validEnvironment = {
   SITE_LOCALE: "en-GB",
   SITE_CANONICAL_BASE_URL: "https://example.com",
-  SITE_DEFAULT_SOCIAL_IMAGE: "/gallery/coastal-landscape.webp",
+  SITE_DEFAULT_SOCIAL_IMAGE:
+    "/gallery/coastal-landscape.1683eecb7e65.webp",
 };
 
 describe("loadDeploymentConfig", () => {
@@ -15,7 +16,7 @@ describe("loadDeploymentConfig", () => {
     expect(config.locale).toBe("en-GB");
     expect(config.canonicalBaseUrl.href).toBe("https://example.com/");
     expect(config.defaultSocialImage.href).toBe(
-      "https://example.com/gallery/coastal-landscape.webp",
+      "https://example.com/gallery/coastal-landscape.1683eecb7e65.webp",
     );
   });
 

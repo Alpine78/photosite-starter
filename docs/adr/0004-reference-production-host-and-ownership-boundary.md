@@ -189,8 +189,9 @@ does not provision an environment or authorize a DNS change.
 - Private media never enters the public image optimizer. Its cache is separate from the
   tagged Data Cache. A public-to-private transition revokes or replaces the public source
   URL and invokes the provider's image-cache purge procedure where available. Bytes that
-  were already public cannot be made confidential retroactively; AB#108 and AB#122 must
-  preserve that boundary.
+  were already public cannot be made confidential retroactively;
+  proposed [ADR-0005](0005-public-image-rendition-boundary.md) and AB#122 preserve that
+  boundary.
 - Base Pro without Observability Plus retains hosting-provider-generated request metadata
   in Runtime Logs for one day. The applicable Vercel privacy role, data categories,
   purpose, access, retention, deletion, and transfer boundary must be documented before
@@ -430,8 +431,9 @@ Observability Plus or an optional long-term log drain by default.
 6. [ ] AB#83 implements published-only tagged caching and the signed webhook, then tests
        deployed invalidation propagation, finite cache lifetime, hard visibility removal,
        missed-event recovery, and the bounded broad fallback.
-7. [ ] AB#108 and AB#83 document the separate image-cache invalidation and source-URL
-       revocation path; private media never enters the public optimizer.
+7. [ ] [ADR-0005](0005-public-image-rendition-boundary.md) proposes the image-cache and
+       source-URL revocation boundary; AB#83 documents and verifies the provider-specific
+       purge path. Private media never enters the public optimizer.
 8. [ ] AB#12 implements the bounded contact handler, customer-owned delivery boundary,
        abuse controls, delivery-processor and hosting-provider-telemetry lifecycles, and minimal
        redacted operational events without persisting form content. The first-party flow

@@ -38,6 +38,12 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   the *photographer supplying a wide-format image*, not from a fixed-height crop band.
   Always pass the asset's true pixel dimensions so the ratio (and CLS reservation) is
   correct.
+- **Public derivatives only.** Browser-facing media may contain only a versioned public
+  web-delivery derivative and that derivative's true intrinsic dimensions. Camera
+  masters, archive locators, provider internals, and private or sales assets stay behind
+  a server-only adapter and never enter the optimizer or browser payload. Use bounded,
+  context-specific responsive `sizes`; transforms may downscale but never crop or
+  upscale. URL parameters are optimization controls, not access protection.
 - **Privacy by default.** No tracking cookies, no Google Analytics, no auto-loading
   third-party embeds. Goal: no cookie banner.
 - **Accessibility:** target WCAG 2.1 AA. Keyboard navigation matters, especially in galleries.
@@ -73,8 +79,10 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
 Current state: **MVP in progress.** Built and merged: site settings mock layer, typed
 deployment configuration, responsive header and footer, home page, services listing and
 detail pages, article/blog listing and detail pages, the shared generic media model, and
-the portfolio thumbnail grid. Not yet built: lightbox, contact form, per-route canonical
-and Open Graph metadata, sitemap/robots, CMS integration, deployment.
+the portfolio thumbnail grid. Implemented on the active AB#108 branch, pending ADR-0005
+owner approval: the public image rendition boundary. Not yet built:
+lightbox, contact form, per-route canonical and Open Graph metadata, sitemap/robots, the
+Sanity adapter, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
