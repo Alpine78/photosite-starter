@@ -16,6 +16,7 @@
  */
 
 import type { Media } from "@/lib/media";
+import { mockImages } from "@/lib/mock-media";
 
 export type ServicePricePackage = {
   /** Package name, e.g. "Half day", "Full day". */
@@ -55,13 +56,7 @@ const mockServices: Service[] = [
       "A short, friendly session focused on natural light and genuine expressions. We start with a quick chat about the look you want, then shoot in a location that suits you — studio, home, or outdoors.",
       "You receive a curated set of edited images, delivered through an online gallery. Placeholder copy; replaced with real wording from the CMS.",
     ],
-    coverMedia: {
-      type: "image",
-      src: "/gallery/coastal-landscape.webp",
-      alt: "Rocky shoreline beside calm water under an overcast sky",
-      width: 1536,
-      height: 1024,
-    },
+    coverMedia: mockImages.coastalLandscape,
     startingPrice: "From 250 €",
     pricing: [
       {
@@ -85,13 +80,7 @@ const mockServices: Service[] = [
       "Documentary-style coverage that captures the day as it unfolds, with a calm, unobtrusive presence. Every wedding is quoted individually based on hours, locations, and second-shooter needs.",
       "Placeholder copy; replaced with real wording from the CMS.",
     ],
-    coverMedia: {
-      type: "image",
-      src: "/gallery/open-marsh.webp",
-      alt: "Reflective water channel winding through an open marsh",
-      width: 1536,
-      height: 1024,
-    },
+    coverMedia: mockImages.openMarsh,
     startingPrice: "From 1 400 €",
     pricing: [
       {
@@ -135,13 +124,7 @@ const mockServices: Service[] = [
       "Commissioned photography for businesses — product shoots, interiors, team portraits, and brand campaigns. Every project is scoped and quoted individually, so there is no fixed price list.",
       "Get in touch with a brief and I'll prepare a tailored proposal. Placeholder copy; replaced with real wording from the CMS.",
     ],
-    coverMedia: {
-      type: "image",
-      src: "/gallery/lakeside-reeds.webp",
-      alt: "Golden reeds moving beside blue lake water",
-      width: 1254,
-      height: 1254,
-    },
+    coverMedia: mockImages.lakesideReeds,
   },
 ];
 

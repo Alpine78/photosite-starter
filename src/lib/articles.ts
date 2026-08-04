@@ -14,6 +14,7 @@
  */
 
 import type { Media } from "@/lib/media";
+import { mockImages } from "@/lib/mock-media";
 
 export type ArticleCategory = {
   slug: string;
@@ -74,13 +75,7 @@ const mockArticles: Article[] = [
       "Focal length and maximum aperture are only the start. Here is what I look for after years of shooting sports and wildlife with long glass.",
     categories: [{ slug: "gear", name: "Gear" }],
     tags: ["lenses", "telephoto", "sports photography"],
-    coverMedia: {
-      type: "image",
-      src: "/gallery/open-marsh.webp",
-      alt: "Reflective water channel winding through an open marsh",
-      width: 1536,
-      height: 1024,
-    },
+    coverMedia: mockImages.openMarsh,
     body: [
       {
         type: "paragraph",
@@ -110,11 +105,7 @@ const mockArticles: Article[] = [
       {
         type: "media",
         media: {
-          type: "image",
-          src: "/gallery/misty-birch.webp",
-          alt: "Silver birch standing in a misty green forest",
-          width: 1024,
-          height: 1536,
+          ...mockImages.mistyBirch,
           caption:
             "Placeholder image and caption; replaced with real photography from the CMS.",
         },
@@ -144,13 +135,7 @@ const mockArticles: Article[] = [
       "Aperture, shutter speed, and ISO are taught as separate controls, but mastering them means learning to trade one against another fluently.",
     categories: [{ slug: "technique", name: "Technique" }],
     tags: ["exposure", "basics", "technique"],
-    coverMedia: {
-      type: "image",
-      src: "/gallery/coastal-landscape.webp",
-      alt: "Rocky shoreline beside calm water under an overcast sky",
-      width: 1536,
-      height: 1024,
-    },
+    coverMedia: mockImages.coastalLandscape,
     body: [
       {
         type: "paragraph",
@@ -164,11 +149,7 @@ const mockArticles: Article[] = [
       {
         type: "media",
         media: {
-          type: "image",
-          src: "/gallery/forest-stream.webp",
-          alt: "Forest stream flowing over dark moss-covered stones",
-          width: 1024,
-          height: 1536,
+          ...mockImages.forestStream,
           caption:
             "Placeholder image and caption; replaced with real photography from the CMS.",
         },
@@ -244,13 +225,7 @@ const mockArticles: Article[] = [
       "Modern sensors have changed what is possible hand-held after dark. Here is how I approach concerts, street scenes, and indoor events.",
     categories: [{ slug: "technique", name: "Technique" }],
     tags: ["low light", "technique", "ISO"],
-    coverMedia: {
-      type: "image",
-      src: "/gallery/lichen-stones.webp",
-      alt: "Rain-darkened stones patterned with pale lichen",
-      width: 1254,
-      height: 1254,
-    },
+    coverMedia: mockImages.lichenStones,
     body: [
       {
         type: "paragraph",
@@ -270,11 +245,7 @@ const mockArticles: Article[] = [
       {
         type: "media",
         media: {
-          type: "image",
-          src: "/gallery/misty-birch.webp",
-          alt: "Silver birch standing in a misty green forest",
-          width: 1024,
-          height: 1536,
+          ...mockImages.mistyBirch,
           caption:
             "Placeholder image and caption; replaced with real photography from the CMS.",
         },

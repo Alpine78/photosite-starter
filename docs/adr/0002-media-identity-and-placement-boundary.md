@@ -96,7 +96,8 @@ keeps the existing id.
   galleries the photographs happen to live in.
 
 **The provider asset reference never leaves the server.** It is read by the mapping
-layer, resolved into rendition URLs (shape decided in AB#108), and dropped. It does not
+layer, resolved into the rendition shape proposed by
+[ADR-0005](0005-public-image-rendition-boundary.md), and dropped. It does not
 appear in a public payload, a URL, or a client component's props.
 
 **`archiveLocator` never leaves the server either**, and unlike the provider reference it
@@ -277,7 +278,7 @@ type PublicMediaItem = {
   width: number;
   height: number;
   canonicalHref?: string;            // resolved server-side
-  // renditions: shape decided in AB#108
+  // rendition: shape proposed by ADR-0005
 };
 ```
 
@@ -495,8 +496,9 @@ structure but loses the photographer-facing property that argued against Option 
 - **No prototype was built and no schema was written.** This is a design decision recorded
   before implementation, unlike ADR-0001 which was backed by a measured spike. Nothing here
   is a measurement.
-- **Rendition and delivery URLs are out of scope** — AB#108 decides what replaces the
-  current `src` field.
+- **Rendition and delivery URLs are out of scope** —
+  [ADR-0005](0005-public-image-rendition-boundary.md) proposes what replaces the current
+  `src` field.
 - **Private gallery enforcement is out of scope** — this ADR reserves `privateOnly` and
   states that it hard-excludes; AB#122 decides how that is enforced, stored, and expired.
 - **Keyword shape and hierarchy are out of scope** — AB#68 decides how media-owned

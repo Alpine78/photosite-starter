@@ -7,9 +7,10 @@
  */
 
 import type { Media } from "@/lib/media";
+import { mockImages } from "@/lib/mock-media";
 
 export type MediaItem = {
-  id: string;
+  placementId: string;
   media: Media;
 };
 
@@ -27,67 +28,41 @@ const mockPortfolioGallery: Gallery = {
     "A selection of recent work. Placeholder gallery content; replaced with real projects from the CMS.",
   items: [
     {
-      id: "coastal-landscape",
+      placementId: "portfolio-coastal-landscape",
       media: {
-        type: "image",
-        src: "/gallery/coastal-landscape.webp",
-        alt: "Rocky shoreline beside calm water under an overcast sky",
-        width: 1536,
-        height: 1024,
+        ...mockImages.coastalLandscape,
         caption: "Quiet coast",
       },
     },
     {
-      id: "misty-birch",
+      placementId: "portfolio-misty-birch",
       media: {
-        type: "image",
-        src: "/gallery/misty-birch.webp",
-        alt: "Silver birch standing in a misty green forest",
-        width: 1024,
-        height: 1536,
+        ...mockImages.mistyBirch,
         caption: "Morning mist",
       },
     },
     {
-      id: "lakeside-reeds",
-      media: {
-        type: "image",
-        src: "/gallery/lakeside-reeds.webp",
-        alt: "Golden reeds moving beside blue lake water",
-        width: 1254,
-        height: 1254,
-      },
+      placementId: "portfolio-lakeside-reeds",
+      media: mockImages.lakesideReeds,
     },
     {
-      id: "forest-stream",
+      placementId: "portfolio-forest-stream",
       media: {
-        type: "image",
-        src: "/gallery/forest-stream.webp",
-        alt: "Forest stream flowing over dark moss-covered stones",
-        width: 1024,
-        height: 1536,
+        ...mockImages.forestStream,
         caption: "Forest stream",
       },
     },
     {
-      id: "open-marsh",
+      placementId: "portfolio-open-marsh",
       media: {
-        type: "image",
-        src: "/gallery/open-marsh.webp",
-        alt: "Reflective water channel winding through an open marsh",
-        width: 1536,
-        height: 1024,
+        ...mockImages.openMarsh,
         caption: "After the rain",
       },
     },
     {
-      id: "lichen-stones",
+      placementId: "portfolio-lichen-stones",
       media: {
-        type: "image",
-        src: "/gallery/lichen-stones.webp",
-        alt: "Rain-darkened stones patterned with pale lichen",
-        width: 1254,
-        height: 1254,
+        ...mockImages.lichenStones,
         caption: "Shoreline details",
       },
     },

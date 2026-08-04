@@ -18,6 +18,8 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 - **Images are never cropped** — thumbnails and previews always preserve the original
   aspect ratio and full frame. A cropped preview misrepresents the photo, and a strong
   image can go unseen because of it; compositions are shown exactly as taken
+- Browser-facing images use bounded, versioned web derivatives with their true intrinsic
+  dimensions; camera masters and private or sales assets never enter public media data
 - Video is a natural companion to photos: the media model must not assume photo-only
   content; playback via self-hosted MP4/WebM or click-to-load embeds (no auto-loading
   third-party players)
@@ -96,6 +98,8 @@ on pushes and pull requests to `main`.
 - [x] Home page
 - [x] Services listing and individual service pages
 - [x] Shared generic media model (photo and video capable)
+- [x] Implementation of the proposed public image rendition boundary
+  (ADR-0005 awaits owner approval)
 - [x] Blog / article content type (supports long story articles)
 - [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
@@ -151,8 +155,10 @@ Found a bug or have an idea? Open an issue — that is welcome.
 ## Status
 
 🚧 Work in progress — MVP in progress. The public pages (home, services, blog, and the
-initial portfolio grid) are built against a mock data layer and do not yet implement the
-accepted locale-aware route contract. The hierarchical content tree, localized routing,
-shared paginated gallery experience, lightbox, contact form, and CMS integration are
-still open. Keyword-driven dynamic galleries remain post-MVP. See the MVP scope checklist
-above.
+initial portfolio grid) are built against a mock data layer whose images use the
+proposed project-owned public rendition contract. The future Sanity adapter remains
+open, as does
+the accepted locale-aware route contract. The hierarchical content tree, localized
+routing, shared paginated gallery experience, lightbox, contact form, and CMS integration
+are still open. Keyword-driven dynamic galleries remain post-MVP. See the MVP scope
+checklist above.

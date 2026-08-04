@@ -1,6 +1,7 @@
 import Image from "next/image";
 import type { ContentBlock } from "@/lib/articles";
 import { builtInLabels } from "@/lib/deployment-config";
+import { imageRenderProfiles } from "@/lib/image-delivery";
 import { YoutubeEmbed } from "@/components/youtube-embed";
 
 type ArticleBodyProps = {
@@ -64,11 +65,11 @@ export function ArticleBody({ blocks }: ArticleBodyProps) {
             return (
               <figure key={index}>
                 <Image
-                  src={block.media.src}
+                  src={block.media.rendition.src}
                   alt={block.media.alt}
-                  width={block.media.width}
-                  height={block.media.height}
-                  sizes="(min-width: 768px) 768px, 100vw"
+                  width={block.media.rendition.width}
+                  height={block.media.rendition.height}
+                  sizes={imageRenderProfiles.articleContent.sizes}
                   className="h-auto w-full rounded-lg"
                 />
                 {(block.media.caption || block.media.credit) && (

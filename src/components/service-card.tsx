@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Service } from "@/lib/services";
+import { imageRenderProfiles } from "@/lib/image-delivery";
 
 type ServiceCardProps = {
   service: Service;
@@ -26,11 +27,11 @@ export function ServiceCard({ service }: ServiceCardProps) {
     >
       {coverMedia?.type === "image" && (
         <Image
-          src={coverMedia.src}
+          src={coverMedia.rendition.src}
           alt={coverMedia.alt}
-          width={coverMedia.width}
-          height={coverMedia.height}
-          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+          width={coverMedia.rendition.width}
+          height={coverMedia.rendition.height}
+          sizes={imageRenderProfiles.serviceGrid.sizes}
           className="h-auto w-full"
         />
       )}

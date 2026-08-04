@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getArticles, getBlogIntro, ARTICLE_CATEGORIES } from "@/lib/articles";
 import { formatDate } from "@/lib/date-format";
+import { imageRenderProfiles } from "@/lib/image-delivery";
 import {
   builtInLabels,
   getDeploymentConfig,
@@ -77,11 +78,11 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               >
                 {article.coverMedia?.type === "image" && (
                   <Image
-                    src={article.coverMedia.src}
+                    src={article.coverMedia.rendition.src}
                     alt={article.coverMedia.alt}
-                    width={article.coverMedia.width}
-                    height={article.coverMedia.height}
-                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                    width={article.coverMedia.rendition.width}
+                    height={article.coverMedia.rendition.height}
+                    sizes={imageRenderProfiles.blogGrid.sizes}
                     className="h-auto w-full"
                   />
                 )}

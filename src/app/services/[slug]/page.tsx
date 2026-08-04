@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { builtInLabels } from "@/lib/deployment-config";
+import { imageRenderProfiles } from "@/lib/image-delivery";
 import { getService, getServices } from "@/lib/services";
 
 type ServicePageProps = {
@@ -70,11 +71,11 @@ export default async function ServicePage({ params }: ServicePageProps) {
           </div>
           {coverMedia?.type === "image" && (
             <Image
-              src={coverMedia.src}
+              src={coverMedia.rendition.src}
               alt={coverMedia.alt}
-              width={coverMedia.width}
-              height={coverMedia.height}
-              sizes="(min-width: 1024px) 784px, 100vw"
+              width={coverMedia.rendition.width}
+              height={coverMedia.rendition.height}
+              sizes={imageRenderProfiles.serviceContent.sizes}
               className="mt-8 h-auto w-full rounded-lg"
             />
           )}

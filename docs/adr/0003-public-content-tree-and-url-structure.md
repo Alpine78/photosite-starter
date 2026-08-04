@@ -1575,7 +1575,8 @@ The decision is accepted. Remaining implementation belongs to the stories named 
 - **Section storage and authoring UI are AB#105's.** This ADR decides the section's
   public identity, introduction boundary, placement-owned membership, URL form, and slug
   rules without choosing the provider schema or admin interaction design.
-- **Rendition and delivery URLs remain out of scope**, as in ADR-0002; AB#108 owns them.
+- **Rendition and delivery URLs remain out of scope**, as in ADR-0002;
+  [ADR-0005](0005-public-image-rendition-boundary.md) proposes their boundary.
 - **Visual design is not decided.** Listing entries, breadcrumb rendering, navigation
   presentation, and the section control's responsive form are implementation work; only
   their routes, ordering, and accessibility requirements are fixed here.

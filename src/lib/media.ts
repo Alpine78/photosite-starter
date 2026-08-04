@@ -1,34 +1,222 @@
 /**
- * Shared media model used at content boundaries.
+ * Project-owned public media contract.
  *
- * Images are the only locally rendered variant today. The video variant keeps
- * the content model extensible without adding playback UI, upload workflows,
- * or delivery decisions before those features are prioritized.
+ * Provider documents, archive locators, master files, and private or sales
+ * assets stop before this boundary. Public adapters construct these values
+ * property by property instead of returning provider records.
  */
 
+export const MAX_PUBLIC_IMAGE_DIMENSION = 8192;
+
+declare const publicImageSourceBrand: unique symbol;
+declare const publicImageVersionBrand: unique symbol;
+declare const publicImageDimensionBrand: unique symbol;
+
+type ValidatedPublicImageSource = string & {
+  readonly [publicImageSourceBrand]: true;
+};
+
+type ValidatedPublicImageVersion = string & {
+  readonly [publicImageVersionBrand]: true;
+};
+
+type ValidatedPublicImageDimension = number & {
+  readonly [publicImageDimensionBrand]: true;
+};
+
 type MediaMetadata = {
-  caption?: string;
-  credit?: string;
+  /** Stable project identity; independent of provider ids and delivery URLs. */
+  readonly mediaId: string;
+  readonly caption?: string;
+  readonly credit?: string;
+};
+
+export type PublicImageRendition = {
+  /**
+   * Versioned URL of a public web-delivery derivative. The URL must change
+   * whenever its bytes change; it must never identify an archive master.
+   */
+  readonly src: ValidatedPublicImageSource;
+  /**
+   * Opaque byte version that also appears in `src`. It changes with the
+   * source bytes and is never an authorization token.
+   */
+  readonly version: ValidatedPublicImageVersion;
+  /** Intrinsic pixel dimensions of the derivative at `src`. */
+  readonly width: ValidatedPublicImageDimension;
+  readonly height: ValidatedPublicImageDimension;
 };
 
 export type ImageMedia = MediaMetadata & {
-  type: "image";
-  src: string;
+  readonly type: "image";
+  readonly rendition: PublicImageRendition;
   /** Descriptive alt text; empty only when the image is decorative. */
-  alt: string;
-  /** Intrinsic dimensions used to reserve space and preserve native ratio. */
-  width: number;
-  height: number;
+  readonly alt: string;
 };
 
 export type VideoMedia = MediaMetadata & {
-  type: "video";
-  src: string;
+  readonly type: "video";
+  readonly src: string;
   /** Accessible title for a future video renderer. */
-  title: string;
+  readonly title: string;
   /** Intrinsic dimensions for preserving the video's native ratio. */
-  width: number;
-  height: number;
+  readonly width: number;
+  readonly height: number;
 };
 
 export type Media = ImageMedia | VideoMedia;
+
+export type PublicImageMediaInput = {
+  readonly mediaId: string;
+  /** Effective server-side visibility; non-public media fails closed. */
+  readonly publiclyRenderable: boolean;
+  readonly rendition: {
+    readonly src: string;
+    readonly version: string;
+    readonly width: number;
+    readonly height: number;
+    /** Classification assigned at ingest, before the public projection. */
+    readonly sourceKind: "public-web-derivative" | "non-public";
+  };
+  readonly alt: string;
+  readonly caption?: string;
+  readonly credit?: string;
+};
+
+function assertNonEmpty(value: unknown, field: string): asserts value is string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new TypeError(`${field} must not be empty`);
+  }
+}
+
+function assertText(value: unknown, field: string): asserts value is string {
+  if (typeof value !== "string") {
+    throw new TypeError(`${field} must be a string`);
+  }
+}
+
+function assertMetadataText(value: unknown, field: string): void {
+  if (value !== undefined && typeof value !== "string") {
+    throw new TypeError(`${field} must be a string when provided`);
+  }
+}
+
+const LOCAL_VERSIONED_IMAGE_PATH =
+  /^\/gallery\/[a-z0-9]+(?:-[a-z0-9]+)*\.([a-f0-9]{12})\.(?:avif|jpe?g|png|webp)$/;
+
+function assertVersion(
+  version: unknown,
+): asserts version is ValidatedPublicImageVersion {
+  if (
+    typeof version !== "string" ||
+    !/^[A-Za-z0-9_-]{6,128}$/.test(version)
+  ) {
+    throw new TypeError(
+      "rendition.version must be a 6-128 character immutable source identifier",
+    );
+  }
+}
+
+function assertPublicSource(
+  src: string,
+  version: string,
+): asserts src is ValidatedPublicImageSource {
+  assertNonEmpty(src, "rendition.src");
+
+  if (src.startsWith("/")) {
+    const localMatch = src.match(LOCAL_VERSIONED_IMAGE_PATH);
+    if (!localMatch || localMatch[1] !== version) {
+      throw new TypeError(
+        "local rendition.src must be a content-versioned public gallery image path",
+      );
+    }
+    return;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(src);
+  } catch {
+    throw new TypeError(
+      "rendition.src must be a root-relative path or an HTTPS URL",
+    );
+  }
+
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.username ||
+    parsed.password ||
+    parsed.hash
+  ) {
+    throw new TypeError(
+      "rendition.src must be a versioned local path or an HTTPS URL without credentials or fragments",
+    );
+  }
+
+  const versionedRequestTarget = `${parsed.pathname}${parsed.search}`;
+  if (
+    !versionedRequestTarget.includes(version) &&
+    !versionedRequestTarget.includes(encodeURIComponent(version))
+  ) {
+    throw new TypeError("rendition.version must appear in rendition.src");
+  }
+}
+
+function assertDimension(
+  value: number,
+  field: string,
+): asserts value is ValidatedPublicImageDimension {
+  if (
+    !Number.isInteger(value) ||
+    value <= 0 ||
+    value > MAX_PUBLIC_IMAGE_DIMENSION
+  ) {
+    throw new RangeError(
+      `${field} must be an integer between 1 and ${MAX_PUBLIC_IMAGE_DIMENSION}`,
+    );
+  }
+}
+
+/**
+ * Validates and allow-lists one public image DTO.
+ *
+ * The explicit projection is intentional: extra properties on a provider
+ * record are not copied into browser-facing data at runtime. The returned
+ * scalar delivery fields carry compile-time provenance that their validation
+ * ran. Callers must keep the projected descriptor intact; source classification
+ * itself remains the trusted adapter's responsibility.
+ */
+export function projectPublicImageMedia(
+  input: PublicImageMediaInput,
+): ImageMedia {
+  assertNonEmpty(input.mediaId, "mediaId");
+  assertText(input.alt, "alt");
+  assertMetadataText(input.caption, "caption");
+  assertMetadataText(input.credit, "credit");
+  if (
+    input.publiclyRenderable !== true ||
+    input.rendition.sourceKind !== "public-web-derivative"
+  ) {
+    throw new TypeError(
+      "only a publicly renderable web derivative can cross the public media boundary",
+    );
+  }
+  assertVersion(input.rendition.version);
+  assertPublicSource(input.rendition.src, input.rendition.version);
+  assertDimension(input.rendition.width, "rendition.width");
+  assertDimension(input.rendition.height, "rendition.height");
+
+  return {
+    type: "image",
+    mediaId: input.mediaId,
+    alt: input.alt,
+    rendition: {
+      src: input.rendition.src,
+      version: input.rendition.version,
+      width: input.rendition.width,
+      height: input.rendition.height,
+    },
+    ...(input.caption === undefined ? {} : { caption: input.caption }),
+    ...(input.credit === undefined ? {} : { credit: input.credit }),
+  };
+}
