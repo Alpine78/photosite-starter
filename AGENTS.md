@@ -76,13 +76,13 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
 
 ## Feature status awareness
 
-Current state: **MVP in progress.** Built and merged: site settings mock layer, typed
-deployment configuration, responsive header and footer, home page, services listing and
-detail pages, article/blog listing and detail pages, the shared generic media model, and
-the portfolio thumbnail grid. Implemented on the active AB#108 branch, pending ADR-0005
-owner approval: the public image rendition boundary. Not yet built:
-lightbox, contact form, per-route canonical and Open Graph metadata, sitemap/robots, the
-Sanity adapter, deployment.
+Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
+configuration, responsive header and footer, home page, services listing and detail
+pages, article/blog listing and detail pages, the shared generic media model, the public
+image rendition boundary, the portfolio thumbnail grid, and the shared bounded gallery
+result contract. Not yet built: public continuation routes and controls, lightbox,
+contact form, per-route canonical and Open Graph metadata, sitemap/robots, the Sanity
+adapter, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,

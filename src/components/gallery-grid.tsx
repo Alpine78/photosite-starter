@@ -13,10 +13,6 @@ export function GalleryGrid({ gallery }: GalleryGridProps) {
       className="columns-1 gap-4 sm:columns-2 lg:columns-3"
     >
       {gallery.result.items.map((item) => {
-        if (item.media.type !== "image") {
-          throw new TypeError(`Unsupported gallery media type: ${item.media.type}`);
-        }
-
         const { media } = item;
 
         return (

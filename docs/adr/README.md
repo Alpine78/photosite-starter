@@ -38,7 +38,7 @@ Two conventions on top of the template:
 | [0002](0002-media-identity-and-placement-boundary.md) | AB#64 | Shared media identity and placement metadata boundary | Accepted |
 | [0003](0003-public-content-tree-and-url-structure.md) | AB#102 | Public content tree, category taxonomy, and localized URL structure | Accepted |
 | [0004](0004-reference-production-host-and-ownership-boundary.md) | AB#109 | Reference production host and ownership boundary | Accepted |
-| [0005](0005-public-image-rendition-boundary.md) | AB#108 | Public image rendition boundary | Proposed |
+| [0005](0005-public-image-rendition-boundary.md) | AB#108 | Public image rendition boundary | Accepted |
 
 Expected further entries:
 
