@@ -403,9 +403,38 @@ describe("gallery cursor safety and durability", () => {
     );
   });
 
-  it.each(["", "x".repeat(MAX_GALLERY_CURSOR_LENGTH + 1)])(
-    "rejects an invalid cursor emitted by an adapter codec",
-    (value) => {
+  it.each([
+    ["empty", ""],
+    ["oversized", "x".repeat(MAX_GALLERY_CURSOR_LENGTH + 1)],
+  ])(
+    "rejects invalid input before calling an adapter codec: %s",
+    (_caseName, value) => {
+      let decodeCalled = false;
+      const acceptingCodec: GalleryCursorCodec = {
+        encode: testCursorCodec.encode,
+        decode: () => {
+          decodeCalled = true;
+          return {
+            offset: 1,
+            matchesBoundary: () => true,
+          };
+        },
+      };
+
+      expectCursorError(
+        () => buildPage({ cursor: value, cursorCodec: acceptingCodec }),
+        "malformed",
+      );
+      expect(decodeCalled).toBe(false);
+    },
+  );
+
+  it.each([
+    ["empty", ""],
+    ["oversized", "x".repeat(MAX_GALLERY_CURSOR_LENGTH + 1)],
+  ])(
+    "rejects an invalid cursor emitted by an adapter codec: %s",
+    (_caseName, value) => {
       const invalidCodec: GalleryCursorCodec = {
         encode: () => value as GalleryCursor,
         decode: testCursorCodec.decode,
@@ -446,6 +475,18 @@ describe("gallery cursor safety and durability", () => {
         }),
       "wrong-scope",
     );
+  });
+
+  it("scopes item boundary digests to their gallery query", () => {
+    const firstPayload = decodeCursorPayload(cursor);
+    const foreignResult = buildPage({
+      cursorScope: { ...scope, sourceId: "another-gallery" },
+    });
+    const foreignPayload = decodeCursorPayload(
+      foreignResult.page.endCursor as string,
+    );
+
+    expect(firstPayload.afterItem).not.toBe(foreignPayload.afterItem);
   });
 
   it("rejects a cursor from an older visibility version as stale", () => {
@@ -546,7 +587,7 @@ describe("gallery cursor safety and durability", () => {
 });
 
 describe("portfolio gallery adapter", () => {
-  it("uses the shared contract without visible reordering", () => {
+  it("keeps the mock on one page without a production codec or visible reordering", () => {
     const gallery = buildPortfolioGallery();
 
     expect(gallery.result.items.map((item) => item.mediaId)).toEqual([

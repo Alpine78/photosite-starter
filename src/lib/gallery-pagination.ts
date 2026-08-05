@@ -191,8 +191,16 @@ function visibilityScopeDigest(
   );
 }
 
-function itemBoundaryDigest(itemId: string, signingKey: string): string {
-  return scopeDigest("gallery-item-boundary-v1", [itemId], signingKey);
+function itemBoundaryDigest(
+  queryScope: string,
+  itemId: string,
+  signingKey: string,
+): string {
+  return scopeDigest(
+    "gallery-item-boundary-v1",
+    [queryScope, itemId],
+    signingKey,
+  );
 }
 
 function encodeHmacCursor(
@@ -201,12 +209,13 @@ function encodeHmacCursor(
   afterItemId: string,
   signingKey: string,
 ): GalleryCursor {
+  const queryScope = queryScopeDigest(scope, signingKey);
   const cursorPayload: CursorPayload = {
     version: CURSOR_VERSION,
-    queryScope: queryScopeDigest(scope, signingKey),
+    queryScope,
     visibilityScope: visibilityScopeDigest(scope, signingKey),
     offset,
-    afterItem: itemBoundaryDigest(afterItemId, signingKey),
+    afterItem: itemBoundaryDigest(queryScope, afterItemId, signingKey),
   };
   const encodedPayload = Buffer.from(JSON.stringify(cursorPayload)).toString(
     "base64url",
@@ -264,7 +273,8 @@ function parseHmacCursor(
   if (!isCursorPayload(payload)) {
     throw new GalleryCursorError("malformed");
   }
-  if (!matchesDigest(payload.queryScope, queryScopeDigest(scope, signingKey))) {
+  const expectedQueryScope = queryScopeDigest(scope, signingKey);
+  if (!matchesDigest(payload.queryScope, expectedQueryScope)) {
     throw new GalleryCursorError("wrong-scope");
   }
   if (
@@ -281,7 +291,7 @@ function parseHmacCursor(
     matchesBoundary: (itemId) =>
       matchesDigest(
         payload.afterItem,
-        itemBoundaryDigest(itemId, signingKey),
+        itemBoundaryDigest(expectedQueryScope, itemId, signingKey),
       ),
   };
 }
@@ -431,8 +441,17 @@ export function buildCuratedGalleryPage({
   readonly cursorCodec?: GalleryCursorCodec;
 }): GalleryPage<CuratedGalleryResultItem> {
   assertScope(scope);
-  if (cursor !== undefined && cursorCodec === undefined) {
-    throw new Error("A gallery cursor codec is required to decode a cursor");
+  if (cursor !== undefined) {
+    if (
+      typeof cursor !== "string" ||
+      cursor.length === 0 ||
+      cursor.length > MAX_GALLERY_CURSOR_LENGTH
+    ) {
+      throw new GalleryCursorError("malformed");
+    }
+    if (cursorCodec === undefined) {
+      throw new Error("A gallery cursor codec is required to decode a cursor");
+    }
   }
   const decodedCursor =
     cursor === undefined ? undefined : cursorCodec?.decode(cursor, scope);
@@ -483,7 +502,12 @@ export function buildCuratedGalleryPage({
   const hasNextPage = nextOffset < orderedPlacements.length;
   const lastItem = items.at(-1);
 
-  if (hasNextPage && lastItem !== undefined) {
+  if (hasNextPage) {
+    if (lastItem === undefined) {
+      throw new Error(
+        "Gallery pagination invariant violated: continuation has no boundary item",
+      );
+    }
     if (cursorCodec === undefined) {
       throw new Error(
         "A gallery cursor codec is required for a paginated result",

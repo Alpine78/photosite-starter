@@ -18,6 +18,7 @@ export type GalleryResultItem<TMedia extends Media = ImageMedia> = {
   /** Curated placement identity; dynamic adapters omit it. */
   readonly placementId?: string;
   readonly media: TMedia;
+  /** Placement-owned section membership; AB#105 owns section metadata. */
   readonly sectionId?: string;
 };
 
@@ -30,9 +31,10 @@ export type CuratedGalleryResultItem<TMedia extends Media = ImageMedia> = Omit<
 
 export type DynamicGalleryResultItem<TMedia extends Media = ImageMedia> = Omit<
   GalleryResultItem<TMedia>,
-  "placementId"
+  "placementId" | "sectionId"
 > & {
   readonly placementId?: never;
+  readonly sectionId?: never;
 };
 
 export type GalleryPageInfo =
@@ -65,7 +67,7 @@ export type GalleryPage<
  * prescribe section metadata yet and never requires per-section counts.
  */
 export type GalleryPageWithSections<
-  TSection,
+  TSection extends { readonly sectionId: string },
   TItem extends GalleryResultItem<Media> = GalleryResultItem<ImageMedia>,
 > = GalleryPage<TItem> & {
   readonly sections?: readonly TSection[];
