@@ -6,67 +6,79 @@
  * outside the MVP slice.
  */
 
-import type { Media } from "@/lib/media";
+import {
+  buildCuratedGalleryPage,
+  type CuratedGalleryPlacement,
+  type GalleryPage,
+} from "@/lib/gallery-result";
 import { mockImages } from "@/lib/mock-media";
-
-export type MediaItem = {
-  placementId: string;
-  media: Media;
-};
 
 export type Gallery = {
   slug: string;
   title: string;
   description?: string;
-  items: MediaItem[];
+  result: GalleryPage;
 };
+
+const portfolioPlacements: readonly CuratedGalleryPlacement[] = [
+  {
+    placementId: "portfolio-coastal-landscape",
+    order: 0,
+    visible: true,
+    media: mockImages.coastalLandscape,
+    captionOverride: "Quiet coast",
+  },
+  {
+    placementId: "portfolio-misty-birch",
+    order: 1,
+    visible: true,
+    media: mockImages.mistyBirch,
+    captionOverride: "Morning mist",
+  },
+  {
+    placementId: "portfolio-lakeside-reeds",
+    order: 2,
+    visible: true,
+    media: mockImages.lakesideReeds,
+  },
+  {
+    placementId: "portfolio-forest-stream",
+    order: 3,
+    visible: true,
+    media: mockImages.forestStream,
+    captionOverride: "Forest stream",
+  },
+  {
+    placementId: "portfolio-open-marsh",
+    order: 4,
+    visible: true,
+    media: mockImages.openMarsh,
+    captionOverride: "After the rain",
+  },
+  {
+    placementId: "portfolio-lichen-stones",
+    order: 5,
+    visible: true,
+    media: mockImages.lichenStones,
+    captionOverride: "Shoreline details",
+  },
+];
 
 const mockPortfolioGallery: Gallery = {
   slug: "portfolio",
   title: "Portfolio",
   description:
     "A selection of recent work. Placeholder gallery content; replaced with real projects from the CMS.",
-  items: [
-    {
-      placementId: "portfolio-coastal-landscape",
-      media: {
-        ...mockImages.coastalLandscape,
-        caption: "Quiet coast",
-      },
+  result: buildCuratedGalleryPage({
+    placements: portfolioPlacements,
+    scope: {
+      sourceId: "portfolio",
+      normalizedFilter: "all",
+      ordering: "manual-v1",
+      visibilityVersion: "mock-portfolio-v1",
+      pageSize: 24,
     },
-    {
-      placementId: "portfolio-misty-birch",
-      media: {
-        ...mockImages.mistyBirch,
-        caption: "Morning mist",
-      },
-    },
-    {
-      placementId: "portfolio-lakeside-reeds",
-      media: mockImages.lakesideReeds,
-    },
-    {
-      placementId: "portfolio-forest-stream",
-      media: {
-        ...mockImages.forestStream,
-        caption: "Forest stream",
-      },
-    },
-    {
-      placementId: "portfolio-open-marsh",
-      media: {
-        ...mockImages.openMarsh,
-        caption: "After the rain",
-      },
-    },
-    {
-      placementId: "portfolio-lichen-stones",
-      media: {
-        ...mockImages.lichenStones,
-        caption: "Shoreline details",
-      },
-    },
-  ],
+  }),
 };
 
 export async function getPortfolioGallery(): Promise<Gallery> {
