@@ -79,10 +79,12 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
 configuration, responsive header and footer, home page, services listing and detail
 pages, article/blog listing and detail pages, the shared generic media model, the public
-image rendition boundary, the portfolio thumbnail grid, and the shared bounded gallery
-result contract. Not yet built: public continuation routes and controls, lightbox,
-contact form, per-route canonical and Open Graph metadata, sitemap/robots, the Sanity
-adapter, deployment.
+image rendition boundary, the portfolio thumbnail grid, the shared bounded gallery
+result contract, and the public content category domain model with its canonical
+placement contract. Not yet built: public category and content routes, breadcrumbs and
+tree-driven navigation, locale-aware routing, public continuation routes and controls,
+lightbox, contact form, per-route canonical and Open Graph metadata, sitemap/robots, the
+Sanity adapter, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
@@ -138,6 +140,14 @@ npm run build   # production build (CI gate)
 
 ## Git workflow
 
+- **Branch before the first file change.** While the checkout is on `main`, no file in
+  the working tree may be modified — code, documentation, and configuration alike, and a
+  change that "is only a one-liner" is not an exemption. Read-only work comes first and
+  is expected: read the work item, explore the code, and check `git status` and the
+  tracking state so the branch starts from a clean, up-to-date `main`. Creating the
+  branch is then the last step before the first edit. If editing has already begun on
+  `main`, stop and branch — uncommitted changes carry over — rather than committing them
+  there.
 - Branches: `feature/<id>-short-description`, `fix/<id>-short-description`, `chore/...`, `codex/...` — never commit directly to `main`. Include the work item id in the branch name when the branch belongs to one story (e.g. `feature/6-responsive-header`).
 - Conventional commits: `feat: add gallery grid`, `fix: focus trap in lightbox`, `chore: bump deps`
 - Reference the Azure Boards work item in the PR description with `AB#<id>`
