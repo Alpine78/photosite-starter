@@ -102,6 +102,7 @@ on pushes and pull requests to `main`.
   (ADR-0005 awaits owner approval)
 - [x] Blog / article content type (supports long story articles)
 - [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
+  — *category domain model and canonical placement contract done; routes and navigation pending*
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))
@@ -157,8 +158,9 @@ Found a bug or have an idea? Open an issue — that is welcome.
 🚧 Work in progress — MVP in progress. The public pages (home, services, blog, and the
 initial portfolio grid) are built against a mock data layer whose images use the
 accepted project-owned public rendition contract and whose portfolio uses the shared
-paginated gallery result contract. The future Sanity adapter remains open, as does
-the accepted locale-aware route contract. The hierarchical content tree, localized
-routing, public continuation routes and controls, lightbox, contact form, and CMS
-integration are still open. Keyword-driven dynamic galleries remain post-MVP. See the
-MVP scope checklist above.
+paginated gallery result contract. The content tree's category domain model and
+canonical placement contract are built; its public routes, breadcrumbs, and navigation
+are not. The future Sanity adapter remains open, as does the accepted locale-aware
+route contract. Localized routing, public continuation routes and controls, lightbox,
+contact form, and CMS integration are still open. Keyword-driven dynamic galleries
+remain post-MVP. See the MVP scope checklist above.
