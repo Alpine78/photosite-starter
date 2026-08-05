@@ -324,9 +324,10 @@ official documentation:
 4. [x] Unit-test source and dimension validation, compile-time field provenance, property
        allow-listing, byte-versioned mock paths, profile constants, candidate-width
        configuration, strict immutable-header matching, and the future lightbox helper.
-5. [ ] Carry this contract into AB#67's public gallery result and AB#82's server-only
-       Sanity adapter and serialization tests. Add a narrow `remotePatterns` entry and
-       integration/build coverage in the same change as the first remote source.
+5. [ ] The AB#67 public gallery result now carries this contract with a serialization
+       allow-list test. AB#82 still needs to carry it into the server-only Sanity adapter,
+       add a narrow `remotePatterns` entry, and add integration/build coverage in the
+       same change as the first remote source.
 6. [ ] In AB#15, consume the lightbox helper, apply the matching CSS cap, revisit the
        global optimizer widths, and browser-verify full-frame rendering and candidate
        selection.

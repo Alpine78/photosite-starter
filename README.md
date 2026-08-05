@@ -106,7 +106,7 @@ on pushes and pull requests to `main`.
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
-  and optional long-form body content — *thumbnail grid done*
+  and optional long-form body content — *thumbnail grid and shared bounded result contract done*
 - [ ] Contact form
 - [ ] Basic SEO (metadata, sitemap, robots.txt) — *root title/description and metadata base done; per-route canonical/Open Graph output and sitemap/robots pending*
 - [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`*
@@ -156,9 +156,9 @@ Found a bug or have an idea? Open an issue — that is welcome.
 
 🚧 Work in progress — MVP in progress. The public pages (home, services, blog, and the
 initial portfolio grid) are built against a mock data layer whose images use the
-proposed project-owned public rendition contract. The future Sanity adapter remains
-open, as does
+accepted project-owned public rendition contract and whose portfolio uses the shared
+paginated gallery result contract. The future Sanity adapter remains open, as does
 the accepted locale-aware route contract. The hierarchical content tree, localized
-routing, shared paginated gallery experience, lightbox, contact form, and CMS integration
-are still open. Keyword-driven dynamic galleries remain post-MVP. See the MVP scope
-checklist above.
+routing, public continuation routes and controls, lightbox, contact form, and CMS
+integration are still open. Keyword-driven dynamic galleries remain post-MVP. See the
+MVP scope checklist above.

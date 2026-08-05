@@ -475,11 +475,12 @@ structure but loses the photographer-facing property that argued against Option 
 
 ## Action Items
 
-1. [ ] Restructure `src/lib/media.ts` and `src/lib/gallery.ts` to the media/placement
+1. [x] Restructure `src/lib/media.ts` and `src/lib/gallery.ts` to the media/placement
        split, with `mediaId` on the media and `placementId` on the placement
        (implementation story, not this one).
-2. [ ] Implement `itemId` derivation in one place — curated from placement, dynamic
-       deduplicated by `mediaId` — so no call site derives it ad hoc.
+2. [ ] AB#67 now derives curated `itemId` from placement in one place. AB#66 still
+       needs to derive dynamic `itemId` after deduplicating by `mediaId`, so no call site
+       derives either form ad hoc.
 3. [ ] Implement effective visibility as a single server-side function over the state
        flags; no call site checks flags individually.
 4. [ ] Carry this vocabulary into AB#66 (query contract) and AB#108 (rendition boundary)
