@@ -39,3 +39,35 @@ steps:
       SITE_DEFAULT_SOCIAL_IMAGE: "/gallery/coastal-landscape.1683eecb7e65.webp"
       SITE_DEFAULT_SOCIAL_IMAGE_WIDTH: "1536"
       SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT: "1024"
+
+  # Only the browsers the configured project matrix uses. --with-deps installs
+  # the system libraries a hosted Ubuntu agent lacks.
+  - script: |
+      npx playwright install --with-deps chromium webkit
+    displayName: "Install Playwright browsers"
+
+  # Runs its own production build through the Playwright webServer, with the
+  # harness environment rather than the deployment settings used above — the
+  # step before is the deployment build gate, this one is the journey gate. No
+  # pipeline secret is passed in: the suite must reach no external service.
+  - script: |
+      npm run test:e2e
+    displayName: "End-to-end smoke tests"
+
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    displayName: "Publish end-to-end results"
+    inputs:
+      testResultsFormat: "JUnit"
+      testResultsFiles: "test-results/junit.xml"
+      testRunTitle: "Playwright smoke tests"
+      failTaskOnFailedTests: false
+
+  # Traces, screenshots, and server logs for a failed run only. They contain
+  # mock content and harness settings, never credentials or personal data.
+  - task: PublishPipelineArtifact@1
+    condition: failed()
+    displayName: "Publish end-to-end failure diagnostics"
+    inputs:
+      targetPath: "playwright-report"
+      artifact: "playwright-report"
