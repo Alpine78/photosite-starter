@@ -11,7 +11,7 @@ type ServicePageProps = {
   params: Promise<{ slug: string }>;
 };
 
-/** Pre-render a page for every service at build time. */
+/** Pre-render every default-locale service detail at build time. */
 export async function generateStaticParams() {
   const services = await getServices();
   return services.map((service) => ({ slug: service.slug }));

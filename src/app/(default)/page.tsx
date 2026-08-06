@@ -8,7 +8,7 @@ import { HERO_IMAGE_SIZES } from "@/lib/image-delivery";
 import { getPageMetadata } from "@/lib/page-metadata";
 
 /**
- * The site root keeps the SiteSettings site name as its title rather than
+ * The unprefixed default-locale site root keeps the SiteSettings site name as
  * setting one of its own, and shares its hero as the page's social image.
  */
 export async function generateMetadata(): Promise<Metadata> {

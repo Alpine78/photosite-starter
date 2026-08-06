@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { DeploymentConfig } from "@/lib/deployment-config";
 import { buildLocaleRouteConfig } from "@/lib/locale-routes";
 import { projectPublicImageMedia, type VideoMedia } from "@/lib/media";
-import { buildPageMetadata, buildSiteMetadata } from "@/lib/page-metadata";
+import {
+  buildLocaleShellMetadata,
+  buildPageMetadata,
+  buildSiteMetadata,
+} from "@/lib/page-metadata";
 import type { SiteSettings } from "@/lib/site-settings";
 
 const settings: SiteSettings = {
@@ -41,6 +45,7 @@ const deployment: DeploymentConfig = {
   localeRoutes: buildLocaleRouteConfig({
     locales: [{ locale: "en-GB", prefix: null, storyNamespace: "stories" }],
     reservedRootSegments: [],
+    reservedLocaleRouteSegments: [],
   }),
   canonicalBaseUrl: new URL("https://example.com"),
   defaultSocialImage: buildDefaultSocialImage(
@@ -337,6 +342,7 @@ const bilingualDeployment: DeploymentConfig = {
       { locale: "en-GB", prefix: "en", storyNamespace: "stories" },
     ],
     reservedRootSegments: [],
+    reservedLocaleRouteSegments: [],
   }),
 };
 
@@ -436,5 +442,22 @@ describe("buildPageMetadata alternate-language links", () => {
         bilingualContext,
       ),
     ).toThrow('locale "sv" is not configured');
+  });
+});
+
+describe("buildLocaleShellMetadata", () => {
+  it("uses the prefixed route locale without copying default-locale text", () => {
+    const metadata = buildLocaleShellMetadata(bilingualContext, "en-GB");
+
+    expect(openGraphOf(metadata).locale).toBe("en_GB");
+    expect(metadata.description).toBeUndefined();
+    expect(openGraphOf(metadata)).not.toHaveProperty("description");
+    expect(openGraphOf(metadata)).not.toHaveProperty("images");
+  });
+
+  it("rejects a route locale the deployment does not configure", () => {
+    expect(() => buildLocaleShellMetadata(bilingualContext, "sv")).toThrow(
+      'locale "sv" is not configured',
+    );
   });
 });

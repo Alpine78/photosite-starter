@@ -68,6 +68,16 @@ describe("loadDeploymentConfig", () => {
     ).toThrow("Invalid SITE_LOCALE");
   });
 
+  it("rejects a locale without a concrete language subtag", () => {
+    expect(() =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_LOCALE: "und",
+        SITE_LOCALE_ROUTES: "und||stories",
+      }),
+    ).toThrow("Invalid SITE_LOCALE");
+  });
+
   it("reads the locale route space of a bilingual deployment", () => {
     const config = loadDeploymentConfig({
       ...validEnvironment,
@@ -119,6 +129,18 @@ describe("loadDeploymentConfig", () => {
       }),
     ).toThrow(
       'Invalid SITE_LOCALE_ROUTES: locale prefix "blog" collides with a root route',
+    );
+  });
+
+  it("rejects a story namespace a localized static route already owns", () => {
+    expect(() =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_LOCALE: "fi",
+        SITE_LOCALE_ROUTES: "fi||tarinat,en|en|services",
+      }),
+    ).toThrow(
+      'Invalid SITE_LOCALE_ROUTES: story namespace "services" for locale "en" collides with a localized static route',
     );
   });
 

@@ -1,6 +1,6 @@
 import { notFound, permanentRedirect } from "next/navigation";
 import { getDeploymentConfig } from "@/lib/deployment-config";
-import { resolvePrefixedRoute } from "@/lib/locale-routes";
+import { resolveLocalePrefixRequest } from "@/lib/locale-prefix-request";
 import { defaultLocaleRouteExists } from "@/lib/public-routes";
 
 /**
@@ -25,41 +25,23 @@ type LocalePrefixPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-/**
- * Carries the incoming query across the redirect unchanged. A visitor's
- * campaign parameters, and later a gallery's section and cursor state, are
- * part of the request they made; normalizing the path is not a reason to drop
- * them.
- */
-function buildQueryString(
-  searchParams: Record<string, string | string[] | undefined>,
-): string {
-  const params = new URLSearchParams();
-  for (const [name, value] of Object.entries(searchParams)) {
-    if (value === undefined) continue;
-    for (const single of Array.isArray(value) ? value : [value]) {
-      params.append(name, single);
-    }
-  }
-  const query = params.toString();
-  return query.length === 0 ? "" : `?${query}`;
-}
-
 export default async function LocalePrefixPage({
   params,
   searchParams,
 }: LocalePrefixPageProps) {
-  const { localePrefix, segments = [] } = await params;
+  const [{ localePrefix, segments = [] }, resolvedSearchParams] =
+    await Promise.all([params, searchParams]);
   const { localeRoutes } = getDeploymentConfig();
-  const resolution = resolvePrefixedRoute(localeRoutes, localePrefix, segments);
+  const resolution = await resolveLocalePrefixRequest({
+    config: localeRoutes,
+    prefix: localePrefix,
+    segments,
+    searchParams: resolvedSearchParams,
+    defaultLocaleRouteExists,
+  });
 
-  if (
-    resolution.kind === "redundant-default-prefix" &&
-    (await defaultLocaleRouteExists(resolution.canonicalPath))
-  ) {
-    permanentRedirect(
-      `${resolution.canonicalPath}${buildQueryString(await searchParams)}`,
-    );
+  if (resolution.kind === "redirect") {
+    permanentRedirect(resolution.location);
   }
 
   notFound();

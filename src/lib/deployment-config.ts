@@ -9,7 +9,10 @@ import {
   readLocalPublicImageVersion,
   type ImageMedia,
 } from "@/lib/media";
-import { RESERVED_ROOT_SEGMENTS } from "@/lib/public-routes";
+import {
+  RESERVED_LOCALE_ROUTE_SEGMENTS,
+  RESERVED_ROOT_SEGMENTS,
+} from "@/lib/public-routes";
 
 const deploymentSettingNames = {
   locale: "SITE_LOCALE",
@@ -207,13 +210,22 @@ function parseImageDimension(value: string, settingName: string): number {
 }
 
 function parseLocale(value: string): string {
+  let parsed: Intl.Locale;
   try {
-    return new Intl.Locale(value).toString();
+    parsed = new Intl.Locale(value);
   } catch {
     throw new Error(
-      `[deployment-config] Invalid ${deploymentSettingNames.locale}: expected a valid BCP 47 locale, received "${value}"`,
+      `[deployment-config] Invalid ${deploymentSettingNames.locale}: expected a valid BCP 47 locale with a concrete language subtag, received "${value}"`,
     );
   }
+
+  if (typeof parsed.language !== "string" || parsed.language.length === 0) {
+    throw new Error(
+      `[deployment-config] Invalid ${deploymentSettingNames.locale}: expected a valid BCP 47 locale with a concrete language subtag, received "${value}"`,
+    );
+  }
+
+  return parsed.toString();
 }
 
 /**
@@ -224,9 +236,9 @@ function parseLocale(value: string): string {
  *     fi||tarinat,en|en|stories
  *
  * Every rule the entries must satisfy — one unprefixed default, unique
- * prefixes, no collision with a root route the application already owns — is
- * the route contract's, so the values are validated there and reported against
- * the setting that supplied them.
+ * prefixes, no collision with a root route or localized static route — is the
+ * route contract's, so the values are validated there and reported against the
+ * setting that supplied them.
  */
 function parseLocaleRoutes(
   environment: DeploymentEnvironment,
@@ -259,6 +271,7 @@ function parseLocaleRoutes(
     config = buildLocaleRouteConfig({
       locales,
       reservedRootSegments: RESERVED_ROOT_SEGMENTS,
+      reservedLocaleRouteSegments: RESERVED_LOCALE_ROUTE_SEGMENTS,
     });
   } catch (cause) {
     if (cause instanceof TypeError) {

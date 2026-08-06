@@ -9,6 +9,7 @@ import {
   listPublishedLocaleVersions,
   resolveLanguageSwitch,
   resolvePrefixedRoute,
+  resolveRouteShellLocale,
   type ContentLocation,
   type LocalizedContentTrees,
 } from "@/lib/locale-routes";
@@ -23,6 +24,7 @@ const config = buildLocaleRouteConfig({
     { locale: "en", prefix: "en", storyNamespace: "stories" },
   ],
   reservedRootSegments: ["blog", "portfolio", "services"],
+  reservedLocaleRouteSegments: ["services"],
 });
 
 /**
@@ -129,6 +131,7 @@ describe("buildLocaleRouteConfig", () => {
     const normalized = buildLocaleRouteConfig({
       locales: [{ locale: "en-gb", prefix: null, storyNamespace: "stories" }],
       reservedRootSegments: [],
+      reservedLocaleRouteSegments: [],
     });
 
     expect(normalized.defaultLocale).toBe("en-GB");
@@ -139,6 +142,7 @@ describe("buildLocaleRouteConfig", () => {
     const single = buildLocaleRouteConfig({
       locales: [{ locale: "fi", prefix: null, storyNamespace: "tarinat" }],
       reservedRootSegments: [],
+      reservedLocaleRouteSegments: [],
     });
 
     expect(single.locales).toHaveLength(1);
@@ -255,8 +259,65 @@ describe("buildLocaleRouteConfig", () => {
     },
   ])("rejects $name", ({ locales, reserved, message }) => {
     expect(() =>
-      buildLocaleRouteConfig({ locales, reservedRootSegments: reserved }),
+      buildLocaleRouteConfig({
+        locales,
+        reservedRootSegments: reserved,
+        reservedLocaleRouteSegments: [],
+      }),
     ).toThrow(message);
+  });
+
+  it("rejects a story namespace that collides inside a prefixed locale", () => {
+    expect(() =>
+      buildLocaleRouteConfig({
+        locales: [
+          { locale: "fi", prefix: null, storyNamespace: "tarinat" },
+          { locale: "en", prefix: "en", storyNamespace: "services" },
+        ],
+        reservedRootSegments: ["gallery", "services"],
+        reservedLocaleRouteSegments: ["services"],
+      }),
+    ).toThrow(
+      'story namespace "services" for locale "en" collides with a localized static route',
+    );
+  });
+
+  it("does not reserve a root-only asset inside a prefixed locale", () => {
+    const withRootOnlyNamespace = buildLocaleRouteConfig({
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat" },
+        { locale: "en", prefix: "en", storyNamespace: "gallery" },
+      ],
+      reservedRootSegments: ["gallery"],
+      reservedLocaleRouteSegments: [],
+    });
+
+    expect(buildStoryPath(withRootOnlyNamespace, "en")).toBe("/en/gallery");
+  });
+
+  it("still reserves a root-only asset against the default namespace", () => {
+    expect(() =>
+      buildLocaleRouteConfig({
+        locales: [
+          { locale: "fi", prefix: null, storyNamespace: "gallery" },
+          { locale: "en", prefix: "en", storyNamespace: "stories" },
+        ],
+        reservedRootSegments: ["gallery"],
+        reservedLocaleRouteSegments: [],
+      }),
+    ).toThrow(
+      'story namespace "gallery" of default locale "fi" collides with a root route',
+    );
+  });
+
+  it("rejects a locale without a concrete language subtag", () => {
+    expect(() =>
+      buildLocaleRouteConfig({
+        locales: [{ locale: "und", prefix: null, storyNamespace: "stories" }],
+        reservedRootSegments: [],
+        reservedLocaleRouteSegments: [],
+      }),
+    ).toThrow("expected a BCP 47 locale tag with a concrete language subtag");
   });
 });
 
@@ -319,6 +380,17 @@ describe("resolvePrefixedRoute", () => {
     expect(resolvePrefixedRoute(config, "EN", ["stories"])).toEqual({
       kind: "not-a-locale",
     });
+  });
+});
+
+describe("resolveRouteShellLocale", () => {
+  it("uses a configured prefixed locale for its document shell", () => {
+    expect(resolveRouteShellLocale(config, "en")).toBe("en");
+  });
+
+  it("uses the default locale for normalization and unknown paths", () => {
+    expect(resolveRouteShellLocale(config, "fi")).toBe("fi");
+    expect(resolveRouteShellLocale(config, "sv")).toBe("fi");
   });
 });
 

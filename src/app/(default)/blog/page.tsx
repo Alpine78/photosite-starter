@@ -11,7 +11,7 @@ import {
 import { getPageMetadata } from "@/lib/page-metadata";
 
 /**
- * A category filter is an alternate view of one article set, so every filtered
+ * On the unprefixed compatibility route, a category filter is an alternate
  * view canonicalizes to the unfiltered listing instead of claiming a URL of
  * its own.
  */

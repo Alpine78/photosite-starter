@@ -33,6 +33,14 @@ export const RESERVED_ROOT_SEGMENTS: readonly string[] = [
 ];
 
 /**
+ * Static visitor-facing route segments that repeat beneath every locale base.
+ * Root-only compatibility routes, assets, and machine files stay out: they do
+ * not compete with a story namespace beneath `/en` or another locale prefix.
+ * Add `contact` here when its localized public route lands.
+ */
+export const RESERVED_LOCALE_ROUTE_SEGMENTS: readonly string[] = ["services"];
+
+/**
  * Whether the unprefixed default-locale route path resolves to a page today.
  * Only exact paths count: an unknown slug beneath a known listing is a 404 in
  * the default locale too, so it must not become a redirect target.

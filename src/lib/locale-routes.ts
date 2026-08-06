@@ -52,6 +52,13 @@ export type LocaleRouteConfigInput = {
    * collision fails the deployment instead of producing an unreachable locale.
    */
   readonly reservedRootSegments: readonly string[];
+  /**
+   * Static visitor-facing segments served inside every locale route space.
+   * Unlike `reservedRootSegments`, this excludes root-only public assets and
+   * machine routes: `/gallery` being an asset directory must not forbid an
+   * otherwise valid `/en/gallery` story namespace.
+   */
+  readonly reservedLocaleRouteSegments: readonly string[];
 };
 
 export type LocaleRoute = {
@@ -85,9 +92,23 @@ function fail(message: string): never {
   throw new TypeError(message);
 }
 
-function normalizeLocale(value: string): string | undefined {
+type NormalizedLocale = {
+  readonly locale: string;
+  readonly language: string;
+};
+
+function normalizeLocale(value: string): NormalizedLocale | undefined {
   try {
-    return new Intl.Locale(value).toString();
+    const parsed = new Intl.Locale(value);
+    const language = parsed.language;
+
+    // `und` is a valid BCP 47 tag, but current ICU implementations expose no
+    // concrete `language` for it. This route contract needs that subtag for the
+    // redundant default-prefix rule, so accepting it would return an object
+    // whose declared `redundantDefaultPrefix: string` is actually undefined.
+    if (typeof language !== "string" || language.length === 0) return undefined;
+
+    return { locale: parsed.toString(), language };
   } catch {
     return undefined;
   }
@@ -102,20 +123,26 @@ function normalizeLocale(value: string): string | undefined {
 export function buildLocaleRouteConfig({
   locales,
   reservedRootSegments,
+  reservedLocaleRouteSegments,
 }: LocaleRouteConfigInput): LocaleRouteConfig {
   if (locales.length === 0) {
     fail("at least one locale must be configured");
   }
 
-  const reserved = new Set(reservedRootSegments);
+  const reservedAtRoot = new Set(reservedRootSegments);
+  const reservedInsideLocale = new Set(reservedLocaleRouteSegments);
   const byLocale = new Map<string, LocaleRoute>();
   const byPrefix = new Map<string, LocaleRoute>();
   let defaultRoute: LocaleRoute | undefined;
+  let defaultLanguage: string | undefined;
 
   for (const entry of locales) {
-    const locale =
+    const normalized =
       normalizeLocale(entry.locale) ??
-      fail(`invalid locale "${entry.locale}": expected a BCP 47 locale tag`);
+      fail(
+        `invalid locale "${entry.locale}": expected a BCP 47 locale tag with a concrete language subtag`,
+      );
+    const { locale } = normalized;
 
     if (byLocale.has(locale)) {
       fail(`locale "${locale}" is configured more than once`);
@@ -125,6 +152,11 @@ export function buildLocaleRouteConfig({
         `invalid story namespace "${entry.storyNamespace}" for locale "${locale}": expected lowercase segments with hyphens between words`,
       );
     }
+    if (reservedInsideLocale.has(entry.storyNamespace)) {
+      fail(
+        `story namespace "${entry.storyNamespace}" for locale "${locale}" collides with a localized static route`,
+      );
+    }
 
     if (entry.prefix !== null) {
       if (!SEGMENT_PATTERN.test(entry.prefix)) {
@@ -132,7 +164,7 @@ export function buildLocaleRouteConfig({
           `invalid locale prefix "${entry.prefix}" for locale "${locale}": expected lowercase segments with hyphens between words`,
         );
       }
-      if (reserved.has(entry.prefix)) {
+      if (reservedAtRoot.has(entry.prefix)) {
         fail(
           `locale prefix "${entry.prefix}" collides with a root route the application already owns`,
         );
@@ -156,10 +188,13 @@ export function buildLocaleRouteConfig({
 
     byLocale.set(locale, route);
     if (entry.prefix !== null) byPrefix.set(entry.prefix, route);
-    if (entry.prefix === null) defaultRoute = route;
+    if (entry.prefix === null) {
+      defaultRoute = route;
+      defaultLanguage = normalized.language;
+    }
   }
 
-  if (defaultRoute === undefined) {
+  if (defaultRoute === undefined || defaultLanguage === undefined) {
     fail("exactly one locale must be configured without a prefix as the default");
   }
 
@@ -167,13 +202,13 @@ export function buildLocaleRouteConfig({
   // default prefix is a root segment this contract claims for normalization.
   // Both are cross-checked here rather than in the loop, because the default
   // locale may be configured after a prefixed one.
-  if (reserved.has(defaultRoute.storyNamespace)) {
+  if (reservedAtRoot.has(defaultRoute.storyNamespace)) {
     fail(
       `story namespace "${defaultRoute.storyNamespace}" of default locale "${defaultRoute.locale}" collides with a root route the application already owns`,
     );
   }
 
-  const redundantDefaultPrefix = new Intl.Locale(defaultRoute.locale).language;
+  const redundantDefaultPrefix = defaultLanguage;
 
   for (const route of byPrefix.values()) {
     if (route.prefix === defaultRoute.storyNamespace) {
@@ -188,7 +223,7 @@ export function buildLocaleRouteConfig({
     }
   }
 
-  if (reserved.has(redundantDefaultPrefix)) {
+  if (reservedAtRoot.has(redundantDefaultPrefix)) {
     fail(
       `redundant default-locale prefix "${redundantDefaultPrefix}" collides with a root route the application already owns`,
     );
@@ -217,7 +252,9 @@ export function getLocaleRoute(
   locale: string,
 ): LocaleRoute | undefined {
   const normalized = normalizeLocale(locale);
-  return normalized === undefined ? undefined : config.byLocale.get(normalized);
+  return normalized === undefined
+    ? undefined
+    : config.byLocale.get(normalized.locale);
 }
 
 function requireLocaleRoute(
@@ -313,6 +350,25 @@ export function resolvePrefixedRoute(
   }
 
   return { kind: "not-a-locale" };
+}
+
+/**
+ * Document-shell locale for a path entering the dynamic prefix segment.
+ *
+ * A configured non-default prefix owns its locale. The redundant default
+ * prefix and an unknown first segment both use the default locale's shell while
+ * the leaf route performs its exact redirect or not-found decision. This lets
+ * the owning root layout select the configured locale without guessing a
+ * language for `/sv/...`.
+ */
+export function resolveRouteShellLocale(
+  config: LocaleRouteConfig,
+  prefix: string,
+): string {
+  const resolution = resolvePrefixedRoute(config, prefix);
+  return resolution.kind === "localized"
+    ? resolution.locale
+    : config.defaultLocale;
 }
 
 // ---------------------------------------------------------------------------

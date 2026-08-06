@@ -4,29 +4,40 @@ import { describe, expect, it } from "vitest";
 
 import { getArticles } from "@/lib/articles";
 import {
+  RESERVED_LOCALE_ROUTE_SEGMENTS,
   RESERVED_ROOT_SEGMENTS,
   defaultLocaleRouteExists,
 } from "@/lib/public-routes";
 import { getServices } from "@/lib/services";
 
 /**
- * Root segments the file system really serves: static route directories and
- * metadata files under `src/app`, plus everything in `public/`. Dynamic
- * segments and route groups own no literal segment, so they are skipped.
+ * Literal root segments the App Router serves. Route groups contribute no URL
+ * segment, so their children are inspected at the same level; dynamic and
+ * private directories claim no literal segment and are skipped.
  */
-function readRootSegments(): string[] {
-  const appEntries = readdirSync(join(process.cwd(), "src/app"), {
+function readAppRootSegments(directory: string): string[] {
+  const appEntries = readdirSync(directory, {
     withFileTypes: true,
   });
 
+  return appEntries.flatMap((entry) => {
+    if (entry.isDirectory() && /^\(.+\)$/.test(entry.name)) {
+      return readAppRootSegments(join(directory, entry.name));
+    }
+    if (entry.isDirectory() && !/^[[(_@]/.test(entry.name)) {
+      return [entry.name];
+    }
+    if (entry.isFile() && !/\.(tsx?|css)$/.test(entry.name)) {
+      return [entry.name];
+    }
+    return [];
+  });
+}
+
+/** Root App Router segments plus public files and asset directories. */
+function readRootSegments(): string[] {
   return [
-    ...appEntries
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name)
-      .filter((name) => !/^[[(_]/.test(name)),
-    ...appEntries
-      .filter((entry) => entry.isFile() && !/\.(tsx?|css)$/.test(entry.name))
-      .map((entry) => entry.name),
+    ...readAppRootSegments(join(process.cwd(), "src/app")),
     ...readdirSync(join(process.cwd(), "public")),
   ];
 }
@@ -39,6 +50,14 @@ describe("RESERVED_ROOT_SEGMENTS", () => {
     expect([...RESERVED_ROOT_SEGMENTS].sort()).toEqual(
       [...new Set(readRootSegments())].sort(),
     );
+  });
+});
+
+describe("RESERVED_LOCALE_ROUTE_SEGMENTS", () => {
+  it("contains localized static routes but excludes root-only assets", () => {
+    expect(RESERVED_LOCALE_ROUTE_SEGMENTS).toContain("services");
+    expect(RESERVED_LOCALE_ROUTE_SEGMENTS).not.toContain("gallery");
+    expect(RESERVED_LOCALE_ROUTE_SEGMENTS).not.toContain("favicon.ico");
   });
 });
 

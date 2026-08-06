@@ -83,11 +83,13 @@ image rendition boundary, the portfolio thumbnail grid, the shared bounded galle
 result contract, the public content category domain model with its canonical placement
 contract, settings-driven page metadata with canonical URLs and Open Graph values, and
 the locale route contract — configured locale route spaces, root prefix reservation,
-redundant default-prefix normalization, identity-based language-switch resolution, and
-`hreflang`/`x-default` alternates. Not yet built: public category and content routes,
-breadcrumbs and tree-driven navigation, localized pages and the visible language switch
-inside a non-default locale's routes, public continuation routes and controls, lightbox,
-contact form, sitemap/robots, structured data, the Sanity adapter, deployment.
+locale-space namespace reservation, redundant default-prefix normalization,
+route-specific document and Open Graph locale selection, and tested helpers for
+identity-based language switching and alternate metadata. Not yet built: public category
+and content routes, breadcrumbs and tree-driven navigation, localized pages, emitted
+`hreflang`/`x-default` links, and the visible language switch inside a non-default
+locale's routes, public continuation routes and controls, lightbox, contact form,
+sitemap/robots, structured data, the Sanity adapter, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,

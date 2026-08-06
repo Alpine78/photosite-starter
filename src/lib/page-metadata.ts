@@ -197,6 +197,33 @@ export function buildSiteMetadata({
 }
 
 /**
+ * Metadata defaults for a configured locale whose authored settings and UI
+ * copy do not exist yet. Brand identity and the validated locale are safe to
+ * state; a description, social image alt, or other language-dependent value is
+ * omitted rather than copied from the default locale.
+ */
+export function buildLocaleShellMetadata(
+  { settings, deployment }: MetadataContext,
+  locale: string,
+): Metadata {
+  const resolvedLocale = resolvePageLocale(locale, deployment);
+  const openGraphLocale = toOpenGraphLocale(resolvedLocale);
+
+  return {
+    metadataBase: deployment.canonicalBaseUrl,
+    title: {
+      default: settings.siteName,
+      template: settings.defaultSeo.titleTemplate,
+    },
+    openGraph: {
+      type: "website",
+      siteName: settings.siteName,
+      ...(openGraphLocale === undefined ? {} : { locale: openGraphLocale }),
+    },
+  };
+}
+
+/**
  * Metadata for one public page.
  *
  * The Open Graph title is left unset on purpose: Next.js fills it from the
@@ -255,6 +282,13 @@ async function getMetadataContext(): Promise<MetadataContext> {
 /** Route-facing wrapper that loads the settings and deployment context. */
 export async function getSiteMetadata(): Promise<Metadata> {
   return buildSiteMetadata(await getMetadataContext());
+}
+
+/** Locale-shell wrapper that deliberately omits untranslated metadata copy. */
+export async function getLocaleShellMetadata(
+  locale: string,
+): Promise<Metadata> {
+  return buildLocaleShellMetadata(await getMetadataContext(), locale);
 }
 
 /** Route-facing wrapper that loads the settings and deployment context. */
