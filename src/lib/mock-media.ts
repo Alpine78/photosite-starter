@@ -58,9 +58,6 @@ export const mockImages = {
       height: 1254,
     },
     alt: "Rain-darkened stones patterned with pale lichen",
-    // One credited image, so the credit path is exercised by the mock layer the
-    // way a real attribution would be. Placeholder text like the mock captions.
-    credit: "Placeholder credit",
   }),
   mistyBirch: projectPublicImageMedia({
     mediaId: "misty-birch",
@@ -73,6 +70,9 @@ export const mockImages = {
       height: 1536,
     },
     alt: "Silver birch standing in a misty green forest",
+    // One credited image, followed by an item with no metadata in the portfolio
+    // result, so the journey exercises both presentation and stale removal.
+    credit: "Placeholder credit",
   }),
   openMarsh: projectPublicImageMedia({
     mediaId: "open-marsh",

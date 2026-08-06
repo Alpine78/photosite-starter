@@ -241,6 +241,10 @@ export function GalleryLightbox({
         appendTo: "root",
         onInit: (element) => {
           element.id = captionId;
+          // A long caption scrolls inside its bounded overlay. Making that
+          // region focusable keeps all of its text reachable without a mouse
+          // or touch gesture; a hidden region leaves the tab order with it.
+          element.tabIndex = 0;
           // Hidden until a slide says otherwise, so an item with no metadata
           // never shows an empty region even for the first paint.
           element.hidden = true;
