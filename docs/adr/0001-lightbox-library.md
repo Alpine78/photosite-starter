@@ -180,17 +180,17 @@ are the owner's assessment, recorded as such, and they point in opposite directi
 
 ## Action Items
 
-1. [ ] Implement the lightbox behind `src/components/gallery-lightbox.tsx`, driven by
+1. [x] Implement the lightbox behind `src/components/gallery-lightbox.tsx`, driven by
        `Media`, with the grid trigger a real `<button>` or anchor (AB#13 follow-up story).
-2. [ ] Add `photoswipe` to `package.json` **in the implementation story**, not in this one.
-3. [ ] Record PhotoSwipe in `docs/asset-inventory.md`, add the MIT attribution to
+2. [x] Add `photoswipe` to `package.json` **in the implementation story**, not in this one.
+3. [x] Record PhotoSwipe in `docs/asset-inventory.md`, add the MIT attribution to
        `NOTICE`, and place the license text in `licenses/` — before the dependency lands.
-4. [ ] Verify keyboard behaviour and the no-crop rule in the running app, not only in
+4. [x] Verify keyboard behaviour and the no-crop rule in the running app, not only in
        the prototype.
 5. [ ] Run a screen reader pass (NVDA or VoiceOver) against the implemented lightbox.
        This spike measured ARIA attributes, which is not the same as a screen reader
        test, and no screen reader was used.
-6. [ ] Delete the spike branch `chore/13-lightbox-spike` once this ADR is merged.
+6. [x] Delete the spike branch `chore/13-lightbox-spike` once this ADR is merged.
 
 ## What this spike did not establish
 
@@ -199,3 +199,49 @@ are the owner's assessment, recorded as such, and they point in opposite directi
   synthesised touch events only.
 - Bundle figures are gzip of Turbopack production chunks measured on this branch; they
   will shift as the app grows.
+
+## What implementation found (AB#15)
+
+The decision held: focus management, keyboard navigation, and the no-crop rule all came
+from the library rather than from us. Four behaviours were not visible from the spike and
+are recorded here so the next person does not rediscover them.
+
+- **Focus enters the dialog after the opening animation, not at open.** The library
+  dispatches the event that installs its focus handling from `openingAnimationEnd`, so
+  that focusing does not force layout mid-animation. There is a ~330 ms window in which
+  the dialog is on screen and focus has not moved yet. Acceptable, but it is why the
+  journey test polls for focus instead of asserting it immediately.
+- **The library's own focus return goes to the element that opened the dialog**, which is
+  the wrong one once a visitor has navigated. The project turns `returnFocus` off and
+  restores focus to the trigger of the slide the visitor ended on, keyed by `itemId`.
+- **Opening without a pointer position is what makes the dialog take focus at all.** The
+  library reads a supplied pointer position as "opened by mouse" and then leaves focus
+  outside until the visitor presses Tab. The project opens programmatically and passes
+  none, so click and keyboard behave identically.
+- **The library owns the `sizes` attribute at runtime**, replacing it with the slide's
+  rendered CSS width. The project-owned hint from ADR-0005 therefore does one job: it
+  makes the optimizer emit width-descriptor candidates. The selection among them is the
+  library's, and it is more accurate than a static hint could be.
+- **The library hides its previous and next controls on touch devices**, assuming a
+  visitor swipes. The project overrides that in `gallery-lightbox.css`. A swipe is a
+  dragging gesture with a distance and a direction, which is exactly what limited motor
+  control, a switch device, or a head pointer makes hard; a hidden control is in neither
+  the tab order nor the accessibility tree, so on a phone the gallery would have had no
+  operable pointer navigation at all. This is the one place where the accessibility
+  argument that chose the library also required departing from its defaults.
+- **The zoom cap has to be applied to every zoom level the library exposes**, not just
+  the initial and maximum ones. It computes the effective maximum as the largest of the
+  initial, secondary, and maximum levels, so leaving the secondary level at its default
+  raises the ceiling straight back past the cap — bounded only by the library's own
+  looser 4000-pixel clamp. Covered by a browser-free calculation test, because no
+  current mock derivative is wide enough for a browser test to reach the case.
+
+Residual checks that remain manual, and were not performed:
+
+- **Screen reader.** Action item 5 above is still open. The implementation adds
+  `aria-modal` and an accessible name to the library's `role="dialog"`, which the
+  automated journey asserts — but attributes are not a screen reader test.
+- **Physical touch.** The journey drives the gesture through pointer events, which is the
+  same handler a finger reaches, on a synthetic device profile. Swipe and pinch-to-zoom
+  on real glass are unverified, and the spike already found that emulated touch can
+  mislead. Verify on a physical device before launch.

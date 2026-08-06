@@ -9,8 +9,14 @@ const nextConfig: NextConfig = {
     // future CMS hosts must be added as narrow remotePatterns.
     localPatterns: [{ pathname: "/gallery/**", search: "" }],
     // Public presentation currently supports source widths through 2048px.
-    // AB#15 or AB#82 must revise this list before introducing wider lightbox
-    // or CMS derivatives.
+    //
+    // Reviewed for the lightbox (AB#15) and deliberately left as it is. The
+    // lightbox is the widest surface the site has, but the optimizer never
+    // enlarges: against public derivatives that top out well below this
+    // ceiling, wider candidates would return the same pixels under new cache
+    // keys and new transformations. The ceiling becomes worth raising when a
+    // real derivative exceeds it, which is AB#82's call to make with CMS
+    // derivative policy in hand rather than a guess made ahead of it.
     deviceSizes: [640, 750, 828, 1024, 1080, 1200, 1254, 1536, 2048],
     imageSizes: [256, 384],
     minimumCacheTTL: 2_678_400,

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   getLightboxImageSizes,
+  getLightboxZoomCap,
   imageRenderProfiles,
+  LIGHTBOX_MAX_CSS_WIDTH,
 } from "@/lib/image-delivery";
 import { projectPublicImageMedia } from "@/lib/media";
 import { mockImages } from "@/lib/mock-media";
@@ -32,9 +34,9 @@ describe("bounded image render profiles", () => {
     });
   });
 
-  it("caps the future lightbox sizes hint at the public source width", () => {
+  it("caps the lightbox sizes hint at the public source width", () => {
     expect(getLightboxImageSizes(mockImages.coastalLandscape.rendition)).toBe(
-      "(min-width: 1568px) 1536px, calc(100vw - 32px)",
+      "(min-width: 1536px) 1536px, 100vw",
     );
   });
 
@@ -53,7 +55,132 @@ describe("bounded image render profiles", () => {
     }).rendition;
 
     expect(getLightboxImageSizes(wideRendition)).toBe(
-      "(min-width: 3872px) 3840px, calc(100vw - 32px)",
+      "(min-width: 3840px) 3840px, 100vw",
     );
+  });
+});
+
+/**
+ * The library's own zoom-level arithmetic, restated so the cap can be checked
+ * against it without a browser.
+ *
+ * Reproduced from PhotoSwipe 5.4.4 `src/js/slide/zoom-level.js`: `fit` is
+ * bounded at 1 so an image is never enlarged past its own pixels, the
+ * secondary level is three times `fit` under its own 4000-pixel clamp, the
+ * maximum is four times `fit`, and the level a pinch can actually reach is the
+ * largest of the three. That last step is why capping only some of them is not
+ * enough.
+ */
+const PHOTOSWIPE_SECONDARY_ZOOM_CLAMP = 4000;
+
+function photoSwipeZoomLevels(
+  declaredWidth: number,
+  declaredHeight: number,
+  panArea: { readonly x: number; readonly y: number },
+  cap: (level: number) => number,
+) {
+  const fit = Math.min(
+    1,
+    Math.min(panArea.x / declaredWidth, panArea.y / declaredHeight),
+  );
+
+  const initial = cap(fit);
+  const uncappedSecondary = Math.min(1, fit * 3);
+  const secondary = cap(
+    uncappedSecondary * declaredWidth > PHOTOSWIPE_SECONDARY_ZOOM_CLAMP
+      ? PHOTOSWIPE_SECONDARY_ZOOM_CLAMP / declaredWidth
+      : uncappedSecondary,
+  );
+  const max = Math.max(initial, secondary, cap(Math.max(1, fit * 4)));
+
+  return { fit, initial, secondary, max };
+}
+
+describe("lightbox zoom cap", () => {
+  const uncapped = (level: number) => level;
+
+  it("leaves a source narrower than the declared slot alone", () => {
+    const cap = getLightboxZoomCap(1536);
+
+    // 2.5, not 1: the cap is a ceiling on the rendered slot, not on
+    // magnification, and 1536 pixels may be shown across 3840 of them.
+    expect(cap).toBeCloseTo(LIGHTBOX_MAX_CSS_WIDTH / 1536);
+    expect(Math.min(1, cap)).toBe(1);
+  });
+
+  it("does not bound a width it cannot know", () => {
+    expect(getLightboxZoomCap(0)).toBe(Number.POSITIVE_INFINITY);
+    expect(getLightboxZoomCap(-1)).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it.each([
+    { width: 1536, height: 1024, viewport: { x: 1280, y: 720 } },
+    { width: 1254, height: 1254, viewport: { x: 393, y: 659 } },
+    { width: 3840, height: 2160, viewport: { x: 3840, y: 2160 } },
+    // Beyond the declared slot, and the reason the cap exists at all. Such a
+    // derivative is permitted by the public media boundary's 8192 ceiling; no
+    // current mock reaches it, so only this calculation catches the case.
+    { width: 8192, height: 4096, viewport: { x: 5120, y: 2880 } },
+    { width: 6000, height: 8000, viewport: { x: 2560, y: 1440 } },
+  ])(
+    "holds every zoom level of a $width x $height source inside the declared slot",
+    ({ width, height, viewport }) => {
+      // The whole viewport: the lightbox holds back no margin.
+      const panArea = { x: viewport.x, y: viewport.y };
+      const cap = (level: number) =>
+        Math.min(level, getLightboxZoomCap(width));
+
+      const levels = photoSwipeZoomLevels(width, height, panArea, cap);
+
+      for (const [name, level] of Object.entries(levels)) {
+        if (name === "fit") {
+          continue;
+        }
+        expect(
+          level * width,
+          `${name} zoom renders ${level * width}px of slot`,
+        ).toBeLessThanOrEqual(LIGHTBOX_MAX_CSS_WIDTH);
+      }
+    },
+  );
+
+  it("is the only thing keeping a wide source inside the slot", () => {
+    const width = 8192;
+    const panArea = { x: 5120, y: 2880 };
+
+    const withoutCap = photoSwipeZoomLevels(width, 4096, panArea, uncapped);
+
+    // The library's own clamps stop short of the declared slot, at its initial
+    // level and again at the level a click zooms to. Without the project cap
+    // the rendered slot would exceed what the `sizes` hint described, which is
+    // the failure this test exists to catch.
+    expect(withoutCap.initial * width).toBeGreaterThan(LIGHTBOX_MAX_CSS_WIDTH);
+    expect(withoutCap.secondary * width).toBeGreaterThan(
+      LIGHTBOX_MAX_CSS_WIDTH,
+    );
+    expect(withoutCap.max * width).toBeGreaterThan(LIGHTBOX_MAX_CSS_WIDTH);
+  });
+
+  it("would still be breached if only the initial and maximum levels were capped", () => {
+    const width = 8192;
+    const panArea = { x: 5120, y: 2880 };
+    const declaredCap = getLightboxZoomCap(width);
+
+    const fit = Math.min(
+      1,
+      Math.min(panArea.x / width, panArea.y / 4096),
+    );
+    const cappedInitial = Math.min(fit, declaredCap);
+    const uncappedSecondary = Math.min(
+      Math.min(1, fit * 3),
+      PHOTOSWIPE_SECONDARY_ZOOM_CLAMP / width,
+    );
+    const effectiveMax = Math.max(
+      cappedInitial,
+      uncappedSecondary,
+      Math.min(Math.max(1, fit * 4), declaredCap),
+    );
+
+    expect(effectiveMax * width).toBeGreaterThan(LIGHTBOX_MAX_CSS_WIDTH);
   });
 });

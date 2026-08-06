@@ -40,6 +40,30 @@ Licensed under the MIT License — see licenses/MIT-affaan-m-ECC.txt
 Vendored, then diverged from upstream — see docs/asset-inventory.md.
 
 -------------------------------------------------------------------------------
+Next.js and React client runtime
+-------------------------------------------------------------------------------
+Copyright (c) Vercel, Inc. (https://github.com/vercel/next.js)
+Copyright (c) Meta Platforms, Inc. and affiliates (https://github.com/facebook/react)
+Licensed under the MIT License — see licenses/MIT-next-react.txt
+
+The framework's client runtime is bundled into the build output and served to
+every visitor, so a deployed site redistributes it. It is listed here for the
+same reason PhotoSwipe is: the obligation follows the bytes a browser receives,
+not which package the project imported by name.
+
+-------------------------------------------------------------------------------
+PhotoSwipe (lightbox library)
+-------------------------------------------------------------------------------
+Copyright (c) 2014-2022 Dmitry Semenov, https://dimsemenov.com
+Source: https://github.com/dimsemenov/PhotoSwipe
+Licensed under the MIT License — see licenses/MIT-photoswipe.txt
+
+Vendored unmodified as an npm dependency. Unlike the other npm packages below,
+PhotoSwipe's code and stylesheet are bundled into the build output and served to
+visitors' browsers, so a deployed site redistributes them and the MIT license
+requires this notice to accompany that redistribution.
+
+-------------------------------------------------------------------------------
 Demo photographs (public/gallery/)
 -------------------------------------------------------------------------------
 Generated with OpenAI services. Under OpenAI's Terms of Use, OpenAI assigns all
@@ -55,3 +79,6 @@ Not redistributed by this repository: the project is distributed as source and
 each clone installs its own dependencies. Their licenses are recorded in
 docs/asset-inventory.md and must be re-reviewed if the distribution model ever
 changes to a bundled or binary deliverable (AB#42).
+
+The exception is PhotoSwipe, listed above: its code is bundled into the build
+output, so a deployed site does redistribute it.

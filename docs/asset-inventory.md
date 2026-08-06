@@ -5,6 +5,8 @@ source, author, license, attribution requirement, and commercial-use status of e
 item so the Free Core / Premium boundary (AB#42) can be decided on facts.
 
 **Audited:** 2026-07-31 · **Against dependency tree:** current `package-lock.json`
+**Amended:** 2026-08-06 — PhotoSwipe added (AB#15). Package counts below are from the
+original audit and were not recounted.
 
 ## Distribution model assumed by this audit
 
@@ -13,9 +15,17 @@ The project is distributed **as source**: a photographer clones the repository a
 redistribute npm dependencies — obligations that attach to redistribution do not apply
 to them today.
 
-Two things *are* redistributed and therefore carry obligations: the vendored agent
-skills (in the repository) and the Geist font files (embedded into the build output and
-served by a deployed site).
+**The test is where the code ends up, not who put it there.** A package is redistributed
+when its bytes are served to a visitor, whether this project imported it directly or a
+framework emitted it. Most of the dependency tree never crosses that line — it is build
+tooling, or it runs server-side, or it is stripped from the client bundle. Everything
+that does cross it belongs in the shipped table below, and nothing that crosses it is
+excused by being a framework's own output.
+
+Applying that test, four things are redistributed and carry obligations: the vendored
+agent skills (in the repository), and — embedded into the build output and served by a
+deployed site — the Geist font files, the Next.js/React client runtime, and the
+PhotoSwipe browser bundle.
 
 > **This assumption is not yet ratified.** AB#42 defines the Free Core / Premium product
 > boundary. If the deliverable ever becomes a bundle, a zip, or a hosted build rather
@@ -33,12 +43,25 @@ served by a deployed site).
 | Item | Source | Author | License | Attribution required | Commercial use |
 | --- | --- | --- | --- | --- | --- |
 | Geist, Geist Mono typefaces | `vercel/geist-font` via `next/font/google` | The Geist Project Authors | OFL-1.1 | **Yes** — notice + license must accompany redistribution | Yes |
+| Next.js, React, React DOM client runtime | `vercel/next.js`, `facebook/react` via npm | Vercel, Meta and contributors | MIT | **Yes** — copyright + permission notice | Yes |
+| PhotoSwipe 5.4.4 (JS + CSS) | `dimsemenov/PhotoSwipe` via npm | Dmitry Semenov | MIT | **Yes** — copyright + permission notice | Yes |
 | `architecture` skill | `anthropics/knowledge-work-plugins` | Anthropic | Apache-2.0 | **Yes** — license copy, retained notices, state changes | Yes |
 | `security-review` skill | `affaan-m/ECC` | Affaan Mustafa | MIT | **Yes** — copyright + permission notice | Yes |
 | Demo photographs (`public/gallery/`, 6 files) | OpenAI services | Project author (assigned) | Project MIT | No | Yes — see below |
 
-Attribution for all four is in the root `NOTICE` file; full license texts are in
+Attribution for all six is in the root `NOTICE` file; full license texts are in
 `licenses/`.
+
+These are the only npm packages whose bytes reach a browser. The framework runtime is
+listed because the test above is where code ends up, not who emitted it: a deployed site
+serves React and the Next.js client runtime to every visitor, so their MIT notice has to
+travel with it exactly as PhotoSwipe's does. PhotoSwipe is the one this project chose
+deliberately — see [ADR-0001](adr/0001-lightbox-library.md) — and it has no dependencies
+of its own.
+
+Verifying the list, rather than trusting it: `.next/static/chunks/` after a production
+build is the complete set of bytes a browser receives. Anything third-party found there
+and absent from this table is an audit gap.
 
 ### Demo photographs — basis for the commercial-use finding
 
@@ -61,6 +84,10 @@ Two caveats worth carrying forward:
   work, which is why the mock data layer labels them as such.
 
 ## npm dependencies — recorded, not redistributed
+
+Except the three in the shipped table above — the Next.js and React client runtimes and
+PhotoSwipe — whose bytes are served to browsers. They remain in the counts below, since
+those describe the installed tree.
 
 394 packages are installed in the audited Windows x64 dependency tree. Platform-specific
 optional packages for other targets remain recorded in `package-lock.json` but are not

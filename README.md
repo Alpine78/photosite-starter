@@ -182,7 +182,10 @@ as a pipeline artifact when the suite fails.
   `hreflang`/`x-default` links, and the visible language switch continue in AB#104,
   AB#110, and AB#124*
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
-  and optional long-form body content — *thumbnail grid and shared bounded result contract done*
+  and optional long-form body content — *thumbnail grid, shared bounded result contract, and
+  fullscreen lightbox (open, close, navigate) done
+  ([ADR-0001](docs/adr/0001-lightbox-library.md)); captions, zoom tuning, preloading,
+  sections, and continuation controls pending*
 - [ ] Contact form
 - [ ] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
   canonical URLs, and Open Graph output done for every current public page; sitemap,
@@ -214,8 +217,8 @@ as a pipeline artifact when the suite fails.
 
 [MIT](LICENSE) for the project's own source.
 
-Third-party material — the Geist typefaces and two vendored agent skills — stays under
-its own license. Attribution is in [NOTICE](NOTICE), full license texts in
+Third-party material — the Geist typefaces, PhotoSwipe, and two vendored agent skills —
+stays under its own license. Attribution is in [NOTICE](NOTICE), full license texts in
 [licenses/](licenses/), and the audit behind both, covering every shipped asset, in
 [docs/asset-inventory.md](docs/asset-inventory.md).
 
@@ -244,6 +247,8 @@ and alternate metadata — but no localized page renders inside a non-default lo
 routes, no page emits alternate-language links, and no visible language switch exists
 yet; those integrations continue in AB#104, AB#110, and AB#124. The future Sanity
 adapter remains open.
-Public continuation routes and controls, lightbox, contact form, and CMS integration are
+The portfolio grid opens a fullscreen lightbox that navigates the loaded result by
+keyboard, control, and gesture; its captions, zoom tuning, and preloading are a later
+slice. Public continuation routes and controls, contact form, and CMS integration are
 still open. Keyword-driven dynamic galleries remain post-MVP. See the MVP scope
 checklist above.
