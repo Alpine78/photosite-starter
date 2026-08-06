@@ -36,3 +36,5 @@ steps:
       SITE_LOCALE: "en-GB"
       SITE_CANONICAL_BASE_URL: "https://example.com"
       SITE_DEFAULT_SOCIAL_IMAGE: "/gallery/coastal-landscape.1683eecb7e65.webp"
+      SITE_DEFAULT_SOCIAL_IMAGE_WIDTH: "1536"
+      SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT: "1024"

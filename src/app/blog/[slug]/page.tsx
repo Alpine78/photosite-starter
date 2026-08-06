@@ -7,6 +7,7 @@ import {
   builtInLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
+import { getPageMetadata } from "@/lib/page-metadata";
 import { ArticleBody } from "@/components/article-body";
 
 type ArticlePageProps = {
@@ -23,11 +24,17 @@ export async function generateMetadata({
 }: ArticlePageProps): Promise<Metadata> {
   const { slug } = await params;
   const article = await getArticle(slug);
+  // An unknown slug renders the not-found page; it gets no canonical URL of
+  // its own and keeps the site-level defaults.
   if (!article) return {};
-  return {
+
+  return getPageMetadata({
+    path: `/blog/${article.slug}`,
     title: article.title,
     description: article.excerpt,
-  };
+    image: article.coverMedia,
+    publishedTime: article.publishedAt,
+  });
 }
 
 export default async function ArticlePage({ params }: ArticlePageProps) {

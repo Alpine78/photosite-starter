@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { builtInLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
+import { getPageMetadata } from "@/lib/page-metadata";
 import { getService, getServices } from "@/lib/services";
 
 type ServicePageProps = {
@@ -21,11 +22,16 @@ export async function generateMetadata({
 }: ServicePageProps): Promise<Metadata> {
   const { slug } = await params;
   const service = await getService(slug);
+  // An unknown slug renders the not-found page; it gets no canonical URL of
+  // its own and keeps the site-level defaults.
   if (!service) return {};
-  return {
+
+  return getPageMetadata({
+    path: `/services/${service.slug}`,
     title: service.name,
     description: service.shortDescription,
-  };
+    image: service.coverMedia,
+  });
 }
 
 export default async function ServicePage({ params }: ServicePageProps) {

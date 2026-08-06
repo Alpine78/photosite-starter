@@ -2,10 +2,23 @@ import type { Metadata } from "next";
 import { GalleryGrid } from "@/components/gallery-grid";
 import { builtInLabels } from "@/lib/deployment-config";
 import { getPortfolioGallery } from "@/lib/gallery";
+import { getPageMetadata } from "@/lib/page-metadata";
 
-export const metadata: Metadata = {
-  title: builtInLabels.pages.portfolio,
-};
+/**
+ * The gallery's own title and description describe this page better than the
+ * built-in route label does, and its first curated item is the author's own
+ * lead image — no separate social-image choice is invented for it.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const gallery = await getPortfolioGallery();
+
+  return getPageMetadata({
+    path: "/portfolio",
+    title: gallery.title,
+    description: gallery.description,
+    image: gallery.result.items[0]?.media,
+  });
+}
 
 export default async function PortfolioPage() {
   const gallery = await getPortfolioGallery();

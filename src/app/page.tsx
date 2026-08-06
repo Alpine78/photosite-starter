@@ -1,9 +1,21 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { builtInLabels } from "@/lib/deployment-config";
 import { getSiteSettings } from "@/lib/site-settings";
 import { getHomeContent } from "@/lib/home-content";
 import { HERO_IMAGE_SIZES } from "@/lib/image-delivery";
+import { getPageMetadata } from "@/lib/page-metadata";
+
+/**
+ * The site root keeps the SiteSettings site name as its title rather than
+ * setting one of its own, and shares its hero as the page's social image.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { hero } = await getHomeContent();
+
+  return getPageMetadata({ path: "/", image: hero.media });
+}
 
 export default async function Home() {
   const [settings, home] = await Promise.all([

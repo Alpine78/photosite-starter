@@ -104,6 +104,18 @@ function assertMetadataText(value: unknown, field: string): void {
 const LOCAL_VERSIONED_IMAGE_PATH =
   /^\/gallery\/[a-z0-9]+(?:-[a-z0-9]+)*\.([a-f0-9]{12})\.(?:avif|jpe?g|png|webp)$/;
 
+/**
+ * Byte version embedded in a local public gallery path, or `undefined` when the
+ * source is not one. Only the local path convention carries its version in the
+ * filename; a remote derivative declares it alongside the URL.
+ *
+ * Exposed so a caller holding just a configured URL can satisfy the rendition
+ * contract without restating the path convention.
+ */
+export function readLocalPublicImageVersion(src: string): string | undefined {
+  return src.match(LOCAL_VERSIONED_IMAGE_PATH)?.[1];
+}
+
 function assertVersion(
   version: unknown,
 ): asserts version is ValidatedPublicImageVersion {

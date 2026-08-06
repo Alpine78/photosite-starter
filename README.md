@@ -56,8 +56,25 @@ or invalid.
 | Setting | Purpose |
 | --- | --- |
 | `SITE_LOCALE` | BCP 47 locale for the document language and date formatting |
-| `SITE_CANONICAL_BASE_URL` | Absolute public base URL used by URL-based metadata |
-| `SITE_DEFAULT_SOCIAL_IMAGE` | Absolute HTTP(S) URL or image path reserved for the default social preview |
+| `SITE_CANONICAL_BASE_URL` | Public origin every canonical and Open Graph URL is built from |
+| `SITE_DEFAULT_SOCIAL_IMAGE` | Versioned public derivative used as the default social preview |
+| `SITE_DEFAULT_SOCIAL_IMAGE_VERSION` | Byte version of that image; required only for a remote URL |
+| `SITE_DEFAULT_SOCIAL_IMAGE_WIDTH` | True intrinsic pixel width of that image |
+| `SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT` | True intrinsic pixel height of that image |
+| `SITE_DEFAULT_SOCIAL_IMAGE_ALT` | Optional alt text for that image; unset emits none |
+
+`SITE_CANONICAL_BASE_URL` must be a bare origin. Credentials, a query, or a
+fragment would be published in `rel="canonical"` and `og:url`, and a base path
+would be dropped when a route path resolves against it, so all four are
+rejected at startup rather than repaired.
+
+The default social image crosses the same public media boundary as every other
+browser-facing image: a local `/gallery` path carrying its version in the
+filename, or an HTTPS URL that contains the version declared in
+`SITE_DEFAULT_SOCIAL_IMAGE_VERSION`. Its dimensions are declared rather than
+measured, because the file is deployment-owned and nothing in the application
+can read its size. Pages that carry a content image of their own use that
+image's real rendition dimensions instead.
 
 `SITE_LOCALE` does not translate the application-owned UI labels. For a
 non-English single-locale deployment, update `builtInLabels` in
@@ -109,7 +126,9 @@ on pushes and pull requests to `main`.
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
   and optional long-form body content — *thumbnail grid and shared bounded result contract done*
 - [ ] Contact form
-- [ ] Basic SEO (metadata, sitemap, robots.txt) — *root title/description and metadata base done; per-route canonical/Open Graph output and sitemap/robots pending*
+- [ ] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
+  canonical URLs, and Open Graph output done for every current public page; sitemap,
+  robots, and structured data pending*
 - [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`*
 - [ ] Production deployment
 - [ ] Redirects for important legacy URLs (first implementation)

@@ -1,8 +1,22 @@
+import {
+  MAX_PUBLIC_IMAGE_DIMENSION,
+  projectPublicImageMedia,
+  readLocalPublicImageVersion,
+  type ImageMedia,
+} from "@/lib/media";
+
 const deploymentSettingNames = {
   locale: "SITE_LOCALE",
   canonicalBaseUrl: "SITE_CANONICAL_BASE_URL",
   defaultSocialImage: "SITE_DEFAULT_SOCIAL_IMAGE",
+  defaultSocialImageVersion: "SITE_DEFAULT_SOCIAL_IMAGE_VERSION",
+  defaultSocialImageWidth: "SITE_DEFAULT_SOCIAL_IMAGE_WIDTH",
+  defaultSocialImageHeight: "SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT",
+  defaultSocialImageAlt: "SITE_DEFAULT_SOCIAL_IMAGE_ALT",
 } as const;
+
+/** Stable project identity for the deployment-owned social preview image. */
+const DEFAULT_SOCIAL_IMAGE_MEDIA_ID = "deployment-default-social-image";
 
 export type BuiltInLabels = {
   readonly pages: {
@@ -54,8 +68,18 @@ export type BuiltInLabels = {
 export type DeploymentConfig = {
   readonly locale: string;
   readonly canonicalBaseUrl: URL;
-  /** Validated here; AB#17 owns emitting it as Open Graph metadata. */
-  readonly defaultSocialImage: URL;
+  /**
+   * Social preview image used by pages that carry no content image of their
+   * own. It crosses the same public media boundary as any other browser-facing
+   * image, so a configured value that is not a versioned public web derivative
+   * fails the deployment instead of reaching a crawler.
+   *
+   * Its dimensions are declared rather than measured: the file is
+   * deployment-owned, and nothing in the running application can read its size.
+   * A wrong declaration is a deployment error the clone owns, like the
+   * canonical base URL itself.
+   */
+  readonly defaultSocialImage: ImageMedia;
 };
 
 /**
@@ -129,6 +153,37 @@ function requireSetting(
   return value;
 }
 
+function readOptionalSetting(
+  environment: DeploymentEnvironment,
+  settingName: string,
+): string | undefined {
+  const value = environment[settingName]?.trim();
+  return value ? value : undefined;
+}
+
+/**
+ * Parses a declared intrinsic pixel dimension. The upper bound is the public
+ * media boundary's, so a deployment cannot declare a social image larger than
+ * any rendition the site is allowed to publish.
+ */
+function parseImageDimension(value: string, settingName: string): number {
+  // Digits only: `Number` would also accept "1e3" and "0x10", so a typo could
+  // parse into a plausible-looking dimension instead of failing.
+  const parsed = /^\d+$/.test(value) ? Number(value) : Number.NaN;
+
+  if (
+    !Number.isInteger(parsed) ||
+    parsed <= 0 ||
+    parsed > MAX_PUBLIC_IMAGE_DIMENSION
+  ) {
+    throw new Error(
+      `[deployment-config] Invalid ${settingName}: expected an integer between 1 and ${MAX_PUBLIC_IMAGE_DIMENSION}, received "${value}"`,
+    );
+  }
+
+  return parsed;
+}
+
 function parseLocale(value: string): string {
   try {
     return new Intl.Locale(value).toString();
@@ -139,18 +194,26 @@ function parseLocale(value: string): string {
   }
 }
 
-function parseHttpUrl(
-  value: string,
-  settingName: string,
-  baseUrl?: URL,
-): URL {
+/**
+ * Parses the public origin that every canonical and Open Graph URL is built
+ * from.
+ *
+ * It must be a bare HTTP(S) origin. Credentials, a query, or a fragment would
+ * be published in `rel="canonical"` and `og:url`; a base path would be silently
+ * dropped when a root-relative route path is resolved against it, producing
+ * canonical URLs that point at pages the deployment does not serve. Both are
+ * rejected rather than repaired, because guessing the intended origin would
+ * make every emitted URL a guess.
+ */
+function parseCanonicalBaseUrl(value: string): URL {
+  const settingName = deploymentSettingNames.canonicalBaseUrl;
   let url: URL;
 
   try {
-    url = new URL(value, baseUrl);
+    url = new URL(value);
   } catch {
     throw new Error(
-      `[deployment-config] Invalid ${settingName}: expected an absolute HTTP(S) URL${baseUrl ? " or relative path" : ""}, received "${value}"`,
+      `[deployment-config] Invalid ${settingName}: expected an absolute HTTP(S) URL, received "${value}"`,
     );
   }
 
@@ -160,7 +223,100 @@ function parseHttpUrl(
     );
   }
 
+  if (url.username || url.password) {
+    throw new Error(
+      `[deployment-config] Invalid ${settingName}: credentials must not appear in a published canonical URL`,
+    );
+  }
+
+  if (url.search || url.hash) {
+    throw new Error(
+      `[deployment-config] Invalid ${settingName}: expected an origin without a query or fragment, received "${value}"`,
+    );
+  }
+
+  if (url.pathname !== "/") {
+    throw new Error(
+      `[deployment-config] Invalid ${settingName}: expected an origin without a path, received "${value}". Serving the site below a path would need a matching Next.js basePath and route-aware canonical composition.`,
+    );
+  }
+
   return url;
+}
+
+/**
+ * Projects the configured social preview image through the public media
+ * boundary, so the same rules that guard every browser-facing image guard this
+ * one: a versioned public web derivative, HTTPS or a local gallery path, no
+ * credentials, no fragment, and true intrinsic dimensions.
+ *
+ * A local gallery path carries its byte version in the filename. A remote
+ * derivative has no such convention, so it declares the version separately and
+ * the media boundary checks that the URL really contains it.
+ */
+function parseDefaultSocialImage(
+  environment: DeploymentEnvironment,
+): ImageMedia {
+  const settingName = deploymentSettingNames.defaultSocialImage;
+  const src = requireSetting(environment, settingName);
+  const localVersion = readLocalPublicImageVersion(src);
+
+  // Which version source applies depends on the shape of the configured value,
+  // so the shape is settled first. Demanding a version for a value that could
+  // never be a public derivative would report the wrong problem; the media
+  // boundary below still owns the real validation.
+  if (localVersion === undefined && !src.startsWith("https://")) {
+    throw new Error(
+      `[deployment-config] Invalid ${settingName}: expected a versioned local /gallery path or an HTTPS URL, received "${src}"`,
+    );
+  }
+
+  const version =
+    localVersion ??
+    requireSetting(
+      environment,
+      deploymentSettingNames.defaultSocialImageVersion,
+    );
+
+  try {
+    return projectPublicImageMedia({
+      mediaId: DEFAULT_SOCIAL_IMAGE_MEDIA_ID,
+      publiclyRenderable: true,
+      rendition: {
+        sourceKind: "public-web-derivative",
+        src,
+        version,
+        width: parseImageDimension(
+          requireSetting(
+            environment,
+            deploymentSettingNames.defaultSocialImageWidth,
+          ),
+          deploymentSettingNames.defaultSocialImageWidth,
+        ),
+        height: parseImageDimension(
+          requireSetting(
+            environment,
+            deploymentSettingNames.defaultSocialImageHeight,
+          ),
+          deploymentSettingNames.defaultSocialImageHeight,
+        ),
+      },
+      // An undeclared alt is an empty one: decorative, and never invented.
+      alt:
+        readOptionalSetting(
+          environment,
+          deploymentSettingNames.defaultSocialImageAlt,
+        ) ?? "",
+    });
+  } catch (cause) {
+    if (cause instanceof TypeError || cause instanceof RangeError) {
+      throw new Error(
+        `[deployment-config] Invalid ${settingName}: ${cause.message}`,
+        { cause },
+      );
+    }
+    throw cause;
+  }
 }
 
 /**
@@ -173,20 +329,14 @@ export function loadDeploymentConfig(
   const locale = parseLocale(
     requireSetting(environment, deploymentSettingNames.locale),
   );
-  const canonicalBaseUrl = parseHttpUrl(
+  const canonicalBaseUrl = parseCanonicalBaseUrl(
     requireSetting(environment, deploymentSettingNames.canonicalBaseUrl),
-    deploymentSettingNames.canonicalBaseUrl,
-  );
-  const defaultSocialImage = parseHttpUrl(
-    requireSetting(environment, deploymentSettingNames.defaultSocialImage),
-    deploymentSettingNames.defaultSocialImage,
-    canonicalBaseUrl,
   );
 
   return {
     locale,
     canonicalBaseUrl,
-    defaultSocialImage,
+    defaultSocialImage: parseDefaultSocialImage(environment),
   };
 }
 
