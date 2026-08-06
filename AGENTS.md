@@ -85,7 +85,11 @@ contract, settings-driven page metadata with canonical URLs and Open Graph value
 the locale route contract — configured locale route spaces, root prefix reservation,
 locale-space namespace reservation, redundant default-prefix normalization,
 route-specific document and Open Graph locale selection, and tested helpers for
-identity-based language switching and alternate metadata. Not yet built: public category
+identity-based language switching and alternate metadata. The public-journey harness is
+in place too — a production-build Playwright suite with an external-request guard, gated
+in Azure Pipelines — carrying one home/navigation smoke test; route-specific journey
+suites are separate stories that join the gate as their features land.
+Not yet built: public category
 and content routes, breadcrumbs and tree-driven navigation, localized pages, emitted
 `hreflang`/`x-default` links, and the visible language switch inside a non-default
 locale's routes (AB#104, AB#110, and AB#124), public continuation routes and controls,
@@ -117,6 +121,16 @@ Then iterate.
 - Browser-free TypeScript tests use Vitest, live in `src/**/*.test.ts`, and must stay
   deterministic with no browser, external network, secrets, personal data, or live
   CMS/email dependencies. Playwright is reserved for separate public-journey tests.
+- Public-journey tests use Playwright, live in `e2e/**/*.spec.ts`, and run against a
+  **production build** that the harness builds and serves itself (`npm run test:e2e`).
+  Import the project test object from `e2e/support/fixtures.ts`, never `@playwright/test`
+  directly: it carries the guard that fails a test which reaches a third-party origin.
+  The application under test runs on harness-owned settings in
+  `e2e/support/harness-environment.ts` — that is where a test adapter for external
+  delivery is selected, and it must stay free of credentials and personal data, because
+  failure traces and screenshots are published as pipeline artifacts. Assert against
+  accessible roles, names, and states or application-owned routes; a clone rebrands the
+  site name, navigation labels, and content, so a journey test must not depend on them.
 - TypeScript strict mode; build must pass with `npm run build`
 - Tailwind CSS v4 (CSS-based config via `@tailwindcss/postcss`, no `tailwind.config` file)
 - Mobile-first, semantic HTML, visible focus states
@@ -137,11 +151,15 @@ Then iterate.
 ## Commands
 
 ```bash
-npm run dev     # dev server
-npm run lint    # ESLint (CI gate)
-npm test        # browser-free TypeScript tests (CI gate, one run)
-npm run build   # production build (CI gate)
+npm run dev       # dev server
+npm run lint      # ESLint (CI gate)
+npm test          # browser-free TypeScript tests (CI gate, one run)
+npm run build     # production build (CI gate)
+npm run test:e2e  # Playwright public-journey smoke tests (CI gate, builds and serves)
 ```
+
+`npm run test:e2e` needs the browsers once: `npx playwright install chromium webkit`
+(add `--with-deps` on Linux).
 
 ## Git workflow
 
@@ -173,7 +191,8 @@ npm run build   # production build (CI gate)
 ## CI / project management
 
 - Source code: GitHub (public, `Alpine78/photosite-starter`)
-- CI: Azure Pipelines (`azure-pipelines.yml`) — lint + test + build on push/PR to `main`
+- CI: Azure Pipelines (`azure-pipelines.yml`) — lint + test + build + Playwright smoke
+  tests on push/PR to `main`. Journey suites for new features join that gate as they land
 - Project management: Azure DevOps Boards, org `ilkkarytkonen`, project `photosite-starter`
   (Agile process: Epic → Feature → User Story → Task)
 - Workflow: feature branch → PR → review → CI → merge to `main`

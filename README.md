@@ -110,28 +110,59 @@ npm run dev
 Other scripts:
 
 ```bash
-npm run lint   # ESLint
-npm test       # browser-free TypeScript tests (one run)
-npm run build  # production build
+npm run lint      # ESLint
+npm test          # browser-free TypeScript tests (one run)
+npm run build     # production build
+npm run test:e2e  # public-journey smoke tests against a production build
 ```
 
 ## Testing
 
-[Vitest](https://vitest.dev) is the single browser-free runner for deterministic
+Two layers, with no overlap between them.
+
+**[Vitest](https://vitest.dev)** is the single browser-free runner for deterministic
 domain, query, adapter, and server-validation tests. `npm test` runs
 `src/**/*.test.ts` in Node and exits after one run. Tests must not depend on a browser,
 external network, live CMS or email services, secrets, or production/personal fixture
-content. Playwright remains the separate public-journey layer.
+content.
+
+**[Playwright](https://playwright.dev)** covers what only a browser can prove: public
+journeys through a real **production build**. Specs live in `e2e/**/*.spec.ts` and the
+harness in `e2e/support/`. Install the browsers once, then run the suite:
+
+```bash
+npx playwright install chromium webkit   # add --with-deps on Linux
+npm run test:e2e
+npx playwright show-report               # after a failure
+```
+
+`npm run test:e2e` builds the site and serves it with `next start` on
+`http://127.0.0.1:3100` (Playwright starts and stops it), then runs every spec in two
+projects: desktop Chromium and mobile WebKit. It leaves `.next` holding a build made
+with the harness settings, so run `npm run build` again before serving your own
+deployment build locally. Retries, timeouts, browser matrix, and parallelism are set
+explicitly in [playwright.config.ts](playwright.config.ts) rather than left to defaults
+that differ between a laptop and a build agent.
+
+The application under test runs on harness-owned settings from
+`e2e/support/harness-environment.ts` — a reserved `.test` canonical origin and the
+project's own mock content, no credentials — so traces and screenshots retained on
+failure can be published without a review of what they might contain. Every request to
+an origin other than the site under test is blocked and fails the test, which keeps the
+privacy rules honest and is where a future external delivery adapter (contact-form
+email, a CMS client) plugs in a test double instead of reaching a real service.
 
 ## CI
 
-Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint, tests, and build
-on pushes and pull requests to `main`.
+Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint, browser-free
+tests, the production build, and the Playwright smoke suite on pushes and pull requests
+to `main`. Test results are published on every run; traces and screenshots are published
+as a pipeline artifact when the suite fails.
 
 ## MVP scope
 
 - [x] Next.js App Router project setup (TypeScript, Tailwind, `src/`)
-- [x] CI pipeline (lint + test + build)
+- [x] CI pipeline (lint + test + build + production-build smoke tests)
 - [x] Responsive base layout with header and footer
 - [x] Site and deployment settings (branding, contact, navigation, locale, canonical base URL, default social image, built-in labels)
 - [x] Home page

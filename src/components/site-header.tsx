@@ -27,7 +27,10 @@ export function SiteHeader({ siteName, navigation, labels }: SiteHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="border-b border-black/10 dark:border-white/15">
+    // The site chrome stays above page content. A hero whose overlay is taller
+    // than its image — a wide frame on a narrow screen — otherwise spills over
+    // the header and swallows taps on the menu button and the open menu panel.
+    <header className="relative z-10 border-b border-black/10 dark:border-white/15">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
         <Link
           href="/"
