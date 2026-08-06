@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DeploymentConfig } from "@/lib/deployment-config";
+import { buildLocaleRouteConfig } from "@/lib/locale-routes";
 import { projectPublicImageMedia, type VideoMedia } from "@/lib/media";
 import { buildPageMetadata, buildSiteMetadata } from "@/lib/page-metadata";
 import type { SiteSettings } from "@/lib/site-settings";
@@ -37,6 +38,10 @@ function buildDefaultSocialImage(alt: string) {
 
 const deployment: DeploymentConfig = {
   locale: "en-GB",
+  localeRoutes: buildLocaleRouteConfig({
+    locales: [{ locale: "en-GB", prefix: null, storyNamespace: "stories" }],
+    reservedRootSegments: [],
+  }),
   canonicalBaseUrl: new URL("https://example.com"),
   defaultSocialImage: buildDefaultSocialImage(
     "Rocky shoreline beside calm water",
@@ -316,5 +321,120 @@ describe("buildPageMetadata Open Graph locale and type", () => {
       type: "article",
       publishedTime: "2024-09-12",
     });
+  });
+});
+
+/**
+ * A bilingual deployment: unprefixed Finnish alongside English beneath `/en`,
+ * which is the first production deployment's shape.
+ */
+const bilingualDeployment: DeploymentConfig = {
+  ...deployment,
+  locale: "fi-FI",
+  localeRoutes: buildLocaleRouteConfig({
+    locales: [
+      { locale: "fi-FI", prefix: null, storyNamespace: "tarinat" },
+      { locale: "en-GB", prefix: "en", storyNamespace: "stories" },
+    ],
+    reservedRootSegments: [],
+  }),
+};
+
+const bilingualContext = { settings, deployment: bilingualDeployment };
+
+const finnishVersion = {
+  locale: "fi-FI",
+  path: "/tarinat/maisemat/rannikon-aamut",
+};
+const englishVersion = {
+  locale: "en-GB",
+  path: "/en/stories/landscape/coastal-mornings",
+};
+
+describe("buildPageMetadata alternate-language links", () => {
+  it("emits none for a page that names no locale versions", () => {
+    const metadata = buildPageMetadata({ path: "/blog" }, bilingualContext);
+
+    expect(metadata.alternates?.canonical).toBe("https://example.com/blog");
+    expect(metadata.alternates).not.toHaveProperty("languages");
+  });
+
+  it("names every published version and points x-default at the default locale", () => {
+    const metadata = buildPageMetadata(
+      {
+        path: finnishVersion.path,
+        title: "Rannikon aamut",
+        locale: "fi-FI",
+        localeVersions: [finnishVersion, englishVersion],
+      },
+      bilingualContext,
+    );
+
+    expect(metadata.alternates?.canonical).toBe(
+      "https://example.com/tarinat/maisemat/rannikon-aamut",
+    );
+    expect(metadata.alternates?.languages).toEqual({
+      "fi-FI": "https://example.com/tarinat/maisemat/rannikon-aamut",
+      "en-GB": "https://example.com/en/stories/landscape/coastal-mornings",
+      "x-default": "https://example.com/tarinat/maisemat/rannikon-aamut",
+    });
+  });
+
+  it("self-references the localized page it is emitted on", () => {
+    const metadata = buildPageMetadata(
+      {
+        path: englishVersion.path,
+        title: "Coastal mornings",
+        locale: "en-GB",
+        localeVersions: [finnishVersion, englishVersion],
+      },
+      bilingualContext,
+    );
+
+    expect(metadata.alternates?.canonical).toBe(
+      "https://example.com/en/stories/landscape/coastal-mornings",
+    );
+    expect(metadata.alternates?.languages).toMatchObject({
+      "en-GB": "https://example.com/en/stories/landscape/coastal-mornings",
+    });
+  });
+
+  // Pointing x-default at another language would claim a translation that was
+  // never published.
+  it("omits x-default when the default locale publishes no version", () => {
+    const metadata = buildPageMetadata(
+      {
+        path: englishVersion.path,
+        title: "Coastal mornings",
+        locale: "en-GB",
+        localeVersions: [englishVersion],
+      },
+      bilingualContext,
+    );
+
+    expect(metadata.alternates?.languages).toEqual({
+      "en-GB": "https://example.com/en/stories/landscape/coastal-mornings",
+    });
+  });
+
+  it("takes the Open Graph locale from the page, not the deployment default", () => {
+    const metadata = buildPageMetadata(
+      { path: englishVersion.path, title: "Coastal mornings", locale: "en-GB" },
+      bilingualContext,
+    );
+
+    expect(openGraphOf(metadata).locale).toBe("en_GB");
+    expect(openGraphOf(buildPageMetadata({ path: "/" }, bilingualContext)).locale).toBe(
+      "fi_FI",
+    );
+  });
+
+  it("rejects a locale the deployment does not configure", () => {
+    expect(() =>
+      buildPageMetadata(
+        { path: "/sv/berattelser", locale: "sv" },
+        bilingualContext,
+      ),
+    ).toThrow('locale "sv" is not configured');
   });
 });

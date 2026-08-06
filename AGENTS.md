@@ -81,9 +81,12 @@ configuration, responsive header and footer, home page, services listing and det
 pages, article/blog listing and detail pages, the shared generic media model, the public
 image rendition boundary, the portfolio thumbnail grid, the shared bounded gallery
 result contract, the public content category domain model with its canonical placement
-contract, and settings-driven page metadata with canonical URLs and Open Graph values.
-Not yet built: public category and content routes, breadcrumbs and tree-driven
-navigation, locale-aware routing, public continuation routes and controls, lightbox,
+contract, settings-driven page metadata with canonical URLs and Open Graph values, and
+the locale route contract — configured locale route spaces, root prefix reservation,
+redundant default-prefix normalization, identity-based language-switch resolution, and
+`hreflang`/`x-default` alternates. Not yet built: public category and content routes,
+breadcrumbs and tree-driven navigation, localized pages and the visible language switch
+inside a non-default locale's routes, public continuation routes and controls, lightbox,
 contact form, sitemap/robots, structured data, the Sanity adapter, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP

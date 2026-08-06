@@ -1,6 +1,6 @@
 /**
- * Settings-driven page metadata: titles, canonical URLs, and Open Graph values
- * for every public route.
+ * Settings-driven page metadata: titles, canonical URLs, alternate-language
+ * links, and Open Graph values for every public route.
  *
  * Routes never spell out a site name, domain, locale, description, or brand
  * image. Authored values come from SiteSettings and the content itself, while
@@ -17,6 +17,7 @@ import {
   getDeploymentConfig,
   type DeploymentConfig,
 } from "@/lib/deployment-config";
+import { getLocaleRoute, type LocaleVersion } from "@/lib/locale-routes";
 import type { ImageMedia, Media } from "@/lib/media";
 import { getSiteSettings, type SiteSettings } from "@/lib/site-settings";
 
@@ -44,6 +45,18 @@ export type PageMetadataInput = {
   readonly image?: Media;
   /** ISO 8601 date. Its presence marks the page as an Open Graph article. */
   readonly publishedTime?: string;
+  /**
+   * Locale of the route space this page lives in. Defaults to the deployment's
+   * default locale, which owns the unprefixed routes.
+   */
+  readonly locale?: string;
+  /**
+   * Every published locale version of this page's stable identity, including
+   * this page's own — `listPublishedLocaleVersions` produces exactly this set.
+   * Omitted on a page that has no localized identity to name, which emits no
+   * alternate-language metadata at all rather than an incomplete set.
+   */
+  readonly localeVersions?: readonly LocaleVersion[];
 };
 
 type OpenGraphImage = {
@@ -75,6 +88,56 @@ function resolveCanonicalUrl(path: string, canonicalBaseUrl: URL): string {
     url.pathname = url.pathname.replace(/\/+$/, "");
   }
   return url.href;
+}
+
+type AlternateLanguages = NonNullable<
+  NonNullable<Metadata["alternates"]>["languages"]
+>;
+
+/**
+ * The locale a page's route space belongs to. An unconfigured locale is a
+ * programming error rather than a visitor-facing state: a page can only render
+ * inside a route space the deployment configured.
+ */
+function resolvePageLocale(
+  locale: string | undefined,
+  deployment: DeploymentConfig,
+): string {
+  if (locale === undefined) return deployment.locale;
+
+  const route = getLocaleRoute(deployment.localeRoutes, locale);
+  if (route === undefined) {
+    throw new TypeError(`locale "${locale}" is not configured`);
+  }
+  return route.locale;
+}
+
+/**
+ * `hreflang` alternates for one stable identity: every published locale
+ * version, including the page's own self-referencing entry.
+ *
+ * `x-default` names the default locale's version, which is the unprefixed
+ * canonical URL. When the default locale publishes no version of this content,
+ * both its alternate and `x-default` are absent — the set names only versions
+ * that exist, and pointing `x-default` at another language would invent a
+ * translation.
+ */
+function toAlternateLanguages(
+  versions: readonly LocaleVersion[],
+  deployment: DeploymentConfig,
+): AlternateLanguages | undefined {
+  if (versions.length === 0) return undefined;
+
+  const languages: Record<string, string> = {};
+  for (const version of versions) {
+    const locale = resolvePageLocale(version.locale, deployment);
+    const url = resolveCanonicalUrl(version.path, deployment.canonicalBaseUrl);
+    languages[locale] = url;
+    if (locale === deployment.localeRoutes.defaultLocale) {
+      languages["x-default"] = url;
+    }
+  }
+  return languages;
 }
 
 /**
@@ -149,7 +212,12 @@ export function buildPageMetadata(
     deployment.canonicalBaseUrl,
   );
   const description = input.description ?? settings.defaultSeo.description;
-  const openGraphLocale = toOpenGraphLocale(deployment.locale);
+  const locale = resolvePageLocale(input.locale, deployment);
+  const openGraphLocale = toOpenGraphLocale(locale);
+  const languages = toAlternateLanguages(
+    input.localeVersions ?? [],
+    deployment,
+  );
 
   const openGraphBase = {
     url: canonical,
@@ -162,7 +230,10 @@ export function buildPageMetadata(
   return {
     ...(input.title === undefined ? {} : { title: input.title }),
     description,
-    alternates: { canonical },
+    alternates: {
+      canonical,
+      ...(languages === undefined ? {} : { languages }),
+    },
     openGraph:
       input.publishedTime === undefined
         ? { ...openGraphBase, type: "website" }

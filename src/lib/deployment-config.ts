@@ -1,12 +1,19 @@
 import {
+  buildLocaleRouteConfig,
+  type LocaleRouteConfig,
+  type LocaleRouteInput,
+} from "@/lib/locale-routes";
+import {
   MAX_PUBLIC_IMAGE_DIMENSION,
   projectPublicImageMedia,
   readLocalPublicImageVersion,
   type ImageMedia,
 } from "@/lib/media";
+import { RESERVED_ROOT_SEGMENTS } from "@/lib/public-routes";
 
 const deploymentSettingNames = {
   locale: "SITE_LOCALE",
+  localeRoutes: "SITE_LOCALE_ROUTES",
   canonicalBaseUrl: "SITE_CANONICAL_BASE_URL",
   defaultSocialImage: "SITE_DEFAULT_SOCIAL_IMAGE",
   defaultSocialImageVersion: "SITE_DEFAULT_SOCIAL_IMAGE_VERSION",
@@ -66,7 +73,19 @@ export type BuiltInLabels = {
 };
 
 export type DeploymentConfig = {
+  /**
+   * Default locale: the one that owns the unprefixed visitor-facing routes and
+   * supplies the document language and date formatting outside a localized
+   * route space.
+   */
   readonly locale: string;
+  /**
+   * Which locales this deployment publishes and where their routes live.
+   * Route configuration, not editable CMS content: adding a locale gives only
+   * the new language a prefix, while changing the default locale or a live
+   * prefix is a route migration with its own redirect plan.
+   */
+  readonly localeRoutes: LocaleRouteConfig;
   readonly canonicalBaseUrl: URL;
   /**
    * Social preview image used by pages that carry no content image of their
@@ -85,8 +104,11 @@ export type DeploymentConfig = {
 /**
  * Application-owned copy that a clone can adjust without editing route or
  * component markup. Authored content and brand data remain in SiteSettings.
- * SITE_LOCALE does not translate these single-locale labels; keep the copy in
- * sync with that setting until AB#128 introduces per-route locale behavior.
+ *
+ * These labels are deployment-wide, not per-locale: SITE_LOCALE does not
+ * translate them, so a single-locale deployment keeps them in sync with that
+ * setting by hand. A locale prefix reserves its route space (SITE_LOCALE_ROUTES),
+ * but the first page rendered inside it needs a per-locale label set first.
  */
 export const builtInLabels = {
   pages: {
@@ -192,6 +214,73 @@ function parseLocale(value: string): string {
       `[deployment-config] Invalid ${deploymentSettingNames.locale}: expected a valid BCP 47 locale, received "${value}"`,
     );
   }
+}
+
+/**
+ * Reads the deployment's locale routing: one `locale|prefix|namespace` entry
+ * per supported locale, separated by commas. The default locale leaves the
+ * prefix field empty, because its routes carry no prefix:
+ *
+ *     fi||tarinat,en|en|stories
+ *
+ * Every rule the entries must satisfy — one unprefixed default, unique
+ * prefixes, no collision with a root route the application already owns — is
+ * the route contract's, so the values are validated there and reported against
+ * the setting that supplied them.
+ */
+function parseLocaleRoutes(
+  environment: DeploymentEnvironment,
+  defaultLocale: string,
+): LocaleRouteConfig {
+  const settingName = deploymentSettingNames.localeRoutes;
+  const value = requireSetting(environment, settingName);
+
+  const locales: LocaleRouteInput[] = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+    .map((entry) => {
+      const fields = entry.split("|").map((field) => field.trim());
+      if (fields.length !== 3) {
+        throw new Error(
+          `[deployment-config] Invalid ${settingName}: expected comma-separated "locale|prefix|namespace" entries, received "${entry}"`,
+        );
+      }
+      const [locale, prefix, storyNamespace] = fields;
+      return {
+        locale,
+        prefix: prefix.length === 0 ? null : prefix,
+        storyNamespace,
+      };
+    });
+
+  let config: LocaleRouteConfig;
+  try {
+    config = buildLocaleRouteConfig({
+      locales,
+      reservedRootSegments: RESERVED_ROOT_SEGMENTS,
+    });
+  } catch (cause) {
+    if (cause instanceof TypeError) {
+      throw new Error(
+        `[deployment-config] Invalid ${settingName}: ${cause.message}`,
+        { cause },
+      );
+    }
+    throw cause;
+  }
+
+  // Which locale is default decides the whole unprefixed route space, so the
+  // two settings that name it may not disagree: a deployment declaring one
+  // language for its documents and another for its canonical URLs is a
+  // configuration error, not a preference to reconcile at request time.
+  if (config.defaultLocale !== defaultLocale) {
+    throw new Error(
+      `[deployment-config] Invalid ${settingName}: the unprefixed default locale "${config.defaultLocale}" must match ${deploymentSettingNames.locale} "${defaultLocale}"`,
+    );
+  }
+
+  return config;
 }
 
 /**
@@ -335,6 +424,7 @@ export function loadDeploymentConfig(
 
   return {
     locale,
+    localeRoutes: parseLocaleRoutes(environment, locale),
     canonicalBaseUrl,
     defaultSocialImage: parseDefaultSocialImage(environment),
   };

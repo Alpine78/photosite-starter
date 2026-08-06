@@ -4,6 +4,7 @@ import { loadDeploymentConfig } from "@/lib/deployment-config";
 
 const validEnvironment = {
   SITE_LOCALE: "en-GB",
+  SITE_LOCALE_ROUTES: "en-GB||stories",
   SITE_CANONICAL_BASE_URL: "https://example.com",
   SITE_DEFAULT_SOCIAL_IMAGE:
     "/gallery/coastal-landscape.1683eecb7e65.webp",
@@ -44,6 +45,7 @@ describe("loadDeploymentConfig", () => {
 
   it.each([
     "SITE_LOCALE",
+    "SITE_LOCALE_ROUTES",
     "SITE_CANONICAL_BASE_URL",
     "SITE_DEFAULT_SOCIAL_IMAGE",
     "SITE_DEFAULT_SOCIAL_IMAGE_WIDTH",
@@ -64,6 +66,60 @@ describe("loadDeploymentConfig", () => {
         SITE_LOCALE: "not_a_locale",
       }),
     ).toThrow("Invalid SITE_LOCALE");
+  });
+
+  it("reads the locale route space of a bilingual deployment", () => {
+    const config = loadDeploymentConfig({
+      ...validEnvironment,
+      SITE_LOCALE: "fi",
+      SITE_LOCALE_ROUTES: "fi||tarinat, en|en|stories",
+    });
+
+    expect(config.localeRoutes.defaultLocale).toBe("fi");
+    expect(
+      config.localeRoutes.locales.map((route) => [
+        route.locale,
+        route.basePath,
+        route.storyNamespace,
+      ]),
+    ).toEqual([
+      ["fi", "", "tarinat"],
+      ["en", "/en", "stories"],
+    ]);
+  });
+
+  it("rejects locale routes that do not name the configured default locale", () => {
+    expect(() =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_LOCALE: "fi",
+        SITE_LOCALE_ROUTES: "en||stories,fi|fi|tarinat",
+      }),
+    ).toThrow(
+      'the unprefixed default locale "en" must match SITE_LOCALE "fi"',
+    );
+  });
+
+  it("rejects a malformed locale route entry", () => {
+    expect(() =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_LOCALE_ROUTES: "en-GB|stories",
+      }),
+    ).toThrow('expected comma-separated "locale|prefix|namespace" entries');
+  });
+
+  // The reservation is checked against this application's own root routes, so
+  // a prefix that a static route would shadow fails the deployment.
+  it("rejects a locale prefix an application route already owns", () => {
+    expect(() =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_LOCALE_ROUTES: "en-GB||stories,fi|blog|tarinat",
+      }),
+    ).toThrow(
+      'Invalid SITE_LOCALE_ROUTES: locale prefix "blog" collides with a root route',
+    );
   });
 
   it("rejects a non-HTTP canonical base URL", () => {
