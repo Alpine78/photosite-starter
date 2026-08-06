@@ -69,6 +69,19 @@ export type BuiltInLabels = {
   readonly gallery: {
     readonly images: string;
   };
+  readonly lightbox: {
+    /** Accessible name of the fullscreen dialog itself. */
+    readonly viewer: string;
+    /** Names a trigger whose image is decorative and carries no alt text. */
+    readonly openImage: string;
+    readonly close: string;
+    readonly previous: string;
+    readonly next: string;
+    readonly zoom: string;
+    /** Joins position and total in the counter, as in "1 of 6". */
+    readonly indexSeparator: string;
+    readonly loadError: string;
+  };
   readonly media: {
     readonly video: string;
     readonly youtubePrivacyNotice: string;
@@ -153,6 +166,16 @@ export const builtInLabels = {
   },
   gallery: {
     images: "images",
+  },
+  lightbox: {
+    viewer: "Image viewer",
+    openImage: "Open image",
+    close: "Close",
+    previous: "Previous image",
+    next: "Next image",
+    zoom: "Zoom",
+    indexSeparator: " of ",
+    loadError: "The image cannot be loaded",
   },
   media: {
     video: "Video",

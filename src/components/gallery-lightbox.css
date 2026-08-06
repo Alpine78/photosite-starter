@@ -1,0 +1,26 @@
+/*
+ * Project overrides for the lightbox library's stylesheet.
+ *
+ * Loaded after `photoswipe/style.css`, and deliberately narrow: everything the
+ * library styles well is left alone.
+ */
+
+/*
+ * Keep the previous and next controls on touch devices.
+ *
+ * The library hides them there on the assumption that a touch visitor swipes.
+ * That assumption fails the people who most need a control: swiping is a
+ * dragging gesture with a distance and a direction, which is exactly what
+ * limited motor control, a switch device, a head pointer, or a stylus makes
+ * hard or impossible. A visible button is a single tap and is reachable by
+ * assistive technology; a hidden one is in neither the tab order nor the
+ * accessibility tree, so on a phone the gallery would have had no operable
+ * navigation at all.
+ *
+ * `visibility` is what the library toggles, so that is what is restored — the
+ * rules below leave its `.pswp--one-slide` and `:disabled` display rules
+ * untouched, and a single-image gallery still shows no arrows.
+ */
+.pswp--touch .pswp__button--arrow {
+  visibility: visible;
+}

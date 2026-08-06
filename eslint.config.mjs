@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Playwright artifacts. Both are gitignored, so CI never sees them, but a
+    // failing local run leaves a bundled trace viewer behind and the next
+    // `npm run lint` reports thousands of problems in minified vendor code.
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

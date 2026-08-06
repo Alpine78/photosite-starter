@@ -328,8 +328,40 @@ official documentation:
        allow-list test. AB#82 still needs to carry it into the server-only Sanity adapter,
        add a narrow `remotePatterns` entry, and add integration/build coverage in the
        same change as the first remote source.
-6. [ ] In AB#15, consume the lightbox helper, apply the matching CSS cap, revisit the
+6. [x] In AB#15, consume the lightbox helper, apply the matching CSS cap, revisit the
        global optimizer widths, and browser-verify full-frame rendering and candidate
-       selection.
+       selection. Outcome, in the same order:
+       - The helper feeds `getImageProps`, so the lightbox delivers width-descriptor
+         candidates derived from the item's own approved rendition and never a
+         hand-built optimizer URL. Section 3's claim that no lightbox consumes the
+         calculation no longer holds.
+       - The cap is enforced as a zoom bound, not only as a declaration: every zoom
+         level the lightbox exposes — the one it opens at, the one a click zooms to,
+         and the ceiling a pinch reaches — is limited to the 3840-pixel terminal slot.
+         All three levels are needed: the library derives its effective maximum from
+         the largest of them, so capping only some leaves the declaration untrue for a
+         source wider than the slot. A browser-free calculation test covers that case,
+         which no current mock derivative is wide enough to reach.
+       - The proposed 32-pixel viewport gutter was dropped. The lightbox presents each
+         frame edge to edge, filling the viewport in whichever dimension binds first,
+         so the fluid slot is `100vw` and the terminal breakpoint is the capped width
+         itself. A hint that subtracted a gutter the presentation does not take would
+         understate the slot by exactly the amount this action item exists to make
+         agree.
+       - The global candidate list stays at 2048. The optimizer does not enlarge, so
+         wider candidates against derivatives that top out below the ceiling would
+         return identical pixels under new cache keys. AB#82 owns the next review, with
+         real derivative policy rather than a guess ahead of it.
+       - Browser-verified on Chromium and WebKit, desktop and mobile, against a
+         production build: every frame renders whole and at its own ratio, and each
+         delivered source is a versioned public gallery derivative.
+
+       One behaviour this record did not anticipate: the lightbox library replaces the
+       `sizes` attribute at runtime with the slide's rendered CSS width. The
+       project-owned hint therefore governs which candidates exist, and the library
+       governs which one is chosen — a narrower and more accurate selection than the
+       static hint would make. Section 3's description of `sizes` as a browser selection
+       hint still holds; what changes is who writes the final attribute in this one
+       context.
 7. [ ] Document and verify provider-source revocation and Vercel image-cache purge with
        AB#83; keep private delivery under AB#122.

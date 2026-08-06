@@ -60,22 +60,49 @@ export const imageRenderProfiles = {
 
 export const HERO_IMAGE_SIZES = "100vw";
 
-const LIGHTBOX_MAX_CSS_WIDTH = 3840;
-const LIGHTBOX_VIEWPORT_GUTTER = 32;
+/**
+ * Widest CSS slot the lightbox will ever present an image in. The lightbox
+ * enforces it as a zoom cap, so the hint below and the rendered slot agree.
+ */
+export const LIGHTBOX_MAX_CSS_WIDTH = 3840;
 
 /**
- * Produces the `sizes` hint reserved for the later lightbox implementation.
- * AB#15 must apply the matching CSS cap and revisit the global optimizer width
- * list before this calculation becomes a runtime guarantee.
+ * Highest magnification at which an image of `declaredWidth` CSS pixels still
+ * fits the widest slot the lightbox declares.
+ *
+ * A lightbox magnifies what it was given rather than fetching more pixels, so
+ * an uncapped zoom level would render a slot the `sizes` hint never described.
+ * Every zoom level the presentation offers — the one it opens at, the one a
+ * click or double-tap goes to, and the ceiling a pinch can reach — passes
+ * through here, because the library derives its effective maximum from all
+ * three and capping only some of them leaves the declaration untrue.
+ *
+ * Returns positive infinity for a non-positive width: an unknown size is not
+ * evidence of an oversized one, and the caller's own fit level still bounds it.
+ */
+export function getLightboxZoomCap(declaredWidth: number): number {
+  return declaredWidth > 0
+    ? LIGHTBOX_MAX_CSS_WIDTH / declaredWidth
+    : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * Produces the lightbox `sizes` hint.
+ *
+ * Its job is to describe the widest slot the image can occupy, which is what
+ * makes the optimizer emit width-descriptor candidates instead of pixel-density
+ * ones. The attribute the browser finally selects against is narrower and
+ * exact: the lightbox replaces it with the slide's rendered CSS width once the
+ * viewport is known, and never lowers it again within one slide.
+ *
+ * The fluid slot is the whole viewport, with no gutter subtracted, because the
+ * lightbox presents each frame edge to edge: whichever of width or height binds
+ * first, the photograph reaches that edge and no margin is held back from it.
  */
 export function getLightboxImageSizes(
   rendition: Pick<PublicImageRendition, "width">,
 ): string {
   const maxCssWidth = Math.min(rendition.width, LIGHTBOX_MAX_CSS_WIDTH);
 
-  return boundedImageSizes(
-    maxCssWidth + LIGHTBOX_VIEWPORT_GUTTER,
-    maxCssWidth,
-    `calc(100vw - ${LIGHTBOX_VIEWPORT_GUTTER}px)`,
-  );
+  return boundedImageSizes(maxCssWidth, maxCssWidth, "100vw");
 }

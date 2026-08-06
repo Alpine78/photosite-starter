@@ -80,20 +80,24 @@ Current state: **MVP in progress.** Built: site settings mock layer, typed deplo
 configuration, responsive header and footer, home page, services listing and detail
 pages, article/blog listing and detail pages, the shared generic media model, the public
 image rendition boundary, the portfolio thumbnail grid, the shared bounded gallery
-result contract, the public content category domain model with its canonical placement
+result contract, the fullscreen lightbox behind a project-owned PhotoSwipe wrapper
+(open, close, navigate, trapped focus, focus return keyed by `itemId`),
+the public content category domain model with its canonical placement
 contract, settings-driven page metadata with canonical URLs and Open Graph values, and
 the locale route contract — configured locale route spaces, root prefix reservation,
 locale-space namespace reservation, redundant default-prefix normalization,
 route-specific document and Open Graph locale selection, and tested helpers for
 identity-based language switching and alternate metadata. The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
-in Azure Pipelines — carrying one home/navigation smoke test; route-specific journey
-suites are separate stories that join the gate as their features land.
+in Azure Pipelines — carrying the home/navigation smoke test and the portfolio lightbox
+journey; route-specific journey suites are separate stories that join the gate as their
+features land.
 Not yet built: public category
 and content routes, breadcrumbs and tree-driven navigation, localized pages, emitted
 `hreflang`/`x-default` links, and the visible language switch inside a non-default
 locale's routes (AB#104, AB#110, and AB#124), public continuation routes and controls,
-lightbox, contact form, sitemap/robots, structured data, the Sanity adapter, deployment.
+lightbox captions and zoom tuning, contact form, sitemap/robots, structured data, the
+Sanity adapter, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
