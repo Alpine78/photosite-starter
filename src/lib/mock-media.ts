@@ -58,6 +58,9 @@ export const mockImages = {
       height: 1254,
     },
     alt: "Rain-darkened stones patterned with pale lichen",
+    // One credited image, so the credit path is exercised by the mock layer the
+    // way a real attribution would be. Placeholder text like the mock captions.
+    credit: "Placeholder credit",
   }),
   mistyBirch: projectPublicImageMedia({
     mediaId: "misty-birch",

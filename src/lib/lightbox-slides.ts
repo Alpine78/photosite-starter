@@ -29,6 +29,13 @@ export type LightboxSlide = {
   readonly width: number;
   readonly height: number;
   readonly alt: string;
+  /**
+   * Presentation metadata as the result already resolved it: a curated item's
+   * caption is its placement's override or the media default, and credit is
+   * media-owned (ADR-0002). Absent when the item carries none.
+   */
+  readonly caption?: string;
+  readonly credit?: string;
 };
 
 /**
@@ -80,6 +87,12 @@ export function buildLightboxSlides(
       width: item.media.rendition.width,
       height: item.media.rendition.height,
       alt: item.media.alt,
+      ...(item.media.caption === undefined
+        ? {}
+        : { caption: item.media.caption }),
+      ...(item.media.credit === undefined
+        ? {}
+        : { credit: item.media.credit }),
     };
   });
 }

@@ -81,7 +81,8 @@ configuration, responsive header and footer, home page, services listing and det
 pages, article/blog listing and detail pages, the shared generic media model, the public
 image rendition boundary, the portfolio thumbnail grid, the shared bounded gallery
 result contract, the fullscreen lightbox behind a project-owned PhotoSwipe wrapper
-(open, close, navigate, trapped focus, focus return keyed by `itemId`),
+(open, close, navigate, trapped focus, focus return keyed by `itemId`, and the caption
+and credit of the active item, associated with it for assistive technology),
 the public content category domain model with its canonical placement
 contract, settings-driven page metadata with canonical URLs and Open Graph values, and
 the locale route contract — configured locale route spaces, root prefix reservation,
@@ -96,7 +97,7 @@ Not yet built: public category
 and content routes, breadcrumbs and tree-driven navigation, localized pages, emitted
 `hreflang`/`x-default` links, and the visible language switch inside a non-default
 locale's routes (AB#104, AB#110, and AB#124), public continuation routes and controls,
-lightbox captions and zoom tuning, contact form, sitemap/robots, structured data, the
+lightbox zoom tuning, contact form, sitemap/robots, structured data, the
 Sanity adapter, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP

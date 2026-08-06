@@ -113,6 +113,32 @@ describe("buildLightboxSlides", () => {
     ]);
   });
 
+  it("carries the metadata the result resolved for the item", () => {
+    const [slide] = buildLightboxSlides(
+      [
+        item("placement-a", {
+          ...mockImages.coastalLandscape,
+          caption: "Placement caption",
+          credit: "A. Photographer",
+        }),
+      ],
+      resolveTestRendition,
+    );
+
+    expect(slide.caption).toBe("Placement caption");
+    expect(slide.credit).toBe("A. Photographer");
+  });
+
+  it("omits metadata the item does not carry rather than sending empty values", () => {
+    const [slide] = buildLightboxSlides(
+      [item("placement-a", mockImages.coastalLandscape)],
+      resolveTestRendition,
+    );
+
+    expect(Object.hasOwn(slide, "caption")).toBe(false);
+    expect(Object.hasOwn(slide, "credit")).toBe(false);
+  });
+
   it("omits srcset when the resolver supplies a single source", () => {
     const [slide] = buildLightboxSlides(
       [item("placement-a", mockImages.coastalLandscape)],

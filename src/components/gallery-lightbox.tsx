@@ -10,12 +10,17 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useRef,
   type ReactNode,
 } from "react";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { getLightboxZoomCap } from "@/lib/image-delivery";
+import {
+  buildLightboxCaption,
+  type LightboxCaptionPart,
+} from "@/lib/lightbox-caption";
 import type { LightboxSlide } from "@/lib/lightbox-slides";
 
 /**
@@ -29,9 +34,15 @@ import type { LightboxSlide } from "@/lib/lightbox-slides";
 
 export type GalleryLightboxLabels = BuiltInLabels["lightbox"];
 
-/** PhotoSwipe slide data carrying the result identities unchanged. */
+/** PhotoSwipe slide data carrying the result identities and metadata unchanged. */
 type IdentifiedSlideData = SlideData &
-  Pick<LightboxSlide, "itemId" | "mediaId">;
+  Pick<LightboxSlide, "itemId" | "mediaId" | "caption" | "credit">;
+
+/** Presentation class per metadata kind; the two lines are not equal in weight. */
+const captionPartClassNames: Record<LightboxCaptionPart["kind"], string> = {
+  caption: "pswp__gallery-caption-text",
+  credit: "pswp__gallery-caption-credit",
+};
 
 type GalleryLightboxApi = {
   readonly open: (index: number) => void;
@@ -77,6 +88,9 @@ export function GalleryLightbox({
   const triggersRef = useRef(new Map<string, HTMLButtonElement>());
   const slidesRef = useRef(slides);
   const activeItemIdRef = useRef<string | null>(null);
+  // The caption region is referenced by the photograph it describes, so it
+  // needs an id no second gallery on the same page could also mint.
+  const captionId = useId();
 
   useEffect(() => {
     slidesRef.current = slides;
@@ -96,6 +110,12 @@ export function GalleryLightbox({
   } = labels;
 
   useEffect(() => {
+    // Both belong to one open viewer. PhotoSwipe builds a fresh dialog every
+    // time it opens, so they are established again on each `uiRegister` and
+    // dropped when that dialog is destroyed.
+    let captionElement: HTMLElement | null = null;
+    let describedElement: Element | null = null;
+
     const lightbox = new PhotoSwipeLightbox({
       // Deferred: a visitor who never opens a photo never downloads the viewer.
       pswpModule: () => import("photoswipe"),
@@ -133,15 +153,103 @@ export function GalleryLightbox({
       errorMsg: loadError,
     });
 
+    /**
+     * Points the photograph on screen at the text that describes it.
+     *
+     * The association is made on the image rather than on the dialog, because
+     * the caption is about this photograph and not about the viewer around it.
+     * The reference is moved rather than added: the library keeps neighbouring
+     * slides mounted, and a description left behind on one of them would
+     * describe it with whatever the visitor read three slides later.
+     */
+    const describeActiveItem = (isDescribed: boolean) => {
+      const element = lightbox.pswp?.currSlide?.content.element ?? null;
+
+      if (describedElement !== null && describedElement !== element) {
+        describedElement.removeAttribute("aria-describedby");
+      }
+      describedElement = element;
+
+      if (element === null) {
+        return;
+      }
+
+      if (isDescribed) {
+        element.setAttribute("aria-describedby", captionId);
+      } else {
+        element.removeAttribute("aria-describedby");
+      }
+    };
+
+    /**
+     * Presents the caption and credit of the slide that is now current.
+     *
+     * One pass per slide change sets all of it — the lines, whether the region
+     * is there at all, and what the photograph points at — from a single read
+     * of the active slide. Nothing accumulates and nothing is left over, so a
+     * caption cannot survive a move to an item that has none.
+     */
+    const presentActiveCaption = () => {
+      const parts = buildLightboxCaption(
+        identitiesOf(lightbox.pswp?.currSlide?.data) ?? {},
+      );
+
+      if (captionElement !== null) {
+        captionElement.replaceChildren(
+          ...parts.map((part) => {
+            const line = document.createElement("p");
+            line.className = captionPartClassNames[part.kind];
+            // Authored content is written as text, never as markup: a caption
+            // arriving from a CMS does not get to become DOM.
+            line.textContent = part.text;
+            return line;
+          }),
+        );
+
+        // Having nothing to say is said by not being there: an empty strip
+        // would cover part of the frame while describing none of it.
+        captionElement.hidden = parts.length === 0;
+        // Presentation state, reset on every slide. AB#78 turns it on while a
+        // slide is zoomed; the text stays where assistive technology can read
+        // it either way.
+        captionElement.dataset.visuallyHidden = "false";
+      }
+
+      // Never a reference to text that is not there: without the region there
+      // is nothing for a description to point at.
+      describeActiveItem(captionElement !== null && parts.length > 0);
+    };
+
     // `role="dialog"` is the library's; a dialog also needs a name, and needs
     // to say that the page behind it is inert while it is open.
     lightbox.on("uiRegister", () => {
-      const root = lightbox.pswp?.element;
-      if (!root) {
+      const pswp = lightbox.pswp;
+      const root = pswp?.element;
+      if (!pswp || !root) {
         return;
       }
       root.setAttribute("aria-modal", "true");
       root.setAttribute("aria-label", viewer);
+
+      // The library has no caption of its own — ADR-0001 accepted that cost
+      // when it chose the library — so this is the project's. It overlays the
+      // dialog root instead of taking a strip of it: the viewport is the slot
+      // the image was delivered for, and a caption that consumed layout would
+      // shrink the photograph below it.
+      pswp.ui?.registerElement({
+        name: "gallery-caption",
+        appendTo: "root",
+        onInit: (element) => {
+          element.id = captionId;
+          // Hidden until a slide says otherwise, so an item with no metadata
+          // never shows an empty region even for the first paint.
+          element.hidden = true;
+          // The name this region is found by, in the stylesheet and in the
+          // journey test alike.
+          element.dataset.galleryCaption = "";
+          captionElement = element;
+        },
+      });
     });
 
     lightbox.on("change", () => {
@@ -149,9 +257,13 @@ export function GalleryLightbox({
       if (active) {
         activeItemIdRef.current = active.itemId;
       }
+      presentActiveCaption();
     });
 
     lightbox.on("destroy", () => {
+      captionElement = null;
+      describedElement = null;
+
       const itemId = activeItemIdRef.current;
       activeItemIdRef.current = null;
       if (itemId === null) {
@@ -173,7 +285,16 @@ export function GalleryLightbox({
       lightboxRef.current = null;
       lightbox.destroy();
     };
-  }, [viewer, close, previous, next, zoom, indexSeparator, loadError]);
+  }, [
+    captionId,
+    viewer,
+    close,
+    previous,
+    next,
+    zoom,
+    indexSeparator,
+    loadError,
+  ]);
 
   const open = useCallback((index: number) => {
     const lightbox = lightboxRef.current;
@@ -202,6 +323,12 @@ export function GalleryLightbox({
         width: resultSlide.width,
         height: resultSlide.height,
         alt: resultSlide.alt,
+        ...(resultSlide.caption === undefined
+          ? {}
+          : { caption: resultSlide.caption }),
+        ...(resultSlide.credit === undefined
+          ? {}
+          : { credit: resultSlide.credit }),
         ...(trigger === undefined ? {} : { element: trigger }),
         ...(thumbnail?.currentSrc ? { msrc: thumbnail.currentSrc } : {}),
         // The grid shows whole frames, so the thumbnail bounds the animation
