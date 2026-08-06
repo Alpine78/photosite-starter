@@ -24,3 +24,82 @@
 .pswp--touch .pswp__button--arrow {
   visibility: visible;
 }
+
+/*
+ * Caption and credit for the photograph on screen.
+ *
+ * The region overlays the frame instead of taking a strip of the viewport. The
+ * viewer declares the whole viewport as the image's slot, and both the `sizes`
+ * hint and the zoom cap are built on that declaration (ADR-0005), so a caption
+ * that consumed layout would shrink the photograph below the slot it was
+ * delivered for. Overlaying leaves the frame exactly as it was.
+ *
+ * The region is bounded to half the viewport and becomes independently
+ * scrollable when authored metadata is longer. That keeps every valid caption
+ * reachable without letting it displace the photograph or cover the whole
+ * frame. The scrollable area accepts pointer input; the rest of the photograph
+ * keeps the viewer's click, drag, and pinch gestures.
+ */
+.pswp .pswp__gallery-caption {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  box-sizing: border-box;
+  max-block-size: 50dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Deep top padding so the gradient fades in above the text rather than
+     ending on it; the inset keeps the last line clear of a home indicator. */
+  padding: 3rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  pointer-events: auto;
+  touch-action: pan-y;
+  text-align: center;
+  /* Light on a dark backdrop regardless of the site's colour scheme: the
+     viewer is a black surface over the page, not part of its type flow. */
+  color: #fff;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.9);
+  background-image: linear-gradient(to top, rgb(0 0 0 / 0.65), rgb(0 0 0 / 0));
+}
+
+/* An item with neither caption nor credit renders no region at all. `hidden`
+   has to be restated, because the `display` above would otherwise beat it. */
+.pswp .pswp__gallery-caption[hidden] {
+  display: none;
+}
+
+.pswp__gallery-caption-text,
+.pswp__gallery-caption-credit {
+  /* Long lines are hard to read across a wide viewport, and a caption that
+     spanned one would sit over the whole width of the photograph. */
+  max-width: min(70ch, 100%);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.pswp__gallery-caption-text {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.pswp__gallery-caption-credit {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
+/*
+ * The hook AB#78 flips while a slide is zoomed.
+ *
+ * Visually hidden, not removed: a zoomed visitor gets the whole frame back,
+ * while the text stays in the accessibility tree and stays the description the
+ * photograph points at. The wrapper writes the attribute on every slide
+ * change, so caption state resets with the slide rather than persisting.
+ */
+.pswp .pswp__gallery-caption[data-visually-hidden="true"] {
+  opacity: 0;
+}

@@ -25,6 +25,8 @@ const labels = builtInLabels.lightbox;
 /** What the visitor is actually looking at, measured rather than assumed. */
 type PresentedImage = {
   readonly alt: string;
+  /** The element this photograph names as its description, if it names one. */
+  readonly describedBy: string | null;
   readonly currentSrc: string;
   readonly naturalWidth: number;
   readonly naturalHeight: number;
@@ -233,6 +235,147 @@ test("the lightbox shows whole, uncropped frames from the public rendition", asy
   }
 });
 
+test("the lightbox presents the metadata of the item on screen, and nothing more", async ({
+  page,
+}) => {
+  await gotoPortfolio(page);
+
+  const main = page.getByRole("main");
+  const triggers = main.getByRole("button");
+  const dialog = page.getByRole("dialog");
+  const caption = dialog.locator("[data-gallery-caption]");
+  const captionText = caption.locator(".pswp__gallery-caption-text");
+  const creditText = caption.locator(".pswp__gallery-caption-credit");
+  const viewport = page.viewportSize();
+  expect(viewport, "the journey needs a known viewport to measure against").not.toBeNull();
+
+  // Expectations come from the gallery itself. A clone replaces every caption
+  // in it, so what is checked is that the viewer says about an item what the
+  // grid already said about the same one — not any particular wording.
+  const itemNames = await galleryImageAlts(triggers);
+  const gridCaptions = await galleryCaptions(main);
+
+  await openLightbox(dialog, () =>
+    triggers.first().click({ timeout: OPEN_ACTION_TIMEOUT }),
+  );
+
+  const captionId = await caption.getAttribute("id");
+  expect(captionId, "the caption region needs an id to be referenced by").toBeTruthy();
+  let sawCredit = false;
+  let sawItemWithoutCreditAfterIt = false;
+
+  for (let index = 0; index < itemNames.length; index += 1) {
+    await expect
+      .poll(async () => (await presentedImage(dialog))?.alt)
+      .toBe(itemNames[index]);
+
+    // Metadata is replaced on a slide change, never added to: a second region
+    // would mean a caption from an earlier slide was still on screen.
+    await expect(caption).toHaveCount(1);
+
+    const presented = await presentedImage(dialog);
+    expect(presented, `slide ${index} presented no image`).not.toBeNull();
+
+    const expectedCaption = gridCaptions[index];
+    await expect(captionText).toHaveCount(expectedCaption ? 1 : 0);
+    if (expectedCaption) {
+      await expect(captionText).toHaveText(expectedCaption);
+    }
+
+    const creditCount = await creditText.count();
+    expect(creditCount, `slide ${index} rendered duplicate credits`).toBeLessThanOrEqual(1);
+    if (creditCount === 1) {
+      await expect(creditText).toHaveText(/\S/);
+      sawCredit = true;
+    } else if (sawCredit) {
+      sawItemWithoutCreditAfterIt = true;
+    }
+
+    const metadataPartCount = Number(Boolean(expectedCaption)) + creditCount;
+    await expect(caption.locator(":scope > p")).toHaveCount(metadataPartCount);
+
+    if (metadataPartCount > 0) {
+      // On screen means it has something to say, and the photograph on screen
+      // is what says it: a screen reader reaching this image is pointed at the
+      // text a sighted visitor is reading, for this slide and no other.
+      await expect(caption).toHaveText(/\S/);
+      expect(presented?.describedBy).toBe(captionId);
+
+      // Readable where it is: the region stays inside the viewport at every
+      // profile the suite runs, rather than running off a narrow one.
+      const box = await caption.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(viewport!.width + 1);
+      expect(box!.y).toBeGreaterThanOrEqual(0);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height + 1);
+    } else {
+      // An item carrying neither caption nor credit gets no strip across its
+      // frame, and no description pointing assistive technology at empty text.
+      expect(presented?.describedBy ?? null).toBeNull();
+    }
+
+    if (index < itemNames.length - 1) {
+      await page.keyboard.press("ArrowRight");
+    }
+  }
+
+  expect(sawCredit, "the public fixture needs to exercise the credit path").toBe(true);
+  expect(
+    sawItemWithoutCreditAfterIt,
+    "the journey needs to prove that a credit does not survive the next item",
+  ).toBe(true);
+});
+
+test("long lightbox metadata stays inside the viewport and remains reachable", async ({
+  page,
+}) => {
+  await gotoPortfolio(page);
+
+  const dialog = page.getByRole("dialog");
+  const caption = dialog.locator("[data-gallery-caption]");
+  const captionText = caption.locator(".pswp__gallery-caption-text");
+
+  await openLightbox(dialog, () =>
+    page.getByRole("main").getByRole("button").first().click({
+      timeout: OPEN_ACTION_TIMEOUT,
+    }),
+  );
+
+  // The CMS boundary deliberately permits prose rather than imposing a
+  // presentation-specific length limit. Stress the overlay without coupling
+  // the public fixture to artificial copy that a clone would have to replace.
+  await captionText.evaluate((element) => {
+    element.textContent =
+      "A long but valid authored caption for a photograph. ".repeat(120);
+  });
+
+  const viewport = page.viewportSize();
+  const box = await caption.boundingBox();
+  expect(viewport).not.toBeNull();
+  expect(box).not.toBeNull();
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height + 1);
+
+  const overflow = await caption.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(overflow.scrollHeight).toBeGreaterThan(overflow.clientHeight);
+
+  await caption.focus();
+  await page.keyboard.press("PageDown");
+  await expect.poll(() => caption.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+
+  await captionText.evaluate((element) => {
+    element.textContent = "UnbrokenMetadata".repeat(120);
+  });
+  const horizontalOverflow = await captionText.evaluate(
+    (element) => element.scrollWidth - element.clientWidth,
+  );
+  expect(horizontalOverflow).toBeLessThanOrEqual(1);
+});
+
 test("a drag gesture navigates the lightbox", async ({ page }) => {
   await gotoPortfolio(page);
 
@@ -317,6 +460,7 @@ async function presentedImage(dialog: Locator): Promise<PresentedImage | null> {
 
       return {
         alt: image.alt,
+        describedBy: image.getAttribute("aria-describedby"),
         currentSrc: image.currentSrc,
         naturalWidth: image.naturalWidth,
         naturalHeight: image.naturalHeight,
@@ -403,6 +547,21 @@ async function galleryImageAlts(triggers: Locator): Promise<string[]> {
   return triggers.evaluateAll((buttons) =>
     buttons.map((button) => button.querySelector("img")?.alt ?? ""),
   );
+}
+
+/**
+ * What the grid itself says about each photograph, in result order, with an
+ * empty string where it says nothing. Content again, so it is read from the
+ * page: it is the expectation the viewer is measured against.
+ */
+async function galleryCaptions(main: Locator): Promise<string[]> {
+  return main
+    .getByRole("listitem")
+    .evaluateAll((items) =>
+      items.map(
+        (item) => item.querySelector("figcaption")?.textContent?.trim() ?? "",
+      ),
+    );
 }
 
 async function focusIsInside(dialog: Locator): Promise<boolean> {
