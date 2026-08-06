@@ -5,7 +5,7 @@ import { getPortfolioGallery } from "@/lib/gallery";
 import { getPageMetadata } from "@/lib/page-metadata";
 
 /**
- * The gallery's own title and description describe this page better than the
+ * The unprefixed gallery's own title and description describe this page better
  * built-in route label does, and its first curated item is the author's own
  * lead image — no separate social-image choice is invented for it.
  */

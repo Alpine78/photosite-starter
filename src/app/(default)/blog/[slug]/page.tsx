@@ -14,6 +14,7 @@ type ArticlePageProps = {
   params: Promise<{ slug: string }>;
 };
 
+/** Pre-render the unprefixed compatibility article routes. */
 export async function generateStaticParams() {
   const articles = await getArticles();
   return articles.map((a) => ({ slug: a.slug }));

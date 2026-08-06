@@ -4,6 +4,7 @@ import { getServices, getServicesIntro } from "@/lib/services";
 import { getPageMetadata } from "@/lib/page-metadata";
 import { ServiceCard } from "@/components/service-card";
 
+/** Unprefixed default-locale services listing. */
 export async function generateMetadata(): Promise<Metadata> {
   return getPageMetadata({
     path: "/services",

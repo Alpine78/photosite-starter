@@ -34,6 +34,7 @@ steps:
     displayName: "Build"
     env:
       SITE_LOCALE: "en-GB"
+      SITE_LOCALE_ROUTES: "en-GB||stories"
       SITE_CANONICAL_BASE_URL: "https://example.com"
       SITE_DEFAULT_SOCIAL_IMAGE: "/gallery/coastal-landscape.1683eecb7e65.webp"
       SITE_DEFAULT_SOCIAL_IMAGE_WIDTH: "1536"

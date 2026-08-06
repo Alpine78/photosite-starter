@@ -55,7 +55,8 @@ or invalid.
 
 | Setting | Purpose |
 | --- | --- |
-| `SITE_LOCALE` | BCP 47 locale for the document language and date formatting |
+| `SITE_LOCALE` | BCP 47 default locale with a concrete language subtag, for the document language and date formatting |
+| `SITE_LOCALE_ROUTES` | Public route space per supported locale: `locale\|prefix\|namespace` entries |
 | `SITE_CANONICAL_BASE_URL` | Public origin every canonical and Open Graph URL is built from |
 | `SITE_DEFAULT_SOCIAL_IMAGE` | Versioned public derivative used as the default social preview |
 | `SITE_DEFAULT_SOCIAL_IMAGE_VERSION` | Byte version of that image; required only for a remote URL |
@@ -76,9 +77,30 @@ measured, because the file is deployment-owned and nothing in the application
 can read its size. Pages that carry a content image of their own use that
 image's real rendition dimensions instead.
 
+`SITE_LOCALE_ROUTES` declares where each supported locale's public routes live,
+as comma-separated `locale|prefix|namespace` entries. The default locale leaves
+the prefix empty because its routes carry none, and must be the locale named by
+`SITE_LOCALE`. A single-locale English clone reads `en-GB||stories`; the
+bilingual first production deployment reads `fi||tarinat,en|en|stories`. That
+assigns the unprefixed route space and `/tarinat/…` namespace to Finnish, and
+the `/en` route space and `/en/stories/…` namespace to English; category and
+content pages in those namespaces are not implemented yet. Every configured
+prefix is reserved against the root routes the application already owns, and
+every story namespace is reserved against static routes inside its locale
+space. A redundant
+default-locale prefix (`/fi/…`) redirects permanently to the unprefixed route
+when that exact route exists; unknown targets remain 404s. Browser language
+never redirects a visitor. A locale without a concrete language subtag, such as
+`und`, is rejected because it cannot supply the routing contract's default
+language prefix.
+
 `SITE_LOCALE` does not translate the application-owned UI labels. For a
 non-English single-locale deployment, update `builtInLabels` in
-`src/lib/deployment-config.ts` to match. AB#128 owns later per-route locale behavior.
+`src/lib/deployment-config.ts` to match. A deployment publishing a second locale
+needs a per-locale label set before pages render inside that locale's routes.
+Until those values exist, the non-default catch-all renders only
+language-neutral 404 content; shared navigation, footer content, and localized
+metadata copy are intentionally absent.
 
 ```bash
 npm ci
@@ -123,6 +145,11 @@ on pushes and pull requests to `main`.
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))
+  — *route configuration, prefix reservation, redundant default-prefix normalization,
+  route-space document and Open Graph locale selection, plus tested helpers for
+  identity-based switching and alternate metadata done; localized pages, emitted
+  `hreflang`/`x-default` links, and the visible language switch continue in AB#104,
+  AB#110, and AB#124*
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
   and optional long-form body content — *thumbnail grid and shared bounded result contract done*
 - [ ] Contact form
@@ -179,7 +206,13 @@ initial portfolio grid) are built against a mock data layer whose images use the
 accepted project-owned public rendition contract and whose portfolio uses the shared
 paginated gallery result contract. The content tree's category domain model and
 canonical placement contract are built; its public routes, breadcrumbs, and navigation
-are not. The future Sanity adapter remains open, as does the accepted locale-aware
-route contract. Localized routing, public continuation routes and controls, lightbox,
-contact form, and CMS integration are still open. Keyword-driven dynamic galleries
-remain post-MVP. See the MVP scope checklist above.
+are not. The locale-routing infrastructure is built — configured locale route spaces,
+prefix and namespace reservation, redundant default-prefix normalization, route-specific
+document and Open Graph locale selection, and tested helpers for identity-based switching
+and alternate metadata — but no localized page renders inside a non-default locale's
+routes, no page emits alternate-language links, and no visible language switch exists
+yet; those integrations continue in AB#104, AB#110, and AB#124. The future Sanity
+adapter remains open.
+Public continuation routes and controls, lightbox, contact form, and CMS integration are
+still open. Keyword-driven dynamic galleries remain post-MVP. See the MVP scope
+checklist above.
