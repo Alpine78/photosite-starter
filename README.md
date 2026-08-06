@@ -148,7 +148,8 @@ on pushes and pull requests to `main`.
   — *route configuration, prefix reservation, redundant default-prefix normalization,
   route-space document and Open Graph locale selection, plus tested helpers for
   identity-based switching and alternate metadata done; localized pages, emitted
-  `hreflang`/`x-default` links, and the visible language switch are pending*
+  `hreflang`/`x-default` links, and the visible language switch continue in AB#104,
+  AB#110, and AB#124*
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
   and optional long-form body content — *thumbnail grid and shared bounded result contract done*
 - [ ] Contact form
@@ -210,7 +211,8 @@ prefix and namespace reservation, redundant default-prefix normalization, route-
 document and Open Graph locale selection, and tested helpers for identity-based switching
 and alternate metadata — but no localized page renders inside a non-default locale's
 routes, no page emits alternate-language links, and no visible language switch exists
-yet. The future Sanity adapter remains open.
+yet; those integrations continue in AB#104, AB#110, and AB#124. The future Sanity
+adapter remains open.
 Public continuation routes and controls, lightbox, contact form, and CMS integration are
 still open. Keyword-driven dynamic galleries remain post-MVP. See the MVP scope
 checklist above.

@@ -88,8 +88,8 @@ route-specific document and Open Graph locale selection, and tested helpers for
 identity-based language switching and alternate metadata. Not yet built: public category
 and content routes, breadcrumbs and tree-driven navigation, localized pages, emitted
 `hreflang`/`x-default` links, and the visible language switch inside a non-default
-locale's routes, public continuation routes and controls, lightbox, contact form,
-sitemap/robots, structured data, the Sanity adapter, deployment.
+locale's routes (AB#104, AB#110, and AB#124), public continuation routes and controls,
+lightbox, contact form, sitemap/robots, structured data, the Sanity adapter, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
