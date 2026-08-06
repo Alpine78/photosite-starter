@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import { builtInLabels } from "@/lib/deployment-config";
 import { getServices, getServicesIntro } from "@/lib/services";
+import { getPageMetadata } from "@/lib/page-metadata";
 import { ServiceCard } from "@/components/service-card";
 
-export const metadata: Metadata = {
-  title: builtInLabels.pages.services,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return getPageMetadata({
+    path: "/services",
+    title: builtInLabels.pages.services,
+    description: await getServicesIntro(),
+  });
+}
 
 export default async function ServicesPage() {
   const [services, intro] = await Promise.all([

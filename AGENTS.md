@@ -80,11 +80,11 @@ Current state: **MVP in progress.** Built: site settings mock layer, typed deplo
 configuration, responsive header and footer, home page, services listing and detail
 pages, article/blog listing and detail pages, the shared generic media model, the public
 image rendition boundary, the portfolio thumbnail grid, the shared bounded gallery
-result contract, and the public content category domain model with its canonical
-placement contract. Not yet built: public category and content routes, breadcrumbs and
-tree-driven navigation, locale-aware routing, public continuation routes and controls,
-lightbox, contact form, per-route canonical and Open Graph metadata, sitemap/robots, the
-Sanity adapter, deployment.
+result contract, the public content category domain model with its canonical placement
+contract, and settings-driven page metadata with canonical URLs and Open Graph values.
+Not yet built: public category and content routes, breadcrumbs and tree-driven
+navigation, locale-aware routing, public continuation routes and controls, lightbox,
+contact form, sitemap/robots, structured data, the Sanity adapter, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,

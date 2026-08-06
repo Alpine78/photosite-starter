@@ -4,6 +4,7 @@ import {
   builtInLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
+import { getSiteMetadata } from "@/lib/page-metadata";
 import { getSiteSettings } from "@/lib/site-settings";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -20,25 +21,14 @@ const geistMono = Geist_Mono({
 });
 
 /**
- * Root metadata comes from SiteSettings, never from hardcoded strings: a clone
- * rebrands by editing site settings (later, the CMS) and nothing else. The
- * template applies to child pages that set only a `title`, so each page defines
- * its own name and the site name is appended here.
+ * Root metadata comes from SiteSettings and the deployment configuration, never
+ * from hardcoded strings: a clone rebrands by editing site settings (later, the
+ * CMS) and its deployment values, and nothing else. The title template applies
+ * to child pages that set only a `title`, so each page defines its own name and
+ * the site name is appended here.
  */
 export async function generateMetadata(): Promise<Metadata> {
-  const { siteName, defaultSeo } = await getSiteSettings();
-  // Loading the complete deployment config also validates the social image.
-  // AB#17 owns emitting that value in Open Graph metadata.
-  const deployment = getDeploymentConfig();
-
-  return {
-    metadataBase: deployment.canonicalBaseUrl,
-    title: {
-      default: siteName,
-      template: defaultSeo.titleTemplate,
-    },
-    description: defaultSeo.description,
-  };
+  return getSiteMetadata();
 }
 
 export default async function RootLayout({

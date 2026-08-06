@@ -8,10 +8,20 @@ import {
   builtInLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
+import { getPageMetadata } from "@/lib/page-metadata";
 
-export const metadata: Metadata = {
-  title: builtInLabels.pages.blog,
-};
+/**
+ * A category filter is an alternate view of one article set, so every filtered
+ * view canonicalizes to the unfiltered listing instead of claiming a URL of
+ * its own.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  return getPageMetadata({
+    path: "/blog",
+    title: builtInLabels.pages.blog,
+    description: await getBlogIntro(),
+  });
+}
 
 type BlogPageProps = {
   searchParams: Promise<{ category?: string }>;

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_PUBLIC_IMAGE_DIMENSION,
   projectPublicImageMedia,
+  readLocalPublicImageVersion,
   type ImageMedia,
   type PublicImageMediaInput,
 } from "@/lib/media";
@@ -24,6 +25,24 @@ const validInput: PublicImageMediaInput = {
   caption: "Test caption",
   credit: "Test credit",
 };
+
+describe("readLocalPublicImageVersion", () => {
+  it("reads the byte version a local gallery path carries", () => {
+    expect(
+      readLocalPublicImageVersion("/gallery/test-image.0123456789ab.webp"),
+    ).toBe("0123456789ab");
+  });
+
+  it.each([
+    "/gallery/test-image.webp",
+    "/gallery/test-image.nothex12345.webp",
+    "/private/master.jpg",
+    "https://cdn.example.com/test-image.0123456789ab.webp",
+    "data:image/png;base64,abc",
+  ])("reports no version for %s", (src) => {
+    expect(readLocalPublicImageVersion(src)).toBeUndefined();
+  });
+});
 
 describe("projectPublicImageMedia", () => {
   it("projects only allow-listed public fields", () => {
