@@ -448,6 +448,36 @@ describe("buildPageMetadata alternate-language links", () => {
     expect(openGraphOf(metadata).description).toBeUndefined();
   });
 
+  it("omits the default image alt in a locale it was not authored in", () => {
+    const metadata = buildPageMetadata(
+      { path: englishVersion.path, title: "Coastal mornings", locale: "en-GB" },
+      bilingualContext,
+    );
+
+    expect(openGraphOf(metadata).images?.[0]).toMatchObject({
+      url: "https://example.com/gallery/default.1683eecb7e65.webp",
+      width: 1536,
+      height: 1024,
+    });
+    expect(openGraphOf(metadata).images?.[0]).not.toHaveProperty("alt");
+  });
+
+  it("keeps a localized page image alt supplied by that page", () => {
+    const metadata = buildPageMetadata(
+      {
+        path: englishVersion.path,
+        title: "Coastal mornings",
+        locale: "en-GB",
+        image: coverImage,
+      },
+      bilingualContext,
+    );
+
+    expect(openGraphOf(metadata).images?.[0]?.alt).toBe(
+      "Reflective water channel winding through an open marsh",
+    );
+  });
+
   it("keeps the site description on a page in the locale it was authored in", () => {
     const metadata = buildPageMetadata({ path: "/tarinat" }, bilingualContext);
 

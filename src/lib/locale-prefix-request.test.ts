@@ -204,6 +204,23 @@ describe("resolveLocalePrefixRequest", () => {
       });
     });
 
+    it("normalizes a configured locale prefix without leaving its language", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "EN",
+          segments: ["stories", "landscape"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: "/en/stories/landscape",
+      });
+    });
+
     it("404s a locale that publishes no tree instead of serving another one's", async () => {
       await expect(
         resolveLocalePrefixRequest({
@@ -415,5 +432,27 @@ describe("resolveLocalePrefixRequest", () => {
         }),
       ).resolves.toEqual({ kind: "not-found" });
     });
+
+    it.each([
+      ["a casing variant", "tarinat", ["MAISEMAT"]],
+      ["a retired path", "tarinat", ["TAPAHTUMA"]],
+      ["a locale-prefix variant", "EN", ["stories", "landscape"]],
+      ["a redundant prefix", "fi", ["tarinat", "MAISEMAT"]],
+    ])(
+      "404s a cursor on %s without redirecting first",
+      async (_case, prefix, segments) => {
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix,
+            segments,
+            searchParams: { cursor: "not-a-token-this-route-minted" },
+            defaultLocaleRouteExists: missing(),
+          }),
+        ).resolves.toEqual({ kind: "not-found" });
+      },
+    );
   });
 });

@@ -160,6 +160,7 @@ export async function resolveLocalePrefixRequest({
     const canonical = segments.map((segment) => segment.toLowerCase());
 
     if (resolveStorySegments(trees, defaultRoute, canonical) !== null) {
+      if (searchParams.cursor !== undefined) return NOT_FOUND;
       return redirectTo(toPath(canonical));
     }
 
@@ -169,7 +170,10 @@ export async function resolveLocalePrefixRequest({
       defaultRoute,
       canonical,
     );
-    if (historical !== null) return redirectTo(historical);
+    if (historical !== null) {
+      if (searchParams.cursor !== undefined) return NOT_FOUND;
+      return redirectTo(historical);
+    }
 
     return (await defaultLocaleRouteExists(toPath(canonical)))
       ? redirectTo(toPath(canonical))
@@ -204,21 +208,26 @@ export async function resolveLocalePrefixRequest({
       localeRoute,
       canonical,
     );
-    return historical === null ? NOT_FOUND : redirectTo(historical);
+    if (historical === null) return NOT_FOUND;
+    return searchParams.cursor === undefined
+      ? redirectTo(historical)
+      : NOT_FOUND;
   }
 
-  if (canonical.some((segment, index) => segment !== requested[index])) {
+  // No category cursor exists yet, so a token cannot identify any listing
+  // slice. Reject it before casing or locale-prefix normalization: a malformed
+  // or stale token is a 404 at the address requested, never a redirect to a
+  // different spelling that could make the token appear meaningful.
+  if (searchParams.cursor !== undefined) return NOT_FOUND;
+
+  if (
+    (resolution.kind === "localized" && !resolution.prefixIsCanonical) ||
+    canonical.some((segment, index) => segment !== requested[index])
+  ) {
     return redirectTo(
       buildStoryPath(config, localeRoute.locale, canonical.slice(1)),
     );
   }
-
-  // A category listing accepts `?cursor=` by ADR-0003 decision 8, but no
-  // category cursor is issued yet: the continuation contract is AB#66's and
-  // AB#72's. Every token that could arrive today is therefore foreign or stale,
-  // and the decision answers those with a 404 rather than silently serving the
-  // first page as if it were a later slice.
-  if (searchParams.cursor !== undefined) return NOT_FOUND;
 
   return { kind: "story", locale: localeRoute.locale, route };
 }

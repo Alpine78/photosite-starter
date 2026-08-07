@@ -72,4 +72,6 @@ export const appUnderTestEnvironment: Record<string, string> = {
   SITE_DEFAULT_SOCIAL_IMAGE: "/gallery/coastal-landscape.1683eecb7e65.webp",
   SITE_DEFAULT_SOCIAL_IMAGE_WIDTH: "1536",
   SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT: "1024",
+  // Authored in the default locale. Prefixed locale pages must not copy it.
+  SITE_DEFAULT_SOCIAL_IMAGE_ALT: "Rocky shoreline beside calm water",
 };

@@ -1,6 +1,13 @@
 import type { Locator, Page } from "@playwright/test";
+import { buildContentRedirects } from "../src/lib/content-redirects";
+import { buildContentTree } from "../src/lib/content-tree";
+import {
+  mockContentRedirectInputs,
+  mockContentTreeInputs,
+} from "../src/lib/mock-content-tree";
 import { expect, test } from "./support/fixtures";
 import {
+  appUnderTestEnvironment,
   DEFAULT_STORY_NAMESPACE,
   PREFIXED_LOCALE,
   REDUNDANT_DEFAULT_PREFIX,
@@ -24,6 +31,33 @@ import {
 
 const STORY_ROOT = `/${DEFAULT_STORY_NAMESPACE}`;
 const PREFIXED_STORY_ROOT = `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.storyNamespace}`;
+
+/** One real redirect from the deterministic content adapter the harness runs. */
+function retiredDefaultRoute(): { readonly from: string; readonly to: string } {
+  const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
+  const treeInput = mockContentTreeInputs[language];
+  if (treeInput === undefined) {
+    throw new Error(`[e2e] The default locale ${language} publishes no mock tree.`);
+  }
+
+  const tree = buildContentTree(treeInput);
+  const redirects = buildContentRedirects(
+    tree,
+    mockContentRedirectInputs[language] ?? [],
+  );
+  const first = redirects.entries().next().value;
+  if (first === undefined) {
+    throw new Error("[e2e] The harness needs one retired content path.");
+  }
+
+  const [previousPath, currentPath] = first;
+  return {
+    from: `${STORY_ROOT}/${previousPath}`,
+    to: `${STORY_ROOT}/${currentPath.join("/")}`,
+  };
+}
+
+const RETIRED_DEFAULT_ROUTE = retiredDefaultRoute();
 
 /** A listing card: the only links in main that carry a level-three heading. */
 function contentCards(page: Page): Locator {
@@ -176,6 +210,7 @@ test("a branch names and links the other locale's version of itself", async ({
 
   expect(hrefs.some((href) => href.endsWith(STORY_ROOT))).toBe(true);
   expect(hrefs.some((href) => href.endsWith(PREFIXED_STORY_ROOT))).toBe(true);
+  await expect(page.locator("meta[property='og:image:alt']")).toHaveCount(1);
 
   await test.step("the switch is navigation a visitor can see and use", async () => {
     const switchLink = page
@@ -186,6 +221,20 @@ test("a branch names and links the other locale's version of itself", async ({
     await switchLink.click();
     await page.waitForURL(`**${PREFIXED_STORY_ROOT}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    await expect(page.locator("html")).toHaveAttribute(
+      "lang",
+      new RegExp(`^${PREFIXED_LOCALE.prefix}\\b`),
+    );
+    await expect(page.locator("meta[property='og:image:alt']")).toHaveCount(0);
+  });
+
+  await test.step("a differently cased locale prefix normalizes in that locale", async () => {
+    await page.goto(
+      `/${PREFIXED_LOCALE.prefix.toUpperCase()}/${PREFIXED_LOCALE.storyNamespace}`,
+      { waitUntil: "domcontentloaded" },
+    );
+
+    expect(new URL(page.url()).pathname).toBe(PREFIXED_STORY_ROOT);
     await expect(page.locator("html")).toHaveAttribute(
       "lang",
       new RegExp(`^${PREFIXED_LOCALE.prefix}\\b`),
@@ -225,6 +274,16 @@ test("a path the tree does not serve answers honestly", async ({ page }) => {
     expect(response?.status()).toBe(404);
   });
 
+  await test.step("a cursor on a casing variant is a 404 without a redirect", async () => {
+    const requestedPath = branch.toUpperCase();
+    const response = await page.goto(`${requestedPath}?cursor=not-a-real-token`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    expect(response?.status()).toBe(404);
+    expect(new URL(page.url()).pathname).toBe(requestedPath);
+  });
+
   await test.step("an unrecognized parameter is ignored, not redirected on", async () => {
     const response = await page.goto(`${branch}?utm_source=newsletter`, {
       waitUntil: "domcontentloaded",
@@ -238,25 +297,23 @@ test("a path the tree does not serve answers honestly", async ({ page }) => {
 test("a retired path leads to the page's current one in a single redirect", async ({
   page,
 }) => {
-  // Recorded history exists in the fixtures, but which paths moved is content.
-  // The journey looks for a redirect chain instead: whatever the deployment has
-  // retired must resolve in one hop, which is what ADR-0003 requires of it.
+  // The path pair is derived from the same deterministic adapter data the
+  // harness serves. The test therefore exercises actual recorded history
+  // without restating a category slug or target in the journey.
   const redirects: string[] = [];
   page.on("response", (response) => {
-    if (response.status() === 308 || response.status() === 301) {
+    if (
+      response.request().isNavigationRequest() &&
+      (response.status() === 308 || response.status() === 301)
+    ) {
       redirects.push(new URL(response.url()).pathname);
     }
   });
 
-  const [branch] = await crawlBranches(page);
-  redirects.length = 0;
-
-  await page.goto(`/${REDUNDANT_DEFAULT_PREFIX}${branch.toUpperCase()}`, {
+  await page.goto(RETIRED_DEFAULT_ROUTE.from, {
     waitUntil: "domcontentloaded",
   });
 
-  // A redundant prefix and a casing variant on one request are two spellings of
-  // one identity, and cost one redirect between them.
   expect(redirects).toHaveLength(1);
-  expect(new URL(page.url()).pathname).toBe(branch);
+  expect(new URL(page.url()).pathname).toBe(RETIRED_DEFAULT_ROUTE.to);
 });

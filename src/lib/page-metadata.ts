@@ -155,11 +155,19 @@ function toAlternateLanguages(
 function toOpenGraphImage(
   image: Media | undefined,
   deployment: DeploymentConfig,
+  includeDefaultAlt = true,
 ): OpenGraphImage {
-  const rendered: ImageMedia =
-    image?.type === "image" ? image : deployment.defaultSocialImage;
+  const usesPageImage = image?.type === "image";
+  const rendered: ImageMedia = usesPageImage
+    ? image
+    : deployment.defaultSocialImage;
 
-  const alt = rendered.alt.trim();
+  // The deployment default is authored in the deployment locale. Its public
+  // rendition remains a valid fallback in another locale, but its language-
+  // dependent alt text does not. A page-owned image carries text authored for
+  // that page and therefore keeps it in every locale where the page supplies
+  // the image explicitly.
+  const alt = usesPageImage || includeDefaultAlt ? rendered.alt.trim() : "";
   return {
     url: new URL(rendered.rendition.src, deployment.canonicalBaseUrl).href,
     width: rendered.rendition.width,
@@ -262,7 +270,13 @@ export function buildPageMetadata(
     siteName: settings.siteName,
     ...(openGraphLocale === undefined ? {} : { locale: openGraphLocale }),
     ...(description === undefined ? {} : { description }),
-    images: [toOpenGraphImage(input.image, deployment)],
+    images: [
+      toOpenGraphImage(
+        input.image,
+        deployment,
+        locale === deployment.locale,
+      ),
+    ],
   };
 
   return {
