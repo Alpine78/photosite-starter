@@ -34,6 +34,7 @@ export type BuiltInLabels = {
     readonly services: string;
     readonly portfolio: string;
     readonly blog: string;
+    readonly contact: string;
     /** The public content tree's root, whatever segment the locale routes it at. */
     readonly stories: string;
   };
@@ -67,6 +68,56 @@ export type BuiltInLabels = {
   };
   readonly services: {
     readonly pricing: string;
+  };
+  readonly contact: {
+    /**
+     * Subject of the email the site owner receives. It carries no
+     * visitor-supplied text, so a stranger never writes in the one line a mail
+     * client shows before anyone has decided to trust the message.
+     */
+    readonly emailSubject: string;
+    readonly nameLabel: string;
+    readonly emailLabel: string;
+    readonly messageLabel: string;
+    /**
+     * Accessible name of the field no person can see. It has to read like a
+     * field a form-filling bot expects, which is why it is ordinary copy
+     * rather than a warning.
+     */
+    readonly honeypotLabel: string;
+    readonly submit: string;
+    /** Replaces `submit` while a submission is in flight. */
+    readonly submitting: string;
+    readonly retry: string;
+    readonly successTitle: string;
+    readonly successBody: string;
+    /** Heading of the summary that lists every field error at once. */
+    readonly errorSummaryTitle: string;
+    /** Marks a required field visually; assistive technology reads `required`. */
+    readonly requiredMark: string;
+    /** Delivery failed in a way a second attempt could survive. */
+    readonly errorRetryable: string;
+    /** Delivery failed in a way a second attempt cannot change. */
+    readonly errorPermanent: string;
+    /** The request itself was refused, so the page state is stale. */
+    readonly errorRequest: string;
+    /** Labels the correlation identifier a visitor can quote when asking. */
+    readonly referenceLabel: string;
+    readonly privacyTitle: string;
+    readonly privacyCollected: string;
+    readonly privacyPurpose: string;
+    readonly privacyRecipient: string;
+    readonly privacyRetention: string;
+    /**
+     * One message per validation issue the server can report. `tooLong`
+     * contains `{max}`, replaced with the field's own limit, so one string
+     * serves three fields with three different limits.
+     */
+    readonly fieldErrors: {
+      readonly required: string;
+      readonly tooLong: string;
+      readonly invalidEmail: string;
+    };
   };
   readonly contentTree: {
     /** Heading above a branch's public child categories. */
@@ -140,6 +191,7 @@ const englishLabels = {
     services: "Services",
     portfolio: "Portfolio",
     blog: "Blog",
+    contact: "Contact",
     stories: "Stories",
   },
   navigation: {
@@ -172,6 +224,34 @@ const englishLabels = {
   },
   services: {
     pricing: "Pricing",
+  },
+  contact: {
+    emailSubject: "New contact message",
+    nameLabel: "Name",
+    emailLabel: "Email",
+    messageLabel: "Message",
+    honeypotLabel: "Company",
+    submit: "Send message",
+    submitting: "Sending…",
+    retry: "Try again",
+    successTitle: "Message sent",
+    successBody: "Thank you. We will reply to the address you gave.",
+    errorSummaryTitle: "Please check the following",
+    requiredMark: "*",
+    errorRetryable: "The message could not be sent. Please try again in a moment.",
+    errorPermanent: "The message could not be sent. Please email us directly instead.",
+    errorRequest: "The message could not be sent. Please reload the page and try again.",
+    referenceLabel: "Reference",
+    privacyTitle: "How your message is handled",
+    privacyCollected: "Collected",
+    privacyPurpose: "Purpose",
+    privacyRecipient: "Recipient",
+    privacyRetention: "Retention",
+    fieldErrors: {
+      required: "This field is required.",
+      tooLong: "Please shorten this to {max} characters or fewer.",
+      invalidEmail: "Please enter an email address we can reply to.",
+    },
   },
   contentTree: {
     categories: "Categories",
@@ -206,6 +286,7 @@ const finnishLabels = {
     services: "Palvelut",
     portfolio: "Portfolio",
     blog: "Blogi",
+    contact: "Ota yhteyttä",
     stories: "Tarinat",
   },
   navigation: {
@@ -238,6 +319,34 @@ const finnishLabels = {
   },
   services: {
     pricing: "Hinnoittelu",
+  },
+  contact: {
+    emailSubject: "Uusi yhteydenotto",
+    nameLabel: "Nimi",
+    emailLabel: "Sähköposti",
+    messageLabel: "Viesti",
+    honeypotLabel: "Yritys",
+    submit: "Lähetä viesti",
+    submitting: "Lähetetään…",
+    retry: "Yritä uudelleen",
+    successTitle: "Viesti lähetetty",
+    successBody: "Kiitos. Vastaamme antamaasi sähköpostiosoitteeseen.",
+    errorSummaryTitle: "Tarkista seuraavat kohdat",
+    requiredMark: "*",
+    errorRetryable: "Viestin lähetys ei onnistunut. Yritä hetken kuluttua uudelleen.",
+    errorPermanent: "Viestin lähetys ei onnistunut. Ota yhteyttä suoraan sähköpostitse.",
+    errorRequest: "Viestin lähetys ei onnistunut. Lataa sivu uudelleen ja yritä uudestaan.",
+    referenceLabel: "Viite",
+    privacyTitle: "Näin viestisi käsitellään",
+    privacyCollected: "Kerättävät tiedot",
+    privacyPurpose: "Käyttötarkoitus",
+    privacyRecipient: "Vastaanottaja",
+    privacyRetention: "Säilytysaika",
+    fieldErrors: {
+      required: "Tämä kenttä on pakollinen.",
+      tooLong: "Lyhennä tämä enintään {max} merkkiin.",
+      invalidEmail: "Anna sähköpostiosoite, johon voimme vastata.",
+    },
   },
   contentTree: {
     categories: "Kategoriat",

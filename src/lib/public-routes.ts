@@ -27,7 +27,11 @@ import { getService } from "@/lib/services";
  * file-system route or public file would shadow the whole locale.
  */
 export const RESERVED_ROOT_SEGMENTS: readonly string[] = [
+  // The contact endpoint's own segment. It serves no page, but a locale prefix
+  // that claimed it would shadow a route the contact form posts to.
+  "api",
   "blog",
+  "contact",
   "favicon.ico",
   "gallery",
   "portfolio",
@@ -60,6 +64,7 @@ export async function defaultLocaleRouteExists(path: string): Promise<boolean> {
     case "blog":
       return second === undefined || (await getArticle(second)) !== undefined;
     case "portfolio":
+    case "contact":
       return second === undefined;
     default:
       return false;
