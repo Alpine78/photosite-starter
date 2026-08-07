@@ -9,7 +9,7 @@ import {
   listPublishedLocaleVersions,
   resolveLanguageSwitch,
   resolvePrefixedRoute,
-  resolveRouteShellLocale,
+  resolveRouteShell,
   type ContentLocation,
   type LocalizedContentTrees,
 } from "@/lib/locale-routes";
@@ -353,6 +353,7 @@ describe("resolvePrefixedRoute", () => {
       kind: "localized",
       locale: "en",
       segments: ["stories", "landscape"],
+      prefixIsCanonical: true,
     });
   });
 
@@ -373,24 +374,55 @@ describe("resolvePrefixedRoute", () => {
     });
   });
 
-  it("matches prefixes exactly rather than guessing at casing", () => {
+  it("recognizes casing variants while marking them for normalization", () => {
     expect(resolvePrefixedRoute(config, "FI", ["tarinat"])).toEqual({
-      kind: "not-a-locale",
+      kind: "redundant-default-prefix",
+      canonicalPath: "/tarinat",
     });
     expect(resolvePrefixedRoute(config, "EN", ["stories"])).toEqual({
+      kind: "localized",
+      locale: "en",
+      segments: ["stories"],
+      prefixIsCanonical: false,
+    });
+  });
+
+  it("does not case-fold non-ASCII lookalikes into a locale prefix", () => {
+    const lookalikeConfig = buildLocaleRouteConfig({
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat" },
+        { locale: "sv", prefix: "k", storyNamespace: "berattelser" },
+      ],
+      reservedRootSegments: [],
+      reservedLocaleRouteSegments: [],
+    });
+
+    // U+212A KELVIN SIGN has the Unicode lowercase mapping "k".
+    expect(resolvePrefixedRoute(lookalikeConfig, "\u212A", ["berattelser"])).toEqual({
       kind: "not-a-locale",
     });
   });
 });
 
-describe("resolveRouteShellLocale", () => {
-  it("uses a configured prefixed locale for its document shell", () => {
-    expect(resolveRouteShellLocale(config, "en")).toBe("en");
+describe("resolveRouteShell", () => {
+  it("uses a configured prefixed locale for its own document shell", () => {
+    expect(resolveRouteShell(config, "en")).toEqual({
+      locale: "en",
+      isDefaultSpace: false,
+    });
+    expect(resolveRouteShell(config, "EN")).toEqual({
+      locale: "en",
+      isDefaultSpace: false,
+    });
   });
 
-  it("uses the default locale for normalization and unknown paths", () => {
-    expect(resolveRouteShellLocale(config, "fi")).toBe("fi");
-    expect(resolveRouteShellLocale(config, "sv")).toBe("fi");
+  it("uses the unprefixed space for normalization, the namespace, and unknown paths", () => {
+    for (const prefix of ["fi", "tarinat", "sv"]) {
+      expect(resolveRouteShell(config, prefix)).toEqual({
+        locale: "fi",
+        isDefaultSpace: true,
+      });
+    }
   });
 });
 

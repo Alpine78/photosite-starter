@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { builtInLabels } from "@/lib/deployment-config";
+import { getDefaultLocaleLabels } from "@/lib/deployment-config";
 import type {
   ContactInfo,
   NavigationItem,
@@ -33,6 +33,7 @@ export function SiteFooter({
   copyrightHolder,
 }: SiteFooterProps) {
   const year = new Date().getFullYear();
+  const labels = getDefaultLocaleLabels();
 
   return (
     <footer className="border-t border-black/10 dark:border-white/15">
@@ -44,7 +45,7 @@ export function SiteFooter({
               id="footer-contact-heading"
               className="text-sm font-semibold tracking-tight"
             >
-              {builtInLabels.footer.contact}
+              {labels.footer.contact}
             </h2>
             <address className="mt-3 flex flex-col gap-1 text-sm not-italic text-foreground/70">
               <a href={`mailto:${contact.email}`} className={linkClasses}>
@@ -61,7 +62,7 @@ export function SiteFooter({
               {contact.address && <span>{contact.address}</span>}
               {contact.businessId && (
                 <span>
-                  {builtInLabels.footer.businessId}: {contact.businessId}
+                  {labels.footer.businessId}: {contact.businessId}
                 </span>
               )}
             </address>
@@ -69,9 +70,9 @@ export function SiteFooter({
 
           {/* Quick navigation */}
           {footerLinks.length > 0 && (
-            <nav aria-label={builtInLabels.navigation.footer}>
+            <nav aria-label={labels.navigation.footer}>
               <h2 className="text-sm font-semibold tracking-tight">
-                {builtInLabels.footer.explore}
+                {labels.footer.explore}
               </h2>
               <ul className="mt-3 flex flex-col gap-1">
                 {footerLinks.map((item) => (
@@ -95,7 +96,7 @@ export function SiteFooter({
                 id="footer-social-heading"
                 className="text-sm font-semibold tracking-tight"
               >
-                {builtInLabels.footer.follow}
+                {labels.footer.follow}
               </h2>
               <ul className="mt-3 flex flex-col gap-1">
                 {socialLinks.map((social) => (
@@ -117,7 +118,7 @@ export function SiteFooter({
         </div>
 
         <p className="mt-8 border-t border-black/10 pt-6 text-sm text-foreground/60 dark:border-white/15">
-          © {year} {copyrightHolder}. {builtInLabels.footer.rightsReserved}
+          © {year} {copyrightHolder}. {labels.footer.rightsReserved}
         </p>
       </div>
     </footer>

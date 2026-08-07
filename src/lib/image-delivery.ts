@@ -13,6 +13,13 @@ function boundedImageSizes(
   return `(min-width: ${terminalViewportWidth}px) ${terminalCssWidth}px, ${fluidSizes}`;
 }
 
+/** Three-column card grid inside the bounded 1152px content container. */
+const cardGridSizes = boundedImageSizes(
+  1152,
+  347,
+  "(min-width: 1024px) calc(33.333vw - 37.333px), (min-width: 640px) calc(50vw - 40px), calc(100vw - 32px)",
+);
+
 /**
  * Slot-accurate profiles for the current bounded layouts.
  *
@@ -36,11 +43,11 @@ export const imageRenderProfiles = {
     ),
   },
   blogGrid: {
-    sizes: boundedImageSizes(
-      1152,
-      347,
-      "(min-width: 1024px) calc(33.333vw - 37.333px), (min-width: 640px) calc(50vw - 40px), calc(100vw - 32px)",
-    ),
+    sizes: cardGridSizes,
+  },
+  /** The category branch listing uses the same container and card grid. */
+  contentListingGrid: {
+    sizes: cardGridSizes,
   },
   serviceContent: {
     sizes: boundedImageSizes(

@@ -35,7 +35,10 @@ export type PageMetadataInput = {
   readonly path: string;
   /** Omitted by the site root, which keeps the SiteSettings site name. */
   readonly title?: string;
-  /** Falls back to the site's default description when the page has none. */
+  /**
+   * Falls back to the site's default description, but only in the locale that
+   * description was authored in. A page elsewhere emits none.
+   */
   readonly description?: string;
   /**
    * This page's own media. Only the image variant yields an Open Graph image:
@@ -152,11 +155,19 @@ function toAlternateLanguages(
 function toOpenGraphImage(
   image: Media | undefined,
   deployment: DeploymentConfig,
+  includeDefaultAlt = true,
 ): OpenGraphImage {
-  const rendered: ImageMedia =
-    image?.type === "image" ? image : deployment.defaultSocialImage;
+  const usesPageImage = image?.type === "image";
+  const rendered: ImageMedia = usesPageImage
+    ? image
+    : deployment.defaultSocialImage;
 
-  const alt = rendered.alt.trim();
+  // The deployment default is authored in the deployment locale. Its public
+  // rendition remains a valid fallback in another locale, but its language-
+  // dependent alt text does not. A page-owned image carries text authored for
+  // that page and therefore keeps it in every locale where the page supplies
+  // the image explicitly.
+  const alt = usesPageImage || includeDefaultAlt ? rendered.alt.trim() : "";
   return {
     url: new URL(rendered.rendition.src, deployment.canonicalBaseUrl).href,
     width: rendered.rendition.width,
@@ -238,7 +249,6 @@ export function buildPageMetadata(
     input.path,
     deployment.canonicalBaseUrl,
   );
-  const description = input.description ?? settings.defaultSeo.description;
   const locale = resolvePageLocale(input.locale, deployment);
   const openGraphLocale = toOpenGraphLocale(locale);
   const languages = toAlternateLanguages(
@@ -246,17 +256,32 @@ export function buildPageMetadata(
     deployment,
   );
 
+  // The SiteSettings description is authored once, in the deployment's default
+  // locale. A page in another locale's route space omits a description rather
+  // than publishing that one under a translated title: a wrong-language
+  // description is what a search result and a shared link actually show, so
+  // saying nothing is more accurate than saying it in the wrong language.
+  const description =
+    input.description ??
+    (locale === deployment.locale ? settings.defaultSeo.description : undefined);
+
   const openGraphBase = {
     url: canonical,
     siteName: settings.siteName,
     ...(openGraphLocale === undefined ? {} : { locale: openGraphLocale }),
-    description,
-    images: [toOpenGraphImage(input.image, deployment)],
+    ...(description === undefined ? {} : { description }),
+    images: [
+      toOpenGraphImage(
+        input.image,
+        deployment,
+        locale === deployment.locale,
+      ),
+    ],
   };
 
   return {
     ...(input.title === undefined ? {} : { title: input.title }),
-    description,
+    ...(description === undefined ? {} : { description }),
     alternates: {
       canonical,
       ...(languages === undefined ? {} : { languages }),

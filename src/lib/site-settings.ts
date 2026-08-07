@@ -1,4 +1,4 @@
-import { builtInLabels } from "@/lib/deployment-config";
+import { getDefaultLocaleLabels } from "@/lib/deployment-config";
 
 /**
  * Site-wide brand, contact, and navigation settings live here, never
@@ -48,51 +48,61 @@ export type SiteSettings = {
   defaultSeo: DefaultSeo;
 };
 
-const mockSiteSettings: SiteSettings = {
-  siteName: "Studio Example",
-  photographerName: "Jane Example",
-  tagline: "Timeless photography for life's important moments",
-  // These labels describe application-owned static routes, so they come from
-  // deployment config rather than authored CMS content. Only routes that exist
-  // are listed; a nav entry without a route is a 404 on every page of the site.
-  // "About" and "Contact" are added once those pages land (contact: AB#12).
-  navigation: [
-    { label: builtInLabels.pages.home, href: "/" },
-    { label: builtInLabels.pages.services, href: "/services" },
-    { label: builtInLabels.pages.portfolio, href: "/portfolio" },
-    { label: builtInLabels.pages.blog, href: "/blog" },
-  ],
-  contact: {
-    email: "hello@studio-example.com",
-    phone: "+358 40 123 4567",
-    address: "Example Street 1, 00100 Helsinki",
-    businessId: "1234567-8",
-  },
-  socialLinks: [
-    {
-      platform: "instagram",
-      url: "https://instagram.com/studioexample",
-      label: "Studio Example on Instagram",
+/**
+ * Built lazily rather than as a module constant: the page labels below are
+ * resolved from the deployment's configured locale, and reading that
+ * configuration at import time would fail every context that has no deployment
+ * environment.
+ */
+function buildMockSiteSettings(): SiteSettings {
+  const labels = getDefaultLocaleLabels();
+
+  return {
+    siteName: "Studio Example",
+    photographerName: "Jane Example",
+    tagline: "Timeless photography for life's important moments",
+    // These labels describe application-owned static routes, so they come from
+    // deployment config rather than authored CMS content. Only routes that exist
+    // are listed; a nav entry without a route is a 404 on every page of the site.
+    // "About" and "Contact" are added once those pages land (contact: AB#12).
+    navigation: [
+      { label: labels.pages.home, href: "/" },
+      { label: labels.pages.services, href: "/services" },
+      { label: labels.pages.portfolio, href: "/portfolio" },
+      { label: labels.pages.blog, href: "/blog" },
+    ],
+    contact: {
+      email: "hello@studio-example.com",
+      phone: "+358 40 123 4567",
+      address: "Example Street 1, 00100 Helsinki",
+      businessId: "1234567-8",
     },
-    {
-      platform: "facebook",
-      url: "https://facebook.com/studioexample",
-      label: "Studio Example on Facebook",
+    socialLinks: [
+      {
+        platform: "instagram",
+        url: "https://instagram.com/studioexample",
+        label: "Studio Example on Instagram",
+      },
+      {
+        platform: "facebook",
+        url: "https://facebook.com/studioexample",
+        label: "Studio Example on Facebook",
+      },
+    ],
+    footerLinks: [
+      { label: labels.pages.services, href: "/services" },
+      { label: labels.pages.portfolio, href: "/portfolio" },
+      { label: labels.pages.blog, href: "/blog" },
+    ],
+    copyrightHolder: "Studio Example",
+    defaultSeo: {
+      titleTemplate: "%s | Studio Example",
+      description:
+        "Professional photography services: portraits, weddings, events, and more.",
     },
-  ],
-  footerLinks: [
-    { label: builtInLabels.pages.services, href: "/services" },
-    { label: builtInLabels.pages.portfolio, href: "/portfolio" },
-    { label: builtInLabels.pages.blog, href: "/blog" },
-  ],
-  copyrightHolder: "Studio Example",
-  defaultSeo: {
-    titleTemplate: "%s | Studio Example",
-    description:
-      "Professional photography services: portraits, weddings, events, and more.",
-  },
-};
+  };
+}
 
 export async function getSiteSettings(): Promise<SiteSettings> {
-  return mockSiteSettings;
+  return buildMockSiteSettings();
 }

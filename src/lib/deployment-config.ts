@@ -34,6 +34,8 @@ export type BuiltInLabels = {
     readonly services: string;
     readonly portfolio: string;
     readonly blog: string;
+    /** The public content tree's root, whatever segment the locale routes it at. */
+    readonly stories: string;
   };
   readonly navigation: {
     readonly main: string;
@@ -65,6 +67,21 @@ export type BuiltInLabels = {
   };
   readonly services: {
     readonly pricing: string;
+  };
+  readonly contentTree: {
+    /** Heading above a branch's public child categories. */
+    readonly categories: string;
+    /** Heading above the content pages a branch lists. */
+    readonly content: string;
+    /** Accessible name of the language switch. */
+    readonly languages: string;
+    /**
+     * Qualifies a language the target version is missing from: the switch
+     * opens the canonical parent category instead of an exact translation.
+     */
+    readonly parentCategoryFallback: string;
+    /** Qualifies a language whose parent ancestry is missing too. */
+    readonly storyRootFallback: string;
   };
   readonly gallery: {
     readonly images: string;
@@ -117,21 +134,13 @@ export type DeploymentConfig = {
   readonly defaultSocialImage: ImageMedia;
 };
 
-/**
- * Application-owned copy that a clone can adjust without editing route or
- * component markup. Authored content and brand data remain in SiteSettings.
- *
- * These labels are deployment-wide, not per-locale: SITE_LOCALE does not
- * translate them, so a single-locale deployment keeps them in sync with that
- * setting by hand. A locale prefix reserves its route space (SITE_LOCALE_ROUTES),
- * but the first page rendered inside it needs a per-locale label set first.
- */
-export const builtInLabels = {
+const englishLabels = {
   pages: {
     home: "Home",
     services: "Services",
     portfolio: "Portfolio",
     blog: "Blog",
+    stories: "Stories",
   },
   navigation: {
     main: "Main",
@@ -164,6 +173,13 @@ export const builtInLabels = {
   services: {
     pricing: "Pricing",
   },
+  contentTree: {
+    categories: "Categories",
+    content: "Stories",
+    languages: "Language",
+    parentCategoryFallback: "opens the parent category",
+    storyRootFallback: "opens all stories",
+  },
   gallery: {
     images: "images",
   },
@@ -183,6 +199,126 @@ export const builtInLabels = {
       "Opens an embedded YouTube player. YouTube may set cookies.",
   },
 } as const satisfies BuiltInLabels;
+
+const finnishLabels = {
+  pages: {
+    home: "Etusivu",
+    services: "Palvelut",
+    portfolio: "Portfolio",
+    blog: "Blogi",
+    stories: "Tarinat",
+  },
+  navigation: {
+    main: "Päävalikko",
+    footer: "Alatunniste",
+    breadcrumb: "Murupolku",
+    article: "Artikkelinavigointi",
+    categoryFilter: "Suodata kategorian mukaan",
+    menu: "Valikko",
+    closeMenu: "Sulje",
+  },
+  actions: {
+    viewPortfolio: "Katso portfolio",
+    contactAboutService: "Kysy lisää",
+    previousArticle: "Edellinen",
+    nextArticle: "Seuraava",
+    watchOnYouTube: "Katso YouTubessa",
+  },
+  footer: {
+    contact: "Yhteystiedot",
+    explore: "Sivut",
+    follow: "Seuraa",
+    businessId: "Y-tunnus",
+    rightsReserved: "Kaikki oikeudet pidätetään.",
+  },
+  blog: {
+    allCategories: "Kaikki",
+    emptyCategory: "Tässä kategoriassa ei ole vielä artikkeleita.",
+    tags: "Avainsanat",
+  },
+  services: {
+    pricing: "Hinnoittelu",
+  },
+  contentTree: {
+    categories: "Kategoriat",
+    content: "Tarinat",
+    languages: "Kieli",
+    parentCategoryFallback: "avaa yläkategorian",
+    storyRootFallback: "avaa kaikki tarinat",
+  },
+  gallery: {
+    images: "kuvaa",
+  },
+  lightbox: {
+    viewer: "Kuvakatselin",
+    openImage: "Avaa kuva",
+    close: "Sulje",
+    previous: "Edellinen kuva",
+    next: "Seuraava kuva",
+    zoom: "Suurenna",
+    // A counter reads "1 / 6" in Finnish, where English reads "1 of 6".
+    indexSeparator: " / ",
+    loadError: "Kuvaa ei voi ladata",
+  },
+  media: {
+    video: "Video",
+    youtubePrivacyNotice:
+      "Avaa upotetun YouTube-soittimen. YouTube voi asettaa evästeitä.",
+  },
+} as const satisfies BuiltInLabels;
+
+/**
+ * Application-owned copy that a clone can adjust without editing route or
+ * component markup. Authored content and brand data remain in SiteSettings.
+ *
+ * One set per language subtag, not per configured locale: `en-GB` and `en-US`
+ * are the same UI copy, and the route contract already keeps their public paths
+ * apart. Every locale in SITE_LOCALE_ROUTES must find a set here, so a
+ * deployment cannot publish a route space whose chrome it has no words for;
+ * `loadDeploymentConfig` rejects the configuration instead of falling back to
+ * another language.
+ */
+const localeLabels = {
+  en: englishLabels,
+  fi: finnishLabels,
+} as const satisfies Record<string, BuiltInLabels>;
+
+/**
+ * The label set a route renders in. Callers pass the locale their route space
+ * belongs to, which for an unprefixed page is the deployment's default locale.
+ */
+export function getBuiltInLabels(locale: string): BuiltInLabels {
+  const language = readLanguageSubtag(locale);
+  const labels =
+    language === undefined ? undefined : localeLabels[language as keyof typeof localeLabels];
+
+  if (labels === undefined) {
+    throw new TypeError(
+      `no built-in label set for locale "${locale}"; add one to localeLabels in src/lib/deployment-config.ts`,
+    );
+  }
+  return labels;
+}
+
+/**
+ * Labels for the unprefixed route space, which the default locale owns. Routes
+ * that can render in more than one locale space pass their own locale to
+ * `getBuiltInLabels` instead.
+ */
+export function getDefaultLocaleLabels(): BuiltInLabels {
+  return getBuiltInLabels(getDeploymentConfig().locale);
+}
+
+function readLanguageSubtag(locale: string): string | undefined {
+  try {
+    const { language } = new Intl.Locale(locale);
+    return typeof language === "string" && language.length > 0
+      ? language
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 type DeploymentEnvironment = Record<string, string | undefined>;
 
@@ -314,6 +450,20 @@ function parseLocaleRoutes(
     throw new Error(
       `[deployment-config] Invalid ${settingName}: the unprefixed default locale "${config.defaultLocale}" must match ${deploymentSettingNames.locale} "${defaultLocale}"`,
     );
+  }
+
+  // A configured locale owns a public route space, so its pages need UI copy.
+  // Checked at startup rather than at request time: discovering the gap when a
+  // visitor opens the route would render that language's chrome in another one.
+  for (const route of config.locales) {
+    try {
+      getBuiltInLabels(route.locale);
+    } catch (cause) {
+      throw new Error(
+        `[deployment-config] Invalid ${settingName}: ${cause instanceof Error ? cause.message : String(cause)}`,
+        { cause },
+      );
+    }
   }
 
   return config;

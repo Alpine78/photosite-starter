@@ -10,9 +10,11 @@
  *   when the corresponding unprefixed route exists, and otherwise 404s.
  *
  * This registry is deliberately narrow: it answers "does this path resolve
- * today", not "how is it rendered". Each route story extends it as its routes
- * land — the public category and content routes (AB#110, AB#104, AB#124) will
- * answer from the content tree. A route missing here is not a broken page: it
+ * today", not "how is it rendered", and it covers only the *static* routes. The
+ * story namespace answers from the content tree instead, inside
+ * `locale-prefix-request.ts`, because a category path is data rather than a
+ * file-system route. Each remaining route story extends one of the two as it
+ * lands (AB#104, AB#124). A route missing from both is not a broken page: it
  * only means a redundantly prefixed request to it 404s instead of redirecting.
  */
 

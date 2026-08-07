@@ -315,6 +315,8 @@ export type PrefixedRouteResolution =
       readonly kind: "localized";
       readonly locale: string;
       readonly segments: readonly string[];
+      /** Whether the incoming prefix already has its configured casing. */
+      readonly prefixIsCanonical: boolean;
     }
   /**
    * The redundant default-locale prefix. The route layer redirects permanently
@@ -328,21 +330,33 @@ export type PrefixedRouteResolution =
 
 /**
  * Resolves a first path segment that may be a locale prefix, together with the
- * segments beneath it. Matching is exact: a differently cased prefix is not a
- * locale, because case normalization is a whole-path rule that belongs to the
- * canonical route resolver, not to locale detection.
+ * segments beneath it. Locale detection is ASCII case-insensitive so a casing
+ * variant remains in the language space it names. The result preserves whether
+ * the incoming spelling was canonical, letting the whole-path resolver emit
+ * one direct redirect after it has validated the complete target.
  */
 export function resolvePrefixedRoute(
   config: LocaleRouteConfig,
   prefix: string,
   segments: readonly string[] = [],
 ): PrefixedRouteResolution {
-  const route = config.byPrefix.get(prefix);
+  // Configuration permits ASCII route segments only. Apply case folding only
+  // to the same alphabet so Unicode lookalikes cannot become a configured
+  // prefix through JavaScript's broader Unicode lowercasing rules.
+  const normalizedPrefix = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/.test(prefix)
+    ? prefix.toLowerCase()
+    : prefix;
+  const route = config.byPrefix.get(normalizedPrefix);
   if (route !== undefined) {
-    return { kind: "localized", locale: route.locale, segments };
+    return {
+      kind: "localized",
+      locale: route.locale,
+      segments,
+      prefixIsCanonical: prefix === normalizedPrefix,
+    };
   }
 
-  if (prefix === config.redundantDefaultPrefix) {
+  if (normalizedPrefix === config.redundantDefaultPrefix) {
     return {
       kind: "redundant-default-prefix",
       canonicalPath: joinPath("", segments),
@@ -352,23 +366,31 @@ export function resolvePrefixedRoute(
   return { kind: "not-a-locale" };
 }
 
+export type RouteShell = {
+  readonly locale: string;
+  /** Whether this route space is the unprefixed one the default locale owns. */
+  readonly isDefaultSpace: boolean;
+};
+
 /**
- * Document-shell locale for a path entering the dynamic prefix segment.
+ * Which route space a path entering the dynamic prefix segment belongs to.
  *
  * A configured non-default prefix owns its locale. The redundant default
- * prefix and an unknown first segment both use the default locale's shell while
- * the leaf route performs its exact redirect or not-found decision. This lets
- * the owning root layout select the configured locale without guessing a
- * language for `/sv/...`.
+ * prefix, the default locale's own story namespace, and an unknown first
+ * segment all belong to the unprefixed space, whose shell the default locale
+ * supplies while the leaf route performs its exact redirect or not-found
+ * decision. This lets the owning root layout select the configured locale
+ * without guessing a language for `/sv/...`, and tell the two spaces apart:
+ * only the unprefixed one has authored navigation pointing at routes it owns.
  */
-export function resolveRouteShellLocale(
+export function resolveRouteShell(
   config: LocaleRouteConfig,
   prefix: string,
-): string {
+): RouteShell {
   const resolution = resolvePrefixedRoute(config, prefix);
   return resolution.kind === "localized"
-    ? resolution.locale
-    : config.defaultLocale;
+    ? { locale: resolution.locale, isDefaultSpace: false }
+    : { locale: config.defaultLocale, isDefaultSpace: true };
 }
 
 // ---------------------------------------------------------------------------
