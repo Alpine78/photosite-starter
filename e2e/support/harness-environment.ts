@@ -74,4 +74,14 @@ export const appUnderTestEnvironment: Record<string, string> = {
   SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT: "1024",
   // Authored in the default locale. Prefixed locale pages must not copy it.
   SITE_DEFAULT_SOCIAL_IMAGE_ALT: "Rocky shoreline beside calm water",
+  // The suite is not a production deployment, and says so: the sink adapter
+  // below is refused outright in one, because accepting a message and sending
+  // nothing is silent data loss there.
+  SITE_DEPLOYMENT_STAGE: "development",
+  // The contact endpoint's delivery boundary, resolved to the adapter that
+  // accepts a message and sends nothing. The suite therefore exercises the real
+  // route, the real validation, and the real response contract without a
+  // credential in the environment or a synthetic enquiry in a real mailbox —
+  // the same adapter ADR-0004 §3 requires of the Preview environment.
+  CONTACT_DELIVERY_ADAPTER: "sink",
 };

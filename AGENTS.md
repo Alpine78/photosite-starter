@@ -98,17 +98,29 @@ missing-cover state, single-hop permanent redirects for casing variants and for 
 recorded previous paths a move or rename retired, `hreflang`/`x-default` alternates, and
 a visible identity-based language switch. Page metadata omits the site description in
 any locale it was not authored in rather than publishing it under a translated title.
-Application-owned UI labels are per-locale (English and Finnish sets ship). The
-public-journey harness is
+Application-owned UI labels are per-locale (English and Finnish sets ship).
+The privacy-respecting contact form is in place: an accessible `/contact` page in the
+unprefixed default-locale route space, a fixed `POST /api/contact` handler accepting
+only same-origin JSON within a bounded body and a closed field whitelist, shared
+normalization and validation rules the form and the endpoint both run, honeypot and
+per-instance throttling, a replaceable `ContactDeliveryAdapter` boundary with a Resend
+HTTP adapter and a sink adapter that a production deployment refuses to build, and
+operational events limited to a random correlation identifier, a state, and a redacted
+error class. No form content is stored anywhere; the processing record is
+`docs/contact-data-flow.md`. Deployments declare themselves through
+`SITE_DEPLOYMENT_STAGE`, which defaults to production so a safeguard fails closed.
+The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
-in Azure Pipelines — carrying the home/navigation smoke test and the portfolio lightbox
-journey; route-specific journey suites are separate stories that join the gate as their
-features land.
+in Azure Pipelines — carrying the home/navigation smoke test, the portfolio lightbox
+journey, and the contact submission smoke test; route-specific journey suites are
+separate stories that join the gate as their features land.
 Not yet built: public content detail
 routes (AB#104 and AB#124), tree-driven header and mobile navigation (AB#111),
-localized static routes and localized authored settings, public continuation routes and
+localized static routes and localized authored settings — the contact route is
+unprefixed-only for now — public continuation routes and
 controls — a category listing is bounded to its first page and answers any `?cursor=`
-with a 404, because none has been issued — lightbox zoom tuning, contact form,
+with a 404, because none has been issued — lightbox zoom tuning, the gallery-item
+enquiry (AB#60), the fuller contact journey suite (AB#89),
 sitemap/robots, structured data, the Sanity adapter, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
@@ -224,6 +236,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `CLAUDE.md` | Claude Code only | a Claude-specific skill or workflow changes — it imports this file, so put shared rules here |
 | `docs/adr/` | future maintainers | a hard-to-reverse technical decision is made (see below) |
 | `docs/asset-inventory.md` | licensing audit | any third-party asset, font, or shipped dependency is added or removed |
+| `docs/contact-data-flow.md` | the site owner, a visitor who asks, and the AB#117 launch review | the contact form's fields, delivery path, processors, logs, or retention change |
 | `NOTICE`, `licenses/` | anyone receiving the product | a third-party component with an attribution requirement is added |
 | `.claude/skills/`, `.agents/skills/` | agents | a recurring workflow needs a skill; duplicate into both, no symlinks |
 

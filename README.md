@@ -113,6 +113,39 @@ space. A prefixed locale therefore renders its pages without that shared chrome:
 its category branches carry their own breadcrumbs and language switch instead.
 Localized settings and localized static routes are separate stories.
 
+### Contact form delivery
+
+The contact endpoint posts through a project-owned adapter, so the delivery provider is
+replaceable and every clone runs its own account — there is no shared credential and no
+cross-customer contact database.
+
+```bash
+SITE_DEPLOYMENT_STAGE=development   # "development" | "preview" | "production"
+CONTACT_DELIVERY_ADAPTER=sink       # "sink" | "resend"
+```
+
+`sink` accepts a message and sends nothing: it is what local development, CI, and the
+Preview environment run on. It is **refused in a production deployment** — reporting
+success while delivering nothing is silent data loss, so the first attempted submission
+fails safely instead. `SITE_DEPLOYMENT_STAGE` is what tells it which environment this is,
+and an unset value counts as production, so the guard fails closed. `resend` delivers over
+Resend's HTTP API and needs three
+more settings — `CONTACT_DELIVERY_FROM` (a sender on a domain verified in *your* Resend
+account), `CONTACT_DELIVERY_TO` (the mailbox that receives enquiries), and
+`RESEND_API_KEY`. The key is read server-side only; it never reaches a `NEXT_PUBLIC_`
+variable, a URL, or the client bundle.
+
+There is deliberately no default. A default of `sink` would let a production deployment
+discard enquiries silently, and a default of `resend` would fail every developer machine
+on a missing credential; an unset value serves the contact page normally and reports the
+missing setting when a submission is attempted.
+
+Swapping providers means writing one file next to
+[`src/lib/contact-delivery-resend.ts`](src/lib/contact-delivery-resend.ts) and changing
+the adapter name. Nothing else in the contact path knows which provider is configured.
+What the form collects, who processes it, and how long anything lives is recorded in
+[docs/contact-data-flow.md](docs/contact-data-flow.md).
+
 ```bash
 npm ci
 npm run dev
@@ -160,8 +193,11 @@ The application under test runs on harness-owned settings from
 project's own mock content, no credentials — so traces and screenshots retained on
 failure can be published without a review of what they might contain. Every request to
 an origin other than the site under test is blocked and fails the test, which keeps the
-privacy rules honest and is where a future external delivery adapter (contact-form
-email, a CMS client) plugs in a test double instead of reaching a real service.
+privacy rules honest and is where an external delivery adapter plugs in a test double
+instead of reaching a real service. The contact form already uses it: the harness
+selects `CONTACT_DELIVERY_ADAPTER=sink`, so the journey exercises the real endpoint,
+the real validation, and the real response contract without a credential in the
+environment or a synthetic enquiry in a real mailbox.
 
 ## CI
 
@@ -199,7 +235,11 @@ as a pipeline artifact when the suite fails.
   fullscreen lightbox (open, close, navigate, caption and credit) done
   ([ADR-0001](docs/adr/0001-lightbox-library.md)); zoom tuning, preloading,
   sections, and continuation controls pending*
-- [ ] Contact form
+- [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
+  handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
+  for development, CI, and Preview), abuse controls, and operational events carrying no
+  personal data ([data flow](docs/contact-data-flow.md)); the gallery-item enquiry
+  (AB#60) and the fuller journey suite (AB#89) are separate stories*
 - [ ] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
   canonical URLs, and Open Graph output done for every current public page; sitemap,
   robots, and structured data pending*
@@ -251,17 +291,18 @@ Found a bug or have an idea? Open an issue — that is welcome.
 🚧 Work in progress — MVP in progress. The public pages (home, services, blog, and the
 initial portfolio grid) are built against a mock data layer whose images use the
 accepted project-owned public rendition contract and whose portfolio uses the shared
-paginated gallery result contract. The content tree's category domain model and
-canonical placement contract are built; its public routes, breadcrumbs, and navigation
-are not. The locale-routing infrastructure is built — configured locale route spaces,
-prefix and namespace reservation, redundant default-prefix normalization, route-specific
-document and Open Graph locale selection, and tested helpers for identity-based switching
-and alternate metadata — but no localized page renders inside a non-default locale's
-routes, no page emits alternate-language links, and no visible language switch exists
-yet; those integrations continue in AB#104, AB#110, and AB#124. The future Sanity
-adapter remains open.
+paginated gallery result contract. The content tree's category domain model, canonical
+placement contract, and public category branch routes are built — breadcrumbs,
+deterministically ordered listings, permanent redirects for retired paths, and a visible
+identity-based language switch — in every configured locale space, with
+`hreflang`/`x-default` alternates. Content *detail* routes and tree-driven header and
+mobile navigation are not (AB#104, AB#111, AB#124). Static routes and authored
+SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
+separate story. The future Sanity adapter remains open.
 The portfolio grid opens a fullscreen lightbox that navigates the loaded result by
 keyboard, control, and gesture and presents the caption and credit of the photograph on
-screen; its zoom tuning and preloading are a later slice. Public continuation routes and controls, contact form, and CMS integration are
-still open. Keyword-driven dynamic galleries remain post-MVP. See the MVP scope
-checklist above.
+screen; its zoom tuning and preloading are a later slice. The contact form is built and
+delivers through a replaceable adapter that stores nothing; the gallery-item enquiry
+(AB#60) and the fuller journey suite (AB#89) build on it. Public continuation routes and
+controls, and CMS integration, are still open. Keyword-driven dynamic galleries remain
+post-MVP. See the MVP scope checklist above.
