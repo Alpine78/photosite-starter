@@ -352,23 +352,31 @@ export function resolvePrefixedRoute(
   return { kind: "not-a-locale" };
 }
 
+export type RouteShell = {
+  readonly locale: string;
+  /** Whether this route space is the unprefixed one the default locale owns. */
+  readonly isDefaultSpace: boolean;
+};
+
 /**
- * Document-shell locale for a path entering the dynamic prefix segment.
+ * Which route space a path entering the dynamic prefix segment belongs to.
  *
  * A configured non-default prefix owns its locale. The redundant default
- * prefix and an unknown first segment both use the default locale's shell while
- * the leaf route performs its exact redirect or not-found decision. This lets
- * the owning root layout select the configured locale without guessing a
- * language for `/sv/...`.
+ * prefix, the default locale's own story namespace, and an unknown first
+ * segment all belong to the unprefixed space, whose shell the default locale
+ * supplies while the leaf route performs its exact redirect or not-found
+ * decision. This lets the owning root layout select the configured locale
+ * without guessing a language for `/sv/...`, and tell the two spaces apart:
+ * only the unprefixed one has authored navigation pointing at routes it owns.
  */
-export function resolveRouteShellLocale(
+export function resolveRouteShell(
   config: LocaleRouteConfig,
   prefix: string,
-): string {
+): RouteShell {
   const resolution = resolvePrefixedRoute(config, prefix);
   return resolution.kind === "localized"
-    ? resolution.locale
-    : config.defaultLocale;
+    ? { locale: resolution.locale, isDefaultSpace: false }
+    : { locale: config.defaultLocale, isDefaultSpace: true };
 }
 
 // ---------------------------------------------------------------------------

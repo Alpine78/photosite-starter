@@ -3,7 +3,7 @@ import {
   GalleryLightbox,
   GalleryLightboxTrigger,
 } from "@/components/gallery-lightbox";
-import { builtInLabels } from "@/lib/deployment-config";
+import { getDefaultLocaleLabels } from "@/lib/deployment-config";
 import type { Gallery } from "@/lib/gallery";
 import {
   getLightboxImageSizes,
@@ -45,13 +45,14 @@ function resolveLightboxRendition(media: ImageMedia): LightboxRendition {
 }
 
 export function GalleryGrid({ gallery }: GalleryGridProps) {
+  const labels = getDefaultLocaleLabels();
   const slides = buildLightboxSlides(
     gallery.result.items,
     resolveLightboxRendition,
   );
 
   return (
-    <GalleryLightbox slides={slides} labels={builtInLabels.lightbox}>
+    <GalleryLightbox slides={slides} labels={labels.lightbox}>
       <ul
         aria-label={gallery.title}
         className="columns-1 gap-4 sm:columns-2 lg:columns-3"
@@ -68,7 +69,7 @@ export function GalleryGrid({ gallery }: GalleryGridProps) {
                   label={
                     media.alt.length > 0
                       ? undefined
-                      : builtInLabels.lightbox.openImage
+                      : labels.lightbox.openImage
                   }
                 >
                   <Image

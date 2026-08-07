@@ -9,7 +9,7 @@ import {
   listPublishedLocaleVersions,
   resolveLanguageSwitch,
   resolvePrefixedRoute,
-  resolveRouteShellLocale,
+  resolveRouteShell,
   type ContentLocation,
   type LocalizedContentTrees,
 } from "@/lib/locale-routes";
@@ -383,14 +383,21 @@ describe("resolvePrefixedRoute", () => {
   });
 });
 
-describe("resolveRouteShellLocale", () => {
-  it("uses a configured prefixed locale for its document shell", () => {
-    expect(resolveRouteShellLocale(config, "en")).toBe("en");
+describe("resolveRouteShell", () => {
+  it("uses a configured prefixed locale for its own document shell", () => {
+    expect(resolveRouteShell(config, "en")).toEqual({
+      locale: "en",
+      isDefaultSpace: false,
+    });
   });
 
-  it("uses the default locale for normalization and unknown paths", () => {
-    expect(resolveRouteShellLocale(config, "fi")).toBe("fi");
-    expect(resolveRouteShellLocale(config, "sv")).toBe("fi");
+  it("uses the unprefixed space for normalization, the namespace, and unknown paths", () => {
+    for (const prefix of ["fi", "tarinat", "sv"]) {
+      expect(resolveRouteShell(config, prefix)).toEqual({
+        locale: "fi",
+        isDefaultSpace: true,
+      });
+    }
   });
 });
 

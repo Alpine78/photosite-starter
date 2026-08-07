@@ -23,6 +23,12 @@ describe("bounded image render profiles", () => {
         sizes:
           "(min-width: 1152px) 347px, (min-width: 1024px) calc(33.333vw - 37.333px), (min-width: 640px) calc(50vw - 40px), calc(100vw - 32px)",
       },
+      // The category branch listing shares the blog grid's container and card
+      // grid, so it declares the same slot rather than a second estimate.
+      contentListingGrid: {
+        sizes:
+          "(min-width: 1152px) 347px, (min-width: 1024px) calc(33.333vw - 37.333px), (min-width: 640px) calc(50vw - 40px), calc(100vw - 32px)",
+      },
       serviceContent: {
         sizes:
           "(min-width: 1152px) 736px, (min-width: 1024px) calc(100vw - 416px), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)",

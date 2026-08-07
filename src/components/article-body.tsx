@@ -1,6 +1,6 @@
 import Image from "next/image";
 import type { ContentBlock } from "@/lib/articles";
-import { builtInLabels } from "@/lib/deployment-config";
+import { getDefaultLocaleLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import { YoutubeEmbed } from "@/components/youtube-embed";
 
@@ -14,6 +14,8 @@ type ArticleBodyProps = {
  * type — nothing else needs to change.
  */
 export function ArticleBody({ blocks }: ArticleBodyProps) {
+  const labels = getDefaultLocaleLabels();
+
   return (
     <div className="space-y-6">
       {blocks.map((block, index) => {
@@ -116,8 +118,8 @@ export function ArticleBody({ blocks }: ArticleBodyProps) {
                 key={index}
                 videoId={block.videoId}
                 title={block.title}
-                labels={builtInLabels.media}
-                watchLabel={builtInLabels.actions.watchOnYouTube}
+                labels={labels.media}
+                watchLabel={labels.actions.watchOnYouTube}
               />
             );
         }

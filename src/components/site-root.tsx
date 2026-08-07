@@ -1,4 +1,4 @@
-import { builtInLabels } from "@/lib/deployment-config";
+import { getBuiltInLabels } from "@/lib/deployment-config";
 import { getSiteSettings } from "@/lib/site-settings";
 import { DocumentRoot } from "@/components/document-root";
 import { SiteFooter } from "@/components/site-footer";
@@ -22,7 +22,7 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
       <SiteHeader
         siteName={settings.siteName}
         navigation={settings.navigation}
-        labels={builtInLabels.navigation}
+        labels={getBuiltInLabels(locale).navigation}
       />
       <div className="flex-1">{children}</div>
       <SiteFooter

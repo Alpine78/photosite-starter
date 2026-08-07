@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { GalleryGrid } from "@/components/gallery-grid";
-import { builtInLabels } from "@/lib/deployment-config";
+import { getDefaultLocaleLabels } from "@/lib/deployment-config";
 import { getPortfolioGallery } from "@/lib/gallery";
 import { getPageMetadata } from "@/lib/page-metadata";
 
@@ -35,7 +35,7 @@ export default async function PortfolioPage() {
       </header>
 
       <section
-        aria-label={`${gallery.title} ${builtInLabels.gallery.images}`}
+        aria-label={`${gallery.title} ${getDefaultLocaleLabels().gallery.images}`}
         className="mt-12"
       >
         <GalleryGrid gallery={gallery} />

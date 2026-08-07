@@ -88,17 +88,28 @@ contract, settings-driven page metadata with canonical URLs and Open Graph value
 the locale route contract — configured locale route spaces, root prefix reservation,
 locale-space namespace reservation, redundant default-prefix normalization,
 route-specific document and Open Graph locale selection, and tested helpers for
-identity-based language switching and alternate metadata. The public-journey harness is
+identity-based language switching and alternate metadata. The public category branch
+routes are in place on top of that: the story-namespace root and every public category
+path in each configured locale space, with breadcrumbs following canonical ancestry, a
+deterministically ordered listing of child categories and content (secondary listings
+included, each linking to the one canonical detail route) read through a bounded query
+that pushes the order and row limit to the adapter, uncropped cover media with a defined
+missing-cover state, single-hop permanent redirects for casing variants and for the
+recorded previous paths a move or rename retired, `hreflang`/`x-default` alternates, and
+a visible identity-based language switch. Page metadata omits the site description in
+any locale it was not authored in rather than publishing it under a translated title.
+Application-owned UI labels are per-locale (English and Finnish sets ship). The
+public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test and the portfolio lightbox
 journey; route-specific journey suites are separate stories that join the gate as their
 features land.
-Not yet built: public category
-and content routes, breadcrumbs and tree-driven navigation, localized pages, emitted
-`hreflang`/`x-default` links, and the visible language switch inside a non-default
-locale's routes (AB#104, AB#110, and AB#124), public continuation routes and controls,
-lightbox zoom tuning, contact form, sitemap/robots, structured data, the
-Sanity adapter, deployment.
+Not yet built: public content detail
+routes (AB#104 and AB#124), tree-driven header and mobile navigation (AB#111),
+localized static routes and localized authored settings, public continuation routes and
+controls — a category listing is bounded to its first page and answers any `?cursor=`
+with a 404, because none has been issued — lightbox zoom tuning, contact form,
+sitemap/robots, structured data, the Sanity adapter, deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,

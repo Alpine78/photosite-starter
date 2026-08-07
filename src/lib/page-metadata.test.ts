@@ -435,6 +435,42 @@ describe("buildPageMetadata alternate-language links", () => {
     );
   });
 
+  // The SiteSettings description is authored once, in the default locale. A
+  // translated title above an untranslated description is what a search result
+  // and a shared link would actually show, so the page says nothing instead.
+  it("emits no description in a locale the site description is not written in", () => {
+    const metadata = buildPageMetadata(
+      { path: englishVersion.path, title: "Coastal mornings", locale: "en-GB" },
+      bilingualContext,
+    );
+
+    expect(metadata.description).toBeUndefined();
+    expect(openGraphOf(metadata).description).toBeUndefined();
+  });
+
+  it("keeps the site description on a page in the locale it was authored in", () => {
+    const metadata = buildPageMetadata({ path: "/tarinat" }, bilingualContext);
+
+    expect(metadata.description).toBe("Professional photography services.");
+    expect(openGraphOf(metadata).description).toBe(
+      "Professional photography services.",
+    );
+  });
+
+  it("keeps a description a localized page supplies itself", () => {
+    const metadata = buildPageMetadata(
+      {
+        path: englishVersion.path,
+        locale: "en-GB",
+        description: "Photo stories.",
+      },
+      bilingualContext,
+    );
+
+    expect(metadata.description).toBe("Photo stories.");
+    expect(openGraphOf(metadata).description).toBe("Photo stories.");
+  });
+
   it("rejects a locale the deployment does not configure", () => {
     expect(() =>
       buildPageMetadata(

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getArticle, getArticles } from "@/lib/articles";
 import { formatDate } from "@/lib/date-format";
 import {
-  builtInLabels,
+  getDefaultLocaleLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
 import { getPageMetadata } from "@/lib/page-metadata";
@@ -41,6 +41,7 @@ export async function generateMetadata({
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = await params;
   const { locale } = getDeploymentConfig();
+  const labels = getDefaultLocaleLabels();
   const [article, allArticles] = await Promise.all([
     getArticle(slug),
     getArticles(),
@@ -55,7 +56,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
       {/* Breadcrumb */}
       <nav
-        aria-label={builtInLabels.navigation.breadcrumb}
+        aria-label={labels.navigation.breadcrumb}
         className="text-sm text-foreground/60"
       >
         <ol className="flex flex-wrap items-center gap-1">
@@ -64,7 +65,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               href="/blog"
               className="hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
-              {builtInLabels.pages.blog}
+              {labels.pages.blog}
             </Link>
           </li>
           <li aria-hidden="true">/</li>
@@ -105,7 +106,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       {article.tags && article.tags.length > 0 && (
         <footer className="mt-12 border-t border-black/10 pt-6 dark:border-white/15">
           <p className="text-xs font-medium uppercase tracking-wider text-foreground/50">
-            {builtInLabels.blog.tags}
+            {labels.blog.tags}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             {article.tags.map((tag) => (
@@ -122,7 +123,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
       {/* Prev / next navigation */}
       <nav
-        aria-label={builtInLabels.navigation.article}
+        aria-label={labels.navigation.article}
         className="mt-10 grid grid-cols-2 gap-4 border-t border-black/10 pt-8 dark:border-white/15"
       >
         <div>
@@ -133,7 +134,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             >
               <span className="text-xs font-medium uppercase tracking-wider text-foreground/50">
                 <span aria-hidden="true">← </span>
-                {builtInLabels.actions.previousArticle}
+                {labels.actions.previousArticle}
               </span>
               <span className="text-sm font-medium leading-snug group-hover:underline">
                 {prev.title}
@@ -148,7 +149,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               className="group flex flex-col gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               <span className="text-xs font-medium uppercase tracking-wider text-foreground/50">
-                {builtInLabels.actions.nextArticle}
+                {labels.actions.nextArticle}
                 <span aria-hidden="true"> →</span>
               </span>
               <span className="text-sm font-medium leading-snug group-hover:underline">

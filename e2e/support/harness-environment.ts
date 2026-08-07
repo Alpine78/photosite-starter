@@ -40,6 +40,21 @@ export const HARNESS_PORT = 3100;
 export const HARNESS_BASE_URL = `http://${HARNESS_HOSTNAME}:${HARNESS_PORT}`;
 
 /**
+ * The route spaces the application under test publishes. Exported so a journey
+ * can name an application-owned route without restating what the settings
+ * below configure — the two cannot drift apart.
+ */
+export const DEFAULT_STORY_NAMESPACE = "stories";
+
+export const PREFIXED_LOCALE = {
+  prefix: "fi",
+  storyNamespace: "tarinat",
+} as const;
+
+/** The default locale's own language subtag, which its routes never carry. */
+export const REDUNDANT_DEFAULT_PREFIX = "en";
+
+/**
  * Deployment settings for the application under test.
  *
  * `.test` is reserved by RFC 6761 and never resolves, so a canonical or Open
@@ -50,7 +65,9 @@ export const HARNESS_BASE_URL = `http://${HARNESS_HOSTNAME}:${HARNESS_PORT}`;
  */
 export const appUnderTestEnvironment: Record<string, string> = {
   SITE_LOCALE: "en-GB",
-  SITE_LOCALE_ROUTES: "en-GB||stories",
+  // Two route spaces, so the suite exercises the unprefixed default and a
+  // prefixed locale the way a bilingual deployment publishes them.
+  SITE_LOCALE_ROUTES: `en-GB||${DEFAULT_STORY_NAMESPACE},${PREFIXED_LOCALE.prefix}|${PREFIXED_LOCALE.prefix}|${PREFIXED_LOCALE.storyNamespace}`,
   SITE_CANONICAL_BASE_URL: "https://e2e.photosite-starter.test",
   SITE_DEFAULT_SOCIAL_IMAGE: "/gallery/coastal-landscape.1683eecb7e65.webp",
   SITE_DEFAULT_SOCIAL_IMAGE_WIDTH: "1536",

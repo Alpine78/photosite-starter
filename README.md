@@ -83,8 +83,7 @@ the prefix empty because its routes carry none, and must be the locale named by
 `SITE_LOCALE`. A single-locale English clone reads `en-GB||stories`; the
 bilingual first production deployment reads `fi||tarinat,en|en|stories`. That
 assigns the unprefixed route space and `/tarinat/…` namespace to Finnish, and
-the `/en` route space and `/en/stories/…` namespace to English; category and
-content pages in those namespaces are not implemented yet. Every configured
+the `/en` route space and `/en/stories/…` namespace to English. Every configured
 prefix is reserved against the root routes the application already owns, and
 every story namespace is reserved against static routes inside its locale
 space. A redundant
@@ -94,13 +93,25 @@ never redirects a visitor. A locale without a concrete language subtag, such as
 `und`, is rejected because it cannot supply the routing contract's default
 language prefix.
 
-`SITE_LOCALE` does not translate the application-owned UI labels. For a
-non-English single-locale deployment, update `builtInLabels` in
-`src/lib/deployment-config.ts` to match. A deployment publishing a second locale
-needs a per-locale label set before pages render inside that locale's routes.
-Until those values exist, the non-default catch-all renders only
-language-neutral 404 content; shared navigation, footer content, and localized
-metadata copy are intentionally absent.
+Each locale's category branches are served from its own content tree, together
+with that tree's recorded path history: a category a move or rename retired
+redirects permanently, in one hop, to its current path in the same language. A
+locale whose content has not been authored yet publishes nothing — its story
+routes 404 rather than falling back to another language's tree — and a page in a
+locale the authored site description was not written in emits no description at
+all rather than that one.
+
+`SITE_LOCALE` does not translate the application-owned UI labels. They live in
+`src/lib/deployment-config.ts` as one set per language subtag — English and
+Finnish ship — and a clone adds or edits a set there. Every locale in
+`SITE_LOCALE_ROUTES` must find one, or the deployment fails at startup rather
+than rendering one language's chrome in another.
+
+Authored SiteSettings copy — site name, navigation, footer, contact — is not
+localized yet, and the static routes it links to exist only in the unprefixed
+space. A prefixed locale therefore renders its pages without that shared chrome:
+its category branches carry their own breadcrumbs and language switch instead.
+Localized settings and localized static routes are separate stories.
 
 ```bash
 npm ci
@@ -172,15 +183,17 @@ as a pipeline artifact when the suite fails.
   (ADR-0005 awaits owner approval)
 - [x] Blog / article content type (supports long story articles)
 - [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
-  — *category domain model and canonical placement contract done; routes and navigation pending*
+  — *category domain model, canonical placement contract, and the server-rendered category
+  branch routes with breadcrumbs, bounded deterministic listings, and permanent redirects
+  for retired paths done; content detail routes (AB#104, AB#124), tree-driven header and
+  mobile navigation (AB#111), and listing continuation controls pending*
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))
   — *route configuration, prefix reservation, redundant default-prefix normalization,
-  route-space document and Open Graph locale selection, plus tested helpers for
-  identity-based switching and alternate metadata done; localized pages, emitted
-  `hreflang`/`x-default` links, and the visible language switch continue in AB#104,
-  AB#110, and AB#124*
+  per-locale labels and content trees, category branches in every configured locale space
+  with `hreflang`/`x-default` links, and the identity-based language switch on those pages
+  done; localized static routes and localized authored settings pending*
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
   and optional long-form body content — *thumbnail grid, shared bounded result contract, and
   fullscreen lightbox (open, close, navigate, caption and credit) done

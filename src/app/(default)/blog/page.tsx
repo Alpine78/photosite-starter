@@ -5,7 +5,7 @@ import { getArticles, getBlogIntro, ARTICLE_CATEGORIES } from "@/lib/articles";
 import { formatDate } from "@/lib/date-format";
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import {
-  builtInLabels,
+  getDefaultLocaleLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
 import { getPageMetadata } from "@/lib/page-metadata";
@@ -18,7 +18,7 @@ import { getPageMetadata } from "@/lib/page-metadata";
 export async function generateMetadata(): Promise<Metadata> {
   return getPageMetadata({
     path: "/blog",
-    title: builtInLabels.pages.blog,
+    title: getDefaultLocaleLabels().pages.blog,
     description: await getBlogIntro(),
   });
 }
@@ -30,6 +30,7 @@ type BlogPageProps = {
 export default async function BlogPage({ searchParams }: BlogPageProps) {
   const { category } = await searchParams;
   const { locale } = getDeploymentConfig();
+  const labels = getDefaultLocaleLabels();
   const [articles, intro] = await Promise.all([
     getArticles(category),
     getBlogIntro(),
@@ -39,14 +40,14 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <header className="max-w-2xl">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          {builtInLabels.pages.blog}
+          {labels.pages.blog}
         </h1>
         <p className="mt-3 text-foreground/70">{intro}</p>
       </header>
 
       {/* Category filter — link-based, no client JS required */}
       <nav
-        aria-label={builtInLabels.navigation.categoryFilter}
+        aria-label={labels.navigation.categoryFilter}
         className="mt-8 flex flex-wrap gap-2"
       >
         <Link
@@ -57,7 +58,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               : "border-black/20 hover:border-black/40 dark:border-white/20 dark:hover:border-white/40"
           }`}
         >
-          {builtInLabels.blog.allCategories}
+          {labels.blog.allCategories}
         </Link>
         {ARTICLE_CATEGORIES.map((cat) => (
           <Link
@@ -76,7 +77,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
 
       {articles.length === 0 ? (
         <p className="mt-12 text-foreground/60">
-          {builtInLabels.blog.emptyCategory}
+          {labels.blog.emptyCategory}
         </p>
       ) : (
         <ul className="mt-10 grid items-start gap-8 sm:grid-cols-2 lg:grid-cols-3">

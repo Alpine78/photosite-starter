@@ -1,5 +1,6 @@
 import type { Locator, Page } from "@playwright/test";
-import { builtInLabels } from "@/lib/deployment-config";
+import { getBuiltInLabels } from "@/lib/deployment-config";
+import { appUnderTestEnvironment } from "./support/harness-environment";
 import { expect, test } from "./support/fixtures";
 
 /**
@@ -20,7 +21,8 @@ import { expect, test } from "./support/fixtures";
 /** Application-owned route, not authored content: safe to name here. */
 const PORTFOLIO_PATH = "/portfolio";
 
-const labels = builtInLabels.lightbox;
+/** The unprefixed route under test belongs to the harness's default locale. */
+const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE).lightbox;
 
 /** What the visitor is actually looking at, measured rather than assumed. */
 type PresentedImage = {
