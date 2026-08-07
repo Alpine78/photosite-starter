@@ -13,11 +13,18 @@
  * record. Nothing is stored. The response is always `no-store` and carries no
  * CORS headers, so a cross-origin script cannot read it even if it could
  * provoke it.
+ *
+ * The order below is the security-relevant part. Header checks come first and
+ * cost nothing, so a request from another origin is refused without spending
+ * anything a real visitor might need; the throttle is consumed only by requests
+ * that were plausibly ours; and the body is read only by requests the throttle
+ * allowed.
  */
 
 import {
   CONTACT_REJECTION_STATUS,
-  readContactRequest,
+  checkContactRequestHeaders,
+  readContactSubmission,
   type ContactRejectionReason,
 } from "@/lib/contact-request";
 import {
@@ -29,7 +36,11 @@ import {
   createContactRateLimiter,
   deriveClientKey,
 } from "@/lib/contact-rate-limit";
-import { createCorrelationId, logContactEvent } from "@/lib/contact-log";
+import {
+  createCorrelationId,
+  logContactEvent,
+  type ContactErrorClass,
+} from "@/lib/contact-log";
 import { getDefaultLocaleLabels } from "@/lib/deployment-config";
 import { getSiteSettings } from "@/lib/site-settings";
 
@@ -51,6 +62,9 @@ const rateLimiter = createContactRateLimiter();
 const DELIVERY_FAILURE_STATUS: Record<ContactDeliveryErrorClass, number> = {
   configuration: 500,
   "provider-rejected": 502,
+  // Not 503: the allowance resets on the provider's schedule, so presenting it
+  // as a momentary unavailability would invite a retry that cannot succeed.
+  "provider-quota-exceeded": 502,
   "provider-unavailable": 503,
   timeout: 503,
 };
@@ -66,22 +80,30 @@ function jsonResponse(body: unknown, status: number): Response {
   });
 }
 
-function rejected(
+function rejectionResponse(
   reason: ContactRejectionReason,
-  correlationId: string,
-  issues?: unknown,
+  {
+    correlationId,
+    issues,
+  }: { readonly correlationId?: string; readonly issues?: unknown } = {},
 ): Response {
-  logContactEvent({ correlationId, state: "rejected", errorClass: reason });
-
   return jsonResponse(
     {
       status: "rejected",
       reason,
-      correlationId,
+      ...(correlationId === undefined ? {} : { correlationId }),
       ...(issues === undefined ? {} : { issues }),
     },
     CONTACT_REJECTION_STATUS[reason],
   );
+}
+
+function logged(
+  correlationId: string,
+  errorClass: ContactErrorClass,
+): string {
+  logContactEvent({ correlationId, state: "rejected", errorClass });
+  return correlationId;
 }
 
 /**
@@ -95,23 +117,42 @@ function accepted(correlationId: string): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const correlationId = createCorrelationId();
-
-  if (!rateLimiter.tryConsume(deriveClientKey(request), Date.now())) {
-    return rejected("rate-limited", correlationId);
+  // Stateless, allocation-free, and deliberately ahead of the throttle: a
+  // browser can be made to send a simple cross-origin POST without a preflight,
+  // and if those consumed the allowance, another site could exhaust a
+  // visitor's — or, behind one shared address, several visitors' — before any
+  // of them tried to send anything. Refused here, they cost nothing and, by the
+  // same argument, are not logged either: they never became a submission, and
+  // one line each would be an unbounded log-volume lever.
+  const headerRejection = checkContactRequestHeaders(request);
+  if (headerRejection !== undefined) {
+    return rejectionResponse(headerRejection);
   }
 
-  const result = await readContactRequest(request);
+  const correlationId = createCorrelationId();
+  const rateLimit = rateLimiter.tryConsume(deriveClientKey(request), Date.now());
+  if (!rateLimit.allowed) {
+    // Once per window, not once per request: a client that keeps sending after
+    // being throttled is the case this bound exists for.
+    const loggedCorrelationId = rateLimit.firstRefusalInWindow
+      ? logged(correlationId, "rate-limited")
+      : undefined;
+    return rejectionResponse("rate-limited", {
+      correlationId: loggedCorrelationId,
+    });
+  }
+
+  const result = await readContactSubmission(request);
 
   if (result.outcome === "rejected") {
-    return rejected(result.reason, correlationId, result.issues);
+    // Bounded by the throttle above, so these may be logged per occurrence.
+    return rejectionResponse(result.reason, {
+      correlationId: logged(correlationId, result.reason),
+      issues: result.issues,
+    });
   }
   if (result.outcome === "discarded") {
-    logContactEvent({
-      correlationId,
-      state: "rejected",
-      errorClass: "honeypot",
-    });
+    logged(correlationId, "honeypot");
     return accepted(correlationId);
   }
 
@@ -123,9 +164,11 @@ export async function POST(request: Request): Promise<Response> {
     labels: getDefaultLocaleLabels(),
   });
 
-  // A deployment that never configured delivery fails here rather than at
-  // build time or at page render, so an unconfigured clone still serves a
-  // working contact page and reports the missing setting when it matters.
+  // A deployment that never configured delivery — or configured the sink
+  // adapter in production, which `buildContactDeliveryAdapter` refuses — fails
+  // here rather than at build time or at page render, so an unconfigured clone
+  // still serves a working contact page and reports the problem when it
+  // matters. The cause is never echoed to the visitor.
   let outcome;
   try {
     outcome = await getContactDeliveryAdapter().deliver({

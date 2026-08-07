@@ -12,29 +12,49 @@
  * personal data and it would be useful, but the accepted schema names three
  * fields and this module does not get to add a fourth on its own judgment.
  *
+ * Not every refused request produces an event. A request that fails the
+ * stateless header checks — wrong method, wrong content type, another site's
+ * origin — never became a submission, and emitting a line for each would hand
+ * an unbounded log-volume lever to anyone willing to keep sending. Those are
+ * visible as statuses in the hosting provider's own request log, which
+ * `docs/contact-data-flow.md` records. A throttled client is logged once per
+ * window for the same reason.
+ *
  * The correlation identifier is minted per request from a cryptographic random
- * source. It embeds nothing about the visitor or the message, it is returned to
- * the client so a person can quote it when asking what happened, and it is
- * never stored beside form content — because no form content is stored at all.
+ * source. It embeds nothing about the visitor or the message, and when an event
+ * is written it is returned to the client so a person can quote it when asking
+ * what happened. An unlogged refusal returns no identifier: a reference that
+ * cannot be found is worse than none. It is never stored beside form content —
+ * because no form content is stored at all.
  */
 
 import { randomUUID } from "node:crypto";
+import type { ContactDeliveryErrorClass } from "@/lib/contact-delivery";
+import type { ContactRejectionReason } from "@/lib/contact-request";
 
-export type ContactEventState =
-  | "accepted"
-  | "rejected"
-  | "delivered"
-  | "delivery-failed";
+/**
+ * Every value `errorClass` may take, as a type rather than as a promise in a
+ * comment. A free `string` here would let a future caller pass a provider's
+ * error message — prose that can restate the request it describes — straight
+ * into the log the whole privacy boundary rests on. The compiler refuses it.
+ */
+export type ContactErrorClass =
+  | ContactRejectionReason
+  | ContactDeliveryErrorClass
+  /** The hidden field was filled, so nothing was delivered. */
+  | "honeypot";
 
-export type ContactEvent = {
-  readonly correlationId: string;
-  readonly state: ContactEventState;
-  /**
-   * Present only on a non-success state. Always one of the closed sets the
-   * request boundary and the delivery adapters define, never provider prose.
-   */
-  readonly errorClass?: string;
-};
+export type ContactEvent =
+  | {
+      readonly correlationId: string;
+      readonly state: "accepted" | "delivered";
+      readonly errorClass?: never;
+    }
+  | {
+      readonly correlationId: string;
+      readonly state: "rejected" | "delivery-failed";
+      readonly errorClass: ContactErrorClass;
+    };
 
 export function createCorrelationId(): string {
   return randomUUID();

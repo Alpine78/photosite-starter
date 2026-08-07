@@ -130,12 +130,51 @@ describe("createResendDeliveryAdapter", () => {
   );
 
   it("treats a rate-limited call as retryable rather than as a rejection", async () => {
-    const { deliver } = adapterAnswering(providerError(429, "rate_limit_exceeded"));
+    const { deliver } = adapterAnswering(
+      providerError(429, "rate_limit_exceeded"),
+    );
 
     await expect(deliver()).resolves.toEqual({
       status: "failed",
       errorClass: "provider-unavailable",
       retryable: true,
+    });
+  });
+
+  it.each(["daily_quota_exceeded", "monthly_quota_exceeded"])(
+    "does not offer an immediate retry for %s, which shares the 429 status",
+    async (errorName) => {
+      const { deliver } = adapterAnswering(providerError(429, errorName));
+
+      await expect(deliver()).resolves.toEqual({
+        status: "failed",
+        errorClass: "provider-quota-exceeded",
+        retryable: false,
+      });
+    },
+  );
+
+  it("falls back to retryable for a 429 whose name it does not recognize", async () => {
+    const { deliver } = adapterAnswering(providerError(429, "some_new_code"));
+
+    await expect(deliver()).resolves.toEqual({
+      status: "failed",
+      errorClass: "provider-unavailable",
+      retryable: true,
+    });
+  });
+
+  it("still reads an unauthorized call as a configuration problem", async () => {
+    // The name switch runs first; a status that means something else entirely
+    // must not be swallowed by it.
+    const { deliver } = adapterAnswering(
+      providerError(401, "restricted_api_key"),
+    );
+
+    await expect(deliver()).resolves.toEqual({
+      status: "failed",
+      errorClass: "configuration",
+      retryable: false,
     });
   });
 

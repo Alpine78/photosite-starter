@@ -17,7 +17,11 @@
  * clear failure at the moment delivery is attempted.
  */
 
-import type { BuiltInLabels } from "@/lib/deployment-config";
+import {
+  readDeploymentStage,
+  type BuiltInLabels,
+  type DeploymentStage,
+} from "@/lib/deployment-config";
 import type { ContactMessage } from "@/lib/contact-message";
 import { createResendDeliveryAdapter } from "@/lib/contact-delivery-resend";
 
@@ -45,7 +49,15 @@ export const CONTACT_DELIVERY_TIMEOUT_MS = 10_000;
  */
 export type ContactDeliveryErrorClass =
   | "configuration"
+  /** The request itself was refused: bad sender domain, malformed address. */
   | "provider-rejected"
+  /**
+   * The account's sending allowance is spent. Separate from a rejection
+   * because it is the site owner's billing problem rather than a problem with
+   * the message, and separate from a transient outage because waiting a moment
+   * does not fix it — the allowance resets on the provider's own schedule.
+   */
+  | "provider-quota-exceeded"
   | "provider-unavailable"
   | "timeout";
 
@@ -116,6 +128,12 @@ export function buildContactEmail(
  * validation, and the real response contract without a credential in the
  * environment or a synthetic enquiry in a real mailbox. It is a delivery
  * boundary that succeeds, not a stub of the endpoint.
+ *
+ * It reports success, which is the whole point everywhere it belongs and
+ * silent data loss in production — a visitor would be told their enquiry was
+ * sent and it would exist nowhere. `buildContactDeliveryAdapter` therefore
+ * refuses to build it in a production deployment; documentation saying where it
+ * belongs is not a control, and this one is worth having as code.
  */
 function createSinkDeliveryAdapter(): ContactDeliveryAdapter {
   return {
@@ -155,16 +173,24 @@ function requireSetting(
  * The adapter is named explicitly and has no default. A default of `sink`
  * would let a production deployment silently discard enquiries; a default of
  * `resend` would make every developer machine fail on a missing credential.
- * Neither is a better outcome than an unstarted deployment saying which
- * setting it needs.
+ * Neither is a better outcome than the first attempted delivery reporting
+ * which setting it needs without claiming success.
  */
 export function buildContactDeliveryAdapter(
   environment: ContactEnvironment,
 ): ContactDeliveryAdapter {
   const adapter = requireSetting(environment, contactSettingNames.adapter);
+  const stage: DeploymentStage = readDeploymentStage(environment);
 
   switch (adapter) {
     case "sink":
+      // Fail closed before the adapter can accept anything: a production
+      // deployment configured this way is a misconfiguration, not a mode.
+      if (stage === "production") {
+        throw new ContactDeliveryConfigurationError(
+          `Invalid ${contactSettingNames.adapter}: the "sink" adapter accepts a message and sends nothing, so it must not run in a production deployment. Configure a delivery provider, or declare ${"SITE_DEPLOYMENT_STAGE"} as development or preview.`,
+        );
+      }
       return createSinkDeliveryAdapter();
     case "resend":
       return createResendDeliveryAdapter({

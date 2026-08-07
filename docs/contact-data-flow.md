@@ -41,7 +41,7 @@ Application (Vercel Function, arn1/Stockholm)
   ▼
 Delivery adapter (CONTACT_DELIVERY_ADAPTER)
   │  "resend": POST https://api.resend.com/emails
-  │  "sink":   accepts and sends nothing (development, CI, Preview)
+  │  "sink":   accepts and sends nothing — refused in a production deployment
   ▼
 Site owner's mailbox (CONTACT_DELIVERY_TO)
 ```
@@ -49,6 +49,14 @@ Site owner's mailbox (CONTACT_DELIVERY_TO)
 The application stores nothing. There is no database, no queue, no file, and no
 cache holding form content at any point — the message exists in function memory
 for the length of one request and is gone when it returns.
+
+`SITE_DEPLOYMENT_STAGE` declares which environment a deployment is, and an
+undeclared stage counts as `production`. The sink adapter is refused there:
+reporting success while delivering nothing is silent data loss, and a document
+saying where the adapter belongs is not a control. Building the delivery path
+fails on the first attempted submission instead, so the misconfiguration
+surfaces as an error rather than as enquiries that never arrive. The page and
+the deployment can still build and start without delivery credentials.
 
 ## Processors
 
@@ -72,14 +80,24 @@ fixed by ADR-0004 §5 and enforced by `src/lib/contact-log.ts`:
 ```
 
 `state` is one of `accepted`, `delivered`, `rejected`, `delivery-failed`. A
-non-success event adds `errorClass`, drawn from a closed set of failure classes
-— never a provider message, which can restate the request it describes.
+non-success event adds `errorClass`, drawn from a set the type system closes —
+never a provider message, which can restate the request it describes.
+
+Two categories of refused request are deliberately **not** logged per
+occurrence, because either would hand an unbounded log-volume lever to anyone
+willing to keep sending:
+
+- A request that fails the stateless header checks — wrong method, wrong content
+  type, another site's origin — never became a submission. Those appear as
+  statuses in the hosting provider's request log instead.
+- A throttled client is logged once per window rather than once per request.
 
 No name, address, message, provider response body, API key, or client
 identifier is ever written. The correlation identifier is random, embeds nothing
 about the visitor, and is not stored beside form content, because no form
-content is stored. It is returned to the visitor on a failure so a person can
-quote it when asking what happened.
+content is stored. It is returned to the visitor only when the corresponding
+application event was written, so a person never receives an untraceable
+reference when asking what happened.
 
 ## Abuse-control data
 
@@ -104,7 +122,9 @@ answered exactly as a successful one and delivered nowhere.
   string, or fragment, and therefore never in a referrer or a hosting-provider
   request log. Query parameters on the route are not read or copied anywhere.
 - Only `POST` and only `application/json` are accepted, and the `Origin` must
-  match the host the browser addressed.
+  match the host the browser addressed. Those checks run *before* the throttle,
+  so a cross-origin POST — which a browser will send without a preflight — cannot
+  spend the allowance belonging to a real visitor at the same address.
 - The submit control is inert until the page hydrates, so a form submission
   cannot fall back to a native GET that would put the fields in the URL.
 - Responses are `no-store` and carry no CORS headers.

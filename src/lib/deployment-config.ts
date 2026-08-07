@@ -15,6 +15,7 @@ import {
 } from "@/lib/public-routes";
 
 const deploymentSettingNames = {
+  stage: "SITE_DEPLOYMENT_STAGE",
   locale: "SITE_LOCALE",
   localeRoutes: "SITE_LOCALE_ROUTES",
   canonicalBaseUrl: "SITE_CANONICAL_BASE_URL",
@@ -24,6 +25,8 @@ const deploymentSettingNames = {
   defaultSocialImageHeight: "SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT",
   defaultSocialImageAlt: "SITE_DEFAULT_SOCIAL_IMAGE_ALT",
 } as const;
+
+type DeploymentEnvironment = Record<string, string | undefined>;
 
 /** Stable project identity for the deployment-owned social preview image. */
 const DEFAULT_SOCIAL_IMAGE_MEDIA_ID = "deployment-default-social-image";
@@ -156,7 +159,28 @@ export type BuiltInLabels = {
   };
 };
 
+/**
+ * Which environment this deployment *is*, as the deployment itself declares it.
+ *
+ * It exists so a safeguard can refuse something in production that is correct
+ * everywhere else. The contact form's sink adapter is the first such case:
+ * accepting a message and sending nothing is exactly right for development, CI,
+ * and Preview, and is silent data loss in production.
+ *
+ * Read from a project-owned setting rather than a hosting provider's own
+ * variable, because a clone may run anywhere and the guarantee has to survive
+ * the move.
+ */
+export type DeploymentStage = "development" | "preview" | "production";
+
+const DEPLOYMENT_STAGES: readonly DeploymentStage[] = [
+  "development",
+  "preview",
+  "production",
+];
+
 export type DeploymentConfig = {
+  readonly stage: DeploymentStage;
   /**
    * Default locale: the one that owns the unprefixed visitor-facing routes and
    * supplies the document language and date formatting outside a localized
@@ -429,8 +453,6 @@ function readLanguageSubtag(locale: string): string | undefined {
   }
 }
 
-type DeploymentEnvironment = Record<string, string | undefined>;
-
 function requireSetting(
   environment: DeploymentEnvironment,
   settingName: string,
@@ -475,6 +497,29 @@ function parseImageDimension(value: string, settingName: string): number {
   }
 
   return parsed;
+}
+
+/**
+ * Reads the declared deployment stage.
+ *
+ * An unset value means `production`, which is the fail-closed direction: an
+ * operator who forgets the setting gets the environment with the safeguards
+ * on, not the one that quietly accepts a development shortcut. Local
+ * development and CI declare themselves explicitly, which `.env.example` and
+ * the Playwright harness both do.
+ */
+export function readDeploymentStage(
+  environment: DeploymentEnvironment,
+): DeploymentStage {
+  const value = environment[deploymentSettingNames.stage]?.trim();
+  if (!value) return "production";
+
+  if (!DEPLOYMENT_STAGES.includes(value as DeploymentStage)) {
+    throw new Error(
+      `[deployment-config] Invalid ${deploymentSettingNames.stage}: expected one of ${DEPLOYMENT_STAGES.join(", ")}, received "${value}"`,
+    );
+  }
+  return value as DeploymentStage;
 }
 
 function parseLocale(value: string): string {
@@ -718,6 +763,7 @@ export function loadDeploymentConfig(
   );
 
   return {
+    stage: readDeploymentStage(environment),
     locale,
     localeRoutes: parseLocaleRoutes(environment, locale),
     canonicalBaseUrl,

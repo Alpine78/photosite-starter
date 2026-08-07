@@ -33,17 +33,32 @@ export const CONTACT_FIELD_NAMES = ["name", "email", "message"] as const;
 export type ContactFieldName = (typeof CONTACT_FIELD_NAMES)[number];
 
 /**
- * Explicit maximum lengths, counted in code points of the normalized value.
+ * Explicit maximum lengths of the normalized value.
  *
- * The address limit is the 254-octet ceiling a mailbox path may occupy in an
- * SMTP transaction; the other two are product choices generous enough for a
- * real enquiry and small enough to keep a request body bounded.
+ * The units differ by field, deliberately. `name` and `message` are product
+ * choices — generous enough for a real enquiry, small enough to keep a request
+ * body bounded — and are counted in **code points**, so a limit measures what a
+ * person sees they typed.
+ *
+ * `email` is not a product choice: it is the 254-**octet** ceiling a mailbox
+ * path may occupy in an SMTP transaction, and it is measured in UTF-8 octets
+ * for that reason. Counting an internationalized address in code points would
+ * accept one the delivery provider then refuses, which is a failure the visitor
+ * cannot act on because the form told them the address was fine.
  */
 export const CONTACT_FIELD_MAX_LENGTHS = {
   name: 100,
   email: 254,
   message: 4000,
 } as const satisfies Record<ContactFieldName, number>;
+
+/**
+ * Maximum local part of an address, in UTF-8 octets (RFC 5321 §4.5.3.1.1). An
+ * address over it is not deliverable, so it is reported as an address we cannot
+ * reply to rather than as a length to trim: "shorten this to 254" would name
+ * the wrong limit and the wrong part of the value.
+ */
+export const CONTACT_EMAIL_MAX_LOCAL_PART_OCTETS = 64;
 
 export type ContactMessage = {
   readonly [Field in ContactFieldName]: string;
@@ -139,6 +154,40 @@ function lengthInCodePoints(value: string): number {
   return [...value].length;
 }
 
+const utf8 = new TextEncoder();
+
+/** Length in UTF-8 octets: what an address limit is actually expressed in. */
+function lengthInOctets(value: string): number {
+  return utf8.encode(value).length;
+}
+
+/**
+ * Validates one already-normalized value, returning the first thing wrong with
+ * it or `undefined`.
+ *
+ * The address is checked in three steps and in this order: its total size,
+ * then its shape, then its local part — the last needs the shape to hold,
+ * because only then is there exactly one `@` to split on.
+ */
+function validateField(
+  field: ContactFieldName,
+  value: string,
+): ContactIssueCode | undefined {
+  if (value.length === 0) return "required";
+
+  const measured =
+    field === "email" ? lengthInOctets(value) : lengthInCodePoints(value);
+  if (measured > CONTACT_FIELD_MAX_LENGTHS[field]) return "too-long";
+
+  if (field !== "email") return undefined;
+  if (!EMAIL_SHAPE.test(value)) return "invalid-email";
+
+  const localPart = value.slice(0, value.indexOf("@"));
+  return lengthInOctets(localPart) > CONTACT_EMAIL_MAX_LOCAL_PART_OCTETS
+    ? "invalid-email"
+    : undefined;
+}
+
 /**
  * Normalizes and validates one raw submission.
  *
@@ -158,17 +207,8 @@ export function parseContactMessage(
     const value = normalizeField(input[field] ?? "", field === "message");
     normalized[field] = value;
 
-    if (value.length === 0) {
-      issues.push({ field, code: "required" });
-      continue;
-    }
-    if (lengthInCodePoints(value) > CONTACT_FIELD_MAX_LENGTHS[field]) {
-      issues.push({ field, code: "too-long" });
-      continue;
-    }
-    if (field === "email" && !EMAIL_SHAPE.test(value)) {
-      issues.push({ field, code: "invalid-email" });
-    }
+    const code = validateField(field, value);
+    if (code !== undefined) issues.push({ field, code });
   }
 
   return issues.length > 0

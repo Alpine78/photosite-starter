@@ -47,11 +47,22 @@ const CLIENT_KEY_SALT = randomBytes(32);
 type ClientWindow = {
   windowStartedAt: number;
   attempts: number;
+  refusals: number;
 };
+
+/**
+ * `firstRefusalInWindow` exists so the caller can log a refusal once instead of
+ * once per request. Without it, the cheapest way to flood the application's
+ * operational log would be to keep sending after being throttled — which is
+ * exactly what an automated client does.
+ */
+export type RateLimitDecision =
+  | { readonly allowed: true }
+  | { readonly allowed: false; readonly firstRefusalInWindow: boolean };
 
 export type ContactRateLimiter = {
   /** Whether this attempt is within the window's allowance, counting it. */
-  tryConsume(clientKey: string, now: number): boolean;
+  tryConsume(clientKey: string, now: number): RateLimitDecision;
 };
 
 export function createContactRateLimiter({
@@ -76,14 +87,21 @@ export function createContactRateLimiter({
 
       if (existing === undefined || now - existing.windowStartedAt >= windowMs) {
         if (windows.size >= MAX_TRACKED_CLIENTS) prune(now);
-        windows.set(clientKey, { windowStartedAt: now, attempts: 1 });
-        return true;
+        windows.set(clientKey, {
+          windowStartedAt: now,
+          attempts: 1,
+          refusals: 0,
+        });
+        return { allowed: true };
       }
 
-      if (existing.attempts >= maxAttempts) return false;
+      if (existing.attempts >= maxAttempts) {
+        existing.refusals += 1;
+        return { allowed: false, firstRefusalInWindow: existing.refusals === 1 };
+      }
 
       existing.attempts += 1;
-      return true;
+      return { allowed: true };
     },
   };
 }

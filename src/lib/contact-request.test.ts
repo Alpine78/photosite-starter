@@ -4,7 +4,8 @@ import {
   CONTACT_HONEYPOT_FIELD,
   CONTACT_REQUEST_MAX_BYTES,
   CONTACT_SUBMISSION_ID_FIELD,
-  readContactRequest,
+  checkContactRequestHeaders,
+  readContactSubmission,
 } from "@/lib/contact-request";
 
 const ENDPOINT = "https://studio.example/api/contact";
@@ -36,9 +37,90 @@ function contactRequest({
   });
 }
 
-describe("readContactRequest", () => {
-  it("accepts a same-origin JSON submission and returns the normalized message", async () => {
-    const result = await readContactRequest(contactRequest());
+describe("checkContactRequestHeaders", () => {
+  it("lets a same-origin JSON request through", () => {
+    expect(checkContactRequestHeaders(contactRequest())).toBeUndefined();
+  });
+
+  it.each([
+    ["application/x-www-form-urlencoded", "a form post"],
+    ["text/plain", "a preflight-free text post"],
+    ["multipart/form-data; boundary=x", "an upload"],
+  ])("refuses %s, the content type used by %s", (contentType) => {
+    expect(
+      checkContactRequestHeaders(
+        contactRequest({ headers: { "content-type": contentType } }),
+      ),
+    ).toBe("unsupported-media-type");
+  });
+
+  it("accepts a charset parameter on the media type", () => {
+    expect(
+      checkContactRequestHeaders(
+        contactRequest({
+          headers: { "content-type": "application/json; charset=utf-8" },
+        }),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("refuses a request whose Origin is another site", () => {
+    expect(
+      checkContactRequestHeaders(
+        contactRequest({ headers: { origin: "https://attacker.example" } }),
+      ),
+    ).toBe("cross-origin");
+  });
+
+  it("refuses a request with no Origin at all", () => {
+    const request = contactRequest();
+    request.headers.delete("origin");
+
+    expect(checkContactRequestHeaders(request)).toBe("cross-origin");
+  });
+
+  it("refuses a request the browser itself classified as cross-site", () => {
+    expect(
+      checkContactRequestHeaders(
+        contactRequest({ headers: { "sec-fetch-site": "cross-site" } }),
+      ),
+    ).toBe("cross-origin");
+  });
+
+  it("accepts a request the browser classified as same-origin", () => {
+    expect(
+      checkContactRequestHeaders(
+        contactRequest({ headers: { "sec-fetch-site": "same-origin" } }),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("compares the Origin against the host the browser addressed", () => {
+    expect(
+      checkContactRequestHeaders(
+        contactRequest({
+          headers: {
+            origin: "https://preview.example",
+            "x-forwarded-host": "preview.example",
+          },
+        }),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("reads no body, so it can run before anything is spent on the request", async () => {
+    const request = contactRequest();
+    checkContactRequestHeaders(request);
+
+    // An unread body is what lets the caller refuse a cross-origin request
+    // without consuming the throttle allowance behind it.
+    expect(request.bodyUsed).toBe(false);
+  });
+});
+
+describe("readContactSubmission", () => {
+  it("accepts a JSON submission and returns the normalized message", async () => {
+    const result = await readContactSubmission(contactRequest());
 
     expect(result).toEqual({
       outcome: "accepted",
@@ -51,80 +133,8 @@ describe("readContactRequest", () => {
     });
   });
 
-  it.each([
-    ["application/x-www-form-urlencoded", "a form post"],
-    ["text/plain", "a preflight-free text post"],
-    ["multipart/form-data; boundary=x", "an upload"],
-  ])("refuses %s, the content type used by %s", async (contentType) => {
-    const result = await readContactRequest(
-      contactRequest({ headers: { "content-type": contentType } }),
-    );
-
-    expect(result).toEqual({
-      outcome: "rejected",
-      reason: "unsupported-media-type",
-    });
-  });
-
-  it("accepts a charset parameter on the media type", async () => {
-    const result = await readContactRequest(
-      contactRequest({
-        headers: { "content-type": "application/json; charset=utf-8" },
-      }),
-    );
-
-    expect(result.outcome).toBe("accepted");
-  });
-
-  it("refuses a request whose Origin is another site", async () => {
-    const result = await readContactRequest(
-      contactRequest({ headers: { origin: "https://attacker.example" } }),
-    );
-
-    expect(result).toEqual({ outcome: "rejected", reason: "cross-origin" });
-  });
-
-  it("refuses a request with no Origin at all", async () => {
-    const request = contactRequest();
-    request.headers.delete("origin");
-
-    expect(await readContactRequest(request)).toEqual({
-      outcome: "rejected",
-      reason: "cross-origin",
-    });
-  });
-
-  it("refuses a request the browser itself classified as cross-site", async () => {
-    const result = await readContactRequest(
-      contactRequest({ headers: { "sec-fetch-site": "cross-site" } }),
-    );
-
-    expect(result).toEqual({ outcome: "rejected", reason: "cross-origin" });
-  });
-
-  it("accepts a request the browser classified as same-origin", async () => {
-    const result = await readContactRequest(
-      contactRequest({ headers: { "sec-fetch-site": "same-origin" } }),
-    );
-
-    expect(result.outcome).toBe("accepted");
-  });
-
-  it("compares the Origin against the host the browser addressed", async () => {
-    const result = await readContactRequest(
-      contactRequest({
-        headers: {
-          origin: "https://preview.example",
-          "x-forwarded-host": "preview.example",
-        },
-      }),
-    );
-
-    expect(result.outcome).toBe("accepted");
-  });
-
   it("refuses a body larger than the endpoint's own limit", async () => {
-    const result = await readContactRequest(
+    const result = await readContactSubmission(
       contactRequest({
         body: JSON.stringify({
           ...validBody,
@@ -163,7 +173,7 @@ describe("readContactRequest", () => {
       duplex: "half",
     } as RequestInit & { duplex: "half" });
 
-    expect(await readContactRequest(request)).toEqual({
+    expect(await readContactSubmission(request)).toEqual({
       outcome: "rejected",
       reason: "payload-too-large",
     });
@@ -171,7 +181,7 @@ describe("readContactRequest", () => {
   });
 
   it("refuses a body that is not JSON", async () => {
-    const result = await readContactRequest(contactRequest({ body: "{" }));
+    const result = await readContactSubmission(contactRequest({ body: "{" }));
 
     expect(result).toEqual({ outcome: "rejected", reason: "malformed-body" });
   });
@@ -181,14 +191,14 @@ describe("readContactRequest", () => {
     ["a bare string", JSON.stringify("hello")],
     ["null", JSON.stringify(null)],
   ])("refuses %s in place of an envelope", async (_label, body) => {
-    expect(await readContactRequest(contactRequest({ body }))).toEqual({
+    expect(await readContactSubmission(contactRequest({ body }))).toEqual({
       outcome: "rejected",
       reason: "malformed-body",
     });
   });
 
   it("refuses an envelope carrying a field the endpoint does not accept", async () => {
-    const result = await readContactRequest(
+    const result = await readContactSubmission(
       contactRequest({
         body: JSON.stringify({ ...validBody, attachment: "payload" }),
       }),
@@ -198,7 +208,7 @@ describe("readContactRequest", () => {
   });
 
   it("refuses a non-string value, so no field can arrive as an object", async () => {
-    const result = await readContactRequest(
+    const result = await readContactSubmission(
       contactRequest({ body: JSON.stringify({ ...validBody, name: { $ne: "" } }) }),
     );
 
@@ -216,7 +226,7 @@ describe("readContactRequest", () => {
       }
 
       expect(
-        await readContactRequest(
+        await readContactSubmission(
           contactRequest({ body: JSON.stringify(body) }),
         ),
       ).toEqual({ outcome: "rejected", reason: "malformed-body" });
@@ -224,7 +234,7 @@ describe("readContactRequest", () => {
   );
 
   it("discards a submission that filled the hidden field", async () => {
-    const result = await readContactRequest(
+    const result = await readContactSubmission(
       contactRequest({
         body: JSON.stringify({
           ...validBody,
@@ -237,7 +247,7 @@ describe("readContactRequest", () => {
   });
 
   it("accepts a submission whose hidden field is present but empty", async () => {
-    const result = await readContactRequest(
+    const result = await readContactSubmission(
       contactRequest({
         body: JSON.stringify({ ...validBody, [CONTACT_HONEYPOT_FIELD]: "" }),
       }),
@@ -247,7 +257,7 @@ describe("readContactRequest", () => {
   });
 
   it("discards before validating, so an automated client learns nothing", async () => {
-    const result = await readContactRequest(
+    const result = await readContactSubmission(
       contactRequest({
         body: JSON.stringify({
           ...validBody,
@@ -261,7 +271,7 @@ describe("readContactRequest", () => {
   });
 
   it("reports field issues as codes rather than sentences", async () => {
-    const result = await readContactRequest(
+    const result = await readContactSubmission(
       contactRequest({
         body: JSON.stringify({
           ...validBody,

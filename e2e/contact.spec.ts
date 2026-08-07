@@ -63,6 +63,12 @@ test("a visitor can submit the contact form and is told it was sent", async ({
     await expect(summary).toBeVisible();
     // Focus moves to the summary, so the reason is the next thing announced.
     await expect(summary).toBeFocused();
+
+    await expect(summary.getByRole("link")).toHaveCount(3);
+    await page.locator('[name="name"]').fill(SYNTHETIC_ENQUIRY.name);
+    // Editing one field removes only that field's stale error. The remaining
+    // problems stay announced and linked until the visitor addresses them.
+    await expect(summary.getByRole("link")).toHaveCount(2);
   });
 
   await test.step("a complete submission reports success accessibly", async () => {
@@ -79,6 +85,12 @@ test("a visitor can submit the contact form and is told it was sent", async ({
     // A sent message is cleared, so the next visitor to this tab does not
     // resend it and a retained screenshot holds no submitted content.
     await expect(page.locator('[name="message"]')).toHaveValue("");
+
+    // Once the visitor starts another enquiry, the previous message's outcome
+    // must not remain over the new form state.
+    await page.locator('[name="name"]').fill(SYNTHETIC_ENQUIRY.name);
+    await expect(outcome).toBeHidden();
+    await page.locator('[name="name"]').fill("");
   });
 
   // The endpoint is the site's own. Delivery happens server-side, so the

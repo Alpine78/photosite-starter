@@ -142,6 +142,10 @@ export function ContactForm({ labels, privacyNotice }: ContactFormProps) {
       case "invalid-email":
         return labels.fieldErrors.invalidEmail;
       case "too-long":
+        // Reached by `name` and `message`, whose limits are code points, so
+        // "characters" is accurate. An address that is too long for SMTP is
+        // reported as an address we cannot reply to instead, because naming an
+        // octet budget would not tell anyone what to change.
         return labels.fieldErrors.tooLong.replace(
           "{max}",
           String(CONTACT_FIELD_MAX_LENGTHS[issue.field]),
@@ -151,11 +155,32 @@ export function ContactForm({ labels, privacyNotice }: ContactFormProps) {
 
   function updateField(field: ContactFieldName, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
-    // A message the visitor has started fixing should stop being reported as
-    // wrong; the next submission decides again.
-    setStatus((current) =>
-      current.kind === "field-errors" ? { kind: "idle" } : current,
-    );
+
+    setStatus((current) => {
+      // Only the edited field stops being reported. Clearing the whole summary
+      // would drop the other fields' messages and their `aria-describedby`
+      // links while those fields are still wrong — the visitor would lose the
+      // list of what is left to fix by touching something unrelated.
+      if (current.kind === "field-errors") {
+        const remaining = current.issues.filter(
+          (issue) => issue.field !== field,
+        );
+        return remaining.length > 0
+          ? { kind: "field-errors", issues: remaining }
+          : { kind: "idle" };
+      }
+
+      // Editing after an outcome starts a new message. Leaving the banner up
+      // would report the previous message's fate over the one being written,
+      // and leaving a failure up would keep offering "try again" for text that
+      // has since changed — which is a different message and a different
+      // submission.
+      if (current.kind === "succeeded" || current.kind === "failed") {
+        return { kind: "idle" };
+      }
+
+      return current;
+    });
   }
 
   /**
@@ -215,6 +240,7 @@ export function ContactForm({ labels, privacyNotice }: ContactFormProps) {
     const payload = (body ?? {}) as {
       issues?: readonly ContactFieldIssue[];
       correlationId?: string;
+      retryable?: boolean;
     };
 
     if (response.ok) {
@@ -231,16 +257,21 @@ export function ContactForm({ labels, privacyNotice }: ContactFormProps) {
       return;
     }
 
-    // A refused request means this page's state no longer matches what the
-    // endpoint accepts; a 5xx means delivery itself failed. The two need
-    // different advice, and only the second is worth retrying as-is.
-    const retryable = response.status === 429 || response.status === 503;
-    const message =
-      response.status < 500 && !retryable
-        ? labels.errorRequest
-        : retryable
-          ? labels.errorRetryable
-          : labels.errorPermanent;
+    // Whether a retry can help is the endpoint's judgement, not something to
+    // re-derive from the status code here: an exhausted sending quota and a
+    // provider outage are both upstream failures, and only one of them gets
+    // better by waiting. A refused request is different again — the page's
+    // state no longer matches what the endpoint accepts, so the advice is to
+    // reload rather than to resend.
+    const failedUpstream = response.status >= 500;
+    const retryable =
+      response.status === 429 || (failedUpstream && payload.retryable === true);
+
+    const message = !failedUpstream && response.status !== 429
+      ? labels.errorRequest
+      : retryable
+        ? labels.errorRetryable
+        : labels.errorPermanent;
 
     setStatus({
       kind: "failed",

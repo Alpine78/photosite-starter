@@ -12,6 +12,35 @@ const validEnvironment = {
   SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT: "1024",
 };
 
+describe("deployment stage", () => {
+  it("defaults to production when the stage is not declared", () => {
+    // Fail-closed: an operator who forgets the setting gets the environment
+    // with the safeguards on, not the one that accepts a development shortcut.
+    expect(loadDeploymentConfig(validEnvironment).stage).toBe("production");
+  });
+
+  it.each(["development", "preview", "production"])(
+    "reads a declared %s stage",
+    (stage) => {
+      expect(
+        loadDeploymentConfig({
+          ...validEnvironment,
+          SITE_DEPLOYMENT_STAGE: stage,
+        }).stage,
+      ).toBe(stage);
+    },
+  );
+
+  it("refuses a stage it does not recognize", () => {
+    expect(() =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_DEPLOYMENT_STAGE: "staging",
+      }),
+    ).toThrow("Invalid SITE_DEPLOYMENT_STAGE");
+  });
+});
+
 describe("loadDeploymentConfig", () => {
   it("loads and normalizes valid deployment settings", () => {
     const config = loadDeploymentConfig(validEnvironment);

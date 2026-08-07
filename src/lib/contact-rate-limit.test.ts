@@ -6,37 +6,80 @@ import {
 } from "@/lib/contact-rate-limit";
 
 describe("createContactRateLimiter", () => {
+  const allowed = (limiter: ReturnType<typeof createContactRateLimiter>, at: number) =>
+    limiter.tryConsume("client", at).allowed;
+
   it("allows attempts up to the window's allowance and refuses the next", () => {
     const limiter = createContactRateLimiter({ maxAttempts: 3, windowMs: 1000 });
 
-    expect(
-      [0, 1, 2, 3].map((offset) => limiter.tryConsume("client", offset)),
-    ).toEqual([true, true, true, false]);
+    expect([0, 1, 2, 3].map((at) => allowed(limiter, at))).toEqual([
+      true,
+      true,
+      true,
+      false,
+    ]);
   });
 
   it("starts a fresh allowance once the window has passed", () => {
     const limiter = createContactRateLimiter({ maxAttempts: 1, windowMs: 1000 });
 
-    expect(limiter.tryConsume("client", 0)).toBe(true);
-    expect(limiter.tryConsume("client", 999)).toBe(false);
-    expect(limiter.tryConsume("client", 1000)).toBe(true);
+    expect(allowed(limiter, 0)).toBe(true);
+    expect(allowed(limiter, 999)).toBe(false);
+    expect(allowed(limiter, 1000)).toBe(true);
   });
 
   it("counts each client separately", () => {
     const limiter = createContactRateLimiter({ maxAttempts: 1, windowMs: 1000 });
 
-    expect(limiter.tryConsume("first", 0)).toBe(true);
-    expect(limiter.tryConsume("second", 0)).toBe(true);
-    expect(limiter.tryConsume("first", 0)).toBe(false);
+    expect(limiter.tryConsume("first", 0).allowed).toBe(true);
+    expect(limiter.tryConsume("second", 0).allowed).toBe(true);
+    expect(limiter.tryConsume("first", 0).allowed).toBe(false);
   });
 
   it("does not extend a window by attempting again inside it", () => {
     const limiter = createContactRateLimiter({ maxAttempts: 2, windowMs: 1000 });
 
-    expect(limiter.tryConsume("client", 0)).toBe(true);
-    expect(limiter.tryConsume("client", 900)).toBe(true);
-    expect(limiter.tryConsume("client", 950)).toBe(false);
-    expect(limiter.tryConsume("client", 1000)).toBe(true);
+    expect(allowed(limiter, 0)).toBe(true);
+    expect(allowed(limiter, 900)).toBe(true);
+    expect(allowed(limiter, 950)).toBe(false);
+    expect(allowed(limiter, 1000)).toBe(true);
+  });
+
+  it("marks only the first refusal of a window, so a flood is logged once", () => {
+    const limiter = createContactRateLimiter({ maxAttempts: 1, windowMs: 1000 });
+    limiter.tryConsume("client", 0);
+
+    expect([1, 2, 3].map((at) => limiter.tryConsume("client", at))).toEqual([
+      { allowed: false, firstRefusalInWindow: true },
+      { allowed: false, firstRefusalInWindow: false },
+      { allowed: false, firstRefusalInWindow: false },
+    ]);
+  });
+
+  it("marks a first refusal again in the next window", () => {
+    const limiter = createContactRateLimiter({ maxAttempts: 1, windowMs: 1000 });
+    limiter.tryConsume("client", 0);
+    limiter.tryConsume("client", 1);
+    limiter.tryConsume("client", 2);
+
+    // A fresh window is allowed, and the refusal after it is a new first.
+    expect(limiter.tryConsume("client", 1000).allowed).toBe(true);
+    expect(limiter.tryConsume("client", 1001)).toEqual({
+      allowed: false,
+      firstRefusalInWindow: true,
+    });
+  });
+
+  it("tracks refusals per client", () => {
+    const limiter = createContactRateLimiter({ maxAttempts: 1, windowMs: 1000 });
+    limiter.tryConsume("first", 0);
+    limiter.tryConsume("second", 0);
+    limiter.tryConsume("first", 0);
+
+    expect(limiter.tryConsume("second", 0)).toEqual({
+      allowed: false,
+      firstRefusalInWindow: true,
+    });
   });
 });
 

@@ -67,6 +67,7 @@ describe("buildContactDeliveryAdapter", () => {
   it("builds the sink adapter, which accepts a message and sends nothing", async () => {
     const adapter = buildContactDeliveryAdapter({
       CONTACT_DELIVERY_ADAPTER: "sink",
+      SITE_DEPLOYMENT_STAGE: "development",
     });
 
     expect(adapter.name).toBe("sink");
@@ -82,6 +83,51 @@ describe("buildContactDeliveryAdapter", () => {
 
   it("builds the configured provider adapter", () => {
     expect(buildContactDeliveryAdapter(resendEnvironment).name).toBe("resend");
+  });
+
+  it.each(["development", "preview"])(
+    "allows the sink adapter in a %s deployment",
+    (stage) => {
+      expect(
+        buildContactDeliveryAdapter({
+          CONTACT_DELIVERY_ADAPTER: "sink",
+          SITE_DEPLOYMENT_STAGE: stage,
+        }).name,
+      ).toBe("sink");
+    },
+  );
+
+  it("refuses the sink adapter in a production deployment", () => {
+    expect(() =>
+      buildContactDeliveryAdapter({
+        CONTACT_DELIVERY_ADAPTER: "sink",
+        SITE_DEPLOYMENT_STAGE: "production",
+      }),
+    ).toThrow(/must not run in a production deployment/);
+  });
+
+  it("treats an undeclared stage as production, so the guard fails closed", () => {
+    expect(() =>
+      buildContactDeliveryAdapter({ CONTACT_DELIVERY_ADAPTER: "sink" }),
+    ).toThrow(ContactDeliveryConfigurationError);
+  });
+
+  it("refuses a stage it does not recognize rather than guessing", () => {
+    expect(() =>
+      buildContactDeliveryAdapter({
+        CONTACT_DELIVERY_ADAPTER: "sink",
+        SITE_DEPLOYMENT_STAGE: "staging",
+      }),
+    ).toThrow(/SITE_DEPLOYMENT_STAGE/);
+  });
+
+  it("builds the provider adapter in production, which is the point", () => {
+    expect(
+      buildContactDeliveryAdapter({
+        ...resendEnvironment,
+        SITE_DEPLOYMENT_STAGE: "production",
+      }).name,
+    ).toBe("resend");
   });
 
   it("refuses an unset adapter rather than choosing one", () => {

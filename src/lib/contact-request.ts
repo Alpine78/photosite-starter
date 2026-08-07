@@ -8,6 +8,15 @@
  * platform firewall rules are defense in depth on top of this, never a
  * substitute for it.
  *
+ * They are exposed as two steps rather than one because the throttle belongs
+ * *between* them. A browser can be made to send a simple cross-origin POST
+ * without a preflight, so if throttling came first, another site could spend a
+ * visitor's whole allowance on requests this module was always going to refuse
+ * — and behind a shared address, spend several people's. `checkContactRequestHeaders`
+ * therefore settles who is allowed to be asking before anything stateful
+ * happens, and `readContactSubmission` reads the body only for requests that
+ * passed both.
+ *
  * Two decisions are worth stating rather than deducing from the code:
  *
  * - **JSON is the only accepted content type.** An HTML form cannot post JSON,
@@ -222,19 +231,32 @@ function isAcceptedEnvelope(
 }
 
 /**
- * Applies the whole boundary to one request. The caller decides what to answer
- * and what to log; this function decides only what the request is.
+ * The stateless half of the boundary: whether this request is even shaped like
+ * one of ours, decided from headers alone.
+ *
+ * Returns the reason to refuse, or `undefined` to continue. Nothing here reads
+ * the body, allocates, or touches shared state, which is what makes it safe to
+ * run before the throttle.
  */
-export async function readContactRequest(
+export function checkContactRequestHeaders(
+  request: Request,
+): ContactRejectionReason | undefined {
+  if (!hasJsonContentType(request)) return "unsupported-media-type";
+  if (!isSameOrigin(request)) return "cross-origin";
+  return undefined;
+}
+
+/**
+ * The rest of the boundary: read the bounded body and decide what the
+ * submission is. Call only after `checkContactRequestHeaders` passed and the
+ * throttle allowed the attempt.
+ *
+ * The caller decides what to answer and what to log; this function decides only
+ * what the request is.
+ */
+export async function readContactSubmission(
   request: Request,
 ): Promise<ContactRequestResult> {
-  if (!hasJsonContentType(request)) {
-    return { outcome: "rejected", reason: "unsupported-media-type" };
-  }
-  if (!isSameOrigin(request)) {
-    return { outcome: "rejected", reason: "cross-origin" };
-  }
-
   const body = await readBoundedBody(request, CONTACT_REQUEST_MAX_BYTES);
   if (body === undefined) {
     return { outcome: "rejected", reason: "payload-too-large" };

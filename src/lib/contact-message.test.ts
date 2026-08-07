@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CONTACT_EMAIL_MAX_LOCAL_PART_OCTETS,
   CONTACT_FIELD_MAX_LENGTHS,
   parseContactMessage,
   type ContactFieldName,
@@ -104,6 +105,41 @@ describe("parseContactMessage", () => {
     "jane_doe@example-studio.fi",
   ])("accepts the address %s", (email) => {
     expect(issueCodes({ ...valid, email })).toEqual([]);
+  });
+
+  it("measures the address in UTF-8 octets, which is what SMTP limits", () => {
+    // Each "ä" is one code point and two octets, so an address a code-point
+    // count would accept is over the limit a delivery provider applies.
+    const domain = "@example.com";
+    const localPart = "ä".repeat(
+      (CONTACT_FIELD_MAX_LENGTHS.email - domain.length) / 2 + 1,
+    );
+
+    expect([...`${localPart}${domain}`].length).toBeLessThan(
+      CONTACT_FIELD_MAX_LENGTHS.email,
+    );
+    expect(issueCodes({ ...valid, email: `${localPart}${domain}` })).toEqual([
+      "email:too-long",
+    ]);
+  });
+
+  it("refuses a local part longer than a mailbox may have", () => {
+    const localPart = "a".repeat(CONTACT_EMAIL_MAX_LOCAL_PART_OCTETS + 1);
+
+    // Reported as an address we cannot reply to, not as a length to trim: the
+    // total is well inside its own limit, so naming that limit would point at
+    // the wrong part of the value.
+    expect(issueCodes({ ...valid, email: `${localPart}@example.com` })).toEqual([
+      "email:invalid-email",
+    ]);
+  });
+
+  it("accepts a local part exactly at the limit", () => {
+    const localPart = "a".repeat(CONTACT_EMAIL_MAX_LOCAL_PART_OCTETS);
+
+    expect(issueCodes({ ...valid, email: `${localPart}@example.com` })).toEqual(
+      [],
+    );
   });
 
   it.each([

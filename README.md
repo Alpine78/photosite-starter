@@ -120,11 +120,16 @@ replaceable and every clone runs its own account — there is no shared credenti
 cross-customer contact database.
 
 ```bash
-CONTACT_DELIVERY_ADAPTER=sink   # "sink" | "resend"
+SITE_DEPLOYMENT_STAGE=development   # "development" | "preview" | "production"
+CONTACT_DELIVERY_ADAPTER=sink       # "sink" | "resend"
 ```
 
 `sink` accepts a message and sends nothing: it is what local development, CI, and the
-Preview environment run on. `resend` delivers over Resend's HTTP API and needs three
+Preview environment run on. It is **refused in a production deployment** — reporting
+success while delivering nothing is silent data loss, so the first attempted submission
+fails safely instead. `SITE_DEPLOYMENT_STAGE` is what tells it which environment this is,
+and an unset value counts as production, so the guard fails closed. `resend` delivers over
+Resend's HTTP API and needs three
 more settings — `CONTACT_DELIVERY_FROM` (a sender on a domain verified in *your* Resend
 account), `CONTACT_DELIVERY_TO` (the mailbox that receives enquiries), and
 `RESEND_API_KEY`. The key is read server-side only; it never reaches a `NEXT_PUBLIC_`

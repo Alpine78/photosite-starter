@@ -11,7 +11,8 @@
  * `Content-Type: application/json`, and an optional `Idempotency-Key` header
  * of 1–256 characters that expires after 24 hours; a failed call answers
  * `{ name, statusCode, message }`; the account rate limit is 10 requests per
- * second and answers 429 above it.
+ * second and answers 429 above it, as do `daily_quota_exceeded` and
+ * `monthly_quota_exceeded`, which are not the same condition.
  *
  * Everything provider-specific stops here. The rest of the contact path knows
  * only `ContactDeliveryAdapter`, so replacing Resend means writing another file
@@ -54,24 +55,42 @@ function classifyFailure(
   status: number,
   errorName: string | undefined,
 ): ContactDeliveryOutcome {
+  // The name is consulted before the status because 429 is not one condition.
+  // Resend answers 429 both for its 10-requests-per-second rate limit, which a
+  // retry a moment later passes, and for an exhausted daily or monthly quota,
+  // which it does not — that resets on the provider's schedule or needs a plan
+  // change. Offering "try again" for the second would be advice that cannot
+  // work.
+  switch (errorName) {
+    case "rate_limit_exceeded":
+    // Another request with this idempotency key is still in flight. The
+    // original may yet succeed, so a retry either replays that result or
+    // sends once.
+    case "concurrent_idempotent_requests":
+      return {
+        status: "failed",
+        errorClass: "provider-unavailable",
+        retryable: true,
+      };
+    case "daily_quota_exceeded":
+    case "monthly_quota_exceeded":
+      return {
+        status: "failed",
+        errorClass: "provider-quota-exceeded",
+        retryable: false,
+      };
+  }
+
   // The credential is wrong or revoked. Retrying cannot fix it, and it is the
   // deployment's problem rather than the provider's.
   if (status === 401 || status === 403) {
     return { status: "failed", errorClass: "configuration", retryable: false };
   }
 
-  // Another request with this idempotency key is still in flight. The original
-  // may yet succeed, so the visitor is offered a retry that will either
-  // replay that result or send once.
-  if (status === 429 || errorName === "concurrent_idempotent_requests") {
-    return {
-      status: "failed",
-      errorClass: "provider-unavailable",
-      retryable: true,
-    };
-  }
-
-  if (status >= 500) {
+  // A 429 whose name we did not recognize, or an outage. Treated as transient:
+  // the named quota cases above are the ones a retry cannot help, and guessing
+  // that an unrecognized code is permanent would strand a recoverable failure.
+  if (status === 429 || status >= 500) {
     return {
       status: "failed",
       errorClass: "provider-unavailable",

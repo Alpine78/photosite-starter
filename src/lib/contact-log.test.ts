@@ -41,7 +41,11 @@ describe("logContactEvent", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
 
     logContactEvent({ correlationId: "id", state: "accepted" });
-    logContactEvent({ correlationId: "id", state: "rejected", errorClass: "x" });
+    logContactEvent({
+      correlationId: "id",
+      state: "rejected",
+      errorClass: "cross-origin",
+    });
 
     expect(info).toHaveBeenCalledOnce();
     expect(error).toHaveBeenCalledOnce();
