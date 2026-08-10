@@ -15,6 +15,8 @@
  * burned into the pixels. A clone inherits every file in `public/`.
  */
 
+import { getDeploymentConfig } from "@/lib/deployment-config";
+import { buildStoryPath } from "@/lib/locale-routes";
 import type { Media } from "@/lib/media";
 import { mockImages } from "@/lib/mock-media";
 
@@ -32,31 +34,43 @@ export type HomeContent = {
   sections: HomeSectionLink[];
 };
 
-const mockHomeContent: HomeContent = {
-  hero: {
-    media: mockImages.coastalLandscape,
-  },
-  intro:
-    "A short introduction to the studio and the work — replaced with real copy from the CMS. Structure and responsiveness first, visual polish later.",
-  sections: [
-    {
-      title: "Services",
-      href: "/services",
-      description: "An overview of what I offer and how we can work together.",
+/**
+ * Built lazily rather than as a module constant: the story section's href is
+ * composed from the deployment's configured namespace, and reading that
+ * configuration at import time would fail every context that has no deployment
+ * environment.
+ */
+function buildMockHomeContent(): HomeContent {
+  const { localeRoutes } = getDeploymentConfig();
+
+  return {
+    hero: {
+      media: mockImages.coastalLandscape,
     },
-    {
-      title: "Portfolio",
-      href: "/portfolio",
-      description: "Selected work across recent projects.",
-    },
-    {
-      title: "Blog",
-      href: "/blog",
-      description: "Notes on gear, technique, and work in progress.",
-    },
-  ],
-};
+    intro:
+      "A short introduction to the studio and the work — replaced with real copy from the CMS. Structure and responsiveness first, visual polish later.",
+    sections: [
+      {
+        title: "Services",
+        href: "/services",
+        description:
+          "An overview of what I offer and how we can work together.",
+      },
+      {
+        title: "Portfolio",
+        href: "/portfolio",
+        description: "Selected work across recent projects.",
+      },
+      {
+        title: "Stories",
+        href: buildStoryPath(localeRoutes, localeRoutes.defaultLocale),
+        description:
+          "Photographic series and notes on gear, technique, and work in progress.",
+      },
+    ],
+  };
+}
 
 export async function getHomeContent(): Promise<HomeContent> {
-  return mockHomeContent;
+  return buildMockHomeContent();
 }

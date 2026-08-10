@@ -1,6 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
+import {
+  LanguageSwitch,
+  type LanguageLink,
+} from "@/components/language-switch";
 import { formatDate } from "@/lib/date-format";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
@@ -23,23 +27,18 @@ export type BranchContentCard = {
   readonly href: string;
 };
 
-export type BranchLanguageLink = {
-  readonly locale: string;
-  /** The language's own name, so a visitor recognizes it without reading ours. */
-  readonly label: string;
-  readonly href: string;
-  /** Says so when the target is the nearest page, not this exact one. */
-  readonly note?: string;
-};
-
 type CategoryBranchProps = {
   locale: string;
   title: string;
+  /** Generic orientation copy shown only on the story root. */
+  introduction?: string;
   /** Omitted on the story root, which would be a one-step trail to itself. */
   breadcrumbs?: readonly BreadcrumbStep[];
-  languages: readonly BranchLanguageLink[];
+  languages: readonly LanguageLink[];
   childCategories: readonly BranchCategoryLink[];
   content: readonly BranchContentCard[];
+  /** The root calls its cross-category overview "latest"; branches do not. */
+  contentHeading: string;
   labels: BuiltInLabels;
 };
 
@@ -59,10 +58,12 @@ const focusRing =
 export function CategoryBranch({
   locale,
   title,
+  introduction,
   breadcrumbs,
   languages,
   childCategories,
   content,
+  contentHeading,
   labels,
 }: CategoryBranchProps) {
   return (
@@ -75,34 +76,22 @@ export function CategoryBranch({
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           {title}
         </h1>
+        {introduction && (
+          <p className="mt-4 max-w-2xl text-foreground/70">{introduction}</p>
+        )}
       </header>
 
-      {languages.length > 0 && (
-        <nav aria-label={labels.contentTree.languages} className="mt-4">
-          <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            {languages.map((language) => (
-              <li key={language.locale}>
-                <Link
-                  href={language.href}
-                  hrefLang={language.locale}
-                  className={`text-foreground/70 underline underline-offset-4 hover:text-foreground ${focusRing}`}
-                >
-                  {language.label}
-                </Link>
-                {language.note && (
-                  <span className="text-foreground/50"> ({language.note})</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+      <LanguageSwitch
+        label={labels.contentTree.languages}
+        links={languages}
+      />
+
 
       {childCategories.length > 0 && (
         <section aria-labelledby="branch-categories" className="mt-10">
           <h2
             id="branch-categories"
-            className="text-xs font-medium uppercase tracking-wider text-foreground/50"
+            className="text-xs font-medium uppercase tracking-wider text-foreground/70"
           >
             {labels.contentTree.categories}
           </h2>
@@ -125,9 +114,9 @@ export function CategoryBranch({
         <section aria-labelledby="branch-content" className="mt-12">
           <h2
             id="branch-content"
-            className="text-xs font-medium uppercase tracking-wider text-foreground/50"
+            className="text-xs font-medium uppercase tracking-wider text-foreground/70"
           >
-            {labels.contentTree.content}
+            {contentHeading}
           </h2>
           <ul className="mt-4 grid items-start gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {content.map((entry) => (
@@ -157,7 +146,7 @@ export function CategoryBranch({
                     )}
                     <time
                       dateTime={entry.publishedAt}
-                      className="mt-4 text-xs text-foreground/50"
+                      className="mt-4 text-xs text-foreground/70"
                     >
                       {formatDate(entry.publishedAt, locale)}
                     </time>

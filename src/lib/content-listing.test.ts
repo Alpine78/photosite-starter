@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildAdjacentContentQuery,
   buildCategoryListing,
   buildContentListingQuery,
   CONTENT_LISTING_ORDERING,
   listCategoryContentIds,
   MAX_CONTENT_LISTING_PAGE_SIZE,
   orderContentListingRecords,
+  resolveAdjacentContent,
+  selectAdjacentRecords,
   type ContentListingRecord,
 } from "@/lib/content-listing";
 import { buildContentTree, type ContentTreeInput } from "@/lib/content-tree";
@@ -15,6 +18,7 @@ import { mockContentTreeInputs } from "@/lib/mock-content-tree";
 import { mockImages } from "@/lib/mock-media";
 
 const english = buildContentTree(mockContentTreeInputs.en);
+const finnish = buildContentTree(mockContentTreeInputs.fi);
 const englishRecords = mockContentListingRecords.en;
 
 /** Runs the bounded query the route runs, then assembles what it returned. */
@@ -79,8 +83,19 @@ describe("listCategoryContentIds", () => {
     expect(listCategoryContentIds(english, "cat-archive")).toEqual([]);
   });
 
-  it("asks for nothing at the story root, which owns no content", () => {
-    expect(listCategoryContentIds(english, null)).toEqual([]);
+  it("collects published routed content for the story-root overview", () => {
+    expect(listCategoryContentIds(english, null)).toEqual([
+      "content-reading-coastal-light",
+      "content-choosing-a-telephoto-lens",
+      "content-understanding-exposure-triangle",
+      "content-packing-for-a-photo-trip",
+      "content-shooting-in-low-light",
+    ]);
+    expect(listCategoryContentIds(finnish, null)).toEqual([
+      "content-reading-coastal-light",
+      "content-understanding-exposure-triangle",
+      "content-shooting-in-low-light",
+    ]);
   });
 });
 
@@ -90,14 +105,31 @@ describe("buildCategoryListing", () => {
       { categoryId: "cat-landscape", label: "Landscape", path: ["landscape"] },
       { categoryId: "cat-travel", label: "Travel", path: ["travel"] },
       { categoryId: "cat-events", label: "Events", path: ["events"] },
+      { categoryId: "cat-gear", label: "Gear", path: ["gear"] },
+      { categoryId: "cat-technique", label: "Technique", path: ["technique"] },
+      {
+        categoryId: "cat-behind-the-scenes",
+        label: "Behind the scenes",
+        path: ["behind-the-scenes"],
+      },
+    ]);
+  });
+
+  it("lists recent routed content across the tree at the story root", () => {
+    expect(listing(null).content.map((entry) => entry.contentId)).toEqual([
+      "content-choosing-a-telephoto-lens",
+      "content-reading-coastal-light",
+      "content-understanding-exposure-triangle",
+      "content-packing-for-a-photo-trip",
+      "content-shooting-in-low-light",
     ]);
   });
 
   it("renders a branch category as its children, with no content of its own", () => {
-    const branch = listing("cat-travel");
+    const branch = listing("cat-europe");
 
     expect(branch.childCategories.map((child) => child.categoryId)).toEqual([
-      "cat-europe",
+      "cat-nordics",
     ]);
     expect(branch.content).toEqual([]);
   });
@@ -301,7 +333,13 @@ describe("buildContentListingQuery", () => {
 
     expect(query.ordering).toBe(CONTENT_LISTING_ORDERING);
     expect(query.limit).toBe(MAX_CONTENT_LISTING_PAGE_SIZE + 1);
-    expect(query.contentIds).toEqual([]);
+    expect(query.contentIds).toEqual([
+      "content-reading-coastal-light",
+      "content-choosing-a-telephoto-lens",
+      "content-understanding-exposure-triangle",
+      "content-packing-for-a-photo-trip",
+      "content-shooting-in-low-light",
+    ]);
   });
 
   it("rejects an unbounded page size before a query is issued", () => {
@@ -312,5 +350,187 @@ describe("buildContentListingQuery", () => {
         pageSize: MAX_CONTENT_LISTING_PAGE_SIZE + 1,
       }),
     ).toThrow(RangeError);
+  });
+});
+
+/** Runs the bounded neighbour query the detail route runs. */
+function adjacent(contentId: string) {
+  const query = buildAdjacentContentQuery(english, contentId);
+  if (query === null) return {};
+
+  const rows = query.contentIds.flatMap((id) => {
+    const record = englishRecords.get(id);
+    return record === undefined ? [] : [record];
+  });
+
+  return resolveAdjacentContent({
+    tree: english,
+    contentId,
+    records: selectAdjacentRecords(rows, query.anchorContentId),
+  });
+}
+
+describe("buildAdjacentContentQuery", () => {
+  it("asks for two rows around the anchor, never a page of them", () => {
+    const query = buildAdjacentContentQuery(
+      english,
+      "content-shooting-in-low-light",
+    );
+
+    expect(query?.limit).toBe(2);
+    expect(query?.ordering).toBe(CONTENT_LISTING_ORDERING);
+    expect(query?.anchorContentId).toBe("content-shooting-in-low-light");
+  });
+
+  it("preserves the global article sequence across canonical categories", () => {
+    // The old article detail route navigated the flat article publication
+    // order. Canonical placement changes URLs, not that visitor sequence.
+    expect(
+      buildAdjacentContentQuery(english, "content-shooting-in-low-light")
+        ?.contentIds,
+    ).toEqual([
+      "content-reading-coastal-light",
+      "content-choosing-a-telephoto-lens",
+      "content-understanding-exposure-triangle",
+      "content-packing-for-a-photo-trip",
+      "content-shooting-in-low-light",
+    ]);
+  });
+
+  it("has nothing to ask for a page with no canonical placement", () => {
+    expect(buildAdjacentContentQuery(english, "content-unplaced-draft")).toBeNull();
+    expect(buildAdjacentContentQuery(english, "content-missing")).toBeNull();
+  });
+
+  it("leaves out a neighbour whose variant has no detail route", () => {
+    // A sibling link exists to carry a reader onward, so offering one that
+    // lands on a 404 is worse than offering nothing. A listing card is the
+    // deliberate exception and keeps pointing at the canonical address.
+    const mixed = buildContentTree({
+      categories: [
+        { categoryId: "cat", parentId: null, slug: "cat", label: "Cat", order: 0 },
+      ],
+      placements: [
+        {
+          contentId: "an-article",
+          variant: "article",
+          slug: "an-article",
+          published: true,
+          canonicalCategoryId: "cat",
+        },
+        {
+          contentId: "a-gallery",
+          variant: "gallery",
+          slug: "a-gallery",
+          published: true,
+          canonicalCategoryId: "cat",
+        },
+      ],
+    });
+
+    expect(buildAdjacentContentQuery(mixed, "an-article")?.contentIds).toEqual([
+      "an-article",
+    ]);
+    // And a page that has no route of its own asks for no neighbours at all.
+    expect(buildAdjacentContentQuery(mixed, "a-gallery")).toBeNull();
+  });
+});
+
+describe("adjacent content", () => {
+  it("links the newer page as previous and the older as next", () => {
+    // The neighbours cross canonical categories while retaining publication
+    // order: telephoto, coastal light, exposure, packing, then low light.
+    expect(adjacent("content-understanding-exposure-triangle")).toEqual({
+      previous: expect.objectContaining({
+        contentId: "content-reading-coastal-light",
+        path: ["landscape", "reading-coastal-light"],
+      }),
+      next: expect.objectContaining({
+        contentId: "content-packing-for-a-photo-trip",
+        path: ["travel", "packing-for-a-photo-trip"],
+      }),
+    });
+    expect(adjacent("content-shooting-in-low-light")).toEqual({
+      previous: expect.objectContaining({
+        contentId: "content-packing-for-a-photo-trip",
+        path: ["travel", "packing-for-a-photo-trip"],
+      }),
+    });
+  });
+
+  it("gives the newest page only its older neighbour", () => {
+    expect(adjacent("content-choosing-a-telephoto-lens")).toEqual({
+      next: expect.objectContaining({
+        contentId: "content-reading-coastal-light",
+      }),
+    });
+  });
+
+  it("carries the one canonical detail path of each neighbour", () => {
+    const { previous } = adjacent("content-shooting-in-low-light");
+
+    expect(previous?.path).toEqual([
+      "travel",
+      "packing-for-a-photo-trip",
+    ]);
+  });
+
+  it("refuses a row that is not a candidate for this sequence", () => {
+    expect(() =>
+      resolveAdjacentContent({
+        tree: english,
+        contentId: "content-shooting-in-low-light",
+        records: {
+          next: englishRecords.get("content-coastal-mornings"),
+        },
+      }),
+    ).toThrow(/not a candidate/);
+  });
+
+  it("refuses the anchor returned as its own neighbour", () => {
+    expect(() =>
+      resolveAdjacentContent({
+        tree: english,
+        contentId: "content-shooting-in-low-light",
+        records: {
+          previous: englishRecords.get("content-shooting-in-low-light"),
+        },
+      }),
+    ).toThrow(/not a candidate/);
+  });
+
+  it("refuses the same row returned in both directions", () => {
+    const duplicate = englishRecords.get("content-packing-for-a-photo-trip");
+
+    expect(() =>
+      resolveAdjacentContent({
+        tree: english,
+        contentId: "content-understanding-exposure-triangle",
+        records: { previous: duplicate, next: duplicate },
+      }),
+    ).toThrow(/both directions/);
+  });
+});
+
+describe("selectAdjacentRecords", () => {
+  it("orders before it picks, so input order cannot change the answer", () => {
+    const rows = [
+      { contentId: "c", title: "C", publishedAt: "2024-01-01" },
+      { contentId: "a", title: "A", publishedAt: "2024-03-01" },
+      { contentId: "b", title: "B", publishedAt: "2024-02-01" },
+    ] satisfies ContentListingRecord[];
+
+    expect(selectAdjacentRecords(rows, "b")).toEqual({
+      previous: rows[1],
+      next: rows[0],
+    });
+    expect(selectAdjacentRecords([...rows].reverse(), "b")).toEqual({
+      previous: rows[1],
+      next: rows[0],
+    });
+  });
+
+  it("finds nothing when the anchor is not among the candidates", () => {
+    expect(selectAdjacentRecords([], "content-missing")).toEqual({});
   });
 });

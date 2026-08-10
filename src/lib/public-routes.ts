@@ -12,13 +12,13 @@
  * This registry is deliberately narrow: it answers "does this path resolve
  * today", not "how is it rendered", and it covers only the *static* routes. The
  * story namespace answers from the content tree instead, inside
- * `locale-prefix-request.ts`, because a category path is data rather than a
- * file-system route. Each remaining route story extends one of the two as it
- * lands (AB#104, AB#124). A route missing from both is not a broken page: it
- * only means a redundantly prefixed request to it 404s instead of redirecting.
+ * `locale-prefix-request.ts`, because a category path and a canonical content
+ * path are data rather than file-system routes. Each remaining route story
+ * extends one of the two as it lands (AB#104). A route missing from both is not
+ * a broken page: it only means a redundantly prefixed request to it 404s
+ * instead of redirecting.
  */
 
-import { getArticle } from "@/lib/articles";
 import { getService } from "@/lib/services";
 
 /**
@@ -30,7 +30,6 @@ export const RESERVED_ROOT_SEGMENTS: readonly string[] = [
   // The contact endpoint's own segment. It serves no page, but a locale prefix
   // that claimed it would shadow a route the contact form posts to.
   "api",
-  "blog",
   "contact",
   "favicon.ico",
   "gallery",
@@ -61,8 +60,6 @@ export async function defaultLocaleRouteExists(path: string): Promise<boolean> {
   switch (first) {
     case "services":
       return second === undefined || (await getService(second)) !== undefined;
-    case "blog":
-      return second === undefined || (await getArticle(second)) !== undefined;
     case "portfolio":
     case "contact":
       return second === undefined;

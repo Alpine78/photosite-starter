@@ -4,6 +4,7 @@ import {
   buildContentTree,
   diffCanonicalPaths,
   getCanonicalContent,
+  getCanonicalContentBySlug,
   getCanonicalContentPath,
   getCategoryAncestry,
   getCategoryDependants,
@@ -78,8 +79,11 @@ describe("category tree structure", () => {
 
     expect(topLevel).toEqual([
       "cat-archive",
+      "cat-behind-the-scenes",
       "cat-events",
+      "cat-gear",
       "cat-landscape",
+      "cat-technique",
       "cat-travel",
     ]);
   });
@@ -89,7 +93,15 @@ describe("category tree structure", () => {
       (category) => category.slug,
     );
 
-    expect(topLevel).toEqual(["landscape", "travel", "events", "archive"]);
+    expect(topLevel).toEqual([
+      "landscape",
+      "travel",
+      "events",
+      "archive",
+      "gear",
+      "technique",
+      "behind-the-scenes",
+    ]);
   });
 
   it("allows the same slug beneath different parents", () => {
@@ -522,8 +534,8 @@ describe("public visibility", () => {
   it("keeps a branch category public through its descendants", () => {
     const tree = buildMockContentTree();
 
-    expect(getCanonicalContent(tree, "cat-travel")).toEqual([]);
-    expect(isCategoryPublic(tree, "cat-travel")).toBe(true);
+    expect(getCanonicalContent(tree, "cat-europe")).toEqual([]);
+    expect(isCategoryPublic(tree, "cat-europe")).toBe(true);
     expect(isCategoryPublic(tree, "cat-polar-night")).toBe(true);
   });
 
@@ -535,8 +547,11 @@ describe("public visibility", () => {
       "landscape",
       "travel",
       "events",
+      "gear",
+      "technique",
+      "behind-the-scenes",
     ]);
-    expect(getChildCategories(tree, null)).toHaveLength(4);
+    expect(getChildCategories(tree, null)).toHaveLength(7);
   });
 
   it("keeps a category public when it only holds a secondary listing", () => {
@@ -755,5 +770,35 @@ describe("path resolution boundary", () => {
 
     expect(getCategoryPath(tree, "cat-missing")).toEqual([]);
     expect(getCanonicalContentPath(tree, "content-missing")).toBeNull();
+  });
+
+  it("finds a page by the slug its canonical category gave it", () => {
+    const tree = buildMockContentTree();
+
+    expect(
+      getCanonicalContentBySlug(tree, "cat-coastal", "coastal-mornings")
+        ?.contentId,
+    ).toBe("content-coastal-mornings");
+  });
+
+  it("finds nothing by slug beneath a category that only lists the page", () => {
+    const tree = buildMockContentTree();
+
+    // A secondary placement owns no detail route, so its slug claims nothing
+    // there and cannot collide with a page that category owns canonically.
+    expect(
+      getCanonicalContentBySlug(tree, "cat-events", "coastal-mornings"),
+    ).toBeUndefined();
+  });
+
+  it("finds nothing by slug for unpublished or unknown content", () => {
+    const tree = buildMockContentTree();
+
+    expect(
+      getCanonicalContentBySlug(tree, "cat-landscape", "unplaced-draft"),
+    ).toBeUndefined();
+    expect(
+      getCanonicalContentBySlug(tree, "cat-landscape", "no-such-page"),
+    ).toBeUndefined();
   });
 });

@@ -2,8 +2,52 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
+**Amended:** 2026-08-10 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
+
+## Amendments
+
+This broad record remains accepted as a whole. A scoped clause is amended in place only
+when implementation produces evidence the original text did not have, and each partial
+amendment preserves the old rule and records its date, reason, replacement, and affected
+sections as required by the ADR convention.
+
+### 2026-08-10 — Pre-launch scaffold routes are removed, not redirected (AB#124)
+
+Decision 6 originally reserved `/portfolio`, `/blog`, and `/blog/<slug>` "for
+compatibility and redirects rather than new canonical content". Implementing AB#124
+established what that sentence assumed without checking: none of these routes has ever
+been deployed, published, or indexed — they resolve only on a developer's machine. A
+redirect is owed to a URL somebody can be holding, and adding one for a URL nobody has
+puts an unverified source into the redirect registry that every collision, loop, and
+chain check then has to carry.
+
+The decision now reads that such routes are removed and answer an ordinary 404, and that
+only URLs verified in the production Joomla inventory (AB#19) earn a redirect. AB#124
+removed `/blog` and `/blog/<slug>` on that basis; AB#104 applies the same rule to
+`/portfolio` unless the inventory says otherwise.
+
+Changed text: decision 6's closing paragraph, one consequence bullet, and the split
+implementation action items 8–11. The canonical route contract, the redirect-history
+rules, and every other decision are unaffected.
+
+### 2026-08-10 — The story root previews recent routed content (AB#124)
+
+Decision 8 originally described content listings only in terms of category ownership.
+The first browser review showed that a story root containing category links alone gives
+no preview of the authored stories and makes a deliberately sparse locale look empty.
+Moving content into the root would weaken the canonical-placement rule, while loading an
+unbounded tree would weaken the listing-query boundary.
+
+The story root now uses the same bounded, deterministic listing projection to show
+recent published content from across the tree. It includes only variants whose detail
+route is currently served, and every card links to its existing category-owned canonical
+path. The overview therefore creates neither a root placement nor a second URL. Category
+branches retain their canonical-and-secondary membership rule unchanged.
+
+Changed text: decision 8's category-listing paragraph. The canonical placement, ordering,
+continuation, and category-branch contracts are unaffected.
 
 ## Context
 
@@ -290,9 +334,16 @@ guesses whether a path identifies a category or content.
 Localized static routes remain outside the story namespace. Home, services, and contact
 keep their own route owners but compose with the same default-unprefixed,
 non-default-prefixed locale contract.
-The current `/portfolio`, `/blog`, and `/blog/<slug>` routes are reserved for
-compatibility and redirects rather than new canonical content. AB#104 owns the portfolio
-migration and AB#124 owns the article-route migration.
+
+The template's pre-launch `/portfolio`, `/blog`, and `/blog/<slug>` routes own no
+canonical content once the story namespace exists. They were never deployed, published,
+or indexed, so their replacement is removal rather than a compatibility redirect: a
+redirect is owed to a URL somebody can actually be holding, and a route that only ever
+resolved on a developer's machine has no such claim. Adding one would also put a second,
+unverified source into the redirect registry that every collision, loop, and chain check
+then has to carry. Only URLs verified in the production Joomla inventory earn a redirect,
+and AB#19 owns that mapping. AB#124 removed `/blog` and `/blog/<slug>` on this basis;
+AB#104 owns `/portfolio` and applies the same rule unless the inventory says otherwise.
 
 Public navigation composes deployment-owned static links with the public tree's top-level
 categories. The tree is the source of content navigation, and site settings never restate
@@ -492,6 +543,13 @@ sibling order first, then canonically placed content pages newest first with the
 content identifier as the tie-breaker; a secondary listing uses the same order and links
 to the canonical detail route. What a listing entry shows is an implementation decision;
 its route, its deterministic order, and its continuation contract are decided here.
+
+The story root uses that same bounded listing projection for a cross-category recent
+overview. Its candidates are published pages whose variants currently have a served
+detail route, ordered newest first with the same immutable-id tie-breaker. An overview
+card still links to the category-owned canonical path and creates no root placement.
+Category branch membership remains canonical-plus-secondary; the aggregation applies
+only to the story root.
 
 A valid section with no public items returns a successful accessible empty state and
 remains `noindex`. An unknown section and a malformed, tampered, wrong-scope, or stale
@@ -1502,12 +1560,15 @@ a broad redirect when a Joomla system view or retired page has no genuine replac
   replacement.
 - Retired Joomla views without a genuine replacement use a justified `410 Gone` rather
   than a blanket redirect.
+- The template's own pre-launch routes were never deployed or indexed and are removed
+  rather than redirected; only AB#19's verified production inventory earns redirects.
 - AB#19 owns exact deployment-specific rows and must explicitly handle meaningful query,
   fragment, and numeric lightbox states.
 - The future CMS schema shape remains open; provider documents must map to the
   project-owned variant boundary.
 - The current separate mock `Gallery` and `Article` types will eventually need to map to
   or adopt the shared boundary, but this ADR does not authorize that implementation yet.
+  AB#124 has since adopted it for `Article`; `Gallery` follows in AB#104.
 
 **To revisit — migration triggers**
 
@@ -1556,12 +1617,16 @@ The decision is accepted. Remaining implementation belongs to the stories named 
        decided here.
 7. [ ] Record the deployment-specific legacy mapping in AB#19 against the target classes
        in decision 9, including the old site root.
-8. [ ] Migrate `/portfolio` (AB#104) and `/blog` (AB#124) to compatibility redirects into
-       the story namespace.
-9. [ ] Map the mock `Gallery` and `Article` types onto the shared content-page boundary
-       when the content tree is implemented.
-10. [ ] Implement the post-launch localized-version authoring workflow in AB#125.
-11. [ ] Design Azure Foundry-default, provider-neutral AI editorial assistance in
+8. [x] Remove the pre-launch `/blog` and `/blog/<slug>` routes in AB#124. They were never
+       deployed or indexed, so they answer 404 rather than entering the compatibility
+       redirect registry; only AB#19's verified production inventory earns redirects.
+9. [ ] Apply the same evidence rule to the pre-launch `/portfolio` route in AB#104.
+10. [x] Map the mock `Article` type onto the shared content-page boundary in AB#124. It is
+        now the `article` variant, and its mock taxonomy is represented by ordinary tree
+        categories and canonical/secondary placements.
+11. [ ] Map the mock `Gallery` type onto the shared content-page boundary in AB#104.
+12. [ ] Implement the post-launch localized-version authoring workflow in AB#125.
+13. [ ] Design Azure Foundry-default, provider-neutral AI editorial assistance in
         AB#126.
 
 ## What this ADR did not establish

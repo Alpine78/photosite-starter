@@ -154,10 +154,10 @@ describe("loadDeploymentConfig", () => {
     expect(() =>
       loadDeploymentConfig({
         ...validEnvironment,
-        SITE_LOCALE_ROUTES: "en-GB||stories,fi|blog|tarinat",
+        SITE_LOCALE_ROUTES: "en-GB||stories,fi|portfolio|tarinat",
       }),
     ).toThrow(
-      'Invalid SITE_LOCALE_ROUTES: locale prefix "blog" collides with a root route',
+      'Invalid SITE_LOCALE_ROUTES: locale prefix "portfolio" collides with a root route',
     );
   });
 

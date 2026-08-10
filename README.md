@@ -93,9 +93,13 @@ never redirects a visitor. A locale without a concrete language subtag, such as
 `und`, is rejected because it cannot supply the routing contract's default
 language prefix.
 
-Each locale's category branches are served from its own content tree, together
-with that tree's recorded path history: a category a move or rename retired
-redirects permanently, in one hop, to its current path in the same language. A
+Each locale's category branches and content pages are served from its own
+content tree, together with that tree's recorded path history: a category or a
+page that a move or rename retired redirects permanently, in one hop, to its
+current path in the same language. A page has exactly one canonical address —
+the category listing it also appears in links there rather than to a copy of its
+own — and switching language resolves by stable identity, opening the nearest
+published page and saying so when it is not an exact translation. A
 locale whose content has not been authored yet publishes nothing — its story
 routes 404 rather than falling back to another language's tree — and a page in a
 locale the authored site description was not written in emits no description at
@@ -217,12 +221,17 @@ as a pipeline artifact when the suite fails.
 - [x] Shared generic media model (photo and video capable)
 - [x] Implementation of the proposed public image rendition boundary
   (ADR-0005 awaits owner approval)
-- [x] Blog / article content type (supports long story articles)
+- [x] Blog / article content type (supports long story articles) — *articles are the
+  `article` variant of the shared content page and live in the content tree; the
+  pre-launch `/blog` scaffold routes are gone*
 - [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
-  — *category domain model, canonical placement contract, and the server-rendered category
-  branch routes with breadcrumbs, bounded deterministic listings, and permanent redirects
-  for retired paths done; content detail routes (AB#104, AB#124), tree-driven header and
-  mobile navigation (AB#111), and listing continuation controls pending*
+  — *category domain model, canonical placement contract, the server-rendered category
+  branch routes with breadcrumbs, a bounded recent-content overview on the story root,
+  deterministic category listings, and permanent redirects
+  for retired paths, and the canonical article detail route — breadcrumbs, a table of
+  contents derived from the body's headings, and publication-ordered sibling navigation — done; the curated
+  gallery detail route (AB#104), tree-driven header and mobile navigation (AB#111), and
+  listing continuation controls pending*
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))
@@ -288,15 +297,18 @@ Found a bug or have an idea? Open an issue — that is welcome.
 
 ## Status
 
-🚧 Work in progress — MVP in progress. The public pages (home, services, blog, and the
-initial portfolio grid) are built against a mock data layer whose images use the
+🚧 Work in progress — MVP in progress. The public pages (home, services, contact, the
+canonical article routes in the content tree, and the initial portfolio grid) are built
+against a mock data layer whose images use the
 accepted project-owned public rendition contract and whose portfolio uses the shared
 paginated gallery result contract. The content tree's category domain model, canonical
 placement contract, and public category branch routes are built — breadcrumbs,
 deterministically ordered listings, permanent redirects for retired paths, and a visible
-identity-based language switch — in every configured locale space, with
-`hreflang`/`x-default` alternates. Content *detail* routes and tree-driven header and
-mobile navigation are not (AB#104, AB#111, AB#124). Static routes and authored
+identity-based language switch — plus a bounded recent-content overview on the story
+root — in every configured locale space, with
+`hreflang`/`x-default` alternates. Articles render at their canonical detail routes in
+that tree; the curated gallery detail route and tree-driven header and mobile navigation
+are not built yet (AB#104, AB#111). Static routes and authored
 SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
 separate story. The future Sanity adapter remains open.
 The portfolio grid opens a fullscreen lightbox that navigates the loaded result by

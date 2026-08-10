@@ -668,6 +668,24 @@ export function getCanonicalContent(
 }
 
 /**
+ * The published page a slug names beneath one category, or `undefined` when the
+ * category holds none.
+ *
+ * Only a canonical placement is matched, because only it owns a detail route.
+ * The local slug namespace validated above guarantees at most one claimant, so
+ * this never has to choose between candidates.
+ */
+export function getCanonicalContentBySlug(
+  tree: ContentTree,
+  categoryId: string,
+  slug: string,
+): ContentPlacement | undefined {
+  return getCanonicalContent(tree, categoryId).find(
+    (placement) => placement.slug === slug,
+  );
+}
+
+/**
  * Published content listed in a category through a secondary placement. Each
  * entry links to the one canonical detail route.
  */

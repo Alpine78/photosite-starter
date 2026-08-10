@@ -1,4 +1,8 @@
-import { getDefaultLocaleLabels } from "@/lib/deployment-config";
+import {
+  getDefaultLocaleLabels,
+  getDeploymentConfig,
+} from "@/lib/deployment-config";
+import { buildStoryPath } from "@/lib/locale-routes";
 
 /**
  * Site-wide brand, contact, and navigation settings live here, never
@@ -84,6 +88,12 @@ export type SiteSettings = {
  */
 function buildMockSiteSettings(): SiteSettings {
   const labels = getDefaultLocaleLabels();
+  const { localeRoutes } = getDeploymentConfig();
+  // The public content tree's root in the unprefixed route space. Composed from
+  // the configured namespace rather than written out, so a deployment that
+  // routes its stories elsewhere does not leave a dead link in the chrome.
+  // AB#111 replaces this single entry with navigation driven by the tree.
+  const storyRoot = buildStoryPath(localeRoutes, localeRoutes.defaultLocale);
 
   return {
     siteName: "Studio Example",
@@ -97,7 +107,7 @@ function buildMockSiteSettings(): SiteSettings {
       { label: labels.pages.home, href: "/" },
       { label: labels.pages.services, href: "/services" },
       { label: labels.pages.portfolio, href: "/portfolio" },
-      { label: labels.pages.blog, href: "/blog" },
+      { label: labels.pages.stories, href: storyRoot },
       { label: labels.pages.contact, href: "/contact" },
     ],
     contact: {
@@ -134,7 +144,7 @@ function buildMockSiteSettings(): SiteSettings {
     footerLinks: [
       { label: labels.pages.services, href: "/services" },
       { label: labels.pages.portfolio, href: "/portfolio" },
-      { label: labels.pages.blog, href: "/blog" },
+      { label: labels.pages.stories, href: storyRoot },
       { label: labels.pages.contact, href: "/contact" },
     ],
     copyrightHolder: "Studio Example",

@@ -36,7 +36,6 @@ export type BuiltInLabels = {
     readonly home: string;
     readonly services: string;
     readonly portfolio: string;
-    readonly blog: string;
     readonly contact: string;
     /** The public content tree's root, whatever segment the locale routes it at. */
     readonly stories: string;
@@ -45,16 +44,17 @@ export type BuiltInLabels = {
     readonly main: string;
     readonly footer: string;
     readonly breadcrumb: string;
-    readonly article: string;
-    readonly categoryFilter: string;
+    /** Names the links to a page's neighbours in publication order. */
+    readonly adjacentContent: string;
     readonly menu: string;
     readonly closeMenu: string;
   };
   readonly actions: {
     readonly viewPortfolio: string;
     readonly contactAboutService: string;
-    readonly previousArticle: string;
-    readonly nextArticle: string;
+    /** The newer neighbour, and the older one, in publication order. */
+    readonly previousPage: string;
+    readonly nextPage: string;
     readonly watchOnYouTube: string;
   };
   readonly footer: {
@@ -63,11 +63,6 @@ export type BuiltInLabels = {
     readonly follow: string;
     readonly businessId: string;
     readonly rightsReserved: string;
-  };
-  readonly blog: {
-    readonly allCategories: string;
-    readonly emptyCategory: string;
-    readonly tags: string;
   };
   readonly services: {
     readonly pricing: string;
@@ -123,10 +118,21 @@ export type BuiltInLabels = {
     };
   };
   readonly contentTree: {
+    /** Short orientation copy on the story root. */
+    readonly storyRootIntroduction: string;
     /** Heading above a branch's public child categories. */
     readonly categories: string;
     /** Heading above the content pages a branch lists. */
     readonly content: string;
+    /** Heading above the story root's cross-category recent-content overview. */
+    readonly latestContent: string;
+    /**
+     * Heading above a page's keywords. Separate from categories: tags consume
+     * no tree depth and own no route of their own.
+     */
+    readonly tags: string;
+    /** Names the table of contents derived from a body's level-2 headings. */
+    readonly onThisPage: string;
     /** Accessible name of the language switch. */
     readonly languages: string;
     /**
@@ -214,7 +220,6 @@ const englishLabels = {
     home: "Home",
     services: "Services",
     portfolio: "Portfolio",
-    blog: "Blog",
     contact: "Contact",
     stories: "Stories",
   },
@@ -222,16 +227,15 @@ const englishLabels = {
     main: "Main",
     footer: "Footer",
     breadcrumb: "Breadcrumb",
-    article: "Article navigation",
-    categoryFilter: "Filter by category",
+    adjacentContent: "Story navigation",
     menu: "Menu",
     closeMenu: "Close",
   },
   actions: {
     viewPortfolio: "View portfolio",
     contactAboutService: "Contact about this",
-    previousArticle: "Previous",
-    nextArticle: "Next",
+    previousPage: "Previous",
+    nextPage: "Next",
     watchOnYouTube: "Watch on YouTube",
   },
   footer: {
@@ -240,11 +244,6 @@ const englishLabels = {
     follow: "Follow",
     businessId: "Business ID",
     rightsReserved: "All rights reserved.",
-  },
-  blog: {
-    allCategories: "All",
-    emptyCategory: "No articles in this category yet.",
-    tags: "Tags",
   },
   services: {
     pricing: "Pricing",
@@ -278,8 +277,13 @@ const englishLabels = {
     },
   },
   contentTree: {
+    storyRootIntroduction:
+      "Browse the latest stories or explore the collection by category.",
     categories: "Categories",
     content: "Stories",
+    latestContent: "Latest stories",
+    tags: "Tags",
+    onThisPage: "On this page",
     languages: "Language",
     parentCategoryFallback: "opens the parent category",
     storyRootFallback: "opens all stories",
@@ -309,7 +313,6 @@ const finnishLabels = {
     home: "Etusivu",
     services: "Palvelut",
     portfolio: "Portfolio",
-    blog: "Blogi",
     contact: "Ota yhteyttä",
     stories: "Tarinat",
   },
@@ -317,16 +320,15 @@ const finnishLabels = {
     main: "Päävalikko",
     footer: "Alatunniste",
     breadcrumb: "Murupolku",
-    article: "Artikkelinavigointi",
-    categoryFilter: "Suodata kategorian mukaan",
+    adjacentContent: "Tarinanavigointi",
     menu: "Valikko",
     closeMenu: "Sulje",
   },
   actions: {
     viewPortfolio: "Katso portfolio",
     contactAboutService: "Kysy lisää",
-    previousArticle: "Edellinen",
-    nextArticle: "Seuraava",
+    previousPage: "Edellinen",
+    nextPage: "Seuraava",
     watchOnYouTube: "Katso YouTubessa",
   },
   footer: {
@@ -335,11 +337,6 @@ const finnishLabels = {
     follow: "Seuraa",
     businessId: "Y-tunnus",
     rightsReserved: "Kaikki oikeudet pidätetään.",
-  },
-  blog: {
-    allCategories: "Kaikki",
-    emptyCategory: "Tässä kategoriassa ei ole vielä artikkeleita.",
-    tags: "Avainsanat",
   },
   services: {
     pricing: "Hinnoittelu",
@@ -373,8 +370,13 @@ const finnishLabels = {
     },
   },
   contentTree: {
+    storyRootIntroduction:
+      "Tutustu uusimpiin tarinoihin tai selaa kokoelmaa kategorioittain.",
     categories: "Kategoriat",
     content: "Tarinat",
+    latestContent: "Uusimmat tarinat",
+    tags: "Avainsanat",
+    onThisPage: "Tällä sivulla",
     languages: "Kieli",
     parentCategoryFallback: "avaa yläkategorian",
     storyRootFallback: "avaa kaikki tarinat",

@@ -1,20 +1,35 @@
-import Image from "next/image";
-import type { ContentBlock } from "@/lib/articles";
-import { getDefaultLocaleLabels } from "@/lib/deployment-config";
+import { MediaFigure } from "@/components/media-figure";
+import { buildHeadingIds } from "@/lib/content-headings";
+import type { ContentBlock } from "@/lib/content-page";
+import type { BuiltInLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import { YoutubeEmbed } from "@/components/youtube-embed";
 
-type ArticleBodyProps = {
-  blocks: ContentBlock[];
+type ContentBodyProps = {
+  blocks: readonly ContentBlock[];
+  /**
+   * The page's own locale labels. Passed in rather than read from the
+   * deployment default: a body renders inside every configured locale route
+   * space, and a prefixed locale's page must not caption its video in another
+   * language.
+   */
+  labels: BuiltInLabels;
 };
 
 /**
- * Renders a typed content block list. Each block maps to one semantic HTML
- * element or component. New block types are added here and in the Article
- * type — nothing else needs to change.
+ * Renders the shared body-block set ADR-0003 decision 2 gives both content
+ * variants. Each block maps to one semantic HTML element or component, and the
+ * page title owns the single `h1`, so an authored heading starts at level 2.
+ *
+ * A media block here is a content placement, never a gallery item: it does not
+ * enter a gallery's grid, lightbox sequence, sections, or pagination.
+ *
+ * Level-2 headings carry the ids the derived table of contents links to. Both
+ * sides read them from `buildHeadingIds`, so the fragment a link writes and the
+ * anchor a heading renders cannot drift apart.
  */
-export function ArticleBody({ blocks }: ArticleBodyProps) {
-  const labels = getDefaultLocaleLabels();
+export function ContentBody({ blocks, labels }: ContentBodyProps) {
+  const headingIds = buildHeadingIds(blocks);
 
   return (
     <div className="space-y-6">
@@ -32,7 +47,10 @@ export function ArticleBody({ blocks }: ArticleBodyProps) {
               return (
                 <h2
                   key={index}
-                  className="mt-10 text-2xl font-semibold tracking-tight first:mt-0"
+                  id={headingIds.get(index)}
+                  // Anchored headings are jump targets, so they keep clear of a
+                  // future sticky header rather than landing under it.
+                  className="mt-10 scroll-mt-24 text-2xl font-semibold tracking-tight first:mt-0"
                 >
                   {block.text}
                 </h2>
@@ -55,7 +73,7 @@ export function ArticleBody({ blocks }: ArticleBodyProps) {
               >
                 <p>{block.text}</p>
                 {block.attribution && (
-                  <footer className="mt-1 text-sm not-italic text-foreground/50">
+                  <footer className="mt-1 text-sm not-italic text-foreground/70">
                     — {block.attribution}
                   </footer>
                 )}
@@ -63,25 +81,18 @@ export function ArticleBody({ blocks }: ArticleBodyProps) {
             );
 
           case "media":
+            // A video placement is modelled but not yet playable anywhere on
+            // the site, so it renders nothing rather than a control that leads
+            // nowhere or a placeholder claiming a feature. Video delivery is a
+            // roadmap item; the same omission is why a video cover falls back
+            // to the deployment's default Open Graph image.
             if (block.media.type !== "image") return null;
             return (
-              <figure key={index}>
-                <Image
-                  src={block.media.rendition.src}
-                  alt={block.media.alt}
-                  width={block.media.rendition.width}
-                  height={block.media.rendition.height}
-                  sizes={imageRenderProfiles.articleContent.sizes}
-                  className="h-auto w-full rounded-lg"
-                />
-                {(block.media.caption || block.media.credit) && (
-                  <figcaption className="mt-2 text-sm text-foreground/60">
-                    {block.media.caption}
-                    {block.media.caption && block.media.credit && " — "}
-                    {block.media.credit}
-                  </figcaption>
-                )}
-              </figure>
+              <MediaFigure
+                key={index}
+                image={block.media}
+                sizes={imageRenderProfiles.articleContent.sizes}
+              />
             );
 
           case "list":

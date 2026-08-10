@@ -263,14 +263,97 @@ describe("resolveLocalePrefixRequest", () => {
       ).resolves.toEqual({ kind: "not-found" });
     });
 
-    it("404s a canonical content path, whose route is not built yet", async () => {
+    it("resolves a canonical content path in the unprefixed default space", async () => {
       await expect(
         resolveLocalePrefixRequest({
           config,
           trees,
           redirects,
           prefix: "tarinat",
-          segments: ["maisemat", "rannikko", "rannikon-aamut"],
+          segments: ["tekniikka", "valotuskolmio-kaytannossa"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "story",
+        locale: "fi",
+        route: {
+          kind: "content",
+          contentId: "content-understanding-exposure-triangle",
+        },
+      });
+    });
+
+    it.each([
+      ["the canonical spelling", ["maisemat", "rannikko", "rannikon-aamut"]],
+      ["a casing variant of it", ["Maisemat", "Rannikko", "Rannikon-Aamut"]],
+    ])(
+      "404s a gallery's canonical path, whose route is not built yet, at %s",
+      async (_spelling, segments) => {
+        // Never a redirect: a permanent one onto a page that cannot render
+        // would teach browsers and crawlers a dead address.
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix: "tarinat",
+            segments,
+            searchParams: {},
+            defaultLocaleRouteExists: missing(),
+          }),
+        ).resolves.toEqual({ kind: "not-found" });
+      },
+    );
+
+    it("resolves a canonical content path inside a locale prefix", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "en",
+          segments: ["stories", "gear", "choosing-a-telephoto-lens"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "story",
+        locale: "en",
+        route: {
+          kind: "content",
+          contentId: "content-choosing-a-telephoto-lens",
+        },
+      });
+    });
+
+    it("redirects a differently cased content path to its canonical form", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "en",
+          segments: ["stories", "Gear", "Choosing-A-Telephoto-Lens"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: "/en/stories/gear/choosing-a-telephoto-lens",
+      });
+    });
+
+    it("404s a content slug beneath a category that only lists the page", async () => {
+      // Only the canonical placement owns a detail route, so a secondary
+      // listing's category has no page of that name to serve.
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "en",
+          segments: ["stories", "technique", "choosing-a-telephoto-lens"],
           searchParams: {},
           defaultLocaleRouteExists: missing(),
         }),
@@ -342,6 +425,25 @@ describe("resolveLocalePrefixRequest", () => {
       ).resolves.toEqual({
         kind: "redirect",
         location: "/tarinat/tapahtumat",
+      });
+    });
+
+    it("redirects a renamed page's previous path to its current one", async () => {
+      // The page kept its canonical category and changed only its own slug,
+      // which is the third case ADR-0003 decision 7 records history for.
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "en",
+          segments: ["stories", "technique", "low-light-without-a-tripod"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: "/en/stories/technique/shooting-in-low-light",
       });
     });
 
@@ -454,5 +556,149 @@ describe("resolveLocalePrefixRequest", () => {
         ).resolves.toEqual({ kind: "not-found" });
       },
     );
+
+    it.each([
+      [
+        "the canonical path",
+        "tarinat",
+        ["tekniikka", "valotuskolmio-kaytannossa"],
+        undefined,
+      ],
+      [
+        "a casing variant",
+        "tarinat",
+        ["Tekniikka", "Valotuskolmio-Kaytannossa"],
+        "/tarinat/tekniikka/valotuskolmio-kaytannossa?cursor=utm-style-noise",
+      ],
+      [
+        "a redundant default prefix",
+        "fi",
+        ["tarinat", "tekniikka", "valotuskolmio-kaytannossa"],
+        "/tarinat/tekniikka/valotuskolmio-kaytannossa?cursor=utm-style-noise",
+      ],
+    ])(
+      "ignores a cursor on a content page reached through %s",
+      async (_case, prefix, segments, location) => {
+        // A content page owns no continuation contract, so `cursor` is an
+        // unrecognized parameter there: ADR-0003 decision 8 reads what it knows
+        // and ignores the rest rather than turning a real page into a 404.
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix,
+            segments: segments as string[],
+            searchParams: { cursor: "utm-style-noise" },
+            defaultLocaleRouteExists: missing(),
+          }),
+        ).resolves.toEqual(
+          location === undefined
+            ? {
+                kind: "story",
+                locale: "fi",
+                route: {
+                  kind: "content",
+                  contentId: "content-understanding-exposure-triangle",
+                },
+              }
+            : { kind: "redirect", location },
+        );
+      },
+    );
+
+    it("ignores a cursor on a retired content path, which redirects as usual", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "en",
+          segments: ["stories", "technique", "low-light-without-a-tripod"],
+          searchParams: { cursor: "utm-style-noise" },
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location:
+          "/en/stories/technique/shooting-in-low-light?cursor=utm-style-noise",
+      });
+    });
+  });
+
+  describe("history whose current target has no route yet", () => {
+    /**
+     * A tree where the page a retired path leads to is a gallery, whose detail
+     * route AB#104 owns. History records the move regardless of variant, so the
+     * route layer is the last thing standing between a visitor and a permanent
+     * redirect onto a 404.
+     */
+    const galleryTree = buildContentTree({
+      categories: [
+        {
+          categoryId: "cat-series",
+          parentId: null,
+          slug: "series",
+          label: "Series",
+          order: 0,
+        },
+      ],
+      placements: [
+        {
+          contentId: "content-series",
+          variant: "gallery",
+          slug: "current-series",
+          published: true,
+          canonicalCategoryId: "cat-series",
+        },
+      ],
+    });
+
+    const galleryTrees: LocalizedContentTrees = new Map([["fi", galleryTree]]);
+    const galleryRedirects: LocalizedContentRedirects = new Map([
+      [
+        "fi",
+        buildContentRedirects(galleryTree, [
+          {
+            kind: "content",
+            id: "content-series",
+            previousPath: ["series", "retired-series"],
+          },
+        ]),
+      ],
+    ]);
+
+    it("404s rather than redirecting permanently onto a page that 404s", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees: galleryTrees,
+          redirects: galleryRedirects,
+          prefix: "tarinat",
+          segments: ["series", "retired-series"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({ kind: "not-found" });
+    });
+
+    it("still redirects a retired path whose target does resolve", async () => {
+      // The same history mechanism, differing only in whether the current
+      // canonical target is a route this application serves.
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "en",
+          segments: ["stories", "technique", "low-light-without-a-tripod"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: "/en/stories/technique/shooting-in-low-light",
+      });
+    });
   });
 });

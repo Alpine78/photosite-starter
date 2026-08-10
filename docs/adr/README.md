@@ -14,9 +14,12 @@ docs/adr/NNNN-short-kebab-title.md
 ```
 
 `NNNN` is a zero-padded sequence number in decision order (`0001`, `0002`, …). Numbers
-are never reused, and a file is never deleted: a decision that no longer holds gets its
-status changed to `Superseded` with a link to the ADR that replaced it. The history is
-the point.
+are never reused, and a file is never deleted. A record that no longer holds as a whole
+gets its status changed to `Superseded` with a link to the ADR that replaced it. When one
+scoped clause of a broader, still-accepted record changes, it may instead receive a dated
+partial amendment that preserves the old rule, states the evidence and replacement, and
+names every affected section. Never silently rewrite accepted history: the history is the
+point.
 
 ## Format
 

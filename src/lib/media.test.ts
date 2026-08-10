@@ -6,6 +6,7 @@ import {
   MAX_PUBLIC_IMAGE_DIMENSION,
   projectPublicImageMedia,
   readLocalPublicImageVersion,
+  withLocalizedText,
   type ImageMedia,
   type PublicImageMediaInput,
 } from "@/lib/media";
@@ -166,6 +167,40 @@ describe("projectPublicImageMedia", () => {
         },
       }),
     ).toThrow("local rendition.src must be a content-versioned");
+  });
+});
+
+describe("withLocalizedText", () => {
+  it("reuses the public rendition without inheriting source-language prose", () => {
+    const source = projectPublicImageMedia(validInput);
+    const localized = withLocalizedText(source, {
+      alt: "Lokalisoitu vaihtoehtoinen teksti",
+    });
+
+    expect(localized).toEqual({
+      ...source,
+      alt: "Lokalisoitu vaihtoehtoinen teksti",
+      caption: undefined,
+    });
+    expect(localized).not.toHaveProperty("caption");
+    expect(localized.credit).toBe("Test credit");
+    expect(localized.rendition).toBe(source.rendition);
+  });
+
+  it("uses an explicitly localized caption and credit when supplied", () => {
+    const source = projectPublicImageMedia(validInput);
+
+    expect(
+      withLocalizedText(source, {
+        alt: "Lokalisoitu vaihtoehtoinen teksti",
+        caption: "Lokalisoitu kuvateksti",
+        credit: "Lokalisoitu krediitti",
+      }),
+    ).toMatchObject({
+      alt: "Lokalisoitu vaihtoehtoinen teksti",
+      caption: "Lokalisoitu kuvateksti",
+      credit: "Lokalisoitu krediitti",
+    });
   });
 });
 

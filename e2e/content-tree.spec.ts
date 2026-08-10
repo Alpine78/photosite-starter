@@ -1,6 +1,17 @@
 import type { Locator, Page } from "@playwright/test";
 import { buildContentRedirects } from "../src/lib/content-redirects";
-import { buildContentTree } from "../src/lib/content-tree";
+import {
+  buildAdjacentContentQuery,
+  resolveAdjacentContent,
+  selectAdjacentRecords,
+} from "../src/lib/content-listing";
+import {
+  buildContentTree,
+  getCanonicalContentPath,
+} from "../src/lib/content-tree";
+import { resolveStoryRoute } from "../src/lib/content-routes";
+import { mockContentListingRecords } from "../src/lib/mock-content-listing";
+import { mockContentPages } from "../src/lib/mock-content-pages";
 import {
   mockContentRedirectInputs,
   mockContentTreeInputs,
@@ -14,8 +25,8 @@ import {
 } from "./support/harness-environment";
 
 /**
- * The public content tree: branch routes, breadcrumbs, and the URL contract
- * around them.
+ * The public content tree: branch routes, canonical detail routes, breadcrumbs,
+ * and the URL contract around them.
  *
  * Nothing here names a category, a page title, or a label. A clone rebrands its
  * whole taxonomy, so the journey discovers the tree by walking it from the
@@ -45,19 +56,217 @@ function retiredDefaultRoute(): { readonly from: string; readonly to: string } {
     tree,
     mockContentRedirectInputs[language] ?? [],
   );
-  const first = redirects.entries().next().value;
-  if (first === undefined) {
-    throw new Error("[e2e] The harness needs one retired content path.");
+  for (const [previousPath, currentPath] of redirects) {
+    if (resolveStoryRoute(tree, currentPath)?.kind === "content") {
+      return {
+        from: `${STORY_ROOT}/${previousPath}`,
+        to: `${STORY_ROOT}/${currentPath.join("/")}`,
+      };
+    }
   }
 
-  const [previousPath, currentPath] = first;
-  return {
-    from: `${STORY_ROOT}/${previousPath}`,
-    to: `${STORY_ROOT}/${currentPath.join("/")}`,
-  };
+  throw new Error("[e2e] The harness needs one retired article path.");
 }
 
 const RETIRED_DEFAULT_ROUTE = retiredDefaultRoute();
+
+/**
+ * One published article's canonical path, derived from the same adapter data
+ * the harness serves rather than written down here.
+ *
+ * Three properties are required rather than assumed. The variant matters, because
+ * a gallery's detail route is AB#104's and does not exist yet, so the journey
+ * asks the adapter which page it can actually open. And the page must have a
+ * sibling in the global article sequence, so the navigation this story had to
+ * carry over is exercised rather than skipped as absent. Finally, the cover
+ * carries an attribution so this journey proves the cover figure itself keeps
+ * it rather than passing on a body caption alone.
+ */
+type ArticleUnderTest = {
+  readonly path: string;
+  readonly siblingPaths: readonly string[];
+  readonly coverAttributions: readonly string[];
+  /**
+   * Every caption and credit the page's images carry, from the adapter data.
+   * The page must show each of them: an image with a credit is showing someone
+   * else's name, and a surface that drops it publishes uncredited work.
+   */
+  readonly attributions: readonly string[];
+};
+
+function firstDefaultLocaleArticleWithSibling(): ArticleUnderTest {
+  const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
+  const treeInput = mockContentTreeInputs[language];
+  if (treeInput === undefined) {
+    throw new Error(`[e2e] The default locale ${language} publishes no mock tree.`);
+  }
+
+  const tree = buildContentTree(treeInput);
+  const records = mockContentListingRecords[language];
+  for (const [contentId, page] of mockContentPages[language] ?? []) {
+    if (page.variant !== "article") continue;
+    const path = getCanonicalContentPath(tree, contentId);
+    const query = buildAdjacentContentQuery(tree, contentId);
+    if (path === null || query === null) continue;
+
+    const candidateRows = query.contentIds.flatMap((candidateId) => {
+      const record = records?.get(candidateId);
+      return record === undefined ? [] : [record];
+    });
+    const adjacent = resolveAdjacentContent({
+      tree,
+      contentId,
+      records: selectAdjacentRecords(candidateRows, query.anchorContentId),
+    });
+    const siblingPaths = [adjacent.previous, adjacent.next].flatMap((sibling) =>
+      sibling === undefined ? [] : [`${STORY_ROOT}/${sibling.path.join("/")}`],
+    );
+    if (siblingPaths.length === 0) continue;
+
+    const images = [
+      ...(page.cover === undefined ? [] : [page.cover]),
+      ...page.body.flatMap((block) =>
+        block.type === "media" && block.media.type === "image"
+          ? [block.media]
+          : [],
+      ),
+    ];
+    const coverAttributions =
+      page.cover === undefined
+        ? []
+        : [page.cover.caption, page.cover.credit].filter(
+            (text): text is string =>
+              text !== undefined && text.length > 0,
+          );
+    if (coverAttributions.length === 0) continue;
+
+    return {
+      path: `${STORY_ROOT}/${path.join("/")}`,
+      siblingPaths,
+      coverAttributions,
+      attributions: images.flatMap((image) =>
+        [image.caption, image.credit].filter(
+          (text): text is string => text !== undefined && text.length > 0,
+        ),
+      ),
+    };
+  }
+
+  throw new Error(
+    "[e2e] The harness needs an article with a sibling and an attributed cover.",
+  );
+}
+
+const ARTICLE = firstDefaultLocaleArticleWithSibling();
+const ARTICLE_ROUTE = ARTICLE.path;
+
+type LocalizedArticleUnderTest = {
+  readonly path: string;
+  readonly exactDefaultLocalePath: string;
+  readonly imageAlts: readonly string[];
+  readonly coverAlt: string;
+  readonly publishedAt: string;
+};
+
+/** One translated article whose cover and body both carry localized image text. */
+function firstPrefixedLocaleArticleWithImages(): LocalizedArticleUnderTest {
+  const language = new Intl.Locale(PREFIXED_LOCALE.prefix).language;
+  const treeInput = mockContentTreeInputs[language];
+  const defaultLanguage = new Intl.Locale(
+    appUnderTestEnvironment.SITE_LOCALE,
+  ).language;
+  const defaultTreeInput = mockContentTreeInputs[defaultLanguage];
+  if (treeInput === undefined || defaultTreeInput === undefined) {
+    throw new Error("[e2e] The harness needs both localized content trees.");
+  }
+
+  const tree = buildContentTree(treeInput);
+  const defaultTree = buildContentTree(defaultTreeInput);
+  for (const [contentId, page] of mockContentPages[language] ?? []) {
+    if (page.variant !== "article" || page.cover === undefined) continue;
+
+    const path = getCanonicalContentPath(tree, contentId);
+    const defaultPath = getCanonicalContentPath(defaultTree, contentId);
+    const bodyImageAlts = page.body.flatMap((block) =>
+      block.type === "media" && block.media.type === "image"
+        ? [block.media.alt]
+        : [],
+    );
+    if (path === null || defaultPath === null || bodyImageAlts.length === 0) {
+      continue;
+    }
+
+    return {
+      path: `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.storyNamespace}/${path.join("/")}`,
+      exactDefaultLocalePath: `${STORY_ROOT}/${defaultPath.join("/")}`,
+      imageAlts: [page.cover.alt, ...bodyImageAlts],
+      coverAlt: page.cover.alt,
+      publishedAt: page.publishedAt,
+    };
+  }
+
+  throw new Error(
+    "[e2e] The harness needs a translated article with cover and body images.",
+  );
+}
+
+type BlockRichArticleUnderTest = {
+  readonly path: string;
+  readonly quote: string;
+  readonly listItem: string;
+  readonly mediaAlt: string;
+  readonly videoId: string;
+  readonly videoTitle: string;
+};
+
+/** One article exercising every body-block variant, including opt-in video. */
+function firstDefaultLocaleBlockRichArticle(): BlockRichArticleUnderTest {
+  const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
+  const treeInput = mockContentTreeInputs[language];
+  if (treeInput === undefined) {
+    throw new Error(`[e2e] The default locale ${language} publishes no mock tree.`);
+  }
+
+  const tree = buildContentTree(treeInput);
+  for (const [contentId, page] of mockContentPages[language] ?? []) {
+    if (page.variant !== "article") continue;
+    const path = getCanonicalContentPath(tree, contentId);
+    const quote = page.body.find((block) => block.type === "blockquote");
+    const list = page.body.find((block) => block.type === "list");
+    const media = page.body.find(
+      (block) => block.type === "media" && block.media.type === "image",
+    );
+    const video = page.body.find((block) => block.type === "youtube");
+    if (
+      path === null ||
+      quote?.type !== "blockquote" ||
+      list?.type !== "list" ||
+      list.items[0] === undefined ||
+      media?.type !== "media" ||
+      media.media.type !== "image" ||
+      video?.type !== "youtube"
+    ) {
+      continue;
+    }
+
+    return {
+      path: `${STORY_ROOT}/${path.join("/")}`,
+      quote: quote.text,
+      listItem: list.items[0],
+      mediaAlt: media.media.alt,
+      videoId: video.videoId,
+      videoTitle: video.title,
+    };
+  }
+
+  throw new Error("[e2e] The harness needs one block-rich article.");
+}
+
+const LOCALIZED_ARTICLE = firstPrefixedLocaleArticleWithImages();
+const BLOCK_RICH_ARTICLE = firstDefaultLocaleBlockRichArticle();
+
+/** The scaffold routes AB#124 removed outright rather than redirecting. */
+const REMOVED_SCAFFOLD_ROUTES = ["/blog", "/blog/any-old-slug"];
 
 /** A listing card: the only links in main that carry a level-three heading. */
 function contentCards(page: Page): Locator {
@@ -131,6 +340,7 @@ test("the story root leads into a branch that states its own ancestry", async ({
 
   await expect(page.getByRole("main")).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  expect(await contentCards(page).count()).toBeGreaterThan(0);
 
   const firstBranch = branchLinks(page).first();
   await expect(firstBranch).toHaveAccessibleName(/\S/);
@@ -198,6 +408,238 @@ test("a listed page has one canonical address wherever it appears", async ({
   }
 });
 
+test("a content page opens from its listing and states where it lives", async ({
+  page,
+  externalRequests,
+}) => {
+  const categoryPath = ARTICLE_ROUTE.slice(0, ARTICLE_ROUTE.lastIndexOf("/"));
+
+  await test.step("a keyboard alone reaches the page from its category", async () => {
+    await page.goto(categoryPath, { waitUntil: "domcontentloaded" });
+
+    const card = page.getByRole("main").locator(`a[href="${ARTICLE_ROUTE}"]`);
+    await expect(card).toHaveCount(1);
+    await card.focus();
+    await expect(card).toBeFocused();
+    await page.keyboard.press("Enter");
+    await page.waitForURL(`**${ARTICLE_ROUTE}`);
+  });
+
+  await test.step("it renders as one titled, dated document", async () => {
+    await expect(page.getByRole("main")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    await expect(page.getByRole("main").locator("time").first()).toHaveAttribute(
+      "datetime",
+      /^\d{4}-\d{2}-\d{2}/,
+    );
+  });
+
+  await test.step("its breadcrumb follows canonical ancestry to itself", async () => {
+    // One step per path segment: the story root, each category, then the page.
+    const depth = ARTICLE_ROUTE.split("/").filter(Boolean).length;
+    const steps = breadcrumbSteps(page);
+
+    await expect(steps).toHaveCount(depth);
+    await expect(steps.first().getByRole("link")).toHaveAttribute(
+      "href",
+      STORY_ROOT,
+    );
+    await expect(steps.nth(depth - 2).getByRole("link")).toHaveAttribute(
+      "href",
+      categoryPath,
+    );
+    await expect(steps.last().getByRole("link")).toHaveCount(0);
+    await expect(
+      page.getByRole("main").locator("[aria-current='page']"),
+    ).toHaveCount(1);
+  });
+
+  await test.step("it declares itself canonical at its one address", async () => {
+    // The keyboard step above proves the client navigation. Canonical metadata
+    // is a document-response contract, so verify it on a direct load rather
+    // than coupling the assertion to Next's transient head reconciliation
+    // while the old category document is being replaced.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const canonical = page.locator(
+      `link[rel='canonical'][href$="${ARTICLE_ROUTE}"]`,
+    );
+    await expect(canonical).toHaveCount(1);
+    await expect(page.locator("link[rel='canonical']")).toHaveCount(1);
+  });
+
+  await test.step("its body renders, and its cover keeps its attribution", async () => {
+    const body = page.getByRole("main");
+    await expect(body.getByRole("heading", { level: 2 }).first()).toBeVisible();
+    await expect(body.locator("p").first()).toHaveText(/\S/);
+    const coverFigure = body.locator("article > figure").first();
+    await expect(coverFigure.locator("img")).toBeVisible();
+
+    const coverCaption = await coverFigure.locator("figcaption").textContent();
+    for (const attribution of ARTICLE.coverAttributions) {
+      expect(coverCaption, `the cover must show "${attribution}"`).toContain(
+        attribution,
+      );
+    }
+
+    // The expected text comes from the same adapter data the harness serves, so
+    // the assertion is about what the page owes each image rather than about
+    // wording a clone would replace.
+    expect(ARTICLE.attributions.length).toBeGreaterThan(0);
+    const captions = (
+      await body.locator("figcaption").allTextContents()
+    ).join("\n");
+
+    for (const attribution of ARTICLE.attributions) {
+      expect(captions, `the page must show "${attribution}"`).toContain(
+        attribution,
+      );
+    }
+  });
+
+  await test.step("its table of contents jumps to a heading in the body", async () => {
+    const contents = page
+      .getByRole("main")
+      .getByRole("navigation")
+      .filter({ has: page.locator("a[href^='#']") });
+    await expect(contents).toHaveCount(1);
+
+    const first = contents.getByRole("link").first();
+    const fragment = await hrefOf(first);
+    expect(fragment.startsWith("#")).toBe(true);
+
+    // The anchor the link names has to be a heading that actually exists —
+    // the failure a derived table of contents exists to prevent.
+    const target = page.locator(`h2${fragment.replace("#", "#")}`);
+    await expect(target).toHaveCount(1);
+
+    await first.focus();
+    await page.keyboard.press("Enter");
+    await expect(target).toBeInViewport();
+  });
+
+  await test.step("it links a neighbour in the global article sequence", async () => {
+    const siblings = page
+      .getByRole("main")
+      .getByRole("navigation")
+      .filter({ has: page.locator(`a[href^="${STORY_ROOT}/"]`) })
+      .last();
+
+    const sibling = siblings.getByRole("link").first();
+    await expect(sibling).toHaveAccessibleName(/\S/);
+
+    const siblingPath = await hrefOf(sibling);
+    expect(siblingPath).not.toBe(ARTICLE_ROUTE);
+    expect(ARTICLE.siblingPaths).toContain(siblingPath);
+
+    await sibling.click();
+    await page.waitForURL(`**${siblingPath}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  });
+
+  await test.step("an unrecognized parameter leaves the page alone", async () => {
+    // A content page owns no continuation contract, so `cursor` is just another
+    // parameter arriving from a campaign or messaging app.
+    const response = await page.goto(`${ARTICLE_ROUTE}?cursor=not-a-real-token`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  });
+
+  expect(externalRequests).toEqual([]);
+});
+
+test("a localized article keeps localized media and article metadata", async ({
+  page,
+}) => {
+  const response = await page.goto(LOCALIZED_ARTICLE.path, {
+    waitUntil: "domcontentloaded",
+  });
+
+  expect(response?.status()).toBe(200);
+  await expect(page.locator("html")).toHaveAttribute(
+    "lang",
+    new RegExp(`^${PREFIXED_LOCALE.prefix}\\b`),
+  );
+
+  const imageAlts = await page
+    .locator("main article figure img")
+    .evaluateAll((images) => images.map((image) => image.getAttribute("alt")));
+  expect(imageAlts).toEqual(LOCALIZED_ARTICLE.imageAlts);
+  await expect(page.locator("meta[property='og:image:alt']")).toHaveAttribute(
+    "content",
+    LOCALIZED_ARTICLE.coverAlt,
+  );
+  await expect(page.locator("meta[property='og:type']")).toHaveAttribute(
+    "content",
+    "article",
+  );
+  await expect(
+    page.locator("meta[property='article:published_time']"),
+  ).toHaveAttribute("content", LOCALIZED_ARTICLE.publishedAt);
+
+  const exactLanguageLink = page
+    .getByRole("main")
+    .locator(`a[hreflang="${appUnderTestEnvironment.SITE_LOCALE}"]`);
+  await expect(exactLanguageLink).toHaveAttribute(
+    "href",
+    LOCALIZED_ARTICLE.exactDefaultLocalePath,
+  );
+  await expect(exactLanguageLink).not.toHaveAttribute("aria-describedby", /.+/);
+});
+
+test("a block-rich article stays private until video opt-in", async ({
+  page,
+  externalRequests,
+}) => {
+  await page.route("https://www.youtube-nocookie.com/**", async (route) => {
+    await route.fulfill({ contentType: "text/html", body: "" });
+  });
+
+  await page.goto(BLOCK_RICH_ARTICLE.path, { waitUntil: "domcontentloaded" });
+  const article = page.locator("main article");
+
+  await expect(article.getByText(BLOCK_RICH_ARTICLE.quote, { exact: true })).toBeVisible();
+  await expect(
+    article.getByText(BLOCK_RICH_ARTICLE.listItem, { exact: true }),
+  ).toBeVisible();
+  await expect(article.getByAltText(BLOCK_RICH_ARTICLE.mediaAlt)).toBeVisible();
+  await expect(
+    article.getByText(BLOCK_RICH_ARTICLE.videoTitle, { exact: true }),
+  ).toBeVisible();
+  await expect(article.locator("iframe")).toHaveCount(0);
+  expect(externalRequests).toEqual([]);
+
+  const fallbackLanguageLink = article.locator(
+    `a[hreflang="${PREFIXED_LOCALE.prefix}"]`,
+  );
+  const noteId = await fallbackLanguageLink.getAttribute("aria-describedby");
+  expect(noteId).toBeTruthy();
+  await expect(page.locator(`#${noteId}`)).toHaveText(/\S/);
+
+  await article.getByRole("button").click();
+  await expect(article.locator("iframe")).toHaveAttribute(
+    "src",
+    new RegExp(`/embed/${BLOCK_RICH_ARTICLE.videoId}\\?autoplay=1$`),
+  );
+  expect(externalRequests).toEqual([]);
+});
+
+test("the removed article scaffold routes are gone, not redirected", async ({
+  page,
+}) => {
+  // AB#124 removed `/blog` and `/blog/<slug>` rather than redirecting them:
+  // they were never deployed or indexed, so nobody holds those URLs, and only
+  // the verified production inventory earns a place in the redirect registry.
+  for (const path of REMOVED_SCAFFOLD_ROUTES) {
+    const response = await page.goto(path, { waitUntil: "domcontentloaded" });
+
+    expect(response?.status(), `${path} is expected to be gone`).toBe(404);
+    expect(new URL(page.url()).pathname).toBe(path);
+  }
+});
+
 test("a branch names and links the other locale's version of itself", async ({
   page,
 }) => {
@@ -217,6 +659,11 @@ test("a branch names and links the other locale's version of itself", async ({
       .getByRole("main")
       .locator(`a[href="${PREFIXED_STORY_ROOT}"]`);
     await expect(switchLink).toHaveCount(1);
+    const languageSwitch = page
+      .getByRole("main")
+      .locator(`nav:has(a[href="${PREFIXED_STORY_ROOT}"])`);
+    await expect(languageSwitch).toHaveCount(1);
+    await expect(languageSwitch.locator(":scope > span")).toBeVisible();
 
     await switchLink.click();
     await page.waitForURL(`**${PREFIXED_STORY_ROOT}`);
@@ -226,6 +673,7 @@ test("a branch names and links the other locale's version of itself", async ({
       new RegExp(`^${PREFIXED_LOCALE.prefix}\\b`),
     );
     await expect(page.locator("meta[property='og:image:alt']")).toHaveCount(0);
+    expect(await contentCards(page).count()).toBeGreaterThan(0);
   });
 
   await test.step("a differently cased locale prefix normalizes in that locale", async () => {
