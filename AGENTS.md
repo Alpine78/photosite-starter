@@ -142,6 +142,14 @@ operational events limited to a random correlation identifier, a state, and a re
 error class. No form content is stored anywhere; the processing record is
 `docs/contact-data-flow.md`. Deployments declare themselves through
 `SITE_DEPLOYMENT_STAGE`, which defaults to production so a safeguard fails closed.
+The customer-owned Sanity connection is bootstrapped: a declared content source
+(`SITE_CONTENT_SOURCE`, no default, `mock` refused in a production deployment),
+validated connection settings carrying an optional server-only read token, and a
+project-owned query client over the Content Lake HTTP API that always asks for the
+published perspective, bounds and classifies its failures, never falls back to another
+source, and adds no runtime dependency. Sanity's HTTP surface lives in
+`src/lib/sanity-config.ts` and `src/lib/sanity-client.ts`, and ESLint stops `src/app`
+and `src/components` from importing either (ADR-0006, `docs/sanity-setup.md`).
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test, the portfolio lightbox
@@ -158,7 +166,10 @@ unprefixed-only for now — public continuation routes and
 controls — a category listing is bounded to its first page and answers any `?cursor=`
 with a 404, because none has been issued — lightbox zoom tuning, the gallery-item
 enquiry (AB#60), the fuller contact journey suite (AB#89),
-sitemap/robots, structured data, the Sanity adapter, deployment.
+sitemap/robots, structured data, the Sanity content schemas and adapters that would put
+authored content behind the connection (AB#80, AB#81, AB#82, AB#112, AB#114) — so every
+page still renders from the mock layer — tagged caching and webhook revalidation (AB#83),
+deployment.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
@@ -274,6 +285,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `docs/adr/` | future maintainers | a hard-to-reverse technical decision is made (see below) |
 | `docs/asset-inventory.md` | licensing audit | any third-party asset, font, or shipped dependency is added or removed |
 | `docs/contact-data-flow.md` | the site owner, a visitor who asks, and the AB#117 launch review | the contact form's fields, delivery path, processors, logs, or retention change |
+| `docs/sanity-setup.md` | the site owner and whoever provisions a clone's CMS | the Sanity connection settings, ownership/transfer story, perspective, or failure behavior change |
 | `NOTICE`, `licenses/` | anyone receiving the product | a third-party component with an attribution requirement is added |
 | `.claude/skills/`, `.agents/skills/` | agents | a recurring workflow needs a skill; duplicate into both, no symlinks |
 

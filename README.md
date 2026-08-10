@@ -32,7 +32,9 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 
 - [Next.js](https://nextjs.org) (App Router, TypeScript)
 - [Tailwind CSS](https://tailwindcss.com) v4
-- Headless CMS (planned: [Sanity](https://www.sanity.io); mock data first)
+- Headless CMS: [Sanity](https://www.sanity.io) — connection and data-access boundary in
+  place ([ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)); schemas pending, so the
+  site still runs on the mock layer
 - GitHub for source code
 - Azure DevOps (Boards for project management, Pipelines for CI)
 
@@ -63,6 +65,7 @@ or invalid.
 | `SITE_DEFAULT_SOCIAL_IMAGE_WIDTH` | True intrinsic pixel width of that image |
 | `SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT` | True intrinsic pixel height of that image |
 | `SITE_DEFAULT_SOCIAL_IMAGE_ALT` | Optional alt text for that image; unset emits none |
+| `SITE_CONTENT_SOURCE` | Which store authored content comes from: `mock` or `sanity` |
 
 `SITE_CANONICAL_BASE_URL` must be a bare origin. Credentials, a query, or a
 fragment would be published in `rel="canonical"` and `og:url`, and a base path
@@ -149,6 +152,39 @@ Swapping providers means writing one file next to
 the adapter name. Nothing else in the contact path knows which provider is configured.
 What the form collects, who processes it, and how long anything lives is recorded in
 [docs/contact-data-flow.md](docs/contact-data-flow.md).
+
+### Content source
+
+Where authored content comes from is declared, never inferred.
+
+```bash
+SITE_CONTENT_SOURCE=mock            # "mock" | "sanity"
+```
+
+`mock` reads the project's own demo fixtures — placeholder copy and AI-generated
+placeholder photographs. It is what local development, CI, and the Playwright harness run
+on, and it is **refused in a production deployment**: publishing that material as a
+photographer's own work is misrepresentation, not a mode. As with the contact adapter,
+there is no default and an unset `SITE_DEPLOYMENT_STAGE` counts as production, so the
+guard fails closed.
+
+`sanity` reads the deployment's own Content Lake through four more settings —
+`SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_API_VERSION`, and an optional
+`SANITY_READ_TOKEN` for a private dataset. The Sanity organization, project, dataset,
+assets, and billing belong to the site owner; there is no shared account and no shared
+credential, so handing the site over is a change of settings rather than of code. Every
+read asks for the **published** perspective, and no setting can change that — draft access
+is absent from the code rather than switched off. A failed read raises with a classified
+error; nothing ever falls back to demo content.
+
+Sanity's HTTP surface lives in two files, and ESLint stops `src/app` and `src/components`
+from importing either, so provider knowledge and the read token stay behind the adapter
+boundary. Setup, ownership, transfer, and failure behavior are in
+[docs/sanity-setup.md](docs/sanity-setup.md); the trade-offs are in
+[ADR-0006](docs/adr/0006-sanity-data-access-boundary.md).
+
+Content schemas and adapters are separate stories, so the site still renders from the mock
+layer today.
 
 ```bash
 npm ci
@@ -255,7 +291,11 @@ as a pipeline artifact when the suite fails.
 - [ ] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
   canonical URLs, and Open Graph output done for every current public page; sitemap,
   robots, and structured data pending*
-- [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`*
+- [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`; validated
+  customer-owned connection, published-perspective query client, and the enforced
+  data-access boundary done ([setup](docs/sanity-setup.md),
+  [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)); content schemas, adapters,
+  and tagged caching/webhook revalidation pending*
 - [ ] Production deployment
 - [ ] Redirects for important legacy URLs (first implementation)
 
@@ -313,11 +353,13 @@ root — in every configured locale space, with
 that tree; the curated gallery detail route and tree-driven header and mobile navigation
 are not built yet (AB#104, AB#111). Static routes and authored
 SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
-separate story. The future Sanity adapter remains open.
+separate story. The Sanity connection, its published-perspective query client, and the
+enforced data-access boundary are in place; the schemas and adapters that would put
+authored content behind them are not, so every page still renders from the mock layer.
 The portfolio grid opens a fullscreen lightbox that navigates the loaded result by
 keyboard, control, and gesture and presents the caption and credit of the photograph on
 screen; its zoom tuning and preloading are a later slice. The contact form is built and
 delivers through a replaceable adapter that stores nothing; the gallery-item enquiry
 (AB#60) and the fuller journey suite (AB#89) build on it. Public continuation routes and
-controls, and CMS integration, are still open. Keyword-driven dynamic galleries remain
+controls, and the CMS schemas and adapters, are still open. Keyword-driven dynamic galleries remain
 post-MVP. See the MVP scope checklist above.

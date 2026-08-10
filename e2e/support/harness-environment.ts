@@ -84,4 +84,11 @@ export const appUnderTestEnvironment: Record<string, string> = {
   // credential in the environment or a synthetic enquiry in a real mailbox —
   // the same adapter ADR-0004 §3 requires of the Preview environment.
   CONTACT_DELIVERY_ADAPTER: "sink",
+  // The content boundary, resolved to the project's own fixture layer. The
+  // suite must reach no external service, and a journey asserting against
+  // someone's live Content Lake would fail whenever they published. Declaring
+  // it here rather than leaving it unset also keeps the harness honest: this
+  // is a real choice the application reads, and `mock` is refused in a
+  // production deployment, which the stage above says this is not.
+  SITE_CONTENT_SOURCE: "mock",
 };

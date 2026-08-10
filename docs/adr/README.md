@@ -42,6 +42,7 @@ Two conventions on top of the template:
 | [0003](0003-public-content-tree-and-url-structure.md) | AB#102 | Public content tree, category taxonomy, and localized URL structure | Accepted |
 | [0004](0004-reference-production-host-and-ownership-boundary.md) | AB#109 | Reference production host and ownership boundary | Accepted |
 | [0005](0005-public-image-rendition-boundary.md) | AB#108 | Public image rendition boundary | Accepted |
+| [0006](0006-sanity-data-access-boundary.md) | AB#39 | Sanity data-access boundary and client transport | Proposed |
 
 Expected further entries:
 
