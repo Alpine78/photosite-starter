@@ -79,6 +79,7 @@ describe("category tree structure", () => {
 
     expect(topLevel).toEqual([
       "cat-archive",
+      "cat-behind-the-scenes",
       "cat-events",
       "cat-gear",
       "cat-landscape",
@@ -99,6 +100,7 @@ describe("category tree structure", () => {
       "archive",
       "gear",
       "technique",
+      "behind-the-scenes",
     ]);
   });
 
@@ -532,8 +534,8 @@ describe("public visibility", () => {
   it("keeps a branch category public through its descendants", () => {
     const tree = buildMockContentTree();
 
-    expect(getCanonicalContent(tree, "cat-travel")).toEqual([]);
-    expect(isCategoryPublic(tree, "cat-travel")).toBe(true);
+    expect(getCanonicalContent(tree, "cat-europe")).toEqual([]);
+    expect(isCategoryPublic(tree, "cat-europe")).toBe(true);
     expect(isCategoryPublic(tree, "cat-polar-night")).toBe(true);
   });
 
@@ -547,8 +549,9 @@ describe("public visibility", () => {
       "events",
       "gear",
       "technique",
+      "behind-the-scenes",
     ]);
-    expect(getChildCategories(tree, null)).toHaveLength(6);
+    expect(getChildCategories(tree, null)).toHaveLength(7);
   });
 
   it("keeps a category public when it only holds a secondary listing", () => {

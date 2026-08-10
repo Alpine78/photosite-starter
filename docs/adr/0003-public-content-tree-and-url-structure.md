@@ -2,8 +2,35 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
+**Amended:** 2026-08-10 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
+
+## Amendments
+
+This broad record remains accepted as a whole. A scoped clause is amended in place only
+when implementation produces evidence the original text did not have, and each partial
+amendment preserves the old rule and records its date, reason, replacement, and affected
+sections as required by the ADR convention.
+
+### 2026-08-10 — Pre-launch scaffold routes are removed, not redirected (AB#124)
+
+Decision 6 originally reserved `/portfolio`, `/blog`, and `/blog/<slug>` "for
+compatibility and redirects rather than new canonical content". Implementing AB#124
+established what that sentence assumed without checking: none of these routes has ever
+been deployed, published, or indexed — they resolve only on a developer's machine. A
+redirect is owed to a URL somebody can be holding, and adding one for a URL nobody has
+puts an unverified source into the redirect registry that every collision, loop, and
+chain check then has to carry.
+
+The decision now reads that such routes are removed and answer an ordinary 404, and that
+only URLs verified in the production Joomla inventory (AB#19) earn a redirect. AB#124
+removed `/blog` and `/blog/<slug>` on that basis; AB#104 applies the same rule to
+`/portfolio` unless the inventory says otherwise.
+
+Changed text: decision 6's closing paragraph, one consequence bullet, and the split
+implementation action items 8–11. The canonical route contract, the redirect-history
+rules, and every other decision are unaffected.
 
 ## Context
 
@@ -1566,16 +1593,16 @@ The decision is accepted. Remaining implementation belongs to the stories named 
        decided here.
 7. [ ] Record the deployment-specific legacy mapping in AB#19 against the target classes
        in decision 9, including the old site root.
-8. [ ] Retire the pre-launch `/portfolio` (AB#104) and `/blog` (AB#124) routes in favour
-       of canonical story-namespace routes. Because neither was ever deployed or indexed,
-       they are removed outright rather than redirected; only AB#19's verified production
-       inventory earns redirects. AB#124 removed `/blog` and `/blog/<slug>`.
-9. [ ] Map the mock `Gallery` and `Article` types onto the shared content-page boundary
-       when the content tree is implemented. AB#124 did the `Article` half: `Article`
-       became the `article` variant of the shared `ContentPage`, and the mock category
-       taxonomy it carried became ordinary tree categories.
-10. [ ] Implement the post-launch localized-version authoring workflow in AB#125.
-11. [ ] Design Azure Foundry-default, provider-neutral AI editorial assistance in
+8. [x] Remove the pre-launch `/blog` and `/blog/<slug>` routes in AB#124. They were never
+       deployed or indexed, so they answer 404 rather than entering the compatibility
+       redirect registry; only AB#19's verified production inventory earns redirects.
+9. [ ] Apply the same evidence rule to the pre-launch `/portfolio` route in AB#104.
+10. [x] Map the mock `Article` type onto the shared content-page boundary in AB#124. It is
+        now the `article` variant, and its mock taxonomy is represented by ordinary tree
+        categories and canonical/secondary placements.
+11. [ ] Map the mock `Gallery` type onto the shared content-page boundary in AB#104.
+12. [ ] Implement the post-launch localized-version authoring workflow in AB#125.
+13. [ ] Design Azure Foundry-default, provider-neutral AI editorial assistance in
         AB#126.
 
 ## What this ADR did not establish

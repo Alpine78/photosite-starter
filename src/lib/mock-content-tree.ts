@@ -6,10 +6,10 @@
  * business-specific taxonomy belongs here.
  *
  * The shape exercises the decided structure end to end: several top-level
- * roots, a branch category that is public only through its descendants, a
- * category public only through a secondary listing, the maximum authored depth,
- * an empty leaf that stays out of public navigation, both content variants, and
- * an unplaced draft.
+ * roots, branch categories that are public only through their descendants,
+ * categories public only through a secondary listing, the maximum authored
+ * depth, an empty leaf that stays out of public navigation, both content
+ * variants, and an unplaced draft.
  *
  * One input per language subtag, because ADR-0003 gives each locale its own
  * tree: labels and slugs are translated while `categoryId` and `contentId` stay
@@ -30,16 +30,17 @@ const englishContentTree: ContentTreeInput = {
   categories: [
     // Top level.
     { categoryId: "cat-landscape", parentId: null, slug: "landscape", label: "Landscape", order: 0 },
-    // Branch category: public only because its descendants are.
     { categoryId: "cat-travel", parentId: null, slug: "travel", label: "Travel", order: 1 },
     // Public only through a secondary listing, which is something to show.
     { categoryId: "cat-events", parentId: null, slug: "events", label: "Events", order: 2 },
     // Empty leaf: no content, no descendants, so it stays out of the public tree.
     { categoryId: "cat-archive", parentId: null, slug: "archive", label: "Archive", order: 3 },
-    // Editorial subjects. Galleries and articles share one tree, so these are
-    // ordinary categories rather than a separate article taxonomy.
+    // The subjects the articles were already filed under before they moved into
+    // this tree. Galleries and articles share one tree, so they are ordinary
+    // categories rather than a separate article taxonomy.
     { categoryId: "cat-gear", parentId: null, slug: "gear", label: "Gear", order: 4 },
     { categoryId: "cat-technique", parentId: null, slug: "technique", label: "Technique", order: 5 },
+    { categoryId: "cat-behind-the-scenes", parentId: null, slug: "behind-the-scenes", label: "Behind the scenes", order: 6 },
 
     { categoryId: "cat-coastal", parentId: "cat-landscape", slug: "coastal", label: "Coastal", order: 0 },
 
@@ -73,16 +74,16 @@ const englishContentTree: ContentTreeInput = {
       published: true,
       canonicalCategoryId: "cat-polar-night",
     },
+    // The migrated articles keep the categories they were already filed under.
+    // The old model listed them unordered; the migration rule is that the first
+    // authored category became the canonical placement and any remaining ones
+    // became secondary listings, so no article silently changed subject.
     {
       contentId: "content-choosing-a-telephoto-lens",
       variant: "article",
       slug: "choosing-a-telephoto-lens",
       published: true,
       canonicalCategoryId: "cat-gear",
-      // An article listed in a second category, so a secondary listing entry
-      // for a content page — not only for a gallery — links to the one
-      // canonical detail route.
-      secondaryCategoryIds: ["cat-technique"],
     },
     {
       contentId: "content-understanding-exposure-triangle",
@@ -92,11 +93,14 @@ const englishContentTree: ContentTreeInput = {
       canonicalCategoryId: "cat-technique",
     },
     {
+      // Was filed under Travel and Behind the scenes, so it is the article that
+      // exercises a secondary listing linking to one canonical detail route.
       contentId: "content-packing-for-a-photo-trip",
       variant: "article",
       slug: "packing-for-a-photo-trip",
       published: true,
-      canonicalCategoryId: "cat-gear",
+      canonicalCategoryId: "cat-travel",
+      secondaryCategoryIds: ["cat-behind-the-scenes"],
     },
     {
       contentId: "content-shooting-in-low-light",

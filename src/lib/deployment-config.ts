@@ -44,12 +44,17 @@ export type BuiltInLabels = {
     readonly main: string;
     readonly footer: string;
     readonly breadcrumb: string;
+    /** Names the links to a page's neighbours in publication order. */
+    readonly adjacentContent: string;
     readonly menu: string;
     readonly closeMenu: string;
   };
   readonly actions: {
     readonly viewPortfolio: string;
     readonly contactAboutService: string;
+    /** The newer neighbour, and the older one, in publication order. */
+    readonly previousPage: string;
+    readonly nextPage: string;
     readonly watchOnYouTube: string;
   };
   readonly footer: {
@@ -122,6 +127,8 @@ export type BuiltInLabels = {
      * no tree depth and own no route of their own.
      */
     readonly tags: string;
+    /** Names the table of contents derived from a body's level-2 headings. */
+    readonly onThisPage: string;
     /** Accessible name of the language switch. */
     readonly languages: string;
     /**
@@ -216,12 +223,15 @@ const englishLabels = {
     main: "Main",
     footer: "Footer",
     breadcrumb: "Breadcrumb",
+    adjacentContent: "Story navigation",
     menu: "Menu",
     closeMenu: "Close",
   },
   actions: {
     viewPortfolio: "View portfolio",
     contactAboutService: "Contact about this",
+    previousPage: "Previous",
+    nextPage: "Next",
     watchOnYouTube: "Watch on YouTube",
   },
   footer: {
@@ -266,6 +276,7 @@ const englishLabels = {
     categories: "Categories",
     content: "Stories",
     tags: "Tags",
+    onThisPage: "On this page",
     languages: "Language",
     parentCategoryFallback: "opens the parent category",
     storyRootFallback: "opens all stories",
@@ -302,12 +313,15 @@ const finnishLabels = {
     main: "Päävalikko",
     footer: "Alatunniste",
     breadcrumb: "Murupolku",
+    adjacentContent: "Tarinanavigointi",
     menu: "Valikko",
     closeMenu: "Sulje",
   },
   actions: {
     viewPortfolio: "Katso portfolio",
     contactAboutService: "Kysy lisää",
+    previousPage: "Edellinen",
+    nextPage: "Seuraava",
     watchOnYouTube: "Katso YouTubessa",
   },
   footer: {
@@ -352,6 +366,7 @@ const finnishLabels = {
     categories: "Kategoriat",
     content: "Tarinat",
     tags: "Avainsanat",
+    onThisPage: "Tällä sivulla",
     languages: "Kieli",
     parentCategoryFallback: "avaa yläkategorian",
     storyRootFallback: "avaa kaikki tarinat",

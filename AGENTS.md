@@ -103,7 +103,9 @@ Articles have moved into that tree: the shared project-owned content-page bounda
 (`src/lib/content-page.ts`) carries the variant, the six ADR-0003 body blocks, the cover,
 the publication date, and tags, and the `article` variant renders at its one canonical
 detail route in every configured locale space, with breadcrumbs following canonical
-ancestry, self-referencing canonical metadata, `hreflang`/`x-default` alternates, an
+ancestry, the ADR-required table of contents derived from the body's level-2 headings,
+sibling navigation read through a bounded two-row neighbour query over the global article
+publication order, self-referencing canonical metadata, `hreflang`/`x-default` alternates, an
 Open Graph article, and the identity-based language switch. The pre-launch `/blog` and
 `/blog/<slug>` scaffold routes were removed rather than redirected — they were never
 deployed or indexed, and only AB#19's verified production inventory earns redirects.

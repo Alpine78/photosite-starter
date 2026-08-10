@@ -5,12 +5,13 @@ import { ContentArticle } from "@/components/content-article";
 import type { BreadcrumbStep } from "@/components/breadcrumbs";
 import type { LanguageLink } from "@/components/language-switch";
 import {
+  getAdjacentContent,
   getCategoryListing,
   getContentPage,
   getContentRedirects,
   getContentTrees,
 } from "@/lib/content";
-import type { ContentPage } from "@/lib/content-page";
+import { asArticlePage, type ArticleContentPage } from "@/lib/content-page";
 import {
   getStoryRoutePath,
   getStoryRouteTrail,
@@ -85,17 +86,24 @@ async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
 }
 
 /**
- * The page a content route names, or `undefined` when this locale publishes no
- * body for it — which is a defect the fixture tests guard against, not a state
+ * The article a content route names, or `undefined` when this locale publishes
+ * no body for it — a defect the fixture tests guard against rather than a state
  * a visitor should reach, so the route answers 404 rather than a blank page.
+ *
+ * `asArticlePage` also re-checks the variant and identity of what the source
+ * returned. The resolver already keeps unrendered variants out of the route
+ * space, so this is the second lock: an adapter that answered with a different
+ * page must not publish it at this canonical URL.
  */
 async function resolveArticle(
   locale: string,
   route: StoryRoute,
-): Promise<ContentPage | undefined> {
-  return route.kind === "content"
-    ? getContentPage(locale, route.contentId)
-    : undefined;
+): Promise<ArticleContentPage | undefined> {
+  if (route.kind !== "content") return undefined;
+  return asArticlePage(
+    route.contentId,
+    await getContentPage(locale, route.contentId),
+  );
 }
 
 function branchTitle(
@@ -130,10 +138,7 @@ function listRouteVersions(
  * that has no name for it falls back to the tag itself rather than to ours.
  */
 function languageName(locale: string): string {
-  const { language } = new Intl.Locale(locale);
-  return (
-    new Intl.DisplayNames([locale], { type: "language" }).of(language) ?? locale
-  );
+  return new Intl.DisplayNames([locale], { type: "language" }).of(locale) ?? locale;
 }
 
 /**
@@ -288,6 +293,11 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
       notFound();
     }
 
+    // Two bounded rows, not the article set: `getAdjacentContent` asks the
+    // adapter for the neighbours either side of this page in the global
+    // publication order the pre-migration article route already used.
+    const { previous, next } = await getAdjacentContent(locale, route.contentId);
+
     return (
       <ContentArticle
         locale={locale}
@@ -301,6 +311,22 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
           article.title,
         )}
         languages={languages}
+        {...(previous === undefined
+          ? {}
+          : {
+              previous: {
+                title: previous.title,
+                href: buildStoryPath(config, locale, previous.path),
+              },
+            })}
+        {...(next === undefined
+          ? {}
+          : {
+              next: {
+                title: next.title,
+                href: buildStoryPath(config, locale, next.path),
+              },
+            })}
         labels={labels}
       />
     );

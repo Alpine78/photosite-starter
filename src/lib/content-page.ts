@@ -19,7 +19,6 @@
  * boundary instead of leaking a query type into a component.
  */
 
-import type { ContentVariant } from "@/lib/content-tree";
 import type { ImageMedia, Media } from "@/lib/media";
 
 /**
@@ -43,18 +42,21 @@ export type ContentBlock =
     };
 
 /**
- * One public content page.
+ * What both variants of a public content page carry.
  *
  * The first five fields are the same ones a listing card projects, and the mock
  * source composes both from one record so a card and its detail page cannot
  * disagree. A CMS adapter projects them from one document for the same reason —
  * which is also why a listing query must never reach for `body`.
+ *
+ * `cover` is an image rather than the general `Media`, matching
+ * `ContentListingRecord`: a cover is chosen to be *shown* on a card and at the
+ * head of a page, and nothing on this site can play a video yet. Widening it
+ * would let a page declare a cover that every surface then silently drops.
  */
-export type ContentPage = {
+type ContentPageBase = {
   /** Immutable project identity, shared with the tree placement. */
   readonly contentId: string;
-  /** Must match the placement's variant; the tree is authoritative. */
-  readonly variant: ContentVariant;
   readonly title: string;
   /** Short lead introducing the page; omitted when it has none. */
   readonly summary?: string;
@@ -70,7 +72,55 @@ export type ContentPage = {
   readonly body: readonly ContentBlock[];
 };
 
-/** The data-access seam a detail route reads one content page through. */
+/**
+ * An editorial page. Its body is the page; it acquires no gallery result set
+ * from the media placed in that body (ADR-0003 decision 1).
+ */
+export type ArticleContentPage = ContentPageBase & {
+  readonly variant: "article";
+};
+
+/**
+ * A curated photographic series. Its ordered result set is the shared gallery
+ * contract's (AB#66) and is deliberately not a field here; AB#104 renders it.
+ */
+export type GalleryContentPage = ContentPageBase & {
+  readonly variant: "gallery";
+};
+
+/**
+ * One public content page. Discriminated on the variant so a renderer that only
+ * handles one of them has to say so, rather than reading a field the other
+ * variant never fills.
+ */
+export type ContentPage = ArticleContentPage | GalleryContentPage;
+
+/**
+ * The data-access seam a detail route reads one content page through.
+ *
+ * The locale is part of the request, not context: ADR-0003 gives each locale its
+ * own tree and its own authored text, and a page may publish in one locale
+ * without existing in another. An adapter that took only the id would have to
+ * guess which language it was being asked for.
+ */
 export type ContentPageSource = (
+  locale: string,
   contentId: string,
 ) => Promise<ContentPage | undefined>;
+
+/**
+ * The page a content route resolved, when it is one this renderer handles and
+ * really is the page that was asked for.
+ *
+ * The identity check is not ceremony: the route resolved a `contentId` from the
+ * tree, and rendering whatever the source returned under that path would let an
+ * adapter defect publish one page at another's canonical URL.
+ */
+export function asArticlePage(
+  contentId: string,
+  page: ContentPage | undefined,
+): ArticleContentPage | undefined {
+  return page?.variant === "article" && page.contentId === contentId
+    ? page
+    : undefined;
+}

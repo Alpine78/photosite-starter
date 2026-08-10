@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { asArticlePage, type ContentPage } from "@/lib/content-page";
 import { buildContentTree, type ContentTree } from "@/lib/content-tree";
 import { mockContentListingRecords } from "@/lib/mock-content-listing";
 import { mockContentPages } from "@/lib/mock-content-pages";
@@ -17,6 +18,27 @@ import { mockContentTreeInputs } from "@/lib/mock-content-tree";
  * route that renders it.
  */
 const languages = ["en", "fi"] as const;
+
+const articlePage: ContentPage = {
+  contentId: "article-id",
+  variant: "article",
+  title: "Article",
+  publishedAt: "2024-01-01",
+  body: [],
+};
+
+describe("asArticlePage", () => {
+  it("accepts only the requested article identity", () => {
+    expect(asArticlePage("article-id", articlePage)).toBe(articlePage);
+    expect(asArticlePage("another-id", articlePage)).toBeUndefined();
+  });
+
+  it("rejects another content variant at an article route", () => {
+    expect(
+      asArticlePage("article-id", { ...articlePage, variant: "gallery" }),
+    ).toBeUndefined();
+  });
+});
 
 const trees: ReadonlyMap<string, ContentTree> = new Map(
   languages.map((language) => [

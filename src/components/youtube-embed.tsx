@@ -51,7 +51,7 @@ export function YoutubeEmbed({
         <span aria-hidden="true">▶</span>
         {watchLabel}
       </button>
-      <p className="text-xs text-foreground/50">
+      <p className="text-xs text-foreground/70">
         {labels.youtubePrivacyNotice}
       </p>
     </div>

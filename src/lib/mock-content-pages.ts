@@ -22,6 +22,7 @@
 
 import type { ContentBlock, ContentPage } from "@/lib/content-page";
 import type { ContentVariant } from "@/lib/content-tree";
+import { withLocalizedText } from "@/lib/media";
 import { mockContentListingRecords } from "@/lib/mock-content-listing";
 import { mockImages } from "@/lib/mock-media";
 
@@ -247,11 +248,14 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
       },
       {
         type: "media",
-        media: {
-          ...mockImages.forestStream,
+        // The same rendition its English version places, with Finnish words:
+        // alt text and a caption are read aloud and displayed in the page's own
+        // language, so they are authored rather than copied across locales.
+        media: withLocalizedText(mockImages.forestStream, {
+          alt: "Metsäpuro virtaa tummien sammaleisten kivien yli",
           caption:
             "Paikkamerkkikuva ja -kuvateksti; korvataan oikealla valokuvalla CMS:stä.",
-        },
+        }),
       },
       { type: "heading", level: 2, text: "Valotusaika: liike ja tärähdys" },
       {

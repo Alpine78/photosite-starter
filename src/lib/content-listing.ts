@@ -32,7 +32,11 @@ import {
   type ContentTree,
   type ContentVariant,
 } from "@/lib/content-tree";
-import { toCategoryLink, type CategoryLink } from "@/lib/content-routes";
+import {
+  isRoutedContentVariant,
+  toCategoryLink,
+  type CategoryLink,
+} from "@/lib/content-routes";
 import type { ImageMedia } from "@/lib/media";
 
 /**
@@ -104,6 +108,180 @@ export type ContentListingQuery = {
 export type ContentListingSource = (
   query: ContentListingQuery,
 ) => Promise<readonly ContentListingRecord[]>;
+
+// ---------------------------------------------------------------------------
+// Adjacent pages
+// ---------------------------------------------------------------------------
+
+/**
+ * One page's neighbours in the variant's global publication order.
+ * `previous` is the newer page and `next` the older one, matching the article
+ * sequence the pre-migration detail route exposed.
+ */
+export type AdjacentContent = {
+  readonly previous?: ContentListingEntry;
+  readonly next?: ContentListingEntry;
+};
+
+/**
+ * A bounded neighbour query: the candidates, the anchor to sit between, and the
+ * two rows that can result.
+ *
+ * Two rows, not a page: an adapter answers this with a keyset comparison
+ * against the anchor's `(publishedAt, contentId)` in `ordering` and a limit of
+ * one in each direction. That is what keeps sibling navigation correct in an
+ * archive of any size — a page deep in the sequence has neighbours just as a
+ * recent one does, without the route ever reading the whole article set to find
+ * them.
+ */
+export type AdjacentContentQuery = {
+  readonly contentIds: readonly string[];
+  readonly ordering: typeof CONTENT_LISTING_ORDERING;
+  /** The page whose neighbours are wanted; never returned by the query. */
+  readonly anchorContentId: string;
+  readonly limit: 2;
+};
+
+/** The data-access seam a detail route reads its sibling links through. */
+export type AdjacentContentSource = (
+  locale: string,
+  query: AdjacentContentQuery,
+) => Promise<AdjacentContentRecords>;
+
+export type AdjacentContentRecords = {
+  readonly previous?: ContentListingRecord;
+  readonly next?: ContentListingRecord;
+};
+
+/**
+ * The neighbour query for one page. Its candidates are all published pages of
+ * the same routed variant, wherever their canonical categories live. AB#124
+ * migrated the old flat article route, whose previous/next links followed one
+ * global article sequence; changing that sequence to category-local would be a
+ * visitor-navigation regression rather than a route migration.
+ *
+ * A variant with no detail route is left out too. Unlike a listing card, which
+ * keeps pointing at the one canonical address every published page owns, a
+ * sibling link exists only to carry a reader onward — offering one that lands on
+ * a 404 is worse than offering the next page they can actually open. The filter
+ * disappears of its own accord once every variant has a route.
+ */
+export function buildAdjacentContentQuery(
+  tree: ContentTree,
+  contentId: string,
+): AdjacentContentQuery | null {
+  const anchor = tree.placements.get(contentId);
+  if (
+    anchor === undefined ||
+    !anchor.published ||
+    anchor.canonicalCategoryId === null ||
+    !isRoutedContentVariant(anchor.variant)
+  ) {
+    return null;
+  }
+
+  const contentIds = [...tree.placements.values()]
+    .filter(
+      (placement) =>
+        placement.published &&
+        placement.canonicalCategoryId !== null &&
+        placement.variant === anchor.variant &&
+        isRoutedContentVariant(placement.variant),
+    )
+    .map((placement) => placement.contentId);
+
+  // The anchor has to survive the filter, or the neighbour comparison has
+  // nothing to sit between.
+  if (!contentIds.includes(contentId)) return null;
+
+  return {
+    contentIds,
+    ordering: CONTENT_LISTING_ORDERING,
+    anchorContentId: contentId,
+    limit: 2,
+  };
+}
+
+/**
+ * Applies `CONTENT_LISTING_ORDERING` to the candidates an in-memory adapter
+ * already holds and picks the rows either side of the anchor. A store-backed
+ * adapter expresses the same two comparisons as two `LIMIT 1` queries and
+ * returns what they found.
+ */
+export function selectAdjacentRecords(
+  records: readonly ContentListingRecord[],
+  anchorContentId: string,
+): AdjacentContentRecords {
+  const ordered = order(records);
+  const anchor = ordered.findIndex(
+    (record) => record.contentId === anchorContentId,
+  );
+  if (anchor === -1) return {};
+
+  const previous = ordered[anchor - 1];
+  const next = ordered[anchor + 1];
+
+  return {
+    ...(previous === undefined ? {} : { previous }),
+    ...(next === undefined ? {} : { next }),
+  };
+}
+
+/**
+ * Turns the rows an adapter returned into links, each carrying the one
+ * canonical detail path its page owns. The source owns the keyset comparison
+ * that selects the immediate rows; this boundary can still reject an anchor,
+ * duplicate, out-of-sequence candidate, or row with no canonical path.
+ */
+export function resolveAdjacentContent({
+  tree,
+  contentId,
+  records,
+}: {
+  readonly tree: ContentTree;
+  readonly contentId: string;
+  readonly records: AdjacentContentRecords;
+}): AdjacentContent {
+  const query = buildAdjacentContentQuery(tree, contentId);
+  const candidates = new Set(query?.contentIds ?? []);
+
+  if (
+    records.previous !== undefined &&
+    records.previous.contentId === records.next?.contentId
+  ) {
+    throw new TypeError(
+      `adjacent query returned content "${records.previous.contentId}" in both directions`,
+    );
+  }
+
+  const toEntry = (
+    record: ContentListingRecord | undefined,
+  ): ContentListingEntry | undefined => {
+    if (record === undefined) return undefined;
+    if (record.contentId === contentId || !candidates.has(record.contentId)) {
+      throw new TypeError(
+        `adjacent record "${record.contentId}" is not a candidate for "${contentId}"`,
+      );
+    }
+
+    const placement = tree.placements.get(record.contentId);
+    const path = getCanonicalContentPath(tree, record.contentId);
+    if (placement === undefined || path === null) {
+      throw new Error(
+        `adjacent content "${record.contentId}" has no canonical detail path`,
+      );
+    }
+    return { ...record, variant: placement.variant, path };
+  };
+
+  const previous = toEntry(records.previous);
+  const next = toEntry(records.next);
+
+  return {
+    ...(previous === undefined ? {} : { previous }),
+    ...(next === undefined ? {} : { next }),
+  };
+}
 
 /**
  * Every published page a branch lists: the ones it owns canonically and the

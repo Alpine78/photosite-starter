@@ -66,6 +66,50 @@ export type VideoMedia = MediaMetadata & {
 
 export type Media = ImageMedia | VideoMedia;
 
+/** Words about an image, which are authored per locale. */
+export type LocalizedMediaText = {
+  /** Required so the source locale's alternative text cannot leak through. */
+  readonly alt: string;
+  /** Omission means this locale publishes no caption. */
+  readonly caption?: string;
+  /** Omission preserves a language-neutral name or attribution line. */
+  readonly credit?: string;
+};
+
+/**
+ * The same public rendition, described in another language.
+ *
+ * A photograph's bytes are language-neutral; the sentences about it are not. A
+ * localized page must not repeat the source locale's alt text — a screen reader
+ * would announce it in the wrong language inside a page that declares another —
+ * and must not ship a second derivative just to carry different words. So text
+ * is projected over the identical rendition: identity, `src`, version, and
+ * dimensions are untouched, and nothing here can widen what the browser
+ * receives.
+ *
+ * Alternative text is mandatory. An omitted caption is removed rather than
+ * inherited from the source language; an omitted credit keeps the value it
+ * already had, because a credit is usually a name rather than a sentence.
+ */
+export function withLocalizedText(
+  image: ImageMedia,
+  text: LocalizedMediaText,
+): ImageMedia {
+  const localized = {
+    ...image,
+    alt: text.alt,
+    ...(text.credit === undefined ? {} : { credit: text.credit }),
+  };
+
+  if (text.caption === undefined) {
+    delete localized.caption;
+  } else {
+    localized.caption = text.caption;
+  }
+
+  return localized;
+}
+
 export type PublicImageMediaInput = {
   readonly mediaId: string;
   /** Effective server-side visibility; non-public media fails closed. */

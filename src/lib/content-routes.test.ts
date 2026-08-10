@@ -70,7 +70,7 @@ describe("resolveStoryRoute", () => {
 
   it("resolves a canonical content slug beneath its category", () => {
     expect(
-      resolveStoryRoute(english, ["gear", "packing-for-a-photo-trip"]),
+      resolveStoryRoute(english, ["travel", "packing-for-a-photo-trip"]),
     ).toEqual({
       kind: "content",
       contentId: "content-packing-for-a-photo-trip",
@@ -106,22 +106,25 @@ describe("resolveStoryRoute", () => {
   });
 
   it("does not resolve content beneath a category it is only listed in", () => {
-    // `content-choosing-a-telephoto-lens` is canonically placed in Gear and
-    // listed in Technique. Only the canonical placement owns a detail route.
+    // `content-packing-for-a-photo-trip` is canonically placed in Travel and
+    // listed in Behind the scenes. Only the canonical placement owns a route.
     expect(
-      resolveStoryRoute(english, ["gear", "choosing-a-telephoto-lens"]),
+      resolveStoryRoute(english, ["travel", "packing-for-a-photo-trip"]),
     ).toEqual({
       kind: "content",
-      contentId: "content-choosing-a-telephoto-lens",
+      contentId: "content-packing-for-a-photo-trip",
     });
     expect(
-      resolveStoryRoute(english, ["technique", "choosing-a-telephoto-lens"]),
+      resolveStoryRoute(english, [
+        "behind-the-scenes",
+        "packing-for-a-photo-trip",
+      ]),
     ).toBeNull();
   });
 
   it("does not resolve unpublished or unplaced content", () => {
     expect(resolveStoryRoute(english, ["unplaced-draft"])).toBeNull();
-    expect(resolveStoryRoute(english, ["gear", "unplaced-draft"])).toBeNull();
+    expect(resolveStoryRoute(english, ["travel", "unplaced-draft"])).toBeNull();
   });
 
   it("does not resolve a content slug at the story root", () => {
@@ -132,7 +135,7 @@ describe("resolveStoryRoute", () => {
 
   it("does not resolve a path continuing past a content page", () => {
     expect(
-      resolveStoryRoute(english, ["gear", "packing-for-a-photo-trip", "more"]),
+      resolveStoryRoute(english, ["travel", "packing-for-a-photo-trip", "more"]),
     ).toBeNull();
   });
 
@@ -208,13 +211,13 @@ describe("getStoryRouteTrail", () => {
   });
 
   it("follows canonical ancestry, not a secondary listing", () => {
-    // Listed in Events as well, but Gear owns the placement and the trail.
+    // Listed in Behind the scenes as well, but Travel owns the placement.
     expect(
       getStoryRouteTrail(english, {
         kind: "content",
-        contentId: "content-choosing-a-telephoto-lens",
+        contentId: "content-packing-for-a-photo-trip",
       }).map((step) => step.categoryId),
-    ).toEqual(["cat-gear"]);
+    ).toEqual(["cat-travel"]);
   });
 
   it("gives the story root no trail", () => {

@@ -227,9 +227,10 @@ as a pipeline artifact when the suite fails.
 - [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
   — *category domain model, canonical placement contract, the server-rendered category
   branch routes with breadcrumbs, bounded deterministic listings, and permanent redirects
-  for retired paths, and the canonical article detail route done; the curated gallery
-  detail route (AB#104), tree-driven header and mobile navigation (AB#111), and listing
-  continuation controls pending*
+  for retired paths, and the canonical article detail route — breadcrumbs, a table of
+  contents derived from the body's headings, and publication-ordered sibling navigation — done; the curated
+  gallery detail route (AB#104), tree-driven header and mobile navigation (AB#111), and
+  listing continuation controls pending*
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))
@@ -295,8 +296,9 @@ Found a bug or have an idea? Open an issue — that is welcome.
 
 ## Status
 
-🚧 Work in progress — MVP in progress. The public pages (home, services, blog, and the
-initial portfolio grid) are built against a mock data layer whose images use the
+🚧 Work in progress — MVP in progress. The public pages (home, services, contact, the
+canonical article routes in the content tree, and the initial portfolio grid) are built
+against a mock data layer whose images use the
 accepted project-owned public rendition contract and whose portfolio uses the shared
 paginated gallery result contract. The content tree's category domain model, canonical
 placement contract, and public category branch routes are built — breadcrumbs,

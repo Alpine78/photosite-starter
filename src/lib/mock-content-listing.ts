@@ -15,6 +15,7 @@
  */
 
 import type { ContentListingRecord } from "@/lib/content-listing";
+import { withLocalizedText } from "@/lib/media";
 import { mockImages } from "@/lib/mock-media";
 
 const englishRecords: readonly ContentListingRecord[] = [
@@ -54,7 +55,7 @@ const englishRecords: readonly ContentListingRecord[] = [
     summary:
       "Aperture, shutter speed, and ISO are taught as separate controls, but mastering them means learning to trade one against another fluently.",
     publishedAt: "2024-07-04",
-    cover: mockImages.lakesideReeds,
+    cover: mockImages.coastalLandscape,
   },
   {
     // No cover on purpose, like the polar night gallery above: a card and a
@@ -75,6 +76,15 @@ const englishRecords: readonly ContentListingRecord[] = [
   },
 ];
 
+/**
+ * The same public rendition the English records use, described in Finnish. Alt
+ * text is what a screen reader announces inside a page that declares `lang="fi"`,
+ * so it is authored per locale even though the bytes are shared.
+ */
+const finnishCoastalLandscape = withLocalizedText(mockImages.coastalLandscape, {
+  alt: "Kivinen rantaviiva tyynen veden äärellä pilvisen taivaan alla",
+});
+
 const finnishRecords: readonly ContentListingRecord[] = [
   {
     contentId: "content-coastal-mornings",
@@ -82,7 +92,7 @@ const finnishRecords: readonly ContentListingRecord[] = [
     summary:
       "Ensimmäinen valo rantaviivalla, kuvattuna useiden aikaisten aamujen aikana.",
     publishedAt: "2024-06-18",
-    cover: mockImages.coastalLandscape,
+    cover: finnishCoastalLandscape,
   },
   {
     contentId: "content-polar-night-sessions",
@@ -96,7 +106,7 @@ const finnishRecords: readonly ContentListingRecord[] = [
     summary:
       "Aukko, valotusaika ja herkkyys opetetaan erillisinä säätiminä, mutta niiden hallinta tarkoittaa sujuvaa vaihtokauppaa yhden ja toisen välillä.",
     publishedAt: "2024-07-04",
-    cover: mockImages.lakesideReeds,
+    cover: finnishCoastalLandscape,
   },
 ];
 

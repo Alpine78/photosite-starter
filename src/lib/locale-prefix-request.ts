@@ -74,15 +74,23 @@ function resolveStorySegments(
 }
 
 /**
- * The current path of a previously published branch in this locale's space, or
- * `null` when the path has no recorded history.
+ * Where a previously published path in this locale's space leads now, or `null`
+ * when it has no recorded history — or when its recorded target is not a route
+ * this application serves.
+ *
+ * The second case matters as much as the first. Recorded history covers every
+ * variant, while the route space covers only the ones with a renderer, so a
+ * retired gallery path has a current canonical target that would answer 404. A
+ * permanent redirect onto it would teach browsers and crawlers a dead address,
+ * so the path keeps its own honest 404 until that route exists.
  */
-function resolveHistoricalStoryPath(
+function resolveHistoricalStoryTarget(
   config: LocaleRouteConfig,
+  trees: LocalizedContentTrees,
   redirects: LocalizedContentRedirects,
   localeRoute: LocaleRoute,
   segments: readonly string[],
-): string | null {
+): { readonly path: string; readonly route: StoryRoute } | null {
   const [namespace, ...branch] = segments;
   if (namespace !== localeRoute.storyNamespace) return null;
 
@@ -90,9 +98,30 @@ function resolveHistoricalStoryPath(
     redirects.get(localeRoute.locale),
     branch,
   );
-  return target === null
-    ? null
-    : buildStoryPath(config, localeRoute.locale, target);
+  if (target === null) return null;
+
+  const tree = trees.get(localeRoute.locale);
+  const route = tree === undefined ? null : resolveStoryRoute(tree, target);
+  if (route === null) return null;
+
+  return {
+    path: buildStoryPath(config, localeRoute.locale, target),
+    route,
+  };
+}
+
+/**
+ * Whether a continuation token means anything at this route.
+ *
+ * `cursor` is the listing contract's parameter. On a branch it is recognized —
+ * and rejected, because no listing cursor has been issued yet, so a token here
+ * is malformed, stale, or tampered with. On a content page there is no
+ * continuation contract at all, which makes `cursor` an ordinary unrecognized
+ * parameter: ADR-0003 decision 8 reads the parameters it knows and ignores the
+ * rest, so that a campaign or referral link never turns a real page into a 404.
+ */
+function rejectsCursor(route: StoryRoute): boolean {
+  return route.kind !== "content";
 }
 
 /**
@@ -159,20 +188,26 @@ export async function resolveLocalePrefixRequest({
     // form in one redirect rather than one per defect.
     const canonical = segments.map((segment) => segment.toLowerCase());
 
-    if (resolveStorySegments(trees, defaultRoute, canonical) !== null) {
-      if (searchParams.cursor !== undefined) return NOT_FOUND;
+    const story = resolveStorySegments(trees, defaultRoute, canonical);
+    if (story !== null) {
+      if (searchParams.cursor !== undefined && rejectsCursor(story)) {
+        return NOT_FOUND;
+      }
       return redirectTo(toPath(canonical));
     }
 
-    const historical = resolveHistoricalStoryPath(
+    const historical = resolveHistoricalStoryTarget(
       config,
+      trees,
       redirects,
       defaultRoute,
       canonical,
     );
     if (historical !== null) {
-      if (searchParams.cursor !== undefined) return NOT_FOUND;
-      return redirectTo(historical);
+      if (searchParams.cursor !== undefined && rejectsCursor(historical.route)) {
+        return NOT_FOUND;
+      }
+      return redirectTo(historical.path);
     }
 
     return (await defaultLocaleRouteExists(toPath(canonical)))
@@ -202,23 +237,26 @@ export async function resolveLocalePrefixRequest({
   const route = resolveStorySegments(trees, localeRoute, canonical);
 
   if (route === null) {
-    const historical = resolveHistoricalStoryPath(
+    const historical = resolveHistoricalStoryTarget(
       config,
+      trees,
       redirects,
       localeRoute,
       canonical,
     );
     if (historical === null) return NOT_FOUND;
-    return searchParams.cursor === undefined
-      ? redirectTo(historical)
-      : NOT_FOUND;
+    return searchParams.cursor !== undefined && rejectsCursor(historical.route)
+      ? NOT_FOUND
+      : redirectTo(historical.path);
   }
 
-  // No category cursor exists yet, so a token cannot identify any listing
-  // slice. Reject it before casing or locale-prefix normalization: a malformed
-  // or stale token is a 404 at the address requested, never a redirect to a
-  // different spelling that could make the token appear meaningful.
-  if (searchParams.cursor !== undefined) return NOT_FOUND;
+  // No listing cursor exists yet, so a token cannot identify any slice of one.
+  // Rejected before casing or locale-prefix normalization: a malformed or stale
+  // token is a 404 at the address requested, never a redirect to a different
+  // spelling that could make the token appear meaningful.
+  if (searchParams.cursor !== undefined && rejectsCursor(route)) {
+    return NOT_FOUND;
+  }
 
   if (
     (resolution.kind === "localized" && !resolution.prefixIsCanonical) ||

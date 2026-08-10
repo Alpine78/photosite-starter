@@ -1,4 +1,5 @@
-import Image from "next/image";
+import { MediaFigure } from "@/components/media-figure";
+import { buildHeadingIds } from "@/lib/content-headings";
 import type { ContentBlock } from "@/lib/content-page";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
@@ -22,8 +23,14 @@ type ContentBodyProps = {
  *
  * A media block here is a content placement, never a gallery item: it does not
  * enter a gallery's grid, lightbox sequence, sections, or pagination.
+ *
+ * Level-2 headings carry the ids the derived table of contents links to. Both
+ * sides read them from `buildHeadingIds`, so the fragment a link writes and the
+ * anchor a heading renders cannot drift apart.
  */
 export function ContentBody({ blocks, labels }: ContentBodyProps) {
+  const headingIds = buildHeadingIds(blocks);
+
   return (
     <div className="space-y-6">
       {blocks.map((block, index) => {
@@ -40,7 +47,10 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
               return (
                 <h2
                   key={index}
-                  className="mt-10 text-2xl font-semibold tracking-tight first:mt-0"
+                  id={headingIds.get(index)}
+                  // Anchored headings are jump targets, so they keep clear of a
+                  // future sticky header rather than landing under it.
+                  className="mt-10 scroll-mt-24 text-2xl font-semibold tracking-tight first:mt-0"
                 >
                   {block.text}
                 </h2>
@@ -63,7 +73,7 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
               >
                 <p>{block.text}</p>
                 {block.attribution && (
-                  <footer className="mt-1 text-sm not-italic text-foreground/50">
+                  <footer className="mt-1 text-sm not-italic text-foreground/70">
                     — {block.attribution}
                   </footer>
                 )}
@@ -78,23 +88,11 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
             // to the deployment's default Open Graph image.
             if (block.media.type !== "image") return null;
             return (
-              <figure key={index}>
-                <Image
-                  src={block.media.rendition.src}
-                  alt={block.media.alt}
-                  width={block.media.rendition.width}
-                  height={block.media.rendition.height}
-                  sizes={imageRenderProfiles.articleContent.sizes}
-                  className="h-auto w-full rounded-lg"
-                />
-                {(block.media.caption || block.media.credit) && (
-                  <figcaption className="mt-2 text-sm text-foreground/60">
-                    {block.media.caption}
-                    {block.media.caption && block.media.credit && " — "}
-                    {block.media.credit}
-                  </figcaption>
-                )}
-              </figure>
+              <MediaFigure
+                key={index}
+                image={block.media}
+                sizes={imageRenderProfiles.articleContent.sizes}
+              />
             );
 
           case "list":

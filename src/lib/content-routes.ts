@@ -74,6 +74,20 @@ const ROUTED_CONTENT_VARIANTS: ReadonlySet<ContentVariant> = new Set([
 ]);
 
 /**
+ * Whether a page of this variant has a detail route to link to.
+ *
+ * Anything that builds a link to a *detail* page asks this, not just the
+ * resolver: a breadcrumb, a sibling link, or a sitemap entry pointing at a
+ * variant with no renderer would be an internal link the site's own 404 answers.
+ * Listing cards are the deliberate exception — ADR-0003 gives every published
+ * page one canonical address, and a card keeps pointing at it so the listing
+ * does not quietly hide content while its route is being built.
+ */
+export function isRoutedContentVariant(variant: ContentVariant): boolean {
+  return ROUTED_CONTENT_VARIANTS.has(variant);
+}
+
+/**
  * Resolves the path segments *beneath* one locale's story namespace, or `null`
  * when the public tree owns no such branch or page.
  *

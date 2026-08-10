@@ -10,14 +10,19 @@
  */
 
 import {
+  buildAdjacentContentQuery,
   buildCategoryListing,
   buildContentListingQuery,
   orderContentListingRecords,
+  resolveAdjacentContent,
+  selectAdjacentRecords,
+  type AdjacentContent,
+  type AdjacentContentSource,
   type CategoryListing,
   type ContentListingQuery,
   type ContentListingRecord,
 } from "@/lib/content-listing";
-import type { ContentPage } from "@/lib/content-page";
+import type { ContentPageSource } from "@/lib/content-page";
 import {
   buildContentRedirects,
   type ContentRedirects,
@@ -117,11 +122,37 @@ async function queryListingRecords(
  * Read only by a detail route, and only after the tree has resolved the path to
  * this `contentId`: the body is exactly what a listing query must never load.
  */
-export async function getContentPage(
-  locale: string,
-  contentId: string,
-): Promise<ContentPage | undefined> {
+export const getContentPage: ContentPageSource = async (locale, contentId) => {
   return mockContentPages[languageOf(locale)]?.get(contentId);
+};
+
+/**
+ * Runs one bounded neighbour query.
+ *
+ * The mock holds its rows in memory, so it orders and picks in memory. A
+ * store-backed adapter runs the two keyset comparisons the query describes and
+ * returns at most one row from each — either way, the route receives two rows
+ * and never the category's whole content set.
+ */
+const queryAdjacentRecords: AdjacentContentSource = async (locale, query) => {
+  const authored = mockContentListingRecords[languageOf(locale)];
+  const rows = query.contentIds.flatMap((contentId) => {
+    const record = authored?.get(contentId);
+    return record === undefined ? [] : [record];
+  });
+
+  return selectAdjacentRecords(rows, query.anchorContentId);
+};
+
+function requireTree(
+  trees: LocalizedContentTrees,
+  locale: string,
+): ContentTree {
+  const tree = trees.get(locale);
+  if (tree === undefined) {
+    throw new TypeError(`locale "${locale}" publishes no content tree`);
+  }
+  return tree;
 }
 
 /** One branch listing: `null` lists the locale's story root. */
@@ -129,16 +160,32 @@ export async function getCategoryListing(
   locale: string,
   categoryId: string | null,
 ): Promise<CategoryListing> {
-  const tree = (await getContentTrees()).get(locale);
-  if (tree === undefined) {
-    throw new TypeError(`locale "${locale}" publishes no content tree`);
-  }
-
+  const tree = requireTree(await getContentTrees(), locale);
   const query = buildContentListingQuery({ tree, categoryId });
 
   return buildCategoryListing({
     tree,
     categoryId,
     records: await queryListingRecords(locale, query),
+  });
+}
+
+/**
+ * The pages either side of one page in its variant's global publication order.
+ * Empty when the page has no canonical placement or stands alone in that
+ * sequence.
+ */
+export async function getAdjacentContent(
+  locale: string,
+  contentId: string,
+): Promise<AdjacentContent> {
+  const tree = requireTree(await getContentTrees(), locale);
+  const query = buildAdjacentContentQuery(tree, contentId);
+  if (query === null) return {};
+
+  return resolveAdjacentContent({
+    tree,
+    contentId,
+    records: await queryAdjacentRecords(locale, query),
   });
 }
