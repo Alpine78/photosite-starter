@@ -17,21 +17,26 @@
  *
  * ## Secrets
  *
- * The read token is optional and server-only. Two things keep it out of the
- * browser, and only the first is a guarantee:
+ * The read token is optional and server-only. Three things keep it out of the
+ * browser, at three different moments:
  *
  * - **The setting is not prefixed `NEXT_PUBLIC_`.** Next.js inlines only
  *   `NEXT_PUBLIC_`-prefixed values into client bundles, so an unprefixed value
- *   cannot be compiled into browser JavaScript. That is the actual guarantee,
- *   and `loadSanityConfig` refuses outright if it finds the token mirrored
- *   under a public name.
- * - **`getSanityConfig` refuses to run in a browser.** A tripwire, not a
- *   guarantee: it catches a client component importing this module at runtime,
- *   which the naming rule above already keeps harmless.
+ *   cannot be compiled into browser JavaScript. That is the guarantee about the
+ *   secret itself, and `loadSanityConfig` refuses outright if it finds the
+ *   token mirrored under a public name.
+ * - **The `server-only` marker below fails the build.** ESLint stops `src/app`
+ *   and `src/components` from importing this module directly, but it cannot see
+ *   a Client Component reaching it through an adapter two hops away. The marker
+ *   catches exactly that, at build time, where a boundary mistake is cheap.
+ * - **`getSanityConfig` refuses to run in a browser.** The last tripwire, for
+ *   whatever the first two did not catch.
  *
  * The token is never logged, never placed in a URL, and never returned to a
  * caller other than the client that authorizes a request with it.
  */
+
+import "server-only";
 
 const sanitySettingNames = {
   projectId: "SANITY_PROJECT_ID",
@@ -93,14 +98,20 @@ function parseProjectId(value: string): string {
 }
 
 /**
- * The dataset name becomes one path segment of the query URL. Restricted to
- * characters that survive it unescaped, so a name needing percent-encoding is
- * reported here instead of silently addressing a different path.
+ * Sanity's own rule, not a guess at one: a dataset name is 1–64 characters of
+ * lowercase letters, digits, hyphens, and underscores, and must begin and end
+ * with a lowercase letter or digit (Sanity, Content Lake → Datasets, verified
+ * 2026-08-10).
+ *
+ * Enforced in full rather than loosened to "characters that survive a URL path
+ * segment". A looser rule accepts `Production` and `production-`, which the
+ * service rejects — and the point of validated configuration is that a typo
+ * names itself here, not in the first content fetch of a deployed site.
  */
 function parseDataset(value: string): string {
-  if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(value)) {
+  if (!/^(?=.{1,64}$)[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$/.test(value)) {
     throw new SanityConfigurationError(
-      `Invalid ${sanitySettingNames.dataset}: the dataset name is a URL path segment, so it must start with a letter or digit and contain only letters, digits, underscores, or hyphens, received "${value}"`,
+      `Invalid ${sanitySettingNames.dataset}: expected 1–64 characters of lowercase letters, digits, hyphens, or underscores, beginning and ending with a lowercase letter or digit, received "${value}"`,
     );
   }
   return value;
@@ -117,26 +128,52 @@ function parseDataset(value: string): string {
  *
  * The calendar date is checked too, so `v2026-02-31` fails here rather than
  * becoming a rejected request at the first content fetch.
+ *
+ * A future date is refused as well. That one is this project's rule rather than
+ * a documented Sanity constraint — their documentation recommends today's UTC
+ * date and a static pinned value, and says nothing about rejecting a later one.
+ * It is refused anyway because a version dated after today pins nothing: it
+ * names API behavior that does not exist yet, so the deployment cannot have
+ * been built or tested against it, and a typo like `v2099-01-01` would silently
+ * opt into every future breaking change instead of freezing one.
+ *
+ * Dates are compared in UTC, matching the timezone Sanity versions in.
  */
-function parseApiVersion(value: string): string {
+function parseApiVersion(value: string, now: Date): string {
   const match = /^v(\d{4})-(\d{2})-(\d{2})$/.exec(value);
 
-  if (match !== null) {
-    const [, year, month, day] = match;
-    const date = new Date(
-      Date.UTC(Number(year), Number(month) - 1, Number(day)),
+  if (match === null) {
+    throw new SanityConfigurationError(
+      `Invalid ${sanitySettingNames.apiVersion}: expected a dated API version of the form vYYYY-MM-DD, e.g. v2026-06-24, received "${value}"`,
     );
-    const isRealDate =
-      date.getUTCFullYear() === Number(year) &&
-      date.getUTCMonth() === Number(month) - 1 &&
-      date.getUTCDate() === Number(day);
-
-    if (isRealDate) return value;
   }
 
-  throw new SanityConfigurationError(
-    `Invalid ${sanitySettingNames.apiVersion}: expected a dated API version of the form vYYYY-MM-DD, e.g. v2026-06-24, received "${value}"`,
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const isRealDate =
+    date.getUTCFullYear() === Number(year) &&
+    date.getUTCMonth() === Number(month) - 1 &&
+    date.getUTCDate() === Number(day);
+
+  if (!isRealDate) {
+    throw new SanityConfigurationError(
+      `Invalid ${sanitySettingNames.apiVersion}: "${value}" is not a date on the calendar`,
+    );
+  }
+
+  const today = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
   );
+
+  if (date.getTime() > today) {
+    throw new SanityConfigurationError(
+      `Invalid ${sanitySettingNames.apiVersion}: "${value}" is in the future, so it pins no API behavior the deployment could have been built against. Use today's UTC date or an earlier one.`,
+    );
+  }
+
+  return value;
 }
 
 /**
@@ -174,9 +211,13 @@ function parseReadToken(environment: SanityEnvironment): string | undefined {
 /**
  * Builds and validates the Sanity connection settings. Passing the environment
  * in keeps validation deterministic in tests while production uses
- * `process.env`.
+ * `process.env`; `now` is injectable for the same reason, so the API version's
+ * future-date check can be asserted against a fixed clock.
  */
-export function loadSanityConfig(environment: SanityEnvironment): SanityConfig {
+export function loadSanityConfig(
+  environment: SanityEnvironment,
+  { now = new Date() }: { now?: Date } = {},
+): SanityConfig {
   const readToken = parseReadToken(environment);
 
   return {
@@ -188,6 +229,7 @@ export function loadSanityConfig(environment: SanityEnvironment): SanityConfig {
     ),
     apiVersion: parseApiVersion(
       requireSetting(environment, sanitySettingNames.apiVersion),
+      now,
     ),
     ...(readToken === undefined ? {} : { readToken }),
   };

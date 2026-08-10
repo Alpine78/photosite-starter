@@ -164,9 +164,11 @@ SITE_CONTENT_SOURCE=mock            # "mock" | "sanity"
 `mock` reads the project's own demo fixtures — placeholder copy and AI-generated
 placeholder photographs. It is what local development, CI, and the Playwright harness run
 on, and it is **refused in a production deployment**: publishing that material as a
-photographer's own work is misrepresentation, not a mode. As with the contact adapter,
-there is no default and an unset `SITE_DEPLOYMENT_STAGE` counts as production, so the
-guard fails closed.
+photographer's own work is misrepresentation, not a mode. The setting is validated as part
+of the deployment configuration, which every route resolves, so an illegal combination
+fails the build rather than a later content read. As with the contact adapter, there is no
+default, and an unset `SITE_DEPLOYMENT_STAGE` counts as production, so the guard fails
+closed.
 
 `sanity` reads the deployment's own Content Lake through four more settings —
 `SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_API_VERSION`, and an optional
@@ -177,9 +179,10 @@ read asks for the **published** perspective, and no setting can change that — 
 is absent from the code rather than switched off. A failed read raises with a classified
 error; nothing ever falls back to demo content.
 
-Sanity's HTTP surface lives in two files, and ESLint stops `src/app` and `src/components`
-from importing either, so provider knowledge and the read token stay behind the adapter
-boundary. Setup, ownership, transfer, and failure behavior are in
+Sanity's HTTP surface lives in two files. ESLint stops `src/app` and `src/components` from
+importing either, and both carry the `server-only` marker so a Client Component reaching
+them through an adapter fails the build — provider knowledge and the read token stay
+behind the adapter boundary. Setup, ownership, transfer, and failure behavior are in
 [docs/sanity-setup.md](docs/sanity-setup.md); the trade-offs are in
 [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md).
 

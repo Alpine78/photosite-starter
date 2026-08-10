@@ -73,24 +73,32 @@ describe("project id", () => {
 });
 
 describe("dataset", () => {
+  // Sanity's rule: 1–64 characters of lowercase letters, digits, hyphens, and
+  // underscores, beginning and ending with a lowercase letter or digit.
   it.each([
     ["a slash that would change the path", "production/secret"],
     ["a query separator", "production?perspective=raw"],
     ["a space", "my dataset"],
+    ["an uppercase letter", "Production"],
     ["a leading hyphen", "-production"],
+    ["a trailing hyphen", "production-"],
+    ["a trailing underscore", "production_"],
+    ["more than 64 characters", "a".repeat(65)],
+    ["an empty name", ""],
   ])("refuses %s", (_case, dataset) => {
     expect(() =>
       loadSanityConfig({ ...validEnvironment, SANITY_DATASET: dataset }),
     ).toThrow(SanityConfigurationError);
   });
 
-  it("accepts a name with underscores and hyphens", () => {
+  it.each([
+    ["inner underscores and hyphens", "staging_2026-06"],
+    ["a single character", "p"],
+    ["exactly 64 characters", "a".repeat(64)],
+  ])("accepts %s", (_case, dataset) => {
     expect(
-      loadSanityConfig({
-        ...validEnvironment,
-        SANITY_DATASET: "staging_2026-06",
-      }).dataset,
-    ).toBe("staging_2026-06");
+      loadSanityConfig({ ...validEnvironment, SANITY_DATASET: dataset }).dataset,
+    ).toBe(dataset);
   });
 });
 
@@ -115,6 +123,48 @@ describe("api version", () => {
         SANITY_API_VERSION: "v2024-02-29",
       }).apiVersion,
     ).toBe("v2024-02-29");
+  });
+
+  // Asserted against a fixed clock, so these do not change meaning with time.
+  const now = new Date("2026-08-10T11:00:00Z");
+
+  it("refuses a version dated after today", () => {
+    // A future date pins nothing: it names API behavior that does not exist,
+    // so the deployment cannot have been built or tested against it.
+    expect(() =>
+      loadSanityConfig(
+        { ...validEnvironment, SANITY_API_VERSION: "v2099-01-01" },
+        { now },
+      ),
+    ).toThrow("in the future");
+
+    expect(() =>
+      loadSanityConfig(
+        { ...validEnvironment, SANITY_API_VERSION: "v2026-08-11" },
+        { now },
+      ),
+    ).toThrow("in the future");
+  });
+
+  it("accepts today's UTC date, which is what Sanity recommends pinning", () => {
+    expect(
+      loadSanityConfig(
+        { ...validEnvironment, SANITY_API_VERSION: "v2026-08-10" },
+        { now },
+      ).apiVersion,
+    ).toBe("v2026-08-10");
+  });
+
+  it("compares in UTC rather than the machine's timezone", () => {
+    // Late enough in the UTC day that a machine ahead of UTC would already be
+    // on the next date locally. The version must still be judged against the
+    // UTC day, which is how Sanity versions.
+    expect(
+      loadSanityConfig(
+        { ...validEnvironment, SANITY_API_VERSION: "v2026-08-10" },
+        { now: new Date("2026-08-10T23:30:00Z") },
+      ).apiVersion,
+    ).toBe("v2026-08-10");
   });
 });
 

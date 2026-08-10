@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildSanityQueryUrl,
   createSanityClient,
-  MAX_SANITY_GET_QUERY_BYTES,
+  MAX_SANITY_GET_URL_BYTES,
   probeSanityConnectivity,
   SanityQueryError,
   type SanityErrorClass,
@@ -134,11 +134,26 @@ describe("buildSanityQueryUrl", () => {
     ).toThrow("Invalid query tag");
   });
 
-  it("refuses a query past the GET limit instead of truncating it", () => {
+  it("measures the GET limit over the whole URL, not just the query", () => {
+    // The bound is stated against the URL, so the origin, the API version, and
+    // the dataset path count toward it. Measuring only the query string would
+    // accept a request the service then rejects.
+    const fixedOverhead = new TextEncoder().encode(
+      buildSanityQueryUrl(config, { query: "", tag: "sized" }),
+    ).length;
+
+    const atTheLimit = buildSanityQueryUrl(config, {
+      query: "a".repeat(MAX_SANITY_GET_URL_BYTES - fixedOverhead),
+      tag: "sized",
+    });
+    expect(new TextEncoder().encode(atTheLimit).length).toBe(
+      MAX_SANITY_GET_URL_BYTES,
+    );
+
     expect(() =>
       buildSanityQueryUrl(config, {
-        query: "a".repeat(MAX_SANITY_GET_QUERY_BYTES + 1),
-        tag: "oversized",
+        query: "a".repeat(MAX_SANITY_GET_URL_BYTES - fixedOverhead + 1),
+        tag: "sized",
       }),
     ).toThrow("Query too large");
   });

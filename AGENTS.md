@@ -143,13 +143,15 @@ error class. No form content is stored anywhere; the processing record is
 `docs/contact-data-flow.md`. Deployments declare themselves through
 `SITE_DEPLOYMENT_STAGE`, which defaults to production so a safeguard fails closed.
 The customer-owned Sanity connection is bootstrapped: a declared content source
-(`SITE_CONTENT_SOURCE`, no default, `mock` refused in a production deployment),
-validated connection settings carrying an optional server-only read token, and a
-project-owned query client over the Content Lake HTTP API that always asks for the
-published perspective, bounds and classifies its failures, never falls back to another
-source, and adds no runtime dependency. Sanity's HTTP surface lives in
-`src/lib/sanity-config.ts` and `src/lib/sanity-client.ts`, and ESLint stops `src/app`
-and `src/components` from importing either (ADR-0006, `docs/sanity-setup.md`).
+(`SITE_CONTENT_SOURCE`) that `loadDeploymentConfig` validates, so an unset value or
+`mock` in a production deployment fails the build rather than a later read; connection
+settings validated against Sanity's own project-id and dataset rules, carrying an
+optional server-only read token; and a project-owned query client over the Content Lake
+HTTP API that always asks for the published perspective, bounds and classifies its
+failures, never falls back to another source, and adds no CMS library. Sanity's HTTP
+surface lives in `src/lib/sanity-config.ts` and `src/lib/sanity-client.ts`; ESLint stops
+`src/app` and `src/components` from importing either, and the `server-only` marker
+catches the indirect case ESLint cannot see (ADR-0006, `docs/sanity-setup.md`).
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test, the portfolio lightbox

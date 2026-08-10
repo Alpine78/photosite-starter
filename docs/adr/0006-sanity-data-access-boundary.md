@@ -43,14 +43,17 @@ segment, the perspective, the parameter encoding, and the response envelope. Not
 in the repository names any of them.
 
 Adapters in `src/lib` compose GROQ and project results into the project's own types.
-Routes and components read those adapters. ESLint enforces the direction: `src/app/**`
-and `src/components/**` may not import either module. The boundary is a rule, not a
-convention.
+Routes and components read those adapters. Two mechanisms enforce the direction, because
+one is not enough: ESLint forbids `src/app/**` and `src/components/**` from importing
+either module, and both modules carry the `server-only` marker so that a Client Component
+reaching them *through an adapter* — which ESLint cannot see — fails the build rather
+than the request. The boundary is a rule, not a convention.
 
 ### 2. No client SDK — the query API over `fetch`
 
 A published read is one authenticated GET. The client composes it directly, following the
-same pattern as the project's email adapter, and adds no runtime dependency.
+same pattern as the project's email adapter, and adds no CMS library. (The one package
+this story does add, `server-only`, is a build-time marker with no code — see §1.)
 
 Verified against Sanity's HTTP API reference (2026-08-10):
 `GET https://<projectId>.api.sanity.io/<apiVersion>/data/query/<dataset>`, GROQ in
@@ -78,6 +81,23 @@ not select `mock`; an undeclared `SITE_DEPLOYMENT_STAGE` counts as production, s
 guard fails closed. There is no fallback path between the two sources at any seam — a
 failed Sanity read raises, carrying a failure class, a retry decision, and a correlation
 identifier.
+
+The source is read inside `loadDeploymentConfig`, not lazily at the first content read.
+Every route resolves the deployment configuration, so an illegal combination fails while
+the site is being built rather than waiting for some future adapter to consult the
+setting — a guard that only fires once someone remembers to ask it is a guard in name
+only. Reading it there means the stage parser lives in its own module
+(`deployment-stage.ts`), so the configuration and the guards it applies do not import each
+other in a circle.
+
+### 4b. Settings are validated against the service's rules
+
+Where Sanity documents a constraint, the validator enforces that constraint rather than a
+looser approximation of it: the dataset name follows Sanity's own 1–64 character rule, and
+the project id is validated as the hostname label it becomes. A validator that accepts
+values the service rejects does not validate — it relocates the error to the first request
+of a deployed site. The one rule the project adds on its own is refusing a future-dated
+API version, which pins nothing.
 
 ### 5. Secrets
 
@@ -111,7 +131,7 @@ listeners, and mutations, and is what most Sanity documentation assumes.
 
 ### Option B (chosen): project-owned adapter over the HTTP query API
 
-- No dependency, no license row, no transitive tree.
+- No CMS library, no transitive tree, and nothing whose bytes reach a browser.
 - Every behavior the site depends on is visible in one file and asserted in tests: the
   exact URL, the perspective, the parameter encoding, the failure classification.
 - Matches the existing precedent for an external provider (`contact-delivery-resend.ts`),
@@ -131,7 +151,7 @@ audited and overridden.
 
 | | A: SDK | B: HTTP adapter (chosen) | C: wrapped SDK |
 | --- | --- | --- | --- |
-| Runtime dependencies added | yes | **none** | yes |
+| CMS library added | yes | **none** | yes |
 | Behavior visible in-repo | low | **complete** | partial |
 | Pre-empts AB#83's cache decision | yes, via defaults | **no** | yes, must be overridden |
 | Draft access impossible by construction | no (an option away) | **yes** | yes, if the wrapper forbids it |
@@ -153,7 +173,9 @@ the adapters above it do not change.
 
 **Good**
 
-- The MVP reaches its CMS with zero new dependencies and no new license obligation.
+- The MVP reaches its CMS with no client SDK and no library whose bytes reach a browser.
+  The one dependency added is `server-only`, a marker package that resolves to an empty
+  module in a server build and exists to fail the other case.
 - Draft content cannot reach a public page through configuration alone.
 - A production deployment cannot publish the project's demo photographs as a
   photographer's own work.
@@ -170,8 +192,13 @@ the adapters above it do not change.
   falling back to the POST form, and there is no retry, no listener, and no mutation path.
 - Adapters receive `unknown` and must validate. That is correct, and it is more work per
   adapter than an SDK's typed helpers would be.
-- Nothing reads `SITE_CONTENT_SOURCE` yet, so its production guard is proven by tests
-  rather than by a running page until AB#80 lands.
+- Requiring `SITE_CONTENT_SOURCE` makes it a breaking configuration change for anything
+  that builds this project: the Azure Pipelines build gate, the Playwright harness, and
+  every local `.env.local` must declare it. That is the intended cost of having no
+  default.
+- The CI build gate now declares itself `preview`. It never was a production deployment,
+  but it previously built as one by omission, and that is no longer possible while the
+  project's only content source is its own fixtures.
 
 **Neutral**
 
@@ -184,9 +211,6 @@ the adapters above it do not change.
       `apicdn.sanity.io`, and replace `cache: "no-store"` with the tag-based policy.
 - [ ] AB#80 / AB#81 / AB#82 / AB#112 / AB#114: write adapters behind this boundary; each
       owns validating the `unknown` result it receives.
-- [ ] AB#80 (first story to read `SITE_CONTENT_SOURCE` at build time): give the Azure
-      Pipelines build step a content source. It currently builds with no declared stage —
-      therefore as production — where `mock` is refused.
 - [ ] AB#116: run `probeSanityConnectivity` against the Preview deployment's own project
       as part of provisioning verification.
 - [ ] Revisit this record if a story needs listeners, mutations, or asset uploads; that

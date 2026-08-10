@@ -17,11 +17,11 @@
  * clear failure at the moment delivery is attempted.
  */
 
+import type { BuiltInLabels } from "@/lib/deployment-config";
 import {
   readDeploymentStage,
-  type BuiltInLabels,
   type DeploymentStage,
-} from "@/lib/deployment-config";
+} from "@/lib/deployment-stage";
 import type { ContactMessage } from "@/lib/contact-message";
 import { createResendDeliveryAdapter } from "@/lib/contact-delivery-resend";
 

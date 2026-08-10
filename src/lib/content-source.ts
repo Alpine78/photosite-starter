@@ -20,11 +20,17 @@
  * a live site quietly presenting someone else's placeholder work as the
  * photographer's own. Documentation saying so is not a control; this is.
  *
+ * The source is read as part of `loadDeploymentConfig`, not lazily at the first
+ * content read. That matters: every route resolves the deployment config, so a
+ * production deployment declaring `mock` fails while it is being built, and a
+ * deployment declaring nothing fails there too. A guard that only fired once
+ * some future adapter happened to consult it would be a guard in name only.
+ *
  * This module decides *which* store. It never reaches one, and it holds no
  * credential — that is `sanity-config.ts` and `sanity-client.ts`.
  */
 
-import { readDeploymentStage } from "@/lib/deployment-config";
+import type { DeploymentStage } from "@/lib/deployment-stage";
 
 const contentSourceSettingName = "SITE_CONTENT_SOURCE";
 
@@ -50,11 +56,15 @@ export class ContentSourceConfigurationError extends Error {
 type ContentSourceEnvironment = Record<string, string | undefined>;
 
 /**
- * Reads and validates the declared content source. Passing the environment in
- * keeps validation deterministic in tests while production uses `process.env`.
+ * Reads and validates the declared content source.
+ *
+ * The stage is passed in rather than read here, so that this module and the
+ * deployment configuration that calls it do not import each other in a circle.
+ * `deployment-stage.ts` owns parsing it.
  */
 export function readContentSource(
   environment: ContentSourceEnvironment,
+  stage: DeploymentStage,
 ): ContentSource {
   const value = environment[contentSourceSettingName]?.trim();
 
@@ -74,18 +84,11 @@ export function readContentSource(
 
   // Fail closed before a single page renders, rather than at the moment a
   // visitor reads placeholder copy and believes it.
-  if (source === "mock" && readDeploymentStage(environment) === "production") {
+  if (source === "mock" && stage === "production") {
     throw new ContentSourceConfigurationError(
       `Invalid ${contentSourceSettingName}: the "mock" source serves the project's demo content, so it must not run in a production deployment. Configure "sanity", or declare SITE_DEPLOYMENT_STAGE as development or preview.`,
     );
   }
 
   return source;
-}
-
-let cachedContentSource: ContentSource | undefined;
-
-export function getContentSource(): ContentSource {
-  cachedContentSource ??= readContentSource(process.env);
-  return cachedContentSource;
 }

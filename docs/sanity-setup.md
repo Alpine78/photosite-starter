@@ -59,26 +59,37 @@ authoritative for the exact steps. What this project needs from it:
 | Setting | Required | Purpose |
 | --- | --- | --- |
 | `SITE_CONTENT_SOURCE` | always | `mock` (the project's demo fixtures) or `sanity` (this deployment's Content Lake). No default. |
-| `SANITY_PROJECT_ID` | when `sanity` | Project id; validated as a hostname label. |
-| `SANITY_DATASET` | when `sanity` | Dataset name; validated as a single URL path segment. |
-| `SANITY_API_VERSION` | when `sanity` | Dated API version, `vYYYY-MM-DD`. Undated and legacy versions are refused. |
+| `SANITY_PROJECT_ID` | when `sanity` | Project id: 1–63 lowercase letters, digits, or inner hyphens — it is the hostname label in `<projectId>.api.sanity.io`. |
+| `SANITY_DATASET` | when `sanity` | Dataset name, to Sanity's own rule: 1–64 characters of lowercase letters, digits, hyphens, and underscores, beginning and ending with a letter or digit. |
+| `SANITY_API_VERSION` | when `sanity` | Dated API version, `vYYYY-MM-DD`. Undated, legacy, impossible, and future-dated versions are refused. |
 | `SANITY_READ_TOKEN` | optional | Server-only credential for a private dataset. |
 
-Every value is validated where it is read, so a typo names itself at startup instead of
-becoming a 404 to debug later.
+`SITE_CONTENT_SOURCE` is read as part of the deployment configuration, which every route
+resolves — so an unset or illegal value fails the **build**, not the first content read.
+The Sanity settings are validated when a client is built, and validated against the
+service's own rules rather than a looser approximation of them: a name Sanity would
+reject fails here, where it names itself, instead of becoming a 404 to debug later.
+
+A future-dated API version is refused too. That one is this project's rule rather than a
+documented Sanity constraint: a version dated after today pins no behavior the deployment
+could have been built against, so a typo like `v2099-01-01` would silently opt into every
+future breaking change instead of freezing one.
 
 ### Secrets
 
-The read token is server-only, and two things keep it out of the browser:
+The read token is server-only, and three things keep it out of the browser:
 
 - **The setting is not prefixed `NEXT_PUBLIC_`.** Next.js inlines only
   `NEXT_PUBLIC_`-prefixed values into client bundles, so an unprefixed value cannot be
   compiled into browser JavaScript. That is the guarantee. A token found mirrored under
   `NEXT_PUBLIC_SANITY_READ_TOKEN` fails the deployment rather than being quietly ignored,
   because its presence means the credential is already on its way to every visitor.
+- **Both modules carry the `server-only` marker.** A Client Component that reaches them —
+  directly, or through an adapter several hops away — fails the build.
 - **ESLint forbids `src/app` and `src/components` from importing the client or its
   configuration.** Routes and components read adapters in `src/lib`; provider knowledge
-  and credentials stay behind that line.
+  and credentials stay behind that line. The marker above covers the indirect case ESLint
+  cannot see.
 
 The token never appears in a URL, is never logged, and is never returned to a caller.
 
@@ -97,13 +108,15 @@ fallback path from Sanity to the mock layer, in either direction, at any seam.
 
 - A **failed read raises**, carrying a failure class, a retry decision, and a correlation
   identifier. Callers surface an error state; nothing serves a fixture instead.
-- A **production deployment may not declare `SITE_CONTENT_SOURCE=mock`.** It is refused
-  at startup — the same safeguard the contact form's sink adapter carries, and for the
-  same reason: publishing the project's placeholder copy and AI-generated placeholder
-  photographs as a photographer's own work is misrepresentation, not a mode. An
-  undeclared `SITE_DEPLOYMENT_STAGE` counts as production, so the guard fails closed.
-- A **missing `SITE_CONTENT_SOURCE`** fails with a configuration error naming the
-  setting, rather than defaulting to either store.
+- A **production deployment may not declare `SITE_CONTENT_SOURCE=mock`.** The deployment
+  configuration refuses it, and every route resolves that configuration, so the failure
+  happens while the site is being built. It is the same safeguard the contact form's sink
+  adapter carries, for the same reason: publishing the project's placeholder copy and
+  AI-generated placeholder photographs as a photographer's own work is misrepresentation,
+  not a mode. An undeclared `SITE_DEPLOYMENT_STAGE` counts as production, so the guard
+  fails closed.
+- A **missing `SITE_CONTENT_SOURCE`** fails the same way, naming the setting, rather than
+  defaulting to either store.
 
 Failures are classified, and the class decides whether a retry can help:
 
@@ -148,6 +161,10 @@ Both select their source explicitly; neither reaches a real project.
   `e2e/support/harness-environment.ts`, which declares `mock`. A journey asserting
   against a live Content Lake would fail whenever someone published, and failure traces
   are published as pipeline artifacts, so the harness holds no credential.
+- **The Azure Pipelines build gate** declares itself `preview` with a `mock` source. It
+  compiles and prerenders the project's fixtures and must reach no external service, so
+  it cannot be a production build — a production build with demo content is exactly what
+  the guard above refuses.
 
 ## Not yet decided
 

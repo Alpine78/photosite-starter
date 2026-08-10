@@ -34,12 +34,16 @@
  * default that could shift under a version bump: it is absent. A draft-preview
  * surface is a separate, authenticated, `no-store` feature (ADR-0004 §3), and
  * building it means deliberately editing this file — which is the point.
+ *
+ * The `server-only` marker makes a Client Component that reaches this module —
+ * directly, or through an adapter several hops away that ESLint cannot see —
+ * a build error rather than a runtime one.
  */
 
-import {
-  getContentSource,
-  ContentSourceConfigurationError,
-} from "@/lib/content-source";
+import "server-only";
+
+import { ContentSourceConfigurationError } from "@/lib/content-source";
+import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
   getSanityConfig,
   SanityConfigurationError,
@@ -60,13 +64,14 @@ const PUBLISHED_PERSPECTIVE = "published";
 export const SANITY_QUERY_TIMEOUT_MS = 10_000;
 
 /**
- * Sanity caps a GET query at 11 KB. Measured over the whole assembled query
- * string, which is the conservative reading — the query, its parameters, and
- * the fixed options all travel there. A query that outgrows this is a design
- * problem in the adapter that wrote it, so it fails loudly here instead of
- * becoming a truncated URL or an opaque rejection.
+ * Sanity caps a GET query at 11 KB. Measured over the whole assembled URL —
+ * origin, API version, dataset path, and query string alike — because that is
+ * what the cap is stated against, and because measuring only the query string
+ * would accept a URL the service then rejects. A query that outgrows this is a
+ * design problem in the adapter that wrote it, so it fails loudly here instead
+ * of becoming an opaque rejection at request time.
  */
-export const MAX_SANITY_GET_QUERY_BYTES = 11 * 1024;
+export const MAX_SANITY_GET_URL_BYTES = 11 * 1024;
 
 /**
  * Why a content fetch did not succeed, at the granularity an operational log
@@ -192,16 +197,16 @@ export function buildSanityQueryUrl(
     entries.push([`$${name}`, JSON.stringify(value)]);
   }
 
-  const queryString = encodeQueryString(entries);
-  const size = new TextEncoder().encode(queryString).length;
+  const url = `https://${config.projectId}.api.sanity.io/${config.apiVersion}/data/query/${config.dataset}?${encodeQueryString(entries)}`;
+  const size = new TextEncoder().encode(url).length;
 
-  if (size > MAX_SANITY_GET_QUERY_BYTES) {
+  if (size > MAX_SANITY_GET_URL_BYTES) {
     throw new TypeError(
-      `[sanity-client] Query too large: ${size} bytes exceeds the ${MAX_SANITY_GET_QUERY_BYTES}-byte GET limit. Narrow the query or its parameters; the API's POST form is not implemented.`,
+      `[sanity-client] Query too large: the request URL is ${size} bytes, past the ${MAX_SANITY_GET_URL_BYTES}-byte GET limit. Narrow the query or its parameters; the API's POST form is not implemented.`,
     );
   }
 
-  return `https://${config.projectId}.api.sanity.io/${config.apiVersion}/data/query/${config.dataset}?${queryString}`;
+  return url;
 }
 
 function classifyStatus(status: number): {
@@ -370,8 +375,8 @@ let cachedClient: SanityClient | undefined;
  * would have to share with another one (ADR-0004 §2).
  */
 export function getSanityClient(): SanityClient {
-  // Checked before the content source, so a client component that reached this
-  // module is told what it actually did wrong. Not a `SanityQueryError`: no
+  // Checked before the deployment config, so a client component that reached
+  // this module is told what it actually did wrong. Not a `SanityQueryError`: no
   // read was attempted and nothing was logged, so there is no correlation
   // identifier to quote and inventing one would make the log a fiction.
   if (typeof window !== "undefined") {
@@ -380,10 +385,10 @@ export function getSanityClient(): SanityClient {
     );
   }
 
-  const source = getContentSource();
-  if (source !== "sanity") {
+  const { contentSource } = getDeploymentConfig();
+  if (contentSource !== "sanity") {
     throw new ContentSourceConfigurationError(
-      `This deployment declared SITE_CONTENT_SOURCE="${source}", so no Sanity client exists. Read the project's fixture layer instead, or declare "sanity".`,
+      `This deployment declared SITE_CONTENT_SOURCE="${contentSource}", so no Sanity client exists. Read the project's fixture layer instead, or declare "sanity".`,
     );
   }
 
