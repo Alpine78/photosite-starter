@@ -1,5 +1,8 @@
-import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "./support/fixtures";
+import {
+  expectImageDelivered,
+  openHeaderNavigation,
+} from "./support/public-page";
 
 /**
  * The smoke test that proves the harness: a production build boots, serves the
@@ -13,9 +16,11 @@ import { expect, test } from "./support/fixtures";
  * level-one heading, a titled document, a loaded hero image, and a navigation
  * link that marks the current page.
  *
- * Route-specific journeys — services and articles, gallery sections,
- * pagination, contact — are separate stories that join this gate as their
- * features land (AB#87, AB#119, AB#120, AB#90).
+ * Route-specific journeys are separate stories that join this gate as their
+ * features land: gallery sections (AB#119), curated gallery pagination
+ * (AB#120), and the fuller contact journey (AB#89). The services and
+ * content-tree routes already have their own suites in `services.spec.ts` and
+ * `content-tree.spec.ts`.
  */
 
 /** Application-owned route, not authored content: safe to name here. */
@@ -45,21 +50,9 @@ test("the home page renders and its header navigates to a section", async ({
     expect(siteName).toBeTruthy();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(siteName!);
 
-    // A visible <img> proves layout; a non-zero natural width proves the
-    // production image pipeline actually delivered bytes.
-    const hero = page.getByRole("main").getByRole("img").first();
-    await expect(hero).toBeVisible();
-    await expect
-      .poll(
-        () =>
-          hero.evaluate(
-            (element) => (element as HTMLImageElement).naturalWidth,
-          ),
-        // Longer than the default assertion timeout: the first request for a
-        // rendition pays for optimizing it, on a cold cache and a cold agent.
-        { timeout: 15_000 },
-      )
-      .toBeGreaterThan(0);
+    await expectImageDelivered(
+      page.getByRole("main").getByRole("img").first(),
+    );
   });
 
   await test.step("the header navigates to the portfolio route", async () => {
@@ -91,20 +84,3 @@ test("the home page renders and its header navigates to a section", async ({
   // site loads nothing from a third-party origin.
   expect(externalRequests).toEqual([]);
 });
-
-/**
- * Returns the header navigation for the current viewport. The compact layout
- * keeps it behind a toggle and the wide layout renders it inline, so a journey
- * that runs on both asks for it this way rather than assuming one of them.
- */
-async function openHeaderNavigation(page: Page): Promise<Locator> {
-  const banner = page.getByRole("banner");
-  const menuToggle = banner.getByRole("button");
-
-  if (await menuToggle.isVisible()) {
-    await menuToggle.click();
-    await expect(menuToggle).toHaveAttribute("aria-expanded", "true");
-  }
-
-  return banner.getByRole("navigation").filter({ visible: true });
-}

@@ -186,11 +186,14 @@ npx playwright show-report               # after a failure
 
 `npm run test:e2e` builds the site and serves it with `next start` on
 `http://127.0.0.1:3100` (Playwright starts and stops it), then runs every spec in two
-projects: desktop Chromium and mobile WebKit. It leaves `.next` holding a build made
-with the harness settings, so run `npm run build` again before serving your own
-deployment build locally. Retries, timeouts, browser matrix, and parallelism are set
-explicitly in [playwright.config.ts](playwright.config.ts) rather than left to defaults
-that differ between a laptop and a build agent.
+projects: desktop Chromium and mobile WebKit. The suite protects the home page and its
+navigation, the portfolio lightbox, the services routes, the public content tree, and
+contact submission; a route-specific suite joins the gate by landing in `e2e/`. The run
+leaves `.next` holding a build made with the harness settings, so run `npm run build`
+again before serving your own deployment build locally. Retries, timeouts, browser
+matrix, and parallelism are set explicitly in
+[playwright.config.ts](playwright.config.ts) rather than left to defaults that differ
+between a laptop and a build agent.
 
 The application under test runs on harness-owned settings from
 `e2e/support/harness-environment.ts` — a reserved `.test` canonical origin and the
