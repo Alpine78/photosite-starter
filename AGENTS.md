@@ -124,7 +124,9 @@ The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test, the portfolio lightbox
 journey, the content-tree journey (branches, the canonical detail route, redirects, and
-404s), and the contact submission smoke test; route-specific journey suites are
+404s), the services journey (the listing, one service detail with its cover, price list,
+and breadcrumb, the navigation between them and into the story section, and an unknown
+slug's 404), and the contact submission smoke test; route-specific journey suites are
 separate stories that join the gate as their features land.
 Not yet built: the curated gallery detail
 route (AB#104) — a gallery's canonical path 404s until it lands — tree-driven header and
