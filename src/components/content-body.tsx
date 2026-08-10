@@ -1,21 +1,29 @@
 import Image from "next/image";
-import type { ContentBlock } from "@/lib/articles";
-import { getDefaultLocaleLabels } from "@/lib/deployment-config";
+import type { ContentBlock } from "@/lib/content-page";
+import type { BuiltInLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import { YoutubeEmbed } from "@/components/youtube-embed";
 
-type ArticleBodyProps = {
-  blocks: ContentBlock[];
+type ContentBodyProps = {
+  blocks: readonly ContentBlock[];
+  /**
+   * The page's own locale labels. Passed in rather than read from the
+   * deployment default: a body renders inside every configured locale route
+   * space, and a prefixed locale's page must not caption its video in another
+   * language.
+   */
+  labels: BuiltInLabels;
 };
 
 /**
- * Renders a typed content block list. Each block maps to one semantic HTML
- * element or component. New block types are added here and in the Article
- * type — nothing else needs to change.
+ * Renders the shared body-block set ADR-0003 decision 2 gives both content
+ * variants. Each block maps to one semantic HTML element or component, and the
+ * page title owns the single `h1`, so an authored heading starts at level 2.
+ *
+ * A media block here is a content placement, never a gallery item: it does not
+ * enter a gallery's grid, lightbox sequence, sections, or pagination.
  */
-export function ArticleBody({ blocks }: ArticleBodyProps) {
-  const labels = getDefaultLocaleLabels();
-
+export function ContentBody({ blocks, labels }: ContentBodyProps) {
   return (
     <div className="space-y-6">
       {blocks.map((block, index) => {
@@ -63,6 +71,11 @@ export function ArticleBody({ blocks }: ArticleBodyProps) {
             );
 
           case "media":
+            // A video placement is modelled but not yet playable anywhere on
+            // the site, so it renders nothing rather than a control that leads
+            // nowhere or a placeholder claiming a feature. Video delivery is a
+            // roadmap item; the same omission is why a video cover falls back
+            // to the deployment's default Open Graph image.
             if (block.media.type !== "image") return null;
             return (
               <figure key={index}>

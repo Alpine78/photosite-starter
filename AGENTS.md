@@ -78,7 +78,7 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
 
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
 configuration, responsive header and footer, home page, services listing and detail
-pages, article/blog listing and detail pages, the shared generic media model, the public
+pages, the shared generic media model, the public
 image rendition boundary, the portfolio thumbnail grid, the shared bounded gallery
 result contract, the fullscreen lightbox behind a project-owned PhotoSwipe wrapper
 (open, close, navigate, trapped focus, focus return keyed by `itemId`, and the caption
@@ -99,6 +99,14 @@ recorded previous paths a move or rename retired, `hreflang`/`x-default` alterna
 a visible identity-based language switch. Page metadata omits the site description in
 any locale it was not authored in rather than publishing it under a translated title.
 Application-owned UI labels are per-locale (English and Finnish sets ship).
+Articles have moved into that tree: the shared project-owned content-page boundary
+(`src/lib/content-page.ts`) carries the variant, the six ADR-0003 body blocks, the cover,
+the publication date, and tags, and the `article` variant renders at its one canonical
+detail route in every configured locale space, with breadcrumbs following canonical
+ancestry, self-referencing canonical metadata, `hreflang`/`x-default` alternates, an
+Open Graph article, and the identity-based language switch. The pre-launch `/blog` and
+`/blog/<slug>` scaffold routes were removed rather than redirected — they were never
+deployed or indexed, and only AB#19's verified production inventory earns redirects.
 The privacy-respecting contact form is in place: an accessible `/contact` page in the
 unprefixed default-locale route space, a fixed `POST /api/contact` handler accepting
 only same-origin JSON within a bounded body and a closed field whitelist, shared
@@ -112,10 +120,12 @@ error class. No form content is stored anywhere; the processing record is
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test, the portfolio lightbox
-journey, and the contact submission smoke test; route-specific journey suites are
+journey, the content-tree journey (branches, the canonical detail route, redirects, and
+404s), and the contact submission smoke test; route-specific journey suites are
 separate stories that join the gate as their features land.
-Not yet built: public content detail
-routes (AB#104 and AB#124), tree-driven header and mobile navigation (AB#111),
+Not yet built: the curated gallery detail
+route (AB#104) — a gallery's canonical path 404s until it lands — tree-driven header and
+mobile navigation (AB#111),
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — public continuation routes and
 controls — a category listing is bounded to its first page and answers any `?cursor=`

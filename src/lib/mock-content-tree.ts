@@ -14,8 +14,9 @@
  * One input per language subtag, because ADR-0003 gives each locale its own
  * tree: labels and slugs are translated while `categoryId` and `contentId` stay
  * identical, which is what associates the language versions. The Finnish tree
- * deliberately omits one article, so a locale publishing no version of a page
- * — the normal state while a translation is being written — is covered too.
+ * publishes one article and deliberately omits the rest, along with one whole
+ * category, so both halves of the normal bilingual state are covered: a page
+ * with a real translation, and pages — and a branch — that have none yet.
  */
 
 import type { ContentRedirectInput } from "@/lib/content-redirects";
@@ -35,6 +36,10 @@ const englishContentTree: ContentTreeInput = {
     { categoryId: "cat-events", parentId: null, slug: "events", label: "Events", order: 2 },
     // Empty leaf: no content, no descendants, so it stays out of the public tree.
     { categoryId: "cat-archive", parentId: null, slug: "archive", label: "Archive", order: 3 },
+    // Editorial subjects. Galleries and articles share one tree, so these are
+    // ordinary categories rather than a separate article taxonomy.
+    { categoryId: "cat-gear", parentId: null, slug: "gear", label: "Gear", order: 4 },
+    { categoryId: "cat-technique", parentId: null, slug: "technique", label: "Technique", order: 5 },
 
     { categoryId: "cat-coastal", parentId: "cat-landscape", slug: "coastal", label: "Coastal", order: 0 },
 
@@ -69,6 +74,38 @@ const englishContentTree: ContentTreeInput = {
       canonicalCategoryId: "cat-polar-night",
     },
     {
+      contentId: "content-choosing-a-telephoto-lens",
+      variant: "article",
+      slug: "choosing-a-telephoto-lens",
+      published: true,
+      canonicalCategoryId: "cat-gear",
+      // An article listed in a second category, so a secondary listing entry
+      // for a content page — not only for a gallery — links to the one
+      // canonical detail route.
+      secondaryCategoryIds: ["cat-technique"],
+    },
+    {
+      contentId: "content-understanding-exposure-triangle",
+      variant: "article",
+      slug: "understanding-exposure-triangle",
+      published: true,
+      canonicalCategoryId: "cat-technique",
+    },
+    {
+      contentId: "content-packing-for-a-photo-trip",
+      variant: "article",
+      slug: "packing-for-a-photo-trip",
+      published: true,
+      canonicalCategoryId: "cat-gear",
+    },
+    {
+      contentId: "content-shooting-in-low-light",
+      variant: "article",
+      slug: "shooting-in-low-light",
+      published: true,
+      canonicalCategoryId: "cat-technique",
+    },
+    {
       // Draft content may stay unplaced until the author chooses its home.
       contentId: "content-unplaced-draft",
       variant: "article",
@@ -85,6 +122,9 @@ const finnishContentTree: ContentTreeInput = {
     { categoryId: "cat-travel", parentId: null, slug: "matkat", label: "Matkat", order: 1 },
     { categoryId: "cat-events", parentId: null, slug: "tapahtumat", label: "Tapahtumat", order: 2 },
     { categoryId: "cat-archive", parentId: null, slug: "arkisto", label: "Arkisto", order: 3 },
+    // `cat-gear` has no Finnish version at all: a category, like a page, may
+    // exist in one locale before the other.
+    { categoryId: "cat-technique", parentId: null, slug: "tekniikka", label: "Tekniikka", order: 5 },
 
     { categoryId: "cat-coastal", parentId: "cat-landscape", slug: "rannikko", label: "Rannikko", order: 0 },
 
@@ -111,18 +151,34 @@ const finnishContentTree: ContentTreeInput = {
       published: true,
       canonicalCategoryId: "cat-polar-night",
     },
+    // The one article published in both languages, so a detail page has a real
+    // exact language switch to offer. Its English siblings have no Finnish
+    // version and fall back to the nearest page instead.
+    {
+      contentId: "content-understanding-exposure-triangle",
+      variant: "article",
+      slug: "valotuskolmio-kaytannossa",
+      published: true,
+      canonicalCategoryId: "cat-technique",
+    },
   ],
 };
 
 /**
  * Recorded path history, which a CMS writes when an author confirms a URL
- * change. Both cases ADR-0003 decision 7 names are covered: a rename, where the
- * category kept its parent and changed its own slug, and a move, where the
- * category kept its slug and gained an ancestor.
+ * change. Every case ADR-0003 decision 7 names is covered: a rename, where the
+ * category kept its parent and changed its own slug; a move, where the category
+ * kept its slug and gained an ancestor; and a content page whose own slug
+ * changed beneath an unchanged category.
  */
 const englishContentRedirects: readonly ContentRedirectInput[] = [
   { kind: "category", id: "cat-events", previousPath: ["happenings"] },
   { kind: "category", id: "cat-coastal", previousPath: ["coastal"] },
+  {
+    kind: "content",
+    id: "content-shooting-in-low-light",
+    previousPath: ["technique", "low-light-without-a-tripod"],
+  },
 ];
 
 const finnishContentRedirects: readonly ContentRedirectInput[] = [

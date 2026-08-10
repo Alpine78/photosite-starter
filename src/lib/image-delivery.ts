@@ -14,7 +14,7 @@ function boundedImageSizes(
 }
 
 /** Three-column card grid inside the bounded 1152px content container. */
-const cardGridSizes = boundedImageSizes(
+const contentCardGridSizes = boundedImageSizes(
   1152,
   347,
   "(min-width: 1024px) calc(33.333vw - 37.333px), (min-width: 640px) calc(50vw - 40px), calc(100vw - 32px)",
@@ -42,12 +42,9 @@ export const imageRenderProfiles = {
       "(min-width: 1024px) calc(33.333vw - 32px), (min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
     ),
   },
-  blogGrid: {
-    sizes: cardGridSizes,
-  },
-  /** The category branch listing uses the same container and card grid. */
+  /** The category branch listing: same container, same three-column grid. */
   contentListingGrid: {
-    sizes: cardGridSizes,
+    sizes: contentCardGridSizes,
   },
   serviceContent: {
     sizes: boundedImageSizes(

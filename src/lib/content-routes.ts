@@ -4,25 +4,30 @@
  * `content-tree.ts` owns the tree and knows nothing about URLs;
  * `locale-routes.ts` owns the locale base and story namespace and knows nothing
  * about categories. This module joins them: it turns the segments beneath a
- * locale's story namespace into the branch they identify, and turns a branch
- * back into the paths a breadcrumb, a listing link, and alternate-language
- * metadata need.
+ * locale's story namespace into the branch or page they identify, and turns
+ * either back into the paths a breadcrumb, a listing link, and
+ * alternate-language metadata need.
  *
- * Only public branches resolve. ADR-0003 decision 4 keeps an empty leaf out of
- * public routes, and decision 8 answers an unknown path with a 404 rather than
- * a redirect to an ancestor, so a segment that names no public child simply
- * fails to resolve — this module never guesses a nearer branch.
+ * Only public branches and canonically placed pages resolve. ADR-0003 decision
+ * 4 keeps an empty leaf out of public routes, and decision 8 answers an unknown
+ * path with a 404 rather than a redirect to an ancestor, so a segment that
+ * names nothing public simply fails to resolve — this module never guesses a
+ * nearer branch.
  */
 
 import {
+  getCanonicalContentBySlug,
+  getCanonicalContentPath,
   getCategoryAncestry,
   getCategoryPath,
   getPublicChildCategories,
   type ContentCategory,
   type ContentTree,
+  type ContentVariant,
 } from "@/lib/content-tree";
 import {
   buildStoryPath,
+  type ContentLocation,
   type LocaleRouteConfig,
   type LocaleVersion,
   type LocalizedContentTrees,
@@ -50,16 +55,35 @@ export function toCategoryLink(
 export type StoryRoute =
   /** The story namespace itself: the public content-tree root. */
   | { readonly kind: "story-root" }
-  | { readonly kind: "category"; readonly categoryId: string };
+  | { readonly kind: "category"; readonly categoryId: string }
+  /** A canonically placed content page. */
+  | { readonly kind: "content"; readonly contentId: string };
+
+/**
+ * Variants whose canonical detail route the application actually serves.
+ *
+ * A gallery needs the shared paginated result contract to render, which AB#104
+ * owns, so its canonical path is not part of the public route space yet and
+ * resolves to nothing at all. That is deliberate rather than incidental: a path
+ * that resolves here also earns the casing and redundant-prefix normalization
+ * redirects, and a permanent redirect onto a page that cannot render would
+ * teach browsers and crawlers a dead address. AB#104 adds `gallery` here.
+ */
+const ROUTED_CONTENT_VARIANTS: ReadonlySet<ContentVariant> = new Set([
+  "article",
+]);
 
 /**
  * Resolves the path segments *beneath* one locale's story namespace, or `null`
- * when the public tree owns no such branch.
+ * when the public tree owns no such branch or page.
  *
- * Content detail slugs do not resolve here: their routes belong to AB#104 and
- * AB#124, and this resolver never guesses whether a final segment names a
- * category or a content page — the tree's local slug namespace already
- * guarantees only one of them can claim it.
+ * Every segment but the last names a public category. The last may name either
+ * a category or a canonically placed page whose variant this application
+ * routes, and no guessing is involved: the tree's local slug namespace
+ * guarantees at most one of them can claim a slug beneath one parent, so trying
+ * the category first and the page second reaches the same answer whichever it
+ * is. A secondary placement owns no detail route and is never matched —
+ * ADR-0003 decision 5 gives a page exactly one address.
  *
  * The story root resolves only while the tree has something to show, because
  * ADR-0003 rejects empty public destinations.
@@ -77,12 +101,25 @@ export function resolveStoryRoute(
   let parentId: string | null = null;
   let resolved: ContentCategory | undefined;
 
-  for (const segment of segments) {
+  for (const [index, segment] of segments.entries()) {
     const match: ContentCategory | undefined = getPublicChildCategories(
       tree,
       parentId,
     ).find((category) => category.slug === segment);
-    if (match === undefined) return null;
+
+    if (match === undefined) {
+      // A canonical placement is always a category, so no page is reachable
+      // directly beneath the story root, and only the final segment can name
+      // one. Anything else is an unknown path.
+      if (parentId === null || index !== segments.length - 1) return null;
+
+      const placement = getCanonicalContentBySlug(tree, parentId, segment);
+      return placement === undefined ||
+        !ROUTED_CONTENT_VARIANTS.has(placement.variant)
+        ? null
+        : { kind: "content", contentId: placement.contentId };
+    }
+
     resolved = match;
     parentId = match.categoryId;
   }
@@ -90,6 +127,24 @@ export function resolveStoryRoute(
   return resolved === undefined
     ? null
     : { kind: "category", categoryId: resolved.categoryId };
+}
+
+/**
+ * Canonical path segments of a resolved route, beneath the story namespace. The
+ * story root is the namespace itself and therefore has none.
+ */
+export function getStoryRoutePath(
+  tree: ContentTree,
+  route: StoryRoute,
+): readonly string[] {
+  switch (route.kind) {
+    case "story-root":
+      return [];
+    case "category":
+      return getCategoryPath(tree, route.categoryId);
+    case "content":
+      return getCanonicalContentPath(tree, route.contentId) ?? [];
+  }
 }
 
 /**
@@ -109,6 +164,45 @@ export function getCategoryTrail(
     label: category.label,
     path: getCategoryPath(tree, category.categoryId),
   }));
+}
+
+/**
+ * The categories a route's breadcrumb links, top-level first.
+ *
+ * A content page's trail is its *canonical* ancestry, never the secondary
+ * listing a visitor arrived through (ADR-0003 decision 5), and it stops at the
+ * canonical category: the page itself is the current step, and only the caller
+ * knows its title. The story root has no trail — the caller prepends it,
+ * because only the route layer knows the namespace label.
+ */
+export function getStoryRouteTrail(
+  tree: ContentTree,
+  route: StoryRoute,
+): readonly CategoryLink[] {
+  if (route.kind === "story-root") return [];
+  if (route.kind === "category") return getCategoryTrail(tree, route.categoryId);
+
+  const canonicalCategoryId =
+    tree.placements.get(route.contentId)?.canonicalCategoryId;
+  return canonicalCategoryId === undefined || canonicalCategoryId === null
+    ? []
+    : getCategoryTrail(tree, canonicalCategoryId);
+}
+
+/**
+ * What a visitor is looking at, by the stable identity that associates its
+ * language versions. The story root has no such identity — it is the namespace
+ * itself — so `listStoryRootVersions` answers for it instead.
+ */
+export function toContentLocation(route: StoryRoute): ContentLocation | null {
+  switch (route.kind) {
+    case "story-root":
+      return null;
+    case "category":
+      return { kind: "category", categoryId: route.categoryId };
+    case "content":
+      return { kind: "content", contentId: route.contentId };
+  }
 }
 
 /**

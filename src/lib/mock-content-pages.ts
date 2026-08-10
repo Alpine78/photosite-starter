@@ -1,81 +1,60 @@
 /**
- * Article content type: serves both short blog posts and long-form story
- * articles (same type, more content blocks). Mock data for now; will be
- * served by the CMS (Sanity) once integrated — accessors are async for
- * that reason, mirroring src/lib/site-settings.ts.
+ * Authored bodies for the mock content tree, until the CMS adapter lands.
  *
- * Body is a typed block list (Portable Text shape), so the CMS migration
- * is a mapping exercise rather than a model rewrite.
+ * Split from `mock-content-listing.ts` the same way a real adapter must split
+ * its queries: those are the few fields a card projects, and these are the ones
+ * only a detail page reads. Nothing here is ever loaded to render a listing.
  *
- * Cover media appears in the multi-column listing grid, where images are never
- * cropped and card height therefore follows the cover's native ratio: keep
- * covers within a similar ratio range so rows don't tear open. Body media is
- * single-column, so any ratio works there.
+ * The shared fields — title, lead, publication date, cover — are not restated
+ * here. A page composes them from its listing record, so a card and its detail
+ * page cannot drift apart; the CMS equivalent is two projections of one
+ * document. A body without a matching record is a fixture defect and fails at
+ * import rather than at a visitor's request.
+ *
+ * Only `article` pages exist so far. A `gallery` page's curated result set is
+ * AB#66's contract and its route is AB#104's, so no gallery body is authored
+ * here and a gallery detail path answers 404 until that story lands.
+ *
+ * One set per language subtag, keyed by the immutable `contentId`. Most pages
+ * are authored in English only, which is the normal state of a bilingual site
+ * whose translations are still being written.
  */
 
-import type { Media } from "@/lib/media";
+import type { ContentBlock, ContentPage } from "@/lib/content-page";
+import type { ContentVariant } from "@/lib/content-tree";
+import { mockContentListingRecords } from "@/lib/mock-content-listing";
 import { mockImages } from "@/lib/mock-media";
 
-export type ArticleCategory = {
-  slug: string;
-  name: string;
+/** What a page adds to the record a card already carries. */
+type AuthoredPage = {
+  readonly variant: ContentVariant;
+  readonly tags?: readonly string[];
+  readonly body: readonly ContentBlock[];
 };
 
-export type ContentBlock =
-  | { type: "paragraph"; text: string }
-  | { type: "heading"; level: 2 | 3; text: string }
-  | { type: "blockquote"; text: string; attribution?: string }
-  | {
-      type: "media";
-      media: Media;
-    }
-  | { type: "list"; ordered: boolean; items: string[] }
-  | {
-      type: "youtube";
-      videoId: string;
-      /** Accessible title used for the button label and link text. */
-      title: string;
-    };
-
-export type Article = {
-  slug: string;
-  title: string;
-  /** ISO 8601 date string, e.g. "2024-03-15". */
-  publishedAt: string;
-  /** One- to two-sentence summary shown on the listing card. */
-  excerpt: string;
-  categories: ArticleCategory[];
-  tags?: string[];
-  /** Optional cover media; current views render its image variant. */
-  coverMedia?: Media;
-  body: ContentBlock[];
-};
-
-// ---------------------------------------------------------------------------
-// Categories
-// ---------------------------------------------------------------------------
-
-export const ARTICLE_CATEGORIES: ArticleCategory[] = [
-  { slug: "gear", name: "Gear" },
-  { slug: "technique", name: "Technique" },
-  { slug: "travel", name: "Travel" },
-  { slug: "behind-the-scenes", name: "Behind the scenes" },
-];
-
-// ---------------------------------------------------------------------------
-// Mock articles
-// ---------------------------------------------------------------------------
-
-const mockArticles: Article[] = [
-  {
-    slug: "choosing-a-telephoto-lens",
-    title: "Choosing a telephoto lens: what the specs don't tell you",
-    publishedAt: "2024-09-12",
-    excerpt:
-      "Focal length and maximum aperture are only the start. Here is what I look for after years of shooting sports and wildlife with long glass.",
-    categories: [{ slug: "gear", name: "Gear" }],
+const englishPages: Readonly<Record<string, AuthoredPage>> = {
+  "content-reading-coastal-light": {
+    variant: "article",
+    tags: ["light", "coastal", "landscape"],
+    body: [
+      {
+        type: "paragraph",
+        text: "An overcast morning is not a compromise on the coast. Flat light removes the contrast that hides texture in wet rock, and the shoreline shows a great deal more of itself than it does an hour after sunrise. Placeholder copy; replaced with real content from the CMS.",
+      },
+      { type: "heading", level: 2, text: "Waiting for the cloud to even out" },
+      {
+        type: "paragraph",
+        text: "The half hour while high cloud thickens is usually the most useful of the morning. Shadows lose their edges without the scene going grey, and the water keeps enough shape to read as water. Placeholder copy.",
+      },
+      {
+        type: "blockquote",
+        text: "Bad light is mostly light you have not worked out what to do with yet.",
+      },
+    ],
+  },
+  "content-choosing-a-telephoto-lens": {
+    variant: "article",
     tags: ["lenses", "telephoto", "sports photography"],
-    coverMedia: mockImages.openMarsh,
     body: [
       {
         type: "paragraph",
@@ -127,15 +106,9 @@ const mockArticles: Article[] = [
       },
     ],
   },
-  {
-    slug: "understanding-exposure-triangle",
-    title: "The exposure triangle in practice",
-    publishedAt: "2024-07-04",
-    excerpt:
-      "Aperture, shutter speed, and ISO are taught as separate controls, but mastering them means learning to trade one against another fluently.",
-    categories: [{ slug: "technique", name: "Technique" }],
+  "content-understanding-exposure-triangle": {
+    variant: "article",
     tags: ["exposure", "basics", "technique"],
-    coverMedia: mockImages.coastalLandscape,
     body: [
       {
         type: "paragraph",
@@ -154,7 +127,11 @@ const mockArticles: Article[] = [
             "Placeholder image and caption; replaced with real photography from the CMS.",
         },
       },
-      { type: "heading", level: 2, text: "Shutter speed: motion and camera shake" },
+      {
+        type: "heading",
+        level: 2,
+        text: "Shutter speed: motion and camera shake",
+      },
       {
         type: "paragraph",
         text: "The classic rule is to keep shutter speed above the reciprocal of focal length (1/200s at 200 mm). Image stabilisation buys you extra stops, but cannot freeze a moving subject. Placeholder copy.",
@@ -177,17 +154,8 @@ const mockArticles: Article[] = [
       },
     ],
   },
-  {
-    // No cover media — listing card and detail page must work without one.
-    slug: "packing-for-a-photo-trip",
-    title: "What I pack for a week-long photo trip",
-    publishedAt: "2024-05-20",
-    excerpt:
-      "Camera gear is only part of the story. After dozens of trips I have settled on a system that keeps me mobile without leaving anything essential at home.",
-    categories: [
-      { slug: "travel", name: "Travel" },
-      { slug: "behind-the-scenes", name: "Behind the scenes" },
-    ],
+  "content-packing-for-a-photo-trip": {
+    variant: "article",
     tags: ["travel", "packing", "gear"],
     body: [
       {
@@ -217,15 +185,9 @@ const mockArticles: Article[] = [
       },
     ],
   },
-  {
-    slug: "shooting-in-low-light",
-    title: "Low-light photography without a tripod",
-    publishedAt: "2024-02-29",
-    excerpt:
-      "Modern sensors have changed what is possible hand-held after dark. Here is how I approach concerts, street scenes, and indoor events.",
-    categories: [{ slug: "technique", name: "Technique" }],
+  "content-shooting-in-low-light": {
+    variant: "article",
     tags: ["low light", "technique", "ISO"],
-    coverMedia: mockImages.lichenStones,
     body: [
       {
         type: "paragraph",
@@ -261,30 +223,84 @@ const mockArticles: Article[] = [
       },
     ],
   },
-];
+};
 
-// ---------------------------------------------------------------------------
-// Intro copy for the listing page
-// ---------------------------------------------------------------------------
+/**
+ * The one page with a Finnish version, so the detail route's alternate-language
+ * metadata and its exact language switch have real data to resolve. Its English
+ * siblings deliberately have none: their switch falls back the way ADR-0003
+ * decision 7 requires, to the canonical parent category or the story root.
+ */
+const finnishPages: Readonly<Record<string, AuthoredPage>> = {
+  "content-understanding-exposure-triangle": {
+    variant: "article",
+    tags: ["valotus", "perusteet", "tekniikka"],
+    body: [
+      {
+        type: "paragraph",
+        text: "Jokainen valotuspäätös on vaihtokauppa. Kun pysäytät liikkeen lyhyellä valotusajalla, maksat siitä suuremmalla aukolla tai korkeammalla herkkyydellä. Paikkamerkkiteksti; korvataan CMS:n sisällöllä.",
+      },
+      { type: "heading", level: 2, text: "Aukko: syväterävyys ja valo" },
+      {
+        type: "paragraph",
+        text: "Suuri aukko kerää enemmän valoa ja kaventaa syväterävyyttä. Muotokuvassa se on etu, maisemassa haitta, kun kuvan pitäisi olla terävä reunasta reunaan. Paikkamerkkiteksti.",
+      },
+      {
+        type: "media",
+        media: {
+          ...mockImages.forestStream,
+          caption:
+            "Paikkamerkkikuva ja -kuvateksti; korvataan oikealla valokuvalla CMS:stä.",
+        },
+      },
+      { type: "heading", level: 2, text: "Valotusaika: liike ja tärähdys" },
+      {
+        type: "paragraph",
+        text: "Nyrkkisääntö on pitää valotusaika lyhyempänä kuin polttovälin käänteisluku (1/200 s, kun polttoväli on 200 mm). Kuvanvakain antaa lisää aukkoja, mutta ei pysäytä liikkuvaa kohdetta. Paikkamerkkiteksti.",
+      },
+      { type: "heading", level: 2, text: "Herkkyys: kohina ja valotus" },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Valitse aukko halutun syväterävyyden mukaan",
+          "Valitse valotusaika liikkeen mukaan",
+          "Nosta herkkyyttä, kunnes valotus on oikea",
+          "Tarkista kohina täydellä suurennoksella",
+        ],
+      },
+    ],
+  },
+};
 
-const mockBlogIntro =
-  "Thoughts on photography, gear, travel, and the craft. Placeholder copy; replaced with real wording from the CMS.";
+/**
+ * Joins each authored body to the listing record that carries its shared
+ * fields. A body naming a `contentId` the language has no record for is a
+ * fixture defect, and saying so here is the cheapest place to find it.
+ */
+function compose(
+  language: string,
+  pages: Readonly<Record<string, AuthoredPage>>,
+): ReadonlyMap<string, ContentPage> {
+  const records = mockContentListingRecords[language];
 
-// ---------------------------------------------------------------------------
-// Accessors
-// ---------------------------------------------------------------------------
-
-export async function getArticles(categorySlug?: string): Promise<Article[]> {
-  if (!categorySlug) return mockArticles;
-  return mockArticles.filter((a) =>
-    a.categories.some((c) => c.slug === categorySlug),
+  return new Map(
+    Object.entries(pages).map(([contentId, page]) => {
+      const record = records?.get(contentId);
+      if (record === undefined) {
+        throw new TypeError(
+          `mock content page "${contentId}" has no ${language} listing record`,
+        );
+      }
+      return [contentId, { ...record, ...page }];
+    }),
   );
 }
 
-export async function getArticle(slug: string): Promise<Article | undefined> {
-  return mockArticles.find((a) => a.slug === slug);
-}
-
-export async function getBlogIntro(): Promise<string> {
-  return mockBlogIntro;
-}
+/** Authored content pages per language subtag. */
+export const mockContentPages: Readonly<
+  Record<string, ReadonlyMap<string, ContentPage>>
+> = {
+  en: compose("en", englishPages),
+  fi: compose("fi", finnishPages),
+};

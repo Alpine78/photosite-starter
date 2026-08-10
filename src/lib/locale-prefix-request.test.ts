@@ -263,14 +263,97 @@ describe("resolveLocalePrefixRequest", () => {
       ).resolves.toEqual({ kind: "not-found" });
     });
 
-    it("404s a canonical content path, whose route is not built yet", async () => {
+    it("resolves a canonical content path in the unprefixed default space", async () => {
       await expect(
         resolveLocalePrefixRequest({
           config,
           trees,
           redirects,
           prefix: "tarinat",
-          segments: ["maisemat", "rannikko", "rannikon-aamut"],
+          segments: ["tekniikka", "valotuskolmio-kaytannossa"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "story",
+        locale: "fi",
+        route: {
+          kind: "content",
+          contentId: "content-understanding-exposure-triangle",
+        },
+      });
+    });
+
+    it.each([
+      ["the canonical spelling", ["maisemat", "rannikko", "rannikon-aamut"]],
+      ["a casing variant of it", ["Maisemat", "Rannikko", "Rannikon-Aamut"]],
+    ])(
+      "404s a gallery's canonical path, whose route is not built yet, at %s",
+      async (_spelling, segments) => {
+        // Never a redirect: a permanent one onto a page that cannot render
+        // would teach browsers and crawlers a dead address.
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix: "tarinat",
+            segments,
+            searchParams: {},
+            defaultLocaleRouteExists: missing(),
+          }),
+        ).resolves.toEqual({ kind: "not-found" });
+      },
+    );
+
+    it("resolves a canonical content path inside a locale prefix", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "en",
+          segments: ["stories", "gear", "choosing-a-telephoto-lens"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "story",
+        locale: "en",
+        route: {
+          kind: "content",
+          contentId: "content-choosing-a-telephoto-lens",
+        },
+      });
+    });
+
+    it("redirects a differently cased content path to its canonical form", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "en",
+          segments: ["stories", "Gear", "Choosing-A-Telephoto-Lens"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: "/en/stories/gear/choosing-a-telephoto-lens",
+      });
+    });
+
+    it("404s a content slug beneath a category that only lists the page", async () => {
+      // Only the canonical placement owns a detail route, so a secondary
+      // listing's category has no page of that name to serve.
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "en",
+          segments: ["stories", "technique", "choosing-a-telephoto-lens"],
           searchParams: {},
           defaultLocaleRouteExists: missing(),
         }),
@@ -342,6 +425,25 @@ describe("resolveLocalePrefixRequest", () => {
       ).resolves.toEqual({
         kind: "redirect",
         location: "/tarinat/tapahtumat",
+      });
+    });
+
+    it("redirects a renamed page's previous path to its current one", async () => {
+      // The page kept its canonical category and changed only its own slug,
+      // which is the third case ADR-0003 decision 7 records history for.
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "en",
+          segments: ["stories", "technique", "low-light-without-a-tripod"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: "/en/stories/technique/shooting-in-low-light",
       });
     });
 

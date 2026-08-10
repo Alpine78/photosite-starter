@@ -2,7 +2,6 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { getArticles } from "@/lib/articles";
 import {
   RESERVED_LOCALE_ROUTE_SEGMENTS,
   RESERVED_ROOT_SEGMENTS,
@@ -69,18 +68,13 @@ describe("defaultLocaleRouteExists", () => {
   it("resolves the static listing routes", async () => {
     await expect(defaultLocaleRouteExists("/services")).resolves.toBe(true);
     await expect(defaultLocaleRouteExists("/portfolio")).resolves.toBe(true);
-    await expect(defaultLocaleRouteExists("/blog")).resolves.toBe(true);
   });
 
   it("resolves a detail route that has content behind it", async () => {
     const [service] = await getServices();
-    const [article] = await getArticles();
 
     await expect(
       defaultLocaleRouteExists(`/services/${service.slug}`),
-    ).resolves.toBe(true);
-    await expect(
-      defaultLocaleRouteExists(`/blog/${article.slug}`),
     ).resolves.toBe(true);
   });
 
@@ -90,9 +84,6 @@ describe("defaultLocaleRouteExists", () => {
     await expect(
       defaultLocaleRouteExists("/services/no-such-service"),
     ).resolves.toBe(false);
-    await expect(defaultLocaleRouteExists("/blog/no-such-article")).resolves.toBe(
-      false,
-    );
   });
 
   it("rejects unknown and over-deep paths", async () => {
@@ -100,7 +91,20 @@ describe("defaultLocaleRouteExists", () => {
     await expect(defaultLocaleRouteExists("/portfolio/extra")).resolves.toBe(
       false,
     );
-    await expect(defaultLocaleRouteExists("/blog/one/two")).resolves.toBe(false);
+    await expect(defaultLocaleRouteExists("/services/one/two")).resolves.toBe(
+      false,
+    );
+  });
+
+  it("does not resolve the removed article scaffold routes", async () => {
+    // `/blog` and `/blog/<slug>` were pre-launch scaffold routes that were
+    // never deployed or indexed, so AB#124 removed them outright rather than
+    // leaving compatibility redirects behind. Articles live at their canonical
+    // paths in the story namespace, which this registry never answers for.
+    await expect(defaultLocaleRouteExists("/blog")).resolves.toBe(false);
+    await expect(
+      defaultLocaleRouteExists("/blog/choosing-a-telephoto-lens"),
+    ).resolves.toBe(false);
   });
 
   it("does not treat a public asset directory as a route", async () => {

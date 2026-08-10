@@ -17,6 +17,7 @@ import {
   type ContentListingQuery,
   type ContentListingRecord,
 } from "@/lib/content-listing";
+import type { ContentPage } from "@/lib/content-page";
 import {
   buildContentRedirects,
   type ContentRedirects,
@@ -25,6 +26,7 @@ import { buildContentTree, type ContentTree } from "@/lib/content-tree";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import type { LocaleRouteConfig, LocalizedContentTrees } from "@/lib/locale-routes";
 import { mockContentListingRecords } from "@/lib/mock-content-listing";
+import { mockContentPages } from "@/lib/mock-content-pages";
 import {
   mockContentRedirectInputs,
   mockContentTreeInputs,
@@ -106,6 +108,20 @@ async function queryListingRecords(
   });
 
   return orderContentListingRecords(rows).slice(0, query.limit);
+}
+
+/**
+ * One content page in one locale, or `undefined` when that locale publishes no
+ * version of it.
+ *
+ * Read only by a detail route, and only after the tree has resolved the path to
+ * this `contentId`: the body is exactly what a listing query must never load.
+ */
+export async function getContentPage(
+  locale: string,
+  contentId: string,
+): Promise<ContentPage | undefined> {
+  return mockContentPages[languageOf(locale)]?.get(contentId);
 }
 
 /** One branch listing: `null` lists the locale's story root. */

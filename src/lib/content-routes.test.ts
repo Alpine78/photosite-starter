@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   getCategoryTrail,
+  getStoryRoutePath,
+  getStoryRouteTrail,
   listStoryRootVersions,
   resolveStoryRoute,
   toCategoryLink,
+  toContentLocation,
 } from "@/lib/content-routes";
 import { buildContentTree, type ContentTree } from "@/lib/content-tree";
 import {
@@ -65,9 +68,71 @@ describe("resolveStoryRoute", () => {
     expect(resolveStoryRoute(english, ["archive"])).toBeNull();
   });
 
-  it("does not resolve a canonical content slug as a category", () => {
+  it("resolves a canonical content slug beneath its category", () => {
+    expect(
+      resolveStoryRoute(english, ["gear", "packing-for-a-photo-trip"]),
+    ).toEqual({
+      kind: "content",
+      contentId: "content-packing-for-a-photo-trip",
+    });
+  });
+
+  it("does not resolve a variant this application has no route for", () => {
+    // A gallery's canonical path stays outside the route space until AB#104
+    // renders it. Resolving it would also earn it the casing and
+    // redundant-prefix redirects, pointing them at a page that cannot render.
+    expect(
+      english.placements.get("content-coastal-mornings")?.variant,
+    ).toBe("gallery");
     expect(
       resolveStoryRoute(english, ["landscape", "coastal", "coastal-mornings"]),
+    ).toBeNull();
+  });
+
+  it("resolves a content slug in the locale that publishes that version", () => {
+    expect(
+      resolveStoryRoute(finnish, ["tekniikka", "valotuskolmio-kaytannossa"]),
+    ).toEqual({
+      kind: "content",
+      contentId: "content-understanding-exposure-triangle",
+    });
+    // The English slug of the same page is not a Finnish path.
+    expect(
+      resolveStoryRoute(finnish, [
+        "tekniikka",
+        "understanding-exposure-triangle",
+      ]),
+    ).toBeNull();
+  });
+
+  it("does not resolve content beneath a category it is only listed in", () => {
+    // `content-choosing-a-telephoto-lens` is canonically placed in Gear and
+    // listed in Technique. Only the canonical placement owns a detail route.
+    expect(
+      resolveStoryRoute(english, ["gear", "choosing-a-telephoto-lens"]),
+    ).toEqual({
+      kind: "content",
+      contentId: "content-choosing-a-telephoto-lens",
+    });
+    expect(
+      resolveStoryRoute(english, ["technique", "choosing-a-telephoto-lens"]),
+    ).toBeNull();
+  });
+
+  it("does not resolve unpublished or unplaced content", () => {
+    expect(resolveStoryRoute(english, ["unplaced-draft"])).toBeNull();
+    expect(resolveStoryRoute(english, ["gear", "unplaced-draft"])).toBeNull();
+  });
+
+  it("does not resolve a content slug at the story root", () => {
+    // A canonical placement is always a category, so no page sits directly
+    // beneath the namespace.
+    expect(resolveStoryRoute(english, ["coastal-mornings"])).toBeNull();
+  });
+
+  it("does not resolve a path continuing past a content page", () => {
+    expect(
+      resolveStoryRoute(english, ["gear", "packing-for-a-photo-trip", "more"]),
     ).toBeNull();
   });
 
@@ -105,6 +170,70 @@ describe("getCategoryTrail", () => {
     expect(getCategoryTrail(finnish, "cat-coastal").map((s) => s.path)).toEqual(
       [["maisemat"], ["maisemat", "rannikko"]],
     );
+  });
+});
+
+describe("getStoryRoutePath", () => {
+  it("gives the story root no segments of its own", () => {
+    expect(getStoryRoutePath(english, { kind: "story-root" })).toEqual([]);
+  });
+
+  it("returns a category's canonical path", () => {
+    expect(
+      getStoryRoutePath(english, {
+        kind: "category",
+        categoryId: "cat-coastal",
+      }),
+    ).toEqual(["landscape", "coastal"]);
+  });
+
+  it("returns a page's canonical detail path", () => {
+    expect(
+      getStoryRoutePath(english, {
+        kind: "content",
+        contentId: "content-choosing-a-telephoto-lens",
+      }),
+    ).toEqual(["gear", "choosing-a-telephoto-lens"]);
+  });
+});
+
+describe("getStoryRouteTrail", () => {
+  it("stops at a content page's canonical category", () => {
+    expect(
+      getStoryRouteTrail(english, {
+        kind: "content",
+        contentId: "content-coastal-mornings",
+      }).map((step) => step.categoryId),
+    ).toEqual(["cat-landscape", "cat-coastal"]);
+  });
+
+  it("follows canonical ancestry, not a secondary listing", () => {
+    // Listed in Events as well, but Gear owns the placement and the trail.
+    expect(
+      getStoryRouteTrail(english, {
+        kind: "content",
+        contentId: "content-choosing-a-telephoto-lens",
+      }).map((step) => step.categoryId),
+    ).toEqual(["cat-gear"]);
+  });
+
+  it("gives the story root no trail", () => {
+    expect(getStoryRouteTrail(english, { kind: "story-root" })).toEqual([]);
+  });
+});
+
+describe("toContentLocation", () => {
+  it("names the stable identity a language switch resolves by", () => {
+    expect(
+      toContentLocation({ kind: "content", contentId: "content-x" }),
+    ).toEqual({ kind: "content", contentId: "content-x" });
+    expect(
+      toContentLocation({ kind: "category", categoryId: "cat-x" }),
+    ).toEqual({ kind: "category", categoryId: "cat-x" });
+  });
+
+  it("gives the story root none, because it is the namespace itself", () => {
+    expect(toContentLocation({ kind: "story-root" })).toBeNull();
   });
 });
 

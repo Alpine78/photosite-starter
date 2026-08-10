@@ -90,6 +90,8 @@ describe("buildCategoryListing", () => {
       { categoryId: "cat-landscape", label: "Landscape", path: ["landscape"] },
       { categoryId: "cat-travel", label: "Travel", path: ["travel"] },
       { categoryId: "cat-events", label: "Events", path: ["events"] },
+      { categoryId: "cat-gear", label: "Gear", path: ["gear"] },
+      { categoryId: "cat-technique", label: "Technique", path: ["technique"] },
     ]);
   });
 

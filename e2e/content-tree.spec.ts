@@ -1,6 +1,10 @@
 import type { Locator, Page } from "@playwright/test";
 import { buildContentRedirects } from "../src/lib/content-redirects";
-import { buildContentTree } from "../src/lib/content-tree";
+import {
+  buildContentTree,
+  getCanonicalContentPath,
+} from "../src/lib/content-tree";
+import { mockContentPages } from "../src/lib/mock-content-pages";
 import {
   mockContentRedirectInputs,
   mockContentTreeInputs,
@@ -14,8 +18,8 @@ import {
 } from "./support/harness-environment";
 
 /**
- * The public content tree: branch routes, breadcrumbs, and the URL contract
- * around them.
+ * The public content tree: branch routes, canonical detail routes, breadcrumbs,
+ * and the URL contract around them.
  *
  * Nothing here names a category, a page title, or a label. A clone rebrands its
  * whole taxonomy, so the journey discovers the tree by walking it from the
@@ -58,6 +62,33 @@ function retiredDefaultRoute(): { readonly from: string; readonly to: string } {
 }
 
 const RETIRED_DEFAULT_ROUTE = retiredDefaultRoute();
+
+/**
+ * One published article's canonical path, derived from the same adapter data
+ * the harness serves rather than written down here.
+ *
+ * The variant matters: a gallery's detail route is AB#104's and does not exist
+ * yet, so the journey asks the adapter which page it can actually open instead
+ * of assuming any card leads somewhere.
+ */
+function firstDefaultLocaleArticlePath(): string {
+  const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
+  const treeInput = mockContentTreeInputs[language];
+  if (treeInput === undefined) {
+    throw new Error(`[e2e] The default locale ${language} publishes no mock tree.`);
+  }
+
+  const tree = buildContentTree(treeInput);
+  for (const [contentId, page] of mockContentPages[language] ?? []) {
+    if (page.variant !== "article") continue;
+    const path = getCanonicalContentPath(tree, contentId);
+    if (path !== null) return `${STORY_ROOT}/${path.join("/")}`;
+  }
+
+  throw new Error("[e2e] The harness needs one published article.");
+}
+
+const ARTICLE_ROUTE = firstDefaultLocaleArticlePath();
 
 /** A listing card: the only links in main that carry a level-three heading. */
 function contentCards(page: Page): Locator {
@@ -196,6 +227,62 @@ test("a listed page has one canonical address wherever it appears", async ({
       `one canonical address is expected for ${JSON.stringify(name)}`,
     ).toHaveLength(1);
   }
+});
+
+test("a content page opens from its listing and states where it lives", async ({
+  page,
+  externalRequests,
+}) => {
+  const categoryPath = ARTICLE_ROUTE.slice(0, ARTICLE_ROUTE.lastIndexOf("/"));
+
+  await test.step("a keyboard alone reaches the page from its category", async () => {
+    await page.goto(categoryPath, { waitUntil: "domcontentloaded" });
+
+    const card = page.getByRole("main").locator(`a[href="${ARTICLE_ROUTE}"]`);
+    await expect(card).toHaveCount(1);
+    await card.focus();
+    await expect(card).toBeFocused();
+    await page.keyboard.press("Enter");
+    await page.waitForURL(`**${ARTICLE_ROUTE}`);
+  });
+
+  await test.step("it renders as one titled, dated document", async () => {
+    await expect(page.getByRole("main")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    await expect(page.getByRole("main").locator("time").first()).toHaveAttribute(
+      "datetime",
+      /^\d{4}-\d{2}-\d{2}/,
+    );
+  });
+
+  await test.step("its breadcrumb follows canonical ancestry to itself", async () => {
+    // One step per path segment: the story root, each category, then the page.
+    const depth = ARTICLE_ROUTE.split("/").filter(Boolean).length;
+    const steps = breadcrumbSteps(page);
+
+    await expect(steps).toHaveCount(depth);
+    await expect(steps.first().getByRole("link")).toHaveAttribute(
+      "href",
+      STORY_ROOT,
+    );
+    await expect(steps.nth(depth - 2).getByRole("link")).toHaveAttribute(
+      "href",
+      categoryPath,
+    );
+    await expect(steps.last().getByRole("link")).toHaveCount(0);
+    await expect(
+      page.getByRole("main").locator("[aria-current='page']"),
+    ).toHaveCount(1);
+  });
+
+  await test.step("it declares itself canonical at its one address", async () => {
+    await expect(page.locator("link[rel='canonical']")).toHaveAttribute(
+      "href",
+      new RegExp(`${escapeForRegExp(ARTICLE_ROUTE)}$`),
+    );
+  });
+
+  expect(externalRequests).toEqual([]);
 });
 
 test("a branch names and links the other locale's version of itself", async ({

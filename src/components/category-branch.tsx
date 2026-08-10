@@ -1,6 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
+import {
+  LanguageSwitch,
+  type LanguageLink,
+} from "@/components/language-switch";
 import { formatDate } from "@/lib/date-format";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
@@ -23,21 +27,12 @@ export type BranchContentCard = {
   readonly href: string;
 };
 
-export type BranchLanguageLink = {
-  readonly locale: string;
-  /** The language's own name, so a visitor recognizes it without reading ours. */
-  readonly label: string;
-  readonly href: string;
-  /** Says so when the target is the nearest page, not this exact one. */
-  readonly note?: string;
-};
-
 type CategoryBranchProps = {
   locale: string;
   title: string;
   /** Omitted on the story root, which would be a one-step trail to itself. */
   breadcrumbs?: readonly BreadcrumbStep[];
-  languages: readonly BranchLanguageLink[];
+  languages: readonly LanguageLink[];
   childCategories: readonly BranchCategoryLink[];
   content: readonly BranchContentCard[];
   labels: BuiltInLabels;
@@ -77,26 +72,11 @@ export function CategoryBranch({
         </h1>
       </header>
 
-      {languages.length > 0 && (
-        <nav aria-label={labels.contentTree.languages} className="mt-4">
-          <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            {languages.map((language) => (
-              <li key={language.locale}>
-                <Link
-                  href={language.href}
-                  hrefLang={language.locale}
-                  className={`text-foreground/70 underline underline-offset-4 hover:text-foreground ${focusRing}`}
-                >
-                  {language.label}
-                </Link>
-                {language.note && (
-                  <span className="text-foreground/50"> ({language.note})</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+      <LanguageSwitch
+        label={labels.contentTree.languages}
+        links={languages}
+      />
+
 
       {childCategories.length > 0 && (
         <section aria-labelledby="branch-categories" className="mt-10">
