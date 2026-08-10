@@ -30,11 +30,15 @@ export type BranchContentCard = {
 type CategoryBranchProps = {
   locale: string;
   title: string;
+  /** Generic orientation copy shown only on the story root. */
+  introduction?: string;
   /** Omitted on the story root, which would be a one-step trail to itself. */
   breadcrumbs?: readonly BreadcrumbStep[];
   languages: readonly LanguageLink[];
   childCategories: readonly BranchCategoryLink[];
   content: readonly BranchContentCard[];
+  /** The root calls its cross-category overview "latest"; branches do not. */
+  contentHeading: string;
   labels: BuiltInLabels;
 };
 
@@ -54,10 +58,12 @@ const focusRing =
 export function CategoryBranch({
   locale,
   title,
+  introduction,
   breadcrumbs,
   languages,
   childCategories,
   content,
+  contentHeading,
   labels,
 }: CategoryBranchProps) {
   return (
@@ -70,6 +76,9 @@ export function CategoryBranch({
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           {title}
         </h1>
+        {introduction && (
+          <p className="mt-4 max-w-2xl text-foreground/70">{introduction}</p>
+        )}
       </header>
 
       <LanguageSwitch
@@ -82,7 +91,7 @@ export function CategoryBranch({
         <section aria-labelledby="branch-categories" className="mt-10">
           <h2
             id="branch-categories"
-            className="text-xs font-medium uppercase tracking-wider text-foreground/50"
+            className="text-xs font-medium uppercase tracking-wider text-foreground/70"
           >
             {labels.contentTree.categories}
           </h2>
@@ -105,9 +114,9 @@ export function CategoryBranch({
         <section aria-labelledby="branch-content" className="mt-12">
           <h2
             id="branch-content"
-            className="text-xs font-medium uppercase tracking-wider text-foreground/50"
+            className="text-xs font-medium uppercase tracking-wider text-foreground/70"
           >
-            {labels.contentTree.content}
+            {contentHeading}
           </h2>
           <ul className="mt-4 grid items-start gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {content.map((entry) => (
@@ -137,7 +146,7 @@ export function CategoryBranch({
                     )}
                     <time
                       dateTime={entry.publishedAt}
-                      className="mt-4 text-xs text-foreground/50"
+                      className="mt-4 text-xs text-foreground/70"
                     >
                       {formatDate(entry.publishedAt, locale)}
                     </time>

@@ -32,6 +32,23 @@ Changed text: decision 6's closing paragraph, one consequence bullet, and the sp
 implementation action items 8–11. The canonical route contract, the redirect-history
 rules, and every other decision are unaffected.
 
+### 2026-08-10 — The story root previews recent routed content (AB#124)
+
+Decision 8 originally described content listings only in terms of category ownership.
+The first browser review showed that a story root containing category links alone gives
+no preview of the authored stories and makes a deliberately sparse locale look empty.
+Moving content into the root would weaken the canonical-placement rule, while loading an
+unbounded tree would weaken the listing-query boundary.
+
+The story root now uses the same bounded, deterministic listing projection to show
+recent published content from across the tree. It includes only variants whose detail
+route is currently served, and every card links to its existing category-owned canonical
+path. The overview therefore creates neither a root placement nor a second URL. Category
+branches retain their canonical-and-secondary membership rule unchanged.
+
+Changed text: decision 8's category-listing paragraph. The canonical placement, ordering,
+continuation, and category-branch contracts are unaffected.
+
 ## Context
 
 The public site needs one navigable category tree for curated galleries and editorial
@@ -526,6 +543,13 @@ sibling order first, then canonically placed content pages newest first with the
 content identifier as the tie-breaker; a secondary listing uses the same order and links
 to the canonical detail route. What a listing entry shows is an implementation decision;
 its route, its deterministic order, and its continuation contract are decided here.
+
+The story root uses that same bounded listing projection for a cross-category recent
+overview. Its candidates are published pages whose variants currently have a served
+detail route, ordered newest first with the same immutable-id tie-breaker. An overview
+card still links to the category-owned canonical path and creates no root placement.
+Category branch membership remains canonical-plus-secondary; the aggregation applies
+only to the story root.
 
 A valid section with no public items returns a successful accessible empty state and
 remains `noindex`. An unknown section and a malformed, tampered, wrong-scope, or stale

@@ -336,11 +336,15 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
     locale,
     route.kind === "category" ? route.categoryId : null,
   );
+  const isStoryRoot = route.kind === "story-root";
 
   return (
     <CategoryBranch
       locale={locale}
       title={branchTitle(tree, route, labels.pages.stories)}
+      {...(isStoryRoot
+        ? { introduction: labels.contentTree.storyRootIntroduction }
+        : {})}
       breadcrumbs={
         route.kind === "category"
           ? buildBreadcrumbs(config, tree, locale, route, labels)
@@ -360,6 +364,11 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
         ...(entry.cover === undefined ? {} : { cover: entry.cover }),
         href: buildStoryPath(config, locale, entry.path),
       }))}
+      contentHeading={
+        isStoryRoot
+          ? labels.contentTree.latestContent
+          : labels.contentTree.content
+      }
       labels={labels}
     />
   );

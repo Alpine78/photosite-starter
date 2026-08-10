@@ -285,8 +285,10 @@ export function resolveAdjacentContent({
 
 /**
  * Every published page a branch lists: the ones it owns canonically and the
- * ones placed there as secondary listings. `null` is the story root, which owns
- * no content of its own because a canonical placement is always a category.
+ * ones placed there as secondary listings. `null` is the story root, whose
+ * recent-content overview draws from every published variant that currently
+ * has a detail route. It does not create a root placement or a second canonical
+ * path: every overview card still links to the page's category-owned route.
  *
  * The adapter is given exactly these ids, so a branch page never queries the
  * whole content set to find its own.
@@ -295,7 +297,16 @@ export function listCategoryContentIds(
   tree: ContentTree,
   categoryId: string | null,
 ): readonly string[] {
-  if (categoryId === null) return [];
+  if (categoryId === null) {
+    return [...tree.placements.values()]
+      .filter(
+        (placement) =>
+          placement.published &&
+          placement.canonicalCategoryId !== null &&
+          isRoutedContentVariant(placement.variant),
+      )
+      .map((placement) => placement.contentId);
+  }
 
   return [
     ...getCanonicalContent(tree, categoryId),
@@ -424,7 +435,7 @@ export function buildCategoryListing({
   pageSize = MAX_CONTENT_LISTING_PAGE_SIZE,
 }: {
   readonly tree: ContentTree;
-  /** `null` lists the story root, which has only top-level categories. */
+  /** `null` lists the story root's categories and recent routed content. */
   readonly categoryId: string | null;
   /** At most `pageSize + 1` rows, as `buildContentListingQuery` asked for. */
   readonly records: readonly ContentListingRecord[];

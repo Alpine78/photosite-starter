@@ -18,6 +18,7 @@ import { mockContentTreeInputs } from "@/lib/mock-content-tree";
 import { mockImages } from "@/lib/mock-media";
 
 const english = buildContentTree(mockContentTreeInputs.en);
+const finnish = buildContentTree(mockContentTreeInputs.fi);
 const englishRecords = mockContentListingRecords.en;
 
 /** Runs the bounded query the route runs, then assembles what it returned. */
@@ -82,8 +83,19 @@ describe("listCategoryContentIds", () => {
     expect(listCategoryContentIds(english, "cat-archive")).toEqual([]);
   });
 
-  it("asks for nothing at the story root, which owns no content", () => {
-    expect(listCategoryContentIds(english, null)).toEqual([]);
+  it("collects published routed content for the story-root overview", () => {
+    expect(listCategoryContentIds(english, null)).toEqual([
+      "content-reading-coastal-light",
+      "content-choosing-a-telephoto-lens",
+      "content-understanding-exposure-triangle",
+      "content-packing-for-a-photo-trip",
+      "content-shooting-in-low-light",
+    ]);
+    expect(listCategoryContentIds(finnish, null)).toEqual([
+      "content-reading-coastal-light",
+      "content-understanding-exposure-triangle",
+      "content-shooting-in-low-light",
+    ]);
   });
 });
 
@@ -100,6 +112,16 @@ describe("buildCategoryListing", () => {
         label: "Behind the scenes",
         path: ["behind-the-scenes"],
       },
+    ]);
+  });
+
+  it("lists recent routed content across the tree at the story root", () => {
+    expect(listing(null).content.map((entry) => entry.contentId)).toEqual([
+      "content-choosing-a-telephoto-lens",
+      "content-reading-coastal-light",
+      "content-understanding-exposure-triangle",
+      "content-packing-for-a-photo-trip",
+      "content-shooting-in-low-light",
     ]);
   });
 
@@ -311,7 +333,13 @@ describe("buildContentListingQuery", () => {
 
     expect(query.ordering).toBe(CONTENT_LISTING_ORDERING);
     expect(query.limit).toBe(MAX_CONTENT_LISTING_PAGE_SIZE + 1);
-    expect(query.contentIds).toEqual([]);
+    expect(query.contentIds).toEqual([
+      "content-reading-coastal-light",
+      "content-choosing-a-telephoto-lens",
+      "content-understanding-exposure-triangle",
+      "content-packing-for-a-photo-trip",
+      "content-shooting-in-low-light",
+    ]);
   });
 
   it("rejects an unbounded page size before a query is issued", () => {

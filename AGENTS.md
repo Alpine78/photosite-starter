@@ -93,7 +93,8 @@ routes are in place on top of that: the story-namespace root and every public ca
 path in each configured locale space, with breadcrumbs following canonical ancestry, a
 deterministically ordered listing of child categories and content (secondary listings
 included, each linking to the one canonical detail route) read through a bounded query
-that pushes the order and row limit to the adapter, uncropped cover media with a defined
+that pushes the order and row limit to the adapter, a bounded recent-content overview on
+the story root, uncropped cover media with a defined
 missing-cover state, single-hop permanent redirects for casing variants and for the
 recorded previous paths a move or rename retired, `hreflang`/`x-default` alternates, and
 a visible identity-based language switch. Page metadata omits the site description in

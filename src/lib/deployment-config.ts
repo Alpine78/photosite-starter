@@ -118,10 +118,14 @@ export type BuiltInLabels = {
     };
   };
   readonly contentTree: {
+    /** Short orientation copy on the story root. */
+    readonly storyRootIntroduction: string;
     /** Heading above a branch's public child categories. */
     readonly categories: string;
     /** Heading above the content pages a branch lists. */
     readonly content: string;
+    /** Heading above the story root's cross-category recent-content overview. */
+    readonly latestContent: string;
     /**
      * Heading above a page's keywords. Separate from categories: tags consume
      * no tree depth and own no route of their own.
@@ -273,8 +277,11 @@ const englishLabels = {
     },
   },
   contentTree: {
+    storyRootIntroduction:
+      "Browse the latest stories or explore the collection by category.",
     categories: "Categories",
     content: "Stories",
+    latestContent: "Latest stories",
     tags: "Tags",
     onThisPage: "On this page",
     languages: "Language",
@@ -363,8 +370,11 @@ const finnishLabels = {
     },
   },
   contentTree: {
+    storyRootIntroduction:
+      "Tutustu uusimpiin tarinoihin tai selaa kokoelmaa kategorioittain.",
     categories: "Kategoriat",
     content: "Tarinat",
+    latestContent: "Uusimmat tarinat",
     tags: "Avainsanat",
     onThisPage: "Tällä sivulla",
     languages: "Kieli",

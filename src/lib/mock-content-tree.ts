@@ -14,9 +14,10 @@
  * One input per language subtag, because ADR-0003 gives each locale its own
  * tree: labels and slugs are translated while `categoryId` and `contentId` stay
  * identical, which is what associates the language versions. The Finnish tree
- * publishes one article and deliberately omits the rest, along with one whole
- * category, so both halves of the normal bilingual state are covered: a page
- * with a real translation, and pages — and a branch — that have none yet.
+ * publishes a small but useful set of articles and deliberately omits the
+ * rest, along with one whole category, so both halves of the normal bilingual
+ * state are covered: pages with real translations, and pages — and a branch —
+ * that have none yet.
  */
 
 import type { ContentRedirectInput } from "@/lib/content-redirects";
@@ -146,8 +147,13 @@ const finnishContentTree: ContentTreeInput = {
       canonicalCategoryId: "cat-coastal",
       secondaryCategoryIds: ["cat-events"],
     },
-    // `content-reading-coastal-light` has no Finnish version yet, so Maisemat
-    // is a branch category here and an article listing in English.
+    {
+      contentId: "content-reading-coastal-light",
+      variant: "article",
+      slug: "rannikon-valon-lukeminen",
+      published: true,
+      canonicalCategoryId: "cat-landscape",
+    },
     {
       contentId: "content-polar-night-sessions",
       variant: "gallery",
@@ -155,13 +161,20 @@ const finnishContentTree: ContentTreeInput = {
       published: true,
       canonicalCategoryId: "cat-polar-night",
     },
-    // The one article published in both languages, so a detail page has a real
-    // exact language switch to offer. Its English siblings have no Finnish
-    // version and fall back to the nearest page instead.
+    // One of the articles published in both languages, so a detail page has a
+    // real exact language switch to offer. Some English siblings still have no
+    // Finnish version and fall back to the nearest page instead.
     {
       contentId: "content-understanding-exposure-triangle",
       variant: "article",
       slug: "valotuskolmio-kaytannossa",
+      published: true,
+      canonicalCategoryId: "cat-technique",
+    },
+    {
+      contentId: "content-shooting-in-low-light",
+      variant: "article",
+      slug: "hamarakuvaus-ilman-jalustaa",
       published: true,
       canonicalCategoryId: "cat-technique",
     },

@@ -15,9 +15,9 @@
  * AB#66's contract and its route is AB#104's, so no gallery body is authored
  * here and a gallery detail path answers 404 until that story lands.
  *
- * One set per language subtag, keyed by the immutable `contentId`. Most pages
- * are authored in English only, which is the normal state of a bilingual site
- * whose translations are still being written.
+ * One set per language subtag, keyed by the immutable `contentId`. Some pages
+ * remain English-only, which is the normal state of a bilingual site whose
+ * translations are still being written and keeps the fallback path exercised.
  */
 
 import type { ContentBlock, ContentPage } from "@/lib/content-page";
@@ -227,12 +227,31 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
 };
 
 /**
- * The one page with a Finnish version, so the detail route's alternate-language
- * metadata and its exact language switch have real data to resolve. Its English
- * siblings deliberately have none: their switch falls back the way ADR-0003
- * decision 7 requires, to the canonical parent category or the story root.
+ * A small Finnish set makes the localized browsing route useful while some
+ * English siblings deliberately remain untranslated. The latter still make
+ * the switch exercise ADR-0003 decision 7's parent-category or story-root
+ * fallback.
  */
 const finnishPages: Readonly<Record<string, AuthoredPage>> = {
+  "content-reading-coastal-light": {
+    variant: "article",
+    tags: ["valo", "rannikko", "maisemakuvaus"],
+    body: [
+      {
+        type: "paragraph",
+        text: "Pilvinen aamu ei ole rannikolla kompromissi. Tasainen valo tuo märän kiven pinnan ja veden pienet sävyerot näkyviin ilman kovia varjoja. Paikkamerkkiteksti; korvataan CMS:n sisällöllä.",
+      },
+      { type: "heading", level: 2, text: "Odota valon tasaantumista" },
+      {
+        type: "paragraph",
+        text: "Hyödyllisin hetki alkaa usein silloin, kun yläpilvi tihenee mutta maisema ei vielä muutu harmaaksi. Vesi säilyttää muotonsa ja rantaviivan yksityiskohdat erottuvat. Paikkamerkkiteksti.",
+      },
+      {
+        type: "blockquote",
+        text: "Huono valo on usein vain valoa, jolle et ole vielä löytänyt käyttötapaa.",
+      },
+    ],
+  },
   "content-understanding-exposure-triangle": {
     variant: "article",
     tags: ["valotus", "perusteet", "tekniikka"],
@@ -271,6 +290,31 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
           "Valitse valotusaika liikkeen mukaan",
           "Nosta herkkyyttä, kunnes valotus on oikea",
           "Tarkista kohina täydellä suurennoksella",
+        ],
+      },
+    ],
+  },
+  "content-shooting-in-low-light": {
+    variant: "article",
+    tags: ["hämärä", "käsivarakuvaus", "tekniikka"],
+    body: [
+      {
+        type: "paragraph",
+        text: "Hämärässä käsivaralta kuvaaminen alkaa liikkeen tunnistamisesta: liikkuva kohde tarvitsee lyhyemmän valotusajan kuin paikallaan pysyvä maisema. Paikkamerkkiteksti; korvataan CMS:n sisällöllä.",
+      },
+      { type: "heading", level: 2, text: "Valitse valotusaika ensin" },
+      {
+        type: "paragraph",
+        text: "Aseta lyhin valotusaika, jolla kohteen liike pysähtyy, ja anna herkkyyden nousta vasta sen jälkeen. Kuvanvakain auttaa kameran tärähdykseen, mutta ei pysäytä kohdetta. Paikkamerkkiteksti.",
+      },
+      { type: "heading", level: 2, text: "Tarkista tulos paikan päällä" },
+      {
+        type: "list",
+        ordered: false,
+        items: [
+          "Tarkista tärkeimmän yksityiskohdan terävyys",
+          "Seuraa kirkkaiden alueiden palamista",
+          "Nosta herkkyyttä ennen kuin pidennät valotusaikaa liikaa",
         ],
       },
     ],

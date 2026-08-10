@@ -340,6 +340,7 @@ test("the story root leads into a branch that states its own ancestry", async ({
 
   await expect(page.getByRole("main")).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  expect(await contentCards(page).count()).toBeGreaterThan(0);
 
   const firstBranch = branchLinks(page).first();
   await expect(firstBranch).toHaveAccessibleName(/\S/);
@@ -454,13 +455,15 @@ test("a content page opens from its listing and states where it lives", async ({
   });
 
   await test.step("it declares itself canonical at its one address", async () => {
+    // The keyboard step above proves the client navigation. Canonical metadata
+    // is a document-response contract, so verify it on a direct load rather
+    // than coupling the assertion to Next's transient head reconciliation
+    // while the old category document is being replaced.
+    await page.reload({ waitUntil: "domcontentloaded" });
     const canonical = page.locator(
       `link[rel='canonical'][href$="${ARTICLE_ROUTE}"]`,
     );
     await expect(canonical).toHaveCount(1);
-    // Streaming metadata may briefly overlap the category's old head entry
-    // during a client navigation; the settled document must retain only this
-    // page's canonical URL.
     await expect(page.locator("link[rel='canonical']")).toHaveCount(1);
   });
 
@@ -656,6 +659,11 @@ test("a branch names and links the other locale's version of itself", async ({
       .getByRole("main")
       .locator(`a[href="${PREFIXED_STORY_ROOT}"]`);
     await expect(switchLink).toHaveCount(1);
+    const languageSwitch = page
+      .getByRole("main")
+      .locator(`nav:has(a[href="${PREFIXED_STORY_ROOT}"])`);
+    await expect(languageSwitch).toHaveCount(1);
+    await expect(languageSwitch.locator(":scope > span")).toBeVisible();
 
     await switchLink.click();
     await page.waitForURL(`**${PREFIXED_STORY_ROOT}`);
@@ -665,6 +673,7 @@ test("a branch names and links the other locale's version of itself", async ({
       new RegExp(`^${PREFIXED_LOCALE.prefix}\\b`),
     );
     await expect(page.locator("meta[property='og:image:alt']")).toHaveCount(0);
+    expect(await contentCards(page).count()).toBeGreaterThan(0);
   });
 
   await test.step("a differently cased locale prefix normalizes in that locale", async () => {

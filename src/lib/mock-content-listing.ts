@@ -85,6 +85,14 @@ const finnishCoastalLandscape = withLocalizedText(mockImages.coastalLandscape, {
   alt: "Kivinen rantaviiva tyynen veden äärellä pilvisen taivaan alla",
 });
 
+const finnishMistyBirch = withLocalizedText(mockImages.mistyBirch, {
+  alt: "Hopeakoivu sumuisessa vihreässä metsässä",
+});
+
+const finnishLichenStones = withLocalizedText(mockImages.lichenStones, {
+  alt: "Sateen tummentamia kiviä vaalean jäkälän kuvioimina",
+});
+
 const finnishRecords: readonly ContentListingRecord[] = [
   {
     contentId: "content-coastal-mornings",
@@ -93,6 +101,14 @@ const finnishRecords: readonly ContentListingRecord[] = [
       "Ensimmäinen valo rantaviivalla, kuvattuna useiden aikaisten aamujen aikana.",
     publishedAt: "2024-06-18",
     cover: finnishCoastalLandscape,
+  },
+  {
+    contentId: "content-reading-coastal-light",
+    title: "Rannikon valon lukeminen",
+    summary:
+      "Miten pilvinen aamu muuttaa rantamaisemaa ja miksi sitä kannattaa odottaa.",
+    publishedAt: "2024-08-02",
+    cover: finnishMistyBirch,
   },
   {
     contentId: "content-polar-night-sessions",
@@ -107,6 +123,14 @@ const finnishRecords: readonly ContentListingRecord[] = [
       "Aukko, valotusaika ja herkkyys opetetaan erillisinä säätiminä, mutta niiden hallinta tarkoittaa sujuvaa vaihtokauppaa yhden ja toisen välillä.",
     publishedAt: "2024-07-04",
     cover: finnishCoastalLandscape,
+  },
+  {
+    contentId: "content-shooting-in-low-light",
+    title: "Hämäräkuvaus ilman jalustaa",
+    summary:
+      "Käytännöllinen tapa hallita valotusaikaa, herkkyyttä ja kuvanvakautusta käsivaralta kuvatessa.",
+    publishedAt: "2024-02-29",
+    cover: finnishLichenStones,
   },
 ];
 

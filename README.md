@@ -226,7 +226,8 @@ as a pipeline artifact when the suite fails.
   pre-launch `/blog` scaffold routes are gone*
 - [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
   — *category domain model, canonical placement contract, the server-rendered category
-  branch routes with breadcrumbs, bounded deterministic listings, and permanent redirects
+  branch routes with breadcrumbs, a bounded recent-content overview on the story root,
+  deterministic category listings, and permanent redirects
   for retired paths, and the canonical article detail route — breadcrumbs, a table of
   contents derived from the body's headings, and publication-ordered sibling navigation — done; the curated
   gallery detail route (AB#104), tree-driven header and mobile navigation (AB#111), and
@@ -303,7 +304,8 @@ accepted project-owned public rendition contract and whose portfolio uses the sh
 paginated gallery result contract. The content tree's category domain model, canonical
 placement contract, and public category branch routes are built — breadcrumbs,
 deterministically ordered listings, permanent redirects for retired paths, and a visible
-identity-based language switch — in every configured locale space, with
+identity-based language switch — plus a bounded recent-content overview on the story
+root — in every configured locale space, with
 `hreflang`/`x-default` alternates. Articles render at their canonical detail routes in
 that tree; the curated gallery detail route and tree-driven header and mobile navigation
 are not built yet (AB#104, AB#111). Static routes and authored
