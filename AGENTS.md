@@ -74,6 +74,28 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
 - When uncertain: ask questions, request context, pause implementation. Do not continue
   with a guessed solution.
 
+### Azure Boards work item gate
+
+- Before implementing or reviewing work identified by an Azure Boards ID, read the
+  authoritative work item, including its description, acceptance criteria, discussion,
+  and relevant relations. Repository prose and the current diff are supporting context,
+  not substitutes for the work item.
+- Use the configured Azure DevOps integration when available. With Azure CLI, set the
+  project default once and then read the item by its organization-wide ID:
+
+  ```bash
+  az devops configure --defaults organization=https://dev.azure.com/ilkkarytkonen project=photosite-starter
+  az boards work-item show --id <id>
+  ```
+
+  `az boards work-item show` does not accept `--project`; the configured default supplies
+  project context for commands that need it.
+- If the work item cannot be read because authentication, tooling, permissions, or
+  connectivity is missing, **stop before implementation or review**. State the blocker
+  and get the Azure Boards connection working, or ask the user to provide the complete
+  current work item. Do not infer scope or acceptance criteria and do not give an
+  approval/rejection verdict without them.
+
 ## Feature status awareness
 
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
