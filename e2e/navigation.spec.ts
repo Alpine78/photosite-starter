@@ -125,24 +125,6 @@ async function tabTo(page: Page, target: Locator, presses = 25): Promise<void> {
   throw new Error("[e2e] The control was not reachable by Tab.");
 }
 
-/**
- * Whether this project's platform moves focus on Tab at all.
- *
- * Playwright's touch-device emulation follows WebKit on a phone, where there is
- * no Tab key and pressing it moves nothing. The tab-order journey therefore
- * runs where that interaction exists rather than failing on a platform that
- * cannot perform it; everything a phone *can* do — opening, dismissing, and
- * focus return — is asserted in both projects.
- */
-async function tabMovesFocus(page: Page): Promise<boolean> {
-  await page.keyboard.press("Tab");
-  return page.evaluate(
-    () =>
-      document.activeElement !== null &&
-      document.activeElement !== document.body,
-  );
-}
-
 test("the menu composes the static routes with the content tree", async ({
   page,
   externalRequests,
@@ -270,14 +252,34 @@ test("Escape unwinds the compact menu one level at a time", async ({ page }) => 
 
 test("the menu is reachable by Tab and shows where the keyboard is", async ({
   page,
+  browserName,
 }) => {
+  // WebKit does not put a `<button>` in the default Tab order on either
+  // platform this suite runs on, unless the OS-level "Full Keyboard Access"
+  // setting is on — off by default, and not something a CI agent enables. A
+  // probe that presses Tab once and checks whether focus moved at all is not a
+  // stand-in for this: it is true on one platform, because Tab still walks the
+  // page's links, and false on another, because the touch-device profile stops
+  // Tab from doing anything — so it skipped in one place and let this test hang
+  // on a `<button>` it was never going to reach in the other. Skipping by engine
+  // is the honest statement of what is actually being tested: real keyboard
+  // reachability of a control WebKit does not expose to Tab by default, on any
+  // platform.
+  test.skip(
+    browserName === "webkit",
+    "WebKit does not tab to a button by default on any platform this suite runs on",
+  );
+
   await page.goto("/", { waitUntil: "domcontentloaded" });
   const { toggle, panel } = await firstSubmenu(page);
 
-  test.skip(
-    !(await tabMovesFocus(page)),
-    "this platform has no Tab key to walk the menu with",
-  );
+  // `firstSubmenu` warms up hydration with a pointer click, and on Chromium a
+  // mouse click focuses the button it lands on. Left alone, `tabTo` below would
+  // find the toggle already focused and return without pressing a single Tab —
+  // and `:focus-visible` never matches a click-driven focus, so the ring
+  // assertion would be checking the wrong kind of focus entirely. Blurring
+  // first means the Tab walk that follows is the only thing that can focus it.
+  await toggle.evaluate((node) => node.blur());
 
   await test.step("a keyboard reaches the control, and it shows where it is", async () => {
     await tabTo(page, toggle);
