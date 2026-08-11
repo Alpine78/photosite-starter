@@ -33,6 +33,13 @@ steps:
       npm run build
     displayName: "Build"
     env:
+      # The build gate compiles and prerenders the project's own fixtures, so it
+      # declares itself as preview rather than leaving the stage unset. An unset
+      # stage counts as production, where the mock content source is refused —
+      # and there is no Sanity project for CI to read instead, by design: this
+      # job must reach no external service.
+      SITE_DEPLOYMENT_STAGE: "preview"
+      SITE_CONTENT_SOURCE: "mock"
       SITE_LOCALE: "en-GB"
       SITE_LOCALE_ROUTES: "en-GB||stories"
       SITE_CANONICAL_BASE_URL: "https://example.com"

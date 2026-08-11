@@ -7,6 +7,8 @@ item so the Free Core / Premium boundary (AB#42) can be decided on facts.
 **Audited:** 2026-07-31 · **Against dependency tree:** current `package-lock.json`
 **Amended:** 2026-08-06 — PhotoSwipe added (AB#15). Package counts below are from the
 original audit and were not recounted.
+**Amended:** 2026-08-10 — `server-only` added (AB#39); see the npm dependency section.
+Counts were not recounted.
 
 ## Distribution model assumed by this audit
 
@@ -88,6 +90,14 @@ Two caveats worth carrying forward:
 Except the three in the shipped table above — the Next.js and React client runtimes and
 PhotoSwipe — whose bytes are served to browsers. They remain in the counts below, since
 those describe the installed tree.
+
+`server-only` (MIT, published by the React team) was added in AB#39 and is not reflected
+in the counts below. It is a marker package: inside a React Server Component build it
+resolves to an empty module, and anywhere else it throws on import — which is the whole
+mechanism, since that throw is what turns a Client Component importing a server module
+into a build error. Its bytes therefore never reach a browser by construction, so it does
+not cross the redistribution line drawn above. Its MIT notice would apply if the
+distribution model ever changed to shipping the dependency tree.
 
 394 packages are installed in the audited Windows x64 dependency tree. Platform-specific
 optional packages for other targets remain recorded in `package-lock.json` but are not

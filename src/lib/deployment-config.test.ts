@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { loadDeploymentConfig } from "@/lib/deployment-config";
 
 const validEnvironment = {
+  // Declared, because the deployment config now validates it: an unset value
+  // fails, and `mock` in a production stage fails.
+  SITE_CONTENT_SOURCE: "mock",
+  SITE_DEPLOYMENT_STAGE: "development",
   SITE_LOCALE: "en-GB",
   SITE_LOCALE_ROUTES: "en-GB||stories",
   SITE_CANONICAL_BASE_URL: "https://example.com",
@@ -16,20 +20,32 @@ describe("deployment stage", () => {
   it("defaults to production when the stage is not declared", () => {
     // Fail-closed: an operator who forgets the setting gets the environment
     // with the safeguards on, not the one that accepts a development shortcut.
-    expect(loadDeploymentConfig(validEnvironment).stage).toBe("production");
+    // Paired with a Sanity source, because the production stage is exactly
+    // where the mock fixtures are refused.
+    expect(
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_DEPLOYMENT_STAGE: undefined,
+        SITE_CONTENT_SOURCE: "sanity",
+      }).stage,
+    ).toBe("production");
   });
 
-  it.each(["development", "preview", "production"])(
-    "reads a declared %s stage",
-    (stage) => {
-      expect(
-        loadDeploymentConfig({
-          ...validEnvironment,
-          SITE_DEPLOYMENT_STAGE: stage,
-        }).stage,
-      ).toBe(stage);
-    },
-  );
+  it.each([
+    ["development", "mock"],
+    ["preview", "mock"],
+    // Production is paired with a Sanity source because that stage refuses the
+    // demo fixtures outright — the two settings are validated together.
+    ["production", "sanity"],
+  ])("reads a declared %s stage", (stage, contentSource) => {
+    expect(
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_DEPLOYMENT_STAGE: stage,
+        SITE_CONTENT_SOURCE: contentSource,
+      }).stage,
+    ).toBe(stage);
+  });
 
   it("refuses a stage it does not recognize", () => {
     expect(() =>
@@ -38,6 +54,33 @@ describe("deployment stage", () => {
         SITE_DEPLOYMENT_STAGE: "staging",
       }),
     ).toThrow("Invalid SITE_DEPLOYMENT_STAGE");
+  });
+});
+
+describe("content source", () => {
+  it("carries the declared source on the deployment config", () => {
+    expect(loadDeploymentConfig(validEnvironment).contentSource).toBe("mock");
+  });
+
+  it("fails the deployment when no source is declared", () => {
+    // The whole point of validating it here: every route resolves the
+    // deployment config, so this fails the build rather than waiting for some
+    // future adapter to consult the setting.
+    expect(() =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_CONTENT_SOURCE: undefined,
+      }),
+    ).toThrow("SITE_CONTENT_SOURCE");
+  });
+
+  it("fails a production deployment configured to serve demo content", () => {
+    expect(() =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_DEPLOYMENT_STAGE: "production",
+      }),
+    ).toThrow("must not run in a production deployment");
   });
 });
 
