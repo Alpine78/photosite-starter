@@ -122,6 +122,14 @@ recorded previous paths a move or rename retired, `hreflang`/`x-default` alterna
 a visible identity-based language switch. Page metadata omits the site description in
 any locale it was not authored in rather than publishing it under a translated title.
 Application-owned UI labels are per-locale (English and Finnish sets ship).
+The site menu is driven by that tree: `buildSiteNavigation` composes the configured
+static links with the public categories, dropping any configured link into the story
+namespace so no two entries own one route space, and it carries the first two category
+levels — deeper branches are reached from the landing page above them. Both layouts
+render it as a disclosure, not a menu widget: every entry is a link, one submenu is open
+at a time, Escape closes it and returns focus to its control, a pointer or focus landing
+outside closes it, and the compact panel keeps its own scroll boundary rather than
+covering or locking the page.
 Articles have moved into that tree: the shared project-owned content-page boundary
 (`src/lib/content-page.ts`) carries the variant, the six ADR-0003 body blocks, the cover,
 the publication date, and tags, and the `article` variant renders at its one canonical
@@ -158,11 +166,13 @@ in Azure Pipelines — carrying the home/navigation smoke test, the portfolio li
 journey, the content-tree journey (branches, the canonical detail route, redirects, and
 404s), the services journey (the listing, one service detail with its cover, price list,
 and breadcrumb, the navigation between them and into the story section, and an unknown
-slug's 404), and the contact submission smoke test; route-specific journey suites are
+slug's 404), the site-menu journey (its composition, the disclosure by pointer and by
+keyboard with focus return, ancestry marking, a branch below the menu reached from its
+landing page, and the compact panel's viewport behavior), and the contact submission
+smoke test; route-specific journey suites are
 separate stories that join the gate as their features land.
 Not yet built: the curated gallery detail
-route (AB#104) — a gallery's canonical path 404s until it lands — tree-driven header and
-mobile navigation (AB#111),
+route (AB#104) — a gallery's canonical path 404s until it lands —
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — public continuation routes and
 controls — a category listing is bounded to its first page and answers any `?cursor=`

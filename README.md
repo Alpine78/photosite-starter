@@ -225,8 +225,9 @@ npx playwright show-report               # after a failure
 
 `npm run test:e2e` builds the site and serves it with `next start` on
 `http://127.0.0.1:3100` (Playwright starts and stops it), then runs every spec in two
-projects: desktop Chromium and mobile WebKit. The suite protects the home page and its
-navigation, the portfolio lightbox, the services routes, the public content tree, and
+projects: desktop Chromium and mobile WebKit. The suite protects the home page, the site
+menu's composition and disclosure behavior, the portfolio lightbox, the services routes,
+the public content tree, and
 contact submission; a route-specific suite joins the gate by landing in `e2e/`. The run
 leaves `.next` holding a build made with the harness settings, so run `npm run build`
 again before serving your own deployment build locally. Retries, timeouts, browser
@@ -270,9 +271,12 @@ as a pipeline artifact when the suite fails.
   — *category domain model, canonical placement contract, the server-rendered category
   branch routes with breadcrumbs, a bounded recent-content overview on the story root,
   deterministic category listings, and permanent redirects
-  for retired paths, and the canonical article detail route — breadcrumbs, a table of
-  contents derived from the body's headings, and publication-ordered sibling navigation — done; the curated
-  gallery detail route (AB#104), tree-driven header and mobile navigation (AB#111), and
+  for retired paths, the canonical article detail route — breadcrumbs, a table of
+  contents derived from the body's headings, and publication-ordered sibling navigation —
+  and the tree-driven site menu, which composes the configured static links with the
+  first two category levels behind an accessible disclosure in both the wide and the
+  compact layout, done; the curated
+  gallery detail route (AB#104) and
   listing continuation controls pending*
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
@@ -353,8 +357,10 @@ deterministically ordered listings, permanent redirects for retired paths, and a
 identity-based language switch — plus a bounded recent-content overview on the story
 root — in every configured locale space, with
 `hreflang`/`x-default` alternates. Articles render at their canonical detail routes in
-that tree; the curated gallery detail route and tree-driven header and mobile navigation
-are not built yet (AB#104, AB#111). Static routes and authored
+that tree, and the site menu is driven by it: the configured static links and the tree's
+first two category levels compose into one navigation, in the wide layout and the compact
+one, with the deeper branches reached from the landing page above them. The curated
+gallery detail route is not built yet (AB#104). Static routes and authored
 SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
 separate story. The Sanity connection, its published-perspective query client, and the
 enforced data-access boundary are in place; the schemas and adapters that would put

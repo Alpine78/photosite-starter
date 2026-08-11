@@ -18,9 +18,10 @@ import {
  *
  * Route-specific journeys are separate stories that join this gate as their
  * features land: gallery sections (AB#119), curated gallery pagination
- * (AB#120), and the fuller contact journey (AB#89). The services and
- * content-tree routes already have their own suites in `services.spec.ts` and
- * `content-tree.spec.ts`.
+ * (AB#120), and the fuller contact journey (AB#89). The services routes, the
+ * content tree, and the site menu itself already have their own suites in
+ * `services.spec.ts`, `content-tree.spec.ts`, and `navigation.spec.ts`; what
+ * stays here is the header doing its one job on the home page.
  */
 
 /** Application-owned route, not authored content: safe to name here. */
