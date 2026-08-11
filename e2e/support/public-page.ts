@@ -11,20 +11,55 @@ import { expect } from "./fixtures";
  */
 
 /**
+ * The compact layout's navigation panel, named by its toggle's `aria-controls`.
+ * Kept in step with `src/components/site-header.tsx` by hand: importing that
+ * component here would pull React and the Next runtime into the harness.
+ */
+const COMPACT_PANEL_ID = "mobile-nav";
+
+/**
+ * The control that opens the whole menu in the compact layout, hidden in the
+ * wide one. It is told apart from the submenu toggles inside the menu by the
+ * panel it controls rather than by a label, which a clone rebrands and a second
+ * locale renders differently.
+ */
+export function headerMenuToggle(page: Page): Locator {
+  return page
+    .getByRole("banner")
+    .locator(`button[aria-controls="${COMPACT_PANEL_ID}"]`);
+}
+
+/**
  * Returns the header navigation for the current viewport. The compact layout
  * keeps it behind a toggle and the wide layout renders it inline, so a journey
  * that runs on both asks for it this way rather than assuming one of them.
+ *
+ * Idempotent: it ensures the menu is open rather than toggling it, so a journey
+ * that asks twice does not close what the first call opened.
  */
 export async function openHeaderNavigation(page: Page): Promise<Locator> {
-  const banner = page.getByRole("banner");
-  const menuToggle = banner.getByRole("button");
+  const menuToggle = headerMenuToggle(page);
 
   if (await menuToggle.isVisible()) {
-    await menuToggle.click();
-    await expect(menuToggle).toHaveAttribute("aria-expanded", "true");
+    // Retried rather than clicked once. The header is server-rendered before
+    // its script has run, and an interaction in that window reaches no handler
+    // at all — it is not queued and never replayed. Retrying until the control
+    // answers keeps a journey about the menu rather than about the moment
+    // hydration happened to finish on a loaded agent.
+    await expect(async () => {
+      if ((await menuToggle.getAttribute("aria-expanded")) !== "true") {
+        await menuToggle.click();
+      }
+      await expect(menuToggle).toHaveAttribute("aria-expanded", "true", {
+        timeout: 1_000,
+      });
+    }).toPass({ timeout: 15_000 });
   }
 
-  return banner.getByRole("navigation").filter({ visible: true });
+  return page
+    .getByRole("banner")
+    .getByRole("navigation")
+    .filter({ visible: true });
 }
 
 /**

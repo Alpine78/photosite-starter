@@ -55,6 +55,12 @@ export type BuiltInLabels = {
     readonly adjacentContent: string;
     readonly menu: string;
     readonly closeMenu: string;
+    /**
+     * Names the control that shows a menu entry's child categories. `{name}`
+     * is replaced with that entry's own label, so one string serves every
+     * branch the tree happens to have.
+     */
+    readonly submenu: string;
   };
   readonly actions: {
     readonly viewPortfolio: string;
@@ -225,6 +231,7 @@ const englishLabels = {
     adjacentContent: "Story navigation",
     menu: "Menu",
     closeMenu: "Close",
+    submenu: "{name} submenu",
   },
   actions: {
     viewPortfolio: "View portfolio",
@@ -318,6 +325,7 @@ const finnishLabels = {
     adjacentContent: "Tarinanavigointi",
     menu: "Valikko",
     closeMenu: "Sulje",
+    submenu: "Alavalikko: {name}",
   },
   actions: {
     viewPortfolio: "Katso portfolio",

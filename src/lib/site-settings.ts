@@ -92,7 +92,6 @@ function buildMockSiteSettings(): SiteSettings {
   // The public content tree's root in the unprefixed route space. Composed from
   // the configured namespace rather than written out, so a deployment that
   // routes its stories elsewhere does not leave a dead link in the chrome.
-  // AB#111 replaces this single entry with navigation driven by the tree.
   const storyRoot = buildStoryPath(localeRoutes, localeRoutes.defaultLocale);
 
   return {
@@ -103,6 +102,12 @@ function buildMockSiteSettings(): SiteSettings {
     // deployment config rather than authored CMS content. Only routes that exist
     // are listed; a nav entry without a route is a 404 on every page of the site.
     // "About" is added once that page lands.
+    //
+    // The story-root entry is the one exception: `buildSiteNavigation` does not
+    // render it as a link. Settings own where the content section sits in the
+    // menu and what it is called, while the route it opens and every category
+    // beneath it come from the route config and the tree (ADR-0003). A clone
+    // that drops the entry still gets the section — at the end of the menu.
     navigation: [
       { label: labels.pages.home, href: "/" },
       { label: labels.pages.services, href: "/services" },

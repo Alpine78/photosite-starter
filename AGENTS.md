@@ -122,6 +122,17 @@ recorded previous paths a move or rename retired, `hreflang`/`x-default` alterna
 a visible identity-based language switch. Page metadata omits the site description in
 any locale it was not authored in rather than publishing it under a translated title.
 Application-owned UI labels are per-locale (English and Finnish sets ship).
+The site menu is driven by that tree: `buildSiteNavigation` composes the configured
+static links with the public categories, dropping any configured link into the story
+namespace so no two entries own one route space, and it carries the first two category
+levels — deeper branches are reached from the landing page above them. Both layouts
+render it as a disclosure, not a menu widget: every entry is a link, one submenu is open
+at a time, a pointer or focus landing outside closes it, and the compact panel keeps its
+own scroll boundary rather than covering or locking the page. Escape is heard on the
+document, not on the menu, because WebKit leaves focus on `document.body` after a pointer
+activates a button; the submenu takes it in the capture phase and the compact panel in
+the bubble phase, so the menu unwinds one level per key and returns focus to the control
+that owned each.
 Articles have moved into that tree: the shared project-owned content-page boundary
 (`src/lib/content-page.ts`) carries the variant, the six ADR-0003 body blocks, the cover,
 the publication date, and tags, and the `article` variant renders at its one canonical
@@ -158,11 +169,14 @@ in Azure Pipelines — carrying the home/navigation smoke test, the portfolio li
 journey, the content-tree journey (branches, the canonical detail route, redirects, and
 404s), the services journey (the listing, one service detail with its cover, price list,
 and breadcrumb, the navigation between them and into the story section, and an unknown
-slug's 404), and the contact submission smoke test; route-specific journey suites are
+slug's 404), the site-menu journey (its composition, the disclosure opened by pointer and
+by keyboard and dismissed either way with focus return, the level-at-a-time Escape
+unwind, ancestry marking, a branch below the menu reached from its landing page, and the
+compact panel's viewport behavior), and the contact submission
+smoke test; route-specific journey suites are
 separate stories that join the gate as their features land.
 Not yet built: the curated gallery detail
-route (AB#104) — a gallery's canonical path 404s until it lands — tree-driven header and
-mobile navigation (AB#111),
+route (AB#104) — a gallery's canonical path 404s until it lands —
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — public continuation routes and
 controls — a category listing is bounded to its first page and answers any `?cursor=`
@@ -254,15 +268,25 @@ npm run test:e2e  # Playwright public-journey smoke tests (CI gate, builds and s
 - Reference the Azure Boards work item in the PR description with `AB#<id>`
   (`Fixes AB#5` closes the work item on merge); include `AB#<id>` in commit messages
   when the commit clearly belongs to one work item
-- **Do not create commits automatically when a task appears complete.** Suggest a
-  conventional commit message at useful review points; the user reviews and commits.
-- When a task's requirements are implemented, report that clearly and suggest the final
-  commit message.
-- When a change is ready, provide a PR title and description without waiting for a separate
-  request: concise summary, key implementation details, validation performed, and any
-  validation that could not be run and why. Deliver it as a **fenced Markdown block that
-  can be copied straight into the PR form** — it is pasted verbatim, so chat formatting
-  has to be stripped by hand otherwise.
+- **Never run `git commit` yourself, under any circumstances.** This is an absolute
+  requirement, stricter than "ask if unclear": not when a task appears complete, not for
+  a follow-up fix, not after the user has approved the change in conversation, and not
+  because an earlier commit in the same session set a precedent. The user reviews every
+  change in their editor before it becomes a commit — a commit the agent creates skips
+  that review even if it is later technically correct. Leave the working tree with the
+  change staged or unstaged, whichever is convenient, and hand control back with a
+  suggested message instead. This overrides any general instruction elsewhere that
+  commits may be created when "requested by the user" — in this repository, request or
+  not, the agent does not run the command.
+- **Always suggest a commit message**, every time a change is ready to review: finishing
+  a task, landing a fix, addressing review feedback. Propose a conventional commit
+  message (`feat: ...`, `fix: ...`, including `AB#<id>` when it belongs to one work item)
+  and stop there.
+- **Always suggest a PR title and description when a work item appears complete**,
+  without waiting for a separate request: concise summary, key implementation details,
+  validation performed, and any validation that could not be run and why. Deliver it as
+  a **fenced Markdown block that can be copied straight into the PR form** — it is pasted
+  verbatim, so chat formatting has to be stripped by hand otherwise.
 - **No AI attribution** in commit messages or PR descriptions — no "Generated with…"
   footers or equivalent. End the description at the last substantive line.
 
