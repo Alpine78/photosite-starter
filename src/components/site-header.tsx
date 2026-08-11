@@ -67,31 +67,39 @@ export function SiteHeader({ siteName, navigation, labels }: SiteHeaderProps) {
       setMenuOpen(false);
     };
 
+    /**
+     * Escape closes the panel and hands focus back to the control that opened
+     * it, wherever focus happens to be — the same reason `SiteNavigation`
+     * listens on the document: WebKit leaves the active element on
+     * `document.body` after a pointer activates a button, so a handler on the
+     * header would never see the key.
+     *
+     * The bubble phase, deliberately. An open submenu listens in the capture
+     * phase and stops the event there, so it takes the first Escape and this
+     * one takes the next: the menu unwinds a level at a time instead of
+     * collapsing whole and losing the visitor's place in the tree.
+     */
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      toggleRef.current?.focus();
+      setMenuOpen(false);
+    };
+
     document.addEventListener("pointerdown", closeOnOutside);
     document.addEventListener("focusin", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
     return () => {
       document.removeEventListener("pointerdown", closeOnOutside);
       document.removeEventListener("focusin", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
     };
   }, [menuOpen]);
-
-  // Escape anywhere in the header closes the panel and hands focus back to the
-  // control that opened it. An open submenu stops this event first and closes
-  // itself, so Escape unwinds one level at a time.
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
-    if (event.key !== "Escape" || !menuOpen) return;
-    setMenuOpen(false);
-    toggleRef.current?.focus();
-  };
 
   return (
     // The site chrome stays above page content. A hero whose overlay is taller
     // than its image — a wide frame on a narrow screen — otherwise spills over
     // the header and swallows taps on the menu button and the open menu panel.
-    <header
-      onKeyDown={handleKeyDown}
-      className="relative z-10 border-b border-black/10 dark:border-white/15"
-    >
+    <header className="relative z-10 border-b border-black/10 dark:border-white/15">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <Link
           href="/"

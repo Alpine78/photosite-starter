@@ -127,9 +127,12 @@ static links with the public categories, dropping any configured link into the s
 namespace so no two entries own one route space, and it carries the first two category
 levels — deeper branches are reached from the landing page above them. Both layouts
 render it as a disclosure, not a menu widget: every entry is a link, one submenu is open
-at a time, Escape closes it and returns focus to its control, a pointer or focus landing
-outside closes it, and the compact panel keeps its own scroll boundary rather than
-covering or locking the page.
+at a time, a pointer or focus landing outside closes it, and the compact panel keeps its
+own scroll boundary rather than covering or locking the page. Escape is heard on the
+document, not on the menu, because WebKit leaves focus on `document.body` after a pointer
+activates a button; the submenu takes it in the capture phase and the compact panel in
+the bubble phase, so the menu unwinds one level per key and returns focus to the control
+that owned each.
 Articles have moved into that tree: the shared project-owned content-page boundary
 (`src/lib/content-page.ts`) carries the variant, the six ADR-0003 body blocks, the cover,
 the publication date, and tags, and the `article` variant renders at its one canonical
@@ -166,9 +169,10 @@ in Azure Pipelines — carrying the home/navigation smoke test, the portfolio li
 journey, the content-tree journey (branches, the canonical detail route, redirects, and
 404s), the services journey (the listing, one service detail with its cover, price list,
 and breadcrumb, the navigation between them and into the story section, and an unknown
-slug's 404), the site-menu journey (its composition, the disclosure by pointer and by
-keyboard with focus return, ancestry marking, a branch below the menu reached from its
-landing page, and the compact panel's viewport behavior), and the contact submission
+slug's 404), the site-menu journey (its composition, the disclosure opened by pointer and
+by keyboard and dismissed either way with focus return, the level-at-a-time Escape
+unwind, ancestry marking, a branch below the menu reached from its landing page, and the
+compact panel's viewport behavior), and the contact submission
 smoke test; route-specific journey suites are
 separate stories that join the gate as their features land.
 Not yet built: the curated gallery detail

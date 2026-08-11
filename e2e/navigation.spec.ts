@@ -190,6 +190,10 @@ test("a submenu opens and closes by keyboard, and focus comes back", async ({
   const { toggle, panel } = await firstSubmenu(page);
 
   await test.step("Enter opens it", async () => {
+    // The deliberate keyboard-only path: focus arrives at the control before
+    // the key does. The pointer-then-keyboard path is a separate test, because
+    // an explicit `focus()` here would hide whether the menu still answers
+    // Escape when a pointer opened it and left focus elsewhere.
     await toggle.focus();
     await page.keyboard.press("Enter");
 
@@ -206,6 +210,61 @@ test("a submenu opens and closes by keyboard, and focus comes back", async ({
     // left the menu, and re-reaching their place is the cost of getting this
     // wrong on every page of the site.
     await expect(toggle).toBeFocused();
+  });
+});
+
+test("a submenu opened with a pointer still closes with Escape", async ({
+  page,
+}) => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  const { toggle, panel } = await firstSubmenu(page);
+
+  // No `focus()` anywhere in this test, on purpose. WebKit does not focus a
+  // button a pointer activated — the active element stays `document.body` — so
+  // a menu that listened for Escape on its own markup would answer in Chromium
+  // and stay stubbornly open in Safari. This is the path of a visitor who opens
+  // the menu with a thumb or a mouse and then reaches for the keyboard.
+  await toggle.click();
+  await expect(panel).toBeVisible();
+
+  await page.keyboard.press("Escape");
+
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(panel).toBeHidden();
+  // Focus lands on the control the visitor used, which after a pointer
+  // activation is also the first place it should have been.
+  await expect(toggle).toBeFocused();
+});
+
+test("Escape unwinds the compact menu one level at a time", async ({ page }) => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  const menuToggle = headerMenuToggle(page);
+  test.skip(
+    !(await menuToggle.isVisible()),
+    "the wide layout renders the menu inline, with no panel to unwind",
+  );
+
+  // Both levels opened by pointer and dismissed by keyboard, again with no
+  // `focus()` call: this is the nesting the two listeners have to agree about.
+  const { toggle, panel } = await firstSubmenu(page);
+  await toggle.click();
+  await expect(panel).toBeVisible();
+
+  await test.step("the first Escape dismisses the submenu only", async () => {
+    await page.keyboard.press("Escape");
+
+    await expect(panel).toBeHidden();
+    await expect(toggle).toBeFocused();
+    // The panel around it keeps its place. Collapsing the whole menu under one
+    // key would throw away where in the tree the visitor had got to.
+    await expect(menuToggle).toHaveAttribute("aria-expanded", "true");
+  });
+
+  await test.step("the next one dismisses the panel", async () => {
+    await page.keyboard.press("Escape");
+
+    await expect(menuToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(menuToggle).toBeFocused();
   });
 });
 
@@ -341,9 +400,9 @@ test("the compact panel neither locks nor hides the page behind it", async ({
   ).toBe(false);
 
   await test.step("Escape closes it and returns focus to the control", async () => {
-    // Focused explicitly: a pointer does not focus a button in every engine,
-    // and this asserts the keyboard path rather than the pointer one.
-    await toggle.focus();
+    // The panel was opened by pointer and is dismissed by keyboard, with no
+    // `focus()` in between: in WebKit the active element is still the document
+    // body at this point.
     await page.keyboard.press("Escape");
 
     await expect(toggle).toHaveAttribute("aria-expanded", "false");

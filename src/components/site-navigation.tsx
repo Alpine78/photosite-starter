@@ -147,37 +147,47 @@ export function SiteNavigation({
       setOpenKey(null);
     };
 
+    /**
+     * Escape dismisses the submenu wherever focus happens to be.
+     *
+     * Listened for on the document rather than on the menu, because WebKit does
+     * not focus a button a pointer activated: after a tap or a click the active
+     * element is still `document.body`, and key events from there never enter
+     * this subtree. A handler on the menu itself works in Chromium and does
+     * nothing at all in Safari — for exactly the visitor who opens the menu
+     * with a thumb and then reaches for the keyboard.
+     *
+     * The capture phase is what gives nested disclosures a defined order.
+     * Stopping propagation here means the submenu consumes the Escape that
+     * dismissed it, so the compact panel around it — listening in the bubble
+     * phase — keeps its place and closes on the next one.
+     */
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+
+      // Focus goes to the control that owns the submenu, not to the top of the
+      // document: someone who dismissed it has not left the menu. After a
+      // pointer activation it also puts focus where the visitor already is, so
+      // the next Tab continues through the menu instead of from the top.
+      toggles.current.get(openKey)?.focus();
+      setOpenKey(null);
+    };
+
     // Pointer *down* rather than click: a panel that stayed open until the
     // button came back up would swallow the first tap on the page behind it.
     document.addEventListener("pointerdown", closeOnOutside);
     document.addEventListener("focusin", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape, true);
     return () => {
       document.removeEventListener("pointerdown", closeOnOutside);
       document.removeEventListener("focusin", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape, true);
     };
   }, [openKey]);
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
-    if (event.key !== "Escape" || openKey === null) return;
-    // The compact panel closes on Escape too. While a submenu is open this
-    // Escape is the submenu's, and letting both act would collapse the whole
-    // menu and lose the visitor's place in the tree.
-    event.stopPropagation();
-
-    // Focus goes back to the control the visitor used, not to the top of the
-    // document: someone who dismissed a submenu has not left the menu, and
-    // re-reaching their place is the cost of getting this wrong.
-    toggles.current.get(openKey)?.focus();
-    setOpenKey(null);
-  };
-
   return (
-    <nav
-      ref={navigationRef}
-      aria-label={labels.main}
-      onKeyDown={handleKeyDown}
-      className={className}
-    >
+    <nav ref={navigationRef} aria-label={labels.main} className={className}>
       <ul className={isBar ? "flex items-center gap-6" : "flex flex-col gap-1"}>
         {items.map((item) => {
           const expanded = openKey === item.key;
