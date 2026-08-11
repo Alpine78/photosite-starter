@@ -2,13 +2,17 @@
   "name": "photosite-starter",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "verify:preview": "node scripts/verify-preview-deployment.mts"
   },
   "dependencies": {
     "next": "^16.2.11",
