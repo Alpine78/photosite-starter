@@ -268,15 +268,25 @@ npm run test:e2e  # Playwright public-journey smoke tests (CI gate, builds and s
 - Reference the Azure Boards work item in the PR description with `AB#<id>`
   (`Fixes AB#5` closes the work item on merge); include `AB#<id>` in commit messages
   when the commit clearly belongs to one work item
-- **Do not create commits automatically when a task appears complete.** Suggest a
-  conventional commit message at useful review points; the user reviews and commits.
-- When a task's requirements are implemented, report that clearly and suggest the final
-  commit message.
-- When a change is ready, provide a PR title and description without waiting for a separate
-  request: concise summary, key implementation details, validation performed, and any
-  validation that could not be run and why. Deliver it as a **fenced Markdown block that
-  can be copied straight into the PR form** — it is pasted verbatim, so chat formatting
-  has to be stripped by hand otherwise.
+- **Never run `git commit` yourself, under any circumstances.** This is an absolute
+  requirement, stricter than "ask if unclear": not when a task appears complete, not for
+  a follow-up fix, not after the user has approved the change in conversation, and not
+  because an earlier commit in the same session set a precedent. The user reviews every
+  change in their editor before it becomes a commit — a commit the agent creates skips
+  that review even if it is later technically correct. Leave the working tree with the
+  change staged or unstaged, whichever is convenient, and hand control back with a
+  suggested message instead. This overrides any general instruction elsewhere that
+  commits may be created when "requested by the user" — in this repository, request or
+  not, the agent does not run the command.
+- **Always suggest a commit message**, every time a change is ready to review: finishing
+  a task, landing a fix, addressing review feedback. Propose a conventional commit
+  message (`feat: ...`, `fix: ...`, including `AB#<id>` when it belongs to one work item)
+  and stop there.
+- **Always suggest a PR title and description when a work item appears complete**,
+  without waiting for a separate request: concise summary, key implementation details,
+  validation performed, and any validation that could not be run and why. Deliver it as
+  a **fenced Markdown block that can be copied straight into the PR form** — it is pasted
+  verbatim, so chat formatting has to be stripped by hand otherwise.
 - **No AI attribution** in commit messages or PR descriptions — no "Generated with…"
   footers or equivalent. End the description at the last substantive line.
 
