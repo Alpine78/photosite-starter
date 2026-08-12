@@ -145,7 +145,9 @@ the CLI used here needs that token for `pull`, `build`, `deploy`, and the authen
 deployment API. Inventing a generic service connection would not make that credential
 available to those commands; it would add an unused second resource. The accepted
 ownership boundary is the customer-owned source connection plus this least-privilege
-deployment secret store.
+deployment secret store — recorded as the
+[2026-08-12 amendment to ADR-0004 §1](adr/0004-reference-production-host-and-ownership-boundary.md)
+and on AB#116.
 
 ## Environment variables
 

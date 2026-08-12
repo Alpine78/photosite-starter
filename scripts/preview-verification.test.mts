@@ -283,6 +283,38 @@ describe("authenticated deployment identity", () => {
     ).toThrow(/project ID/);
   });
 
+  it("binds a clone whose scope is a personal account rather than a team", () => {
+    // Vercel scopes are not all named `team_…`. The binding that matters is the
+    // comparison against the authenticated response, so a shape rule on the
+    // configured value would only lock the starter to one kind of account.
+    const identity = validateDeploymentIdentity(
+      { ...RESPONSE, ownerId: "user_9zz" },
+      { ...EXPECTED, ownerId: "user_9zz" },
+    );
+
+    expect(identity.ownerId).toBe("user_9zz");
+  });
+
+  it("still refuses a personal-scope deployment owned by someone else", () => {
+    expect(() =>
+      validateDeploymentIdentity(
+        { ...RESPONSE, ownerId: "user_stranger" },
+        { ...EXPECTED, ownerId: "user_9zz" },
+      ),
+    ).toThrow(/belongs to owner/);
+  });
+
+  it("names the missing setting instead of blaming the provider's response", () => {
+    // An operator reading "Vercel deployment response has no valid expected
+    // project ID" goes looking at Vercel. The fault is a pipeline variable.
+    expect(() =>
+      validateDeploymentIdentity(RESPONSE, { ...EXPECTED, projectId: "" }),
+    ).toThrow(/VERCEL_PROJECT_ID is not set/);
+    expect(() =>
+      validateDeploymentIdentity(RESPONSE, { ...EXPECTED, ownerId: "  " }),
+    ).toThrow(/VERCEL_ORG_ID is not set/);
+  });
+
   it("accepts only an immutable Vercel deployment ID for cleanup", () => {
     expect(parseDeploymentId("  dpl_expected123\n")).toBe("dpl_expected123");
     expect(() => parseDeploymentId("photosite-starter")).toThrow(

@@ -234,8 +234,6 @@ export function parseDeploymentUrl(value: string): URL {
 }
 
 const DEPLOYMENT_ID_PATTERN = /^dpl_[A-Za-z0-9]+$/;
-const PROJECT_ID_PATTERN = /^prj_[A-Za-z0-9]+$/;
-const TEAM_ID_PATTERN = /^team_[A-Za-z0-9]+$/;
 
 export type ExpectedDeploymentIdentity = {
   readonly projectId: string;
@@ -251,6 +249,7 @@ export type VerifiedDeploymentIdentity = {
   readonly hostname: string;
 };
 
+/** A field read out of Vercel's response. A failure here is the provider's. */
 function requiredString(
   value: unknown,
   field: string,
@@ -269,6 +268,27 @@ function requiredString(
 }
 
 /**
+ * A value this pipeline was configured with. A failure here is the operator's,
+ * so it names the setting rather than blaming the provider's response — an
+ * empty `VERCEL_PROJECT_ID` sent an operator reading Vercel's payload once
+ * already.
+ *
+ * Deliberately no shape rule beyond "present". The identifiers are opaque
+ * provider strings, and the binding that matters is the comparison against the
+ * authenticated response below, not their spelling. A rule such as
+ * `^team_` would also reject a legitimate clone whose scope is a personal
+ * account rather than a team, and this repository has to stay deployable by
+ * someone else.
+ */
+function requiredSetting(value: string, setting: string): string {
+  const normalized = value?.trim() ?? "";
+  if (!normalized) {
+    throw new Error(`${setting} is not set, so the deployment cannot be bound to a project`);
+  }
+  return normalized;
+}
+
+/**
  * Validates the private identity fields returned by Vercel's authenticated
  * deployment endpoint. Only this comparison binds a captured URL to the
  * customer-owned project and team.
@@ -277,16 +297,11 @@ export function validateDeploymentIdentity(
   value: unknown,
   expected: ExpectedDeploymentIdentity,
 ): VerifiedDeploymentIdentity {
-  const expectedProjectId = requiredString(
+  const expectedProjectId = requiredSetting(
     expected.projectId,
-    "expected project ID",
-    PROJECT_ID_PATTERN,
+    "VERCEL_PROJECT_ID",
   );
-  const expectedOwnerId = requiredString(
-    expected.ownerId,
-    "expected team ID",
-    TEAM_ID_PATTERN,
-  );
+  const expectedOwnerId = requiredSetting(expected.ownerId, "VERCEL_ORG_ID");
 
   if (typeof value !== "object" || value === null) {
     throw new Error("Vercel deployment response is not an object");
@@ -306,7 +321,7 @@ export function validateDeploymentIdentity(
 
   if (ownerId !== expectedOwnerId) {
     throw new Error(
-      `Vercel deployment belongs to owner ${ownerId}, expected team ${expectedOwnerId}`,
+      `Vercel deployment belongs to owner ${ownerId}, expected ${expectedOwnerId}`,
     );
   }
 
@@ -317,11 +332,10 @@ export function validateDeploymentIdentity(
   }
 
   if (expected.deploymentId) {
-    const expectedId = requiredString(
-      expected.deploymentId,
-      "expected deployment ID",
-      DEPLOYMENT_ID_PATTERN,
-    );
+    // This one keeps its shape rule: it is not configuration but the immutable
+    // ID this pipeline captured from Vercel a moment ago, and the destructive
+    // path downstream accepts nothing else.
+    const expectedId = parseDeploymentId(expected.deploymentId);
     if (id !== expectedId) {
       throw new Error(`Vercel returned deployment ${id}, expected ${expectedId}`);
     }
