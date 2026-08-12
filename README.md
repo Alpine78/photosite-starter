@@ -323,9 +323,11 @@ a green pipeline. See [deployment](docs/deployment.md).
   [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)); content schemas, adapters,
   and tagged caching/webhook revalidation pending*
 - [ ] Production deployment — *the Preview environment's repository half is done: pinned
-  runtime and region, a gated deploy stage, and a verified access-protected,
-  non-indexable release candidate ([deployment](docs/deployment.md)); provisioning the
-  hosting account, production promotion, and rollback are pending*
+  runtime and region, a gated deploy stage, and the check that refuses to publish a
+  release-candidate URL unless it is access-protected and non-indexable
+  ([deployment](docs/deployment.md)). The stage has never run: no hosting account is
+  provisioned, so no release candidate exists yet. Production promotion and rollback are
+  pending*
 - [ ] Redirects for important legacy URLs (first implementation)
 
 ## Later roadmap (not in MVP)

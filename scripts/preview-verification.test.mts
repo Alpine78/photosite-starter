@@ -9,9 +9,19 @@ import {
 } from "./preview-verification.mts";
 
 describe("access protection", () => {
-  it("accepts the refusals a protection layer answers with", () => {
+  it("accepts the 401 challenge Vercel Authentication answers with", () => {
     expect(classifyProtection(401).ok).toBe(true);
-    expect(classifyProtection(403).ok).toBe(true);
+  });
+
+  it("refuses to read a 403 as proof that authentication is enabled", () => {
+    // The platform firewall and bot protection also deny with 403, and the
+    // automation bypass lifts those too — so 403 here followed by 200 with the
+    // bypass is exactly what an unprotected deployment behind a firewall rule
+    // looks like. Accepting it would report that deployment as verified.
+    const outcome = classifyProtection(403);
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.detail).toContain("does not prove");
   });
 
   it("rejects a deployment that serves the application to anyone", () => {
@@ -42,9 +52,16 @@ describe("noindex directive parsing", () => {
     expect(hasNoindexDirective("  NoIndex  ")).toBe(true);
   });
 
-  it("reads a directive scoped to one crawler", () => {
-    expect(hasNoindexDirective("googlebot: noindex")).toBe(true);
-    expect(hasNoindexDirective("nofollow, bingbot: noindex")).toBe(true);
+  it("refuses a directive scoped to one named crawler", () => {
+    // A rule addressed to one crawler binds that crawler alone; every other
+    // one stays free to index the URL. It does not make a deployment
+    // non-indexable, so it must not pass for the unscoped directive.
+    expect(hasNoindexDirective("googlebot: noindex")).toBe(false);
+    expect(hasNoindexDirective("nofollow, bingbot: noindex")).toBe(false);
+  });
+
+  it("still reads an unscoped directive sitting beside a scoped one", () => {
+    expect(hasNoindexDirective("googlebot: nofollow, noindex")).toBe(true);
   });
 
   it("accepts none, which is defined as noindex plus nofollow", () => {
@@ -135,35 +152,88 @@ describe("whole verification", () => {
 });
 
 describe("deployment URL", () => {
-  it("accepts a generated deployment URL", () => {
-    expect(parseDeploymentUrl("https://photosite-abc123.vercel.app").href).toBe(
-      "https://photosite-abc123.vercel.app/",
-    );
+  const PROJECT = "photosite-starter";
+
+  it("accepts this project's own generated deployment URL", () => {
+    expect(
+      parseDeploymentUrl(
+        "https://photosite-starter-abc123-acme.vercel.app",
+        PROJECT,
+      ).href,
+    ).toBe("https://photosite-starter-abc123-acme.vercel.app/");
   });
 
   it("tolerates the surrounding whitespace a captured command output carries", () => {
-    expect(parseDeploymentUrl("  https://example.vercel.app\n").href).toBe(
-      "https://example.vercel.app/",
+    expect(
+      parseDeploymentUrl("  https://photosite-starter-abc123.vercel.app\n", PROJECT)
+        .href,
+    ).toBe("https://photosite-starter-abc123.vercel.app/");
+  });
+
+  it("refuses a host belonging to any other project", () => {
+    // The whole point: the next thing that happens to this URL is that a
+    // bypass secret is sent to it. A stranger's project answers on
+    // .vercel.app too, so the suffix alone proves nothing.
+    expect(() =>
+      parseDeploymentUrl("https://someone-else-abc123.vercel.app", PROJECT),
+    ).toThrow(/does not belong to project/);
+  });
+
+  it("refuses a host outside the provider's deployment domain", () => {
+    expect(() => parseDeploymentUrl("https://attacker.example/", PROJECT)).toThrow(
+      /generated \.vercel\.app deployment URL/,
     );
+    expect(() =>
+      parseDeploymentUrl("https://photosite-starter-abc.attacker.example/", PROJECT),
+    ).toThrow(/generated \.vercel\.app deployment URL/);
+  });
+
+  it("refuses a project-name prefix that only looks right", () => {
+    expect(() =>
+      parseDeploymentUrl("https://photosite-starter.evil.vercel.app", PROJECT),
+    ).toThrow(/does not belong to project/);
+  });
+
+  it("refuses a URL with no expected project to bind it to", () => {
+    expect(() =>
+      parseDeploymentUrl("https://photosite-starter-abc.vercel.app", "  "),
+    ).toThrow(/no expected project name/);
+  });
+
+  it("refuses a path, so the probe always addresses the deployment root", () => {
+    expect(() =>
+      parseDeploymentUrl("https://photosite-starter-abc.vercel.app/admin", PROJECT),
+    ).toThrow(/deployment root/);
+  });
+
+  it("refuses an explicit port", () => {
+    expect(() =>
+      parseDeploymentUrl("https://photosite-starter-abc.vercel.app:8443", PROJECT),
+    ).toThrow(/default HTTPS port/);
   });
 
   it("refuses a URL carrying a query, which is how a leaked bypass secret looks", () => {
     expect(() =>
       parseDeploymentUrl(
-        "https://example.vercel.app?x-vercel-protection-bypass=secret",
+        "https://photosite-starter-abc.vercel.app?x-vercel-protection-bypass=secret",
+        PROJECT,
       ),
     ).toThrow(/never in the URL/);
   });
 
   it("refuses credentials in the URL", () => {
-    expect(() => parseDeploymentUrl("https://user:pass@example.vercel.app")).toThrow(
-      /credentials/,
-    );
+    expect(() =>
+      parseDeploymentUrl("https://user:pass@photosite-starter-abc.vercel.app", PROJECT),
+    ).toThrow(/credentials/);
   });
 
   it("refuses anything that is not an absolute HTTPS URL", () => {
-    expect(() => parseDeploymentUrl("http://example.vercel.app")).toThrow(/HTTPS/);
-    expect(() => parseDeploymentUrl("example.vercel.app")).toThrow(/absolute/);
-    expect(() => parseDeploymentUrl("")).toThrow(/absolute/);
+    expect(() =>
+      parseDeploymentUrl("http://photosite-starter-abc.vercel.app", PROJECT),
+    ).toThrow(/HTTPS/);
+    expect(() => parseDeploymentUrl("photosite-starter-abc.vercel.app", PROJECT)).toThrow(
+      /absolute/,
+    );
+    expect(() => parseDeploymentUrl("", PROJECT)).toThrow(/absolute/);
   });
 });

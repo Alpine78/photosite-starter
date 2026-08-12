@@ -24,6 +24,8 @@
  * Runs on the Node major pinned in `package.json` (`engines.node`), which
  * executes TypeScript directly.
  */
+import { readFileSync } from "node:fs";
+
 import {
   parseDeploymentUrl,
   verifyPreviewDeployment,
@@ -35,11 +37,56 @@ const BYPASS_HEADER = "x-vercel-protection-bypass";
 const BYPASS_SECRET_SETTING = "VERCEL_AUTOMATION_BYPASS_SECRET";
 
 /**
+ * Optional override for the project whose deployments this run may talk to.
+ * Normally unset: the linked project on disk already names it.
+ */
+const PROJECT_NAME_SETTING = "VERCEL_PROJECT_NAME";
+
+/** Written by `vercel pull` in the pipeline and by `vercel link` locally. */
+const LINKED_PROJECT_FILE = new URL("../.vercel/project.json", import.meta.url);
+
+/**
  * Bounds a hung pipeline step. Generous enough for a cold deployment's first
  * request, short enough that a wedged step fails rather than burning the job's
  * whole budget.
  */
 const REQUEST_TIMEOUT_MS = 20_000;
+
+/**
+ * Which project's deployment the bypass secret may be sent to.
+ *
+ * Read from the linked project on disk rather than taken as an argument: the
+ * point of the check is to catch a wrong URL, and a caller who can pass the
+ * wrong URL can pass a matching wrong project name just as easily. There is no
+ * default and no guess — without a name the URL cannot be bound to anything,
+ * and the run fails before a single request is made.
+ */
+function readExpectedProject(): string {
+  const configured = process.env[PROJECT_NAME_SETTING]?.trim();
+  if (configured) return configured;
+
+  let linked: unknown;
+  try {
+    linked = JSON.parse(readFileSync(LINKED_PROJECT_FILE, "utf8"));
+  } catch {
+    fail(
+      `no linked Vercel project found and ${PROJECT_NAME_SETTING} is not set, so the deployment URL cannot be bound to a project. Run "vercel pull" first, or set ${PROJECT_NAME_SETTING}.`,
+    );
+  }
+
+  const name =
+    typeof linked === "object" && linked !== null && "projectName" in linked
+      ? (linked as { projectName?: unknown }).projectName
+      : undefined;
+
+  if (typeof name !== "string" || !name.trim()) {
+    fail(
+      `the linked Vercel project names no project, so the deployment URL cannot be bound to one. Set ${PROJECT_NAME_SETTING} instead.`,
+    );
+  }
+
+  return name.trim();
+}
 
 type ProbeResponse = {
   readonly status: number;
@@ -88,9 +135,11 @@ async function main(): Promise<void> {
     );
   }
 
+  const expectedProject = readExpectedProject();
+
   let url: URL;
   try {
-    url = parseDeploymentUrl(urlArgument);
+    url = parseDeploymentUrl(urlArgument, expectedProject);
   } catch (cause) {
     fail(cause instanceof Error ? cause.message : String(cause));
   }

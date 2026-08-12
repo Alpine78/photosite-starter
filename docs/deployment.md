@@ -45,11 +45,11 @@ authoritative for the exact clicks. What this project needs from it:
    ADR-0004 §1 says "team" because it assumes the common case: the developer builds the
    site for a photographer, and the account has to belong to the photographer rather than
    to whoever wrote the code. When the site owner and the developer are the **same
-   person**, the account's own personal scope already satisfies that requirement, and no
-   team is needed — ownership is the rule, and a team is only the usual way of meeting it.
-   A clone built for someone else does need a team owned by them, created before the
-   project, because a later project transfer leaves logs, drains, and some integrations
-   behind.
+   person**, that requirement is met by the owner's own **one-person Pro team** — which
+   is what Vercel's default scope already is; Pro is billed per team and includes one
+   deploying seat, so this needs no second paying member. A clone built for someone else
+   needs a team owned by them, created before the project, because a later project
+   transfer leaves logs, drains, and some integrations behind.
 
 2. **Create the project empty — do not connect the Git repository.** This is the one
    step where the obvious path is the wrong one. The dashboard's "Add New → Project" flow
@@ -129,6 +129,14 @@ them explicitly in an `env:` block.
 | `VERCEL_TOKEN`                    | yes                | Deployment credential. Rotated or revoked at handoff.                    |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | yes                | Lets the verification step read the deployment as a reviewer would.      |
 
+These are pipeline-scoped secret variables rather than a linked variable group or Key
+Vault. That is Azure DevOps' own encrypted secret store either way; the pipeline-scoped
+form is used because one pipeline consumes them, and because a variable group named in
+YAML must exist before the pipeline can run at all — which would have made the deploy
+stage break the branch during provisioning instead of skipping cleanly. A clone sharing
+credentials across several pipelines, or wanting Key Vault-backed rotation, should move
+them into a variable group; nothing else changes.
+
 `VERCEL_PROJECT_ID` **must not be marked secret.** The deploy stage's condition tests it
 to decide whether the project exists yet, and Azure Pipelines does not decrypt secret
 variables into expressions — a secret there would always read as empty and the stage
@@ -168,23 +176,48 @@ content schemas behind it do not (AB#80, AB#81, AB#82, AB#112, AB#114). Preview 
 
 ### Sensitive variables and the prebuilt build
 
-**Do not mark any setting the build reads as Sensitive.** Vercel's Sensitive type makes a
-value non-readable after creation, and `vercel pull` does not retrieve it — it writes the
-literal placeholder `"[SENSITIVE]"` into the pulled env file instead. The pipeline builds
-on the Azure agent from those pulled values and deploys the result prebuilt, so a
-Sensitive setting reaches `next build` as the string `[SENSITIVE]` rather than its value.
+Vercel's **Sensitive** type makes a value non-readable after creation, and `vercel pull`
+does not retrieve it — it writes the literal placeholder `"[SENSITIVE]"` into the pulled
+env file. The pipeline builds on the Azure agent from those pulled values and deploys the
+result prebuilt, so a Sensitive setting reaches `next build` as the string `[SENSITIVE]`
+rather than its value.
 
-Every setting in the table above is read while the site is **built**, so all of them must
-be plain. The failure is at least loud rather than silent — `SITE_DEPLOYMENT_STAGE`
-would be rejected as not one of `development`, `preview`, `production` — but it is a
-build failure with a confusing cause, and it costs a round trip to diagnose.
+That splits the table above in two, and the split is by **when the value is read**, not
+by how secret it is:
 
-Nothing in that table is a credential in any case. The canonical base URL, locale,
-default social image, and its dimensions are all published in the page's own HTML.
+| | Type | Why |
+| --- | --- | --- |
+| Settings the **build** reads — every `SITE_*` value and `CONTACT_DELIVERY_ADAPTER` | plain | A Sensitive value never arrives. None of them is a credential either: the canonical base URL, locale, default social image and its dimensions are all published in the page's own HTML. |
+| Credentials only the **running** application reads — `RESEND_API_KEY` | Sensitive | Vercel injects the real value at request time, where the build's inability to read it costs nothing. ADR-0004 §5 requires delivery and CMS credentials to be environment-scoped sensitive variables. |
 
-Sensitive remains right for a secret the **running** application reads, where Vercel
-injects the real value at request time: `RESEND_API_KEY` is the clear case. Apply the
-same test to anything added later — if the build reads it, it must be plain.
+`SITE_DEPLOYMENT_STAGE` marked Sensitive is the failure worth recognising: the build
+rejects `[SENSITIVE]` as not one of `development`, `preview`, `production`. Loud, but
+with a confusing cause.
+
+**Never downgrade a credential to plain to get it through the build.** A build-time
+credential is an unresolved architectural question, not a variable type to change.
+
+#### The open case: `SANITY_READ_TOKEN`
+
+A private Sanity dataset needs a read token, and if the build prerenders authored content
+it needs that token *at build time* — where a Sensitive value is unavailable and a plain
+one contradicts ADR-0004 §5. Neither answer is acceptable, so the conflict is recorded
+rather than resolved here.
+
+It is not live today: every deployment runs on `SITE_CONTENT_SOURCE=mock`, so nothing
+reads Sanity during a build. It becomes real when the content schemas land (AB#80, AB#81,
+AB#82, AB#112, AB#114), and that work owns the decision. The options, none chosen:
+
+- **A public Preview dataset**, needing no read token at build time. The token stays a
+  Production-only, runtime-only concern.
+- **Split the credential by phase:** the build-time token comes from Azure DevOps' own
+  secret store into the build step, and the runtime token stays a Sensitive value in
+  Vercel. Two credentials, separately scoped and separately revocable.
+- **Move the build to Vercel**, where Sensitive values are available, giving up the
+  prebuilt model and the property that the deployed output was produced by a job whose
+  log this project keeps.
+
+Whichever is chosen, `RESEND_API_KEY` stays Sensitive: it is read at request time only.
 
 ### Canonical URLs on a Preview deployment
 
@@ -222,7 +255,9 @@ suite, the production build, and the Playwright journey suites.
 
 It then checks that provisioning is complete (failing by name if it is half done),
 installs the pinned Vercel CLI, pulls the Preview configuration, builds, deploys the
-prebuilt output so the artifact that was gated is the artifact that ships, verifies the
+prebuilt output, so the provider does not rebuild it remotely and the deployment runs
+what the pipeline log accounts for — a rebuild of the gated commit against the real
+Preview configuration, not the gate's own fixture-built artifact. It verifies the
 deployment, and only then publishes the URL to the run summary.
 
 ## Verifying a release candidate

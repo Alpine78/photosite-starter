@@ -194,9 +194,16 @@ stages:
               VERCEL_PROJECT_ID: $(VERCEL_PROJECT_ID)
               VERCEL_TOKEN: $(VERCEL_TOKEN)
 
-          # Uploads the output built in the step above, so the artifact that was
-          # gated is the artifact that gets deployed — the CLI does not rebuild
-          # it remotely. No --prod: this is a Preview deployment on a generated
+          # Uploads the output built in the step above: --prebuilt means the
+          # provider does not rebuild remotely, so what serves the deployment is
+          # what this job produced and what this log can account for.
+          #
+          # It is *not* the artifact the quality gates tested. That stage builds
+          # the same commit against fixture settings, because it must reach no
+          # external service; this one builds it against the project's real
+          # Preview configuration. The gates prove the commit, not the binary —
+          # a release candidate is deployed only from a commit that passed them.
+          # No --prod: this is a Preview deployment on a generated
           # URL, and it is never assigned a production domain (ADR-0004 §3).
           # The CLI writes progress to stderr and the deployment URL to stdout; the
           # last stdout line is taken so an added banner cannot be mistaken for the
@@ -222,6 +229,24 @@ stages:
             displayName: "Verify access protection and noindex"
             env:
               VERCEL_AUTOMATION_BYPASS_SECRET: $(VERCEL_AUTOMATION_BYPASS_SECRET)
+
+          # A deployment that failed verification is live, reachable by anyone
+          # holding its URL, and already visible in the provider's dashboard —
+          # so failing the job is not enough on its own. The deployment is
+          # removed here. This step only cleans up: the job stays failed, and
+          # the verification step's own exit code is what the run reports.
+          #
+          # Skipped when the deploy step never produced a URL, which is the
+          # other way this job can fail.
+          - script: |
+              set -euo pipefail
+              vercel remove "$(previewDeploymentUrl)" --yes --token="$VERCEL_TOKEN"
+            displayName: "Remove unverified deployment"
+            condition: and(failed(), ne(variables['previewDeploymentUrl'], ''))
+            env:
+              VERCEL_ORG_ID: $(VERCEL_ORG_ID)
+              VERCEL_PROJECT_ID: $(VERCEL_PROJECT_ID)
+              VERCEL_TOKEN: $(VERCEL_TOKEN)
 
           - script: |
               set -euo pipefail

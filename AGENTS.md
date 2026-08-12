@@ -182,7 +182,7 @@ and the deployment's drift apart; the pipeline runs a second stage that deploys 
 release candidate to Vercel only after every gate passes, only from `main`, never from a
 pull request, and only once the project id exists — so an unprovisioned host skips the
 stage instead of reddening the branch. It builds and deploys the prebuilt output, so the
-artifact that was gated is the artifact that ships, then asserts both access protection
+provider does not rebuild it remotely, then asserts both access protection
 and `noindex` before it publishes the URL, because neither property implies the other.
 The provisioning runbook, the Preview/Production environment split, and the recorded
 promotion and rollback commands are `docs/deployment.md`.
@@ -196,8 +196,10 @@ enquiry (AB#60), the fuller contact journey suite (AB#89),
 sitemap/robots, structured data, the Sanity content schemas and adapters that would put
 authored content behind the connection (AB#80, AB#81, AB#82, AB#112, AB#114) — so every
 page still renders from the mock layer — tagged caching and webhook revalidation (AB#83),
-and the deployment itself: no Vercel team, project, environment, or domain has been
-provisioned, so the deploy stage has never run. Production promotion (AB#18), exercised
+and the deployment itself: provisioning is under way — a Vercel project exists, but
+protection, the Preview variable set, and the pipeline's deployment variables are not
+finished, and no domain exists — so the deploy stage has never run and no release
+candidate has ever been produced or verified. Production promotion (AB#18), exercised
 rollback and handoff (AB#118), and legacy URL redirects (AB#19) are later stories.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP

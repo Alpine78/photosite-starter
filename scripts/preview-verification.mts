@@ -32,15 +32,21 @@ export type ProbeOutcome = {
 };
 
 /**
- * Statuses that prove the protection layer answered instead of the
- * application. Vercel Authentication challenges an unauthenticated request with
- * 401; 403 is accepted as the other refusal a protection layer may return.
+ * The one status that proves Vercel Authentication answered: 401.
  *
- * Nothing else passes. A 2xx means the deployment is open to anyone holding the
- * URL, and any other status — a redirect, a 404, a platform error — leaves the
- * question unanswered, which is not the same as an answer of "protected".
+ * 403 is deliberately **not** accepted, though a protection layer may return
+ * it. The platform's firewall and bot protection also deny with 403, and the
+ * automation bypass secret used by the second probe lifts those as well as
+ * deployment protection. A 403/200 pair is therefore consistent with a
+ * deployment that has no Vercel Authentication at all and was merely refusing
+ * the agent's address — which would report "protected" for a deployment any
+ * ordinary visitor could open.
+ *
+ * Failing on 403 costs an operator one investigation. Accepting it costs an
+ * unprotected release candidate that the pipeline called verified, so the
+ * ambiguous case fails.
  */
-const PROTECTION_REFUSAL_STATUSES: readonly number[] = [401, 403];
+const PROTECTION_CHALLENGE_STATUS = 401;
 
 /**
  * Directives that keep a page out of an index. `noindex` is what the provider
@@ -50,10 +56,22 @@ const PROTECTION_REFUSAL_STATUSES: readonly number[] = [401, 403];
 const NOINDEX_DIRECTIVES: ReadonlySet<string> = new Set(["noindex", "none"]);
 
 export function classifyProtection(status: number): ProbeOutcome {
-  if (PROTECTION_REFUSAL_STATUSES.includes(status)) {
+  if (status === PROTECTION_CHALLENGE_STATUS) {
     return {
       ok: true,
-      detail: `unauthenticated request refused with ${status}`,
+      detail: `unauthenticated request challenged with ${status}`,
+    };
+  }
+
+  if (status === 403) {
+    return {
+      ok: false,
+      detail:
+        "unauthenticated request was denied with 403, which does not prove " +
+        "Vercel Authentication is enabled: the platform firewall and bot " +
+        "protection deny with 403 too, and the automation bypass lifts those " +
+        "as well. Check Standard Protection on the project itself; a " +
+        "protected deployment challenges with 401.",
     };
   }
 
@@ -78,24 +96,27 @@ export function classifyProtection(status: number): ProbeOutcome {
 
 /**
  * Reads an `X-Robots-Tag` value the way a crawler would: a comma-separated
- * list whose entries may be bare directives (`noindex, nofollow`) or scoped to
- * one crawler (`googlebot: noindex`). Repeated headers arrive already joined
- * with commas by the Fetch API, so one string covers both shapes.
+ * list of directives. Repeated headers arrive already joined with commas by the
+ * Fetch API, so one string covers both shapes.
+ *
+ * Only **unscoped** directives count. An entry may name one crawler before a
+ * colon (`googlebot: noindex`), and such a rule binds that crawler alone —
+ * every other crawler is free to index the URL, so it does not make a
+ * deployment non-indexable. The provider's documented contract here is a plain
+ * `X-Robots-Tag: noindex`; a scoped value in its place is a misconfiguration
+ * worth failing on, not a pass in different wording.
  */
 export function hasNoindexDirective(headerValue: string | null): boolean {
   if (headerValue === null) return false;
 
   return headerValue
     .split(",")
-    .map((entry) => {
-      const separator = entry.indexOf(":");
-      // A scoped entry names the crawler before the colon. Anything after the
-      // first colon is the directive itself.
-      const directive =
-        separator === -1 ? entry : entry.slice(separator + 1);
-      return directive.trim().toLowerCase();
-    })
-    .some((directive) => NOINDEX_DIRECTIVES.has(directive));
+    .some((entry) => {
+      // A colon means the entry is addressed to a named crawler, so whatever
+      // follows it governs that crawler only. Ignored rather than unwrapped.
+      if (entry.includes(":")) return false;
+      return NOINDEX_DIRECTIVES.has(entry.trim().toLowerCase());
+    });
 }
 
 export function classifyIndexing(
@@ -165,17 +186,40 @@ export function verifyPreviewDeployment(
 }
 
 /**
- * Parses the deployment URL the pipeline captured.
- *
- * The query and credential rules are not politeness: a bypass secret belongs in
- * a request header, never in a URL that lands in a build log, a referrer, or a
- * provider's request telemetry (ADR-0004 §3). A URL arriving here with a query
- * string is what that mistake looks like, so it fails instead of being fetched.
+ * Host every generated Vercel deployment URL ends with. A deployment reached
+ * through anything else is not the provider's generated URL.
  */
-export function parseDeploymentUrl(value: string): URL {
-  const trimmed = value.trim();
-  let url: URL;
+const DEPLOYMENT_HOST_SUFFIX = ".vercel.app";
 
+/**
+ * Parses the deployment URL the pipeline captured, and refuses anything that
+ * is not *this project's* generated deployment URL.
+ *
+ * The strictness is about one thing: the next thing that happens to this URL is
+ * that a bypass secret is sent to it in a request header. That secret opens
+ * every deployment of the project, so the address it travels to cannot be
+ * whatever a command substitution happened to capture. A mistyped argument or a
+ * mangled CLI capture would otherwise hand the secret to a stranger's server,
+ * and the request would look entirely ordinary from here.
+ *
+ * `.vercel.app` alone is not enough — every other customer's project answers on
+ * that domain too — so the host must also begin with this project's own name,
+ * which is the shape the provider generates: `<project>-<hash>-<scope>`.
+ * Anything with a port, a path, a query, a fragment, or credentials is refused
+ * as well: the bypass belongs in a header, never in a URL that survives in a
+ * build log, a referrer, or request telemetry (ADR-0004 §3).
+ */
+export function parseDeploymentUrl(value: string, expectedProject: string): URL {
+  const trimmed = value.trim();
+  const project = expectedProject.trim();
+
+  if (!project) {
+    throw new Error(
+      "Invalid deployment URL: no expected project name was given, so the URL could not be bound to this project. Refusing to send the bypass secret to an unverified host.",
+    );
+  }
+
+  let url: URL;
   try {
     url = new URL(trimmed);
   } catch {
@@ -199,6 +243,30 @@ export function parseDeploymentUrl(value: string): URL {
   if (url.search || url.hash) {
     throw new Error(
       "Invalid deployment URL: expected no query or fragment. The automation bypass secret travels in a request header, never in the URL.",
+    );
+  }
+
+  if (url.port) {
+    throw new Error(
+      `Invalid deployment URL: expected the default HTTPS port, received port ${url.port}`,
+    );
+  }
+
+  if (url.pathname !== "/") {
+    throw new Error(
+      `Invalid deployment URL: expected the deployment root, received path "${url.pathname}"`,
+    );
+  }
+
+  if (!url.hostname.endsWith(DEPLOYMENT_HOST_SUFFIX)) {
+    throw new Error(
+      `Invalid deployment URL: expected a generated ${DEPLOYMENT_HOST_SUFFIX} deployment URL, received host "${url.hostname}". The automation bypass secret is only ever sent to this project's own deployment.`,
+    );
+  }
+
+  if (!url.hostname.startsWith(`${project}-`)) {
+    throw new Error(
+      `Invalid deployment URL: host "${url.hostname}" does not belong to project "${project}". Another project on ${DEPLOYMENT_HOST_SUFFIX} would answer this request, and the bypass secret must not reach it.`,
     );
   }
 
