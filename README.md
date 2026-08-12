@@ -240,7 +240,8 @@ npx playwright show-report               # after a failure
 projects: desktop Chromium and mobile WebKit. The suite protects the home page, the site
 menu's composition and disclosure behavior, the portfolio lightbox, the services routes,
 the public content tree, and
-contact submission; a route-specific suite joins the gate by landing in `e2e/`. The run
+contact submission — including invalid input, delivery failure, and retry; a
+route-specific suite joins the gate by landing in `e2e/`. The run
 leaves `.next` holding a build made with the harness settings, so run `npm run build`
 again before serving your own deployment build locally. Retries, timeouts, browser
 matrix, and parallelism are set explicitly in
@@ -256,7 +257,12 @@ privacy rules honest and is where an external delivery adapter plugs in a test d
 instead of reaching a real service. The contact form already uses it: the harness
 selects `CONTACT_DELIVERY_ADAPTER=sink`, so the journey exercises the real endpoint,
 the real validation, and the real response contract without a credential in the
-environment or a synthetic enquiry in a real mailbox.
+environment or a synthetic enquiry in a real mailbox. Delivery *failures* are reached
+the same way — a reply-to address on the reserved `delivery-failure.test` domain makes
+the sink report that class of failure — so the endpoint's classification and the advice
+the form gives are exercised end to end rather than stubbed. Each test also arrives from
+its own synthetic address, so the endpoint's per-client throttle bounds a real client
+instead of the whole browser matrix.
 
 ## CI
 
@@ -312,8 +318,9 @@ a green pipeline. See [deployment](docs/deployment.md).
 - [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
   handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
   for development, CI, and Preview), abuse controls, and operational events carrying no
-  personal data ([data flow](docs/contact-data-flow.md)); the gallery-item enquiry
-  (AB#60) and the fuller journey suite (AB#89) are separate stories*
+  personal data ([data flow](docs/contact-data-flow.md)), covered by a public-journey
+  suite over validation, success, delivery failure, and retry; the gallery-item enquiry
+  (AB#60) is a separate story*
 - [ ] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
   canonical URLs, and Open Graph output done for every current public page; sitemap,
   robots, and structured data pending*
@@ -393,8 +400,9 @@ authored content behind them are not, so every page still renders from the mock 
 The portfolio grid opens a fullscreen lightbox that navigates the loaded result by
 keyboard, control, and gesture and presents the caption and credit of the photograph on
 screen; its zoom tuning and preloading are a later slice. The contact form is built and
-delivers through a replaceable adapter that stores nothing; the gallery-item enquiry
-(AB#60) and the fuller journey suite (AB#89) build on it. Public continuation routes and
+delivers through a replaceable adapter that stores nothing, and a public-journey suite
+covers its validation, success, failure, and retry states; the gallery-item enquiry
+(AB#60) builds on it. Public continuation routes and
 controls, and the CMS schemas and adapters, are still open. The deployment path exists in
 the repository — a pinned runtime and region, a pipeline stage that deploys a release
 candidate only after every gate passes, and a check that refuses to publish a URL whose

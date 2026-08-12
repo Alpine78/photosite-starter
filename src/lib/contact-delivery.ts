@@ -24,6 +24,7 @@ import {
 } from "@/lib/deployment-stage";
 import type { ContactMessage } from "@/lib/contact-message";
 import { createResendDeliveryAdapter } from "@/lib/contact-delivery-resend";
+import { createSinkDeliveryAdapter } from "@/lib/contact-delivery-sink";
 
 const contactSettingNames = {
   adapter: "CONTACT_DELIVERY_ADAPTER",
@@ -117,30 +118,6 @@ export function buildContactEmail(
       message.message,
     ].join("\n"),
     replyTo: message.email,
-  };
-}
-
-/**
- * Accepts every message and sends nothing.
- *
- * This is the adapter Preview and CI run on (ADR-0004 §3): the release
- * candidate and the Playwright journey exercise the real endpoint, the real
- * validation, and the real response contract without a credential in the
- * environment or a synthetic enquiry in a real mailbox. It is a delivery
- * boundary that succeeds, not a stub of the endpoint.
- *
- * It reports success, which is the whole point everywhere it belongs and
- * silent data loss in production — a visitor would be told their enquiry was
- * sent and it would exist nowhere. `buildContactDeliveryAdapter` therefore
- * refuses to build it in a production deployment; documentation saying where it
- * belongs is not a control, and this one is worth having as code.
- */
-function createSinkDeliveryAdapter(): ContactDeliveryAdapter {
-  return {
-    name: "sink",
-    async deliver() {
-      return { status: "delivered" };
-    },
   };
 }
 

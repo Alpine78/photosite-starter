@@ -172,9 +172,18 @@ and breadcrumb, the navigation between them and into the story section, and an u
 slug's 404), the site-menu journey (its composition, the disclosure opened by pointer and
 by keyboard and dismissed either way with focus return, the level-at-a-time Escape
 unwind, ancestry marking, a branch below the menu reached from its landing page, and the
-compact panel's viewport behavior), and the contact submission
-smoke test; route-specific journey suites are
-separate stories that join the gate as their features land.
+compact panel's viewport behavior), and the contact journey (a labelled form,
+required-field and invalid-address reporting against the field that caused it, a
+successful submission, a delivery failure that may pass later — announced,
+referenced, and retried — and one a retry cannot fix, pointing at the direct
+address). Those failure states are the endpoint's own answers rather than a
+stubbed response: the sink adapter reports a chosen failure class for a reply-to
+address on the reserved `delivery-failure.test` domain, which RFC 6761 makes
+unreachable for a real enquiry and which a production deployment never builds.
+Each test also arrives from its own synthetic address, so the endpoint's
+per-client throttle bounds a client rather than the whole browser matrix.
+Route-specific journey suites are separate stories that join the gate as their
+features land.
 The repository half of the customer-owned Preview environment is in place on top of it:
 the function region and the Node major are pinned in `vercel.json` and `package.json`
 rather than inherited from the platform, and a test fails the gate if the pipeline's pin
@@ -195,7 +204,7 @@ localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — public continuation routes and
 controls — a category listing is bounded to its first page and answers any `?cursor=`
 with a 404, because none has been issued — lightbox zoom tuning, the gallery-item
-enquiry (AB#60), the fuller contact journey suite (AB#89),
+enquiry (AB#60),
 sitemap/robots, structured data, the Sanity content schemas and adapters that would put
 authored content behind the connection (AB#80, AB#81, AB#82, AB#112, AB#114) — so every
 page still renders from the mock layer — tagged caching and webhook revalidation (AB#83),
