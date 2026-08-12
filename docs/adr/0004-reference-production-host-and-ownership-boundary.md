@@ -89,7 +89,8 @@ does not provision an environment or authorize a DNS change.
 ### 1. Ownership and portability boundary
 
 - The customer controls the deployment repository, Azure DevOps project and Pipeline,
-  CI service connection and secret store, Vercel team and project, billing relationship,
+  CI source service connection and deployment secret store, Vercel team and project,
+  billing relationship,
   production domain association, environment variables, and provider integrations from
   the first Preview deployment.
 - Customer-controlled accounts require multi-factor authentication. Production promotion
@@ -102,6 +103,11 @@ does not provision an environment or authorize a DNS change.
   rotated or revoked during handoff. Forked or otherwise untrusted branches never receive
   Preview, Production, provider, or protection-bypass secrets. Credentials are never
   committed and never reused by another clone.
+- Vercel's supported Azure Pipelines authentication is a team-scoped access token, which
+  the reference pipeline stores in its customer-owned, pipeline-authorized variable
+  group. It does not invent an unused generic Azure service connection: the Vercel CLI
+  and authenticated deployment API both consume the token directly. The customer-owned
+  GitHub service connection remains the CI source connection.
 - The repository uses Next.js Route Handlers, `next/image`, and Next.js cache APIs rather
   than Vercel-only runtime SDKs. A provider-specific dependency requires a new justified
   decision.

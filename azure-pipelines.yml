@@ -14,12 +14,14 @@ variables:
   # and in the Vercel project rather than inherited (ADR-0004 §2). All three
   # must name the same major; scripts/node-version-pin.test.mts fails the test
   # gate if this file and package.json drift apart.
-  nodeVersion: "24.x"
+  - name: nodeVersion
+    value: "24.x"
   # The exact Vercel CLI a release candidate is built and deployed with, pinned
   # so a CLI release cannot change deployment behaviour between two runs of the
   # same commit (ADR-0004 §3). Bumping it is a deliberate change: see
   # docs/deployment.md.
-  vercelCliVersion: "58.9.1"
+  - name: vercelCliVersion
+    value: "58.9.1"
 
 stages:
   - stage: Verify
@@ -100,6 +102,11 @@ stages:
   - stage: DeployPreview
     displayName: "Preview release candidate"
     dependsOn: Verify
+    # Keep the provider credentials outside the quality-gate stage. The group
+    # is a protected resource authorized only for this pipeline, and its values
+    # are scoped further to the one stage that consumes them.
+    variables:
+      - group: photosite-starter-vercel-preview
     # Every clause is load-bearing:
     #
     #  - succeeded(): lint, browser-free tests, the production build, and the
@@ -109,19 +116,16 @@ stages:
     #    receives Preview, provider, or protection-bypass secrets.
     #  - main only: the release candidate is what main holds, not whatever
     #    branch happened to trigger a run.
-    #  - VERCEL_PROJECT_ID present: until the Vercel project is provisioned
-    #    there is nothing to deploy to, so the stage skips rather than turning
-    #    the branch red. It has to stay a *non-secret* pipeline variable —
-    #    Azure Pipelines does not decrypt secret variables into expressions, so
-    #    a secret here would always read as empty and the stage would never run.
-    #    The project id is an identifier, not a credential; the token is the
-    #    secret, and it is checked inside the job instead.
+    #  - explicit enable flag: the customer-owned variable group exists before
+    #    its credentials do. Provisioning leaves the flag false, so the stage
+    #    skips cleanly; the owner turns it true only after every value and the
+    #    Vercel protection setting are ready.
     condition: >-
       and(
         succeeded(),
         ne(variables['Build.Reason'], 'PullRequest'),
         eq(variables['Build.SourceBranch'], 'refs/heads/main'),
-        ne(variables['VERCEL_PROJECT_ID'], '')
+        eq(variables['PREVIEW_DEPLOYMENT_ENABLED'], 'true')
       )
     jobs:
       - job: DeployPreview
@@ -134,8 +138,8 @@ stages:
               version: $(nodeVersion)
             displayName: "Use pinned Node.js"
 
-          # The stage gate proves only that a project id exists. Provisioning
-          # that stopped half way through fails here, by name, before a single
+          # The stage gate proves only that provisioning was explicitly enabled.
+          # Provisioning that stopped half way through fails here, by name, before a single
           # credential is used — rather than as an opaque CLI error three steps
           # later. An Azure Pipelines variable that was never defined arrives as
           # the literal macro text, so that shape counts as missing too.
@@ -205,14 +209,19 @@ stages:
           # a release candidate is deployed only from a commit that passed them.
           # No --prod: this is a Preview deployment on a generated
           # URL, and it is never assigned a production domain (ADR-0004 §3).
-          # The CLI writes progress to stderr and the deployment URL to stdout; the
-          # last stdout line is taken so an added banner cannot be mistaken for the
-          # URL. A malformed capture still fails loudly — the verification step
-          # validates the URL before it fetches anything.
+          # The CLI contract puts only the deployment URL on stdout. Before the
+          # value becomes a pipeline variable, the authenticated Vercel API
+          # resolves it to an immutable deployment ID and proves the returned
+          # project, owner, and hostname match this pipeline's settings.
           - script: |
               set -euo pipefail
-              url="$(vercel deploy --prebuilt --archive=tgz --token="$VERCEL_TOKEN" | tail -n 1)"
+              echo "##vso[task.setvariable variable=previewDeploymentUrl]"
+              echo "##vso[task.setvariable variable=previewDeploymentId]"
+              echo "##vso[task.setvariable variable=previewDeploymentVerified]false"
+              url="$(vercel deploy --prebuilt --archive=tgz --token="$VERCEL_TOKEN")"
               echo "##vso[task.setvariable variable=previewDeploymentUrl]$url"
+              deployment_id="$(npm run identify:preview --silent -- "$url")"
+              echo "##vso[task.setvariable variable=previewDeploymentId]$deployment_id"
             displayName: "Deploy Preview release candidate"
             env:
               VERCEL_ORG_ID: $(VERCEL_ORG_ID)
@@ -225,24 +234,46 @@ stages:
           # travels to the deployment in a request header — never in the URL.
           - script: |
               set -euo pipefail
-              npm run verify:preview --silent -- "$(previewDeploymentUrl)"
+              npm run verify:preview --silent -- "$(previewDeploymentUrl)" "$(previewDeploymentId)"
+              echo "##vso[task.setvariable variable=previewDeploymentVerified]true"
             displayName: "Verify access protection and noindex"
             env:
+              VERCEL_ORG_ID: $(VERCEL_ORG_ID)
+              VERCEL_PROJECT_ID: $(VERCEL_PROJECT_ID)
+              VERCEL_TOKEN: $(VERCEL_TOKEN)
               VERCEL_AUTOMATION_BYPASS_SECRET: $(VERCEL_AUTOMATION_BYPASS_SECRET)
 
           # A deployment that failed verification is live, reachable by anyone
           # holding its URL, and already visible in the provider's dashboard —
           # so failing the job is not enough on its own. The deployment is
-          # removed here. This step only cleans up: the job stays failed, and
-          # the verification step's own exit code is what the run reports.
+          # removed here by immutable deployment ID. The cleanup script first
+          # rebinds that ID to the expected project and team through Vercel's
+          # authenticated API, then calls the dedicated deployment DELETE
+          # endpoint. It can never reinterpret the value as a project name.
           #
-          # Skipped when the deploy step never produced a URL, which is the
-          # other way this job can fail.
+          # `always()` gives cleanup the Azure cancellation grace period too.
+          # If URL-to-ID identification failed after deployment, the cleanup
+          # command authenticates the captured generated URL, resolves it to an
+          # ID, and still sends only that ID to the DELETE endpoint. It is
+          # skipped only when no deployment reference was captured or the
+          # deployment passed both publication checks.
           - script: |
               set -euo pipefail
-              vercel remove "$(previewDeploymentUrl)" --yes --token="$VERCEL_TOKEN"
+              reference="$(previewDeploymentId)"
+              if [ -z "$reference" ]; then
+                reference="$(previewDeploymentUrl)"
+              fi
+              npm run remove:preview --silent -- "$reference"
             displayName: "Remove unverified deployment"
-            condition: and(failed(), ne(variables['previewDeploymentUrl'], ''))
+            condition: >-
+              and(
+                always(),
+                or(
+                  ne(variables['previewDeploymentId'], ''),
+                  ne(variables['previewDeploymentUrl'], '')
+                ),
+                ne(variables['previewDeploymentVerified'], 'true')
+              )
             env:
               VERCEL_ORG_ID: $(VERCEL_ORG_ID)
               VERCEL_PROJECT_ID: $(VERCEL_PROJECT_ID)

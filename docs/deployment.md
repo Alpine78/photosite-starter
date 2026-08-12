@@ -107,41 +107,45 @@ authoritative for the exact clicks. What this project needs from it:
 
    `.vercel/` is gitignored, so nothing here reaches the repository.
 
-9. **Add the pipeline variables** from the table below to the Azure Pipelines definition.
+9. **Create the variable group** `photosite-starter-vercel-preview`, authorize only this
+   pipeline to use it, and add the values from the table below. Create the group with
+   `PREVIEW_DEPLOYMENT_ENABLED=false` first; the YAML must be able to resolve the protected
+   resource before any branch containing its reference is merged. Add and verify every
+   other value, then change the flag to `true`. Do not grant open access to all pipelines.
 
 10. **Keep Observability Plus disabled** and limit Owner, Member, and Developer seats to
     the people who need Runtime Logs; everyone else gets Pro Viewer. Both are privacy
     decisions, not cost ones — see [Logs and telemetry](#logs-and-telemetry).
 
-Until step 9 is done the deploy stage skips and `main` stays green. It starts running the
-moment `VERCEL_PROJECT_ID` exists.
+The group exists before its credentials do, so provisioning can remain incomplete without
+reddening `main`: the deploy stage skips while `PREVIEW_DEPLOYMENT_ENABLED=false`. Turning
+that flag on is the explicit handoff from provisioning to the first release-candidate run.
 
 ## Pipeline variables
 
-Set these on the Azure Pipelines definition. Secret variables must be marked secret;
-Azure Pipelines masks them in logs and passes them to a step only where the YAML names
-them explicitly in an `env:` block.
+Store these in the customer-owned `photosite-starter-vercel-preview` variable group.
+Secret variables must be marked secret; Azure Pipelines masks them in logs and passes
+them to a step only where the YAML names them explicitly in an `env:` block. The group is
+a protected resource, is authorized only for this pipeline, and is referenced only from
+the deployment stage rather than the quality gates.
 
-| Variable                          | Secret             | Purpose                                                                  |
-| --------------------------------- | ------------------ | ------------------------------------------------------------------------ |
-| `VERCEL_ORG_ID`                   | no                 | Which Vercel team the project belongs to.                                |
-| `VERCEL_PROJECT_ID`               | **no — see below** | Which project to deploy. Also the switch that turns the deploy stage on. |
-| `VERCEL_TOKEN`                    | yes                | Deployment credential. Rotated or revoked at handoff.                    |
-| `VERCEL_AUTOMATION_BYPASS_SECRET` | yes                | Lets the verification step read the deployment as a reviewer would.      |
+| Variable                          | Secret | Purpose                                                               |
+| --------------------------------- | ------ | --------------------------------------------------------------------- |
+| `PREVIEW_DEPLOYMENT_ENABLED`      | no     | `false` during provisioning; `true` deliberately enables the stage.   |
+| `VERCEL_ORG_ID`                   | no     | Team expected to own every deployment the pipeline handles.           |
+| `VERCEL_PROJECT_ID`               | no     | Project expected to own every deployment the pipeline handles.        |
+| `VERCEL_TOKEN`                    | yes    | Team-scoped deployment/API credential, rotated or revoked at handoff. |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | yes    | Lets the verification probe read the protected deployment.            |
 
-These are pipeline-scoped secret variables rather than a linked variable group or Key
-Vault. That is Azure DevOps' own encrypted secret store either way; the pipeline-scoped
-form is used because one pipeline consumes them, and because a variable group named in
-YAML must exist before the pipeline can run at all — which would have made the deploy
-stage break the branch during provisioning instead of skipping cleanly. A clone sharing
-credentials across several pipelines, or wanting Key Vault-backed rotation, should move
-them into a variable group; nothing else changes.
-
-`VERCEL_PROJECT_ID` **must not be marked secret.** The deploy stage's condition tests it
-to decide whether the project exists yet, and Azure Pipelines does not decrypt secret
-variables into expressions — a secret there would always read as empty and the stage
-would never run at all. It is an identifier rather than a credential; the token beside it
-is the secret.
+The GitHub service connection that supplies this repository to Azure Pipelines is also
+customer-controlled and remains the pipeline's source connection. Vercel authentication
+is intentionally not represented as an Azure service connection: Vercel's supported
+Azure Pipelines interfaces accept a team-scoped access token as a secret variable, and
+the CLI used here needs that token for `pull`, `build`, `deploy`, and the authenticated
+deployment API. Inventing a generic service connection would not make that credential
+available to those commands; it would add an unused second resource. The accepted
+ownership boundary is the customer-owned source connection plus this least-privilege
+deployment secret store.
 
 ## Environment variables
 
@@ -250,28 +254,36 @@ suite, the production build, and the Playwright journey suites.
 - the run is not a pull-request build — a PR branch, a fork's above all, never receives
   Preview, provider, or protection-bypass secrets;
 - the branch is `main`, which is what a release candidate is;
-- `VERCEL_PROJECT_ID` is set, so an unprovisioned project means a skipped stage rather
-  than a red branch.
+- `PREVIEW_DEPLOYMENT_ENABLED=true`, set only after the customer-owned variable group,
+  Vercel project settings, and every credential are ready.
 
 It then checks that provisioning is complete (failing by name if it is half done),
-installs the pinned Vercel CLI, pulls the Preview configuration, builds, deploys the
+installs the pinned Vercel CLI, pulls the Preview configuration, builds, and deploys the
 prebuilt output, so the provider does not rebuild it remotely and the deployment runs
 what the pipeline log accounts for — a rebuild of the gated commit against the real
-Preview configuration, not the gate's own fixture-built artifact. It verifies the
-deployment, and only then publishes the URL to the run summary.
+Preview configuration, not the gate's own fixture-built artifact. Before a project
+secret is sent to the deployment, the pipeline resolves the generated URL through
+Vercel's authenticated API and compares its immutable deployment ID, project ID, owner
+ID, and hostname with the expected values. It verifies the deployment, and only then
+publishes the URL to the run summary.
 
 ## Verifying a release candidate
 
 ```bash
-npm run verify:preview -- https://<deployment>.vercel.app
+npm run verify:preview -- https://<deployment>.vercel.app dpl_<immutable-id>
 ```
 
-The pipeline runs this before it publishes the URL. It makes two requests, because the
-two properties are independent and neither substitutes for the other:
+The command expects `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_TOKEN`, and
+`VERCEL_AUTOMATION_BYPASS_SECRET` in its environment; the pipeline supplies them without
+putting them on the command line. It first asks Vercel's authenticated API for the
+deployment and refuses a missing or mismatched private identity field. Only after that
+binding succeeds does it make two requests, because the two publication properties are
+independent and neither substitutes for the other:
 
 - **Without the bypass header**, the deployment must refuse the request. `noindex` asks a
   crawler not to list a URL; it asks nothing at all of a person who has it.
-- **With the bypass header**, the response must carry `X-Robots-Tag: noindex`. Protection
+- **With the bypass header**, the response must carry the exact, unscoped
+  `X-Robots-Tag: noindex` that Vercel documents. Protection
   keeps crawlers out today; the header is what keeps the URL out of an index if
   protection is ever relaxed.
 
@@ -282,10 +294,16 @@ parameter, and a URL carrying a secret survives in build logs, referrers, and re
 telemetry long after the deployment is gone. The script refuses a URL with a query string
 for that reason.
 
-The decisions live in `scripts/preview-verification.mts` and have tests;
-`scripts/verify-preview-deployment.mts` is the part that opens a socket. Both run on the
-Node major pinned in `package.json`, which executes TypeScript directly, so the check
-needs no build step and no extra dependency.
+The decisions live in `scripts/preview-verification.mts` and have tests. The small IO
+boundary is `scripts/vercel-preview-api.mts`; the identify, verify, and cleanup commands
+call it without adding an SDK dependency. If verification fails or the run is cancelled,
+the cleanup step rechecks the immutable `dpl_…` ID through the same API and deletes
+exactly that deployment. If the first URL-to-ID lookup itself failed after deployment,
+cleanup authenticates the captured generated URL, binds the API answer to the expected
+project and team, and sends only the returned immutable ID to the DELETE endpoint. It
+never passes a captured value to the multi-purpose `vercel remove` command, where a
+project name would mean a much broader operation. These scripts run on the Node major
+pinned in `package.json`, which executes TypeScript directly.
 
 ## Promotion and rollback
 

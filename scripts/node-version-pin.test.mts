@@ -23,11 +23,13 @@ function readRepositoryFile(name: string): string {
   return readFileSync(new URL(name, repositoryRoot), "utf8");
 }
 
-/** Matches the pipeline-level `nodeVersion` variable, whatever indentation it carries. */
-const PIPELINE_NODE_VERSION = /^\s*nodeVersion:\s*"([^"]+)"/m;
+/** Matches a named pipeline-level list variable, whatever indentation it carries. */
+const PIPELINE_NODE_VERSION =
+  /^\s*-\s+name:\s*nodeVersion\s*\n\s+value:\s*"([^"]+)"/m;
 
 /** Matches the pinned Vercel CLI version alongside it. */
-const PIPELINE_VERCEL_CLI_VERSION = /^\s*vercelCliVersion:\s*"([^"]+)"/m;
+const PIPELINE_VERCEL_CLI_VERSION =
+  /^\s*-\s+name:\s*vercelCliVersion\s*\n\s+value:\s*"([^"]+)"/m;
 
 /** A major-only pin: `24.x`, never a range and never a full version. */
 const MAJOR_PIN = /^(\d+)\.x$/;

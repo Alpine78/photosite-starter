@@ -48,13 +48,6 @@ export type ProbeOutcome = {
  */
 const PROTECTION_CHALLENGE_STATUS = 401;
 
-/**
- * Directives that keep a page out of an index. `noindex` is what the provider
- * documents sending; `none` is its defined equivalent (`noindex, nofollow`),
- * accepted so a change of wording reads as a pass rather than a false alarm.
- */
-const NOINDEX_DIRECTIVES: ReadonlySet<string> = new Set(["noindex", "none"]);
-
 export function classifyProtection(status: number): ProbeOutcome {
   if (status === PROTECTION_CHALLENGE_STATUS) {
     return {
@@ -95,28 +88,18 @@ export function classifyProtection(status: number): ProbeOutcome {
 }
 
 /**
- * Reads an `X-Robots-Tag` value the way a crawler would: a comma-separated
- * list of directives. Repeated headers arrive already joined with commas by the
- * Fetch API, so one string covers both shapes.
+ * Asserts the provider contract rather than attempting a general robots parser.
  *
- * Only **unscoped** directives count. An entry may name one crawler before a
- * colon (`googlebot: noindex`), and such a rule binds that crawler alone —
- * every other crawler is free to index the URL, so it does not make a
- * deployment non-indexable. The provider's documented contract here is a plain
- * `X-Robots-Tag: noindex`; a scoped value in its place is a misconfiguration
- * worth failing on, not a pass in different wording.
+ * Vercel documents a plain `X-Robots-Tag: noindex` on Preview deployments. A
+ * user-agent scope applies to every rule in its comma-separated list, but the
+ * Fetch API may also join repeated response headers with commas. Those two wire
+ * shapes cannot be distinguished after joining. Accepting a token merely
+ * because it appears somewhere in the resulting string can therefore turn a
+ * crawler-specific rule into a false global pass. The exact, unscoped provider
+ * value is unambiguous and is the only value accepted here.
  */
 export function hasNoindexDirective(headerValue: string | null): boolean {
-  if (headerValue === null) return false;
-
-  return headerValue
-    .split(",")
-    .some((entry) => {
-      // A colon means the entry is addressed to a named crawler, so whatever
-      // follows it governs that crawler only. Ignored rather than unwrapped.
-      if (entry.includes(":")) return false;
-      return NOINDEX_DIRECTIVES.has(entry.trim().toLowerCase());
-    });
+  return headerValue?.trim().toLowerCase() === "noindex";
 }
 
 export function classifyIndexing(
@@ -143,7 +126,7 @@ export function classifyIndexing(
       detail:
         robotsTag === null
           ? "response carries no X-Robots-Tag header, so nothing keeps this URL out of a search index."
-          : `response carries X-Robots-Tag: ${robotsTag}, which contains no noindex directive.`,
+          : `response carries X-Robots-Tag: ${robotsTag}, expected the provider's exact unscoped value "noindex".`,
     };
   }
 
@@ -192,32 +175,15 @@ export function verifyPreviewDeployment(
 const DEPLOYMENT_HOST_SUFFIX = ".vercel.app";
 
 /**
- * Parses the deployment URL the pipeline captured, and refuses anything that
- * is not *this project's* generated deployment URL.
+ * Performs only the URL-shape check that can be proven locally.
  *
- * The strictness is about one thing: the next thing that happens to this URL is
- * that a bypass secret is sent to it in a request header. That secret opens
- * every deployment of the project, so the address it travels to cannot be
- * whatever a command substitution happened to capture. A mistyped argument or a
- * mangled CLI capture would otherwise hand the secret to a stranger's server,
- * and the request would look entirely ordinary from here.
- *
- * `.vercel.app` alone is not enough — every other customer's project answers on
- * that domain too — so the host must also begin with this project's own name,
- * which is the shape the provider generates: `<project>-<hash>-<scope>`.
- * Anything with a port, a path, a query, a fragment, or credentials is refused
- * as well: the bypass belongs in a header, never in a URL that survives in a
- * build log, a referrer, or request telemetry (ADR-0004 §3).
+ * A Vercel hostname does not prove who owns it: project names repeat between
+ * teams, and generated hostnames may be transformed or truncated. The caller
+ * must authenticate to the Vercel API and pass the response to
+ * `validateDeploymentIdentity` before it sends any project secret to this URL.
  */
-export function parseDeploymentUrl(value: string, expectedProject: string): URL {
+export function parseDeploymentUrl(value: string): URL {
   const trimmed = value.trim();
-  const project = expectedProject.trim();
-
-  if (!project) {
-    throw new Error(
-      "Invalid deployment URL: no expected project name was given, so the URL could not be bound to this project. Refusing to send the bypass secret to an unverified host.",
-    );
-  }
 
   let url: URL;
   try {
@@ -260,15 +226,117 @@ export function parseDeploymentUrl(value: string, expectedProject: string): URL 
 
   if (!url.hostname.endsWith(DEPLOYMENT_HOST_SUFFIX)) {
     throw new Error(
-      `Invalid deployment URL: expected a generated ${DEPLOYMENT_HOST_SUFFIX} deployment URL, received host "${url.hostname}". The automation bypass secret is only ever sent to this project's own deployment.`,
-    );
-  }
-
-  if (!url.hostname.startsWith(`${project}-`)) {
-    throw new Error(
-      `Invalid deployment URL: host "${url.hostname}" does not belong to project "${project}". Another project on ${DEPLOYMENT_HOST_SUFFIX} would answer this request, and the bypass secret must not reach it.`,
+      `Invalid deployment URL: expected a generated ${DEPLOYMENT_HOST_SUFFIX} deployment URL, received host "${url.hostname}".`,
     );
   }
 
   return url;
+}
+
+const DEPLOYMENT_ID_PATTERN = /^dpl_[A-Za-z0-9]+$/;
+const PROJECT_ID_PATTERN = /^prj_[A-Za-z0-9]+$/;
+const TEAM_ID_PATTERN = /^team_[A-Za-z0-9]+$/;
+
+export type ExpectedDeploymentIdentity = {
+  readonly projectId: string;
+  readonly ownerId: string;
+  readonly url?: URL;
+  readonly deploymentId?: string;
+};
+
+export type VerifiedDeploymentIdentity = {
+  readonly id: string;
+  readonly projectId: string;
+  readonly ownerId: string;
+  readonly hostname: string;
+};
+
+function requiredString(
+  value: unknown,
+  field: string,
+  pattern?: RegExp,
+): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`Vercel deployment response has no valid ${field}`);
+  }
+
+  const normalized = value.trim();
+  if (pattern && !pattern.test(normalized)) {
+    throw new Error(`Vercel deployment response has an invalid ${field}`);
+  }
+
+  return normalized;
+}
+
+/**
+ * Validates the private identity fields returned by Vercel's authenticated
+ * deployment endpoint. Only this comparison binds a captured URL to the
+ * customer-owned project and team.
+ */
+export function validateDeploymentIdentity(
+  value: unknown,
+  expected: ExpectedDeploymentIdentity,
+): VerifiedDeploymentIdentity {
+  const expectedProjectId = requiredString(
+    expected.projectId,
+    "expected project ID",
+    PROJECT_ID_PATTERN,
+  );
+  const expectedOwnerId = requiredString(
+    expected.ownerId,
+    "expected team ID",
+    TEAM_ID_PATTERN,
+  );
+
+  if (typeof value !== "object" || value === null) {
+    throw new Error("Vercel deployment response is not an object");
+  }
+
+  const record = value as Record<string, unknown>;
+  const id = requiredString(record.id, "deployment ID", DEPLOYMENT_ID_PATTERN);
+  const projectId = requiredString(record.projectId, "project ID");
+  const ownerId = requiredString(record.ownerId, "owner ID");
+  const hostname = requiredString(record.url, "deployment hostname").toLowerCase();
+
+  if (projectId !== expectedProjectId) {
+    throw new Error(
+      `Vercel deployment belongs to project ${projectId}, expected ${expectedProjectId}`,
+    );
+  }
+
+  if (ownerId !== expectedOwnerId) {
+    throw new Error(
+      `Vercel deployment belongs to owner ${ownerId}, expected team ${expectedOwnerId}`,
+    );
+  }
+
+  if (expected.url && hostname !== expected.url.hostname.toLowerCase()) {
+    throw new Error(
+      `Vercel returned deployment host ${hostname}, expected ${expected.url.hostname}`,
+    );
+  }
+
+  if (expected.deploymentId) {
+    const expectedId = requiredString(
+      expected.deploymentId,
+      "expected deployment ID",
+      DEPLOYMENT_ID_PATTERN,
+    );
+    if (id !== expectedId) {
+      throw new Error(`Vercel returned deployment ${id}, expected ${expectedId}`);
+    }
+  }
+
+  return { id, projectId, ownerId, hostname };
+}
+
+export function parseDeploymentId(value: string): string {
+  const normalized = value.trim();
+  if (!DEPLOYMENT_ID_PATTERN.test(normalized)) {
+    throw new Error(
+      "Invalid deployment ID: expected the immutable dpl_ identifier returned by Vercel",
+    );
+  }
+
+  return normalized;
 }

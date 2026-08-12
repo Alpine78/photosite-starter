@@ -3,7 +3,7 @@
  * Proves a Preview deployment is access-protected and non-indexable, before
  * anyone is told the URL exists.
  *
- *     npm run verify:preview -- https://<deployment>.vercel.app
+ *     npm run verify:preview -- https://<deployment>.vercel.app dpl_<id>
  *
  * Reads the automation bypass secret from `VERCEL_AUTOMATION_BYPASS_SECRET`
  * and from nowhere else. Not from an argument: a command line is visible to
@@ -13,9 +13,13 @@
  * carrying a secret survives in build logs, referrers, and request telemetry
  * long after the deployment is gone.
  *
- * Two requests, because the two properties are independent: one without the
- * bypass header, which must be refused, and one with it, whose response must
- * carry `noindex`. The second is the response a reviewer actually sees.
+ * Before either request, the script resolves the URL through Vercel's
+ * authenticated deployment API and proves that its immutable ID, project ID,
+ * team owner ID, and hostname match the expected pipeline settings. Only then
+ * can the bypass secret leave this process. Two deployment requests follow,
+ * because the two properties are independent: one without the bypass header,
+ * which must be refused, and one with it, whose response must carry `noindex`.
+ * The second is the response a reviewer actually sees.
  *
  * All decisions live in `preview-verification.mts`, which has tests. This file
  * is the part that cannot be tested without a network: read settings, make two
@@ -24,12 +28,11 @@
  * Runs on the Node major pinned in `package.json` (`engines.node`), which
  * executes TypeScript directly.
  */
-import { readFileSync } from "node:fs";
-
+import { verifyPreviewDeployment } from "./preview-verification.mts";
 import {
-  parseDeploymentUrl,
-  verifyPreviewDeployment,
-} from "./preview-verification.mts";
+  inspectPreviewDeployment,
+  readVercelPreviewApiSettings,
+} from "./vercel-preview-api.mts";
 
 /** The provider's documented header for Protection Bypass for Automation. */
 const BYPASS_HEADER = "x-vercel-protection-bypass";
@@ -37,56 +40,11 @@ const BYPASS_HEADER = "x-vercel-protection-bypass";
 const BYPASS_SECRET_SETTING = "VERCEL_AUTOMATION_BYPASS_SECRET";
 
 /**
- * Optional override for the project whose deployments this run may talk to.
- * Normally unset: the linked project on disk already names it.
- */
-const PROJECT_NAME_SETTING = "VERCEL_PROJECT_NAME";
-
-/** Written by `vercel pull` in the pipeline and by `vercel link` locally. */
-const LINKED_PROJECT_FILE = new URL("../.vercel/project.json", import.meta.url);
-
-/**
  * Bounds a hung pipeline step. Generous enough for a cold deployment's first
  * request, short enough that a wedged step fails rather than burning the job's
  * whole budget.
  */
 const REQUEST_TIMEOUT_MS = 20_000;
-
-/**
- * Which project's deployment the bypass secret may be sent to.
- *
- * Read from the linked project on disk rather than taken as an argument: the
- * point of the check is to catch a wrong URL, and a caller who can pass the
- * wrong URL can pass a matching wrong project name just as easily. There is no
- * default and no guess — without a name the URL cannot be bound to anything,
- * and the run fails before a single request is made.
- */
-function readExpectedProject(): string {
-  const configured = process.env[PROJECT_NAME_SETTING]?.trim();
-  if (configured) return configured;
-
-  let linked: unknown;
-  try {
-    linked = JSON.parse(readFileSync(LINKED_PROJECT_FILE, "utf8"));
-  } catch {
-    fail(
-      `no linked Vercel project found and ${PROJECT_NAME_SETTING} is not set, so the deployment URL cannot be bound to a project. Run "vercel pull" first, or set ${PROJECT_NAME_SETTING}.`,
-    );
-  }
-
-  const name =
-    typeof linked === "object" && linked !== null && "projectName" in linked
-      ? (linked as { projectName?: unknown }).projectName
-      : undefined;
-
-  if (typeof name !== "string" || !name.trim()) {
-    fail(
-      `the linked Vercel project names no project, so the deployment URL cannot be bound to one. Set ${PROJECT_NAME_SETTING} instead.`,
-    );
-  }
-
-  return name.trim();
-}
 
 type ProbeResponse = {
   readonly status: number;
@@ -122,9 +80,10 @@ function fail(message: string): never {
 
 async function main(): Promise<void> {
   const urlArgument = process.argv[2];
-  if (!urlArgument) {
+  const deploymentIdArgument = process.argv[3];
+  if (!urlArgument || !deploymentIdArgument) {
     fail(
-      "no deployment URL given. Usage: npm run verify:preview -- https://<deployment>.vercel.app",
+      "deployment URL and immutable ID are required. Usage: npm run verify:preview -- https://<deployment>.vercel.app dpl_<id>",
     );
   }
 
@@ -135,20 +94,27 @@ async function main(): Promise<void> {
     );
   }
 
-  const expectedProject = readExpectedProject();
-
-  let url: URL;
+  let identified: Awaited<ReturnType<typeof inspectPreviewDeployment>>;
   try {
-    url = parseDeploymentUrl(urlArgument, expectedProject);
+    const settings = readVercelPreviewApiSettings();
+    identified = await inspectPreviewDeployment(
+      urlArgument,
+      settings,
+      deploymentIdArgument,
+    );
   } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause));
+    fail(
+      `the deployment identity could not be verified before sending the bypass secret: ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
   }
 
   let probes: { protection: ProbeResponse; bypassed: ProbeResponse };
   try {
     probes = {
-      protection: await probe(url, {}),
-      bypassed: await probe(url, { [BYPASS_HEADER]: bypassSecret }),
+      protection: await probe(identified.url, {}),
+      bypassed: await probe(identified.url, {
+        [BYPASS_HEADER]: bypassSecret,
+      }),
     };
   } catch (cause) {
     // The message is the platform's own (a DNS failure, a timeout). It carries
@@ -164,7 +130,8 @@ async function main(): Promise<void> {
     robotsTag: probes.bypassed.robotsTag,
   });
 
-  console.log(`Preview deployment: ${url.href}`);
+  console.log(`Preview deployment: ${identified.url.href}`);
+  console.log(`  ok  identity: ${identified.deployment.id}`);
   for (const check of verification.checks) {
     console.log(`  ${check.ok ? "ok" : "FAILED"}  ${check.name}: ${check.detail}`);
   }

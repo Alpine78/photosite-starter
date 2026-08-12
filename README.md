@@ -203,7 +203,7 @@ npm test          # browser-free TypeScript tests (one run)
 npm run build     # production build
 npm run test:e2e  # public-journey smoke tests against a production build
 
-npm run verify:preview -- <url>   # assert a deployment is access-protected and noindex
+npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
 ```
 
 ### Hosting
@@ -324,10 +324,11 @@ a green pipeline. See [deployment](docs/deployment.md).
   and tagged caching/webhook revalidation pending*
 - [ ] Production deployment — *the Preview environment's repository half is done: pinned
   runtime and region, a gated deploy stage, and the check that refuses to publish a
-  release-candidate URL unless it is access-protected and non-indexable
-  ([deployment](docs/deployment.md)). The stage has never run: no hosting account is
-  provisioned, so no release candidate exists yet. Production promotion and rollback are
-  pending*
+  release-candidate URL unless its project/team ownership, access protection, and
+  non-indexability are verified ([deployment](docs/deployment.md)). The customer-owned
+  Vercel project exists, but its Preview protection, environment variables, and deployment
+  credentials are not fully provisioned, so the stage has never run and no release
+  candidate exists yet. Production promotion and rollback are pending*
 - [ ] Redirects for important legacy URLs (first implementation)
 
 ## Later roadmap (not in MVP)
@@ -396,7 +397,8 @@ delivers through a replaceable adapter that stores nothing; the gallery-item enq
 (AB#60) and the fuller journey suite (AB#89) build on it. Public continuation routes and
 controls, and the CMS schemas and adapters, are still open. The deployment path exists in
 the repository — a pinned runtime and region, a pipeline stage that deploys a release
-candidate only after every gate passes, and a check that refuses to publish a URL that is
-not both access-protected and non-indexable — but no hosting account has been provisioned,
-so it has never run. Keyword-driven dynamic galleries remain
+candidate only after every gate passes, and a check that refuses to publish a URL whose
+project/team ownership, access protection, and non-indexability were not verified — but
+the existing customer-owned Vercel project is still being provisioned, so the stage has
+never run. Keyword-driven dynamic galleries remain
 post-MVP. See the MVP scope checklist above.

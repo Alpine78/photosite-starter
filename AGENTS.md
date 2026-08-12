@@ -180,10 +180,13 @@ the function region and the Node major are pinned in `vercel.json` and `package.
 rather than inherited from the platform, and a test fails the gate if the pipeline's pin
 and the deployment's drift apart; the pipeline runs a second stage that deploys a
 release candidate to Vercel only after every gate passes, only from `main`, never from a
-pull request, and only once the project id exists — so an unprovisioned host skips the
-stage instead of reddening the branch. It builds and deploys the prebuilt output, so the
-provider does not rebuild it remotely, then asserts both access protection
-and `noindex` before it publishes the URL, because neither property implies the other.
+pull request, and only once the pipeline-authorized Preview variable group's explicit
+enable flag is true — so provisioning can remain incomplete without reddening the branch.
+It builds and deploys the prebuilt output, binds the generated URL and immutable
+deployment ID to the expected Vercel project and team through the authenticated API,
+then asserts both access protection and an unscoped `noindex` before it publishes the
+URL, because none of those properties implies the others. Failed or cancelled
+verification deletes only that verified deployment ID.
 The provisioning runbook, the Preview/Production environment split, and the recorded
 promotion and rollback commands are `docs/deployment.md`.
 Not yet built: the curated gallery detail
@@ -197,10 +200,11 @@ sitemap/robots, structured data, the Sanity content schemas and adapters that wo
 authored content behind the connection (AB#80, AB#81, AB#82, AB#112, AB#114) — so every
 page still renders from the mock layer — tagged caching and webhook revalidation (AB#83),
 and the deployment itself: provisioning is under way — a Vercel project exists, but
-protection, the Preview variable set, and the pipeline's deployment variables are not
-finished, and no domain exists — so the deploy stage has never run and no release
-candidate has ever been produced or verified. Production promotion (AB#18), exercised
-rollback and handoff (AB#118), and legacy URL redirects (AB#19) are later stories.
+protection, Preview environment values, and deployment credentials are not finished;
+the disabled variable group currently carries only the non-secret project/team IDs, and
+no domain exists — so the deploy stage has never run and no release candidate has ever
+been produced or verified. Production promotion (AB#18), exercised rollback and handoff
+(AB#118), and legacy URL redirects (AB#19) are later stories.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
@@ -268,7 +272,7 @@ npm run lint      # ESLint (CI gate)
 npm test          # browser-free TypeScript tests (CI gate, one run)
 npm run build     # production build (CI gate)
 npm run test:e2e  # Playwright public-journey smoke tests (CI gate, builds and serves)
-npm run verify:preview -- <url>   # assert a deployment is access-protected and noindex
+npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
 ```
 
 `npm run test:e2e` needs the browsers once: `npx playwright install chromium webkit`

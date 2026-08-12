@@ -4,7 +4,9 @@ import {
   classifyIndexing,
   classifyProtection,
   hasNoindexDirective,
+  parseDeploymentId,
   parseDeploymentUrl,
+  validateDeploymentIdentity,
   verifyPreviewDeployment,
 } from "./preview-verification.mts";
 
@@ -46,29 +48,23 @@ describe("noindex directive parsing", () => {
     expect(hasNoindexDirective("noindex")).toBe(true);
   });
 
-  it("reads it out of a list, whatever case or spacing it arrives in", () => {
-    expect(hasNoindexDirective("noindex, nofollow")).toBe(true);
-    expect(hasNoindexDirective("nofollow,noindex")).toBe(true);
+  it("accepts harmless case and surrounding whitespace differences", () => {
     expect(hasNoindexDirective("  NoIndex  ")).toBe(true);
   });
 
-  it("refuses a directive scoped to one named crawler", () => {
-    // A rule addressed to one crawler binds that crawler alone; every other
-    // one stays free to index the URL. It does not make a deployment
-    // non-indexable, so it must not pass for the unscoped directive.
+  it("refuses every crawler-scoped form", () => {
     expect(hasNoindexDirective("googlebot: noindex")).toBe(false);
-    expect(hasNoindexDirective("nofollow, bingbot: noindex")).toBe(false);
+    // Both comma-separated rules remain scoped to googlebot. Fetch may also
+    // join repeated headers with a comma, so the exact provider contract is the
+    // only unambiguous value after the response has been normalized.
+    expect(hasNoindexDirective("googlebot: nofollow, noindex")).toBe(false);
+    expect(hasNoindexDirective("otherbot: noindex, nofollow")).toBe(false);
   });
 
-  it("still reads an unscoped directive sitting beside a scoped one", () => {
-    expect(hasNoindexDirective("googlebot: nofollow, noindex")).toBe(true);
-  });
-
-  it("accepts none, which is defined as noindex plus nofollow", () => {
-    expect(hasNoindexDirective("none")).toBe(true);
-  });
-
-  it("does not mistake a neighbouring directive for noindex", () => {
+  it("refuses alternate or combined directives instead of guessing scope", () => {
+    expect(hasNoindexDirective("noindex, nofollow")).toBe(false);
+    expect(hasNoindexDirective("nofollow,noindex")).toBe(false);
+    expect(hasNoindexDirective("none")).toBe(false);
     expect(hasNoindexDirective("nofollow")).toBe(false);
     expect(hasNoindexDirective("index, follow")).toBe(false);
     expect(hasNoindexDirective("noarchive, nosnippet")).toBe(false);
@@ -152,63 +148,44 @@ describe("whole verification", () => {
 });
 
 describe("deployment URL", () => {
-  const PROJECT = "photosite-starter";
-
-  it("accepts this project's own generated deployment URL", () => {
+  it("accepts a generated deployment URL for later API verification", () => {
     expect(
-      parseDeploymentUrl(
-        "https://photosite-starter-abc123-acme.vercel.app",
-        PROJECT,
-      ).href,
+      parseDeploymentUrl("https://photosite-starter-abc123-acme.vercel.app").href,
     ).toBe("https://photosite-starter-abc123-acme.vercel.app/");
   });
 
   it("tolerates the surrounding whitespace a captured command output carries", () => {
     expect(
-      parseDeploymentUrl("  https://photosite-starter-abc123.vercel.app\n", PROJECT)
-        .href,
+      parseDeploymentUrl("  https://photosite-starter-abc123.vercel.app\n").href,
     ).toBe("https://photosite-starter-abc123.vercel.app/");
   });
 
-  it("refuses a host belonging to any other project", () => {
-    // The whole point: the next thing that happens to this URL is that a
-    // bypass secret is sent to it. A stranger's project answers on
-    // .vercel.app too, so the suffix alone proves nothing.
-    expect(() =>
-      parseDeploymentUrl("https://someone-else-abc123.vercel.app", PROJECT),
-    ).toThrow(/does not belong to project/);
+  it("does not pretend a hostname prefix establishes project ownership", () => {
+    expect(
+      parseDeploymentUrl(
+        "https://photosite-starter-evil-attacker.vercel.app",
+      ).hostname,
+    ).toBe("photosite-starter-evil-attacker.vercel.app");
   });
 
   it("refuses a host outside the provider's deployment domain", () => {
-    expect(() => parseDeploymentUrl("https://attacker.example/", PROJECT)).toThrow(
+    expect(() => parseDeploymentUrl("https://attacker.example/")).toThrow(
       /generated \.vercel\.app deployment URL/,
     );
     expect(() =>
-      parseDeploymentUrl("https://photosite-starter-abc.attacker.example/", PROJECT),
+      parseDeploymentUrl("https://photosite-starter-abc.attacker.example/"),
     ).toThrow(/generated \.vercel\.app deployment URL/);
-  });
-
-  it("refuses a project-name prefix that only looks right", () => {
-    expect(() =>
-      parseDeploymentUrl("https://photosite-starter.evil.vercel.app", PROJECT),
-    ).toThrow(/does not belong to project/);
-  });
-
-  it("refuses a URL with no expected project to bind it to", () => {
-    expect(() =>
-      parseDeploymentUrl("https://photosite-starter-abc.vercel.app", "  "),
-    ).toThrow(/no expected project name/);
   });
 
   it("refuses a path, so the probe always addresses the deployment root", () => {
     expect(() =>
-      parseDeploymentUrl("https://photosite-starter-abc.vercel.app/admin", PROJECT),
+      parseDeploymentUrl("https://photosite-starter-abc.vercel.app/admin"),
     ).toThrow(/deployment root/);
   });
 
   it("refuses an explicit port", () => {
     expect(() =>
-      parseDeploymentUrl("https://photosite-starter-abc.vercel.app:8443", PROJECT),
+      parseDeploymentUrl("https://photosite-starter-abc.vercel.app:8443"),
     ).toThrow(/default HTTPS port/);
   });
 
@@ -216,24 +193,103 @@ describe("deployment URL", () => {
     expect(() =>
       parseDeploymentUrl(
         "https://photosite-starter-abc.vercel.app?x-vercel-protection-bypass=secret",
-        PROJECT,
       ),
     ).toThrow(/never in the URL/);
   });
 
   it("refuses credentials in the URL", () => {
     expect(() =>
-      parseDeploymentUrl("https://user:pass@photosite-starter-abc.vercel.app", PROJECT),
+      parseDeploymentUrl("https://user:pass@photosite-starter-abc.vercel.app"),
     ).toThrow(/credentials/);
   });
 
   it("refuses anything that is not an absolute HTTPS URL", () => {
     expect(() =>
-      parseDeploymentUrl("http://photosite-starter-abc.vercel.app", PROJECT),
+      parseDeploymentUrl("http://photosite-starter-abc.vercel.app"),
     ).toThrow(/HTTPS/);
-    expect(() => parseDeploymentUrl("photosite-starter-abc.vercel.app", PROJECT)).toThrow(
+    expect(() => parseDeploymentUrl("photosite-starter-abc.vercel.app")).toThrow(
       /absolute/,
     );
-    expect(() => parseDeploymentUrl("", PROJECT)).toThrow(/absolute/);
+    expect(() => parseDeploymentUrl("")).toThrow(/absolute/);
+  });
+});
+
+describe("authenticated deployment identity", () => {
+  const URL = new globalThis.URL(
+    "https://photosite-starter-abc123-acme.vercel.app",
+  );
+  const EXPECTED = {
+    projectId: "prj_expected123",
+    ownerId: "team_expected123",
+    url: URL,
+    deploymentId: "dpl_expected123",
+  } as const;
+
+  const RESPONSE = {
+    id: "dpl_expected123",
+    projectId: "prj_expected123",
+    ownerId: "team_expected123",
+    url: "photosite-starter-abc123-acme.vercel.app",
+  } as const;
+
+  it("binds a deployment to its immutable ID, project, team, and hostname", () => {
+    expect(validateDeploymentIdentity(RESPONSE, EXPECTED)).toEqual({
+      id: "dpl_expected123",
+      projectId: "prj_expected123",
+      ownerId: "team_expected123",
+      hostname: "photosite-starter-abc123-acme.vercel.app",
+    });
+  });
+
+  it("rejects the same-named deployment of another project", () => {
+    expect(() =>
+      validateDeploymentIdentity(
+        { ...RESPONSE, projectId: "prj_attacker123" },
+        EXPECTED,
+      ),
+    ).toThrow(/belongs to project/);
+  });
+
+  it("rejects a deployment owned by another team", () => {
+    expect(() =>
+      validateDeploymentIdentity(
+        { ...RESPONSE, ownerId: "team_attacker123" },
+        EXPECTED,
+      ),
+    ).toThrow(/belongs to owner/);
+  });
+
+  it("rejects a response for a different hostname or deployment ID", () => {
+    expect(() =>
+      validateDeploymentIdentity(
+        { ...RESPONSE, url: "other-project-attacker.vercel.app" },
+        EXPECTED,
+      ),
+    ).toThrow(/deployment host/);
+    expect(() =>
+      validateDeploymentIdentity(
+        { ...RESPONSE, id: "dpl_other123" },
+        EXPECTED,
+      ),
+    ).toThrow(/returned deployment/);
+  });
+
+  it("requires the private identity fields returned to an authorized caller", () => {
+    expect(() =>
+      validateDeploymentIdentity(
+        { id: RESPONSE.id, url: RESPONSE.url },
+        EXPECTED,
+      ),
+    ).toThrow(/project ID/);
+  });
+
+  it("accepts only an immutable Vercel deployment ID for cleanup", () => {
+    expect(parseDeploymentId("  dpl_expected123\n")).toBe("dpl_expected123");
+    expect(() => parseDeploymentId("photosite-starter")).toThrow(
+      /immutable dpl_/,
+    );
+    expect(() => parseDeploymentId("https://example.vercel.app")).toThrow(
+      /immutable dpl_/,
+    );
   });
 });
