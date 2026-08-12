@@ -12,7 +12,7 @@ variables:
   # The Node major every environment runs. Vercel's platform default moves with
   # each LTS release, so the runtime is pinned here, in package.json `engines`,
   # and in the Vercel project rather than inherited (ADR-0004 §2). All three
-  # must name the same major; src/lib/node-version-pin.test.ts fails the test
+  # must name the same major; scripts/node-version-pin.test.mts fails the test
   # gate if this file and package.json drift apart.
   nodeVersion: "24.x"
   # The exact Vercel CLI a release candidate is built and deployed with, pinned

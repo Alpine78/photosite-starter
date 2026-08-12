@@ -39,24 +39,35 @@ is the operational half: what to create, what to set, and what the pipeline does
 Vercel's console changes; their own [documentation](https://vercel.com/docs) is
 authoritative for the exact clicks. What this project needs from it:
 
-1. **Create the team in the owner's own Vercel account, on Pro.** A commercial site
+1. **Create the scope in the owner's own Vercel account, on Pro.** A commercial site
    cannot rely on Hobby fair use. Enable MFA on the account before anything else.
+
+   ADR-0004 §1 says "team" because it assumes the common case: the developer builds the
+   site for a photographer, and the account has to belong to the photographer rather than
+   to whoever wrote the code. When the site owner and the developer are the **same
+   person**, the account's own personal scope already satisfies that requirement, and no
+   team is needed — ownership is the rule, and a team is only the usual way of meeting it.
+   A clone built for someone else does need a team owned by them, created before the
+   project, because a later project transfer leaves logs, drains, and some integrations
+   behind.
 
 2. **Create the project empty — do not connect the Git repository.** This is the one
    step where the obvious path is the wrong one. The dashboard's "Add New → Project" flow
    is built around importing a Git repository, and a connected Git integration deploys on
-   every push — putting a deployment on the internet *before* lint, tests, the build, and
+   every push — putting a deployment on the internet _before_ lint, tests, the build, and
    the Playwright journeys had run. Azure Pipelines is the gate (ADR-0004 §3), and it
    deploys through the CLI, so the project needs no Git connection at all. Use the CLI,
    which is also what the provider's own Azure Pipelines guidance recommends:
 
    ```bash
-   npx vercel@<pinned version> login
-   npx vercel@<pinned version> project add photosite-starter
+   npx vercel@58.9.1 login
+   npx vercel@58.9.1 project add photosite-starter
    ```
 
-   Use the same version `azure-pipelines.yml` pins. Do not run `vercel deploy` from a
-   local checkout: it would create a deployment that skipped every gate.
+   `58.9.1` is the version `azure-pipelines.yml` pins in `vercelCliVersion`; that file
+   is the source of truth, so read it from there if the two ever disagree. Do not run
+   `vercel deploy` from a local checkout: it would create a deployment that skipped
+   every gate.
 
 3. **Leave the region and Node version alone.** `vercel.json` pins the function region to
    Stockholm (`arn1`) and `package.json` `engines` pins Node to the major named in
@@ -71,8 +82,17 @@ authoritative for the exact clicks. What this project needs from it:
 5. **Generate Protection Bypass for Automation** and keep the secret. The pipeline sends
    it as a request header so the verification step can read what a reviewer would see.
 
-6. **Disable automatic production-domain assignment.** Nothing needs it yet; AB#18 stages
-   a production build and promotes it deliberately.
+6. **Nothing to do about production-domain assignment — it is a deploy-time flag, not a
+   project setting.** ADR-0004 §3 requires that a production build never take the
+   production domain merely by being deployed. Vercel expresses that as
+   `vercel deploy --prod --skip-domain`, which AB#18's promotion sequence below already
+   uses; there is no switch to turn off here, and no custom domain exists yet anyway.
+
+   Leave the project's default `<project>.vercel.app` domain connected to **Production**,
+   where Vercel puts it. Do not repoint it at Preview and do not remove it: a release
+   candidate is reviewed at the **generated, per-deployment URL** the pipeline publishes,
+   never at a stable preview domain (ADR-0004 §3). A fixed preview address would be one
+   protection mistake away from being a second, permanently-live copy of the site.
 
 7. **Set the Preview-scoped environment variables** from the table below. Scope them to
    Preview only — Production values are set in AB#18, and the two must never be one set.
@@ -81,7 +101,7 @@ authoritative for the exact clicks. What this project needs from it:
    project id. Linking the checkout writes both to a local file:
 
    ```bash
-   npx vercel@<pinned version> link --yes --project photosite-starter
+   npx vercel@58.9.1 link --yes --project photosite-starter
    cat .vercel/project.json      # orgId and projectId
    ```
 
@@ -102,12 +122,12 @@ Set these on the Azure Pipelines definition. Secret variables must be marked sec
 Azure Pipelines masks them in logs and passes them to a step only where the YAML names
 them explicitly in an `env:` block.
 
-| Variable | Secret | Purpose |
-| --- | --- | --- |
-| `VERCEL_ORG_ID` | no | Which Vercel team the project belongs to. |
-| `VERCEL_PROJECT_ID` | **no — see below** | Which project to deploy. Also the switch that turns the deploy stage on. |
-| `VERCEL_TOKEN` | yes | Deployment credential. Rotated or revoked at handoff. |
-| `VERCEL_AUTOMATION_BYPASS_SECRET` | yes | Lets the verification step read the deployment as a reviewer would. |
+| Variable                          | Secret             | Purpose                                                                  |
+| --------------------------------- | ------------------ | ------------------------------------------------------------------------ |
+| `VERCEL_ORG_ID`                   | no                 | Which Vercel team the project belongs to.                                |
+| `VERCEL_PROJECT_ID`               | **no — see below** | Which project to deploy. Also the switch that turns the deploy stage on. |
+| `VERCEL_TOKEN`                    | yes                | Deployment credential. Rotated or revoked at handoff.                    |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | yes                | Lets the verification step read the deployment as a reviewer would.      |
 
 `VERCEL_PROJECT_ID` **must not be marked secret.** The deploy stage's condition tests it
 to decide whether the project exists yet, and Azure Pipelines does not decrypt secret
@@ -121,19 +141,19 @@ These live in the **Vercel project**, scoped per environment, not in the pipelin
 in this repository. `vercel pull --environment=preview` fetches the Preview set at build
 time; the Production set is never fetched by the Preview job.
 
-| Setting | Preview | Production (AB#18) |
-| --- | --- | --- |
-| `SITE_DEPLOYMENT_STAGE` | `preview` | `production` |
-| `SITE_CONTENT_SOURCE` | `mock` today; `sanity` once the content schemas land | `sanity` |
-| `SITE_LOCALE`, `SITE_LOCALE_ROUTES` | same as production | the launch route contract |
-| `SITE_CANONICAL_BASE_URL` | a fixed non-production origin — see below | the production origin |
-| `SITE_DEFAULT_SOCIAL_IMAGE` and its dimensions | same as production | the launch social image |
-| `CONTACT_DELIVERY_ADAPTER` | `sink` | `resend` |
-| `CONTACT_DELIVERY_FROM`, `CONTACT_DELIVERY_TO` | unset | the owner's verified sender and mailbox |
-| `RESEND_API_KEY` | unset | Production-only secret |
-| `SANITY_PROJECT_ID`, `SANITY_API_VERSION` | same project, pinned version | same |
-| `SANITY_DATASET` | a Preview dataset | the production dataset |
-| `SANITY_READ_TOKEN` | a Preview-only token, if the dataset is private | a separate Production token |
+| Setting                                        | Preview                                              | Production (AB#18)                      |
+| ---------------------------------------------- | ---------------------------------------------------- | --------------------------------------- |
+| `SITE_DEPLOYMENT_STAGE`                        | `preview`                                            | `production`                            |
+| `SITE_CONTENT_SOURCE`                          | `mock` today; `sanity` once the content schemas land | `sanity`                                |
+| `SITE_LOCALE`, `SITE_LOCALE_ROUTES`            | same as production                                   | the launch route contract               |
+| `SITE_CANONICAL_BASE_URL`                      | a fixed non-production origin — see below            | the production origin                   |
+| `SITE_DEFAULT_SOCIAL_IMAGE` and its dimensions | same as production                                   | the launch social image                 |
+| `CONTACT_DELIVERY_ADAPTER`                     | `sink`                                               | `resend`                                |
+| `CONTACT_DELIVERY_FROM`, `CONTACT_DELIVERY_TO` | unset                                                | the owner's verified sender and mailbox |
+| `RESEND_API_KEY`                               | unset                                                | Production-only secret                  |
+| `SANITY_PROJECT_ID`, `SANITY_API_VERSION`      | same project, pinned version                         | same                                    |
+| `SANITY_DATASET`                               | a Preview dataset                                    | the production dataset                  |
+| `SANITY_READ_TOKEN`                            | a Preview-only token, if the dataset is private      | a separate Production token             |
 
 Two of these are safeguards rather than preferences. `SITE_CONTENT_SOURCE=mock` is
 **refused outright** in a production deployment, and so is `CONTACT_DELIVERY_ADAPTER=sink`:
@@ -145,6 +165,26 @@ to the owner's mailbox.
 Every deployment still runs on `mock` today: the Sanity connection exists (AB#39) but the
 content schemas behind it do not (AB#80, AB#81, AB#82, AB#112, AB#114). Preview flips to
 `sanity` with its own dataset when they land.
+
+### Sensitive variables and the prebuilt build
+
+**Do not mark any setting the build reads as Sensitive.** Vercel's Sensitive type makes a
+value non-readable after creation, and `vercel pull` does not retrieve it — it writes the
+literal placeholder `"[SENSITIVE]"` into the pulled env file instead. The pipeline builds
+on the Azure agent from those pulled values and deploys the result prebuilt, so a
+Sensitive setting reaches `next build` as the string `[SENSITIVE]` rather than its value.
+
+Every setting in the table above is read while the site is **built**, so all of them must
+be plain. The failure is at least loud rather than silent — `SITE_DEPLOYMENT_STAGE`
+would be rejected as not one of `development`, `preview`, `production` — but it is a
+build failure with a confusing cause, and it costs a round trip to diagnose.
+
+Nothing in that table is a credential in any case. The canonical base URL, locale,
+default social image, and its dimensions are all published in the page's own HTML.
+
+Sensitive remains right for a secret the **running** application reads, where Vercel
+injects the real value at request time: `RESEND_API_KEY` is the clear case. Apply the
+same test to anything added later — if the build reads it, it must be plain.
 
 ### Canonical URLs on a Preview deployment
 
