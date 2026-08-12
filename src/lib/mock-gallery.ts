@@ -1,97 +1,283 @@
 /**
  * Curated gallery mock used until the CMS adapter lands.
  *
- * The builder accepts an optional cursor codec explicitly so browser-free
- * tests stay deterministic and AB#66 can choose the eventual adapter codec.
+ * One gallery per `contentId` in the public content tree, so a gallery is
+ * reached the way every other page is: the tree resolves a path to an identity,
+ * and this fixture answers with that gallery's ordered result. Nothing here
+ * knows about routes, locales' path vocabulary, or the grid.
+ *
+ * Placements are authored once and described per language. The structure — which
+ * photograph, in which position, under which placement identity — is the same in
+ * every locale, because ADR-0003 associates language versions by stable identity
+ * and a translated caption is not an identity. Only the words change.
+ *
+ * Order is the array order. The authored sequence is the manual order the whole
+ * story rests on, and deriving `order` from the position rather than restating
+ * it as a number keeps the fixture from disagreeing with itself.
  */
 
 import {
   buildCuratedGalleryPage,
+  selectCuratedGalleryCover,
   type CuratedGalleryPlacement,
-  type GalleryCursorCodec,
 } from "@/lib/gallery-pagination";
 import type {
   CuratedGalleryResultItem,
   GalleryPage,
 } from "@/lib/gallery-result";
-import { mockImages } from "@/lib/mock-media";
+import type { ImageMedia } from "@/lib/media";
+import { getMockImages, type MockImages } from "@/lib/mock-media";
 
-export type Gallery = {
-  slug: string;
-  title: string;
-  description?: string;
-  result: GalleryPage<CuratedGalleryResultItem>;
+/**
+ * Bound on one mock gallery. Continuation past it is AB#72's, so the fixture
+ * stays inside a single page and says so loudly if it ever stops doing that.
+ */
+const MOCK_GALLERY_PAGE_SIZE = 24;
+
+type MockPlacementInput = {
+  readonly placementId: string;
+  readonly image: keyof MockImages;
+  /**
+   * Placement caption per language subtag. A language with no entry shows the
+   * media's own caption, which is the normal partly-translated state.
+   */
+  readonly caption?: Readonly<Record<string, string>>;
 };
 
-const portfolioPlacements: readonly CuratedGalleryPlacement[] = [
+/**
+ * The site's own selection: a manually curated mix rather than a themed series,
+ * which is what the header, footer, and home page point at. It carries the six
+ * placements, order, and captions the pre-tree `/portfolio` route published, so
+ * the migration into the content tree changed the address and nothing a visitor
+ * sees.
+ */
+const selectedWorkPlacements: readonly MockPlacementInput[] = [
   {
-    placementId: "portfolio-coastal-landscape",
-    order: 0,
-    visible: true,
-    media: mockImages.coastalLandscape,
-    captionOverride: "Quiet coast",
+    placementId: "selected-work-coastal-landscape",
+    image: "coastalLandscape",
+    caption: { en: "Quiet coast", fi: "Hiljainen rannikko" },
   },
   {
-    placementId: "portfolio-misty-birch",
-    order: 1,
-    visible: true,
-    media: mockImages.mistyBirch,
-    captionOverride: "Morning mist",
+    placementId: "selected-work-misty-birch",
+    image: "mistyBirch",
+    caption: { en: "Morning mist", fi: "Aamun sumu" },
   },
   {
-    placementId: "portfolio-lakeside-reeds",
-    order: 2,
-    visible: true,
-    media: mockImages.lakesideReeds,
+    placementId: "selected-work-lakeside-reeds",
+    image: "lakesideReeds",
   },
   {
-    placementId: "portfolio-forest-stream",
-    order: 3,
-    visible: true,
-    media: mockImages.forestStream,
-    captionOverride: "Forest stream",
+    placementId: "selected-work-forest-stream",
+    image: "forestStream",
+    caption: { en: "Forest stream", fi: "Metsäpuro" },
   },
   {
-    placementId: "portfolio-open-marsh",
-    order: 4,
-    visible: true,
-    media: mockImages.openMarsh,
-    captionOverride: "After the rain",
+    placementId: "selected-work-open-marsh",
+    image: "openMarsh",
+    caption: { en: "After the rain", fi: "Sateen jälkeen" },
   },
   {
-    placementId: "portfolio-lichen-stones",
-    order: 5,
-    visible: true,
-    media: mockImages.lichenStones,
-    captionOverride: "Shoreline details",
+    placementId: "selected-work-lichen-stones",
+    image: "lichenStones",
+    caption: { en: "Shoreline details", fi: "Rantaviivan yksityiskohtia" },
   },
 ];
 
-const portfolioCursorScope = {
-  sourceId: "portfolio",
-  normalizedFilter: "all",
-  ordering: "manual-v1",
-  visibilityVersion: "mock-portfolio-v1",
-  pageSize: 24,
-} as const;
+/** A themed series, and the gallery whose listing card has an authored cover. */
+const coastalMorningsPlacements: readonly MockPlacementInput[] = [
+  {
+    placementId: "coastal-mornings-coastal-landscape",
+    image: "coastalLandscape",
+    caption: { en: "First light", fi: "Ensimmäinen valo" },
+  },
+  {
+    placementId: "coastal-mornings-open-marsh",
+    image: "openMarsh",
+    caption: { en: "Low water", fi: "Matala vesi" },
+  },
+  {
+    placementId: "coastal-mornings-lakeside-reeds",
+    image: "lakesideReeds",
+  },
+];
 
-export function buildPortfolioGallery({
-  cursor,
-  cursorCodec,
-}: {
-  readonly cursor?: string;
-  readonly cursorCodec?: GalleryCursorCodec;
-} = {}): Gallery {
-  return {
-    slug: "portfolio",
-    title: "Portfolio",
-    description:
-      "A selection of recent work. Placeholder gallery content; replaced with real projects from the CMS.",
-    result: buildCuratedGalleryPage({
-      placements: portfolioPlacements,
-      scope: portfolioCursorScope,
-      cursor,
-      cursorCodec,
-    }),
+/**
+ * No authored listing cover anywhere in this gallery's records, so it is the
+ * fixture that exercises the deterministic first-public-item fallback — and the
+ * card it produces has to open with the same photograph the page does.
+ */
+const polarNightPlacements: readonly MockPlacementInput[] = [
+  {
+    placementId: "polar-night-misty-birch",
+    image: "mistyBirch",
+    caption: { en: "Blue hour", fi: "Sininen hetki" },
+  },
+  {
+    placementId: "polar-night-forest-stream",
+    image: "forestStream",
+  },
+  {
+    placementId: "polar-night-lichen-stones",
+    image: "lichenStones",
+    caption: { en: "Frozen detail", fi: "Jäätynyt yksityiskohta" },
+  },
+];
+
+/**
+ * A published gallery whose selection is not made yet. It exists so the empty
+ * state is a state the site actually serves rather than one only a unit test
+ * has seen: the page renders, says it has no images, and offers no grid.
+ */
+const awaitingSelectionPlacements: readonly MockPlacementInput[] = [];
+
+const authoredGalleries: Readonly<Record<string, readonly MockPlacementInput[]>> =
+  {
+    "content-selected-work": selectedWorkPlacements,
+    "content-coastal-mornings": coastalMorningsPlacements,
+    "content-polar-night-sessions": polarNightPlacements,
+    "content-awaiting-selection": awaitingSelectionPlacements,
   };
+
+/** Stable identity of the gallery this deployment features as its portfolio. */
+export const MOCK_FEATURED_GALLERY_ID = "content-selected-work";
+
+/**
+ * Languages these placements carry text for. A locale outside the set publishes
+ * no gallery at all rather than one described in somebody else's language.
+ */
+const AUTHORED_LANGUAGES: ReadonlySet<string> = new Set(["en", "fi"]);
+
+function buildPlacements(
+  language: string,
+  inputs: readonly MockPlacementInput[],
+): readonly CuratedGalleryPlacement[] {
+  const images = getMockImages(language);
+
+  return inputs.map((input, index) => {
+    const caption = input.caption?.[language];
+
+    return {
+      placementId: input.placementId,
+      order: index,
+      visible: true,
+      media: images[input.image],
+      ...(caption === undefined ? {} : { captionOverride: caption }),
+    };
+  });
+}
+
+/**
+ * A gallery's cursor scope. `sourceId` is the gallery's own stable identity, so
+ * a token issued for one gallery can never be spent in another; the ordering
+ * rule is the authored manual order, which is the only rule the MVP has
+ * (AB#129 adds the seeded one).
+ */
+function cursorScope(contentId: string) {
+  return {
+    sourceId: contentId,
+    normalizedFilter: "all",
+    ordering: "manual-v1",
+    visibilityVersion: `mock-${contentId}-v1`,
+    pageSize: MOCK_GALLERY_PAGE_SIZE,
+  } as const;
+}
+
+/**
+ * Builds one gallery's first page.
+ *
+ * No cursor codec is supplied, because this MVP slice issues no cursor: the
+ * route renders one bounded page and rejects any token (AB#66 decides the
+ * cursor contract, AB#72 the continuation across grid and lightbox).
+ */
+function buildResult(
+  language: string,
+  contentId: string,
+  inputs: readonly MockPlacementInput[],
+): GalleryPage<CuratedGalleryResultItem> {
+  return buildCuratedGalleryPage({
+    placements: buildPlacements(language, inputs),
+    scope: cursorScope(contentId),
+  });
+}
+
+/**
+ * A fixture that outgrew one page would hide its remaining items, because
+ * nothing renders a continuation yet. Checked over the authored placements at
+ * import — no page is built to do it — so the story that lifts the bound is
+ * named where the fixture is written rather than at a visitor's request.
+ */
+for (const [contentId, inputs] of Object.entries(authoredGalleries)) {
+  if (inputs.length > MOCK_GALLERY_PAGE_SIZE) {
+    throw new TypeError(
+      `mock gallery "${contentId}" has ${inputs.length} placements, more than the ${MOCK_GALLERY_PAGE_SIZE} one page holds; continuation is AB#72`,
+    );
+  }
+}
+
+/**
+ * Results and covers are built per gallery, on the first read of that gallery in
+ * that language, and remembered.
+ *
+ * A CMS adapter answers one gallery at a time rather than building the site's
+ * whole media set to serve one card, so the fixture keeps the same shape: a
+ * gallery nobody asked for is never built, and a language nobody requested costs
+ * nothing at all. Within one gallery it still builds that gallery's placements,
+ * which is the part only a store can avoid.
+ */
+const results = new Map<string, GalleryPage<CuratedGalleryResultItem>>();
+const covers = new Map<string, ImageMedia | undefined>();
+
+function cacheKey(language: string, contentId: string): string {
+  return `${language}\u0000${contentId}`;
+}
+
+/** One gallery's bounded first page, or `undefined` when the fixture has none. */
+export function getMockGalleryResult(
+  language: string,
+  contentId: string,
+): GalleryPage<CuratedGalleryResultItem> | undefined {
+  const inputs = authoredGalleries[contentId];
+  if (inputs === undefined || !AUTHORED_LANGUAGES.has(language)) {
+    return undefined;
+  }
+
+  const key = cacheKey(language, contentId);
+  let result = results.get(key);
+  if (result === undefined) {
+    result = buildResult(language, contentId, inputs);
+    results.set(key, result);
+  }
+  return result;
+}
+
+/**
+ * The cover a gallery's listing card falls back to.
+ *
+ * The rule is handed one placement, which is the shape of the query that matters:
+ * a CMS adapter projects that single row beside the card's other fields instead
+ * of loading a gallery to produce a thumbnail. Getting to it here still walks
+ * the authored list, because an in-memory fixture has nowhere else to order —
+ * the bounding is real, the saving is not, and only a store can have both.
+ */
+export function getMockGalleryCover(
+  language: string,
+  contentId: string,
+): ImageMedia | undefined {
+  const inputs = authoredGalleries[contentId];
+  if (inputs === undefined || !AUTHORED_LANGUAGES.has(language)) {
+    return undefined;
+  }
+
+  const key = cacheKey(language, contentId);
+  if (covers.has(key)) return covers.get(key);
+
+  // The first visible placement in authored order, and nothing after it, which
+  // is what the adapter's one-row query returns. Filtering before the slice
+  // matters — a hidden opening placement is not the cover, it is skipped.
+  const opening = buildPlacements(language, inputs)
+    .filter((placement) => placement.visible)
+    .slice(0, 1);
+  const cover = selectCuratedGalleryCover(opening);
+  covers.set(key, cover);
+  return cover;
 }

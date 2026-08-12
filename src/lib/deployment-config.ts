@@ -158,6 +158,8 @@ export type BuiltInLabels = {
   };
   readonly gallery: {
     readonly images: string;
+    /** Accessible state of a published gallery with no public items yet. */
+    readonly empty: string;
   };
   readonly lightbox: {
     /** Accessible name of the fullscreen dialog itself. */
@@ -292,6 +294,7 @@ const englishLabels = {
   },
   gallery: {
     images: "images",
+    empty: "This gallery has no images yet.",
   },
   lightbox: {
     viewer: "Image viewer",
@@ -386,6 +389,7 @@ const finnishLabels = {
   },
   gallery: {
     images: "kuvaa",
+    empty: "Tässä galleriassa ei ole vielä kuvia.",
   },
   lightbox: {
     viewer: "Kuvakatselin",

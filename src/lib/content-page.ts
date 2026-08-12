@@ -124,3 +124,17 @@ export function asArticlePage(
     ? page
     : undefined;
 }
+
+/**
+ * The same check for the gallery renderer. A gallery's ordered result set is
+ * read separately through the AB#67 contract; what this returns is the page
+ * around it — title, lead, publication date, and tags.
+ */
+export function asGalleryPage(
+  contentId: string,
+  page: ContentPage | undefined,
+): GalleryContentPage | undefined {
+  return page?.variant === "gallery" && page.contentId === contentId
+    ? page
+    : undefined;
+}

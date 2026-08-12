@@ -428,6 +428,70 @@ function projectCuratedItem(
   };
 }
 
+/**
+ * Visible placements in the one authoritative manual order, tie-broken by the
+ * immutable placement id.
+ *
+ * Everything that has to agree about "first" reads it from here: the page a
+ * route renders, the sequence the lightbox navigates, and the cover a card
+ * falls back to. Restating the sort at any of those call sites is how a card
+ * ends up showing an image the gallery opens second.
+ */
+function orderVisiblePlacements(
+  placements: readonly CuratedGalleryPlacement[],
+): readonly CuratedGalleryPlacement[] {
+  return placements
+    .filter((placement) => placement.visible)
+    .toSorted(
+      (left, right) =>
+        left.order - right.order ||
+        comparePlacementIds(left.placementId, right.placementId),
+    );
+}
+
+/**
+ * The cover a curated gallery's listing card shows when no explicit cover is
+ * authored: the first visible placement, in manual order, whose media this site
+ * can actually render publicly.
+ *
+ * Deterministic by construction — it is the same ordering the gallery's own
+ * first page uses — so the card and the page a visitor lands on open with the
+ * same photograph. A gallery with no visible placements has no cover, and its
+ * card renders as text exactly as a page with no cover at all does.
+ *
+ * Unsupported media fails here rather than being skipped over, which is the same
+ * answer the first page gives. Skipping would be worse than it sounds: the card
+ * would advertise a gallery whose detail route cannot render, so the defect
+ * would surface as a broken page instead of a rejected fixture.
+ *
+ * Only the opening placement is read, but the ordering that decides which one
+ * that is has to be applied to something. An adapter that can order in its own
+ * store passes the single row that query returned — the same one-row projection
+ * it puts beside the card's other fields — and this function agrees with it,
+ * because a one-placement list sorts to itself. Passing the whole set is what an
+ * in-memory fixture does, having nowhere else to sort; a listing query must not
+ * load a gallery's media collection to render a card.
+ */
+export function selectCuratedGalleryCover(
+  placements: readonly CuratedGalleryPlacement[],
+): ImageMedia | undefined {
+  assertPlacements(placements);
+
+  const [first] = orderVisiblePlacements(placements);
+  if (first === undefined) return undefined;
+  if (first.media.type !== "image") {
+    throw new TypeError(
+      `Unsupported public gallery media type: ${first.media.type}`,
+    );
+  }
+
+  return projectPublicImage(
+    first.media,
+    first.altOverride ?? first.media.alt,
+    first.captionOverride ?? first.media.caption,
+  );
+}
+
 export function buildCuratedGalleryPage({
   placements,
   scope,
@@ -463,13 +527,7 @@ export function buildCuratedGalleryPage({
   }
 
   assertPlacements(placements);
-  const orderedPlacements = placements
-    .filter((placement) => placement.visible)
-    .toSorted(
-      (left, right) =>
-        left.order - right.order ||
-        comparePlacementIds(left.placementId, right.placementId),
-    );
+  const orderedPlacements = orderVisiblePlacements(placements);
 
   // Validate every counted item before slicing so unsupported media can never
   // be counted and then silently disappear from this or a later page.

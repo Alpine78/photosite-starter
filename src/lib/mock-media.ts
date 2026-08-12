@@ -3,10 +3,16 @@
  *
  * Each path names immutable, content-versioned web bytes. Replacing an image
  * requires a new filename and therefore a new public source URL.
+ *
+ * The bytes are language-neutral and the sentences about them are not, so each
+ * image is authored once and described per language. `getMockImages` is what a
+ * localized listing, gallery, or page reads, and the two sets always name the
+ * identical rendition — only the words differ.
  */
 
 import {
   projectPublicImageMedia,
+  withLocalizedText,
   type ImageMedia,
 } from "@/lib/media";
 
@@ -87,3 +93,49 @@ export const mockImages = {
     alt: "Reflective water channel winding through an open marsh",
   }),
 } as const satisfies Record<string, ImageMedia>;
+
+export type MockImages = typeof mockImages;
+
+/**
+ * The same public renditions, described in Finnish. Alt text is what a screen
+ * reader announces inside a page that declares `lang="fi"`, so it is authored
+ * per locale even though the bytes are shared.
+ */
+const finnishImages = {
+  coastalLandscape: withLocalizedText(mockImages.coastalLandscape, {
+    alt: "Kivinen rantaviiva tyynen veden äärellä pilvisen taivaan alla",
+  }),
+  forestStream: withLocalizedText(mockImages.forestStream, {
+    alt: "Metsäpuro virtaa tummien sammaleisten kivien yli",
+  }),
+  lakesideReeds: withLocalizedText(mockImages.lakesideReeds, {
+    alt: "Kultaisia kaisloja liikkumassa sinisen järviveden äärellä",
+  }),
+  lichenStones: withLocalizedText(mockImages.lichenStones, {
+    alt: "Sateen tummentamia kiviä vaalean jäkälän kuvioimina",
+  }),
+  mistyBirch: withLocalizedText(mockImages.mistyBirch, {
+    alt: "Hopeakoivu sumuisessa vihreässä metsässä",
+  }),
+  openMarsh: withLocalizedText(mockImages.openMarsh, {
+    alt: "Heijastava vesiuoma mutkittelee avoimen suon halki",
+  }),
+} as const satisfies MockImages;
+
+const imagesByLanguage: Readonly<Record<string, MockImages>> = {
+  en: mockImages,
+  fi: finnishImages,
+};
+
+/**
+ * The mock media described in one language subtag.
+ *
+ * A language the fixture has not been translated into falls back to the
+ * authored English text rather than to no text at all: an image with no
+ * alternative text is unusable to a screen reader, while one described in the
+ * wrong language is at least still described. A real deployment authors its
+ * media text per locale in the CMS and never reaches this fallback.
+ */
+export function getMockImages(language: string): MockImages {
+  return imagesByLanguage[language] ?? mockImages;
+}

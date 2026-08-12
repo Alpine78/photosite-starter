@@ -74,9 +74,10 @@ const RETIRED_DEFAULT_ROUTE = retiredDefaultRoute();
  * One published article's canonical path, derived from the same adapter data
  * the harness serves rather than written down here.
  *
- * Three properties are required rather than assumed. The variant matters, because
- * a gallery's detail route is AB#104's and does not exist yet, so the journey
- * asks the adapter which page it can actually open. And the page must have a
+ * Three properties are required rather than assumed. The variant matters,
+ * because this journey is about the article page — its body, its table of
+ * contents, and its sibling navigation — while the curated gallery route has
+ * its own suite in `gallery-lightbox.spec.ts`. The page must also have a
  * sibling in the global article sequence, so the navigation this story had to
  * carry over is exercised rather than skipped as absent. Finally, the cover
  * carries an attribution so this journey proves the cover figure itself keeps

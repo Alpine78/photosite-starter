@@ -101,7 +101,7 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
 configuration, responsive header and footer, home page, services listing and detail
 pages, the shared generic media model, the public
-image rendition boundary, the portfolio thumbnail grid, the shared bounded gallery
+image rendition boundary, the shared bounded gallery
 result contract, the fullscreen lightbox behind a project-owned PhotoSwipe wrapper
 (open, close, navigate, trapped focus, focus return keyed by `itemId`, and the caption
 and credit of the active item, associated with it for assistive technology),
@@ -140,7 +140,30 @@ detail route in every configured locale space, with breadcrumbs following canoni
 ancestry, the ADR-required table of contents derived from the body's level-2 headings,
 sibling navigation read through a bounded two-row neighbour query over the global article
 publication order, self-referencing canonical metadata, `hreflang`/`x-default` alternates, an
-Open Graph article, and the identity-based language switch. The pre-launch `/blog` and
+Open Graph article, and the identity-based language switch.
+Curated galleries render there too: the `gallery` variant has its canonical detail route
+in every locale space, reading its result through `src/lib/gallery.ts` — route components
+import that contract and no mock or provider type. The seam narrows AB#67's page to a
+`CompleteGalleryPage` (`hasNextPage` statically `false`) and refuses a continuation with an
+error naming AB#72, because a conforming adapter may paginate and rendering only the first
+page would hide the rest of a gallery with nothing on the page saying so. One authoritative manual order governs the source, the DOM, keyboard focus, and the
+lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
+ratios, never cropped) precisely so the visual reading order cannot contradict it; the
+column-major CSS masonry it replaced did. A gallery's listing card takes its explicit
+cover or the deterministic first public item (`selectCuratedGalleryCover`), a published
+gallery with no items renders an accessible empty state (the mock publishes one, so it is
+a state the site serves rather than one only a test has seen), and a fixture larger than
+one page fails at import rather than hiding items. The route serves that one page and answers
+`?cursor=` with a 404 — AB#66 owns the cursor contract, AB#72 the continuation across grid
+and lightbox, AB#129 the seeded random order; `?section=` stays an ignored unrecognized
+parameter until AB#105. The pre-tree `/portfolio` route was removed rather than
+redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
+gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
+belongs and what to call it, so no two surfaces can feature different galleries. Each
+resolves that identity to the locale's canonical route through the tree
+(`getPublicContentRoute`, which also checks the variant), so no deployment-specific
+content path is written down, and an unpublished target — or one naming an article — drops
+the entry instead of putting a working link behind a label describing something else. The pre-launch `/blog` and
 `/blog/<slug>` scaffold routes were removed rather than redirected — they were never
 deployed or indexed, and only AB#19's verified production inventory earns redirects.
 The privacy-respecting contact form is in place: an accessible `/contact` page in the
@@ -165,9 +188,13 @@ surface lives in `src/lib/sanity-config.ts` and `src/lib/sanity-client.ts`; ESLi
 catches the indirect case ESLint cannot see (ADR-0006, `docs/sanity-setup.md`).
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
-in Azure Pipelines — carrying the home/navigation smoke test, the portfolio lightbox
-journey, the content-tree journey (branches, the canonical detail route, redirects, and
-404s), the services journey (the listing, one service detail with its cover, price list,
+in Azure Pipelines — carrying the home/navigation smoke test,
+the content-tree journey (branches, the canonical detail route, redirects, and
+404s), the curated gallery journey (each chrome surface's identity-resolved link
+checked separately, the grid's reading order against DOM and lightbox order at one, two,
+and three columns, the lightbox, canonical and `hreflang`/`x-default` metadata, the empty
+gallery's accessible state, and the 404s for a cursor, an unknown slug, and the removed
+`/portfolio` route), the services journey (the listing, one service detail with its cover, price list,
 and breadcrumb, the navigation between them and into the story section, and an unknown
 slug's 404), the site-menu journey (its composition, the disclosure opened by pointer and
 by keyboard and dismissed either way with focus return, the level-at-a-time Escape
@@ -198,12 +225,13 @@ URL, because none of those properties implies the others. Failed or cancelled
 verification deletes only that verified deployment ID.
 The provisioning runbook, the Preview/Production environment split, and the recorded
 promotion and rollback commands are `docs/deployment.md`.
-Not yet built: the curated gallery detail
-route (AB#104) — a gallery's canonical path 404s until it lands —
+Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — public continuation routes and
-controls — a category listing is bounded to its first page and answers any `?cursor=`
-with a 404, because none has been issued — lightbox zoom tuning, the gallery-item
+controls — a category listing and a gallery are each bounded to their first page and
+answer any `?cursor=` with a 404, because none has been issued — gallery sections
+(AB#105), the gallery lead and long-form body (AB#106), seeded random gallery ordering
+(AB#129), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
 sitemap/robots, structured data, the Sanity content schemas and adapters that would put
 authored content behind the connection (AB#80, AB#81, AB#82, AB#112, AB#114) — so every

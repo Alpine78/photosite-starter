@@ -5,14 +5,24 @@ import {
   GalleryCursorError,
   MAX_GALLERY_CURSOR_LENGTH,
   MAX_GALLERY_PAGE_SIZE,
+  selectCuratedGalleryCover,
   type CuratedGalleryPlacement,
   type GalleryCursorCodec,
   type GalleryCursorScope,
 } from "@/lib/gallery-pagination";
-import type { GalleryCursor } from "@/lib/gallery-result";
+import { requireCompleteGalleryPage } from "@/lib/gallery";
+import type {
+  CuratedGalleryResultItem,
+  GalleryCursor,
+  GalleryPage,
+} from "@/lib/gallery-result";
 import type { ImageMedia, VideoMedia } from "@/lib/media";
-import { buildPortfolioGallery } from "@/lib/mock-gallery";
-import { mockImages } from "@/lib/mock-media";
+import {
+  getMockGalleryCover,
+  getMockGalleryResult,
+  MOCK_FEATURED_GALLERY_ID,
+} from "@/lib/mock-gallery";
+import { getMockImages, mockImages } from "@/lib/mock-media";
 
 const TEST_SIGNING_KEY =
   "test-only-gallery-cursor-signing-key-0123456789";
@@ -586,25 +596,210 @@ describe("gallery cursor safety and durability", () => {
   });
 });
 
-describe("portfolio gallery adapter", () => {
-  it("keeps the mock on one page without a production codec or visible reordering", () => {
-    const gallery = buildPortfolioGallery();
+describe("selectCuratedGalleryCover", () => {
+  it("takes the first visible placement in manual order", () => {
+    const cover = selectCuratedGalleryCover(placements);
 
-    expect(gallery.result.items.map((item) => item.mediaId)).toEqual([
-      "coastal-landscape",
-      "misty-birch",
-      "lakeside-reeds",
-      "forest-stream",
-      "open-marsh",
-      "lichen-stones",
+    // `placement-hidden` sorts first by order but is not public, and
+    // `placement-a` and `placement-b` tie on order — the placement id breaks it,
+    // exactly as the first page does.
+    expect(cover?.mediaId).toBe("coastal-landscape");
+  });
+
+  it("opens on the same image the gallery's own first page does", () => {
+    const cover = selectCuratedGalleryCover(placements);
+    const { items } = buildPage({ cursorScope: { ...scope, pageSize: 3 } });
+
+    expect(cover?.mediaId).toBe(items[0]?.mediaId);
+  });
+
+  it("carries the placement's caption and alt overrides", () => {
+    const cover = selectCuratedGalleryCover([
+      {
+        ...placement("placement-only", 0),
+        altOverride: "Placement alt",
+        captionOverride: "Placement caption",
+      },
     ]);
-    expect(new Set(gallery.result.items.map((item) => item.itemId)).size).toBe(
-      gallery.result.items.length,
-    );
-    expect(gallery.result.page).toEqual({
+
+    expect(cover?.alt).toBe("Placement alt");
+    expect(cover?.caption).toBe("Placement caption");
+  });
+
+  it("projects only public rendition fields", () => {
+    const cover = selectCuratedGalleryCover(placements);
+
+    expect(Object.keys(cover?.rendition ?? {}).toSorted()).toEqual([
+      "height",
+      "src",
+      "version",
+      "width",
+    ]);
+  });
+
+  it("rejects unsupported media rather than skipping past it", () => {
+    // The same answer the first page gives. A cover that skipped ahead would
+    // advertise a gallery whose detail route cannot render.
+    expect(() =>
+      selectCuratedGalleryCover([
+        {
+          ...placement("placement-video", 0),
+          media: {
+            type: "video",
+            mediaId: "a-video",
+            src: "/video/clip.mp4",
+            title: "A clip",
+            width: 1920,
+            height: 1080,
+          },
+        },
+      ]),
+    ).toThrow(/Unsupported public gallery media type/);
+  });
+
+  it("has no cover when every placement is hidden", () => {
+    expect(
+      selectCuratedGalleryCover([
+        { ...placement("placement-hidden", 0), visible: false },
+      ]),
+    ).toBeUndefined();
+  });
+
+  it("has no cover for an empty gallery", () => {
+    expect(selectCuratedGalleryCover([])).toBeUndefined();
+  });
+
+  it("rejects a malformed placement rather than skipping it", () => {
+    expect(() =>
+      selectCuratedGalleryCover([placement("duplicate", 0), placement("duplicate", 1)]),
+    ).toThrow(/Duplicate placementId/);
+  });
+});
+
+describe("curated gallery fixtures", () => {
+  it("keeps the featured gallery's authored order and captions", () => {
+    const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
+
+    // The order and captions the pre-tree `/portfolio` route published. The
+    // gallery moved to a canonical route inside the content tree; what a visitor
+    // sees did not move with it.
+    expect(
+      result?.items.map((item) => [item.mediaId, item.media.caption]),
+    ).toEqual([
+      ["coastal-landscape", "Quiet coast"],
+      ["misty-birch", "Morning mist"],
+      ["lakeside-reeds", undefined],
+      ["forest-stream", "Forest stream"],
+      ["open-marsh", "After the rain"],
+      ["lichen-stones", "Shoreline details"],
+    ]);
+  });
+
+  it("gives every item a distinct result identity", () => {
+    const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
+    const itemIds = result?.items.map((item) => item.itemId) ?? [];
+
+    expect(new Set(itemIds).size).toBe(itemIds.length);
+  });
+
+  it("keeps the itemId and the mediaId separate", () => {
+    const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
+
+    expect(
+      result?.items.every((item) => item.itemId !== item.mediaId),
+    ).toBe(true);
+  });
+
+  it("issues no cursor, because continuation is not implemented yet", () => {
+    expect(getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID)?.page).toEqual({
       size: 24,
       hasNextPage: false,
       endCursor: null,
     });
+  });
+
+  it("orders every locale's version of a gallery identically", () => {
+    const english = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
+    const finnish = getMockGalleryResult("fi", MOCK_FEATURED_GALLERY_ID);
+
+    expect(finnish?.items.map((item) => item.itemId)).toEqual(
+      english?.items.map((item) => item.itemId),
+    );
+  });
+
+  it("describes a localized gallery in that language", () => {
+    const finnish = getMockGalleryResult("fi", MOCK_FEATURED_GALLERY_ID);
+    const finnishImages = getMockImages("fi");
+
+    expect(finnish?.items[0]?.media.alt).toBe(finnishImages.coastalLandscape.alt);
+    expect(finnish?.items[0]?.media.caption).toBe("Hiljainen rannikko");
+    // The same public bytes, under the same version: only the words are
+    // translated, never the rendition.
+    expect(finnish?.items[0]?.media.rendition).toEqual(
+      mockImages.coastalLandscape.rendition,
+    );
+  });
+
+  it("serves a published gallery that has no items yet", () => {
+    const result = getMockGalleryResult("en", "content-awaiting-selection");
+
+    // A gallery between selections is published and empty, not missing: the
+    // route renders its empty state rather than 404ing an address a visitor may
+    // already hold.
+    expect(result?.items).toEqual([]);
+    expect(result?.page.hasNextPage).toBe(false);
+  });
+
+  it("gives an empty gallery no cover to fall back to", () => {
+    expect(
+      getMockGalleryCover("en", "content-awaiting-selection"),
+    ).toBeUndefined();
+  });
+
+  it("publishes nothing for an unknown gallery identity", () => {
+    expect(getMockGalleryResult("en", "content-does-not-exist")).toBeUndefined();
+  });
+
+  it("publishes nothing for a language it was not authored in", () => {
+    expect(
+      getMockGalleryResult("de", MOCK_FEATURED_GALLERY_ID),
+    ).toBeUndefined();
+  });
+});
+
+describe("requireCompleteGalleryPage", () => {
+  /** What a conforming AB#67 adapter may return once it paginates. */
+  function paginated(): GalleryPage<CuratedGalleryResultItem> {
+    return {
+      ...buildPage({ cursorScope: { ...scope, pageSize: 2 } }),
+      page: {
+        size: 2,
+        hasNextPage: true,
+        endCursor: "an-adapter-issued-cursor" as GalleryCursor,
+      },
+    };
+  }
+
+  it("passes a result with nothing after it through unchanged", () => {
+    const complete = buildPage({ cursorScope: { ...scope, pageSize: 24 } });
+
+    expect(requireCompleteGalleryPage("content-gallery", complete)).toEqual(
+      complete,
+    );
+  });
+
+  it("refuses a continuation rather than hiding the rest of the gallery", () => {
+    // The valid-but-unrenderable case: the adapter is doing what the contract
+    // allows, and rendering only `items` would show a visitor part of a gallery
+    // with nothing on the page saying so.
+    expect(() =>
+      requireCompleteGalleryPage("content-gallery", paginated()),
+    ).toThrow(/AB#72/);
+  });
+
+  it("names the gallery whose remainder would have been dropped", () => {
+    expect(() =>
+      requireCompleteGalleryPage("content-selected-work", paginated()),
+    ).toThrow(/content-selected-work/);
   });
 });

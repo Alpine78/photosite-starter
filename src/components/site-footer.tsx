@@ -1,15 +1,13 @@
 import Link from "next/link";
 import { getDefaultLocaleLabels } from "@/lib/deployment-config";
-import type {
-  ContactInfo,
-  NavigationItem,
-  SocialLink,
-} from "@/lib/site-settings";
+import type { ResolvedNavigationLink } from "@/lib/site-navigation";
+import type { ContactInfo, SocialLink } from "@/lib/site-settings";
 
 type SiteFooterProps = {
   contact: ContactInfo;
   socialLinks: SocialLink[];
-  footerLinks: NavigationItem[];
+  /** Already resolved against this locale's tree; see `site-navigation.ts`. */
+  footerLinks: readonly ResolvedNavigationLink[];
   copyrightHolder: string;
 };
 

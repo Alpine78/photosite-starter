@@ -3,8 +3,8 @@ import {
   GalleryLightbox,
   GalleryLightboxTrigger,
 } from "@/components/gallery-lightbox";
-import { getDefaultLocaleLabels } from "@/lib/deployment-config";
-import type { Gallery } from "@/lib/gallery";
+import type { BuiltInLabels } from "@/lib/deployment-config";
+import type { GalleryResultItem } from "@/lib/gallery-result";
 import {
   getLightboxImageSizes,
   imageRenderProfiles,
@@ -16,7 +16,15 @@ import {
 import type { ImageMedia } from "@/lib/media";
 
 type GalleryGridProps = {
-  gallery: Gallery;
+  /** Accessible name of the image list, normally the gallery's own title. */
+  label: string;
+  /**
+   * One bounded page of the shared result contract, in its authoritative order.
+   * The type is AB#67's and nothing narrower: the grid renders a curated gallery
+   * and a later dynamic one identically, and never learns which it was given.
+   */
+  items: readonly GalleryResultItem<ImageMedia>[];
+  labels: BuiltInLabels;
 };
 
 /**
@@ -44,32 +52,43 @@ function resolveLightboxRendition(media: ImageMedia): LightboxRendition {
   };
 }
 
-export function GalleryGrid({ gallery }: GalleryGridProps) {
-  const labels = getDefaultLocaleLabels();
-  const slides = buildLightboxSlides(
-    gallery.result.items,
-    resolveLightboxRendition,
-  );
+/**
+ * One page of gallery items as a grid of full-frame thumbnails, each opening
+ * the fullscreen lightbox at its own position.
+ *
+ * The layout is row-major: one, two, or three equal columns filled left to
+ * right in DOM order. That is the whole reason it is a grid rather than the CSS
+ * multi-column masonry this replaced — multi-column fills a column at a time, so
+ * the top row of a three-column masonry reads as items one, three, and five
+ * while the lightbox, the keyboard, and the source all count one, two, three.
+ * One authoritative order means the eye has to agree with them too.
+ *
+ * The cost is a ragged bottom edge where a portrait and a landscape frame share
+ * a row, and that is the right trade: every image keeps its native aspect ratio
+ * and full frame — `h-auto w-full` over the rendition's true dimensions, no
+ * `object-cover` and no fixed-ratio cell — because a cropped preview
+ * misrepresents the photograph and can make a strong image go unseen.
+ */
+export function GalleryGrid({ label, items, labels }: GalleryGridProps) {
+  const slides = buildLightboxSlides(items, resolveLightboxRendition);
 
   return (
     <GalleryLightbox slides={slides} labels={labels.lightbox}>
       <ul
-        aria-label={gallery.title}
-        className="columns-1 gap-4 sm:columns-2 lg:columns-3"
+        aria-label={label}
+        className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3"
       >
-        {gallery.result.items.map((item, index) => {
+        {items.map((item, index) => {
           const { media } = item;
 
           return (
-            <li key={item.itemId} className="mb-4 break-inside-avoid">
+            <li key={item.itemId}>
               <figure className="rounded-sm bg-black/5 dark:bg-white/5">
                 <GalleryLightboxTrigger
                   itemId={item.itemId}
                   index={index}
                   label={
-                    media.alt.length > 0
-                      ? undefined
-                      : labels.lightbox.openImage
+                    media.alt.length > 0 ? undefined : labels.lightbox.openImage
                   }
                 >
                   <Image
@@ -78,7 +97,7 @@ export function GalleryGrid({ gallery }: GalleryGridProps) {
                     width={media.rendition.width}
                     height={media.rendition.height}
                     loading="lazy"
-                    sizes={imageRenderProfiles.portfolioGrid.sizes}
+                    sizes={imageRenderProfiles.galleryGrid.sizes}
                     className="h-auto w-full"
                   />
                 </GalleryLightboxTrigger>

@@ -83,6 +83,7 @@ describe("category tree structure", () => {
       "cat-events",
       "cat-gear",
       "cat-landscape",
+      "cat-portfolio",
       "cat-technique",
       "cat-travel",
     ]);
@@ -94,6 +95,7 @@ describe("category tree structure", () => {
     );
 
     expect(topLevel).toEqual([
+      "portfolio",
       "landscape",
       "travel",
       "events",
@@ -544,6 +546,7 @@ describe("public visibility", () => {
 
     expect(isCategoryPublic(tree, "cat-archive")).toBe(false);
     expect(getPublicChildCategories(tree, null).map((c) => c.slug)).toEqual([
+      "portfolio",
       "landscape",
       "travel",
       "events",
@@ -551,7 +554,7 @@ describe("public visibility", () => {
       "technique",
       "behind-the-scenes",
     ]);
-    expect(getChildCategories(tree, null)).toHaveLength(7);
+    expect(getChildCategories(tree, null)).toHaveLength(8);
   });
 
   it("keeps a category public when it only holds a secondary listing", () => {

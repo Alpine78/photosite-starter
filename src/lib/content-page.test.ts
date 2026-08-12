@@ -63,13 +63,12 @@ describe.each(languages)("mock content pages (%s)", (language) => {
       placement.published && placement.canonicalCategoryId !== null,
   );
 
-  it("has a body for every published article the tree routes", () => {
-    const routedArticles = publishedPlacements
-      .filter((placement) => placement.variant === "article")
+  it("has a page for every published page the tree routes", () => {
+    const routed = publishedPlacements
       .map((placement) => placement.contentId)
       .sort();
 
-    expect([...pages.keys()].sort()).toEqual(routedArticles);
+    expect([...pages.keys()].sort()).toEqual(routed);
   });
 
   it("authors no page the tree gives no canonical route", () => {
@@ -110,14 +109,17 @@ describe.each(languages)("mock content pages (%s)", (language) => {
     }
   });
 
-  it("leaves gallery pages to the story that renders them", () => {
-    const routedGalleries = publishedPlacements.filter(
+  it("leaves a gallery's body to the story that authors it", () => {
+    const galleries = publishedPlacements.filter(
       (placement) => placement.variant === "gallery",
     );
 
-    expect(routedGalleries.length).toBeGreaterThan(0);
-    for (const placement of routedGalleries) {
-      expect(pages.has(placement.contentId)).toBe(false);
+    expect(galleries.length).toBeGreaterThan(0);
+    for (const placement of galleries) {
+      // A gallery is its curated result, which is the AB#67 contract and not a
+      // field of this page. The lead and long-form body are AB#106's, so an
+      // authored body would render nowhere yet.
+      expect(pages.get(placement.contentId)?.body).toEqual([]);
     }
   });
 });

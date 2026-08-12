@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getCategoryTrail,
+  getPublicContentRoute,
   getStoryRoutePath,
   getStoryRouteTrail,
   listStoryRootVersions,
@@ -74,19 +75,21 @@ describe("resolveStoryRoute", () => {
     ).toEqual({
       kind: "content",
       contentId: "content-packing-for-a-photo-trip",
+      variant: "article",
     });
   });
 
-  it("does not resolve a variant this application has no route for", () => {
-    // A gallery's canonical path stays outside the route space until AB#104
-    // renders it. Resolving it would also earn it the casing and
-    // redundant-prefix redirects, pointing them at a page that cannot render.
-    expect(
-      english.placements.get("content-coastal-mornings")?.variant,
-    ).toBe("gallery");
+  it("resolves a gallery's canonical path and says which variant it is", () => {
+    // The variant travels with the route because the route layer acts on it
+    // before anything is loaded: which renderer runs, and whether `cursor`
+    // means anything at this address.
     expect(
       resolveStoryRoute(english, ["landscape", "coastal", "coastal-mornings"]),
-    ).toBeNull();
+    ).toEqual({
+      kind: "content",
+      contentId: "content-coastal-mornings",
+      variant: "gallery",
+    });
   });
 
   it("resolves a content slug in the locale that publishes that version", () => {
@@ -95,6 +98,7 @@ describe("resolveStoryRoute", () => {
     ).toEqual({
       kind: "content",
       contentId: "content-understanding-exposure-triangle",
+      variant: "article",
     });
     // The English slug of the same page is not a Finnish path.
     expect(
@@ -113,6 +117,7 @@ describe("resolveStoryRoute", () => {
     ).toEqual({
       kind: "content",
       contentId: "content-packing-for-a-photo-trip",
+      variant: "article",
     });
     expect(
       resolveStoryRoute(english, [
@@ -195,6 +200,7 @@ describe("getStoryRoutePath", () => {
       getStoryRoutePath(english, {
         kind: "content",
         contentId: "content-choosing-a-telephoto-lens",
+        variant: "article",
       }),
     ).toEqual(["gear", "choosing-a-telephoto-lens"]);
   });
@@ -206,6 +212,7 @@ describe("getStoryRouteTrail", () => {
       getStoryRouteTrail(english, {
         kind: "content",
         contentId: "content-coastal-mornings",
+        variant: "gallery",
       }).map((step) => step.categoryId),
     ).toEqual(["cat-landscape", "cat-coastal"]);
   });
@@ -216,6 +223,7 @@ describe("getStoryRouteTrail", () => {
       getStoryRouteTrail(english, {
         kind: "content",
         contentId: "content-packing-for-a-photo-trip",
+        variant: "article",
       }).map((step) => step.categoryId),
     ).toEqual(["cat-travel"]);
   });
@@ -228,7 +236,11 @@ describe("getStoryRouteTrail", () => {
 describe("toContentLocation", () => {
   it("names the stable identity a language switch resolves by", () => {
     expect(
-      toContentLocation({ kind: "content", contentId: "content-x" }),
+      toContentLocation({
+        kind: "content",
+        contentId: "content-x",
+        variant: "article",
+      }),
     ).toEqual({ kind: "content", contentId: "content-x" });
     expect(
       toContentLocation({ kind: "category", categoryId: "cat-x" }),
@@ -282,5 +294,39 @@ describe("listStoryRootVersions", () => {
     expect(listStoryRootVersions(config, trees)).toEqual([
       { locale: "en", path: "/en/stories" },
     ]);
+  });
+});
+
+describe("getPublicContentRoute", () => {
+  it("gives one page its canonical route in each locale's space", () => {
+    expect(
+      getPublicContentRoute(config, english, "en", "content-selected-work"),
+    ).toBe("/en/stories/portfolio/selected-work");
+    // Same identity, translated slug, unprefixed default space.
+    expect(
+      getPublicContentRoute(config, finnish, "fi", "content-selected-work"),
+    ).toBe("/tarinat/portfolio/valikoima");
+  });
+
+  it("answers for a gallery as readily as for an article", () => {
+    expect(
+      getPublicContentRoute(config, english, "en", "content-coastal-mornings"),
+    ).toBe("/en/stories/landscape/coastal/coastal-mornings");
+  });
+
+  it("has no route for an unknown, unpublished, or unplaced page", () => {
+    expect(
+      getPublicContentRoute(config, english, "en", "content-does-not-exist"),
+    ).toBeUndefined();
+    // Authored but not yet placed: a draft owns no public address.
+    expect(
+      getPublicContentRoute(config, english, "en", "content-unplaced-draft"),
+    ).toBeUndefined();
+  });
+
+  it("has no route in a locale that publishes no tree", () => {
+    expect(
+      getPublicContentRoute(config, undefined, "de", "content-selected-work"),
+    ).toBeUndefined();
   });
 });

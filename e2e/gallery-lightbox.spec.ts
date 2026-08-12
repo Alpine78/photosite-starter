@@ -1,7 +1,19 @@
 import type { Locator, Page } from "@playwright/test";
+import {
+  buildContentTree,
+  getCanonicalContentPath,
+} from "../src/lib/content-tree";
 import { getBuiltInLabels } from "@/lib/deployment-config";
-import { appUnderTestEnvironment } from "./support/harness-environment";
+import { getMockGalleryResult } from "../src/lib/mock-gallery";
+import { mockContentPages } from "../src/lib/mock-content-pages";
+import { mockContentTreeInputs } from "../src/lib/mock-content-tree";
+import {
+  appUnderTestEnvironment,
+  DEFAULT_STORY_NAMESPACE,
+  PREFIXED_LOCALE,
+} from "./support/harness-environment";
 import { expect, test } from "./support/fixtures";
+import { openHeaderNavigation } from "./support/public-page";
 
 /**
  * The gallery lightbox journey: open, navigate, close, and get focus back.
@@ -18,11 +30,76 @@ import { expect, test } from "./support/fixtures";
  * navigation, uncropped frames, and one instance at a time.
  */
 
-/** Application-owned route, not authored content: safe to name here. */
-const PORTFOLIO_PATH = "/portfolio";
+/**
+ * A curated gallery's canonical path, derived from the same adapter data the
+ * harness serves rather than written down here.
+ *
+ * A clone renames every category and slug in this tree, so naming one would
+ * make the gate depend on this fixture's content. What the journey needs is a
+ * gallery with enough items to navigate between and enough differently shaped
+ * ones to prove the layout never crops or reorders them.
+ */
+function firstDefaultLocaleGallery(): string {
+  const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
+  const treeInput = mockContentTreeInputs[language];
+  if (treeInput === undefined) {
+    throw new Error(`[e2e] The default locale ${language} publishes no mock tree.`);
+  }
+
+  const tree = buildContentTree(treeInput);
+  for (const [contentId, page] of mockContentPages[language] ?? []) {
+    if (page.variant !== "gallery") continue;
+
+    const path = getCanonicalContentPath(tree, contentId);
+    const result = getMockGalleryResult(language, contentId);
+    if (path === null || result === undefined) continue;
+
+    const ratios = new Set(
+      result.items.map(
+        (item) => item.media.rendition.width / item.media.rendition.height,
+      ),
+    );
+    if (result.items.length > 1 && ratios.size > 1) {
+      return `${STORY_ROOT}/${path.join("/")}`;
+    }
+  }
+
+  throw new Error("[e2e] The harness needs one mixed-ratio gallery of two or more items.");
+}
+
+/**
+ * A published gallery with no items, by the same derivation. The empty state is
+ * a state the site serves, so the journey has to find it in the adapter data
+ * rather than assume which page it is.
+ */
+function emptyDefaultLocaleGallery(): string {
+  const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
+  const treeInput = mockContentTreeInputs[language];
+  if (treeInput === undefined) {
+    throw new Error(`[e2e] The default locale ${language} publishes no mock tree.`);
+  }
+
+  const tree = buildContentTree(treeInput);
+  for (const [contentId, page] of mockContentPages[language] ?? []) {
+    if (page.variant !== "gallery") continue;
+
+    const path = getCanonicalContentPath(tree, contentId);
+    const result = getMockGalleryResult(language, contentId);
+    if (path !== null && result?.items.length === 0) {
+      return `${STORY_ROOT}/${path.join("/")}`;
+    }
+  }
+
+  throw new Error("[e2e] The harness needs one published gallery with no items.");
+}
+
+const STORY_ROOT = `/${DEFAULT_STORY_NAMESPACE}`;
+const GALLERY_PATH = firstDefaultLocaleGallery();
+const EMPTY_GALLERY_PATH = emptyDefaultLocaleGallery();
 
 /** The unprefixed route under test belongs to the harness's default locale. */
 const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE).lightbox;
+const galleryLabels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE).gallery;
 
 /** What the visitor is actually looking at, measured rather than assumed. */
 type PresentedImage = {
@@ -40,11 +117,11 @@ type PresentedImage = {
   readonly bottom: number;
 };
 
-test("the portfolio grid opens a lightbox that navigates and closes by keyboard", async ({
+test("the gallery grid opens a lightbox that navigates and closes by keyboard", async ({
   page,
   externalRequests,
 }) => {
-  await gotoPortfolio(page);
+  await gotoGallery(page);
 
   const main = page.getByRole("main");
   const triggers = main.getByRole("button");
@@ -182,7 +259,7 @@ test("the portfolio grid opens a lightbox that navigates and closes by keyboard"
 test("the lightbox shows whole, uncropped frames from the public rendition", async ({
   page,
 }) => {
-  await gotoPortfolio(page);
+  await gotoGallery(page);
 
   const main = page.getByRole("main");
   const triggers = main.getByRole("button");
@@ -240,7 +317,7 @@ test("the lightbox shows whole, uncropped frames from the public rendition", asy
 test("the lightbox presents the metadata of the item on screen, and nothing more", async ({
   page,
 }) => {
-  await gotoPortfolio(page);
+  await gotoGallery(page);
 
   const main = page.getByRole("main");
   const triggers = main.getByRole("button");
@@ -332,7 +409,7 @@ test("the lightbox presents the metadata of the item on screen, and nothing more
 test("long lightbox metadata stays inside the viewport and remains reachable", async ({
   page,
 }) => {
-  await gotoPortfolio(page);
+  await gotoGallery(page);
 
   const dialog = page.getByRole("dialog");
   const caption = dialog.locator("[data-gallery-caption]");
@@ -379,7 +456,7 @@ test("long lightbox metadata stays inside the viewport and remains reachable", a
 });
 
 test("a drag gesture navigates the lightbox", async ({ page }) => {
-  await gotoPortfolio(page);
+  await gotoGallery(page);
 
   const triggers = page.getByRole("main").getByRole("button");
   const dialog = page.getByRole("dialog");
@@ -423,6 +500,227 @@ test("a drag gesture navigates the lightbox", async ({ page }) => {
   await expect
     .poll(async () => (await presentedImage(dialog))?.alt, { timeout: 10_000 })
     .toBe(secondName);
+});
+
+test("every chrome surface opens the featured gallery at its canonical route", async ({
+  page,
+  externalRequests,
+}) => {
+  // The header, footer, and home hero each name this gallery by its stable
+  // content identity and resolve it through the tree. Checked one at a time:
+  // clicking whichever happens to be visible would let two of the three break
+  // while this stayed green.
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+
+  const target = `a[href="${GALLERY_PATH}"]`;
+
+  await test.step("the home hero opens it", async () => {
+    const hero = page.getByRole("main").locator(target).first();
+    await expect(hero).toBeVisible();
+    await hero.click();
+    await page.waitForURL(`**${GALLERY_PATH}`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  });
+
+  await test.step("the footer opens it", async () => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const footerLink = page.getByRole("contentinfo").locator(target);
+    await expect(footerLink).toHaveCount(1);
+    await footerLink.click();
+    await page.waitForURL(`**${GALLERY_PATH}`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  });
+
+  await test.step("the header menu opens it", async () => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    // Opened through the helper, because the compact layout keeps the entry
+    // behind a toggle and a hidden link proves nothing about either layout.
+    const headerLink = (await openHeaderNavigation(page)).locator(target);
+    await expect(headerLink).toHaveCount(1);
+    await headerLink.click();
+    await page.waitForURL(`**${GALLERY_PATH}`);
+  });
+
+  await test.step("the page it lands on states where it lives", async () => {
+    await expect(page.getByRole("main").getByRole("button").first()).toBeVisible();
+    // The breadcrumb follows canonical ancestry back into the story tree.
+    // Scoped to the page's own content, so the header cannot answer for it.
+    await expect(
+      page.getByRole("main").locator(`a[href="${STORY_ROOT}"]`).first(),
+    ).toBeVisible();
+  });
+
+  expect(externalRequests).toEqual([]);
+});
+
+test("a gallery declares its own address and its other locale version", async ({
+  page,
+}) => {
+  await page.goto(GALLERY_PATH, { waitUntil: "domcontentloaded" });
+
+  await expect(page.locator("link[rel='canonical']")).toHaveAttribute(
+    "href",
+    new RegExp(`${GALLERY_PATH}$`),
+  );
+
+  const alternates = page.locator("link[rel='alternate'][hreflang]");
+  const hreflangs = await alternates.evaluateAll((links) =>
+    links.map((link) => ({
+      hreflang: link.getAttribute("hreflang") ?? "",
+      href: link.getAttribute("href") ?? "",
+    })),
+  );
+
+  // Its own version, the other locale's, and the default the two share.
+  expect(hreflangs.some((link) => link.href.endsWith(GALLERY_PATH))).toBe(true);
+  expect(
+    hreflangs.some((link) =>
+      link.href.includes(`/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.storyNamespace}/`),
+    ),
+  ).toBe(true);
+  expect(hreflangs.some((link) => link.hreflang === "x-default")).toBe(true);
+
+  // A gallery's social image is its cover, which is its own opening photograph
+  // when none was authored — never an invented one.
+  await expect(page.locator("meta[property='og:image']")).toHaveCount(1);
+});
+
+test("a published gallery with no items says so instead of 404ing", async ({
+  page,
+}) => {
+  const response = await page.goto(EMPTY_GALLERY_PATH, {
+    waitUntil: "domcontentloaded",
+  });
+
+  // The page exists — it is between selections — so the address a visitor may
+  // already hold answers with the gallery rather than with nothing.
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+  // Its empty state is readable, and it offers no grid to operate. The label is
+  // imported rather than written out: it is application-owned copy a clone may
+  // translate, so naming it here would tie the gate to wording.
+  await expect(
+    page.getByRole("main").getByText(galleryLabels.empty),
+  ).toBeVisible();
+  await expect(page.getByRole("main").getByRole("button")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("img")).toHaveCount(0);
+});
+
+test("a gallery answers honestly for the addresses it does not serve", async ({
+  page,
+}) => {
+  await test.step("a cursor it never issued is not a page", async () => {
+    // A gallery recognizes `cursor` (ADR-0003 decision 8), and none has been
+    // issued yet, so a token here is stale, tampered with, or malformed.
+    const response = await page.goto(
+      `${GALLERY_PATH}?cursor=not-a-token-this-route-minted`,
+      { waitUntil: "domcontentloaded" },
+    );
+
+    expect(response?.status()).toBe(404);
+  });
+
+  await test.step("an unrecognized parameter still opens the gallery", async () => {
+    // The other half of the same rule: a campaign or referral link must not
+    // turn a real page into a 404.
+    const response = await page.goto(`${GALLERY_PATH}?utm_source=a-newsletter`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("main").getByRole("button").first()).toBeVisible();
+  });
+
+  await test.step("a slug the tree does not serve is a 404", async () => {
+    const parent = GALLERY_PATH.slice(0, GALLERY_PATH.lastIndexOf("/"));
+    const response = await page.goto(`${parent}/no-such-gallery`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    expect(response?.status()).toBe(404);
+  });
+
+  await test.step("the removed portfolio route is gone, not redirected", async () => {
+    // Never deployed or indexed, so nobody holds it and it earns no redirect
+    // (ADR-0003, 2026-08-10).
+    const response = await page.goto("/portfolio", {
+      waitUntil: "domcontentloaded",
+    });
+
+    expect(response?.status()).toBe(404);
+    expect(new URL(page.url()).pathname).toBe("/portfolio");
+  });
+});
+
+test("the grid reads in the same order the lightbox navigates, at every column count", async ({
+  page,
+}) => {
+  // One authoritative order governs the source, the DOM, keyboard focus, and
+  // the lightbox. The eye has to agree with them: a column-major masonry lays
+  // DOM items one, two, three down its first column, so the top row *reads* as
+  // one, three, five and a visitor following the grid is not following the
+  // sequence the lightbox will open.
+  const main = page.getByRole("main");
+
+  for (const [width, expectedColumns] of [
+    [390, 1],
+    [800, 2],
+    [1280, 3],
+  ] as const) {
+    await page.setViewportSize({ width, height: 900 });
+    // Layout, not pixels: every cell reserves its frame from the rendition's
+    // real dimensions, so the geometry below is settled before any photograph
+    // has decoded. Waiting for three full loads instead would buy nothing and
+    // make this the slowest test in the suite.
+    await page.goto(GALLERY_PATH, { waitUntil: "domcontentloaded" });
+    await expect(galleryItems(main).first()).toBeVisible();
+
+    const boxes = await galleryItems(main).evaluateAll((elements) =>
+      elements.map((element) => {
+        const rect = element.getBoundingClientRect();
+        const image = element.querySelector("img");
+        return {
+          alt: image?.getAttribute("alt") ?? "",
+          // Rounded to whole pixels: subpixel layout differences within one row
+          // are not a reading-order change.
+          top: Math.round(rect.top),
+          left: Math.round(rect.left),
+          ratio: rect.height / rect.width,
+        };
+      }),
+    );
+
+    expect(
+      boxes.length,
+      "the gallery under test needs enough items to fill a row",
+    ).toBeGreaterThan(expectedColumns);
+    expect(
+      new Set(boxes.map((box) => box.ratio.toFixed(2))).size,
+      "mixed aspect ratios are what make a wrong layout visible",
+    ).toBeGreaterThan(1);
+
+    // Items sharing a row start at the same top edge, so the layout's own
+    // reading order is exactly this sort — and it must not reorder anything.
+    const reading = [...boxes].sort(
+      (left, right) => left.top - right.top || left.left - right.left,
+    );
+    expect(
+      reading.map((box) => box.alt),
+      `reading order differs from DOM order at ${width}px`,
+    ).toEqual(boxes.map((box) => box.alt));
+
+    expect(
+      new Set(boxes.filter((box) => box.top === boxes[0].top).map((b) => b.left))
+        .size,
+      `expected ${expectedColumns} column(s) at ${width}px`,
+    ).toBe(expectedColumns);
+
+    // And that order is the one the lightbox will navigate.
+    expect(await galleryImageAlts(main.getByRole("button"))).toEqual(
+      boxes.map((box) => box.alt),
+    );
+  }
 });
 
 /**
@@ -480,15 +778,15 @@ async function presentedImage(dialog: Locator): Promise<PresentedImage | null> {
 }
 
 /**
- * Opens the portfolio page and lets its grid settle.
+ * Opens the gallery page and lets its grid settle.
  *
- * The grid is a masonry layout whose columns move as its images arrive, and a
- * control whose box is still shifting is not one a visitor could click either.
- * Waiting for load costs about a second and removes that whole class of false
- * failure; images below the fold stay lazy and do not hold it up.
+ * Rows resize as their images arrive, and a control whose box is still shifting
+ * is not one a visitor could click either. Waiting for load costs about a second
+ * and removes that whole class of false failure; images below the fold stay lazy
+ * and do not hold it up.
  */
-async function gotoPortfolio(page: Page): Promise<void> {
-  await page.goto(PORTFOLIO_PATH, { waitUntil: "load" });
+async function gotoGallery(page: Page): Promise<void> {
+  await page.goto(GALLERY_PATH, { waitUntil: "load" });
 }
 
 /**
@@ -552,18 +850,32 @@ async function galleryImageAlts(triggers: Locator): Promise<string[]> {
 }
 
 /**
+ * The grid's own items.
+ *
+ * A gallery page carries other lists — the breadcrumb trail, the language
+ * switch, the tags — so "every list item in main" would mix them into the
+ * sequence. The grid's list is the one whose items open images, which is a
+ * property of what it does rather than of what this fixture happens to contain.
+ */
+function galleryItems(main: Locator): Locator {
+  return main
+    .getByRole("list")
+    .filter({ has: main.page().getByRole("button") })
+    .first()
+    .getByRole("listitem");
+}
+
+/**
  * What the grid itself says about each photograph, in result order, with an
  * empty string where it says nothing. Content again, so it is read from the
  * page: it is the expectation the viewer is measured against.
  */
 async function galleryCaptions(main: Locator): Promise<string[]> {
-  return main
-    .getByRole("listitem")
-    .evaluateAll((items) =>
-      items.map(
-        (item) => item.querySelector("figcaption")?.textContent?.trim() ?? "",
-      ),
-    );
+  return galleryItems(main).evaluateAll((items) =>
+    items.map(
+      (item) => item.querySelector("figcaption")?.textContent?.trim() ?? "",
+    ),
+  );
 }
 
 async function focusIsInside(dialog: Locator): Promise<boolean> {

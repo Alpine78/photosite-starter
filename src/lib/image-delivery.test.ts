@@ -11,7 +11,7 @@ import { mockImages } from "@/lib/mock-media";
 describe("bounded image render profiles", () => {
   it("matches the reviewed sizes declarations for current layouts", () => {
     expect(imageRenderProfiles).toEqual({
-      portfolioGrid: {
+      galleryGrid: {
         sizes:
           "(min-width: 1152px) 358px, (min-width: 1024px) calc(33.333vw - 26.667px), (min-width: 640px) calc(50vw - 32px), calc(100vw - 32px)",
       },

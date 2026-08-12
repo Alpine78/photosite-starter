@@ -28,7 +28,8 @@ const contentCardGridSizes = boundedImageSizes(
  * public rendition identity or intrinsic dimensions.
  */
 export const imageRenderProfiles = {
-  portfolioGrid: {
+  /** The curated gallery grid: three equal columns inside the 1152px container. */
+  galleryGrid: {
     sizes: boundedImageSizes(
       1152,
       358,

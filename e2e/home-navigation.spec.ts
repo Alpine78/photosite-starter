@@ -17,15 +17,16 @@ import {
  * link that marks the current page.
  *
  * Route-specific journeys are separate stories that join this gate as their
- * features land: gallery sections (AB#119), curated gallery pagination
- * (AB#120), and the fuller contact journey (AB#89). The services routes, the
- * content tree, and the site menu itself already have their own suites in
- * `services.spec.ts`, `content-tree.spec.ts`, and `navigation.spec.ts`; what
- * stays here is the header doing its one job on the home page.
+ * features land: gallery sections (AB#119) and curated gallery pagination
+ * (AB#120). The services routes, the content tree, the curated gallery, the
+ * site menu, and the contact form already have their own suites in
+ * `services.spec.ts`, `content-tree.spec.ts`, `gallery-lightbox.spec.ts`,
+ * `navigation.spec.ts`, and `contact.spec.ts`; what stays here is the header
+ * doing its one job on the home page.
  */
 
 /** Application-owned route, not authored content: safe to name here. */
-const PORTFOLIO_PATH = "/portfolio";
+const SECTION_PATH = "/services";
 
 test("the home page renders and its header navigates to a section", async ({
   page,
@@ -56,15 +57,15 @@ test("the home page renders and its header navigates to a section", async ({
     );
   });
 
-  await test.step("the header navigates to the portfolio route", async () => {
-    const portfolioLink = (await openHeaderNavigation(page)).locator(
-      `a[href="${PORTFOLIO_PATH}"]`,
+  await test.step("the header navigates to a static section route", async () => {
+    const sectionLink = (await openHeaderNavigation(page)).locator(
+      `a[href="${SECTION_PATH}"]`,
     );
-    await expect(portfolioLink).toHaveRole("link");
-    await expect(portfolioLink).toHaveAccessibleName(/\S/);
+    await expect(sectionLink).toHaveRole("link");
+    await expect(sectionLink).toHaveAccessibleName(/\S/);
 
-    await portfolioLink.click();
-    await page.waitForURL(`**${PORTFOLIO_PATH}`);
+    await sectionLink.click();
+    await page.waitForURL(`**${SECTION_PATH}`);
 
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(
@@ -76,7 +77,7 @@ test("the home page renders and its header navigates to a section", async ({
     // Reopened rather than reused: the compact layout closes its menu on
     // navigation, so the assertion has to work from the new page's own header.
     const currentLink = (await openHeaderNavigation(page)).locator(
-      `a[href="${PORTFOLIO_PATH}"]`,
+      `a[href="${SECTION_PATH}"]`,
     );
     await expect(currentLink).toHaveAttribute("aria-current", "page");
   });

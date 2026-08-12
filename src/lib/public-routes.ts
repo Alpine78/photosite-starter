@@ -14,9 +14,15 @@
  * story namespace answers from the content tree instead, inside
  * `locale-prefix-request.ts`, because a category path and a canonical content
  * path are data rather than file-system routes. Each remaining route story
- * extends one of the two as it lands (AB#104). A route missing from both is not
- * a broken page: it only means a redundantly prefixed request to it 404s
- * instead of redirecting.
+ * extends one of the two as it lands. A route missing from both is not a broken
+ * page: it only means a redundantly prefixed request to it 404s instead of
+ * redirecting.
+ *
+ * `/portfolio` is deliberately absent. AB#104 moved the curated gallery into the
+ * content tree, and ADR-0003's 2026-08-10 amendment removes such a route rather
+ * than redirecting it: it was never deployed, published, or indexed, so nobody
+ * holds the URL, and only the verified production inventory (AB#19) earns a
+ * redirect. The site chrome now reaches that gallery by its content identity.
  */
 
 import { getService } from "@/lib/services";
@@ -32,8 +38,9 @@ export const RESERVED_ROOT_SEGMENTS: readonly string[] = [
   "api",
   "contact",
   "favicon.ico",
+  // The public directory the mock media is served from. It owns no page, but a
+  // locale prefix that claimed it would shadow every image beneath it.
   "gallery",
-  "portfolio",
   "services",
 ];
 
@@ -60,7 +67,6 @@ export async function defaultLocaleRouteExists(path: string): Promise<boolean> {
   switch (first) {
     case "services":
       return second === undefined || (await getService(second)) !== undefined;
-    case "portfolio":
     case "contact":
       return second === undefined;
     default:

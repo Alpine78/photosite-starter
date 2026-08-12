@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { buildLightboxCaption } from "@/lib/lightbox-caption";
 import { buildLightboxSlides } from "@/lib/lightbox-slides";
-import { buildPortfolioGallery } from "@/lib/mock-gallery";
+import {
+  getMockGalleryResult,
+  MOCK_FEATURED_GALLERY_ID,
+} from "@/lib/mock-gallery";
+
+/**
+ * The featured gallery's English result. The fixture must publish it, so an
+ * absent one is a fixture defect rather than a case these tests tolerate.
+ */
+function requireFeaturedGallery() {
+  const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
+  if (result === undefined) {
+    throw new Error("the mock fixture publishes no featured gallery");
+  }
+  return result;
+}
 
 describe("buildLightboxCaption", () => {
   it("presents the caption before the credit", () => {
@@ -45,8 +60,8 @@ describe("buildLightboxCaption", () => {
     ]);
   });
 
-  it("presents each portfolio slide from the metadata that slide carries", () => {
-    const { result } = buildPortfolioGallery();
+  it("presents each gallery slide from the metadata that slide carries", () => {
+    const result = requireFeaturedGallery();
     const slides = buildLightboxSlides(result.items, (media) => ({
       src: media.rendition.src,
     }));

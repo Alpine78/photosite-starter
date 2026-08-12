@@ -29,19 +29,22 @@ import {
 
 const englishContentTree: ContentTreeInput = {
   categories: [
-    // Top level.
-    { categoryId: "cat-landscape", parentId: null, slug: "landscape", label: "Landscape", order: 0 },
-    { categoryId: "cat-travel", parentId: null, slug: "travel", label: "Travel", order: 1 },
+    // Top level. The showcase category comes first: it holds the curated
+    // selection the site chrome points at, and later showcase galleries join it
+    // rather than earning another root of their own.
+    { categoryId: "cat-portfolio", parentId: null, slug: "portfolio", label: "Portfolio", order: 0 },
+    { categoryId: "cat-landscape", parentId: null, slug: "landscape", label: "Landscape", order: 1 },
+    { categoryId: "cat-travel", parentId: null, slug: "travel", label: "Travel", order: 2 },
     // Public only through a secondary listing, which is something to show.
-    { categoryId: "cat-events", parentId: null, slug: "events", label: "Events", order: 2 },
+    { categoryId: "cat-events", parentId: null, slug: "events", label: "Events", order: 3 },
     // Empty leaf: no content, no descendants, so it stays out of the public tree.
-    { categoryId: "cat-archive", parentId: null, slug: "archive", label: "Archive", order: 3 },
+    { categoryId: "cat-archive", parentId: null, slug: "archive", label: "Archive", order: 4 },
     // The subjects the articles were already filed under before they moved into
     // this tree. Galleries and articles share one tree, so they are ordinary
     // categories rather than a separate article taxonomy.
-    { categoryId: "cat-gear", parentId: null, slug: "gear", label: "Gear", order: 4 },
-    { categoryId: "cat-technique", parentId: null, slug: "technique", label: "Technique", order: 5 },
-    { categoryId: "cat-behind-the-scenes", parentId: null, slug: "behind-the-scenes", label: "Behind the scenes", order: 6 },
+    { categoryId: "cat-gear", parentId: null, slug: "gear", label: "Gear", order: 5 },
+    { categoryId: "cat-technique", parentId: null, slug: "technique", label: "Technique", order: 6 },
+    { categoryId: "cat-behind-the-scenes", parentId: null, slug: "behind-the-scenes", label: "Behind the scenes", order: 7 },
 
     { categoryId: "cat-coastal", parentId: "cat-landscape", slug: "coastal", label: "Coastal", order: 0 },
 
@@ -52,6 +55,15 @@ const englishContentTree: ContentTreeInput = {
     { categoryId: "cat-polar-night", parentId: "cat-winter", slug: "polar-night", label: "Polar night", order: 0 },
   ],
   placements: [
+    {
+      // The site's own selection, and the gallery the header, footer, and home
+      // page reach by this identity rather than by a hardcoded path.
+      contentId: "content-selected-work",
+      variant: "gallery",
+      slug: "selected-work",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
+    },
     {
       contentId: "content-coastal-mornings",
       variant: "gallery",
@@ -74,6 +86,16 @@ const englishContentTree: ContentTreeInput = {
       slug: "polar-night-sessions",
       published: true,
       canonicalCategoryId: "cat-polar-night",
+    },
+    {
+      // Published with nothing in it yet: a gallery between selections is a
+      // normal authoring state, and its route says so rather than 404ing an
+      // address a visitor may already hold.
+      contentId: "content-awaiting-selection",
+      variant: "gallery",
+      slug: "awaiting-selection",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
     },
     // The migrated articles keep the categories they were already filed under.
     // The old model listed them unordered; the migration rule is that the first
@@ -123,13 +145,14 @@ const englishContentTree: ContentTreeInput = {
 
 const finnishContentTree: ContentTreeInput = {
   categories: [
-    { categoryId: "cat-landscape", parentId: null, slug: "maisemat", label: "Maisemat", order: 0 },
-    { categoryId: "cat-travel", parentId: null, slug: "matkat", label: "Matkat", order: 1 },
-    { categoryId: "cat-events", parentId: null, slug: "tapahtumat", label: "Tapahtumat", order: 2 },
-    { categoryId: "cat-archive", parentId: null, slug: "arkisto", label: "Arkisto", order: 3 },
+    { categoryId: "cat-portfolio", parentId: null, slug: "portfolio", label: "Portfolio", order: 0 },
+    { categoryId: "cat-landscape", parentId: null, slug: "maisemat", label: "Maisemat", order: 1 },
+    { categoryId: "cat-travel", parentId: null, slug: "matkat", label: "Matkat", order: 2 },
+    { categoryId: "cat-events", parentId: null, slug: "tapahtumat", label: "Tapahtumat", order: 3 },
+    { categoryId: "cat-archive", parentId: null, slug: "arkisto", label: "Arkisto", order: 4 },
     // `cat-gear` has no Finnish version at all: a category, like a page, may
     // exist in one locale before the other.
-    { categoryId: "cat-technique", parentId: null, slug: "tekniikka", label: "Tekniikka", order: 5 },
+    { categoryId: "cat-technique", parentId: null, slug: "tekniikka", label: "Tekniikka", order: 6 },
 
     { categoryId: "cat-coastal", parentId: "cat-landscape", slug: "rannikko", label: "Rannikko", order: 0 },
 
@@ -139,6 +162,13 @@ const finnishContentTree: ContentTreeInput = {
     { categoryId: "cat-polar-night", parentId: "cat-winter", slug: "kaamos", label: "Kaamos", order: 0 },
   ],
   placements: [
+    {
+      contentId: "content-selected-work",
+      variant: "gallery",
+      slug: "valikoima",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
+    },
     {
       contentId: "content-coastal-mornings",
       variant: "gallery",
@@ -160,6 +190,13 @@ const finnishContentTree: ContentTreeInput = {
       slug: "kaamoskuvaukset",
       published: true,
       canonicalCategoryId: "cat-polar-night",
+    },
+    {
+      contentId: "content-awaiting-selection",
+      variant: "gallery",
+      slug: "odottaa-valintaa",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
     },
     // One of the articles published in both languages, so a detail page has a
     // real exact language switch to offer. Some English siblings still have no
