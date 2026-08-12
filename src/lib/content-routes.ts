@@ -56,21 +56,31 @@ export type StoryRoute =
   /** The story namespace itself: the public content-tree root. */
   | { readonly kind: "story-root" }
   | { readonly kind: "category"; readonly categoryId: string }
-  /** A canonically placed content page. */
-  | { readonly kind: "content"; readonly contentId: string };
+  /**
+   * A canonically placed content page. The variant travels with it because the
+   * route layer's behavior differs by variant before anything is loaded: which
+   * renderer the page uses, and which query parameters mean something at that
+   * address.
+   */
+  | {
+      readonly kind: "content";
+      readonly contentId: string;
+      readonly variant: ContentVariant;
+    };
 
 /**
  * Variants whose canonical detail route the application actually serves.
  *
- * A gallery needs the shared paginated result contract to render, which AB#104
- * owns, so its canonical path is not part of the public route space yet and
- * resolves to nothing at all. That is deliberate rather than incidental: a path
- * that resolves here also earns the casing and redundant-prefix normalization
- * redirects, and a permanent redirect onto a page that cannot render would
- * teach browsers and crawlers a dead address. AB#104 adds `gallery` here.
+ * Both variants now render, so the set is currently every variant there is. It
+ * stays because the rule it encodes is not "all of them": a path that resolves
+ * here also earns the casing and redundant-prefix normalization redirects, and a
+ * permanent redirect onto a page that cannot render would teach browsers and
+ * crawlers a dead address. A future variant is added here once, when its route
+ * exists.
  */
 const ROUTED_CONTENT_VARIANTS: ReadonlySet<ContentVariant> = new Set([
   "article",
+  "gallery",
 ]);
 
 /**
@@ -131,7 +141,11 @@ export function resolveStoryRoute(
       return placement === undefined ||
         !ROUTED_CONTENT_VARIANTS.has(placement.variant)
         ? null
-        : { kind: "content", contentId: placement.contentId };
+        : {
+            kind: "content",
+            contentId: placement.contentId,
+            variant: placement.variant,
+          };
     }
 
     resolved = match;
@@ -228,6 +242,47 @@ export function toContentLocation(route: StoryRoute): ContentLocation | null {
  * something in it. A locale whose content is still being authored is left out
  * rather than linked to an empty destination.
  */
+/**
+ * The canonical route of one published content page in one locale, or
+ * `undefined` when this locale publishes no routable version of it.
+ *
+ * This is how anything outside the content tree links to a page it names by
+ * identity — the site chrome's featured gallery, and later a sitemap entry.
+ * Settings and configuration hold the stable `contentId`; the path is derived
+ * per locale from the tree and the route config, so a rename, a move, or a
+ * translated slug changes the link everywhere at once and no deployment-specific
+ * path is ever written down.
+ *
+ * `expectedVariant` is what keeps a configured identity honest about *what* it
+ * points at. A setting that promises a gallery and names an article would put a
+ * working link behind a label describing something else, which no amount of
+ * route correctness fixes; the caller states what it is linking to, and a
+ * mismatch resolves to nothing instead.
+ */
+export function getPublicContentRoute(
+  config: LocaleRouteConfig,
+  tree: ContentTree | undefined,
+  locale: string,
+  contentId: string,
+  expectedVariant?: ContentVariant,
+): string | undefined {
+  if (tree === undefined) return undefined;
+
+  const placement = tree.placements.get(contentId);
+  if (
+    placement === undefined ||
+    !ROUTED_CONTENT_VARIANTS.has(placement.variant) ||
+    (expectedVariant !== undefined && placement.variant !== expectedVariant)
+  ) {
+    return undefined;
+  }
+
+  // `getCanonicalContentPath` already refuses an unpublished or unplaced page,
+  // so an entry naming one is dropped rather than published as a link to a 404.
+  const path = getCanonicalContentPath(tree, contentId);
+  return path === null ? undefined : buildStoryPath(config, locale, path);
+}
+
 export function listStoryRootVersions(
   config: LocaleRouteConfig,
   trees: LocalizedContentTrees,

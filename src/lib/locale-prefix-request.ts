@@ -113,15 +113,25 @@ function resolveHistoricalStoryTarget(
 /**
  * Whether a continuation token means anything at this route.
  *
- * `cursor` is the listing contract's parameter. On a branch it is recognized —
- * and rejected, because no listing cursor has been issued yet, so a token here
- * is malformed, stale, or tampered with. On a content page there is no
- * continuation contract at all, which makes `cursor` an ordinary unrecognized
- * parameter: ADR-0003 decision 8 reads the parameters it knows and ignores the
- * rest, so that a campaign or referral link never turns a real page into a 404.
+ * `cursor` is the continuation contract's parameter, and ADR-0003 decision 8
+ * gives it a meaning at exactly two kinds of address: a category listing and a
+ * gallery. At both it is recognized — and rejected, because neither issues a
+ * cursor yet (AB#66 decides the contract, AB#72 renders the continuation), so a
+ * token arriving at one is malformed, stale, or tampered with, and decision 8
+ * answers those with a 404 rather than a page that quietly ignores it.
+ *
+ * An article has no continuation contract at all, which makes `cursor` an
+ * ordinary unrecognized parameter there: decision 8 reads the parameters it
+ * knows and ignores the rest, so a campaign or referral link never turns a real
+ * page into a 404.
+ *
+ * `section` is deliberately absent from both lists. Gallery sections are
+ * AB#105's, and until a gallery can have one, no value of that parameter names
+ * anything — so it stays unrecognized and ignored rather than 404ing links that
+ * a later story will make meaningful.
  */
 function rejectsCursor(route: StoryRoute): boolean {
-  return route.kind !== "content";
+  return route.kind !== "content" || route.variant === "gallery";
 }
 
 /**

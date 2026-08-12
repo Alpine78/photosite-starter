@@ -11,9 +11,11 @@
  * document. A body without a matching record is a fixture defect and fails at
  * import rather than at a visitor's request.
  *
- * Only `article` pages exist so far. A `gallery` page's curated result set is
- * AB#66's contract and its route is AB#104's, so no gallery body is authored
- * here and a gallery detail path answers 404 until that story lands.
+ * A `gallery` page carries the same shared fields and declares its variant, but
+ * its ordered result set is deliberately not here: that is the AB#67 contract,
+ * read through `gallery.ts` by the route that renders the grid. The bodies below
+ * are empty because the gallery lead and long-form body are AB#106's; an
+ * authored gallery body would render nowhere until that story lands.
  *
  * One set per language subtag, keyed by the immutable `contentId`. Some pages
  * remain English-only, which is the normal state of a bilingual site whose
@@ -34,6 +36,23 @@ type AuthoredPage = {
 };
 
 const englishPages: Readonly<Record<string, AuthoredPage>> = {
+  "content-selected-work": {
+    variant: "gallery",
+    body: [],
+  },
+  "content-coastal-mornings": {
+    variant: "gallery",
+    tags: ["coastal", "morning light"],
+    body: [],
+  },
+  "content-polar-night-sessions": {
+    variant: "gallery",
+    body: [],
+  },
+  "content-awaiting-selection": {
+    variant: "gallery",
+    body: [],
+  },
   "content-reading-coastal-light": {
     variant: "article",
     tags: ["light", "coastal", "landscape"],
@@ -233,6 +252,23 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
  * fallback.
  */
 const finnishPages: Readonly<Record<string, AuthoredPage>> = {
+  "content-selected-work": {
+    variant: "gallery",
+    body: [],
+  },
+  "content-coastal-mornings": {
+    variant: "gallery",
+    tags: ["rannikko", "aamuvalo"],
+    body: [],
+  },
+  "content-polar-night-sessions": {
+    variant: "gallery",
+    body: [],
+  },
+  "content-awaiting-selection": {
+    variant: "gallery",
+    body: [],
+  },
   "content-reading-coastal-light": {
     variant: "article",
     tags: ["valo", "rannikko", "maisemakuvaus"],

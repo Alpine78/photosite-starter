@@ -67,7 +67,7 @@ describe("defaultLocaleRouteExists", () => {
 
   it("resolves the static listing routes", async () => {
     await expect(defaultLocaleRouteExists("/services")).resolves.toBe(true);
-    await expect(defaultLocaleRouteExists("/portfolio")).resolves.toBe(true);
+    await expect(defaultLocaleRouteExists("/contact")).resolves.toBe(true);
   });
 
   it("resolves a detail route that has content behind it", async () => {
@@ -88,12 +88,19 @@ describe("defaultLocaleRouteExists", () => {
 
   it("rejects unknown and over-deep paths", async () => {
     await expect(defaultLocaleRouteExists("/nothing-here")).resolves.toBe(false);
-    await expect(defaultLocaleRouteExists("/portfolio/extra")).resolves.toBe(
+    await expect(defaultLocaleRouteExists("/contact/extra")).resolves.toBe(
       false,
     );
     await expect(defaultLocaleRouteExists("/services/one/two")).resolves.toBe(
       false,
     );
+  });
+
+  it("does not resolve the removed portfolio route", async () => {
+    // AB#104 moved the curated gallery into the content tree. ADR-0003's
+    // amendment removes a pre-launch route rather than redirecting it, because
+    // nobody can be holding a URL that was never deployed or indexed.
+    await expect(defaultLocaleRouteExists("/portfolio")).resolves.toBe(false);
   });
 
   it("does not resolve the removed article scaffold routes", async () => {

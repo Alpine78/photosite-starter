@@ -12,7 +12,7 @@
  * makes it. In a multi-column card grid that means wildly different ratios
  * (a 2:3 portrait beside a 3:2 landscape) tear large gaps into the rows.
  * Keep demo covers within a similar ratio range; tall frames belong in the
- * portfolio masonry and in article bodies, which are single-column.
+ * gallery grid and in article bodies, which are single-column.
  */
 
 import type { Media } from "@/lib/media";

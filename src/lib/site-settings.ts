@@ -3,6 +3,7 @@ import {
   getDeploymentConfig,
 } from "@/lib/deployment-config";
 import { buildStoryPath } from "@/lib/locale-routes";
+import type { StaticNavigationLink } from "@/lib/site-navigation";
 
 /**
  * Site-wide brand, contact, and navigation settings live here, never
@@ -11,10 +12,13 @@ import { buildStoryPath } from "@/lib/locale-routes";
  * accessor is async.
  */
 
-export type NavigationItem = {
-  label: string;
-  href: string;
-};
+/**
+ * One authored menu or footer entry: a static route path, or the stable
+ * identity of one featured content page. `site-navigation.ts` resolves the
+ * second into this locale's canonical route, so settings never carry a
+ * deployment-specific content path that a rename or translation would break.
+ */
+export type NavigationItem = StaticNavigationLink;
 
 export type SocialLink = {
   /** Platform identifier, e.g. "instagram", "facebook", "youtube" */
@@ -72,6 +76,14 @@ export type SiteSettings = {
   /** Short tagline shown e.g. in the home page hero */
   tagline: string;
   navigation: NavigationItem[];
+  /**
+   * The curated gallery this deployment features as its portfolio, by stable
+   * content identity — the single source for every surface that shows it.
+   * Absent when a clone features none, which drops the featured entries rather
+   * than inventing a destination for them. An identity that names something
+   * other than a published gallery drops them too.
+   */
+  featuredGalleryId?: string;
   contact: ContactInfo;
   socialLinks: SocialLink[];
   /** Footer quick links; often a subset of navigation */
@@ -79,6 +91,19 @@ export type SiteSettings = {
   copyrightHolder: string;
   defaultSeo: DefaultSeo;
 };
+
+/**
+ * The curated gallery this deployment shows as its portfolio. A stable content
+ * identity, not a path: the header, footer, and home page resolve it per locale
+ * through the content tree, so moving or renaming the gallery — or publishing a
+ * Finnish slug beside the English one — moves every link with it. A clone
+ * replaces this with its own gallery's identity when it authors content.
+ *
+ * It is written once. Every surface that features the gallery marks its entry
+ * `featured` and receives this identity from the setting below, so no two of
+ * them can end up pointing at different galleries.
+ */
+const FEATURED_GALLERY_ID = "content-selected-work";
 
 /**
  * Built lazily rather than as a module constant: the page labels below are
@@ -98,6 +123,7 @@ function buildMockSiteSettings(): SiteSettings {
     siteName: "Studio Example",
     photographerName: "Jane Example",
     tagline: "Timeless photography for life's important moments",
+    featuredGalleryId: FEATURED_GALLERY_ID,
     // These labels describe application-owned static routes, so they come from
     // deployment config rather than authored CMS content. Only routes that exist
     // are listed; a nav entry without a route is a 404 on every page of the site.
@@ -111,7 +137,7 @@ function buildMockSiteSettings(): SiteSettings {
     navigation: [
       { label: labels.pages.home, href: "/" },
       { label: labels.pages.services, href: "/services" },
-      { label: labels.pages.portfolio, href: "/portfolio" },
+      { label: labels.pages.portfolio, featured: true },
       { label: labels.pages.stories, href: storyRoot },
       { label: labels.pages.contact, href: "/contact" },
     ],
@@ -148,7 +174,7 @@ function buildMockSiteSettings(): SiteSettings {
     ],
     footerLinks: [
       { label: labels.pages.services, href: "/services" },
-      { label: labels.pages.portfolio, href: "/portfolio" },
+      { label: labels.pages.portfolio, featured: true },
       { label: labels.pages.stories, href: storyRoot },
       { label: labels.pages.contact, href: "/contact" },
     ],

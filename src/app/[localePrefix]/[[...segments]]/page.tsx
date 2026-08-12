@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { CategoryBranch } from "@/components/category-branch";
 import { ContentArticle } from "@/components/content-article";
+import { ContentGallery } from "@/components/content-gallery";
 import type { BreadcrumbStep } from "@/components/breadcrumbs";
 import type { LanguageLink } from "@/components/language-switch";
 import {
@@ -11,7 +12,11 @@ import {
   getContentRedirects,
   getContentTrees,
 } from "@/lib/content";
-import { asArticlePage, type ArticleContentPage } from "@/lib/content-page";
+import {
+  asArticlePage,
+  asGalleryPage,
+  type ContentPage,
+} from "@/lib/content-page";
 import {
   getStoryRoutePath,
   getStoryRouteTrail,
@@ -24,6 +29,7 @@ import {
   getBuiltInLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
+import { getGalleryResult } from "@/lib/gallery";
 import { resolveLocalePrefixRequest } from "@/lib/locale-prefix-request";
 import {
   buildStoryPath,
@@ -47,11 +53,12 @@ import { defaultLocaleRouteExists } from "@/lib/public-routes";
  * all. `locale-prefix-request.ts` makes that decision; this file renders the
  * branch or page it names.
  *
- * Only the `article` variant renders so far. AB#104 owns the curated gallery
- * route, which needs the shared paginated result contract rather than a body
- * alone, so `content-routes.ts` keeps a gallery's canonical path outside the
- * route space entirely and it answers 404 — the same answer it gave before this
- * route existed, and no redirect ever points at it.
+ * Both content variants render here. They share the resolution, the breadcrumb,
+ * the language switch, and the metadata, and differ in what they load: an
+ * article is its body, while a gallery is a page plus one bounded page of the
+ * shared AB#67 result read separately through `gallery.ts`. Which renderer runs
+ * is decided by the variant the tree resolved, never by inspecting what the
+ * source returned.
  */
 
 type LocalePrefixPageProps = {
@@ -86,24 +93,26 @@ async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
 }
 
 /**
- * The article a content route names, or `undefined` when this locale publishes
- * no body for it — a defect the fixture tests guard against rather than a state
- * a visitor should reach, so the route answers 404 rather than a blank page.
+ * The page a content route names, or `undefined` when this locale publishes no
+ * version of it — a defect the fixture tests guard against rather than a state a
+ * visitor should reach, so the route answers 404 rather than a blank page.
  *
- * `asArticlePage` also re-checks the variant and identity of what the source
- * returned. The resolver already keeps unrendered variants out of the route
- * space, so this is the second lock: an adapter that answered with a different
- * page must not publish it at this canonical URL.
+ * The variant comes from the route rather than from the answer, and the
+ * projection re-checks both variant and identity. The resolver already keeps
+ * unrendered variants out of the route space, so this is the second lock: an
+ * adapter that answered with a different page, or with an article where the tree
+ * says gallery, must not publish it at this canonical URL.
  */
-async function resolveArticle(
+async function resolveContentPage(
   locale: string,
   route: StoryRoute,
-): Promise<ArticleContentPage | undefined> {
+): Promise<ContentPage | undefined> {
   if (route.kind !== "content") return undefined;
-  return asArticlePage(
-    route.contentId,
-    await getContentPage(locale, route.contentId),
-  );
+
+  const page = await getContentPage(locale, route.contentId);
+  return route.variant === "gallery"
+    ? asGalleryPage(route.contentId, page)
+    : asArticlePage(route.contentId, page);
 }
 
 function branchTitle(
@@ -237,13 +246,22 @@ export async function generateMetadata(
   if (tree === undefined) return {};
 
   const { locale, route } = resolution;
-  const article = await resolveArticle(locale, route);
-  if (route.kind === "content" && article === undefined) return {};
+  const page = await resolveContentPage(locale, route);
+  if (route.kind === "content" && page === undefined) return {};
+  // A gallery the source cannot answer for renders a 404 below, and a 404 must
+  // not carry a canonical URL, a social image, and alternates for a page nobody
+  // can open. The same reason the article path returns early above.
+  if (
+    page?.variant === "gallery" &&
+    (await getGalleryResult(locale, page.contentId)) === undefined
+  ) {
+    return {};
+  }
 
   const path = buildStoryPath(config, locale, getStoryRoutePath(tree, route));
   const localeVersions = listRouteVersions(config, trees, route);
 
-  if (article === undefined) {
+  if (page === undefined) {
     return getPageMetadata({
       path,
       title: branchTitle(tree, route, getBuiltInLabels(locale).pages.stories),
@@ -252,12 +270,15 @@ export async function generateMetadata(
     });
   }
 
+  // Both variants are dated published pages, and a gallery's cover is the
+  // resolved one its card shows — its own opening photograph when none was
+  // authored — so neither invents a social image it does not have.
   return getPageMetadata({
     path,
-    title: article.title,
-    ...(article.summary === undefined ? {} : { description: article.summary }),
-    ...(article.cover === undefined ? {} : { image: article.cover }),
-    publishedTime: article.publishedAt,
+    title: page.title,
+    ...(page.summary === undefined ? {} : { description: page.summary }),
+    ...(page.cover === undefined ? {} : { image: page.cover }),
+    publishedTime: page.publishedAt,
     locale,
     localeVersions,
   });
@@ -288,10 +309,40 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
   );
 
   if (route.kind === "content") {
-    const article = await resolveArticle(locale, route);
-    if (article === undefined) {
+    const page = await resolveContentPage(locale, route);
+    if (page === undefined) {
       notFound();
     }
+
+    if (page.variant === "gallery") {
+      // The gallery's own bounded first page, read by the identity the tree
+      // resolved. It is a separate read from the page above because the two
+      // have different costs: a card projects the page's fields and never this.
+      const result = await getGalleryResult(locale, page.contentId);
+      if (result === undefined) {
+        notFound();
+      }
+
+      return (
+        <ContentGallery
+          locale={locale}
+          page={page}
+          items={result.items}
+          breadcrumbs={buildBreadcrumbs(
+            config,
+            tree,
+            locale,
+            route,
+            labels,
+            page.title,
+          )}
+          languages={languages}
+          labels={labels}
+        />
+      );
+    }
+
+    const article = page;
 
     // Two bounded rows, not the article set: `getAdjacentContent` asks the
     // adapter for the neighbours either side of this page in the global

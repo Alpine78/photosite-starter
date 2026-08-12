@@ -238,7 +238,9 @@ npx playwright show-report               # after a failure
 `npm run test:e2e` builds the site and serves it with `next start` on
 `http://127.0.0.1:3100` (Playwright starts and stops it), then runs every spec in two
 projects: desktop Chromium and mobile WebKit. The suite protects the home page, the site
-menu's composition and disclosure behavior, the portfolio lightbox, the services routes,
+menu's composition and disclosure behavior, the curated gallery route — its grid's
+reading order at every column count, the lightbox, its metadata, its empty state, and the
+addresses it refuses — the services routes,
 the public content tree, and
 contact submission — including invalid input, delivery failure, and retry; a
 route-specific suite joins the gate by landing in `e2e/`. The run
@@ -300,9 +302,8 @@ a green pipeline. See [deployment](docs/deployment.md).
   contents derived from the body's headings, and publication-ordered sibling navigation —
   and the tree-driven site menu, which composes the configured static links with the
   first two category levels behind an accessible disclosure in both the wide and the
-  compact layout, done; the curated
-  gallery detail route (AB#104) and
-  listing continuation controls pending*
+  compact layout, and the canonical curated gallery detail route, done; listing and
+  gallery continuation controls pending*
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))
@@ -311,10 +312,12 @@ a green pipeline. See [deployment](docs/deployment.md).
   with `hreflang`/`x-default` links, and the identity-based language switch on those pages
   done; localized static routes and localized authored settings pending*
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
-  and optional long-form body content — *thumbnail grid, shared bounded result contract, and
-  fullscreen lightbox (open, close, navigate, caption and credit) done
+  and optional long-form body content — *shared bounded result contract, the canonical
+  gallery route inside the content tree with breadcrumbs, metadata, and a deterministic
+  cover, the row-major grid that reads in the gallery's own order at one, two, and three
+  columns, and the fullscreen lightbox (open, close, navigate, caption and credit) done
   ([ADR-0001](docs/adr/0001-lightbox-library.md)); zoom tuning, preloading,
-  sections, and continuation controls pending*
+  sections, seeded random ordering, and continuation controls pending*
 - [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
   handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
   for development, CI, and Preview), abuse controls, and operational events carrying no
@@ -379,10 +382,10 @@ Found a bug or have an idea? Open an issue — that is welcome.
 
 ## Status
 
-🚧 Work in progress — MVP in progress. The public pages (home, services, contact, the
-canonical article routes in the content tree, and the initial portfolio grid) are built
+🚧 Work in progress — MVP in progress. The public pages (home, services, contact, and the
+canonical article and gallery routes in the content tree) are built
 against a mock data layer whose images use the
-accepted project-owned public rendition contract and whose portfolio uses the shared
+accepted project-owned public rendition contract and whose galleries use the shared
 paginated gallery result contract. The content tree's category domain model, canonical
 placement contract, and public category branch routes are built — breadcrumbs,
 deterministically ordered listings, permanent redirects for retired paths, and a visible
@@ -391,19 +394,26 @@ root — in every configured locale space, with
 `hreflang`/`x-default` alternates. Articles render at their canonical detail routes in
 that tree, and the site menu is driven by it: the configured static links and the tree's
 first two category levels compose into one navigation, in the wide layout and the compact
-one, with the deeper branches reached from the landing page above them. The curated
-gallery detail route is not built yet (AB#104). Static routes and authored
+one, with the deeper branches reached from the landing page above them. Curated galleries
+render at their own canonical routes in that tree; the header, footer, and home page reach
+the featured one by its stable content identity rather than by a written-down path, and the
+pre-tree `/portfolio` route was removed rather than redirected, because it was never
+deployed or indexed. A gallery serves one bounded page and answers `?cursor=` with a 404,
+because no cursor has been issued yet. Static routes and authored
 SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
 separate story. The Sanity connection, its published-perspective query client, and the
 enforced data-access boundary are in place; the schemas and adapters that would put
 authored content behind them are not, so every page still renders from the mock layer.
-The portfolio grid opens a fullscreen lightbox that navigates the loaded result by
+The gallery grid lays its items out row by row, so what the eye reads is the order the
+source, the DOM, keyboard focus, and the lightbox all use, and every frame keeps its native
+aspect ratio uncropped. It opens a fullscreen lightbox that navigates the loaded result by
 keyboard, control, and gesture and presents the caption and credit of the photograph on
 screen; its zoom tuning and preloading are a later slice. The contact form is built and
 delivers through a replaceable adapter that stores nothing, and a public-journey suite
 covers its validation, success, failure, and retry states; the gallery-item enquiry
 (AB#60) builds on it. Public continuation routes and
-controls, and the CMS schemas and adapters, are still open. The deployment path exists in
+controls, gallery sections, seeded random gallery ordering, and the CMS schemas and
+adapters, are still open. The deployment path exists in
 the repository — a pinned runtime and region, a pipeline stage that deploys a release
 candidate only after every gate passes, and a check that refuses to publish a URL whose
 project/team ownership, access protection, and non-indexability were not verified — but

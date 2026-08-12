@@ -84,15 +84,24 @@ describe("listCategoryContentIds", () => {
   });
 
   it("collects published routed content for the story-root overview", () => {
+    // Both variants have a detail route now, so the overview draws from both.
     expect(listCategoryContentIds(english, null)).toEqual([
+      "content-selected-work",
+      "content-coastal-mornings",
       "content-reading-coastal-light",
+      "content-polar-night-sessions",
+      "content-awaiting-selection",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
     ]);
     expect(listCategoryContentIds(finnish, null)).toEqual([
+      "content-selected-work",
+      "content-coastal-mornings",
       "content-reading-coastal-light",
+      "content-polar-night-sessions",
+      "content-awaiting-selection",
       "content-understanding-exposure-triangle",
       "content-shooting-in-low-light",
     ]);
@@ -102,6 +111,7 @@ describe("listCategoryContentIds", () => {
 describe("buildCategoryListing", () => {
   it("lists public child categories in sibling order at the story root", () => {
     expect(listing(null).childCategories).toEqual([
+      { categoryId: "cat-portfolio", label: "Portfolio", path: ["portfolio"] },
       { categoryId: "cat-landscape", label: "Landscape", path: ["landscape"] },
       { categoryId: "cat-travel", label: "Travel", path: ["travel"] },
       { categoryId: "cat-events", label: "Events", path: ["events"] },
@@ -117,11 +127,15 @@ describe("buildCategoryListing", () => {
 
   it("lists recent routed content across the tree at the story root", () => {
     expect(listing(null).content.map((entry) => entry.contentId)).toEqual([
+      "content-selected-work",
+      "content-polar-night-sessions",
       "content-choosing-a-telephoto-lens",
       "content-reading-coastal-light",
       "content-understanding-exposure-triangle",
+      "content-coastal-mornings",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
+      "content-awaiting-selection",
     ]);
   });
 
@@ -173,10 +187,22 @@ describe("buildCategoryListing", () => {
   });
 
   it("leaves a page without a cover without one", () => {
+    // An article has no images of its own to stand in for a missing cover, so
+    // its card is a text card rather than one borrowing somebody else's image.
+    const entry = listing("cat-travel").content.find(
+      (candidate) => candidate.contentId === "content-packing-for-a-photo-trip",
+    );
+
+    expect(entry?.cover).toBeUndefined();
+  });
+
+  it("covers a gallery with no authored cover from its own first item", () => {
     const [entry] = listing("cat-polar-night").content;
 
     expect(entry.contentId).toBe("content-polar-night-sessions");
-    expect(entry.cover).toBeUndefined();
+    // The fallback is the gallery's opening photograph, so the card and the
+    // page it leads to show the same image.
+    expect(entry.cover?.mediaId).toBe("misty-birch");
   });
 
   it("orders content newest first, breaking ties by content id", () => {
@@ -334,7 +360,11 @@ describe("buildContentListingQuery", () => {
     expect(query.ordering).toBe(CONTENT_LISTING_ORDERING);
     expect(query.limit).toBe(MAX_CONTENT_LISTING_PAGE_SIZE + 1);
     expect(query.contentIds).toEqual([
+      "content-selected-work",
+      "content-coastal-mornings",
       "content-reading-coastal-light",
+      "content-polar-night-sessions",
+      "content-awaiting-selection",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
@@ -402,10 +432,10 @@ describe("buildAdjacentContentQuery", () => {
     expect(buildAdjacentContentQuery(english, "content-missing")).toBeNull();
   });
 
-  it("leaves out a neighbour whose variant has no detail route", () => {
-    // A sibling link exists to carry a reader onward, so offering one that
-    // lands on a 404 is worse than offering nothing. A listing card is the
-    // deliberate exception and keeps pointing at the canonical address.
+  it("keeps a page's neighbours within its own variant", () => {
+    // Sibling navigation carries a reader onward through one sequence. A
+    // gallery is not the next article, so the two variants never appear in each
+    // other's neighbour query even though they share the tree.
     const mixed = buildContentTree({
       categories: [
         { categoryId: "cat", parentId: null, slug: "cat", label: "Cat", order: 0 },
@@ -431,8 +461,9 @@ describe("buildAdjacentContentQuery", () => {
     expect(buildAdjacentContentQuery(mixed, "an-article")?.contentIds).toEqual([
       "an-article",
     ]);
-    // And a page that has no route of its own asks for no neighbours at all.
-    expect(buildAdjacentContentQuery(mixed, "a-gallery")).toBeNull();
+    expect(buildAdjacentContentQuery(mixed, "a-gallery")?.contentIds).toEqual([
+      "a-gallery",
+    ]);
   });
 });
 

@@ -5,7 +5,10 @@ import {
   type LightboxRenditionResolver,
 } from "@/lib/lightbox-slides";
 import type { ImageMedia, Media, VideoMedia } from "@/lib/media";
-import { buildPortfolioGallery } from "@/lib/mock-gallery";
+import {
+  getMockGalleryResult,
+  MOCK_FEATURED_GALLERY_ID,
+} from "@/lib/mock-gallery";
 import { mockImages } from "@/lib/mock-media";
 
 /** Stands in for the host image pipeline; the projection must not need one. */
@@ -30,6 +33,18 @@ const videoMedia: VideoMedia = {
   width: 1920,
   height: 1080,
 };
+
+/**
+ * The featured gallery's English result. The fixture must publish it, so an
+ * absent one is a fixture defect rather than a case these tests tolerate.
+ */
+function requireFeaturedGallery() {
+  const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
+  if (result === undefined) {
+    throw new Error("the mock fixture publishes no featured gallery");
+  }
+  return result;
+}
 
 describe("buildLightboxSlides", () => {
   it("keeps the order of the shared result list", () => {
@@ -170,8 +185,8 @@ describe("buildLightboxSlides", () => {
     ).toThrow(/no public source/);
   });
 
-  it("projects the portfolio result one slide per item, in result order", () => {
-    const { result } = buildPortfolioGallery();
+  it("projects a gallery result one slide per item, in result order", () => {
+    const result = requireFeaturedGallery();
     const slides = buildLightboxSlides(result.items, resolveTestRendition);
 
     expect(slides).toHaveLength(result.items.length);

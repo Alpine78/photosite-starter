@@ -6,6 +6,7 @@ import {
   buildSiteNavigation,
   MAX_NAVIGATION_CATEGORY_DEPTH,
   resolveNavigationItemState,
+  resolveStaticNavigationLinks,
   toAriaCurrent,
   type SiteNavigationItem,
 } from "@/lib/site-navigation";
@@ -283,5 +284,154 @@ describe("toAriaCurrent", () => {
     expect(toAriaCurrent("current")).toBe("page");
     expect(toAriaCurrent("ancestor")).toBe("location");
     expect(toAriaCurrent("elsewhere")).toBeUndefined();
+  });
+});
+
+describe("the featured gallery", () => {
+  const featured = [
+    { label: "Home", href: "/" },
+    { label: "Portfolio", featured: true as const },
+    { label: "Stories", href: "/tarinat" },
+  ];
+
+  /** A gallery and an article, so the variant check has both to choose from. */
+  const withGallery = buildContentTree({
+    ...treeInput,
+    placements: [
+      ...treeInput.placements,
+      {
+        contentId: "content-selected-work",
+        variant: "gallery",
+        slug: "selected-work",
+        published: true,
+        canonicalCategoryId: "cat-coastal",
+      },
+    ],
+  });
+
+  function menu(
+    featuredContentId: string | undefined,
+    tree = withGallery,
+    locale = "fi",
+  ) {
+    return buildSiteNavigation({
+      staticLinks: featured,
+      config,
+      locale,
+      tree,
+      ...(featuredContentId === undefined ? {} : { featuredContentId }),
+      storyLabel: "Stories",
+    });
+  }
+
+  it("renders the featured gallery at its canonical route in each locale", () => {
+    expect(menu("content-selected-work").map((item) => item.href)).toContain(
+      "/tarinat/landscape/coastal/selected-work",
+    );
+    expect(
+      menu("content-selected-work", withGallery, "en").map((item) => item.href),
+    ).toContain("/en/stories/landscape/coastal/selected-work");
+  });
+
+  it("keys the entry by identity rather than by its path", () => {
+    // A rename or a translation changes the path; the key survives both, so
+    // React does not throw the entry away and rebuild it.
+    expect(menu("content-selected-work")[1]?.key).toBe(
+      "content:content-selected-work",
+    );
+  });
+
+  it("keeps the featured gallery beside the section that contains it", () => {
+    // A configured *path* into the story namespace is absorbed into the section
+    // marker; the featured gallery is a shortcut to one address and claims no
+    // branch, so both survive.
+    const items = menu("content-selected-work");
+
+    expect(items.map((item) => item.href)).toEqual([
+      "/",
+      "/tarinat/landscape/coastal/selected-work",
+      "/tarinat",
+    ]);
+    expect(items.at(-1)?.children.length).toBeGreaterThan(0);
+  });
+
+  it("drops the entry when the deployment features no gallery", () => {
+    expect(menu(undefined).map((item) => item.href)).toEqual(["/", "/tarinat"]);
+  });
+
+  it("drops the entry when the locale publishes no version of that gallery", () => {
+    expect(menu("content-not-published-here").map((item) => item.href)).toEqual([
+      "/",
+      "/tarinat",
+    ]);
+  });
+
+  it("refuses an identity that names an article rather than a gallery", () => {
+    // A working link under a label describing something else is worse than no
+    // link: "Portfolio" would open an article, and no route correctness helps.
+    expect(menu("content-coastal").map((item) => item.href)).toEqual([
+      "/",
+      "/tarinat",
+    ]);
+  });
+
+  it("drops the entry when the locale publishes no tree at all", () => {
+    expect(
+      buildSiteNavigation({
+        staticLinks: featured,
+        config,
+        locale: "fi",
+        tree: undefined,
+        featuredContentId: "content-selected-work",
+        storyLabel: "Stories",
+      }).map((item) => item.href),
+    ).toEqual(["/"]);
+  });
+
+  it("gives every surface the same target, from the one setting", () => {
+    const menuHrefs = menu("content-selected-work").map((item) => item.href);
+    const footer = resolveStaticNavigationLinks({
+      links: [
+        { label: "Services", href: "/services" },
+        { label: "Portfolio", featured: true },
+      ],
+      config,
+      locale: "fi",
+      tree: withGallery,
+      featuredContentId: "content-selected-work",
+    });
+
+    expect(footer.map((link) => link.href)).toEqual([
+      "/services",
+      "/tarinat/landscape/coastal/selected-work",
+    ]);
+    expect(menuHrefs).toContain(footer[1]?.href);
+  });
+
+  it("drops a plain link into a story namespace with nothing in it", () => {
+    // The menu drops it by having no section to mark. A footer that kept it
+    // would be the one surface pointing at a story root that answers 404.
+    expect(
+      resolveStaticNavigationLinks({
+        links: [
+          { label: "Services", href: "/services" },
+          { label: "Stories", href: "/tarinat" },
+        ],
+        config,
+        locale: "fi",
+        tree: undefined,
+      }),
+    ).toEqual([{ label: "Services", href: "/services" }]);
+  });
+
+  it("keeps a plain story link while the locale publishes a tree", () => {
+    expect(
+      resolveStaticNavigationLinks({
+        links: [{ label: "Stories", href: "/tarinat" }],
+        config,
+        locale: "fi",
+        tree,
+      }),
+    ).toEqual([{ label: "Stories", href: "/tarinat" }]);
   });
 });

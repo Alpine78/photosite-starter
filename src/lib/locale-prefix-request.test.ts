@@ -280,31 +280,85 @@ describe("resolveLocalePrefixRequest", () => {
         route: {
           kind: "content",
           contentId: "content-understanding-exposure-triangle",
+          variant: "article",
         },
       });
     });
 
-    it.each([
-      ["the canonical spelling", ["maisemat", "rannikko", "rannikon-aamut"]],
-      ["a casing variant of it", ["Maisemat", "Rannikko", "Rannikon-Aamut"]],
-    ])(
-      "404s a gallery's canonical path, whose route is not built yet, at %s",
-      async (_spelling, segments) => {
-        // Never a redirect: a permanent one onto a page that cannot render
-        // would teach browsers and crawlers a dead address.
-        await expect(
-          resolveLocalePrefixRequest({
-            config,
-            trees,
-            redirects,
-            prefix: "tarinat",
-            segments,
-            searchParams: {},
-            defaultLocaleRouteExists: missing(),
-          }),
-        ).resolves.toEqual({ kind: "not-found" });
-      },
-    );
+    it("resolves a gallery's canonical path, naming its variant", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["maisemat", "rannikko", "rannikon-aamut"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "story",
+        locale: "fi",
+        route: {
+          kind: "content",
+          contentId: "content-coastal-mornings",
+          variant: "gallery",
+        },
+      });
+    });
+
+    it("redirects a differently cased gallery path to its canonical form", async () => {
+      // A gallery earns the normalization redirects now that its route renders;
+      // before it did, the same path answered 404 rather than teaching browsers
+      // and crawlers a permanent redirect onto a dead address.
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["Maisemat", "Rannikko", "Rannikon-Aamut"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: "/tarinat/maisemat/rannikko/rannikon-aamut",
+      });
+    });
+
+    it("404s a cursor on a gallery, because none has been issued", async () => {
+      // A gallery does own a continuation contract (ADR-0003 decision 8), so
+      // `cursor` is recognized there and a token nothing minted is stale,
+      // tampered with, or malformed — not an unrecognized parameter to ignore.
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["maisemat", "rannikko", "rannikon-aamut"],
+          searchParams: { cursor: "not-a-token-this-route-minted" },
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({ kind: "not-found" });
+    });
+
+    it("404s a cursor on a gallery reached through a casing variant", async () => {
+      // Rejected before normalization: a redirect to a different spelling would
+      // make the token look meaningful at the address it lands on.
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["Maisemat", "Rannikko", "Rannikon-Aamut"],
+          searchParams: { cursor: "not-a-token-this-route-minted" },
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({ kind: "not-found" });
+    });
 
     it("resolves a canonical content path inside a locale prefix", async () => {
       await expect(
@@ -323,6 +377,7 @@ describe("resolveLocalePrefixRequest", () => {
         route: {
           kind: "content",
           contentId: "content-choosing-a-telephoto-lens",
+          variant: "article",
         },
       });
     });
@@ -600,6 +655,7 @@ describe("resolveLocalePrefixRequest", () => {
                 route: {
                   kind: "content",
                   contentId: "content-understanding-exposure-triangle",
+                  variant: "article",
                 },
               }
             : { kind: "redirect", location },
@@ -626,14 +682,14 @@ describe("resolveLocalePrefixRequest", () => {
     });
   });
 
-  describe("history whose current target has no route yet", () => {
+  describe("history whose current target has no route", () => {
     /**
-     * A tree where the page a retired path leads to is a gallery, whose detail
-     * route AB#104 owns. History records the move regardless of variant, so the
-     * route layer is the last thing standing between a visitor and a permanent
-     * redirect onto a 404.
+     * A tree where a renamed category has since been emptied. ADR-0003 decision
+     * 4 keeps an empty leaf out of the public route space, while history records
+     * the rename regardless — so the route layer is the last thing standing
+     * between a visitor and a permanent redirect onto a 404.
      */
-    const galleryTree = buildContentTree({
+    const emptiedTree = buildContentTree({
       categories: [
         {
           categoryId: "cat-series",
@@ -641,6 +697,13 @@ describe("resolveLocalePrefixRequest", () => {
           slug: "series",
           label: "Series",
           order: 0,
+        },
+        {
+          categoryId: "cat-emptied",
+          parentId: null,
+          slug: "gear",
+          label: "Gear",
+          order: 1,
         },
       ],
       placements: [
@@ -654,32 +717,60 @@ describe("resolveLocalePrefixRequest", () => {
       ],
     });
 
-    const galleryTrees: LocalizedContentTrees = new Map([["fi", galleryTree]]);
-    const galleryRedirects: LocalizedContentRedirects = new Map([
+    const emptiedTrees: LocalizedContentTrees = new Map([["fi", emptiedTree]]);
+    const emptiedRedirects: LocalizedContentRedirects = new Map([
       [
         "fi",
-        buildContentRedirects(galleryTree, [
+        buildContentRedirects(emptiedTree, [
           {
-            kind: "content",
-            id: "content-series",
-            previousPath: ["series", "retired-series"],
+            kind: "category",
+            id: "cat-emptied",
+            previousPath: ["equipment"],
           },
         ]),
       ],
     ]);
 
-    it("404s rather than redirecting permanently onto a page that 404s", async () => {
+    it("404s rather than redirecting permanently onto a branch that 404s", async () => {
       await expect(
         resolveLocalePrefixRequest({
           config,
-          trees: galleryTrees,
-          redirects: galleryRedirects,
+          trees: emptiedTrees,
+          redirects: emptiedRedirects,
+          prefix: "tarinat",
+          segments: ["equipment"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({ kind: "not-found" });
+    });
+
+    it("still resolves a retired path onto a gallery, now that galleries route", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees: emptiedTrees,
+          redirects: new Map([
+            [
+              "fi",
+              buildContentRedirects(emptiedTree, [
+                {
+                  kind: "content",
+                  id: "content-series",
+                  previousPath: ["series", "retired-series"],
+                },
+              ]),
+            ],
+          ]),
           prefix: "tarinat",
           segments: ["series", "retired-series"],
           searchParams: {},
           defaultLocaleRouteExists: missing(),
         }),
-      ).resolves.toEqual({ kind: "not-found" });
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: "/tarinat/series/current-series",
+      });
     });
 
     it("still redirects a retired path whose target does resolve", async () => {
