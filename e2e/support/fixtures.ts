@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { test as base, expect } from "@playwright/test";
 
 type HarnessFixtures = {
@@ -7,7 +9,29 @@ type HarnessFixtures = {
    * test can read it to make the expectation explicit at the point it matters.
    */
   externalRequests: string[];
+
+  /**
+   * The synthetic address this test's requests arrive from. Reading it is
+   * rarely necessary; the fixture applies it whether or not a test asks.
+   */
+  clientAddress: string;
 };
+
+/**
+ * A documentation-only address, unique to one test run.
+ *
+ * `2001:db8::/32` is reserved by RFC 3849 for documentation and is not
+ * routable, so nothing here resembles a real visitor. Sixty-four bits of digest
+ * make a collision between two tests a non-event rather than a rare, confusing
+ * one.
+ */
+function syntheticClientAddress(identity: string): string {
+  const digest = createHash("sha256").update(identity).digest("hex");
+  const groups = [0, 4, 8, 12].map((offset) =>
+    digest.slice(offset, offset + 4),
+  );
+  return ["2001", "db8", "0", "0", ...groups].join(":");
+}
 
 /**
  * Project test object. Every test gets the external-request guard.
@@ -56,6 +80,39 @@ export const test = base.extend<HarnessFixtures>({
         attempted,
         "The page under test requested a third-party origin. Public pages must not reach one, and a journey that needs an external call must stub it in the test.",
       ).toEqual([]);
+    },
+    { auto: true },
+  ],
+
+  /**
+   * Each test arrives as its own client.
+   *
+   * The contact endpoint throttles per client, deriving that client from the
+   * proxy header a hosting platform sets. Every browser in the matrix reaches
+   * the harness server over loopback, so without this they would share one
+   * bucket: the whole suite's submissions, across both projects and any CI
+   * retry, would count against a single allowance and a later journey would
+   * start failing on a 429 that has nothing to do with what it tests.
+   *
+   * The identity includes the project and the retry index, so a retried test
+   * gets a fresh allowance rather than inheriting the spent one that a flaky
+   * first attempt left behind. Setting the header is also what a deployment
+   * behind a proxy does, so the endpoint sees the shape of request it was
+   * written for instead of an addressless one.
+   */
+  clientAddress: [
+    async ({ context }, use, testInfo) => {
+      const address = syntheticClientAddress(
+        [
+          ...testInfo.titlePath,
+          testInfo.project.name,
+          testInfo.repeatEachIndex,
+          testInfo.retry,
+        ].join(" › "),
+      );
+
+      await context.setExtraHTTPHeaders({ "x-forwarded-for": address });
+      await use(address);
     },
     { auto: true },
   ],

@@ -58,6 +58,14 @@ fails on the first attempted submission instead, so the misconfiguration
 surfaces as an error rather than as enquiries that never arrive. The page and
 the deployment can still build and start without delivery credentials.
 
+The sink also reports a chosen delivery failure — an outage, a refused request,
+an exhausted allowance — when the reply-to address is on the reserved
+`delivery-failure.test` domain, so the failure states the form can show are
+reachable in Preview and in the public-journey suite without breaking a
+deployment. `.test` is reserved by RFC 6761 and resolves nowhere, so no address
+anyone could receive mail at can land on one by coincidence, and the behavior
+lives in the adapter that a production deployment already refuses to build.
+
 ## Processors
 
 | Party | Role | Data it sees | Retention | Ownership |

@@ -82,7 +82,11 @@ export const appUnderTestEnvironment: Record<string, string> = {
   // accepts a message and sends nothing. The suite therefore exercises the real
   // route, the real validation, and the real response contract without a
   // credential in the environment or a synthetic enquiry in a real mailbox —
-  // the same adapter ADR-0004 §3 requires of the Preview environment.
+  // the same adapter ADR-0004 §3 requires of the Preview environment. Delivery
+  // failures are reachable through it too: a reply-to address on the reserved
+  // `delivery-failure.test` domain makes the sink report that class of failure,
+  // so the endpoint classifies and answers a real failure instead of the suite
+  // stubbing one.
   CONTACT_DELIVERY_ADAPTER: "sink",
   // The content boundary, resolved to the project's own fixture layer. The
   // suite must reach no external service, and a journey asserting against
