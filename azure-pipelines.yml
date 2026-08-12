@@ -8,73 +8,287 @@ pr:
     include:
       - main
 
-pool:
-  vmImage: "ubuntu-latest"
+variables:
+  # The Node major every environment runs. Vercel's platform default moves with
+  # each LTS release, so the runtime is pinned here, in package.json `engines`,
+  # and in the Vercel project rather than inherited (ADR-0004 §2). All three
+  # must name the same major; scripts/node-version-pin.test.mts fails the test
+  # gate if this file and package.json drift apart.
+  - name: nodeVersion
+    value: "24.x"
+  # The exact Vercel CLI a release candidate is built and deployed with, pinned
+  # so a CLI release cannot change deployment behaviour between two runs of the
+  # same commit (ADR-0004 §3). Bumping it is a deliberate change: see
+  # docs/deployment.md.
+  - name: vercelCliVersion
+    value: "58.9.1"
 
-steps:
-  - task: UseNode@1
-    inputs:
-      version: "22.x"
-    displayName: "Use Node.js 22"
+stages:
+  - stage: Verify
+    displayName: "Quality gates"
+    jobs:
+      - job: Verify
+        displayName: "Lint, test, build, journeys"
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - task: UseNode@1
+            inputs:
+              version: $(nodeVersion)
+            displayName: "Use pinned Node.js"
 
-  - script: |
-      npm ci
-    displayName: "Install dependencies"
+          - script: |
+              npm ci
+            displayName: "Install dependencies"
 
-  - script: |
-      npm run lint
-    displayName: "Lint"
+          - script: |
+              npm run lint
+            displayName: "Lint"
 
-  - script: |
-      npm test
-    displayName: "Test"
+          - script: |
+              npm test
+            displayName: "Test"
 
-  - script: |
-      npm run build
-    displayName: "Build"
-    env:
-      # The build gate compiles and prerenders the project's own fixtures, so it
-      # declares itself as preview rather than leaving the stage unset. An unset
-      # stage counts as production, where the mock content source is refused —
-      # and there is no Sanity project for CI to read instead, by design: this
-      # job must reach no external service.
-      SITE_DEPLOYMENT_STAGE: "preview"
-      SITE_CONTENT_SOURCE: "mock"
-      SITE_LOCALE: "en-GB"
-      SITE_LOCALE_ROUTES: "en-GB||stories"
-      SITE_CANONICAL_BASE_URL: "https://example.com"
-      SITE_DEFAULT_SOCIAL_IMAGE: "/gallery/coastal-landscape.1683eecb7e65.webp"
-      SITE_DEFAULT_SOCIAL_IMAGE_WIDTH: "1536"
-      SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT: "1024"
+          - script: |
+              npm run build
+            displayName: "Build"
+            env:
+              # The build gate compiles and prerenders the project's own fixtures, so it
+              # declares itself as preview rather than leaving the stage unset. An unset
+              # stage counts as production, where the mock content source is refused —
+              # and there is no Sanity project for CI to read instead, by design: this
+              # job must reach no external service.
+              SITE_DEPLOYMENT_STAGE: "preview"
+              SITE_CONTENT_SOURCE: "mock"
+              SITE_LOCALE: "en-GB"
+              SITE_LOCALE_ROUTES: "en-GB||stories"
+              SITE_CANONICAL_BASE_URL: "https://example.com"
+              SITE_DEFAULT_SOCIAL_IMAGE: "/gallery/coastal-landscape.1683eecb7e65.webp"
+              SITE_DEFAULT_SOCIAL_IMAGE_WIDTH: "1536"
+              SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT: "1024"
 
-  # Only the browsers the configured project matrix uses. --with-deps installs
-  # the system libraries a hosted Ubuntu agent lacks.
-  - script: |
-      npx playwright install --with-deps chromium webkit
-    displayName: "Install Playwright browsers"
+          # Only the browsers the configured project matrix uses. --with-deps installs
+          # the system libraries a hosted Ubuntu agent lacks.
+          - script: |
+              npx playwright install --with-deps chromium webkit
+            displayName: "Install Playwright browsers"
 
-  # Runs its own production build through the Playwright webServer, with the
-  # harness environment rather than the deployment settings used above — the
-  # step before is the deployment build gate, this one is the journey gate. No
-  # pipeline secret is passed in: the suite must reach no external service.
-  - script: |
-      npm run test:e2e
-    displayName: "End-to-end smoke tests"
+          # Runs its own production build through the Playwright webServer, with the
+          # harness environment rather than the deployment settings used above — the
+          # step before is the deployment build gate, this one is the journey gate. No
+          # pipeline secret is passed in: the suite must reach no external service.
+          - script: |
+              npm run test:e2e
+            displayName: "End-to-end smoke tests"
 
-  - task: PublishTestResults@2
-    condition: succeededOrFailed()
-    displayName: "Publish end-to-end results"
-    inputs:
-      testResultsFormat: "JUnit"
-      testResultsFiles: "test-results/junit.xml"
-      testRunTitle: "Playwright smoke tests"
-      failTaskOnFailedTests: false
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            displayName: "Publish end-to-end results"
+            inputs:
+              testResultsFormat: "JUnit"
+              testResultsFiles: "test-results/junit.xml"
+              testRunTitle: "Playwright smoke tests"
+              failTaskOnFailedTests: false
 
-  # Traces, screenshots, and server logs for a failed run only. They contain
-  # mock content and harness settings, never credentials or personal data.
-  - task: PublishPipelineArtifact@1
-    condition: failed()
-    displayName: "Publish end-to-end failure diagnostics"
-    inputs:
-      targetPath: "playwright-report"
-      artifact: "playwright-report"
+          # Traces, screenshots, and server logs for a failed run only. They contain
+          # mock content and harness settings, never credentials or personal data.
+          - task: PublishPipelineArtifact@1
+            condition: failed()
+            displayName: "Publish end-to-end failure diagnostics"
+            inputs:
+              targetPath: "playwright-report"
+              artifact: "playwright-report"
+
+  - stage: DeployPreview
+    displayName: "Preview release candidate"
+    dependsOn: Verify
+    # Keep the provider credentials outside the quality-gate stage. The group
+    # is a protected resource authorized only for this pipeline, and its values
+    # are scoped further to the one stage that consumes them.
+    variables:
+      - group: photosite-starter-vercel-preview
+    # Every clause is load-bearing:
+    #
+    #  - succeeded(): lint, browser-free tests, the production build, and the
+    #    Playwright journeys all passed. ADR-0004 §3 admits no deployment that
+    #    skipped a gate.
+    #  - not a pull-request build: a PR branch, a fork's above all, never
+    #    receives Preview, provider, or protection-bypass secrets.
+    #  - main only: the release candidate is what main holds, not whatever
+    #    branch happened to trigger a run.
+    #  - explicit enable flag: the customer-owned variable group exists before
+    #    its credentials do. Provisioning leaves the flag false, so the stage
+    #    skips cleanly; the owner turns it true only after every value and the
+    #    Vercel protection setting are ready.
+    condition: >-
+      and(
+        succeeded(),
+        ne(variables['Build.Reason'], 'PullRequest'),
+        eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+        eq(variables['PREVIEW_DEPLOYMENT_ENABLED'], 'true')
+      )
+    jobs:
+      - job: DeployPreview
+        displayName: "Build, deploy, and verify the Preview deployment"
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - task: UseNode@1
+            inputs:
+              version: $(nodeVersion)
+            displayName: "Use pinned Node.js"
+
+          # The stage gate proves only that provisioning was explicitly enabled.
+          # Provisioning that stopped half way through fails here, by name, before a single
+          # credential is used — rather than as an opaque CLI error three steps
+          # later. An Azure Pipelines variable that was never defined arrives as
+          # the literal macro text, so that shape counts as missing too.
+          - script: |
+              set -euo pipefail
+              missing=""
+              for name in VERCEL_ORG_ID VERCEL_PROJECT_ID VERCEL_TOKEN VERCEL_AUTOMATION_BYPASS_SECRET; do
+                value="${!name:-}"
+                case "$value" in
+                  "" | '$('*) missing="$missing $name" ;;
+                esac
+              done
+              if [ -n "$missing" ]; then
+                echo "##vso[task.logissue type=error]Preview deployment is not fully configured. Missing pipeline variables:$missing. See docs/deployment.md."
+                exit 1
+              fi
+              echo "All required deployment variables are present."
+            displayName: "Check deployment configuration"
+            env:
+              VERCEL_ORG_ID: $(VERCEL_ORG_ID)
+              VERCEL_PROJECT_ID: $(VERCEL_PROJECT_ID)
+              VERCEL_TOKEN: $(VERCEL_TOKEN)
+              VERCEL_AUTOMATION_BYPASS_SECRET: $(VERCEL_AUTOMATION_BYPASS_SECRET)
+
+          # The lockfile-pinned tree, so the release candidate is built from the
+          # dependency versions the gates above just tested.
+          - script: |
+              npm ci
+            displayName: "Install dependencies"
+
+          - script: |
+              npm install --global "vercel@$(vercelCliVersion)"
+              vercel --version
+            displayName: "Install pinned Vercel CLI"
+
+          # Pulls the project's Preview-scoped settings and environment
+          # variables into .vercel/. Production values are never fetched by this
+          # job: the two environments hold different CMS, contact-delivery, and
+          # site configuration, and only one of them belongs in a release
+          # candidate.
+          - script: |
+              set -euo pipefail
+              vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+            displayName: "Pull Preview configuration"
+            env:
+              VERCEL_ORG_ID: $(VERCEL_ORG_ID)
+              VERCEL_PROJECT_ID: $(VERCEL_PROJECT_ID)
+              VERCEL_TOKEN: $(VERCEL_TOKEN)
+
+          - script: |
+              set -euo pipefail
+              vercel build --token="$VERCEL_TOKEN"
+            displayName: "Build release candidate"
+            env:
+              VERCEL_ORG_ID: $(VERCEL_ORG_ID)
+              VERCEL_PROJECT_ID: $(VERCEL_PROJECT_ID)
+              VERCEL_TOKEN: $(VERCEL_TOKEN)
+
+          # Uploads the output built in the step above: --prebuilt means the
+          # provider does not rebuild remotely, so what serves the deployment is
+          # what this job produced and what this log can account for.
+          #
+          # It is *not* the artifact the quality gates tested. That stage builds
+          # the same commit against fixture settings, because it must reach no
+          # external service; this one builds it against the project's real
+          # Preview configuration. The gates prove the commit, not the binary —
+          # a release candidate is deployed only from a commit that passed them.
+          # No --prod: this is a Preview deployment on a generated
+          # URL, and it is never assigned a production domain (ADR-0004 §3).
+          # The CLI contract puts only the deployment URL on stdout. Before the
+          # value becomes a pipeline variable, the authenticated Vercel API
+          # resolves it to an immutable deployment ID and proves the returned
+          # project, owner, and hostname match this pipeline's settings.
+          - script: |
+              set -euo pipefail
+              echo "##vso[task.setvariable variable=previewDeploymentUrl]"
+              echo "##vso[task.setvariable variable=previewDeploymentId]"
+              echo "##vso[task.setvariable variable=previewDeploymentVerified]false"
+              url="$(vercel deploy --prebuilt --archive=tgz --token="$VERCEL_TOKEN")"
+              echo "##vso[task.setvariable variable=previewDeploymentUrl]$url"
+              deployment_id="$(npm run identify:preview --silent -- "$url")"
+              echo "##vso[task.setvariable variable=previewDeploymentId]$deployment_id"
+            displayName: "Deploy Preview release candidate"
+            env:
+              VERCEL_ORG_ID: $(VERCEL_ORG_ID)
+              VERCEL_PROJECT_ID: $(VERCEL_PROJECT_ID)
+              VERCEL_TOKEN: $(VERCEL_TOKEN)
+
+          # Runs before the URL is published, never after: an unprotected or
+          # indexable release candidate must not be announced as reviewable.
+          # The bypass secret reaches the script through the environment and
+          # travels to the deployment in a request header — never in the URL.
+          - script: |
+              set -euo pipefail
+              npm run verify:preview --silent -- "$(previewDeploymentUrl)" "$(previewDeploymentId)"
+              echo "##vso[task.setvariable variable=previewDeploymentVerified]true"
+            displayName: "Verify access protection and noindex"
+            env:
+              VERCEL_ORG_ID: $(VERCEL_ORG_ID)
+              VERCEL_PROJECT_ID: $(VERCEL_PROJECT_ID)
+              VERCEL_TOKEN: $(VERCEL_TOKEN)
+              VERCEL_AUTOMATION_BYPASS_SECRET: $(VERCEL_AUTOMATION_BYPASS_SECRET)
+
+          # A deployment that failed verification is live, reachable by anyone
+          # holding its URL, and already visible in the provider's dashboard —
+          # so failing the job is not enough on its own. The deployment is
+          # removed here by immutable deployment ID. The cleanup script first
+          # rebinds that ID to the expected project and team through Vercel's
+          # authenticated API, then calls the dedicated deployment DELETE
+          # endpoint. It can never reinterpret the value as a project name.
+          #
+          # `always()` gives cleanup the Azure cancellation grace period too.
+          # If URL-to-ID identification failed after deployment, the cleanup
+          # command authenticates the captured generated URL, resolves it to an
+          # ID, and still sends only that ID to the DELETE endpoint. It is
+          # skipped only when no deployment reference was captured or the
+          # deployment passed both publication checks.
+          - script: |
+              set -euo pipefail
+              reference="$(previewDeploymentId)"
+              if [ -z "$reference" ]; then
+                reference="$(previewDeploymentUrl)"
+              fi
+              npm run remove:preview --silent -- "$reference"
+            displayName: "Remove unverified deployment"
+            condition: >-
+              and(
+                always(),
+                or(
+                  ne(variables['previewDeploymentId'], ''),
+                  ne(variables['previewDeploymentUrl'], '')
+                ),
+                ne(variables['previewDeploymentVerified'], 'true')
+              )
+            env:
+              VERCEL_ORG_ID: $(VERCEL_ORG_ID)
+              VERCEL_PROJECT_ID: $(VERCEL_PROJECT_ID)
+              VERCEL_TOKEN: $(VERCEL_TOKEN)
+
+          - script: |
+              set -euo pipefail
+              summary="$(Build.ArtifactStagingDirectory)/preview-release-candidate.md"
+              {
+                echo "## Preview release candidate"
+                echo
+                echo "- URL: $(previewDeploymentUrl)"
+                echo "- Commit: $(Build.SourceVersion)"
+                echo
+                echo "Access-protected and non-indexable, both verified. Sign in with a Vercel account that has access to the team to open it."
+              } > "$summary"
+              echo "##vso[task.uploadsummary]$summary"
+            displayName: "Publish release-candidate URL"

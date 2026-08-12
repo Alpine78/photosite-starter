@@ -92,6 +92,8 @@ does not provision an environment or authorize a DNS change.
   CI service connection and secret store, Vercel team and project, billing relationship,
   production domain association, environment variables, and provider integrations from
   the first Preview deployment.
+  *(See the 2026-08-12 amendment below for what "CI service connection and secret store"
+  resolves to in the reference pipeline.)*
 - Customer-controlled accounts require multi-factor authentication. Production promotion
   and rollback require an owner-controlled approval. Maintainer access is least-privilege
   and time-bounded; it is removed or explicitly renewed at handoff.
@@ -109,6 +111,46 @@ does not provision an environment or authorize a DNS change.
   deployments, domains, configuration, and most environment variables between teams,
   but logs, drains, and integrations do not all transfer. Direct customer ownership
   avoids that incomplete boundary.
+
+#### Amendment 2026-08-12 (AB#116) — §1, CI service connection and secret store
+
+**Status of the record: still Accepted.** This amendment narrows one clause; nothing
+else in ADR-0004 changes.
+
+**The original rule, preserved:** the customer controls "the deployment repository, Azure
+DevOps project and Pipeline, CI service connection and secret store, Vercel team and
+project, billing relationship, production domain association, environment variables, and
+provider integrations from the first Preview deployment."
+
+**What changed:** the clause named a single "CI service connection and secret store" and
+was read during AB#116 as requiring an Azure DevOps *service connection for Vercel*. No
+such thing exists to build. Vercel's supported Azure Pipelines authentication is a
+team-scoped access token supplied as a secret variable, which is what the CLI's `pull`,
+`build`, and `deploy` and the authenticated deployment API all consume. Creating a
+generic Azure service connection would not make that token available to any of them; it
+would add a second resource that nothing reads.
+
+**The replacement, for the reference pipeline only:** the ownership boundary of that
+clause is met by two customer-owned resources rather than one.
+
+- The **CI source connection** is the customer-owned GitHub service connection that
+  supplies this repository to Azure Pipelines. Unchanged.
+- The **deployment secret store** is a customer-owned Azure DevOps variable group,
+  authorized for this pipeline alone and referenced only from the deployment stage. It
+  holds the Vercel token, the automation bypass secret, the org and project identifiers,
+  and the flag that enables the stage.
+
+Everything else the clause requires is unaffected: the credentials stay customer-specific
+and customer-controlled, live only in trusted CI jobs, never reach a pull-request or fork
+build, and are rotated or revoked at handoff.
+
+**Evidence:** Vercel's Azure Pipelines guidance, which authenticates with a team-scoped
+token and documents creating the project with `vercel project add`; and the owner's
+decision recorded on AB#116 on 2026-08-12, which also records that the variable group was
+created and left disabled until its values exist.
+
+**Sections affected:** §1 only. §3's promotion, rollback, and Preview rules and §5's
+secret-scoping rules are unchanged and still govern how those values are stored.
 
 ### 2. Runtime and region
 

@@ -43,6 +43,7 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 - `src/app` – App Router routes and layouts
 - `src/components` – reusable UI components *(added as features land)*
 - `src/lib` – shared logic, configuration, data access, and the generic media model
+- `scripts` – deployment tooling that runs outside the application bundle
 - `docs/adr` – architecture decision records ([conventions](docs/adr/README.md))
 
 Import alias: `@/*` → `src/*`
@@ -201,7 +202,18 @@ npm run lint      # ESLint
 npm test          # browser-free TypeScript tests (one run)
 npm run build     # production build
 npm run test:e2e  # public-journey smoke tests against a production build
+
+npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
 ```
+
+### Hosting
+
+The reference host is Vercel, provisioned in the site owner's own team — see
+[ADR-0004](docs/adr/0004-reference-production-host-and-ownership-boundary.md) for why, and
+[docs/deployment.md](docs/deployment.md) for the provisioning runbook, the
+Preview/Production settings split, and the promotion and rollback mechanism. The
+repository pins the function region and the Node major so a clone inherits them; nothing
+in it names a team, project, token, or domain.
 
 ## Testing
 
@@ -209,7 +221,7 @@ Two layers, with no overlap between them.
 
 **[Vitest](https://vitest.dev)** is the single browser-free runner for deterministic
 domain, query, adapter, and server-validation tests. `npm test` runs
-`src/**/*.test.ts` in Node and exits after one run. Tests must not depend on a browser,
+`src/**/*.test.ts` and `scripts/**/*.test.mts` in Node and exits after one run. Tests must not depend on a browser,
 external network, live CMS or email services, secrets, or production/personal fixture
 content.
 
@@ -248,10 +260,17 @@ environment or a synthetic enquiry in a real mailbox.
 
 ## CI
 
-Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs lint, browser-free
-tests, the production build, and the Playwright smoke suite on pushes and pull requests
-to `main`. Test results are published on every run; traces and screenshots are published
-as a pipeline artifact when the suite fails.
+Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs two stages.
+
+**Quality gates** run on every push and pull request to `main`: lint, browser-free tests,
+the production build, and the Playwright smoke suite. Test results are published on every
+run; traces and screenshots are published as a pipeline artifact when the suite fails.
+
+**Preview release candidate** deploys `main` to the site owner's own Vercel project after
+those gates pass, verifies that the deployment is access-protected and non-indexable, and
+publishes the URL to the run summary. It never runs for a pull request, and it skips
+entirely until the hosting is provisioned — so a clone without a Vercel project still gets
+a green pipeline. See [deployment](docs/deployment.md).
 
 ## MVP scope
 
@@ -303,7 +322,13 @@ as a pipeline artifact when the suite fails.
   data-access boundary done ([setup](docs/sanity-setup.md),
   [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)); content schemas, adapters,
   and tagged caching/webhook revalidation pending*
-- [ ] Production deployment
+- [ ] Production deployment — *the Preview environment's repository half is done: pinned
+  runtime and region, a gated deploy stage, and the check that refuses to publish a
+  release-candidate URL unless its project/team ownership, access protection, and
+  non-indexability are verified ([deployment](docs/deployment.md)). The customer-owned
+  Vercel project exists, but its Preview protection, environment variables, and deployment
+  credentials are not fully provisioned, so the stage has never run and no release
+  candidate exists yet. Production promotion and rollback are pending*
 - [ ] Redirects for important legacy URLs (first implementation)
 
 ## Later roadmap (not in MVP)
@@ -370,5 +395,10 @@ keyboard, control, and gesture and presents the caption and credit of the photog
 screen; its zoom tuning and preloading are a later slice. The contact form is built and
 delivers through a replaceable adapter that stores nothing; the gallery-item enquiry
 (AB#60) and the fuller journey suite (AB#89) build on it. Public continuation routes and
-controls, and the CMS schemas and adapters, are still open. Keyword-driven dynamic galleries remain
+controls, and the CMS schemas and adapters, are still open. The deployment path exists in
+the repository — a pinned runtime and region, a pipeline stage that deploys a release
+candidate only after every gate passes, and a check that refuses to publish a URL whose
+project/team ownership, access protection, and non-indexability were not verified — but
+the existing customer-owned Vercel project is still being provisioned, so the stage has
+never run. Keyword-driven dynamic galleries remain
 post-MVP. See the MVP scope checklist above.
