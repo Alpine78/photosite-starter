@@ -23,9 +23,13 @@ import { getMockGalleryResult } from "@/lib/mock-gallery";
  * one. This route cannot yet render it — AB#66 decides the cursor contract and
  * AB#72 the continuation across grid and lightbox — so the seam narrows the type
  * rather than leaving the route to remember. With `hasNextPage` statically
- * `false`, a route that renders `items` alone is provably showing the whole
- * gallery, and a later stage that widens this back to `GalleryPage` will not
- * compile until something renders the rest.
+ * `false`, reading `items` alone is reading the whole gallery, and a caller
+ * cannot branch on a continuation that the type says is not there.
+ *
+ * The type states the guarantee; `requireCompleteGalleryPage` is what enforces
+ * it. Widening this back to `GalleryPage` would still compile, because a route
+ * that reads only `items` reads a field both types have — so the runtime check
+ * is the one that must stay, not the one the compiler makes redundant.
  */
 export type CompleteGalleryPage = {
   readonly items: readonly CuratedGalleryResultItem[];

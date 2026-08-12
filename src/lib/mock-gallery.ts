@@ -218,10 +218,11 @@ for (const [contentId, inputs] of Object.entries(authoredGalleries)) {
  * Results and covers are built per gallery, on the first read of that gallery in
  * that language, and remembered.
  *
- * A CMS adapter answers one gallery at a time and never builds the site's whole
- * media set to serve one card, so the fixture behaves the same way: a listing
- * that needs one cover pays for one cover, and a language nobody requested costs
- * nothing at all.
+ * A CMS adapter answers one gallery at a time rather than building the site's
+ * whole media set to serve one card, so the fixture keeps the same shape: a
+ * gallery nobody asked for is never built, and a language nobody requested costs
+ * nothing at all. Within one gallery it still builds that gallery's placements,
+ * which is the part only a store can avoid.
  */
 const results = new Map<string, GalleryPage<CuratedGalleryResultItem>>();
 const covers = new Map<string, ImageMedia | undefined>();
@@ -252,9 +253,11 @@ export function getMockGalleryResult(
 /**
  * The cover a gallery's listing card falls back to.
  *
- * The placement list is bounded to the opening one before the rule sees it, so
- * this is the single row a CMS adapter projects beside the card's other fields
- * rather than a gallery loaded to produce a thumbnail.
+ * The rule is handed one placement, which is the shape of the query that matters:
+ * a CMS adapter projects that single row beside the card's other fields instead
+ * of loading a gallery to produce a thumbnail. Getting to it here still walks
+ * the authored list, because an in-memory fixture has nowhere else to order —
+ * the bounding is real, the saving is not, and only a store can have both.
  */
 export function getMockGalleryCover(
   language: string,
@@ -268,9 +271,9 @@ export function getMockGalleryCover(
   const key = cacheKey(language, contentId);
   if (covers.has(key)) return covers.get(key);
 
-  // The in-memory equivalent of the adapter's one-row query: the first visible
-  // placement in authored order, and nothing after it. Filtering before the
-  // slice matters — a hidden opening placement is not the cover, it is skipped.
+  // The first visible placement in authored order, and nothing after it, which
+  // is what the adapter's one-row query returns. Filtering before the slice
+  // matters — a hidden opening placement is not the cover, it is skipped.
   const opening = buildPlacements(language, inputs)
     .filter((placement) => placement.visible)
     .slice(0, 1);

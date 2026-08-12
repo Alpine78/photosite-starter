@@ -14,7 +14,9 @@
  * normal authoring state. The two are handled differently on purpose. An article
  * has no images of its own to fall back on and renders as a text card, while a
  * gallery falls back to its first public item, which is the rule
- * `selectCuratedGalleryCover` owns and `withGalleryCovers` applies below.
+ * `selectCuratedGalleryCover` owns and `withGalleryCovers` applies below. A
+ * gallery with no items yet — `content-awaiting-selection` — has nothing to fall
+ * back to either, so it renders as a text card like the article does.
  */
 
 import type { ContentListingRecord } from "@/lib/content-listing";
@@ -158,14 +160,19 @@ const finnishRecords: readonly ContentListingRecord[] = [
  * Fills in the cover of any record whose page is a curated gallery with no
  * authored one.
  *
- * A gallery always has an image to show, so leaving its card blank would hide
- * work the page is made of. The fallback is the gallery's own first public item
- * in manual order, resolved through `selectCuratedGalleryCover`, which is the
- * same ordering the gallery's first page renders — so the card opens with the
- * photograph the visitor is about to see, on every request.
+ * A gallery that has items has an image to show, so leaving its card blank would
+ * hide work the page is made of. The fallback is the gallery's own first public
+ * item in manual order, resolved through `selectCuratedGalleryCover`, which is
+ * the same ordering the gallery's first page renders — so the card opens with
+ * the photograph the visitor is about to see, on every request. A gallery whose
+ * selection is not made yet has no such item and keeps no cover.
  *
  * One image, not a collection: this is the single row a CMS adapter projects
  * beside the card's other fields, and the listing query boundary is unchanged.
+ *
+ * These records are composed for both languages when the module loads, which is
+ * what a fixture can do and an adapter cannot; the per-locale projection it
+ * stands in for runs per request.
  */
 function withGalleryCovers(
   language: string,
