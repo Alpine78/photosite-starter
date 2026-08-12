@@ -88,9 +88,32 @@ async function fillEnquiry(
 
 type DeliveryAttempt = {
   readonly status: number;
+  /** The idempotency key the page sent with this attempt. */
+  readonly submissionId?: string;
   readonly correlationId?: string;
   readonly retryable?: boolean;
 };
+
+/**
+ * The submission identifier out of a request body, and nothing else out of it.
+ *
+ * The body also carries what the visitor wrote. Only the key is lifted from it,
+ * so an assertion message or a retained trace built from these records holds an
+ * opaque identifier rather than the enquiry itself.
+ */
+function readSubmissionId(postData: string | null): string | undefined {
+  if (postData === null) return undefined;
+
+  try {
+    const sent: unknown = JSON.parse(postData);
+    if (typeof sent !== "object" || sent === null) return undefined;
+
+    const { submissionId } = sent as { submissionId?: unknown };
+    return typeof submissionId === "string" ? submissionId : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Every submission the page sent, as the endpoint answered it.
@@ -100,6 +123,10 @@ type DeliveryAttempt = {
  * watched it change could pass against the gap instead of against the new
  * answer. Counting attempts is also the only way to tell a retry that reached
  * the endpoint from one that merely redisplayed the last result.
+ *
+ * The request is read through the response, so each answer stays paired with
+ * the body that provoked it — which is what lets a test check that a retry
+ * carried the *same* key rather than merely that it happened.
  */
 function recordDeliveryAttempts(page: Page): DeliveryAttempt[] {
   const attempts: DeliveryAttempt[] = [];
@@ -109,12 +136,15 @@ function recordDeliveryAttempts(page: Page): DeliveryAttempt[] {
     if (request.method() !== "POST") return;
     if (new URL(response.url()).pathname !== "/api/contact") return;
 
+    const submissionId = readSubmissionId(request.postData());
+
     void response
       .json()
       .catch(() => ({}))
       .then((body: { correlationId?: string; retryable?: boolean }) => {
         attempts.push({
           status: response.status(),
+          submissionId,
           correlationId: body?.correlationId,
           retryable: body?.retryable,
         });
@@ -285,21 +315,30 @@ test("a delivery failure that may pass later is announced, referenced, and retri
       .poll(() => attempts.map((attempt) => attempt.status))
       .toEqual([503]);
     expect(attempts[0].retryable).toBe(true);
+    expect(attempts[0].submissionId).toEqual(expect.stringMatching(/\S/));
   });
 
-  await test.step("retrying sends the message again rather than redisplaying the answer", async () => {
+  await test.step("retrying resends the same message under the same key", async () => {
     await submitButton(page).click();
 
     await expect.poll(() => attempts.length).toBe(2);
     await expect(outcome).toContainText(labels.errorRetryable);
 
+    const [first, second] = attempts;
+
     // Each attempt is correlated on its own, so two references that differ are
     // proof the retry reached the endpoint instead of repeating what the page
     // already held.
-    const [first, second] = attempts;
     expect(second.correlationId).toEqual(expect.stringMatching(/\S/));
     expect(second.correlationId).not.toBe(first.correlationId);
     await expect(outcome.locator("code")).toHaveText(second.correlationId!);
+
+    // The key, by contrast, must not change. It is what a provider de-duplicates
+    // a retry on, and it is the only thing standing between a message that timed
+    // out after the provider accepted it and a second copy of that message in the
+    // owner's mailbox. A retry that minted a fresh key would still pass every
+    // assertion above while quietly losing that protection.
+    expect(second.submissionId).toBe(first.submissionId);
   });
 
   await test.step("correcting the address starts a new message that gets through", async () => {
@@ -314,6 +353,13 @@ test("a delivery failure that may pass later is announced, referenced, and retri
     await expect
       .poll(() => attempts.map((attempt) => attempt.status))
       .toEqual([503, 503, 200]);
+
+    // The other half of the contract: an edited message is a different message
+    // and must not be de-duplicated against the one before it, or correcting a
+    // mistake would be answered with the delivery of the mistake.
+    const [first, , third] = attempts;
+    expect(third.submissionId).toEqual(expect.stringMatching(/\S/));
+    expect(third.submissionId).not.toBe(first.submissionId);
   });
 
   // A failed delivery is the endpoint's business. It must not become a request
