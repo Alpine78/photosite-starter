@@ -142,14 +142,25 @@ const COMPLETE_GALLERY_PATH = completeDefaultLocaleGallery();
 // why where they sit.
 test.use({ javaScriptEnabled: false });
 
-/** The result identities the grid is presenting, in the order it presents them. */
-async function presentedItemIds(page: import("@playwright/test").Page) {
-  return page
-    .getByRole("main")
-    .locator("[data-item-id]")
-    .evaluateAll((nodes) =>
-      nodes.map((node) => node.getAttribute("data-item-id") ?? ""),
-    );
+/**
+ * The result identities the grid is presenting, in the order it presents them.
+ *
+ * The expected count is awaited before the ids are read. `evaluateAll` takes an
+ * instantaneous snapshot and does not auto-wait the way `expect(locator)` does,
+ * so reading immediately after a full-document navigation can observe the old
+ * document or a half-parsed one and return nothing — a flake that only shows up
+ * when the machine is loaded, which is exactly when the gate runs.
+ */
+async function presentedItemIds(
+  page: import("@playwright/test").Page,
+  expectedCount: number,
+) {
+  const items = page.getByRole("main").locator("[data-item-id]");
+  await expect(items).toHaveCount(expectedCount);
+
+  return items.evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("data-item-id") ?? ""),
+  );
 }
 
 test("a gallery larger than one page continues without JavaScript", async ({
@@ -157,8 +168,7 @@ test("a gallery larger than one page continues without JavaScript", async ({
 }) => {
   await page.goto(PAGINATED.path, { waitUntil: "domcontentloaded" });
 
-  const firstPage = await presentedItemIds(page);
-  expect(firstPage.length).toBe(PAGINATED.pageSize);
+  const firstPage = await presentedItemIds(page, PAGINATED.pageSize);
 
   // The label is imported rather than written out: it is application-owned copy
   // a clone may translate, so naming it here would tie the gate to wording.
@@ -188,11 +198,10 @@ test("a gallery larger than one page continues without JavaScript", async ({
     expect(url.pathname).toBe(PAGINATED.path);
     expect(url.searchParams.get("cursor")).toBeTruthy();
 
-    const items = await presentedItemIds(page);
-    expect(items.length).toBe(PAGINATED.pageSize);
+    // A full page on every hop, so nothing between two slices was skipped.
+    const items = await presentedItemIds(page, PAGINATED.pageSize);
 
-    // No duplicates and no gaps: nothing already seen comes back, and the page
-    // is full, so nothing between the two slices was skipped.
+    // And no duplicates: nothing already seen comes back.
     for (const itemId of items) {
       expect(seen.has(itemId)).toBe(false);
       seen.add(itemId);

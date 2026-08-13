@@ -260,6 +260,25 @@ characters, must not be prefixed `NEXT_PUBLIC_` (the application refuses that ou
 because Next.js compiles such values into the browser bundle), and must differ between
 Preview and Production like every other secret.
 
+### The routing Proxy is required
+
+`src/proxy.ts` runs on every content request (Node runtime, see ADR-0007). Two behaviours
+depend on it, so a host that cannot run it is not a supported target for this site:
+
+- **Trailing-slash normalization.** `next.config.ts` sets `skipTrailingSlashRedirect`, so
+  Next.js no longer emits its own `/path/` → `/path` redirect. The Proxy emits it instead,
+  after a gallery continuation token has been validated — without that ordering an invalid
+  cursor would produce the cached permanent redirect ADR-0003 decision 8 forbids. Without
+  the Proxy, slash variants stop normalizing and serve duplicate content.
+- **The 404 return link.** The refused pathname reaches the not-found boundary only as a
+  Proxy-set request header. Without it those 404s lose their link back to the gallery.
+
+Vercel runs it as part of the deployment; nothing extra is provisioned. It matters when
+evaluating another host, or when putting a cache or proxy in front of this one: the two
+project headers it sets (`x-photosite-request-path`, `x-photosite-request-has-cursor`) are
+overwritten on every matched request, so an upstream layer cannot inject them, and it
+should not be configured to strip them either.
+
 ### Canonical URLs on a Preview deployment
 
 `SITE_CANONICAL_BASE_URL` is read when the site is **built**, and a Preview deployment's
