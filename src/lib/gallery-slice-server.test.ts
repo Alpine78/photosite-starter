@@ -22,7 +22,7 @@ function item(
 describe("projectGallerySlice", () => {
   it("projects one ordered result into matching grid items and slides", () => {
     const page: GalleryPage<CuratedGalleryResultItem> = {
-      items: [item("placement-a"), item("placement-b", mockImages.cityNight)],
+      items: [item("placement-a"), item("placement-b", mockImages.mistyBirch)],
       page: {
         size: 24,
         hasNextPage: true,

@@ -31,6 +31,7 @@ import {
   getDeploymentConfig,
 } from "@/lib/deployment-config";
 import { GalleryCursorError, getGalleryPage } from "@/lib/gallery";
+import { galleryContinuationHref } from "@/lib/gallery-slice";
 import { projectGallerySlice } from "@/lib/gallery-slice-server";
 import { resolveLocalePrefixRequest } from "@/lib/locale-prefix-request";
 import {
@@ -176,9 +177,7 @@ async function resolveGalleryPage(
  * and never normalized.
  */
 function toCanonicalPath(path: string, cursor?: string): string {
-  return cursor === undefined
-    ? path
-    : `${path}?cursor=${encodeURIComponent(cursor)}`;
+  return cursor === undefined ? path : galleryContinuationHref(path, cursor);
 }
 
 function branchTitle(
@@ -419,15 +418,8 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
           locale={locale}
           page={page}
           slice={projectGallerySlice(result)}
-          {...(result.page.hasNextPage
-            ? {
-                nextPageHref: toCanonicalPath(
-                  storyPath,
-                  result.page.endCursor,
-                ),
-              }
-            : {})}
-          {...(resolution.cursor === undefined
+          galleryPath={storyPath}
+                    {...(resolution.cursor === undefined
             ? {}
             : { firstPageHref: storyPath, isContinuation: true })}
           breadcrumbs={buildBreadcrumbs(

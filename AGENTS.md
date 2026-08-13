@@ -149,7 +149,20 @@ server-only runtime secret resolved lazily, so a deployment whose galleries all 
 one page never reads it — and serves the next bounded slice at its own indexable,
 self-canonical `?cursor=` URL, which names no `hreflang` alternates because no other
 locale holds an equivalent slice. The control that reaches it is a real link, so a large
-gallery pages through with no JavaScript at all (ADR-0003 decision 8). The continuation
+gallery pages through with no JavaScript at all (ADR-0003 decision 8), and script
+progressively enhances that same link into an in-place append: the next slice arrives in
+the page a visitor is already on, read from a bounded `GET /api/gallery` route handler
+addressed by canonical path and opaque token. One projection (`gallery-slice-server.ts`)
+serves both the server render and that endpoint, so an appended item carries the same
+identities, captions, and delivery sources as one that was there from the start, and
+`appendGallerySlice` de-duplicates by result identity without reordering what is already
+loaded. Nothing loads on its own — no scroll observer, no prefetch — so a four-hundred-item
+gallery is never implicitly retrieved whole. The control announces loading, failure, and
+completion, keeps focus on itself across an append, and retries in place; the open lightbox
+asks for one more slice when a visitor reaches the last loaded item, and a failed
+continuation neither closes it nor loses the photograph on screen. The address bar is
+deliberately left alone, because every slice already has its own honest address through the
+unenhanced link. The continuation
 page is deliberately thinner than the first, per decision 3: a compact `h1` naming the
 gallery and the continuation, the identity-based language switch (which deliberately
 drops the cursor and opens the other locale's first page), then the grid — no lead, date,
@@ -227,7 +240,11 @@ gallery's accessible state, and the 404s for a cursor, an unknown slug, and the 
 pages walked through the real link with no duplicates or gaps, the continuation page's
 compact heading and absent lead, its self-canonical metadata and absent alternates, its
 link back to the first page, and the 404s for an unminted token, a token
-issued by another gallery, and a repeated parameter), the services journey (the listing, one service detail with its cover, price list,
+issued by another gallery, and a repeated parameter), the gallery append journey (the
+in-place append with its order and de-duplication, focus staying on the control, a failed
+continuation that keeps what is loaded and retries, the lightbox reading the grown list,
+continuing past the last loaded item from inside the open viewer, and a failure that
+neither closes it nor loses the item), the services journey (the listing, one service detail with its cover, price list,
 and breadcrumb, the navigation between them and into the story section, and an unknown
 slug's 404), the site-menu journey (its composition, the disclosure opened by pointer and
 by keyboard and dismissed either way with focus return, the level-at-a-time Escape
@@ -260,10 +277,7 @@ The provisioning runbook, the Preview/Production environment split, and the reco
 promotion and rollback commands are `docs/deployment.md`.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
-unprefixed-only for now — the in-place gallery append and lightbox continuation, which is
-the second half of AB#72 (appending the next page into the loaded grid, its loading,
-failure, retry, and completion states, and continuing past the loaded items from inside an
-open lightbox) — category listing continuation, which stays bounded to its first page and
+unprefixed-only for now — category listing continuation, which stays bounded to its first page and
 answers any `?cursor=` with a 404 — gallery sections
 (AB#105), the gallery lead and long-form body (AB#106), seeded random gallery ordering
 (AB#129), lightbox zoom tuning, the gallery-item

@@ -12,6 +12,21 @@ import type { GalleryResultItem } from "@/lib/gallery-result";
 import type { LightboxSlide } from "@/lib/lightbox-slides";
 import type { ImageMedia } from "@/lib/media";
 
+/**
+ * Where the slice after this one lives.
+ *
+ * One rule, used by the server that renders the link and by the client that
+ * rebuilds it after an append, so the address a visitor can copy is the same
+ * one either path produces. The token is percent-encoded and otherwise passed
+ * through untouched — decision 8 makes it case-sensitive and never normalized.
+ */
+export function galleryContinuationHref(
+  galleryPath: string,
+  cursor: string,
+): string {
+  return `${galleryPath}?cursor=${encodeURIComponent(cursor)}`;
+}
+
 export type GallerySlice = {
   /** What the grid renders, in the result's authoritative order. */
   readonly items: readonly GalleryResultItem<ImageMedia>[];

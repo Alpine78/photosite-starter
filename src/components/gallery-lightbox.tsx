@@ -68,6 +68,41 @@ function declaredSlotZoomCap(zoom: {
   return getLightboxZoomCap(zoom.elementSize?.x ?? 0);
 }
 
+/**
+ * One result slide as PhotoSwipe slide data, identities and metadata intact.
+ *
+ * Shared by the initial open and by every later append, so a slide that arrived
+ * through a continuation is built exactly like one that was there from the
+ * start — same identities, same caption and credit, same uncropped thumbnail
+ * bounds.
+ */
+function toSlideData(
+  slide: LightboxSlide,
+  triggers: ReadonlyMap<string, HTMLButtonElement>,
+): IdentifiedSlideData {
+  const trigger = triggers.get(slide.itemId);
+  // Already decoded and on screen: shown while the full frame loads, and the
+  // frame the opening and closing animations travel between.
+  const thumbnail = trigger?.querySelector("img");
+
+  return {
+    itemId: slide.itemId,
+    mediaId: slide.mediaId,
+    src: slide.src,
+    ...(slide.srcset === undefined ? {} : { srcset: slide.srcset }),
+    width: slide.width,
+    height: slide.height,
+    alt: slide.alt,
+    ...(slide.caption === undefined ? {} : { caption: slide.caption }),
+    ...(slide.credit === undefined ? {} : { credit: slide.credit }),
+    ...(trigger === undefined ? {} : { element: trigger }),
+    ...(thumbnail?.currentSrc ? { msrc: thumbnail.currentSrc } : {}),
+    // The grid shows whole frames, so the thumbnail bounds the animation starts
+    // from are the image itself and not a crop of it.
+    thumbCropped: false,
+  };
+}
+
 function identitiesOf(slide: SlideData | undefined): IdentifiedSlideData | null {
   return typeof slide?.itemId === "string" && typeof slide.mediaId === "string"
     ? (slide as IdentifiedSlideData)
@@ -77,23 +112,62 @@ function identitiesOf(slide: SlideData | undefined): IdentifiedSlideData | null 
 export function GalleryLightbox({
   slides,
   labels,
+  onContinue,
   children,
 }: {
   /** Ordered by the shared gallery result, never by grid layout order. */
   readonly slides: readonly LightboxSlide[];
   readonly labels: GalleryLightboxLabels;
+  /**
+   * Loads the gallery's next slice, resolving to whether anything was added.
+   * Absent once nothing follows.
+   *
+   * The viewer asks for it when a visitor reaches the last loaded slide, so
+   * browsing does not stop at a page boundary the grid happens to be at
+   * (AB#72). It never loads ahead of that: one bounded slice, when the sequence
+   * actually runs out.
+   */
+  readonly onContinue?: () => Promise<boolean>;
   readonly children: ReactNode;
 }) {
   const lightboxRef = useRef<PhotoSwipeLightbox | null>(null);
   const triggersRef = useRef(new Map<string, HTMLButtonElement>());
   const slidesRef = useRef(slides);
   const activeItemIdRef = useRef<string | null>(null);
+  // Held in a ref so a new callback identity never tears down a working viewer.
+  const continueRef = useRef(onContinue);
+  const continuingRef = useRef(false);
   // The caption region is referenced by the photograph it describes, so it
   // needs an id no second gallery on the same page could also mint.
   const captionId = useId();
 
   useEffect(() => {
+    continueRef.current = onContinue;
+  }, [onContinue]);
+
+  /**
+   * Puts newly loaded slides into the viewer that is already open.
+   *
+   * PhotoSwipe reads its length from `dataSource`, so appending to it and
+   * refreshing the new last slide is what makes the extra items reachable — and
+   * what updates the counter — without closing and reopening. A closed viewer
+   * needs none of this: the next open reads the whole list.
+   */
+  useEffect(() => {
     slidesRef.current = slides;
+
+    const pswp = lightboxRef.current?.pswp;
+    const dataSource = pswp?.options.dataSource;
+    if (!pswp || !Array.isArray(dataSource)) return;
+    if (slides.length <= dataSource.length) return;
+
+    // Identity, not length: an append never rewrites what came before, so the
+    // slides already in the viewer are the ones already in `dataSource`.
+    const added = slides.slice(dataSource.length);
+    for (const slide of added) {
+      dataSource.push(toSlideData(slide, triggersRef.current));
+    }
+    pswp.refreshSlideContent(dataSource.length - 1);
   }, [slides]);
 
   // Depends on the label strings rather than on the object holding them: a new
@@ -262,6 +336,30 @@ export function GalleryLightbox({
         activeItemIdRef.current = active.itemId;
       }
       presentActiveCaption();
+
+      // Reaching the end of what is loaded is the only thing that asks for
+      // more. Nothing is fetched ahead of the visitor, so browsing a
+      // four-hundred-item gallery never quietly pulls the whole of it.
+      const pswp = lightbox.pswp;
+      const requestMore = continueRef.current;
+      if (
+        !pswp ||
+        requestMore === undefined ||
+        continuingRef.current ||
+        pswp.currSlide === undefined ||
+        pswp.currSlide.index < pswp.getNumItems() - 1
+      ) {
+        return;
+      }
+
+      continuingRef.current = true;
+      // A failure resolves `false` and is deliberately swallowed here: the
+      // dialog stays open on the item the visitor is looking at, and moving to
+      // the last slide again retries. Closing or jumping would lose their place
+      // over a network blip.
+      void requestMore().finally(() => {
+        continuingRef.current = false;
+      });
     });
 
     lightbox.on("destroy", () => {
@@ -311,35 +409,9 @@ export function GalleryLightbox({
     activeItemIdRef.current = slide.itemId;
 
     const triggers = triggersRef.current;
-    const dataSource = slides.map((resultSlide): IdentifiedSlideData => {
-      const trigger = triggers.get(resultSlide.itemId);
-      // Already decoded and on screen: shown while the full frame loads, and
-      // the frame the opening and closing animations travel between.
-      const thumbnail = trigger?.querySelector("img");
-
-      return {
-        itemId: resultSlide.itemId,
-        mediaId: resultSlide.mediaId,
-        src: resultSlide.src,
-        ...(resultSlide.srcset === undefined
-          ? {}
-          : { srcset: resultSlide.srcset }),
-        width: resultSlide.width,
-        height: resultSlide.height,
-        alt: resultSlide.alt,
-        ...(resultSlide.caption === undefined
-          ? {}
-          : { caption: resultSlide.caption }),
-        ...(resultSlide.credit === undefined
-          ? {}
-          : { credit: resultSlide.credit }),
-        ...(trigger === undefined ? {} : { element: trigger }),
-        ...(thumbnail?.currentSrc ? { msrc: thumbnail.currentSrc } : {}),
-        // The grid shows whole frames, so the thumbnail bounds the animation
-        // starts from are the image itself and not a crop of it.
-        thumbCropped: false,
-      };
-    });
+    const dataSource = slides.map((resultSlide) =>
+      toSlideData(resultSlide, triggers),
+    );
 
     // Deliberately no pointer position: PhotoSwipe reads its absence as "not
     // opened by pointer" and moves focus into the dialog immediately. Passing

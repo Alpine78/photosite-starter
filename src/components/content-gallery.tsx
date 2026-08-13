@@ -20,11 +20,11 @@ type ContentGalleryProps = {
    */
   slice: GallerySlice;
   /**
-   * Where the next bounded page lives, when this one is not the last. The route
-   * builds it, because it alone knows this gallery's canonical path; the token
-   * inside it is the adapter's and is passed along untouched.
+   * This gallery's canonical, parameter-free path. The grid builds both the
+   * continuation link and the endpoint address from it, so no content id
+   * reaches the browser and no route knowledge is duplicated into a component.
    */
-  nextPageHref?: string;
+  galleryPath: string;
   /**
    * The gallery's parameter-free first page, present only when the visitor is
    * looking at a continuation. A continuation URL is indexable, so somebody can
@@ -81,7 +81,7 @@ export function ContentGallery({
   locale,
   page,
   slice,
-  nextPageHref,
+  galleryPath,
   firstPageHref,
   isContinuation = false,
   breadcrumbs,
@@ -143,31 +143,30 @@ export function ContentGallery({
           className={isContinuation ? "mt-8" : "mt-12"}
         >
           {slice.items.length > 0 ? (
-            <GalleryGrid label={page.title} slice={slice} labels={labels} />
+            <GalleryGrid
+              label={page.title}
+              initialSlice={slice}
+              galleryPath={galleryPath}
+              labels={labels}
+            />
           ) : (
             <p className="text-foreground/70">{labels.gallery.empty}</p>
           )}
 
-          {(nextPageHref !== undefined || firstPageHref !== undefined) && (
-            <div className="mt-10 flex flex-col items-center gap-4">
-              {nextPageHref !== undefined && (
-                <Link
-                  href={nextPageHref}
-                  rel="next"
-                  className="rounded-sm border border-black/15 px-5 py-2.5 text-sm font-medium transition-colors hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/20 dark:hover:bg-white/10"
-                >
-                  {labels.gallery.showMore}
-                </Link>
-              )}
-              {firstPageHref !== undefined && (
-                <Link
-                  href={firstPageHref}
-                  className="text-sm text-foreground/70 underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                >
-                  {labels.gallery.backToStart}
-                </Link>
-              )}
-            </div>
+          {/*
+            The continuation control belongs to the grid, which owns what is
+            loaded. This one only offers the way back, which is a property of
+            the address rather than of the items on it.
+          */}
+          {firstPageHref !== undefined && (
+            <p className="mt-6 flex justify-center">
+              <Link
+                href={firstPageHref}
+                className="text-sm text-foreground/70 underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                {labels.gallery.backToStart}
+              </Link>
+            </p>
           )}
         </section>
 
