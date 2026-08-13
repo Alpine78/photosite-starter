@@ -149,19 +149,36 @@ server-only runtime secret resolved lazily, so a deployment whose galleries all 
 one page never reads it — and serves the next bounded slice at its own indexable,
 self-canonical `?cursor=` URL, which names no `hreflang` alternates because no other
 locale holds an equivalent slice. The control that reaches it is a real link, so a large
-gallery pages through with no JavaScript at all (ADR-0003 decision 8); a token that is
+gallery pages through with no JavaScript at all (ADR-0003 decision 8). The continuation
+page is deliberately thinner than the first, per decision 3: a compact `h1` naming the
+gallery and the continuation, then the grid — no lead, date, language switch, or tags, so
+editorial content is not republished under several URLs. It also carries the way back a
+cursor cannot, because tokens point forward only and the URL is indexable. A token that is
 malformed, tampered with, scoped to another gallery, or stale is a 404 rather than a quiet
-return to the first page, and so is a repeated `?cursor=`. The key enters at the
+return to the first page, and so is a repeated `?cursor=` — and a token arriving at a
+non-canonical spelling (casing, redundant prefix, retired path) is refused outright rather
+than redirected first, because decision 8 forbids an invalid cursor from creating a
+redirect and only the adapter can tell a good token from a forgery. The cursor is scoped to
+the gallery *and the full route locale*, so a slice cannot cross between `en-GB` and
+`en-US`. The key enters at the
 `gallery.ts` seam rather than in the fixture, ESLint keeps `src/app` and `src/components`
 away from it, and rotating it retires every continuation URL already issued and indexed.
+The 404 for an invalid cursor carries the link back to that gallery decision 8 requires,
+resolved through the route resolver so an unknown address gets no invented one. It reaches
+the boundary through `src/proxy.ts` (ADR-0007), which copies only the requested pathname
+into a project-owned request header and overwrites any client-supplied value — App Router
+renders a not-found boundary with no params, and renders it before the page, so nothing
+in-tree can tell it. One site-wide limitation bounds that link and predates this work:
+with no root `src/app/layout.tsx`, every 404 serves Next's internal error document, whose
+body is empty until the RSC payload is applied, so no 404 content renders without
+JavaScript.
 One authoritative manual order governs the source, the DOM, keyboard focus, and the
 lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
 ratios, never cropped) precisely so the visual reading order cannot contradict it; the
 column-major CSS masonry it replaced did. A gallery's listing card takes its explicit
 cover or the deterministic first public item (`selectCuratedGalleryCover`), a published
 gallery with no items renders an accessible empty state (the mock publishes one, so it is
-a state the site serves rather than one only a test has seen), and a fixture larger than
-one page fails at import rather than hiding items. Category listings still answer `?cursor=` with a 404, because none issues one;
+a state the site serves rather than one only a test has seen). Category listings still answer `?cursor=` with a 404, because none issues one;
 `?section=` stays an ignored unrecognized parameter until AB#105, and AB#129 owns the
 seeded random order. A ~400-placement fixture gallery exercises the boundary. The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
@@ -203,7 +220,8 @@ and three columns, the lightbox, canonical and `hreflang`/`x-default` metadata, 
 gallery's accessible state, and the 404s for a cursor, an unknown slug, and the removed
 `/portfolio` route), the gallery continuation journey (run with JavaScript disabled: four
 pages walked through the real link with no duplicates or gaps, the continuation page's
-self-canonical metadata and absent alternates, and the 404s for an unminted token, a token
+compact heading and absent lead, its self-canonical metadata and absent alternates, its
+link back to the first page, and the 404s for an unminted token, a token
 issued by another gallery, and a repeated parameter), the services journey (the listing, one service detail with its cover, price list,
 and breadcrumb, the navigation between them and into the story section, and an unknown
 slug's 404), the site-menu journey (its composition, the disclosure opened by pointer and

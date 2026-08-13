@@ -33,6 +33,14 @@ type ContentGalleryProps = {
    * have no way back to the first three, because a cursor only points forward.
    */
   firstPageHref?: string;
+  /**
+   * Whether this render is a later slice rather than the gallery's first page.
+   *
+   * ADR-0003 decision 3 gives a continuation page a deliberately reduced shape:
+   * a compact heading naming the gallery and the continuation, then the grid.
+   * The lead, the long body, and the page-jump navigation are not repeated.
+   */
+  isContinuation?: boolean;
   /** Canonical ancestry, story root first, ending at this page. */
   breadcrumbs: readonly BreadcrumbStep[];
   languages: readonly LanguageLink[];
@@ -64,6 +72,11 @@ type ContentGalleryProps = {
  * A continuation also offers the way back that a cursor cannot: tokens point
  * forward only, and a continuation URL is indexable, so a visitor can land on a
  * middle slice from a search result with no route to the items before it.
+ *
+ * That continuation page is deliberately thinner than the first (decision 3): a
+ * compact heading naming the gallery and the continuation, then the grid. The
+ * lead is editorial content that belongs to the gallery, and repeating it on
+ * every slice would publish it several times over under several URLs.
  */
 export function ContentGallery({
   locale,
@@ -71,6 +84,7 @@ export function ContentGallery({
   items,
   nextPageHref,
   firstPageHref,
+  isContinuation = false,
   breadcrumbs,
   languages,
   labels,
@@ -80,30 +94,46 @@ export function ContentGallery({
       <Breadcrumbs label={labels.navigation.breadcrumb} steps={breadcrumbs} />
 
       <article>
-        <header className="mt-6">
-          <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-            {page.title}
-          </h1>
-          <time
-            dateTime={page.publishedAt}
-            className="mt-2 block text-sm text-foreground/60"
-          >
-            {formatDate(page.publishedAt, locale)}
-          </time>
-          <LanguageSwitch
-            label={labels.contentTree.languages}
-            links={languages}
-          />
-          {page.summary && (
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-foreground/80">
-              {page.summary}
-            </p>
-          )}
-        </header>
+        {isContinuation ? (
+          // Compact and reduced, per decision 3: the heading still says which
+          // gallery this is, and adds that it is a later part of it, so the page
+          // has context and heading semantics without restating the editorial
+          // content the first page already carries. The date, the language
+          // switch, the lead, and the tags all belong to the gallery rather than
+          // to this slice of it, and the switch in particular would be
+          // misleading here — it leads to the other locale's first page, and
+          // this page names no `hreflang` alternates for the same reason.
+          <header className="mt-6">
+            <h1 className="text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
+              {page.title} — {labels.gallery.continued}
+            </h1>
+          </header>
+        ) : (
+          <header className="mt-6">
+            <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+              {page.title}
+            </h1>
+            <time
+              dateTime={page.publishedAt}
+              className="mt-2 block text-sm text-foreground/60"
+            >
+              {formatDate(page.publishedAt, locale)}
+            </time>
+            <LanguageSwitch
+              label={labels.contentTree.languages}
+              links={languages}
+            />
+            {page.summary && (
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-foreground/80">
+                {page.summary}
+              </p>
+            )}
+          </header>
+        )}
 
         <section
           aria-label={`${page.title} ${labels.gallery.images}`}
-          className="mt-12"
+          className={isContinuation ? "mt-8" : "mt-12"}
         >
           {items.length > 0 ? (
             <GalleryGrid label={page.title} items={items} labels={labels} />
@@ -134,7 +164,7 @@ export function ContentGallery({
           )}
         </section>
 
-        {page.tags && page.tags.length > 0 && (
+        {!isContinuation && page.tags && page.tags.length > 0 && (
           <footer className="mt-12 border-t border-black/10 pt-6 dark:border-white/15">
             <p className="text-xs font-medium uppercase tracking-wider text-foreground/70">
               {labels.contentTree.tags}

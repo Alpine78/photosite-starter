@@ -23,16 +23,6 @@ import { getMockGalleryResult } from "@/lib/mock-gallery";
 export { GalleryCursorError } from "@/lib/gallery-pagination";
 
 /**
- * Mock galleries are authored per language while routes are configured per
- * locale: `en-GB` and `en-US` are different route spaces sharing one set of
- * English placements. The locale reached this point through the route config, so
- * it is already a validated BCP 47 tag.
- */
-function languageOf(locale: string): string {
-  return new Intl.Locale(locale).language;
-}
-
-/**
  * One bounded page of a curated gallery, or `undefined` when this locale
  * publishes no gallery for that identity.
  *
@@ -54,7 +44,7 @@ export async function getGalleryPage(
   contentId: string,
   cursor?: string,
 ): Promise<GalleryPage<CuratedGalleryResultItem> | undefined> {
-  return getMockGalleryResult(languageOf(locale), contentId, {
+  return getMockGalleryResult(locale, contentId, {
     ...(cursor === undefined ? {} : { cursor }),
     cursorCodec: galleryCursorCodec,
   });

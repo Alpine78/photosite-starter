@@ -240,7 +240,7 @@ npx playwright show-report               # after a failure
 projects: desktop Chromium and mobile WebKit. The suite protects the home page, the site
 menu's composition and disclosure behavior, the curated gallery route — its grid's
 reading order at every column count, the lightbox, its metadata, its empty state, its
-cursor continuation without JavaScript, and the
+cursor continuation without JavaScript, its compact continuation page, and the
 addresses it refuses — the services routes,
 the public content tree, and
 contact submission — including invalid input, delivery failure, and retry; a

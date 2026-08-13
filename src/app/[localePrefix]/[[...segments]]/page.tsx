@@ -372,15 +372,21 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
         page.contentId,
         resolution.cursor,
       );
-      if (result === undefined) {
-        notFound();
-      }
-
       const storyPath = buildStoryPath(
         config,
         locale,
         getStoryRoutePath(tree, route),
       );
+
+      if (result === undefined) {
+        // ADR-0003 decision 8 also wants this 404 to carry a link to the
+        // gallery's parameter-free first page. It does not yet: App Router
+        // renders the not-found boundary with no params, and — verified against
+        // a production build — it renders it *before* the page, so a per-request
+        // `cache()` handoff reads back empty. Reaching it needs the requested
+        // path in a request header, which means middleware this PR does not add.
+        notFound();
+      }
 
       return (
         <ContentGallery
@@ -397,7 +403,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
             : {})}
           {...(resolution.cursor === undefined
             ? {}
-            : { firstPageHref: storyPath })}
+            : { firstPageHref: storyPath, isContinuation: true })}
           breadcrumbs={buildBreadcrumbs(
             config,
             tree,

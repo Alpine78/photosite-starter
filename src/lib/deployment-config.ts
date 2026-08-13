@@ -164,6 +164,11 @@ export type BuiltInLabels = {
     readonly showMore: string;
     /** Names the link back to the gallery's first page from a continuation. */
     readonly backToStart: string;
+    /**
+     * Marks a continuation page's heading as a later slice of the same gallery,
+     * appended to the gallery's own title (ADR-0003 decision 3).
+     */
+    readonly continued: string;
   };
   readonly lightbox: {
     /** Accessible name of the fullscreen dialog itself. */
@@ -301,6 +306,7 @@ const englishLabels = {
     empty: "This gallery has no images yet.",
     showMore: "Show more images",
     backToStart: "Back to the start of this gallery",
+    continued: "continued",
   },
   lightbox: {
     viewer: "Image viewer",
@@ -398,6 +404,7 @@ const finnishLabels = {
     empty: "Tässä galleriassa ei ole vielä kuvia.",
     showMore: "Näytä lisää kuvia",
     backToStart: "Takaisin gallerian alkuun",
+    continued: "jatkuu",
   },
   lightbox: {
     viewer: "Kuvakatselin",

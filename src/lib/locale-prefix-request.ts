@@ -150,19 +150,33 @@ function cursorDisposition(route: StoryRoute): "carry" | "reject" | "ignore" {
  * Whether this request's token is unusable at this route, before any
  * normalization has happened.
  *
- * A refusal is a 404 at the address requested rather than a redirect to a
- * different spelling, which could make a meaningless token appear to name
- * something.
+ * `normalizing` says the requested address is not the canonical one — a casing
+ * variant, a redundant default-locale prefix, or a path a move or rename
+ * retired — so answering it means emitting a redirect.
+ *
+ * **A continuation token never survives a redirect.** Decision 8 requires a
+ * malformed, tampered, wrong-scope, or stale cursor to "create no redirect", and
+ * this layer cannot tell those from a good token: only the adapter holds the
+ * signing key. Emitting a permanent redirect first and discovering the token was
+ * junk afterwards would leave a cached 308 for an address that never named a
+ * slice. Nothing legitimate is lost, because every continuation URL the site
+ * emits is already canonical — a non-canonical one was hand-edited or corrupted,
+ * and a corrupted continuation request is exactly what decision 8 answers with a
+ * 404.
  */
 function refusesCursor(
   route: StoryRoute,
   cursor: string | readonly string[] | undefined,
+  { normalizing }: { readonly normalizing: boolean },
 ): boolean {
   if (cursor === undefined) return false;
 
   const disposition = cursorDisposition(route);
+  // An article's `cursor` is an ordinary unrecognized parameter, so it neither
+  // blocks a redirect nor rides along as anything but query text.
   if (disposition === "ignore") return false;
   if (disposition === "reject") return true;
+  if (normalizing) return true;
 
   // A gallery continues from one bookmark. Repeating the parameter names no
   // single slice, so it is refused here rather than handed to the adapter as a
@@ -236,7 +250,7 @@ export async function resolveLocalePrefixRequest({
 
     const story = resolveStorySegments(trees, defaultRoute, canonical);
     if (story !== null) {
-      if (refusesCursor(story, searchParams.cursor)) {
+      if (refusesCursor(story, searchParams.cursor, { normalizing: true })) {
         return NOT_FOUND;
       }
       return redirectTo(toPath(canonical));
@@ -250,7 +264,11 @@ export async function resolveLocalePrefixRequest({
       canonical,
     );
     if (historical !== null) {
-      if (refusesCursor(historical.route, searchParams.cursor)) {
+      if (
+        refusesCursor(historical.route, searchParams.cursor, {
+          normalizing: true,
+        })
+      ) {
         return NOT_FOUND;
       }
       return redirectTo(historical.path);
@@ -291,23 +309,26 @@ export async function resolveLocalePrefixRequest({
       canonical,
     );
     if (historical === null) return NOT_FOUND;
-    return refusesCursor(historical.route, searchParams.cursor)
+    return refusesCursor(historical.route, searchParams.cursor, {
+      normalizing: true,
+    })
       ? NOT_FOUND
       : redirectTo(historical.path);
   }
 
-  // Refused before casing or locale-prefix normalization, so a token that means
-  // nothing here is a 404 at the address requested rather than a redirect to a
-  // different spelling that could make it appear meaningful. The cursor value
-  // itself is never normalized — decision 8 makes it case-sensitive.
-  if (refusesCursor(route, searchParams.cursor)) {
+  const normalizing =
+    (resolution.kind === "localized" && !resolution.prefixIsCanonical) ||
+    canonical.some((segment, index) => segment !== requested[index]);
+
+  // Refused before any normalization, so a token that means nothing here is a
+  // 404 at the address requested rather than a redirect to a different spelling
+  // that could make it appear meaningful. The cursor value itself is never
+  // normalized — decision 8 makes it case-sensitive.
+  if (refusesCursor(route, searchParams.cursor, { normalizing })) {
     return NOT_FOUND;
   }
 
-  if (
-    (resolution.kind === "localized" && !resolution.prefixIsCanonical) ||
-    canonical.some((segment, index) => segment !== requested[index])
-  ) {
+  if (normalizing) {
     return redirectTo(
       buildStoryPath(config, localeRoute.locale, canonical.slice(1)),
     );

@@ -226,21 +226,25 @@ function buildPlacements(
 /**
  * A gallery's cursor scope.
  *
- * `sourceId` is the gallery's stable identity *in one language*, so a token
- * issued for one gallery can never be spent in another — and a token issued in
- * English can never be spent against the Finnish result. The two currently hold
- * the same placements in the same order, so mixing them would be harmless
- * today; it would stop being harmless the moment an adapter can answer
- * differently per locale (AB#114), and by then the tokens would already be
- * indexed. It is also the property the continuation page's metadata relies on
- * when it declines to name `hreflang` alternates.
+ * `sourceId` is the gallery's stable identity *in one route locale*, so a token
+ * issued for one gallery can never be spent in another — and a token issued on
+ * one locale's route can never be spent on another's. It is bound to the whole
+ * validated locale rather than to its language subtag, because `en-GB` and
+ * `en-US` are separate route spaces that merely happen to share authored text
+ * today; binding to `en` would let a slice cross between them.
+ *
+ * These results currently agree across locales, so mixing them would be harmless
+ * now; it stops being harmless the moment an adapter can answer differently per
+ * locale (AB#114), and by then the tokens would already be indexed. It is also
+ * the property the continuation page's metadata relies on when it declines to
+ * name `hreflang` alternates.
  *
  * The ordering rule is the authored manual order, which is the only rule the
  * MVP has (AB#129 adds the seeded one).
  */
-function cursorScope(language: string, contentId: string) {
+function cursorScope(locale: string, contentId: string) {
   return {
-    sourceId: `${contentId}@${language}`,
+    sourceId: `${contentId}@${locale}`,
     normalizedFilter: "all",
     ordering: "manual-v1",
     visibilityVersion: `mock-${contentId}-v1`,
@@ -276,6 +280,10 @@ function cacheKey(language: string, contentId: string): string {
 /**
  * One bounded page of a gallery, or `undefined` when the fixture has none.
  *
+ * Takes the route's validated locale, not its language subtag: the cursor is
+ * scoped to the route space a visitor is actually in, while the fixture's text
+ * is looked up by the language that locale belongs to.
+ *
  * Without a cursor this is the first page; with one it is the slice that follows
  * that token's boundary.
  *
@@ -288,7 +296,7 @@ function cacheKey(language: string, contentId: string): string {
  * page issues no cursor and so needs no codec at all.
  */
 export function getMockGalleryResult(
-  language: string,
+  locale: string,
   contentId: string,
   {
     cursor,
@@ -298,6 +306,10 @@ export function getMockGalleryResult(
     readonly cursorCodec?: GalleryCursorCodec;
   } = {},
 ): GalleryPage<CuratedGalleryResultItem> | undefined {
+  // Text is authored per language while routes are configured per locale, so
+  // the two are read apart: `en-GB` and `en-US` share one set of English
+  // placements but never share a cursor.
+  const language = new Intl.Locale(locale).language;
   const inputs = authoredGalleries[contentId];
   if (inputs === undefined || !AUTHORED_LANGUAGES.has(language)) {
     return undefined;
@@ -312,7 +324,7 @@ export function getMockGalleryResult(
 
   return buildCuratedGalleryPage({
     placements,
-    scope: cursorScope(language, contentId),
+    scope: cursorScope(locale, contentId),
     ...(cursor === undefined ? {} : { cursor }),
     ...(cursorCodec === undefined ? {} : { cursorCodec }),
   });

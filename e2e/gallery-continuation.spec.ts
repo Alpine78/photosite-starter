@@ -47,9 +47,8 @@ function mockPage(language: string, contentId: string) {
 }
 
 const STORY_ROOT = `/${DEFAULT_STORY_NAMESPACE}`;
-const galleryLabels = getBuiltInLabels(
-  appUnderTestEnvironment.SITE_LOCALE,
-).gallery;
+const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE);
+const galleryLabels = labels.gallery;
 
 /**
  * A gallery whose first page is not its last, found in the adapter data rather
@@ -137,8 +136,10 @@ function completeDefaultLocaleGallery(): string {
 const PAGINATED = paginatedDefaultLocaleGallery();
 const COMPLETE_GALLERY_PATH = completeDefaultLocaleGallery();
 
-// The whole suite runs unenhanced. Playwright's own option is the honest way to
-// say so: no script runs at all, rather than a hand-built approximation of it.
+// The continuation journeys run unenhanced. Playwright's own option is the
+// honest way to say so: no script runs at all, rather than a hand-built
+// approximation of it. The 404 journeys at the end of this file cannot, and say
+// why where they sit.
 test.use({ javaScriptEnabled: false });
 
 /** The result identities the grid is presenting, in the order it presents them. */
@@ -295,6 +296,142 @@ test("a gallery refuses a continuation token that names no slice of it", async (
     );
 
     expect(response?.status()).toBe(404);
+  });
+});
+
+test("a continuation page is compact and repeats no editorial content", async ({
+  page,
+}) => {
+  // ADR-0003 decision 3: a continuation page keeps a compact heading naming the
+  // gallery and the continuation, followed by the grid. The lead, the date, and
+  // the language switch belong to the gallery rather than to this slice of it,
+  // and repeating them would publish the same editorial content under several
+  // URLs. Labels are imported, never written out, so a clone may translate them.
+  await page.goto(PAGINATED.path, { waitUntil: "domcontentloaded" });
+
+  const firstHeading = page.getByRole("heading", { level: 1 });
+  await expect(firstHeading).toBeVisible();
+  const galleryTitle = (await firstHeading.textContent())?.trim() ?? "";
+  expect(galleryTitle).not.toContain(galleryLabels.continued);
+
+  // The first page carries the gallery's own framing.
+  await expect(page.getByRole("main").locator("time")).toHaveCount(1);
+  await expect(
+    page.getByRole("main").getByLabel(labels.contentTree.languages),
+  ).toBeVisible();
+
+  await page
+    .getByRole("main")
+    .getByRole("link", { name: galleryLabels.showMore })
+    .click();
+
+  // Still one h1, still naming the gallery, and now saying it continues.
+  const continuationHeading = page.getByRole("heading", { level: 1 });
+  await expect(continuationHeading).toHaveCount(1);
+  await expect(continuationHeading).toContainText(galleryTitle);
+  await expect(continuationHeading).toContainText(galleryLabels.continued);
+
+  // And none of the framing the first page already published.
+  await expect(page.getByRole("main").locator("time")).toHaveCount(0);
+  await expect(
+    page.getByRole("main").getByLabel(labels.contentTree.languages),
+  ).toHaveCount(0);
+});
+
+
+/**
+ * The 404 journeys, and the one place this suite has to allow JavaScript.
+ *
+ * The link itself is server-rendered — it is produced by a Server Component
+ * reading a request header, with no client code involved. What is not server
+ * rendered is the 404 *document*: this application has no root `app/layout.tsx`
+ * (both layouts sit inside segments), so Next.js falls back to its internal
+ * error shell, whose HTML body is empty and whose content arrives only in the
+ * RSC payload. Every 404 on the site behaves that way, including the bare "404"
+ * on `main` before this branch existed — it is a pre-existing, site-wide
+ * condition rather than anything continuation introduced, and fixing it means
+ * restructuring the app's layouts.
+ *
+ * So these run enhanced, and the comment is the record of why. When the 404
+ * document renders as HTML, `javaScriptEnabled: false` belongs here too.
+ */
+test.describe("a refused continuation", () => {
+  test.use({ javaScriptEnabled: true });
+
+  test("a refused continuation offers a way back to the gallery", async ({
+    page,
+  }) => {
+    const response = await page.goto(
+      `${PAGINATED.path}?cursor=not-a-token-this-deployment-minted`,
+      { waitUntil: "load" },
+    );
+    expect(response?.status()).toBe(404);
+
+    // ADR-0003 decision 8: the 404 for an invalid cursor carries a link to the
+    // gallery's parameter-free first page. The address named a slice of a gallery
+    // that does exist, so a dead end here would strand a visitor holding a
+    // continuation URL that has gone stale. The link is produced by a Server
+    // Component reading the Proxy's header; no client code assembles it.
+    // The 404 document's body is empty until the RSC payload is applied (see the
+    // block comment above), so wait for the boundary to be on screen at all
+    // before asking what it offers.
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    const back = page.getByRole("link", { name: galleryLabels.backToStart });
+    await expect(back).toBeVisible();
+    await back.click();
+
+    // A client-side navigation, so the address settles after the click rather
+    // than with it — unlike the unenhanced journeys above, where following a
+    // link is a full page load.
+    await page.waitForURL(
+      (url) => url.pathname === PAGINATED.path && url.search === "",
+    );
+  });
+
+  test("an unknown address gets no invented way back", async ({ page }) => {
+    // The boundary offers a link only when the refused path resolves to a
+    // published gallery. Guessing one would lead from this 404 to another.
+    const parent = PAGINATED.path.slice(0, PAGINATED.path.lastIndexOf("/"));
+    const response = await page.goto(`${parent}/no-such-gallery`, {
+      waitUntil: "load",
+    });
+
+    expect(response?.status()).toBe(404);
+    // Waiting for the boundary first, so "no link" is a fact about a rendered
+    // 404 rather than about a document that has not rendered anything yet.
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: galleryLabels.backToStart }),
+    ).toHaveCount(0);
+  });
+
+  test("a spoofed request-path header cannot choose where a 404 leads", async ({
+    browser,
+  }) => {
+    // The Proxy overwrites this header on every matched request. Without that, a
+    // visitor could hand the 404 boundary any path they liked and have the page
+    // render a link to it — the boundary trusts the header to name the address
+    // that was actually refused.
+    const context = await browser.newContext({
+      extraHTTPHeaders: { "x-photosite-request-path": PAGINATED.path },
+    });
+    const page = await context.newPage();
+
+    try {
+      const parent = PAGINATED.path.slice(0, PAGINATED.path.lastIndexOf("/"));
+      const response = await page.goto(`${parent}/no-such-gallery`, {
+        waitUntil: "load",
+      });
+
+      expect(response?.status()).toBe(404);
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: galleryLabels.backToStart }),
+      ).toHaveCount(0);
+    } finally {
+      await context.close();
+    }
   });
 });
 

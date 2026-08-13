@@ -36,6 +36,29 @@ const redirects: LocalizedContentRedirects = new Map([
   ["en", buildContentRedirects(english, mockContentRedirectInputs.en)],
 ]);
 
+/**
+ * The same history plus one retired *gallery* path.
+ *
+ * The shipped fixture records retired paths for categories and an article, and
+ * a cursor means something different at each of the three — so a gallery that
+ * has been renamed is the case the continuation rules actually turn on. It lives
+ * here rather than in the mock because only this file needs it.
+ */
+const redirectsWithRetiredGallery: LocalizedContentRedirects = new Map([
+  [
+    "fi",
+    buildContentRedirects(finnish, [
+      ...mockContentRedirectInputs.fi,
+      {
+        kind: "content",
+        id: "content-coastal-mornings",
+        previousPath: ["maisemat", "rannikko", "rannikon-auringonnousut"],
+      },
+    ]),
+  ],
+  ["en", buildContentRedirects(english, mockContentRedirectInputs.en)],
+]);
+
 /** A deployment whose content is still being authored. */
 const noTrees: LocalizedContentTrees = new Map();
 
@@ -354,11 +377,69 @@ describe("resolveLocalePrefixRequest", () => {
       });
     });
 
-    it("normalizes a gallery's path without touching its cursor", async () => {
-      // Decision 8 makes the cursor value case-sensitive and never normalized,
-      // while the path around it is identity and normalizes as usual. Lowercasing
-      // the token along with the segments would corrupt every continuation URL
-      // that happened to arrive through a casing variant.
+    it.each([
+      ["a casing variant", "tarinat", ["Maisemat", "Rannikko", "Rannikon-Aamut"]],
+      [
+        "a redundant default prefix",
+        "fi",
+        ["tarinat", "maisemat", "rannikko", "rannikon-aamut"],
+      ],
+      [
+        "a retired gallery path",
+        "tarinat",
+        ["maisemat", "rannikko", "rannikon-auringonnousut"],
+      ],
+      [
+        "a retired gallery path behind a redundant prefix",
+        "fi",
+        ["tarinat", "maisemat", "rannikko", "rannikon-auringonnousut"],
+      ],
+    ])(
+      "404s a gallery cursor reached through %s rather than redirecting",
+      async (_case, prefix, segments) => {
+        // Decision 8 requires a malformed, tampered, wrong-scope, or stale
+        // cursor to create no redirect. This layer cannot tell those from a good
+        // token — only the adapter holds the signing key — so a token arriving
+        // at a non-canonical address is refused outright rather than redirected
+        // and judged afterwards, which would leave a cached permanent redirect
+        // for an address that never named a slice. Nothing legitimate is lost:
+        // every continuation URL the site emits is already canonical.
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects: redirectsWithRetiredGallery,
+            prefix,
+            segments,
+            searchParams: { cursor: "AnOpaque-Token_v1" },
+            defaultLocaleRouteExists: missing(),
+          }),
+        ).resolves.toEqual({ kind: "not-found" });
+      },
+    );
+
+    it("still redirects a retired gallery path that carries no cursor", async () => {
+      // Proves the cases above 404 because of the token rather than because the
+      // retired path stopped resolving.
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects: redirectsWithRetiredGallery,
+          prefix: "tarinat",
+          segments: ["maisemat", "rannikko", "rannikon-auringonnousut"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: "/tarinat/maisemat/rannikko/rannikon-aamut",
+      });
+    });
+
+    it("redirects a non-canonical gallery path that carries no cursor", async () => {
+      // The other half: refusing the token must not have made the path itself
+      // unreachable through its variant spellings.
       await expect(
         resolveLocalePrefixRequest({
           config,
@@ -366,13 +447,12 @@ describe("resolveLocalePrefixRequest", () => {
           redirects,
           prefix: "tarinat",
           segments: ["Maisemat", "Rannikko", "Rannikon-Aamut"],
-          searchParams: { cursor: "AnOpaque-Token_v1" },
+          searchParams: {},
           defaultLocaleRouteExists: missing(),
         }),
       ).resolves.toEqual({
         kind: "redirect",
-        location:
-          "/tarinat/maisemat/rannikko/rannikon-aamut?cursor=AnOpaque-Token_v1",
+        location: "/tarinat/maisemat/rannikko/rannikon-aamut",
       });
     });
 

@@ -1,0 +1,72 @@
+import { describe, expect, it } from "vitest";
+import {
+  MAX_REQUEST_PATH_LENGTH,
+  isCarryableRequestPath,
+  readRequestPath,
+} from "@/lib/request-path";
+
+describe("isCarryableRequestPath", () => {
+  it.each([
+    "/",
+    "/stories",
+    "/stories/portfolio/large-archive",
+    "/fi/tarinat/portfolio/suuri-arkisto",
+  ])("carries an ordinary content path: %s", (path) => {
+    expect(isCarryableRequestPath(path)).toBe(true);
+  });
+
+  it.each([
+    ["empty", ""],
+    ["relative", "stories/portfolio"],
+    ["protocol-relative", "//example.com/stories"],
+    ["backslash-escaped", "/\\example.com/stories"],
+    ["carrying a backslash", "/stories\\portfolio"],
+    ["absolute URL", "https://example.com/stories"],
+    ["carrying a query", "/stories?cursor=token"],
+    ["carrying a fragment", "/stories#gallery"],
+    ["carrying a newline", "/stories\n/injected"],
+    ["carrying a space", "/stories /portfolio"],
+  ])("refuses a path that is %s", (_case, path) => {
+    expect(isCarryableRequestPath(path)).toBe(false);
+  });
+
+  it("refuses a path longer than the header bound", () => {
+    // Omitted rather than truncated: a truncated path could name a different,
+    // real route, and the 404 would then offer a page nobody asked for.
+    const overlong = `/${"a".repeat(MAX_REQUEST_PATH_LENGTH)}`;
+
+    expect(overlong.length).toBeGreaterThan(MAX_REQUEST_PATH_LENGTH);
+    expect(isCarryableRequestPath(overlong)).toBe(false);
+    expect(isCarryableRequestPath(overlong.slice(0, MAX_REQUEST_PATH_LENGTH))).toBe(
+      true,
+    );
+  });
+});
+
+describe("readRequestPath", () => {
+  it("reads a path the Proxy carried", () => {
+    expect(readRequestPath("/stories/portfolio/large-archive")).toBe(
+      "/stories/portfolio/large-archive",
+    );
+  });
+
+  it.each([
+    ["absent", null],
+    ["unset", undefined],
+  ])("reads nothing when the header is %s", (_case, value) => {
+    expect(readRequestPath(value)).toBeUndefined();
+  });
+
+  it.each([
+    "https://example.com/stories",
+    "//example.com/stories",
+    "/stories?cursor=token",
+    "not-a-path",
+  ])("validates again rather than trusting the header: %s", (value) => {
+    // The Proxy overwrites this header on every matched request, so a client
+    // cannot choose its value there. A path the matcher excludes never passes
+    // through the Proxy at all, though, so the reader treats the header as
+    // untrusted input in its own right.
+    expect(readRequestPath(value)).toBeUndefined();
+  });
+});
