@@ -15,12 +15,31 @@
  * Widen them when a schema needs something, not in advance.
  */
 
+/** `true` when the value is acceptable, otherwise the editor-facing reason. */
+export type SchemaValidationResult = true | string;
+
 /**
- * The validation rule builder a Studio passes to a `validation` function.
- *
- * Only the four methods the schemas below call. `custom` returns `true` when
- * the value is acceptable and an editor-facing message when it is not.
+ * The read client a validation rule may use. `custom` may return a promise, so
+ * a rule can ask the dataset a question — whether an identity is already taken,
+ * or how large an uploaded asset actually is — instead of only inspecting the
+ * value in front of it.
  */
+export type SchemaValidationClient = {
+  fetch<TResult>(
+    query: string,
+    params?: Readonly<Record<string, unknown>>,
+  ): Promise<TResult>;
+};
+
+/**
+ * What a `custom` check is told about its surroundings: the document being
+ * edited, and a client scoped to the dataset it lives in.
+ */
+export type SchemaValidationContext = {
+  readonly document?: Readonly<Record<string, unknown>>;
+  getClient(options: { readonly apiVersion: string }): SchemaValidationClient;
+};
+
 export type SchemaValidationRule = {
   required(): SchemaValidationRule;
   min(value: number): SchemaValidationRule;
@@ -29,17 +48,8 @@ export type SchemaValidationRule = {
     check: (
       value: TValue | undefined,
       context: SchemaValidationContext,
-    ) => true | string,
+    ) => SchemaValidationResult | Promise<SchemaValidationResult>,
   ): SchemaValidationRule;
-};
-
-/**
- * What a `custom` check is told about its surroundings. Only `document`, which
- * is what a cross-field rule needs — whether an asset is required depends on
- * the media type chosen two fields above it.
- */
-export type SchemaValidationContext = {
-  readonly document?: Readonly<Record<string, unknown>>;
 };
 
 export type SchemaValidation = (

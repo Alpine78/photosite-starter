@@ -48,11 +48,17 @@ authoritative for the exact steps. What this project needs from it:
 4. **Pin an API version.** Use a dated version, `vYYYY-MM-DD`, from the day the
    deployment was built and tested. Bumping it later is a deliberate change with its own
    verification, which is the point of pinning.
-5. **Create a read token only if the dataset is private.** A public dataset needs none.
-   Use the narrowest read-only role Sanity offers, issue a separate token per
-   environment, and store it in the hosting provider's secret storage — never in the
-   repository, never in a URL, and never under a `NEXT_PUBLIC_` name.
-6. **Set the deployment settings** below, then verify the connection before wiring any
+5. **Decide, and record, whether each dataset is public or private.** It is not only a
+   convenience setting: a public dataset is readable by anyone with the project id, so it
+   may hold nothing you would not publish, and the schemas are built accordingly
+   (*Dataset visibility*, below). Verify what the dataset actually is rather than
+   assuming.
+6. **Create a read token if the dataset is private.** A public dataset needs none; a
+   private one cannot be read without it. Use the narrowest read-only role Sanity offers,
+   issue a separate token per environment, and store it in the hosting provider's secret
+   storage — never in the repository, never in a URL, and never under a `NEXT_PUBLIC_`
+   name.
+7. **Set the deployment settings** below, then verify the connection before wiring any
    content: `probeSanityConnectivity` in
    [`src/lib/sanity-client.ts`](../src/lib/sanity-client.ts) runs a query that reads no
    document and proves the address and credential are right.
@@ -104,8 +110,18 @@ needs no `sanity` package to describe one. Point your Studio's `schema.types` at
 (that directory's README shows how). Copying works and drifts; a path, a submodule, or a
 workspace dependency does not.
 
+`defineSchemaTypes({ datasetVisibility })` needs to be told whether the dataset is
+world-readable, because that decides which fields exist at all — see *Dataset visibility*
+below.
+
 So far one document type exists: **media**, the shared photograph. Galleries, articles,
 services, categories, and settings arrive with their own stories.
+
+**The Studio validates against the dataset.** Two rules query it while an editor works,
+which is the only place they can run in time: an uploaded image is measured and its
+format checked before the document can be published, and a media ID is checked for being
+unique across the dataset and for not having changed since the last publish. They use the
+Studio's own client and need no extra configuration.
 
 **Authored text is language-keyed.** A field a visitor reads is an array of
 `{ language, value }` entries, keyed by language subtag — never fields named after your
@@ -124,6 +140,37 @@ document, described once, reused everywhere.
 
 ## Media and assets
 
+### Dataset visibility
+
+Stated once, in the Studio's schema configuration, because it decides what may be stored
+at all:
+
+```ts
+schema: { types: defineSchemaTypes({ datasetVisibility: "private" }) }
+```
+
+**Archive locations, and where they may live.** The media document can carry an *Archive
+location* — where your master lives, in your own archive. No query the site runs reads it,
+so it never reaches a page. But storing it is a decision about the dataset, not about the
+site:
+
+- **A public dataset is world-readable.** Anyone with the project id can query every
+  published document in it. The schema therefore **does not offer the field at all** when
+  it is built with `datasetVisibility: "public"` — there is no way to record an archive
+  path into a document anyone can read.
+- **A private dataset** restricts document reads to a credential, so the field exists and
+  `SANITY_READ_TOKEN` becomes required rather than optional: the site cannot read its own
+  content without one.
+
+Verify which one you have during provisioning rather than assuming — a dataset created as
+public and later filled with archive paths is a disclosure, not a misconfiguration to fix
+later.
+
+**Visibility never applies to assets.** Uploaded files are served from public CDN URLs in
+both cases. That is what the export rules below exist for.
+
+### Assets
+
 **Upload exported web copies, never camera masters.** Every asset in a dataset is served
 from a public URL on Sanity's asset CDN. There is no "upload it but keep it private" for
 the images this site reads, and bytes that have been delivered publicly cannot be made
@@ -138,29 +185,35 @@ The site enforces the export policy rather than trusting it:
 | The asset must belong to **this deployment's project and dataset** | The optimizer's allow-list is scoped to them, so a foreign URL could not be rendered anyway. |
 | Dimensions come from the file | Never typed in. The site reserves space at the photograph's true ratio and never crops it. |
 
-A document that breaks one of these is refused when the site reads it, with a message
-naming the reason. The check cannot run in the Studio — a validation rule sees the field
-being edited, not the uploaded asset's measured dimensions — so an oversized or
-camera-format upload can be saved and published, and then fails the page instead of
-putting an original into a public cache. Verify a new photograph on the site after
-publishing it.
+The first two are checked twice. The Studio measures the uploaded file and **blocks the
+publish**, so a camera master never becomes part of a page; the site checks again when it
+reads the document, because the Studio is not the only thing that can write one — the
+HTTP API, an import, and a migration script all bypass it.
 
-**Archive locations are stored, not published.** The media document has an optional
-*Archive location* — where your master lives, in your own archive. No query the site runs
-reads it, so it cannot reach a page. It is still stored in your dataset: **if those paths
-are sensitive, the dataset must be private and the site must read it with a read token.**
-A public dataset is world-readable by anyone who knows the project id.
+**Blocking a publish does not un-upload a file.** An asset is addressable on the public
+CDN from the moment it finishes uploading, before anyone presses publish. So when the
+Studio refuses an image:
 
-**One photograph, one Media ID.** The identity is minted by hand and must be unique: if
-two published documents claim the same one, the site refuses to serve either rather than
-guessing which was meant. Nothing in the Studio can check that for you — a validation rule
-sees one document — so it is worth a glance when adding media in bulk.
+1. Remove the file from the document.
+2. **Delete the uploaded asset itself** in the Studio's media browser, so the dataset
+   stops holding it.
+3. Treat the URL as having been public. If it was ever shared or fetched, assume copies
+   exist — a deletion removes the origin, not caches. This is why the rule is "export
+   first, upload second", not "upload and let the site sort it out".
 
-**Identity survives reprocessing.** The *Media ID* is minted by hand, once, and never
-changed. Re-exporting or re-uploading a photograph changes its delivery URL and its
-content hash — that is how the site knows the bytes changed and caches can be replaced —
-while the Media ID stays put, so links, references, and later enquiries keep pointing at
-the same work.
+### Media identity
+
+**One photograph, one Media ID.** The identity is minted by hand and must be unique across
+the whole site. The Studio checks it while you type — against every other document, and
+against what this document was last published as, because renaming an identity breaks
+every reference already pointing at it. The site checks again when it reads: two documents
+claiming one identity means it refuses to serve either rather than guessing which was
+meant.
+
+**Identity survives reprocessing.** Re-exporting or re-uploading a photograph creates a
+new asset with a new id and a new delivery URL — that is how the site knows the bytes
+changed and caches can be replaced — while the Media ID stays put, so links, references,
+and later enquiries keep pointing at the same work.
 
 ## Drafts
 

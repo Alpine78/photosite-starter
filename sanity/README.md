@@ -26,13 +26,24 @@ repository. Point its schema configuration at these files:
 
 ```ts
 // sanity.config.ts, in the owner's Studio project
-import { schemaTypes } from "./path/to/photosite-starter/sanity/schemas";
+import { defineSchemaTypes } from "./path/to/photosite-starter/sanity/schemas";
 
 export default defineConfig({
   // …project, dataset, plugins…
-  schema: { types: schemaTypes },
+  schema: {
+    // Whether this dataset is world-readable. It decides which fields exist:
+    // a public dataset is offered no place to record where a master lives,
+    // because anyone holding the project id can read every published document
+    // in it.
+    types: defineSchemaTypes({ datasetVisibility: "private" }),
+  },
 });
 ```
+
+The schemas validate against the dataset while an editor works — an uploaded image
+is measured and its format checked before it can be published, and a media ID is
+checked for being unique and unchanged. Those rules use the Studio's own client, so
+they need no configuration beyond the above.
 
 Copying the files works too — they have no imports to satisfy — but a copy drifts. Prefer
 a path, a submodule, or a workspace dependency, so a schema change arriving from upstream

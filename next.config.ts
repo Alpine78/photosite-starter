@@ -7,13 +7,21 @@ type RemotePattern = NonNullable<
 >[number];
 
 /**
- * Restated from `src/lib/sanity-config.ts`, which owns it.
+ * Restated from `src/lib/sanity-config.ts`, which owns them.
  *
  * The optimizer's allow-list is build configuration and is read before any
- * module graph exists, so it cannot import a module marked `server-only`. The
- * two constants are pinned to each other by a test instead of by an import.
+ * module graph exists, so it cannot import a module marked `server-only`. A
+ * test pins these to the validated settings instead of an import doing it.
+ *
+ * The two patterns are Sanity's own rules for a project id and a dataset name.
+ * They are applied here, not just in the application, because these values are
+ * interpolated into an allow-list *path*: an unvalidated value containing a
+ * slash or a glob would widen what the optimizer is willing to fetch, and it
+ * would do so at build time, before the application's own validation ever runs.
  */
 const SANITY_ASSET_CDN_HOST = "cdn.sanity.io";
+const SANITY_PROJECT_ID = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+const SANITY_DATASET = /^(?=.{1,64}$)[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$/;
 
 /**
  * Which remote images this deployment's optimizer will fetch.
@@ -47,10 +55,19 @@ function sanityImageRemotePatterns(
     );
   }
 
+  if (!SANITY_PROJECT_ID.test(projectId) || !SANITY_DATASET.test(dataset)) {
+    throw new Error(
+      "[next.config] SANITY_PROJECT_ID or SANITY_DATASET is not a value Sanity would accept, so it must not be interpolated into the image optimizer's allow-list.",
+    );
+  }
+
   return [
     {
       protocol: "https",
       hostname: SANITY_ASSET_CDN_HOST,
+      // Every field is stated. Next.js treats an omitted field as a wildcard,
+      // so leaving the port out would allow any port on this host.
+      port: "",
       pathname: `/images/${projectId}/${dataset}/**`,
       search: "",
     },

@@ -8,6 +8,23 @@
  * a later dynamic result finding it all reference this document; none of them
  * copies its alternative text, credit, or dimensions.
  *
+ * ## The Studio is where these rules have to hold
+ *
+ * The site's adapter refuses a photograph it cannot publish safely, but a
+ * refusal at read time is late for two of these rules. An asset is on a public
+ * CDN the moment it is uploaded, and a duplicate identity is already breaking
+ * references by the time a page asks for one. So the checks that matter run
+ * here, asynchronously, against the dataset:
+ *
+ * - the uploaded image is measured and its format checked, so a camera master
+ *   cannot be published;
+ * - `mediaId` is checked for uniqueness across the dataset and for having not
+ *   changed since the document was last published.
+ *
+ * Neither can undo an upload — see the asset cleanup note in
+ * `docs/sanity-setup.md`. They stop the publish, which is what keeps the bytes
+ * out of a page and out of a public cache key.
+ *
  * ## What is deliberately not here
  *
  * **Placement fields.** Manual order, gallery section membership, a
@@ -32,23 +49,69 @@
  * keywords.** Named by ADR-0002 and added by the stories that build their
  * features — AB#58, AB#122, AB#113, AB#68 — so this schema does not ship fields
  * nothing reads. Each is media-owned when it arrives, which is what keeps a
- * later reference from needing a second media entity. `archiveLocator` is the
- * exception: it is here because AB#82 owns proving that a server-only field
- * cannot cross the public boundary, and a field that does not exist cannot be
- * proven stripped.
+ * later reference from needing a second media entity.
  *
  * **`indexable`.** Route-owned, not media-owned. The same photograph may appear
  * on an indexed page and an unlisted one, so it is a property of the public
  * route (ADR-0002 §4).
  */
 
-import {
-  LOCALIZED_TEXT_TYPE_NAME,
-  uniqueLanguages,
-} from "./localized-text";
-import type { SchemaTypeDefinition } from "./schema-types";
+import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
+import type {
+  SchemaTypeDefinition,
+  SchemaValidationClient,
+  SchemaValidationContext,
+  SchemaValidationResult,
+} from "./schema-types";
 
 export const MEDIA_TYPE_NAME = "media";
+
+/**
+ * How this Studio's dataset can be read.
+ *
+ * Stated by whoever wires the Studio, because it decides whether a field may
+ * exist at all. A **public** dataset is world-readable: anyone holding the
+ * project id can query every published document in it, so nothing private may
+ * be stored there, and the archive-location field is not offered. A **private**
+ * dataset restricts document reads to a credential — which is what makes
+ * recording a master's location defensible (ADR-0002 §1).
+ *
+ * Neither setting makes an *asset* secret. Uploaded files are served from a
+ * public CDN URL in both cases, which is why the image field below refuses
+ * anything that is not an exported web copy.
+ */
+export type DatasetVisibility = "public" | "private";
+
+export type MediaSchemaOptions = {
+  readonly datasetVisibility: DatasetVisibility;
+};
+
+/**
+ * Longest edge a public web derivative may have.
+ *
+ * Restated from `src/lib/image-delivery.ts`, which owns it: these schemas are
+ * exported to a Studio that does not have this repository's application code on
+ * its import path. A test pins the two numbers together.
+ */
+export const MAX_PUBLIC_DELIVERY_DIMENSION = 2048;
+
+/** Web delivery formats, and the media type each must declare. */
+export const PUBLIC_DELIVERY_FORMATS: Readonly<Record<string, string>> = {
+  avif: "image/avif",
+  jpeg: "image/jpeg",
+  jpg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+};
+
+/**
+ * API version for the queries these validation rules run.
+ *
+ * A Studio's own pin, unrelated to the site's `SANITY_API_VERSION`: it fixes
+ * the Content Lake behavior the *validation* was written against, and the two
+ * move independently.
+ */
+const STUDIO_VALIDATION_API_VERSION = "2026-08-13";
 
 /**
  * `mediaId` is minted by hand and never derived from a filename, an asset id,
@@ -57,106 +120,233 @@ export const MEDIA_TYPE_NAME = "media";
  */
 const MEDIA_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-export const mediaType: SchemaTypeDefinition = {
-  name: MEDIA_TYPE_NAME,
-  title: "Media",
-  type: "document",
-  description:
-    "One photograph or video, described once and reused wherever it appears.",
-  fields: [
+function publishedIdOf(id: string): string {
+  return id.startsWith("drafts.") ? id.slice("drafts.".length) : id;
+}
+
+function clientOf(context: SchemaValidationContext): SchemaValidationClient {
+  return context.getClient({ apiVersion: STUDIO_VALIDATION_API_VERSION });
+}
+
+/**
+ * Syntax, uniqueness, and immutability, in one round trip.
+ *
+ * Uniqueness is site-wide rather than per document type, because `mediaId` is
+ * the identity a gallery placement, an enquiry, and a later sale all reference:
+ * two documents answering to one is an ambiguity no reader can resolve. The
+ * draft and published versions of the *same* document are excluded, or a
+ * document would collide with itself the moment it was edited.
+ *
+ * Immutability is checked against what was last published. Editing the
+ * identifier of a draft that has never been published is a correction; editing
+ * it afterwards silently breaks every reference already pointing at it.
+ */
+async function validateMediaIdentity(
+  value: string | undefined,
+  context: SchemaValidationContext,
+): Promise<SchemaValidationResult> {
+  if (value === undefined || !MEDIA_ID.test(value)) {
+    return "Use lowercase letters, digits, and single hyphens, e.g. coastal-landscape";
+  }
+
+  const documentId = context.document?._id;
+  if (typeof documentId !== "string") return true;
+
+  const published = publishedIdOf(documentId);
+  const { taken, publishedMediaId } = await clientOf(context).fetch<{
+    taken: boolean;
+    publishedMediaId: string | null;
+  }>(
+    `{
+      "taken": count(*[_type == $type && mediaId == $mediaId && !(_id in [$draft, $published])]) > 0,
+      "publishedMediaId": *[_id == $published][0].mediaId
+    }`,
     {
-      name: "mediaId",
-      title: "Media ID",
-      type: "string",
-      description:
-        "Stable identity for this photograph: lowercase words separated by hyphens, e.g. coastal-landscape. Mint it once and never change it — re-exporting, re-uploading, or moving to another CDN must leave it alone, because links and enquiries may already point at it. It must be unique: if two published documents claim one identity the site refuses to serve either, because it cannot tell which photograph was meant.",
-      validation: (rule) =>
-        rule.required().custom<string>((value) =>
-          value !== undefined && MEDIA_ID.test(value)
-            ? true
-            : "Use lowercase letters, digits, and single hyphens, e.g. coastal-landscape",
-        ),
+      type: MEDIA_TYPE_NAME,
+      mediaId: value,
+      draft: `drafts.${published}`,
+      published,
     },
-    {
-      name: "mediaType",
-      title: "Kind",
-      type: "string",
-      description:
-        "Video is part of the model so nothing here assumes photographs, but the site does not deliver video yet: a published video will be refused rather than shown.",
-      initialValue: "image",
-      options: {
-        list: [
-          { title: "Image", value: "image" },
-          { title: "Video", value: "video" },
-        ],
-        layout: "radio",
-      },
-      validation: (rule) => rule.required(),
-    },
-    {
-      name: "image",
-      title: "Public web image",
-      type: "image",
-      description:
-        "An exported delivery copy, at most 2048 pixels on its longest edge, as JPEG, PNG, WebP, or AVIF. Never the camera master: this file is served from a public URL. The site checks these limits when it reads the photograph and refuses to show one that breaks them, so an oversized or camera-format upload becomes a failed page rather than a published original.",
-      // No hotspot, no crop UI. A cropped preview misrepresents the work.
-      options: { hotspot: false },
-      validation: (rule) =>
-        rule.custom<{ readonly asset?: unknown }>((value, context) =>
-          context.document?.mediaType !== "image" || value?.asset !== undefined
-            ? true
-            : "An image media needs an uploaded image",
-        ),
-    },
-    {
-      name: "alt",
-      title: "Alternative text",
-      type: "array",
-      of: [{ type: LOCALIZED_TEXT_TYPE_NAME }],
-      description:
-        "What the photograph shows, for a visitor who cannot see it. Always author the site's own language: every other language falls back to it, because an image described in the wrong language is still better than one not described at all. A photograph described in neither the language being viewed nor the site's own is refused rather than shown undescribed.",
-      validation: (rule) => uniqueLanguages(rule.required().min(1)),
-    },
-    {
-      name: "caption",
-      title: "Caption",
-      type: "array",
-      of: [{ type: LOCALIZED_TEXT_TYPE_NAME }],
-      description:
-        "Optional words shown with the image. Unlike alternative text, a language with no entry shows no caption rather than one written in another language.",
-      validation: uniqueLanguages,
-    },
-    {
-      name: "credit",
-      title: "Credit",
-      type: "string",
-      description:
-        "Attribution line, when one is owed. Language-neutral — usually a name, so it is not translated.",
-    },
-    {
-      name: "capturedAt",
-      title: "Captured",
-      type: "datetime",
-      description:
-        "When the photograph was taken. The only ordering input the photograph itself owns; a curated gallery's order is authored on the gallery. Photographs with no capture date sort last.",
-    },
-    {
-      name: "publiclyRenderable",
-      title: "May be shown publicly",
-      type: "boolean",
-      description:
-        "Turn this off to keep a published photograph out of every public page without unpublishing the document. Off also wins over anything that places it: a gallery can hide a photograph, never reveal a hidden one.",
-      initialValue: true,
-    },
-    {
-      name: "archiveLocator",
-      title: "Archive location",
-      type: "string",
-      description:
-        "Where your master file lives — a folder path, a catalogue reference, a drive label. The website never reads this into a page. It is stored in your content dataset, so keep the dataset private if these locations are sensitive.",
-    },
-  ],
-  preview: {
-    select: { title: "mediaId", subtitle: "credit", media: "image" },
-  },
+  );
+
+  if (taken) {
+    return `Another media document already uses "${value}". A media ID identifies one photograph across the whole site.`;
+  }
+
+  if (publishedMediaId !== null && publishedMediaId !== value) {
+    return `This photograph was published as "${publishedMediaId}". Changing a media ID breaks every reference already pointing at it — create a new document instead.`;
+  }
+
+  return true;
+}
+
+type UploadedAsset = {
+  readonly width: number | null;
+  readonly height: number | null;
+  readonly extension: string | null;
+  readonly mimeType: string | null;
 };
+
+/**
+ * Refuses to publish anything but an exported web copy.
+ *
+ * The measurements live on the asset document rather than in the field being
+ * edited, so this rule reads them. That is the whole reason it is asynchronous:
+ * a synchronous rule can see that *an* image was chosen and nothing about what
+ * it is.
+ *
+ * What it cannot do is un-upload. By the time this runs, the file is already
+ * addressable on the asset CDN; blocking the publish keeps it out of the site
+ * and out of a page's cache, and removing the bytes is a separate, deliberate
+ * deletion (`docs/sanity-setup.md`).
+ */
+async function validatePublicDerivative(
+  value: { readonly asset?: { readonly _ref?: unknown } } | undefined,
+  context: SchemaValidationContext,
+): Promise<SchemaValidationResult> {
+  if (context.document?.mediaType !== "image") return true;
+
+  const reference = value?.asset?._ref;
+  if (typeof reference !== "string") return "An image media needs an uploaded image";
+
+  const asset = await clientOf(context).fetch<UploadedAsset | null>(
+    `*[_id == $id][0]{
+      "width": metadata.dimensions.width,
+      "height": metadata.dimensions.height,
+      extension,
+      mimeType
+    }`,
+    { id: reference },
+  );
+
+  if (asset === null) {
+    return "The uploaded image could not be read. Try uploading it again.";
+  }
+
+  const { width, height, extension, mimeType } = asset;
+  if (typeof width !== "number" || typeof height !== "number") {
+    return "The uploaded file has no measurable image dimensions, so it is not a web image";
+  }
+
+  if (
+    extension === null ||
+    PUBLIC_DELIVERY_FORMATS[extension] === undefined ||
+    PUBLIC_DELIVERY_FORMATS[extension] !== mimeType
+  ) {
+    return `Upload a web image — ${Object.keys(PUBLIC_DELIVERY_FORMATS).join(", ")} — rather than a camera or print format`;
+  }
+
+  if (Math.max(width, height) > MAX_PUBLIC_DELIVERY_DIMENSION) {
+    return `This file is ${width}×${height}. Upload an exported copy no larger than ${MAX_PUBLIC_DELIVERY_DIMENSION}px on its longest edge — a camera master must not be published. Delete the uploaded file from the media browser as well.`;
+  }
+
+  return true;
+}
+
+const archiveLocatorField = {
+  name: "archiveLocator",
+  title: "Archive location",
+  type: "string",
+  description:
+    "Where your master file lives — a folder path, a catalogue reference, a drive label. The website never reads it into a page. It is stored in this dataset, which is private, so it is readable only with a credential.",
+} as const;
+
+/**
+ * Builds the media document type for one Studio.
+ *
+ * A factory rather than a constant because one field's *existence* depends on
+ * the dataset: the archive location is offered only when documents are not
+ * world-readable. A public dataset therefore cannot be given a place to put a
+ * master's location by accident, which is a stronger guarantee than a warning
+ * an editor is free to read past.
+ */
+export function defineMediaType(
+  options: MediaSchemaOptions,
+): SchemaTypeDefinition {
+  return {
+    name: MEDIA_TYPE_NAME,
+    title: "Media",
+    type: "document",
+    description:
+      "One photograph or video, described once and reused wherever it appears.",
+    fields: [
+      {
+        name: "mediaId",
+        title: "Media ID",
+        type: "string",
+        description:
+          "Stable identity for this photograph: lowercase words separated by hyphens, e.g. coastal-landscape. Mint it once and never change it — re-exporting, re-uploading, or moving to another CDN must leave it alone, because links and enquiries may already point at it.",
+        validation: (rule) => rule.required().custom(validateMediaIdentity),
+      },
+      {
+        name: "mediaType",
+        title: "Kind",
+        type: "string",
+        description:
+          "Video is part of the model so nothing here assumes photographs, but the site does not deliver video yet: a published video will be refused rather than shown.",
+        initialValue: "image",
+        options: {
+          list: [
+            { title: "Image", value: "image" },
+            { title: "Video", value: "video" },
+          ],
+          layout: "radio",
+        },
+        validation: (rule) => rule.required(),
+      },
+      {
+        name: "image",
+        title: "Public web image",
+        type: "image",
+        description: `An exported delivery copy, at most ${MAX_PUBLIC_DELIVERY_DIMENSION} pixels on its longest edge, as ${Object.keys(PUBLIC_DELIVERY_FORMATS).join(", ")}. Never the camera master: this file is served from a public URL the moment it is uploaded.`,
+        // No hotspot, no crop UI. A cropped preview misrepresents the work.
+        options: { hotspot: false },
+        validation: (rule) => rule.custom(validatePublicDerivative),
+      },
+      {
+        name: "alt",
+        title: "Alternative text",
+        type: "array",
+        of: [{ type: LOCALIZED_TEXT_TYPE_NAME }],
+        description:
+          "What the photograph shows, for a visitor who cannot see it. Always author the site's own language: every other language falls back to it, because an image described in the wrong language is still better than one not described at all. A photograph described in neither the language being viewed nor the site's own is refused rather than shown undescribed.",
+        validation: (rule) => uniqueLanguages(rule.required().min(1)),
+      },
+      {
+        name: "caption",
+        title: "Caption",
+        type: "array",
+        of: [{ type: LOCALIZED_TEXT_TYPE_NAME }],
+        description:
+          "Optional words shown with the image. Unlike alternative text, a language with no entry shows no caption rather than one written in another language.",
+        validation: uniqueLanguages,
+      },
+      {
+        name: "credit",
+        title: "Credit",
+        type: "string",
+        description:
+          "Attribution line, when one is owed. Language-neutral — usually a name, so it is not translated.",
+      },
+      {
+        name: "capturedAt",
+        title: "Captured",
+        type: "datetime",
+        description:
+          "When the photograph was taken. The only ordering input the photograph itself owns; a curated gallery's order is authored on the gallery. Photographs with no capture date sort last.",
+      },
+      {
+        name: "publiclyRenderable",
+        title: "May be shown publicly",
+        type: "boolean",
+        description:
+          "Turn this off to keep a published photograph out of every public page without unpublishing the document. Off also wins over anything that places it: a gallery can hide a photograph, never reveal a hidden one.",
+        initialValue: true,
+      },
+      ...(options.datasetVisibility === "private" ? [archiveLocatorField] : []),
+    ],
+    preview: {
+      select: { title: "mediaId", subtitle: "credit", media: "image" },
+    },
+  };
+}

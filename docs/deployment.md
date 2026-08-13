@@ -194,12 +194,18 @@ by how secret it is:
 
 | | Type | Why |
 | --- | --- | --- |
-| Settings the **build** reads — every `SITE_*` value and `CONTACT_DELIVERY_ADAPTER` | plain | A Sensitive value never arrives. None of them is a credential either: the canonical base URL, locale, default social image and its dimensions are all published in the page's own HTML. |
+| Settings the **build** reads — every `SITE_*` value, `CONTACT_DELIVERY_ADAPTER`, and — when `SITE_CONTENT_SOURCE=sanity` — `SANITY_PROJECT_ID` and `SANITY_DATASET` | plain | A Sensitive value never arrives. None of them is a credential either: the canonical base URL, locale, default social image and its dimensions are all published in the page's own HTML, and the project id and dataset are visible in every image URL the site serves. |
 | Credentials only the **running** application reads — `RESEND_API_KEY`, `GALLERY_CURSOR_SIGNING_KEY` | Sensitive | Vercel injects the real value at request time, where the build's inability to read it costs nothing. ADR-0004 §5 requires delivery and CMS credentials to be environment-scoped sensitive variables. |
 
 `SITE_DEPLOYMENT_STAGE` marked Sensitive is the failure worth recognising: the build
 rejects `[SENSITIVE]` as not one of `development`, `preview`, `production`. Loud, but
 with a confusing cause.
+
+`SANITY_PROJECT_ID` and `SANITY_DATASET` fail the same way for the same reason, and it is
+worth knowing why the build wants them at all: `next.config.ts` scopes the image
+optimizer's remote allow-list to this deployment's own asset path, so it needs both while
+the configuration is being read. `[SENSITIVE]` is not a value Sanity would accept, and the
+build says so rather than silently widening the allow-list.
 
 **Never downgrade a credential to plain to get it through the build.** A build-time
 credential is an unresolved architectural question, not a variable type to change.

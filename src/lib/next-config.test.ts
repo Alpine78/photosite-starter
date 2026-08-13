@@ -3,7 +3,10 @@ import type { NextConfig } from "next";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_PUBLIC_DELIVERY_DIMENSION } from "@/lib/image-delivery";
 import { mockImages } from "@/lib/mock-media";
-import { SANITY_ASSET_CDN_HOST } from "@/lib/sanity-config";
+import {
+  loadSanityConfig,
+  SANITY_ASSET_CDN_HOST,
+} from "@/lib/sanity-config";
 
 const IMMUTABLE_CACHE_CONTROL =
   "public, max-age=31536000, immutable";
@@ -109,6 +112,7 @@ describe("public image Next.js configuration", () => {
         // Pinned to the module that owns the address, which build
         // configuration cannot import because it is marked `server-only`.
         hostname: SANITY_ASSET_CDN_HOST,
+        port: "",
         pathname: "/images/zp7mbokg/production/**",
         search: "",
       },
@@ -124,6 +128,38 @@ describe("public image Next.js configuration", () => {
       }),
     ).rejects.toThrow(/SANITY_PROJECT_ID and SANITY_DATASET/);
   });
+
+  it.each([
+    ["a path traversal", "zp7mbokg/../..", "production"],
+    ["a glob", "zp7mbokg", "*"],
+    ["a second path segment", "zp7mbokg", "production/drafts"],
+    ["an uppercase project id", "ZP7MBOKG", "production"],
+  ])(
+    "refuses to widen the allow-list with %s",
+    async (_case, projectId, dataset) => {
+      // These values reach a *path* in the allow-list at build time, before the
+      // application's own configuration is ever loaded, so they are validated
+      // here too rather than trusted to fail later.
+      await expect(
+        configuredWith({
+          SITE_CONTENT_SOURCE: "sanity",
+          SANITY_PROJECT_ID: projectId,
+          SANITY_DATASET: dataset,
+        }),
+      ).rejects.toThrow(/SANITY_PROJECT_ID or SANITY_DATASET/);
+
+      // Pinned to the application's own rules rather than to a copy of the
+      // regular expressions: whatever the deployment refuses to run with, the
+      // optimizer refuses to allow.
+      expect(() =>
+        loadSanityConfig({
+          SANITY_PROJECT_ID: projectId,
+          SANITY_DATASET: dataset,
+          SANITY_API_VERSION: "v2026-06-24",
+        }),
+      ).toThrow();
+    },
+  );
 
   it("adds immutable caching only to a content-versioned gallery path", async () => {
     const response = await getConfigResponse(

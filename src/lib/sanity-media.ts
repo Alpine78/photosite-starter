@@ -20,9 +20,13 @@
  *
  * ## What makes an asset publishable
  *
- * Sanity serves every uploaded asset from a public URL. So "is this file
- * allowed to be on the open web" cannot be answered by the CMS; it is answered
- * here, mechanically, before the URL can reach a page:
+ * Sanity serves every uploaded asset from a public URL, so "is this file
+ * allowed to be on the open web" is a question the store does not answer. It is
+ * answered twice. The Studio schema measures an upload and blocks the publish,
+ * which is the check that matters editorially — it stops a camera master before
+ * it is part of a page. This one runs again on read, because the Studio binds
+ * an editor and not the HTTP API, an import, or a migration script, any of
+ * which can write a document:
  *
  * - the URL is this deployment's own project and dataset on the asset CDN,
  * - the asset is a web delivery format, and its declared MIME type agrees,
@@ -30,12 +34,12 @@
  * - the longest edge is within `MAX_PUBLIC_DELIVERY_DIMENSION`, which a camera
  *   master is not.
  *
- * The check runs when the site reads the document, not when an editor saves it:
- * a Studio rule cannot see an asset's dimensions, which live on the asset
- * document rather than in the field being edited. So a master upload can be
- * published and is then refused here, with a message naming the limit — the
- * page fails rather than the CDN serving a 6000-pixel original. That is the
- * property worth having: bytes delivered publicly cannot be made secret again.
+ * Neither check can un-upload a file: an asset is addressable on the CDN before
+ * anyone presses publish, which is why `docs/sanity-setup.md` carries a
+ * deletion procedure rather than treating refusal as cleanup. What they do
+ * guarantee is that such bytes never become part of a page, a cache key, or an
+ * optimizer request — and that is the property worth having, because bytes
+ * delivered publicly cannot be made secret again.
  *
  * ## Failure is loud
  *
@@ -119,10 +123,11 @@ export const PUBLIC_MEDIA_FILTER = `_type == "${MEDIA_DOCUMENT_TYPE}" && publicl
  *   or neither dated, still come back in the same sequence on every request. A
  *   listing whose order is not total is a listing that can duplicate and skip
  *   items across page boundaries, which is what AB#114 inherits this clause to
- *   avoid. Uniqueness is an editorial rule the Studio cannot check on its own —
- *   a synchronous validation rule sees one document — so it is enforced where a
- *   violation would do damage: `readPublicMediaById` refuses an identity two
- *   documents claim rather than silently answering with one of them.
+ *   avoid. Uniqueness is enforced in two places for two reasons: the Studio
+ *   asks the dataset while an editor types, which is the only moment a
+ *   collision can be prevented rather than reported, and both reads below
+ *   refuse a repeated identity, because the Studio does not bind the HTTP API,
+ *   an import, or a migration script.
  */
 export const PUBLIC_MEDIA_ORDER = `order(coalesce(capturedAt, "") desc, mediaId asc)`;
 
@@ -147,7 +152,7 @@ export const PUBLIC_MEDIA_PROJECTION = `{
   credit,
   "asset": image.asset->{
     url,
-    sha1hash,
+    assetId,
     extension,
     mimeType,
     "width": metadata.dimensions.width,
@@ -155,8 +160,16 @@ export const PUBLIC_MEDIA_PROJECTION = `{
   }
 }`;
 
-/** Web delivery formats, and the MIME type each must declare. */
-const PUBLIC_DELIVERY_FORMATS: Readonly<Record<string, string>> = {
+/**
+ * Web delivery formats, and the MIME type each must declare.
+ *
+ * Exported so a test can pin it to the copy the Studio schema carries. The two
+ * cannot share a module — these schemas are consumed by a Studio that does not
+ * have this repository's application code on its import path — and a format
+ * accepted on one side but not the other turns a publish-time refusal into a
+ * request-time failure.
+ */
+export const PUBLIC_DELIVERY_FORMATS: Readonly<Record<string, string>> = {
   avif: "image/avif",
   jpeg: "image/jpeg",
   jpg: "image/jpeg",
@@ -175,7 +188,9 @@ export type SanityMediaRejection =
   /** The asset is missing, foreign, oversized, or not a web delivery copy. */
   | "unpublishable-asset"
   /** Two published documents claim one `mediaId`. */
-  | "ambiguous-media-id";
+  | "ambiguous-media-id"
+  /** The store answered with something that is not a list of documents. */
+  | "malformed-result";
 
 /**
  * Raised instead of returning something half-trusted.
@@ -209,7 +224,7 @@ type RawLocalizedText = {
 
 type RawAsset = {
   readonly url?: unknown;
-  readonly sha1hash?: unknown;
+  readonly assetId?: unknown;
   readonly extension?: unknown;
   readonly mimeType?: unknown;
   readonly width?: unknown;
@@ -232,7 +247,11 @@ export type RawPublicMediaDocument = {
 };
 
 export type PublicMediaLanguage = {
-  /** Language subtag the page is rendered in, e.g. `fi`. */
+  /**
+   * The language the page is rendered in. A route locale (`en-GB`) is accepted
+   * as readily as a bare subtag (`en`); both resolve to the language authored
+   * text is keyed by.
+   */
   readonly language: string;
   /**
    * The deployment's own language, used when a photograph has no text in the
@@ -240,6 +259,40 @@ export type PublicMediaLanguage = {
    */
   readonly fallbackLanguage: string;
 };
+
+/**
+ * The identity form the schema enforces, enforced again here.
+ *
+ * A Studio rule binds an editor; it does not bind the HTTP API, an import, or a
+ * migration script, and all three can write a document. This boundary decides
+ * what a visitor receives, so it checks rather than assumes — an identity with
+ * a space or an uppercase letter in it would otherwise become part of a public
+ * reference that later features are expected to resolve.
+ */
+const MEDIA_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/**
+ * The language subtag of a locale, which is how authored text is keyed.
+ *
+ * Callers hold route locales — `en-GB`, `en-US` — while entries are written per
+ * language, exactly as the built-in interface labels are. Without this, a route
+ * asking for `en-GB` would match no entry, fall through to the site's own
+ * language, and quietly serve Finnish alternative text with no caption on an
+ * English page: a failure that looks like missing content rather than a bug.
+ *
+ * An unparseable value is returned unchanged. It then matches nothing, and the
+ * error names it, which is more useful than a guess.
+ */
+function toLanguageSubtag(value: string): string {
+  try {
+    const { language } = new Intl.Locale(value);
+    return typeof language === "string" && language.length > 0
+      ? language
+      : value;
+  } catch {
+    return value;
+  }
+}
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -294,9 +347,16 @@ export function isPubliclyRenderable(
  * The URL is checked against the shape Sanity documents rather than trusted for
  * being an HTTPS string: this value ends up in a browser and in an optimizer
  * allow-list, so "it came from the CMS" is not evidence about what it points
- * at. The asset id in the path is the content hash of the bytes, which is what
- * makes the URL byte-versioned — re-export a photograph and both the hash and
- * the URL change, while `mediaId` does not (ADR-0002 §1).
+ * at.
+ *
+ * The identifier in the path is Sanity's own asset id, which is opaque — it is
+ * a content hash for some uploads and a generated token for others, and the
+ * documented URL grammar promises only `<assetId>-<width>x<height>.<format>`.
+ * So it is compared to the asset's `assetId` rather than to its `sha1hash`,
+ * which is a separate field and not always the same string. What matters for
+ * this boundary holds either way: the id belongs to one immutable set of bytes,
+ * so re-exporting a photograph produces a new asset, a new id, and a new URL,
+ * while `mediaId` stays put (ADR-0002 §1).
  */
 function selectPublicRendition(
   asset: RawAsset,
@@ -315,9 +375,9 @@ function selectPublicRendition(
   };
 
   const url = readString(asset.url);
-  const sha1hash = readString(asset.sha1hash);
-  if (url === undefined || sha1hash === undefined) {
-    reject("the asset has no delivery URL or no content hash");
+  const assetId = readString(asset.assetId);
+  if (url === undefined || assetId === undefined) {
+    reject("the asset has no delivery URL or no asset id");
   }
 
   let parsed: URL;
@@ -346,16 +406,23 @@ function selectPublicRendition(
   // `<assetId>-<width>x<height>.<extension>`, the layout Sanity's asset URLs
   // are documented to have. Parsed rather than assumed, so the dimensions the
   // browser is told to reserve can be checked against the ones Sanity measured,
-  // and so the content hash in the path can be checked against the asset's own.
+  // and so the identifier in the path can be checked against the asset's own.
+  //
+  // The id is matched as an opaque token, not as a hash: its length and
+  // alphabet are Sanity's business, and a narrower pattern would refuse
+  // perfectly good assets. The bound keeps it inside what the rendition
+  // contract accepts as a version.
   const filename = parsed.pathname.slice(prefix.length);
-  const match = /^([a-f0-9]{40})-(\d+)x(\d+)\.([a-z0-9]+)$/.exec(filename);
+  const match = /^([A-Za-z0-9_-]{6,128})-(\d+)x(\d+)\.([a-z0-9]+)$/.exec(
+    filename,
+  );
   if (match === null) {
-    reject("the asset delivery URL is not a content-addressed image path");
+    reject("the asset delivery URL is not an addressable image path");
   }
 
-  const [, assetId, urlWidth, urlHeight, extension] = match;
-  if (assetId !== sha1hash) {
-    reject("the asset delivery URL does not match the asset's content hash");
+  const [, urlAssetId, urlWidth, urlHeight, extension] = match;
+  if (urlAssetId !== assetId) {
+    reject("the asset delivery URL names a different asset");
   }
 
   const expectedMimeType = PUBLIC_DELIVERY_FORMATS[extension];
@@ -387,7 +454,7 @@ function selectPublicRendition(
     );
   }
 
-  return { src: url, version: sha1hash, width, height };
+  return { src: url, version: assetId, width, height };
 }
 
 /**
@@ -406,6 +473,14 @@ export function projectPublicMedia(
     throw new SanityMediaError(
       "incomplete-document",
       "a media document has no mediaId, so nothing can reference it",
+    );
+  }
+
+  if (!MEDIA_ID.test(mediaId)) {
+    throw new SanityMediaError(
+      "incomplete-document",
+      "the media identity is not in the form the whole site references it by (lowercase words separated by hyphens)",
+      mediaId,
     );
   }
 
@@ -433,18 +508,21 @@ export function projectPublicMedia(
     );
   }
 
+  const language = toLanguageSubtag(options.language);
+  const fallbackLanguage = toLanguageSubtag(options.fallbackLanguage);
+
   // Alternative text falls back to the deployment's own language, because an
   // image announced in the wrong language is still usable and an image with no
   // announcement at all is not. A caption does not fall back: it is editorial
   // prose, and publishing it under a page written in another language is the
   // same mistake the page description already refuses to make.
   const alt =
-    selectLocalizedText(document.alt, options.language) ??
-    selectLocalizedText(document.alt, options.fallbackLanguage);
+    selectLocalizedText(document.alt, language) ??
+    selectLocalizedText(document.alt, fallbackLanguage);
   if (alt === undefined) {
     throw new SanityMediaError(
       "incomplete-document",
-      `the photograph has no alternative text in "${options.language}" or "${options.fallbackLanguage}"`,
+      `the photograph has no alternative text in "${language}" or "${fallbackLanguage}"`,
       mediaId,
     );
   }
@@ -458,7 +536,7 @@ export function projectPublicMedia(
   }
 
   const rendition = selectPublicRendition(document.asset, options.config, mediaId);
-  const caption = selectLocalizedText(document.caption, options.language);
+  const caption = selectLocalizedText(document.caption, language);
   const credit = readString(document.credit);
 
   return projectPublicImageMedia({
@@ -472,13 +550,32 @@ export function projectPublicMedia(
 }
 
 /**
- * The deployment's own language subtag — the one alternative text falls back
- * to. Taken from the locale that owns the unprefixed routes, so it is the
- * language the site is authored in rather than a constant written down twice.
+ * Reads the documented answer shape, or says so.
+ *
+ * A query that evaluates to something other than a list of documents is a
+ * broken contract — an adapter defect or a CMS fault — not a photograph that
+ * does not exist. Folding it into "nothing found" would publish a 404 over a
+ * production incident, and would let a `null` inside the list surface later as
+ * an unclassified `TypeError`. Only a genuinely empty list means absence.
  */
-function getFallbackLanguage(): string {
-  const { defaultLocale } = getDeploymentConfig().localeRoutes;
-  return new Intl.Locale(defaultLocale).language;
+function readDocuments(result: unknown): readonly RawPublicMediaDocument[] {
+  if (!Array.isArray(result) || !result.every(isRecord)) {
+    throw new SanityMediaError(
+      "malformed-result",
+      "the content store answered with something other than a list of media documents",
+    );
+  }
+
+  return result;
+}
+
+/**
+ * The locale that owns the unprefixed routes — the one alternative text falls
+ * back to. Read from the deployment rather than written down twice; the
+ * projection reduces it to its language subtag.
+ */
+function getFallbackLocale(): string {
+  return getDeploymentConfig().localeRoutes.defaultLocale;
 }
 
 /** How many documents one listing may return. */
@@ -501,7 +598,7 @@ function resolveRead(options: PublicMediaReadOptions): {
     config: options.config ?? getSanityConfig(),
     languages: {
       language: options.language,
-      fallbackLanguage: getFallbackLanguage(),
+      fallbackLanguage: getFallbackLocale(),
     },
   };
 }
@@ -528,8 +625,9 @@ export async function readPublicMediaById(
     tag: "media.detail",
   });
 
-  if (!Array.isArray(result) || result.length === 0) return undefined;
-  if (result.length > 1) {
+  const documents = readDocuments(result);
+  if (documents.length === 0) return undefined;
+  if (documents.length > 1) {
     throw new SanityMediaError(
       "ambiguous-media-id",
       "two published documents claim one media identity",
@@ -537,10 +635,7 @@ export async function readPublicMediaById(
     );
   }
 
-  return projectPublicMedia(result[0] as RawPublicMediaDocument, {
-    ...languages,
-    config,
-  });
+  return projectPublicMedia(documents[0], { ...languages, config });
 }
 
 /**
@@ -575,12 +670,21 @@ export async function readPublicMedia(
     tag: "media.list",
   });
 
-  if (!Array.isArray(result)) return [];
-
-  return result.map((document) =>
-    projectPublicMedia(document as RawPublicMediaDocument, {
-      ...languages,
-      config,
-    }),
+  const media = readDocuments(result).map((document) =>
+    projectPublicMedia(document, { ...languages, config }),
   );
+
+  // The same check the by-id read makes, applied to a page: a duplicate
+  // identity here would silently break deduplication and, once AB#114
+  // paginates over this order, would take a slot a different photograph should
+  // have had.
+  const identities = new Set(media.map((item) => item.mediaId));
+  if (identities.size !== media.length) {
+    throw new SanityMediaError(
+      "ambiguous-media-id",
+      "one media identity appears more than once in a single page of results",
+    );
+  }
+
+  return media;
 }

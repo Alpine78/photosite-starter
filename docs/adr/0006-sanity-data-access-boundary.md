@@ -80,6 +80,43 @@ and components read adapters; ESLint forbids `src/app/**` and `src/components/**
 importing the client or its configuration; both modules carry the `server-only` marker.
 Replacing the CMS still means rewriting those two modules and the adapters above them.
 
+#### Amendment 2026-08-13 (AB#82) — §5, what a server-side boundary does not protect
+
+**Status of the record: still Proposed.** This amendment adds a constraint the original
+§5 did not state. Nothing it said is withdrawn.
+
+**The original rule, preserved:** "The token setting is unprefixed… The token travels in
+an `Authorization` header, never in a URL, and is never logged."
+
+**What the first schema story established:** §5 reasoned about the *credential*, and
+about data crossing the application's own boundaries. It did not reason about what the
+content store itself exposes, and two things there are outside the application's reach
+entirely:
+
+- **A public dataset is world-readable.** Anyone holding the project id can query every
+  published document in it. A field the application never projects — ADR-0002 §1's
+  `archiveLocator` is the case in point — is therefore not server-only in a public
+  dataset. It is published, by the store, regardless of what the adapter does.
+- **Assets are public in either dataset.** An uploaded file is addressable on
+  `cdn.sanity.io` from the moment the upload completes, before any document is published
+  and regardless of dataset visibility. A read-time refusal keeps those bytes out of a
+  page; it does not make them unreachable.
+
+**The addition:** the schema is built for a stated dataset visibility, and the
+world-readable case does not get the field at all — `defineSchemaTypes({ datasetVisibility })`
+omits `archiveLocator` for a public dataset, so there is no place to record a master's
+location into a document anyone can read. A private dataset makes `SANITY_READ_TOKEN`
+required rather than optional. Separately, the export policy is enforced in the Studio as
+a publish-blocking asynchronous validation, and again in the adapter, because the Studio
+binds an editor while the HTTP API, an import, and a migration script do not.
+
+**Consequence for later schema stories:** any field carrying something a visitor may not
+read is a dataset-visibility decision before it is an adapter decision. "The adapter does
+not project it" is not, on its own, a control.
+
+**Evidence:** Sanity's dataset visibility and asset access documentation, and the AB#82
+review of 2026-08-13, which found the original read-time-only enforcement insufficient.
+
 ### 2. No client SDK — the query API over `fetch`
 
 A published read is one authenticated GET. The client composes it directly, following the

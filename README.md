@@ -200,9 +200,12 @@ behavior are in [docs/sanity-setup.md](docs/sanity-setup.md); the trade-offs are
 The document types are separate again, in [`sanity/schemas`](sanity/README.md) — plain
 objects that import nothing, so describing a schema costs no dependency and a clone points
 its own Studio at them. The shared **media** document is the first one, with a server-only
-adapter behind it: one photograph is one document, an uploaded asset must be an exported
-web copy within the site's own delivery limit rather than a camera master, and authored
-text is keyed by language subtag so adding a language is content rather than code
+adapter behind it: one photograph is one document; an uploaded asset must be an exported
+web copy within the site's own delivery limit rather than a camera master, checked in the
+Studio so the publish is blocked and again at the boundary because the Studio is not the
+only writer; a world-readable dataset is offered no field for archive locations at all,
+since anything in it is published whether the site reads it or not; and authored text is
+keyed by language subtag so adding a language is content rather than code
 ([ADR-0008](docs/adr/0008-localized-authored-text.md)). The remaining schemas and the
 adapters that would read them are separate stories, so the site still renders from the
 mock layer today.
@@ -356,8 +359,9 @@ a green pipeline. See [deployment](docs/deployment.md).
   customer-owned connection, published-perspective query client, and the enforced
   data-access boundary done ([setup](docs/sanity-setup.md),
   [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)); the shared media document and
-  its server-only adapter done, including the public-derivative limit that refuses a
-  camera master and the language-keyed authored text
+  its server-only adapter done, including the publish-blocking derivative limit that
+  refuses a camera master, the dataset-visibility rule for archive locations, and the
+  language-keyed authored text
   ([ADR-0008](docs/adr/0008-localized-authored-text.md)) — nothing reads it yet; the
   remaining schemas, their adapters, and tagged caching/webhook revalidation pending*
 - [ ] Production deployment — *the Preview environment's repository half is done: pinned
@@ -434,8 +438,9 @@ return to the first page. Category listings still answer `?cursor=` with a 404, 
 none issues one. Static routes and authored
 SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
 separate story. The Sanity connection, its published-perspective query client, and the
-enforced data-access boundary are in place; the schemas and adapters that would put
-authored content behind them are not, so every page still renders from the mock layer.
+enforced data-access boundary are in place, and so are the shared media document and its
+server-only adapter; the remaining schemas and the seams that would read them are not, so
+every page still renders from the mock layer.
 The gallery grid lays its items out row by row, so what the eye reads is the order the
 source, the DOM, keyboard focus, and the lightbox all use, and every frame keeps its native
 aspect ratio uncropped. It opens a fullscreen lightbox that navigates the loaded result by

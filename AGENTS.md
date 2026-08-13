@@ -270,15 +270,27 @@ the server-only adapter (`src/lib/sanity-media.ts`) that projects it into the sa
 `ImageMedia` the fixtures produce. One photograph is one document — placement fields stay
 on whatever places it (ADR-0002) — and the adapter reads an allow-list rather than a
 document, so the archive locator, the provider ids, and the capture date used for
-ordering cannot reach a payload. An asset is refused unless it is this deployment's own
-project and dataset on the asset CDN, a web delivery format whose declared media type
-agrees, dimensioned as Sanity measured it, and within `MAX_PUBLIC_DELIVERY_DIMENSION` —
-2048px, the same number as the optimizer's widest candidate, pinned by a test, so a
-camera master fails at the boundary instead of being served from a public URL. Authored
-text is language-keyed (ADR-0008): alternative text falls back to the site's own
-language, a caption is dropped rather than shown in the wrong one. A video, a
-non-renderable photograph, and an undescribed one all raise rather than half-publish.
-`next.config.ts` allows the optimizer exactly this deployment's own asset path prefix,
+ordering cannot reach a payload. The rendition's version is Sanity's own asset id, taken
+from the documented `<assetId>-<width>x<height>.<format>` URL grammar and compared to the
+asset's `assetId`; it is opaque, not a content hash, so nothing assumes hexadecimal.
+The export policy is enforced twice, because a read-time refusal is late: the schema
+measures an upload against `MAX_PUBLIC_DELIVERY_DIMENSION` (2048px, the same number as
+the optimizer's widest candidate, pinned by a test) and its format, and blocks the
+publish; the adapter checks again, because the Studio binds an editor and not the HTTP
+API. Neither un-uploads a file — an asset is public on the CDN before anyone presses
+publish — so `docs/sanity-setup.md` carries a deletion procedure. Dataset visibility is
+stated when the schema is built: a world-readable dataset is offered no archive-location
+field at all, because a field the adapter never projects is still published by a public
+dataset; a private one makes the read token required. `mediaId` is checked in the Studio
+for uniqueness across the dataset and for not having changed since the last publish, and
+again at the boundary — its syntax, one document per identity by id, and no repeated
+identity within a page. A malformed answer from the store is a classified failure, never
+an empty result. Authored text is language-keyed (ADR-0008): alternative text falls back
+to the site's own language, a caption is dropped rather than shown in the wrong one. A
+video raises rather than half-publishing; the model stays image/video capable but the
+public video projection is deliberately a later story with its own delivery ADR (recorded
+on AB#82). `next.config.ts` allows the optimizer exactly this deployment's own asset path
+prefix, with the project id and dataset validated before they are interpolated into it,
 and nothing at all when the content source is the fixtures.
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated

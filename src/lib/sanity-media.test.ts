@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { mediaType } from "../../sanity/schemas/media";
+import {
+  defineMediaType,
+  MAX_PUBLIC_DELIVERY_DIMENSION as SCHEMA_DELIVERY_LIMIT,
+  PUBLIC_DELIVERY_FORMATS as SCHEMA_DELIVERY_FORMATS,
+} from "../../sanity/schemas/media";
 import { MAX_PUBLIC_DELIVERY_DIMENSION } from "@/lib/image-delivery";
 import {
   isPubliclyRenderable,
+  PUBLIC_DELIVERY_FORMATS,
   MAX_PUBLIC_MEDIA_PAGE_SIZE,
   MEDIA_DOCUMENT_TYPE,
   ORDERED_MEDIA_FIELDS,
@@ -43,11 +48,18 @@ const config: SanityConfig = {
 const languages = { language: "fi", fallbackLanguage: "fi" } as const;
 const englishRoute = { language: "en", fallbackLanguage: "fi" } as const;
 
-const EXPORTED_HASH = "0123456789abcdef0123456789abcdef01234567";
-const REPROCESSED_HASH = "fedcba9876543210fedcba9876543210fedcba98";
+/**
+ * Asset ids as Sanity actually mints them: opaque tokens, not content hashes.
+ * One upload of each shape, because the documented URL grammar promises only
+ * `<assetId>-<width>x<height>.<format>` and an adapter that assumed hexadecimal
+ * would refuse perfectly ordinary assets.
+ */
+const EXPORTED_ASSET = "Tb9Ew8CXIwaY6R1kjMvI0uRR";
+const REPROCESSED_ASSET = "G3i4emG6B8JnTmGoN0UjgAp8";
+const HASHED_ASSET = "0123456789abcdef0123456789abcdef01234567";
 
 type AssetOverrides = {
-  readonly sha1hash?: string;
+  readonly assetId?: string;
   readonly width?: number;
   readonly height?: number;
   readonly extension?: string;
@@ -56,7 +68,7 @@ type AssetOverrides = {
 };
 
 function assetOf(overrides: AssetOverrides = {}) {
-  const sha1hash = overrides.sha1hash ?? EXPORTED_HASH;
+  const assetId = overrides.assetId ?? EXPORTED_ASSET;
   const width = overrides.width ?? 1600;
   const height = overrides.height ?? 1067;
   const extension = overrides.extension ?? "webp";
@@ -64,8 +76,8 @@ function assetOf(overrides: AssetOverrides = {}) {
   return {
     url:
       overrides.url ??
-      `https://cdn.sanity.io/images/${config.projectId}/${config.dataset}/${sha1hash}-${width}x${height}.${extension}`,
-    sha1hash,
+      `https://cdn.sanity.io/images/${config.projectId}/${config.dataset}/${assetId}-${width}x${height}.${extension}`,
+    assetId,
     extension,
     mimeType: overrides.mimeType ?? "image/webp",
     width,
@@ -120,8 +132,8 @@ describe("projecting a Sanity photograph", () => {
       caption: "Hiljainen rannikko",
       credit: "Placeholder credit",
       rendition: {
-        src: `https://cdn.sanity.io/images/zp7mbokg/production/${EXPORTED_HASH}-1600x1067.webp`,
-        version: EXPORTED_HASH,
+        src: `https://cdn.sanity.io/images/zp7mbokg/production/${EXPORTED_ASSET}-1600x1067.webp`,
+        version: EXPORTED_ASSET,
         width: 1600,
         height: 1067,
       },
@@ -151,7 +163,7 @@ describe("projecting a Sanity photograph", () => {
       "archiveLocator",
       "Archive",
       "capturedAt",
-      "sha1hash",
+      "assetId",
       "publiclyRenderable",
       "mediaType",
     ]) {
@@ -167,6 +179,18 @@ describe("projecting a Sanity photograph", () => {
     // Identity and bytes are language-neutral: only the words differ.
     expect(english.mediaId).toBe(finnish.mediaId);
     expect(english.rendition).toEqual(finnish.rendition);
+  });
+
+  it("reads a route locale as the language its text is keyed by", () => {
+    // Route spaces are locales; authored text is keyed by language. Without
+    // that reduction an en-GB page would match no entry, fall through to the
+    // site's own language, and look like missing content rather than a bug.
+    const media = project(documentOf(), {
+      language: "en-GB",
+      fallbackLanguage: "fi-FI",
+    });
+
+    expect(media.alt).toBe("Rocky shoreline beside calm water");
   });
 
   it("falls back to the site's own language for alternative text", () => {
@@ -199,7 +223,13 @@ describe("projecting a Sanity photograph", () => {
   it("keeps its identity across reprocessing while the delivery URL moves", () => {
     const before = project(documentOf());
     const after = project(
-      documentOf({ asset: assetOf({ sha1hash: REPROCESSED_HASH, width: 2048, height: 1365 }) }),
+      documentOf({
+        asset: assetOf({
+          assetId: REPROCESSED_ASSET,
+          width: 2048,
+          height: 1365,
+        }),
+      }),
     );
 
     expect(after.mediaId).toBe(before.mediaId);
@@ -264,13 +294,33 @@ describe("refusing what cannot be published", () => {
     const error = rejectionOf(() =>
       project(
         documentOf({
-          asset: assetOf({ width: 6000, height: 4000, sha1hash: REPROCESSED_HASH }),
+          asset: assetOf({ width: 6000, height: 4000, assetId: REPROCESSED_ASSET }),
         }),
       ),
     );
 
     expect(error.rejection).toBe("unpublishable-asset");
     expect(error.message).toContain(`${MAX_PUBLIC_DELIVERY_DIMENSION}px`);
+  });
+
+  it("accepts an asset id of either shape Sanity mints", () => {
+    // Some uploads are addressed by their content hash and some by a generated
+    // token. The URL grammar promises only that the id is there.
+    const media = project(
+      documentOf({ asset: assetOf({ assetId: HASHED_ASSET }) }),
+    );
+
+    expect(media.rendition.version).toBe(HASHED_ASSET);
+  });
+
+  it("refuses an identity the rest of the site could not reference", () => {
+    // A Studio rule binds an editor. The HTTP API, an import, and a migration
+    // script all write documents without passing one.
+    const error = rejectionOf(() =>
+      project(documentOf({ mediaId: "Coastal Landscape" })),
+    );
+
+    expect(error.rejection).toBe("incomplete-document");
   });
 
   it("accepts a derivative exactly at the delivery limit", () => {
@@ -287,31 +337,31 @@ describe("refusing what cannot be published", () => {
     [
       "another project's asset",
       assetOf({
-        url: `https://cdn.sanity.io/images/otherproj/production/${EXPORTED_HASH}-1600x1067.webp`,
+        url: `https://cdn.sanity.io/images/otherproj/production/${EXPORTED_ASSET}-1600x1067.webp`,
       }),
     ],
     [
       "another dataset's asset",
       assetOf({
-        url: `https://cdn.sanity.io/images/zp7mbokg/staging/${EXPORTED_HASH}-1600x1067.webp`,
+        url: `https://cdn.sanity.io/images/zp7mbokg/staging/${EXPORTED_ASSET}-1600x1067.webp`,
       }),
     ],
     [
       "an unencrypted URL",
       assetOf({
-        url: `http://cdn.sanity.io/images/zp7mbokg/production/${EXPORTED_HASH}-1600x1067.webp`,
+        url: `http://cdn.sanity.io/images/zp7mbokg/production/${EXPORTED_ASSET}-1600x1067.webp`,
       }),
     ],
     [
       "a transformed URL",
       assetOf({
-        url: `https://cdn.sanity.io/images/zp7mbokg/production/${EXPORTED_HASH}-1600x1067.webp?rect=0,0,800,800`,
+        url: `https://cdn.sanity.io/images/zp7mbokg/production/${EXPORTED_ASSET}-1600x1067.webp?rect=0,0,800,800`,
       }),
     ],
     [
-      "a URL whose hash is not the asset's",
+      "a URL naming a different asset",
       assetOf({
-        url: `https://cdn.sanity.io/images/zp7mbokg/production/${REPROCESSED_HASH}-1600x1067.webp`,
+        url: `https://cdn.sanity.io/images/zp7mbokg/production/${REPROCESSED_ASSET}-1600x1067.webp`,
       }),
     ],
     [
@@ -336,26 +386,43 @@ describe("refusing what cannot be published", () => {
 
 describe("the query contract", () => {
   it("asks only for fields the schema declares", () => {
-    const declared = new Set(mediaType.fields.map((field) => field.name));
+    const declared = new Set(
+      defineMediaType({ datasetVisibility: "private" }).fields.map(
+        (field: { name: string }) => field.name,
+      ),
+    );
 
     for (const field of [...PROJECTED_MEDIA_FIELDS, ...ORDERED_MEDIA_FIELDS]) {
       expect(declared.has(field)).toBe(true);
       expect(PUBLIC_MEDIA_PROJECTION + PUBLIC_MEDIA_ORDER).toContain(field);
     }
 
-    expect(MEDIA_DOCUMENT_TYPE).toBe(mediaType.name);
+    expect(MEDIA_DOCUMENT_TYPE).toBe(
+      defineMediaType({ datasetVisibility: "private" }).name,
+    );
   });
 
   it("leaves the archive location in the content store", () => {
     // Declared, so an editor can record where a master lives — and never read,
     // so no query can carry it out.
-    expect(mediaType.fields.map((field) => field.name)).toContain(
-      "archiveLocator",
-    );
+    expect(
+      defineMediaType({ datasetVisibility: "private" }).fields.map(
+        (field: { name: string }) => field.name,
+      ),
+    ).toContain("archiveLocator");
     expect(PUBLIC_MEDIA_PROJECTION).not.toContain("archiveLocator");
     expect([...PROJECTED_MEDIA_FIELDS, ...ORDERED_MEDIA_FIELDS]).not.toContain(
       "archiveLocator",
     );
+  });
+
+  it("holds the Studio to the same export policy the boundary enforces", () => {
+    // The schema is consumed by a Studio that does not have this repository on
+    // its import path, so the policy is restated there. Restated is fine;
+    // drifting is not — a Studio that publishes what the boundary refuses turns
+    // an editorial refusal into a broken page.
+    expect(SCHEMA_DELIVERY_LIMIT).toBe(MAX_PUBLIC_DELIVERY_DIMENSION);
+    expect(SCHEMA_DELIVERY_FORMATS).toEqual(PUBLIC_DELIVERY_FORMATS);
   });
 
   it("projects an allow-list rather than spreading a document", () => {
@@ -410,6 +477,19 @@ describe("reading a photograph by its identity", () => {
     // Interpolating an identity into GROQ would make a content read a place
     // where a caller's string becomes query syntax.
     expect(queries[0].query).not.toContain("coastal-landscape");
+  });
+
+  it.each([
+    ["not a list", { mediaId: "coastal-landscape" }],
+    ["a list holding something that is not a document", [null]],
+  ])("treats %s as a failure rather than as absence", async (_case, answer) => {
+    // A broken contract is an incident, not a 404. Folding it into "nothing
+    // found" would publish a missing page over a production fault.
+    const { client } = stubClient(answer);
+
+    await expect(
+      readPublicMediaById("coastal-landscape", { language: "fi", client, config }),
+    ).rejects.toMatchObject({ rejection: "malformed-result" });
   });
 
   it("answers undefined when this deployment publishes no such photograph", async () => {
@@ -470,6 +550,24 @@ describe("listing publishable photographs", () => {
       readPublicMedia({ language: "fi", limit: 0, client, config }),
     ).resolves.toEqual([]);
     expect(queries).toHaveLength(0);
+  });
+
+  it("reports one identity appearing twice in a page", async () => {
+    // A duplicate would break deduplication now and, once AB#114 paginates
+    // over this order, take a slot another photograph should have had.
+    const { client } = stubClient([documentOf(), documentOf()]);
+
+    await expect(
+      readPublicMedia({ language: "fi", limit: 10, client, config }),
+    ).rejects.toMatchObject({ rejection: "ambiguous-media-id" });
+  });
+
+  it("treats a malformed listing as a failure", async () => {
+    const { client } = stubClient({ items: [] });
+
+    await expect(
+      readPublicMedia({ language: "fi", limit: 10, client, config }),
+    ).rejects.toMatchObject({ rejection: "malformed-result" });
   });
 
   it("lists only what the site can deliver", async () => {
