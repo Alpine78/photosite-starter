@@ -305,7 +305,7 @@ a green pipeline. See [deployment](docs/deployment.md).
   and the tree-driven site menu, which composes the configured static links with the
   first two category levels behind an accessible disclosure in both the wide and the
   compact layout, the canonical curated gallery detail route, and gallery cursor
-  continuation, done; listing continuation and the in-place gallery append pending*
+  continuation and the in-place gallery append done; listing continuation pending*
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))

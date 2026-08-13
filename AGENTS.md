@@ -198,7 +198,13 @@ cover or the deterministic first public item (`selectCuratedGalleryCover`), a pu
 gallery with no items renders an accessible empty state (the mock publishes one, so it is
 a state the site serves rather than one only a test has seen). Category listings still answer `?cursor=` with a 404, because none issues one;
 `?section=` stays an ignored unrecognized parameter until AB#105, and AB#129 owns the
-seeded random order. A ~400-placement fixture gallery exercises the boundary. The pre-tree `/portfolio` route was removed rather than
+seeded random order. The continuation link is progressively enhanced in the browser to
+append one bounded slice in place, with loading, failure, retry, and completion states;
+the open lightbox grows from the same result and offers its own reachable retry without
+closing or losing the current item. Focus stays on the continuation control while it
+exists and moves to the completion notice when the final slice removes it. No slice is
+loaded until the visitor activates the control or reaches the last loaded lightbox item.
+A ~400-placement fixture gallery exercises the boundary. The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
 belongs and what to call it, so no two surfaces can feature different galleries. Each
@@ -241,7 +247,8 @@ pages walked through the real link with no duplicates or gaps, the continuation 
 compact heading and absent lead, its self-canonical metadata and absent alternates, its
 link back to the first page, and the 404s for an unminted token, a token
 issued by another gallery, and a repeated parameter), the gallery append journey (the
-in-place append with its order and de-duplication, focus staying on the control, a failed
+in-place append with its order and de-duplication, focus staying on the control until
+completion moves it to the notice, a failed
 continuation that keeps what is loaded and retries, the lightbox reading the grown list,
 continuing past the last loaded item from inside the open viewer, and a failure that
 neither closes it nor loses the item), the services journey (the listing, one service detail with its cover, price list,

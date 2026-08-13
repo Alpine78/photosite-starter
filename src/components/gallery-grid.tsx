@@ -91,6 +91,10 @@ export function GalleryGrid({
   );
   const continueRef = useRef<HTMLAnchorElement | null>(null);
   const completionRef = useRef<HTMLParagraphElement | null>(null);
+  // The request callback reads and advances the current slice synchronously.
+  // React may render its state update later, but a second caller must already
+  // see the new cursor and the append must throw inside the request's catch.
+  const sliceRef = useRef(slice);
   // A second activation while one slice is in flight must not start another.
   const inFlightRef = useRef(false);
   const statusId = useId();
@@ -105,23 +109,28 @@ export function GalleryGrid({
    * this rather than watch state it does not own.
    */
   const loadNext = useCallback(async (): Promise<ContinuationOutcome> => {
-    if (inFlightRef.current || nextCursor === null) {
-      return { appended: false, complete: nextCursor === null };
+    const cursor = sliceRef.current.nextCursor;
+    if (inFlightRef.current || cursor === null) {
+      return { appended: false, complete: cursor === null };
     }
 
     inFlightRef.current = true;
     setState("loading");
 
     try {
-      const next = await fetchGallerySlice(galleryPath, nextCursor);
+      const next = await fetchGallerySlice(galleryPath, cursor);
       // Appending is what de-duplicates: a cursor names a boundary rather than
       // a set, so an overlapping slice is a legal answer and must not put the
       // same item on screen twice.
-      setSlice((loaded) => appendGallerySlice(loaded, next));
+      const loaded = sliceRef.current;
+      const merged = appendGallerySlice(loaded, next);
+      sliceRef.current = merged;
+      setSlice(merged);
       setState("idle");
-      // Read from the answer rather than from `slice`, which this closure
-      // captured before the request and which still says a continuation exists.
-      return { appended: true, complete: next.nextCursor === null };
+      return {
+        appended: merged.items.length > loaded.items.length,
+        complete: merged.nextCursor === null,
+      };
     } catch {
       // The failure is announced and the control becomes a retry. Nothing that
       // was already loaded is discarded: a visitor keeps everything they had.
@@ -130,11 +139,17 @@ export function GalleryGrid({
     } finally {
       inFlightRef.current = false;
     }
-  }, [galleryPath, nextCursor]);
+  }, [galleryPath]);
 
-  /** The lightbox only needs to know whether the sequence grew. */
+  /** The lightbox needs to know whether it grew or reached a clean end. */
   const continueForLightbox = useCallback(
-    async () => (await loadNext()).appended,
+    async () => {
+      const outcome = await loadNext();
+      // Reaching a duplicate-only final slice is still a successful end, even
+      // though the viewer did not grow. A non-final slice that adds nothing
+      // remains retryable, now from the cursor that response advanced to.
+      return outcome.appended || outcome.complete;
+    },
     [loadNext],
   );
 
