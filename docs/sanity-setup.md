@@ -3,9 +3,10 @@
 How a deployment connects to its content store, who owns that store, and what the site
 does when the store cannot be reached.
 
-This covers the connection only. Content schemas, caching and webhook revalidation, and
-content seeding are separate work items (AB#80, AB#81, AB#82, AB#83, AB#112, AB#114);
-until they land, every deployment runs on `SITE_CONTENT_SOURCE=mock`.
+This covers the connection and the shared media schema. The remaining schemas, caching
+and webhook revalidation, and content seeding are separate work items (AB#80, AB#81,
+AB#83, AB#112, AB#113, AB#114); until they land, every deployment runs on
+`SITE_CONTENT_SOURCE=mock`.
 
 ## Ownership
 
@@ -24,9 +25,11 @@ account customer-owned, and this one is no exception:
   between owners is done in Sanity's own console, and the deployment does not change at
   all.
 - **Exit is possible.** The dataset can be exported through Sanity's own tooling, and the
-  application's knowledge of Sanity is confined to two files (see
-  [ADR-0006](adr/0006-sanity-data-access-boundary.md)), so replacing the CMS means
-  rewriting those and the adapters above them — not auditing every route.
+  application's runtime connection to Sanity is confined to two files (see
+  [ADR-0006](adr/0006-sanity-data-access-boundary.md) §1), so replacing the CMS means
+  rewriting those and the adapters above them — not auditing every route. The document
+  types are separate again, in [`sanity/`](../sanity/README.md), and describe the content
+  rather than the provider.
 
 The one thing the owner must not delegate is billing and account recovery. A CMS the
 photographer cannot log into is a site they cannot edit.
@@ -92,6 +95,72 @@ The read token is server-only, and three things keep it out of the browser:
   cannot see.
 
 The token never appears in a URL, is never logged, and is never returned to a caller.
+
+## Content schemas
+
+The document types this site reads live in [`sanity/`](../sanity/README.md) as plain
+objects that import nothing — a Sanity schema type *is* a plain object, so the repository
+needs no `sanity` package to describe one. Point your Studio's `schema.types` at them
+(that directory's README shows how). Copying works and drifts; a path, a submodule, or a
+workspace dependency does not.
+
+So far one document type exists: **media**, the shared photograph. Galleries, articles,
+services, categories, and settings arrive with their own stories.
+
+**Authored text is language-keyed.** A field a visitor reads is an array of
+`{ language, value }` entries, keyed by language subtag — never fields named after your
+languages. Publishing in another language means adding entries and a locale route, not
+editing a schema. Alternative text falls back to the site's own language when a
+translation is missing — so always author that one; a photograph described in neither the
+viewed language nor the site's own is refused rather than shown undescribed. A caption is
+simply not shown, because prose in the wrong language is worse than no prose. [ADR-0008](adr/0008-localized-authored-text.md) records
+why.
+
+**What is not on the media document.** Where a photograph sits — its order in a gallery,
+the section it belongs to, a caption written for one particular page — belongs to the
+gallery that places it, never to the photograph
+([ADR-0002](adr/0002-media-identity-and-placement-boundary.md)). One photograph is one
+document, described once, reused everywhere.
+
+## Media and assets
+
+**Upload exported web copies, never camera masters.** Every asset in a dataset is served
+from a public URL on Sanity's asset CDN. There is no "upload it but keep it private" for
+the images this site reads, and bytes that have been delivered publicly cannot be made
+secret afterwards — they persist in visitor, intermediary, and provider caches.
+
+The site enforces the export policy rather than trusting it:
+
+| Rule | Why |
+| --- | --- |
+| At most **2048 pixels on the longest edge** | The widest candidate the image optimizer emits. A larger file could never be delivered in full, so its extra pixels are cost with no reader — and a camera master is several times this size, so uploading one fails instead of being published. |
+| **JPEG, PNG, WebP, or AVIF**, with a matching media type | Web delivery formats. A camera or print format is refused. |
+| The asset must belong to **this deployment's project and dataset** | The optimizer's allow-list is scoped to them, so a foreign URL could not be rendered anyway. |
+| Dimensions come from the file | Never typed in. The site reserves space at the photograph's true ratio and never crops it. |
+
+A document that breaks one of these is refused when the site reads it, with a message
+naming the reason. The check cannot run in the Studio — a validation rule sees the field
+being edited, not the uploaded asset's measured dimensions — so an oversized or
+camera-format upload can be saved and published, and then fails the page instead of
+putting an original into a public cache. Verify a new photograph on the site after
+publishing it.
+
+**Archive locations are stored, not published.** The media document has an optional
+*Archive location* — where your master lives, in your own archive. No query the site runs
+reads it, so it cannot reach a page. It is still stored in your dataset: **if those paths
+are sensitive, the dataset must be private and the site must read it with a read token.**
+A public dataset is world-readable by anyone who knows the project id.
+
+**One photograph, one Media ID.** The identity is minted by hand and must be unique: if
+two published documents claim the same one, the site refuses to serve either rather than
+guessing which was meant. Nothing in the Studio can check that for you — a validation rule
+sees one document — so it is worth a glance when adding media in bulk.
+
+**Identity survives reprocessing.** The *Media ID* is minted by hand, once, and never
+changed. Re-exporting or re-uploading a photograph changes its delivery URL and its
+content hash — that is how the site knows the bytes changed and caches can be replaced —
+while the Media ID stays put, so links, references, and later enquiries keep pointing at
+the same work.
 
 ## Drafts
 

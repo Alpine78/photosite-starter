@@ -1,5 +1,27 @@
 import type { PublicImageRendition } from "@/lib/media";
 
+/**
+ * Longest edge a public web derivative may have.
+ *
+ * This is export policy, not a contract limit: `MAX_PUBLIC_IMAGE_DIMENSION`
+ * (8192) is what the public media type will accept at all, and this is what a
+ * deployment's own delivery copies are allowed to be. The number is the widest
+ * candidate the optimizer is configured to emit, and a test pins the two
+ * together — a derivative wider than that could never be delivered in full
+ * anyway, because every candidate the browser can ask for is narrower, so the
+ * extra pixels are cost with no reader.
+ *
+ * It is also the mechanical part of the "public derivatives only" rule. A
+ * camera master is several times this wide, so uploading one into the content
+ * store fails at the boundary instead of being served from a public URL and
+ * cached beyond recall. Editorial intent is not a control; a bound is.
+ *
+ * Raising it is one deliberate change, not three: the export policy here, the
+ * optimizer's candidate list in `next.config.ts`, and AB#15's lightbox
+ * verification move together or not at all.
+ */
+export const MAX_PUBLIC_DELIVERY_DIMENSION = 2048;
+
 export type ImageRenderProfile = {
   /** Browser source-size hint passed directly to `next/image`. */
   readonly sizes: string;

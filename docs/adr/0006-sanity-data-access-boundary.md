@@ -2,6 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-08-10
+**Amended:** 2026-08-13 — see the amendment under §1
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#39
 
@@ -35,7 +36,7 @@ of the project get to know about Sanity, and what carries the credential".
 
 ## Decision
 
-### 1. Two modules know Sanity exists
+### 1. Two modules hold the runtime connection to Sanity
 
 `src/lib/sanity-config.ts` holds the validated connection settings and the read token.
 `src/lib/sanity-client.ts` holds the HTTP surface: the hostname, the API version path
@@ -48,6 +49,36 @@ one is not enough: ESLint forbids `src/app/**` and `src/components/**` from impo
 either module, and both modules carry the `server-only` marker so that a Client Component
 reaching them *through an adapter* — which ESLint cannot see — fails the build rather
 than the request. The boundary is a rule, not a convention.
+
+#### Amendment 2026-08-13 (AB#82) — §1, what "two modules" counts
+
+**Status of the record: still Proposed.** This amendment states the scope of one clause
+more precisely. Nothing it permits is new, and no other section changes.
+
+**The original rule, preserved:** "`src/lib/sanity-config.ts` holds the validated
+connection settings and the read token. `src/lib/sanity-client.ts` holds the HTTP
+surface… Nothing else in the repository names any of them."
+
+**What it counts:** the two modules are the application's **runtime connection** — the
+settings, the credential, and the request surface the running site uses to reach the
+Content Lake. The rule bounds what has to be rewritten to replace the CMS and where a
+credential may live. It was never a count of files in the repository that mention Sanity.
+
+Two things AB#82 added are therefore inside the rule, not exceptions to it:
+
+- **`sanity/schemas/`** is a Studio schema artifact — content-store configuration
+  exported to the customer's own Studio, importing nothing and imported by nothing under
+  `src/`. It holds no credential and issues no request. Its only link to the application
+  is a test asserting that the adapter projects fields the schema declares.
+- **The asset CDN host** is named in `src/lib/sanity-config.ts`, which already owns the
+  project id and dataset the address is built from, and restated in `next.config.ts`. The
+  restatement is unavoidable: the image optimizer's allow-list is build configuration and
+  cannot import a module marked `server-only`. A test pins the two values together.
+
+**Unchanged:** adapters compose GROQ and project results into project-owned types; routes
+and components read adapters; ESLint forbids `src/app/**` and `src/components/**` from
+importing the client or its configuration; both modules carry the `server-only` marker.
+Replacing the CMS still means rewriting those two modules and the adapters above them.
 
 ### 2. No client SDK — the query API over `fetch`
 
@@ -209,7 +240,9 @@ the adapters above it do not change.
 
 - [ ] AB#83: decide the cache contract, including whether to move reads to
       `apicdn.sanity.io`, and replace `cache: "no-store"` with the tag-based policy.
-- [ ] AB#80 / AB#81 / AB#82 / AB#112 / AB#114: write adapters behind this boundary; each
+- [x] AB#82 wrote the first adapter behind this boundary (`src/lib/sanity-media.ts`),
+      validating the `unknown` result it receives and projecting an allow-list.
+- [ ] AB#80 / AB#81 / AB#112 / AB#114: write the remaining adapters the same way; each
       owns validating the `unknown` result it receives.
 - [ ] AB#116: run `probeSanityConnectivity` against the Preview deployment's own project
       as part of provisioning verification.

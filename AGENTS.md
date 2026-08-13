@@ -264,6 +264,22 @@ failures, never falls back to another source, and adds no CMS library. Sanity's 
 surface lives in `src/lib/sanity-config.ts` and `src/lib/sanity-client.ts`; ESLint stops
 `src/app` and `src/components` from importing either, and the `server-only` marker
 catches the indirect case ESLint cannot see (ADR-0006, `docs/sanity-setup.md`).
+The first schema and adapter sit on top of that connection: the shared media document
+(`sanity/schemas/`, plain objects a customer Studio consumes, no `sanity` package) and
+the server-only adapter (`src/lib/sanity-media.ts`) that projects it into the same
+`ImageMedia` the fixtures produce. One photograph is one document — placement fields stay
+on whatever places it (ADR-0002) — and the adapter reads an allow-list rather than a
+document, so the archive locator, the provider ids, and the capture date used for
+ordering cannot reach a payload. An asset is refused unless it is this deployment's own
+project and dataset on the asset CDN, a web delivery format whose declared media type
+agrees, dimensioned as Sanity measured it, and within `MAX_PUBLIC_DELIVERY_DIMENSION` —
+2048px, the same number as the optimizer's widest candidate, pinned by a test, so a
+camera master fails at the boundary instead of being served from a public URL. Authored
+text is language-keyed (ADR-0008): alternative text falls back to the site's own
+language, a caption is dropped rather than shown in the wrong one. A video, a
+non-renderable photograph, and an undescribed one all raise rather than half-publish.
+`next.config.ts` allows the optimizer exactly this deployment's own asset path prefix,
+and nothing at all when the content source is the fixtures.
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test,
@@ -319,9 +335,10 @@ answers any `?cursor=` with a 404 — gallery sections
 (AB#105), the gallery lead and long-form body (AB#106), seeded random gallery ordering
 (AB#129), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
-sitemap/robots, structured data, the Sanity content schemas and adapters that would put
-authored content behind the connection (AB#80, AB#81, AB#82, AB#112, AB#114) — so every
-page still renders from the mock layer — tagged caching and webhook revalidation (AB#83),
+sitemap/robots, structured data, the remaining Sanity content schemas and adapters that
+would put authored content behind the connection (AB#80, AB#81, AB#112, AB#113, AB#114) —
+the media schema exists but nothing reads it yet, so every page still renders from the
+mock layer — tagged caching and webhook revalidation (AB#83),
 and the deployment itself: provisioning is under way — a Vercel project exists, but
 protection, Preview environment values, and deployment credentials are not finished;
 the disabled variable group currently carries only the non-secret project/team IDs, and
@@ -363,6 +380,12 @@ Then iterate.
   beside the file that performs the IO. Its Vitest tests sit next to it
   (`scripts/**/*.test.mts`) — it is not part of the application bundle, so it does not
   live in `src/`
+- CMS document types live in `sanity/schemas/` as plain objects that import nothing — a
+  Sanity schema type is a plain object, so describing one costs no dependency. They are
+  content-store configuration exported to the customer's own Studio, not application
+  code: nothing under `src/` imports them, and their Vitest tests sit next to them
+  (`sanity/**/*.test.ts`). The one link to the application is a test asserting that an
+  adapter projects only fields the schema declares
 - Browser-free TypeScript tests use Vitest, live in `src/**/*.test.ts`, and must stay
   deterministic with no browser, external network, secrets, personal data, or live
   CMS/email dependencies. Playwright is reserved for separate public-journey tests.
@@ -468,7 +491,8 @@ This is the complete set — there is no other documentation to hunt for:
 | `docs/architecture/` | anyone forming a mental model of the system | a system boundary, layer, external dependency, or the deploy flow changes — edit the `.d2` source and re-run `npm run diagrams`, never the `.svg` |
 | `docs/asset-inventory.md` | licensing audit | any third-party asset, font, or shipped dependency is added or removed |
 | `docs/contact-data-flow.md` | the site owner, a visitor who asks, and the AB#117 launch review | the contact form's fields, delivery path, processors, logs, or retention change |
-| `docs/sanity-setup.md` | the site owner and whoever provisions a clone's CMS | the Sanity connection settings, ownership/transfer story, perspective, or failure behavior change |
+| `docs/sanity-setup.md` | the site owner and whoever provisions a clone's CMS | the Sanity connection settings, ownership/transfer story, perspective, schemas, media policy, or failure behavior change |
+| `sanity/README.md` | whoever wires a clone's Studio to these schemas | a document type is added, or how the Studio consumes them changes |
 | `docs/deployment.md` | the site owner and whoever provisions a clone's hosting | the Preview environment, pipeline deployment stage, environment-variable split, runtime pins, or promotion/rollback mechanism change |
 | `NOTICE`, `licenses/` | anyone receiving the product | a third-party component with an attribution requirement is added |
 | `.claude/skills/`, `.agents/skills/` | agents | a recurring workflow needs a skill; duplicate into both, no symlinks |

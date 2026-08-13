@@ -44,6 +44,8 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 - `src/components` – reusable UI components *(added as features land)*
 - `src/lib` – shared logic, configuration, data access, and the generic media model
 - `scripts` – deployment tooling that runs outside the application bundle
+- `sanity/schemas` – the CMS document types, as plain objects a customer's Studio
+  consumes; content-store configuration, not application code
 - `docs/adr` – architecture decision records ([conventions](docs/adr/README.md))
 - `docs/architecture` – [architecture diagrams](docs/architecture/README.md): the system
   context, the application and data boundaries, and the build/deployment flow, as D2
@@ -188,15 +190,22 @@ read asks for the **published** perspective, and no setting can change that — 
 is absent from the code rather than switched off. A failed read raises with a classified
 error; nothing ever falls back to demo content.
 
-Sanity's HTTP surface lives in two files. ESLint stops `src/app` and `src/components` from
-importing either, and both carry the `server-only` marker so a Client Component reaching
-them through an adapter fails the build — provider knowledge and the read token stay
-behind the adapter boundary. Setup, ownership, transfer, and failure behavior are in
-[docs/sanity-setup.md](docs/sanity-setup.md); the trade-offs are in
+Sanity's runtime connection lives in two files. ESLint stops `src/app` and
+`src/components` from importing either, and both carry the `server-only` marker so a
+Client Component reaching them through an adapter fails the build — provider knowledge and
+the read token stay behind the adapter boundary. Setup, ownership, transfer, and failure
+behavior are in [docs/sanity-setup.md](docs/sanity-setup.md); the trade-offs are in
 [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md).
 
-Content schemas and adapters are separate stories, so the site still renders from the mock
-layer today.
+The document types are separate again, in [`sanity/schemas`](sanity/README.md) — plain
+objects that import nothing, so describing a schema costs no dependency and a clone points
+its own Studio at them. The shared **media** document is the first one, with a server-only
+adapter behind it: one photograph is one document, an uploaded asset must be an exported
+web copy within the site's own delivery limit rather than a camera master, and authored
+text is keyed by language subtag so adding a language is content rather than code
+([ADR-0008](docs/adr/0008-localized-authored-text.md)). The remaining schemas and the
+adapters that would read them are separate stories, so the site still renders from the
+mock layer today.
 
 ```bash
 npm ci
@@ -346,8 +355,11 @@ a green pipeline. See [deployment](docs/deployment.md).
 - [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`; validated
   customer-owned connection, published-perspective query client, and the enforced
   data-access boundary done ([setup](docs/sanity-setup.md),
-  [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)); content schemas, adapters,
-  and tagged caching/webhook revalidation pending*
+  [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)); the shared media document and
+  its server-only adapter done, including the public-derivative limit that refuses a
+  camera master and the language-keyed authored text
+  ([ADR-0008](docs/adr/0008-localized-authored-text.md)) — nothing reads it yet; the
+  remaining schemas, their adapters, and tagged caching/webhook revalidation pending*
 - [ ] Production deployment — *the Preview environment's repository half is done: pinned
   runtime and region, a gated deploy stage, and the check that refuses to publish a
   release-candidate URL unless its project/team ownership, access protection, and

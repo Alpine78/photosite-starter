@@ -59,6 +59,34 @@ export type SanityConfig = {
   readonly readToken?: string;
 };
 
+/**
+ * Where uploaded assets are served from.
+ *
+ * A second Sanity host, and a different kind of thing from the query API in
+ * `sanity-client.ts`: this one is addressed by the browser, not by the server.
+ * It belongs here because the address is made of the connection settings this
+ * module already owns and validates —
+ * `https://cdn.sanity.io/images/<projectId>/<dataset>/…` — so a deployment
+ * cannot end up allowing one project's assets while reading another's content.
+ *
+ * `next.config.ts` restates the host, because the optimizer's allow-list is
+ * build configuration and cannot import a `server-only` module. A test pins the
+ * two together rather than trusting them to stay equal.
+ */
+export const SANITY_ASSET_CDN_HOST = "cdn.sanity.io";
+
+/**
+ * The one path prefix under which this deployment's own images live. Anything
+ * outside it is another project's asset, another dataset's asset, or not an
+ * image at all.
+ */
+export function buildSanityImagePathPrefix(config: {
+  readonly projectId: string;
+  readonly dataset: string;
+}): string {
+  return `/images/${config.projectId}/${config.dataset}/`;
+}
+
 /** Raised when a deployment's Sanity settings are missing or unusable. */
 export class SanityConfigurationError extends Error {
   constructor(message: string) {
