@@ -140,8 +140,8 @@ minimal reproduction, comparison with a newer Next.js release, and then either a
 issue or a project mechanism that does not rely on this `notFound()` rendering path. That
 investigation is separate from gallery continuation.
 
-Until then the continuation journey covers the link with JavaScript enabled and says why at
-the point it does. The link itself is server-rendered — a Server Component reading a
+AB#132 owns that investigation. Until it lands, the continuation journey covers the link
+with JavaScript enabled and says why at the point it does. The link itself is server-rendered — a Server Component reading a
 request header, with no client code involved — so it needs no change when the framework
 behaviour does.
 
@@ -153,5 +153,7 @@ behaviour does.
 - [x] Tests: path validation including protocol-relative and backslash forms, served
       return-link resolution through canonical normalization, cursor-aware trailing-slash
       behavior, and a journey proving spoofed headers cannot choose the target
-- [ ] A work item for the non-semantic initial 404 document. Start with a minimal
-      reproduction, check a newer release, and open an upstream issue if it still holds.
+- [x] A work item for the non-semantic initial 404 document: **AB#132**, which carries the
+      ruled-out experiments above. Start with a minimal reproduction, check a newer
+      release, and open an upstream issue if it still holds. Retiring the limitation below
+      also retires the JavaScript-enabled exception in the continuation journey.

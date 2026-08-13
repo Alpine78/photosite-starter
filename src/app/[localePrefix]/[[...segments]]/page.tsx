@@ -31,6 +31,7 @@ import {
   getDeploymentConfig,
 } from "@/lib/deployment-config";
 import { GalleryCursorError, getGalleryPage } from "@/lib/gallery";
+import { projectGallerySlice } from "@/lib/gallery-slice-server";
 import { resolveLocalePrefixRequest } from "@/lib/locale-prefix-request";
 import {
   buildStoryPath,
@@ -417,7 +418,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
         <ContentGallery
           locale={locale}
           page={page}
-          items={result.items}
+          slice={projectGallerySlice(result)}
           {...(result.page.hasNextPage
             ? {
                 nextPageHref: toCanonicalPath(

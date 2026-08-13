@@ -1,19 +1,11 @@
-import Image, { getImageProps } from "next/image";
+import Image from "next/image";
 import {
   GalleryLightbox,
   GalleryLightboxTrigger,
 } from "@/components/gallery-lightbox";
 import type { BuiltInLabels } from "@/lib/deployment-config";
-import type { GalleryResultItem } from "@/lib/gallery-result";
-import {
-  getLightboxImageSizes,
-  imageRenderProfiles,
-} from "@/lib/image-delivery";
-import {
-  buildLightboxSlides,
-  type LightboxRendition,
-} from "@/lib/lightbox-slides";
-import type { ImageMedia } from "@/lib/media";
+import type { GallerySlice } from "@/lib/gallery-slice";
+import { imageRenderProfiles } from "@/lib/image-delivery";
 
 type GalleryGridProps = {
   /** Accessible name of the image list, normally the gallery's own title. */
@@ -23,34 +15,9 @@ type GalleryGridProps = {
    * The type is AB#67's and nothing narrower: the grid renders a curated gallery
    * and a later dynamic one identically, and never learns which it was given.
    */
-  items: readonly GalleryResultItem<ImageMedia>[];
+  slice: GallerySlice;
   labels: BuiltInLabels;
 };
-
-/**
- * Resolves the only source the lightbox is allowed to deliver: candidates
- * derived from the item's own approved public rendition.
- *
- * `getImageProps` runs the same pipeline the grid's `<Image>` does, so no
- * optimizer URL is hand-built here and nothing but this derivative reaches the
- * browser. The `sizes` hint is what makes the optimizer emit width-descriptor
- * candidates; the lightbox then narrows the attribute to the slide's real
- * rendered width at runtime.
- */
-function resolveLightboxRendition(media: ImageMedia): LightboxRendition {
-  const { props } = getImageProps({
-    src: media.rendition.src,
-    alt: media.alt,
-    width: media.rendition.width,
-    height: media.rendition.height,
-    sizes: getLightboxImageSizes(media.rendition),
-  });
-
-  return {
-    src: props.src,
-    ...(props.srcSet === undefined ? {} : { srcset: props.srcSet }),
-  };
-}
 
 /**
  * One page of gallery items as a grid of full-frame thumbnails, each opening
@@ -69,16 +36,14 @@ function resolveLightboxRendition(media: ImageMedia): LightboxRendition {
  * `object-cover` and no fixed-ratio cell — because a cropped preview
  * misrepresents the photograph and can make a strong image go unseen.
  */
-export function GalleryGrid({ label, items, labels }: GalleryGridProps) {
-  const slides = buildLightboxSlides(items, resolveLightboxRendition);
-
+export function GalleryGrid({ label, slice, labels }: GalleryGridProps) {
   return (
-    <GalleryLightbox slides={slides} labels={labels.lightbox}>
+    <GalleryLightbox slides={slice.slides} labels={labels.lightbox}>
       <ul
         aria-label={label}
         className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3"
       >
-        {items.map((item, index) => {
+        {slice.items.map((item, index) => {
           const { media } = item;
 
           return (

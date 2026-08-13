@@ -175,8 +175,8 @@ renders a not-found boundary with no params, and renders it before the page, so 
 in-tree can tell it. One site-wide limitation bounds that link and predates this work: on
 Next.js 16.2.11 the tested 404 responses carry their semantic UI only in the RSC payload,
 so no heading or link renders without JavaScript. ADR-0007 records the experiments already
-performed without claiming a framework root cause; a minimal reproduction and version
-comparison remain a separate investigation.
+performed without claiming a framework root cause; AB#132 owns the minimal reproduction and
+version comparison.
 One authoritative manual order governs the source, the DOM, keyboard focus, and the
 lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
 ratios, never cropped) precisely so the visual reading order cannot contradict it; the

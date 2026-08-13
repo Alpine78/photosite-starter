@@ -8,8 +8,7 @@ import {
 import type { GalleryContentPage } from "@/lib/content-page";
 import { formatDate } from "@/lib/date-format";
 import type { BuiltInLabels } from "@/lib/deployment-config";
-import type { GalleryResultItem } from "@/lib/gallery-result";
-import type { ImageMedia } from "@/lib/media";
+import type { GallerySlice } from "@/lib/gallery-slice";
 
 type ContentGalleryProps = {
   locale: string;
@@ -19,7 +18,7 @@ type ContentGalleryProps = {
    * page and its result are read separately on purpose: a listing card projects
    * the page's fields without ever loading this.
    */
-  items: readonly GalleryResultItem<ImageMedia>[];
+  slice: GallerySlice;
   /**
    * Where the next bounded page lives, when this one is not the last. The route
    * builds it, because it alone knows this gallery's canonical path; the token
@@ -81,7 +80,7 @@ type ContentGalleryProps = {
 export function ContentGallery({
   locale,
   page,
-  items,
+  slice,
   nextPageHref,
   firstPageHref,
   isContinuation = false,
@@ -143,8 +142,8 @@ export function ContentGallery({
           aria-label={`${page.title} ${labels.gallery.images}`}
           className={isContinuation ? "mt-8" : "mt-12"}
         >
-          {items.length > 0 ? (
-            <GalleryGrid label={page.title} items={items} labels={labels} />
+          {slice.items.length > 0 ? (
+            <GalleryGrid label={page.title} slice={slice} labels={labels} />
           ) : (
             <p className="text-foreground/70">{labels.gallery.empty}</p>
           )}
