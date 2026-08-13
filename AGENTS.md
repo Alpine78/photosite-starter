@@ -143,20 +143,27 @@ publication order, self-referencing canonical metadata, `hreflang`/`x-default` a
 Open Graph article, and the identity-based language switch.
 Curated galleries render there too: the `gallery` variant has its canonical detail route
 in every locale space, reading its result through `src/lib/gallery.ts` — route components
-import that contract and no mock or provider type. The seam narrows AB#67's page to a
-`CompleteGalleryPage` (`hasNextPage` statically `false`) and refuses a continuation with an
-error naming AB#72, because a conforming adapter may paginate and rendering only the first
-page would hide the rest of a gallery with nothing on the page saying so. One authoritative manual order governs the source, the DOM, keyboard focus, and the
+import that contract and no mock or provider type. A gallery larger than one page now continues rather than being refused: it issues an
+opaque cursor signed with the deployment's own `GALLERY_CURSOR_SIGNING_KEY` — a
+server-only runtime secret resolved lazily, so a deployment whose galleries all fit inside
+one page never reads it — and serves the next bounded slice at its own indexable,
+self-canonical `?cursor=` URL, which names no `hreflang` alternates because no other
+locale holds an equivalent slice. The control that reaches it is a real link, so a large
+gallery pages through with no JavaScript at all (ADR-0003 decision 8); a token that is
+malformed, tampered with, scoped to another gallery, or stale is a 404 rather than a quiet
+return to the first page, and so is a repeated `?cursor=`. The key enters at the
+`gallery.ts` seam rather than in the fixture, ESLint keeps `src/app` and `src/components`
+away from it, and rotating it retires every continuation URL already issued and indexed.
+One authoritative manual order governs the source, the DOM, keyboard focus, and the
 lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
 ratios, never cropped) precisely so the visual reading order cannot contradict it; the
 column-major CSS masonry it replaced did. A gallery's listing card takes its explicit
 cover or the deterministic first public item (`selectCuratedGalleryCover`), a published
 gallery with no items renders an accessible empty state (the mock publishes one, so it is
 a state the site serves rather than one only a test has seen), and a fixture larger than
-one page fails at import rather than hiding items. The route serves that one page and answers
-`?cursor=` with a 404 — AB#66 owns the cursor contract, AB#72 the continuation across grid
-and lightbox, AB#129 the seeded random order; `?section=` stays an ignored unrecognized
-parameter until AB#105. The pre-tree `/portfolio` route was removed rather than
+one page fails at import rather than hiding items. Category listings still answer `?cursor=` with a 404, because none issues one;
+`?section=` stays an ignored unrecognized parameter until AB#105, and AB#129 owns the
+seeded random order. A ~400-placement fixture gallery exercises the boundary. The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
 belongs and what to call it, so no two surfaces can feature different galleries. Each
@@ -194,7 +201,10 @@ the content-tree journey (branches, the canonical detail route, redirects, and
 checked separately, the grid's reading order against DOM and lightbox order at one, two,
 and three columns, the lightbox, canonical and `hreflang`/`x-default` metadata, the empty
 gallery's accessible state, and the 404s for a cursor, an unknown slug, and the removed
-`/portfolio` route), the services journey (the listing, one service detail with its cover, price list,
+`/portfolio` route), the gallery continuation journey (run with JavaScript disabled: four
+pages walked through the real link with no duplicates or gaps, the continuation page's
+self-canonical metadata and absent alternates, and the 404s for an unminted token, a token
+issued by another gallery, and a repeated parameter), the services journey (the listing, one service detail with its cover, price list,
 and breadcrumb, the navigation between them and into the story section, and an unknown
 slug's 404), the site-menu journey (its composition, the disclosure opened by pointer and
 by keyboard and dismissed either way with focus return, the level-at-a-time Escape
@@ -227,9 +237,11 @@ The provisioning runbook, the Preview/Production environment split, and the reco
 promotion and rollback commands are `docs/deployment.md`.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
-unprefixed-only for now — public continuation routes and
-controls — a category listing and a gallery are each bounded to their first page and
-answer any `?cursor=` with a 404, because none has been issued — gallery sections
+unprefixed-only for now — the in-place gallery append and lightbox continuation, which is
+the second half of AB#72 (appending the next page into the loaded grid, its loading,
+failure, retry, and completion states, and continuing past the loaded items from inside an
+open lightbox) — category listing continuation, which stays bounded to its first page and
+answers any `?cursor=` with a 404 — gallery sections
 (AB#105), the gallery lead and long-form body (AB#106), seeded random gallery ordering
 (AB#129), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),

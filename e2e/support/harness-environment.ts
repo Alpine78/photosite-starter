@@ -95,4 +95,11 @@ export const appUnderTestEnvironment: Record<string, string> = {
   // is a real choice the application reads, and `mock` is refused in a
   // production deployment, which the stage above says this is not.
   SITE_CONTENT_SOURCE: "mock",
+  // Signs the continuation cursors a gallery larger than one page issues. Fixed
+  // rather than generated, because a cursor has to stay valid between the
+  // request that issued it and the one that spends it, and because a suite that
+  // minted a new key per run could never tell a stale token from a rotated key.
+  // Not a credential: it protects nothing but this fixture's page boundaries,
+  // and it is deliberately safe to publish in a failure artifact.
+  GALLERY_CURSOR_SIGNING_KEY: "e2e-harness-gallery-cursor-signing-key",
 };

@@ -24,6 +24,10 @@ const eslintConfig = defineConfig([
   // A route or component that reached past them would put provider knowledge —
   // and eventually a credential — into the render tree, and replacing the CMS
   // would stop being a change to src/lib.
+  //
+  // The gallery cursor signing key is kept out of the same places for the same
+  // reason (AB#72): a route transports an opaque token and never mints or
+  // inspects one, so only the adapter behind `@/lib/gallery` holds the key.
   {
     files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
     rules: {
@@ -35,6 +39,11 @@ const eslintConfig = defineConfig([
               group: ["@/lib/sanity-client", "@/lib/sanity-config"],
               message:
                 "Read content through an adapter in src/lib instead. Sanity clients, queries, and credentials stay behind that boundary (ADR-0006).",
+            },
+            {
+              group: ["@/lib/gallery-cursor"],
+              message:
+                "Read a gallery page through `@/lib/gallery` instead. The cursor signing key stays behind that adapter; a route only transports the opaque token (ADR-0003 decision 8).",
             },
           ],
         },

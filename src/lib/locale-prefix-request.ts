@@ -25,6 +25,13 @@ export type LocalePrefixRequestResolution =
       readonly kind: "story";
       readonly locale: string;
       readonly route: StoryRoute;
+      /**
+       * The opaque continuation token this request carries, when the route has
+       * a continuation contract that gives one meaning. Transported unchanged
+       * and never interpreted here: only the gallery adapter can say whether it
+       * names a slice (ADR-0003 decision 8).
+       */
+      readonly cursor?: string;
     }
   | { readonly kind: "not-found" };
 
@@ -111,27 +118,56 @@ function resolveHistoricalStoryTarget(
 }
 
 /**
- * Whether a continuation token means anything at this route.
+ * What a `cursor` parameter means at this route.
  *
  * `cursor` is the continuation contract's parameter, and ADR-0003 decision 8
  * gives it a meaning at exactly two kinds of address: a category listing and a
- * gallery. At both it is recognized — and rejected, because neither issues a
- * cursor yet (AB#66 decides the contract, AB#72 renders the continuation), so a
- * token arriving at one is malformed, stale, or tampered with, and decision 8
- * answers those with a 404 rather than a page that quietly ignores it.
+ * gallery.
  *
- * An article has no continuation contract at all, which makes `cursor` an
- * ordinary unrecognized parameter there: decision 8 reads the parameters it
- * knows and ignores the rest, so a campaign or referral link never turns a real
- * page into a 404.
+ * - A **gallery** now issues one, so it `carry`s the token to the adapter. Only
+ *   the adapter holds the signing key, so only it can tell a slice boundary from
+ *   a forgery; this layer transports the value and forms no opinion about it.
+ * - A **category listing or the story root** recognizes the parameter but issues
+ *   no token, so any that arrives is malformed, stale, or tampered with, and
+ *   decision 8 answers those with a 404 rather than a page that quietly ignores
+ *   it. Listing continuation is a separate story from AB#72.
+ * - An **article** has no continuation contract at all, which makes `cursor` an
+ *   ordinary unrecognized parameter: decision 8 reads the parameters it knows
+ *   and ignores the rest, so a campaign or referral link never turns a real page
+ *   into a 404.
  *
- * `section` is deliberately absent from both lists. Gallery sections are
- * AB#105's, and until a gallery can have one, no value of that parameter names
- * anything — so it stays unrecognized and ignored rather than 404ing links that
- * a later story will make meaningful.
+ * `section` is deliberately absent from all three. Gallery sections are AB#105's,
+ * and until a gallery can have one, no value of that parameter names anything —
+ * so it stays unrecognized and ignored rather than 404ing links that a later
+ * story will make meaningful.
  */
-function rejectsCursor(route: StoryRoute): boolean {
-  return route.kind !== "content" || route.variant === "gallery";
+function cursorDisposition(route: StoryRoute): "carry" | "reject" | "ignore" {
+  if (route.kind !== "content") return "reject";
+  return route.variant === "gallery" ? "carry" : "ignore";
+}
+
+/**
+ * Whether this request's token is unusable at this route, before any
+ * normalization has happened.
+ *
+ * A refusal is a 404 at the address requested rather than a redirect to a
+ * different spelling, which could make a meaningless token appear to name
+ * something.
+ */
+function refusesCursor(
+  route: StoryRoute,
+  cursor: string | readonly string[] | undefined,
+): boolean {
+  if (cursor === undefined) return false;
+
+  const disposition = cursorDisposition(route);
+  if (disposition === "ignore") return false;
+  if (disposition === "reject") return true;
+
+  // A gallery continues from one bookmark. Repeating the parameter names no
+  // single slice, so it is refused here rather than handed to the adapter as a
+  // guess about which of them the visitor meant.
+  return typeof cursor !== "string";
 }
 
 /**
@@ -200,7 +236,7 @@ export async function resolveLocalePrefixRequest({
 
     const story = resolveStorySegments(trees, defaultRoute, canonical);
     if (story !== null) {
-      if (searchParams.cursor !== undefined && rejectsCursor(story)) {
+      if (refusesCursor(story, searchParams.cursor)) {
         return NOT_FOUND;
       }
       return redirectTo(toPath(canonical));
@@ -214,7 +250,7 @@ export async function resolveLocalePrefixRequest({
       canonical,
     );
     if (historical !== null) {
-      if (searchParams.cursor !== undefined && rejectsCursor(historical.route)) {
+      if (refusesCursor(historical.route, searchParams.cursor)) {
         return NOT_FOUND;
       }
       return redirectTo(historical.path);
@@ -255,16 +291,16 @@ export async function resolveLocalePrefixRequest({
       canonical,
     );
     if (historical === null) return NOT_FOUND;
-    return searchParams.cursor !== undefined && rejectsCursor(historical.route)
+    return refusesCursor(historical.route, searchParams.cursor)
       ? NOT_FOUND
       : redirectTo(historical.path);
   }
 
-  // No listing cursor exists yet, so a token cannot identify any slice of one.
-  // Rejected before casing or locale-prefix normalization: a malformed or stale
-  // token is a 404 at the address requested, never a redirect to a different
-  // spelling that could make the token appear meaningful.
-  if (searchParams.cursor !== undefined && rejectsCursor(route)) {
+  // Refused before casing or locale-prefix normalization, so a token that means
+  // nothing here is a 404 at the address requested rather than a redirect to a
+  // different spelling that could make it appear meaningful. The cursor value
+  // itself is never normalized — decision 8 makes it case-sensitive.
+  if (refusesCursor(route, searchParams.cursor)) {
     return NOT_FOUND;
   }
 
@@ -277,5 +313,16 @@ export async function resolveLocalePrefixRequest({
     );
   }
 
-  return { kind: "story", locale: localeRoute.locale, route };
+  const cursor =
+    cursorDisposition(route) === "carry" &&
+    typeof searchParams.cursor === "string"
+      ? searchParams.cursor
+      : undefined;
+
+  return {
+    kind: "story",
+    locale: localeRoute.locale,
+    route,
+    ...(cursor === undefined ? {} : { cursor }),
+  };
 }

@@ -160,6 +160,10 @@ export type BuiltInLabels = {
     readonly images: string;
     /** Accessible state of a published gallery with no public items yet. */
     readonly empty: string;
+    /** Names the link that continues into the gallery's next bounded page. */
+    readonly showMore: string;
+    /** Names the link back to the gallery's first page from a continuation. */
+    readonly backToStart: string;
   };
   readonly lightbox: {
     /** Accessible name of the fullscreen dialog itself. */
@@ -295,6 +299,8 @@ const englishLabels = {
   gallery: {
     images: "images",
     empty: "This gallery has no images yet.",
+    showMore: "Show more images",
+    backToStart: "Back to the start of this gallery",
   },
   lightbox: {
     viewer: "Image viewer",
@@ -390,6 +396,8 @@ const finnishLabels = {
   gallery: {
     images: "kuvaa",
     empty: "Tässä galleriassa ei ole vielä kuvia.",
+    showMore: "Näytä lisää kuvia",
+    backToStart: "Takaisin gallerian alkuun",
   },
   lightbox: {
     viewer: "Kuvakatselin",

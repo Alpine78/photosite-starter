@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
 import { GalleryGrid } from "@/components/gallery-grid";
 import {
@@ -19,6 +20,19 @@ type ContentGalleryProps = {
    * the page's fields without ever loading this.
    */
   items: readonly GalleryResultItem<ImageMedia>[];
+  /**
+   * Where the next bounded page lives, when this one is not the last. The route
+   * builds it, because it alone knows this gallery's canonical path; the token
+   * inside it is the adapter's and is passed along untouched.
+   */
+  nextPageHref?: string;
+  /**
+   * The gallery's parameter-free first page, present only when the visitor is
+   * looking at a continuation. A continuation URL is indexable, so somebody can
+   * arrive on slice four straight from a search result; without this they would
+   * have no way back to the first three, because a cursor only points forward.
+   */
+  firstPageHref?: string;
   /** Canonical ancestry, story root first, ending at this page. */
   breadcrumbs: readonly BreadcrumbStep[];
   languages: readonly LanguageLink[];
@@ -41,11 +55,22 @@ type ContentGalleryProps = {
  * A published gallery with no public items renders its own accessible empty
  * state rather than a 404: the page exists, it is simply between selections, and
  * an address a visitor may already hold should say so.
+ *
+ * A gallery longer than one page ends with a continuation link rather than a
+ * button. ADR-0003 decision 8 requires a real `href`, so the next slice is
+ * reachable, shareable, and crawlable with no JavaScript at all; AB#72's second
+ * slice progressively enhances that same link into an in-place append.
+ *
+ * A continuation also offers the way back that a cursor cannot: tokens point
+ * forward only, and a continuation URL is indexable, so a visitor can land on a
+ * middle slice from a search result with no route to the items before it.
  */
 export function ContentGallery({
   locale,
   page,
   items,
+  nextPageHref,
+  firstPageHref,
   breadcrumbs,
   languages,
   labels,
@@ -84,6 +109,28 @@ export function ContentGallery({
             <GalleryGrid label={page.title} items={items} labels={labels} />
           ) : (
             <p className="text-foreground/70">{labels.gallery.empty}</p>
+          )}
+
+          {(nextPageHref !== undefined || firstPageHref !== undefined) && (
+            <div className="mt-10 flex flex-col items-center gap-4">
+              {nextPageHref !== undefined && (
+                <Link
+                  href={nextPageHref}
+                  rel="next"
+                  className="rounded-sm border border-black/15 px-5 py-2.5 text-sm font-medium transition-colors hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/20 dark:hover:bg-white/10"
+                >
+                  {labels.gallery.showMore}
+                </Link>
+              )}
+              {firstPageHref !== undefined && (
+                <Link
+                  href={firstPageHref}
+                  className="text-sm text-foreground/70 underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                >
+                  {labels.gallery.backToStart}
+                </Link>
+              )}
+            </div>
           )}
         </section>
 

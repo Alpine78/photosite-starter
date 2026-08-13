@@ -611,8 +611,10 @@ test("a gallery answers honestly for the addresses it does not serve", async ({
   page,
 }) => {
   await test.step("a cursor it never issued is not a page", async () => {
-    // A gallery recognizes `cursor` (ADR-0003 decision 8), and none has been
-    // issued yet, so a token here is stale, tampered with, or malformed.
+    // A gallery recognizes `cursor` (ADR-0003 decision 8). This one fits on a
+    // single page, so it has issued none, and a token arriving here is stale,
+    // tampered with, or malformed. Continuation itself is exercised separately,
+    // against a gallery large enough to have a second page.
     const response = await page.goto(
       `${GALLERY_PATH}?cursor=not-a-token-this-route-minted`,
       { waitUntil: "domcontentloaded" },

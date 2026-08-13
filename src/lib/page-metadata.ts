@@ -28,9 +28,13 @@ export type MetadataContext = {
 
 export type PageMetadataInput = {
   /**
-   * Canonical, parameter-free route path, e.g. `/` or `/services/weddings`.
-   * A filtered view of a listing passes the unfiltered path, so alternate
-   * filters of one result set do not claim separate canonical URLs.
+   * Canonical route path, e.g. `/` or `/services/weddings`.
+   *
+   * A *filtered* view of a listing passes the unfiltered path, so alternate
+   * filters of one result set do not claim separate canonical URLs. A *cursor
+   * continuation* is the exception and passes its own `?cursor=` path: it is a
+   * distinct sequential slice rather than another arrangement of the same one,
+   * which ADR-0003 decision 8 makes indexable and self-canonical.
    */
   readonly path: string;
   /** Omitted by the site root, which keeps the SiteSettings site name. */

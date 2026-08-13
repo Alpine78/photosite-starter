@@ -165,6 +165,7 @@ time; the Production set is never fetched by the Preview job.
 | `CONTACT_DELIVERY_ADAPTER`                     | `sink`                                               | `resend`                                |
 | `CONTACT_DELIVERY_FROM`, `CONTACT_DELIVERY_TO` | unset                                                | the owner's verified sender and mailbox |
 | `RESEND_API_KEY`                               | unset                                                | Production-only secret                  |
+| `GALLERY_CURSOR_SIGNING_KEY`                   | one stable Preview secret                            | a separate, stable Production secret     |
 | `SANITY_PROJECT_ID`, `SANITY_API_VERSION`      | same project, pinned version                         | same                                    |
 | `SANITY_DATASET`                               | a Preview dataset                                    | the production dataset                  |
 | `SANITY_READ_TOKEN`                            | a Preview-only token, if the dataset is private      | a separate Production token             |
@@ -194,7 +195,7 @@ by how secret it is:
 | | Type | Why |
 | --- | --- | --- |
 | Settings the **build** reads — every `SITE_*` value and `CONTACT_DELIVERY_ADAPTER` | plain | A Sensitive value never arrives. None of them is a credential either: the canonical base URL, locale, default social image and its dimensions are all published in the page's own HTML. |
-| Credentials only the **running** application reads — `RESEND_API_KEY` | Sensitive | Vercel injects the real value at request time, where the build's inability to read it costs nothing. ADR-0004 §5 requires delivery and CMS credentials to be environment-scoped sensitive variables. |
+| Credentials only the **running** application reads — `RESEND_API_KEY`, `GALLERY_CURSOR_SIGNING_KEY` | Sensitive | Vercel injects the real value at request time, where the build's inability to read it costs nothing. ADR-0004 §5 requires delivery and CMS credentials to be environment-scoped sensitive variables. |
 
 `SITE_DEPLOYMENT_STAGE` marked Sensitive is the failure worth recognising: the build
 rejects `[SENSITIVE]` as not one of `development`, `preview`, `production`. Loud, but
@@ -224,6 +225,40 @@ AB#82, AB#112, AB#114), and that work owns the decision. The options, none chose
   log this project keeps.
 
 Whichever is chosen, `RESEND_API_KEY` stays Sensitive: it is read at request time only.
+
+### The gallery cursor signing key
+
+A gallery larger than one page issues an opaque continuation cursor, and the deployment
+signs it with `GALLERY_CURSOR_SIGNING_KEY` (AB#72). It sits in the Sensitive, runtime-only
+row above deliberately: the build never issues a cursor, so it never needs the key, and
+keeping it out of the build is what lets it stay unreadable after creation.
+
+Three properties are worth knowing before provisioning it.
+
+**It must be one stable value per environment.** ADR-0003 decision 8 makes unfiltered
+continuation URLs indexable, and serverless instances do not share a process. A value that
+differed per deploy — or per instance — would 404 a cursor another instance had just
+issued, so generating one at boot is not an option.
+
+**Rotating it retires every continuation URL already issued and indexed.** That is the
+same property that stops a forged token from being spendable, so it is a cost rather than
+a defect, but it makes rotation a deliberate act: expect crawlers to re-discover the
+continuation URLs afterwards, and do not rotate as routine hygiene. Rotate it if the value
+leaks. Nothing else is invalidated — a gallery's own pages, and every parameter-free URL,
+are unaffected.
+
+**It is read lazily, so a missing key is a late failure rather than a build failure.**
+Nothing at build time issues a cursor, and a gallery that fits inside one page never needs
+one either, so neither `next build` nor the CI gate will tell you the key is missing. The
+mock content source ships a gallery larger than one page, so today every deployment does
+need it: that gallery answers with a configuration error naming the setting while every
+other route keeps working. Set it during provisioning rather than discovering it from a
+single broken page later.
+
+Generate one with `openssl rand -base64 48`. It needs 32 to 256 printable ASCII
+characters, must not be prefixed `NEXT_PUBLIC_` (the application refuses that outright,
+because Next.js compiles such values into the browser bundle), and must differ between
+Preview and Production like every other secret.
 
 ### Canonical URLs on a Preview deployment
 

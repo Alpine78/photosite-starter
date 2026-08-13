@@ -327,10 +327,11 @@ describe("resolveLocalePrefixRequest", () => {
       });
     });
 
-    it("404s a cursor on a gallery, because none has been issued", async () => {
-      // A gallery does own a continuation contract (ADR-0003 decision 8), so
-      // `cursor` is recognized there and a token nothing minted is stale,
-      // tampered with, or malformed — not an unrecognized parameter to ignore.
+    it("carries a gallery cursor through to the adapter", async () => {
+      // A gallery owns a continuation contract and now issues tokens for it
+      // (ADR-0003 decision 8), so this layer transports the value rather than
+      // judging it. Only the adapter holds the signing key, so only the adapter
+      // can tell a real slice boundary from a forgery.
       await expect(
         resolveLocalePrefixRequest({
           config,
@@ -338,15 +339,26 @@ describe("resolveLocalePrefixRequest", () => {
           redirects,
           prefix: "tarinat",
           segments: ["maisemat", "rannikko", "rannikon-aamut"],
-          searchParams: { cursor: "not-a-token-this-route-minted" },
+          searchParams: { cursor: "AnOpaque-Token_v1" },
           defaultLocaleRouteExists: missing(),
         }),
-      ).resolves.toEqual({ kind: "not-found" });
+      ).resolves.toEqual({
+        kind: "story",
+        locale: "fi",
+        route: {
+          kind: "content",
+          contentId: "content-coastal-mornings",
+          variant: "gallery",
+        },
+        cursor: "AnOpaque-Token_v1",
+      });
     });
 
-    it("404s a cursor on a gallery reached through a casing variant", async () => {
-      // Rejected before normalization: a redirect to a different spelling would
-      // make the token look meaningful at the address it lands on.
+    it("normalizes a gallery's path without touching its cursor", async () => {
+      // Decision 8 makes the cursor value case-sensitive and never normalized,
+      // while the path around it is identity and normalizes as usual. Lowercasing
+      // the token along with the segments would corrupt every continuation URL
+      // that happened to arrive through a casing variant.
       await expect(
         resolveLocalePrefixRequest({
           config,
@@ -354,7 +366,28 @@ describe("resolveLocalePrefixRequest", () => {
           redirects,
           prefix: "tarinat",
           segments: ["Maisemat", "Rannikko", "Rannikon-Aamut"],
-          searchParams: { cursor: "not-a-token-this-route-minted" },
+          searchParams: { cursor: "AnOpaque-Token_v1" },
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location:
+          "/tarinat/maisemat/rannikko/rannikon-aamut?cursor=AnOpaque-Token_v1",
+      });
+    });
+
+    it("404s a repeated cursor on a gallery, which names no single slice", async () => {
+      // A gallery continues from one bookmark. Two tokens name two positions,
+      // so there is nothing to pass the adapter but a guess about which the
+      // visitor meant — refused here, at the address requested.
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["maisemat", "rannikko", "rannikon-aamut"],
+          searchParams: { cursor: ["first-token", "second-token"] },
           defaultLocaleRouteExists: missing(),
         }),
       ).resolves.toEqual({ kind: "not-found" });

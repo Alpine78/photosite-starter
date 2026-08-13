@@ -419,6 +419,12 @@ export function GalleryLightboxTrigger({
       onClick={() => open(index)}
       aria-haspopup="dialog"
       aria-label={label}
+      // The result identity, carried in the DOM rather than only in the closure
+      // that opens the viewer. It is what a continuation has to compare against
+      // to know an item is already on the page — the same identity the lightbox
+      // returns focus by — and it is an id rather than content, so a clone that
+      // rewrites every caption does not move it.
+      data-item-id={itemId}
       className="block w-full cursor-zoom-in overflow-hidden rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       {children}
