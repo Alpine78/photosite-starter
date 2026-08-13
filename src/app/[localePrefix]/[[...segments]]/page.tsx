@@ -418,8 +418,13 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
           locale={locale}
           page={page}
           slice={projectGallerySlice(result)}
+          initialSliceKey={
+            resolution.cursor === undefined
+              ? `first:${storyPath}`
+              : `cursor:${resolution.cursor}`
+          }
           galleryPath={storyPath}
-                    {...(resolution.cursor === undefined
+          {...(resolution.cursor === undefined
             ? {}
             : { firstPageHref: storyPath, isContinuation: true })}
           breadcrumbs={buildBreadcrumbs(

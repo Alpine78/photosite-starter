@@ -373,3 +373,30 @@ test("a lightbox continuation failure offers its retry inside the dialog", async
   await page.keyboard.press("ArrowRight");
   await expect(dialog).toBeVisible();
 });
+
+test("navigating to another slice of the same gallery replaces what is loaded", async ({
+  page,
+}) => {
+  // A continuation page and the first page share one route and one component
+  // position, so a client-side navigation between them can reuse the grid. If
+  // it kept the slice it was mounted with, the address would say "first page"
+  // while the screen showed a later one — and the continuation link built from
+  // that stale cursor would skip everything before it.
+  await page.goto(GALLERY.path, { waitUntil: "load" });
+  const firstItems = await presentedItemIds(page);
+
+  const nextHref = await continueControl(page).getAttribute("href");
+  await page.goto(nextHref ?? "", { waitUntil: "load" });
+
+  const continuationItems = await presentedItemIds(page);
+  expect(continuationItems[0]).not.toBe(firstItems[0]);
+
+  await page
+    .getByRole("link", { name: galleryLabels.backToStart })
+    .click();
+  await page.waitForURL((url) => url.search === "");
+
+  // The first page's own slice, not the one the previous render held.
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+  expect(await presentedItemIds(page)).toEqual(firstItems);
+});

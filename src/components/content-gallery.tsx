@@ -20,6 +20,14 @@ type ContentGalleryProps = {
    */
   slice: GallerySlice;
   /**
+   * The request position that produced `slice`: the opaque cursor, or the
+   * parameter-free first-page identity. It keys the stateful grid so a client
+   * navigation to another server-rendered slice cannot retain the previous
+   * request's items. This cannot be derived from an item id because adjacent
+   * slices are explicitly allowed to overlap.
+   */
+  initialSliceKey: string;
+  /**
    * This gallery's canonical, parameter-free path. The grid builds both the
    * continuation link and the endpoint address from it, so no content id
    * reaches the browser and no route knowledge is duplicated into a component.
@@ -81,6 +89,7 @@ export function ContentGallery({
   locale,
   page,
   slice,
+  initialSliceKey,
   galleryPath,
   firstPageHref,
   isContinuation = false,
@@ -144,6 +153,13 @@ export function ContentGallery({
         >
           {slice.items.length > 0 ? (
             <GalleryGrid
+              // Keyed by the slice this render starts from, so a client-side
+              // navigation that lands on a different slice of the *same*
+              // gallery remounts the grid instead of reusing it. The request
+              // cursor, not the first item, identifies the slice: adjacent
+              // pages may legally overlap. An in-place append does not change
+              // this server-owned prop, so the accumulated items survive.
+              key={initialSliceKey}
               label={page.title}
               initialSlice={slice}
               galleryPath={galleryPath}
