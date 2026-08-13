@@ -143,20 +143,68 @@ publication order, self-referencing canonical metadata, `hreflang`/`x-default` a
 Open Graph article, and the identity-based language switch.
 Curated galleries render there too: the `gallery` variant has its canonical detail route
 in every locale space, reading its result through `src/lib/gallery.ts` — route components
-import that contract and no mock or provider type. The seam narrows AB#67's page to a
-`CompleteGalleryPage` (`hasNextPage` statically `false`) and refuses a continuation with an
-error naming AB#72, because a conforming adapter may paginate and rendering only the first
-page would hide the rest of a gallery with nothing on the page saying so. One authoritative manual order governs the source, the DOM, keyboard focus, and the
+import that contract and no mock or provider type. A gallery larger than one page now continues rather than being refused: it issues an
+opaque cursor signed with the deployment's own `GALLERY_CURSOR_SIGNING_KEY` — a
+server-only runtime secret resolved lazily, so a deployment whose galleries all fit inside
+one page never reads it — and serves the next bounded slice at its own indexable,
+self-canonical `?cursor=` URL, which names no `hreflang` alternates because no other
+locale holds an equivalent slice. The control that reaches it is a real link, so a large
+gallery pages through with no JavaScript at all (ADR-0003 decision 8), and script
+progressively enhances that same link into an in-place append: the next slice arrives in
+the page a visitor is already on, read from a bounded `GET /api/gallery` route handler
+addressed by canonical path and opaque token. One projection (`gallery-slice-server.ts`)
+serves both the server render and that endpoint, so an appended item carries the same
+identities, captions, and delivery sources as one that was there from the start, and
+`appendGallerySlice` de-duplicates by result identity without reordering what is already
+loaded. Nothing loads on its own — no scroll observer, no prefetch — so a four-hundred-item
+gallery is never implicitly retrieved whole. The control announces loading, failure, and
+completion, keeps focus on itself across an append, and retries in place; the open lightbox
+asks for one more slice when a visitor reaches the last loaded item, and a failed
+continuation neither closes it nor loses the photograph on screen. The address bar is
+deliberately left alone, because every slice already has its own honest address through the
+unenhanced link. The continuation
+page is deliberately thinner than the first, per decision 3: a compact `h1` naming the
+gallery and the continuation, the identity-based language switch (which deliberately
+drops the cursor and opens the other locale's first page), then the grid — no lead, date,
+or tags, so editorial content is not republished under several URLs. It also carries the
+way back a cursor cannot, because tokens point forward only and the URL is indexable. A token that is
+malformed, tampered with, scoped to another gallery, or stale is a 404 rather than a quiet
+return to the first page, and so is a repeated `?cursor=` — and a token arriving at a
+non-canonical spelling (casing, redundant prefix, retired path, or trailing slash) is
+validated before normalization: a good token redirects once to the canonical address and
+keeps its exact value, while an invalid one 404s without creating a redirect. The cursor is scoped to
+the gallery *and the full route locale*, so a slice cannot cross between `en-GB` and
+`en-US`. The key enters at the
+`gallery.ts` seam rather than in the fixture, ESLint keeps `src/app` and `src/components`
+away from it, and rotating it retires every continuation URL already issued and indexed.
+The 404 for an invalid cursor carries the link back to that gallery decision 8 requires,
+following at most one canonical normalization and verifying that both the content page and
+the parameter-free gallery result are served, so an unknown or broken address gets no
+invented one. It reaches the boundary through `src/proxy.ts` (ADR-0007), which copies the
+bounded requested pathname and cursor presence — never its value — into project-owned
+request headers and overwrites any client-supplied values. The Proxy also owns
+trailing-slash normalization so the adapter can validate a cursor before a 308. App Router
+renders a not-found boundary with no params, and renders it before the page, so nothing
+in-tree can tell it. One site-wide limitation bounds that link and predates this work: on
+Next.js 16.2.11 the tested 404 responses carry their semantic UI only in the RSC payload,
+so no heading or link renders without JavaScript. ADR-0007 records the experiments already
+performed without claiming a framework root cause; AB#132 owns the minimal reproduction and
+version comparison.
+One authoritative manual order governs the source, the DOM, keyboard focus, and the
 lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
 ratios, never cropped) precisely so the visual reading order cannot contradict it; the
 column-major CSS masonry it replaced did. A gallery's listing card takes its explicit
 cover or the deterministic first public item (`selectCuratedGalleryCover`), a published
 gallery with no items renders an accessible empty state (the mock publishes one, so it is
-a state the site serves rather than one only a test has seen), and a fixture larger than
-one page fails at import rather than hiding items. The route serves that one page and answers
-`?cursor=` with a 404 — AB#66 owns the cursor contract, AB#72 the continuation across grid
-and lightbox, AB#129 the seeded random order; `?section=` stays an ignored unrecognized
-parameter until AB#105. The pre-tree `/portfolio` route was removed rather than
+a state the site serves rather than one only a test has seen). Category listings still answer `?cursor=` with a 404, because none issues one;
+`?section=` stays an ignored unrecognized parameter until AB#105, and AB#129 owns the
+seeded random order. The continuation link is progressively enhanced in the browser to
+append one bounded slice in place, with loading, failure, retry, and completion states;
+the open lightbox grows from the same result and offers its own reachable retry without
+closing or losing the current item. Focus stays on the continuation control while it
+exists and moves to the completion notice when the final slice removes it. No slice is
+loaded until the visitor activates the control or reaches the last loaded lightbox item.
+A ~400-placement fixture gallery exercises the boundary. The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
 belongs and what to call it, so no two surfaces can feature different galleries. Each
@@ -194,7 +242,16 @@ the content-tree journey (branches, the canonical detail route, redirects, and
 checked separately, the grid's reading order against DOM and lightbox order at one, two,
 and three columns, the lightbox, canonical and `hreflang`/`x-default` metadata, the empty
 gallery's accessible state, and the 404s for a cursor, an unknown slug, and the removed
-`/portfolio` route), the services journey (the listing, one service detail with its cover, price list,
+`/portfolio` route), the gallery continuation journey (run with JavaScript disabled: four
+pages walked through the real link with no duplicates or gaps, the continuation page's
+compact heading and absent lead, its self-canonical metadata and absent alternates, its
+link back to the first page, and the 404s for an unminted token, a token
+issued by another gallery, and a repeated parameter), the gallery append journey (the
+in-place append with its order and de-duplication, focus staying on the control until
+completion moves it to the notice, a failed
+continuation that keeps what is loaded and retries, the lightbox reading the grown list,
+continuing past the last loaded item from inside the open viewer, and a failure that
+neither closes it nor loses the item), the services journey (the listing, one service detail with its cover, price list,
 and breadcrumb, the navigation between them and into the story section, and an unknown
 slug's 404), the site-menu journey (its composition, the disclosure opened by pointer and
 by keyboard and dismissed either way with focus return, the level-at-a-time Escape
@@ -227,9 +284,8 @@ The provisioning runbook, the Preview/Production environment split, and the reco
 promotion and rollback commands are `docs/deployment.md`.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
-unprefixed-only for now — public continuation routes and
-controls — a category listing and a gallery are each bounded to their first page and
-answer any `?cursor=` with a 404, because none has been issued — gallery sections
+unprefixed-only for now — category listing continuation, which stays bounded to its first page and
+answers any `?cursor=` with a 404 — gallery sections
 (AB#105), the gallery lead and long-form body (AB#106), seeded random gallery ordering
 (AB#129), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),

@@ -68,6 +68,41 @@ function declaredSlotZoomCap(zoom: {
   return getLightboxZoomCap(zoom.elementSize?.x ?? 0);
 }
 
+/**
+ * One result slide as PhotoSwipe slide data, identities and metadata intact.
+ *
+ * Shared by the initial open and by every later append, so a slide that arrived
+ * through a continuation is built exactly like one that was there from the
+ * start — same identities, same caption and credit, same uncropped thumbnail
+ * bounds.
+ */
+function toSlideData(
+  slide: LightboxSlide,
+  triggers: ReadonlyMap<string, HTMLButtonElement>,
+): IdentifiedSlideData {
+  const trigger = triggers.get(slide.itemId);
+  // Already decoded and on screen: shown while the full frame loads, and the
+  // frame the opening and closing animations travel between.
+  const thumbnail = trigger?.querySelector("img");
+
+  return {
+    itemId: slide.itemId,
+    mediaId: slide.mediaId,
+    src: slide.src,
+    ...(slide.srcset === undefined ? {} : { srcset: slide.srcset }),
+    width: slide.width,
+    height: slide.height,
+    alt: slide.alt,
+    ...(slide.caption === undefined ? {} : { caption: slide.caption }),
+    ...(slide.credit === undefined ? {} : { credit: slide.credit }),
+    ...(trigger === undefined ? {} : { element: trigger }),
+    ...(thumbnail?.currentSrc ? { msrc: thumbnail.currentSrc } : {}),
+    // The grid shows whole frames, so the thumbnail bounds the animation starts
+    // from are the image itself and not a crop of it.
+    thumbCropped: false,
+  };
+}
+
 function identitiesOf(slide: SlideData | undefined): IdentifiedSlideData | null {
   return typeof slide?.itemId === "string" && typeof slide.mediaId === "string"
     ? (slide as IdentifiedSlideData)
@@ -77,23 +112,66 @@ function identitiesOf(slide: SlideData | undefined): IdentifiedSlideData | null 
 export function GalleryLightbox({
   slides,
   labels,
+  continuation,
   children,
 }: {
   /** Ordered by the shared gallery result, never by grid layout order. */
   readonly slides: readonly LightboxSlide[];
   readonly labels: GalleryLightboxLabels;
+  /**
+   * How this viewer continues past the last loaded slide, when anything
+   * follows it. Absent once nothing does.
+   *
+   * The viewer asks when a visitor actually reaches the end, never ahead of it:
+   * one bounded slice, when the sequence runs out (AB#72). A failure is shown
+   * *inside* the dialog, with its own retry, because the grid's control is
+   * behind a modal and unreachable while a photograph is open.
+   */
+  readonly continuation?: {
+    readonly loadNext: () => Promise<boolean>;
+    readonly failedLabel: string;
+    readonly retryLabel: string;
+  };
   readonly children: ReactNode;
 }) {
   const lightboxRef = useRef<PhotoSwipeLightbox | null>(null);
   const triggersRef = useRef(new Map<string, HTMLButtonElement>());
   const slidesRef = useRef(slides);
   const activeItemIdRef = useRef<string | null>(null);
+  // Held in a ref so a new callback identity never tears down a working viewer.
+  const continuationRef = useRef(continuation);
+  const continuingRef = useRef(false);
   // The caption region is referenced by the photograph it describes, so it
   // needs an id no second gallery on the same page could also mint.
   const captionId = useId();
 
   useEffect(() => {
+    continuationRef.current = continuation;
+  }, [continuation]);
+
+  /**
+   * Puts newly loaded slides into the viewer that is already open.
+   *
+   * PhotoSwipe reads its length from `dataSource`, so appending to it and
+   * refreshing the new last slide is what makes the extra items reachable — and
+   * what updates the counter — without closing and reopening. A closed viewer
+   * needs none of this: the next open reads the whole list.
+   */
+  useEffect(() => {
     slidesRef.current = slides;
+
+    const pswp = lightboxRef.current?.pswp;
+    const dataSource = pswp?.options.dataSource;
+    if (!pswp || !Array.isArray(dataSource)) return;
+    if (slides.length <= dataSource.length) return;
+
+    // Identity, not length: an append never rewrites what came before, so the
+    // slides already in the viewer are the ones already in `dataSource`.
+    const added = slides.slice(dataSource.length);
+    for (const slide of added) {
+      dataSource.push(toSlideData(slide, triggersRef.current));
+    }
+    pswp.refreshSlideContent(dataSource.length - 1);
   }, [slides]);
 
   // Depends on the label strings rather than on the object holding them: a new
@@ -115,6 +193,36 @@ export function GalleryLightbox({
     // dropped when that dialog is destroyed.
     let captionElement: HTMLElement | null = null;
     let describedElement: Element | null = null;
+    let continuationElement: HTMLElement | null = null;
+
+    /**
+     * One continuation attempt, with its failure shown inside the dialog.
+     *
+     * The grid's own control and its error message sit behind this modal, so a
+     * visitor who hits a network failure mid-gallery cannot reach either. This
+     * puts the same two things — what went wrong, and a way to try again —
+     * where they can actually be used, and takes them away as soon as one
+     * succeeds.
+     */
+    const attemptContinuation = async (): Promise<void> => {
+      const continuation = continuationRef.current;
+      if (continuation === undefined || continuingRef.current) return;
+
+      continuingRef.current = true;
+      if (continuationElement !== null) continuationElement.hidden = true;
+
+      try {
+        const appended = await continuation.loadNext();
+        // A failure keeps the dialog exactly where it is: the photograph on
+        // screen is not lost over a network blip, and the notice offers the
+        // retry rather than the visitor having to guess at one.
+        if (!appended && continuationElement !== null) {
+          continuationElement.hidden = false;
+        }
+      } finally {
+        continuingRef.current = false;
+      }
+    };
 
     const lightbox = new PhotoSwipeLightbox({
       // Deferred: a visitor who never opens a photo never downloads the viewer.
@@ -236,6 +344,34 @@ export function GalleryLightbox({
       // dialog root instead of taking a strip of it: the viewport is the slot
       // the image was delivered for, and a caption that consumed layout would
       // shrink the photograph below it.
+      // Hidden until a continuation fails. Registered whether or not this
+      // gallery has one, because a slice loaded while the viewer is open can
+      // make one appear.
+      pswp.ui?.registerElement({
+        name: "gallery-continuation",
+        appendTo: "root",
+        onInit: (element) => {
+          element.hidden = true;
+          element.dataset.galleryContinuation = "";
+          element.setAttribute("role", "status");
+
+          const message = document.createElement("p");
+          message.className = "pswp__gallery-continuation-message";
+          message.textContent = continuationRef.current?.failedLabel ?? "";
+
+          const retry = document.createElement("button");
+          retry.type = "button";
+          retry.className = "pswp__gallery-continuation-retry";
+          retry.textContent = continuationRef.current?.retryLabel ?? "";
+          retry.addEventListener("click", () => {
+            void attemptContinuation();
+          });
+
+          element.append(message, retry);
+          continuationElement = element;
+        },
+      });
+
       pswp.ui?.registerElement({
         name: "gallery-caption",
         appendTo: "root",
@@ -262,11 +398,28 @@ export function GalleryLightbox({
         activeItemIdRef.current = active.itemId;
       }
       presentActiveCaption();
+
+      // Reaching the end of what is loaded is the only thing that asks for
+      // more. Nothing is fetched ahead of the visitor, so browsing a
+      // four-hundred-item gallery never quietly pulls the whole of it.
+      const pswp = lightbox.pswp;
+      if (
+        !pswp ||
+        continuationRef.current === undefined ||
+        continuingRef.current ||
+        pswp.currSlide === undefined ||
+        pswp.currSlide.index < pswp.getNumItems() - 1
+      ) {
+        return;
+      }
+
+      void attemptContinuation();
     });
 
     lightbox.on("destroy", () => {
       captionElement = null;
       describedElement = null;
+      continuationElement = null;
 
       const itemId = activeItemIdRef.current;
       activeItemIdRef.current = null;
@@ -311,35 +464,9 @@ export function GalleryLightbox({
     activeItemIdRef.current = slide.itemId;
 
     const triggers = triggersRef.current;
-    const dataSource = slides.map((resultSlide): IdentifiedSlideData => {
-      const trigger = triggers.get(resultSlide.itemId);
-      // Already decoded and on screen: shown while the full frame loads, and
-      // the frame the opening and closing animations travel between.
-      const thumbnail = trigger?.querySelector("img");
-
-      return {
-        itemId: resultSlide.itemId,
-        mediaId: resultSlide.mediaId,
-        src: resultSlide.src,
-        ...(resultSlide.srcset === undefined
-          ? {}
-          : { srcset: resultSlide.srcset }),
-        width: resultSlide.width,
-        height: resultSlide.height,
-        alt: resultSlide.alt,
-        ...(resultSlide.caption === undefined
-          ? {}
-          : { caption: resultSlide.caption }),
-        ...(resultSlide.credit === undefined
-          ? {}
-          : { credit: resultSlide.credit }),
-        ...(trigger === undefined ? {} : { element: trigger }),
-        ...(thumbnail?.currentSrc ? { msrc: thumbnail.currentSrc } : {}),
-        // The grid shows whole frames, so the thumbnail bounds the animation
-        // starts from are the image itself and not a crop of it.
-        thumbCropped: false,
-      };
-    });
+    const dataSource = slides.map((resultSlide) =>
+      toSlideData(resultSlide, triggers),
+    );
 
     // Deliberately no pointer position: PhotoSwipe reads its absence as "not
     // opened by pointer" and moves focus into the dialog immediately. Passing
@@ -419,6 +546,12 @@ export function GalleryLightboxTrigger({
       onClick={() => open(index)}
       aria-haspopup="dialog"
       aria-label={label}
+      // The result identity, carried in the DOM rather than only in the closure
+      // that opens the viewer. It is what a continuation has to compare against
+      // to know an item is already on the page — the same identity the lightbox
+      // returns focus by — and it is an id rather than content, so a clone that
+      // rewrites every caption does not move it.
+      data-item-id={itemId}
       className="block w-full cursor-zoom-in overflow-hidden rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       {children}

@@ -53,6 +53,10 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
     variant: "gallery",
     body: [],
   },
+  "content-large-archive": {
+    variant: "gallery",
+    body: [],
+  },
   "content-reading-coastal-light": {
     variant: "article",
     tags: ["light", "coastal", "landscape"],
@@ -266,6 +270,10 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
     body: [],
   },
   "content-awaiting-selection": {
+    variant: "gallery",
+    body: [],
+  },
+  "content-large-archive": {
     variant: "gallery",
     body: [],
   },

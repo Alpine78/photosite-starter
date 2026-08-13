@@ -43,6 +43,7 @@ Two conventions on top of the template:
 | [0004](0004-reference-production-host-and-ownership-boundary.md) | AB#109 | Reference production host and ownership boundary | Accepted |
 | [0005](0005-public-image-rendition-boundary.md) | AB#108 | Public image rendition boundary | Accepted |
 | [0006](0006-sanity-data-access-boundary.md) | AB#39 | Sanity data-access boundary and client transport | Proposed |
+| [0007](0007-proxy-request-path-boundary.md) | AB#72 | A Proxy request boundary carrying the requested path | Proposed |
 
 Expected further entries:
 

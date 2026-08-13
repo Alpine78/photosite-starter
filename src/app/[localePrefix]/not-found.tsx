@@ -1,5 +1,5 @@
-import { RouteNotFound } from "@/components/route-not-found";
+import { ContentRouteNotFound } from "@/components/content-route-not-found";
 
 export default function PrefixedLocaleNotFound() {
-  return <RouteNotFound />;
+  return <ContentRouteNotFound />;
 }

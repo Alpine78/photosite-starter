@@ -68,6 +68,13 @@ const englishRecords: readonly ContentListingRecord[] = [
     publishedAt: "2024-01-08",
   },
   {
+    contentId: "content-large-archive",
+    title: "Large archive",
+    summary:
+      "A gallery long enough to continue past its first page. Placeholder gallery content.",
+    publishedAt: "2024-01-05",
+  },
+  {
     contentId: "content-choosing-a-telephoto-lens",
     title: "Choosing a telephoto lens: what the specs don't tell you",
     summary:
@@ -137,6 +144,13 @@ const finnishRecords: readonly ContentListingRecord[] = [
     title: "Odottaa valintaa",
     summary: "Sarja on vielä työn alla. Paikkamerkkisisältöä.",
     publishedAt: "2024-01-08",
+  },
+  {
+    contentId: "content-large-archive",
+    title: "Suuri arkisto",
+    summary:
+      "Galleria, joka jatkuu ensimmäisen sivunsa yli. Paikkamerkkisisältöä.",
+    publishedAt: "2024-01-05",
   },
   {
     contentId: "content-understanding-exposure-triangle",

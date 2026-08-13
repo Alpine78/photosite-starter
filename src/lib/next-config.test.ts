@@ -19,6 +19,10 @@ async function getConfigResponse(pathname: string) {
 }
 
 describe("public image Next.js configuration", () => {
+  it("leaves trailing-slash normalization to the cursor-aware Proxy", () => {
+    expect(nextConfig.skipTrailingSlashRedirect).toBe(true);
+  });
+
   it("bounds current optimizer candidates to the 2048px presentation ceiling", () => {
     const deviceSizes = nextConfig.images?.deviceSizes ?? [];
     const imageSizes = nextConfig.images?.imageSizes ?? [];

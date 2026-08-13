@@ -10,11 +10,9 @@ import {
   type GalleryCursorCodec,
   type GalleryCursorScope,
 } from "@/lib/gallery-pagination";
-import { requireCompleteGalleryPage } from "@/lib/gallery";
 import type {
   CuratedGalleryResultItem,
   GalleryCursor,
-  GalleryPage,
 } from "@/lib/gallery-result";
 import type { ImageMedia, VideoMedia } from "@/lib/media";
 import {
@@ -27,6 +25,11 @@ import { getMockImages, mockImages } from "@/lib/mock-media";
 const TEST_SIGNING_KEY =
   "test-only-gallery-cursor-signing-key-0123456789";
 const testCursorCodec = createHmacGalleryCursorCodec(TEST_SIGNING_KEY);
+
+/** The gallery that outgrew one page, and the reason continuation exists. */
+const LARGE_GALLERY_ID = "content-large-archive";
+const LARGE_GALLERY_SIZE = 400;
+const MOCK_PAGE_SIZE = 24;
 
 const scope: GalleryCursorScope = {
   sourceId: "test-gallery",
@@ -84,6 +87,24 @@ function expectCursorError(
     expect(error).toBeInstanceOf(GalleryCursorError);
     expect((error as GalleryCursorError).code).toBe(code);
   }
+}
+
+/**
+ * One page of a fixture gallery, with the codec the seam would have supplied.
+ *
+ * The fixture holds no key of its own — `gallery.ts` is where a deployment's
+ * signing key enters — so a test that walks past a page boundary hands one over
+ * exactly as the seam does.
+ */
+function mockPage(
+  language: string,
+  contentId: string,
+  cursor?: string,
+) {
+  return getMockGalleryResult(language, contentId, {
+    ...(cursor === undefined ? {} : { cursor }),
+    cursorCodec: testCursorCodec,
+  });
 }
 
 function decodeCursorPayload(cursor: string): Record<string, unknown> {
@@ -678,7 +699,7 @@ describe("selectCuratedGalleryCover", () => {
 
 describe("curated gallery fixtures", () => {
   it("keeps the featured gallery's authored order and captions", () => {
-    const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
+    const result = mockPage("en", MOCK_FEATURED_GALLERY_ID);
 
     // The order and captions the pre-tree `/portfolio` route published. The
     // gallery moved to a canonical route inside the content tree; what a visitor
@@ -696,31 +717,31 @@ describe("curated gallery fixtures", () => {
   });
 
   it("gives every item a distinct result identity", () => {
-    const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
+    const result = mockPage("en", MOCK_FEATURED_GALLERY_ID);
     const itemIds = result?.items.map((item) => item.itemId) ?? [];
 
     expect(new Set(itemIds).size).toBe(itemIds.length);
   });
 
   it("keeps the itemId and the mediaId separate", () => {
-    const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
+    const result = mockPage("en", MOCK_FEATURED_GALLERY_ID);
 
     expect(
       result?.items.every((item) => item.itemId !== item.mediaId),
     ).toBe(true);
   });
 
-  it("issues no cursor, because continuation is not implemented yet", () => {
-    expect(getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID)?.page).toEqual({
-      size: 24,
+  it("issues no cursor for a gallery that fits inside one page", () => {
+    expect(mockPage("en", MOCK_FEATURED_GALLERY_ID)?.page).toEqual({
+      size: MOCK_PAGE_SIZE,
       hasNextPage: false,
       endCursor: null,
     });
   });
 
   it("orders every locale's version of a gallery identically", () => {
-    const english = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
-    const finnish = getMockGalleryResult("fi", MOCK_FEATURED_GALLERY_ID);
+    const english = mockPage("en", MOCK_FEATURED_GALLERY_ID);
+    const finnish = mockPage("fi", MOCK_FEATURED_GALLERY_ID);
 
     expect(finnish?.items.map((item) => item.itemId)).toEqual(
       english?.items.map((item) => item.itemId),
@@ -728,7 +749,7 @@ describe("curated gallery fixtures", () => {
   });
 
   it("describes a localized gallery in that language", () => {
-    const finnish = getMockGalleryResult("fi", MOCK_FEATURED_GALLERY_ID);
+    const finnish = mockPage("fi", MOCK_FEATURED_GALLERY_ID);
     const finnishImages = getMockImages("fi");
 
     expect(finnish?.items[0]?.media.alt).toBe(finnishImages.coastalLandscape.alt);
@@ -741,7 +762,7 @@ describe("curated gallery fixtures", () => {
   });
 
   it("serves a published gallery that has no items yet", () => {
-    const result = getMockGalleryResult("en", "content-awaiting-selection");
+    const result = mockPage("en", "content-awaiting-selection");
 
     // A gallery between selections is published and empty, not missing: the
     // route renders its empty state rather than 404ing an address a visitor may
@@ -757,49 +778,195 @@ describe("curated gallery fixtures", () => {
   });
 
   it("publishes nothing for an unknown gallery identity", () => {
-    expect(getMockGalleryResult("en", "content-does-not-exist")).toBeUndefined();
+    expect(mockPage("en", "content-does-not-exist")).toBeUndefined();
   });
 
   it("publishes nothing for a language it was not authored in", () => {
     expect(
-      getMockGalleryResult("de", MOCK_FEATURED_GALLERY_ID),
+      mockPage("de", MOCK_FEATURED_GALLERY_ID),
     ).toBeUndefined();
   });
 });
 
-describe("requireCompleteGalleryPage", () => {
-  /** What a conforming AB#67 adapter may return once it paginates. */
-  function paginated(): GalleryPage<CuratedGalleryResultItem> {
-    return {
-      ...buildPage({ cursorScope: { ...scope, pageSize: 2 } }),
-      page: {
-        size: 2,
-        hasNextPage: true,
-        endCursor: "an-adapter-issued-cursor" as GalleryCursor,
-      },
-    };
+describe("continuing a gallery larger than one page", () => {
+  /**
+   * Every item of the archive, gathered the way a visitor reaches them: one
+   * bounded page at a time, each spending the cursor the last one issued. The
+   * page bound is asserted on every hop, so a fixture that quietly returned
+   * everything at once could not pass by returning the right items.
+   */
+  function walkArchive(language = "en"): readonly CuratedGalleryResultItem[] {
+    const collected: CuratedGalleryResultItem[] = [];
+    let cursor: string | undefined;
+    let pages = 0;
+
+    for (;;) {
+      const page = mockPage(language, LARGE_GALLERY_ID, cursor);
+      expect(page).toBeDefined();
+      if (page === undefined) break;
+
+      expect(page.items.length).toBeLessThanOrEqual(page.page.size);
+      collected.push(...page.items);
+      pages += 1;
+      // A bound on the walk itself, so a cursor that failed to advance would
+      // fail this test rather than hang the suite.
+      expect(pages).toBeLessThanOrEqual(100);
+
+      if (!page.page.hasNextPage) break;
+      cursor = page.page.endCursor;
+    }
+
+    return collected;
   }
 
-  it("passes a result with nothing after it through unchanged", () => {
-    const complete = buildPage({ cursorScope: { ...scope, pageSize: 24 } });
+  it("reaches every item without duplicates or gaps", () => {
+    const items = walkArchive();
+    const itemIds = items.map((item) => item.itemId);
 
-    expect(requireCompleteGalleryPage("content-gallery", complete)).toEqual(
-      complete,
+    expect(itemIds).toHaveLength(LARGE_GALLERY_SIZE);
+    expect(new Set(itemIds).size).toBe(LARGE_GALLERY_SIZE);
+    // The authored manual order, start to end, across every page boundary.
+    expect(itemIds).toEqual(
+      Array.from(
+        { length: LARGE_GALLERY_SIZE },
+        (_unused, index) =>
+          `large-archive-${String(index + 1).padStart(4, "0")}`,
+      ),
     );
   });
 
-  it("refuses a continuation rather than hiding the rest of the gallery", () => {
-    // The valid-but-unrenderable case: the adapter is doing what the contract
-    // allows, and rendering only `items` would show a visitor part of a gallery
-    // with nothing on the page saying so.
-    expect(() =>
-      requireCompleteGalleryPage("content-gallery", paginated()),
-    ).toThrow(/AB#72/);
+  it("issues a cursor on every page but the last", () => {
+    const first = mockPage("en", LARGE_GALLERY_ID);
+    expect(first?.page.hasNextPage).toBe(true);
+    expect(first?.items).toHaveLength(MOCK_PAGE_SIZE);
+
+    let cursor = first?.page.endCursor as string;
+    let last = first;
+    while (last?.page.hasNextPage) {
+      last = mockPage("en", LARGE_GALLERY_ID, cursor);
+      if (last?.page.hasNextPage) cursor = last.page.endCursor;
+    }
+
+    expect(last?.page.endCursor).toBeNull();
+    // 400 items over pages of 24 leaves a short final page rather than an
+    // empty one, which is the boundary an off-by-one would break first.
+    expect(last?.items).toHaveLength(LARGE_GALLERY_SIZE % MOCK_PAGE_SIZE);
   });
 
-  it("names the gallery whose remainder would have been dropped", () => {
-    expect(() =>
-      requireCompleteGalleryPage("content-selected-work", paginated()),
-    ).toThrow(/content-selected-work/);
+  it("orders every locale's version of the archive identically", () => {
+    expect(walkArchive("fi").map((item) => item.itemId)).toEqual(
+      walkArchive("en").map((item) => item.itemId),
+    );
+  });
+
+  it("keeps a repeated photograph's placements distinct across pages", () => {
+    // Six demo images stand in for four hundred, so the archive is also the
+    // fixture that proves a page boundary carries placement identity rather
+    // than media identity. Collapsing the two would restore focus to the wrong
+    // trigger and misidentify the subject of a later media-level action.
+    const items = walkArchive();
+    const mediaIds = new Set(items.map((item) => item.mediaId));
+
+    expect(mediaIds.size).toBeLessThan(items.length);
+    expect(new Set(items.map((item) => item.itemId)).size).toBe(items.length);
+  });
+
+  it("binds a cursor to the whole route locale, not its language", () => {
+    // `en-GB` and `en-US` are separate route spaces that happen to share one set
+    // of English placements today. Scoping to the `en` subtag would let a slice
+    // issued on one route be spent on the other, and an adapter that can answer
+    // differently per locale (AB#114) would then serve the wrong items under an
+    // already-indexed URL.
+    const cursor = mockPage("en-GB", LARGE_GALLERY_ID)?.page.endCursor as string;
+
+    expect(cursor).toBeTruthy();
+    expectCursorError(
+      () => mockPage("en-US", LARGE_GALLERY_ID, cursor),
+      "wrong-scope",
+    );
+  });
+
+  it("serves the same items to every route locale of one language", () => {
+    // The other half: separate cursor scopes must not mean separate galleries.
+    expect(
+      mockPage("en-US", LARGE_GALLERY_ID)?.items.map((item) => item.itemId),
+    ).toEqual(mockPage("en-GB", LARGE_GALLERY_ID)?.items.map((i) => i.itemId));
+  });
+
+  it("binds a cursor to the language it was issued in", () => {
+    // The two locales hold the same placements in the same order, so spending an
+    // English token against the Finnish result would look harmless — until an
+    // adapter can answer differently per locale (AB#114), by which point the
+    // tokens are indexed. It is also the property the continuation page's
+    // metadata leans on when it names no `hreflang` alternates.
+    const cursor = mockPage("en", LARGE_GALLERY_ID)?.page.endCursor as string;
+
+    expectCursorError(
+      () => mockPage("fi", LARGE_GALLERY_ID, cursor),
+      "wrong-scope",
+    );
+  });
+
+  it("binds a cursor to the gallery that issued it", () => {
+    const cursor = mockPage("en", LARGE_GALLERY_ID)?.page
+      .endCursor as string;
+
+    // Same deployment key, different gallery: the scope digest is what refuses
+    // it, so a token can never be spent in a gallery it did not come from.
+    expectCursorError(
+      () => mockPage("en", MOCK_FEATURED_GALLERY_ID, cursor),
+      "wrong-scope",
+    );
+  });
+
+  it.each([
+    ["malformed", "not-a-token-this-deployment-minted"],
+    ["oversized", "x".repeat(MAX_GALLERY_CURSOR_LENGTH + 1)],
+  ])("refuses a cursor it never issued: %s", (_caseName, value) => {
+    expectCursorError(
+      () => mockPage("en", LARGE_GALLERY_ID, value),
+      "malformed",
+    );
+  });
+
+  it("refuses a cursor whose signature was edited", () => {
+    const cursor = mockPage("en", LARGE_GALLERY_ID)?.page
+      .endCursor as string;
+    const replacement = cursor.endsWith("a") ? "b" : "a";
+
+    expectCursorError(
+      () =>
+        mockPage(
+          "en",
+          LARGE_GALLERY_ID,
+          `${cursor.slice(0, -1)}${replacement}`,
+        ),
+      "tampered",
+    );
+  });
+
+  it("touches no codec for a gallery that fits inside one page", () => {
+    // The laziness the deployment story rests on. `galleryCursorCodec` resolves
+    // the signing key on use, so "never used" is what makes a deployment whose
+    // galleries all fit inside one page able to run without the secret at all.
+    // A codec that fails on contact is the only way to assert that here.
+    const refusingCodec: GalleryCursorCodec = {
+      encode: () => {
+        throw new Error("A complete gallery must not need a cursor codec");
+      },
+      decode: () => {
+        throw new Error("A complete gallery must not need a cursor codec");
+      },
+    };
+
+    const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID, {
+      cursorCodec: refusingCodec,
+    });
+
+    expect(result?.page).toEqual({
+      size: MOCK_PAGE_SIZE,
+      hasNextPage: false,
+      endCursor: null,
+    });
   });
 });

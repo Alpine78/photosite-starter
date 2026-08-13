@@ -239,7 +239,9 @@ npx playwright show-report               # after a failure
 `http://127.0.0.1:3100` (Playwright starts and stops it), then runs every spec in two
 projects: desktop Chromium and mobile WebKit. The suite protects the home page, the site
 menu's composition and disclosure behavior, the curated gallery route — its grid's
-reading order at every column count, the lightbox, its metadata, its empty state, and the
+reading order at every column count, the lightbox, its metadata, its empty state, its
+cursor continuation without JavaScript, its compact continuation page, its in-place
+append and lightbox continuation, and the
 addresses it refuses — the services routes,
 the public content tree, and
 contact submission — including invalid input, delivery failure, and retry; a
@@ -302,8 +304,8 @@ a green pipeline. See [deployment](docs/deployment.md).
   contents derived from the body's headings, and publication-ordered sibling navigation —
   and the tree-driven site menu, which composes the configured static links with the
   first two category levels behind an accessible disclosure in both the wide and the
-  compact layout, and the canonical curated gallery detail route, done; listing and
-  gallery continuation controls pending*
+  compact layout, the canonical curated gallery detail route, and gallery cursor
+  continuation and the in-place gallery append done; listing continuation pending*
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))
@@ -315,9 +317,12 @@ a green pipeline. See [deployment](docs/deployment.md).
   and optional long-form body content — *shared bounded result contract, the canonical
   gallery route inside the content tree with breadcrumbs, metadata, and a deterministic
   cover, the row-major grid that reads in the gallery's own order at one, two, and three
-  columns, and the fullscreen lightbox (open, close, navigate, caption and credit) done
-  ([ADR-0001](docs/adr/0001-lightbox-library.md)); zoom tuning, preloading,
-  sections, seeded random ordering, and continuation controls pending*
+  columns, the fullscreen lightbox (open, close, navigate, caption and credit)
+  ([ADR-0001](docs/adr/0001-lightbox-library.md)), and server-rendered cursor
+  continuation — a real `href` that pages through a large gallery with no JavaScript —
+  and the in-place append — the same link enhanced to bring the next slice into the
+  page, with the lightbox continuing past the items it was opened from — done; zoom
+  tuning, preloading, sections, and seeded random ordering pending*
 - [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
   handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
   for development, CI, and Preview), abuse controls, and operational events carrying no
@@ -398,8 +403,12 @@ one, with the deeper branches reached from the landing page above them. Curated 
 render at their own canonical routes in that tree; the header, footer, and home page reach
 the featured one by its stable content identity rather than by a written-down path, and the
 pre-tree `/portfolio` route was removed rather than redirected, because it was never
-deployed or indexed. A gallery serves one bounded page and answers `?cursor=` with a 404,
-because no cursor has been issued yet. Static routes and authored
+deployed or indexed. A gallery larger than one page issues an opaque continuation cursor
+and serves the next bounded slice at its own indexable, self-canonical `?cursor=` URL; the
+control that reaches it is a real link, so a large gallery pages through with no JavaScript
+at all, and a token that names no slice of that gallery is a 404 rather than a silent
+return to the first page. Category listings still answer `?cursor=` with a 404, because
+none issues one. Static routes and authored
 SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
 separate story. The Sanity connection, its published-perspective query client, and the
 enforced data-access boundary are in place; the schemas and adapters that would put
@@ -411,9 +420,8 @@ keyboard, control, and gesture and presents the caption and credit of the photog
 screen; its zoom tuning and preloading are a later slice. The contact form is built and
 delivers through a replaceable adapter that stores nothing, and a public-journey suite
 covers its validation, success, failure, and retry states; the gallery-item enquiry
-(AB#60) builds on it. Public continuation routes and
-controls, gallery sections, seeded random gallery ordering, and the CMS schemas and
-adapters, are still open. The deployment path exists in
+(AB#60) builds on it. Listing continuation, gallery sections, seeded random gallery
+ordering, and the CMS schemas and adapters are still open. The deployment path exists in
 the repository — a pinned runtime and region, a pipeline stage that deploys a release
 candidate only after every gate passes, and a check that refuses to publish a URL whose
 project/team ownership, access protection, and non-indexability were not verified — but

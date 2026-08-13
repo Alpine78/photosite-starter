@@ -97,6 +97,16 @@ const englishContentTree: ContentTreeInput = {
       published: true,
       canonicalCategoryId: "cat-portfolio",
     },
+    {
+      // Far longer than one page, so it is the gallery that exercises cursor
+      // continuation. It is filed here rather than under `cat-archive`, which
+      // is deliberately an empty leaf.
+      contentId: "content-large-archive",
+      variant: "gallery",
+      slug: "large-archive",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
+    },
     // The migrated articles keep the categories they were already filed under.
     // The old model listed them unordered; the migration rule is that the first
     // authored category became the canonical placement and any remaining ones
@@ -195,6 +205,13 @@ const finnishContentTree: ContentTreeInput = {
       contentId: "content-awaiting-selection",
       variant: "gallery",
       slug: "odottaa-valintaa",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
+    },
+    {
+      contentId: "content-large-archive",
+      variant: "gallery",
+      slug: "suuri-arkisto",
       published: true,
       canonicalCategoryId: "cat-portfolio",
     },

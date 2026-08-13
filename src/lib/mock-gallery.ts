@@ -20,6 +20,7 @@ import {
   buildCuratedGalleryPage,
   selectCuratedGalleryCover,
   type CuratedGalleryPlacement,
+  type GalleryCursorCodec,
 } from "@/lib/gallery-pagination";
 import type {
   CuratedGalleryResultItem,
@@ -29,8 +30,12 @@ import type { ImageMedia } from "@/lib/media";
 import { getMockImages, type MockImages } from "@/lib/mock-media";
 
 /**
- * Bound on one mock gallery. Continuation past it is AB#72's, so the fixture
- * stays inside a single page and says so loudly if it ever stops doing that.
+ * How many items one page of a mock gallery holds.
+ *
+ * A gallery longer than this now continues rather than being refused: the page
+ * issues an opaque cursor and the next one resumes after it. The number is the
+ * fixture's own bound, not a contract — `MAX_GALLERY_PAGE_SIZE` is the ceiling
+ * the shared builder enforces.
  */
 const MOCK_GALLERY_PAGE_SIZE = 24;
 
@@ -130,12 +135,64 @@ const polarNightPlacements: readonly MockPlacementInput[] = [
  */
 const awaitingSelectionPlacements: readonly MockPlacementInput[] = [];
 
+/** The demo images the archive cycles, in a fixed order so it is reproducible. */
+const archiveImageCycle = [
+  "coastalLandscape",
+  "mistyBirch",
+  "lakesideReeds",
+  "forestStream",
+  "openMarsh",
+  "lichenStones",
+] as const satisfies readonly (keyof MockImages)[];
+
+const LARGE_ARCHIVE_SIZE = 400;
+
+/**
+ * A gallery far larger than one page, and the reason continuation exists.
+ *
+ * Six demo photographs stand in for four hundred, each under its own placement
+ * identity — the contract separates where a photograph appears from which
+ * photograph it is precisely so one asset can be placed many times, and a real
+ * archive of this size is exactly the case that made the distinction worth
+ * having. What is being exercised is the ordering, the page boundaries, and the
+ * cursor between them, none of which depends on the pictures differing.
+ *
+ * Generated rather than authored: four hundred literal entries would be four
+ * hundred chances for the fixture to disagree with itself about its own order.
+ * Ids are zero-padded so their string order matches their manual order, which
+ * keeps the deterministic tie-breaker aligned with the sequence even though
+ * unique `order` values mean it never has to break a tie.
+ */
+const largeArchivePlacements: readonly MockPlacementInput[] = Array.from(
+  { length: LARGE_ARCHIVE_SIZE },
+  (_unused, index): MockPlacementInput => {
+    const position = index + 1;
+    const image = archiveImageCycle[index % archiveImageCycle.length];
+
+    return {
+      placementId: `large-archive-${String(position).padStart(4, "0")}`,
+      image,
+      // Every fourth placement carries none, so an item with no caption keeps
+      // appearing after a page boundary rather than only on the first page.
+      ...(position % 4 === 0
+        ? {}
+        : {
+            caption: {
+              en: `Archive image ${position}`,
+              fi: `Arkistokuva ${position}`,
+            },
+          }),
+    };
+  },
+);
+
 const authoredGalleries: Readonly<Record<string, readonly MockPlacementInput[]>> =
   {
     "content-selected-work": selectedWorkPlacements,
     "content-coastal-mornings": coastalMorningsPlacements,
     "content-polar-night-sessions": polarNightPlacements,
     "content-awaiting-selection": awaitingSelectionPlacements,
+    "content-large-archive": largeArchivePlacements,
   };
 
 /** Stable identity of the gallery this deployment features as its portfolio. */
@@ -167,14 +224,27 @@ function buildPlacements(
 }
 
 /**
- * A gallery's cursor scope. `sourceId` is the gallery's own stable identity, so
- * a token issued for one gallery can never be spent in another; the ordering
- * rule is the authored manual order, which is the only rule the MVP has
- * (AB#129 adds the seeded one).
+ * A gallery's cursor scope.
+ *
+ * `sourceId` is the gallery's stable identity *in one route locale*, so a token
+ * issued for one gallery can never be spent in another — and a token issued on
+ * one locale's route can never be spent on another's. It is bound to the whole
+ * validated locale rather than to its language subtag, because `en-GB` and
+ * `en-US` are separate route spaces that merely happen to share authored text
+ * today; binding to `en` would let a slice cross between them.
+ *
+ * These results currently agree across locales, so mixing them would be harmless
+ * now; it stops being harmless the moment an adapter can answer differently per
+ * locale (AB#114), and by then the tokens would already be indexed. It is also
+ * the property the continuation page's metadata relies on when it declines to
+ * name `hreflang` alternates.
+ *
+ * The ordering rule is the authored manual order, which is the only rule the
+ * MVP has (AB#129 adds the seeded one).
  */
-function cursorScope(contentId: string) {
+function cursorScope(locale: string, contentId: string) {
   return {
-    sourceId: contentId,
+    sourceId: `${contentId}@${locale}`,
     normalizedFilter: "all",
     ordering: "manual-v1",
     visibilityVersion: `mock-${contentId}-v1`,
@@ -183,71 +253,81 @@ function cursorScope(contentId: string) {
 }
 
 /**
- * Builds one gallery's first page.
- *
- * No cursor codec is supplied, because this MVP slice issues no cursor: the
- * route renders one bounded page and rejects any token (AB#66 decides the
- * cursor contract, AB#72 the continuation across grid and lightbox).
- */
-function buildResult(
-  language: string,
-  contentId: string,
-  inputs: readonly MockPlacementInput[],
-): GalleryPage<CuratedGalleryResultItem> {
-  return buildCuratedGalleryPage({
-    placements: buildPlacements(language, inputs),
-    scope: cursorScope(contentId),
-  });
-}
-
-/**
- * A fixture that outgrew one page would hide its remaining items, because
- * nothing renders a continuation yet. Checked over the authored placements at
- * import — no page is built to do it — so the story that lifts the bound is
- * named where the fixture is written rather than at a visitor's request.
- */
-for (const [contentId, inputs] of Object.entries(authoredGalleries)) {
-  if (inputs.length > MOCK_GALLERY_PAGE_SIZE) {
-    throw new TypeError(
-      `mock gallery "${contentId}" has ${inputs.length} placements, more than the ${MOCK_GALLERY_PAGE_SIZE} one page holds; continuation is AB#72`,
-    );
-  }
-}
-
-/**
- * Results and covers are built per gallery, on the first read of that gallery in
- * that language, and remembered.
+ * Placements and covers are built per gallery, on the first read of that gallery
+ * in that language, and remembered.
  *
  * A CMS adapter answers one gallery at a time rather than building the site's
  * whole media set to serve one card, so the fixture keeps the same shape: a
  * gallery nobody asked for is never built, and a language nobody requested costs
  * nothing at all. Within one gallery it still builds that gallery's placements,
  * which is the part only a store can avoid.
+ *
+ * What is remembered is the gallery's *placements* rather than a built page.
+ * Every cursor names a different slice of the same sequence, so caching pages
+ * would mint an entry per token a visitor happens to hold; the ordered source is
+ * the part worth keeping, and slicing it again is cheap.
  */
-const results = new Map<string, GalleryPage<CuratedGalleryResultItem>>();
+const placementsByGallery = new Map<
+  string,
+  readonly CuratedGalleryPlacement[]
+>();
 const covers = new Map<string, ImageMedia | undefined>();
 
 function cacheKey(language: string, contentId: string): string {
   return `${language}\u0000${contentId}`;
 }
 
-/** One gallery's bounded first page, or `undefined` when the fixture has none. */
+/**
+ * One bounded page of a gallery, or `undefined` when the fixture has none.
+ *
+ * Takes the route's validated locale, not its language subtag: the cursor is
+ * scoped to the route space a visitor is actually in, while the fixture's text
+ * is looked up by the language that locale belongs to.
+ *
+ * Without a cursor this is the first page; with one it is the slice that follows
+ * that token's boundary.
+ *
+ * The codec is handed in rather than reached for. A fixture describes what the
+ * photographer authored, and which key this deployment signs its continuation
+ * tokens with is not that — it belongs to the seam in `gallery.ts`, the way a
+ * CMS adapter will be handed the same one. Keeping it out here also keeps this
+ * module importable by anything that only wants to read the fixture, without
+ * dragging a server-only secret in behind it. A gallery that fits inside one
+ * page issues no cursor and so needs no codec at all.
+ */
 export function getMockGalleryResult(
-  language: string,
+  locale: string,
   contentId: string,
+  {
+    cursor,
+    cursorCodec,
+  }: {
+    readonly cursor?: string;
+    readonly cursorCodec?: GalleryCursorCodec;
+  } = {},
 ): GalleryPage<CuratedGalleryResultItem> | undefined {
+  // Text is authored per language while routes are configured per locale, so
+  // the two are read apart: `en-GB` and `en-US` share one set of English
+  // placements but never share a cursor.
+  const language = new Intl.Locale(locale).language;
   const inputs = authoredGalleries[contentId];
   if (inputs === undefined || !AUTHORED_LANGUAGES.has(language)) {
     return undefined;
   }
 
   const key = cacheKey(language, contentId);
-  let result = results.get(key);
-  if (result === undefined) {
-    result = buildResult(language, contentId, inputs);
-    results.set(key, result);
+  let placements = placementsByGallery.get(key);
+  if (placements === undefined) {
+    placements = buildPlacements(language, inputs);
+    placementsByGallery.set(key, placements);
   }
-  return result;
+
+  return buildCuratedGalleryPage({
+    placements,
+    scope: cursorScope(locale, contentId),
+    ...(cursor === undefined ? {} : { cursor }),
+    ...(cursorCodec === undefined ? {} : { cursorCodec }),
+  });
 }
 
 /**

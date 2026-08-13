@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
 import { CategoryBranch } from "@/components/category-branch";
 import { ContentArticle } from "@/components/content-article";
@@ -29,7 +30,9 @@ import {
   getBuiltInLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
-import { getGalleryResult } from "@/lib/gallery";
+import { GalleryCursorError, getGalleryPage } from "@/lib/gallery";
+import { galleryContinuationHref } from "@/lib/gallery-slice";
+import { projectGallerySlice } from "@/lib/gallery-slice-server";
 import { resolveLocalePrefixRequest } from "@/lib/locale-prefix-request";
 import {
   buildStoryPath,
@@ -41,6 +44,7 @@ import {
 } from "@/lib/locale-routes";
 import { getPageMetadata } from "@/lib/page-metadata";
 import { defaultLocaleRouteExists } from "@/lib/public-routes";
+import { REQUEST_PATH_HEADER, readRequestPath } from "@/lib/request-path";
 
 /**
  * The locale-prefixed route space and everything the unprefixed static routes
@@ -69,8 +73,9 @@ type LocalePrefixPageProps = {
 type ResolvedRequest = Awaited<ReturnType<typeof resolveRequest>>;
 
 async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
-  const [{ localePrefix, segments = [] }, resolvedSearchParams] =
-    await Promise.all([params, searchParams]);
+  const [{ localePrefix, segments = [] }, resolvedSearchParams, requestHeaders] =
+    await Promise.all([params, searchParams, headers()]);
+  const requestPath = readRequestPath(requestHeaders.get(REQUEST_PATH_HEADER));
   const { localeRoutes } = getDeploymentConfig();
   const [trees, redirects] = await Promise.all([
     getContentTrees(),
@@ -88,6 +93,11 @@ async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
       segments,
       searchParams: resolvedSearchParams,
       defaultLocaleRouteExists,
+      galleryCursorNamesASlice,
+      pathHasTrailingSlash:
+        requestPath !== undefined &&
+        requestPath.length > 1 &&
+        requestPath.endsWith("/"),
     }),
   };
 }
@@ -113,6 +123,61 @@ async function resolveContentPage(
   return route.variant === "gallery"
     ? asGalleryPage(route.contentId, page)
     : asArticlePage(route.contentId, page);
+}
+
+/**
+ * Whether a continuation token names a real slice of one gallery.
+ *
+ * The resolver asks this before it turns a non-canonical address into a
+ * permanent redirect. A good token there deserves the redirect and keeps its
+ * value — decision 8 makes the cursor case-sensitive and never normalized — and
+ * only a token that names nothing answers 404 without creating a redirect. This
+ * layer is the only one that can tell the two apart, because the signing key is
+ * behind `gallery.ts`.
+ */
+async function galleryCursorNamesASlice(
+  locale: string,
+  contentId: string,
+  cursor: string,
+): Promise<boolean> {
+  return (await resolveGalleryPage(locale, contentId, cursor)) !== undefined;
+}
+
+/**
+ * One bounded page of a gallery, or `undefined` when this request names none.
+ *
+ * Two different absences collapse here on purpose, because the route answers
+ * both the same way. Either the locale publishes no gallery for that identity,
+ * or the cursor it carries names no slice of one — malformed, tampered with,
+ * scoped to another query, or stale because the boundary it named has moved.
+ * ADR-0003 decision 8 answers the second with a 404 rather than a quiet fall
+ * back to the first page: the URL promised a particular slice, and serving a
+ * different one under it would be a claim a crawler then indexes.
+ */
+async function resolveGalleryPage(
+  locale: string,
+  contentId: string,
+  cursor?: string,
+) {
+  try {
+    return await getGalleryPage(locale, contentId, cursor);
+  } catch (error) {
+    if (error instanceof GalleryCursorError) return undefined;
+    throw error;
+  }
+}
+
+/**
+ * The canonical path this request claims: the gallery's own, plus the cursor
+ * when it is a continuation.
+ *
+ * A continuation carries a distinct sequential slice, so decision 8 makes it
+ * indexable and self-canonical rather than a duplicate pointing back at the
+ * first page. The token is emitted exactly as it arrived — it is case-sensitive
+ * and never normalized.
+ */
+function toCanonicalPath(path: string, cursor?: string): string {
+  return cursor === undefined ? path : galleryContinuationHref(path, cursor);
 }
 
 function branchTitle(
@@ -250,10 +315,12 @@ export async function generateMetadata(
   if (route.kind === "content" && page === undefined) return {};
   // A gallery the source cannot answer for renders a 404 below, and a 404 must
   // not carry a canonical URL, a social image, and alternates for a page nobody
-  // can open. The same reason the article path returns early above.
+  // can open. The same reason the article path returns early above, and it now
+  // covers a cursor that names no slice as well as a missing gallery.
   if (
     page?.variant === "gallery" &&
-    (await getGalleryResult(locale, page.contentId)) === undefined
+    (await resolveGalleryPage(locale, page.contentId, resolution.cursor)) ===
+      undefined
   ) {
     return {};
   }
@@ -273,14 +340,21 @@ export async function generateMetadata(
   // Both variants are dated published pages, and a gallery's cover is the
   // resolved one its card shows — its own opening photograph when none was
   // authored — so neither invents a social image it does not have.
+  //
+  // A continuation page names no alternate languages. The token is scoped to one
+  // gallery's ordering in one locale, so no other locale holds an equivalent
+  // slice to point at, and an `hreflang` set that is not reciprocal states a
+  // relationship that does not exist. The visible language switch still leads
+  // somewhere useful: decision 7 has it drop cursor state and open the target
+  // locale's first page.
   return getPageMetadata({
-    path,
+    path: toCanonicalPath(path, resolution.cursor),
     title: page.title,
     ...(page.summary === undefined ? {} : { description: page.summary }),
     ...(page.cover === undefined ? {} : { image: page.cover }),
     publishedTime: page.publishedAt,
     locale,
-    localeVersions,
+    ...(resolution.cursor === undefined ? { localeVersions } : {}),
   });
 }
 
@@ -315,11 +389,27 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
     }
 
     if (page.variant === "gallery") {
-      // The gallery's own bounded first page, read by the identity the tree
-      // resolved. It is a separate read from the page above because the two
-      // have different costs: a card projects the page's fields and never this.
-      const result = await getGalleryResult(locale, page.contentId);
+      // One bounded page of the gallery, read by the identity the tree resolved
+      // and positioned by whatever cursor the request carried. It is a separate
+      // read from the page above because the two have different costs: a card
+      // projects the page's fields and never this.
+      const result = await resolveGalleryPage(
+        locale,
+        page.contentId,
+        resolution.cursor,
+      );
+      const storyPath = buildStoryPath(
+        config,
+        locale,
+        getStoryRoutePath(tree, route),
+      );
+
       if (result === undefined) {
+        // The 404 that follows carries the link back to this gallery that
+        // decision 8 requires. It is not passed from here — App Router renders
+        // a not-found boundary with no props, and renders it before this page —
+        // so the boundary reconstructs it from the requested path the Proxy
+        // carried (ADR-0007), and shows it only when a cursor was refused.
         notFound();
       }
 
@@ -327,7 +417,16 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
         <ContentGallery
           locale={locale}
           page={page}
-          items={result.items}
+          slice={projectGallerySlice(result)}
+          initialSliceKey={
+            resolution.cursor === undefined
+              ? `first:${storyPath}`
+              : `cursor:${resolution.cursor}`
+          }
+          galleryPath={storyPath}
+          {...(resolution.cursor === undefined
+            ? {}
+            : { firstPageHref: storyPath, isContinuation: true })}
           breadcrumbs={buildBreadcrumbs(
             config,
             tree,

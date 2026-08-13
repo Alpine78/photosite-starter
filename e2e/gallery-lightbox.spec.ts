@@ -13,6 +13,7 @@ import {
   PREFIXED_LOCALE,
 } from "./support/harness-environment";
 import { expect, test } from "./support/fixtures";
+import { focusIsInside, openLightbox } from "./support/lightbox";
 import { openHeaderNavigation } from "./support/public-page";
 
 /**
@@ -611,8 +612,10 @@ test("a gallery answers honestly for the addresses it does not serve", async ({
   page,
 }) => {
   await test.step("a cursor it never issued is not a page", async () => {
-    // A gallery recognizes `cursor` (ADR-0003 decision 8), and none has been
-    // issued yet, so a token here is stale, tampered with, or malformed.
+    // A gallery recognizes `cursor` (ADR-0003 decision 8). This one fits on a
+    // single page, so it has issued none, and a token arriving here is stale,
+    // tampered with, or malformed. Continuation itself is exercised separately,
+    // against a gallery large enough to have a second page.
     const response = await page.goto(
       `${GALLERY_PATH}?cursor=not-a-token-this-route-minted`,
       { waitUntil: "domcontentloaded" },
@@ -816,28 +819,6 @@ const OPEN_ACTION_TIMEOUT = 3_000;
  * the honest readiness signal: a control clicked before that point is clicked
  * at a dialog that is still animating in.
  */
-async function openLightbox(
-  dialog: Locator,
-  act: () => Promise<void>,
-): Promise<void> {
-  // Generous, because the first open in a session also fetches the viewer
-  // module that the route deliberately does not ship, on a cold cache and with
-  // every other worker competing for the same server.
-  await expect
-    .poll(
-      async () => {
-        if ((await dialog.count()) === 0) {
-          await act().catch(() => {});
-        }
-        return dialog.count();
-      },
-      { timeout: 20_000 },
-    )
-    .toBe(1);
-
-  await expect.poll(() => focusIsInside(dialog), { timeout: 10_000 }).toBe(true);
-}
-
 /**
  * The alternative text of each grid photograph, in result order. Content, so
  * the journey reads it from the page rather than knowing it: a clone replaces
@@ -875,13 +856,6 @@ async function galleryCaptions(main: Locator): Promise<string[]> {
     items.map(
       (item) => item.querySelector("figcaption")?.textContent?.trim() ?? "",
     ),
-  );
-}
-
-async function focusIsInside(dialog: Locator): Promise<boolean> {
-  return dialog.evaluate(
-    (root) =>
-      document.activeElement !== null && root.contains(document.activeElement),
   );
 }
 

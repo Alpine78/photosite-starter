@@ -160,6 +160,22 @@ export type BuiltInLabels = {
     readonly images: string;
     /** Accessible state of a published gallery with no public items yet. */
     readonly empty: string;
+    /** Names the link that continues into the gallery's next bounded page. */
+    readonly showMore: string;
+    /** Names the link back to the gallery's first page from a continuation. */
+    readonly backToStart: string;
+    /**
+     * Marks a continuation page's heading as a later slice of the same gallery,
+     * appended to the gallery's own title (ADR-0003 decision 3).
+     */
+    readonly continued: string;
+    /** Replaces the continuation control's name while a slice is in flight. */
+    readonly loadingMore: string;
+    /** Announced when a continuation could not be loaded; the control retries. */
+    readonly loadFailed: string;
+    readonly retry: string;
+    /** Announced once the last slice has been appended and nothing follows. */
+    readonly allLoaded: string;
   };
   readonly lightbox: {
     /** Accessible name of the fullscreen dialog itself. */
@@ -295,6 +311,13 @@ const englishLabels = {
   gallery: {
     images: "images",
     empty: "This gallery has no images yet.",
+    showMore: "Show more images",
+    backToStart: "Back to the start of this gallery",
+    continued: "continued",
+    loadingMore: "Loading more images",
+    loadFailed: "More images could not be loaded.",
+    retry: "Try again",
+    allLoaded: "All images in this gallery are loaded.",
   },
   lightbox: {
     viewer: "Image viewer",
@@ -390,6 +413,13 @@ const finnishLabels = {
   gallery: {
     images: "kuvaa",
     empty: "Tässä galleriassa ei ole vielä kuvia.",
+    showMore: "Näytä lisää kuvia",
+    backToStart: "Takaisin gallerian alkuun",
+    continued: "jatkuu",
+    loadingMore: "Ladataan lisää kuvia",
+    loadFailed: "Lisää kuvia ei voitu ladata.",
+    retry: "Yritä uudelleen",
+    allLoaded: "Gallerian kaikki kuvat on ladattu.",
   },
   lightbox: {
     viewer: "Kuvakatselin",

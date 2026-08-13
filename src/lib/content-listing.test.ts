@@ -91,6 +91,7 @@ describe("listCategoryContentIds", () => {
       "content-reading-coastal-light",
       "content-polar-night-sessions",
       "content-awaiting-selection",
+      "content-large-archive",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
@@ -102,6 +103,7 @@ describe("listCategoryContentIds", () => {
       "content-reading-coastal-light",
       "content-polar-night-sessions",
       "content-awaiting-selection",
+      "content-large-archive",
       "content-understanding-exposure-triangle",
       "content-shooting-in-low-light",
     ]);
@@ -136,6 +138,7 @@ describe("buildCategoryListing", () => {
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
       "content-awaiting-selection",
+      "content-large-archive",
     ]);
   });
 
@@ -365,6 +368,7 @@ describe("buildContentListingQuery", () => {
       "content-reading-coastal-light",
       "content-polar-night-sessions",
       "content-awaiting-selection",
+      "content-large-archive",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
