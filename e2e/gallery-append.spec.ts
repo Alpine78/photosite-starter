@@ -42,7 +42,12 @@ const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE);
 const galleryLabels = labels.gallery;
 
 /** A gallery whose first page is not its last, found in the adapter data. */
-function paginatedGallery(): { readonly path: string; readonly pageSize: number } {
+function paginatedGallery(): {
+  readonly path: string;
+  readonly pageSize: number;
+  /** Every item it holds, so the walk to the end knows where the end is. */
+  readonly totalItems: number;
+} {
   const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
   const treeInput = mockContentTreeInputs[language];
   if (treeInput === undefined) {
@@ -56,9 +61,22 @@ function paginatedGallery(): { readonly path: string; readonly pageSize: number 
     const path = getCanonicalContentPath(tree, contentId);
     const result = mockPage(language, contentId);
     if (path !== null && result?.page.hasNextPage) {
+      let total = result.items.length;
+      let cursor = result.page.endCursor as string | null;
+      while (cursor !== null) {
+        const next = getMockGalleryResult(language, contentId, {
+          cursor,
+          cursorCodec: harnessCursorCodec,
+        });
+        if (next === undefined) break;
+        total += next.items.length;
+        cursor = next.page.hasNextPage ? next.page.endCursor : null;
+      }
+
       return {
         path: `${STORY_ROOT}/${path.join("/")}`,
         pageSize: result.page.size,
+        totalItems: total,
       };
     }
   }
@@ -257,4 +275,101 @@ test("a gallery that fits on one page offers no control at all", async ({
   await expect(
     page.getByRole("link", { name: galleryLabels.retry }),
   ).toHaveCount(0);
+});
+
+test("the control says it is working while a slice is in flight", async ({
+  page,
+}) => {
+  await page.goto(GALLERY.path, { waitUntil: "load" });
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+
+  // Held open until the assertions below have seen the in-flight state, then
+  // released — so the loading state is observed rather than raced past.
+  let release: (() => void) | undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/gallery**", async (route) => {
+    await held;
+    await route.fallback();
+  });
+
+  await continueControl(page).click();
+
+  const control = page.getByRole("link", { name: galleryLabels.loadingMore });
+  await expect(control).toBeVisible();
+  await expect(control).toHaveAttribute("aria-busy", "true");
+
+  release?.();
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
+  await expect(continueControl(page)).toHaveAttribute("aria-busy", "false");
+});
+
+test("reaching the end says so and keeps focus off the document body", async ({
+  page,
+}) => {
+  test.slow();
+  await page.goto(GALLERY.path, { waitUntil: "load" });
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+
+  // Walk the whole gallery through the control, the way a visitor would. The
+  // last activation is the one that matters: the control leaves the document,
+  // and focus has to land somewhere a keyboard can continue from.
+  for (let loaded = GALLERY.pageSize; loaded < GALLERY.totalItems; ) {
+    await continueControl(page).click();
+    loaded = Math.min(loaded + GALLERY.pageSize, GALLERY.totalItems);
+    await expect(gridItems(page)).toHaveCount(loaded);
+  }
+
+  const items = await presentedItemIds(page);
+  expect(items).toHaveLength(GALLERY.totalItems);
+  expect(new Set(items).size).toBe(GALLERY.totalItems);
+
+  // Nothing left to continue to, and the page says so rather than simply
+  // losing its control.
+  await expect(continueControl(page)).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveText(galleryLabels.allLoaded);
+  await expect(page.getByRole("status")).toBeFocused();
+});
+
+test("a lightbox continuation failure offers its retry inside the dialog", async ({
+  page,
+}) => {
+  await page.goto(GALLERY.path, { waitUntil: "load" });
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+
+  // One failure, then the real endpoint, so the retry proves recovery.
+  let failNext = true;
+  await page.route("**/api/gallery**", async (route) => {
+    if (failNext) {
+      failNext = false;
+      await route.fulfill({ status: 503, body: "" });
+      return;
+    }
+    await route.fallback();
+  });
+
+  const dialog = page.getByRole("dialog");
+  const last = gridItems(page).nth(GALLERY.pageSize - 1);
+  await openLightbox(dialog, async () => {
+    await last.focus();
+    await page.keyboard.press("Enter");
+  });
+
+  // The grid's own control is behind this modal, so the failure has to be
+  // reported — and retryable — from inside the viewer.
+  const notice = dialog.locator("[data-gallery-continuation]");
+  await expect(notice).toBeVisible();
+  await expect(notice).toContainText(galleryLabels.loadFailed);
+
+  await notice.getByRole("button", { name: galleryLabels.retry }).click();
+
+  // The retry succeeds: the sequence grows, the dialog never closed, and the
+  // notice takes itself away.
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
+  await expect(dialog).toBeVisible();
+  await expect(notice).toBeHidden();
+
+  await page.keyboard.press("ArrowRight");
+  await expect(dialog).toBeVisible();
 });

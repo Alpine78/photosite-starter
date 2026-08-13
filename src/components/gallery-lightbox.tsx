@@ -112,22 +112,26 @@ function identitiesOf(slide: SlideData | undefined): IdentifiedSlideData | null 
 export function GalleryLightbox({
   slides,
   labels,
-  onContinue,
+  continuation,
   children,
 }: {
   /** Ordered by the shared gallery result, never by grid layout order. */
   readonly slides: readonly LightboxSlide[];
   readonly labels: GalleryLightboxLabels;
   /**
-   * Loads the gallery's next slice, resolving to whether anything was added.
-   * Absent once nothing follows.
+   * How this viewer continues past the last loaded slide, when anything
+   * follows it. Absent once nothing does.
    *
-   * The viewer asks for it when a visitor reaches the last loaded slide, so
-   * browsing does not stop at a page boundary the grid happens to be at
-   * (AB#72). It never loads ahead of that: one bounded slice, when the sequence
-   * actually runs out.
+   * The viewer asks when a visitor actually reaches the end, never ahead of it:
+   * one bounded slice, when the sequence runs out (AB#72). A failure is shown
+   * *inside* the dialog, with its own retry, because the grid's control is
+   * behind a modal and unreachable while a photograph is open.
    */
-  readonly onContinue?: () => Promise<boolean>;
+  readonly continuation?: {
+    readonly loadNext: () => Promise<boolean>;
+    readonly failedLabel: string;
+    readonly retryLabel: string;
+  };
   readonly children: ReactNode;
 }) {
   const lightboxRef = useRef<PhotoSwipeLightbox | null>(null);
@@ -135,15 +139,15 @@ export function GalleryLightbox({
   const slidesRef = useRef(slides);
   const activeItemIdRef = useRef<string | null>(null);
   // Held in a ref so a new callback identity never tears down a working viewer.
-  const continueRef = useRef(onContinue);
+  const continuationRef = useRef(continuation);
   const continuingRef = useRef(false);
   // The caption region is referenced by the photograph it describes, so it
   // needs an id no second gallery on the same page could also mint.
   const captionId = useId();
 
   useEffect(() => {
-    continueRef.current = onContinue;
-  }, [onContinue]);
+    continuationRef.current = continuation;
+  }, [continuation]);
 
   /**
    * Puts newly loaded slides into the viewer that is already open.
@@ -189,6 +193,36 @@ export function GalleryLightbox({
     // dropped when that dialog is destroyed.
     let captionElement: HTMLElement | null = null;
     let describedElement: Element | null = null;
+    let continuationElement: HTMLElement | null = null;
+
+    /**
+     * One continuation attempt, with its failure shown inside the dialog.
+     *
+     * The grid's own control and its error message sit behind this modal, so a
+     * visitor who hits a network failure mid-gallery cannot reach either. This
+     * puts the same two things — what went wrong, and a way to try again —
+     * where they can actually be used, and takes them away as soon as one
+     * succeeds.
+     */
+    const attemptContinuation = async (): Promise<void> => {
+      const continuation = continuationRef.current;
+      if (continuation === undefined || continuingRef.current) return;
+
+      continuingRef.current = true;
+      if (continuationElement !== null) continuationElement.hidden = true;
+
+      try {
+        const appended = await continuation.loadNext();
+        // A failure keeps the dialog exactly where it is: the photograph on
+        // screen is not lost over a network blip, and the notice offers the
+        // retry rather than the visitor having to guess at one.
+        if (!appended && continuationElement !== null) {
+          continuationElement.hidden = false;
+        }
+      } finally {
+        continuingRef.current = false;
+      }
+    };
 
     const lightbox = new PhotoSwipeLightbox({
       // Deferred: a visitor who never opens a photo never downloads the viewer.
@@ -310,6 +344,34 @@ export function GalleryLightbox({
       // dialog root instead of taking a strip of it: the viewport is the slot
       // the image was delivered for, and a caption that consumed layout would
       // shrink the photograph below it.
+      // Hidden until a continuation fails. Registered whether or not this
+      // gallery has one, because a slice loaded while the viewer is open can
+      // make one appear.
+      pswp.ui?.registerElement({
+        name: "gallery-continuation",
+        appendTo: "root",
+        onInit: (element) => {
+          element.hidden = true;
+          element.dataset.galleryContinuation = "";
+          element.setAttribute("role", "status");
+
+          const message = document.createElement("p");
+          message.className = "pswp__gallery-continuation-message";
+          message.textContent = continuationRef.current?.failedLabel ?? "";
+
+          const retry = document.createElement("button");
+          retry.type = "button";
+          retry.className = "pswp__gallery-continuation-retry";
+          retry.textContent = continuationRef.current?.retryLabel ?? "";
+          retry.addEventListener("click", () => {
+            void attemptContinuation();
+          });
+
+          element.append(message, retry);
+          continuationElement = element;
+        },
+      });
+
       pswp.ui?.registerElement({
         name: "gallery-caption",
         appendTo: "root",
@@ -341,10 +403,9 @@ export function GalleryLightbox({
       // more. Nothing is fetched ahead of the visitor, so browsing a
       // four-hundred-item gallery never quietly pulls the whole of it.
       const pswp = lightbox.pswp;
-      const requestMore = continueRef.current;
       if (
         !pswp ||
-        requestMore === undefined ||
+        continuationRef.current === undefined ||
         continuingRef.current ||
         pswp.currSlide === undefined ||
         pswp.currSlide.index < pswp.getNumItems() - 1
@@ -352,19 +413,13 @@ export function GalleryLightbox({
         return;
       }
 
-      continuingRef.current = true;
-      // A failure resolves `false` and is deliberately swallowed here: the
-      // dialog stays open on the item the visitor is looking at, and moving to
-      // the last slide again retries. Closing or jumping would lose their place
-      // over a network blip.
-      void requestMore().finally(() => {
-        continuingRef.current = false;
-      });
+      void attemptContinuation();
     });
 
     lightbox.on("destroy", () => {
       captionElement = null;
       describedElement = null;
+      continuationElement = null;
 
       const itemId = activeItemIdRef.current;
       activeItemIdRef.current = null;

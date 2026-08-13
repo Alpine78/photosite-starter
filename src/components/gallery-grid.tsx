@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   GalleryLightbox,
   GalleryLightboxTrigger,
@@ -35,6 +35,13 @@ type GalleryGridProps = {
 };
 
 type ContinuationState = "idle" | "loading" | "failed";
+
+/** What a continuation attempt did, which decides where focus belongs after it. */
+type ContinuationOutcome = {
+  readonly appended: boolean;
+  /** True once nothing follows, so the control is about to leave the document. */
+  readonly complete: boolean;
+};
 
 /**
  * One gallery's items as a grid of full-frame thumbnails, each opening the
@@ -79,6 +86,9 @@ export function GalleryGrid({
 }: GalleryGridProps) {
   const [slice, setSlice] = useState(initialSlice);
   const [state, setState] = useState<ContinuationState>("idle");
+  const [pendingFocus, setPendingFocus] = useState<"control" | "completion" | null>(
+    null,
+  );
   const continueRef = useRef<HTMLAnchorElement | null>(null);
   const completionRef = useRef<HTMLParagraphElement | null>(null);
   // A second activation while one slice is in flight must not start another.
@@ -94,8 +104,10 @@ export function GalleryGrid({
    * result — the lightbox, continuing past its last loaded slide — can wait for
    * this rather than watch state it does not own.
    */
-  const loadNext = useCallback(async (): Promise<boolean> => {
-    if (inFlightRef.current || nextCursor === null) return false;
+  const loadNext = useCallback(async (): Promise<ContinuationOutcome> => {
+    if (inFlightRef.current || nextCursor === null) {
+      return { appended: false, complete: nextCursor === null };
+    }
 
     inFlightRef.current = true;
     setState("loading");
@@ -107,16 +119,43 @@ export function GalleryGrid({
       // same item on screen twice.
       setSlice((loaded) => appendGallerySlice(loaded, next));
       setState("idle");
-      return true;
+      // Read from the answer rather than from `slice`, which this closure
+      // captured before the request and which still says a continuation exists.
+      return { appended: true, complete: next.nextCursor === null };
     } catch {
       // The failure is announced and the control becomes a retry. Nothing that
       // was already loaded is discarded: a visitor keeps everything they had.
       setState("failed");
-      return false;
+      return { appended: false, complete: false };
     } finally {
       inFlightRef.current = false;
     }
   }, [galleryPath, nextCursor]);
+
+  /** The lightbox only needs to know whether the sequence grew. */
+  const continueForLightbox = useCallback(
+    async () => (await loadNext()).appended,
+    [loadNext],
+  );
+
+  /**
+   * Moves focus after the append has rendered.
+   *
+   * It has to wait for the render: on the last slice the control leaves the
+   * document, and focusing it in the promise callback would either focus a
+   * detached node or, once React had cleared the ref, nothing at all — which
+   * drops the visitor to `document.body` in a gallery that just grew.
+   */
+  useEffect(() => {
+    if (pendingFocus === null) return;
+
+    if (pendingFocus === "completion") {
+      completionRef.current?.focus();
+    } else {
+      continueRef.current?.focus();
+    }
+    setPendingFocus(null);
+  }, [pendingFocus]);
 
   const onContinue = useCallback(
     (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -134,15 +173,14 @@ export function GalleryGrid({
       }
 
       event.preventDefault();
-      void loadNext().then((appended) => {
+      void loadNext().then((outcome) => {
         // Focus is predictable: it stays on the control a visitor activated for
         // as long as that control exists, and moves to the completion notice
         // only when the control itself goes away — never to the document body.
-        if (appended && slice.nextCursor === null) return;
-        continueRef.current?.focus();
+        setPendingFocus(outcome.complete ? "completion" : "control");
       });
     },
-    [loadNext, slice.nextCursor],
+    [loadNext],
   );
 
   const isLoading = state === "loading";
@@ -152,7 +190,15 @@ export function GalleryGrid({
     <GalleryLightbox
       slides={slice.slides}
       labels={labels.lightbox}
-      {...(nextCursor === null ? {} : { onContinue: loadNext })}
+      {...(nextCursor === null
+        ? {}
+        : {
+            continuation: {
+              loadNext: continueForLightbox,
+              failedLabel: labels.gallery.loadFailed,
+              retryLabel: labels.gallery.retry,
+            },
+          })}
     >
       <ul
         aria-label={label}
