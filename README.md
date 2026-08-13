@@ -45,8 +45,16 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 - `src/lib` – shared logic, configuration, data access, and the generic media model
 - `scripts` – deployment tooling that runs outside the application bundle
 - `docs/adr` – architecture decision records ([conventions](docs/adr/README.md))
+- `docs/architecture` – [architecture diagrams](docs/architecture/README.md): the system
+  context, the application and data boundaries, and the build/deployment flow, as D2
+  source with generated SVG
 
 Import alias: `@/*` → `src/*`
+
+New to the codebase? [docs/architecture](docs/architecture/README.md) has three
+diagrams — the systems around the site and who owns them, the layers a request crosses
+and the imports the build refuses, and the path from a commit to a verified deployment —
+each with the prose to go with it. Anything not operating yet is drawn as such.
 
 Working rules for AI coding agents live in [AGENTS.md](AGENTS.md).
 
@@ -202,6 +210,8 @@ npm run lint      # ESLint
 npm test          # browser-free TypeScript tests (one run)
 npm run build     # production build
 npm run test:e2e  # public-journey smoke tests against a production build
+npm run diagrams  # regenerate docs/architecture/*.svg from their .d2 sources
+npm run diagrams:check  # CI gate: sources compile, committed SVGs are current
 
 npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
 ```
@@ -273,7 +283,8 @@ instead of the whole browser matrix.
 Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs two stages.
 
 **Quality gates** run on every push and pull request to `main`: lint, browser-free tests,
-the production build, and the Playwright smoke suite. Test results are published on every
+the [architecture diagram](docs/architecture/README.md) check, the production build, and
+the Playwright smoke suite. Test results are published on every
 run; traces and screenshots are published as a pipeline artifact when the suite fails.
 
 **Preview release candidate** deploys `main` to the site owner's own Vercel project after

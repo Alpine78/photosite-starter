@@ -64,6 +64,27 @@ visitors' browsers, so a deployed site redistributes them and the MIT license
 requires this notice to accompany that redistribution.
 
 -------------------------------------------------------------------------------
+Source Sans Pro (embedded in docs/architecture/*.svg)
+-------------------------------------------------------------------------------
+Copyright 2010-2018 Adobe (http://www.adobe.com/), with Reserved Font Name
+'Source'. All Rights Reserved.
+Source: https://github.com/adobe-fonts/source-sans, vendored by D2
+        (https://github.com/terrastruct/d2, d2renderers/d2fonts)
+Licensed under the SIL Open Font License, Version 1.1 — see
+licenses/OFL-1.1-source-sans-pro.txt
+
+The architecture diagrams in docs/architecture/ are rendered from D2 source by
+the @terrastruct/d2 development dependency. D2 embeds a subset of Source Sans
+Pro into each generated SVG as base64 WOFF, so the file renders identically
+everywhere without a network call. Those subsets are committed to this
+repository and therefore travel with every clone, which is what makes the OFL's
+notice requirement apply — the same reason the Geist entry above exists.
+
+D2 itself is not listed here. It is a development dependency that renders the
+files at author time; none of its own code ends up in them. Its MPL-2.0 license
+is recorded in docs/asset-inventory.md.
+
+-------------------------------------------------------------------------------
 Demo photographs (public/gallery/)
 -------------------------------------------------------------------------------
 Generated with OpenAI services. Under OpenAI's Terms of Use, OpenAI assigns all

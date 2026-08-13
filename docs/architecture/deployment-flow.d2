@@ -1,0 +1,77 @@
+# Build and deployment flow: what has to pass before anything is deployed, and
+# what happens to a deployment that fails its checks.
+#
+# Purpose: show the gate order and the two conditions that are easy to lose in
+# YAML — that the deploy stage is *skipped* rather than failed while
+# provisioning is incomplete, and that a release candidate which fails
+# verification is *deleted* rather than merely reported. Both are ADR-0004 §3
+# commitments.
+#
+# Deliberately not shown: individual pipeline tasks, variable names, and the
+# provisioning runbook. Those are azure-pipelines.yml and docs/deployment.md;
+# duplicating them here would create a second copy to keep true. Labels are
+# kept to a scannable line or two on purpose — the prose in README.md beside
+# this diagram is where the detail belongs.
+#
+# Layout note: the root direction is right so the pipeline reads left to right,
+# and each stage is `grid-columns: 1` so its steps stack in order — a nested
+# `direction` would be ignored by the pinned D2 build, but a grid is not.
+
+...@_shared
+
+direction: right
+
+dev: "Developer\nBranches before\nthe first edit" {
+  shape: person
+  class: built
+}
+
+verify: "Stage 1 — Quality gates\nEvery push and PR to main" {
+  class: built
+  grid-columns: 1
+
+  lint: "npm run lint" {class: built}
+  test: "npm test\nBrowser-free Vitest,\nincluding the pins" {class: built}
+  diagrams: "npm run diagrams:check\nSources compile, committed\nSVGs match a fresh render" {class: built}
+  build: "npm run build\nFixture settings; reaches\nno external service" {class: built}
+  e2e: "npm run test:e2e\nPublic journeys against a\nproduction build" {class: built}
+}
+
+gate: "All four, or skipped:\ngates green, not a PR,\nmain only, and\nPREVIEW_DEPLOYMENT_ENABLED" {
+  shape: diamond
+  class: built
+}
+
+deploy: "Stage 2 — Preview release candidate\n(built and gated; has never run)" {
+  class: planned
+  grid-columns: 1
+
+  settings: "Check the deployment\nvariables are present" {class: planned}
+  pull: "vercel pull\nPreview values only" {class: planned}
+  vbuild: "vercel build" {class: planned}
+  vdeploy: "vercel deploy --prebuilt" {class: planned}
+  identify: "npm run identify:preview\nURL to immutable ID;\nproves project and team" {class: planned}
+  verify-deployment: "npm run verify:preview\nProtection AND noindex,\nasserted separately" {class: planned}
+}
+
+published: "URL published to\nthe run summary" {
+  class: planned
+}
+
+removed: "Deployment deleted\nby immutable ID" {
+  class: planned
+}
+
+production: "Production promotion\nAB#18, with rollback\nand handoff in AB#118" {
+  class: planned
+}
+
+dev -> verify: "Opens a pull request"
+
+verify.lint -> verify.test -> verify.diagrams -> verify.build -> verify.e2e
+
+verify -> gate
+gate -> deploy: "All four hold" {class: pending-flow}
+deploy -> published: Verified {class: pending-flow}
+deploy -> removed: "Failed or cancelled" {class: pending-flow}
+published -> production: "Planned" {class: pending-flow}

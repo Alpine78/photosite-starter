@@ -1,0 +1,42 @@
+# Shared definitions imported by every diagram in this directory.
+#
+# Not a diagram of its own: the leading underscore tells `npm run diagrams`
+# that this file is a fragment and gets no rendition (see README.md).
+#
+# The one rule worth stating here is how "not yet operational" is drawn.
+# It is a dashed border and an explicit "(planned)" or "(not yet run)" in the
+# label — never a colour. These renditions are read on GitHub in both light and
+# dark colour schemes, and they are read in greyscale when printed, so a
+# distinction carried only by hue is a distinction that disappears for some
+# readers. Shape and words survive every one of those.
+
+classes: {
+  # Something this repository builds and runs today.
+  built: {
+    style.stroke-width: 2
+  }
+
+  # Something the code provides for but that is not operating yet. The label
+  # says why, so the reader never has to infer it from the border alone.
+  planned: {
+    style.stroke-dash: 4
+    style.italic: true
+  }
+
+  # A system outside this repository, owned by the site owner or a provider.
+  external: {
+    style.stroke-width: 2
+    style.border-radius: 8
+  }
+
+  # A store, of any kind.
+  store: {
+    shape: cylinder
+  }
+
+  # A connection that carries no traffic yet.
+  pending-flow: {
+    style.stroke-dash: 4
+    style.italic: true
+  }
+}

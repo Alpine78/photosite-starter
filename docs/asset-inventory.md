@@ -9,6 +9,9 @@ item so the Free Core / Premium boundary (AB#42) can be decided on facts.
 original audit and were not recounted.
 **Amended:** 2026-08-10 — `server-only` added (AB#39); see the npm dependency section.
 Counts were not recounted.
+**Amended:** 2026-08-13 — D2 diagram tooling added (AB#133): the `@terrastruct/d2`
+development dependency, and the Source Sans Pro subsets it embeds into the generated
+SVGs in `docs/architecture/`. Counts were not recounted.
 
 ## Distribution model assumed by this audit
 
@@ -24,10 +27,18 @@ tooling, or it runs server-side, or it is stripped from the client bundle. Every
 that does cross it belongs in the shipped table below, and nothing that crosses it is
 excused by being a framework's own output.
 
-Applying that test, four things are redistributed and carry obligations: the vendored
-agent skills (in the repository), and — embedded into the build output and served by a
-deployed site — the Geist font files, the Next.js/React client runtime, and the
-PhotoSwipe browser bundle.
+Applying that test, five things are redistributed and carry obligations: the vendored
+agent skills and the generated architecture diagrams (both in the repository), and —
+embedded into the build output and served by a deployed site — the Geist font files, the
+Next.js/React client runtime, and the PhotoSwipe browser bundle.
+
+The diagrams are the one that is easy to miss, because nothing about them looks like a
+shipped asset. `docs/architecture/*.svg` are generated files, and D2 embeds a subset of
+Adobe's Source Sans Pro into each one as base64 WOFF — that is how the renditions display
+identically without a network call. Those subsets travel with every clone of this
+repository, so the OFL's notice requirement attaches to them exactly as it does to Geist.
+D2 itself does not: it is a development dependency that renders the files at author time,
+and none of its own code ends up in them.
 
 > **This assumption is not yet ratified.** AB#42 defines the Free Core / Premium product
 > boundary. If the deliverable ever becomes a bundle, a zip, or a hosted build rather
@@ -49,9 +60,10 @@ PhotoSwipe browser bundle.
 | PhotoSwipe 5.4.4 (JS + CSS) | `dimsemenov/PhotoSwipe` via npm | Dmitry Semenov | MIT | **Yes** — copyright + permission notice | Yes |
 | `architecture` skill | `anthropics/knowledge-work-plugins` | Anthropic | Apache-2.0 | **Yes** — license copy, retained notices, state changes | Yes |
 | `security-review` skill | `affaan-m/ECC` | Affaan Mustafa | MIT | **Yes** — copyright + permission notice | Yes |
+| Source Sans Pro subsets embedded in `docs/architecture/*.svg` | Adobe Source Sans Pro, vendored by D2 and subset into each generated SVG | Adobe | OFL-1.1 | **Yes** — notice + license must accompany redistribution | Yes |
 | Demo photographs (`public/gallery/`, 6 files) | OpenAI services | Project author (assigned) | Project MIT | No | Yes — see below |
 
-Attribution for all six is in the root `NOTICE` file; full license texts are in
+Attribution for all seven is in the root `NOTICE` file; full license texts are in
 `licenses/`.
 
 These are the only npm packages whose bytes reach a browser. The framework runtime is
@@ -91,6 +103,15 @@ Except the three in the shipped table above — the Next.js and React client run
 PhotoSwipe — whose bytes are served to browsers. They remain in the counts below, since
 those describe the installed tree.
 
+`@terrastruct/d2` (MPL-2.0) was added in AB#133 and is not reflected in the counts
+below. It is the WASM build of the D2 diagram engine, pinned to an exact version so the
+lockfile decides which renderer produced the committed SVGs in `docs/architecture/`. It
+is a development dependency that runs at author time and in CI: nothing in the
+application imports it, and its own code is not part of what it renders — the generated
+SVGs contain diagram geometry and an embedded font subset, not D2. MPL-2.0 is file-level
+copyleft over D2's own source files, which this project neither modifies nor
+redistributes.
+
 `server-only` (MIT, published by the React team) was added in AB#39 and is not reflected
 in the counts below. It is a marker package: inside a React Server Component build it
 resolves to an empty module, and anywhere else it throws on import — which is the whole
@@ -114,7 +135,7 @@ included in this installed-tree count. Licence distribution:
 | Apache-2.0 AND LGPL-3.0-or-later | 1 |
 | Python-2.0, CC-BY-4.0, CC0-1.0, 0BSD | 1 each |
 
-No package is under a copyleft license that would reach the application source. Four
+No package is under a copyleft license that would reach the application source. Five
 warrant a note if the distribution model changes:
 
 | Package | License | In production tree | Why it is flagged |
@@ -123,6 +144,7 @@ warrant a note if the distribution model changes:
 | `caniuse-lite` | CC-BY-4.0 | Yes | CC-BY requires attribution when the data is redistributed. Build-time data, not served |
 | `axe-core` | MPL-2.0 | No (dev) | File-level copyleft; dev tooling only |
 | `lightningcss` | MPL-2.0 | No (build) | File-level copyleft; build tooling only |
+| `@terrastruct/d2` | MPL-2.0 | No (dev) | File-level copyleft; renders documentation at author time |
 
 ## Open items
 
