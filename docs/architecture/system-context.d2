@@ -1,0 +1,74 @@
+# System context: the systems around the site, who owns each, and which of
+# those conversations actually happen today.
+#
+# Purpose: show every system outside this repository that a deployed clone
+# depends on, and the ownership boundary around each — because "the site owner
+# owns their own CMS, mailbox, and hosting account" is the product decision
+# ADR-0004 and ADR-0006 turn on, and it is invisible in the code.
+#
+# Deliberately not shown: anything inside the application (that is
+# application-boundaries.d2) and the pipeline's steps (deployment-flow.d2).
+# This is context level — the pipeline appears here as one box, because who
+# owns it is the point, not what it runs.
+#
+# Layout note: `direction` inside a container has no effect in the pinned D2
+# build, so every node here is a leaf and the picture is kept flat. A label
+# carrying `\n` on a leaf is a multi-line label; the same label on a container
+# becomes an oversized title above the box, which is why containers here keep
+# one-word names.
+
+...@_shared
+
+direction: down
+
+visitor: Visitor {
+  shape: person
+  class: built
+}
+
+owner: "Site owner\n(the photographer)" {
+  shape: person
+  class: built
+}
+
+repo: "GitHub\nPublic source repository" {
+  class: external
+}
+
+pipeline: "Azure DevOps\nBoards, and Pipelines that\nlint, test, build, and gate" {
+  class: external
+}
+
+vercel: "Vercel\nHosting in the site owner's\nown team — ADR-0004" {
+  class: external
+}
+
+site: "PhotoSite Starter\nNext.js App Router, server-rendered.\nPublic pages only: no visitor accounts,\nno tracking cookies, no cookie banner." {
+  class: built
+}
+
+fixtures: "Mock content\nDemo fixtures in src/lib.\nRefused in a production deployment." {
+  class: [store; built]
+}
+
+sanity: "Sanity Content Lake\nThe site owner's own project\nand dataset — ADR-0006" {
+  class: [store; external]
+}
+
+resend: "Resend\nContact delivery from the site\nowner's own account — ADR-0004 §5" {
+  class: external
+}
+
+visitor -> site: "Reads pages,\nbrowses galleries"
+visitor -> site: Sends an enquiry
+
+owner -> repo: Commits
+owner -> sanity: "Authors content\n(planned)" {class: pending-flow}
+
+repo -> pipeline: Triggers every push and PR
+pipeline -> vercel: "Deploys a release candidate\n(built and gated, never yet run)" {class: pending-flow}
+vercel -> site: "Runs the site\n(not yet deployed)" {class: pending-flow}
+
+site -> fixtures: SITE_CONTENT_SOURCE=mock
+site -> sanity: "Reads published content\n(connection built, reads planned)" {class: pending-flow}
+site -> resend: Delivers an enquiry over HTTPS

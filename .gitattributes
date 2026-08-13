@@ -9,3 +9,11 @@
 licenses/**            text eol=lf
 .claude/skills/**      text eol=lf
 .agents/skills/**      text eol=lf
+
+# Architecture diagrams. `npm run diagrams:check` compares the committed SVG
+# byte-for-byte against a fresh render, and the renderer always emits LF. A
+# CRLF working copy would fail that comparison on Windows and pass on Linux,
+# so both the authoritative source and the generated rendition are checked out
+# exactly as they are stored.
+docs/architecture/*.d2   text eol=lf
+docs/architecture/*.svg  text eol=lf

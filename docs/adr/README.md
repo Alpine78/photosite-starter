@@ -7,6 +7,10 @@ hosting or CMS commitment, a product boundary.
 
 Routine choices do not need an ADR. Prefer no record over a record nobody trusts.
 
+For the boundaries these decisions produced, drawn rather than described, see
+[`docs/architecture/`](../architecture/README.md). Those diagrams show *what* the
+boundaries are; these records are *why*, what else was considered, and what it cost.
+
 ## Naming
 
 ```

@@ -1,0 +1,124 @@
+# Application and data boundaries: what a request passes through, and where
+# provider knowledge and secrets are not allowed to travel.
+#
+# Purpose: show the layers a request crosses, and the one crossing that is
+# enforced by tooling rather than by convention — src/app and src/components
+# cannot import the server-only modules at all, and src/lib is the only layer
+# that may. That rule is invisible when reading any single file, which is why
+# it is drawn.
+#
+# Deliberately not shown: individual components, every module in src/lib, and
+# the shape of any data. This is a boundary map, not a file listing.
+#
+# Layout notes for whoever edits this next: `direction` inside a container is
+# ignored by the pinned D2 build, but `grid-columns` is not, so each layer is a
+# single-row grid. Edges run between layers rather than into a layer's
+# children — a handful of edges into grid cells is what turned an earlier draft
+# of this diagram into a knot.
+
+...@_shared
+
+direction: down
+
+browser: "Visitor's browser" {
+  class: built
+}
+
+proxy: "src/proxy.ts — the Proxy (ADR-0007)\nCopies the requested path and a single \"a cursor was present\" bit into project-owned\nheaders, overwriting anything the client sent, so a not-found boundary that App Router\ngives no props can still name a way back. Owns trailing-slash normalization, so a cursor\nis validated before a 308. No query values, no content reads, no secrets." {
+  class: built
+}
+
+routes: "src/app — App Router" {
+  class: built
+  grid-columns: 3
+
+  static: "(default) route group\n/, /services, /services/[slug],\n/contact\nUnprefixed default locale only" {
+    class: built
+  }
+
+  tree: "[localePrefix]/[[...segments]]\nThe locale-aware content tree:\ncategory branches, articles,\ncurated galleries" {
+    class: built
+  }
+
+  api: "Route handlers\napi/contact — same-origin JSON,\nclosed field whitelist\napi/gallery — one bounded slice" {
+    class: built
+  }
+}
+
+components: "src/components" {
+  class: built
+  grid-columns: 2
+
+  server-components: "Server components\nBreadcrumbs, listings, gallery grid,\nmedia figures, site navigation" {
+    class: built
+  }
+
+  client-components: "Client components\nLightbox, contact form,\nin-place gallery append" {
+    class: built
+  }
+}
+
+lib: "src/lib — domain contracts, data-access seams, and fixtures" {
+  class: built
+  grid-columns: 4
+
+  config: "Deployment configuration\ndeployment-config, deployment-stage,\nlocale-routes, site-settings" {
+    class: built
+  }
+
+  domain: "Domain and result contracts\ncontent-tree, content-page, media,\nimage-delivery, gallery-result,\ngallery-slice, gallery-pagination" {
+    class: built
+  }
+
+  seams: "Data-access seams\ncontent.ts, gallery.ts,\ncontact-delivery.ts\nSwapping the store changes only these" {
+    class: built
+  }
+
+  fixtures: "Mock fixtures\nmock-content-tree, mock-gallery,\nmock-media\nSITE_CONTENT_SOURCE=mock" {
+    class: [store; built]
+  }
+}
+
+restricted: "Server-only modules" {
+  class: built
+  grid-columns: 3
+
+  sanity-config: "sanity-config.ts\nValidated connection settings\nand the optional read token" {
+    class: built
+  }
+
+  sanity-client: "sanity-client.ts\nContent Lake HTTP API,\npublished perspective only" {
+    class: built
+  }
+
+  gallery-cursor: "gallery-cursor.ts\nGALLERY_CURSOR_SIGNING_KEY,\nresolved lazily" {
+    class: built
+  }
+}
+
+external: "Outside the deployment" {
+  class: external
+  grid-columns: 2
+
+  sanity: "Sanity Content Lake\nSchemas and adapters planned,\nso nothing reads this yet" {
+    class: [store; planned]
+  }
+
+  delivery: "Resend HTTP API\nOr the sink adapter, which a\nproduction deployment refuses to build" {
+    class: external
+  }
+}
+
+browser -> proxy: Every matched request
+proxy -> routes: "Request, plus two bounded headers"
+routes -> components: Renders
+routes -> lib: "Resolves configuration and routes,\nreads one bounded result per page"
+components -> lib: "Reads contracts and per-locale labels"
+
+lib -> restricted: "The only crossing there is.\nESLint refuses these imports from src/app and src/components, and the\nserver-only marker fails the build on the indirect case ESLint cannot see." {
+  style.stroke-width: 3
+  style.bold: true
+}
+
+restricted -> external: "Published reads (planned)" {class: pending-flow}
+lib -> external: "Delivers one enquiry.\nNo form content is stored anywhere."

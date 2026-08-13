@@ -96,6 +96,36 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
   current work item. Do not infer scope or acceptance criteria and do not give an
   approval/rejection verdict without them.
 
+### Azure Boards work item state
+
+The board is the project's status, so an agent that implements a story also moves it.
+Leaving the state behind makes the board lie about what is in flight and what shipped,
+and nobody notices until a standup contradicts the repository.
+
+- **Move the item to `Active` before the first file change**, in the same read-only step
+  that reads the work item and checks out the branch. Not after the implementation is
+  written, and not "once it's clearly going to work" — the state exists to say the work
+  is in flight, which is true from the first edit.
+- **Move it to `Closed` when the work is merged**, together with the closing commit or
+  the merged pull request. If the PR body carries `Fixes AB#<id>`, confirm the item
+  actually reached `Closed` after the merge rather than assuming the link did it; close
+  it explicitly when it did not.
+- **Never close an item the user has not accepted.** Handing back a finished branch is
+  not a merge. Report the state the item is in and what still has to happen for it to
+  close.
+- Report every transition in the message that accompanies the work, so the state change
+  is reviewable rather than silent.
+
+```bash
+az boards work-item update --id <id> --state Active   # before the first edit
+az boards work-item update --id <id> --state Closed   # after the merge
+```
+
+Agile process states for a User Story are `New` → `Active` → `Resolved` → `Closed`.
+`Resolved` is optional here; a story that is merged goes straight to `Closed`.
+If a state transition fails, say so — a silent failure leaves the same stale board as
+never having tried.
+
 ## Feature status awareness
 
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
@@ -299,6 +329,12 @@ no domain exists — so the deploy stage has never run and no release candidate 
 been produced or verified. Production promotion (AB#18), exercised rollback and handoff
 (AB#118), and legacy URL redirects (AB#19) are later stories.
 
+The repository's architecture is also drawn, not only described: `docs/architecture/`
+holds the system context, the application and data boundaries, and the build/deployment
+flow as authoritative D2 source with committed SVG renditions, rendered by an
+exactly-pinned engine and gated by `npm run diagrams:check` so a stale picture fails CI
+rather than misleading a reader. Anything not operating yet is drawn as such.
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
@@ -365,6 +401,8 @@ npm run lint      # ESLint (CI gate)
 npm test          # browser-free TypeScript tests (CI gate, one run)
 npm run build     # production build (CI gate)
 npm run test:e2e  # Playwright public-journey smoke tests (CI gate, builds and serves)
+npm run diagrams  # regenerate docs/architecture/*.svg from their .d2 sources
+npm run diagrams:check # CI gate: sources compile and committed SVGs are current
 npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
 ```
 
@@ -427,6 +465,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `AGENTS.md` | all AI agents (canonical) | project-level working rules or conventions change |
 | `CLAUDE.md` | Claude Code only | a Claude-specific skill or workflow changes — it imports this file, so put shared rules here |
 | `docs/adr/` | future maintainers | a hard-to-reverse technical decision is made (see below) |
+| `docs/architecture/` | anyone forming a mental model of the system | a system boundary, layer, external dependency, or the deploy flow changes — edit the `.d2` source and re-run `npm run diagrams`, never the `.svg` |
 | `docs/asset-inventory.md` | licensing audit | any third-party asset, font, or shipped dependency is added or removed |
 | `docs/contact-data-flow.md` | the site owner, a visitor who asks, and the AB#117 launch review | the contact form's fields, delivery path, processors, logs, or retention change |
 | `docs/sanity-setup.md` | the site owner and whoever provisions a clone's CMS | the Sanity connection settings, ownership/transfer story, perspective, or failure behavior change |
@@ -441,6 +480,11 @@ Rules:
   status in this file describe a moving target. When you finish a story, check both —
   the code and Azure Boards are authoritative, and prose that contradicts them is worse
   than no prose.
+- **Architecture diagrams are generated, never hand-edited.** `docs/architecture/*.d2`
+  is the source; the `.svg` beside it is a build artifact that `npm run diagrams`
+  rewrites and `npm run diagrams:check` gates. Diagrams show *what* the boundaries are
+  and ADRs record *why* — a diagram never replaces a record, and anything drawn that is
+  not operating yet must say so on the diagram itself.
 - Record hard-to-reverse technical decisions as an ADR in `docs/adr/`: a dependency the
   UI is built around, a data model boundary, a hosting or CMS commitment, a product
   boundary. See `docs/adr/README.md` for naming and format. Routine choices do not need

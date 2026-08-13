@@ -49,6 +49,16 @@ stages:
               npm test
             displayName: "Test"
 
+          # The committed architecture diagrams, checked against their
+          # authoritative D2 sources (AB#133). This fails on malformed source
+          # and on an .svg that no longer matches a fresh render — the drift a
+          # reviewer cannot see, because a stale picture is still a valid SVG.
+          # Nothing is written in --check mode, so the agent cannot quietly fix
+          # what it is here to report.
+          - script: |
+              npm run diagrams:check
+            displayName: "Check architecture diagrams"
+
           - script: |
               npm run build
             displayName: "Build"

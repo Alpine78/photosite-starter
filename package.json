@@ -12,6 +12,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "diagrams": "node scripts/render-diagrams.mts",
+    "diagrams:check": "node scripts/render-diagrams.mts --check",
     "identify:preview": "node scripts/identify-preview-deployment.mts",
     "remove:preview": "node scripts/remove-preview-deployment.mts",
     "verify:preview": "node scripts/verify-preview-deployment.mts"
@@ -26,6 +28,7 @@
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
+    "@terrastruct/d2": "0.1.33",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
