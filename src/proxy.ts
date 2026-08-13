@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
+  REQUEST_HAS_CURSOR_HEADER,
+  REQUEST_HAS_CURSOR_VALUE,
   REQUEST_PATH_HEADER,
   isCarryableRequestPath,
 } from "@/lib/request-path";
@@ -17,12 +19,13 @@ import {
  * This runs on every matched request, so its cost is the site's cost. It is
  * O(1) and stays that way:
  *
- * - **No query string, and no cursor.** A continuation token is a signed value
- *   whose only legitimate reader is the gallery adapter. Copying it into a
- *   header would spread it across a layer that has no business holding it, and
- *   the 404 does not need it: the pathname alone identifies the gallery to
- *   offer, and a refused continuation is the only way a *resolvable* gallery
- *   path 404s.
+ * - **No query string, and no cursor value.** A continuation token is a signed
+ *   value whose only legitimate reader is the gallery adapter, and copying it
+ *   into a header would spread it across a layer with no business holding it.
+ *   What is carried instead is one bit — whether a `cursor` parameter was
+ *   present — because the 404 needs to know why an address was refused, not what
+ *   was in it. Without that bit a gallery whose *content* failed to load would
+ *   be offered a link straight back to the address that just failed.
  * - **No content, config, or adapter reads.** Deciding whether that path is a
  *   published gallery is the boundary's job, on the rare 404, not this one's on
  *   every request.
@@ -49,6 +52,14 @@ export function proxy(request: NextRequest) {
     // boundary sees "nothing was carried" instead of a truncated path that
     // could name a different real route.
     requestHeaders.delete(REQUEST_PATH_HEADER);
+  }
+
+  // Presence only, never the value, and always overwritten for the same reason
+  // the path is.
+  if (request.nextUrl.searchParams.has("cursor")) {
+    requestHeaders.set(REQUEST_HAS_CURSOR_HEADER, REQUEST_HAS_CURSOR_VALUE);
+  } else {
+    requestHeaders.delete(REQUEST_HAS_CURSOR_HEADER);
   }
 
   return NextResponse.next({ request: { headers: requestHeaders } });

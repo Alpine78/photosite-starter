@@ -19,6 +19,23 @@
 export const REQUEST_PATH_HEADER = "x-photosite-request-path";
 
 /**
+ * Whether the refused request carried a `cursor` parameter at all.
+ *
+ * A flag, never the token. The 404 needs to know *why* an address was refused,
+ * not what was in it: a gallery path that resolves can 404 because its cursor
+ * was refused, or because the content behind it could not be read. Only the
+ * first has a first page worth offering — in the second, the link would lead
+ * straight back to the address that just failed.
+ *
+ * Carrying one bit rather than the value keeps the signed token out of a layer
+ * that has no business holding one, and keeps the Proxy O(1).
+ */
+export const REQUEST_HAS_CURSOR_HEADER = "x-photosite-request-has-cursor";
+
+/** The only value the flag is ever set to, and the only one read back as true. */
+export const REQUEST_HAS_CURSOR_VALUE = "1";
+
+/**
  * Longest path the Proxy will copy.
  *
  * Request headers are a bounded resource — an oversized one produces a 431 —
@@ -71,4 +88,15 @@ export function readRequestPath(
 ): string | undefined {
   if (typeof value !== "string") return undefined;
   return isCarryableRequestPath(value) ? value : undefined;
+}
+
+/**
+ * Whether the Proxy flagged this request as carrying a cursor.
+ *
+ * Exact-match on the single value the Proxy writes, so anything else — a
+ * client's own guess at the header, an empty string, a truthy-looking word —
+ * reads as absent.
+ */
+export function readRequestHasCursor(value: string | null | undefined): boolean {
+  return value === REQUEST_HAS_CURSOR_VALUE;
 }

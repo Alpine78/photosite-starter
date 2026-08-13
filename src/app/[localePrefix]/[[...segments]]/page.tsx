@@ -88,6 +88,7 @@ async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
       segments,
       searchParams: resolvedSearchParams,
       defaultLocaleRouteExists,
+      galleryCursorNamesASlice,
     }),
   };
 }
@@ -113,6 +114,24 @@ async function resolveContentPage(
   return route.variant === "gallery"
     ? asGalleryPage(route.contentId, page)
     : asArticlePage(route.contentId, page);
+}
+
+/**
+ * Whether a continuation token names a real slice of one gallery.
+ *
+ * The resolver asks this before it turns a non-canonical address into a
+ * permanent redirect. A good token there deserves the redirect and keeps its
+ * value — decision 8 makes the cursor case-sensitive and never normalized — and
+ * only a token that names nothing answers 404 without creating a redirect. This
+ * layer is the only one that can tell the two apart, because the signing key is
+ * behind `gallery.ts`.
+ */
+async function galleryCursorNamesASlice(
+  locale: string,
+  contentId: string,
+  cursor: string,
+): Promise<boolean> {
+  return (await resolveGalleryPage(locale, contentId, cursor)) !== undefined;
 }
 
 /**
@@ -379,12 +398,11 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
       );
 
       if (result === undefined) {
-        // ADR-0003 decision 8 also wants this 404 to carry a link to the
-        // gallery's parameter-free first page. It does not yet: App Router
-        // renders the not-found boundary with no params, and — verified against
-        // a production build — it renders it *before* the page, so a per-request
-        // `cache()` handoff reads back empty. Reaching it needs the requested
-        // path in a request header, which means middleware this PR does not add.
+        // The 404 that follows carries the link back to this gallery that
+        // decision 8 requires. It is not passed from here — App Router renders
+        // a not-found boundary with no props, and renders it before this page —
+        // so the boundary reconstructs it from the requested path the Proxy
+        // carried (ADR-0007), and shows it only when a cursor was refused.
         notFound();
       }
 

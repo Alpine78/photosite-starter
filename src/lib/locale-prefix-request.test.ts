@@ -377,7 +377,17 @@ describe("resolveLocalePrefixRequest", () => {
       });
     });
 
-    it.each([
+    // Decision 8 splits two cases that look alike from the resolver: a good
+    // token at an oddly spelled address still redirects, carrying its value
+    // unchanged, while a token that names nothing answers 404 and creates no
+    // redirect. Only the adapter can tell them apart, so it is injected.
+    const validCursor = "AnOpaque-Token_v1";
+    const namesASlice = () =>
+      vi.fn(async (_locale: string, _contentId: string, cursor: string) =>
+        cursor === validCursor,
+      );
+
+    const nonCanonicalGalleryPaths = [
       ["a casing variant", "tarinat", ["Maisemat", "Rannikko", "Rannikon-Aamut"]],
       [
         "a redundant default prefix",
@@ -394,16 +404,11 @@ describe("resolveLocalePrefixRequest", () => {
         "fi",
         ["tarinat", "maisemat", "rannikko", "rannikon-auringonnousut"],
       ],
-    ])(
-      "404s a gallery cursor reached through %s rather than redirecting",
+    ] as const;
+
+    it.each(nonCanonicalGalleryPaths)(
+      "redirects a valid gallery cursor reached through %s, keeping the token",
       async (_case, prefix, segments) => {
-        // Decision 8 requires a malformed, tampered, wrong-scope, or stale
-        // cursor to create no redirect. This layer cannot tell those from a good
-        // token — only the adapter holds the signing key — so a token arriving
-        // at a non-canonical address is refused outright rather than redirected
-        // and judged afterwards, which would leave a cached permanent redirect
-        // for an address that never named a slice. Nothing legitimate is lost:
-        // every continuation URL the site emits is already canonical.
         await expect(
           resolveLocalePrefixRequest({
             config,
@@ -411,30 +416,89 @@ describe("resolveLocalePrefixRequest", () => {
             redirects: redirectsWithRetiredGallery,
             prefix,
             segments,
-            searchParams: { cursor: "AnOpaque-Token_v1" },
+            searchParams: { cursor: validCursor },
             defaultLocaleRouteExists: missing(),
+            galleryCursorNamesASlice: namesASlice(),
+          }),
+        ).resolves.toEqual({
+          kind: "redirect",
+          location: `/tarinat/maisemat/rannikko/rannikon-aamut?cursor=${validCursor}`,
+        });
+      },
+    );
+
+    it.each(nonCanonicalGalleryPaths)(
+      "404s an invalid gallery cursor reached through %s rather than redirecting",
+      async (_case, prefix, segments) => {
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects: redirectsWithRetiredGallery,
+            prefix,
+            segments,
+            searchParams: { cursor: "a-token-that-names-no-slice" },
+            defaultLocaleRouteExists: missing(),
+            galleryCursorNamesASlice: namesASlice(),
           }),
         ).resolves.toEqual({ kind: "not-found" });
       },
     );
 
-    it("still redirects a retired gallery path that carries no cursor", async () => {
-      // Proves the cases above 404 because of the token rather than because the
-      // retired path stopped resolving.
+    it("asks the adapter which gallery the token was presented for", async () => {
+      const namesASliceSpy = namesASlice();
+
+      await resolveLocalePrefixRequest({
+        config,
+        trees,
+        redirects,
+        prefix: "tarinat",
+        segments: ["Maisemat", "Rannikko", "Rannikon-Aamut"],
+        searchParams: { cursor: validCursor },
+        defaultLocaleRouteExists: missing(),
+        galleryCursorNamesASlice: namesASliceSpy,
+      });
+
+      expect(namesASliceSpy).toHaveBeenCalledWith(
+        "fi",
+        "content-coastal-mornings",
+        validCursor,
+      );
+    });
+
+    it("does not read a gallery to answer a canonical address", async () => {
+      // The page validates the token while rendering, so validating here too
+      // would read the same gallery twice on the common path.
+      const namesASliceSpy = namesASlice();
+
+      await resolveLocalePrefixRequest({
+        config,
+        trees,
+        redirects,
+        prefix: "tarinat",
+        segments: ["maisemat", "rannikko", "rannikon-aamut"],
+        searchParams: { cursor: validCursor },
+        defaultLocaleRouteExists: missing(),
+        galleryCursorNamesASlice: namesASliceSpy,
+      });
+
+      expect(namesASliceSpy).not.toHaveBeenCalled();
+    });
+
+    it("refuses rather than redirects when no validator is supplied", async () => {
+      // Nothing has vouched for the token, so the strict answer is the safe one:
+      // never emit a permanent redirect on trust.
       await expect(
         resolveLocalePrefixRequest({
           config,
           trees,
-          redirects: redirectsWithRetiredGallery,
+          redirects,
           prefix: "tarinat",
-          segments: ["maisemat", "rannikko", "rannikon-auringonnousut"],
-          searchParams: {},
+          segments: ["Maisemat", "Rannikko", "Rannikon-Aamut"],
+          searchParams: { cursor: validCursor },
           defaultLocaleRouteExists: missing(),
         }),
-      ).resolves.toEqual({
-        kind: "redirect",
-        location: "/tarinat/maisemat/rannikko/rannikon-aamut",
-      });
+      ).resolves.toEqual({ kind: "not-found" });
     });
 
     it("redirects a non-canonical gallery path that carries no cursor", async () => {

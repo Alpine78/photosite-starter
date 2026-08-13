@@ -98,15 +98,23 @@ export function ContentGallery({
           // Compact and reduced, per decision 3: the heading still says which
           // gallery this is, and adds that it is a later part of it, so the page
           // has context and heading semantics without restating the editorial
-          // content the first page already carries. The date, the language
-          // switch, the lead, and the tags all belong to the gallery rather than
-          // to this slice of it, and the switch in particular would be
-          // misleading here — it leads to the other locale's first page, and
-          // this page names no `hreflang` alternates for the same reason.
+          // content the first page already carries. The lead, the date, and the
+          // tags belong to the gallery rather than to this slice of it.
+          //
+          // The language switch stays. Decision 7 gives it a defined behaviour
+          // here — it opens the target language's first page and drops the
+          // cursor — so removing it would take away working navigation the ADR
+          // specifies. That it leads to a first page rather than an equivalent
+          // slice is exactly why this page also names no `hreflang` alternates:
+          // the visible control can explain itself, a metadata pair cannot.
           <header className="mt-6">
             <h1 className="text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
               {page.title} — {labels.gallery.continued}
             </h1>
+            <LanguageSwitch
+              label={labels.contentTree.languages}
+              links={languages}
+            />
           </header>
         ) : (
           <header className="mt-6">

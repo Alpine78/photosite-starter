@@ -37,6 +37,20 @@ export type LocalePrefixRequestResolution =
 
 type DefaultLocaleRouteExists = (path: string) => boolean | Promise<boolean>;
 
+/**
+ * Whether a continuation token names a real slice of one gallery.
+ *
+ * Injected, like `defaultLocaleRouteExists`, because only the gallery adapter
+ * holds the signing key — this layer transports tokens and cannot read one. It
+ * is consulted at exactly one moment: when a token arrives at a path that needs
+ * normalizing, where the answer decides between a redirect and a 404.
+ */
+type GalleryCursorNamesASlice = (
+  locale: string,
+  contentId: string,
+  cursor: string,
+) => boolean | Promise<boolean>;
+
 const NOT_FOUND = { kind: "not-found" } as const;
 
 /**
@@ -147,28 +161,33 @@ function cursorDisposition(route: StoryRoute): "carry" | "reject" | "ignore" {
 }
 
 /**
- * Whether this request's token is unusable at this route, before any
- * normalization has happened.
+ * Whether this request's token is unusable at this route.
  *
- * `normalizing` says the requested address is not the canonical one — a casing
- * variant, a redundant default-locale prefix, or a path a move or rename
- * retired — so answering it means emitting a redirect.
+ * Decision 8 splits the two cases that look alike from here. A path that only
+ * differs from its canonical form by casing or a redundant prefix still
+ * redirects, **carrying its cursor unchanged** — the token is case-sensitive and
+ * is never normalized, and a visitor holding a good continuation URL with an odd
+ * spelling should land on the slice it names. Only a token that is malformed,
+ * tampered with, wrong-scope, or stale answers 404, and it does so without
+ * creating a redirect.
  *
- * **A continuation token never survives a redirect.** Decision 8 requires a
- * malformed, tampered, wrong-scope, or stale cursor to "create no redirect", and
- * this layer cannot tell those from a good token: only the adapter holds the
- * signing key. Emitting a permanent redirect first and discovering the token was
- * junk afterwards would leave a cached 308 for an address that never named a
- * slice. Nothing legitimate is lost, because every continuation URL the site
- * emits is already canonical — a non-canonical one was hand-edited or corrupted,
- * and a corrupted continuation request is exactly what decision 8 answers with a
- * 404.
+ * Telling those apart needs the adapter, because only it holds the signing key.
+ * So `namesASlice` is asked — but only when the answer changes something, which
+ * is when the path is being normalized. On a canonical path the token is carried
+ * through and the page validates it while rendering, so nothing is read twice.
  */
-function refusesCursor(
+async function refusesCursor(
+  locale: string,
   route: StoryRoute,
   cursor: string | readonly string[] | undefined,
-  { normalizing }: { readonly normalizing: boolean },
-): boolean {
+  {
+    normalizing,
+    namesASlice,
+  }: {
+    readonly normalizing: boolean;
+    readonly namesASlice: GalleryCursorNamesASlice | undefined;
+  },
+): Promise<boolean> {
   if (cursor === undefined) return false;
 
   const disposition = cursorDisposition(route);
@@ -176,12 +195,18 @@ function refusesCursor(
   // blocks a redirect nor rides along as anything but query text.
   if (disposition === "ignore") return false;
   if (disposition === "reject") return true;
-  if (normalizing) return true;
 
   // A gallery continues from one bookmark. Repeating the parameter names no
-  // single slice, so it is refused here rather than handed to the adapter as a
-  // guess about which of them the visitor meant.
-  return typeof cursor !== "string";
+  // single slice, so it is refused rather than handed to the adapter as a guess
+  // about which of them the visitor meant.
+  if (typeof cursor !== "string") return true;
+  if (!normalizing) return false;
+  if (route.kind !== "content") return true;
+
+  // Without a validator the safe answer is the strict one: refuse rather than
+  // emit a permanent redirect for a token nothing has vouched for.
+  if (namesASlice === undefined) return true;
+  return !(await namesASlice(locale, route.contentId, cursor));
 }
 
 /**
@@ -215,6 +240,7 @@ export async function resolveLocalePrefixRequest({
   segments = [],
   searchParams,
   defaultLocaleRouteExists,
+  galleryCursorNamesASlice,
 }: {
   readonly config: LocaleRouteConfig;
   /** One validated tree per locale that publishes content; see `content.ts`. */
@@ -225,6 +251,12 @@ export async function resolveLocalePrefixRequest({
   readonly segments?: readonly string[];
   readonly searchParams: LocalePrefixSearchParams;
   readonly defaultLocaleRouteExists: DefaultLocaleRouteExists;
+  /**
+   * Consulted only when a continuation token arrives at a path that needs
+   * normalizing, to choose between redirecting with it and refusing it. Absent,
+   * every such token is refused rather than redirected on trust.
+   */
+  readonly galleryCursorNamesASlice?: GalleryCursorNamesASlice;
 }): Promise<LocalePrefixRequestResolution> {
   const resolution = resolvePrefixedRoute(config, prefix, segments);
   const defaultRoute = config.byLocale.get(config.defaultLocale);
@@ -250,7 +282,12 @@ export async function resolveLocalePrefixRequest({
 
     const story = resolveStorySegments(trees, defaultRoute, canonical);
     if (story !== null) {
-      if (refusesCursor(story, searchParams.cursor, { normalizing: true })) {
+      if (
+        await refusesCursor(defaultRoute.locale, story, searchParams.cursor, {
+          normalizing: true,
+          namesASlice: galleryCursorNamesASlice,
+        })
+      ) {
         return NOT_FOUND;
       }
       return redirectTo(toPath(canonical));
@@ -265,9 +302,12 @@ export async function resolveLocalePrefixRequest({
     );
     if (historical !== null) {
       if (
-        refusesCursor(historical.route, searchParams.cursor, {
-          normalizing: true,
-        })
+        await refusesCursor(
+          defaultRoute.locale,
+          historical.route,
+          searchParams.cursor,
+          { normalizing: true, namesASlice: galleryCursorNamesASlice },
+        )
       ) {
         return NOT_FOUND;
       }
@@ -309,9 +349,12 @@ export async function resolveLocalePrefixRequest({
       canonical,
     );
     if (historical === null) return NOT_FOUND;
-    return refusesCursor(historical.route, searchParams.cursor, {
-      normalizing: true,
-    })
+    return (await refusesCursor(
+      localeRoute.locale,
+      historical.route,
+      searchParams.cursor,
+      { normalizing: true, namesASlice: galleryCursorNamesASlice },
+    ))
       ? NOT_FOUND
       : redirectTo(historical.path);
   }
@@ -324,7 +367,12 @@ export async function resolveLocalePrefixRequest({
   // 404 at the address requested rather than a redirect to a different spelling
   // that could make it appear meaningful. The cursor value itself is never
   // normalized — decision 8 makes it case-sensitive.
-  if (refusesCursor(route, searchParams.cursor, { normalizing })) {
+  if (
+    await refusesCursor(localeRoute.locale, route, searchParams.cursor, {
+      normalizing,
+      namesASlice: galleryCursorNamesASlice,
+    })
+  ) {
     return NOT_FOUND;
   }
 

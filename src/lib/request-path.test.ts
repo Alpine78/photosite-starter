@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_REQUEST_PATH_LENGTH,
+  REQUEST_HAS_CURSOR_VALUE,
   isCarryableRequestPath,
+  readRequestHasCursor,
   readRequestPath,
 } from "@/lib/request-path";
 
@@ -68,5 +70,23 @@ describe("readRequestPath", () => {
     // through the Proxy at all, though, so the reader treats the header as
     // untrusted input in its own right.
     expect(readRequestPath(value)).toBeUndefined();
+  });
+});
+
+describe("readRequestHasCursor", () => {
+  it("reads the flag the Proxy writes", () => {
+    expect(readRequestHasCursor(REQUEST_HAS_CURSOR_VALUE)).toBe(true);
+  });
+
+  it.each([
+    ["absent", null],
+    ["unset", undefined],
+    ["empty", ""],
+    ["a different truthy word", "true"],
+    ["a cursor value", "AnOpaque-Token_v1"],
+  ])("reads %s as no cursor", (_case, value) => {
+    // Exact-match, so a client's own guess at this header name never turns into
+    // a link. The Proxy overwrites it anyway; this is the second lock.
+    expect(readRequestHasCursor(value)).toBe(false);
   });
 });

@@ -2,7 +2,12 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { getBuiltInLabels } from "@/lib/deployment-config";
 import { getNotFoundReturn } from "@/lib/not-found-return";
-import { REQUEST_PATH_HEADER, readRequestPath } from "@/lib/request-path";
+import {
+  REQUEST_HAS_CURSOR_HEADER,
+  REQUEST_PATH_HEADER,
+  readRequestHasCursor,
+  readRequestPath,
+} from "@/lib/request-path";
 
 /**
  * The 404 for the public content route space.
@@ -22,15 +27,22 @@ import { REQUEST_PATH_HEADER, readRequestPath } from "@/lib/request-path";
  * routes are dynamic anyway, because they read `searchParams` — and leaves the
  * static routes in `(default)` prerendered.
  *
- * A link appears only when the refused path resolves to a published gallery.
- * Anything else keeps the bare 404, because a guessed destination would lead
- * from this 404 to another. Next.js marks the response `noindex` itself.
+ * A link appears only when the refused request carried a cursor *and* its path
+ * resolves to a published gallery. Both halves matter. Without the first, a
+ * gallery whose content failed to load would be offered a link back to the
+ * address that just failed; without the second, an unknown address would get a
+ * guessed destination leading from this 404 to another. Next.js marks the
+ * response `noindex` itself.
  */
 export async function ContentRouteNotFound() {
-  const requestPath = readRequestPath(
-    (await headers()).get(REQUEST_PATH_HEADER),
+  const requestHeaders = await headers();
+  const requestPath = readRequestPath(requestHeaders.get(REQUEST_PATH_HEADER));
+  const refusedAContinuation = readRequestHasCursor(
+    requestHeaders.get(REQUEST_HAS_CURSOR_HEADER),
   );
-  const back = await getNotFoundReturn(requestPath);
+  const back = refusedAContinuation
+    ? await getNotFoundReturn(requestPath)
+    : undefined;
 
   return (
     <main className="mx-auto flex min-h-[50vh] max-w-6xl flex-col items-center justify-center gap-6 px-4 py-20 sm:px-6">

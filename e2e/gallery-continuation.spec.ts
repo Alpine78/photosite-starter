@@ -331,29 +331,65 @@ test("a continuation page is compact and repeats no editorial content", async ({
   await expect(continuationHeading).toContainText(galleryTitle);
   await expect(continuationHeading).toContainText(galleryLabels.continued);
 
-  // And none of the framing the first page already published.
+  // And none of the editorial framing the first page already published.
   await expect(page.getByRole("main").locator("time")).toHaveCount(0);
-  await expect(
-    page.getByRole("main").getByLabel(labels.contentTree.languages),
-  ).toHaveCount(0);
+});
+
+test("a continuation page still offers the language switch, without its cursor", async ({
+  page,
+}) => {
+  // ADR-0003 decision 7 gives the switch a defined behaviour on a continuation:
+  // it opens the target language's first page and drops the cursor. That is why
+  // it stays here even though the page is otherwise reduced — and why the page
+  // names no `hreflang` alternates, since a first page is not an equivalent
+  // slice and an alternate pair has to be reciprocal.
+  await page.goto(PAGINATED.path, { waitUntil: "domcontentloaded" });
+  await page
+    .getByRole("main")
+    .getByRole("link", { name: galleryLabels.showMore })
+    .click();
+
+  const languages = page
+    .getByRole("main")
+    .getByLabel(labels.contentTree.languages);
+  await expect(languages).toBeVisible();
+
+  const targets = await languages
+    .getByRole("link")
+    .evaluateAll((links) =>
+      links.map((link) => link.getAttribute("href") ?? ""),
+    );
+
+  expect(targets.length).toBeGreaterThan(0);
+  for (const href of targets) {
+    expect(href).not.toContain("cursor=");
+  }
+
+  // And it leads somewhere real, rather than to a slice that does not exist.
+  const response = await page.goto(targets[0], { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(200);
 });
 
 
 /**
  * The 404 journeys, and the one place this suite has to allow JavaScript.
  *
- * The link itself is server-rendered — it is produced by a Server Component
- * reading a request header, with no client code involved. What is not server
- * rendered is the 404 *document*: this application has no root `app/layout.tsx`
- * (both layouts sit inside segments), so Next.js falls back to its internal
- * error shell, whose HTML body is empty and whose content arrives only in the
- * RSC payload. Every 404 on the site behaves that way, including the bare "404"
- * on `main` before this branch existed — it is a pre-existing, site-wide
- * condition rather than anything continuation introduced, and fixing it means
- * restructuring the app's layouts.
+ * The link itself is server-rendered — a Server Component reading a request
+ * header, with no client code involved. What is not server-rendered is the 404
+ * *document*: on Next.js 16.2.11 every 404 here returns an internal error shell
+ * whose HTML body is empty, with the whole 404 UI — including the bare "404" —
+ * arriving only in the RSC payload. That predates this branch and holds for
+ * every 404 on the site.
  *
- * So these run enhanced, and the comment is the record of why. When the 404
- * document renders as HTML, `javaScriptEnabled: false` belongs here too.
+ * ADR-0007 records the four structural fixes that were tried against production
+ * builds and ruled out: one root layout, a root `not-found.tsx`,
+ * `global-not-found.tsx` with its experimental flag, and a webpack build. It is
+ * a framework behaviour rather than something this project can rearrange its way
+ * out of.
+ *
+ * So these run enhanced, and this comment is the record of why. When the 404
+ * document renders as HTML, `javaScriptEnabled: false` belongs here too and
+ * nothing else about these tests has to change.
  */
 test.describe("a refused continuation", () => {
   test.use({ javaScriptEnabled: true });

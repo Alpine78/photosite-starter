@@ -36,20 +36,23 @@ untrusted data meet.
 
 ## Decision
 
-Add `src/proxy.ts`. It does exactly one thing: copy the requested pathname into
-`x-photosite-request-path`, a project-owned request header, on the routes that can render
-a content 404.
+Add `src/proxy.ts`. It copies the requested pathname into `x-photosite-request-path`, and
+whether a `cursor` parameter was present into `x-photosite-request-has-cursor` — two
+project-owned request headers, on the routes that can render a content 404.
 
 Five constraints define it, and each is enforced rather than documented:
 
 1. **O(1) and nothing more.** No content reads, no configuration parsing, no adapter
    calls, no `await`. Deciding whether a path is a published gallery is the 404's job, on
    the rare 404 — not this one's, on every request.
-2. **The pathname only.** No query string and therefore no cursor. A continuation token is
-   a signed value whose only legitimate reader is the gallery adapter; copying it into a
-   header would spread it across a layer with no business holding it. The 404 does not
-   need it either — the pathname alone names the gallery, and a *resolvable* gallery path
-   only 404s because its cursor was refused.
+2. **The pathname, and one bit — never the token.** A continuation token is a signed value
+   whose only legitimate reader is the gallery adapter; copying it into a header would
+   spread it across a layer with no business holding it. What the 404 needs is not the
+   token but the *reason*: a resolvable gallery path can 404 because its cursor was
+   refused, or because the content behind it could not be read, and only the first has a
+   first page worth offering. So the Proxy carries presence (`1`, or the header absent) and
+   nothing else. Without that bit, a gallery whose content failed would be handed a link
+   straight back to the address that just failed.
 3. **No secrets.** The cursor signing key is server-only and lazily resolved. Nothing here
    touches it, and the Proxy runtime never needs it.
 4. **Unconditional overwrite.** `Headers.set` replaces any client-supplied value of that
@@ -60,10 +63,11 @@ Five constraints define it, and each is enforced rather than documented:
    are excluded. None of them renders the not-found boundary and every one of them would
    only pay the cost.
 
-The 404 boundary for the public content space (`ContentRouteNotFound`) reads the header,
-resolves the path through the *same* resolver the route itself uses, and offers a link
-only when it identifies a published gallery. An unknown address keeps the bare 404: a
-guessed destination would lead from one 404 to another.
+The 404 boundary for the public content space (`ContentRouteNotFound`) reads both headers
+and offers a link only when a cursor was refused **and** the path resolves — through the
+*same* resolver the route itself uses — to a published gallery. An unknown address, or a
+gallery that failed for any other reason, keeps the bare 404: a guessed destination would
+lead from one 404 to another.
 
 `RouteNotFound` — the static route spaces' 404 — is deliberately left alone. Reading
 `headers()` is a dynamic API, and a boundary that reads one opts every route beneath it
@@ -80,15 +84,17 @@ because they read `searchParams`, keeps `/`, `/contact`, `/services`, and
 | Per-request `React.cache()` handoff | Rejected — verified not to work: the boundary renders before the page. |
 | Client component using `usePathname`/`useSearchParams` | Rejected. The link would depend on JavaScript, which is the opposite of what continuation is built for, `useSearchParams` forces a client bailout on every 404, and the path is not verified, so it can link to another 404. |
 | Amend ADR-0003 to drop the requirement | Rejected. A stale indexed continuation URL is exactly the case the requirement exists for. |
-| Proxy carrying the query as well | Rejected. It would put a signed cursor into a header read by a layer that must not interpret one, for no gain: the pathname is sufficient. |
+| Proxy carrying the query as well | Rejected. It would put a signed cursor into a header read by a layer that must not interpret one. Carrying presence as one bit gives the 404 the only thing it actually needs. |
+| Offering the link on any resolvable gallery path | Rejected. A gallery whose content failed to load would then link back to the address that just failed. |
 
 ## Consequences
 
 - The project has a Proxy. Anything added to it later is paid on every matched request,
   and this ADR is the record that it is meant to stay O(1). Route decisions, content
   lookups, authentication, and personalization do not belong there.
-- `x-photosite-request-path` is a project-owned name and is overwritten, never merged.
-  Reading it anywhere else means re-reading it through `readRequestPath`, which validates.
+- Both header names are project-owned and are overwritten, never merged. Reading either
+  anywhere else means going through `readRequestPath` / `readRequestHasCursor`, which
+  validate — the flag by exact match, so a client's own guess never becomes a link.
 - A deployment platform that does not run the Proxy loses the 404 link and nothing else:
   the reader sees no header and the boundary renders exactly as it did before.
 - The static route spaces stay statically rendered. A future need for the header outside
@@ -96,22 +102,34 @@ because they read `searchParams`, keeps `/`, `/contact`, `/services`, and
 
 ## Known limitation
 
-**404 documents render no HTML body without JavaScript, and the link inherits that.** This
-application has no root `src/app/layout.tsx` — both layouts sit inside segments (the
-`(default)` group and `[localePrefix]`) — so Next.js falls back to its internal
-`__next_error__` document for a 404. Its body is empty; the entire 404 UI, including the
-bare `404` heading, arrives only in the RSC payload.
+**404 responses deliver their UI as RSC payload, not as server-rendered HTML, so the link
+cannot be seen without JavaScript.** Every 404 on this site returns Next's internal
+`__next_error__` document with a 53-character body containing no heading — not the bare
+`404`, and not this link. The content is present, but only in the flight payload.
 
-This is site-wide and predates continuation: verified on `main`, where `/`-level,
-`/services/*`, and content-tree 404s all serve a 53-character body containing no heading.
-It is therefore not a consequence of this ADR, but it does bound it — the link is produced
-by a Server Component with no client code involved, and still cannot be seen without
-JavaScript.
+This is not caused by continuation, and it is not caused by anything this ADR adds:
+verified on `main` before this branch, where `/`-level, `/services/*`, and content-tree
+404s all behave identically.
 
-Fixing it means giving the app a root layout or adopting Next.js 16's
-`global-not-found.tsx`, which restructures the layout tree and belongs to its own work
-item. Until then the continuation journey tests cover the link with JavaScript enabled and
-say why at the point they do it.
+Four candidate causes were tested against production builds and **all four ruled out**:
+
+| Hypothesis | Test | Result |
+| --- | --- | --- |
+| Multiple root layouts (`(default)`, `[localePrefix]`) leave no document to render into | Collapsed to one root `layout.tsx`, segment layouts reduced to fragments | Unchanged |
+| No root-level `not-found.tsx` for the synthetic `/_not-found` entry | Added `src/app/not-found.tsx` | Unchanged |
+| `global-not-found.tsx` is the sanctioned fix for multiple root layouts | Added the file and `experimental.globalNotFound: true` | No effect, including on a fully unmatched URL |
+| Turbopack-specific | Rebuilt with `next build --webpack` | Unchanged |
+
+So it is a framework-level behaviour of Next.js 16.2.11 in this application's shape rather
+than a structural mistake this project can correct by rearranging its own files. Resolving
+it needs a Next.js issue, a version change, or serving that particular 404 through a
+mechanism that does not rely on `notFound()` — all of which are their own work, and none of
+which belongs inside a gallery story.
+
+Until then the continuation journey covers the link with JavaScript enabled and says why at
+the point it does. The link itself is server-rendered — a Server Component reading a
+request header, with no client code involved — so it needs no change when the framework
+behaviour does.
 
 ## Action items
 
@@ -120,4 +138,6 @@ say why at the point they do it.
 - [x] `ContentRouteNotFound` resolving the path through the route resolver
 - [x] Tests: path validation including protocol-relative and backslash forms, return-link
       resolution, and a journey proving a spoofed header cannot choose the target
-- [ ] A work item for the empty 404 document (root layout or `global-not-found.tsx`)
+- [ ] A work item for the empty 404 document. The four structural fixes above are ruled
+      out, so it starts as a Next.js investigation: reproduce on a minimal app, check
+      against a newer release, and open an upstream issue if it still holds.

@@ -871,6 +871,28 @@ describe("continuing a gallery larger than one page", () => {
     expect(new Set(items.map((item) => item.itemId)).size).toBe(items.length);
   });
 
+  it("binds a cursor to the whole route locale, not its language", () => {
+    // `en-GB` and `en-US` are separate route spaces that happen to share one set
+    // of English placements today. Scoping to the `en` subtag would let a slice
+    // issued on one route be spent on the other, and an adapter that can answer
+    // differently per locale (AB#114) would then serve the wrong items under an
+    // already-indexed URL.
+    const cursor = mockPage("en-GB", LARGE_GALLERY_ID)?.page.endCursor as string;
+
+    expect(cursor).toBeTruthy();
+    expectCursorError(
+      () => mockPage("en-US", LARGE_GALLERY_ID, cursor),
+      "wrong-scope",
+    );
+  });
+
+  it("serves the same items to every route locale of one language", () => {
+    // The other half: separate cursor scopes must not mean separate galleries.
+    expect(
+      mockPage("en-US", LARGE_GALLERY_ID)?.items.map((item) => item.itemId),
+    ).toEqual(mockPage("en-GB", LARGE_GALLERY_ID)?.items.map((i) => i.itemId));
+  });
+
   it("binds a cursor to the language it was issued in", () => {
     // The two locales hold the same placements in the same order, so spending an
     // English token against the Finnish result would look harmless — until an

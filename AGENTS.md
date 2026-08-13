@@ -168,10 +168,11 @@ resolved through the route resolver so an unknown address gets no invented one. 
 the boundary through `src/proxy.ts` (ADR-0007), which copies only the requested pathname
 into a project-owned request header and overwrites any client-supplied value — App Router
 renders a not-found boundary with no params, and renders it before the page, so nothing
-in-tree can tell it. One site-wide limitation bounds that link and predates this work:
-with no root `src/app/layout.tsx`, every 404 serves Next's internal error document, whose
-body is empty until the RSC payload is applied, so no 404 content renders without
-JavaScript.
+in-tree can tell it. One site-wide limitation bounds that link and predates this work: on
+Next.js 16.2.11 every 404 serves an internal error document whose HTML body is empty, so
+no 404 content — not even the bare `404` — renders without JavaScript. ADR-0007 records the
+four structural fixes tried and ruled out (one root layout, a root `not-found.tsx`,
+`global-not-found.tsx`, a webpack build); it is a framework behaviour, and its own story.
 One authoritative manual order governs the source, the DOM, keyboard focus, and the
 lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
 ratios, never cropped) precisely so the visual reading order cannot contradict it; the
