@@ -151,28 +151,32 @@ self-canonical `?cursor=` URL, which names no `hreflang` alternates because no o
 locale holds an equivalent slice. The control that reaches it is a real link, so a large
 gallery pages through with no JavaScript at all (ADR-0003 decision 8). The continuation
 page is deliberately thinner than the first, per decision 3: a compact `h1` naming the
-gallery and the continuation, then the grid — no lead, date, language switch, or tags, so
-editorial content is not republished under several URLs. It also carries the way back a
-cursor cannot, because tokens point forward only and the URL is indexable. A token that is
+gallery and the continuation, the identity-based language switch (which deliberately
+drops the cursor and opens the other locale's first page), then the grid — no lead, date,
+or tags, so editorial content is not republished under several URLs. It also carries the
+way back a cursor cannot, because tokens point forward only and the URL is indexable. A token that is
 malformed, tampered with, scoped to another gallery, or stale is a 404 rather than a quiet
 return to the first page, and so is a repeated `?cursor=` — and a token arriving at a
-non-canonical spelling (casing, redundant prefix, retired path) is refused outright rather
-than redirected first, because decision 8 forbids an invalid cursor from creating a
-redirect and only the adapter can tell a good token from a forgery. The cursor is scoped to
+non-canonical spelling (casing, redundant prefix, retired path, or trailing slash) is
+validated before normalization: a good token redirects once to the canonical address and
+keeps its exact value, while an invalid one 404s without creating a redirect. The cursor is scoped to
 the gallery *and the full route locale*, so a slice cannot cross between `en-GB` and
 `en-US`. The key enters at the
 `gallery.ts` seam rather than in the fixture, ESLint keeps `src/app` and `src/components`
 away from it, and rotating it retires every continuation URL already issued and indexed.
 The 404 for an invalid cursor carries the link back to that gallery decision 8 requires,
-resolved through the route resolver so an unknown address gets no invented one. It reaches
-the boundary through `src/proxy.ts` (ADR-0007), which copies only the requested pathname
-into a project-owned request header and overwrites any client-supplied value — App Router
+following at most one canonical normalization and verifying that both the content page and
+the parameter-free gallery result are served, so an unknown or broken address gets no
+invented one. It reaches the boundary through `src/proxy.ts` (ADR-0007), which copies the
+bounded requested pathname and cursor presence — never its value — into project-owned
+request headers and overwrites any client-supplied values. The Proxy also owns
+trailing-slash normalization so the adapter can validate a cursor before a 308. App Router
 renders a not-found boundary with no params, and renders it before the page, so nothing
 in-tree can tell it. One site-wide limitation bounds that link and predates this work: on
-Next.js 16.2.11 every 404 serves an internal error document whose HTML body is empty, so
-no 404 content — not even the bare `404` — renders without JavaScript. ADR-0007 records the
-four structural fixes tried and ruled out (one root layout, a root `not-found.tsx`,
-`global-not-found.tsx`, a webpack build); it is a framework behaviour, and its own story.
+Next.js 16.2.11 the tested 404 responses carry their semantic UI only in the RSC payload,
+so no heading or link renders without JavaScript. ADR-0007 records the experiments already
+performed without claiming a framework root cause; a minimal reproduction and version
+comparison remain a separate investigation.
 One authoritative manual order governs the source, the DOM, keyboard focus, and the
 lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
 ratios, never cropped) precisely so the visual reading order cannot contradict it; the

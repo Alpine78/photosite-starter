@@ -252,6 +252,55 @@ test("a continuation page is its own canonical address", async ({ page }) => {
   await expect(page.locator("link[rel='alternate'][hreflang]")).toHaveCount(0);
 });
 
+test("a valid cursor survives trailing-slash normalization", async ({ page }) => {
+  await page.goto(PAGINATED.path, { waitUntil: "domcontentloaded" });
+  const nextHref = await page
+    .getByRole("main")
+    .getByRole("link", { name: galleryLabels.showMore })
+    .getAttribute("href");
+  const cursor = new URL(nextHref ?? "", page.url()).searchParams.get("cursor");
+  expect(cursor).toBeTruthy();
+
+  const response = await page.goto(
+    `${PAGINATED.path}/?cursor=${encodeURIComponent(cursor ?? "")}`,
+    { waitUntil: "domcontentloaded" },
+  );
+
+  expect(response?.status()).toBe(200);
+  expect(new URL(page.url()).pathname).toBe(PAGINATED.path);
+  expect(new URL(page.url()).searchParams.get("cursor")).toBe(cursor);
+
+  const redirectedFrom = response?.request().redirectedFrom();
+  expect(redirectedFrom).not.toBeNull();
+  expect((await redirectedFrom?.response())?.status()).toBe(308);
+});
+
+test("an invalid cursor creates no trailing-slash redirect", async ({ page }) => {
+  const refusedPath = `${PAGINATED.path}/`;
+  const response = await page.goto(
+    `${refusedPath}?cursor=not-a-token-this-deployment-minted`,
+    { waitUntil: "domcontentloaded" },
+  );
+
+  expect(response?.status()).toBe(404);
+  expect(response?.request().redirectedFrom()).toBeNull();
+  expect(new URL(page.url()).pathname).toBe(refusedPath);
+});
+
+test("ordinary routes keep their direct trailing-slash redirect", async ({
+  page,
+}) => {
+  const response = await page.goto("/services/", {
+    waitUntil: "domcontentloaded",
+  });
+
+  expect(response?.status()).toBe(200);
+  expect(new URL(page.url()).pathname).toBe("/services");
+  const redirectedFrom = response?.request().redirectedFrom();
+  expect(redirectedFrom).not.toBeNull();
+  expect((await redirectedFrom?.response())?.status()).toBe(308);
+});
+
 test("a gallery refuses a continuation token that names no slice of it", async ({
   page,
 }) => {
@@ -303,10 +352,10 @@ test("a continuation page is compact and repeats no editorial content", async ({
   page,
 }) => {
   // ADR-0003 decision 3: a continuation page keeps a compact heading naming the
-  // gallery and the continuation, followed by the grid. The lead, the date, and
-  // the language switch belong to the gallery rather than to this slice of it,
-  // and repeating them would publish the same editorial content under several
-  // URLs. Labels are imported, never written out, so a clone may translate them.
+  // gallery and the continuation, followed by the grid. The lead and date are
+  // editorial framing and are not repeated. The language switch is navigation,
+  // and decision 7 keeps it here with cursor state removed. Labels are imported,
+  // never written out, so a clone may translate them.
   await page.goto(PAGINATED.path, { waitUntil: "domcontentloaded" });
 
   const firstHeading = page.getByRole("heading", { level: 1 });
@@ -376,16 +425,16 @@ test("a continuation page still offers the language switch, without its cursor",
  *
  * The link itself is server-rendered — a Server Component reading a request
  * header, with no client code involved. What is not server-rendered is the 404
- * *document*: on Next.js 16.2.11 every 404 here returns an internal error shell
- * whose HTML body is empty, with the whole 404 UI — including the bare "404" —
- * arriving only in the RSC payload. That predates this branch and holds for
- * every 404 on the site.
+ * *document*: on Next.js 16.2.11 every 404 tested here returns an internal error
+ * shell whose initial HTML has no semantic heading or link. The 404 UI arrives
+ * only in the RSC payload. That predates this branch and holds for each tested
+ * 404 route on the site.
  *
  * ADR-0007 records the four structural fixes that were tried against production
- * builds and ruled out: one root layout, a root `not-found.tsx`,
- * `global-not-found.tsx` with its experimental flag, and a webpack build. It is
- * a framework behaviour rather than something this project can rearrange its way
- * out of.
+ * builds and ruled out for this app: one root layout, a root `not-found.tsx`,
+ * `global-not-found.tsx` with its experimental flag, and a webpack build. The
+ * underlying framework cause remains unresolved and belongs in a minimal
+ * reproduction rather than this gallery change.
  *
  * So these run enhanced, and this comment is the record of why. When the 404
  * document renders as HTML, `javaScriptEnabled: false` belongs here too and
@@ -442,6 +491,31 @@ test.describe("a refused continuation", () => {
     ).toHaveCount(0);
   });
 
+  for (const [caseName, refusedPath] of [
+    [
+      "a casing variant",
+      PAGINATED.path.replace(
+        `/${DEFAULT_STORY_NAMESPACE}/`,
+        `/${DEFAULT_STORY_NAMESPACE.toUpperCase()}/`,
+      ),
+    ],
+    ["a trailing slash", `${PAGINATED.path}/`],
+  ] as const) {
+    test(`a refused continuation at ${caseName} still links to the canonical first page`, async ({
+      page,
+    }) => {
+      const response = await page.goto(
+        `${refusedPath}?cursor=not-a-token-this-deployment-minted`,
+        { waitUntil: "load" },
+      );
+
+      expect(response?.status()).toBe(404);
+      expect(response?.request().redirectedFrom()).toBeNull();
+      const back = page.getByRole("link", { name: galleryLabels.backToStart });
+      await expect(back).toHaveAttribute("href", PAGINATED.path);
+    });
+  }
+
   test("a spoofed request-path header cannot choose where a 404 leads", async ({
     browser,
   }) => {
@@ -450,7 +524,10 @@ test.describe("a refused continuation", () => {
     // render a link to it — the boundary trusts the header to name the address
     // that was actually refused.
     const context = await browser.newContext({
-      extraHTTPHeaders: { "x-photosite-request-path": PAGINATED.path },
+      extraHTTPHeaders: {
+        "x-photosite-request-path": PAGINATED.path,
+        "x-photosite-request-has-cursor": "1",
+      },
     });
     const page = await context.newPage();
 

@@ -27,12 +27,11 @@ import {
  * routes are dynamic anyway, because they read `searchParams` — and leaves the
  * static routes in `(default)` prerendered.
  *
- * A link appears only when the refused request carried a cursor *and* its path
- * resolves to a published gallery. Both halves matter. Without the first, a
- * gallery whose content failed to load would be offered a link back to the
- * address that just failed; without the second, an unknown address would get a
- * guessed destination leading from this 404 to another. Next.js marks the
- * response `noindex` itself.
+ * A link appears only when the refused request carried a cursor, its path
+ * resolves (following at most one canonical normalization) to a gallery, and
+ * both that content page and its parameter-free result are actually served.
+ * Without all three, an unknown or broken address could get a guessed link
+ * leading from this 404 to another. Next.js marks the response `noindex` itself.
  */
 export async function ContentRouteNotFound() {
   const requestHeaders = await headers();

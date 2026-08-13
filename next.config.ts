@@ -3,6 +3,11 @@ import type { NextConfig } from "next";
 const ONE_YEAR_SECONDS = 31_536_000;
 
 const nextConfig: NextConfig = {
+  // Proxy owns trailing-slash normalization so a gallery cursor can be
+  // validated before a permanent redirect is emitted. Without this flag,
+  // Next.js redirects first and a malformed cursor creates the cached 308 that
+  // ADR-0003 decision 8 explicitly forbids.
+  skipTrailingSlashRedirect: true,
   images: {
     // Only the project-owned public derivative directory is eligible for local
     // optimization. Filename versioning is enforced by the domain projection;

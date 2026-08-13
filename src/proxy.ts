@@ -1,18 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
   REQUEST_HAS_CURSOR_HEADER,
   REQUEST_HAS_CURSOR_VALUE,
   REQUEST_PATH_HEADER,
   isCarryableRequestPath,
+  isPotentialStoryRequestPath,
 } from "@/lib/request-path";
 
 /**
  * The project's Proxy (Next.js 16's name for what was Middleware).
  *
- * It does exactly one thing: copy the requested pathname into a project-owned
- * request header so a `not-found.tsx` boundary can know which address was
- * refused. App Router gives that boundary no props and renders it before the
- * page, so there is no in-tree way to tell it (ADR-0007).
+ * It carries two bounded request facts to a `not-found.tsx` boundary and owns
+ * trailing-slash normalization now that a cursor must be validated before a
+ * permanent redirect. App Router gives that boundary no props and renders it
+ * before the page, so there is no in-tree way to tell it (ADR-0007).
  *
  * ## What it deliberately does not do
  *
@@ -23,12 +25,11 @@ import {
  *   value whose only legitimate reader is the gallery adapter, and copying it
  *   into a header would spread it across a layer with no business holding it.
  *   What is carried instead is one bit — whether a `cursor` parameter was
- *   present — because the 404 needs to know why an address was refused, not what
- *   was in it. Without that bit a gallery whose *content* failed to load would
- *   be offered a link straight back to the address that just failed.
- * - **No content, config, or adapter reads.** Deciding whether that path is a
- *   published gallery is the boundary's job, on the rare 404, not this one's on
- *   every request.
+ *   present — because the 404 needs that first gate before it resolves and
+ *   verifies a possible return destination. Presence alone authorizes nothing.
+ * - **No content or adapter reads.** A trailing-slash request consults only the
+ *   cached locale route configuration to distinguish a possible story path
+ *   from an ordinary route. Whether the path exists remains the route's job.
  * - **No secrets.** The signing key is server-only and lazily resolved; nothing
  *   here touches it.
  *
@@ -44,6 +45,37 @@ import {
 export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const { pathname } = request.nextUrl;
+  const hasCursor = request.nextUrl.searchParams.has("cursor");
+  const hasTrailingSlash = pathname.length > 1 && pathname.endsWith("/");
+
+  // Next's built-in slash redirect runs before the route can validate a cursor.
+  // Keep its ordinary 308 for every other request, but let a possible story
+  // path reach the route. That collapses casing/prefix/slash defects in one hop,
+  // and only the gallery adapter can distinguish a good bookmark from a
+  // malformed, tampered, wrong-scope, or stale token.
+  if (
+    hasTrailingSlash &&
+    !isPotentialStoryRequestPath(
+      getDeploymentConfig().localeRoutes,
+      pathname,
+    )
+  ) {
+    // Use the platform URL rather than NextURL.clone(): the latter retains the
+    // incoming trailing-slash formatting policy and can serialize the removed
+    // slash back into Location, producing a self-redirect.
+    const destination = new URL(request.url);
+    destination.pathname = pathname.slice(0, -1);
+    return NextResponse.redirect(destination, 308);
+  }
+
+  if (pathname === "/api" || pathname.startsWith("/api/")) {
+    // API routes consume neither project header. Delete any client attempt at
+    // those names before the ordinary pass-through, while preserving the slash
+    // redirect above that Next.js used to provide itself.
+    requestHeaders.delete(REQUEST_PATH_HEADER);
+    requestHeaders.delete(REQUEST_HAS_CURSOR_HEADER);
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
 
   if (isCarryableRequestPath(pathname)) {
     requestHeaders.set(REQUEST_PATH_HEADER, pathname);
@@ -56,7 +88,7 @@ export function proxy(request: NextRequest) {
 
   // Presence only, never the value, and always overwritten for the same reason
   // the path is.
-  if (request.nextUrl.searchParams.has("cursor")) {
+  if (hasCursor) {
     requestHeaders.set(REQUEST_HAS_CURSOR_HEADER, REQUEST_HAS_CURSOR_VALUE);
   } else {
     requestHeaders.delete(REQUEST_HAS_CURSOR_HEADER);
@@ -66,14 +98,13 @@ export function proxy(request: NextRequest) {
 }
 
 /**
- * Only the routes that can render a content 404.
+ * Routes that need the request boundary or restored slash normalization.
  *
- * Excluded, because none of them renders the not-found boundary and every one
- * of them would just pay the cost: the contact endpoint and any other API route,
- * Next's own build output and image optimizer, and every static asset — which is
- * what the final clause matches, since a public file always carries an
- * extension and a content route never does.
+ * Next's own build output, image optimizer, and static assets are excluded.
+ * API routes remain matched so disabling Next's built-in slash redirect does
+ * not silently change `/api/x/` from its former 308 into a 404; ordinary API
+ * requests still take the O(1) pass-through and read none of these headers.
  */
 export const config = {
-  matcher: ["/((?!api/|_next/|.*\\.[^/]*$).*)"],
+  matcher: ["/((?!_next/|.*\\.[^/]*$).*)"],
 };

@@ -1,5 +1,5 @@
 /**
- * The one request header the Proxy sets, and the rule for reading it.
+ * The bounded request facts Proxy carries, and the rules for reading them.
  *
  * App Router renders a `not-found.tsx` boundary with no props — no `params`, no
  * `searchParams` — and renders it *before* the page that decided to refuse the
@@ -12,6 +12,11 @@
  * 404 boundary reads; nothing else should do either.
  */
 
+import {
+  resolvePrefixedRoute,
+  type LocaleRouteConfig,
+} from "@/lib/locale-routes";
+
 /**
  * Project-owned and deliberately not one of the `x-forwarded-*` names a host or
  * CDN may already set, so nothing upstream can collide with it.
@@ -21,11 +26,10 @@ export const REQUEST_PATH_HEADER = "x-photosite-request-path";
 /**
  * Whether the refused request carried a `cursor` parameter at all.
  *
- * A flag, never the token. The 404 needs to know *why* an address was refused,
- * not what was in it: a gallery path that resolves can 404 because its cursor
- * was refused, or because the content behind it could not be read. Only the
- * first has a first page worth offering — in the second, the link would lead
- * straight back to the address that just failed.
+ * A flag, never the token. Cursor presence is the first necessary fact for the
+ * invalid-continuation case; the 404 then resolves the path and independently
+ * verifies that the content page and parameter-free gallery result are served.
+ * The bit alone never authorizes a link.
  *
  * Carrying one bit rather than the value keeps the signed token out of a layer
  * that has no business holding one, and keeps the Proxy O(1).
@@ -34,6 +38,54 @@ export const REQUEST_HAS_CURSOR_HEADER = "x-photosite-request-has-cursor";
 
 /** The only value the flag is ever set to, and the only one read back as true. */
 export const REQUEST_HAS_CURSOR_VALUE = "1";
+
+const ROUTE_SEGMENT_PATTERN = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
+
+function matchesRouteSegment(value: string | undefined, expected: string): boolean {
+  return (
+    value !== undefined &&
+    ROUTE_SEGMENT_PATTERN.test(value) &&
+    value.toLowerCase() === expected
+  );
+}
+
+/**
+ * Whether a pathname could belong to one configured public story route space.
+ *
+ * Proxy needs this one routing fact only for a trailing-slash request. Story
+ * routes perform their own normalization so a cursor can be validated before a
+ * 308 and multiple spelling defects collapse in one hop; every other route
+ * keeps Next.js's ordinary slash normalization. This does not resolve content
+ * and cannot say whether the path actually exists.
+ */
+export function isPotentialStoryRequestPath(
+  config: LocaleRouteConfig,
+  pathname: string,
+): boolean {
+  if (!isCarryableRequestPath(pathname)) return false;
+
+  const segments = pathname.split("/").filter((segment) => segment !== "");
+  const [prefix, ...rest] = segments;
+  if (prefix === undefined) return false;
+
+  const defaultRoute = config.byLocale.get(config.defaultLocale);
+  if (defaultRoute === undefined) return false;
+
+  const resolution = resolvePrefixedRoute(config, prefix, rest);
+  if (resolution.kind === "localized") {
+    const localeRoute = config.byLocale.get(resolution.locale);
+    return (
+      localeRoute !== undefined &&
+      matchesRouteSegment(resolution.segments[0], localeRoute.storyNamespace)
+    );
+  }
+
+  if (resolution.kind === "redundant-default-prefix") {
+    return matchesRouteSegment(rest[0], defaultRoute.storyNamespace);
+  }
+
+  return matchesRouteSegment(prefix, defaultRoute.storyNamespace);
+}
 
 /**
  * Longest path the Proxy will copy.

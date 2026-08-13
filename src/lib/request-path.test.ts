@@ -3,9 +3,20 @@ import {
   MAX_REQUEST_PATH_LENGTH,
   REQUEST_HAS_CURSOR_VALUE,
   isCarryableRequestPath,
+  isPotentialStoryRequestPath,
   readRequestHasCursor,
   readRequestPath,
 } from "@/lib/request-path";
+import { buildLocaleRouteConfig } from "@/lib/locale-routes";
+
+const localeRoutes = buildLocaleRouteConfig({
+  locales: [
+    { locale: "en-GB", prefix: null, storyNamespace: "stories" },
+    { locale: "fi", prefix: "fi", storyNamespace: "tarinat" },
+  ],
+  reservedRootSegments: ["services"],
+  reservedLocaleRouteSegments: ["services"],
+});
 
 describe("isCarryableRequestPath", () => {
   it.each([
@@ -88,5 +99,28 @@ describe("readRequestHasCursor", () => {
     // Exact-match, so a client's own guess at this header name never turns into
     // a link. The Proxy overwrites it anyway; this is the second lock.
     expect(readRequestHasCursor(value)).toBe(false);
+  });
+});
+
+describe("isPotentialStoryRequestPath", () => {
+  it.each([
+    "/stories/portfolio/large-archive/",
+    "/STORIES/portfolio/large-archive/",
+    "/en/stories/portfolio/large-archive/",
+    "/fi/tarinat/portfolio/suuri-arkisto/",
+    "/FI/TARINAT/portfolio/suuri-arkisto/",
+  ])("recognizes every configured spelling that the story resolver owns: %s", (path) => {
+    expect(isPotentialStoryRequestPath(localeRoutes, path)).toBe(true);
+  });
+
+  it.each([
+    "/",
+    "/services/",
+    "/fi/services/",
+    "/api/contact/",
+    "/unknown/path/",
+    "//example.com/stories/portfolio/",
+  ])("leaves a non-story path to ordinary slash normalization: %s", (path) => {
+    expect(isPotentialStoryRequestPath(localeRoutes, path)).toBe(false);
   });
 });

@@ -445,6 +445,59 @@ describe("resolveLocalePrefixRequest", () => {
       },
     );
 
+    it("validates a cursor before removing a trailing slash", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["maisemat", "rannikko", "rannikon-aamut"],
+          searchParams: { cursor: validCursor },
+          defaultLocaleRouteExists: missing(),
+          galleryCursorNamesASlice: namesASlice(),
+          pathHasTrailingSlash: true,
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: `/tarinat/maisemat/rannikko/rannikon-aamut?cursor=${validCursor}`,
+      });
+    });
+
+    it("404s an invalid cursor before removing a trailing slash", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["maisemat", "rannikko", "rannikon-aamut"],
+          searchParams: { cursor: "a-token-that-names-no-slice" },
+          defaultLocaleRouteExists: missing(),
+          galleryCursorNamesASlice: namesASlice(),
+          pathHasTrailingSlash: true,
+        }),
+      ).resolves.toEqual({ kind: "not-found" });
+    });
+
+    it("removes a trailing slash from a gallery with no cursor", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["maisemat", "rannikko", "rannikon-aamut"],
+          searchParams: {},
+          defaultLocaleRouteExists: missing(),
+          pathHasTrailingSlash: true,
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: "/tarinat/maisemat/rannikko/rannikon-aamut",
+      });
+    });
+
     it("asks the adapter which gallery the token was presented for", async () => {
       const namesASliceSpy = namesASlice();
 

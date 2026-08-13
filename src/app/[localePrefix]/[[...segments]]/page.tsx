@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
 import { CategoryBranch } from "@/components/category-branch";
 import { ContentArticle } from "@/components/content-article";
@@ -41,6 +42,7 @@ import {
 } from "@/lib/locale-routes";
 import { getPageMetadata } from "@/lib/page-metadata";
 import { defaultLocaleRouteExists } from "@/lib/public-routes";
+import { REQUEST_PATH_HEADER, readRequestPath } from "@/lib/request-path";
 
 /**
  * The locale-prefixed route space and everything the unprefixed static routes
@@ -69,8 +71,9 @@ type LocalePrefixPageProps = {
 type ResolvedRequest = Awaited<ReturnType<typeof resolveRequest>>;
 
 async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
-  const [{ localePrefix, segments = [] }, resolvedSearchParams] =
-    await Promise.all([params, searchParams]);
+  const [{ localePrefix, segments = [] }, resolvedSearchParams, requestHeaders] =
+    await Promise.all([params, searchParams, headers()]);
+  const requestPath = readRequestPath(requestHeaders.get(REQUEST_PATH_HEADER));
   const { localeRoutes } = getDeploymentConfig();
   const [trees, redirects] = await Promise.all([
     getContentTrees(),
@@ -89,6 +92,10 @@ async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
       searchParams: resolvedSearchParams,
       defaultLocaleRouteExists,
       galleryCursorNamesASlice,
+      pathHasTrailingSlash:
+        requestPath !== undefined &&
+        requestPath.length > 1 &&
+        requestPath.endsWith("/"),
     }),
   };
 }

@@ -17,12 +17,19 @@
  * would never be reached; one that does not resolve is the unknown case above.
  */
 
-import { getContentRedirects, getContentTrees } from "@/lib/content";
+import {
+  getContentPage,
+  getContentRedirects,
+  getContentTrees,
+} from "@/lib/content";
+import { asGalleryPage, type ContentPageSource } from "@/lib/content-page";
 import { getStoryRoutePath } from "@/lib/content-routes";
 import { getDeploymentConfig } from "@/lib/deployment-config";
+import { getGalleryPage } from "@/lib/gallery";
 import {
   resolveLocalePrefixRequest,
   type LocalePrefixRequestResolution,
+  type LocalizedContentRedirects,
 } from "@/lib/locale-prefix-request";
 import {
   buildStoryPath,
@@ -30,12 +37,30 @@ import {
   type LocalizedContentTrees,
 } from "@/lib/locale-routes";
 import { defaultLocaleRouteExists } from "@/lib/public-routes";
+import { isCarryableRequestPath } from "@/lib/request-path";
 
 export type NotFoundReturn = {
   /** A parameter-free path in the locale whose route space was refused. */
   readonly href: string;
   /** That locale, so the caller can label the link in the right language. */
   readonly locale: string;
+};
+
+type GalleryReturnCandidate = NotFoundReturn & {
+  readonly contentId: string;
+};
+
+type GalleryPageSource = typeof getGalleryPage;
+
+export type NotFoundReturnSources = {
+  readonly config: LocaleRouteConfig;
+  readonly trees: LocalizedContentTrees;
+  readonly redirects: LocalizedContentRedirects;
+  readonly defaultLocaleRouteExists: (
+    path: string,
+  ) => boolean | Promise<boolean>;
+  readonly contentPageSource: ContentPageSource;
+  readonly galleryPageSource: GalleryPageSource;
 };
 
 /**
@@ -48,16 +73,16 @@ export type NotFoundReturn = {
  * all behave here exactly as they do when the page renders, and cannot drift
  * apart later.
  *
- * A path that resolves to a redirect rather than a page yields no link. It is
- * not a 404 in the first place, so arriving here with one means the request was
- * refused for some other reason, and the redirect target is not evidence about
- * that reason.
+ * This function receives an already-normalized story resolution. The caller
+ * may follow one resolver-owned canonical redirect first: an invalid cursor at
+ * a casing variant, redundant default prefix, or retired gallery path still
+ * needs the same first-page link as one presented at the canonical spelling.
  */
-export function resolveGalleryReturn(
+function resolveGalleryReturnCandidate(
   config: LocaleRouteConfig,
   resolution: LocalePrefixRequestResolution,
   trees: LocalizedContentTrees,
-): NotFoundReturn | undefined {
+): GalleryReturnCandidate | undefined {
   if (resolution.kind !== "story") return undefined;
 
   const { locale, route } = resolution;
@@ -69,7 +94,87 @@ export function resolveGalleryReturn(
   return {
     href: buildStoryPath(config, locale, getStoryRoutePath(tree, route)),
     locale,
+    contentId: route.contentId,
   };
+}
+
+export function resolveGalleryReturn(
+  config: LocaleRouteConfig,
+  resolution: LocalePrefixRequestResolution,
+  trees: LocalizedContentTrees,
+): NotFoundReturn | undefined {
+  const candidate = resolveGalleryReturnCandidate(config, resolution, trees);
+  return candidate === undefined
+    ? undefined
+    : { href: candidate.href, locale: candidate.locale };
+}
+
+async function resolveRequestPath(
+  requestPath: string,
+  sources: NotFoundReturnSources,
+): Promise<LocalePrefixRequestResolution | undefined> {
+  if (!isCarryableRequestPath(requestPath)) return undefined;
+
+  const segments = requestPath.split("/").filter((segment) => segment !== "");
+  const [prefix, ...rest] = segments;
+  if (prefix === undefined) return undefined;
+
+  return resolveLocalePrefixRequest({
+    config: sources.config,
+    trees: sources.trees,
+    redirects: sources.redirects,
+    prefix,
+    segments: rest,
+    // The refused request's own parameters are deliberately not carried: the
+    // question here is "which gallery is this", and the answer must not depend
+    // on the token that was rejected.
+    searchParams: {},
+    defaultLocaleRouteExists: sources.defaultLocaleRouteExists,
+  });
+}
+
+/**
+ * Resolve and verify one honest destination for an invalid-cursor 404.
+ *
+ * One resolver-owned redirect may be followed because the original request can
+ * be a non-canonical spelling that was refused only after its cursor failed
+ * validation. The target still has to resolve to a gallery, and both the
+ * content page and its parameter-free result must exist: a tree entry alone is
+ * not proof that clicking the link will work.
+ */
+export async function resolveNotFoundReturn(
+  requestPath: string,
+  sources: NotFoundReturnSources,
+): Promise<NotFoundReturn | undefined> {
+  let resolution = await resolveRequestPath(requestPath, sources);
+  if (resolution?.kind === "redirect") {
+    resolution = await resolveRequestPath(resolution.location, sources);
+  }
+
+  if (resolution === undefined || resolution.kind === "redirect") {
+    return undefined;
+  }
+
+  const candidate = resolveGalleryReturnCandidate(
+    sources.config,
+    resolution,
+    sources.trees,
+  );
+  if (candidate === undefined) return undefined;
+
+  const contentPage = asGalleryPage(
+    candidate.contentId,
+    await sources.contentPageSource(candidate.locale, candidate.contentId),
+  );
+  if (contentPage === undefined) return undefined;
+
+  const firstPage = await sources.galleryPageSource(
+    candidate.locale,
+    candidate.contentId,
+  );
+  if (firstPage === undefined) return undefined;
+
+  return { href: candidate.href, locale: candidate.locale };
 }
 
 /**
@@ -84,28 +189,18 @@ export async function getNotFoundReturn(
 ): Promise<NotFoundReturn | undefined> {
   if (requestPath === undefined) return undefined;
 
-  const segments = requestPath.split("/").filter((segment) => segment !== "");
-  const [prefix, ...rest] = segments;
-  if (prefix === undefined) return undefined;
-
   const { localeRoutes } = getDeploymentConfig();
   const [trees, redirects] = await Promise.all([
     getContentTrees(),
     getContentRedirects(),
   ]);
 
-  const resolution = await resolveLocalePrefixRequest({
+  return resolveNotFoundReturn(requestPath, {
     config: localeRoutes,
     trees,
     redirects,
-    prefix,
-    segments: rest,
-    // The refused request's own parameters are deliberately not carried: the
-    // question here is "which gallery is this", and the answer must not depend
-    // on the token that was rejected.
-    searchParams: {},
     defaultLocaleRouteExists,
+    contentPageSource: getContentPage,
+    galleryPageSource: getGalleryPage,
   });
-
-  return resolveGalleryReturn(localeRoutes, resolution, trees);
 }

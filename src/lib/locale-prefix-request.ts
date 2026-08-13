@@ -241,6 +241,7 @@ export async function resolveLocalePrefixRequest({
   searchParams,
   defaultLocaleRouteExists,
   galleryCursorNamesASlice,
+  pathHasTrailingSlash = false,
 }: {
   readonly config: LocaleRouteConfig;
   /** One validated tree per locale that publishes content; see `content.ts`. */
@@ -257,6 +258,13 @@ export async function resolveLocalePrefixRequest({
    * every such token is refused rather than redirected on trust.
    */
   readonly galleryCursorNamesASlice?: GalleryCursorNamesASlice;
+  /**
+   * Whether the original pathname ended in `/` (apart from the site root).
+   * Proxy carries the original bounded path because App Router params omit
+   * this spelling difference. It participates in normalization only; it is
+   * never copied into the canonical destination.
+   */
+  readonly pathHasTrailingSlash?: boolean;
 }): Promise<LocalePrefixRequestResolution> {
   const resolution = resolvePrefixedRoute(config, prefix, segments);
   const defaultRoute = config.byLocale.get(config.defaultLocale);
@@ -361,7 +369,8 @@ export async function resolveLocalePrefixRequest({
 
   const normalizing =
     (resolution.kind === "localized" && !resolution.prefixIsCanonical) ||
-    canonical.some((segment, index) => segment !== requested[index]);
+    canonical.some((segment, index) => segment !== requested[index]) ||
+    pathHasTrailingSlash;
 
   // Refused before any normalization, so a token that means nothing here is a
   // 404 at the address requested rather than a redirect to a different spelling

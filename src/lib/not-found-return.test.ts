@@ -1,11 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { buildContentRedirects } from "@/lib/content-redirects";
 import { buildContentTree } from "@/lib/content-tree";
-import { resolveGalleryReturn } from "@/lib/not-found-return";
+import { mockContentPages } from "@/lib/mock-content-pages";
+import { mockContentRedirectInputs, mockContentTreeInputs } from "@/lib/mock-content-tree";
+import {
+  resolveGalleryReturn,
+  resolveNotFoundReturn,
+  type NotFoundReturnSources,
+} from "@/lib/not-found-return";
 import {
   buildLocaleRouteConfig,
   type LocalizedContentTrees,
 } from "@/lib/locale-routes";
-import { mockContentTreeInputs } from "@/lib/mock-content-tree";
 
 const config = buildLocaleRouteConfig({
   locales: [
@@ -20,6 +26,41 @@ const trees: LocalizedContentTrees = new Map([
   ["fi", buildContentTree(mockContentTreeInputs.fi)],
   ["en", buildContentTree(mockContentTreeInputs.en)],
 ]);
+
+const redirects = new Map([
+  [
+    "fi",
+    buildContentRedirects(trees.get("fi")!, mockContentRedirectInputs.fi),
+  ],
+  [
+    "en",
+    buildContentRedirects(trees.get("en")!, mockContentRedirectInputs.en),
+  ],
+]);
+
+const contentPageSource: NotFoundReturnSources["contentPageSource"] = async (
+  locale,
+  contentId,
+) => mockContentPages[locale]?.get(contentId);
+
+const galleryPageSource: NotFoundReturnSources["galleryPageSource"] = async () => ({
+  items: [],
+  page: { size: 24, hasNextPage: false, endCursor: null },
+});
+
+function sources(
+  overrides: Partial<NotFoundReturnSources> = {},
+): NotFoundReturnSources {
+  return {
+    config,
+    trees,
+    redirects,
+    defaultLocaleRouteExists: async () => false,
+    contentPageSource,
+    galleryPageSource,
+    ...overrides,
+  };
+}
 
 describe("resolveGalleryReturn", () => {
   it("names a published gallery's parameter-free first page", () => {
@@ -125,5 +166,52 @@ describe("resolveGalleryReturn", () => {
         new Map(),
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("resolveNotFoundReturn", () => {
+  it("follows one canonical redirect to identify the refused gallery", async () => {
+    await expect(
+      resolveNotFoundReturn(
+        "/EN/STORIES/PORTFOLIO/LARGE-ARCHIVE/",
+        sources(),
+      ),
+    ).resolves.toEqual({
+      href: "/en/stories/portfolio/large-archive",
+      locale: "en",
+    });
+  });
+
+  it("offers nothing when the tree's gallery content page is not served", async () => {
+    const readGallery = vi.fn(galleryPageSource);
+
+    await expect(
+      resolveNotFoundReturn(
+        "/en/stories/portfolio/large-archive",
+        sources({
+          contentPageSource: async () => undefined,
+          galleryPageSource: readGallery,
+        }),
+      ),
+    ).resolves.toBeUndefined();
+    expect(readGallery).not.toHaveBeenCalled();
+  });
+
+  it("offers nothing when the gallery's parameter-free first page is not served", async () => {
+    await expect(
+      resolveNotFoundReturn(
+        "/en/stories/portfolio/large-archive",
+        sources({ galleryPageSource: async () => undefined }),
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("offers nothing for an unknown cursor-bearing address", async () => {
+    await expect(
+      resolveNotFoundReturn(
+        "/en/stories/portfolio/no-such-gallery",
+        sources(),
+      ),
+    ).resolves.toBeUndefined();
   });
 });
