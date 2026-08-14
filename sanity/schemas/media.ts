@@ -192,7 +192,7 @@ async function validateMediaIdentity(
       "taken": defined(*[
         _type == $type &&
         mediaId == $mediaId &&
-        !(_id in sanity::versionOf($published))
+        !sanity::versionOf($published)
       ][0]._id),
       "publishedMediaId": *[_id == $published][0].mediaId
     }`,

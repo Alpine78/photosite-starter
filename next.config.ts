@@ -42,6 +42,14 @@ function requiredSanityBuildSetting(
   return value;
 }
 
+/**
+ * Restates `parseApiVersion` from `src/lib/sanity-config.ts` for the same
+ * reason `SANITY_PROJECT_ID` and `SANITY_DATASET` are restated above: build
+ * configuration cannot import a `server-only` module. A version this deployment
+ * could not run with must not let a build succeed, so the rule is duplicated
+ * rather than skipped — and pinned by a test that runs the same values through
+ * `loadSanityConfig`, so the two cannot silently drift apart.
+ */
 function assertSanityApiVersion(apiVersion: string): void {
   const match = SANITY_API_VERSION.exec(apiVersion);
   if (match === null) {

@@ -252,9 +252,17 @@ describe("the media identity", () => {
     // Filtering in GROQ before `[0]` is load-bearing. If twenty release
     // versions were fetched first and filtered in TypeScript, they could hide
     // the twenty-first result belonging to another logical document.
-    expect(queries[0].query).toContain(
-      "!(_id in sanity::versionOf($published))",
-    );
+    //
+    // `sanity::versionOf` is a boolean predicate evaluated against the
+    // document GROQ is currently visiting — Sanity's own uniqueness example
+    // uses it bare, as `!sanity::versionOf($id)`. It is not a collection: an
+    // earlier draft of this query wrapped it in `_id in (...)`, which compares
+    // a string against a boolean, evaluates to `false` for every document by
+    // GROQ's own type-mismatch rule, and so never excluded anything —
+    // including the document being edited, which made every save of an
+    // already-published photograph report its own identity as taken.
+    expect(queries[0].query).toContain("!sanity::versionOf($published)");
+    expect(queries[0].query).not.toContain("_id in sanity::versionOf");
     expect(queries[0].query).toContain("][0]._id");
     expect(queries[0].query).not.toContain("[0...20]");
   });

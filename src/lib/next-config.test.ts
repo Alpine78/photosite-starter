@@ -169,8 +169,36 @@ describe("public image Next.js configuration", () => {
           SANITY_API_VERSION: apiVersion,
         }),
       ).rejects.toThrow(/SANITY_API_VERSION/);
+
+      // Pinned to the application's own rule rather than to a copy of the
+      // regular expression and the date logic: whatever the deployment
+      // configuration refuses to run with, the optimizer refuses to build
+      // with too. Restating the check without pinning it is how the two
+      // silently drift apart the day one of them is edited alone.
+      expect(() =>
+        loadSanityConfig({
+          SANITY_PROJECT_ID: "zp7mbokg",
+          SANITY_DATASET: "production",
+          SANITY_DATASET_VISIBILITY: "public",
+          SANITY_API_VERSION: apiVersion,
+        }),
+      ).toThrow();
     },
   );
+
+  it("accepts the same API version the runtime configuration would", async () => {
+    const config = await configuredWith(PUBLIC_SANITY_DEPLOYMENT);
+
+    expect(config.images?.remotePatterns).toHaveLength(1);
+    expect(() =>
+      loadSanityConfig({
+        SANITY_PROJECT_ID: "zp7mbokg",
+        SANITY_DATASET: "production",
+        SANITY_DATASET_VISIBILITY: "public",
+        SANITY_API_VERSION: PUBLIC_SANITY_DEPLOYMENT.SANITY_API_VERSION,
+      }),
+    ).not.toThrow();
+  });
 
   it.each(["", "[SENSITIVE]", "$(SANITY_READ_TOKEN)"])(
     "fails the build when a private dataset receives no usable build credential: %s",
