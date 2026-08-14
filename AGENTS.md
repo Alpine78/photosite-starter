@@ -301,6 +301,29 @@ public video projection is deliberately a later story with its own delivery ADR 
 on AB#82). `next.config.ts` allows the optimizer exactly this deployment's own asset path
 prefix, with the project id and dataset validated before they are interpolated into it,
 and nothing at all when the content source is the fixtures.
+The category schema and adapter sit beside it: the public content tree's node
+(`sanity/schemas/category.ts`) and the server-only adapter (`src/lib/sanity-content-tree.ts`)
+that projects it into `content-tree.ts`'s own `ContentCategoryInput`. One document is one
+category in every published language — `label` and `slug` are language-keyed arrays, the
+same shape ADR-0008 gives media's `alt` and `caption`, because a category has no
+per-language publication lifecycle to preserve the way a gallery or article will; a
+category missing an entry in the requested language is simply absent from that language's
+tree rather than a defect. `categoryId` is checked in the Studio the same way `mediaId`
+is — syntax, dataset-wide uniqueness with the same `raw`-perspective query, and
+immutability after first publish — and a category naming itself as its own parent is
+rejected there too, because that is the one structural defect Studio validation can catch
+before a document is even saved. Everything past one hop — an indirect cycle, an orphaned
+parent, a sibling-slug collision, the maximum authored depth — is deliberately left to
+`content-tree.ts`'s own validation, which ADR-0003 decision 4 already names the tree's
+authoritative backstop: the adapter resolves a `parent` reference against every category
+id it fetched rather than trusting a GROQ dereference, so a reference that cannot be
+resolved is passed through unchanged and reported as a missing parent instead of silently
+becoming a top-level category. Canonical and secondary category placement stays off this
+schema entirely — ADR-0003 decision 5 makes it a property of the gallery or article being
+placed, not of the category receiving it — so `readPublicContentTree` accepts placements as
+plain input from whatever adapter reads that content once AB#113 and AB#81 exist, and
+composes them with the fetched categories through the same `buildContentTree` call the mock
+layer already uses.
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test,
@@ -357,9 +380,9 @@ answers any `?cursor=` with a 404 — gallery sections
 (AB#129), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
 sitemap/robots, structured data, the remaining Sanity content schemas and adapters that
-would put authored content behind the connection (AB#80, AB#81, AB#112, AB#113, AB#114) —
-the media schema exists but nothing reads it yet, so every page still renders from the
-mock layer — tagged caching and webhook revalidation (AB#83),
+would put authored content behind the connection (AB#80, AB#81, AB#113, AB#114) —
+the media and category schemas exist but nothing reads either yet, so every page still
+renders from the mock layer — tagged caching and webhook revalidation (AB#83),
 and the deployment itself: provisioning is under way — a Vercel project exists, but
 protection, Preview environment values, and deployment credentials are not finished;
 the disabled variable group currently carries only the non-secret project/team IDs, and

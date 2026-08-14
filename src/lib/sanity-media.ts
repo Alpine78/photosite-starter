@@ -283,8 +283,12 @@ const MEDIA_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  *
  * An unparseable value is returned unchanged. It then matches nothing, and the
  * error names it, which is more useful than a guess.
+ *
+ * Exported for reuse by another adapter reading the same language-keyed
+ * shape — `sanity-content-tree.ts` is the first — rather than restating
+ * `Intl.Locale` handling a second time.
  */
-function toLanguageSubtag(value: string): string {
+export function toLanguageSubtag(value: string): string {
   try {
     const { language } = new Intl.Locale(value);
     return typeof language === "string" && language.length > 0
@@ -295,24 +299,33 @@ function toLanguageSubtag(value: string): string {
   }
 }
 
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+/** Exported for reuse by another adapter validating the same raw network shape. */
+export function isRecord(
+  value: unknown,
+): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function readString(value: unknown): string | undefined {
+/** Exported for reuse by another adapter reading the same raw network shape. */
+export function readString(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length === 0 ? undefined : trimmed;
 }
 
 /**
- * The photograph's words in one language.
+ * One language-keyed `{ language, value }` array entry's text in one
+ * language — the photograph's words, when this reads `alt` or `caption`, but
+ * the shape and the blank-counts-as-absent rule are not media-specific.
  *
  * An entry whose text is blank counts as absent rather than as an authored
  * empty string: at the media level the text is required, and a placement that
  * genuinely wants no alternative text says so on the placement (ADR-0002 §3).
+ * Exported so another adapter reading the same `localizedText`-shaped array —
+ * `sanity-content-tree.ts` is the first, for a category's `label` — reuses
+ * this lookup instead of restating it.
  */
-function selectLocalizedText(
+export function selectLocalizedText(
   entries: unknown,
   language: string,
 ): string | undefined {

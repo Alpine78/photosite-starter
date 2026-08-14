@@ -110,8 +110,12 @@ export const PUBLIC_DELIVERY_FORMATS: Readonly<Record<string, string>> = {
  * A Studio's own pin, unrelated to the site's `SANITY_API_VERSION`: it fixes
  * the Content Lake behavior the *validation* was written against, and the two
  * move independently.
+ *
+ * Exported so another document's identity check — `category.ts`'s
+ * `categoryId` is the first — pins the same verified behavior rather than a
+ * second, independently drifting date.
  */
-const STUDIO_VALIDATION_API_VERSION = "2026-08-13";
+export const STUDIO_VALIDATION_API_VERSION = "2026-08-13";
 
 /**
  * `mediaId` is minted by hand and never derived from a filename, an asset id,
@@ -152,8 +156,13 @@ export function publishedIdOf(id: string): string {
  * one identity, which would then both be published and break every reference at
  * once. A non-published perspective also requires the uncached client, so both
  * are stated together.
+ *
+ * Exported for reuse by another document's own identity check: the reasoning
+ * is about Studio validation in general, not about photographs.
  */
-function clientOf(context: SchemaValidationContext): SchemaValidationClient {
+export function clientOf(
+  context: SchemaValidationContext,
+): SchemaValidationClient {
   return context
     .getClient({ apiVersion: STUDIO_VALIDATION_API_VERSION })
     .withConfig({ perspective: "raw", useCdn: false });

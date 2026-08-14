@@ -3,9 +3,9 @@
 How a deployment connects to its content store, who owns that store, and what the site
 does when the store cannot be reached.
 
-This covers the connection and the shared media schema. The remaining schemas, caching
-and webhook revalidation, and content seeding are separate work items (AB#80, AB#81,
-AB#83, AB#112, AB#113, AB#114); until they land, every deployment runs on
+This covers the connection and the shared media and category schemas. The remaining
+schemas, caching and webhook revalidation, and content seeding are separate work items
+(AB#80, AB#81, AB#83, AB#113, AB#114); until they land, every deployment runs on
 `SITE_CONTENT_SOURCE=mock`.
 
 ## Ownership
@@ -122,14 +122,29 @@ workspace dependency does not.
 world-readable, because that decides which fields exist at all — see *Dataset visibility*
 below.
 
-So far one document type exists: **media**, the shared photograph. Galleries, articles,
-services, categories, and settings arrive with their own stories.
+So far two document types exist: **media**, the shared photograph, and **category**, one
+node in the public content tree. Galleries, articles, services, and settings arrive with
+their own stories.
 
-**The Studio validates against the dataset.** Two rules query it while an editor works,
-which is the only place they can run in time: an uploaded image is measured and its
-format checked before the document can be published, and a media ID is checked for being
-unique across the dataset and for not having changed since the last publish. They use the
-Studio's own client and need no extra configuration.
+**The Studio validates against the dataset.** Several rules query it while an editor
+works, which is the only place they can run in time: an uploaded image is measured and its
+format checked before the document can be published, a media ID is checked for being
+unique across the dataset and for not having changed since the last publish, and a
+category id is checked the same way. They use the Studio's own client and need no extra
+configuration.
+
+**Categories describe the tree, never its content.** A category document carries a stable
+`categoryId`, an optional reference to its parent, a sibling order, and a language-keyed
+label and path segment — the same fields [`content-tree.ts`](../src/lib/content-tree.ts)'s
+`ContentCategoryInput` needs, and nothing else. It never lists the galleries or articles
+placed in it: ADR-0003 decision 5 makes canonical and secondary category placement a
+property of the content being placed, so that reference lives on the gallery or article
+document once AB#113 and AB#81 add it, not on the category. Structural rules a Studio rule
+cannot check in time — an indirect cycle, an orphaned parent, a sibling-slug collision —
+are deliberately left to `content-tree.ts`'s own validation, which
+[ADR-0003](adr/0003-public-content-tree-and-url-structure.md) decision 4 names the
+authoritative backstop; the Studio only rejects a category naming itself as its own
+parent, which it can check without the rest of the tree.
 
 **Authored text is language-keyed.** A field a visitor reads is an array of
 `{ language, value }` entries, keyed by language subtag — never fields named after your

@@ -13,6 +13,8 @@
  * to record where a master file lives. See `defineMediaType`.
  */
 
+import { categoryType } from "./category";
+import { localizedSlugType } from "./localized-slug";
 import { localizedTextType } from "./localized-text";
 import { defineMediaType, type MediaSchemaOptions } from "./media";
 import type { SchemaTypeDefinition } from "./schema-types";
@@ -20,5 +22,10 @@ import type { SchemaTypeDefinition } from "./schema-types";
 export function defineSchemaTypes(
   options: MediaSchemaOptions,
 ): readonly SchemaTypeDefinition[] {
-  return [localizedTextType, defineMediaType(options)];
+  return [
+    localizedTextType,
+    localizedSlugType,
+    defineMediaType(options),
+    categoryType,
+  ];
 }
