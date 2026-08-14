@@ -10,8 +10,22 @@ import type {
 
 export const SITE_SETTINGS_TYPE_NAME = "siteSettings";
 
-const CONTENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const EMAIL = /^[^\s@,;:<>"'\\[\]]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/iu;
+/**
+ * Restated in `src/lib/sanity-site-settings.ts`'s `CONTENT_ID`: the adapter
+ * cannot import a Studio schema (ADR-0006), so this pattern is necessarily
+ * duplicated rather than shared. Pinned equal by `site-settings.test.ts` so
+ * the two copies cannot silently drift. Also used for a social link's
+ * `platform` identity, which shares the same lowercase-hyphenated shape.
+ */
+export const CONTENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/**
+ * Restated in `src/lib/sanity-site-settings.ts`'s `EMAIL` (and, outside the
+ * Sanity boundary, in `src/lib/contact-message.ts`'s `EMAIL_SHAPE`, which the
+ * contact form independently needs). Pinned equal to both by
+ * `site-settings.test.ts` so the three copies cannot silently drift.
+ */
+export const EMAIL = /^[^\s@,;:<>"'\\[\]]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/iu;
 
 function nonBlank(value: string | undefined): SchemaValidationResult {
   return value !== undefined && value.trim().length > 0
@@ -82,6 +96,24 @@ function validateNavigationList(
       return `Navigation contains the target "${identity}" more than once`;
     }
     seen.add(identity);
+  }
+  return true;
+}
+
+type RawSocialLink = {
+  readonly platform?: unknown;
+};
+
+export function validateSocialLinks(
+  value: readonly RawSocialLink[] | undefined,
+): SchemaValidationResult {
+  const seen = new Set<string>();
+  for (const item of value ?? []) {
+    const platform = String(item.platform);
+    if (seen.has(platform)) {
+      return `Social links contains the platform "${platform}" more than once`;
+    }
+    seen.add(platform);
   }
   return true;
 }
@@ -172,7 +204,7 @@ export const siteSettingsType: SchemaTypeDefinition = {
       name: "socialLinks",
       title: "Social links",
       type: "array",
-      validation: (rule) => rule.required(),
+      validation: (rule) => rule.required().custom(validateSocialLinks),
       of: [{
         type: "object",
         fields: [

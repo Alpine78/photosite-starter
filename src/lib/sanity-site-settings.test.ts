@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { siteSettingsType } from "../../sanity/schemas/site-settings";
+import {
+  CONTENT_ID as SCHEMA_CONTENT_ID,
+  EMAIL as SCHEMA_EMAIL,
+  siteSettingsType,
+} from "../../sanity/schemas/site-settings";
 import {
   buildLocaleRouteConfig,
 } from "@/lib/locale-routes";
+import { EMAIL_SHAPE as CONTACT_EMAIL_SHAPE } from "@/lib/contact-message";
 import {
+  CONTENT_ID,
+  EMAIL,
   PROJECTED_SITE_SETTINGS_FIELDS,
   projectSiteSettings,
   readSanitySiteSettings,
@@ -93,6 +100,17 @@ function fakeClient(answer: unknown): {
   };
 }
 
+describe("identity and format patterns", () => {
+  it("stay equal to the Studio schema's own copies", () => {
+    expect(CONTENT_ID.source).toBe(SCHEMA_CONTENT_ID.source);
+    expect(EMAIL.source).toBe(SCHEMA_EMAIL.source);
+  });
+
+  it("stays equal to the contact form's independent email-shape copy", () => {
+    expect(EMAIL.source).toBe(CONTACT_EMAIL_SHAPE.source);
+  });
+});
+
 describe("projecting Sanity site settings", () => {
   it("maps localized values and semantic navigation into SiteSettings", () => {
     const settings = project(documentOf());
@@ -141,6 +159,39 @@ describe("projecting Sanity site settings", () => {
         navigation: [{ label: localized("Virhe", "Broken"), target: "static", href: "https://example.test" }],
       })),
     ).toThrow(SanitySiteSettingsError);
+  });
+
+  it("refuses an empty navigation list even though every entry (there are none) is well-formed", () => {
+    expect(() => project(documentOf({ navigation: [] }))).toThrow(SanitySiteSettingsError);
+  });
+
+  it("refuses a static link that repeats the generated story root's own path", () => {
+    expect(() =>
+      project(documentOf({
+        navigation: [
+          { label: localized("Tarinat", "Stories"), target: "story-root" },
+          { label: localized("Tarinat uudelleen", "Stories again"), target: "static", href: "/tarinat" },
+        ],
+      })),
+    ).toThrow(SanitySiteSettingsError);
+  });
+
+  it("treats an optional contact field left as whitespace the same as one left empty", () => {
+    const settings = project(documentOf({
+      contact: {
+        email: "hello@example.test",
+        phone: "   ",
+        address: localized("Esimerkkikatu 1", "1 Example Street"),
+        businessId: "0000000-0",
+        privacyNotice: {
+          collected: localized("Nimi, osoite ja viesti.", "Name, address, and message."),
+          purpose: localized("Viestin vastaaminen.", "Answering the message."),
+          recipient: localized("Esimerkkistudio.", "Example studio."),
+          retention: localized("Vastauksen ajan.", "Until the reply is complete."),
+        },
+      },
+    }));
+    expect(settings.contact.phone).toBeUndefined();
   });
 
   it("refuses a featured link without its stable content identity", () => {

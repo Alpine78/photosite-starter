@@ -9,7 +9,14 @@ import type { NavigationItem } from "@/lib/site-settings";
 export type RejectSanitySiteValue = (detail: string) => never;
 
 const LANGUAGE_SUBTAG = /^[a-z]{2,3}$/;
-const STATIC_PATH = /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$/;
+
+/**
+ * Restated from `sanity/schemas/site-link.ts`'s `ROOT_RELATIVE_PATH`: a Studio
+ * schema imports nothing from the application (ADR-0006), so this boundary
+ * check is necessarily duplicated rather than shared. Pinned equal by
+ * `sanity-site-values.test.ts` so the two copies cannot silently drift.
+ */
+export const STATIC_PATH = /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$/;
 
 export function readRequiredString(
   value: unknown,
@@ -27,11 +34,12 @@ export function readOptionalString(
   field: string,
   reject: RejectSanitySiteValue,
 ): string | undefined {
-  if (value === undefined || value === null || value === "") return undefined;
-  if (typeof value !== "string" || value.trim().length === 0) {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "string") {
     reject(`${field} is not usable text`);
   }
-  return value.trim();
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? undefined : trimmed;
 }
 
 function readLocalizedValues(
@@ -90,6 +98,36 @@ export function readOptionalLocalizedText(
   return trimmed === undefined || trimmed.length === 0 ? undefined : trimmed;
 }
 
+export type SingletonReject = (
+  rejection: "malformed-result" | "missing-document" | "ambiguous-document",
+  detail: string,
+) => never;
+
+/**
+ * Reads the one published document a singleton query must answer with.
+ * Shared by every Sanity-backed singleton (site settings, home page) so a
+ * fix to this three-way check does not need to be repeated per adapter.
+ */
+export function readSingletonDocument<TDocument>(
+  result: unknown,
+  label: string,
+  reject: SingletonReject,
+): TDocument {
+  if (!Array.isArray(result) || !result.every(isRecord)) {
+    reject(
+      "malformed-result",
+      "the content store answered with something other than a list",
+    );
+  }
+  if (result.length === 0) {
+    reject("missing-document", `no published ${label} document exists`);
+  }
+  if (result.length > 1) {
+    reject("ambiguous-document", `more than one published ${label} document exists`);
+  }
+  return result[0] as TDocument;
+}
+
 export type RawSiteLink = {
   readonly label?: unknown;
   readonly title?: unknown;
@@ -135,9 +173,14 @@ export function projectNavigationItems(
     readonly config: LocaleRouteConfig;
     readonly field: string;
     readonly reject: RejectSanitySiteValue;
+    readonly minItems?: number;
   },
 ): readonly NavigationItem[] {
-  if (!Array.isArray(value) || !value.every(isRecord)) {
+  if (
+    !Array.isArray(value) ||
+    !value.every(isRecord) ||
+    value.length < (options.minItems ?? 0)
+  ) {
     options.reject(`${options.field} is not a list of navigation items`);
   }
 
@@ -173,11 +216,10 @@ export function projectNavigationItems(
       options.reject,
     );
     if (href === undefined) options.reject(`${field} has no destination`);
-    const identity = link.target === "story-root" ? "story-root" : `static:${href}`;
-    if (identities.has(identity)) {
-      options.reject(`${options.field} repeats destination "${identity}"`);
+    if (identities.has(href)) {
+      options.reject(`${options.field} repeats destination "${href}"`);
     }
-    identities.add(identity);
+    identities.add(href);
     result.push({ label, href });
   }
   return result;

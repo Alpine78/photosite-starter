@@ -14,6 +14,7 @@ import {
 import {
   projectHomeLink,
   readLocalizedText,
+  readSingletonDocument,
   type RawSiteLink,
 } from "@/lib/sanity-site-values";
 import { isRecord } from "@/lib/sanity-values";
@@ -68,10 +69,10 @@ export function projectHomeContent(
     readonly featuredGalleryHref?: string;
   },
 ): HomeContent {
-  const rejectIncomplete = (detail: string): never => {
+  const rejectIncomplete: (detail: string) => never = (detail) => {
     throw new SanityHomeContentError("incomplete-document", detail);
   };
-  const rejectNavigation = (detail: string): never => {
+  const rejectNavigation: (detail: string) => never = (detail) => {
     throw new SanityHomeContentError("invalid-navigation", detail);
   };
 
@@ -106,7 +107,11 @@ export function projectHomeContent(
   }
 
   const rawSections = document.sections;
-  if (!Array.isArray(rawSections) || !rawSections.every(isRecord)) {
+  if (
+    !Array.isArray(rawSections) ||
+    rawSections.length === 0 ||
+    !rawSections.every(isRecord)
+  ) {
     rejectIncomplete("sections is not a list");
   }
   const sectionDocuments = rawSections as readonly Readonly<Record<string, unknown>>[];
@@ -145,6 +150,11 @@ export function projectHomeContent(
 
   return {
     hero: { media, ...(action === undefined ? {} : { action }) },
+    // intro and every section's title/description are editorial prose, like a
+    // photograph's caption, not an accessibility announcement like its alt
+    // text: they deliberately do not fall back to fallbackLanguage. A locale
+    // with untranslated home-page copy fails loudly rather than silently
+    // publishing text in the wrong language.
     intro: readLocalizedText(
       document.intro,
       options.language,
@@ -153,28 +163,6 @@ export function projectHomeContent(
     ),
     sections,
   };
-}
-
-function readSingleton(result: unknown): RawHomePageDocument {
-  if (!Array.isArray(result) || !result.every(isRecord)) {
-    throw new SanityHomeContentError(
-      "malformed-result",
-      "the content store answered with something other than a list",
-    );
-  }
-  if (result.length === 0) {
-    throw new SanityHomeContentError(
-      "missing-document",
-      "no published home page document exists",
-    );
-  }
-  if (result.length > 1) {
-    throw new SanityHomeContentError(
-      "ambiguous-document",
-      "more than one published home page document exists",
-    );
-  }
-  return result[0];
 }
 
 export async function readSanityHomeContent(options: {
@@ -191,7 +179,14 @@ export async function readSanityHomeContent(options: {
     query: `*[_type == "${HOME_PAGE_DOCUMENT_TYPE}"]${HOME_PAGE_PROJECTION}`,
     tag: "home-page",
   });
-  return projectHomeContent(readSingleton(result), {
+  const document = readSingletonDocument<RawHomePageDocument>(
+    result,
+    "home page",
+    (rejection, detail) => {
+      throw new SanityHomeContentError(rejection, detail);
+    },
+  );
+  return projectHomeContent(document, {
     ...options,
     sanityConfig: options.sanityConfig ?? getSanityConfig(),
   });

@@ -11,6 +11,7 @@ import {
   readOptionalLocalizedText,
   readOptionalString,
   readRequiredString,
+  readSingletonDocument,
 } from "@/lib/sanity-site-values";
 import type { SiteSettings, SocialLink } from "@/lib/site-settings";
 
@@ -75,9 +76,9 @@ export class SanitySiteSettingsError extends Error {
 
 export type RawSiteSettingsDocument = Readonly<Record<string, unknown>>;
 
-const CONTENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const PLATFORM_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const EMAIL = /^[^\s@,;:<>"'\\[\]]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/iu;
+export const CONTENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const EMAIL =
+  /^[^\s@,;:<>"'\\[\]]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/iu;
 
 function readRecord(
   value: unknown,
@@ -127,7 +128,7 @@ function readSocialLinks(
       `socialLinks[${index}].platform`,
       reject,
     );
-    if (!PLATFORM_ID.test(platform) || platforms.has(platform)) {
+    if (!CONTENT_ID.test(platform) || platforms.has(platform)) {
       reject(`socialLinks has an invalid or repeated platform "${platform}"`);
     }
     platforms.add(platform);
@@ -152,10 +153,10 @@ export function projectSiteSettings(
     readonly config: LocaleRouteConfig;
   },
 ): SiteSettings {
-  const rejectIncomplete = (detail: string): never => {
+  const rejectIncomplete: (detail: string) => never = (detail) => {
     throw new SanitySiteSettingsError("incomplete-document", detail);
   };
-  const rejectNavigation = (detail: string): never => {
+  const rejectNavigation: (detail: string) => never = (detail) => {
     throw new SanitySiteSettingsError("invalid-navigation", detail);
   };
 
@@ -172,6 +173,7 @@ export function projectSiteSettings(
     ...options,
     field: "navigation",
     reject: rejectNavigation,
+    minItems: 1,
   });
   const footerLinks = projectNavigationItems(document.footerLinks, {
     ...options,
@@ -269,28 +271,6 @@ export function projectSiteSettings(
   };
 }
 
-function readSingleton(result: unknown): RawSiteSettingsDocument {
-  if (!Array.isArray(result) || !result.every(isRecord)) {
-    throw new SanitySiteSettingsError(
-      "malformed-result",
-      "the content store answered with something other than a list",
-    );
-  }
-  if (result.length === 0) {
-    throw new SanitySiteSettingsError(
-      "missing-document",
-      "no published site settings document exists",
-    );
-  }
-  if (result.length > 1) {
-    throw new SanitySiteSettingsError(
-      "ambiguous-document",
-      "more than one published site settings document exists",
-    );
-  }
-  return result[0];
-}
-
 export async function readSanitySiteSettings(options: {
   readonly language: string;
   readonly locale: string;
@@ -302,5 +282,12 @@ export async function readSanitySiteSettings(options: {
     query: `*[_type == "${SITE_SETTINGS_DOCUMENT_TYPE}"]${SITE_SETTINGS_PROJECTION}`,
     tag: "site-settings",
   });
-  return projectSiteSettings(readSingleton(result), options);
+  const document = readSingletonDocument<RawSiteSettingsDocument>(
+    result,
+    "site settings",
+    (rejection, detail) => {
+      throw new SanitySiteSettingsError(rejection, detail);
+    },
+  );
+  return projectSiteSettings(document, options);
 }

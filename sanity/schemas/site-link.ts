@@ -24,7 +24,13 @@ export const SITE_LINK_TARGETS = [
 
 type SiteLinkTarget = (typeof SITE_LINK_TARGETS)[number];
 
-const ROOT_RELATIVE_PATH = /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$/;
+/**
+ * Restated in `src/lib/sanity-site-values.ts`'s `STATIC_PATH`: the adapter
+ * cannot import a Studio schema (ADR-0006), so this pattern is necessarily
+ * duplicated rather than shared. Pinned equal by `sanity-site-values.test.ts`
+ * so the two copies cannot silently drift.
+ */
+export const ROOT_RELATIVE_PATH = /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$/;
 
 type RawSiteLink = {
   readonly target?: unknown;

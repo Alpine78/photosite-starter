@@ -6,6 +6,7 @@ import { MEDIA_TYPE_NAME } from "./media";
 import {
   SITE_SETTINGS_TYPE_NAME,
   siteSettingsType,
+  validateSocialLinks,
   validateTitleTemplates,
 } from "./site-settings";
 import {
@@ -101,5 +102,13 @@ describe("the site settings and home schemas", () => {
     expect(validateTitleTemplates([{ value: "%s | Example" }])).toBe(true);
     expect(validateTitleTemplates([{ value: "Example" }])).toEqual(expect.any(String));
     expect(validateTitleTemplates([{ value: "%s | %s" }])).toEqual(expect.any(String));
+  });
+
+  it("rejects a social link list that repeats a platform", () => {
+    expect(validateSocialLinks(undefined)).toBe(true);
+    expect(validateSocialLinks([{ platform: "instagram" }])).toBe(true);
+    expect(
+      validateSocialLinks([{ platform: "instagram" }, { platform: "instagram" }]),
+    ).toEqual(expect.any(String));
   });
 });

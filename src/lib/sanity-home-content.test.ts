@@ -137,6 +137,7 @@ describe("projecting Sanity home content", () => {
 
   it("refuses missing media, untranslated required prose, and repeated destinations", () => {
     expect(() => project(documentOf({ heroMedia: null }))).toThrow(SanityHomeContentError);
+    expect(() => project(documentOf({ sections: [] }))).toThrow(SanityHomeContentError);
     expect(() => project(documentOf({ intro: [{ language: "en", value: "English" }] }))).toThrow(
       SanityHomeContentError,
     );
