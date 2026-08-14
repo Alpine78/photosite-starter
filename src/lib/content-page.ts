@@ -24,21 +24,31 @@ import type { ImageMedia, Media } from "@/lib/media";
 /**
  * The six body blocks ADR-0003 decision 2 gives both variants. The page title
  * owns the single `h1`, so an authored heading starts at level 2.
+ *
+ * `key` is a stable per-block identity, distinct from the position a block
+ * happens to render at. A CMS-backed body carries the store's own stable key
+ * (Sanity's array-item `_key`, which survives a reorder or an edit); the mock
+ * fixture layer has no such concept and omits it, since its content is never
+ * live-edited. A renderer prefers `key` and falls back to array index only
+ * when it is absent, so a reordered CMS body does not lose React state keyed
+ * to the wrong block.
  */
 export type ContentBlock =
-  | { type: "paragraph"; text: string }
-  | { type: "heading"; level: 2 | 3; text: string }
-  | { type: "blockquote"; text: string; attribution?: string }
+  | { type: "paragraph"; text: string; key?: string }
+  | { type: "heading"; level: 2 | 3; text: string; key?: string }
+  | { type: "blockquote"; text: string; attribution?: string; key?: string }
   | {
       type: "media";
       media: Media;
+      key?: string;
     }
-  | { type: "list"; ordered: boolean; items: string[] }
+  | { type: "list"; ordered: boolean; items: string[]; key?: string }
   | {
       type: "youtube";
       videoId: string;
       /** Accessible title used for the button label and link text. */
       title: string;
+      key?: string;
     };
 
 /**

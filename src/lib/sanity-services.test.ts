@@ -169,6 +169,17 @@ describe("reading the catalog", () => {
       "weddings",
     ]);
   });
+
+  it("refuses a listing where two published documents claim one slug", async () => {
+    // Studio blocks this, but an API import bypasses Studio validation. If the
+    // listing silently kept both cards, it would disagree with
+    // readPublicServiceBySlug, which throws for the very same state.
+    const { client } = fakeClient([documentOf(), documentOf()]);
+
+    await expect(
+      readPublicServices({ language: "en", client, config }),
+    ).rejects.toMatchObject({ rejection: "ambiguous-slug" });
+  });
 });
 
 describe("reading one service by slug", () => {

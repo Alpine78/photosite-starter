@@ -61,19 +61,22 @@ describe("the domain-to-Sanity type map", () => {
 });
 
 describe("projecting each block kind", () => {
-  it("maps a paragraph", () => {
+  it("maps a paragraph and carries its stable Sanity key", () => {
     const block: RawContentBlock = {
+      _key: "a1",
       _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph,
       text: "An overcast morning is not a compromise on the coast.",
     };
     expect(projectContentBlock(block, 0, options)).toEqual({
       type: "paragraph",
       text: "An overcast morning is not a compromise on the coast.",
+      key: "a1",
     });
   });
 
   it("maps a heading", () => {
     const block: RawContentBlock = {
+      _key: "a2",
       _type: CONTENT_BLOCK_OBJECT_TYPES.heading,
       level: 2,
       text: "Waiting for the cloud to even out",
@@ -82,11 +85,13 @@ describe("projecting each block kind", () => {
       type: "heading",
       level: 2,
       text: "Waiting for the cloud to even out",
+      key: "a2",
     });
   });
 
   it("maps a list", () => {
     const block: RawContentBlock = {
+      _key: "a3",
       _type: CONTENT_BLOCK_OBJECT_TYPES.list,
       ordered: true,
       items: ["Set aperture", "Set shutter speed"],
@@ -95,24 +100,31 @@ describe("projecting each block kind", () => {
       type: "list",
       ordered: true,
       items: ["Set aperture", "Set shutter speed"],
+      key: "a3",
     });
   });
 
   it("maps a quote with and without an attribution", () => {
     expect(
       projectContentBlock(
-        { _type: CONTENT_BLOCK_OBJECT_TYPES.blockquote, text: "Bad light is mostly light you have not worked out what to do with yet." },
+        {
+          _key: "a4",
+          _type: CONTENT_BLOCK_OBJECT_TYPES.blockquote,
+          text: "Bad light is mostly light you have not worked out what to do with yet.",
+        },
         0,
         options,
       ),
     ).toEqual({
       type: "blockquote",
       text: "Bad light is mostly light you have not worked out what to do with yet.",
+      key: "a4",
     });
 
     expect(
       projectContentBlock(
         {
+          _key: "a5",
           _type: CONTENT_BLOCK_OBJECT_TYPES.blockquote,
           text: "Expose to the right.",
           attribution: "Common digital photography guideline",
@@ -124,11 +136,13 @@ describe("projecting each block kind", () => {
       type: "blockquote",
       text: "Expose to the right.",
       attribution: "Common digital photography guideline",
+      key: "a5",
     });
   });
 
   it("maps a media placement through the shared public media boundary", () => {
     const block: RawContentBlock = {
+      _key: "a6",
       _type: CONTENT_BLOCK_OBJECT_TYPES.media,
       media: mediaDocument,
     };
@@ -136,11 +150,13 @@ describe("projecting each block kind", () => {
     expect(projected).toEqual({
       type: "media",
       media: expect.objectContaining({ mediaId: "coastal-landscape" }),
+      key: "a6",
     });
   });
 
   it("maps a click-to-load YouTube block", () => {
     const block: RawContentBlock = {
+      _key: "a7",
       _type: CONTENT_BLOCK_OBJECT_TYPES.youtube,
       videoId: "dQw4w9WgXcQ",
       title: "Telephoto lens field test",
@@ -149,18 +165,20 @@ describe("projecting each block kind", () => {
       type: "youtube",
       videoId: "dQw4w9WgXcQ",
       title: "Telephoto lens field test",
+      key: "a7",
     });
   });
 });
 
 describe("malformed blocks", () => {
   it.each([
-    ["a paragraph with no text", { _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph }],
-    ["a heading with an invalid level", { _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 4, text: "x" }],
-    ["a list with no items", { _type: CONTENT_BLOCK_OBJECT_TYPES.list, ordered: false, items: [] }],
-    ["a quote with no text", { _type: CONTENT_BLOCK_OBJECT_TYPES.blockquote }],
-    ["a media block with no resolved reference", { _type: CONTENT_BLOCK_OBJECT_TYPES.media }],
-    ["a YouTube block with a full URL instead of an id", { _type: CONTENT_BLOCK_OBJECT_TYPES.youtube, videoId: "https://youtu.be/dQw4w9WgXcQ", title: "x" }],
+    ["a paragraph with no text", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph }],
+    ["a heading with an invalid level", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 4, text: "x" }],
+    ["a list with no items", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.list, ordered: false, items: [] }],
+    ["a quote with no text", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.blockquote }],
+    ["a media block with no resolved reference", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.media }],
+    ["a YouTube block with a full URL instead of an id", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.youtube, videoId: "https://youtu.be/dQw4w9WgXcQ", title: "x" }],
+    ["a block with no stable key", { _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph, text: "x" }],
   ])("rejects %s", (_case, block) => {
     const error = rejectionOf(() => projectContentBlock(block as RawContentBlock, 3, options));
     expect(error.rejection).toBe("malformed-block");
@@ -169,7 +187,7 @@ describe("malformed blocks", () => {
 
   it("rejects an unrecognized block type", () => {
     const error = rejectionOf(() =>
-      projectContentBlock({ _type: "somethingElse" }, 0, options),
+      projectContentBlock({ _key: "k", _type: "somethingElse" }, 0, options),
     );
     expect(error.rejection).toBe("unsupported-block-type");
   });
@@ -181,14 +199,14 @@ describe("reading a whole body", () => {
     expect(readContentBlocks(null, options)).toEqual([]);
   });
 
-  it("maps an ordered sequence of mixed block kinds", () => {
+  it("maps an ordered sequence of mixed block kinds, each with its own key", () => {
     const body: readonly RawContentBlock[] = [
-      { _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph, text: "Intro." },
-      { _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 2, text: "Section" },
+      { _key: "b1", _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph, text: "Intro." },
+      { _key: "b2", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 2, text: "Section" },
     ];
     expect(readContentBlocks(body, options)).toEqual([
-      { type: "paragraph", text: "Intro." },
-      { type: "heading", level: 2, text: "Section" },
+      { type: "paragraph", text: "Intro.", key: "b1" },
+      { type: "heading", level: 2, text: "Section", key: "b2" },
     ]);
   });
 

@@ -53,6 +53,7 @@ export const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
  * by any adapter whose body field uses `defineContentBodyField`.
  */
 export const CONTENT_BLOCK_PROJECTION = `{
+  _key,
   _type,
   text,
   level,
@@ -89,6 +90,7 @@ export class SanityContentBlockError extends Error {
  * populated — the rest arrive as `null` from the flat projection above.
  */
 export type RawContentBlock = {
+  readonly _key?: unknown;
   readonly _type?: unknown;
   readonly text?: unknown;
   readonly level?: unknown;
@@ -123,11 +125,20 @@ export function projectContentBlock(
     );
   };
 
+  // Sanity assigns every array item a `_key` on save, and it is what makes a
+  // block's identity survive a reorder or an edit rather than degrading to
+  // its position in the array (`content-body.tsx` prefers it over index for
+  // exactly that reason). Its absence means the query dropped the field, not
+  // that the block has no identity, so this is a defect worth failing loudly
+  // on rather than silently falling back to a position-derived one.
+  const key = readString(raw._key);
+  if (key === undefined) reject("a block needs its stable _key");
+
   switch (raw._type) {
     case CONTENT_BLOCK_OBJECT_TYPES.paragraph: {
       const text = readString(raw.text);
       if (text === undefined) reject("a paragraph needs non-empty text");
-      return { type: "paragraph", text };
+      return { type: "paragraph", text, key };
     }
 
     case CONTENT_BLOCK_OBJECT_TYPES.heading: {
@@ -136,7 +147,7 @@ export function projectContentBlock(
       if (raw.level !== 2 && raw.level !== 3) {
         reject("a heading needs level 2 or 3");
       }
-      return { type: "heading", level: raw.level, text };
+      return { type: "heading", level: raw.level, text, key };
     }
 
     case CONTENT_BLOCK_OBJECT_TYPES.list: {
@@ -152,7 +163,7 @@ export function projectContentBlock(
       ) {
         reject("a list needs at least one non-empty item");
       }
-      return { type: "list", ordered: raw.ordered, items: raw.items };
+      return { type: "list", ordered: raw.ordered, items: raw.items, key };
     }
 
     case CONTENT_BLOCK_OBJECT_TYPES.blockquote: {
@@ -162,6 +173,7 @@ export function projectContentBlock(
       return {
         type: "blockquote",
         text,
+        key,
         ...(attribution === undefined ? {} : { attribution }),
       };
     }
@@ -174,7 +186,7 @@ export function projectContentBlock(
         raw.media as RawPublicMediaDocument,
         options,
       );
-      return { type: "media", media };
+      return { type: "media", media, key };
     }
 
     case CONTENT_BLOCK_OBJECT_TYPES.youtube: {
@@ -186,7 +198,7 @@ export function projectContentBlock(
       if (title === undefined) {
         reject("a YouTube block needs an accessible title");
       }
-      return { type: "youtube", videoId, title };
+      return { type: "youtube", videoId, title, key };
     }
 
     default:

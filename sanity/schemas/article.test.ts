@@ -257,3 +257,28 @@ describe("the body", () => {
     );
   });
 });
+
+describe("the document-level publication guard", () => {
+  it("is wired to article-validation.ts's prospective check", async () => {
+    const { run } = inspect(articleType.validation, {
+      answer: {
+        published: { language: "en", slug: "old-slug", canonicalCategoryRef: "cat-landscape" },
+        category: {
+          slug: [{ language: "en", value: "landscape" }],
+          label: [{ language: "en", value: "Landscape" }],
+        },
+        siblings: [],
+      },
+    });
+
+    const [message] = await run(undefined, {
+      _id: "abc",
+      contentId: "content-x",
+      language: "en",
+      slug: "new-slug",
+      canonicalCategory: { _ref: "cat-landscape" },
+    });
+
+    expect(message).toContain("URL-change workflow");
+  });
+});

@@ -268,6 +268,14 @@ function resolveRead(options: PublicServiceReadOptions): {
  * The whole services catalog, in listing order. Unbounded, like
  * `readPublicCategoryInputs`: a services list is a small, deployment-curated
  * catalog rather than an archive needing pagination.
+ *
+ * Studio blocks a duplicate slug, but that rule does not bind an API import,
+ * so this read checks again: two published documents claiming one slug would
+ * otherwise silently hand a visitor two listing cards for one URL, while
+ * `readPublicServiceBySlug` throws for the very same state. Refusing here
+ * keeps the listing and detail reads agreeing on what "this slug" means,
+ * rather than the listing publishing a reference the detail read cannot
+ * resolve unambiguously.
  */
 export async function readPublicServices(
   options: PublicServiceReadOptions,
@@ -279,9 +287,23 @@ export async function readPublicServices(
     tag: "service.list",
   });
 
-  return readDocuments(result).map((document) =>
+  const services = readDocuments(result).map((document) =>
     projectPublicService(document, { ...languages, config }),
   );
+
+  const slugs = new Set<string>();
+  for (const service of services) {
+    if (slugs.has(service.slug)) {
+      throw new SanityServiceError(
+        "ambiguous-slug",
+        "two published documents claim one service slug",
+        service.slug,
+      );
+    }
+    slugs.add(service.slug);
+  }
+
+  return services;
 }
 
 /**

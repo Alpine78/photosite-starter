@@ -200,8 +200,8 @@ describe("projecting the full page", () => {
     publishedAt: "2024-08-02",
     tags: ["light", "coastal"],
     body: [
-      { _type: "contentParagraphBlock", text: "Placeholder copy." },
-      { _type: "contentHeadingBlock", level: 2, text: "Waiting for the cloud" },
+      { _key: "b1", _type: "contentParagraphBlock", text: "Placeholder copy." },
+      { _key: "b2", _type: "contentHeadingBlock", level: 2, text: "Waiting for the cloud" },
     ],
   };
 
@@ -213,8 +213,8 @@ describe("projecting the full page", () => {
       publishedAt: "2024-08-02",
       tags: ["light", "coastal"],
       body: [
-        { type: "paragraph", text: "Placeholder copy." },
-        { type: "heading", level: 2, text: "Waiting for the cloud" },
+        { type: "paragraph", text: "Placeholder copy.", key: "b1" },
+        { type: "heading", level: 2, text: "Waiting for the cloud", key: "b2" },
       ],
     });
   });
@@ -224,6 +224,15 @@ describe("projecting the full page", () => {
     expect(projectArticleContentPage(withoutTags, languages)).not.toHaveProperty(
       "tags",
     );
+  });
+
+  it.each([
+    ["a missing body", { ...document, body: undefined }],
+    ["an empty body", { ...document, body: [] }],
+  ])("rejects %s — an article's body is the page, unlike a gallery's optional one", (_case, malformed) => {
+    const error = rejectionOf(() => projectArticleContentPage(malformed, languages));
+    expect(error.rejection).toBe("incomplete-document");
+    expect(error.contentId).toBe("content-reading-coastal-light");
   });
 });
 
@@ -328,7 +337,7 @@ describe("reading one article's page", () => {
           contentId: "content-x",
           title: "A page",
           publishedAt: "2024-01-01",
-          body: [],
+          body: [{ _key: "b1", _type: "contentParagraphBlock", text: "Placeholder." }],
         },
       ],
     });

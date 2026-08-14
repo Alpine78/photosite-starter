@@ -453,6 +453,19 @@ export function projectArticleContentPage(
     : undefined;
   const tags = readTags(document.tags, contentId);
   const body = readContentBlocks(document.body, options);
+  if (body.length === 0) {
+    // `article.ts` requires at least one block to publish, but that rule
+    // binds the ordinary Studio editor, not an API import. `readContentBlocks`
+    // itself treats a missing body as an authored empty one because a
+    // gallery's own optional body legitimately has none (ADR-0003 decision
+    // 3) — for an article, whose body *is* the page, an empty one is a
+    // content defect that must not publish silently.
+    throw new SanityArticleError(
+      "incomplete-document",
+      "the article has no body blocks",
+      contentId,
+    );
+  }
 
   return {
     contentId,

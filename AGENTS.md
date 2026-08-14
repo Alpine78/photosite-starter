@@ -360,8 +360,20 @@ one version, and two documents may share a `contentId` (one per published langua
 never both `contentId` and `language`. `canonicalCategory` is required, so a standard
 Studio publish cannot leave an article unplaced — Sanity's own validation model blocks
 publishing, not saving a draft, which is exactly ADR-0003 decision 5's allowance for
-unplaced draft content — while `content-tree.ts` remains the authoritative backstop for a
-document an API import wrote without Studio validation. Tags stay a separate free-text
+unplaced draft content. Field-level requirement is not the whole guard, though:
+`sanity/schemas/article-validation.ts` adds a document-level publish check, mirroring the
+one `category-validation.ts` already gives the category tree, so a routine "Publish" click
+cannot be the moment a colliding local slug or a canonical category with no published
+version in the article's own language reaches the public tree — those two states are
+otherwise only caught when a route reads the whole tree, which rejects it outright. The
+same validator freezes `language`, `slug`, and `canonicalCategory` once a document has
+been published at all, the same way `category-validation.ts` freezes a category's `parent`
+and path segments, so an ordinary edit cannot silently discard a live canonical URL or —
+since `language` plus `contentId` together are the whole identity — turn one language's
+published page into a different language's version by editing the field, rather than
+starting the new language as its own linked document the way AB#125's workflow requires.
+`content-tree.ts` remains the authoritative backstop for a document an API import wrote
+without going through any of this Studio validation. Tags stay a separate free-text
 field, unrelated to categories and consuming no tree depth. `src/lib/sanity-article.ts`
 reads three separate projections rather than one, matching `content-listing.ts`'s rule
 that a listing card must never load an article body: `readPublicArticlePlacements` feeds
@@ -372,16 +384,26 @@ unresolved reference reports as a missing category rather than collapsing into "
 `readPublicArticleListingRecords` answers a bounded `ContentListingQuery`; and
 `readPublicArticlePage` reads one full page by locale and stable identity, returning
 `undefined` for a language with no published version — the normal bilingual state, not an
-error — and throwing a classified `SanityArticleError` when two published documents
-collide on one identity. The service schema (`sanity/schemas/service.ts`) and adapter
-(`src/lib/sanity-services.ts`) model `src/lib/services.ts`'s existing `Service` contract
-directly: no language field, matching the still-unlocalized `/services` route, and no
-category placement, tags, or redirect history, because a service is not part of the
+error — throwing a classified `SanityArticleError` when two published documents collide on
+one identity, and, because the schema's own `min(1)` body requirement binds only the
+ordinary Studio editor and not an API import, refusing to project an article whose body
+came back missing or empty rather than silently publishing a page with nothing in it. Each
+body block also carries Sanity's own stable per-item `_key` through to
+`content-page.ts`'s `ContentBlock` as an optional `key`, which `ContentBody` prefers over
+array position for its React key — the mock fixture layer has no such concept and simply
+omits it, falling back to position, which is safe there because fixture content is never
+live-reordered the way Studio content is. The service schema (`sanity/schemas/service.ts`)
+and adapter (`src/lib/sanity-services.ts`) model `src/lib/services.ts`'s existing `Service`
+contract directly: no language field, matching the still-unlocalized `/services` route, and
+no category placement, tags, or redirect history, because a service is not part of the
 ADR-0003 public content tree. Its `slug` is checked for syntax and uniqueness the same
-asynchronous way `media.ts` and `category.ts` check theirs, without the immutability half
-those two also enforce, because a service has no redirect-history concept requiring it.
-None of these three adapters is wired into a route-facing seam yet, for the same reason
-the settings and home-page adapters are not.
+asynchronous way `media.ts` and `category.ts` check theirs at publish time, without the
+immutability half those two also enforce, because a service has no redirect-history concept
+requiring it; `readPublicServices` repeats the uniqueness check across a whole listing read
+too, since Studio's rule does not bind an API import and a silently duplicated slug would
+otherwise hand a visitor two cards for one URL while `readPublicServiceBySlug` throws for
+the same state. None of these three adapters is wired into a route-facing seam yet, for the
+same reason the settings and home-page adapters are not.
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test,

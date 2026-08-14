@@ -48,6 +48,7 @@
  * data at all.
  */
 
+import { validateArticlePublication } from "./article-validation";
 import {
   CONTENT_BLOCK_KINDS,
   defineContentBodyField,
@@ -173,6 +174,9 @@ export const articleType: SchemaTypeDefinition = {
   type: "document",
   description:
     "One editorial page, in one language. Its body is the page — it does not gain a gallery result set from media placed in it (ADR-0003 decision 1).",
+  validation: (rule) =>
+    rule.custom<Readonly<Record<string, unknown>>>((value, context) =>
+      validateArticlePublication(value, context, ARTICLE_TYPE_NAME)),
   fields: [
     {
       name: "contentId",
