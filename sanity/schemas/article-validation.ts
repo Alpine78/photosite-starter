@@ -355,56 +355,97 @@ function categoryAncestryChain(
  * The one local slug namespace ADR-0003 decision 6 gives every parent: its
  * public child categories and its canonically placed content together.
  * Restated from `content-tree.ts#validateLocalSlugNamespace`, checked for
- * every id whose own claim this edit could newly collide: the article's own
- * placement, and every category between its canonical category and the root.
+ * every claim this edit could newly collide: the article's own canonical
+ * placement, and every category between each canonical or secondary category
+ * and the root.
  * A category further up the chain matters because *this* edit can flip it
  * from private to public for the first time — a dormant collision with one of
  * that category's own siblings only becomes visible once something makes it
  * public. No other category's or content's claim is affected by this specific
  * edit, so nothing else needs checking; an unrelated pre-existing collision
- * remains `content-tree.ts`'s finding to make at read time. Returns the id of
- * whatever else shares the colliding claim, or `undefined` when nothing does.
+ * remains `content-tree.ts`'s finding to make at read time. Returns both typed
+ * participants and their actual shared slug, or `undefined` when nothing does.
  */
+export type ProspectiveLocalSlugCollision = {
+  readonly checkedKind: "category" | "content";
+  readonly checkedId: string;
+  readonly conflictingKind: "category" | "content";
+  readonly conflictingId: string;
+  readonly slug: string;
+};
+
 export function findProspectiveLocalSlugCollision(
   current: ProspectiveArticleFields,
   categories: ReadonlyMap<string, ProspectiveCategoryNode>,
   publicCategoryIds: ReadonlySet<string>,
   placements: readonly ProspectivePlacement[],
-): string | undefined {
-  type Claim = { readonly id: string; readonly key: string };
+): ProspectiveLocalSlugCollision | undefined {
+  type Claim = {
+    readonly kind: "category" | "content";
+    readonly id: string;
+    readonly slug: string;
+    readonly key: string;
+  };
   const claims: Claim[] = [];
 
   for (const node of categories.values()) {
     if (node.slugInLanguage === undefined) continue;
     if (!publicCategoryIds.has(node.categoryId)) continue;
     claims.push({
+      kind: "category",
       id: node.categoryId,
-      key: `${node.parentId ?? ""} ${node.slugInLanguage}`,
+      slug: node.slugInLanguage,
+      key: `${node.parentId ?? ""}\u0000${node.slugInLanguage}`,
     });
   }
 
   for (const placement of placements) {
     if (placement.canonicalCategoryId === null) continue;
     claims.push({
+      kind: "content",
       id: placement.contentId,
-      key: `${placement.canonicalCategoryId} ${placement.slug}`,
+      slug: placement.slug,
+      key: `${placement.canonicalCategoryId}\u0000${placement.slug}`,
     });
   }
 
-  const toCheck = new Set<string>([
-    current.contentId,
+  const toCheck: Array<Pick<Claim, "kind" | "id">> = [
+    { kind: "content", id: current.contentId },
+  ];
+  const checkedCategoryIds = new Set<string>();
+  for (const categoryId of [
     ...(current.canonicalCategoryId === null
       ? []
-      : categoryAncestryChain(current.canonicalCategoryId, categories)),
-  ]);
+      : [current.canonicalCategoryId]),
+    ...current.secondaryCategoryIds,
+  ]) {
+    for (const ancestorId of categoryAncestryChain(categoryId, categories)) {
+      if (checkedCategoryIds.has(ancestorId)) continue;
+      checkedCategoryIds.add(ancestorId);
+      toCheck.push({ kind: "category", id: ancestorId });
+    }
+  }
 
-  for (const id of toCheck) {
-    const claim = claims.find((candidate) => candidate.id === id);
+  for (const checked of toCheck) {
+    const claim = claims.find(
+      (candidate) =>
+        candidate.kind === checked.kind && candidate.id === checked.id,
+    );
     if (claim === undefined) continue;
     const collision = claims.find(
-      (candidate) => candidate.id !== id && candidate.key === claim.key,
+      (candidate) =>
+        (candidate.kind !== claim.kind || candidate.id !== claim.id) &&
+        candidate.key === claim.key,
     );
-    if (collision !== undefined) return collision.id;
+    if (collision !== undefined) {
+      return {
+        checkedKind: claim.kind,
+        checkedId: claim.id,
+        conflictingKind: collision.kind,
+        conflictingId: collision.id,
+        slug: claim.slug,
+      };
+    }
   }
 
   return undefined;
@@ -430,6 +471,12 @@ export function validateProspectiveArticlePlacement(
     return `The canonical category has no published "${current.language}" version yet. Publish the category in this language first, or choose a different one.`;
   }
 
+  for (const secondaryCategoryId of current.secondaryCategoryIds) {
+    if (categories.get(secondaryCategoryId)?.slugInLanguage === undefined) {
+      return `Secondary category "${secondaryCategoryId}" has no published "${current.language}" version yet. Publish the category in this language first, or remove the secondary placement.`;
+    }
+  }
+
   const placements: readonly ProspectivePlacement[] = [
     ...siblings,
     {
@@ -449,7 +496,7 @@ export function validateProspectiveArticlePlacement(
   );
 
   if (collision !== undefined) {
-    return `"${collision}" already uses slug "${current.slug}" beneath the same category. A public child category and canonically placed content share one local slug namespace (ADR-0003 decision 6).`;
+    return `${collision.conflictingKind === "category" ? "Category" : "Content"} "${collision.conflictingId}" already uses slug "${collision.slug}" beneath the same category. A public child category and canonically placed content share one local slug namespace (ADR-0003 decision 6).`;
   }
 
   return true;

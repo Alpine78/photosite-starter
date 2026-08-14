@@ -366,7 +366,8 @@ article in this language, overlays the document being edited, and restates
 `content-tree.ts`'s own public-category propagation and local-slug-namespace computation —
 not just a check against other articles in the same category, which would still miss a
 sibling *category*'s slug, or a collision only exposed because this very publish turns a
-previously private ancestor category public for the first time. So a routine "Publish"
+previously private canonical- or secondary-placement ancestor category public for the
+first time. So a routine "Publish"
 click cannot be the moment a colliding local slug (ADR-0003 decision 6) or a canonical
 category with no published version in the article's own language reaches the public tree —
 both states are otherwise only caught when a route reads the whole tree, which rejects it

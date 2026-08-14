@@ -122,9 +122,20 @@ describe("findProspectiveLocalSlugCollision", () => {
       { contentId: current.contentId, slug: current.slug, canonicalCategoryId: current.canonicalCategoryId, secondaryCategoryIds: [] },
     ];
 
-    expect(findProspectiveLocalSlugCollision(current, categories, publicIds, placements)).toBe(
-      "content-other",
-    );
+    expect(
+      findProspectiveLocalSlugCollision(
+        current,
+        categories,
+        publicIds,
+        placements,
+      ),
+    ).toMatchObject({
+      checkedKind: "content",
+      checkedId: current.contentId,
+      conflictingKind: "content",
+      conflictingId: "content-other",
+      slug: current.slug,
+    });
   });
 
   it("finds a collision between the article's own claim and a public child category", () => {
@@ -140,9 +151,19 @@ describe("findProspectiveLocalSlugCollision", () => {
       { contentId: current.contentId, slug: current.slug, canonicalCategoryId: current.canonicalCategoryId, secondaryCategoryIds: [] },
     ];
 
-    expect(findProspectiveLocalSlugCollision(current, categories, publicIds, placements)).toBe(
-      "cat-child",
-    );
+    expect(
+      findProspectiveLocalSlugCollision(
+        current,
+        categories,
+        publicIds,
+        placements,
+      ),
+    ).toMatchObject({
+      checkedKind: "content",
+      conflictingKind: "category",
+      conflictingId: "cat-child",
+      slug: current.slug,
+    });
   });
 
   it("finds a collision exposed only because this article's own publish makes an ancestor category newly public", () => {
@@ -166,9 +187,101 @@ describe("findProspectiveLocalSlugCollision", () => {
     const publicIds = resolveProspectivePublicCategoryIds(categories, placements);
     expect(publicIds.has("cat-child")).toBe(true);
 
-    expect(findProspectiveLocalSlugCollision(article, categories, publicIds, placements)).toBe(
-      "content-sibling",
+    expect(
+      findProspectiveLocalSlugCollision(
+        article,
+        categories,
+        publicIds,
+        placements,
+      ),
+    ).toMatchObject({
+      checkedKind: "category",
+      checkedId: "cat-child",
+      conflictingKind: "content",
+      conflictingId: "content-sibling",
+      slug: "shared-slug",
+    });
+  });
+
+  it("checks an ancestry chain made public only by this article's secondary placement", () => {
+    const categories = categoriesOf(
+      { categoryId: "cat-canonical", parentId: null, slugInLanguage: "canonical" },
+      { categoryId: "cat-parent", parentId: null, slugInLanguage: "parent" },
+      { categoryId: "cat-secondary", parentId: "cat-parent", slugInLanguage: "shared-slug" },
     );
+    const article: ProspectiveArticleFields = {
+      ...current,
+      canonicalCategoryId: "cat-canonical",
+      secondaryCategoryIds: ["cat-secondary"],
+    };
+    const placements: readonly ProspectivePlacement[] = [
+      {
+        contentId: "content-sibling",
+        slug: "shared-slug",
+        canonicalCategoryId: "cat-parent",
+        secondaryCategoryIds: [],
+      },
+      {
+        contentId: article.contentId,
+        slug: article.slug,
+        canonicalCategoryId: article.canonicalCategoryId,
+        secondaryCategoryIds: article.secondaryCategoryIds,
+      },
+    ];
+    const publicIds = resolveProspectivePublicCategoryIds(
+      categories,
+      placements,
+    );
+
+    expect(
+      findProspectiveLocalSlugCollision(
+        article,
+        categories,
+        publicIds,
+        placements,
+      ),
+    ).toMatchObject({
+      checkedKind: "category",
+      checkedId: "cat-secondary",
+      conflictingKind: "content",
+      conflictingId: "content-sibling",
+      slug: "shared-slug",
+    });
+  });
+
+  it("keeps category and content identities separate when their ids match", () => {
+    const categories = categoriesOf(
+      { categoryId: "cat-landscape", parentId: null, slugInLanguage: "landscape" },
+      {
+        categoryId: current.contentId,
+        parentId: "cat-landscape",
+        slugInLanguage: current.slug,
+      },
+    );
+    const publicIds = new Set(["cat-landscape", current.contentId]);
+    const placements: readonly ProspectivePlacement[] = [
+      {
+        contentId: current.contentId,
+        slug: current.slug,
+        canonicalCategoryId: current.canonicalCategoryId,
+        secondaryCategoryIds: [],
+      },
+    ];
+
+    expect(
+      findProspectiveLocalSlugCollision(
+        current,
+        categories,
+        publicIds,
+        placements,
+      ),
+    ).toMatchObject({
+      checkedKind: "content",
+      checkedId: current.contentId,
+      conflictingKind: "category",
+      conflictingId: current.contentId,
+      slug: current.slug,
+    });
   });
 
   it("ignores a same-slug claim beneath a different parent", () => {
@@ -210,6 +323,22 @@ describe("validateProspectiveArticlePlacement", () => {
     );
   });
 
+  it("refuses a secondary category with no published version in this language", () => {
+    const categories = categoriesOf({
+      categoryId: "cat-landscape",
+      parentId: null,
+      slugInLanguage: "landscape",
+    });
+    const article: ProspectiveArticleFields = {
+      ...current,
+      secondaryCategoryIds: ["cat-unlocalized"],
+    };
+
+    expect(
+      validateProspectiveArticlePlacement(article, categories, []),
+    ).toContain('Secondary category "cat-unlocalized"');
+  });
+
   it("refuses a slug another article already claims in the same category and language", () => {
     const categories = categoriesOf({ categoryId: "cat-landscape", parentId: null, slugInLanguage: "landscape" });
     const siblings: readonly ProspectivePlacement[] = [
@@ -232,6 +361,39 @@ describe("validateProspectiveArticlePlacement", () => {
     expect(validateProspectiveArticlePlacement(current, categories, siblings)).toContain(
       "cat-child",
     );
+  });
+
+  it("reports the actual collision exposed by a secondary category ancestry", () => {
+    const categories = categoriesOf(
+      { categoryId: "cat-landscape", parentId: null, slugInLanguage: "landscape" },
+      { categoryId: "cat-parent", parentId: null, slugInLanguage: "parent" },
+      {
+        categoryId: "cat-secondary",
+        parentId: "cat-parent",
+        slugInLanguage: "shared-slug",
+      },
+    );
+    const article: ProspectiveArticleFields = {
+      ...current,
+      secondaryCategoryIds: ["cat-secondary"],
+    };
+    const siblings: readonly ProspectivePlacement[] = [
+      {
+        contentId: "content-sibling",
+        slug: "shared-slug",
+        canonicalCategoryId: "cat-parent",
+        secondaryCategoryIds: [],
+      },
+    ];
+
+    const result = validateProspectiveArticlePlacement(
+      article,
+      categories,
+      siblings,
+    );
+    expect(result).toContain("content-sibling");
+    expect(result).toContain('slug "shared-slug"');
+    expect(result).not.toContain(`slug "${article.slug}"`);
   });
 
   it("passes when the category is published in this language and no slug collides", () => {
