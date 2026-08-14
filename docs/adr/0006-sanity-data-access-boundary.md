@@ -103,12 +103,15 @@ entirely:
   page; it does not make them unreachable.
 
 **The addition:** the schema is built for a stated dataset visibility, and the
-world-readable case does not get the field at all — `defineSchemaTypes({ datasetVisibility })`
-omits `archiveLocator` for a public dataset, so there is no place to record a master's
-location into a document anyone can read. A private dataset makes `SANITY_READ_TOKEN`
-required rather than optional. Separately, the export policy is enforced in the Studio as
-a publish-blocking asynchronous validation, and again in the adapter, because the Studio
-binds an editor while the HTTP API, an import, and a migration script do not.
+world-readable case does not get the field at all —
+`defineSchemaTypes({ datasetVisibility, storyRootPaths })` omits `archiveLocator` for a
+public dataset, so there is no place to record a master's location into a document anyone
+can read. `storyRootPaths` supplies every configured locale's generated story root for
+site-navigation validation; it does not affect this dataset-visibility decision. A private
+dataset makes `SANITY_READ_TOKEN` required rather than optional. Separately, the export
+policy is enforced in the Studio as a publish-blocking asynchronous validation, and again
+in the adapter, because the Studio binds an editor while the HTTP API, an import, and a
+migration script do not.
 
 **Consequence for later schema stories:** any field carrying something a visitor may not
 read is a dataset-visibility decision before it is an adapter decision. "The adapter does
