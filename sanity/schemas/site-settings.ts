@@ -1,7 +1,10 @@
 /** Global brand, contact, and static-navigation content for one deployment. */
 
 import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
-import { NAVIGATION_ITEM_TYPE_NAME } from "./site-link";
+import {
+  isStaticSitePath,
+  NAVIGATION_ITEM_TYPE_NAME,
+} from "./site-link";
 import type {
   SchemaTypeDefinition,
   SchemaValidationResult,
@@ -9,6 +12,11 @@ import type {
 } from "./schema-types";
 
 export const SITE_SETTINGS_TYPE_NAME = "siteSettings";
+
+export type SiteSettingsSchemaOptions = {
+  /** Generated story root in the unprefixed default-locale route space. */
+  readonly storyRootPath: string;
+};
 
 /**
  * Restated in `src/lib/sanity-site-settings.ts`'s `CONTENT_ID`: the adapter
@@ -86,14 +94,20 @@ type RawNavigationItem = {
   readonly href?: unknown;
 };
 
-function validateNavigationList(
+export function validateNavigationList(
   value: readonly RawNavigationItem[] | undefined,
+  storyRootPath: string,
 ): SchemaValidationResult {
   const seen = new Set<string>();
   for (const item of value ?? []) {
-    const identity = item.target === "static" ? `static:${String(item.href)}` : String(item.target);
+    const identity =
+      item.target === "static"
+        ? String(item.href)
+        : item.target === "story-root"
+          ? storyRootPath
+          : String(item.target);
     if (seen.has(identity)) {
-      return `Navigation contains the target "${identity}" more than once`;
+      return `Navigation contains the destination "${identity}" more than once`;
     }
     seen.add(identity);
   }
@@ -137,14 +151,16 @@ function validateSiteSettings(
     : true;
 }
 
-export const siteSettingsType: SchemaTypeDefinition = {
-  name: SITE_SETTINGS_TYPE_NAME,
-  title: "Site settings",
-  type: "document",
-  description:
-    "The deployment-wide brand, contact details, and static navigation. Publish exactly one document.",
-  validation: (rule) => rule.custom<RawSiteSettings>(validateSiteSettings),
-  fields: [
+export function defineSiteSettingsType(
+  options: SiteSettingsSchemaOptions,
+): SchemaTypeDefinition {
+  if (!isStaticSitePath(options.storyRootPath) || options.storyRootPath === "/") {
+    throw new TypeError(
+      "storyRootPath must be a non-root, root-relative route path without a query, fragment, or trailing slash",
+    );
+  }
+
+  const fields: SchemaTypeDefinition["fields"] = [
     { name: "siteName", title: "Site name", type: "string", validation: (rule) => rule.required().custom(nonBlank) },
     { name: "photographerName", title: "Photographer name", type: "string", validation: (rule) => rule.required().custom(nonBlank) },
     {
@@ -167,7 +183,13 @@ export const siteSettingsType: SchemaTypeDefinition = {
       title: "Header navigation",
       type: "array",
       of: [{ type: NAVIGATION_ITEM_TYPE_NAME }],
-      validation: (rule) => rule.required().min(1).custom(validateNavigationList),
+      validation: (rule) =>
+        rule
+          .required()
+          .min(1)
+          .custom<readonly RawNavigationItem[]>((value) =>
+            validateNavigationList(value, options.storyRootPath),
+          ),
     },
     {
       name: "contact",
@@ -225,7 +247,12 @@ export const siteSettingsType: SchemaTypeDefinition = {
       title: "Footer links",
       type: "array",
       of: [{ type: NAVIGATION_ITEM_TYPE_NAME }],
-      validation: (rule) => rule.required().custom(validateNavigationList),
+      validation: (rule) =>
+        rule
+          .required()
+          .custom<readonly RawNavigationItem[]>((value) =>
+            validateNavigationList(value, options.storyRootPath),
+          ),
     },
     { name: "copyrightHolder", title: "Copyright holder", type: "string", validation: (rule) => rule.required().custom(nonBlank) },
     {
@@ -251,6 +278,16 @@ export const siteSettingsType: SchemaTypeDefinition = {
         },
       ],
     },
-  ],
-  preview: { select: { title: "siteName", subtitle: "photographerName" } },
-};
+  ];
+
+  return {
+    name: SITE_SETTINGS_TYPE_NAME,
+    title: "Site settings",
+    type: "document",
+    description:
+      "The deployment-wide brand, contact details, and static navigation. Publish exactly one document.",
+    validation: (rule) => rule.custom<RawSiteSettings>(validateSiteSettings),
+    fields,
+    preview: { select: { title: "siteName", subtitle: "photographerName" } },
+  };
+}

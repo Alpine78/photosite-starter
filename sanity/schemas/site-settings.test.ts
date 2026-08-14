@@ -5,7 +5,8 @@ import { defineSchemaTypes } from "./index";
 import { MEDIA_TYPE_NAME } from "./media";
 import {
   SITE_SETTINGS_TYPE_NAME,
-  siteSettingsType,
+  defineSiteSettingsType,
+  validateNavigationList,
   validateSocialLinks,
   validateTitleTemplates,
 } from "./site-settings";
@@ -21,9 +22,15 @@ import {
 const fieldNames = (type: { readonly fields: readonly { readonly name: string }[] }) =>
   type.fields.map((field) => field.name);
 
+const schemaOptions = {
+  datasetVisibility: "public" as const,
+  storyRootPath: "/stories",
+};
+const siteSettingsType = defineSiteSettingsType(schemaOptions);
+
 describe("the site settings and home schemas", () => {
   it("registers both documents and their reusable object types", () => {
-    const names = defineSchemaTypes({ datasetVisibility: "public" }).map(
+    const names = defineSchemaTypes(schemaOptions).map(
       (type) => type.name,
     );
 
@@ -96,6 +103,25 @@ describe("the site settings and home schemas", () => {
     expect(validateSiteLinkTarget({ target: "category", href: "/stories/work" })).toEqual(
       expect.any(String),
     );
+  });
+
+  it("rejects a static link that repeats the configured generated story root", () => {
+    expect(
+      validateNavigationList(
+        [
+          { target: "story-root" },
+          { target: "static", href: "/stories" },
+        ],
+        "/stories",
+      ),
+    ).toEqual(expect.any(String));
+  });
+
+  it("refuses an invalid configured story root when building the schema", () => {
+    expect(() =>
+      defineSiteSettingsType({ storyRootPath: "https://example.test/stories" }),
+    ).toThrow(TypeError);
+    expect(() => defineSiteSettingsType({ storyRootPath: "/" })).toThrow(TypeError);
   });
 
   it("requires one page-title placeholder in every localized title template", () => {

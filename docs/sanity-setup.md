@@ -118,9 +118,11 @@ needs no `sanity` package to describe one. Point your Studio's `schema.types` at
 (that directory's README shows how). Copying works and drifts; a path, a submodule, or a
 workspace dependency does not.
 
-`defineSchemaTypes({ datasetVisibility })` needs to be told whether the dataset is
-world-readable, because that decides which fields exist at all — see *Dataset visibility*
-below.
+`defineSchemaTypes({ datasetVisibility, storyRootPath })` needs two deployment facts.
+Dataset visibility decides which fields exist at all — see *Dataset visibility* below.
+The story root is the default locale's unprefixed generated route, and must match
+`SITE_LOCALE_ROUTES`; the Studio uses it to reject a static link that would duplicate the
+generated story navigation before the settings can be published.
 
 Four document types exist: **siteSettings**, the deployment's brand, contact details, and
 static navigation; **homePage**, the hero, introduction, and section links; **media**, the
@@ -197,7 +199,12 @@ configuration, because it decides what may be stored at all, and once as the dep
 credential.
 
 ```ts
-schema: { types: defineSchemaTypes({ datasetVisibility: "private" }) }
+schema: {
+  types: defineSchemaTypes({
+    datasetVisibility: "private",
+    storyRootPath: "/stories",
+  }),
+}
 ```
 
 Declaring `private` makes a build-scoped `SANITY_READ_TOKEN` required: locally that is the

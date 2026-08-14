@@ -116,7 +116,10 @@ const WEB_EXPORT = {
 
 describe("the media document", () => {
   it("is registered with the object types it uses", () => {
-    const types = defineSchemaTypes({ datasetVisibility: "public" });
+    const types = defineSchemaTypes({
+      datasetVisibility: "public",
+      storyRootPath: "/stories",
+    });
 
     expect(types).toContainEqual(localizedTextType);
     expect(types.map((type) => type.name)).toContain(MEDIA_TYPE_NAME);

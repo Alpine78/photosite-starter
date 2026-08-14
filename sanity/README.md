@@ -35,10 +35,20 @@ export default defineConfig({
     // a public dataset is offered no place to record where a master lives,
     // because anyone holding the project id can read every published document
     // in it.
-    types: defineSchemaTypes({ datasetVisibility: "private" }),
+    types: defineSchemaTypes({
+      datasetVisibility: "private",
+      // The generated story root in the default locale's unprefixed route
+      // space. Keep this equal to SITE_LOCALE_ROUTES.
+      storyRootPath: "/stories",
+    }),
   },
 });
 ```
+
+`storyRootPath` must match the default locale's unprefixed story namespace in
+`SITE_LOCALE_ROUTES`. The schema uses it to stop an editor from publishing both a
+generated `story-root` entry and a static link to the same destination; the runtime
+adapter repeats that check against the deployment's validated route configuration.
 
 `datasetVisibility` must match the site's own `SANITY_DATASET_VISIBILITY`, and both must
 match what the dataset actually is in Sanity. It is not a preference: a public dataset is

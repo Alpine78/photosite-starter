@@ -21,6 +21,7 @@ const localized = (fi: string) => [{ language: "fi", value: fi }];
 describe("STATIC_PATH", () => {
   it("stays equal to the Studio schema's own root-relative-path pattern", () => {
     expect(STATIC_PATH.source).toBe(ROOT_RELATIVE_PATH.source);
+    expect(STATIC_PATH.flags).toBe(ROOT_RELATIVE_PATH.flags);
   });
 });
 

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   CONTENT_ID as SCHEMA_CONTENT_ID,
+  defineSiteSettingsType,
   EMAIL as SCHEMA_EMAIL,
-  siteSettingsType,
 } from "../../sanity/schemas/site-settings";
 import {
   buildLocaleRouteConfig,
@@ -103,11 +103,14 @@ function fakeClient(answer: unknown): {
 describe("identity and format patterns", () => {
   it("stay equal to the Studio schema's own copies", () => {
     expect(CONTENT_ID.source).toBe(SCHEMA_CONTENT_ID.source);
+    expect(CONTENT_ID.flags).toBe(SCHEMA_CONTENT_ID.flags);
     expect(EMAIL.source).toBe(SCHEMA_EMAIL.source);
+    expect(EMAIL.flags).toBe(SCHEMA_EMAIL.flags);
   });
 
   it("stays equal to the contact form's independent email-shape copy", () => {
     expect(EMAIL.source).toBe(CONTACT_EMAIL_SHAPE.source);
+    expect(EMAIL.flags).toBe(CONTACT_EMAIL_SHAPE.flags);
   });
 });
 
@@ -216,7 +219,11 @@ describe("reading the published settings singleton", () => {
     expect(requests).toEqual([
       { query: `*[_type == "${SITE_SETTINGS_DOCUMENT_TYPE}"]${SITE_SETTINGS_PROJECTION}`, tag: "site-settings" },
     ]);
-    const declared = new Set(siteSettingsType.fields.map((field) => field.name));
+    const declared = new Set(
+      defineSiteSettingsType({ storyRootPath: "/tarinat" }).fields.map(
+        (field) => field.name,
+      ),
+    );
     for (const field of PROJECTED_SITE_SETTINGS_FIELDS) {
       expect(declared.has(field)).toBe(true);
       expect(SITE_SETTINGS_PROJECTION).toContain(field);

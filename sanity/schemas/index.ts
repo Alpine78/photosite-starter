@@ -18,7 +18,10 @@ import { homePageType } from "./home-page";
 import { localizedSlugType } from "./localized-slug";
 import { localizedTextType } from "./localized-text";
 import { defineMediaType, type MediaSchemaOptions } from "./media";
-import { siteSettingsType } from "./site-settings";
+import {
+  defineSiteSettingsType,
+  type SiteSettingsSchemaOptions,
+} from "./site-settings";
 import {
   homeActionType,
   homeSectionType,
@@ -27,7 +30,7 @@ import {
 import type { SchemaTypeDefinition } from "./schema-types";
 
 export function defineSchemaTypes(
-  options: MediaSchemaOptions,
+  options: MediaSchemaOptions & SiteSettingsSchemaOptions,
 ): readonly SchemaTypeDefinition[] {
   return [
     localizedTextType,
@@ -37,7 +40,7 @@ export function defineSchemaTypes(
     homeSectionType,
     defineMediaType(options),
     categoryType,
-    siteSettingsType,
+    defineSiteSettingsType(options),
     homePageType,
   ];
 }
