@@ -68,7 +68,7 @@ export type SchemaValidation = (
 
 export type SchemaListOption = {
   readonly title: string;
-  readonly value: string;
+  readonly value: string | number;
 };
 
 export type SchemaFieldOptions = {
@@ -110,6 +110,8 @@ export type SchemaArrayMemberDefinition = {
   readonly type: string;
   /** Inline object members, used where a named reusable type adds no value. */
   readonly fields?: readonly SchemaFieldDefinition[];
+  /** Document types an inline `reference` array member may point to. */
+  readonly to?: readonly { readonly type: string }[];
 };
 
 export type SchemaPreview = {

@@ -78,6 +78,25 @@ generated story root and the identity-resolved featured gallery; it never stores
 category tree. The home hero references the shared media document rather than copying an
 asset URL or dimensions.
 
+Articles and services are two more document types, each with a different relationship to
+language. A category is one document describing every published language; an article is
+the opposite — one document *per* language, because ADR-0003 decision 7 lets a page's
+languages be authored and published independently. `language` plus the immutable
+`contentId` together identify one version, and a standard publish is blocked until
+`canonicalCategory` is set (ADR-0003 decision 5), while a draft may stay unplaced. A
+service carries no language field at all: `src/lib/services.ts#getServices` takes no
+locale, matching the still-unlocalized `/services` route, so nothing here describes a
+capability the site does not yet read.
+
+Both an article's body and a future gallery's body share one set of block object types —
+`sanity/schemas/content-block.ts` — covering the six kinds ADR-0003 decision 2 names:
+paragraph, heading, list, quote, media placement, and a click-to-load YouTube embed. They
+are named `content<Kind>Block` rather than the bare discriminant, because Sanity type
+names share one namespace and `media.ts` already claims `media` for the shared photograph
+document. `defineContentBodyField` builds a body field restricted to a given allow-list of
+these kinds — every kind by default — so a narrower context, such as a future gallery
+section introduction, reuses the same six types instead of a second body schema.
+
 Copying the files works too — they have no imports to satisfy — but a copy drifts. Prefer
 a path, a submodule, or a workspace dependency, so a schema change arriving from upstream
 reaches the Studio the same way a code change reaches the site.

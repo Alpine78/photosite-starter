@@ -340,6 +340,48 @@ document through `PUBLIC_MEDIA_PROJECTION` and `projectPublicMedia`, retaining i
 derivative and true dimensions. These adapters return the existing `SiteSettings` and
 `HomeContent` contracts but are not wired into route-facing seams until the other authored
 content adapters exist, avoiding a mixed mock/Sanity deployment.
+The shared rich-content body-block schema and the article and service schemas and
+adapters sit beside those boundaries too. `sanity/schemas/content-block.ts` gives both
+public content variants the six ADR-0003 decision 2 body blocks — paragraph, heading,
+list, quote, media placement, and click-to-load YouTube — as Sanity object types named
+`content<Kind>Block` rather than the bare discriminant, because `media.ts` already claims
+`media` in the one namespace Sanity type names share; `defineContentBodyField` builds a
+body field restricted to a caller-chosen allow-list of these kinds, every kind by default,
+so a narrower context such as a future gallery section introduction reuses the same six
+types instead of a second body schema. `src/lib/sanity-content-blocks.ts` is the read
+half, projecting a query result back onto `content-page.ts`'s `ContentBlock` union; a
+media block reuses `projectPublicMedia` unchanged, so a photograph placed in a body is
+validated by exactly the boundary ADR-0005 established for every other public rendition.
+The article schema (`sanity/schemas/article.ts`) is the `article` variant of the shared
+content-page boundary, and — unlike a category's one document for every language — is one
+document *per* language: ADR-0003 decision 7 lets a page's languages be authored and
+published independently, so `language` plus the immutable `contentId` together identify
+one version, and two documents may share a `contentId` (one per published language) but
+never both `contentId` and `language`. `canonicalCategory` is required, so a standard
+Studio publish cannot leave an article unplaced — Sanity's own validation model blocks
+publishing, not saving a draft, which is exactly ADR-0003 decision 5's allowance for
+unplaced draft content — while `content-tree.ts` remains the authoritative backstop for a
+document an API import wrote without Studio validation. Tags stay a separate free-text
+field, unrelated to categories and consuming no tree depth. `src/lib/sanity-article.ts`
+reads three separate projections rather than one, matching `content-listing.ts`'s rule
+that a listing card must never load an article body: `readPublicArticlePlacements` feeds
+`content-tree.ts`'s placement contract, resolving `canonicalCategory`/`secondaryCategories`
+references the same way `sanity-content-tree.ts` resolves a category's own `parent` —
+raw, then looked up locally through the newly exported `readCategoryDocumentIndex`, so an
+unresolved reference reports as a missing category rather than collapsing into "unplaced";
+`readPublicArticleListingRecords` answers a bounded `ContentListingQuery`; and
+`readPublicArticlePage` reads one full page by locale and stable identity, returning
+`undefined` for a language with no published version — the normal bilingual state, not an
+error — and throwing a classified `SanityArticleError` when two published documents
+collide on one identity. The service schema (`sanity/schemas/service.ts`) and adapter
+(`src/lib/sanity-services.ts`) model `src/lib/services.ts`'s existing `Service` contract
+directly: no language field, matching the still-unlocalized `/services` route, and no
+category placement, tags, or redirect history, because a service is not part of the
+ADR-0003 public content tree. Its `slug` is checked for syntax and uniqueness the same
+asynchronous way `media.ts` and `category.ts` check theirs, without the immutability half
+those two also enforce, because a service has no redirect-history concept requiring it.
+None of these three adapters is wired into a route-facing seam yet, for the same reason
+the settings and home-page adapters are not.
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test,
@@ -396,10 +438,10 @@ answers any `?cursor=` with a 404 — gallery sections
 (AB#129), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
 sitemap/robots, structured data, the remaining Sanity content schemas and adapters that
-would put authored content behind the connection (AB#81, AB#113, AB#114) —
-the media, category, settings, and home schemas/adapters exist, but no route-facing seam
-reads them yet, so every page still renders from the mock layer — tagged caching and
-webhook revalidation (AB#83),
+would put authored content behind the connection (AB#113, AB#114) —
+the media, category, settings, home, article, and service schemas/adapters exist, but no
+route-facing seam reads them yet, so every page still renders from the mock layer — tagged
+caching and webhook revalidation (AB#83),
 and the deployment itself: provisioning is under way — a Vercel project exists, but
 protection, Preview environment values, and deployment credentials are not finished;
 the disabled variable group currently carries only the non-secret project/team IDs, and
