@@ -2,6 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-08-10
+**Amended:** 2026-08-13 — see the amendments under §1
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#39
 
@@ -35,7 +36,7 @@ of the project get to know about Sanity, and what carries the credential".
 
 ## Decision
 
-### 1. Two modules know Sanity exists
+### 1. Two modules hold the runtime connection to Sanity
 
 `src/lib/sanity-config.ts` holds the validated connection settings and the read token.
 `src/lib/sanity-client.ts` holds the HTTP surface: the hostname, the API version path
@@ -48,6 +49,103 @@ one is not enough: ESLint forbids `src/app/**` and `src/components/**` from impo
 either module, and both modules carry the `server-only` marker so that a Client Component
 reaching them *through an adapter* — which ESLint cannot see — fails the build rather
 than the request. The boundary is a rule, not a convention.
+
+#### Amendment 2026-08-13 (AB#82) — §1, what "two modules" counts
+
+**Status of the record: still Proposed.** This amendment states the scope of one clause
+more precisely. Nothing it permits is new, and no other section changes.
+
+**The original rule, preserved:** "`src/lib/sanity-config.ts` holds the validated
+connection settings and the read token. `src/lib/sanity-client.ts` holds the HTTP
+surface… Nothing else in the repository names any of them."
+
+**What it counts:** the two modules are the application's **runtime connection** — the
+settings, the credential, and the request surface the running site uses to reach the
+Content Lake. The rule bounds what has to be rewritten to replace the CMS and where a
+credential may live. It was never a count of files in the repository that mention Sanity.
+
+Two things AB#82 added are therefore inside the rule, not exceptions to it:
+
+- **`sanity/schemas/`** is a Studio schema artifact — content-store configuration
+  exported to the customer's own Studio, importing nothing and imported by nothing under
+  `src/`. It holds no credential and issues no request. Its only link to the application
+  is a test asserting that the adapter projects fields the schema declares.
+- **The asset CDN host** is named in `src/lib/sanity-config.ts`, which already owns the
+  project id and dataset the address is built from, and restated in `next.config.ts`. The
+  restatement is unavoidable: the image optimizer's allow-list is build configuration and
+  cannot import a module marked `server-only`. A test pins the two values together.
+
+**Unchanged:** adapters compose GROQ and project results into project-owned types; routes
+and components read adapters; ESLint forbids `src/app/**` and `src/components/**` from
+importing the client or its configuration; both modules carry the `server-only` marker.
+Replacing the CMS still means rewriting those two modules and the adapters above them.
+
+#### Amendment 2026-08-13 (AB#82) — §5, what a server-side boundary does not protect
+
+**Status of the record: still Proposed.** This amendment adds a constraint the original
+§5 did not state. Nothing it said is withdrawn.
+
+**The original rule, preserved:** "The token setting is unprefixed… The token travels in
+an `Authorization` header, never in a URL, and is never logged."
+
+**What the first schema story established:** §5 reasoned about the *credential*, and
+about data crossing the application's own boundaries. It did not reason about what the
+content store itself exposes, and two things there are outside the application's reach
+entirely:
+
+- **A public dataset is world-readable.** Anyone holding the project id can query every
+  published document in it. A field the application never projects — ADR-0002 §1's
+  `archiveLocator` is the case in point — is therefore not server-only in a public
+  dataset. It is published, by the store, regardless of what the adapter does.
+- **Assets are public in either dataset.** An uploaded file is addressable on
+  `cdn.sanity.io` from the moment the upload completes, before any document is published
+  and regardless of dataset visibility. A read-time refusal keeps those bytes out of a
+  page; it does not make them unreachable.
+
+**The addition:** the schema is built for a stated dataset visibility, and the
+world-readable case does not get the field at all — `defineSchemaTypes({ datasetVisibility })`
+omits `archiveLocator` for a public dataset, so there is no place to record a master's
+location into a document anyone can read. A private dataset makes `SANITY_READ_TOKEN`
+required rather than optional. Separately, the export policy is enforced in the Studio as
+a publish-blocking asynchronous validation, and again in the adapter, because the Studio
+binds an editor while the HTTP API, an import, and a migration script do not.
+
+**Consequence for later schema stories:** any field carrying something a visitor may not
+read is a dataset-visibility decision before it is an adapter decision. "The adapter does
+not project it" is not, on its own, a control.
+
+**Evidence:** Sanity's dataset visibility and asset access documentation, and the AB#82
+review of 2026-08-13, which found the original read-time-only enforcement insufficient.
+
+#### Amendment 2026-08-13 (AB#82) — §5, private credentials are phase-scoped
+
+**Status of the record: still Proposed.** This amendment resolves the credential-lifetime
+question exposed when the first schema made private datasets enforceable. The rest of §5
+still holds: credentials remain server-only, travel only in an authorization header, and
+are never logged.
+
+**Constraint:** the reference pipeline produces a prebuilt Vercel artifact in Azure.
+Vercel's Sensitive runtime values are deliberately non-readable to `vercel pull`, while a
+private dataset must be readable during any build that prerenders authored content.
+Making the runtime credential plain would violate ADR-0004 §5; letting the build continue
+without one would produce a release candidate that only fails after deployment.
+
+**Decision:** private deployments use two separately scoped, read-only credentials.
+`SANITY_BUILD_READ_TOKEN` lives in the customer-owned Azure variable group and is mapped
+to `SANITY_READ_TOKEN` only in the release-candidate build step. A different
+`SANITY_READ_TOKEN` remains Sensitive in Vercel and is injected into running Functions.
+The mandatory Next.js configuration path validates every Sanity setting and refuses a
+private build with no usable build credential before any route or adapter is evaluated.
+
+**Options rejected:** keeping Preview public would prevent the private-only archive field
+from being exercised there; moving the build to Vercel would abandon the prebuilt model
+and Azure's accountable build log; one plain Vercel token would weaken the secret
+boundary. Phase-scoping costs a second token and separate rotation, but gives each token
+one environment and one job.
+
+**Sections affected:** §1's restated build configuration may name and validate the
+settings, §5 owns the two credential lifetimes, and `docs/deployment.md` records their
+provisioning. No route or component gains access to either credential.
 
 ### 2. No client SDK — the query API over `fetch`
 
@@ -209,7 +307,9 @@ the adapters above it do not change.
 
 - [ ] AB#83: decide the cache contract, including whether to move reads to
       `apicdn.sanity.io`, and replace `cache: "no-store"` with the tag-based policy.
-- [ ] AB#80 / AB#81 / AB#82 / AB#112 / AB#114: write adapters behind this boundary; each
+- [x] AB#82 wrote the first adapter behind this boundary (`src/lib/sanity-media.ts`),
+      validating the `unknown` result it receives and projecting an allow-list.
+- [ ] AB#80 / AB#81 / AB#112 / AB#114: write the remaining adapters the same way; each
       owns validating the `unknown` result it receives.
 - [ ] AB#116: run `probeSanityConnectivity` against the Preview deployment's own project
       as part of provisioning verification.

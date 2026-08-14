@@ -44,6 +44,8 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 - `src/components` – reusable UI components *(added as features land)*
 - `src/lib` – shared logic, configuration, data access, and the generic media model
 - `scripts` – deployment tooling that runs outside the application bundle
+- `sanity/schemas` – the CMS document types, as plain objects a customer's Studio
+  consumes; content-store configuration, not application code
 - `docs/adr` – architecture decision records ([conventions](docs/adr/README.md))
 - `docs/architecture` – [architecture diagrams](docs/architecture/README.md): the system
   context, the application and data boundaries, and the build/deployment flow, as D2
@@ -179,24 +181,38 @@ fails the build rather than a later content read. As with the contact adapter, t
 default, and an unset `SITE_DEPLOYMENT_STAGE` counts as production, so the guard fails
 closed.
 
-`sanity` reads the deployment's own Content Lake through four more settings —
-`SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_API_VERSION`, and an optional
-`SANITY_READ_TOKEN` for a private dataset. The Sanity organization, project, dataset,
+`sanity` reads the deployment's own Content Lake through five more settings —
+`SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_DATASET_VISIBILITY`,
+`SANITY_API_VERSION`, and `SANITY_READ_TOKEN` — the last required whenever the dataset is
+declared private, because an unauthenticated read of one answers with an empty result
+rather than an error, and a site that looks unwritten is worse than one that refuses to
+build. A private reference deployment uses separate read-only build and runtime tokens,
+scoped to Azure Pipelines and Vercel respectively. The Sanity organization, project, dataset,
 assets, and billing belong to the site owner; there is no shared account and no shared
 credential, so handing the site over is a change of settings rather than of code. Every
 read asks for the **published** perspective, and no setting can change that — draft access
 is absent from the code rather than switched off. A failed read raises with a classified
 error; nothing ever falls back to demo content.
 
-Sanity's HTTP surface lives in two files. ESLint stops `src/app` and `src/components` from
-importing either, and both carry the `server-only` marker so a Client Component reaching
-them through an adapter fails the build — provider knowledge and the read token stay
-behind the adapter boundary. Setup, ownership, transfer, and failure behavior are in
-[docs/sanity-setup.md](docs/sanity-setup.md); the trade-offs are in
+Sanity's runtime connection lives in two files. ESLint stops `src/app` and
+`src/components` from importing either, and both carry the `server-only` marker so a
+Client Component reaching them through an adapter fails the build — provider knowledge and
+the read token stay behind the adapter boundary. Setup, ownership, transfer, and failure
+behavior are in [docs/sanity-setup.md](docs/sanity-setup.md); the trade-offs are in
 [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md).
 
-Content schemas and adapters are separate stories, so the site still renders from the mock
-layer today.
+The document types are separate again, in [`sanity/schemas`](sanity/README.md) — plain
+objects that import nothing, so describing a schema costs no dependency and a clone points
+its own Studio at them. The shared **media** document is the first one, with a server-only
+adapter behind it: one photograph is one document; an uploaded asset must be an exported
+web copy within the site's own delivery limit rather than a camera master, checked in the
+Studio so the publish is blocked and again at the boundary because the Studio is not the
+only writer; a world-readable dataset is offered no field for archive locations at all,
+since anything in it is published whether the site reads it or not; and authored text is
+keyed by language subtag so adding a language is content rather than code
+([ADR-0008](docs/adr/0008-localized-authored-text.md)). The remaining schemas and the
+adapters that would read them are separate stories, so the site still renders from the
+mock layer today.
 
 ```bash
 npm ci
@@ -346,8 +362,12 @@ a green pipeline. See [deployment](docs/deployment.md).
 - [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`; validated
   customer-owned connection, published-perspective query client, and the enforced
   data-access boundary done ([setup](docs/sanity-setup.md),
-  [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)); content schemas, adapters,
-  and tagged caching/webhook revalidation pending*
+  [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)); the shared media document and
+  its server-only adapter done, including the publish-blocking derivative limit that
+  refuses a camera master, the dataset-visibility rule for archive locations, and the
+  language-keyed authored text
+  ([ADR-0008](docs/adr/0008-localized-authored-text.md)) — nothing reads it yet; the
+  remaining schemas, their adapters, and tagged caching/webhook revalidation pending*
 - [ ] Production deployment — *the Preview environment's repository half is done: pinned
   runtime and region, a gated deploy stage, and the check that refuses to publish a
   release-candidate URL unless its project/team ownership, access protection, and
@@ -422,8 +442,9 @@ return to the first page. Category listings still answer `?cursor=` with a 404, 
 none issues one. Static routes and authored
 SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
 separate story. The Sanity connection, its published-perspective query client, and the
-enforced data-access boundary are in place; the schemas and adapters that would put
-authored content behind them are not, so every page still renders from the mock layer.
+enforced data-access boundary are in place, and so are the shared media document and its
+server-only adapter; the remaining schemas and the seams that would read them are not, so
+every page still renders from the mock layer.
 The gallery grid lays its items out row by row, so what the eye reads is the order the
 source, the DOM, keyboard focus, and the lightbox all use, and every frame keeps its native
 aspect ratio uncropped. It opens a fullscreen lightbox that navigates the loaded result by

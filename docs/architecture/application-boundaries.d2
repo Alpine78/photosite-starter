@@ -81,13 +81,17 @@ lib: "src/lib — domain contracts, data-access seams, and fixtures" {
 
 restricted: "Server-only modules" {
   class: built
-  grid-columns: 3
+  grid-columns: 2
 
-  sanity-config: "sanity-config.ts\nValidated connection settings\nand the optional read token" {
+  sanity-config: "sanity-config.ts\nValidated connection settings,\nthe optional read token,\nand the asset CDN address" {
     class: built
   }
 
   sanity-client: "sanity-client.ts\nContent Lake HTTP API,\npublished perspective only" {
+    class: built
+  }
+
+  sanity-media: "sanity-media.ts\nAllow-list projection of the shared\nmedia document; no seam reads it yet" {
     class: built
   }
 
@@ -100,7 +104,7 @@ external: "Outside the deployment" {
   class: external
   grid-columns: 2
 
-  sanity: "Sanity Content Lake\nSchemas and adapters planned,\nso nothing reads this yet" {
+  sanity: "Sanity Content Lake\nThe media schema and its adapter exist;\nno page reads this yet" {
     class: [store; planned]
   }
 

@@ -3,9 +3,10 @@
 How a deployment connects to its content store, who owns that store, and what the site
 does when the store cannot be reached.
 
-This covers the connection only. Content schemas, caching and webhook revalidation, and
-content seeding are separate work items (AB#80, AB#81, AB#82, AB#83, AB#112, AB#114);
-until they land, every deployment runs on `SITE_CONTENT_SOURCE=mock`.
+This covers the connection and the shared media schema. The remaining schemas, caching
+and webhook revalidation, and content seeding are separate work items (AB#80, AB#81,
+AB#83, AB#112, AB#113, AB#114); until they land, every deployment runs on
+`SITE_CONTENT_SOURCE=mock`.
 
 ## Ownership
 
@@ -24,9 +25,11 @@ account customer-owned, and this one is no exception:
   between owners is done in Sanity's own console, and the deployment does not change at
   all.
 - **Exit is possible.** The dataset can be exported through Sanity's own tooling, and the
-  application's knowledge of Sanity is confined to two files (see
-  [ADR-0006](adr/0006-sanity-data-access-boundary.md)), so replacing the CMS means
-  rewriting those and the adapters above them — not auditing every route.
+  application's runtime connection to Sanity is confined to two files (see
+  [ADR-0006](adr/0006-sanity-data-access-boundary.md) §1), so replacing the CMS means
+  rewriting those and the adapters above them — not auditing every route. The document
+  types are separate again, in [`sanity/`](../sanity/README.md), and describe the content
+  rather than the provider.
 
 The one thing the owner must not delegate is billing and account recovery. A CMS the
 photographer cannot log into is a site they cannot edit.
@@ -45,14 +48,26 @@ authoritative for the exact steps. What this project needs from it:
 4. **Pin an API version.** Use a dated version, `vYYYY-MM-DD`, from the day the
    deployment was built and tested. Bumping it later is a deliberate change with its own
    verification, which is the point of pinning.
-5. **Create a read token only if the dataset is private.** A public dataset needs none.
-   Use the narrowest read-only role Sanity offers, issue a separate token per
-   environment, and store it in the hosting provider's secret storage — never in the
-   repository, never in a URL, and never under a `NEXT_PUBLIC_` name.
-6. **Set the deployment settings** below, then verify the connection before wiring any
+5. **Decide, and then verify, whether each dataset is public or private.** It is not a
+   convenience setting: a public dataset is readable by anyone with the project id, so it
+   may hold nothing you would not publish, and the schemas are built accordingly
+   (*Dataset visibility*, below). Verify it against Sanity rather than against your own
+   notes — check the dataset's visibility in the project's console, and confirm that a
+   request with no credential returns nothing from a private one. A declared setting says
+   what you intended; only Sanity knows what is true, and a dataset can be switched, or
+   revert when a plan lapses.
+6. **Create phase-scoped read tokens if the dataset is private.** A public dataset needs
+   none; a private one cannot be read without one. Use the narrowest read-only role Sanity
+   offers. The trusted build gets `SANITY_BUILD_READ_TOKEN` from Azure DevOps, and the
+   running deployment gets a different `SANITY_READ_TOKEN` from Vercel Sensitive. Issue
+   both separately per environment — never put either in source control or under a
+   `NEXT_PUBLIC_` name.
+7. **Set the deployment settings** below, then verify the connection before wiring any
    content: `probeSanityConnectivity` in
    [`src/lib/sanity-client.ts`](../src/lib/sanity-client.ts) runs a query that reads no
-   document and proves the address and credential are right.
+   document and proves the address is usable. It cannot prove a private credential,
+   because Sanity answers an unauthenticated private read with the same empty result;
+   the required visibility declaration and provisioning check own that guarantee.
 
 ## Settings
 
@@ -61,14 +76,16 @@ authoritative for the exact steps. What this project needs from it:
 | `SITE_CONTENT_SOURCE` | always | `mock` (the project's demo fixtures) or `sanity` (this deployment's Content Lake). No default. |
 | `SANITY_PROJECT_ID` | when `sanity` | Project id: 1–63 lowercase letters, digits, or inner hyphens — it is the hostname label in `<projectId>.api.sanity.io`. |
 | `SANITY_DATASET` | when `sanity` | Dataset name, to Sanity's own rule: 1–64 characters of lowercase letters, digits, hyphens, and underscores, beginning and ending with a letter or digit. |
+| `SANITY_DATASET_VISIBILITY` | when `sanity` | `public` or `private`, matching both the actual dataset and the Studio schema configuration. |
 | `SANITY_API_VERSION` | when `sanity` | Dated API version, `vYYYY-MM-DD`. Undated, legacy, impossible, and future-dated versions are refused. |
-| `SANITY_READ_TOKEN` | optional | Server-only credential for a private dataset. |
+| `SANITY_READ_TOKEN` | when `private` | Server-only runtime credential. Local builds use this name too; the reference pipeline maps its separate Azure `SANITY_BUILD_READ_TOKEN` to it only for the build step. Declaring `private` without a usable build credential fails the build. |
 
 `SITE_CONTENT_SOURCE` is read as part of the deployment configuration, which every route
 resolves — so an unset or illegal value fails the **build**, not the first content read.
-The Sanity settings are validated when a client is built, and validated against the
-service's own rules rather than a looser approximation of them: a name Sanity would
-reject fails here, where it names itself, instead of becoming a 404 to debug later.
+Every Sanity setting is validated in mandatory build configuration before any route or
+adapter is evaluated, and the runtime client validates the same values again. Both use
+the service's own rules rather than a looser approximation: a name Sanity would reject
+fails here, where it names itself, instead of becoming a 404 to debug later.
 
 A future-dated API version is refused too. That one is this project's rule rather than a
 documented Sanity constraint: a version dated after today pins no behavior the deployment
@@ -92,6 +109,133 @@ The read token is server-only, and three things keep it out of the browser:
   cannot see.
 
 The token never appears in a URL, is never logged, and is never returned to a caller.
+
+## Content schemas
+
+The document types this site reads live in [`sanity/`](../sanity/README.md) as plain
+objects that import nothing — a Sanity schema type *is* a plain object, so the repository
+needs no `sanity` package to describe one. Point your Studio's `schema.types` at them
+(that directory's README shows how). Copying works and drifts; a path, a submodule, or a
+workspace dependency does not.
+
+`defineSchemaTypes({ datasetVisibility })` needs to be told whether the dataset is
+world-readable, because that decides which fields exist at all — see *Dataset visibility*
+below.
+
+So far one document type exists: **media**, the shared photograph. Galleries, articles,
+services, categories, and settings arrive with their own stories.
+
+**The Studio validates against the dataset.** Two rules query it while an editor works,
+which is the only place they can run in time: an uploaded image is measured and its
+format checked before the document can be published, and a media ID is checked for being
+unique across the dataset and for not having changed since the last publish. They use the
+Studio's own client and need no extra configuration.
+
+**Authored text is language-keyed.** A field a visitor reads is an array of
+`{ language, value }` entries, keyed by language subtag — never fields named after your
+languages. Publishing in another language means adding entries and a locale route, not
+editing a schema. Alternative text falls back to the site's own language when a
+translation is missing — so always author that one; a photograph described in neither the
+viewed language nor the site's own is refused rather than shown undescribed. A caption is
+simply not shown, because prose in the wrong language is worse than no prose. [ADR-0008](adr/0008-localized-authored-text.md) records
+why.
+
+**What is not on the media document.** Where a photograph sits — its order in a gallery,
+the section it belongs to, a caption written for one particular page — belongs to the
+gallery that places it, never to the photograph
+([ADR-0002](adr/0002-media-identity-and-placement-boundary.md)). One photograph is one
+document, described once, reused everywhere.
+
+## Media and assets
+
+### Dataset visibility
+
+Stated twice, on purpose, and the two must agree: once in the Studio's schema
+configuration, because it decides what may be stored at all, and once as the deployment's
+`SANITY_DATASET_VISIBILITY`, because it decides whether the site may run without a
+credential.
+
+```ts
+schema: { types: defineSchemaTypes({ datasetVisibility: "private" }) }
+```
+
+Declaring `private` makes a build-scoped `SANITY_READ_TOKEN` required: locally that is the
+ordinary setting, while the reference pipeline maps its separate Azure build credential
+to that name. The build fails without it rather than the site quietly serving an empty
+version of itself.
+
+**Archive locations, and where they may live.** The media document can carry an *Archive
+location* — where your master lives, in your own archive. No query the site runs reads it,
+so it never reaches a page. But storing it is a decision about the dataset, not about the
+site:
+
+- **A public dataset is world-readable.** Anyone with the project id can query every
+  published document in it. The schema therefore **does not offer the field at all** when
+  it is built with `datasetVisibility: "public"` — there is no way to record an archive
+  path into a document anyone can read.
+- **A private dataset** restricts document reads to a credential, so the field exists and
+  `SANITY_READ_TOKEN` becomes required rather than optional: the site cannot read its own
+  content without one.
+
+Verify which one you have during provisioning rather than assuming — a dataset created as
+public and later filled with archive paths is a disclosure, not a misconfiguration to fix
+later.
+
+**Visibility never applies to assets.** Uploaded files are served from public CDN URLs in
+both cases. That is what the export rules below exist for.
+
+### Assets
+
+**Upload exported web copies, never camera masters.** Every asset in a dataset is served
+from a public URL on Sanity's asset CDN. There is no "upload it but keep it private" for
+the images this site reads, and bytes that have been delivered publicly cannot be made
+secret afterwards — they persist in visitor, intermediary, and provider caches.
+
+The site enforces the export policy rather than trusting it:
+
+| Rule | Why |
+| --- | --- |
+| At most **2048 pixels on the longest edge** | The widest candidate the image optimizer emits. A larger file could never be delivered in full, so its extra pixels are cost with no reader — and a camera master is several times this size, so uploading one fails instead of being published. |
+| **JPEG, PNG, WebP, or AVIF**, with a matching media type | Web delivery formats. A camera or print format is refused. |
+| The asset must belong to **this deployment's project and dataset** | The optimizer's allow-list is scoped to them, so a foreign URL could not be rendered anyway. |
+| Dimensions come from the file | Never typed in. The site reserves space at the photograph's true ratio and never crops it. |
+
+**Uploaded filenames are not kept.** Sanity stores the original filename on the asset
+document by default, and its own documentation warns that filenames carry sensitive
+information — a client's name, an internal working title, a shoot nobody has announced.
+The image field turns that off, so it applies to **new uploads only**: assets already in
+the dataset keep the filename they were stored with, and clearing those means editing or
+re-uploading them.
+
+The first two are checked twice. The Studio measures the uploaded file and **blocks the
+publish**, so a camera master never becomes part of a page; the site checks again when it
+reads the document, because the Studio is not the only thing that can write one — the
+HTTP API, an import, and a migration script all bypass it.
+
+**Blocking a publish does not un-upload a file.** An asset is addressable on the public
+CDN from the moment it finishes uploading, before anyone presses publish. So when the
+Studio refuses an image:
+
+1. Remove the file from the document.
+2. **Delete the uploaded asset itself** in the Studio's media browser, so the dataset
+   stops holding it.
+3. Treat the URL as having been public. If it was ever shared or fetched, assume copies
+   exist — a deletion removes the origin, not caches. This is why the rule is "export
+   first, upload second", not "upload and let the site sort it out".
+
+### Media identity
+
+**One photograph, one Media ID.** The identity is minted by hand and must be unique across
+the whole site. The Studio checks it while you type — against every other document, and
+against what this document was last published as, because renaming an identity breaks
+every reference already pointing at it. The site checks again when it reads: two documents
+claiming one identity means it refuses to serve either rather than guessing which was
+meant.
+
+**Identity survives reprocessing.** Re-exporting or re-uploading a photograph creates a
+new asset with a new id and a new delivery URL — that is how the site knows the bytes
+changed and caches can be replaced — while the Media ID stays put, so links, references,
+and later enquiries keep pointing at the same work.
 
 ## Drafts
 

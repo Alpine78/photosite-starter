@@ -48,6 +48,7 @@ Two conventions on top of the template:
 | [0005](0005-public-image-rendition-boundary.md) | AB#108 | Public image rendition boundary | Accepted |
 | [0006](0006-sanity-data-access-boundary.md) | AB#39 | Sanity data-access boundary and client transport | Proposed |
 | [0007](0007-proxy-request-path-boundary.md) | AB#72 | A Proxy request boundary carrying the requested path | Proposed |
+| [0008](0008-localized-authored-text.md) | AB#82 | Localized authored text in content schemas | Accepted |
 
 Expected further entries:
 

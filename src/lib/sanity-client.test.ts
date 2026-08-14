@@ -20,6 +20,7 @@ import type { SanityConfig } from "@/lib/sanity-config";
 const config: SanityConfig = {
   projectId: "zp7mbokg",
   dataset: "production",
+  datasetVisibility: "public",
   apiVersion: "v2026-06-24",
 };
 

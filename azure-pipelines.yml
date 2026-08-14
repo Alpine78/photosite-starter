@@ -201,12 +201,22 @@ stages:
 
           - script: |
               set -euo pipefail
+              build_read_token="${SANITY_BUILD_READ_TOKEN:-}"
+              case "$build_read_token" in
+                "" | '$('*) unset SANITY_READ_TOKEN ;;
+                *) export SANITY_READ_TOKEN="$build_read_token" ;;
+              esac
               vercel build --token="$VERCEL_TOKEN"
             displayName: "Build release candidate"
             env:
               VERCEL_ORG_ID: $(VERCEL_ORG_ID)
               VERCEL_PROJECT_ID: $(VERCEL_PROJECT_ID)
               VERCEL_TOKEN: $(VERCEL_TOKEN)
+              # A private dataset is read while authored pages are prerendered.
+              # This Azure-scoped read-only credential is deliberately distinct
+              # from Vercel's Sensitive SANITY_READ_TOKEN, which the deployed
+              # functions receive at runtime. It is never echoed or deployed.
+              SANITY_BUILD_READ_TOKEN: $(SANITY_BUILD_READ_TOKEN)
 
           # Uploads the output built in the step above: --prebuilt means the
           # provider does not rebuild remotely, so what serves the deployment is

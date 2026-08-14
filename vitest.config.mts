@@ -17,8 +17,13 @@ export default defineConfig({
   test: {
     environment: "node",
     // Application and domain tests live beside the code in src. The
-    // deployment scripts are not part of the application bundle, so they
-    // sit outside it and bring their own tests with them.
-    include: ["src/**/*.test.ts", "scripts/**/*.test.mts"],
+    // deployment scripts and the Studio schemas are not part of the
+    // application bundle, so they sit outside it and bring their own tests
+    // with them.
+    include: [
+      "src/**/*.test.ts",
+      "sanity/**/*.test.ts",
+      "scripts/**/*.test.mts",
+    ],
   },
 });

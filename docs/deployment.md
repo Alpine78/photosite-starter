@@ -136,6 +136,7 @@ the deployment stage rather than the quality gates.
 | `VERCEL_PROJECT_ID`               | no     | Project expected to own every deployment the pipeline handles.        |
 | `VERCEL_TOKEN`                    | yes    | Team-scoped deployment/API credential, rotated or revoked at handoff. |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | yes    | Lets the verification probe read the protected deployment.            |
+| `SANITY_BUILD_READ_TOKEN`         | yes    | Read-only Preview credential used only while a private dataset is prerendered; omit for a public dataset. |
 
 The GitHub service connection that supplies this repository to Azure Pipelines is also
 customer-controlled and remains the pipeline's source connection. Vercel authentication
@@ -168,7 +169,8 @@ time; the Production set is never fetched by the Preview job.
 | `GALLERY_CURSOR_SIGNING_KEY`                   | one stable Preview secret                            | a separate, stable Production secret     |
 | `SANITY_PROJECT_ID`, `SANITY_API_VERSION`      | same project, pinned version                         | same                                    |
 | `SANITY_DATASET`                               | a Preview dataset                                    | the production dataset                  |
-| `SANITY_READ_TOKEN`                            | a Preview-only token, if the dataset is private      | a separate Production token             |
+| `SANITY_DATASET_VISIBILITY`                    | that dataset's actual visibility                     | that dataset's actual visibility        |
+| `SANITY_READ_TOKEN`                            | a Preview runtime token in Vercel, required if private | a separate Production runtime token in Vercel, required if private |
 
 Two of these are safeguards rather than preferences. `SITE_CONTENT_SOURCE=mock` is
 **refused outright** in a production deployment, and so is `CONTACT_DELIVERY_ADAPTER=sink`:
@@ -194,37 +196,49 @@ by how secret it is:
 
 | | Type | Why |
 | --- | --- | --- |
-| Settings the **build** reads — every `SITE_*` value and `CONTACT_DELIVERY_ADAPTER` | plain | A Sensitive value never arrives. None of them is a credential either: the canonical base URL, locale, default social image and its dimensions are all published in the page's own HTML. |
-| Credentials only the **running** application reads — `RESEND_API_KEY`, `GALLERY_CURSOR_SIGNING_KEY` | Sensitive | Vercel injects the real value at request time, where the build's inability to read it costs nothing. ADR-0004 §5 requires delivery and CMS credentials to be environment-scoped sensitive variables. |
+| Settings the **build** reads — every `SITE_*` value, `CONTACT_DELIVERY_ADAPTER`, and — when `SITE_CONTENT_SOURCE=sanity` — `SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_DATASET_VISIBILITY`, and `SANITY_API_VERSION` | plain | A Sensitive value never arrives. None of them is a credential either: the canonical base URL, locale, default social image and its dimensions are all published in the page's own HTML, and the project id and dataset are visible in every image URL the site serves. |
+| A credential used only by the trusted build — `SANITY_BUILD_READ_TOKEN`, when the dataset is private | Azure secret variable | The pipeline maps it to `SANITY_READ_TOKEN` only for `vercel build`. It is distinct from the runtime token, never echoed, and never deployed as an application setting. |
+| Credentials only the **running** application reads — `RESEND_API_KEY`, `GALLERY_CURSOR_SIGNING_KEY`, and private-dataset `SANITY_READ_TOKEN` | Sensitive | Vercel injects the real value at request time, where the build's inability to retrieve it costs nothing. ADR-0004 §5 requires delivery and CMS credentials to be environment-scoped sensitive variables. |
 
 `SITE_DEPLOYMENT_STAGE` marked Sensitive is the failure worth recognising: the build
 rejects `[SENSITIVE]` as not one of `development`, `preview`, `production`. Loud, but
 with a confusing cause.
 
-**Never downgrade a credential to plain to get it through the build.** A build-time
-credential is an unresolved architectural question, not a variable type to change.
+`SANITY_PROJECT_ID` and `SANITY_DATASET` fail the same way for the same reason, and it is
+worth knowing why the build wants them at all: `next.config.ts` scopes the image
+optimizer's remote allow-list to this deployment's own asset path, so it needs both while
+the configuration is being read. `[SENSITIVE]` is not a value Sanity would accept, and the
+build says so rather than silently widening the allow-list.
 
-#### The open case: `SANITY_READ_TOKEN`
+**Never downgrade a credential to plain to get it through the build.** The private Sanity
+credential is split by phase instead.
 
-A private Sanity dataset needs a read token, and if the build prerenders authored content
-it needs that token *at build time* — where a Sensitive value is unavailable and a plain
-one contradicts ADR-0004 §5. Neither answer is acceptable, so the conflict is recorded
-rather than resolved here.
+#### Private Sanity credentials are split by phase
 
-It is not live today: every deployment runs on `SITE_CONTENT_SOURCE=mock`, so nothing
-reads Sanity during a build. It becomes real when the content schemas land (AB#80, AB#81,
-AB#82, AB#112, AB#114), and that work owns the decision. The options, none chosen:
+A private Sanity dataset may be read twice: while authored pages are prerendered and later
+by a running Function. One credential spanning both phases would either have to be made
+plain in Vercel or be unavailable to the prebuilt build, so the two phases deliberately
+do not share one:
 
-- **A public Preview dataset**, needing no read token at build time. The token stays a
-  Production-only, runtime-only concern.
-- **Split the credential by phase:** the build-time token comes from Azure DevOps' own
-  secret store into the build step, and the runtime token stays a Sensitive value in
-  Vercel. Two credentials, separately scoped and separately revocable.
-- **Move the build to Vercel**, where Sensitive values are available, giving up the
-  prebuilt model and the property that the deployed output was produced by a job whose
-  log this project keeps.
+- `SANITY_BUILD_READ_TOKEN` is a read-only secret in the customer-owned Azure variable
+  group. The release-candidate step maps it to the application's `SANITY_READ_TOKEN` name
+  only for `vercel build`; Next.js gives an existing process environment value precedence
+  over the pulled `.env` file. It is never emitted, uploaded as a Vercel setting, or made
+  available to a pull-request job.
+- `SANITY_READ_TOKEN` is a different read-only token stored as Sensitive in Vercel. The
+  running Preview or Production Functions receive it; `vercel pull` cannot reveal it to
+  the build.
 
-Whichever is chosen, `RESEND_API_KEY` stays Sensitive: it is read at request time only.
+The build configuration requires every non-secret Sanity setting whenever the selected
+content source is `sanity`. If the declared visibility is `private`, it also refuses a
+missing credential, Vercel's `[SENSITIVE]` placeholder, and an unresolved pipeline macro.
+The failure therefore happens before a release candidate can be produced, even while no
+route happens to import a Sanity adapter. A public dataset needs neither token.
+
+The alternatives were a permanently public Preview dataset or moving the build to
+Vercel. The first would make archive locations impossible in Preview, and the second
+would abandon the prebuilt artifact and its Azure build log. Phase-scoped credentials
+preserve both boundaries at the cost of provisioning and rotating two read-only tokens.
 
 ### The gallery cursor signing key
 
