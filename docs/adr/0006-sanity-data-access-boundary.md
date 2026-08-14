@@ -310,8 +310,9 @@ the adapters above it do not change.
 - [x] AB#82 wrote the first adapter behind this boundary (`src/lib/sanity-media.ts`),
       validating the `unknown` result it receives and projecting an allow-list.
 - [x] AB#112 wrote the category adapter (`src/lib/sanity-content-tree.ts`), projecting
-      published `category` documents into `content-tree.ts`'s own input types and
-      leaving structural validation to that module's existing backstop.
+      published `category` documents into `content-tree.ts`'s own input types, rejecting
+      malformed raw values without coercion, and retaining that module's structural
+      validation as the backstop behind Studio's publication guard.
 - [ ] AB#80 / AB#81 / AB#114: write the remaining adapters the same way; each owns
       validating the `unknown` result it receives.
 - [ ] AB#116: run `probeSanityConnectivity` against the Preview deployment's own project

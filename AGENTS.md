@@ -310,15 +310,17 @@ per-language publication lifecycle to preserve the way a gallery or article will
 category missing an entry in the requested language is simply absent from that language's
 tree rather than a defect. `categoryId` is checked in the Studio the same way `mediaId`
 is — syntax, dataset-wide uniqueness with the same `raw`-perspective query, and
-immutability after first publish — and a category naming itself as its own parent is
-rejected there too, because that is the one structural defect Studio validation can catch
-before a document is even saved. Everything past one hop — an indirect cycle, an orphaned
-parent, a sibling-slug collision, the maximum authored depth — is deliberately left to
-`content-tree.ts`'s own validation, which ADR-0003 decision 4 already names the tree's
-authoritative backstop: the adapter resolves a `parent` reference against every category
-id it fetched rather than trusting a GROQ dereference, so a reference that cannot be
-resolved is passed through unchanged and reported as a missing parent instead of silently
-becoming a top-level category. Canonical and secondary category placement stays off this
+immutability after first publish. Its document-level validation reads the published tree,
+overlays the document being edited, and blocks self-parenting, indirect cycles, orphaned
+parents, sibling-slug collisions, and excess depth before the standard Publish action.
+`content-tree.ts` remains ADR-0003 decision 4's authoritative backstop because API writes
+bypass Studio validation: the adapter resolves a `parent` reference against every category
+id it fetched rather than trusting a GROQ dereference, so an unresolved reference is
+reported as a missing parent instead of silently becoming a top-level category. Published
+parents and existing localized slugs are immutable in the ordinary form; a customer
+Studio's warned URL-change workflow must feed before/after snapshots through
+`diffPublicCategorySnapshots`, show the affected categories and content, and persist the
+accepted path history before publishing. Canonical and secondary category placement stays off this
 schema entirely — ADR-0003 decision 5 makes it a property of the gallery or article being
 placed, not of the category receiving it — so `readPublicContentTree` accepts placements as
 plain input from whatever adapter reads that content once AB#113 and AB#81 exist, and

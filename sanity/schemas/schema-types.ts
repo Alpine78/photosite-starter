@@ -117,4 +117,6 @@ export type SchemaTypeDefinition = {
   readonly description?: string;
   readonly fields: readonly SchemaFieldDefinition[];
   readonly preview?: SchemaPreview;
+  /** Whole-document validation, used when correctness spans several records. */
+  readonly validation?: SchemaValidation;
 };

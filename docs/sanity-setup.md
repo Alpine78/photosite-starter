@@ -139,12 +139,21 @@ label and path segment — the same fields [`content-tree.ts`](../src/lib/conten
 `ContentCategoryInput` needs, and nothing else. It never lists the galleries or articles
 placed in it: ADR-0003 decision 5 makes canonical and secondary category placement a
 property of the content being placed, so that reference lives on the gallery or article
-document once AB#113 and AB#81 add it, not on the category. Structural rules a Studio rule
-cannot check in time — an indirect cycle, an orphaned parent, a sibling-slug collision —
-are deliberately left to `content-tree.ts`'s own validation, which
-[ADR-0003](adr/0003-public-content-tree-and-url-structure.md) decision 4 names the
-authoritative backstop; the Studio only rejects a category naming itself as its own
-parent, which it can check without the rest of the tree.
+document once AB#113 and AB#81 add it, not on the category. Before a standard Publish,
+document-level validation reads the published category set, overlays the document being
+edited, and rejects self-parenting, indirect cycles, orphaned parents, excessive depth,
+and sibling-slug collisions. `content-tree.ts` repeats those checks as
+[ADR-0003](adr/0003-public-content-tree-and-url-structure.md) decision 4's authoritative
+backstop because an API import can bypass Studio validation.
+
+Published parent references and existing localized slugs cannot be changed in the
+ordinary form. Such a change needs the customer Studio's warned URL-change workflow: it
+must capture the before/after snapshots, call `diffPublicCategorySnapshots`, show every
+affected descendant category and canonical content page, persist the accepted previous
+paths, and only then publish. This repository supplies the guarded schema and the pure
+diff seam; it does not contain the customer's Studio application or pretend that typing
+into the ordinary field records history. Adding a category's first path in another
+language is allowed because it creates no previous URL to retain.
 
 **Authored text is language-keyed.** A field a visitor reads is an array of
 `{ language, value }` entries, keyed by language subtag — never fields named after your

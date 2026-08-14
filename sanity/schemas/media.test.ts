@@ -6,8 +6,8 @@ import {
   defineMediaType,
   MAX_PUBLIC_DELIVERY_DIMENSION,
   MEDIA_TYPE_NAME,
-  publishedIdOf,
 } from "./media";
+import { publishedIdOf } from "./validation";
 import type {
   SchemaFieldDefinition,
   SchemaTypeDefinition,

@@ -34,25 +34,19 @@
  * accepts placements as project-owned `ContentPlacementInput` values from
  * whatever adapter reads them.
  *
- * **Cycle, orphan, max-depth, and sibling-slug-collision rejection.** All four
- * are already implemented and exhaustively tested in `content-tree.ts`, which
- * ADR-0003 decision 4 names the *authoritative* backstop precisely because a
- * future CMS is only asked to *prevent publishing* these states, not to own
- * detecting them. Reimplementing a graph walk in Studio validation would be a
- * second, independently maintained copy of that logic. What *is* checked here
- * is the one thing only Studio validation can catch before a document is even
- * saved, and that a read-time backstop catches too late to be useful
- * editorially: a category naming itself as its own parent.
+ * **Cycle, orphan, max-depth, and sibling-slug-collision rejection.** The
+ * document-level validation reads the published tree, overlays the category
+ * currently being edited, and blocks all four before a standard Studio
+ * publish. `content-tree.ts` remains the authoritative backstop because an API
+ * import bypasses Studio validation. The parent field also reports direct
+ * self-parenting immediately, before the full-tree query completes.
  *
  * **Publication state.** Native Sanity draft/publish, exactly as `media.ts`
  * reasons: `sanity-client.ts` asks only for the published perspective, so an
  * unpublished category is not filtered out, it is not in the data at all.
  */
 
-import {
-  clientOf,
-  publishedIdOf,
-} from "./media";
+import { validateCategoryPublication } from "./category-validation";
 import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
 import { LOCALIZED_SLUG_TYPE_NAME } from "./localized-slug";
 import type {
@@ -60,6 +54,7 @@ import type {
   SchemaValidationContext,
   SchemaValidationResult,
 } from "./schema-types";
+import { publishedIdOf, validationClientOf } from "./validation";
 
 export const CATEGORY_TYPE_NAME = "category";
 
@@ -89,7 +84,7 @@ async function validateCategoryIdentity(
   if (typeof documentId !== "string") return true;
 
   const published = publishedIdOf(documentId);
-  const { taken, publishedCategoryId } = await clientOf(context).fetch<{
+  const { taken, publishedCategoryId } = await validationClientOf(context).fetch<{
     taken: boolean;
     publishedCategoryId: string | null;
   }>(
@@ -145,6 +140,9 @@ export const categoryType: SchemaTypeDefinition = {
   type: "document",
   description:
     "One node in the public content tree. A gallery or article places itself here; this document never lists its own content.",
+  validation: (rule) =>
+    rule.custom<Readonly<Record<string, unknown>>>((value, context) =>
+      validateCategoryPublication(value, context, CATEGORY_TYPE_NAME)),
   fields: [
     {
       name: "categoryId",
@@ -160,7 +158,7 @@ export const categoryType: SchemaTypeDefinition = {
       type: "reference",
       to: [{ type: CATEGORY_TYPE_NAME }],
       description:
-        "Leave empty for a top-level category. Every other category has exactly one parent.",
+        "Leave empty for a top-level category. Every other category has exactly one parent. A published parent cannot be changed in the ordinary editor; a warned URL-change workflow must preview descendants and record redirect history.",
       validation: (rule) => rule.custom(rejectsSelfParent),
     },
     {
@@ -169,7 +167,7 @@ export const categoryType: SchemaTypeDefinition = {
       type: "array",
       of: [{ type: LOCALIZED_SLUG_TYPE_NAME }],
       description:
-        "One lowercase, hyphenated path segment per published language. Unique among this category's siblings in each language; stable once published (ADR-0003 decision 7) — change it only through a deliberate URL-change action.",
+        "One lowercase, hyphenated path segment per published language. Unique among this category's siblings in each language. Published entries cannot be edited or removed in the ordinary editor; adding the first entry for another language is allowed.",
       validation: (rule) => uniqueLanguages(rule.required().min(1)),
     },
     {
@@ -186,7 +184,7 @@ export const categoryType: SchemaTypeDefinition = {
       title: "Order",
       type: "number",
       description:
-        "Where this category sits among its siblings, lowest first. Ties are broken by category id, so an unset or repeated order is still deterministic — but not necessarily in the order you intended.",
+        "Where this category sits among its siblings, lowest first. Ties are broken by category id; the value is still required so an omitted order cannot look intentional.",
       validation: (rule) => rule.required(),
     },
   ],

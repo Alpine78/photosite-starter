@@ -55,16 +55,16 @@ import "server-only";
 
 import {
   buildContentTree,
+  diffCanonicalPaths,
+  type CanonicalPathDiff,
   type ContentCategoryInput,
   type ContentPlacementInput,
   type ContentTree,
 } from "@/lib/content-tree";
 import {
   isRecord,
-  readString,
-  selectLocalizedText,
   toLanguageSubtag,
-} from "@/lib/sanity-media";
+} from "@/lib/sanity-values";
 import { getSanityClient, type SanityClient } from "@/lib/sanity-client";
 
 /**
@@ -139,6 +139,65 @@ export type RawPublicCategoryDocument = {
  * an import, or a migration script, and all three can write a document.
  */
 const CATEGORY_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const LANGUAGE_SUBTAG = /^[a-z]{2,3}$/;
+
+/** Structural strings are validated as stored; this boundary never repairs them. */
+function readStructuralString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 && !/\s/.test(value)
+    ? value
+    : undefined;
+}
+
+function readParentReference(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  const reference = readStructuralString(value);
+  if (reference !== undefined) return reference;
+  throw new SanityContentTreeError(
+    "malformed-result",
+    "a category document has a malformed parent reference",
+  );
+}
+
+/**
+ * Reads one language-keyed structural or authored field without normalizing
+ * it. Malformed entries and duplicate language keys are broken store data.
+ */
+function readCategoryLocalizedValues(
+  entries: unknown,
+  field: "slug" | "label",
+): ReadonlyMap<string, string> {
+  if (!Array.isArray(entries)) {
+    throw new SanityContentTreeError(
+      "malformed-result",
+      `a category document has a ${field} value that is not a language-keyed list`,
+    );
+  }
+
+  const values = new Map<string, string>();
+  for (const entry of entries) {
+    if (
+      !isRecord(entry) ||
+      typeof entry.language !== "string" ||
+      !LANGUAGE_SUBTAG.test(entry.language) ||
+      typeof entry.value !== "string"
+    ) {
+      throw new SanityContentTreeError(
+        "malformed-result",
+        `a category document has a malformed ${field} language entry`,
+      );
+    }
+
+    if (values.has(entry.language)) {
+      throw new SanityContentTreeError(
+        "malformed-result",
+        `a category document has more than one ${field} entry for language "${entry.language}"`,
+      );
+    }
+    values.set(entry.language, entry.value);
+  }
+
+  return values;
+}
 
 /**
  * Every fetched document's own id, mapped to its `categoryId` — used to
@@ -151,9 +210,15 @@ function indexCategoryIds(
 ): ReadonlyMap<string, string> {
   const index = new Map<string, string>();
   for (const document of documents) {
-    const id = readString(document._id);
-    const categoryId = readString(document.categoryId);
-    if (id !== undefined && categoryId !== undefined && CATEGORY_ID.test(categoryId)) {
+    const id = readStructuralString(document._id);
+    if (id === undefined) {
+      throw new SanityContentTreeError(
+        "malformed-result",
+        "a category document has no usable Sanity document id",
+      );
+    }
+    const categoryId = readStructuralString(document.categoryId);
+    if (categoryId !== undefined && CATEGORY_ID.test(categoryId)) {
       index.set(id, categoryId);
     }
   }
@@ -173,7 +238,7 @@ export function projectPublicCategoryInput(
   language: string,
   categoryIdsById: ReadonlyMap<string, string>,
 ): ContentCategoryInput | undefined {
-  const categoryId = readString(document.categoryId);
+  const categoryId = readStructuralString(document.categoryId);
   if (categoryId === undefined || !CATEGORY_ID.test(categoryId)) {
     throw new SanityContentTreeError(
       "incomplete-document",
@@ -182,14 +247,22 @@ export function projectPublicCategoryInput(
   }
 
   const resolvedLanguage = toLanguageSubtag(language);
-  const slug = selectLocalizedText(document.slug, resolvedLanguage);
-  const label = selectLocalizedText(document.label, resolvedLanguage);
+  const slugs = readCategoryLocalizedValues(document.slug, "slug");
+  const labels = readCategoryLocalizedValues(document.label, "label");
+  if (![...slugs.keys()].some((authoredLanguage) => labels.has(authoredLanguage))) {
+    throw new SanityContentTreeError(
+      "incomplete-document",
+      `category "${categoryId}" has no language with both a slug and a label`,
+    );
+  }
+  const slug = slugs.get(resolvedLanguage);
+  const label = labels.get(resolvedLanguage);
   if (slug === undefined || label === undefined) {
     return undefined;
   }
 
-  const parentRef = readString(document.parentRef);
-  const parentId = parentRef === undefined
+  const parentRef = readParentReference(document.parentRef);
+  const parentId = parentRef === null
     ? null
     : (categoryIdsById.get(parentRef) ?? parentRef);
 
@@ -198,10 +271,10 @@ export function projectPublicCategoryInput(
     parentId,
     slug,
     label,
-    // `content-tree.ts` rejects a non-finite order as `invalid-category-order`
-    // rather than this module guessing a default; `Number(undefined)` is
-    // `NaN`, which reaches that check unchanged.
-    order: Number(document.order),
+    // `content-tree.ts` owns the finite-number diagnostic. Preserve actual
+    // numbers and map every other JSON type to its rejected representation;
+    // coercion would turn null, false, or an empty string into an authored 0.
+    order: typeof document.order === "number" ? document.order : Number.NaN,
   };
 }
 
@@ -239,6 +312,44 @@ export function projectPublicCategoryInputs(
     if (input !== undefined) inputs.push(input);
   }
   return inputs;
+}
+
+export type PublicCategorySnapshotDiffOptions = {
+  readonly language: string;
+  readonly previousDocuments: readonly RawPublicCategoryDocument[];
+  readonly currentDocuments: readonly RawPublicCategoryDocument[];
+  readonly previousPlacements: readonly ContentPlacementInput[];
+  readonly currentPlacements: readonly ContentPlacementInput[];
+};
+
+/**
+ * Resolves the URL impact of a confirmed Sanity category move or rename.
+ *
+ * The Studio schema blocks direct edits to published parent and slug fields.
+ * A project-owned URL-change workflow supplies the before/after snapshots to
+ * this seam, shows this complete category-and-content diff to the author, and
+ * persists each accepted previous path in the redirect history. Keeping the
+ * operation here ensures the workflow uses the same projection and domain
+ * validation as a public read rather than reconstructing paths from CMS data.
+ */
+export function diffPublicCategorySnapshots(
+  options: PublicCategorySnapshotDiffOptions,
+): CanonicalPathDiff {
+  const previous = buildContentTree({
+    categories: projectPublicCategoryInputs(
+      options.previousDocuments,
+      options.language,
+    ),
+    placements: options.previousPlacements,
+  });
+  const current = buildContentTree({
+    categories: projectPublicCategoryInputs(
+      options.currentDocuments,
+      options.language,
+    ),
+    placements: options.currentPlacements,
+  });
+  return diffCanonicalPaths(previous, current);
 }
 
 export type PublicCategoryReadOptions = {

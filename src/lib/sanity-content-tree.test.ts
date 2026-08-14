@@ -5,7 +5,6 @@ import { LOCALIZED_SLUG_PATTERN } from "../../sanity/schemas/localized-slug";
 import {
   buildContentTree,
   ContentTreeValidationError,
-  diffCanonicalPaths,
   getCanonicalContentPath,
   getPublicChildCategories,
   SLUG_PATTERN,
@@ -16,6 +15,7 @@ import {
   CATEGORY_DOCUMENT_TYPE,
   CATEGORY_FILTER,
   CATEGORY_PROJECTION,
+  diffPublicCategorySnapshots,
   PROJECTED_CATEGORY_FIELDS,
   projectPublicCategoryInput,
   projectPublicCategoryInputs,
@@ -125,8 +125,31 @@ describe("projecting one document", () => {
     ).toBe("missing");
   });
 
+  it.each([" ", 42, false, {}])(
+    "rejects the malformed parent reference %j instead of making it top-level",
+    (parentRef) => {
+      const document = docOf({
+        _id: "doc-coastal",
+        categoryId: "cat-coastal",
+        parentRef,
+      });
+
+      expect(() => projectPublicCategoryInput(document, "en", new Map())).toThrow(
+        SanityContentTreeError,
+      );
+    },
+  );
+
   it("throws for a category with no usable categoryId", () => {
     const document = docOf({ _id: "doc-x", categoryId: "" });
+
+    expect(() => projectPublicCategoryInput(document, "en", new Map())).toThrow(
+      SanityContentTreeError,
+    );
+  });
+
+  it("does not trim a malformed structural identity into a usable one", () => {
+    const document = docOf({ _id: "doc-x", categoryId: " cat-x " });
 
     expect(() => projectPublicCategoryInput(document, "en", new Map())).toThrow(
       SanityContentTreeError,
@@ -164,9 +187,76 @@ describe("projecting one document", () => {
       Number.isFinite(projectPublicCategoryInput(document, "en", new Map())?.order),
     ).toBe(false);
   });
+
+  it.each([null, "", "2", false, []])(
+    "does not coerce the non-number order %j into an authored number",
+    (order) => {
+      const document = docOf({ _id: "doc-x", categoryId: "cat-x", order });
+
+      expect(
+        Number.isFinite(projectPublicCategoryInput(document, "en", new Map())?.order),
+      ).toBe(false);
+    },
+  );
+
+  it("leaves slug whitespace for the domain to reject instead of repairing it", () => {
+    const document = docOf({
+      _id: "doc-x",
+      categoryId: "cat-x",
+      slug: label(" coastal "),
+    });
+
+    expect(() =>
+      buildContentTree({
+        categories: [
+          projectPublicCategoryInput(document, "en", new Map()) as ContentCategoryInput,
+        ],
+        placements: [],
+      }),
+    ).toThrow(ContentTreeValidationError);
+  });
+
+  it.each([
+    { slug: "not-an-array" },
+    { slug: [{ language: "en", value: "one" }, { language: "en", value: "two" }] },
+    { label: [{ language: "en-US", value: "English" }] },
+    { label: [{ language: "en", value: 42 }] },
+  ])("rejects a malformed localized category value: %j", (overrides) => {
+    const document = docOf({
+      _id: "doc-x",
+      categoryId: "cat-x",
+      ...overrides,
+    });
+
+    expect(() => projectPublicCategoryInput(document, "en", new Map())).toThrow(
+      SanityContentTreeError,
+    );
+  });
+
+  it("rejects a document that is complete in no language", () => {
+    const document = docOf({
+      _id: "doc-x",
+      categoryId: "cat-x",
+      slug: label("coast", "en"),
+      label: label("Rannikko", "fi"),
+    });
+
+    expect(() => projectPublicCategoryInput(document, "en", new Map())).toThrow(
+      SanityContentTreeError,
+    );
+  });
 });
 
 describe("projecting a full fetch", () => {
+  it("rejects a fetched document without its projected Sanity id", () => {
+    const document = docOf({ _id: "doc-x", categoryId: "cat-x" });
+    const withoutId = { ...document, _id: undefined };
+
+    expect(() => projectPublicCategoryInputs([withoutId], "en")).toThrow(
+      SanityContentTreeError,
+    );
+  });
+
   it("resolves a five-level chain to the maximum authored depth", () => {
     const documents: RawPublicCategoryDocument[] = [
       docOf({ _id: "d1", categoryId: "cat-travel", order: 0 }),
@@ -340,16 +430,13 @@ describe("moves and renames", () => {
       },
     ];
 
-    const beforeTree = buildContentTree({
-      categories: projectPublicCategoryInputs(before, "en"),
-      placements,
+    const diff = diffPublicCategorySnapshots({
+      language: "en",
+      previousDocuments: before,
+      currentDocuments: after,
+      previousPlacements: placements,
+      currentPlacements: placements,
     });
-    const afterTree = buildContentTree({
-      categories: projectPublicCategoryInputs(after, "en"),
-      placements,
-    });
-
-    const diff = diffCanonicalPaths(beforeTree, afterTree);
 
     expect(diff.conflicts).toEqual([]);
     expect(diff.redirects).toEqual(

@@ -59,10 +59,10 @@
 import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
 import type {
   SchemaTypeDefinition,
-  SchemaValidationClient,
   SchemaValidationContext,
   SchemaValidationResult,
 } from "./schema-types";
+import { publishedIdOf, validationClientOf } from "./validation";
 
 export const MEDIA_TYPE_NAME = "media";
 
@@ -115,8 +115,6 @@ export const PUBLIC_DELIVERY_FORMATS: Readonly<Record<string, string>> = {
  * `categoryId` is the first — pins the same verified behavior rather than a
  * second, independently drifting date.
  */
-export const STUDIO_VALIDATION_API_VERSION = "2026-08-13";
-
 /**
  * `mediaId` is minted by hand and never derived from a filename, an asset id,
  * or a content hash — all three change when a photograph is re-exported, which
@@ -133,20 +131,6 @@ const MEDIA_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  * compare on this rather than on `_id`, or a document would collide with
  * itself the moment anyone edited or scheduled it.
  */
-export function publishedIdOf(id: string): string {
-  if (id.startsWith("drafts.")) return id.slice("drafts.".length);
-
-  if (id.startsWith("versions.")) {
-    const withoutPrefix = id.slice("versions.".length);
-    const separator = withoutPrefix.indexOf(".");
-    return separator === -1
-      ? withoutPrefix
-      : withoutPrefix.slice(separator + 1);
-  }
-
-  return id;
-}
-
 /**
  * The client a validation rule asks its questions with.
  *
@@ -160,14 +144,6 @@ export function publishedIdOf(id: string): string {
  * Exported for reuse by another document's own identity check: the reasoning
  * is about Studio validation in general, not about photographs.
  */
-export function clientOf(
-  context: SchemaValidationContext,
-): SchemaValidationClient {
-  return context
-    .getClient({ apiVersion: STUDIO_VALIDATION_API_VERSION })
-    .withConfig({ perspective: "raw", useCdn: false });
-}
-
 /**
  * Syntax, uniqueness, and immutability, in one round trip.
  *
@@ -193,7 +169,7 @@ async function validateMediaIdentity(
   if (typeof documentId !== "string") return true;
 
   const published = publishedIdOf(documentId);
-  const { taken, publishedMediaId } = await clientOf(context).fetch<{
+  const { taken, publishedMediaId } = await validationClientOf(context).fetch<{
     taken: boolean;
     publishedMediaId: string | null;
   }>(
@@ -248,7 +224,7 @@ async function validatePublicDerivative(
   const reference = value?.asset?._ref;
   if (typeof reference !== "string") return "An image media needs an uploaded image";
 
-  const asset = await clientOf(context).fetch<UploadedAsset | null>(
+  const asset = await validationClientOf(context).fetch<UploadedAsset | null>(
     `*[_id == $id][0]{
       "width": metadata.dimensions.width,
       "height": metadata.dimensions.height,

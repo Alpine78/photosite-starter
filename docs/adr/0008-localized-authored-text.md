@@ -254,8 +254,9 @@ translation is missing — the answer is Option D over this data shape, not Opti
 3. [ ] AB#80, AB#81, and AB#113 reuse `localizedText` — or, for a slug or another
        format-constrained field, `localizedSlug` or a validated sibling type following the
        same amendment — rather than inventing an unrelated shape.
-4. [ ] When a second boundary resolves localized text, move the resolution helper to one
-       shared module instead of copying it.
+4. [x] AB#112 moved the resolution and raw-value helpers into
+       `src/lib/sanity-values.ts` when the category adapter became the second consumer;
+       neither provider adapter imports the other.
 
 ## What this ADR did not establish
 

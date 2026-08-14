@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { categoryType, CATEGORY_TYPE_NAME } from "./category";
+import {
+  CATEGORY_VALIDATION_QUERY,
+  validateProspectiveCategoryTree,
+} from "./category-validation";
 import { defineSchemaTypes } from "./index";
 import { localizedSlugType } from "./localized-slug";
 import { localizedTextType } from "./localized-text";
@@ -98,6 +102,45 @@ const fieldNames = (type: SchemaTypeDefinition) =>
 
 const UNIQUE_AND_UNCHANGED = { taken: false, publishedCategoryId: null };
 
+const localized = (value: string, language = "en") => [{ language, value }];
+
+function publishedCategory(options: {
+  id: string;
+  categoryId?: string;
+  parentRef?: string;
+  slug?: string;
+  order?: number;
+}) {
+  return {
+    _id: options.id,
+    categoryId: options.categoryId ?? `cat-${options.id}`,
+    parentRef: options.parentRef ?? null,
+    slug: localized(options.slug ?? options.id),
+    label: localized(options.id),
+    order: options.order ?? 0,
+  };
+}
+
+function editedCategory(options: {
+  id: string;
+  categoryId?: string;
+  parentRef?: string;
+  slug?: string;
+  order?: number;
+}) {
+  return {
+    _id: `drafts.${options.id}`,
+    _type: CATEGORY_TYPE_NAME,
+    categoryId: options.categoryId ?? `cat-${options.id}`,
+    ...(options.parentRef === undefined
+      ? {}
+      : { parent: { _type: "reference", _ref: options.parentRef } }),
+    slug: localized(options.slug ?? options.id),
+    label: localized(options.id),
+    order: options.order ?? 0,
+  };
+}
+
 describe("the category document", () => {
   it("is registered with the object types it uses", () => {
     const types = defineSchemaTypes({ datasetVisibility: "public" });
@@ -131,6 +174,147 @@ describe("the category document", () => {
     expect(fieldOf(categoryType, "parent").validation).toBeDefined();
     // `required` is asserted indirectly: the self-parent check below treats
     // `undefined` as valid, which is what an unrequired reference allows.
+  });
+});
+
+describe("publication validation", () => {
+  it("checks the published tree with the current draft overlaid", async () => {
+    const current = editedCategory({ id: "coastal", parentRef: "landscape" });
+    const { run, queries, clientSettings } = inspect(categoryType.validation, {
+      answer: [publishedCategory({ id: "landscape" })],
+    });
+
+    expect(await run(current, current)).toEqual([true]);
+    expect(queries).toEqual([
+      { query: CATEGORY_VALIDATION_QUERY, params: { type: CATEGORY_TYPE_NAME } },
+    ]);
+    expect(clientSettings).toEqual([{ perspective: "published", useCdn: false }]);
+  });
+
+  it("blocks an indirect cycle before publish", () => {
+    const current = editedCategory({ id: "a", parentRef: "b" });
+    const published = [publishedCategory({ id: "b", parentRef: "a" })];
+
+    expect(validateProspectiveCategoryTree(published, current)).toContain("cycle");
+  });
+
+  it("blocks an orphan before publish", () => {
+    const current = editedCategory({ id: "coastal", parentRef: "missing" });
+
+    expect(validateProspectiveCategoryTree([], current)).toContain("missing");
+  });
+
+  it("blocks a category that would be published in no language", () => {
+    const current = {
+      ...editedCategory({ id: "coastal" }),
+      slug: localized("coast", "en"),
+      label: localized("Rannikko", "fi"),
+    };
+
+    expect(validateProspectiveCategoryTree([], current)).toContain(
+      "both a path segment and a display label",
+    );
+  });
+
+  it("blocks a sibling slug collision before publish", () => {
+    const current = editedCategory({ id: "second", slug: "shared" });
+    const published = [publishedCategory({ id: "first", slug: "shared" })];
+
+    expect(validateProspectiveCategoryTree(published, current)).toContain(
+      "same en path segment",
+    );
+  });
+
+  it("blocks a sixth authored level before publish", () => {
+    const published = [
+      publishedCategory({ id: "one" }),
+      publishedCategory({ id: "two", parentRef: "one" }),
+      publishedCategory({ id: "three", parentRef: "two" }),
+      publishedCategory({ id: "four", parentRef: "three" }),
+      publishedCategory({ id: "five", parentRef: "four" }),
+    ];
+    const current = editedCategory({ id: "six", parentRef: "five" });
+
+    expect(validateProspectiveCategoryTree(published, current)).toContain(
+      "maximum 5-level depth",
+    );
+  });
+
+  it("blocks ordinary edits to a published path segment", () => {
+    const published = [publishedCategory({ id: "coastal", slug: "old-coast" })];
+    const current = editedCategory({ id: "coastal", slug: "new-coast" });
+
+    expect(validateProspectiveCategoryTree(published, current)).toContain(
+      "URL-change workflow",
+    );
+  });
+
+  it("blocks ordinary moves of a published category", () => {
+    const published = [
+      publishedCategory({ id: "landscape" }),
+      publishedCategory({ id: "coastal" }),
+    ];
+    const current = editedCategory({ id: "coastal", parentRef: "landscape" });
+
+    expect(validateProspectiveCategoryTree(published, current)).toContain(
+      "URL-change workflow",
+    );
+  });
+
+  it("allows labels and order to change without moving a published URL", () => {
+    const published = [publishedCategory({ id: "coastal", order: 1 })];
+    const current = {
+      ...editedCategory({ id: "coastal", order: 9 }),
+      label: localized("A new display label"),
+    };
+
+    expect(validateProspectiveCategoryTree(published, current)).toBe(true);
+  });
+
+  it("allows a published category to gain its first path in another language", () => {
+    const published = [publishedCategory({ id: "coastal", slug: "coast" })];
+    const current = {
+      ...editedCategory({ id: "coastal", slug: "coast" }),
+      slug: [...localized("coast"), ...localized("rannikko", "fi")],
+      label: [...localized("Coast"), ...localized("Rannikko", "fi")],
+    };
+
+    expect(validateProspectiveCategoryTree(published, current)).toBe(true);
+  });
+
+  it("blocks removing the label that makes a published locale route exist", () => {
+    const published = [
+      {
+        ...publishedCategory({ id: "coastal", slug: "coast" }),
+        slug: [...localized("coast"), ...localized("rannikko", "fi")],
+        label: [...localized("Coast"), ...localized("Rannikko", "fi")],
+      },
+    ];
+    const current = {
+      ...editedCategory({ id: "coastal", slug: "coast" }),
+      slug: [...localized("coast"), ...localized("rannikko", "fi")],
+      label: localized("Rannikko", "fi"),
+    };
+
+    expect(validateProspectiveCategoryTree(published, current)).toContain(
+      "URL-change workflow",
+    );
+  });
+
+  it("allows changing a slug that never had a matching published label", () => {
+    const published = [
+      {
+        ...publishedCategory({ id: "coastal", slug: "coast" }),
+        slug: [...localized("coast"), ...localized("old-shore", "fi")],
+      },
+    ];
+    const current = {
+      ...editedCategory({ id: "coastal", slug: "coast" }),
+      slug: [...localized("coast"), ...localized("rannikko", "fi")],
+      label: [...localized("Coast"), ...localized("Rannikko", "fi")],
+    };
+
+    expect(validateProspectiveCategoryTree(published, current)).toBe(true);
   });
 });
 
