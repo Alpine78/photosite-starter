@@ -3,9 +3,9 @@
 How a deployment connects to its content store, who owns that store, and what the site
 does when the store cannot be reached.
 
-This covers the connection and the shared media and category schemas. The remaining
-schemas, caching and webhook revalidation, and content seeding are separate work items
-(AB#80, AB#81, AB#83, AB#113, AB#114); until they land, every deployment runs on
+This covers the connection and the site settings, home page, shared media, and category
+schemas. The remaining schemas, caching and webhook revalidation, and content seeding are
+separate work items (AB#81, AB#83, AB#113, AB#114); until they land, every deployment runs on
 `SITE_CONTENT_SOURCE=mock`.
 
 ## Ownership
@@ -122,9 +122,26 @@ workspace dependency does not.
 world-readable, because that decides which fields exist at all — see *Dataset visibility*
 below.
 
-So far two document types exist: **media**, the shared photograph, and **category**, one
-node in the public content tree. Galleries, articles, services, and settings arrive with
-their own stories.
+Four document types exist: **siteSettings**, the deployment's brand, contact details, and
+static navigation; **homePage**, the hero, introduction, and section links; **media**, the
+shared photograph; and **category**, one node in the public content tree. Galleries,
+articles, and services arrive with their own stories.
+
+**Settings and home links name intent, not generated paths.** A link stores either an
+application-owned root-relative static route, the generated story root, or the featured
+gallery selected once by `featuredGalleryId`. The story namespace comes from deployment
+route configuration, and the gallery route comes from its content identity and the public
+tree. No category list or category path is copied into settings. If that gallery has no
+published canonical route, the home action and section are omitted rather than pointed at
+a 404; malformed or duplicated navigation is rejected.
+
+Both settings and the home page are published singletons. A missing document and two
+published documents are different classified content defects, and both raise instead of
+falling back to fixtures. Their adapters validate the raw result, resolve language-keyed
+text for the requested language, and return the existing project-owned `SiteSettings` and
+`HomeContent` contracts. The home hero dereferences the shared media document through the
+same public-media projection as every other image, so its stored asset, intrinsic
+dimensions, and delivery policy cannot fork from the media boundary.
 
 **The Studio validates against the dataset.** Several rules query it while an editor
 works, which is the only place they can run in time: an uploaded image is measured and its

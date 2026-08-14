@@ -313,8 +313,10 @@ the adapters above it do not change.
       published `category` documents into `content-tree.ts`'s own input types, rejecting
       malformed raw values without coercion, and retaining that module's structural
       validation as the backstop behind Studio's publication guard.
-- [ ] AB#80 / AB#81 / AB#114: write the remaining adapters the same way; each owns
-      validating the `unknown` result it receives.
+- [x] AB#80 wrote the settings and home-page singleton adapters the same way; each owns
+      validating the `unknown` result it receives and returns an existing project contract.
+- [ ] AB#81 / AB#114: write the remaining adapters the same way; each owns validating the
+      `unknown` result it receives.
 - [ ] AB#116: run `probeSanityConnectivity` against the Preview deployment's own project
       as part of provisioning verification.
 - [ ] Revisit this record if a story needs listeners, mutations, or asset uploads; that

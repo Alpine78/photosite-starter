@@ -180,8 +180,9 @@ where both are legitimate — its contact tests go to a sink, with synthetic dat
 to the owner's mailbox.
 
 Every deployment still runs on `mock` today: the Sanity connection exists (AB#39), and the
-media and category schemas behind it do (AB#82, AB#112), but nothing reads them from a
-route yet and the remaining content schemas do not exist (AB#80, AB#81, AB#113, AB#114).
+media, category, settings, and home schemas and adapters behind it do (AB#82, AB#112,
+AB#80), but nothing reads them from a route yet and the remaining content schemas do not
+exist (AB#81, AB#113, AB#114).
 Preview flips to `sanity` with its own dataset when they land.
 
 ### Sensitive variables and the prebuilt build

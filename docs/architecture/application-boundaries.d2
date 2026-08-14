@@ -99,6 +99,10 @@ restricted: "Server-only modules" {
     class: built
   }
 
+  sanity-site: "sanity-site-settings.ts and\nsanity-home-content.ts\nProject published singletons; no seam reads them yet" {
+    class: built
+  }
+
   gallery-cursor: "gallery-cursor.ts\nGALLERY_CURSOR_SIGNING_KEY,\nresolved lazily" {
     class: built
   }
@@ -108,7 +112,7 @@ external: "Outside the deployment" {
   class: external
   grid-columns: 2
 
-  sanity: "Sanity Content Lake\nThe media and category schemas and their\nadapters exist; no page reads this yet" {
+  sanity: "Sanity Content Lake\nMedia, category, settings, and home\nschemas/adapters exist; no page reads them yet" {
     class: [store; planned]
   }
 

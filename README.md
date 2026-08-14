@@ -366,8 +366,11 @@ a green pipeline. See [deployment](docs/deployment.md).
   its server-only adapter done, including the publish-blocking derivative limit that
   refuses a camera master, the dataset-visibility rule for archive locations, and the
   language-keyed authored text
-  ([ADR-0008](docs/adr/0008-localized-authored-text.md)) — nothing reads it yet; the
-  remaining schemas, their adapters, and tagged caching/webhook revalidation pending*
+  ([ADR-0008](docs/adr/0008-localized-authored-text.md)); site settings and home-page
+  schemas now project through server-only adapters into the existing `SiteSettings` and
+  `HomeContent` contracts, with semantic navigation targets and the shared public-media
+  projection — route-facing seams still use fixtures until the remaining content schemas
+  land; their adapters and tagged caching/webhook revalidation remain pending*
 - [ ] Production deployment — *the Preview environment's repository half is done: pinned
   runtime and region, a gated deploy stage, and the check that refuses to publish a
   release-candidate URL unless its project/team ownership, access protection, and
@@ -442,9 +445,10 @@ return to the first page. Category listings still answer `?cursor=` with a 404, 
 none issues one. Static routes and authored
 SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
 separate story. The Sanity connection, its published-perspective query client, and the
-enforced data-access boundary are in place, and so are the shared media document and its
-server-only adapter; the remaining schemas and the seams that would read them are not, so
-every page still renders from the mock layer.
+enforced data-access boundary are in place, as are the shared media and category documents
+and the site-settings and home-page schemas and adapters. Route-facing seams are not
+switched until the remaining authored content schemas exist, so every page still renders
+from the mock layer without mixing sources.
 The gallery grid lays its items out row by row, so what the eye reads is the order the
 source, the DOM, keyboard focus, and the lightbox all use, and every frame keeps its native
 aspect ratio uncropped. It opens a fullscreen lightbox that navigates the loaded result by

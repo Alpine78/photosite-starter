@@ -1,0 +1,105 @@
+import { describe, expect, it } from "vitest";
+
+import { HOME_PAGE_TYPE_NAME, homePageType } from "./home-page";
+import { defineSchemaTypes } from "./index";
+import { MEDIA_TYPE_NAME } from "./media";
+import {
+  SITE_SETTINGS_TYPE_NAME,
+  siteSettingsType,
+  validateTitleTemplates,
+} from "./site-settings";
+import {
+  HOME_ACTION_TYPE_NAME,
+  HOME_SECTION_TYPE_NAME,
+  isStaticSitePath,
+  NAVIGATION_ITEM_TYPE_NAME,
+  SITE_LINK_TARGETS,
+  validateSiteLinkTarget,
+} from "./site-link";
+
+const fieldNames = (type: { readonly fields: readonly { readonly name: string }[] }) =>
+  type.fields.map((field) => field.name);
+
+describe("the site settings and home schemas", () => {
+  it("registers both documents and their reusable object types", () => {
+    const names = defineSchemaTypes({ datasetVisibility: "public" }).map(
+      (type) => type.name,
+    );
+
+    expect(names).toEqual(
+      expect.arrayContaining([
+        SITE_SETTINGS_TYPE_NAME,
+        HOME_PAGE_TYPE_NAME,
+        NAVIGATION_ITEM_TYPE_NAME,
+        HOME_ACTION_TYPE_NAME,
+        HOME_SECTION_TYPE_NAME,
+      ]),
+    );
+  });
+
+  it("covers the existing project-owned settings and home contracts", () => {
+    expect(fieldNames(siteSettingsType)).toEqual([
+      "siteName",
+      "photographerName",
+      "tagline",
+      "featuredGalleryId",
+      "navigation",
+      "contact",
+      "socialLinks",
+      "footerLinks",
+      "copyrightHolder",
+      "defaultSeo",
+    ]);
+    expect(fieldNames(homePageType)).toEqual([
+      "heroMedia",
+      "heroAction",
+      "intro",
+      "sections",
+    ]);
+  });
+
+  it("references shared media and stores no image URL, dimensions, crop, or master field", () => {
+    const hero = homePageType.fields.find((field) => field.name === "heroMedia");
+
+    expect(hero?.type).toBe("reference");
+    expect(hero?.to).toEqual([{ type: MEDIA_TYPE_NAME }]);
+    expect(fieldNames(homePageType)).not.toEqual(
+      expect.arrayContaining(["imageUrl", "width", "height", "crop", "archiveLocator"]),
+    );
+  });
+
+  it("offers only static, generated-story, and identity-resolved featured targets", () => {
+    expect(SITE_LINK_TARGETS).toEqual([
+      "static",
+      "story-root",
+      "featured-gallery",
+    ]);
+    expect(
+      fieldNames(siteSettingsType),
+    ).not.toEqual(expect.arrayContaining(["categories", "categoryTree", "contentNavigation"]));
+  });
+
+  it("validates static paths and forbids authored paths on generated targets", () => {
+    expect(isStaticSitePath("/")).toBe(true);
+    expect(isStaticSitePath("/services/portraits")).toBe(true);
+    expect(isStaticSitePath("https://example.test/services")).toBe(false);
+    expect(isStaticSitePath("/services?kind=portrait")).toBe(false);
+    expect(isStaticSitePath("/services/")).toBe(false);
+
+    expect(validateSiteLinkTarget({ target: "static", href: "/services" })).toBe(true);
+    expect(validateSiteLinkTarget({ target: "story-root" })).toBe(true);
+    expect(validateSiteLinkTarget({ target: "featured-gallery" })).toBe(true);
+    expect(validateSiteLinkTarget({ target: "story-root", href: "/stories" })).toEqual(
+      expect.any(String),
+    );
+    expect(validateSiteLinkTarget({ target: "category", href: "/stories/work" })).toEqual(
+      expect.any(String),
+    );
+  });
+
+  it("requires one page-title placeholder in every localized title template", () => {
+    expect(validateTitleTemplates([{ value: "%s | Example" }])).toBe(true);
+    expect(validateTitleTemplates([{ value: "Example" }])).toEqual(expect.any(String));
+    expect(validateTitleTemplates([{ value: "%s | %s" }])).toEqual(expect.any(String));
+  });
+});

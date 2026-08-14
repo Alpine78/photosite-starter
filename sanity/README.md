@@ -56,6 +56,13 @@ checked against the whole published tree. Those rules use the Studio's own clien
 they need no configuration beyond the above. Studio validation cannot protect API
 imports; the site's adapters repeat the public boundary checks for that reason.
 
+The site settings and home page are each published as exactly one document. Their
+visitor-facing text uses the same language-keyed `localizedText` values as media and
+categories. Navigation stores only static application routes or semantic targets for the
+generated story root and the identity-resolved featured gallery; it never stores a second
+category tree. The home hero references the shared media document rather than copying an
+asset URL or dimensions.
+
 Copying the files works too — they have no imports to satisfy — but a copy drifts. Prefer
 a path, a submodule, or a workspace dependency, so a schema change arriving from upstream
 reaches the Studio the same way a code change reaches the site.

@@ -251,9 +251,9 @@ translation is missing — the answer is Option D over this data shape, not Opti
 2. [x] AB#112 reused `localizedText` for `label` and added the validated sibling type
        `localizedSlug` for `slug` (see Amendments, 2026-08-14) — not a second shape for
        prose, but the first field kind this ADR's two rows did not cover.
-3. [ ] AB#80, AB#81, and AB#113 reuse `localizedText` — or, for a slug or another
-       format-constrained field, `localizedSlug` or a validated sibling type following the
-       same amendment — rather than inventing an unrelated shape.
+3. [ ] AB#80 reused `localizedText`; AB#81 and AB#113 must do the same — or, for a
+       format-constrained field, use `localizedSlug` or a validated sibling type following
+       the same amendment — rather than inventing an unrelated shape.
 4. [x] AB#112 moved the resolution and raw-value helpers into
        `src/lib/sanity-values.ts` when the category adapter became the second consumer;
        neither provider adapter imports the other.

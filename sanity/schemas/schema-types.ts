@@ -97,13 +97,19 @@ export type SchemaFieldDefinition = {
   readonly type: string;
   /** Shown under the field in the Studio; the editorial rule, in one sentence. */
   readonly description?: string;
-  readonly of?: readonly { readonly type: string }[];
+  readonly of?: readonly SchemaArrayMemberDefinition[];
   /** Document types a `reference` field may point to. */
   readonly to?: readonly { readonly type: string }[];
   readonly fields?: readonly SchemaFieldDefinition[];
   readonly options?: SchemaFieldOptions;
   readonly initialValue?: string | boolean;
   readonly validation?: SchemaValidation;
+};
+
+export type SchemaArrayMemberDefinition = {
+  readonly type: string;
+  /** Inline object members, used where a named reusable type adds no value. */
+  readonly fields?: readonly SchemaFieldDefinition[];
 };
 
 export type SchemaPreview = {
