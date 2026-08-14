@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { categoryType, CATEGORY_TYPE_NAME } from "./category";
 import {
   CATEGORY_VALIDATION_QUERY,
+  STUDIO_MAX_CATEGORY_DEPTH,
   validateProspectiveCategoryTree,
 } from "./category-validation";
+import { MAX_CATEGORY_DEPTH } from "../../src/lib/content-tree";
 import { defineSchemaTypes } from "./index";
 import { localizedSlugType } from "./localized-slug";
 import { localizedTextType } from "./localized-text";
@@ -142,6 +144,12 @@ function editedCategory(options: {
 }
 
 describe("the category document", () => {
+  it("keeps the Studio depth limit pinned to the domain rule", () => {
+    // Sanity schemas cannot import application code, so the Studio-facing
+    // value is restated and this boundary test prevents silent drift.
+    expect(STUDIO_MAX_CATEGORY_DEPTH).toBe(MAX_CATEGORY_DEPTH);
+  });
+
   it("is registered with the object types it uses", () => {
     const types = defineSchemaTypes({ datasetVisibility: "public" });
 

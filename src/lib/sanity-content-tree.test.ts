@@ -233,7 +233,7 @@ describe("projecting one document", () => {
     );
   });
 
-  it("rejects a document that is complete in no language", () => {
+  it("omits a document that is complete in no language from every locale", () => {
     const document = docOf({
       _id: "doc-x",
       categoryId: "cat-x",
@@ -241,20 +241,37 @@ describe("projecting one document", () => {
       label: label("Rannikko", "fi"),
     });
 
-    expect(() => projectPublicCategoryInput(document, "en", new Map())).toThrow(
-      SanityContentTreeError,
-    );
+    expect(projectPublicCategoryInput(document, "en", new Map())).toBeUndefined();
+    expect(projectPublicCategoryInput(document, "fi", new Map())).toBeUndefined();
+    expect(projectPublicCategoryInput(document, "de", new Map())).toBeUndefined();
   });
 });
 
 describe("projecting a full fetch", () => {
-  it("rejects a fetched document without its projected Sanity id", () => {
+  it("does not let a category complete in no language break another category's locale", () => {
+    const disjoint = docOf({
+      _id: "doc-x",
+      categoryId: "cat-x",
+      slug: label("coast", "en"),
+      label: label("Rannikko", "fi"),
+    });
+    const english = docOf({ _id: "doc-y", categoryId: "cat-y" });
+
+    expect(projectPublicCategoryInputs([disjoint, english], "en")).toEqual([
+      expect.objectContaining({ categoryId: "cat-y" }),
+    ]);
+  });
+
+  it("does not let one unusable Sanity id prevent the rest of the batch from projecting", () => {
     const document = docOf({ _id: "doc-x", categoryId: "cat-x" });
     const withoutId = { ...document, _id: undefined };
 
-    expect(() => projectPublicCategoryInputs([withoutId], "en")).toThrow(
-      SanityContentTreeError,
-    );
+    const sibling = docOf({ _id: "doc-y", categoryId: "cat-y" });
+
+    expect(projectPublicCategoryInputs([withoutId, sibling], "en")).toEqual([
+      expect.objectContaining({ categoryId: "cat-x" }),
+      expect.objectContaining({ categoryId: "cat-y" }),
+    ]);
   });
 
   it("resolves a five-level chain to the maximum authored depth", () => {

@@ -211,12 +211,7 @@ function indexCategoryIds(
   const index = new Map<string, string>();
   for (const document of documents) {
     const id = readStructuralString(document._id);
-    if (id === undefined) {
-      throw new SanityContentTreeError(
-        "malformed-result",
-        "a category document has no usable Sanity document id",
-      );
-    }
+    if (id === undefined) continue;
     const categoryId = readStructuralString(document.categoryId);
     if (categoryId !== undefined && CATEGORY_ID.test(categoryId)) {
       index.set(id, categoryId);
@@ -249,12 +244,6 @@ export function projectPublicCategoryInput(
   const resolvedLanguage = toLanguageSubtag(language);
   const slugs = readCategoryLocalizedValues(document.slug, "slug");
   const labels = readCategoryLocalizedValues(document.label, "label");
-  if (![...slugs.keys()].some((authoredLanguage) => labels.has(authoredLanguage))) {
-    throw new SanityContentTreeError(
-      "incomplete-document",
-      `category "${categoryId}" has no language with both a slug and a label`,
-    );
-  }
   const slug = slugs.get(resolvedLanguage);
   const label = labels.get(resolvedLanguage);
   if (slug === undefined || label === undefined) {

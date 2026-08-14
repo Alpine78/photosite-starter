@@ -16,7 +16,8 @@ import { publishedIdOf, validationClientOf } from "./validation";
 
 const CATEGORY_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const LANGUAGE_SUBTAG = /^[a-z]{2,3}$/;
-const MAX_CATEGORY_DEPTH = 5;
+/** Restates content-tree.ts's domain limit; category.test.ts pins the copies. */
+export const STUDIO_MAX_CATEGORY_DEPTH = 5;
 
 export const CATEGORY_VALIDATION_QUERY = `*[_type == $type]{
   _id,
@@ -223,8 +224,8 @@ function validateLocaleTree(
       }
       visited.add(current.categoryId);
       depth += 1;
-      if (depth > MAX_CATEGORY_DEPTH) {
-        return `Category "${category.categoryId}" exceeds the maximum ${MAX_CATEGORY_DEPTH}-level depth in the ${language} tree.`;
+      if (depth > STUDIO_MAX_CATEGORY_DEPTH) {
+        return `Category "${category.categoryId}" exceeds the maximum ${STUDIO_MAX_CATEGORY_DEPTH}-level depth in the ${language} tree.`;
       }
       if (current.parentId === null) break;
       const parent = localized.get(current.parentId);
