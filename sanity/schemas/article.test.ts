@@ -263,10 +263,14 @@ describe("the document-level publication guard", () => {
     const { run } = inspect(articleType.validation, {
       answer: {
         published: { language: "en", slug: "old-slug", canonicalCategoryRef: "cat-landscape" },
-        category: {
-          slug: [{ language: "en", value: "landscape" }],
-          label: [{ language: "en", value: "Landscape" }],
-        },
+        categories: [
+          {
+            _id: "cat-landscape",
+            categoryId: "cat-landscape",
+            slug: [{ language: "en", value: "landscape" }],
+            label: [{ language: "en", value: "Landscape" }],
+          },
+        ],
         siblings: [],
       },
     });

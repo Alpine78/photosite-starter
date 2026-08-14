@@ -361,12 +361,18 @@ never both `contentId` and `language`. `canonicalCategory` is required, so a sta
 Studio publish cannot leave an article unplaced — Sanity's own validation model blocks
 publishing, not saving a draft, which is exactly ADR-0003 decision 5's allowance for
 unplaced draft content. Field-level requirement is not the whole guard, though:
-`sanity/schemas/article-validation.ts` adds a document-level publish check, mirroring the
-one `category-validation.ts` already gives the category tree, so a routine "Publish" click
-cannot be the moment a colliding local slug or a canonical category with no published
-version in the article's own language reaches the public tree — those two states are
-otherwise only caught when a route reads the whole tree, which rejects it outright. The
-same validator freezes `language`, `slug`, and `canonicalCategory` once a document has
+`sanity/schemas/article-validation.ts` fetches every category and every other published
+article in this language, overlays the document being edited, and restates
+`content-tree.ts`'s own public-category propagation and local-slug-namespace computation —
+not just a check against other articles in the same category, which would still miss a
+sibling *category*'s slug, or a collision only exposed because this very publish turns a
+previously private ancestor category public for the first time. So a routine "Publish"
+click cannot be the moment a colliding local slug (ADR-0003 decision 6) or a canonical
+category with no published version in the article's own language reaches the public tree —
+both states are otherwise only caught when a route reads the whole tree, which rejects it
+outright. Gallery placements are not fetched yet, since no gallery schema exists before
+AB#113; that story extends the same query. The same validator freezes `language`, `slug`,
+and `canonicalCategory` once a document has
 been published at all, the same way `category-validation.ts` freezes a category's `parent`
 and path segments, so an ordinary edit cannot silently discard a live canonical URL or —
 since `language` plus `contentId` together are the whole identity — turn one language's
