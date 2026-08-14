@@ -118,11 +118,14 @@ needs no `sanity` package to describe one. Point your Studio's `schema.types` at
 (that directory's README shows how). Copying works and drifts; a path, a submodule, or a
 workspace dependency does not.
 
-`defineSchemaTypes({ datasetVisibility, storyRootPath })` needs two deployment facts.
+`defineSchemaTypes({ datasetVisibility, storyRootPaths })` needs two deployment facts.
 Dataset visibility decides which fields exist at all — see *Dataset visibility* below.
-The story root is the default locale's unprefixed generated route, and must match
-`SITE_LOCALE_ROUTES`; the Studio uses it to reject a static link that would duplicate the
-generated story navigation before the settings can be published.
+`storyRootPaths` is the generated story root for *every* configured locale — one entry
+per `SITE_LOCALE_ROUTES` locale, the default locale's unprefixed and each other locale's
+carrying its own prefix — and must match it exactly. The Studio uses the full list to
+reject a static link that would duplicate any configured locale's generated story
+navigation before the settings can be published; naming only the default locale's path
+would leave every other locale's collision undetected until the site reads the document.
 
 Four document types exist: **siteSettings**, the deployment's brand, contact details, and
 static navigation; **homePage**, the hero, introduction, and section links; **media**, the
@@ -202,7 +205,9 @@ credential.
 schema: {
   types: defineSchemaTypes({
     datasetVisibility: "private",
-    storyRootPath: "/stories",
+    // One entry per SITE_LOCALE_ROUTES locale. This example matches a
+    // bilingual deployment of SITE_LOCALE_ROUTES=fi||tarinat,en|en|stories.
+    storyRootPaths: ["/tarinat", "/en/stories"],
   }),
 }
 ```

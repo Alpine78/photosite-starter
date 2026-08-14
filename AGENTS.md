@@ -332,9 +332,10 @@ published document raises as a classified content defect. Authored prose is lang
 brand identities stay language-neutral. Static navigation stores only validated root-relative
 application paths, while the story root and featured gallery are semantic targets resolved
 from deployment routing and the one `featuredGalleryId`, so settings contain neither a second
-category tree nor a generated content path. The Studio schema receives the default locale's
-generated story-root path as configuration and refuses a static link to that same destination;
-the runtime adapter repeats the check against validated route configuration. The home hero dereferences the shared media
+category tree nor a generated content path. The Studio schema receives every configured
+locale's generated story-root path as configuration and refuses a static link duplicating
+any of them; the runtime adapter repeats the check against validated route configuration.
+The home hero dereferences the shared media
 document through `PUBLIC_MEDIA_PROJECTION` and `projectPublicMedia`, retaining its public
 derivative and true dimensions. These adapters return the existing `SiteSettings` and
 `HomeContent` contracts but are not wired into route-facing seams until the other authored

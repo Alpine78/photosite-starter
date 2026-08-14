@@ -220,7 +220,7 @@ describe("reading the published settings singleton", () => {
       { query: `*[_type == "${SITE_SETTINGS_DOCUMENT_TYPE}"]${SITE_SETTINGS_PROJECTION}`, tag: "site-settings" },
     ]);
     const declared = new Set(
-      defineSiteSettingsType({ storyRootPath: "/tarinat" }).fields.map(
+      defineSiteSettingsType({ storyRootPaths: ["/tarinat", "/en/stories"] }).fields.map(
         (field) => field.name,
       ),
     );

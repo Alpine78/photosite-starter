@@ -37,18 +37,23 @@ export default defineConfig({
     // in it.
     types: defineSchemaTypes({
       datasetVisibility: "private",
-      // The generated story root in the default locale's unprefixed route
-      // space. Keep this equal to SITE_LOCALE_ROUTES.
-      storyRootPath: "/stories",
+      // The generated story root in every configured locale's route space,
+      // one entry per SITE_LOCALE_ROUTES locale. This example matches
+      // SITE_LOCALE_ROUTES=fi||tarinat,en|en|stories.
+      storyRootPaths: ["/tarinat", "/en/stories"],
     }),
   },
 });
 ```
 
-`storyRootPath` must match the default locale's unprefixed story namespace in
-`SITE_LOCALE_ROUTES`. The schema uses it to stop an editor from publishing both a
-generated `story-root` entry and a static link to the same destination; the runtime
-adapter repeats that check against the deployment's validated route configuration.
+`storyRootPaths` must list every configured locale's story namespace from
+`SITE_LOCALE_ROUTES` — the default locale's unprefixed and each other locale's with its
+own prefix — in the same order that doesn't matter, but with none missing. The schema
+uses the full list to stop an editor from publishing both a generated `story-root` entry
+and a static link to any configured locale's copy of that same destination; naming only
+one locale's path would leave every other locale's collision undetected until the site
+reads the document. The runtime adapter repeats that check against the deployment's
+validated route configuration.
 
 `datasetVisibility` must match the site's own `SANITY_DATASET_VISIBILITY`, and both must
 match what the dataset actually is in Sanity. It is not a preference: a public dataset is

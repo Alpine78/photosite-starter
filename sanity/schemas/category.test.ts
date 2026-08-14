@@ -153,7 +153,7 @@ describe("the category document", () => {
   it("is registered with the object types it uses", () => {
     const types = defineSchemaTypes({
       datasetVisibility: "public",
-      storyRootPath: "/stories",
+      storyRootPaths: ["/stories"],
     });
 
     expect(types).toContainEqual(localizedTextType);

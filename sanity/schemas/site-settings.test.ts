@@ -24,7 +24,7 @@ const fieldNames = (type: { readonly fields: readonly { readonly name: string }[
 
 const schemaOptions = {
   datasetVisibility: "public" as const,
-  storyRootPath: "/stories",
+  storyRootPaths: ["/stories"],
 };
 const siteSettingsType = defineSiteSettingsType(schemaOptions);
 
@@ -112,16 +112,42 @@ describe("the site settings and home schemas", () => {
           { target: "story-root" },
           { target: "static", href: "/stories" },
         ],
-        "/stories",
+        ["/stories"],
+      ),
+    ).toEqual(expect.any(String));
+  });
+
+  it("rejects a static link that repeats a non-default locale's story root", () => {
+    // Mirrors README.md's bilingual production example
+    // (SITE_LOCALE_ROUTES=fi||tarinat,en|en|stories): the default locale's
+    // story root is /tarinat, but a static link to /en/stories still
+    // collides with the story-root target once the site renders in en-GB.
+    expect(
+      validateNavigationList(
+        [
+          { target: "story-root" },
+          { target: "static", href: "/en/stories" },
+        ],
+        ["/tarinat", "/en/stories"],
+      ),
+    ).toEqual(expect.any(String));
+  });
+
+  it("rejects two story-root entries regardless of the configured paths", () => {
+    expect(
+      validateNavigationList(
+        [{ target: "story-root" }, { target: "story-root" }],
+        ["/tarinat", "/en/stories"],
       ),
     ).toEqual(expect.any(String));
   });
 
   it("refuses an invalid configured story root when building the schema", () => {
     expect(() =>
-      defineSiteSettingsType({ storyRootPath: "https://example.test/stories" }),
+      defineSiteSettingsType({ storyRootPaths: ["https://example.test/stories"] }),
     ).toThrow(TypeError);
-    expect(() => defineSiteSettingsType({ storyRootPath: "/" })).toThrow(TypeError);
+    expect(() => defineSiteSettingsType({ storyRootPaths: ["/"] })).toThrow(TypeError);
+    expect(() => defineSiteSettingsType({ storyRootPaths: [] })).toThrow(TypeError);
   });
 
   it("requires one page-title placeholder in every localized title template", () => {

@@ -14,8 +14,13 @@ import type {
 export const SITE_SETTINGS_TYPE_NAME = "siteSettings";
 
 export type SiteSettingsSchemaOptions = {
-  /** Generated story root in the unprefixed default-locale route space. */
-  readonly storyRootPath: string;
+  /**
+   * Generated story root in every configured locale's route space, one path
+   * per `SITE_LOCALE_ROUTES` entry (the default locale's is unprefixed, each
+   * other locale's carries its own prefix). A static link may collide with
+   * any of them, not only the default locale's.
+   */
+  readonly storyRootPaths: readonly string[];
 };
 
 /**
@@ -96,20 +101,26 @@ type RawNavigationItem = {
 
 export function validateNavigationList(
   value: readonly RawNavigationItem[] | undefined,
-  storyRootPath: string,
+  storyRootPaths: readonly string[],
 ): SchemaValidationResult {
-  const seen = new Set<string>();
+  const claimed = new Set<string>();
   for (const item of value ?? []) {
-    const identity =
+    // A story-root link occupies every configured locale's resolved path,
+    // not only the default locale's, so a static link duplicating any one of
+    // them is a real collision. The literal "story-root" sentinel keeps two
+    // story-root entries colliding with each other even if storyRootPaths
+    // were ever empty.
+    const destinations =
       item.target === "static"
-        ? String(item.href)
+        ? [String(item.href)]
         : item.target === "story-root"
-          ? storyRootPath
-          : String(item.target);
-    if (seen.has(identity)) {
-      return `Navigation contains the destination "${identity}" more than once`;
+          ? ["story-root", ...storyRootPaths]
+          : [String(item.target)];
+    const repeated = destinations.find((destination) => claimed.has(destination));
+    if (repeated !== undefined) {
+      return `Navigation contains the destination "${repeated}" more than once`;
     }
-    seen.add(identity);
+    for (const destination of destinations) claimed.add(destination);
   }
   return true;
 }
@@ -154,10 +165,17 @@ function validateSiteSettings(
 export function defineSiteSettingsType(
   options: SiteSettingsSchemaOptions,
 ): SchemaTypeDefinition {
-  if (!isStaticSitePath(options.storyRootPath) || options.storyRootPath === "/") {
+  if (options.storyRootPaths.length === 0) {
     throw new TypeError(
-      "storyRootPath must be a non-root, root-relative route path without a query, fragment, or trailing slash",
+      "storyRootPaths must name at least one configured locale's generated story root",
     );
+  }
+  for (const path of options.storyRootPaths) {
+    if (!isStaticSitePath(path) || path === "/") {
+      throw new TypeError(
+        "storyRootPaths must be non-root, root-relative route paths without a query, fragment, or trailing slash",
+      );
+    }
   }
 
   const fields: SchemaTypeDefinition["fields"] = [
@@ -188,7 +206,7 @@ export function defineSiteSettingsType(
           .required()
           .min(1)
           .custom<readonly RawNavigationItem[]>((value) =>
-            validateNavigationList(value, options.storyRootPath),
+            validateNavigationList(value, options.storyRootPaths),
           ),
     },
     {
@@ -251,7 +269,7 @@ export function defineSiteSettingsType(
         rule
           .required()
           .custom<readonly RawNavigationItem[]>((value) =>
-            validateNavigationList(value, options.storyRootPath),
+            validateNavigationList(value, options.storyRootPaths),
           ),
     },
     { name: "copyrightHolder", title: "Copyright holder", type: "string", validation: (rule) => rule.required().custom(nonBlank) },
