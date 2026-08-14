@@ -64,6 +64,12 @@ import {
   SANITY_ASSET_CDN_HOST,
   type SanityConfig,
 } from "@/lib/sanity-config";
+import {
+  isRecord,
+  readString,
+  selectLocalizedText,
+  toLanguageSubtag,
+} from "@/lib/sanity-values";
 
 /**
  * The document type this adapter reads. Declared here rather than imported from
@@ -218,11 +224,6 @@ export class SanityMediaError extends Error {
   }
 }
 
-type RawLocalizedText = {
-  readonly language?: unknown;
-  readonly value?: unknown;
-};
-
 type RawAsset = {
   readonly url?: unknown;
   readonly path?: unknown;
@@ -271,61 +272,6 @@ export type PublicMediaLanguage = {
  * reference that later features are expected to resolve.
  */
 const MEDIA_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-/**
- * The language subtag of a locale, which is how authored text is keyed.
- *
- * Callers hold route locales — `en-GB`, `en-US` — while entries are written per
- * language, exactly as the built-in interface labels are. Without this, a route
- * asking for `en-GB` would match no entry, fall through to the site's own
- * language, and quietly serve Finnish alternative text with no caption on an
- * English page: a failure that looks like missing content rather than a bug.
- *
- * An unparseable value is returned unchanged. It then matches nothing, and the
- * error names it, which is more useful than a guess.
- */
-function toLanguageSubtag(value: string): string {
-  try {
-    const { language } = new Intl.Locale(value);
-    return typeof language === "string" && language.length > 0
-      ? language
-      : value;
-  } catch {
-    return value;
-  }
-}
-
-function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function readString(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length === 0 ? undefined : trimmed;
-}
-
-/**
- * The photograph's words in one language.
- *
- * An entry whose text is blank counts as absent rather than as an authored
- * empty string: at the media level the text is required, and a placement that
- * genuinely wants no alternative text says so on the placement (ADR-0002 §3).
- */
-function selectLocalizedText(
-  entries: unknown,
-  language: string,
-): string | undefined {
-  if (!Array.isArray(entries)) return undefined;
-
-  for (const entry of entries as readonly RawLocalizedText[]) {
-    if (isRecord(entry) && entry.language === language) {
-      return readString(entry.value);
-    }
-  }
-
-  return undefined;
-}
 
 /**
  * Effective public renderability for a document already in hand.

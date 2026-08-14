@@ -16,8 +16,14 @@ import type {
   SchemaValidationRule,
 } from "./schema-types";
 
-/** ISO 639 language subtag: two or three lowercase letters. */
-const LANGUAGE_SUBTAG = /^[a-z]{2,3}$/;
+/**
+ * ISO 639 language subtag: two or three lowercase letters.
+ *
+ * Exported so another language-keyed field type — `localized-slug.ts` is the
+ * first — validates the same subtag shape rather than restating a regex that
+ * could drift from this one.
+ */
+export const LANGUAGE_SUBTAG = /^[a-z]{2,3}$/;
 
 export const LOCALIZED_TEXT_TYPE_NAME = "localizedText";
 

@@ -95,6 +95,10 @@ restricted: "Server-only modules" {
     class: built
   }
 
+  sanity-content-tree: "sanity-content-tree.ts\nProjects category documents into\ncontent-tree.ts input; no seam reads it yet" {
+    class: built
+  }
+
   gallery-cursor: "gallery-cursor.ts\nGALLERY_CURSOR_SIGNING_KEY,\nresolved lazily" {
     class: built
   }
@@ -104,7 +108,7 @@ external: "Outside the deployment" {
   class: external
   grid-columns: 2
 
-  sanity: "Sanity Content Lake\nThe media schema and its adapter exist;\nno page reads this yet" {
+  sanity: "Sanity Content Lake\nThe media and category schemas and their\nadapters exist; no page reads this yet" {
     class: [store; planned]
   }
 

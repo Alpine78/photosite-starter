@@ -2,8 +2,50 @@
 
 **Status:** Accepted
 **Date:** 2026-08-13
+**Amended:** 2026-08-14 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#82
+
+## Amendments
+
+This record remains accepted as a whole. A scoped clause is amended in place only when
+implementation produces evidence the original text did not have, and each partial
+amendment preserves the old rule and records its date, reason, replacement, and affected
+sections as required by the ADR convention (`docs/adr/README.md`).
+
+### 2026-08-14 — A validated sibling type for a field kind decision 3 does not cover (AB#112)
+
+Decision 3 resolves a missing translation by what the text is *for*, in two rows:
+accessible text a page cannot do without falls back, and editorial prose a visitor reads
+is omitted. Action item 2 expected every later schema story to reuse the `localizedText`
+object "rather than inventing a second localized shape." Building the category schema
+(AB#112) found a field kind that fits neither row and cannot honestly reuse that object:
+a path segment. [ADR-0003](0003-public-content-tree-and-url-structure.md) decision 6
+requires `slug` to be language-keyed exactly like `alt` and `caption` are, but a slug is a
+structural identifier constrained to a specific shape (lowercase words and hyphens), not
+free-form prose — and `localizedText`'s `value` field is `text`, unconstrained beyond
+"required," by design (this ADR never needed a second constraint before). A Sanity object
+type's field validation is fixed where the type is defined; it cannot be tightened per
+call site, so satisfying decision 3's own shape-validation habit (every other authored
+value in this codebase is checked, not trusted) was impossible without either weakening
+`localizedText` for every existing consumer or adding a type that carries the constraint
+`localizedText` cannot.
+
+The decision now reads that a field kind whose value must satisfy a format constraint
+beyond "is text" gets its own object type — same `{ language, value }` array shape, same
+one-entry-per-language rule (decision 4), same "content, not code" property (decision
+2) — rather than being forced through `localizedText` or given a bespoke shape of its own.
+`sanity/schemas/localized-slug.ts` is the first: it is not Option B (a field per
+configured language) and does not reopen that rejection, since the array shape, the
+subtag key, and the no-schema-edit-to-add-a-language property are all unchanged. What
+happens when a slug is missing in the requested language is not decided here either: it
+follows from ADR-0003 decision 6 (a category may exist in one locale before another) and
+is documented at the adapter that reads it, because it is a consequence of what a slug
+*is*, not a third row this ADR needs to add to decision 3's table.
+
+Changed text: action item 2, split below to record which stories reused `localizedText`
+unchanged and which added a validated sibling type. Decisions 1, 2, 4, and 5, the
+fallback-versus-omit rule for prose fields, and every other section are unaffected.
 
 ## Context
 
@@ -206,10 +248,15 @@ translation is missing — the answer is Option D over this data shape, not Opti
 
 1. [x] Implement the shape and the resolution rule in the media schema and adapter
        (AB#82).
-2. [ ] AB#80, AB#81, AB#112, and AB#113 reuse the `localizedText` object rather than
-       inventing a second localized shape.
-3. [ ] When a second boundary resolves localized text, move the resolution helper to one
-       shared module instead of copying it.
+2. [x] AB#112 reused `localizedText` for `label` and added the validated sibling type
+       `localizedSlug` for `slug` (see Amendments, 2026-08-14) — not a second shape for
+       prose, but the first field kind this ADR's two rows did not cover.
+3. [ ] AB#80, AB#81, and AB#113 reuse `localizedText` — or, for a slug or another
+       format-constrained field, `localizedSlug` or a validated sibling type following the
+       same amendment — rather than inventing an unrelated shape.
+4. [x] AB#112 moved the resolution and raw-value helpers into
+       `src/lib/sanity-values.ts` when the category adapter became the second consumer;
+       neither provider adapter imports the other.
 
 ## What this ADR did not establish
 

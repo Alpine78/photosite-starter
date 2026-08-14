@@ -20,8 +20,14 @@
 /** Authored category levels beneath the implicit, routeless site root. */
 export const MAX_CATEGORY_DEPTH = 5;
 
-/** Canonical path segments are lowercase with hyphens between words. */
-const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/**
+ * Canonical path segments are lowercase with hyphens between words.
+ *
+ * Exported so a Sanity-facing test can pin `localized-slug.ts`'s restated copy
+ * to this one, the same way `sanity-media.ts` pins its restated delivery
+ * constants against the Studio schema's.
+ */
+export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export type ContentVariant = "gallery" | "article";
 

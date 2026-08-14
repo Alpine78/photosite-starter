@@ -98,6 +98,8 @@ export type SchemaFieldDefinition = {
   /** Shown under the field in the Studio; the editorial rule, in one sentence. */
   readonly description?: string;
   readonly of?: readonly { readonly type: string }[];
+  /** Document types a `reference` field may point to. */
+  readonly to?: readonly { readonly type: string }[];
   readonly fields?: readonly SchemaFieldDefinition[];
   readonly options?: SchemaFieldOptions;
   readonly initialValue?: string | boolean;
@@ -115,4 +117,6 @@ export type SchemaTypeDefinition = {
   readonly description?: string;
   readonly fields: readonly SchemaFieldDefinition[];
   readonly preview?: SchemaPreview;
+  /** Whole-document validation, used when correctness spans several records. */
+  readonly validation?: SchemaValidation;
 };

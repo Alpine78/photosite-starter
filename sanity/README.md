@@ -50,9 +50,11 @@ been written. The reference deployment uses separate read-only credentials for i
 trusted Azure build and its Vercel runtime; `docs/deployment.md` owns their provisioning.
 
 The schemas validate against the dataset while an editor works — an uploaded image
-is measured and its format checked before it can be published, and a media ID is
-checked for being unique and unchanged. Those rules use the Studio's own client, so
-they need no configuration beyond the above.
+is measured and its format checked before it can be published, media and category IDs
+are checked for being unique and unchanged, and a prospective category publication is
+checked against the whole published tree. Those rules use the Studio's own client, so
+they need no configuration beyond the above. Studio validation cannot protect API
+imports; the site's adapters repeat the public boundary checks for that reason.
 
 Copying the files works too — they have no imports to satisfy — but a copy drifts. Prefer
 a path, a submodule, or a workspace dependency, so a schema change arriving from upstream
