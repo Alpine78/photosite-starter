@@ -35,10 +35,25 @@ export default defineConfig({
     // a public dataset is offered no place to record where a master lives,
     // because anyone holding the project id can read every published document
     // in it.
-    types: defineSchemaTypes({ datasetVisibility: "private" }),
+    types: defineSchemaTypes({
+      datasetVisibility: "private",
+      // The generated story root in every configured locale's route space,
+      // one entry per SITE_LOCALE_ROUTES locale. This example matches
+      // SITE_LOCALE_ROUTES=fi||tarinat,en|en|stories.
+      storyRootPaths: ["/tarinat", "/en/stories"],
+    }),
   },
 });
 ```
+
+`storyRootPaths` must list every configured locale's story namespace from
+`SITE_LOCALE_ROUTES` — the default locale's unprefixed and each other locale's with its
+own prefix — in the same order that doesn't matter, but with none missing. The schema
+uses the full list to stop an editor from publishing both a generated `story-root` entry
+and a static link to any configured locale's copy of that same destination; naming only
+one locale's path would leave every other locale's collision undetected until the site
+reads the document. The runtime adapter repeats that check against the deployment's
+validated route configuration.
 
 `datasetVisibility` must match the site's own `SANITY_DATASET_VISIBILITY`, and both must
 match what the dataset actually is in Sanity. It is not a preference: a public dataset is
@@ -55,6 +70,13 @@ are checked for being unique and unchanged, and a prospective category publicati
 checked against the whole published tree. Those rules use the Studio's own client, so
 they need no configuration beyond the above. Studio validation cannot protect API
 imports; the site's adapters repeat the public boundary checks for that reason.
+
+The site settings and home page are each published as exactly one document. Their
+visitor-facing text uses the same language-keyed `localizedText` values as media and
+categories. Navigation stores only static application routes or semantic targets for the
+generated story root and the identity-resolved featured gallery; it never stores a second
+category tree. The home hero references the shared media document rather than copying an
+asset URL or dimensions.
 
 Copying the files works too — they have no imports to satisfy — but a copy drifts. Prefer
 a path, a submodule, or a workspace dependency, so a schema change arriving from upstream

@@ -326,6 +326,20 @@ placed, not of the category receiving it — so `readPublicContentTree` accepts 
 plain input from whatever adapter reads that content once AB#113 and AB#81 exist, and
 composes them with the fetched categories through the same `buildContentTree` call the mock
 layer already uses.
+The global settings and home-page schemas and adapters sit beside those boundaries too.
+Each is a published singleton: none is a fallback to fixtures, and a missing or duplicate
+published document raises as a classified content defect. Authored prose is language-keyed;
+brand identities stay language-neutral. Static navigation stores only validated root-relative
+application paths, while the story root and featured gallery are semantic targets resolved
+from deployment routing and the one `featuredGalleryId`, so settings contain neither a second
+category tree nor a generated content path. The Studio schema receives every configured
+locale's generated story-root path as configuration and refuses a static link duplicating
+any of them; the runtime adapter repeats the check against validated route configuration.
+The home hero dereferences the shared media
+document through `PUBLIC_MEDIA_PROJECTION` and `projectPublicMedia`, retaining its public
+derivative and true dimensions. These adapters return the existing `SiteSettings` and
+`HomeContent` contracts but are not wired into route-facing seams until the other authored
+content adapters exist, avoiding a mixed mock/Sanity deployment.
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test,
@@ -382,9 +396,10 @@ answers any `?cursor=` with a 404 — gallery sections
 (AB#129), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
 sitemap/robots, structured data, the remaining Sanity content schemas and adapters that
-would put authored content behind the connection (AB#80, AB#81, AB#113, AB#114) —
-the media and category schemas exist but nothing reads either yet, so every page still
-renders from the mock layer — tagged caching and webhook revalidation (AB#83),
+would put authored content behind the connection (AB#81, AB#113, AB#114) —
+the media, category, settings, and home schemas/adapters exist, but no route-facing seam
+reads them yet, so every page still renders from the mock layer — tagged caching and
+webhook revalidation (AB#83),
 and the deployment itself: provisioning is under way — a Vercel project exists, but
 protection, Preview environment values, and deployment credentials are not finished;
 the disabled variable group currently carries only the non-secret project/team IDs, and

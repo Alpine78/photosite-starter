@@ -113,7 +113,10 @@ const EXCESSIVE_LINE_BREAKS = /\n{3,}/gu;
  * address, so accepting a shape the delivery provider will reject anyway helps
  * nobody. Deliverability is never claimed, only plausibility.
  */
-const EMAIL_SHAPE =
+// Restated in `src/lib/sanity-site-settings.ts`'s `EMAIL` for the site
+// settings contact address, an unrelated field with the same shape
+// requirement. Pinned equal there so the two copies cannot silently drift.
+export const EMAIL_SHAPE =
   /^[^\s@,;:<>"'\\[\]]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/iu;
 
 /** Normalizes the several ways a browser or platform can encode a line break. */

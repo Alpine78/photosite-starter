@@ -14,18 +14,33 @@
  */
 
 import { categoryType } from "./category";
+import { homePageType } from "./home-page";
 import { localizedSlugType } from "./localized-slug";
 import { localizedTextType } from "./localized-text";
 import { defineMediaType, type MediaSchemaOptions } from "./media";
+import {
+  defineSiteSettingsType,
+  type SiteSettingsSchemaOptions,
+} from "./site-settings";
+import {
+  homeActionType,
+  homeSectionType,
+  navigationItemType,
+} from "./site-link";
 import type { SchemaTypeDefinition } from "./schema-types";
 
 export function defineSchemaTypes(
-  options: MediaSchemaOptions,
+  options: MediaSchemaOptions & SiteSettingsSchemaOptions,
 ): readonly SchemaTypeDefinition[] {
   return [
     localizedTextType,
     localizedSlugType,
+    navigationItemType,
+    homeActionType,
+    homeSectionType,
     defineMediaType(options),
     categoryType,
+    defineSiteSettingsType(options),
+    homePageType,
   ];
 }
