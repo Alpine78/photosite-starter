@@ -181,9 +181,13 @@ fails the build rather than a later content read. As with the contact adapter, t
 default, and an unset `SITE_DEPLOYMENT_STAGE` counts as production, so the guard fails
 closed.
 
-`sanity` reads the deployment's own Content Lake through four more settings —
-`SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_API_VERSION`, and an optional
-`SANITY_READ_TOKEN` for a private dataset. The Sanity organization, project, dataset,
+`sanity` reads the deployment's own Content Lake through five more settings —
+`SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_DATASET_VISIBILITY`,
+`SANITY_API_VERSION`, and `SANITY_READ_TOKEN` — the last required whenever the dataset is
+declared private, because an unauthenticated read of one answers with an empty result
+rather than an error, and a site that looks unwritten is worse than one that refuses to
+build. A private reference deployment uses separate read-only build and runtime tokens,
+scoped to Azure Pipelines and Vercel respectively. The Sanity organization, project, dataset,
 assets, and billing belong to the site owner; there is no shared account and no shared
 credential, so handing the site over is a change of settings rather than of code. Every
 read asks for the **published** perspective, and no setting can change that — draft access

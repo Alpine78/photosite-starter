@@ -338,11 +338,19 @@ export function createSanityClient(
  * Proves the deployment can reach its own Content Lake.
  *
  * The query reads no document: `*[false]` is a filter that matches nothing, so
- * a success carries an empty array and no content of any kind. What it does
- * establish is the whole address and the credential — project, dataset, API
- * version, token, and the published perspective — which is the part a clone
- * gets wrong. It says nothing about whether any content has been authored yet;
- * that is a schema story's question, not this one's.
+ * a success carries an empty array and no content of any kind. What it
+ * establishes is the address — project, dataset, and API version — which is the
+ * part a clone gets wrong.
+ *
+ * What it deliberately does **not** establish is the credential. Sanity answers
+ * an unauthenticated read of a private dataset with 200 and an empty result
+ * rather than a 401, and this query's successful answer is an empty result too,
+ * so the two are indistinguishable here. A missing token is caught instead by
+ * `SANITY_DATASET_VISIBILITY`, which refuses to build a private deployment
+ * without one; provisioning separately confirms what the dataset actually is.
+ * Credential validity must be proved separately against known published
+ * content. This probe says nothing about whether any content has been authored
+ * yet either; that is a schema story's question, not this one's.
  */
 export async function probeSanityConnectivity(
   client: SanityClient,

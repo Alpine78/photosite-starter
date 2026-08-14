@@ -10,6 +10,7 @@ import { loadSanityConfig, SanityConfigurationError } from "@/lib/sanity-config"
 const validEnvironment = {
   SANITY_PROJECT_ID: "zp7mbokg",
   SANITY_DATASET: "production",
+  SANITY_DATASET_VISIBILITY: "public",
   SANITY_API_VERSION: "v2026-06-24",
 };
 
@@ -18,6 +19,7 @@ describe("loadSanityConfig", () => {
     expect(loadSanityConfig(validEnvironment)).toEqual({
       projectId: "zp7mbokg",
       dataset: "production",
+      datasetVisibility: "public",
       apiVersion: "v2026-06-24",
     });
   });
@@ -27,12 +29,18 @@ describe("loadSanityConfig", () => {
       loadSanityConfig({
         SANITY_PROJECT_ID: "  zp7mbokg  ",
         SANITY_DATASET: " production ",
+        SANITY_DATASET_VISIBILITY: " public ",
         SANITY_API_VERSION: " v2026-06-24 ",
       }).projectId,
     ).toBe("zp7mbokg");
   });
 
-  it.each(["SANITY_PROJECT_ID", "SANITY_DATASET", "SANITY_API_VERSION"])(
+  it.each([
+    "SANITY_PROJECT_ID",
+    "SANITY_DATASET",
+    "SANITY_DATASET_VISIBILITY",
+    "SANITY_API_VERSION",
+  ])(
     "requires %s",
     (settingName) => {
       const environment: Record<string, string | undefined> = {
@@ -168,8 +176,45 @@ describe("api version", () => {
   });
 });
 
+describe("dataset visibility", () => {
+  it.each(["Public", "restricted", ""])(
+    "refuses a visibility that is not one of the two: %s",
+    (visibility) => {
+      expect(() =>
+        loadSanityConfig({
+          ...validEnvironment,
+          SANITY_DATASET_VISIBILITY: visibility,
+        }),
+      ).toThrow(/SANITY_DATASET_VISIBILITY/);
+    },
+  );
+
+  it("refuses a private dataset with no credential to read it with", () => {
+    // The failure this prevents is silent: Sanity answers an unauthenticated
+    // read of a private dataset with 200 and an empty result, so the site would
+    // render as though nothing had been authored yet and every diagnostic would
+    // agree with it.
+    expect(() =>
+      loadSanityConfig({
+        ...validEnvironment,
+        SANITY_DATASET_VISIBILITY: "private",
+      }),
+    ).toThrow(/SANITY_READ_TOKEN/);
+  });
+
+  it("accepts a private dataset with one", () => {
+    expect(
+      loadSanityConfig({
+        ...validEnvironment,
+        SANITY_DATASET_VISIBILITY: "private",
+        SANITY_READ_TOKEN: "sk-fixture-token",
+      }).datasetVisibility,
+    ).toBe("private");
+  });
+});
+
 describe("read token", () => {
-  it("is optional, because a public dataset needs none", () => {
+  it("is optional for a public dataset, which needs none", () => {
     expect(loadSanityConfig(validEnvironment).readToken).toBeUndefined();
   });
 

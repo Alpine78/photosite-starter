@@ -6,11 +6,13 @@ import {
   defineMediaType,
   MAX_PUBLIC_DELIVERY_DIMENSION,
   MEDIA_TYPE_NAME,
+  publishedIdOf,
 } from "./media";
 import type {
   SchemaFieldDefinition,
   SchemaTypeDefinition,
   SchemaValidation,
+  SchemaValidationClient,
   SchemaValidationContext,
   SchemaValidationResult,
   SchemaValidationRule,
@@ -40,6 +42,7 @@ function inspect(
 ) {
   const checks: CustomCheck[] = [];
   const queries: RecordedQuery[] = [];
+  const clientSettings: { perspective: string; useCdn?: boolean }[] = [];
   let required = false;
   let min: number | undefined;
 
@@ -67,18 +70,24 @@ function inspect(
     document?: Record<string, unknown>,
   ): SchemaValidationContext => ({
     ...(document === undefined ? {} : { document }),
-    getClient: () => ({
-      async fetch(query, params) {
-        queries.push({ query, params });
-        return dataset.answer as never;
-      },
-    }),
+    getClient: () => client,
   });
+
+  const client: SchemaValidationClient = {
+    async fetch(query, params) {
+      queries.push({ query, params });
+      return dataset.answer as never;
+    },
+    withConfig(settings) {
+      clientSettings.push(settings);
+      return client;
+    },
+  };
 
   const run = async (value: unknown, document?: Record<string, unknown>) =>
     Promise.all(checks.map((check) => check(value, contextFor(document))));
 
-  return { required, min, run, queries };
+  return { required, min, run, queries, clientSettings };
 }
 
 function fieldOf(
@@ -140,6 +149,21 @@ describe("the media document", () => {
   it("offers no crop control, because a cropped photograph is a different one", () => {
     expect(fieldOf(privateMedia, "image").options?.hotspot).toBe(false);
   });
+
+  it("does not keep the uploaded file's own name", () => {
+    // Sanity keeps it by default and warns that filenames carry sensitive
+    // information — a client's name, an internal working title — and an asset
+    // document in a public dataset is readable by anyone.
+    expect(fieldOf(privateMedia, "image").options?.storeOriginalFilename).toBe(
+      false,
+    );
+  });
+
+  it("offers the file picker only web delivery formats", () => {
+    expect(fieldOf(privateMedia, "image").options?.accept).toBe(
+      "image/avif,image/jpeg,image/png,image/webp",
+    );
+  });
 });
 
 describe("where a master's location may be recorded", () => {
@@ -176,32 +200,63 @@ describe("the media identity", () => {
     }
   });
 
-  it("refuses an identity another document already claims", async () => {
+  it.each([
+    ["a published document", "other"],
+    // The collision that matters most: two drafts quietly taking one identity,
+    // then being published and breaking every reference at once.
+    ["another document's unpublished draft", "drafts.other"],
+    ["another document inside a content release", "versions.summer-drop.other"],
+  ])("refuses an identity %s already claims", async () => {
     const { run } = inspect(fieldOf(privateMedia, "mediaId").validation, {
       answer: { taken: true, publishedMediaId: null },
     });
 
-    expect(
-      (await run("coastal-landscape", { _id: "abc" }))[0],
-    ).toContain("already uses");
+    expect((await run("coastal-landscape", { _id: "abc" }))[0]).toContain(
+      "already uses",
+    );
   });
 
-  it("does not count the document's own draft or published version", async () => {
+  it("asks with a perspective that can see unpublished documents", async () => {
+    // A client's default perspective is `published`, which would make the
+    // check above blind to exactly the case it exists for.
+    const { run, clientSettings } = inspect(
+      fieldOf(privateMedia, "mediaId").validation,
+      { answer: UNIQUE_AND_UNCHANGED },
+    );
+
+    await run("coastal-landscape", { _id: "abc" });
+
+    expect(clientSettings).toEqual([{ perspective: "raw", useCdn: false }]);
+  });
+
+  it.each([
+    ["its own published version", "abc"],
+    ["its own draft", "drafts.abc"],
+    ["its own version in a release", "versions.summer-drop.abc"],
+  ])("does not collide with %s", async (_case, ownId) => {
+    const { run } = inspect(fieldOf(privateMedia, "mediaId").validation, {
+      answer: UNIQUE_AND_UNCHANGED,
+    });
+
+    expect(await run("coastal-landscape", { _id: ownId })).toEqual([true]);
+  });
+
+  it("excludes every version of this document before bounding the collision query", async () => {
     const { run, queries } = inspect(
       fieldOf(privateMedia, "mediaId").validation,
       { answer: UNIQUE_AND_UNCHANGED },
     );
 
-    expect(await run("coastal-landscape", { _id: "drafts.abc" })).toEqual([
-      true,
-    ]);
-    // Editing a draft must not collide with the published document it came
-    // from, which is the same photograph.
-    expect(queries[0].params).toMatchObject({
-      draft: "drafts.abc",
-      published: "abc",
-    });
-    expect(queries[0].query).toContain("!(_id in [$draft, $published])");
+    await run("coastal-landscape", { _id: "abc" });
+
+    // Filtering in GROQ before `[0]` is load-bearing. If twenty release
+    // versions were fetched first and filtered in TypeScript, they could hide
+    // the twenty-first result belonging to another logical document.
+    expect(queries[0].query).toContain(
+      "!(_id in sanity::versionOf($published))",
+    );
+    expect(queries[0].query).toContain("][0]._id");
+    expect(queries[0].query).not.toContain("[0...20]");
   });
 
   it("refuses to rename an identity that has already been published", async () => {
@@ -220,6 +275,18 @@ describe("the media identity", () => {
     });
 
     expect(await run("quiet-coast", { _id: "drafts.abc" })).toEqual([true]);
+  });
+});
+
+describe("which document version an id belongs to", () => {
+  it.each([
+    ["abc", "abc"],
+    ["drafts.abc", "abc"],
+    ["versions.summer-drop.abc", "abc"],
+    ["versions.summer-drop.abc.def", "abc.def"],
+    ["versions.orphan", "orphan"],
+  ])("resolves %s to %s", (id, expected) => {
+    expect(publishedIdOf(id)).toBe(expected);
   });
 });
 

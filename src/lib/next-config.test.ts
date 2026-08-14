@@ -24,13 +24,28 @@ const FIXTURE_DEPLOYMENT = {
   SITE_CONTENT_SOURCE: "mock",
   SANITY_PROJECT_ID: "",
   SANITY_DATASET: "",
+  SANITY_DATASET_VISIBILITY: "",
+  SANITY_API_VERSION: "",
+  SANITY_READ_TOKEN: "",
+  NEXT_PUBLIC_SANITY_READ_TOKEN: "",
+} as const;
+
+const PUBLIC_SANITY_DEPLOYMENT = {
+  SITE_CONTENT_SOURCE: "sanity",
+  SANITY_PROJECT_ID: "zp7mbokg",
+  SANITY_DATASET: "production",
+  SANITY_DATASET_VISIBILITY: "public",
+  SANITY_API_VERSION: "v2026-06-24",
 } as const;
 
 async function configuredWith(
   environment: Readonly<Record<string, string>>,
 ): Promise<NextConfig> {
   vi.resetModules();
-  for (const [name, value] of Object.entries(environment)) {
+  for (const [name, value] of Object.entries({
+    ...FIXTURE_DEPLOYMENT,
+    ...environment,
+  })) {
     vi.stubEnv(name, value);
   }
 
@@ -100,11 +115,7 @@ describe("public image Next.js configuration", () => {
   });
 
   it("allows only this deployment's own project and dataset on the asset CDN", async () => {
-    const config = await configuredWith({
-      SITE_CONTENT_SOURCE: "sanity",
-      SANITY_PROJECT_ID: "zp7mbokg",
-      SANITY_DATASET: "production",
-    });
+    const config = await configuredWith(PUBLIC_SANITY_DEPLOYMENT);
 
     expect(config.images?.remotePatterns).toEqual([
       {
@@ -122,11 +133,75 @@ describe("public image Next.js configuration", () => {
   it("fails the build when a CMS deployment cannot name its own assets", async () => {
     await expect(
       configuredWith({
-        SITE_CONTENT_SOURCE: "sanity",
-        SANITY_PROJECT_ID: "zp7mbokg",
+        ...PUBLIC_SANITY_DEPLOYMENT,
         SANITY_DATASET: "",
       }),
-    ).rejects.toThrow(/SANITY_PROJECT_ID and SANITY_DATASET/);
+    ).rejects.toThrow(/SANITY_DATASET/);
+  });
+
+  it.each(["SANITY_DATASET_VISIBILITY", "SANITY_API_VERSION"])(
+    "fails the build when a CMS deployment omits %s",
+    async (settingName) => {
+      await expect(
+        configuredWith({
+          ...PUBLIC_SANITY_DEPLOYMENT,
+          [settingName]: "",
+        }),
+      ).rejects.toThrow(new RegExp(settingName));
+    },
+  );
+
+  it("refuses an unknown dataset visibility during configuration", async () => {
+    await expect(
+      configuredWith({
+        ...PUBLIC_SANITY_DEPLOYMENT,
+        SANITY_DATASET_VISIBILITY: "restricted",
+      }),
+    ).rejects.toThrow(/SANITY_DATASET_VISIBILITY/);
+  });
+
+  it.each(["latest", "v2026-02-31", "v2099-01-01"])(
+    "refuses an API version the runtime configuration would reject: %s",
+    async (apiVersion) => {
+      await expect(
+        configuredWith({
+          ...PUBLIC_SANITY_DEPLOYMENT,
+          SANITY_API_VERSION: apiVersion,
+        }),
+      ).rejects.toThrow(/SANITY_API_VERSION/);
+    },
+  );
+
+  it.each(["", "[SENSITIVE]", "$(SANITY_READ_TOKEN)"])(
+    "fails the build when a private dataset receives no usable build credential: %s",
+    async (token) => {
+      await expect(
+        configuredWith({
+          ...PUBLIC_SANITY_DEPLOYMENT,
+          SANITY_DATASET_VISIBILITY: "private",
+          SANITY_READ_TOKEN: token,
+        }),
+      ).rejects.toThrow(/SANITY_READ_TOKEN/);
+    },
+  );
+
+  it("accepts a private dataset with a build-scoped credential", async () => {
+    const config = await configuredWith({
+      ...PUBLIC_SANITY_DEPLOYMENT,
+      SANITY_DATASET_VISIBILITY: "private",
+      SANITY_READ_TOKEN: "sk-fixture-build-token",
+    });
+
+    expect(config.images?.remotePatterns).toHaveLength(1);
+  });
+
+  it("refuses a read token under a public browser setting", async () => {
+    await expect(
+      configuredWith({
+        ...PUBLIC_SANITY_DEPLOYMENT,
+        NEXT_PUBLIC_SANITY_READ_TOKEN: "sk-fixture-token",
+      }),
+    ).rejects.toThrow(/NEXT_PUBLIC_SANITY_READ_TOKEN/);
   });
 
   it.each([
@@ -142,7 +217,7 @@ describe("public image Next.js configuration", () => {
       // here too rather than trusted to fail later.
       await expect(
         configuredWith({
-          SITE_CONTENT_SOURCE: "sanity",
+          ...PUBLIC_SANITY_DEPLOYMENT,
           SANITY_PROJECT_ID: projectId,
           SANITY_DATASET: dataset,
         }),
@@ -155,6 +230,7 @@ describe("public image Next.js configuration", () => {
         loadSanityConfig({
           SANITY_PROJECT_ID: projectId,
           SANITY_DATASET: dataset,
+          SANITY_DATASET_VISIBILITY: "public",
           SANITY_API_VERSION: "v2026-06-24",
         }),
       ).toThrow();

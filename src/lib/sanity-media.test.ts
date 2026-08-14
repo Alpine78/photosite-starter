@@ -42,6 +42,7 @@ vi.mock("@/lib/deployment-config", () => ({
 const config: SanityConfig = {
   projectId: "zp7mbokg",
   dataset: "production",
+  datasetVisibility: "public",
   apiVersion: "v2026-06-24",
 };
 
@@ -49,17 +50,20 @@ const languages = { language: "fi", fallbackLanguage: "fi" } as const;
 const englishRoute = { language: "en", fallbackLanguage: "fi" } as const;
 
 /**
- * Asset ids as Sanity actually mints them: opaque tokens, not content hashes.
- * One upload of each shape, because the documented URL grammar promises only
- * `<assetId>-<width>x<height>.<format>` and an adapter that assumed hexadecimal
- * would refuse perfectly ordinary assets.
+ * Asset names as Sanity actually mints them. The name in a path is opaque: a
+ * bare token, a content hash, or — as in the documented upload response — a
+ * prefixed form whose asset id is only part of it. All three are ordinary
+ * uploads, and an adapter that read the name as an identifier it could
+ * reconstruct would refuse two of them.
  */
 const EXPORTED_ASSET = "Tb9Ew8CXIwaY6R1kjMvI0uRR";
 const REPROCESSED_ASSET = "G3i4emG6B8JnTmGoN0UjgAp8";
 const HASHED_ASSET = "0123456789abcdef0123456789abcdef01234567";
+const PREFIXED_ASSET = "abc123_0G0Pkg3JLakKCLrF1podAdE9";
 
 type AssetOverrides = {
   readonly assetId?: string;
+  readonly path?: string;
   readonly width?: number;
   readonly height?: number;
   readonly extension?: string;
@@ -73,11 +77,13 @@ function assetOf(overrides: AssetOverrides = {}) {
   const height = overrides.height ?? 1067;
   const extension = overrides.extension ?? "webp";
 
+  const path =
+    overrides.path ??
+    `images/${config.projectId}/${config.dataset}/${assetId}-${width}x${height}.${extension}`;
+
   return {
-    url:
-      overrides.url ??
-      `https://cdn.sanity.io/images/${config.projectId}/${config.dataset}/${assetId}-${width}x${height}.${extension}`,
-    assetId,
+    url: overrides.url ?? `https://cdn.sanity.io/${path}`,
+    path,
     extension,
     mimeType: overrides.mimeType ?? "image/webp",
     width,
@@ -303,14 +309,18 @@ describe("refusing what cannot be published", () => {
     expect(error.message).toContain(`${MAX_PUBLIC_DELIVERY_DIMENSION}px`);
   });
 
-  it("accepts an asset id of either shape Sanity mints", () => {
-    // Some uploads are addressed by their content hash and some by a generated
-    // token. The URL grammar promises only that the id is there.
-    const media = project(
-      documentOf({ asset: assetOf({ assetId: HASHED_ASSET }) }),
-    );
+  it.each([
+    ["a generated token", EXPORTED_ASSET],
+    ["a content hash", HASHED_ASSET],
+    // Sanity's own documented upload response: assetId
+    // "0G0Pkg3JLakKCLrF1podAdE9" inside a path named
+    // "abc123_0G0Pkg3JLakKCLrF1podAdE9-538x538.jpg".
+    ["a prefixed name the asset id is only part of", PREFIXED_ASSET],
+  ])("accepts an asset whose path is named with %s", (_case, assetId) => {
+    const media = project(documentOf({ asset: assetOf({ assetId }) }));
 
-    expect(media.rendition.version).toBe(HASHED_ASSET);
+    expect(media.rendition.version).toBe(assetId);
+    expect(media.rendition.src).toContain(assetId);
   });
 
   it("refuses an identity the rest of the site could not reference", () => {
@@ -337,13 +347,13 @@ describe("refusing what cannot be published", () => {
     [
       "another project's asset",
       assetOf({
-        url: `https://cdn.sanity.io/images/otherproj/production/${EXPORTED_ASSET}-1600x1067.webp`,
+        path: `images/otherproj/production/${EXPORTED_ASSET}-1600x1067.webp`,
       }),
     ],
     [
       "another dataset's asset",
       assetOf({
-        url: `https://cdn.sanity.io/images/zp7mbokg/staging/${EXPORTED_ASSET}-1600x1067.webp`,
+        path: `images/zp7mbokg/staging/${EXPORTED_ASSET}-1600x1067.webp`,
       }),
     ],
     [
@@ -359,7 +369,7 @@ describe("refusing what cannot be published", () => {
       }),
     ],
     [
-      "a URL naming a different asset",
+      "a URL that is not the path the store recorded",
       assetOf({
         url: `https://cdn.sanity.io/images/zp7mbokg/production/${REPROCESSED_ASSET}-1600x1067.webp`,
       }),

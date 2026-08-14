@@ -120,12 +120,43 @@ const STUDIO_VALIDATION_API_VERSION = "2026-08-13";
  */
 const MEDIA_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-function publishedIdOf(id: string): string {
-  return id.startsWith("drafts.") ? id.slice("drafts.".length) : id;
+/**
+ * The id a document has when published, whatever version is being edited.
+ *
+ * A Studio edits one logical document under several ids: `abc` published,
+ * `drafts.abc` while unpublished, and `versions.<release>.abc` inside a content
+ * release. All three are the same photograph, so a uniqueness check has to
+ * compare on this rather than on `_id`, or a document would collide with
+ * itself the moment anyone edited or scheduled it.
+ */
+export function publishedIdOf(id: string): string {
+  if (id.startsWith("drafts.")) return id.slice("drafts.".length);
+
+  if (id.startsWith("versions.")) {
+    const withoutPrefix = id.slice("versions.".length);
+    const separator = withoutPrefix.indexOf(".");
+    return separator === -1
+      ? withoutPrefix
+      : withoutPrefix.slice(separator + 1);
+  }
+
+  return id;
 }
 
+/**
+ * The client a validation rule asks its questions with.
+ *
+ * `raw` is chosen deliberately. A client's default perspective is `published`,
+ * so a uniqueness check made with one would see only published documents — and
+ * the collision that matters most is two *unpublished* drafts quietly claiming
+ * one identity, which would then both be published and break every reference at
+ * once. A non-published perspective also requires the uncached client, so both
+ * are stated together.
+ */
 function clientOf(context: SchemaValidationContext): SchemaValidationClient {
-  return context.getClient({ apiVersion: STUDIO_VALIDATION_API_VERSION });
+  return context
+    .getClient({ apiVersion: STUDIO_VALIDATION_API_VERSION })
+    .withConfig({ perspective: "raw", useCdn: false });
 }
 
 /**
@@ -158,19 +189,18 @@ async function validateMediaIdentity(
     publishedMediaId: string | null;
   }>(
     `{
-      "taken": count(*[_type == $type && mediaId == $mediaId && !(_id in [$draft, $published])]) > 0,
+      "taken": defined(*[
+        _type == $type &&
+        mediaId == $mediaId &&
+        !(_id in sanity::versionOf($published))
+      ][0]._id),
       "publishedMediaId": *[_id == $published][0].mediaId
     }`,
-    {
-      type: MEDIA_TYPE_NAME,
-      mediaId: value,
-      draft: `drafts.${published}`,
-      published,
-    },
+    { type: MEDIA_TYPE_NAME, mediaId: value, published },
   );
 
   if (taken) {
-    return `Another media document already uses "${value}". A media ID identifies one photograph across the whole site.`;
+    return `Another media document already uses "${value}", published or not. A media ID identifies one photograph across the whole site.`;
   }
 
   if (publishedMediaId !== null && publishedMediaId !== value) {
@@ -299,8 +329,19 @@ export function defineMediaType(
         title: "Public web image",
         type: "image",
         description: `An exported delivery copy, at most ${MAX_PUBLIC_DELIVERY_DIMENSION} pixels on its longest edge, as ${Object.keys(PUBLIC_DELIVERY_FORMATS).join(", ")}. Never the camera master: this file is served from a public URL the moment it is uploaded.`,
-        // No hotspot, no crop UI. A cropped preview misrepresents the work.
-        options: { hotspot: false },
+        options: {
+          // No hotspot, no crop UI. A cropped preview misrepresents the work.
+          hotspot: false,
+          // Sanity keeps the uploaded file's own name by default and warns that
+          // filenames carry sensitive information. A working title or a
+          // client's name on an asset document is readable by anyone in a
+          // public dataset, whether or not this site ever projects it.
+          storeOriginalFilename: false,
+          // A first guardrail in the file picker. The rule below is the
+          // control; this only keeps an editor from picking a raw file and
+          // waiting for a validation message to explain why.
+          accept: [...new Set(Object.values(PUBLIC_DELIVERY_FORMATS))].join(","),
+        },
         validation: (rule) => rule.custom(validatePublicDerivative),
       },
       {

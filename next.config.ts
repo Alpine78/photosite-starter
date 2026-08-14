@@ -22,6 +22,115 @@ type RemotePattern = NonNullable<
 const SANITY_ASSET_CDN_HOST = "cdn.sanity.io";
 const SANITY_PROJECT_ID = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const SANITY_DATASET = /^(?=.{1,64}$)[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$/;
+const SANITY_API_VERSION = /^v(\d{4})-(\d{2})-(\d{2})$/;
+
+type SanityBuildSettings = {
+  readonly projectId: string;
+  readonly dataset: string;
+};
+
+function requiredSanityBuildSetting(
+  environment: Record<string, string | undefined>,
+  name: string,
+): string {
+  const value = environment[name]?.trim();
+  if (!value) {
+    throw new Error(
+      `[next.config] SITE_CONTENT_SOURCE is "sanity", so ${name} must be set at build time.`,
+    );
+  }
+  return value;
+}
+
+function assertSanityApiVersion(apiVersion: string): void {
+  const match = SANITY_API_VERSION.exec(apiVersion);
+  if (match === null) {
+    throw new Error(
+      "[next.config] SANITY_API_VERSION must be a dated version of the form vYYYY-MM-DD.",
+    );
+  }
+
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const isRealDate =
+    date.getUTCFullYear() === Number(year) &&
+    date.getUTCMonth() === Number(month) - 1 &&
+    date.getUTCDate() === Number(day);
+  const now = new Date();
+  const today = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+  );
+
+  if (!isRealDate || date.getTime() > today) {
+    throw new Error(
+      "[next.config] SANITY_API_VERSION must name a real UTC date that is not in the future.",
+    );
+  }
+}
+
+/**
+ * Validates every setting a Sanity build depends on, before any route happens
+ * to import an adapter.
+ *
+ * A private dataset has two separately scoped credentials: the trusted build
+ * job supplies a read-only build token, while Vercel supplies another Sensitive
+ * token to the running deployment. Vercel's pull command represents a Sensitive
+ * value as `[SENSITIVE]`, and an undefined Azure variable as `$(NAME)`; neither
+ * is a credential, so both fail here rather than producing a green but unusable
+ * release candidate.
+ */
+function sanityBuildSettings(
+  environment: Record<string, string | undefined>,
+): SanityBuildSettings | null {
+  if (environment.SITE_CONTENT_SOURCE?.trim() !== "sanity") return null;
+
+  if (environment.NEXT_PUBLIC_SANITY_READ_TOKEN?.trim()) {
+    throw new Error(
+      "[next.config] NEXT_PUBLIC_SANITY_READ_TOKEN must never be set: a NEXT_PUBLIC_ value is compiled into the browser bundle.",
+    );
+  }
+
+  const projectId = requiredSanityBuildSetting(
+    environment,
+    "SANITY_PROJECT_ID",
+  );
+  const dataset = requiredSanityBuildSetting(environment, "SANITY_DATASET");
+  const visibility = requiredSanityBuildSetting(
+    environment,
+    "SANITY_DATASET_VISIBILITY",
+  );
+  const apiVersion = requiredSanityBuildSetting(
+    environment,
+    "SANITY_API_VERSION",
+  );
+
+  if (!SANITY_PROJECT_ID.test(projectId) || !SANITY_DATASET.test(dataset)) {
+    throw new Error(
+      "[next.config] SANITY_PROJECT_ID or SANITY_DATASET is not a value Sanity would accept, so it must not be interpolated into the image optimizer's allow-list.",
+    );
+  }
+  if (visibility !== "public" && visibility !== "private") {
+    throw new Error(
+      '[next.config] SANITY_DATASET_VISIBILITY must be either "public" or "private".',
+    );
+  }
+  assertSanityApiVersion(apiVersion);
+
+  if (visibility === "private") {
+    const token = environment.SANITY_READ_TOKEN?.trim();
+    const isPlaceholder =
+      token === "[SENSITIVE]" || /^\$\([A-Za-z0-9_]+\)$/.test(token ?? "");
+    if (!token || isPlaceholder || /\s/.test(token)) {
+      throw new Error(
+        "[next.config] SANITY_DATASET_VISIBILITY is private, so the trusted build job must supply a usable SANITY_READ_TOKEN. The running deployment uses a separate environment-scoped token.",
+      );
+    }
+  }
+
+  return { projectId, dataset };
+}
 
 /**
  * Which remote images this deployment's optimizer will fetch.
@@ -44,22 +153,9 @@ const SANITY_DATASET = /^(?=.{1,64}$)[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$/;
 function sanityImageRemotePatterns(
   environment: Record<string, string | undefined>,
 ): RemotePattern[] {
-  if (environment.SITE_CONTENT_SOURCE?.trim() !== "sanity") return [];
-
-  const projectId = environment.SANITY_PROJECT_ID?.trim();
-  const dataset = environment.SANITY_DATASET?.trim();
-
-  if (!projectId || !dataset) {
-    throw new Error(
-      "[next.config] SITE_CONTENT_SOURCE is \"sanity\", so SANITY_PROJECT_ID and SANITY_DATASET must be set at build time: the image optimizer's allow-list is scoped to this deployment's own project and dataset.",
-    );
-  }
-
-  if (!SANITY_PROJECT_ID.test(projectId) || !SANITY_DATASET.test(dataset)) {
-    throw new Error(
-      "[next.config] SANITY_PROJECT_ID or SANITY_DATASET is not a value Sanity would accept, so it must not be interpolated into the image optimizer's allow-list.",
-    );
-  }
+  const settings = sanityBuildSettings(environment);
+  if (settings === null) return [];
+  const { projectId, dataset } = settings;
 
   return [
     {

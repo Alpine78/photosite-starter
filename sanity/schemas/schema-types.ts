@@ -29,6 +29,16 @@ export type SchemaValidationClient = {
     query: string,
     params?: Readonly<Record<string, unknown>>,
   ): Promise<TResult>;
+  /**
+   * Returns a client with different settings. A validation rule needs it
+   * because the default perspective hides unpublished documents, and a rule
+   * that only sees published ones cannot tell an editor their identity is
+   * already taken by a draft.
+   */
+  withConfig(config: {
+    readonly perspective: string;
+    readonly useCdn?: boolean;
+  }): SchemaValidationClient;
 };
 
 /**
@@ -70,6 +80,15 @@ export type SchemaFieldOptions = {
    * photograph, so an editor must not be offered a control that does.
    */
   readonly hotspot?: false;
+  /**
+   * Whether the uploaded file's own name is kept on the asset document.
+   * Defaults to `true` in Sanity, which its documentation warns about: a
+   * filename can carry a client's name or an internal working title, and an
+   * asset document in a public dataset is readable by anyone.
+   */
+  readonly storeOriginalFilename?: boolean;
+  /** MIME types the file picker offers. A hint to an editor, not a control. */
+  readonly accept?: string;
 };
 
 export type SchemaFieldDefinition = {

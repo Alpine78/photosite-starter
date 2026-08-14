@@ -48,20 +48,26 @@ authoritative for the exact steps. What this project needs from it:
 4. **Pin an API version.** Use a dated version, `vYYYY-MM-DD`, from the day the
    deployment was built and tested. Bumping it later is a deliberate change with its own
    verification, which is the point of pinning.
-5. **Decide, and record, whether each dataset is public or private.** It is not only a
+5. **Decide, and then verify, whether each dataset is public or private.** It is not a
    convenience setting: a public dataset is readable by anyone with the project id, so it
    may hold nothing you would not publish, and the schemas are built accordingly
-   (*Dataset visibility*, below). Verify what the dataset actually is rather than
-   assuming.
-6. **Create a read token if the dataset is private.** A public dataset needs none; a
-   private one cannot be read without it. Use the narrowest read-only role Sanity offers,
-   issue a separate token per environment, and store it in the hosting provider's secret
-   storage — never in the repository, never in a URL, and never under a `NEXT_PUBLIC_`
-   name.
+   (*Dataset visibility*, below). Verify it against Sanity rather than against your own
+   notes — check the dataset's visibility in the project's console, and confirm that a
+   request with no credential returns nothing from a private one. A declared setting says
+   what you intended; only Sanity knows what is true, and a dataset can be switched, or
+   revert when a plan lapses.
+6. **Create phase-scoped read tokens if the dataset is private.** A public dataset needs
+   none; a private one cannot be read without one. Use the narrowest read-only role Sanity
+   offers. The trusted build gets `SANITY_BUILD_READ_TOKEN` from Azure DevOps, and the
+   running deployment gets a different `SANITY_READ_TOKEN` from Vercel Sensitive. Issue
+   both separately per environment — never put either in source control or under a
+   `NEXT_PUBLIC_` name.
 7. **Set the deployment settings** below, then verify the connection before wiring any
    content: `probeSanityConnectivity` in
    [`src/lib/sanity-client.ts`](../src/lib/sanity-client.ts) runs a query that reads no
-   document and proves the address and credential are right.
+   document and proves the address is usable. It cannot prove a private credential,
+   because Sanity answers an unauthenticated private read with the same empty result;
+   the required visibility declaration and provisioning check own that guarantee.
 
 ## Settings
 
@@ -70,14 +76,16 @@ authoritative for the exact steps. What this project needs from it:
 | `SITE_CONTENT_SOURCE` | always | `mock` (the project's demo fixtures) or `sanity` (this deployment's Content Lake). No default. |
 | `SANITY_PROJECT_ID` | when `sanity` | Project id: 1–63 lowercase letters, digits, or inner hyphens — it is the hostname label in `<projectId>.api.sanity.io`. |
 | `SANITY_DATASET` | when `sanity` | Dataset name, to Sanity's own rule: 1–64 characters of lowercase letters, digits, hyphens, and underscores, beginning and ending with a letter or digit. |
+| `SANITY_DATASET_VISIBILITY` | when `sanity` | `public` or `private`, matching both the actual dataset and the Studio schema configuration. |
 | `SANITY_API_VERSION` | when `sanity` | Dated API version, `vYYYY-MM-DD`. Undated, legacy, impossible, and future-dated versions are refused. |
-| `SANITY_READ_TOKEN` | optional | Server-only credential for a private dataset. |
+| `SANITY_READ_TOKEN` | when `private` | Server-only runtime credential. Local builds use this name too; the reference pipeline maps its separate Azure `SANITY_BUILD_READ_TOKEN` to it only for the build step. Declaring `private` without a usable build credential fails the build. |
 
 `SITE_CONTENT_SOURCE` is read as part of the deployment configuration, which every route
 resolves — so an unset or illegal value fails the **build**, not the first content read.
-The Sanity settings are validated when a client is built, and validated against the
-service's own rules rather than a looser approximation of them: a name Sanity would
-reject fails here, where it names itself, instead of becoming a 404 to debug later.
+Every Sanity setting is validated in mandatory build configuration before any route or
+adapter is evaluated, and the runtime client validates the same values again. Both use
+the service's own rules rather than a looser approximation: a name Sanity would reject
+fails here, where it names itself, instead of becoming a 404 to debug later.
 
 A future-dated API version is refused too. That one is this project's rule rather than a
 documented Sanity constraint: a version dated after today pins no behavior the deployment
@@ -142,12 +150,19 @@ document, described once, reused everywhere.
 
 ### Dataset visibility
 
-Stated once, in the Studio's schema configuration, because it decides what may be stored
-at all:
+Stated twice, on purpose, and the two must agree: once in the Studio's schema
+configuration, because it decides what may be stored at all, and once as the deployment's
+`SANITY_DATASET_VISIBILITY`, because it decides whether the site may run without a
+credential.
 
 ```ts
 schema: { types: defineSchemaTypes({ datasetVisibility: "private" }) }
 ```
+
+Declaring `private` makes a build-scoped `SANITY_READ_TOKEN` required: locally that is the
+ordinary setting, while the reference pipeline maps its separate Azure build credential
+to that name. The build fails without it rather than the site quietly serving an empty
+version of itself.
 
 **Archive locations, and where they may live.** The media document can carry an *Archive
 location* — where your master lives, in your own archive. No query the site runs reads it,
@@ -184,6 +199,13 @@ The site enforces the export policy rather than trusting it:
 | **JPEG, PNG, WebP, or AVIF**, with a matching media type | Web delivery formats. A camera or print format is refused. |
 | The asset must belong to **this deployment's project and dataset** | The optimizer's allow-list is scoped to them, so a foreign URL could not be rendered anyway. |
 | Dimensions come from the file | Never typed in. The site reserves space at the photograph's true ratio and never crops it. |
+
+**Uploaded filenames are not kept.** Sanity stores the original filename on the asset
+document by default, and its own documentation warns that filenames carry sensitive
+information — a client's name, an internal working title, a shoot nobody has announced.
+The image field turns that off, so it applies to **new uploads only**: assets already in
+the dataset keep the filename they were stored with, and clearing those means editing or
+re-uploading them.
 
 The first two are checked twice. The Studio measures the uploaded file and **blocks the
 publish**, so a camera master never becomes part of a page; the site checks again when it

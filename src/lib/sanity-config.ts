@@ -41,20 +41,47 @@ import "server-only";
 const sanitySettingNames = {
   projectId: "SANITY_PROJECT_ID",
   dataset: "SANITY_DATASET",
+  datasetVisibility: "SANITY_DATASET_VISIBILITY",
   apiVersion: "SANITY_API_VERSION",
   readToken: "SANITY_READ_TOKEN",
 } as const;
 
+/**
+ * Whether anyone may read this dataset's documents.
+ *
+ * Declared rather than discovered, because the failure it prevents is silent.
+ * A private dataset queried without a credential does not answer 401 — it
+ * answers 200 with an empty result, which is indistinguishable from a site
+ * whose content has not been authored yet. A deployment can therefore go live
+ * looking merely empty, and every diagnostic it offers will agree with it.
+ *
+ * The value has a second job. It is the same declaration the Studio schema is
+ * built with, and there it decides whether an archive-location field exists at
+ * all — a public dataset publishes every field it holds, projected or not
+ * (ADR-0006 §5 amendment). Keeping the two ends on one word is what makes that
+ * a boundary rather than a habit.
+ *
+ * It is a statement of intent, not proof: only Sanity knows what the dataset
+ * actually is. Provisioning verifies that separately (`docs/sanity-setup.md`).
+ */
+export type SanityDatasetVisibility = "public" | "private";
+
+const DATASET_VISIBILITIES: readonly SanityDatasetVisibility[] = [
+  "public",
+  "private",
+];
+
 export type SanityConfig = {
   readonly projectId: string;
   readonly dataset: string;
+  readonly datasetVisibility: SanityDatasetVisibility;
   /** Dated API version including its leading `v`, e.g. `v2026-06-24`. */
   readonly apiVersion: string;
   /**
-   * Optional server-only credential. Public reads of a public dataset need
-   * none; a private dataset does. It widens which documents a request may
-   * read — it does not, on its own, expose drafts, because the client always
-   * asks for the published perspective.
+   * Server-only credential, and required whenever the dataset is private. It
+   * widens which documents a request may read — it does not, on its own,
+   * expose drafts, because the client always asks for the published
+   * perspective.
    */
   readonly readToken?: string;
 };
@@ -204,8 +231,18 @@ function parseApiVersion(value: string, now: Date): string {
   return value;
 }
 
+function parseDatasetVisibility(value: string): SanityDatasetVisibility {
+  if (!DATASET_VISIBILITIES.includes(value as SanityDatasetVisibility)) {
+    throw new SanityConfigurationError(
+      `Invalid ${sanitySettingNames.datasetVisibility}: expected one of ${DATASET_VISIBILITIES.join(", ")}, received "${value}"`,
+    );
+  }
+
+  return value as SanityDatasetVisibility;
+}
+
 /**
- * Reads the optional credential.
+ * Reads the credential.
  *
  * A value mirrored under a `NEXT_PUBLIC_` name is refused rather than ignored:
  * that variable is compiled into the browser bundle, so its presence means the
@@ -247,6 +284,19 @@ export function loadSanityConfig(
   { now = new Date() }: { now?: Date } = {},
 ): SanityConfig {
   const readToken = parseReadToken(environment);
+  const datasetVisibility = parseDatasetVisibility(
+    requireSetting(environment, sanitySettingNames.datasetVisibility),
+  );
+
+  // The one combination that fails quietly if it is allowed through. Sanity
+  // answers an unauthenticated read of a private dataset with 200 and an empty
+  // result, so the site would render as though nothing had been written yet —
+  // and no error, log, or connectivity probe would contradict it.
+  if (datasetVisibility === "private" && readToken === undefined) {
+    throw new SanityConfigurationError(
+      `Missing ${sanitySettingNames.readToken}: ${sanitySettingNames.datasetVisibility} is "private", and a private dataset read without a credential answers with an empty result rather than an error — the site would look unwritten instead of misconfigured.`,
+    );
+  }
 
   return {
     projectId: parseProjectId(
@@ -255,6 +305,7 @@ export function loadSanityConfig(
     dataset: parseDataset(
       requireSetting(environment, sanitySettingNames.dataset),
     ),
+    datasetVisibility,
     apiVersion: parseApiVersion(
       requireSetting(environment, sanitySettingNames.apiVersion),
       now,

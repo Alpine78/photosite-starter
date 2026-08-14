@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-08-10
-**Amended:** 2026-08-13 — see the amendment under §1
+**Amended:** 2026-08-13 — see the amendments under §1
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#39
 
@@ -116,6 +116,36 @@ not project it" is not, on its own, a control.
 
 **Evidence:** Sanity's dataset visibility and asset access documentation, and the AB#82
 review of 2026-08-13, which found the original read-time-only enforcement insufficient.
+
+#### Amendment 2026-08-13 (AB#82) — §5, private credentials are phase-scoped
+
+**Status of the record: still Proposed.** This amendment resolves the credential-lifetime
+question exposed when the first schema made private datasets enforceable. The rest of §5
+still holds: credentials remain server-only, travel only in an authorization header, and
+are never logged.
+
+**Constraint:** the reference pipeline produces a prebuilt Vercel artifact in Azure.
+Vercel's Sensitive runtime values are deliberately non-readable to `vercel pull`, while a
+private dataset must be readable during any build that prerenders authored content.
+Making the runtime credential plain would violate ADR-0004 §5; letting the build continue
+without one would produce a release candidate that only fails after deployment.
+
+**Decision:** private deployments use two separately scoped, read-only credentials.
+`SANITY_BUILD_READ_TOKEN` lives in the customer-owned Azure variable group and is mapped
+to `SANITY_READ_TOKEN` only in the release-candidate build step. A different
+`SANITY_READ_TOKEN` remains Sensitive in Vercel and is injected into running Functions.
+The mandatory Next.js configuration path validates every Sanity setting and refuses a
+private build with no usable build credential before any route or adapter is evaluated.
+
+**Options rejected:** keeping Preview public would prevent the private-only archive field
+from being exercised there; moving the build to Vercel would abandon the prebuilt model
+and Azure's accountable build log; one plain Vercel token would weaken the secret
+boundary. Phase-scoping costs a second token and separate rotation, but gives each token
+one environment and one job.
+
+**Sections affected:** §1's restated build configuration may name and validate the
+settings, §5 owns the two credential lifetimes, and `docs/deployment.md` records their
+provisioning. No route or component gains access to either credential.
 
 ### 2. No client SDK — the query API over `fetch`
 

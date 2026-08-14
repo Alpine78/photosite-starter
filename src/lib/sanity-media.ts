@@ -28,7 +28,8 @@
  * an editor and not the HTTP API, an import, or a migration script, any of
  * which can write a document:
  *
- * - the URL is this deployment's own project and dataset on the asset CDN,
+ * - the URL is this deployment's own project and dataset on the asset CDN, and
+ *   is the exact path the store says the asset has,
  * - the asset is a web delivery format, and its declared MIME type agrees,
  * - the dimensions in the URL agree with the dimensions Sanity measured,
  * - the longest edge is within `MAX_PUBLIC_DELIVERY_DIMENSION`, which a camera
@@ -152,7 +153,7 @@ export const PUBLIC_MEDIA_PROJECTION = `{
   credit,
   "asset": image.asset->{
     url,
-    assetId,
+    path,
     extension,
     mimeType,
     "width": metadata.dimensions.width,
@@ -224,7 +225,7 @@ type RawLocalizedText = {
 
 type RawAsset = {
   readonly url?: unknown;
-  readonly assetId?: unknown;
+  readonly path?: unknown;
   readonly extension?: unknown;
   readonly mimeType?: unknown;
   readonly width?: unknown;
@@ -349,14 +350,21 @@ export function isPubliclyRenderable(
  * allow-list, so "it came from the CMS" is not evidence about what it points
  * at.
  *
- * The identifier in the path is Sanity's own asset id, which is opaque — it is
- * a content hash for some uploads and a generated token for others, and the
- * documented URL grammar promises only `<assetId>-<width>x<height>.<format>`.
- * So it is compared to the asset's `assetId` rather than to its `sha1hash`,
- * which is a separate field and not always the same string. What matters for
- * this boundary holds either way: the id belongs to one immutable set of bytes,
- * so re-exporting a photograph produces a new asset, a new id, and a new URL,
- * while `mediaId` stays put (ADR-0002 §1).
+ * It is checked against the asset's own `path`, which is the one field that
+ * states where these bytes live. Nothing is inferred from the file name: the
+ * documented upload response has `assetId` `0G0Pkg3JLakKCLrF1podAdE9` inside a
+ * path of `…/abc123_0G0Pkg3JLakKCLrF1podAdE9-538x538.jpg`, so the name is not
+ * the asset id, and an adapter that assumed it was would refuse ordinary
+ * uploads. Only the dimensions and the format are parsed, off the right edge,
+ * where the grammar does promise them.
+ *
+ * The version is that name — the part of the path before the dimensions. Sanity
+ * derives an asset path partly by hashing the file's content and stores one
+ * asset document per distinct set of bytes, so the name changes when the bytes
+ * do, which is what ADR-0005 §2 asks a version to mean. It is deliberately not
+ * `sha1hash`: that field is not documented to appear in the path, and a version
+ * the contract requires to be present in `src` must be taken from `src`. Either
+ * way `mediaId` is untouched by re-export (ADR-0002 §1).
  */
 function selectPublicRendition(
   asset: RawAsset,
@@ -375,9 +383,9 @@ function selectPublicRendition(
   };
 
   const url = readString(asset.url);
-  const assetId = readString(asset.assetId);
-  if (url === undefined || assetId === undefined) {
-    reject("the asset has no delivery URL or no asset id");
+  const path = readString(asset.path);
+  if (url === undefined || path === undefined) {
+    reject("the asset has no delivery URL or no stored path");
   }
 
   let parsed: URL;
@@ -403,15 +411,15 @@ function selectPublicRendition(
     );
   }
 
-  // `<assetId>-<width>x<height>.<extension>`, the layout Sanity's asset URLs
-  // are documented to have. Parsed rather than assumed, so the dimensions the
-  // browser is told to reserve can be checked against the ones Sanity measured,
-  // and so the identifier in the path can be checked against the asset's own.
-  //
-  // The id is matched as an opaque token, not as a hash: its length and
-  // alphabet are Sanity's business, and a narrower pattern would refuse
-  // perfectly good assets. The bound keeps it inside what the rendition
-  // contract accepts as a version.
+  // The URL must be the asset's own stored path and nothing else. Comparing the
+  // two is what makes the rest of this parse safe: whatever the file is called,
+  // the address being published is the one the store says these bytes have.
+  if (parsed.pathname !== `/${path}`) {
+    reject("the asset delivery URL does not match the asset's stored path");
+  }
+
+  // Only the right edge is a documented grammar: `-<width>x<height>.<format>`.
+  // The name to its left is opaque and is read, not interpreted.
   const filename = parsed.pathname.slice(prefix.length);
   const match = /^([A-Za-z0-9_-]{6,128})-(\d+)x(\d+)\.([a-z0-9]+)$/.exec(
     filename,
@@ -420,10 +428,7 @@ function selectPublicRendition(
     reject("the asset delivery URL is not an addressable image path");
   }
 
-  const [, urlAssetId, urlWidth, urlHeight, extension] = match;
-  if (urlAssetId !== assetId) {
-    reject("the asset delivery URL names a different asset");
-  }
+  const [, assetName, urlWidth, urlHeight, extension] = match;
 
   const expectedMimeType = PUBLIC_DELIVERY_FORMATS[extension];
   if (
@@ -454,7 +459,7 @@ function selectPublicRendition(
     );
   }
 
-  return { src: url, version: assetId, width, height };
+  return { src: url, version: assetName, width, height };
 }
 
 /**

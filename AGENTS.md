@@ -270,20 +270,29 @@ the server-only adapter (`src/lib/sanity-media.ts`) that projects it into the sa
 `ImageMedia` the fixtures produce. One photograph is one document — placement fields stay
 on whatever places it (ADR-0002) — and the adapter reads an allow-list rather than a
 document, so the archive locator, the provider ids, and the capture date used for
-ordering cannot reach a payload. The rendition's version is Sanity's own asset id, taken
-from the documented `<assetId>-<width>x<height>.<format>` URL grammar and compared to the
-asset's `assetId`; it is opaque, not a content hash, so nothing assumes hexadecimal.
+ordering cannot reach a payload. The rendition's delivery URL is validated against the asset's own stored
+`path` rather than reconstructed: Sanity's documented upload response has an `assetId`
+that is only part of the path's filename, so nothing infers an identifier from a name.
+Only the trailing `-<width>x<height>.<format>` is parsed, and the version is the opaque
+name to its left, which Sanity derives partly from the file's content.
 The export policy is enforced twice, because a read-time refusal is late: the schema
 measures an upload against `MAX_PUBLIC_DELIVERY_DIMENSION` (2048px, the same number as
 the optimizer's widest candidate, pinned by a test) and its format, and blocks the
 publish; the adapter checks again, because the Studio binds an editor and not the HTTP
 API. Neither un-uploads a file — an asset is public on the CDN before anyone presses
 publish — so `docs/sanity-setup.md` carries a deletion procedure. Dataset visibility is
-stated when the schema is built: a world-readable dataset is offered no archive-location
-field at all, because a field the adapter never projects is still published by a public
-dataset; a private one makes the read token required. `mediaId` is checked in the Studio
-for uniqueness across the dataset and for not having changed since the last publish, and
-again at the boundary — its syntax, one document per identity by id, and no repeated
+declared twice and must agree: in the Studio schema, where a world-readable dataset is
+offered no archive-location field at all, because a field the adapter never projects is
+still published by a public dataset; and as `SANITY_DATASET_VISIBILITY`, where declaring
+`private` makes the read token required — an unauthenticated read of a private dataset
+answers 200 with an empty result, so without that guard a misconfigured site renders as
+though nothing had been authored and the connectivity probe agrees with it. The image
+field also stops Sanity storing the uploaded filename, which its own documentation warns
+may carry sensitive information. `mediaId` is checked in the Studio
+for uniqueness across the dataset — with an explicit `raw` perspective, because a
+client's default would not see another document's unpublished draft, and comparing on
+published identity so a document does not collide with its own draft or release version —
+and for not having changed since the last publish, and again at the boundary — its syntax, one document per identity by id, and no repeated
 identity within a page. A malformed answer from the store is a classified failure, never
 an empty result. Authored text is language-keyed (ADR-0008): alternative text falls back
 to the site's own language, a caption is dropped rather than shown in the wrong one. A

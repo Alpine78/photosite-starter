@@ -40,6 +40,15 @@ export default defineConfig({
 });
 ```
 
+`datasetVisibility` must match the site's own `SANITY_DATASET_VISIBILITY`, and both must
+match what the dataset actually is in Sanity. It is not a preference: a public dataset is
+readable by anyone holding the project id, so the archive-location field does not exist
+there at all, and on the site's side declaring `private` makes the read token required —
+an unauthenticated read of a private dataset returns an empty result rather than an
+error, so without that guard a misconfigured deployment renders as though nothing had
+been written. The reference deployment uses separate read-only credentials for its
+trusted Azure build and its Vercel runtime; `docs/deployment.md` owns their provisioning.
+
 The schemas validate against the dataset while an editor works — an uploaded image
 is measured and its format checked before it can be published, and a media ID is
 checked for being unique and unchanged. Those rules use the Studio's own client, so
