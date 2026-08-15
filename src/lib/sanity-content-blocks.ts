@@ -214,6 +214,14 @@ export function projectContentBlock(
  * ADR-0003 decision 3 lets a gallery consist of only its lead and grid — while
  * anything present that is not a list of block objects is a broken query
  * contract, not an empty one.
+ *
+ * Sanity's own array editor guarantees each item's `_key` is unique, but that
+ * guarantee binds the ordinary Studio editor, not an API import. Two blocks
+ * sharing one key is a whole-body defect — checked here, once every block is
+ * projected, rather than per block — because a duplicate is exactly the
+ * stable identity `ContentBody` hands React as its list `key`, and two
+ * elements sharing one silently breaks reconciliation rather than merely
+ * failing to render.
  */
 export function readContentBlocks(
   value: unknown,
@@ -228,7 +236,21 @@ export function readContentBlocks(
     );
   }
 
-  return value.map((raw, index) =>
+  const blocks = value.map((raw, index) =>
     projectContentBlock(raw as RawContentBlock, index, options),
   );
+
+  const seenKeys = new Set<string>();
+  for (const block of blocks) {
+    if (block.key === undefined) continue;
+    if (seenKeys.has(block.key)) {
+      throw new SanityContentBlockError(
+        "malformed-result",
+        `more than one body block shares the key "${block.key}"`,
+      );
+    }
+    seenKeys.add(block.key);
+  }
+
+  return blocks;
 }

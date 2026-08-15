@@ -74,6 +74,21 @@ function nonBlank(value: string | undefined): SchemaValidationResult {
     : "Enter a non-empty value";
 }
 
+/**
+ * Rejects a blank item anywhere in the list. `required().min(1)` alone lets a
+ * whitespace-only entry through the Studio editor, while the read-time
+ * projector (`src/lib/sanity-content-blocks.ts#projectContentBlock`) requires
+ * every item to be non-empty and rejects the whole block otherwise — so an
+ * ordinary publish must not be able to create a list the adapter refuses.
+ */
+function nonBlankItems(
+  value: readonly string[] | undefined,
+): SchemaValidationResult {
+  return value === undefined || value.every((item) => item.trim().length > 0)
+    ? true
+    : "Every item must be non-empty";
+}
+
 const contentParagraphBlockType: SchemaTypeDefinition = {
   name: CONTENT_BLOCK_OBJECT_TYPES.paragraph,
   title: "Paragraph",
@@ -140,7 +155,7 @@ const contentListBlockType: SchemaTypeDefinition = {
       title: "Items",
       type: "array",
       of: [{ type: "string" }],
-      validation: (rule) => rule.required().min(1),
+      validation: (rule) => rule.required().min(1).custom(nonBlankItems),
     },
   ],
   preview: { select: { title: "items.0", subtitle: "ordered" } },

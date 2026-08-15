@@ -36,6 +36,21 @@ function nonBlank(value: string | undefined): SchemaValidationResult {
 }
 
 /**
+ * Rejects a blank paragraph anywhere in the description. `required().min(1)`
+ * alone lets a whitespace-only entry through the Studio editor, while
+ * `src/lib/sanity-services.ts#readDescription` requires every paragraph to be
+ * non-empty and rejects the whole document otherwise — so an ordinary publish
+ * must not be able to create a description the adapter refuses.
+ */
+function nonBlankParagraphs(
+  value: readonly string[] | undefined,
+): SchemaValidationResult {
+  return value === undefined || value.every((item) => item.trim().length > 0)
+    ? true
+    : "Every paragraph must be non-empty";
+}
+
+/**
  * Syntax and uniqueness, the same two of `media.ts`'s three identity checks —
  * a service has no redirect history requiring immutability, unlike a
  * photograph or a category whose slug is referenced by permanent redirects.
@@ -99,7 +114,7 @@ export const serviceType: SchemaTypeDefinition = {
       type: "array",
       of: [{ type: "text" }],
       description: "Full description as paragraphs, rendered on the detail page.",
-      validation: (rule) => rule.required().min(1),
+      validation: (rule) => rule.required().min(1).custom(nonBlankParagraphs),
     },
     {
       name: "coverMedia",

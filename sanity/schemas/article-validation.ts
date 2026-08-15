@@ -71,6 +71,25 @@ function readReference(value: unknown): string | undefined {
   return typeof ref === "string" ? ref : undefined;
 }
 
+/**
+ * Marks a Sanity document id that did not resolve through a
+ * `categoryIdsByDocumentId` index. `categoryId`s are lowercase-hyphenated
+ * (see `sanity-article.ts`'s identical `UNRESOLVED_CATEGORY_PREFIX`), so this
+ * prefix can never collide with a real one — an unresolved reference must
+ * compare and report as missing, never accidentally alias an unrelated
+ * category whose `categoryId` happens to equal the raw document id string.
+ */
+const UNRESOLVED_CATEGORY_PREFIX = "unresolved-ref:";
+
+function resolveCategoryId(
+  ref: string,
+  categoryIdsByDocumentId: ReadonlyMap<string, string>,
+): string {
+  return (
+    categoryIdsByDocumentId.get(ref) ?? `${UNRESOLVED_CATEGORY_PREFIX}${ref}`
+  );
+}
+
 // ---------------------------------------------------------------------------
 // The document being edited
 // ---------------------------------------------------------------------------
@@ -155,7 +174,7 @@ function resolveProspectiveArticleFields(
   parsed: ParsedArticleDocument,
   categoryIdsByDocumentId: ReadonlyMap<string, string>,
 ): ProspectiveArticleFields {
-  const resolve = (ref: string) => categoryIdsByDocumentId.get(ref) ?? ref;
+  const resolve = (ref: string) => resolveCategoryId(ref, categoryIdsByDocumentId);
   return {
     documentId: parsed.documentId,
     contentId: parsed.contentId,
@@ -281,7 +300,9 @@ export function parseProspectiveCategories(
 
     const parentRef = typeof row.parentRef === "string" ? row.parentRef : undefined;
     const parentId =
-      parentRef === undefined ? null : (categoryIdsByDocumentId.get(parentRef) ?? parentRef);
+      parentRef === undefined
+        ? null
+        : resolveCategoryId(parentRef, categoryIdsByDocumentId);
 
     const slugValue = readLanguageValue(row.slug, language);
     const hasLabel = readLanguageValue(row.label, language) !== undefined;
@@ -529,7 +550,7 @@ function readSiblingPlacement(
   const slug = exactString(sibling.slug);
   if (contentId === undefined || slug === undefined) return undefined;
 
-  const resolve = (ref: string) => categoryIdsByDocumentId.get(ref) ?? ref;
+  const resolve = (ref: string) => resolveCategoryId(ref, categoryIdsByDocumentId);
   const canonicalRef =
     typeof sibling.canonicalCategoryRef === "string" ? sibling.canonicalCategoryRef : undefined;
   const secondaryRefs = Array.isArray(sibling.secondaryCategoryRefs)
@@ -610,7 +631,7 @@ export async function validateArticlePublication(
       canonicalCategoryId:
         publishedCanonicalRef === null
           ? null
-          : (categoryIdsByDocumentId.get(publishedCanonicalRef) ?? publishedCanonicalRef),
+          : resolveCategoryId(publishedCanonicalRef, categoryIdsByDocumentId),
     };
 
     if (changesPublishedUrlFields(publishedSnapshot, current)) {

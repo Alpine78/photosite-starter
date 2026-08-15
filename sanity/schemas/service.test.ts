@@ -138,6 +138,16 @@ describe("required editorial fields", () => {
     expect(required).toBe(true);
     expect(min).toBe(1);
   });
+
+  it("rejects a blank paragraph, matching readDescription's own rule", async () => {
+    // Otherwise a standard Studio publish could create a description
+    // src/lib/sanity-services.ts#readDescription refuses at read time,
+    // failing the whole services listing.
+    const { run } = inspect(fieldOf("description").validation);
+
+    expect(await run(["A short, friendly session."])).toEqual([true]);
+    expect((await run(["A short session.", "   "]))[0]).toEqual(expect.any(String));
+  });
 });
 
 describe("optional fields", () => {

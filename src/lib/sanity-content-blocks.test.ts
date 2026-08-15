@@ -214,4 +214,17 @@ describe("reading a whole body", () => {
     const error = rejectionOf(() => readContentBlocks("not a list", options));
     expect(error.rejection).toBe("malformed-result");
   });
+
+  it("rejects two blocks sharing one stable key", () => {
+    // Sanity's own array editor guarantees this for the ordinary Studio
+    // editor; an API import does not go through it. A duplicate would hand
+    // React two elements with the same list key.
+    const body: readonly RawContentBlock[] = [
+      { _key: "b1", _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph, text: "First." },
+      { _key: "b1", _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph, text: "Second." },
+    ];
+    const error = rejectionOf(() => readContentBlocks(body, options));
+    expect(error.rejection).toBe("malformed-result");
+    expect(error.message).toContain("b1");
+  });
 });

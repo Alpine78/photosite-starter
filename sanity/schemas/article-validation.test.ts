@@ -62,6 +62,23 @@ describe("parseProspectiveCategories", () => {
     expect(categories.get("cat-landscape")?.parentId).toBeNull();
   });
 
+  it("marks a dangling parentRef so it cannot alias a real categoryId", () => {
+    // A dangling parentRef whose raw Sanity document id happens to equal
+    // another category's real categoryId must not silently resolve ancestry
+    // to that unrelated category.
+    const categories = parseProspectiveCategories(
+      [
+        { _id: "doc-landscape", categoryId: "cat-landscape", slug: [{ language: "en", value: "landscape" }], label: [{ language: "en", value: "Landscape" }] },
+        { _id: "doc-coastal", categoryId: "cat-coastal", parentRef: "cat-landscape", slug: [{ language: "en", value: "coastal" }], label: [{ language: "en", value: "Coastal" }] },
+      ],
+      "en",
+    );
+
+    const parentId = categories.get("cat-coastal")?.parentId;
+    expect(parentId).toBe("unresolved-ref:cat-landscape");
+    expect(parentId).not.toBe("cat-landscape");
+  });
+
   it("omits slugInLanguage when the category has no slug or no label in that language", () => {
     const categories = parseProspectiveCategories(
       [

@@ -42,6 +42,7 @@ export const PROJECTED_SERVICE_FIELDS = [
   "coverMedia",
   "startingPrice",
   "pricing",
+  "order",
 ] as const;
 
 /** Fields the query sorts by. Read, never projected — see `PUBLIC_SERVICE_ORDER`. */
@@ -59,7 +60,8 @@ export const PUBLIC_SERVICE_PROJECTION = `{
   description,
   "coverMedia": coverMedia->${PUBLIC_MEDIA_PROJECTION},
   startingPrice,
-  pricing[]{name, price, note}
+  pricing[]{name, price, note},
+  order
 }`;
 
 /** Why a document could not become a public service. */
@@ -111,6 +113,7 @@ export type RawPublicServiceDocument = {
   readonly coverMedia?: unknown;
   readonly startingPrice?: unknown;
   readonly pricing?: unknown;
+  readonly order?: unknown;
 };
 
 export type PublicServiceLanguage = {
@@ -200,6 +203,20 @@ export function projectPublicService(
     throw new SanityServiceError(
       "incomplete-document",
       "the service has no short description",
+      slug,
+    );
+  }
+
+  // `order` is required by the schema and drives `PUBLIC_SERVICE_ORDER`, but
+  // that rule binds only the ordinary Studio editor, not an API import.
+  // Unlike the other required fields, it is not part of the returned
+  // `Service` contract — checked here so a missing or non-numeric value
+  // fails loudly at read time instead of silently falling through to GROQ's
+  // own cross-type sort behavior for a null.
+  if (typeof document.order !== "number" || !Number.isFinite(document.order)) {
+    throw new SanityServiceError(
+      "incomplete-document",
+      "the service has no finite order value",
       slug,
     );
   }

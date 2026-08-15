@@ -151,6 +151,16 @@ describe("the list block", () => {
     expect(required).toBe(true);
     expect(min).toBe(1);
   });
+
+  it("rejects a blank item, matching the read-time projector's own rule", async () => {
+    // Otherwise a standard Studio publish could create a list
+    // `projectContentBlock` refuses at read time, failing the whole page.
+    const { run } = inspect(fieldOf(typeOf(CONTENT_BLOCK_OBJECT_TYPES.list), "items").validation);
+
+    expect(await run(["Set aperture", "Set shutter speed"])).toEqual([true]);
+    expect((await run(["Set aperture", "  "]))[0]).toEqual(expect.any(String));
+    expect((await run([""]))[0]).toEqual(expect.any(String));
+  });
 });
 
 describe("the YouTube block", () => {

@@ -38,6 +38,7 @@ function documentOf(
     name: "Portrait sessions",
     shortDescription: "Relaxed, natural portraits.",
     description: ["A short, friendly session.", "Delivered through an online gallery."],
+    order: 0,
     ...overrides,
   };
 }
@@ -131,7 +132,9 @@ describe("projecting one document", () => {
     ["name", { name: undefined }],
     ["shortDescription", { shortDescription: undefined }],
     ["description", { description: [] }],
-  ])("rejects a document missing %s", (_field, overrides) => {
+    ["order", { order: undefined }],
+    ["a non-numeric order", { order: "0" }],
+  ])("rejects a document missing or with an invalid %s", (_field, overrides) => {
     const error = rejectionOf(() =>
       projectPublicService(documentOf(overrides), { ...languages, config }),
     );

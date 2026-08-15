@@ -47,9 +47,10 @@
 import "server-only";
 
 import { getDeploymentConfig } from "@/lib/deployment-config";
-import type {
-  ContentListingQuery,
-  ContentListingRecord,
+import {
+  orderContentListingRecords,
+  type ContentListingQuery,
+  type ContentListingRecord,
 } from "@/lib/content-listing";
 import type { ArticleContentPage } from "@/lib/content-page";
 import type { ContentPlacementInput } from "@/lib/content-tree";
@@ -60,7 +61,11 @@ import {
 import {
   readCategoryDocumentIndex,
 } from "@/lib/sanity-content-tree";
-import { getSanityClient, type SanityClient } from "@/lib/sanity-client";
+import {
+  getSanityClient,
+  MAX_SANITY_GET_URL_BYTES,
+  type SanityClient,
+} from "@/lib/sanity-client";
 import { getSanityConfig, type SanityConfig } from "@/lib/sanity-config";
 import {
   projectPublicMedia,
@@ -194,6 +199,81 @@ function readContentId(value: unknown, context?: string): string {
   return contentId;
 }
 
+/** A bare ISO date, or a UTC ISO datetime — the two forms Sanity's `datetime` field emits. */
+const ISO_DATE_OR_DATETIME =
+  /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?Z)?$/;
+
+/**
+ * Whether `value` is not just parseable but a real calendar date. `Date.parse`
+ * is lenient about overflow — it silently normalizes `2026-02-31` to March 3
+ * rather than rejecting it — which is exactly wrong for a public-facing
+ * publication date. Reconstructing the timestamp from the authored fields via
+ * `Date.UTC` and reading them back catches that: an overflowing day, month,
+ * hour, minute, or second changes what comes back, and the round trip fails.
+ */
+function isValidIsoDate(value: string): boolean {
+  const match = ISO_DATE_OR_DATETIME.exec(value);
+  if (match === null) return false;
+
+  const [, year, month, day, hour, minute, second] = match;
+  const y = Number(year);
+  const mo = Number(month);
+  const d = Number(day);
+  const h = hour === undefined ? 0 : Number(hour);
+  const mi = minute === undefined ? 0 : Number(minute);
+  const s = second === undefined ? 0 : Number(second);
+
+  const rebuilt = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
+  return (
+    rebuilt.getUTCFullYear() === y &&
+    rebuilt.getUTCMonth() === mo - 1 &&
+    rebuilt.getUTCDate() === d &&
+    rebuilt.getUTCHours() === h &&
+    rebuilt.getUTCMinutes() === mi &&
+    rebuilt.getUTCSeconds() === s
+  );
+}
+
+/**
+ * Rejects a `publishedAt` that is not a real ISO calendar date or datetime.
+ * The schema's own `datetime` field type binds only the ordinary Studio
+ * editor, not an API import, and an invalid value reaching
+ * `content-listing.ts`'s ordering key or a route's `<time>`/Open Graph
+ * metadata fails — or worse, silently renders a rolled-over date — far from
+ * its actual cause. Rejecting it here, with the article's identity attached,
+ * is the earliest point that failure can be attributed correctly.
+ */
+function readPublishedAt(value: unknown, contentId: string): string {
+  const publishedAt = readString(value);
+  if (publishedAt === undefined || !isValidIsoDate(publishedAt)) {
+    throw new SanityArticleError(
+      "incomplete-document",
+      "the article has no publishedAt, or it is not a real ISO calendar date",
+      contentId,
+    );
+  }
+  return publishedAt;
+}
+
+/**
+ * Marks a Sanity document id that did not resolve through
+ * `categoryIdsByDocumentId`. `categoryId`s are lowercase-hyphenated
+ * (`CONTENT_ID`'s pattern has no colon), so this prefix can never collide
+ * with a real one — an unresolved reference must report as a missing
+ * category to `content-tree.ts`, never accidentally match an unrelated
+ * category whose `categoryId` happens to equal the raw document id string.
+ */
+const UNRESOLVED_CATEGORY_PREFIX = "unresolved-ref:";
+
+function resolveCategoryId(
+  ref: string,
+  categoryIdsByDocumentId: ReadonlyMap<string, string>,
+): string {
+  return (
+    categoryIdsByDocumentId.get(ref) ?? `${UNRESOLVED_CATEGORY_PREFIX}${ref}`
+  );
+}
+
 function readCategoryReference(
   value: unknown,
   contentId: string,
@@ -260,14 +340,14 @@ export function projectArticlePlacementInput(
   const canonicalCategoryId =
     canonicalRef === null
       ? null
-      : (categoryIdsByDocumentId.get(canonicalRef) ?? canonicalRef);
+      : resolveCategoryId(canonicalRef, categoryIdsByDocumentId);
 
   const secondaryRefs = readSecondaryCategoryReferences(
     document.secondaryCategoryRefs,
     contentId,
   );
-  const secondaryCategoryIds = secondaryRefs.map(
-    (ref) => categoryIdsByDocumentId.get(ref) ?? ref,
+  const secondaryCategoryIds = secondaryRefs.map((ref) =>
+    resolveCategoryId(ref, categoryIdsByDocumentId),
   );
 
   return {
@@ -347,14 +427,7 @@ export function projectArticleListingRecord(
     );
   }
 
-  const publishedAt = readString(document.publishedAt);
-  if (publishedAt === undefined) {
-    throw new SanityArticleError(
-      "incomplete-document",
-      "the article has no publishedAt",
-      contentId,
-    );
-  }
+  const publishedAt = readPublishedAt(document.publishedAt, contentId);
 
   const summary = readString(document.summary);
   const cover = isRecord(document.cover)
@@ -377,9 +450,85 @@ export type PublicArticleListingReadOptions = {
 };
 
 /**
+ * Conservative share of `sanity-client.ts`'s whole-URL GET budget reserved
+ * for the serialized `contentIds` array itself, leaving room for the origin,
+ * API version, dataset path, the rest of the query string, and the other
+ * params. A category holding a few hundred articles can otherwise put more
+ * candidate ids in this one array than the whole request budget allows.
+ */
+const MAX_CONTENT_IDS_BYTES = Math.floor(MAX_SANITY_GET_URL_BYTES / 2);
+
+/**
+ * The exact byte cost one chunk adds to the request URL:
+ * `sanity-client.ts#buildSanityQueryUrl` turns a parameter value into
+ * `encodeURIComponent(JSON.stringify(value))` before measuring the assembled
+ * URL with `TextEncoder`. A raw per-id character estimate systematically
+ * under-counts here — `encodeURIComponent` expands every JSON quote, comma,
+ * and bracket to a three-byte `%XX` escape — so this measures the same
+ * encoded form the real request builds, not an approximation of it.
+ */
+export function encodedContentIdsBytes(contentIds: readonly string[]): number {
+  return new TextEncoder().encode(encodeURIComponent(JSON.stringify(contentIds)))
+    .length;
+}
+
+/**
+ * Splits candidate ids into groups whose exact encoded size — measured the
+ * same way `buildSanityQueryUrl` measures the real request — stays under
+ * `maxBytes`, so a large category's listing read never builds one query the
+ * transport refuses outright.
+ *
+ * `CONTENT_ID`'s own pattern has no length bound, so one pathological id —
+ * from a hand-written import, not Studio, which has no length limit of its
+ * own either — could be too large to fit a chunk by itself; a singleton
+ * chunk skips the "does adding this overflow the chunk" comparison because
+ * there is nothing yet to compare against, so that case needs its own
+ * check. Rejecting it here, identifying the offending id, is clearer than
+ * letting it become the generic byte-count error `buildSanityQueryUrl`
+ * raises once the request is actually built.
+ */
+export function chunkContentIds(
+  contentIds: readonly string[],
+  maxBytes: number,
+): readonly (readonly string[])[] {
+  const chunks: string[][] = [];
+  let current: string[] = [];
+
+  for (const id of contentIds) {
+    if (encodedContentIdsBytes([id]) > maxBytes) {
+      throw new SanityArticleError(
+        "incomplete-document",
+        "a content id is too large to fit any bounded listing request by itself",
+        id,
+      );
+    }
+
+    const candidate = [...current, id];
+    if (current.length > 0 && encodedContentIdsBytes(candidate) > maxBytes) {
+      chunks.push(current);
+      current = [id];
+    } else {
+      current = candidate;
+    }
+  }
+  if (current.length > 0) chunks.push(current);
+
+  return chunks;
+}
+
+/**
  * The bounded listing read `content-listing.ts`'s `ContentListingSource`
  * describes: at most `query.limit` records among `query.contentIds`, ordered
  * newest-published-first with `contentId` as the deterministic tie-break.
+ *
+ * `query.contentIds` is chunked to stay inside the GET URL budget rather than
+ * assuming it always fits. Each chunk is queried for its own top
+ * `query.limit` — the minimum any chunk needs to contribute, since the true
+ * overall top `query.limit` can only be drawn from candidates that are
+ * already among their own chunk's leaders — and the merged candidates are
+ * re-ordered and re-bounded exactly as `content-listing.ts` orders a single
+ * page, so chunking never changes the result a caller with an unbounded URL
+ * budget would have received.
  */
 export async function readPublicArticleListingRecords(
   query: ContentListingQuery,
@@ -390,21 +539,25 @@ export async function readPublicArticleListingRecords(
   const client = options.client ?? getSanityClient();
   const language = toLanguageSubtag(options.language);
   const config = options.config ?? getSanityConfig();
-
-  const result = await client.query({
-    query: `*[${ARTICLE_FILTER} && contentId in $contentIds] | ${ARTICLE_LISTING_ORDER} [0...$limit]${ARTICLE_LISTING_PROJECTION}`,
-    params: {
-      language,
-      contentIds: query.contentIds,
-      limit: query.limit,
-    },
-    tag: "article.listing",
-  });
-
   const languages = { language, fallbackLanguage: getFallbackLocale(), config };
-  return readDocuments<RawArticleListingDocument>(result).map((document) =>
-    projectArticleListingRecord(document, languages),
+
+  const chunks = chunkContentIds(query.contentIds, MAX_CONTENT_IDS_BYTES);
+
+  const chunkedRecords = await Promise.all(
+    chunks.map(async (contentIds) => {
+      const result = await client.query({
+        query: `*[${ARTICLE_FILTER} && contentId in $contentIds] | ${ARTICLE_LISTING_ORDER} [0...$limit]${ARTICLE_LISTING_PROJECTION}`,
+        params: { language, contentIds, limit: query.limit },
+        tag: "article.listing",
+      });
+
+      return readDocuments<RawArticleListingDocument>(result).map((document) =>
+        projectArticleListingRecord(document, languages),
+      );
+    }),
   );
+
+  return orderContentListingRecords(chunkedRecords.flat()).slice(0, query.limit);
 }
 
 function readTags(value: unknown, contentId: string): readonly string[] {
@@ -438,14 +591,7 @@ export function projectArticleContentPage(
     );
   }
 
-  const publishedAt = readString(document.publishedAt);
-  if (publishedAt === undefined) {
-    throw new SanityArticleError(
-      "incomplete-document",
-      "the article has no publishedAt",
-      contentId,
-    );
-  }
+  const publishedAt = readPublishedAt(document.publishedAt, contentId);
 
   const summary = readString(document.summary);
   const cover = isRecord(document.cover)

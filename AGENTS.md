@@ -409,8 +409,22 @@ immutability half those two also enforce, because a service has no redirect-hist
 requiring it; `readPublicServices` repeats the uniqueness check across a whole listing read
 too, since Studio's rule does not bind an API import and a silently duplicated slug would
 otherwise hand a visitor two cards for one URL while `readPublicServiceBySlug` throws for
-the same state. None of these three adapters is wired into a route-facing seam yet, for the
-same reason the settings and home-page adapters are not.
+the same state. Several rounds of independent review hardened these adapters and the article
+publication guard further: content-block and service Studio schemas reject a blank list item
+or description paragraph, matching the adapters' own read-time rule, so an ordinary publish
+cannot create content the read boundary refuses; every place a Sanity document reference
+resolves against a `categoryId` index marks an unresolved reference with a value the identity
+pattern can never produce (`unresolved-ref:<ref>`), so a coincidental string collision with an
+unrelated category's real id can never silently alias to it; `publishedAt` is checked as a real
+ISO calendar date via a `Date.UTC` round trip, not merely `Date.parse`, which is lenient enough
+to normalize `2026-02-31` into March 3 rather than reject it; a category listing's candidate id
+list is chunked to the Sanity GET URL's byte budget — measured the same way
+`buildSanityQueryUrl` measures the real request, not approximated — so a category with a few
+hundred articles cannot make the query itself fail, and a single pathologically large id is
+rejected outright rather than silently emitted as an oversized chunk; and `readContentBlocks`
+rejects two body blocks sharing one stable key, since a duplicate breaks the render-time React
+identity the key exists to provide. None of these three adapters is wired into a route-facing
+seam yet, for the same reason the settings and home-page adapters are not.
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test,
@@ -546,7 +560,11 @@ Then iterate.
 - Project skills use the open `SKILL.md` format: `.claude/skills/` for Claude Code,
   `.agents/skills/` for Codex. A skill needed by both is duplicated into both locations
   (no symlinks — unreliable on Windows + Git). Tool-specific skills go only in that
-  tool's directory. No project skills exist yet; create them only for recurring workflows.
+  tool's directory: `architecture` and `security-review` are duplicated into both;
+  `codex-review-loop` (`.claude/skills/` only) automates the implement → `codex review`
+  → fix cycle as an independent second opinion and has no Codex-side equivalent, since
+  Codex does not need a skill for reviewing itself. Create further skills only for
+  recurring workflows.
 
 ## Commands
 

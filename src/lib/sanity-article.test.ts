@@ -7,6 +7,8 @@ import {
   ARTICLE_FILTER,
   ARTICLE_LISTING_PROJECTION,
   ARTICLE_PLACEMENT_PROJECTION,
+  chunkContentIds,
+  encodedContentIdsBytes,
   projectArticleContentPage,
   projectArticleListingRecord,
   projectArticlePlacementInput,
@@ -21,6 +23,7 @@ import {
   type RawArticleListingDocument,
   type RawArticlePlacementDocument,
 } from "@/lib/sanity-article";
+import { MAX_SANITY_GET_URL_BYTES } from "@/lib/sanity-client";
 import type { SanityClient, SanityQueryRequest } from "@/lib/sanity-client";
 import type { SanityConfig } from "@/lib/sanity-config";
 
@@ -115,16 +118,25 @@ describe("projecting a placement", () => {
     });
   });
 
-  it("passes an unresolved reference through unchanged, letting content-tree.ts report it", () => {
+  it("marks an unresolved reference so it cannot alias a real categoryId", () => {
+    // Prefixed rather than passed through raw: a category id is always
+    // lowercase-hyphenated, so an unresolved Sanity document id whose string
+    // happened to equal another category's real categoryId must not silently
+    // resolve to that unrelated category.
     const document: RawArticlePlacementDocument = {
       contentId: "content-x",
       slug: "x",
       canonicalCategoryRef: "sanity-doc-unknown",
     };
 
-    expect(
-      projectArticlePlacementInput(document, categoryIndex).canonicalCategoryId,
-    ).toBe("sanity-doc-unknown");
+    const canonicalCategoryId = projectArticlePlacementInput(
+      document,
+      categoryIndex,
+    ).canonicalCategoryId;
+    expect(canonicalCategoryId).toBe("unresolved-ref:sanity-doc-unknown");
+    expect(canonicalCategoryId).not.toBe("sanity-doc-unknown");
+    // Cannot alias any real categoryId in the index.
+    expect([...categoryIndex.values()]).not.toContain(canonicalCategoryId);
   });
 
   it("omits secondaryCategoryIds when there are none", () => {
@@ -190,6 +202,27 @@ describe("projecting a listing record", () => {
     );
     expect(error.rejection).toBe("incomplete-document");
     expect(error.contentId).toBe("content-reading-coastal-light");
+  });
+
+  it.each([
+    ["a calendar day that does not exist", "2026-02-31"],
+    ["an out-of-range hour", "2024-08-02T25:00:00Z"],
+    ["free text", "August 2, 2024"],
+    ["an empty string", ""],
+  ])("rejects publishedAt as %s", (_case, publishedAt) => {
+    const error = rejectionOf(() =>
+      projectArticleListingRecord({ ...document, publishedAt }, languages),
+    );
+    expect(error.rejection).toBe("incomplete-document");
+  });
+
+  it("accepts a full UTC ISO datetime, not just a bare date", () => {
+    expect(
+      projectArticleListingRecord(
+        { ...document, publishedAt: "2024-08-02T14:30:00.000Z" },
+        languages,
+      ).publishedAt,
+    ).toBe("2024-08-02T14:30:00.000Z");
   });
 });
 
@@ -301,6 +334,125 @@ describe("reading listing records", () => {
       contentIds: ["content-a", "content-b"],
       limit: 5,
     });
+  });
+
+  it("chunks a candidate list that would exceed the GET URL budget into more than one request", async () => {
+    // Long enough ids that a few hundred of them alone exceed half the
+    // documented Sanity GET budget, the share this adapter reserves for the
+    // contentIds array.
+    const contentIds = Array.from(
+      { length: 500 },
+      (_, index) => `content-${"x".repeat(40)}-${index}`,
+    );
+    const { client, requests } = fakeClient({ "article.listing": [] });
+
+    await readPublicArticleListingRecords(
+      { contentIds, ordering: "published-desc-v1", limit: 25 },
+      { language: "en", client, config },
+    );
+
+    expect(requests.length).toBeGreaterThan(1);
+    const requestedIds = requests.flatMap(
+      (request) => request.params?.contentIds as readonly string[],
+    );
+    expect(new Set(requestedIds)).toEqual(new Set(contentIds));
+    // Every request still asks for its own top `limit`, never the caller's
+    // ids up front — chunking must not change the per-request row bound.
+    for (const request of requests) {
+      expect(request.params?.limit).toBe(25);
+    }
+  });
+
+  it("merges and re-bounds chunked results to the requested limit, newest first", async () => {
+    const contentIds = Array.from(
+      { length: 500 },
+      (_, index) => `content-${"x".repeat(40)}-${index}`,
+    );
+    const olderRecord: RawArticleListingDocument = {
+      contentId: "content-older",
+      title: "Older",
+      publishedAt: "2024-01-01",
+    };
+    const newerRecord: RawArticleListingDocument = {
+      contentId: "content-newer",
+      title: "Newer",
+      publishedAt: "2024-06-01",
+    };
+
+    const requests: SanityQueryRequest[] = [];
+    let call = 0;
+    const client: SanityClient = {
+      async query(request) {
+        requests.push(request);
+        call += 1;
+        // Split the two records across the first two chunks so a correct
+        // merge is the only way the assertions below can pass.
+        if (call === 1) return [olderRecord];
+        if (call === 2) return [newerRecord];
+        return [];
+      },
+    };
+
+    const records = await readPublicArticleListingRecords(
+      { contentIds, ordering: "published-desc-v1", limit: 1 },
+      { language: "en", client, config },
+    );
+
+    expect(requests.length).toBeGreaterThanOrEqual(2);
+    expect(records).toHaveLength(1);
+    expect(records[0].contentId).toBe("content-newer");
+  });
+});
+
+describe("chunkContentIds", () => {
+  it("keeps a small list in one chunk", () => {
+    expect(chunkContentIds(["a", "b", "c"], 1024)).toEqual([["a", "b", "c"]]);
+  });
+
+  it("returns nothing for an empty list", () => {
+    expect(chunkContentIds([], 1024)).toEqual([]);
+  });
+
+  it("splits once the real encoded size would exceed the budget", () => {
+    // The budget is derived from the measured cost of the first pair so the
+    // assertion tracks whatever `encodeURIComponent(JSON.stringify(...))`
+    // actually costs, rather than a hand-computed byte count that a change to
+    // the encoding would silently make wrong.
+    const budget = encodedContentIdsBytes(["a", "b"]);
+    expect(chunkContentIds(["a", "b", "c"], budget)).toEqual([
+      ["a", "b"],
+      ["c"],
+    ]);
+  });
+
+  it("never drops or reorders an id across chunk boundaries", () => {
+    const contentIds = Array.from({ length: 300 }, (_, index) => `content-${index}`);
+    const chunks = chunkContentIds(contentIds, Math.floor(MAX_SANITY_GET_URL_BYTES / 2));
+    expect(chunks.flat()).toEqual(contentIds);
+  });
+
+  it("keeps every produced chunk's real encoded size within budget", () => {
+    // The invariant the GET-limit fix exists for: not an approximation of the
+    // request size, but the same measurement `buildSanityQueryUrl` applies to
+    // the real request.
+    const contentIds = Array.from({ length: 300 }, (_, index) => `content-${index}`);
+    const budget = 2000;
+    const chunks = chunkContentIds(contentIds, budget);
+
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const chunk of chunks) {
+      expect(encodedContentIdsBytes(chunk)).toBeLessThanOrEqual(budget);
+    }
+  });
+
+  it("rejects a single id too large to fit any chunk by itself", () => {
+    // A singleton chunk has nothing to compare against, so the ordinary
+    // "would adding this overflow the chunk" check never fires for it —
+    // this needs its own guard, catching what would otherwise become an
+    // oversized chunk that fails only once the real request is built.
+    const hugeId = "content-" + "x".repeat(5000);
+
+    expect(() => chunkContentIds([hugeId], 2000)).toThrow(SanityArticleError);
   });
 });
 
