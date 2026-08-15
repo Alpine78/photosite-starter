@@ -37,7 +37,7 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
         switch (block.type) {
           case "paragraph":
             return (
-              <p key={index} className="leading-7 text-foreground/80">
+              <p key={block.key ?? index} className="leading-7 text-foreground/80">
                 {block.text}
               </p>
             );
@@ -46,7 +46,7 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
             if (block.level === 2) {
               return (
                 <h2
-                  key={index}
+                  key={block.key ?? index}
                   id={headingIds.get(index)}
                   // Anchored headings are jump targets, so they keep clear of a
                   // future sticky header rather than landing under it.
@@ -58,7 +58,7 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
             }
             return (
               <h3
-                key={index}
+                key={block.key ?? index}
                 className="mt-6 text-xl font-medium tracking-tight"
               >
                 {block.text}
@@ -68,7 +68,7 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
           case "blockquote":
             return (
               <blockquote
-                key={index}
+                key={block.key ?? index}
                 className="border-l-4 border-black/20 pl-4 italic text-foreground/70 dark:border-white/25"
               >
                 <p>{block.text}</p>
@@ -89,7 +89,7 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
             if (block.media.type !== "image") return null;
             return (
               <MediaFigure
-                key={index}
+                key={block.key ?? index}
                 image={block.media}
                 sizes={imageRenderProfiles.articleContent.sizes}
               />
@@ -99,7 +99,7 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
             if (block.ordered) {
               return (
                 <ol
-                  key={index}
+                  key={block.key ?? index}
                   className="list-decimal space-y-1 pl-6 text-foreground/80"
                 >
                   {block.items.map((item, i) => (
@@ -112,7 +112,7 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
             }
             return (
               <ul
-                key={index}
+                key={block.key ?? index}
                 className="list-disc space-y-1 pl-6 text-foreground/80"
               >
                 {block.items.map((item, i) => (
@@ -126,7 +126,7 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
           case "youtube":
             return (
               <YoutubeEmbed
-                key={index}
+                key={block.key ?? index}
                 videoId={block.videoId}
                 title={block.title}
                 labels={labels.media}

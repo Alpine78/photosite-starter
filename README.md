@@ -369,8 +369,15 @@ a green pipeline. See [deployment](docs/deployment.md).
   ([ADR-0008](docs/adr/0008-localized-authored-text.md)); site settings and home-page
   schemas now project through server-only adapters into the existing `SiteSettings` and
   `HomeContent` contracts, with semantic navigation targets and the shared public-media
-  projection — route-facing seams still use fixtures until the remaining content schemas
-  land; their adapters and tagged caching/webhook revalidation remain pending*
+  projection; the public category tree's schema and adapter now feed the vendor-neutral
+  content-tree domain, resolving category references locally rather than dereferencing in
+  GROQ; the shared rich-content body-block schema (paragraph, heading, list, quote, media
+  placement, click-to-load YouTube) now underlies both the article schema — one document
+  per published language, unlike a category's one document for every language — and a
+  future gallery body; the article and service schemas and adapters now project into the
+  existing `ContentPage`/`ContentPlacementInput` and `Service` contracts — route-facing
+  seams still use fixtures until the remaining gallery content schema lands; its adapter
+  and tagged caching/webhook revalidation remain pending*
 - [ ] Production deployment — *the Preview environment's repository half is done: pinned
   runtime and region, a gated deploy stage, and the check that refuses to publish a
   release-candidate URL unless its project/team ownership, access protection, and

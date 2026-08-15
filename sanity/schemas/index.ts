@@ -13,11 +13,14 @@
  * to record where a master file lives. See `defineMediaType`.
  */
 
+import { articleType } from "./article";
 import { categoryType } from "./category";
+import { contentBlockTypes } from "./content-block";
 import { homePageType } from "./home-page";
 import { localizedSlugType } from "./localized-slug";
 import { localizedTextType } from "./localized-text";
 import { defineMediaType, type MediaSchemaOptions } from "./media";
+import { serviceType } from "./service";
 import {
   defineSiteSettingsType,
   type SiteSettingsSchemaOptions,
@@ -42,5 +45,8 @@ export function defineSchemaTypes(
     categoryType,
     defineSiteSettingsType(options),
     homePageType,
+    ...contentBlockTypes,
+    articleType,
+    serviceType,
   ];
 }

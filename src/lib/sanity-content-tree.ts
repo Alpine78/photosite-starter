@@ -204,8 +204,15 @@ function readCategoryLocalizedValues(
  * resolve `parentRef` locally. Only documents with a usable identity take
  * part: one with none cannot be any other category's resolvable parent
  * either.
+ *
+ * Exported so another adapter that references a category by Sanity document
+ * id — `sanity-article.ts`'s `canonicalCategory` and `secondaryCategories` are
+ * the first — resolves it the same way `parentRef` is resolved here, rather
+ * than re-deriving the mapping or dereferencing in GROQ and losing the
+ * distinction between "no reference" and "a reference that does not resolve"
+ * (see the module comment).
  */
-function indexCategoryIds(
+export function indexCategoryIds(
   documents: readonly RawPublicCategoryDocument[],
 ): ReadonlyMap<string, string> {
   const index = new Map<string, string>();
@@ -363,6 +370,26 @@ export async function readPublicCategoryInputs(
   });
 
   return projectPublicCategoryInputs(readDocuments(result), options.language);
+}
+
+/**
+ * Every category document's own Sanity id, mapped to its project-owned
+ * `categoryId` — language-independent, since `categoryId` identifies the same
+ * tree position regardless of which language's `slug`/`label` entry a
+ * consumer will read. A gallery or article adapter resolving its own
+ * `canonicalCategory`/`secondaryCategories` reference reads this once and
+ * looks up each `_ref` locally, exactly as `projectPublicCategoryInput`
+ * resolves `parentRef` above.
+ */
+export async function readCategoryDocumentIndex(
+  client: SanityClient,
+): Promise<ReadonlyMap<string, string>> {
+  const result = await client.query({
+    query: `*[${CATEGORY_FILTER}]{ _id, categoryId }`,
+    tag: "category.index",
+  });
+
+  return indexCategoryIds(readDocuments(result));
 }
 
 export type PublicContentTreeReadOptions = PublicCategoryReadOptions & {

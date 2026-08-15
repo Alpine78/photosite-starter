@@ -340,6 +340,91 @@ document through `PUBLIC_MEDIA_PROJECTION` and `projectPublicMedia`, retaining i
 derivative and true dimensions. These adapters return the existing `SiteSettings` and
 `HomeContent` contracts but are not wired into route-facing seams until the other authored
 content adapters exist, avoiding a mixed mock/Sanity deployment.
+The shared rich-content body-block schema and the article and service schemas and
+adapters sit beside those boundaries too. `sanity/schemas/content-block.ts` gives both
+public content variants the six ADR-0003 decision 2 body blocks — paragraph, heading,
+list, quote, media placement, and click-to-load YouTube — as Sanity object types named
+`content<Kind>Block` rather than the bare discriminant, because `media.ts` already claims
+`media` in the one namespace Sanity type names share; `defineContentBodyField` builds a
+body field restricted to a caller-chosen allow-list of these kinds, every kind by default,
+so a narrower context such as a future gallery section introduction reuses the same six
+types instead of a second body schema. `src/lib/sanity-content-blocks.ts` is the read
+half, projecting a query result back onto `content-page.ts`'s `ContentBlock` union; a
+media block reuses `projectPublicMedia` unchanged, so a photograph placed in a body is
+validated by exactly the boundary ADR-0005 established for every other public rendition.
+The article schema (`sanity/schemas/article.ts`) is the `article` variant of the shared
+content-page boundary, and — unlike a category's one document for every language — is one
+document *per* language: ADR-0003 decision 7 lets a page's languages be authored and
+published independently, so `language` plus the immutable `contentId` together identify
+one version, and two documents may share a `contentId` (one per published language) but
+never both `contentId` and `language`. `canonicalCategory` is required, so a standard
+Studio publish cannot leave an article unplaced — Sanity's own validation model blocks
+publishing, not saving a draft, which is exactly ADR-0003 decision 5's allowance for
+unplaced draft content. Field-level requirement is not the whole guard, though:
+`sanity/schemas/article-validation.ts` fetches every category and every other published
+article in this language, overlays the document being edited, and restates
+`content-tree.ts`'s own public-category propagation and local-slug-namespace computation —
+not just a check against other articles in the same category, which would still miss a
+sibling *category*'s slug, or a collision only exposed because this very publish turns a
+previously private canonical- or secondary-placement ancestor category public for the
+first time. So a routine "Publish"
+click cannot be the moment a colliding local slug (ADR-0003 decision 6) or a canonical
+category with no published version in the article's own language reaches the public tree —
+both states are otherwise only caught when a route reads the whole tree, which rejects it
+outright. Gallery placements are not fetched yet, since no gallery schema exists before
+AB#113; that story extends the same query. The same validator freezes `language`, `slug`,
+and `canonicalCategory` once a document has
+been published at all, the same way `category-validation.ts` freezes a category's `parent`
+and path segments, so an ordinary edit cannot silently discard a live canonical URL or —
+since `language` plus `contentId` together are the whole identity — turn one language's
+published page into a different language's version by editing the field, rather than
+starting the new language as its own linked document the way AB#125's workflow requires.
+`content-tree.ts` remains the authoritative backstop for a document an API import wrote
+without going through any of this Studio validation. Tags stay a separate free-text
+field, unrelated to categories and consuming no tree depth. `src/lib/sanity-article.ts`
+reads three separate projections rather than one, matching `content-listing.ts`'s rule
+that a listing card must never load an article body: `readPublicArticlePlacements` feeds
+`content-tree.ts`'s placement contract, resolving `canonicalCategory`/`secondaryCategories`
+references the same way `sanity-content-tree.ts` resolves a category's own `parent` —
+raw, then looked up locally through the newly exported `readCategoryDocumentIndex`, so an
+unresolved reference reports as a missing category rather than collapsing into "unplaced";
+`readPublicArticleListingRecords` answers a bounded `ContentListingQuery`; and
+`readPublicArticlePage` reads one full page by locale and stable identity, returning
+`undefined` for a language with no published version — the normal bilingual state, not an
+error — throwing a classified `SanityArticleError` when two published documents collide on
+one identity, and, because the schema's own `min(1)` body requirement binds only the
+ordinary Studio editor and not an API import, refusing to project an article whose body
+came back missing or empty rather than silently publishing a page with nothing in it. Each
+body block also carries Sanity's own stable per-item `_key` through to
+`content-page.ts`'s `ContentBlock` as an optional `key`, which `ContentBody` prefers over
+array position for its React key — the mock fixture layer has no such concept and simply
+omits it, falling back to position, which is safe there because fixture content is never
+live-reordered the way Studio content is. The service schema (`sanity/schemas/service.ts`)
+and adapter (`src/lib/sanity-services.ts`) model `src/lib/services.ts`'s existing `Service`
+contract directly: no language field, matching the still-unlocalized `/services` route, and
+no category placement, tags, or redirect history, because a service is not part of the
+ADR-0003 public content tree. Its `slug` is checked for syntax and uniqueness the same
+asynchronous way `media.ts` and `category.ts` check theirs at publish time, without the
+immutability half those two also enforce, because a service has no redirect-history concept
+requiring it; `readPublicServices` repeats the uniqueness check across a whole listing read
+too, since Studio's rule does not bind an API import and a silently duplicated slug would
+otherwise hand a visitor two cards for one URL while `readPublicServiceBySlug` throws for
+the same state. Several rounds of independent review hardened these adapters and the article
+publication guard further: content-block and service Studio schemas reject a blank list item
+or description paragraph, matching the adapters' own read-time rule, so an ordinary publish
+cannot create content the read boundary refuses; every place a Sanity document reference
+resolves against a `categoryId` index marks an unresolved reference with a value the identity
+pattern can never produce (`unresolved-ref:<ref>`), so a coincidental string collision with an
+unrelated category's real id can never silently alias to it; `publishedAt` is checked as a real
+ISO calendar date via a `Date.UTC` round trip, not merely `Date.parse`, which is lenient enough
+to normalize `2026-02-31` into March 3 rather than reject it; a category listing's candidate id
+list is chunked to the Sanity GET URL's byte budget — measured the same way
+`buildSanityQueryUrl` measures the real request, not approximated — so a category with a few
+hundred articles cannot make the query itself fail, and a single pathologically large id is
+rejected outright rather than silently emitted as an oversized chunk; and `readContentBlocks`
+rejects two body blocks sharing one stable key, since a duplicate breaks the render-time React
+identity the key exists to provide. None of these three adapters is wired into a route-facing
+seam yet, for the same reason the settings and home-page adapters are not.
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test,
@@ -396,10 +481,10 @@ answers any `?cursor=` with a 404 — gallery sections
 (AB#129), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
 sitemap/robots, structured data, the remaining Sanity content schemas and adapters that
-would put authored content behind the connection (AB#81, AB#113, AB#114) —
-the media, category, settings, and home schemas/adapters exist, but no route-facing seam
-reads them yet, so every page still renders from the mock layer — tagged caching and
-webhook revalidation (AB#83),
+would put authored content behind the connection (AB#113, AB#114) —
+the media, category, settings, home, article, and service schemas/adapters exist, but no
+route-facing seam reads them yet, so every page still renders from the mock layer — tagged
+caching and webhook revalidation (AB#83),
 and the deployment itself: provisioning is under way — a Vercel project exists, but
 protection, Preview environment values, and deployment credentials are not finished;
 the disabled variable group currently carries only the non-secret project/team IDs, and
@@ -475,7 +560,11 @@ Then iterate.
 - Project skills use the open `SKILL.md` format: `.claude/skills/` for Claude Code,
   `.agents/skills/` for Codex. A skill needed by both is duplicated into both locations
   (no symlinks — unreliable on Windows + Git). Tool-specific skills go only in that
-  tool's directory. No project skills exist yet; create them only for recurring workflows.
+  tool's directory: `architecture` and `security-review` are duplicated into both;
+  `codex-review-loop` (`.claude/skills/` only) automates the implement → `codex review`
+  → fix cycle as an independent second opinion and has no Codex-side equivalent, since
+  Codex does not need a skill for reviewing itself. Create further skills only for
+  recurring workflows.
 
 ## Commands
 
