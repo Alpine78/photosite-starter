@@ -14,18 +14,29 @@
  * Order is the array order. The authored sequence is the manual order the whole
  * story rests on, and deriving `order` from the position rather than restating
  * it as a number keeps the fixture from disagreeing with itself.
+ *
+ * Sections (AB#105) are authored the same way: gallery-local, described once
+ * per language, and resolved to a plain per-language `GallerySection` before
+ * they reach the shared query. This fixture implements `CuratedGallerySectionSource`
+ * over its own already-cached, in-memory placements — that's a fixture property,
+ * not something the contract requires; a store-backed adapter (AB#114) would push
+ * the same section predicate into its own query instead.
  */
 
 import {
-  buildCuratedGalleryPage,
   selectCuratedGalleryCover,
   type CuratedGalleryPlacement,
   type GalleryCursorCodec,
 } from "@/lib/gallery-pagination";
-import type {
-  CuratedGalleryResultItem,
-  GalleryPage,
-} from "@/lib/gallery-result";
+import {
+  assertGallerySections,
+  assertPlacementSectionReferences,
+  readCuratedGallerySectionPage,
+  type CuratedGalleryPage,
+  type CuratedGallerySectionSource,
+  type GallerySection,
+  type GallerySectionIntroBlock,
+} from "@/lib/gallery-sections";
 import type { ImageMedia } from "@/lib/media";
 import { getMockImages, type MockImages } from "@/lib/mock-media";
 
@@ -47,6 +58,26 @@ type MockPlacementInput = {
    * media's own caption, which is the normal partly-translated state.
    */
   readonly caption?: Readonly<Record<string, string>>;
+  /** Gallery-local section this placement belongs to, if any (AB#105). */
+  readonly sectionId?: string;
+};
+
+/**
+ * One gallery-local section, authored per language like a placement's caption.
+ * `order` is not authored here: like a placement's `order`, it is derived from
+ * array position (see `buildSections`), so the fixture cannot disagree with
+ * itself about its own sequence.
+ */
+type MockGallerySectionInput = {
+  readonly sectionId: string;
+  readonly slug: string;
+  readonly label: Readonly<Record<string, string>>;
+  readonly intro?: Readonly<Record<string, readonly GallerySectionIntroBlock[]>>;
+};
+
+type MockGalleryInput = {
+  readonly placements: readonly MockPlacementInput[];
+  readonly sections?: readonly MockGallerySectionInput[];
 };
 
 /**
@@ -130,8 +161,8 @@ const polarNightPlacements: readonly MockPlacementInput[] = [
 
 /**
  * A published gallery whose selection is not made yet. It exists so the empty
- * state is a state the site actually serves rather than one only a unit test
- * has seen: the page renders, says it has no images, and offers no grid.
+ * state is a state the site actually serves rather than one only a test has
+ * seen: the page renders, says it has no images, and offers no grid.
  */
 const awaitingSelectionPlacements: readonly MockPlacementInput[] = [];
 
@@ -162,16 +193,26 @@ const LARGE_ARCHIVE_SIZE = 400;
  * Ids are zero-padded so their string order matches their manual order, which
  * keeps the deterministic tie-breaker aligned with the sequence even though
  * unique `order` values mean it never has to break a tie.
+ *
+ * Sectioned into two ranges that each span more than one 24-item mock page —
+ * "early" (1–150) and "late" (151–300) — so a section query is exercised across
+ * a real page boundary, not just within one page. Placements 301–400 stay
+ * unsectioned, exercised only through `All` (`largeArchiveSections` below also
+ * declares a third, "unused" section no placement references, for the
+ * valid-empty-section case).
  */
 const largeArchivePlacements: readonly MockPlacementInput[] = Array.from(
   { length: LARGE_ARCHIVE_SIZE },
   (_unused, index): MockPlacementInput => {
     const position = index + 1;
     const image = archiveImageCycle[index % archiveImageCycle.length];
+    const sectionId =
+      position <= 150 ? "early" : position <= 300 ? "late" : undefined;
 
     return {
       placementId: `large-archive-${String(position).padStart(4, "0")}`,
       image,
+      ...(sectionId === undefined ? {} : { sectionId }),
       // Every fourth placement carries none, so an item with no caption keeps
       // appearing after a page boundary rather than only on the first page.
       ...(position % 4 === 0
@@ -186,14 +227,30 @@ const largeArchivePlacements: readonly MockPlacementInput[] = Array.from(
   },
 );
 
-const authoredGalleries: Readonly<Record<string, readonly MockPlacementInput[]>> =
+const largeArchiveSections: readonly MockGallerySectionInput[] = [
+  { sectionId: "early", slug: "early", label: { en: "Early", fi: "Alkupää" } },
+  { sectionId: "late", slug: "late", label: { en: "Late", fi: "Loppupää" } },
   {
-    "content-selected-work": selectedWorkPlacements,
-    "content-coastal-mornings": coastalMorningsPlacements,
-    "content-polar-night-sessions": polarNightPlacements,
-    "content-awaiting-selection": awaitingSelectionPlacements,
-    "content-large-archive": largeArchivePlacements,
-  };
+    sectionId: "unused",
+    slug: "unused",
+    label: { en: "Unused", fi: "Käyttämätön" },
+    intro: {
+      en: [{ type: "paragraph", spans: [{ text: "Nothing placed here yet." }] }],
+      fi: [{ type: "paragraph", spans: [{ text: "Tähän ei ole vielä valittu kuvia." }] }],
+    },
+  },
+];
+
+const authoredGalleries: Readonly<Record<string, MockGalleryInput>> = {
+  "content-selected-work": { placements: selectedWorkPlacements },
+  "content-coastal-mornings": { placements: coastalMorningsPlacements },
+  "content-polar-night-sessions": { placements: polarNightPlacements },
+  "content-awaiting-selection": { placements: awaitingSelectionPlacements },
+  "content-large-archive": {
+    placements: largeArchivePlacements,
+    sections: largeArchiveSections,
+  },
+};
 
 /** Stable identity of the gallery this deployment features as its portfolio. */
 export const MOCK_FEATURED_GALLERY_ID = "content-selected-work";
@@ -219,42 +276,37 @@ function buildPlacements(
       visible: true,
       media: images[input.image],
       ...(caption === undefined ? {} : { captionOverride: caption }),
+      ...(input.sectionId === undefined ? {} : { sectionId: input.sectionId }),
+    };
+  });
+}
+
+function buildSections(
+  language: string,
+  inputs: readonly MockGallerySectionInput[],
+): readonly GallerySection[] {
+  return inputs.map((input, index) => {
+    const label = input.label[language];
+    if (label === undefined) {
+      throw new TypeError(
+        `Gallery section ${input.sectionId} has no label for language: ${language}`,
+      );
+    }
+    const intro = input.intro?.[language];
+
+    return {
+      sectionId: input.sectionId,
+      slug: input.slug,
+      label,
+      order: index,
+      ...(intro === undefined ? {} : { intro }),
     };
   });
 }
 
 /**
- * A gallery's cursor scope.
- *
- * `sourceId` is the gallery's stable identity *in one route locale*, so a token
- * issued for one gallery can never be spent in another — and a token issued on
- * one locale's route can never be spent on another's. It is bound to the whole
- * validated locale rather than to its language subtag, because `en-GB` and
- * `en-US` are separate route spaces that merely happen to share authored text
- * today; binding to `en` would let a slice cross between them.
- *
- * These results currently agree across locales, so mixing them would be harmless
- * now; it stops being harmless the moment an adapter can answer differently per
- * locale (AB#114), and by then the tokens would already be indexed. It is also
- * the property the continuation page's metadata relies on when it declines to
- * name `hreflang` alternates.
- *
- * The ordering rule is the authored manual order, which is the only rule the
- * MVP has (AB#129 adds the seeded one).
- */
-function cursorScope(locale: string, contentId: string) {
-  return {
-    sourceId: `${contentId}@${locale}`,
-    normalizedFilter: "all",
-    ordering: "manual-v1",
-    visibilityVersion: `mock-${contentId}-v1`,
-    pageSize: MOCK_GALLERY_PAGE_SIZE,
-  } as const;
-}
-
-/**
- * Placements and covers are built per gallery, on the first read of that gallery
- * in that language, and remembered.
+ * Placements and sections are built per gallery, on the first read of that
+ * gallery in that language, and remembered.
  *
  * A CMS adapter answers one gallery at a time rather than building the site's
  * whole media set to serve one card, so the fixture keeps the same shape: a
@@ -262,30 +314,73 @@ function cursorScope(locale: string, contentId: string) {
  * nothing at all. Within one gallery it still builds that gallery's placements,
  * which is the part only a store can avoid.
  *
- * What is remembered is the gallery's *placements* rather than a built page.
- * Every cursor names a different slice of the same sequence, so caching pages
- * would mint an entry per token a visitor happens to hold; the ordered source is
- * the part worth keeping, and slicing it again is cheap.
+ * What is remembered is the gallery's *placements and sections* rather than a
+ * built page. Every cursor names a different slice of the same sequence, so
+ * caching pages would mint an entry per token a visitor happens to hold; the
+ * ordered source is the part worth keeping, and slicing it again is cheap.
+ * The two are cached together, one map entry per gallery, so they can never
+ * desync — a lookup that finds one always finds the other.
  */
-const placementsByGallery = new Map<
-  string,
-  readonly CuratedGalleryPlacement[]
->();
+type CachedGallery = {
+  readonly placements: readonly CuratedGalleryPlacement[];
+  readonly sections: readonly GallerySection[];
+};
+
+const galleriesByLanguageAndId = new Map<string, CachedGallery>();
 const covers = new Map<string, ImageMedia | undefined>();
 
+/** A separator that cannot legally appear in either component, unlike a printable one. */
+const CACHE_KEY_SEPARATOR = String.fromCharCode(0);
+
 function cacheKey(language: string, contentId: string): string {
-  return `${language}\u0000${contentId}`;
+  return `${language}${CACHE_KEY_SEPARATOR}${contentId}`;
+}
+
+function getOrBuildGallery(
+  language: string,
+  contentId: string,
+): CachedGallery | undefined {
+  const input = authoredGalleries[contentId];
+  if (input === undefined || !AUTHORED_LANGUAGES.has(language)) {
+    return undefined;
+  }
+
+  const key = cacheKey(language, contentId);
+  const cached = galleriesByLanguageAndId.get(key);
+  if (cached !== undefined) return cached;
+
+  const placements = buildPlacements(language, input.placements);
+  const sections =
+    input.sections === undefined ? [] : buildSections(language, input.sections);
+  // The same kind of authoring-time checks AB#113's Studio schema will run
+  // before publish (mirroring `category-validation.ts`/`article-validation.ts`),
+  // run once here against the complete list rather than per request.
+  assertGallerySections(sections);
+  assertPlacementSectionReferences(placements, sections);
+
+  const gallery: CachedGallery = { placements, sections };
+  galleriesByLanguageAndId.set(key, gallery);
+  return gallery;
 }
 
 /**
  * One bounded page of a gallery, or `undefined` when the fixture has none.
  *
  * Takes the route's validated locale, not its language subtag: the cursor is
- * scoped to the route space a visitor is actually in, while the fixture's text
- * is looked up by the language that locale belongs to.
+ * scoped to the route space a visitor is actually in (and, with it, to the
+ * section named in that scope — see `gallery-sections.ts`'s
+ * `normalizedFilterKey`), while the fixture's text is looked up by the language
+ * that locale belongs to. `sourceId` is therefore built from `locale`, not
+ * `language`: `en-GB` and `en-US` are separate route spaces that merely happen
+ * to share authored text today, and binding to the `en` subtag would let a
+ * slice cross between them the moment an adapter can answer differently per
+ * locale (AB#114) — by which point the tokens would already be indexed.
  *
- * Without a cursor this is the first page; with one it is the slice that follows
- * that token's boundary.
+ * Without a cursor this is the first page of the requested filter; with one it
+ * is the slice that follows that token's boundary. `ordering` is the authored
+ * manual order, the only rule the MVP has (AB#129 adds the seeded one).
+ * `visibilityVersion` is not bumped by an append or a presentation-only edit —
+ * only by a change that could move a cursor's boundary.
  *
  * The codec is handed in rather than reached for. A fixture describes what the
  * photographer authored, and which key this deployment signs its continuation
@@ -300,32 +395,45 @@ export function getMockGalleryResult(
   contentId: string,
   {
     cursor,
+    sectionSlug,
     cursorCodec,
   }: {
     readonly cursor?: string;
+    readonly sectionSlug?: string;
     readonly cursorCodec?: GalleryCursorCodec;
   } = {},
-): GalleryPage<CuratedGalleryResultItem> | undefined {
+): CuratedGalleryPage | undefined {
   // Text is authored per language while routes are configured per locale, so
   // the two are read apart: `en-GB` and `en-US` share one set of English
   // placements but never share a cursor.
   const language = new Intl.Locale(locale).language;
-  const inputs = authoredGalleries[contentId];
-  if (inputs === undefined || !AUTHORED_LANGUAGES.has(language)) {
-    return undefined;
-  }
+  const gallery = getOrBuildGallery(language, contentId);
+  if (gallery === undefined) return undefined;
 
-  const key = cacheKey(language, contentId);
-  let placements = placementsByGallery.get(key);
-  if (placements === undefined) {
-    placements = buildPlacements(language, inputs);
-    placementsByGallery.set(key, placements);
-  }
+  // The section predicate is applied inside the source call, before
+  // `buildCuratedGalleryPage` sees any row — the seam a store-backed adapter
+  // (AB#114) would turn into a `WHERE section_id = ?`-shaped query. This
+  // fixture still filters an in-memory array, which is a fixture property, not
+  // a contract one.
+  const source: CuratedGallerySectionSource = ({ filter }) =>
+    filter.kind === "all"
+      ? gallery.placements
+      : gallery.placements.filter(
+          (placement) => placement.sectionId === filter.section.sectionId,
+        );
 
-  return buildCuratedGalleryPage({
-    placements,
-    scope: cursorScope(locale, contentId),
-    ...(cursor === undefined ? {} : { cursor }),
+  return readCuratedGallerySectionPage({
+    query: {
+      locale,
+      contentId,
+      pageSize: MOCK_GALLERY_PAGE_SIZE,
+      ordering: "manual-v1",
+      visibilityVersion: `mock-${contentId}-v1`,
+      ...(sectionSlug === undefined ? {} : { sectionSlug }),
+      ...(cursor === undefined ? {} : { cursor }),
+    },
+    sections: gallery.sections,
+    source,
     ...(cursorCodec === undefined ? {} : { cursorCodec }),
   });
 }
@@ -343,10 +451,8 @@ export function getMockGalleryCover(
   language: string,
   contentId: string,
 ): ImageMedia | undefined {
-  const inputs = authoredGalleries[contentId];
-  if (inputs === undefined || !AUTHORED_LANGUAGES.has(language)) {
-    return undefined;
-  }
+  const gallery = getOrBuildGallery(language, contentId);
+  if (gallery === undefined) return undefined;
 
   const key = cacheKey(language, contentId);
   if (covers.has(key)) return covers.get(key);
@@ -354,7 +460,7 @@ export function getMockGalleryCover(
   // The first visible placement in authored order, and nothing after it, which
   // is what the adapter's one-row query returns. Filtering before the slice
   // matters — a hidden opening placement is not the cover, it is skipped.
-  const opening = buildPlacements(language, inputs)
+  const opening = gallery.placements
     .filter((placement) => placement.visible)
     .slice(0, 1);
   const cover = selectCuratedGalleryCover(opening);

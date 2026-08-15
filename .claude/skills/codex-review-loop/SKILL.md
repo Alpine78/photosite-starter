@@ -23,7 +23,17 @@ pass.
 
 ## Prerequisites (check these first, every run)
 
-1. **Codex CLI is installed and authenticated.**
+1. **Do a Claude-authored review and fix pass first, before sending anything
+   to Codex.** Run `/code-review` (or an equivalent careful read of the
+   change) against the same diff this loop is about to send, fix what it
+   finds, and get the project's own gates passing — every time, not just the
+   first time work is sent. This is not redundant with Codex's independent
+   pass: it is the cheap, fast pass that catches what a careful read already
+   would, so the expensive round that follows is spent on what only a
+   different model catches, not on mistakes Claude could have caught by
+   looking. Never skip straight to Codex on unreviewed work.
+
+2. **Codex CLI is installed and authenticated.**
    ```bash
    codex --version
    codex doctor   # look for "✓ auth   auth is configured"
@@ -32,7 +42,7 @@ pass.
    auth is not configured, stop and tell the user — do not attempt to log in
    on their behalf.
 
-2. **If this repository gates review on an Azure Boards work item**
+3. **If this repository gates review on an Azure Boards work item**
    (`AGENTS.md`'s "Azure Boards work item gate" — true for photosite-starter),
    Codex's default sandbox blocks the `az boards` call in three independent
    ways, found by testing each in turn — all three are required together,
@@ -72,7 +82,7 @@ pass.
    gate by stripping the work-item context from the prompt, since that
    defeats a rule the project owner deliberately wants enforced.
 
-3. Confirm there is something to review: a diff against the base branch, or
+4. Confirm there is something to review: a diff against the base branch, or
    uncommitted changes. `codex review` costs real time and usage per call, so
    do not run it against an empty diff.
 
@@ -84,7 +94,7 @@ overridable via `$ARGUMENTS` (`[base-branch-or---uncommitted] [max-iterations]`)
 For each round, up to the limit:
 
 1. **Run the review**, in the background since it can take several minutes,
-   with the sandbox overrides prerequisite 2 established (needed whenever
+   with the sandbox overrides prerequisite 3 established (needed whenever
    this repo's Azure Boards gate applies — harmless to include even when it
    doesn't):
    ```bash
@@ -112,8 +122,12 @@ For each round, up to the limit:
 3. **If there are real findings:** first check whether this same spot has
    already had a Claude-authored fix attempt earlier in this loop (see
    "When a spot needs a second correction" below). If not, fix them,
-   respecting this repository's own conventions and Definition of Done. Then
-   run the project's own gates before spending another round on Codex:
+   respecting this repository's own conventions and Definition of Done. Then,
+   the same as prerequisite 1 required for the first round, give this
+   round's fix its own quick self-review before anything else — a fix is new
+   code too, and the same class of mistake it could introduce is exactly
+   what a careful read catches for free. Only once that self-review is done
+   should the project's own gates run:
    ```bash
    npm run lint && npm test && npm run build
    ```

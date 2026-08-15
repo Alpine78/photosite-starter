@@ -227,14 +227,56 @@ column-major CSS masonry it replaced did. A gallery's listing card takes its exp
 cover or the deterministic first public item (`selectCuratedGalleryCover`), a published
 gallery with no items renders an accessible empty state (the mock publishes one, so it is
 a state the site serves rather than one only a test has seen). Category listings still answer `?cursor=` with a 404, because none issues one;
-`?section=` stays an ignored unrecognized parameter until AB#105, and AB#129 owns the
-seeded random order. The continuation link is progressively enhanced in the browser to
+`?section=` stays an ignored unrecognized parameter until AB#115 wires it into a route, and
+AB#129 owns the seeded random order. The continuation link is progressively enhanced in the browser to
 append one bounded slice in place, with loading, failure, retry, and completion states;
 the open lightbox grows from the same result and offers its own reachable retry without
 closing or losing the current item. Focus stays on the continuation control while it
 exists and moves to the completion notice when the final slice removes it. No slice is
 loaded until the visitor activates the control or reaches the last loaded lightbox item.
-A ~400-placement fixture gallery exercises the boundary. The pre-tree `/portfolio` route was removed rather than
+A ~400-placement fixture gallery exercises the boundary.
+Gallery sections (AB#105) sit on top of that same boundary: a gallery-local named subset
+of a curated gallery's placements (ADR-0003 decision 8), with a stable id, a
+gallery-unique lowercase-hyphenated slug, a label, an explicit manual order, and an
+optional short intro restricted to paragraphs, ordered or unordered lists, and inline
+links or emphasis — a dedicated inline-span model (`src/lib/gallery-sections.ts`), since
+the shared `ContentBlock` union's `paragraph`/`list` kinds carry only plain-string text
+with no inline structure to reuse. Membership is placement-owned, never media-owned:
+`sectionId` lives on the placement, so assigning or moving an item never touches the
+underlying photograph or its use elsewhere. `readCuratedGallerySectionPage` composes the
+request: a raw `?section=` slug resolves to `{kind: "all"}` or a matched section (absent,
+empty, and the reserved `all` token all mean unfiltered; an unmatched slug throws
+`UnknownGallerySectionError`, which is also the whole of "rename, delete, and stale URL"
+behaviour, since a retired or renamed-away slug simply matches nothing and no redirect
+history is kept for sections, unlike category or content renames); the resolved filter —
+never a raw slug — reaches a `CuratedGallerySectionSource` before any placement row is
+read, and folds into `GalleryCursorScope.normalizedFilter` so the existing HMAC
+scope-matching a cursor already goes through is what makes selecting a different section
+invalidate a stale one, with no new cursor logic. A named section's own label and intro
+appear only on that section's first, uncursored slice; the full section catalog is
+exposed on every page for a future control; `All` never concatenates a section's intro,
+and a continuation never repeats one. A valid section with no placements answers a
+successful empty page rather than a 404; an unknown section, like an unrecognized cursor,
+is the same 404-class failure. The mock fixture extends the large archive with two
+150-placement sections spanning more than one 24-item page each, plus a third declared
+section with none, so both cross-page section continuation and the empty-section state are
+exercised, not just asserted. Controls, browser history, and the grid/lightbox wiring that
+consumes this query are deliberately out of scope here — AB#115's job, which inherits
+correct unknown/empty-section behaviour by construction rather than redefining it — and so
+is `route.ts`/the catch-all page ever reading `?section=` from a real request. Independent
+review of this story surfaced a real gap this story does not close: `source` receives
+neither the requested cursor nor the page size, so nothing here lets a store-backed
+adapter answer a large section with a bounded keyset query instead of fetching the whole
+section on every continuation — the same limitation the pre-existing unfiltered `All` view
+already has, inherited from `buildCuratedGalleryPage` (AB#67/AB#104), which would need to
+accept a caller-supplied window instead of the full ordered set it derives both the slice
+and `hasNextPage` from today. That pagination-core contract change is filed and blocking
+this story's completion as AB#134, not built here, since `buildCuratedGalleryPage` is
+AB#67/AB#104's shipped, tested code and AB#105 does not own it; AB#105 stays `Active`,
+not `Closed`, until AB#134 merges. What AB#105 does make bounded and tested is the axis it
+does own: a section-scoped read is never required to load a *different* section's
+placements, or the rest of an unsectioned gallery, to answer correctly.
+The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
 belongs and what to call it, so no two surfaces can feature different galleries. Each
@@ -476,8 +518,10 @@ promotion and rollback commands are `docs/deployment.md`.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — category listing continuation, which stays bounded to its first page and
-answers any `?cursor=` with a 404 — gallery sections
-(AB#105), the gallery lead and long-form body (AB#106), seeded random gallery ordering
+answers any `?cursor=` with a 404 — gallery section controls, URL wiring, and lightbox
+integration (AB#115; the section domain model and server-side query themselves are AB#105,
+above, blocked on AB#134's bounded-query contract for its own completion), the gallery lead
+and long-form body (AB#106), seeded random gallery ordering
 (AB#129), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
 sitemap/robots, structured data, the remaining Sanity content schemas and adapters that

@@ -62,13 +62,6 @@ export type GalleryPage<
   readonly page: GalleryPageInfo;
 };
 
-/**
- * Optional adapter extension reserved for AB#105. The shared core does not
- * prescribe section metadata yet and never requires per-section counts.
- */
-export type GalleryPageWithSections<
-  TSection extends { readonly sectionId: string },
-  TItem extends GalleryResultItem<Media> = GalleryResultItem<ImageMedia>,
-> = GalleryPage<TItem> & {
-  readonly sections?: readonly TSection[];
-};
+// The curated gallery page's section metadata (`sections`, `selectedSection`) is
+// `CuratedGalleryPage` in `gallery-sections.ts`, layered on `GalleryPage` here — not
+// defined in this leaf module, to avoid a circular import with the section types.

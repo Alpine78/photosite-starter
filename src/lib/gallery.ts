@@ -14,13 +14,11 @@
  */
 
 import { galleryCursorCodec } from "@/lib/gallery-cursor";
-import type {
-  CuratedGalleryResultItem,
-  GalleryPage,
-} from "@/lib/gallery-result";
+import type { CuratedGalleryPage } from "@/lib/gallery-sections";
 import { getMockGalleryResult } from "@/lib/mock-gallery";
 
 export { GalleryCursorError } from "@/lib/gallery-pagination";
+export { UnknownGallerySectionError } from "@/lib/gallery-sections";
 
 /**
  * One bounded page of a curated gallery, or `undefined` when this locale
@@ -34,6 +32,11 @@ export { GalleryCursorError } from "@/lib/gallery-pagination";
  * answers with a 404 rather than by quietly serving the first page under a URL
  * that promised a later one.
  *
+ * `sectionSlug` is the same kind of transport for `?section=` (AB#105):
+ * `undefined` means the unfiltered view, and an unresolvable slug throws
+ * `UnknownGallerySectionError` — reading the query parameter itself, wiring it
+ * into a route, and rendering section controls are AB#115's, not this seam's.
+ *
  * This is also where the deployment's signing key enters. The source below is a
  * fixture and a CMS adapter (AB#114) will be another; neither should hold a
  * secret, so the codec is supplied here and passed down. It resolves the key
@@ -43,9 +46,11 @@ export async function getGalleryPage(
   locale: string,
   contentId: string,
   cursor?: string,
-): Promise<GalleryPage<CuratedGalleryResultItem> | undefined> {
+  sectionSlug?: string,
+): Promise<CuratedGalleryPage | undefined> {
   return getMockGalleryResult(locale, contentId, {
     ...(cursor === undefined ? {} : { cursor }),
+    ...(sectionSlug === undefined ? {} : { sectionSlug }),
     cursorCodec: galleryCursorCodec,
   });
 }
