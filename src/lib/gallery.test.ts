@@ -14,6 +14,7 @@ import type {
   CuratedGalleryResultItem,
   GalleryCursor,
 } from "@/lib/gallery-result";
+import { UnknownGallerySectionError } from "@/lib/gallery-sections";
 import type { ImageMedia, VideoMedia } from "@/lib/media";
 import {
   getMockGalleryCover,
@@ -968,5 +969,149 @@ describe("continuing a gallery larger than one page", () => {
       hasNextPage: false,
       endCursor: null,
     });
+  });
+});
+
+describe("sections", () => {
+  // The large archive is the fixture that declares sections (AB#105):
+  // "early" (placements 1–150) and "late" (151–300) each span more than one
+  // 24-item mock page, placements 301–400 stay unsectioned, and "unused" is
+  // declared with zero placements referencing it.
+  const EARLY_SECTION_SLUG = "early";
+  const LATE_SECTION_SLUG = "late";
+  const UNUSED_SECTION_SLUG = "unused";
+
+  function walkSection(
+    sectionSlug: string,
+    language = "en",
+  ): readonly CuratedGalleryResultItem[] {
+    const collected: CuratedGalleryResultItem[] = [];
+    let cursor: string | undefined;
+    let pages = 0;
+
+    for (;;) {
+      const page = getMockGalleryResult(language, LARGE_GALLERY_ID, {
+        sectionSlug,
+        ...(cursor === undefined ? {} : { cursor }),
+        cursorCodec: testCursorCodec,
+      });
+      expect(page).toBeDefined();
+      if (page === undefined) break;
+
+      collected.push(...page.items);
+      pages += 1;
+      expect(pages).toBeLessThanOrEqual(100);
+
+      if (!page.page.hasNextPage) break;
+      cursor = page.page.endCursor;
+    }
+
+    return collected;
+  }
+
+  it("includes only a named section's own placements, in original order, across more than one page", () => {
+    const itemIds = walkSection(EARLY_SECTION_SLUG).map((item) => item.itemId);
+
+    expect(itemIds).toHaveLength(150);
+    expect(itemIds).toEqual(
+      Array.from(
+        { length: 150 },
+        (_unused, index) => `large-archive-${String(index + 1).padStart(4, "0")}`,
+      ),
+    );
+  });
+
+  it("excludes unsectioned items from a named section", () => {
+    const lateItemIds = walkSection(LATE_SECTION_SLUG).map((item) => item.itemId);
+
+    expect(lateItemIds).toHaveLength(150);
+    expect(lateItemIds.at(-1)).toBe("large-archive-0300");
+    expect(lateItemIds).not.toContain("large-archive-0301");
+  });
+
+  it("returns a successful, empty, self-identifying page for a valid section with no placements", () => {
+    const page = getMockGalleryResult("en", LARGE_GALLERY_ID, {
+      sectionSlug: UNUSED_SECTION_SLUG,
+      cursorCodec: testCursorCodec,
+    });
+
+    expect(page?.items).toEqual([]);
+    expect(page?.page.hasNextPage).toBe(false);
+    expect(page?.selectedSection?.sectionId).toBe("unused");
+    expect(page?.selectedSection?.intro).toBeDefined();
+  });
+
+  it("throws UnknownGallerySectionError for an unresolvable slug", () => {
+    expect(() =>
+      getMockGalleryResult("en", LARGE_GALLERY_ID, {
+        sectionSlug: "does-not-exist",
+        cursorCodec: testCursorCodec,
+      }),
+    ).toThrow(UnknownGallerySectionError);
+  });
+
+  it("carries the selected section's identity only on its first page, never on All", () => {
+    expect(mockPage("en", LARGE_GALLERY_ID)?.selectedSection).toBeUndefined();
+
+    const first = getMockGalleryResult("en", LARGE_GALLERY_ID, {
+      sectionSlug: EARLY_SECTION_SLUG,
+      cursorCodec: testCursorCodec,
+    });
+    expect(first?.selectedSection?.sectionId).toBe("early");
+    expect(first?.page.hasNextPage).toBe(true);
+
+    const second = getMockGalleryResult("en", LARGE_GALLERY_ID, {
+      sectionSlug: EARLY_SECTION_SLUG,
+      cursor: first?.page.endCursor as string,
+      cursorCodec: testCursorCodec,
+    });
+    expect(second?.selectedSection).toBeUndefined();
+  });
+
+  it("exposes the gallery's ordered section catalog regardless of the active filter", () => {
+    const expected = [
+      { sectionId: "early", slug: "early", label: "Early", order: 0 },
+      { sectionId: "late", slug: "late", label: "Late", order: 1 },
+      { sectionId: "unused", slug: "unused", label: "Unused", order: 2 },
+    ];
+
+    expect(mockPage("en", LARGE_GALLERY_ID)?.sections).toEqual(expected);
+    expect(
+      getMockGalleryResult("en", LARGE_GALLERY_ID, {
+        sectionSlug: LATE_SECTION_SLUG,
+        cursorCodec: testCursorCodec,
+      })?.sections,
+    ).toEqual(expected);
+  });
+
+  it("returns an empty section catalog for a gallery with no declared sections", () => {
+    expect(mockPage("en", MOCK_FEATURED_GALLERY_ID)?.sections).toEqual([]);
+  });
+
+  it("rejects a cursor minted under one section when replayed under All or a different section", () => {
+    const earlyFirst = getMockGalleryResult("en", LARGE_GALLERY_ID, {
+      sectionSlug: EARLY_SECTION_SLUG,
+      cursorCodec: testCursorCodec,
+    });
+    const cursor = earlyFirst?.page.endCursor as string;
+    expect(cursor).toBeTruthy();
+
+    expectCursorError(
+      () =>
+        getMockGalleryResult("en", LARGE_GALLERY_ID, {
+          cursor,
+          cursorCodec: testCursorCodec,
+        }),
+      "wrong-scope",
+    );
+    expectCursorError(
+      () =>
+        getMockGalleryResult("en", LARGE_GALLERY_ID, {
+          sectionSlug: LATE_SECTION_SLUG,
+          cursor,
+          cursorCodec: testCursorCodec,
+        }),
+      "wrong-scope",
+    );
   });
 });

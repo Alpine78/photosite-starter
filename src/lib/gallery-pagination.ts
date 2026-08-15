@@ -9,8 +9,8 @@ import type { ImageMedia, Media } from "@/lib/media";
 export const MAX_GALLERY_PAGE_SIZE = 100;
 export const MAX_GALLERY_CURSOR_LENGTH = 2048;
 
-const MAX_SCOPE_FIELD_LENGTH = 256;
-const MAX_ITEM_ID_LENGTH = 256;
+export const MAX_SCOPE_FIELD_LENGTH = 256;
+export const MAX_ITEM_ID_LENGTH = 256;
 const CURSOR_VERSION = 1;
 const BASE64URL_SEGMENT = /^[A-Za-z0-9_-]+$/;
 const SHA_256_BASE64URL_LENGTH = 43;
@@ -95,7 +95,7 @@ const cursorPayloadKeys = [
   "afterItem",
 ] as const satisfies readonly (keyof CursorPayload)[];
 
-function assertBoundedString(
+export function assertBoundedString(
   value: unknown,
   field: string,
   maxLength = MAX_SCOPE_FIELD_LENGTH,
@@ -339,7 +339,7 @@ export function createHmacGalleryCursorCodec(
   };
 }
 
-function comparePlacementIds(left: string, right: string): number {
+export function comparePlacementIds(left: string, right: string): number {
   if (left < right) return -1;
   if (left > right) return 1;
   return 0;

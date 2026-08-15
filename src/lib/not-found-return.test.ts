@@ -46,6 +46,7 @@ const contentPageSource: NotFoundReturnSources["contentPageSource"] = async (
 const galleryPageSource: NotFoundReturnSources["galleryPageSource"] = async () => ({
   items: [],
   page: { size: 24, hasNextPage: false, endCursor: null },
+  sections: [],
 });
 
 function sources(
