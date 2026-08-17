@@ -1,6 +1,6 @@
 ---
 name: codex-review-loop
-description: Automates the implement-review-fix cycle against the OpenAI Codex CLI as an independent second reviewer, replacing manual copy-paste between Claude Code and Codex. Use when the user asks to "loop with Codex", "get a second opinion", "run it past Codex until it's happy", or wants an automated dual-review cycle before opening a PR.
+description: Automates the plan-check, implement, review, and fix cycle against the OpenAI Codex CLI as an independent second reviewer — an optional one-time plan sanity check before code is written, then an iterative review-fix loop once it exists — replacing manual copy-paste between Claude Code and Codex. Use when the user asks to "loop with Codex", "get a second opinion", "check this plan with Codex first", "run it past Codex until it's happy", or wants an automated dual-review cycle before opening a PR.
 argument-hint: "[base-branch-or---uncommitted] [max-iterations]"
 ---
 
@@ -21,17 +21,106 @@ it catches a different distribution of mistakes. That independence is the
 entire point of this skill; do not "simplify" it into a second Claude-only
 pass.
 
-## Prerequisites (check these first, every run)
+## Workflow
 
-1. **Do a Claude-authored review and fix pass first, before sending anything
-   to Codex.** Run `/code-review` (or an equivalent careful read of the
-   change) against the same diff this loop is about to send, fix what it
-   finds, and get the project's own gates passing — every time, not just the
-   first time work is sent. This is not redundant with Codex's independent
-   pass: it is the cheap, fast pass that catches what a careful read already
-   would, so the expensive round that follows is spent on what only a
-   different model catches, not on mistakes Claude could have caught by
-   looking. Never skip straight to Codex on unreviewed work.
+This skill has two separate Codex touchpoints, at different times, with
+different shapes:
+
+1. **One-time plan sanity check**, before any code is written. Bounded at
+   exactly one Codex round — never looped.
+2. Implementation.
+3. **Claude self-review and fix**, after implementation (Prerequisite 1
+   below), repeated after every fix inside the loop.
+4. **The iterative Codex review-fix loop** ("The loop" below), run against
+   the finished, self-reviewed change, repeating until clean or the round
+   limit is hit.
+
+Phase 1 applies once per implementation task, not once per invocation of
+this skill. If this skill is invoked on a change that already exists (no
+separate planning step happened, or the change is small enough that no plan
+was drafted), skip straight to phase 3 — do not manufacture a retroactive
+plan just to have something to send Codex.
+
+## Phase 1: one-time plan sanity check (before implementation)
+
+Prerequisite 2 below (Codex CLI installed and authenticated) applies to this
+phase too — check it before step 2's call, even though the rest of the
+"Prerequisites" section is about the loop that runs after implementation.
+
+1. Draft the plan proportional to the task — Plan Mode output, or a short
+   bullet list for a small fix. If the task is scoped by an Azure Boards
+   work item, the plan text must already include the acceptance criteria
+   and relevant discussion extracted while reading it (`AGENTS.md`'s work
+   item gate). Codex is **not** given Azure Boards access for this phase —
+   the plan text carries whatever context it needs, so the default
+   read-only sandbox is sufficient and none of Prerequisite 3's sandbox
+   overrides apply here.
+
+2. Send the plan to Codex exactly once:
+   ```bash
+   codex exec -s read-only --ephemeral - <<'EOF'
+   Review this implementation plan before any code is written. Flag real
+   risks, missing edge cases, or a simpler approach if one exists. Do not
+   propose file edits — this is a plan review only.
+
+   Do NOT attempt to independently verify any work-item/ticket context
+   (Azure Boards, GitHub Issues, etc.) referenced in this plan. The plan
+   text below is already the complete, current context extracted for you —
+   treat it as authoritative, and do not spend tool calls trying to re-fetch
+   it yourself. (Codex's default sandbox cannot reach it anyway; a past run
+   burned a full round discovering that the hard way and then refusing to
+   review at all — see step 5.)
+
+   <plan text, verbatim>
+   EOF
+   ```
+   Reading the prompt from stdin (heredoc) instead of a shell argument
+   avoids quoting breakage from backticks, quotes, or `$()` that a plan's
+   own Markdown or code snippets are likely to contain. `--ephemeral` keeps
+   this one-off check from persisting a resumable session.
+
+3. Read the response as a report, not a verdict — Codex is advisory here,
+   the same as everywhere else in this skill (see step 2 of "The loop").
+   Verify each concern against the actual codebase before acting on it.
+
+4. If a concern is real, revise the plan and, if the revision changes scope
+   or user-visible behavior materially, check back with the user before
+   implementing. Either way, **do not send the revised plan back to
+   Codex** — this phase is bounded at exactly one round; the iterative
+   back-and-forth belongs to "The loop" after implementation, not here.
+
+5. Two different failure shapes here, and only one earns a retry:
+   - **The call itself fails to complete** (auth, crash, timeout): report
+     the exact blocker and stop before implementing. Do not retry in a hot
+     loop chasing a working plan review, and do not silently skip the phase
+     and start coding without one.
+   - **The call completes but produces no substantive review** — Codex
+     declines, asks for context the prompt already gave it, or otherwise
+     answers without engaging the plan (observed once: it tried to
+     independently re-verify a ticket the plan already quoted in full,
+     failed because its sandbox blocks that, and refused to review on that
+     basis). This is not "a round with findings," so a single corrective
+     retry is allowed — fix whatever caused the non-answer (most often: add
+     the guard from step 2 above, or make the plan text more obviously
+     self-contained) and send it once more. If the corrected retry *also*
+     fails to produce a substantive review, that is now a real blocker:
+     report it and stop, same as the first bullet.
+
+Then implement, and pick this skill back up at "Prerequisites" below once
+code exists to review.
+
+## Prerequisites (check these first, every round of the loop below)
+
+1. **Do a Claude-authored review and fix pass before sending anything to
+   Codex's review-fix loop.** Run `/code-review` (or an equivalent careful
+   read of the change) against the same diff this loop is about to send,
+   fix what it finds, and get the project's own gates passing — after
+   implementation, and again after every fix inside the loop, not just the
+   first round. This is not redundant with Codex's independent pass: it is
+   the cheap, fast pass that catches what a careful read already would, so
+   the expensive round that follows is spent on what only a different model
+   catches, not on mistakes Claude could have caught by looking. Never skip
+   straight to Codex on unreviewed work.
 
 2. **Codex CLI is installed and authenticated.**
    ```bash
@@ -171,7 +260,10 @@ reviewee is exactly the case an independent second opinion is for.
 
 ## Ending the loop
 
-- **Clean pass:** summarize what changed across all rounds, run the full
+- **Clean pass:** summarize the whole run for the user, not just the final
+  round — the Phase 1 plan-check verdict and any resulting plan changes (if
+  that phase ran), what Claude's own self-review found and fixed, and what
+  each loop round found and fixed (or that it found nothing). Run the full
   verification suite one more time, and stop. Do not keep looping past a
   clean review "just to be sure" — that just burns usage.
 - **Round limit reached with findings still open:** report the remaining
