@@ -176,6 +176,10 @@ export type BuiltInLabels = {
     readonly retry: string;
     /** Announced once the last slice has been appended and nothing follows. */
     readonly allLoaded: string;
+    /** Accessible name of the section-controls landmark. */
+    readonly sectionsNav: string;
+    /** Visible label of the unfiltered `All` section filter. */
+    readonly allSections: string;
   };
   readonly lightbox: {
     /** Accessible name of the fullscreen dialog itself. */
@@ -318,6 +322,8 @@ const englishLabels = {
     loadFailed: "More images could not be loaded.",
     retry: "Try again",
     allLoaded: "All images in this gallery are loaded.",
+    sectionsNav: "Gallery sections",
+    allSections: "All",
   },
   lightbox: {
     viewer: "Image viewer",
@@ -420,6 +426,8 @@ const finnishLabels = {
     loadFailed: "Lisää kuvia ei voitu ladata.",
     retry: "Yritä uudelleen",
     allLoaded: "Gallerian kaikki kuvat on ladattu.",
+    sectionsNav: "Gallerian osiot",
+    allSections: "Kaikki",
   },
   lightbox: {
     viewer: "Kuvakatselin",

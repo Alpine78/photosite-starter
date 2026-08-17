@@ -39,6 +39,21 @@ export const REQUEST_HAS_CURSOR_HEADER = "x-photosite-request-has-cursor";
 /** The only value the flag is ever set to, and the only one read back as true. */
 export const REQUEST_HAS_CURSOR_VALUE = "1";
 
+/**
+ * Whether the refused request carried a `section` parameter at all.
+ *
+ * The same one-bit shape as {@link REQUEST_HAS_CURSOR_HEADER}, for the same
+ * reason: an unknown gallery section also answers 404 (ADR-0003 decision 8),
+ * and its 404 needs the same return link an invalid cursor's does. `section`
+ * carries no signature and is not secret, but the Proxy still transports only
+ * its presence — the value plays no part in the 404 boundary's decision, and
+ * carrying it would be scope the boundary does not need.
+ */
+export const REQUEST_HAS_SECTION_HEADER = "x-photosite-request-has-section";
+
+/** The only value the flag is ever set to, and the only one read back as true. */
+export const REQUEST_HAS_SECTION_VALUE = "1";
+
 const ROUTE_SEGMENT_PATTERN = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
 
 function matchesRouteSegment(value: string | undefined, expected: string): boolean {
@@ -151,4 +166,14 @@ export function readRequestPath(
  */
 export function readRequestHasCursor(value: string | null | undefined): boolean {
   return value === REQUEST_HAS_CURSOR_VALUE;
+}
+
+/**
+ * Whether the Proxy flagged this request as carrying a `section` parameter.
+ *
+ * Exact-match on the single value the Proxy writes, same as
+ * {@link readRequestHasCursor} and for the same reason.
+ */
+export function readRequestHasSection(value: string | null | undefined): boolean {
+  return value === REQUEST_HAS_SECTION_VALUE;
 }

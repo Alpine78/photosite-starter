@@ -8,8 +8,11 @@
  * deployment configuration module — the one owner of those values. A page
  * supplies only what is specific to it.
  *
- * Sitemap, robots policy, and structured data belong to their own stories and
- * are deliberately absent here.
+ * Sitemap, a site-wide `robots.txt` policy, and structured data belong to
+ * their own stories and are deliberately absent here. The one exception is
+ * `PageMetadataInput.noindex`: a narrow, page-specific `noindex` directive
+ * ADR-0003 decision 8 already mandates for a named gallery section view, not
+ * a general indexing policy.
  */
 
 import type { Metadata } from "next";
@@ -64,6 +67,15 @@ export type PageMetadataInput = {
    * alternate-language metadata at all rather than an incomplete set.
    */
   readonly localeVersions?: readonly LocaleVersion[];
+  /**
+   * Marks this page `noindex` (still `follow`) rather than emitting no robots
+   * directive at all. Reserved for the one case ADR-0003 decision 8 already
+   * requires it for — a named gallery section view, cursored or not, including
+   * its empty state — not a general robots policy: sitemap and `robots.txt`
+   * remain separate, unbuilt stories. Omitted, a page is indexable by default,
+   * unchanged for every existing caller.
+   */
+  readonly noindex?: boolean;
 };
 
 type OpenGraphImage = {
@@ -290,6 +302,9 @@ export function buildPageMetadata(
       canonical,
       ...(languages === undefined ? {} : { languages }),
     },
+    ...(input.noindex === true
+      ? { robots: { index: false, follow: true } }
+      : {}),
     openGraph:
       input.publishedTime === undefined
         ? { ...openGraphBase, type: "website" }

@@ -64,12 +64,21 @@ function isLightboxSlide(value: unknown): value is Record<string, unknown> {
   );
 }
 
-/** The continuation endpoint, addressed by canonical path and opaque token. */
+/**
+ * The continuation endpoint, addressed by canonical path, opaque token, and
+ * the active section filter when one applies.
+ *
+ * Carrying `section` here is what keeps an in-place append inside the active
+ * section: without it, an append fetched while a named section is selected
+ * would ask for the unfiltered gallery's next slice instead.
+ */
 export function gallerySliceEndpoint(
   galleryPath: string,
   cursor: string,
+  section?: string,
 ): string {
   const params = new URLSearchParams({ path: galleryPath, cursor });
+  if (section !== undefined) params.set("section", section);
   return `/api/gallery?${params.toString()}`;
 }
 
@@ -125,8 +134,9 @@ function isGallerySlice(value: unknown): value is GallerySlice {
 export async function fetchGallerySlice(
   galleryPath: string,
   cursor: string,
+  section?: string,
 ): Promise<GallerySlice> {
-  const response = await fetch(gallerySliceEndpoint(galleryPath, cursor), {
+  const response = await fetch(gallerySliceEndpoint(galleryPath, cursor, section), {
     headers: { accept: "application/json" },
     // The response is `no-store` and the token is single-purpose; asking the
     // HTTP cache for it would only risk replaying a stale slice.

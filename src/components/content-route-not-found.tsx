@@ -4,8 +4,10 @@ import { getBuiltInLabels } from "@/lib/deployment-config";
 import { getNotFoundReturn } from "@/lib/not-found-return";
 import {
   REQUEST_HAS_CURSOR_HEADER,
+  REQUEST_HAS_SECTION_HEADER,
   REQUEST_PATH_HEADER,
   readRequestHasCursor,
+  readRequestHasSection,
   readRequestPath,
 } from "@/lib/request-path";
 
@@ -27,19 +29,21 @@ import {
  * routes are dynamic anyway, because they read `searchParams` — and leaves the
  * static routes in `(default)` prerendered.
  *
- * A link appears only when the refused request carried a cursor, its path
- * resolves (following at most one canonical normalization) to a gallery, and
- * both that content page and its parameter-free result are actually served.
- * Without all three, an unknown or broken address could get a guessed link
- * leading from this 404 to another. Next.js marks the response `noindex` itself.
+ * A link appears only when the refused request carried a cursor or a gallery
+ * `section` — an unknown section is refused the same way an invalid cursor is
+ * (ADR-0003 decision 8) and needs the same way back — its path resolves
+ * (following at most one canonical normalization) to a gallery, and both that
+ * content page and its parameter-free result are actually served. Without all
+ * three, an unknown or broken address could get a guessed link leading from
+ * this 404 to another. Next.js marks the response `noindex` itself.
  */
 export async function ContentRouteNotFound() {
   const requestHeaders = await headers();
   const requestPath = readRequestPath(requestHeaders.get(REQUEST_PATH_HEADER));
-  const refusedAContinuation = readRequestHasCursor(
-    requestHeaders.get(REQUEST_HAS_CURSOR_HEADER),
-  );
-  const back = refusedAContinuation
+  const refusedAGalleryFilter =
+    readRequestHasCursor(requestHeaders.get(REQUEST_HAS_CURSOR_HEADER)) ||
+    readRequestHasSection(requestHeaders.get(REQUEST_HAS_SECTION_HEADER));
+  const back = refusedAGalleryFilter
     ? await getNotFoundReturn(requestPath)
     : undefined;
 

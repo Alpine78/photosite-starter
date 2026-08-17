@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GalleryCursorError } from "@/lib/gallery-pagination";
+import { UnknownGallerySectionError } from "@/lib/gallery-sections";
 
 const dependencies = vi.hoisted(() => ({
   resolveTarget: vi.fn(),
@@ -15,9 +16,13 @@ vi.mock("@/lib/gallery", async () => {
   const { GalleryCursorError: CursorError } = await vi.importActual<
     typeof import("@/lib/gallery-pagination")
   >("@/lib/gallery-pagination");
+  const { UnknownGallerySectionError: SectionError } = await vi.importActual<
+    typeof import("@/lib/gallery-sections")
+  >("@/lib/gallery-sections");
 
   return {
     GalleryCursorError: CursorError,
+    UnknownGallerySectionError: SectionError,
     getGalleryPage: dependencies.getGalleryPage,
   };
 });
@@ -40,15 +45,18 @@ const SLICE = { items: [], slides: [], nextCursor: null };
 function galleryRequest({
   paths = [PATH],
   cursors = [CURSOR],
+  sections = [],
   origin,
 }: {
   paths?: readonly string[];
   cursors?: readonly string[];
+  sections?: readonly string[];
   origin?: string;
 } = {}): Request {
   const url = new URL(ENDPOINT);
   for (const path of paths) url.searchParams.append("path", path);
   for (const cursor of cursors) url.searchParams.append("cursor", cursor);
+  for (const section of sections) url.searchParams.append("section", section);
 
   return new Request(url, {
     headers: origin === undefined ? {} : { origin },
@@ -81,8 +89,44 @@ describe("GET /api/gallery", () => {
       "en-GB",
       "content-large-archive",
       CURSOR,
+      undefined,
     );
     expect(dependencies.projectSlice).toHaveBeenCalledWith(PAGE);
+  });
+
+  it("forwards a section filter to the gallery source", async () => {
+    await GET(galleryRequest({ sections: ["early"] }));
+
+    expect(dependencies.getGalleryPage).toHaveBeenCalledWith(
+      "en-GB",
+      "content-large-archive",
+      CURSOR,
+      "early",
+    );
+  });
+
+  it("answers 404 for a section the gallery has not declared", async () => {
+    dependencies.getGalleryPage.mockRejectedValueOnce(
+      new UnknownGallerySectionError("no-such-section"),
+    );
+
+    const response = await GET(galleryRequest({ sections: ["no-such-section"] }));
+
+    expect(response.status).toBe(404);
+    expect(dependencies.projectSlice).not.toHaveBeenCalled();
+  });
+
+  it("refuses a repeated section parameter as an invalid request", async () => {
+    const response = await GET(
+      galleryRequest({ sections: ["early", "late"] }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      status: "rejected",
+      reason: "invalid-request",
+    });
+    expect(dependencies.resolveTarget).not.toHaveBeenCalled();
   });
 
   it("allows an explicit same-origin browser request", async () => {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { appendGallerySlice, type GallerySlice } from "@/lib/gallery-slice";
+import {
+  appendGallerySlice,
+  buildGalleryHref,
+  galleryContinuationHref,
+  type GallerySlice,
+} from "@/lib/gallery-slice";
 import type { GalleryResultItem } from "@/lib/gallery-result";
 import type { LightboxSlide } from "@/lib/lightbox-slides";
 import type { ImageMedia } from "@/lib/media";
@@ -97,5 +102,57 @@ describe("appendGallerySlice", () => {
 
   it("carries the end of the gallery through as a null cursor", () => {
     expect(appendGallerySlice(slice(["a"], "cursor-1"), slice(["b"], null)).nextCursor).toBeNull();
+  });
+});
+
+describe("buildGalleryHref", () => {
+  it("returns the bare path when neither section nor cursor is set", () => {
+    expect(buildGalleryHref("/stories/gallery", {})).toBe("/stories/gallery");
+  });
+
+  it("emits a section-only query", () => {
+    expect(buildGalleryHref("/stories/gallery", { section: "early" })).toBe(
+      "/stories/gallery?section=early",
+    );
+  });
+
+  it("emits a cursor-only query", () => {
+    expect(buildGalleryHref("/stories/gallery", { cursor: "AnOpaque-Token" })).toBe(
+      "/stories/gallery?cursor=AnOpaque-Token",
+    );
+  });
+
+  it("emits section before cursor when both are present, per decision 8", () => {
+    expect(
+      buildGalleryHref("/stories/gallery", {
+        section: "early",
+        cursor: "AnOpaque-Token",
+      }),
+    ).toBe("/stories/gallery?section=early&cursor=AnOpaque-Token");
+  });
+
+  it("percent-encodes both values", () => {
+    expect(
+      buildGalleryHref("/stories/gallery", {
+        section: "a section",
+        cursor: "a+cursor/value",
+      }),
+    ).toBe(
+      "/stories/gallery?section=a+section&cursor=a%2Bcursor%2Fvalue",
+    );
+  });
+});
+
+describe("galleryContinuationHref", () => {
+  it("carries the active section forward alongside the cursor", () => {
+    expect(
+      galleryContinuationHref("/stories/gallery", "AnOpaque-Token", "early"),
+    ).toBe("/stories/gallery?section=early&cursor=AnOpaque-Token");
+  });
+
+  it("omits section when the unfiltered view is active", () => {
+    expect(galleryContinuationHref("/stories/gallery", "AnOpaque-Token")).toBe(
+      "/stories/gallery?cursor=AnOpaque-Token",
+    );
   });
 });

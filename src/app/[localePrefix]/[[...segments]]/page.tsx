@@ -30,9 +30,14 @@ import {
   getBuiltInLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
-import { GalleryCursorError, getGalleryPage } from "@/lib/gallery";
-import { galleryContinuationHref } from "@/lib/gallery-slice";
+import {
+  GalleryCursorError,
+  UnknownGallerySectionError,
+  getGalleryPage,
+} from "@/lib/gallery";
+import { buildGalleryHref } from "@/lib/gallery-slice";
 import { projectGallerySlice } from "@/lib/gallery-slice-server";
+import type { GallerySectionSummary } from "@/lib/gallery-sections";
 import { resolveLocalePrefixRequest } from "@/lib/locale-prefix-request";
 import {
   buildStoryPath,
@@ -94,6 +99,7 @@ async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
       searchParams: resolvedSearchParams,
       defaultLocaleRouteExists,
       galleryCursorNamesASlice,
+      gallerySectionExists,
       pathHasTrailingSlash:
         requestPath !== undefined &&
         requestPath.length > 1 &&
@@ -139,45 +145,104 @@ async function galleryCursorNamesASlice(
   locale: string,
   contentId: string,
   cursor: string,
+  sectionSlug?: string,
 ): Promise<boolean> {
-  return (await resolveGalleryPage(locale, contentId, cursor)) !== undefined;
+  return (
+    (await resolveGalleryPage(locale, contentId, cursor, sectionSlug)) !==
+    undefined
+  );
+}
+
+/**
+ * Whether a section slug names a real, declared section of one gallery.
+ *
+ * Mirrors {@link galleryCursorNamesASlice} exactly, including its failure
+ * mode: `resolveGalleryPage` answers `undefined` both when the section itself
+ * is unknown and when this locale publishes no gallery result for the
+ * identity at all (a content-tree record with no matching source row). Either
+ * absence has to refuse here — checking only for a thrown
+ * `UnknownGallerySectionError` would treat a genuinely missing gallery as an
+ * existing section and let a casing or prefix variant redirect permanently
+ * onto a canonical URL that then 404s on its own.
+ */
+async function gallerySectionExists(
+  locale: string,
+  contentId: string,
+  sectionSlug: string,
+): Promise<boolean> {
+  return (
+    (await resolveGalleryPage(locale, contentId, undefined, sectionSlug)) !==
+    undefined
+  );
 }
 
 /**
  * One bounded page of a gallery, or `undefined` when this request names none.
  *
- * Two different absences collapse here on purpose, because the route answers
- * both the same way. Either the locale publishes no gallery for that identity,
- * or the cursor it carries names no slice of one — malformed, tampered with,
- * scoped to another query, or stale because the boundary it named has moved.
- * ADR-0003 decision 8 answers the second with a 404 rather than a quiet fall
- * back to the first page: the URL promised a particular slice, and serving a
- * different one under it would be a claim a crawler then indexes.
+ * Three different absences collapse here on purpose, because the route
+ * answers all of them the same way. Either the locale publishes no gallery
+ * for that identity, or the cursor it carries names no slice of one —
+ * malformed, tampered with, scoped to another query, or stale because the
+ * boundary it named has moved — or the section it carries names no declared
+ * section of this gallery. ADR-0003 decision 8 answers all three with a 404
+ * rather than a quiet fall back to the first page: the URL promised a
+ * particular slice, and serving a different one under it would be a claim a
+ * crawler then indexes.
  */
 async function resolveGalleryPage(
   locale: string,
   contentId: string,
   cursor?: string,
+  sectionSlug?: string,
 ) {
   try {
-    return await getGalleryPage(locale, contentId, cursor);
+    return await getGalleryPage(locale, contentId, cursor, sectionSlug);
   } catch (error) {
-    if (error instanceof GalleryCursorError) return undefined;
+    if (
+      error instanceof GalleryCursorError ||
+      error instanceof UnknownGallerySectionError
+    ) {
+      return undefined;
+    }
     throw error;
   }
 }
 
 /**
- * The canonical path this request claims: the gallery's own, plus the cursor
- * when it is a continuation.
+ * The canonical path this request claims.
  *
- * A continuation carries a distinct sequential slice, so decision 8 makes it
- * indexable and self-canonical rather than a duplicate pointing back at the
- * first page. The token is emitted exactly as it arrived — it is case-sensitive
- * and never normalized.
+ * A named section, cursored or not, canonicalizes to the gallery's own
+ * parameter-free path (decision 8: it is an alternate filter of the same
+ * curated result, not a distinct indexable view). Otherwise the existing rule
+ * applies unchanged: the gallery's own path, plus the cursor when this is an
+ * unfiltered continuation, which decision 8 makes indexable and self-canonical
+ * because it is a distinct sequential slice. The token is emitted exactly as
+ * it arrived — it is case-sensitive and never normalized.
  */
-function toCanonicalPath(path: string, cursor?: string): string {
-  return cursor === undefined ? path : galleryContinuationHref(path, cursor);
+function toCanonicalPath(
+  path: string,
+  cursor: string | undefined,
+  activeSectionSlug: string | undefined,
+): string {
+  if (activeSectionSlug !== undefined) return path;
+  return cursor === undefined ? path : buildGalleryHref(path, { cursor });
+}
+
+/**
+ * The active section, resolved from the request's slug against the catalog
+ * every slice carries — not from `result.selectedSection`, which the shared
+ * gallery contract populates only for the first, uncursored slice of a named
+ * section (`gallery-sections.ts`). The controls' selected state and a
+ * continuation's own section scoping need the active section on *every*
+ * slice, cursored or not; `selectedSection` remains reserved for deciding
+ * whether the first-page heading and introduction render.
+ */
+function resolveActiveSection(
+  sections: readonly GallerySectionSummary[],
+  slug: string | undefined,
+): GallerySectionSummary | undefined {
+  if (slug === undefined) return undefined;
+  return sections.find((section) => section.slug === slug);
 }
 
 function branchTitle(
@@ -313,15 +378,22 @@ export async function generateMetadata(
   const { locale, route } = resolution;
   const page = await resolveContentPage(locale, route);
   if (route.kind === "content" && page === undefined) return {};
+
+  const galleryResult =
+    page?.variant === "gallery"
+      ? await resolveGalleryPage(
+          locale,
+          page.contentId,
+          resolution.cursor,
+          resolution.section,
+        )
+      : undefined;
   // A gallery the source cannot answer for renders a 404 below, and a 404 must
   // not carry a canonical URL, a social image, and alternates for a page nobody
-  // can open. The same reason the article path returns early above, and it now
-  // covers a cursor that names no slice as well as a missing gallery.
-  if (
-    page?.variant === "gallery" &&
-    (await resolveGalleryPage(locale, page.contentId, resolution.cursor)) ===
-      undefined
-  ) {
+  // can open. The same reason the article path returns early above, and this
+  // now covers a cursor that names no slice, or a section that names no
+  // declared section, as well as a missing gallery.
+  if (page?.variant === "gallery" && galleryResult === undefined) {
     return {};
   }
 
@@ -337,24 +409,38 @@ export async function generateMetadata(
     });
   }
 
+  const activeSection =
+    galleryResult === undefined
+      ? undefined
+      : resolveActiveSection(galleryResult.sections, resolution.section);
+
   // Both variants are dated published pages, and a gallery's cover is the
   // resolved one its card shows — its own opening photograph when none was
   // authored — so neither invents a social image it does not have.
   //
-  // A continuation page names no alternate languages. The token is scoped to one
-  // gallery's ordering in one locale, so no other locale holds an equivalent
-  // slice to point at, and an `hreflang` set that is not reciprocal states a
-  // relationship that does not exist. The visible language switch still leads
-  // somewhere useful: decision 7 has it drop cursor state and open the target
-  // locale's first page.
+  // A continuation page, and every named-section view (cursored or not), name
+  // no alternate languages. A continuation's token is scoped to one gallery's
+  // ordering in one locale, so no other locale holds an equivalent slice to
+  // point at; a named section is a non-canonical alternate filter of the same
+  // curated result (decision 8), so an `hreflang` set on it would assert a
+  // reciprocal relationship its own canonical tag already disclaims. The
+  // visible language switch still leads somewhere useful either way: decision
+  // 7 has it drop cursor and section state and open the target locale's first
+  // page. A named section is also `noindex`, with or without a cursor and
+  // including its empty state — canonicalizing to the parameter-free page is
+  // not sufficient on its own, since a crawler may still index a non-canonical
+  // URL despite the hint.
   return getPageMetadata({
-    path: toCanonicalPath(path, resolution.cursor),
+    path: toCanonicalPath(path, resolution.cursor, activeSection?.slug),
     title: page.title,
     ...(page.summary === undefined ? {} : { description: page.summary }),
     ...(page.cover === undefined ? {} : { image: page.cover }),
     publishedTime: page.publishedAt,
     locale,
-    ...(resolution.cursor === undefined ? { localeVersions } : {}),
+    ...(resolution.cursor === undefined && activeSection === undefined
+      ? { localeVersions }
+      : {}),
+    ...(activeSection === undefined ? {} : { noindex: true }),
   });
 }
 
@@ -390,13 +476,14 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
 
     if (page.variant === "gallery") {
       // One bounded page of the gallery, read by the identity the tree resolved
-      // and positioned by whatever cursor the request carried. It is a separate
-      // read from the page above because the two have different costs: a card
-      // projects the page's fields and never this.
+      // and positioned by whatever cursor and section the request carried. It
+      // is a separate read from the page above because the two have different
+      // costs: a card projects the page's fields and never this.
       const result = await resolveGalleryPage(
         locale,
         page.contentId,
         resolution.cursor,
+        resolution.section,
       );
       const storyPath = buildStoryPath(
         config,
@@ -409,9 +496,18 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
         // decision 8 requires. It is not passed from here — App Router renders
         // a not-found boundary with no props, and renders it before this page —
         // so the boundary reconstructs it from the requested path the Proxy
-        // carried (ADR-0007), and shows it only when a cursor was refused.
+        // carried (ADR-0007), and shows it only when a cursor or an unknown
+        // section was refused.
         notFound();
       }
+
+      // Resolved from the catalog every slice carries, not from
+      // `result.selectedSection` — see `resolveActiveSection`'s own comment.
+      const activeSection = resolveActiveSection(
+        result.sections,
+        resolution.section,
+      );
+      const sectionKey = activeSection?.slug ?? "all";
 
       return (
         <ContentGallery
@@ -420,13 +516,23 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
           slice={projectGallerySlice(result)}
           initialSliceKey={
             resolution.cursor === undefined
-              ? `first:${storyPath}`
-              : `cursor:${resolution.cursor}`
+              ? `first:${storyPath}:${sectionKey}`
+              : `cursor:${resolution.cursor}:${sectionKey}`
           }
           galleryPath={storyPath}
+          sections={result.sections}
+          {...(activeSection === undefined ? {} : { activeSection })}
+          {...(result.selectedSection === undefined
+            ? {}
+            : { selectedSection: result.selectedSection })}
           {...(resolution.cursor === undefined
             ? {}
-            : { firstPageHref: storyPath, isContinuation: true })}
+            : {
+                firstPageHref: buildGalleryHref(storyPath, {
+                  section: activeSection?.slug,
+                }),
+                isContinuation: true,
+              })}
           breadcrumbs={buildBreadcrumbs(
             config,
             tree,

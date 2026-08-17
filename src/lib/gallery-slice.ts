@@ -13,18 +13,47 @@ import type { LightboxSlide } from "@/lib/lightbox-slides";
 import type { ImageMedia } from "@/lib/media";
 
 /**
+ * One gallery URL, built from its parameter-free path plus an optional
+ * section filter and continuation cursor.
+ *
+ * The one place that assembles a `?section=`/`?cursor=` query, so every
+ * internal link — a section control, the continuation control, "back to
+ * start", and the `/api/gallery` fetch address — agrees on the same shape.
+ * ADR-0003 decision 8 fixes the stable emitted order as `section` then
+ * `cursor` when both are present, so alternate spellings of one request never
+ * look like two different addresses to a crawler. Both values are
+ * percent-encoded and otherwise passed through untouched; neither is ever
+ * normalized here — a bare `galleryPath` is returned when neither is set.
+ */
+export function buildGalleryHref(
+  galleryPath: string,
+  { section, cursor }: { readonly section?: string; readonly cursor?: string },
+): string {
+  const params = new URLSearchParams();
+  if (section !== undefined) params.set("section", section);
+  if (cursor !== undefined) params.set("cursor", cursor);
+  const query = params.toString();
+  return query.length === 0 ? galleryPath : `${galleryPath}?${query}`;
+}
+
+/**
  * Where the slice after this one lives.
  *
  * One rule, used by the server that renders the link and by the client that
  * rebuilds it after an append, so the address a visitor can copy is the same
  * one either path produces. The token is percent-encoded and otherwise passed
  * through untouched — decision 8 makes it case-sensitive and never normalized.
+ *
+ * `section` carries the active section forward so a continuation reached from
+ * inside a named section keeps its own filter rather than silently reverting
+ * to the unfiltered view.
  */
 export function galleryContinuationHref(
   galleryPath: string,
   cursor: string,
+  section?: string,
 ): string {
-  return `${galleryPath}?cursor=${encodeURIComponent(cursor)}`;
+  return buildGalleryHref(galleryPath, { section, cursor });
 }
 
 export type GallerySlice = {
