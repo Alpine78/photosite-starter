@@ -40,7 +40,7 @@ const harnessCursorCodec = createHmacGalleryCursorCodec(
 );
 
 /** One page of a fixture gallery, read the way the running application reads it. */
-function mockPage(language: string, contentId: string) {
+async function mockPage(language: string, contentId: string) {
   return getMockGalleryResult(language, contentId, {
     cursorCodec: harnessCursorCodec,
   });
@@ -58,12 +58,12 @@ const galleryLabels = labels.gallery;
  * galleries, so what the journey depends on is the property — more items than
  * one page holds — and not which fixture currently has it.
  */
-function paginatedDefaultLocaleGallery(): {
+async function paginatedDefaultLocaleGallery(): Promise<{
   readonly path: string;
   readonly pageSize: number;
   /** Full pages after the first, capped: enough to prove the boundary repeats. */
   readonly walkableHops: number;
-} {
+}> {
   const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
   const treeInput = mockContentTreeInputs[language];
   if (treeInput === undefined) {
@@ -75,12 +75,15 @@ function paginatedDefaultLocaleGallery(): {
     if (page.variant !== "gallery") continue;
 
     const path = getCanonicalContentPath(tree, contentId);
-    const result = mockPage(language, contentId);
+    const result = await mockPage(language, contentId);
     if (path !== null && result?.page.hasNextPage) {
       return {
         path: `${STORY_ROOT}/${path.join("/")}`,
         pageSize: result.page.size,
-        walkableHops: Math.min(3, countFullPagesAfterFirst(language, contentId)),
+        walkableHops: Math.min(
+          3,
+          await countFullPagesAfterFirst(language, contentId),
+        ),
       };
     }
   }
@@ -94,12 +97,15 @@ function paginatedDefaultLocaleGallery(): {
  * be. A gallery of two-and-a-bit pages is walked once; a four-hundred-item one
  * is walked three times and no further.
  */
-function countFullPagesAfterFirst(language: string, contentId: string): number {
-  let cursor = mockPage(language, contentId)?.page.endCursor ?? null;
+async function countFullPagesAfterFirst(
+  language: string,
+  contentId: string,
+): Promise<number> {
+  let cursor = (await mockPage(language, contentId))?.page.endCursor ?? null;
   let full = 0;
 
   while (cursor !== null) {
-    const next = getMockGalleryResult(language, contentId, {
+    const next = await getMockGalleryResult(language, contentId, {
       cursor,
       cursorCodec: harnessCursorCodec,
     });
@@ -112,7 +118,7 @@ function countFullPagesAfterFirst(language: string, contentId: string): number {
 }
 
 /** A gallery that fits on one page, for the cursor-scope journey below. */
-function completeDefaultLocaleGallery(): string {
+async function completeDefaultLocaleGallery(): Promise<string> {
   const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
   const treeInput = mockContentTreeInputs[language];
   if (treeInput === undefined) {
@@ -124,7 +130,7 @@ function completeDefaultLocaleGallery(): string {
     if (page.variant !== "gallery") continue;
 
     const path = getCanonicalContentPath(tree, contentId);
-    const result = mockPage(language, contentId);
+    const result = await mockPage(language, contentId);
     if (path !== null && result !== undefined && !result.page.hasNextPage) {
       return `${STORY_ROOT}/${path.join("/")}`;
     }
@@ -133,8 +139,22 @@ function completeDefaultLocaleGallery(): string {
   throw new Error("[e2e] The harness needs one gallery bounded to a single page.");
 }
 
-const PAGINATED = paginatedDefaultLocaleGallery();
-const COMPLETE_GALLERY_PATH = completeDefaultLocaleGallery();
+/**
+ * Resolved once in `beforeAll` rather than at module scope: finding either
+ * gallery now awaits a bounded source (AB#134), and Playwright test files
+ * load before any hook runs.
+ */
+let PAGINATED: {
+  readonly path: string;
+  readonly pageSize: number;
+  readonly walkableHops: number;
+};
+let COMPLETE_GALLERY_PATH: string;
+
+test.beforeAll(async () => {
+  PAGINATED = await paginatedDefaultLocaleGallery();
+  COMPLETE_GALLERY_PATH = await completeDefaultLocaleGallery();
+});
 
 // The continuation journeys run unenhanced. Playwright's own option is the
 // honest way to say so: no script runs at all, rather than a hand-built
@@ -500,21 +520,26 @@ test.describe("a refused continuation", () => {
     ).toHaveCount(0);
   });
 
-  for (const [caseName, refusedPath] of [
+  // The transform, not the resulting path, is what the loop can know at
+  // collection time: `PAGINATED` is only populated in `beforeAll`, which runs
+  // after Playwright has already registered every `test(...)` call below by
+  // executing this describe body once, synchronously.
+  for (const [caseName, toRefusedPath] of [
     [
       "a casing variant",
-      PAGINATED.path.replace(
-        `/${DEFAULT_STORY_NAMESPACE}/`,
-        `/${DEFAULT_STORY_NAMESPACE.toUpperCase()}/`,
-      ),
+      (path: string) =>
+        path.replace(
+          `/${DEFAULT_STORY_NAMESPACE}/`,
+          `/${DEFAULT_STORY_NAMESPACE.toUpperCase()}/`,
+        ),
     ],
-    ["a trailing slash", `${PAGINATED.path}/`],
+    ["a trailing slash", (path: string) => `${path}/`],
   ] as const) {
     test(`a refused continuation at ${caseName} still links to the canonical first page`, async ({
       page,
     }) => {
       const response = await page.goto(
-        `${refusedPath}?cursor=not-a-token-this-deployment-minted`,
+        `${toRefusedPath(PAGINATED.path)}?cursor=not-a-token-this-deployment-minted`,
         { waitUntil: "load" },
       );
 

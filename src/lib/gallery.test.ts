@@ -5,7 +5,9 @@ import {
   GalleryCursorError,
   MAX_GALLERY_CURSOR_LENGTH,
   MAX_GALLERY_PAGE_SIZE,
+  resolveGalleryWindowRequest,
   selectCuratedGalleryCover,
+  selectGalleryWindow,
   type CuratedGalleryPlacement,
   type GalleryCursorCodec,
   type GalleryCursorScope,
@@ -58,6 +60,14 @@ const placements = [
   },
 ] satisfies readonly CuratedGalleryPlacement[];
 
+/**
+ * Composes the same three functions a bounded source and `gallery-sections.ts`
+ * compose in production — `resolveGalleryWindowRequest`, `selectGalleryWindow`,
+ * `buildCuratedGalleryPage` (AB#134) — over a hand-built `sourcePlacements`
+ * array standing in for "everything a fixture happens to hold." All three are
+ * pure and synchronous, so this helper stays synchronous too: only a real
+ * store-backed source needs to await anything.
+ */
 function buildPage({
   sourcePlacements = placements,
   cursor,
@@ -69,10 +79,17 @@ function buildPage({
   readonly cursorScope?: GalleryCursorScope;
   readonly cursorCodec?: GalleryCursorCodec;
 } = {}) {
-  return buildCuratedGalleryPage({
-    placements: sourcePlacements,
+  const windowRequest = resolveGalleryWindowRequest({
     scope: cursorScope,
     cursor,
+    cursorCodec,
+  });
+  const windowResult = selectGalleryWindow(sourcePlacements, windowRequest);
+
+  return buildCuratedGalleryPage({
+    windowResult,
+    scope: cursorScope,
+    windowRequest,
     cursorCodec,
   });
 }
@@ -90,14 +107,29 @@ function expectCursorError(
   }
 }
 
+async function expectAsyncCursorError(
+  operation: () => Promise<unknown>,
+  code: GalleryCursorError["code"],
+): Promise<void> {
+  try {
+    await operation();
+    throw new Error("Expected gallery cursor operation to fail");
+  } catch (error) {
+    expect(error).toBeInstanceOf(GalleryCursorError);
+    expect((error as GalleryCursorError).code).toBe(code);
+  }
+}
+
 /**
  * One page of a fixture gallery, with the codec the seam would have supplied.
  *
  * The fixture holds no key of its own — `gallery.ts` is where a deployment's
  * signing key enters — so a test that walks past a page boundary hands one over
- * exactly as the seam does.
+ * exactly as the seam does. Async because `getMockGalleryResult` is: AB#134
+ * made the whole path from here down awaitable, matching what a real
+ * store-backed source needs.
  */
-function mockPage(
+async function mockPage(
   language: string,
   contentId: string,
   cursor?: string,
@@ -192,6 +224,20 @@ describe("curated gallery result contract", () => {
       ).toThrow("placement.order must be a non-negative safe integer");
     },
   );
+
+  it("selectGalleryWindow rejects a malformed order before it ever reaches the sort, even alongside well-formed placements", () => {
+    // A NaN order breaks compareGalleryOrderKey's transitivity for the whole
+    // array, not just the malformed entry — validating before sorting is what
+    // stops that corruption, not just an eventual per-item type check.
+    const windowRequest = resolveGalleryWindowRequest({ scope });
+
+    expect(() =>
+      selectGalleryWindow(
+        [placement("a", 0), placement("b", Number.NaN), placement("c", 2)],
+        windowRequest,
+      ),
+    ).toThrow("placement.order must be a non-negative safe integer");
+  });
 
   it("resolves placement overrides without changing source media", () => {
     const source = mockImages.coastalLandscape;
@@ -338,17 +384,25 @@ describe("gallery page boundaries", () => {
   });
 
   it("requires an adapter codec only when a continuation is needed", () => {
-    expect(() =>
-      buildCuratedGalleryPage({
-        placements,
-        scope,
-      }),
-    ).toThrow("A gallery cursor codec is required for a paginated result");
+    const windowRequest = resolveGalleryWindowRequest({ scope });
 
     expect(() =>
       buildCuratedGalleryPage({
-        placements: [placement("single", 0)],
+        windowResult: selectGalleryWindow(placements, windowRequest),
         scope,
+        windowRequest,
+      }),
+    ).toThrow("A gallery cursor codec is required for a paginated result");
+
+    const singleWindowRequest = resolveGalleryWindowRequest({ scope });
+    expect(() =>
+      buildCuratedGalleryPage({
+        windowResult: selectGalleryWindow(
+          [placement("single", 0)],
+          singleWindowRequest,
+        ),
+        scope,
+        windowRequest: singleWindowRequest,
       }),
     ).not.toThrow();
   });
@@ -395,7 +449,7 @@ describe("gallery cursor safety and durability", () => {
   it("rejects a payload modified without the server signing key", () => {
     const [encodedPayload, signature] = cursor.split(".");
     const payload = decodeCursorPayload(cursor);
-    payload.offset = 1;
+    payload.afterOrder = (payload.afterOrder as number) + 1;
     const tamperedPayload = Buffer.from(JSON.stringify(payload)).toString(
       "base64url",
     );
@@ -424,8 +478,8 @@ describe("gallery cursor safety and durability", () => {
     const invalidCodec: GalleryCursorCodec = {
       encode: testCursorCodec.encode,
       decode: () => ({
-        offset: -1,
-        matchesBoundary: () => true,
+        afterOrder: -1,
+        afterPlacementId: "placement-b",
       }),
     };
 
@@ -447,8 +501,8 @@ describe("gallery cursor safety and durability", () => {
         decode: () => {
           decodeCalled = true;
           return {
-            offset: 1,
-            matchesBoundary: () => true,
+            afterOrder: 1,
+            afterPlacementId: "placement-b",
           };
         },
       };
@@ -509,18 +563,6 @@ describe("gallery cursor safety and durability", () => {
     );
   });
 
-  it("scopes item boundary digests to their gallery query", () => {
-    const firstPayload = decodeCursorPayload(cursor);
-    const foreignResult = buildPage({
-      cursorScope: { ...scope, sourceId: "another-gallery" },
-    });
-    const foreignPayload = decodeCursorPayload(
-      foreignResult.page.endCursor as string,
-    );
-
-    expect(firstPayload.afterItem).not.toBe(foreignPayload.afterItem);
-  });
-
   it("rejects a cursor from an older visibility version as stale", () => {
     expectCursorError(
       () =>
@@ -532,18 +574,33 @@ describe("gallery cursor safety and durability", () => {
     );
   });
 
-  it("rejects a result shortened exactly to the previous boundary", () => {
-    expectCursorError(
-      () =>
-        buildPage({
-          sourcePlacements: [
-            placement("placement-a", 1),
-            placement("placement-b", 1),
-          ],
-          cursor,
-        }),
-      "stale",
-    );
+  it("answers a successful, empty final page when only later items were removed and the boundary itself is unchanged", () => {
+    // AB#134's keyset redesign narrows staleness to the boundary item itself:
+    // `placement-c` (which followed the boundary) is gone here, but
+    // `placement-b` (the boundary `cursor` names) is untouched — same order,
+    // same id, still visible. Under the old offset design this shortened
+    // array made a raw array index fall out of range and was unconditionally
+    // `stale`, regardless of whether the boundary survived. Under keyset
+    // pagination the boundary is found unchanged, so there is nothing to
+    // reject — the correct answer is a normal, successful empty final page,
+    // the standard, accepted keyset-pagination behaviour for "nothing is left
+    // after where you were." (In a well-behaved real caller this exact
+    // scenario should not arise on an unchanged `visibilityVersion` at all,
+    // since removing a placement is itself a visibility change that should
+    // bump it — this test exercises `buildCuratedGalleryPage`'s own
+    // defense-in-depth independent of that caller discipline.)
+    const result = buildPage({
+      sourcePlacements: [
+        placement("placement-a", 1),
+        placement("placement-b", 1),
+      ],
+      cursor,
+    });
+
+    expect(result).toEqual({
+      items: [],
+      page: { size: 2, hasNextPage: false, endCursor: null },
+    });
   });
 
   it("rejects a reorder that moves the cursor boundary", () => {
@@ -607,14 +664,124 @@ describe("gallery cursor safety and durability", () => {
         "version",
         "queryScope",
         "visibilityScope",
-        "offset",
-        "afterItem",
+        "afterOrder",
+        "afterPlacementId",
       ].sort(),
     );
     expect(JSON.stringify(payload)).not.toContain("provider-scope-sentinel");
     expect(JSON.stringify(payload)).not.toContain("archive-scope-sentinel");
     expect(Object.values(payload)).not.toContain(scope.sourceId);
     expect(Object.values(payload)).not.toContain(scope.normalizedFilter);
+  });
+});
+
+describe("resolveGalleryWindowRequest", () => {
+  it("returns no boundary for a cursorless request", () => {
+    expect(resolveGalleryWindowRequest({ scope })).toEqual({
+      candidateLimit: scope.pageSize + 1,
+    });
+  });
+
+  it.each(["", "x".repeat(MAX_GALLERY_CURSOR_LENGTH + 1)])(
+    "rejects a decoded afterPlacementId that is not a bounded non-empty string: %j",
+    (afterPlacementId) => {
+      const permissiveCodec: GalleryCursorCodec = {
+        encode: testCursorCodec.encode,
+        decode: () => ({ afterOrder: 1, afterPlacementId }),
+      };
+
+      expectCursorError(
+        () =>
+          resolveGalleryWindowRequest({
+            scope,
+            cursor: buildPage().page.endCursor as string,
+            cursorCodec: permissiveCodec,
+          }),
+        "malformed",
+      );
+    },
+  );
+});
+
+/**
+ * `buildCuratedGalleryPage` never trusts a source blindly. These hand-build a
+ * `GalleryWindowResult` that violates the contract `selectGalleryWindow`
+ * itself always honours, so each guard is exercised the only way it can be:
+ * directly, rather than through a well-behaved reference source.
+ */
+describe("buildCuratedGalleryPage rejects a source that violates its contract", () => {
+  const windowRequest = resolveGalleryWindowRequest({ scope });
+
+  it("rejects more candidates than the requested candidateLimit", () => {
+    const overLimitCandidates = Array.from({ length: scope.pageSize + 2 }, (_unused, index) =>
+      placement(`extra-${index}`, index),
+    );
+
+    expect(() =>
+      buildCuratedGalleryPage({
+        windowResult: { candidates: overLimitCandidates },
+        scope,
+        windowRequest,
+        cursorCodec: testCursorCodec,
+      }),
+    ).toThrow(/more candidates/);
+  });
+
+  it("rejects a boundary on a request that named none", () => {
+    expect(() =>
+      buildCuratedGalleryPage({
+        windowResult: {
+          boundary: placement("unexpected-boundary", 0),
+          candidates: [],
+        },
+        scope,
+        windowRequest,
+        cursorCodec: testCursorCodec,
+      }),
+    ).toThrow(/boundary for a request that named none/);
+  });
+
+  it("rejects a hidden placement smuggled into the window", () => {
+    expect(() =>
+      buildCuratedGalleryPage({
+        windowResult: {
+          candidates: [{ ...placement("hidden-candidate", 0), visible: false }],
+        },
+        scope,
+        windowRequest,
+        cursorCodec: testCursorCodec,
+      }),
+    ).toThrow(/hidden placement/);
+  });
+
+  it("rejects a candidate at or before the requested boundary", () => {
+    const after = { order: 1, placementId: "placement-b" };
+
+    expect(() =>
+      buildCuratedGalleryPage({
+        windowResult: {
+          boundary: placement("placement-b", 1),
+          // Same order, and a placementId sorting *before* "placement-b" —
+          // distinct from the boundary (so this isn't the duplicate-id case)
+          // but still not strictly after `after`.
+          candidates: [placement("placement-a", 1)],
+        },
+        scope,
+        windowRequest: { candidateLimit: scope.pageSize + 1, after },
+        cursorCodec: testCursorCodec,
+      }),
+    ).toThrow(/at or before the requested boundary/);
+  });
+
+  it("rejects a windowRequest whose candidateLimit disagrees with scope.pageSize", () => {
+    expect(() =>
+      buildCuratedGalleryPage({
+        windowResult: { candidates: [] },
+        scope,
+        windowRequest: { candidateLimit: scope.pageSize + 2 },
+        cursorCodec: testCursorCodec,
+      }),
+    ).toThrow(/candidateLimit/);
   });
 });
 
@@ -699,8 +866,8 @@ describe("selectCuratedGalleryCover", () => {
 });
 
 describe("curated gallery fixtures", () => {
-  it("keeps the featured gallery's authored order and captions", () => {
-    const result = mockPage("en", MOCK_FEATURED_GALLERY_ID);
+  it("keeps the featured gallery's authored order and captions", async () => {
+    const result = await mockPage("en", MOCK_FEATURED_GALLERY_ID);
 
     // The order and captions the pre-tree `/portfolio` route published. The
     // gallery moved to a canonical route inside the content tree; what a visitor
@@ -717,40 +884,40 @@ describe("curated gallery fixtures", () => {
     ]);
   });
 
-  it("gives every item a distinct result identity", () => {
-    const result = mockPage("en", MOCK_FEATURED_GALLERY_ID);
+  it("gives every item a distinct result identity", async () => {
+    const result = await mockPage("en", MOCK_FEATURED_GALLERY_ID);
     const itemIds = result?.items.map((item) => item.itemId) ?? [];
 
     expect(new Set(itemIds).size).toBe(itemIds.length);
   });
 
-  it("keeps the itemId and the mediaId separate", () => {
-    const result = mockPage("en", MOCK_FEATURED_GALLERY_ID);
+  it("keeps the itemId and the mediaId separate", async () => {
+    const result = await mockPage("en", MOCK_FEATURED_GALLERY_ID);
 
     expect(
       result?.items.every((item) => item.itemId !== item.mediaId),
     ).toBe(true);
   });
 
-  it("issues no cursor for a gallery that fits inside one page", () => {
-    expect(mockPage("en", MOCK_FEATURED_GALLERY_ID)?.page).toEqual({
+  it("issues no cursor for a gallery that fits inside one page", async () => {
+    expect((await mockPage("en", MOCK_FEATURED_GALLERY_ID))?.page).toEqual({
       size: MOCK_PAGE_SIZE,
       hasNextPage: false,
       endCursor: null,
     });
   });
 
-  it("orders every locale's version of a gallery identically", () => {
-    const english = mockPage("en", MOCK_FEATURED_GALLERY_ID);
-    const finnish = mockPage("fi", MOCK_FEATURED_GALLERY_ID);
+  it("orders every locale's version of a gallery identically", async () => {
+    const english = await mockPage("en", MOCK_FEATURED_GALLERY_ID);
+    const finnish = await mockPage("fi", MOCK_FEATURED_GALLERY_ID);
 
     expect(finnish?.items.map((item) => item.itemId)).toEqual(
       english?.items.map((item) => item.itemId),
     );
   });
 
-  it("describes a localized gallery in that language", () => {
-    const finnish = mockPage("fi", MOCK_FEATURED_GALLERY_ID);
+  it("describes a localized gallery in that language", async () => {
+    const finnish = await mockPage("fi", MOCK_FEATURED_GALLERY_ID);
     const finnishImages = getMockImages("fi");
 
     expect(finnish?.items[0]?.media.alt).toBe(finnishImages.coastalLandscape.alt);
@@ -762,8 +929,8 @@ describe("curated gallery fixtures", () => {
     );
   });
 
-  it("serves a published gallery that has no items yet", () => {
-    const result = mockPage("en", "content-awaiting-selection");
+  it("serves a published gallery that has no items yet", async () => {
+    const result = await mockPage("en", "content-awaiting-selection");
 
     // A gallery between selections is published and empty, not missing: the
     // route renders its empty state rather than 404ing an address a visitor may
@@ -778,14 +945,12 @@ describe("curated gallery fixtures", () => {
     ).toBeUndefined();
   });
 
-  it("publishes nothing for an unknown gallery identity", () => {
-    expect(mockPage("en", "content-does-not-exist")).toBeUndefined();
+  it("publishes nothing for an unknown gallery identity", async () => {
+    expect(await mockPage("en", "content-does-not-exist")).toBeUndefined();
   });
 
-  it("publishes nothing for a language it was not authored in", () => {
-    expect(
-      mockPage("de", MOCK_FEATURED_GALLERY_ID),
-    ).toBeUndefined();
+  it("publishes nothing for a language it was not authored in", async () => {
+    expect(await mockPage("de", MOCK_FEATURED_GALLERY_ID)).toBeUndefined();
   });
 });
 
@@ -796,13 +961,15 @@ describe("continuing a gallery larger than one page", () => {
    * page bound is asserted on every hop, so a fixture that quietly returned
    * everything at once could not pass by returning the right items.
    */
-  function walkArchive(language = "en"): readonly CuratedGalleryResultItem[] {
+  async function walkArchive(
+    language = "en",
+  ): Promise<readonly CuratedGalleryResultItem[]> {
     const collected: CuratedGalleryResultItem[] = [];
     let cursor: string | undefined;
     let pages = 0;
 
     for (;;) {
-      const page = mockPage(language, LARGE_GALLERY_ID, cursor);
+      const page = await mockPage(language, LARGE_GALLERY_ID, cursor);
       expect(page).toBeDefined();
       if (page === undefined) break;
 
@@ -820,8 +987,8 @@ describe("continuing a gallery larger than one page", () => {
     return collected;
   }
 
-  it("reaches every item without duplicates or gaps", () => {
-    const items = walkArchive();
+  it("reaches every item without duplicates or gaps", async () => {
+    const items = await walkArchive();
     const itemIds = items.map((item) => item.itemId);
 
     expect(itemIds).toHaveLength(LARGE_GALLERY_SIZE);
@@ -836,15 +1003,15 @@ describe("continuing a gallery larger than one page", () => {
     );
   });
 
-  it("issues a cursor on every page but the last", () => {
-    const first = mockPage("en", LARGE_GALLERY_ID);
+  it("issues a cursor on every page but the last", async () => {
+    const first = await mockPage("en", LARGE_GALLERY_ID);
     expect(first?.page.hasNextPage).toBe(true);
     expect(first?.items).toHaveLength(MOCK_PAGE_SIZE);
 
     let cursor = first?.page.endCursor as string;
     let last = first;
     while (last?.page.hasNextPage) {
-      last = mockPage("en", LARGE_GALLERY_ID, cursor);
+      last = await mockPage("en", LARGE_GALLERY_ID, cursor);
       if (last?.page.hasNextPage) cursor = last.page.endCursor;
     }
 
@@ -854,67 +1021,75 @@ describe("continuing a gallery larger than one page", () => {
     expect(last?.items).toHaveLength(LARGE_GALLERY_SIZE % MOCK_PAGE_SIZE);
   });
 
-  it("orders every locale's version of the archive identically", () => {
-    expect(walkArchive("fi").map((item) => item.itemId)).toEqual(
-      walkArchive("en").map((item) => item.itemId),
+  it("orders every locale's version of the archive identically", async () => {
+    expect((await walkArchive("fi")).map((item) => item.itemId)).toEqual(
+      (await walkArchive("en")).map((item) => item.itemId),
     );
   });
 
-  it("keeps a repeated photograph's placements distinct across pages", () => {
+  it("keeps a repeated photograph's placements distinct across pages", async () => {
     // Six demo images stand in for four hundred, so the archive is also the
     // fixture that proves a page boundary carries placement identity rather
     // than media identity. Collapsing the two would restore focus to the wrong
     // trigger and misidentify the subject of a later media-level action.
-    const items = walkArchive();
+    const items = await walkArchive();
     const mediaIds = new Set(items.map((item) => item.mediaId));
 
     expect(mediaIds.size).toBeLessThan(items.length);
     expect(new Set(items.map((item) => item.itemId)).size).toBe(items.length);
   });
 
-  it("binds a cursor to the whole route locale, not its language", () => {
+  it("binds a cursor to the whole route locale, not its language", async () => {
     // `en-GB` and `en-US` are separate route spaces that happen to share one set
     // of English placements today. Scoping to the `en` subtag would let a slice
     // issued on one route be spent on the other, and an adapter that can answer
     // differently per locale (AB#114) would then serve the wrong items under an
     // already-indexed URL.
-    const cursor = mockPage("en-GB", LARGE_GALLERY_ID)?.page.endCursor as string;
+    const cursor = (await mockPage("en-GB", LARGE_GALLERY_ID))?.page
+      .endCursor as string;
 
     expect(cursor).toBeTruthy();
-    expectCursorError(
+    await expectAsyncCursorError(
       () => mockPage("en-US", LARGE_GALLERY_ID, cursor),
       "wrong-scope",
     );
   });
 
-  it("serves the same items to every route locale of one language", () => {
+  it("serves the same items to every route locale of one language", async () => {
     // The other half: separate cursor scopes must not mean separate galleries.
     expect(
-      mockPage("en-US", LARGE_GALLERY_ID)?.items.map((item) => item.itemId),
-    ).toEqual(mockPage("en-GB", LARGE_GALLERY_ID)?.items.map((i) => i.itemId));
+      (await mockPage("en-US", LARGE_GALLERY_ID))?.items.map(
+        (item) => item.itemId,
+      ),
+    ).toEqual(
+      (await mockPage("en-GB", LARGE_GALLERY_ID))?.items.map(
+        (item) => item.itemId,
+      ),
+    );
   });
 
-  it("binds a cursor to the language it was issued in", () => {
+  it("binds a cursor to the language it was issued in", async () => {
     // The two locales hold the same placements in the same order, so spending an
     // English token against the Finnish result would look harmless — until an
     // adapter can answer differently per locale (AB#114), by which point the
     // tokens are indexed. It is also the property the continuation page's
     // metadata leans on when it names no `hreflang` alternates.
-    const cursor = mockPage("en", LARGE_GALLERY_ID)?.page.endCursor as string;
+    const cursor = (await mockPage("en", LARGE_GALLERY_ID))?.page
+      .endCursor as string;
 
-    expectCursorError(
+    await expectAsyncCursorError(
       () => mockPage("fi", LARGE_GALLERY_ID, cursor),
       "wrong-scope",
     );
   });
 
-  it("binds a cursor to the gallery that issued it", () => {
-    const cursor = mockPage("en", LARGE_GALLERY_ID)?.page
+  it("binds a cursor to the gallery that issued it", async () => {
+    const cursor = (await mockPage("en", LARGE_GALLERY_ID))?.page
       .endCursor as string;
 
     // Same deployment key, different gallery: the scope digest is what refuses
     // it, so a token can never be spent in a gallery it did not come from.
-    expectCursorError(
+    await expectAsyncCursorError(
       () => mockPage("en", MOCK_FEATURED_GALLERY_ID, cursor),
       "wrong-scope",
     );
@@ -923,19 +1098,19 @@ describe("continuing a gallery larger than one page", () => {
   it.each([
     ["malformed", "not-a-token-this-deployment-minted"],
     ["oversized", "x".repeat(MAX_GALLERY_CURSOR_LENGTH + 1)],
-  ])("refuses a cursor it never issued: %s", (_caseName, value) => {
-    expectCursorError(
+  ])("refuses a cursor it never issued: %s", async (_caseName, value) => {
+    await expectAsyncCursorError(
       () => mockPage("en", LARGE_GALLERY_ID, value),
       "malformed",
     );
   });
 
-  it("refuses a cursor whose signature was edited", () => {
-    const cursor = mockPage("en", LARGE_GALLERY_ID)?.page
+  it("refuses a cursor whose signature was edited", async () => {
+    const cursor = (await mockPage("en", LARGE_GALLERY_ID))?.page
       .endCursor as string;
     const replacement = cursor.endsWith("a") ? "b" : "a";
 
-    expectCursorError(
+    await expectAsyncCursorError(
       () =>
         mockPage(
           "en",
@@ -946,7 +1121,7 @@ describe("continuing a gallery larger than one page", () => {
     );
   });
 
-  it("touches no codec for a gallery that fits inside one page", () => {
+  it("touches no codec for a gallery that fits inside one page", async () => {
     // The laziness the deployment story rests on. `galleryCursorCodec` resolves
     // the signing key on use, so "never used" is what makes a deployment whose
     // galleries all fit inside one page able to run without the secret at all.
@@ -960,7 +1135,7 @@ describe("continuing a gallery larger than one page", () => {
       },
     };
 
-    const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID, {
+    const result = await getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID, {
       cursorCodec: refusingCodec,
     });
 
@@ -981,16 +1156,16 @@ describe("sections", () => {
   const LATE_SECTION_SLUG = "late";
   const UNUSED_SECTION_SLUG = "unused";
 
-  function walkSection(
+  async function walkSection(
     sectionSlug: string,
     language = "en",
-  ): readonly CuratedGalleryResultItem[] {
+  ): Promise<readonly CuratedGalleryResultItem[]> {
     const collected: CuratedGalleryResultItem[] = [];
     let cursor: string | undefined;
     let pages = 0;
 
     for (;;) {
-      const page = getMockGalleryResult(language, LARGE_GALLERY_ID, {
+      const page = await getMockGalleryResult(language, LARGE_GALLERY_ID, {
         sectionSlug,
         ...(cursor === undefined ? {} : { cursor }),
         cursorCodec: testCursorCodec,
@@ -1009,8 +1184,10 @@ describe("sections", () => {
     return collected;
   }
 
-  it("includes only a named section's own placements, in original order, across more than one page", () => {
-    const itemIds = walkSection(EARLY_SECTION_SLUG).map((item) => item.itemId);
+  it("includes only a named section's own placements, in original order, across more than one page", async () => {
+    const itemIds = (await walkSection(EARLY_SECTION_SLUG)).map(
+      (item) => item.itemId,
+    );
 
     expect(itemIds).toHaveLength(150);
     expect(itemIds).toEqual(
@@ -1021,16 +1198,18 @@ describe("sections", () => {
     );
   });
 
-  it("excludes unsectioned items from a named section", () => {
-    const lateItemIds = walkSection(LATE_SECTION_SLUG).map((item) => item.itemId);
+  it("excludes unsectioned items from a named section", async () => {
+    const lateItemIds = (await walkSection(LATE_SECTION_SLUG)).map(
+      (item) => item.itemId,
+    );
 
     expect(lateItemIds).toHaveLength(150);
     expect(lateItemIds.at(-1)).toBe("large-archive-0300");
     expect(lateItemIds).not.toContain("large-archive-0301");
   });
 
-  it("returns a successful, empty, self-identifying page for a valid section with no placements", () => {
-    const page = getMockGalleryResult("en", LARGE_GALLERY_ID, {
+  it("returns a successful, empty, self-identifying page for a valid section with no placements", async () => {
+    const page = await getMockGalleryResult("en", LARGE_GALLERY_ID, {
       sectionSlug: UNUSED_SECTION_SLUG,
       cursorCodec: testCursorCodec,
     });
@@ -1041,26 +1220,26 @@ describe("sections", () => {
     expect(page?.selectedSection?.intro).toBeDefined();
   });
 
-  it("throws UnknownGallerySectionError for an unresolvable slug", () => {
-    expect(() =>
+  it("throws UnknownGallerySectionError for an unresolvable slug", async () => {
+    await expect(
       getMockGalleryResult("en", LARGE_GALLERY_ID, {
         sectionSlug: "does-not-exist",
         cursorCodec: testCursorCodec,
       }),
-    ).toThrow(UnknownGallerySectionError);
+    ).rejects.toThrow(UnknownGallerySectionError);
   });
 
-  it("carries the selected section's identity only on its first page, never on All", () => {
-    expect(mockPage("en", LARGE_GALLERY_ID)?.selectedSection).toBeUndefined();
+  it("carries the selected section's identity only on its first page, never on All", async () => {
+    expect((await mockPage("en", LARGE_GALLERY_ID))?.selectedSection).toBeUndefined();
 
-    const first = getMockGalleryResult("en", LARGE_GALLERY_ID, {
+    const first = await getMockGalleryResult("en", LARGE_GALLERY_ID, {
       sectionSlug: EARLY_SECTION_SLUG,
       cursorCodec: testCursorCodec,
     });
     expect(first?.selectedSection?.sectionId).toBe("early");
     expect(first?.page.hasNextPage).toBe(true);
 
-    const second = getMockGalleryResult("en", LARGE_GALLERY_ID, {
+    const second = await getMockGalleryResult("en", LARGE_GALLERY_ID, {
       sectionSlug: EARLY_SECTION_SLUG,
       cursor: first?.page.endCursor as string,
       cursorCodec: testCursorCodec,
@@ -1068,35 +1247,37 @@ describe("sections", () => {
     expect(second?.selectedSection).toBeUndefined();
   });
 
-  it("exposes the gallery's ordered section catalog regardless of the active filter", () => {
+  it("exposes the gallery's ordered section catalog regardless of the active filter", async () => {
     const expected = [
       { sectionId: "early", slug: "early", label: "Early", order: 0 },
       { sectionId: "late", slug: "late", label: "Late", order: 1 },
       { sectionId: "unused", slug: "unused", label: "Unused", order: 2 },
     ];
 
-    expect(mockPage("en", LARGE_GALLERY_ID)?.sections).toEqual(expected);
+    expect((await mockPage("en", LARGE_GALLERY_ID))?.sections).toEqual(expected);
     expect(
-      getMockGalleryResult("en", LARGE_GALLERY_ID, {
-        sectionSlug: LATE_SECTION_SLUG,
-        cursorCodec: testCursorCodec,
-      })?.sections,
+      (
+        await getMockGalleryResult("en", LARGE_GALLERY_ID, {
+          sectionSlug: LATE_SECTION_SLUG,
+          cursorCodec: testCursorCodec,
+        })
+      )?.sections,
     ).toEqual(expected);
   });
 
-  it("returns an empty section catalog for a gallery with no declared sections", () => {
-    expect(mockPage("en", MOCK_FEATURED_GALLERY_ID)?.sections).toEqual([]);
+  it("returns an empty section catalog for a gallery with no declared sections", async () => {
+    expect((await mockPage("en", MOCK_FEATURED_GALLERY_ID))?.sections).toEqual([]);
   });
 
-  it("rejects a cursor minted under one section when replayed under All or a different section", () => {
-    const earlyFirst = getMockGalleryResult("en", LARGE_GALLERY_ID, {
+  it("rejects a cursor minted under one section when replayed under All or a different section", async () => {
+    const earlyFirst = await getMockGalleryResult("en", LARGE_GALLERY_ID, {
       sectionSlug: EARLY_SECTION_SLUG,
       cursorCodec: testCursorCodec,
     });
     const cursor = earlyFirst?.page.endCursor as string;
     expect(cursor).toBeTruthy();
 
-    expectCursorError(
+    await expectAsyncCursorError(
       () =>
         getMockGalleryResult("en", LARGE_GALLERY_ID, {
           cursor,
@@ -1104,7 +1285,7 @@ describe("sections", () => {
         }),
       "wrong-scope",
     );
-    expectCursorError(
+    await expectAsyncCursorError(
       () =>
         getMockGalleryResult("en", LARGE_GALLERY_ID, {
           sectionSlug: LATE_SECTION_SLUG,

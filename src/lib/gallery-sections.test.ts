@@ -3,6 +3,7 @@ import {
   createHmacGalleryCursorCodec,
   GalleryCursorError,
   MAX_SCOPE_FIELD_LENGTH,
+  selectGalleryWindow,
   type CuratedGalleryPlacement,
 } from "@/lib/gallery-pagination";
 import {
@@ -401,10 +402,16 @@ describe("readCuratedGallerySectionPage", () => {
     section("late", "late", 1),
   ];
 
+  /**
+   * A bounded reference source over an already-loaded array, the same way
+   * `mock-gallery.ts`'s own `source` is: it never returns more than the
+   * request's window asks for, proving the AB#134 boundedness contract is
+   * satisfiable rather than just declared.
+   */
   function sourceOf(
     placements: readonly CuratedGalleryPlacement[],
   ): CuratedGallerySectionSource {
-    return () => placements;
+    return async ({ window }) => selectGalleryWindow(placements, window);
   }
 
   const query = {
@@ -415,12 +422,12 @@ describe("readCuratedGallerySectionPage", () => {
     visibilityVersion: "v1",
   } as const;
 
-  it("never requires the source to return placements outside the requested section", () => {
+  it("never requires the source to return placements outside the requested section", async () => {
     // Only the "early" section's own two placements — proving the composition
     // does not need the rest of the gallery to answer this request.
     const source = sourceOf([placement("e1", 0, "early"), placement("e2", 1, "early")]);
 
-    const page = readCuratedGallerySectionPage({
+    const page = await readCuratedGallerySectionPage({
       query: { ...query, sectionSlug: "early" },
       sections,
       source,
@@ -430,10 +437,12 @@ describe("readCuratedGallerySectionPage", () => {
     expect(page.selectedSection?.sectionId).toBe("early");
   });
 
-  it("passes the source only the already-resolved filter, never a raw slug", () => {
-    const spy = vi.fn(() => [placement("e1", 0, "early")]);
+  it("passes the source only the already-resolved filter and a bounded window, never a raw slug, cursor, or offset", async () => {
+    const spy = vi.fn(async () => ({
+      candidates: [placement("e1", 0, "early")],
+    }));
 
-    readCuratedGallerySectionPage({
+    await readCuratedGallerySectionPage({
       query: { ...query, sectionSlug: "early" },
       sections,
       source: spy,
@@ -443,24 +452,59 @@ describe("readCuratedGallerySectionPage", () => {
       locale: "en",
       contentId: "content-test",
       filter: { kind: "section", section: sections[0] },
+      window: { candidateLimit: query.pageSize + 1 },
     });
   });
 
-  it("does not call the source at all for an unknown section", () => {
-    const spy = vi.fn(() => []);
+  it("requests the boundary item and a candidateLimit-bounded window on a continuation, never the whole section", async () => {
+    const many = Array.from({ length: 3 }, (_unused, index) =>
+      placement(`e${index}`, index, "early"),
+    );
+    const spy = vi.fn(sourceOf(many));
 
-    expect(() =>
+    const first = await readCuratedGallerySectionPage({
+      query: { ...query, sectionSlug: "early", pageSize: 2 },
+      sections,
+      source: spy,
+      cursorCodec: testCursorCodec,
+    });
+    expect(first.page.hasNextPage).toBe(true);
+    const cursor = first.page.hasNextPage ? first.page.endCursor : undefined;
+
+    spy.mockClear();
+    await readCuratedGallerySectionPage({
+      query: { ...query, sectionSlug: "early", pageSize: 2, cursor },
+      sections,
+      source: spy,
+      cursorCodec: testCursorCodec,
+    });
+
+    expect(spy).toHaveBeenCalledWith({
+      locale: "en",
+      contentId: "content-test",
+      filter: { kind: "section", section: sections[0] },
+      window: {
+        candidateLimit: 3,
+        after: { order: 1, placementId: "e1" },
+      },
+    });
+  });
+
+  it("does not call the source at all for an unknown section", async () => {
+    const spy = vi.fn(async () => ({ candidates: [] }));
+
+    await expect(
       readCuratedGallerySectionPage({
         query: { ...query, sectionSlug: "missing" },
         sections,
         source: spy,
       }),
-    ).toThrow(UnknownGallerySectionError);
+    ).rejects.toThrow(UnknownGallerySectionError);
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("exposes the section catalog on every page, and selectedSection only on All's absence", () => {
-    const page = readCuratedGallerySectionPage({
+  it("exposes the section catalog on every page, and selectedSection only on All's absence", async () => {
+    const page = await readCuratedGallerySectionPage({
       query,
       sections,
       source: sourceOf([placement("a1", 0)]),
@@ -473,12 +517,12 @@ describe("readCuratedGallerySectionPage", () => {
     expect(page.selectedSection).toBeUndefined();
   });
 
-  it("omits selectedSection on a section's continuation page", () => {
+  it("omits selectedSection on a section's continuation page", async () => {
     const many = Array.from({ length: 3 }, (_unused, index) =>
       placement(`e${index}`, index, "early"),
     );
 
-    const first = readCuratedGallerySectionPage({
+    const first = await readCuratedGallerySectionPage({
       query: { ...query, sectionSlug: "early", pageSize: 2 },
       sections,
       source: sourceOf(many),
@@ -488,7 +532,7 @@ describe("readCuratedGallerySectionPage", () => {
     expect(first.page.hasNextPage).toBe(true);
 
     const cursor = first.page.hasNextPage ? first.page.endCursor : undefined;
-    const second = readCuratedGallerySectionPage({
+    const second = await readCuratedGallerySectionPage({
       query: { ...query, sectionSlug: "early", pageSize: 2, cursor },
       sections,
       source: sourceOf(many),
@@ -497,11 +541,11 @@ describe("readCuratedGallerySectionPage", () => {
     expect(second.selectedSection).toBeUndefined();
   });
 
-  it("rejects a cursor minted under a different section as wrong-scope", () => {
+  it("rejects a cursor minted under a different section as wrong-scope", async () => {
     const early = [placement("e1", 0, "early"), placement("e2", 1, "early")];
     const late = [placement("l1", 0, "late"), placement("l2", 1, "late")];
 
-    const earlyPage = readCuratedGallerySectionPage({
+    const earlyPage = await readCuratedGallerySectionPage({
       query: { ...query, sectionSlug: "early", pageSize: 1 },
       sections,
       source: sourceOf(early),
@@ -514,7 +558,7 @@ describe("readCuratedGallerySectionPage", () => {
 
     let caught: unknown;
     try {
-      readCuratedGallerySectionPage({
+      await readCuratedGallerySectionPage({
         query: { ...query, sectionSlug: "late", pageSize: 1, cursor },
         sections,
         source: sourceOf(late),

@@ -40,7 +40,7 @@ import { openHeaderNavigation } from "./support/public-page";
  * gallery with enough items to navigate between and enough differently shaped
  * ones to prove the layout never crops or reorders them.
  */
-function firstDefaultLocaleGallery(): string {
+async function firstDefaultLocaleGallery(): Promise<string> {
   const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
   const treeInput = mockContentTreeInputs[language];
   if (treeInput === undefined) {
@@ -52,7 +52,7 @@ function firstDefaultLocaleGallery(): string {
     if (page.variant !== "gallery") continue;
 
     const path = getCanonicalContentPath(tree, contentId);
-    const result = getMockGalleryResult(language, contentId);
+    const result = await getMockGalleryResult(language, contentId);
     if (path === null || result === undefined) continue;
 
     const ratios = new Set(
@@ -73,7 +73,7 @@ function firstDefaultLocaleGallery(): string {
  * a state the site serves, so the journey has to find it in the adapter data
  * rather than assume which page it is.
  */
-function emptyDefaultLocaleGallery(): string {
+async function emptyDefaultLocaleGallery(): Promise<string> {
   const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
   const treeInput = mockContentTreeInputs[language];
   if (treeInput === undefined) {
@@ -85,7 +85,7 @@ function emptyDefaultLocaleGallery(): string {
     if (page.variant !== "gallery") continue;
 
     const path = getCanonicalContentPath(tree, contentId);
-    const result = getMockGalleryResult(language, contentId);
+    const result = await getMockGalleryResult(language, contentId);
     if (path !== null && result?.items.length === 0) {
       return `${STORY_ROOT}/${path.join("/")}`;
     }
@@ -95,8 +95,19 @@ function emptyDefaultLocaleGallery(): string {
 }
 
 const STORY_ROOT = `/${DEFAULT_STORY_NAMESPACE}`;
-const GALLERY_PATH = firstDefaultLocaleGallery();
-const EMPTY_GALLERY_PATH = emptyDefaultLocaleGallery();
+
+/**
+ * Resolved once in `beforeAll` rather than at module scope: finding either
+ * gallery now awaits a bounded source (AB#134), and Playwright test files
+ * load before any hook runs.
+ */
+let GALLERY_PATH: string;
+let EMPTY_GALLERY_PATH: string;
+
+test.beforeAll(async () => {
+  GALLERY_PATH = await firstDefaultLocaleGallery();
+  EMPTY_GALLERY_PATH = await emptyDefaultLocaleGallery();
+});
 
 /** The unprefixed route under test belongs to the harness's default locale. */
 const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE).lightbox;
