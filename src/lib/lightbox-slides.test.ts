@@ -38,8 +38,8 @@ const videoMedia: VideoMedia = {
  * The featured gallery's English result. The fixture must publish it, so an
  * absent one is a fixture defect rather than a case these tests tolerate.
  */
-function requireFeaturedGallery() {
-  const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
+async function requireFeaturedGallery() {
+  const result = await getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
   if (result === undefined) {
     throw new Error("the mock fixture publishes no featured gallery");
   }
@@ -185,8 +185,8 @@ describe("buildLightboxSlides", () => {
     ).toThrow(/no public source/);
   });
 
-  it("projects a gallery result one slide per item, in result order", () => {
-    const result = requireFeaturedGallery();
+  it("projects a gallery result one slide per item, in result order", async () => {
+    const result = await requireFeaturedGallery();
     const slides = buildLightboxSlides(result.items, resolveTestRendition);
 
     expect(slides).toHaveLength(result.items.length);

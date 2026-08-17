@@ -31,7 +31,7 @@ const harnessCursorCodec = createHmacGalleryCursorCodec(
   appUnderTestEnvironment.GALLERY_CURSOR_SIGNING_KEY,
 );
 
-function mockPage(language: string, contentId: string) {
+async function mockPage(language: string, contentId: string) {
   return getMockGalleryResult(language, contentId, {
     cursorCodec: harnessCursorCodec,
   });
@@ -42,12 +42,12 @@ const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE);
 const galleryLabels = labels.gallery;
 
 /** A gallery whose first page is not its last, found in the adapter data. */
-function paginatedGallery(): {
+async function paginatedGallery(): Promise<{
   readonly path: string;
   readonly pageSize: number;
   /** Every item it holds, so the walk to the end knows where the end is. */
   readonly totalItems: number;
-} {
+}> {
   const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
   const treeInput = mockContentTreeInputs[language];
   if (treeInput === undefined) {
@@ -59,12 +59,12 @@ function paginatedGallery(): {
     if (page.variant !== "gallery") continue;
 
     const path = getCanonicalContentPath(tree, contentId);
-    const result = mockPage(language, contentId);
+    const result = await mockPage(language, contentId);
     if (path !== null && result?.page.hasNextPage) {
       let total = result.items.length;
       let cursor = result.page.endCursor as string | null;
       while (cursor !== null) {
-        const next = getMockGalleryResult(language, contentId, {
+        const next = await getMockGalleryResult(language, contentId, {
           cursor,
           cursorCodec: harnessCursorCodec,
         });
@@ -84,7 +84,21 @@ function paginatedGallery(): {
   throw new Error("[e2e] The harness needs one gallery larger than a single page.");
 }
 
-const GALLERY = paginatedGallery();
+/**
+ * Resolved once in `beforeAll` rather than at module scope: finding it now
+ * awaits a bounded gallery source (AB#134), and Playwright test files load
+ * before any hook runs, so a module-scope `await` would need top-level await
+ * this suite otherwise has no reason to depend on.
+ */
+let GALLERY: {
+  readonly path: string;
+  readonly pageSize: number;
+  readonly totalItems: number;
+};
+
+test.beforeAll(async () => {
+  GALLERY = await paginatedGallery();
+});
 
 /** Every result identity the grid is presenting, once it has settled. */
 function gridItems(page: import("@playwright/test").Page) {
@@ -261,7 +275,7 @@ test("a gallery that fits on one page offers no control at all", async ({
   for (const [contentId, content] of mockContentPages[language] ?? []) {
     if (content.variant !== "gallery") continue;
     const path = getCanonicalContentPath(tree, contentId);
-    const result = mockPage(language, contentId);
+    const result = await mockPage(language, contentId);
     if (path !== null && result !== undefined && !result.page.hasNextPage) {
       complete = `${STORY_ROOT}/${path.join("/")}`;
       break;

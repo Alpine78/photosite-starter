@@ -263,19 +263,30 @@ section with none, so both cross-page section continuation and the empty-section
 exercised, not just asserted. Controls, browser history, and the grid/lightbox wiring that
 consumes this query are deliberately out of scope here — AB#115's job, which inherits
 correct unknown/empty-section behaviour by construction rather than redefining it — and so
-is `route.ts`/the catch-all page ever reading `?section=` from a real request. Independent
-review of this story surfaced a real gap this story does not close: `source` receives
-neither the requested cursor nor the page size, so nothing here lets a store-backed
-adapter answer a large section with a bounded keyset query instead of fetching the whole
-section on every continuation — the same limitation the pre-existing unfiltered `All` view
-already has, inherited from `buildCuratedGalleryPage` (AB#67/AB#104), which would need to
-accept a caller-supplied window instead of the full ordered set it derives both the slice
-and `hasNextPage` from today. That pagination-core contract change is filed and blocking
-this story's completion as AB#134, not built here, since `buildCuratedGalleryPage` is
-AB#67/AB#104's shipped, tested code and AB#105 does not own it; AB#105 stays `Active`,
-not `Closed`, until AB#134 merges. What AB#105 does make bounded and tested is the axis it
-does own: a section-scoped read is never required to load a *different* section's
-placements, or the rest of an unsectioned gallery, to answer correctly.
+is `route.ts`/the catch-all page ever reading `?section=` from a real request. AB#105's own
+review surfaced a real gap it did not close on its own: `source` received neither the
+requested cursor nor the page size, so nothing let a store-backed adapter answer a large
+section with a bounded keyset query instead of fetching the whole section on every
+continuation — the same limitation the pre-existing unfiltered `All` view already had,
+inherited from `buildCuratedGalleryPage` (AB#67/AB#104). AB#134 closes it: `buildCuratedGalleryPage`
+now takes a caller-supplied `GalleryWindowResult` (the current boundary item, found by
+identity, plus up to `pageSize + 1` items strictly after it) instead of the full ordered
+set it used to derive both the slice and `hasNextPage` from, and `CuratedGallerySectionSource`
+is now asynchronous and receives that bounded `GalleryWindowRequest` — `candidateLimit` plus
+an optional `after` boundary key — rather than "every placement matching this filter."
+`resolveGalleryWindowRequest` decodes a cursor into that boundary key before a source is ever
+called, so cursor decoding moved from inside `buildCuratedGalleryPage` to just ahead of the
+source call it now has to inform; `selectGalleryWindow` is the shared in-memory reference
+implementation `mock-gallery.ts`'s fixture source composes, and the one a store-backed
+adapter (AB#114) replaces with two real queries — an id lookup for the boundary and a keyset
+range query for the rest — whose ordering must agree exactly with the file's own JS
+string-comparison tie-break, not a database's default collation. The redesign also narrowed
+cursor staleness from "any change anywhere in the gallery that shifts an array offset" to
+"the boundary item itself was reordered, hidden, or removed" — the accepted, standard
+behaviour of keyset over offset pagination, deliberately chosen over preserving the old,
+broader trigger. What AB#105 already made bounded and tested before AB#134, and remains true
+now, is the axis it always owned: a section-scoped read is never required to load a
+*different* section's placements, or the rest of an unsectioned gallery, to answer correctly.
 The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
@@ -520,7 +531,7 @@ localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — category listing continuation, which stays bounded to its first page and
 answers any `?cursor=` with a 404 — gallery section controls, URL wiring, and lightbox
 integration (AB#115; the section domain model and server-side query themselves are AB#105,
-above, blocked on AB#134's bounded-query contract for its own completion), the gallery lead
+above, whose bounded-query contract AB#134 has since supplied), the gallery lead
 and long-form body (AB#106), seeded random gallery ordering
 (AB#129), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),

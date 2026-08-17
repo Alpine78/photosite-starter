@@ -10,8 +10,8 @@ import {
  * The featured gallery's English result. The fixture must publish it, so an
  * absent one is a fixture defect rather than a case these tests tolerate.
  */
-function requireFeaturedGallery() {
-  const result = getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
+async function requireFeaturedGallery() {
+  const result = await getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID);
   if (result === undefined) {
     throw new Error("the mock fixture publishes no featured gallery");
   }
@@ -60,8 +60,8 @@ describe("buildLightboxCaption", () => {
     ]);
   });
 
-  it("presents each gallery slide from the metadata that slide carries", () => {
-    const result = requireFeaturedGallery();
+  it("presents each gallery slide from the metadata that slide carries", async () => {
+    const result = await requireFeaturedGallery();
     const slides = buildLightboxSlides(result.items, (media) => ({
       src: media.rendition.src,
     }));

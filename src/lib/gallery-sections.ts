@@ -26,8 +26,11 @@ import {
   comparePlacementIds,
   MAX_ITEM_ID_LENGTH,
   MAX_SCOPE_FIELD_LENGTH,
+  resolveGalleryWindowRequest,
   type CuratedGalleryPlacement,
   type GalleryCursorCodec,
+  type GalleryWindowRequest,
+  type GalleryWindowResult,
 } from "@/lib/gallery-pagination";
 import type { CuratedGalleryResultItem, GalleryPage } from "@/lib/gallery-result";
 
@@ -440,57 +443,56 @@ export type GallerySectionQuery = {
 };
 
 /**
- * Reads whichever placements answer one resolved filter. `filter` is always
- * already resolved — `{kind:"all"}` or `{kind:"section", section}` — never a
- * raw slug, so a source can never be asked to filter on untrusted input, and
- * the section predicate reaches it *before* any placement row is read. A
- * store-backed adapter (AB#114) turns this into a `WHERE section_id = ?`
- * -shaped query; the reference implementation in `mock-gallery.ts` still
- * filters an in-memory array, which is a fixture property, not a contract one.
+ * Reads whichever placements answer one resolved filter's bounded window.
+ * `filter` is always already resolved — `{kind:"all"}` or `{kind:"section",
+ * section}` — never a raw slug, so a source can never be asked to filter on
+ * untrusted input, and the section predicate reaches it *before* any
+ * placement row is read. `window` (AB#134) is the bounded request a page
+ * needs answered: up to `window.candidateLimit` items after `window.after`,
+ * plus that boundary item's current state — never "give me everything
+ * matching this filter." A store-backed adapter (AB#114) turns this into an
+ * id lookup plus a `WHERE section_id = ? AND (order, id) > (?, ?) ORDER BY
+ * order, id LIMIT ?`-shaped keyset query; the reference implementation in
+ * `mock-gallery.ts` still filters an in-memory array before calling
+ * `selectGalleryWindow`, which is a fixture property, not a contract one.
  *
- * Synchronous, matching every other adapter-facing seam in the curated
- * gallery subsystem (`buildCuratedGalleryPage`, `selectCuratedGalleryCover`,
- * `content-listing.ts`'s own `buildCategoryListing`, all sync, taking
- * already-available rows) — the async boundary for a real store belongs one
- * level up, in `gallery.ts`'s already-`async` `getGalleryPage`, not here.
+ * Asynchronous, unlike `buildCuratedGalleryPage`/`selectCuratedGalleryCover`
+ * (still sync, pure functions over already-available rows): a real store
+ * query has to be awaited, and this is the seam that issues one, so the
+ * async boundary belongs here rather than staying one level up in
+ * `gallery.ts`'s `getGalleryPage` the way it did before AB#134.
  */
 export type CuratedGallerySectionSource = (request: {
   readonly locale: string;
   readonly contentId: string;
   readonly filter: GallerySectionFilter;
-}) => readonly CuratedGalleryPlacement[];
+  readonly window: GalleryWindowRequest;
+}) => Promise<GalleryWindowResult>;
 
 /**
  * Composes one bounded curated-gallery page: resolve the requested section,
- * ask `source` for only the matching placements, paginate the existing
- * (unchanged) `buildCuratedGalleryPage`, and attach the section catalog plus
- * the selected section's own identity when this is its first slice.
+ * resolve the requested cursor into the bounded window a source must answer
+ * (AB#134's `resolveGalleryWindowRequest`), ask `source` for exactly that
+ * window, build the page from the source's answer, and attach the section
+ * catalog plus the selected section's own identity when this is its first
+ * slice.
  *
- * What this does and does not make bounded: `buildCuratedGalleryPage` still
- * receives the *entire* section-filtered placement set and does its own
- * in-memory offset slicing and boundary matching — unchanged, inherited from
- * AB#67/AB#104. `pageSize`/`cursor` therefore are not passed to `source`, only
- * to `buildCuratedGalleryPage`; a store-backed adapter cannot push a
- * LIMIT/OFFSET into its own query through this seam yet, so a section holding
- * most or all of a large gallery still costs that adapter a full-section fetch
- * per page rather than a true keyset page — the same limitation the
- * *unfiltered* `All` view already has today (nothing about `All`'s cursor
- * pushes a LIMIT into a store either).
- *
- * This is a known, tracked gap, not an oversight: AB#105's own review raised
- * it as a P1 against this story's "without loading the full gallery"
- * acceptance criterion, and closing it properly means `buildCuratedGalleryPage`
- * accepting a caller-supplied window (the boundary item plus up to
- * `pageSize + 1` items after it) instead of the full ordered set it derives
- * both the slice and `hasNextPage` from today — a pagination-core contract
- * change, filed and blocking this story's completion as **AB#134** rather than
- * built here, since `buildCuratedGalleryPage` is AB#67/AB#104's shipped,
- * tested code and this story does not own it. AB#105 stays `Active`, not
- * `Closed`, until AB#134 merges. What *is* bounded and provable here, and new
- * relative to before this story, is the one axis AB#105 actually owns: a
- * section-scoped read is never required to load placements from a *different*
- * section, or the rest of an unsectioned gallery, to answer correctly — see
- * `gallery-sections.test.ts`'s source-stub test.
+ * What this makes bounded, and why it needed a pagination-core contract
+ * change rather than composing against the old one: before AB#134,
+ * `buildCuratedGalleryPage` took a gallery's *entire* section-filtered
+ * placement set and did its own in-memory offset slicing — so a section
+ * holding most or all of a large gallery cost a full-section fetch per page,
+ * the same limitation the unfiltered `All` view already had. AB#105's own
+ * review raised this as a P1 against its "without loading the full gallery"
+ * acceptance criterion; AB#134 is the fix, changing what a source is asked
+ * for from "everything matching this filter" to a bounded window — the
+ * boundary item plus up to `pageSize + 1` items after it — which a
+ * store-backed adapter (AB#114) can answer with one id lookup and one keyset
+ * range query. What was already bounded and provable before AB#134, and
+ * stays true now, is the axis AB#105 itself owns: a section-scoped read is
+ * never required to load placements from a *different* section, or the rest
+ * of an unsectioned gallery, to answer correctly — see
+ * `gallery-sections.test.ts`'s source-stub tests.
  *
  * `sections` is trusted, not re-validated here: `assertGallerySections` is the
  * caller's authoring/fixture-construction-time responsibility (see
@@ -501,7 +503,7 @@ export type CuratedGallerySectionSource = (request: {
  * this function otherwise avoids, just for the section catalog instead of the
  * placements.
  */
-export function readCuratedGallerySectionPage({
+export async function readCuratedGallerySectionPage({
   query,
   sections,
   source,
@@ -511,25 +513,32 @@ export function readCuratedGallerySectionPage({
   readonly sections: readonly GallerySection[];
   readonly source: CuratedGallerySectionSource;
   readonly cursorCodec?: GalleryCursorCodec;
-}): CuratedGalleryPage {
+}): Promise<CuratedGalleryPage> {
   const filter = resolveGallerySectionFilter(sections, query.sectionSlug);
+  const scope = {
+    sourceId: `${query.contentId}@${query.locale}`,
+    normalizedFilter: normalizedFilterKey(filter),
+    ordering: query.ordering,
+    visibilityVersion: query.visibilityVersion,
+    pageSize: query.pageSize,
+  };
+  const windowRequest = resolveGalleryWindowRequest({
+    scope,
+    ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+    ...(cursorCodec === undefined ? {} : { cursorCodec }),
+  });
 
-  const placements = source({
+  const windowResult = await source({
     locale: query.locale,
     contentId: query.contentId,
     filter,
+    window: windowRequest,
   });
 
   const page = buildCuratedGalleryPage({
-    placements,
-    scope: {
-      sourceId: `${query.contentId}@${query.locale}`,
-      normalizedFilter: normalizedFilterKey(filter),
-      ordering: query.ordering,
-      visibilityVersion: query.visibilityVersion,
-      pageSize: query.pageSize,
-    },
-    ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+    windowResult,
+    scope,
+    windowRequest,
     ...(cursorCodec === undefined ? {} : { cursorCodec }),
   });
 

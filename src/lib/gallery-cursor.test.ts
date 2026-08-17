@@ -56,9 +56,9 @@ describe("loadGalleryCursorCodec", () => {
     const codec = loadGalleryCursorCodec({ [SETTING]: VALID_KEY });
     const cursor = codec.encode(scope, 24, "large-archive-0024");
 
-    expect(codec.decode(cursor, scope).offset).toBe(24);
-    expect(codec.decode(cursor, scope).matchesBoundary("large-archive-0024")).toBe(
-      true,
+    expect(codec.decode(cursor, scope).afterOrder).toBe(24);
+    expect(codec.decode(cursor, scope).afterPlacementId).toBe(
+      "large-archive-0024",
     );
   });
 
@@ -104,8 +104,9 @@ describe("galleryCursorCodec", () => {
 
     const cursor = galleryCursorCodec.encode(scope, 24, "large-archive-0024");
 
-    expect(loadGalleryCursorCodec({ [SETTING]: VALID_KEY }).decode(cursor, scope).offset).toBe(
-      24,
-    );
+    expect(
+      loadGalleryCursorCodec({ [SETTING]: VALID_KEY }).decode(cursor, scope)
+        .afterOrder,
+    ).toBe(24);
   });
 });

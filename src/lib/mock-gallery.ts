@@ -25,6 +25,7 @@
 
 import {
   selectCuratedGalleryCover,
+  selectGalleryWindow,
   type CuratedGalleryPlacement,
   type GalleryCursorCodec,
 } from "@/lib/gallery-pagination";
@@ -390,7 +391,7 @@ function getOrBuildGallery(
  * dragging a server-only secret in behind it. A gallery that fits inside one
  * page issues no cursor and so needs no codec at all.
  */
-export function getMockGalleryResult(
+export async function getMockGalleryResult(
   locale: string,
   contentId: string,
   {
@@ -402,7 +403,7 @@ export function getMockGalleryResult(
     readonly sectionSlug?: string;
     readonly cursorCodec?: GalleryCursorCodec;
   } = {},
-): CuratedGalleryPage | undefined {
+): Promise<CuratedGalleryPage | undefined> {
   // Text is authored per language while routes are configured per locale, so
   // the two are read apart: `en-GB` and `en-US` share one set of English
   // placements but never share a cursor.
@@ -410,17 +411,23 @@ export function getMockGalleryResult(
   const gallery = getOrBuildGallery(language, contentId);
   if (gallery === undefined) return undefined;
 
-  // The section predicate is applied inside the source call, before
-  // `buildCuratedGalleryPage` sees any row — the seam a store-backed adapter
-  // (AB#114) would turn into a `WHERE section_id = ?`-shaped query. This
-  // fixture still filters an in-memory array, which is a fixture property, not
-  // a contract one.
-  const source: CuratedGallerySectionSource = ({ filter }) =>
-    filter.kind === "all"
-      ? gallery.placements
-      : gallery.placements.filter(
-          (placement) => placement.sectionId === filter.section.sectionId,
-        );
+  // The section predicate is applied before `selectGalleryWindow` ever sees a
+  // row — the seam a store-backed adapter (AB#114) would turn into a `WHERE
+  // section_id = ?` clause on its own keyset query. This fixture still
+  // filters an in-memory array and answers the bounded window from it, which
+  // is a fixture property (AB#134 bounds the *interface*, not this in-memory
+  // implementation's own work), not a contract one. `source` is declared
+  // `async` only to satisfy `CuratedGallerySectionSource`'s contract — a real
+  // adapter awaits its store call here; this one has nothing to await.
+  const source: CuratedGallerySectionSource = async ({ filter, window }) => {
+    const filtered =
+      filter.kind === "all"
+        ? gallery.placements
+        : gallery.placements.filter(
+            (placement) => placement.sectionId === filter.section.sectionId,
+          );
+    return selectGalleryWindow(filtered, window);
+  };
 
   return readCuratedGallerySectionPage({
     query: {
