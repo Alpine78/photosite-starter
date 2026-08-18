@@ -14,6 +14,14 @@ type ContentBodyProps = {
    * language.
    */
   labels: BuiltInLabels;
+  /**
+   * Browser source-size hint for a body media block, matching whatever column
+   * width the caller actually renders this body in — the article variant's own
+   * `<main>` and the gallery variant's narrower wrapper inside its wider page
+   * are not the same box, so this cannot be a single hardcoded default for
+   * every caller. Defaults to `contentBody`, tuned for the article's `<main>`.
+   */
+  sizes?: string;
 };
 
 /**
@@ -28,7 +36,11 @@ type ContentBodyProps = {
  * sides read them from `buildHeadingIds`, so the fragment a link writes and the
  * anchor a heading renders cannot drift apart.
  */
-export function ContentBody({ blocks, labels }: ContentBodyProps) {
+export function ContentBody({
+  blocks,
+  labels,
+  sizes = imageRenderProfiles.contentBody.sizes,
+}: ContentBodyProps) {
   const headingIds = buildHeadingIds(blocks);
 
   return (
@@ -91,7 +103,7 @@ export function ContentBody({ blocks, labels }: ContentBodyProps) {
               <MediaFigure
                 key={block.key ?? index}
                 image={block.media}
-                sizes={imageRenderProfiles.articleContent.sizes}
+                sizes={sizes}
               />
             );
 

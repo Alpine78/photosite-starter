@@ -348,8 +348,10 @@ a green pipeline. See [deployment](docs/deployment.md).
   ([ADR-0001](docs/adr/0001-lightbox-library.md)), and server-rendered cursor
   continuation — a real `href` that pages through a large gallery with no JavaScript —
   and the in-place append — the same link enhanced to bring the next slice into the
-  page, with the lightbox continuing past the items it was opened from — done; zoom
-  tuning, preloading, sections, and seeded random ordering pending*
+  page, with the lightbox continuing past the items it was opened from — and an
+  optional lead and long-form body sharing the article variant's own block set and
+  content-derived page-jump navigation (AB#106) — done; zoom tuning, preloading,
+  section controls, and seeded random ordering pending*
 - [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
   handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
   for development, CI, and Preview), abuse controls, and operational events carrying no

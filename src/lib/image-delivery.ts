@@ -76,10 +76,34 @@ export const imageRenderProfiles = {
       "(min-width: 1024px) calc(100vw - 416px), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)",
     ),
   },
-  articleContent: {
+  /**
+   * The shared body-block renderer's reading column, tuned for the article
+   * variant's own `<main className="max-w-3xl px-4 sm:px-6">`: at the 768px
+   * container cap its content width is 768 minus that container's own
+   * horizontal padding, i.e. 720px.
+   */
+  contentBody: {
     sizes: boundedImageSizes(
       768,
       720,
+      "(min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)",
+    ),
+  },
+  /**
+   * The same shared body renderer, tuned instead for the gallery variant's
+   * reading column: a plain `max-w-3xl` div with no padding of its own,
+   * nested inside the gallery's already-padded, wider `<main>`. Below its own
+   * 768px cap it tracks that `<main>`'s content width exactly (the identical
+   * `px-4`/`sm:px-6` padding both containers share), which is why the fluid
+   * clause is unchanged from `contentBody`; only the terminal width is flat
+   * 768px rather than 720px, and only above 816px viewport width — the point
+   * at which `<main>`'s own content width first exceeds 768px and this div's
+   * cap, not `<main>`'s padding, becomes the binding constraint.
+   */
+  galleryBody: {
+    sizes: boundedImageSizes(
+      816,
+      768,
       "(min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)",
     ),
   },

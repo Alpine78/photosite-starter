@@ -180,6 +180,11 @@ export type BuiltInLabels = {
     readonly sectionsNav: string;
     /** Visible label of the unfiltered `All` section filter. */
     readonly allSections: string;
+    /**
+     * Names the page-jump navigation's link to the image grid, which appears
+     * whenever a gallery carries a long body (ADR-0003 decision 3).
+     */
+    readonly jumpToImages: string;
   };
   readonly lightbox: {
     /** Accessible name of the fullscreen dialog itself. */
@@ -324,6 +329,7 @@ const englishLabels = {
     allLoaded: "All images in this gallery are loaded.",
     sectionsNav: "Gallery sections",
     allSections: "All",
+    jumpToImages: "Jump to the image grid",
   },
   lightbox: {
     viewer: "Image viewer",
@@ -428,6 +434,7 @@ const finnishLabels = {
     allLoaded: "Gallerian kaikki kuvat on ladattu.",
     sectionsNav: "Gallerian osiot",
     allSections: "Kaikki",
+    jumpToImages: "Siirry kuvaruudukkoon",
   },
   lightbox: {
     viewer: "Kuvakatselin",

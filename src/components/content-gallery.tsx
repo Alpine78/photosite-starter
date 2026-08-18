@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
+import { ContentBody } from "@/components/content-body";
+import { ContentPageJumpNav } from "@/components/content-page-jump-nav";
 import { GallerySectionControls } from "@/components/gallery-section-controls";
 import { GallerySectionIntro } from "@/components/gallery-section-intro";
 import { GalleryGrid } from "@/components/gallery-grid";
@@ -7,9 +9,11 @@ import {
   LanguageSwitch,
   type LanguageLink,
 } from "@/components/language-switch";
+import { listContentHeadings } from "@/lib/content-headings";
 import type { GalleryContentPage } from "@/lib/content-page";
 import { formatDate } from "@/lib/date-format";
 import type { BuiltInLabels } from "@/lib/deployment-config";
+import { imageRenderProfiles } from "@/lib/image-delivery";
 import type {
   GallerySection,
   GallerySectionSummary,
@@ -81,11 +85,17 @@ type ContentGalleryProps = {
 /**
  * One `gallery`-variant content page at its canonical detail route.
  *
- * The document order is ADR-0003 decision 3's, as far as this slice of it
- * exists: title, short lead, section controls, the selected section's own
- * heading and introduction, then the image grid. The page-jump navigation and
- * long-form body sit between the lead and the controls once AB#106 authors
- * them; neither renders here yet, so neither is stubbed.
+ * The document order is ADR-0003 decision 3's: title, short lead, the
+ * content-derived page-jump navigation when a long body exists, the optional
+ * long body itself, section controls, the selected section's own heading and
+ * introduction, then the image grid. The long body reuses `ContentBody`, the
+ * same shared block renderer the article variant uses — a gallery body is
+ * `ContentPage`'s own `body: readonly ContentBlock[]`, never an
+ * article-specific type. The page-jump navigation always offers a link to the
+ * grid (`#gallery`, an in-page anchor rather than a route) once a long body
+ * exists, and additionally lists the body's level-2 headings when it has any,
+ * reusing the same `listContentHeadings`/`ContentPageJumpNav` the article
+ * variant's heading-only navigation is built from.
  *
  * The cover is deliberately not repeated at the head of the page. A gallery's
  * cover is what a listing card shows, and the deterministic fallback makes it
@@ -125,6 +135,8 @@ export function ContentGallery({
   languages,
   labels,
 }: ContentGalleryProps) {
+  const headings = listContentHeadings(page.body);
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <Breadcrumbs label={labels.navigation.breadcrumb} steps={breadcrumbs} />
@@ -175,9 +187,38 @@ export function ContentGallery({
           </header>
         )}
 
+        {/*
+          Long-form body: ADR-0003 decision 3 places it, and the page-jump
+          navigation it derives, after the lead and before the section
+          controls, and drops both on a continuation slice along with the
+          rest of the editorial framing. A gallery with no long body renders
+          neither wrapper — `ContentPageJumpNav` renders nothing without a
+          leading link or headings, and the body itself is only mounted when
+          there is one. Nav and body share one `max-w-3xl` column — this
+          `<main>` is wider than an article's own, for the grid, so the
+          reading column has to be pinned here rather than inherited from it.
+        */}
+        {!isContinuation && page.body.length > 0 && (
+          <div className="max-w-3xl">
+            <ContentPageJumpNav
+              label={labels.contentTree.onThisPage}
+              headings={headings}
+              leadingLink={{ href: "#gallery", label: labels.gallery.jumpToImages }}
+            />
+            <div className="mt-10">
+              <ContentBody
+                blocks={page.body}
+                labels={labels}
+                sizes={imageRenderProfiles.galleryBody.sizes}
+              />
+            </div>
+          </div>
+        )}
+
         <section
+          id="gallery"
           aria-label={`${page.title} ${labels.gallery.images}`}
-          className={isContinuation ? "mt-8" : "mt-12"}
+          className={`scroll-mt-24 ${isContinuation ? "mt-8" : "mt-12"}`}
         >
           {/*
             Section controls and the selected section's own heading render on
