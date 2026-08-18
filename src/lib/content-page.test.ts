@@ -12,10 +12,10 @@ import { mockContentTreeInputs } from "@/lib/mock-content-tree";
  * has to answer for exactly those. A gap either way is a 404 on a link the site
  * renders itself, or a body for a page no route can reach.
  *
- * Only the `article` variant is checked for a body. A gallery's page is AB#104's
- * and deliberately absent, so this asserts that absence rather than pretending
- * it is a defect — and will fail loudly if a gallery body appears without the
- * route that renders it.
+ * Both variants are checked for a body, using the same `ContentBlock` set
+ * (AB#106): a gallery's own curated result set stays the separate AB#67
+ * contract and is never a field here, but its optional lead and long-form body
+ * are ordinary `ContentPage` fields exactly like an article's.
  */
 const languages = ["en", "fi"] as const;
 
@@ -109,17 +109,29 @@ describe.each(languages)("mock content pages (%s)", (language) => {
     }
   });
 
-  it("leaves a gallery's body to the story that authors it", () => {
+  it("lets a gallery author a long-form body alongside its curated result", () => {
     const galleries = publishedPlacements.filter(
       (placement) => placement.variant === "gallery",
     );
 
     expect(galleries.length).toBeGreaterThan(0);
+
+    // A gallery's curated result set is the separate AB#67 contract, never a
+    // field here. Its body is optional supporting context (ADR-0003 decision
+    // 3): this fixture authors one only for the gallery AB#106 exercises,
+    // through the same shared block set an article uses, and leaves every
+    // other gallery's body empty — proving absence is a normal, unstubbed
+    // state rather than a defect, and that the authored body did not drift
+    // onto (or get duplicated across) an unrelated gallery.
+    const AUTHORED_GALLERY_BODY_ID = "content-coastal-mornings";
+
     for (const placement of galleries) {
-      // A gallery is its curated result, which is the AB#67 contract and not a
-      // field of this page. The lead and long-form body are AB#106's, so an
-      // authored body would render nowhere yet.
-      expect(pages.get(placement.contentId)?.body).toEqual([]);
+      const body = pages.get(placement.contentId)?.body ?? [];
+      if (placement.contentId === AUTHORED_GALLERY_BODY_ID) {
+        expect(body.length).toBeGreaterThan(0);
+      } else {
+        expect(body).toEqual([]);
+      }
     }
   });
 });

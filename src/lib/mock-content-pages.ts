@@ -13,9 +13,12 @@
  *
  * A `gallery` page carries the same shared fields and declares its variant, but
  * its ordered result set is deliberately not here: that is the AB#67 contract,
- * read through `gallery.ts` by the route that renders the grid. The bodies below
- * are empty because the gallery lead and long-form body are AB#106's; an
- * authored gallery body would render nowhere until that story lands.
+ * read through `gallery.ts` by the route that renders the grid. Most gallery
+ * bodies below stay empty — a gallery is not required to carry one — while
+ * `content-coastal-mornings` authors one (AB#106), so the long-form body,
+ * its page-jump navigation, and a body media placement distinct from the
+ * gallery's own curated items are all exercised by a fixture rather than only
+ * by a test.
  *
  * One set per language subtag, keyed by the immutable `contentId`. Some pages
  * remain English-only, which is the normal state of a bilingual site whose
@@ -43,7 +46,39 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-coastal-mornings": {
     variant: "gallery",
     tags: ["coastal", "morning light"],
-    body: [],
+    body: [
+      {
+        type: "paragraph",
+        text: "This series began as a habit rather than a plan: a handful of early starts turned into a standing appointment with the tide. Placeholder copy; replaced with real content from the CMS.",
+      },
+      { type: "heading", level: 2, text: "Why first light" },
+      {
+        type: "paragraph",
+        text: "The half hour before sunrise gives the coast its own quiet contrast — enough definition in the wet rock to hold texture, not yet enough sun to flatten it. Placeholder copy.",
+      },
+      {
+        type: "list",
+        ordered: false,
+        items: [
+          "Arrive while it is still properly dark",
+          "Let the eyes adjust before checking a screen",
+          "Wait for the tide table, not the alarm clock",
+        ],
+      },
+      {
+        type: "media",
+        media: {
+          ...mockImages.lichenStones,
+          caption:
+            "Placeholder image and caption; replaced with real photography from the CMS.",
+        },
+      },
+      { type: "heading", level: 2, text: "Returning to the same shoreline" },
+      {
+        type: "blockquote",
+        text: "The coast is different every morning you bother to show up for it.",
+      },
+    ],
   },
   "content-polar-night-sessions": {
     variant: "gallery",
@@ -263,7 +298,39 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-coastal-mornings": {
     variant: "gallery",
     tags: ["rannikko", "aamuvalo"],
-    body: [],
+    body: [
+      {
+        type: "paragraph",
+        text: "Tästä sarjasta tuli tapa ennemmin kuin suunnitelma: muutamasta aikaisesta aamusta kasvoi vakituinen tapaaminen vuoroveden kanssa. Paikkamerkkiteksti; korvataan CMS:n sisällöllä.",
+      },
+      { type: "heading", level: 2, text: "Miksi ensimmäinen valo" },
+      {
+        type: "paragraph",
+        text: "Puoli tuntia ennen auringonnousua rannikko saa oman hiljaisen kontrastinsa — juuri tarpeeksi valoa paljastamaan märän kiven pinnan, mutta ei vielä liikaa tasoittamaan sitä. Paikkamerkkiteksti.",
+      },
+      {
+        type: "list",
+        ordered: false,
+        items: [
+          "Saavu vielä pimeään aikaan",
+          "Anna silmien tottua ennen puhelimeen vilkaisua",
+          "Odota vuorovettä, älä herätyskelloa",
+        ],
+      },
+      {
+        type: "media",
+        media: withLocalizedText(mockImages.lichenStones, {
+          alt: "Jäkälän peittämiä kiviä rantaviivalla",
+          caption:
+            "Paikkamerkkikuva ja -kuvateksti; korvataan oikealla valokuvalla CMS:stä.",
+        }),
+      },
+      { type: "heading", level: 2, text: "Samalle rantaviivalle palaaminen" },
+      {
+        type: "blockquote",
+        text: "Rannikko on erilainen joka aamu, jolloin viitsit tulla katsomaan sitä.",
+      },
+    ],
   },
   "content-polar-night-sessions": {
     variant: "gallery",

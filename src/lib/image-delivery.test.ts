@@ -27,9 +27,13 @@ describe("bounded image render profiles", () => {
         sizes:
           "(min-width: 1152px) 736px, (min-width: 1024px) calc(100vw - 416px), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)",
       },
-      articleContent: {
+      contentBody: {
         sizes:
           "(min-width: 768px) 720px, (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)",
+      },
+      galleryBody: {
+        sizes:
+          "(min-width: 816px) 768px, (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)",
       },
     });
   });

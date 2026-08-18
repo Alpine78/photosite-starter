@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
 import { ContentBody } from "@/components/content-body";
+import { ContentPageJumpNav } from "@/components/content-page-jump-nav";
 import {
   LanguageSwitch,
   type LanguageLink,
@@ -88,7 +89,7 @@ export function ContentArticle({
         {page.cover && (
           <MediaFigure
             image={page.cover}
-            sizes={imageRenderProfiles.articleContent.sizes}
+            sizes={imageRenderProfiles.contentBody.sizes}
             preload
             className="mt-8"
           />
@@ -100,28 +101,10 @@ export function ContentArticle({
           </p>
         )}
 
-        {headings.length > 0 && (
-          <nav
-            aria-label={labels.contentTree.onThisPage}
-            className="mt-8 border-l-2 border-black/10 pl-4 dark:border-white/15"
-          >
-            <p className="text-xs font-medium uppercase tracking-wider text-foreground/70">
-              {labels.contentTree.onThisPage}
-            </p>
-            <ol className="mt-2 space-y-1 text-sm">
-              {headings.map((heading) => (
-                <li key={heading.id}>
-                  <Link
-                    href={`#${heading.id}`}
-                    className={`text-foreground/70 underline underline-offset-4 hover:text-foreground ${focusRing}`}
-                  >
-                    {heading.text}
-                  </Link>
-                </li>
-              ))}
-            </ol>
-          </nav>
-        )}
+        <ContentPageJumpNav
+          label={labels.contentTree.onThisPage}
+          headings={headings}
+        />
 
         <div className="mt-10">
           <ContentBody blocks={page.body} labels={labels} />

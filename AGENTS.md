@@ -287,6 +287,25 @@ behaviour of keyset over offset pagination, deliberately chosen over preserving 
 broader trigger. What AB#105 already made bounded and tested before AB#134, and remains true
 now, is the axis it always owned: a section-scoped read is never required to load a
 *different* section's placements, or the rest of an unsectioned gallery, to answer correctly.
+A gallery's optional lead and long-form body (AB#106) are ordinary `ContentPage` fields,
+not a gallery-specific type: the short lead already rendered from AB#104's own
+`page.summary`, and the long body reuses the exact `ContentBlock` set and `ContentBody`
+renderer an article's body already reads through, so a gallery gains no article-specific
+model of its own. `ContentPageJumpNav`, extracted from the article variant's own
+heading-only navigation, gives the gallery variant its content-derived page-jump
+navigation (ADR-0003 decision 3): present only when a long body exists, always offering a
+link to the grid (`#gallery`, an in-page anchor rather than a route) ahead of any level-2
+headings the body carries, and reusing the same `listContentHeadings`/`buildHeadingIds` an
+article's own table of contents is built from, so a heading's anchor and the link that
+names it cannot drift between the two variants. Both the navigation and the body are
+omitted on a continuation slice, along with the rest of the page's editorial framing
+(decision 3), and a gallery with no body renders neither wrapper. Body media renders
+through the same `MediaFigure`/`ContentBody` boundary as an article's, so it carries the
+same public-rendition, native-dimension, no-crop, lazy-loading guarantees and stays
+separate from the gallery's own curated result set, grid, lightbox, sections, and
+pagination (decision 2) — a body photograph is a content placement, never a gallery item.
+A three-level nested table of contents (AB#21) and an inline mini-gallery body-block type
+(AB#24) remain later, unimplemented extensions of this same boundary.
 The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
@@ -531,8 +550,7 @@ localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — category listing continuation, which stays bounded to its first page and
 answers any `?cursor=` with a 404 — gallery section controls, URL wiring, and lightbox
 integration (AB#115; the section domain model and server-side query themselves are AB#105,
-above, whose bounded-query contract AB#134 has since supplied), the gallery lead
-and long-form body (AB#106), seeded random gallery ordering
+above, whose bounded-query contract AB#134 has since supplied), seeded random gallery ordering
 (AB#129), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
 sitemap/robots, structured data, the remaining Sanity content schemas and adapters that
