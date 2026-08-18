@@ -88,14 +88,53 @@ service carries no language field at all: `src/lib/services.ts#getServices` take
 locale, matching the still-unlocalized `/services` route, so nothing here describes a
 capability the site does not yet read.
 
-Both an article's body and a future gallery's body share one set of block object types —
+Both an article's body and a gallery's optional body share one set of block object types —
 `sanity/schemas/content-block.ts` — covering the six kinds ADR-0003 decision 2 names:
 paragraph, heading, list, quote, media placement, and a click-to-load YouTube embed. They
 are named `content<Kind>Block` rather than the bare discriminant, because Sanity type
 names share one namespace and `media.ts` already claims `media` for the shared photograph
 document. `defineContentBodyField` builds a body field restricted to a given allow-list of
-these kinds — every kind by default — so a narrower context, such as a future gallery
-section introduction, reuses the same six types instead of a second body schema.
+these kinds — every kind by default; a gallery's body allows every kind too, but unlike an
+article's it is optional (ADR-0003 decision 3: a gallery's body is separate editorial
+content, not the page itself).
+
+## Galleries
+
+`gallery.ts` is the `gallery` variant of the same shared content-page boundary, and like
+`article.ts` — not like `category.ts` — it is one document *per* language: a gallery's
+placement overrides (`altOverride`/`captionOverride`) and section labels are plain,
+un-keyed text, matching `GalleryContentPage`'s own per-language `title`/`summary`/`body`.
+`contentId` plus `language` together identify one version, `canonicalCategory` is required
+to publish, and `language`/`slug`/`canonicalCategory` freeze once published — all shared
+with `article.ts` through `content-placement-validation.ts`, which both documents' Studio
+guards call so a `contentId` cannot be claimed by both an article and a gallery, and a
+local slug namespace collision is caught regardless of which of the two types causes it.
+
+A gallery's own curated items and named sections (AB#105) are gallery-local object arrays
+on the document — `placements` and `sections` — not separate document types, since
+ADR-0002 places section membership on the placement, never the photograph. Every
+`placementId` is public and site-wide unique with an immutable media binding
+(ADR-0002 §1); `gallery-validation.ts` enforces that document-level, including the rule
+this repository adds for what ADR-0002's MVP text left open: the same occurrence in two
+language versions of one gallery shares one `placementId`, and only when it keeps naming
+the same photograph and section. Repeating a photograph within one gallery is allowed but
+flagged with `rule.warning(...)` — Sanity's non-blocking severity — rather than refused
+(ADR-0002 §2). A placement's own `visible` flag is purely subtractive; whether the
+referenced photograph is itself publicly renderable is a separate question the read-side
+adapter (`src/lib/sanity-gallery.ts`) answers by excluding such a placement entirely,
+never by rejecting the whole gallery (ADR-0002 §3's AND-composition). A section's optional
+`intro` reuses the shared paragraph/list rich-text model in `gallery-section-intro.ts` —
+its own dedicated object types, not the six-kind `content-block.ts` set, since an intro
+needs inline emphasis and links that the shared body blocks' plain-string paragraphs and
+lists do not carry. `orderingRule`/`orderingSeed` let a gallery already declare a
+seeded-random ordering intent and carry its seed input; nothing yet computes an order from
+them (AB#129), and today's only applied rule is the placements array's own position.
+
+The bounded, windowed read of a gallery's placements — and the cover fallback to the first
+visible placement when none is explicitly authored — is deliberately not implemented by
+this schema/adapter pair (AB#113): that is AB#114's job, over the pure, independently
+tested projectors `src/lib/sanity-gallery.ts` already provides
+(`projectGalleryPlacement`, `projectGallerySectionIntro`).
 
 Copying the files works too — they have no imports to satisfy — but a copy drifts. Prefer
 a path, a submodule, or a workspace dependency, so a schema change arriving from upstream
