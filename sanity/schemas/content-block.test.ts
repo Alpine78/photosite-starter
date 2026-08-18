@@ -48,6 +48,10 @@ function inspect(validation: SchemaValidation | undefined) {
       checks.push(check as CustomCheck);
       return rule;
     },
+    warning(check) {
+      checks.push(check as CustomCheck);
+      return rule;
+    },
   };
 
   validation?.(rule);

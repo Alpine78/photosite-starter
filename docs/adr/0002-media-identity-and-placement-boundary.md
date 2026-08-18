@@ -485,8 +485,8 @@ structure but loses the photographer-facing property that argued against Option 
        flags; no call site checks flags individually.
 4. [ ] Carry this vocabulary into AB#66 (query contract) and AB#108 (rendition boundary)
        rather than re-deriving it.
-5. [ ] Add the duplicate-`mediaId` warning when the CMS schema lands (AB#105 / CMS
-       integration), not before.
+5. [x] Add the duplicate-`mediaId` warning when the CMS schema lands (AB#113's
+       `gallery.ts` `placements` field: `rule.warning(...)`, not `custom`).
 6. [ ] When the mapping layer lands, put provider and archive access in modules guarded by
        `import "server-only"`, construct public DTOs with an explicit allow-list projection,
        and add a serialization test proving that provider fields, `archiveLocator`, and

@@ -54,15 +54,17 @@ import {
   defineContentBodyField,
 } from "./content-block";
 import { CATEGORY_TYPE_NAME } from "./category";
+import {
+  makeContentIdentityValidator,
+  rejectsSecondaryCategoryOverlap,
+} from "./content-placement-validation";
 import { LANGUAGE_SUBTAG } from "./localized-text";
 import { LOCALIZED_SLUG_PATTERN } from "./localized-slug";
 import { MEDIA_TYPE_NAME } from "./media";
 import type {
   SchemaTypeDefinition,
-  SchemaValidationContext,
   SchemaValidationResult,
 } from "./schema-types";
-import { publishedIdOf, validationClientOf } from "./validation";
 
 export const ARTICLE_TYPE_NAME = "article";
 
@@ -80,93 +82,20 @@ function nonBlank(value: string | undefined): SchemaValidationResult {
 }
 
 /**
- * Syntax, per-language uniqueness, and immutability, in one round trip — the
- * same three questions `media.ts`'s `validateMediaIdentity` asks, scoped by
- * `language` because unlike a photograph's `mediaId`, one `contentId`
- * legitimately identifies several documents: one per published language.
+ * Syntax, per-language uniqueness (across every public content type, not just
+ * other articles — AB#113 widens this from article-only), and immutability, in
+ * one round trip — the same three questions `media.ts`'s `validateMediaIdentity`
+ * asks, scoped by `language` because unlike a photograph's `mediaId`, one
+ * `contentId` legitimately identifies several documents: one per published
+ * language. Also refuses a `contentId` already claimed by a gallery in another
+ * language, since a page's variant cannot change between language versions.
  */
-async function validateArticleIdentity(
-  value: string | undefined,
-  context: SchemaValidationContext,
-): Promise<SchemaValidationResult> {
-  if (value === undefined || !CONTENT_ID.test(value)) {
-    return "Use lowercase letters, digits, and single hyphens, e.g. reading-coastal-light";
-  }
-
-  const documentId = context.document?._id;
-  if (typeof documentId !== "string") return true;
-
-  const language = context.document?.language;
-  if (typeof language !== "string" || !LANGUAGE_SUBTAG.test(language)) {
-    // The language field's own validation reports this defect.
-    return true;
-  }
-
-  const published = publishedIdOf(documentId);
-  const { taken, publishedContentId } = await validationClientOf(context).fetch<{
-    taken: boolean;
-    publishedContentId: string | null;
-  }>(
-    `{
-      "taken": defined(*[
-        _type == $type &&
-        contentId == $contentId &&
-        language == $language &&
-        !sanity::versionOf($published)
-      ][0]._id),
-      "publishedContentId": *[_id == $published][0].contentId
-    }`,
-    { type: ARTICLE_TYPE_NAME, contentId: value, language, published },
-  );
-
-  if (taken) {
-    return `Another ${language} article already uses "${value}", published or not. Different languages of the same page share this id; two documents in the same language must not.`;
-  }
-
-  if (publishedContentId !== null && publishedContentId !== value) {
-    return `This article was published as "${publishedContentId}". Changing a content id breaks every reference and redirect already pointing at it — create a new document instead.`;
-  }
-
-  return true;
-}
-
-type RawReference = { readonly _ref?: unknown };
-
-/**
- * Rejects a secondary placement that repeats the canonical category or repeats
- * another secondary entry. Purely local — no query needed — because both
- * values are already on the document being edited. Whether each reference
- * resolves to a category actually in the public tree remains
- * `content-tree.ts`'s job at read time, the same backstop `sanity-content-
- * tree.ts`'s module comment describes for `parent`.
- */
-function rejectsSecondaryOverlap(
-  value: readonly RawReference[] | undefined,
-  context: SchemaValidationContext,
-): SchemaValidationResult {
-  if (value === undefined || value.length === 0) return true;
-
-  const canonicalRef = (
-    context.document?.canonicalCategory as RawReference | undefined
-  )?._ref;
-  const canonical =
-    typeof canonicalRef === "string" ? publishedIdOf(canonicalRef) : undefined;
-
-  const seen = new Set<string>();
-  for (const item of value) {
-    const ref = item._ref;
-    if (typeof ref !== "string") continue;
-    const id = publishedIdOf(ref);
-    if (id === canonical) {
-      return "A secondary category cannot repeat the canonical category.";
-    }
-    if (seen.has(id)) {
-      return "Secondary categories must not repeat the same category.";
-    }
-    seen.add(id);
-  }
-  return true;
-}
+const validateArticleIdentity = makeContentIdentityValidator({
+  ownType: ARTICLE_TYPE_NAME,
+  siblingTypes: ["article", "gallery"],
+  idPattern: CONTENT_ID,
+  idHint: "Use lowercase letters, digits, and single hyphens, e.g. reading-coastal-light",
+});
 
 export const articleType: SchemaTypeDefinition = {
   name: ARTICLE_TYPE_NAME,
@@ -264,7 +193,9 @@ export const articleType: SchemaTypeDefinition = {
       description:
         "Additional listing categories. Each links to the one canonical detail route rather than creating a second page.",
       validation: (rule) =>
-        rule.custom<readonly RawReference[]>(rejectsSecondaryOverlap),
+        rule.custom<readonly { readonly _ref?: unknown }[]>(
+          rejectsSecondaryCategoryOverlap,
+        ),
     },
     defineContentBodyField({
       name: "body",

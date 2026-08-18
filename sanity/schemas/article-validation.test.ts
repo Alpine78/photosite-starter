@@ -582,4 +582,59 @@ describe("validateArticlePublication", () => {
 
     expect(result).toContain("cat-coastal");
   });
+
+  it("refuses a slug an existing gallery already claims under the same category (AB#113)", async () => {
+    // The reverse direction of the gallery-validation.test.ts case proving an
+    // article collides with a gallery: the sibling query now spans both
+    // types, so a gallery sharing this article's local slug namespace is
+    // caught the same way a sibling article would be.
+    const { context } = harnessOf({
+      published: null,
+      categories: [landscapeCategoryRow],
+      siblings: [
+        {
+          contentId: "content-gallery-sibling",
+          slug: "reading-coastal-light",
+          canonicalCategoryRef: "doc-landscape",
+          secondaryCategoryRefs: [],
+        },
+      ],
+    });
+
+    const result = await validateArticlePublication(
+      {
+        _id: "abc",
+        contentId: "content-x",
+        language: "en",
+        slug: "reading-coastal-light",
+        canonicalCategory: { _ref: "doc-landscape" },
+      },
+      context,
+      ARTICLE_TYPE_NAME,
+    );
+
+    expect(result).toContain("content-gallery-sibling");
+  });
+
+  it("queries both articles and galleries as siblings", async () => {
+    const { context, queries } = harnessOf({
+      published: null,
+      categories: [landscapeCategoryRow],
+      siblings: [],
+    });
+
+    await validateArticlePublication(
+      {
+        _id: "abc",
+        contentId: "content-x",
+        language: "en",
+        slug: "x",
+        canonicalCategory: { _ref: "doc-landscape" },
+      },
+      context,
+      ARTICLE_TYPE_NAME,
+    );
+
+    expect(queries[0].query).toContain('_type in ["article", "gallery"]');
+  });
 });
