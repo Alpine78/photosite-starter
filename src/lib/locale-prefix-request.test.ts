@@ -516,6 +516,7 @@ describe("resolveLocalePrefixRequest", () => {
         "fi",
         "content-coastal-mornings",
         validCursor,
+        undefined,
       );
     });
 
@@ -588,6 +589,262 @@ describe("resolveLocalePrefixRequest", () => {
           defaultLocaleRouteExists: missing(),
         }),
       ).resolves.toEqual({ kind: "not-found" });
+    });
+
+    describe("gallery section filter", () => {
+      // A section slug is valid only paired with the right cursor, so a mock
+      // that ignores the section argument could not tell finding #3's
+      // regression apart from correct behaviour: a cursor scoped to "early"
+      // must be refused when checked against "late" or the unfiltered view.
+      const sectionExists = () =>
+        vi.fn(
+          async (_locale: string, _contentId: string, section: string) =>
+            section === "early" || section === "late",
+        );
+      const namesASliceForSection = () =>
+        vi.fn(
+          async (
+            _locale: string,
+            _contentId: string,
+            cursor: string,
+            section?: string,
+          ) => cursor === "cursor-for-early" && section === "early",
+        );
+
+      it("ignores a section on a content page reached through a casing variant", async () => {
+        // Mirrors the existing cursor case: `section` carries no meaning on an
+        // article, so it neither blocks a redirect nor is ever validated.
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix: "tarinat",
+            segments: ["Tekniikka", "Valotuskolmio-Kaytannossa"],
+            searchParams: { section: "early" },
+            defaultLocaleRouteExists: missing(),
+            gallerySectionExists: sectionExists(),
+          }),
+        ).resolves.toEqual({
+          kind: "redirect",
+          location: "/tarinat/tekniikka/valotuskolmio-kaytannossa?section=early",
+        });
+      });
+
+      it("carries a known section through to the adapter on the canonical path", async () => {
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix: "tarinat",
+            segments: ["maisemat", "rannikko", "rannikon-aamut"],
+            searchParams: { section: "early" },
+            defaultLocaleRouteExists: missing(),
+          }),
+        ).resolves.toEqual({
+          kind: "story",
+          locale: "fi",
+          route: {
+            kind: "content",
+            contentId: "content-coastal-mornings",
+            variant: "gallery",
+          },
+          section: "early",
+        });
+      });
+
+      it.each([["all"], [""]])(
+        "redirects the redundant section alias %j to the parameter-free query",
+        async (alias) => {
+          await expect(
+            resolveLocalePrefixRequest({
+              config,
+              trees,
+              redirects,
+              prefix: "tarinat",
+              segments: ["maisemat", "rannikko", "rannikon-aamut"],
+              searchParams: { section: alias },
+              defaultLocaleRouteExists: missing(),
+            }),
+          ).resolves.toEqual({
+            kind: "redirect",
+            location: "/tarinat/maisemat/rannikko/rannikon-aamut",
+          });
+        },
+      );
+
+      it("strips a redundant section alias while keeping a valid cursor", async () => {
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix: "tarinat",
+            segments: ["maisemat", "rannikko", "rannikon-aamut"],
+            searchParams: { section: "all", cursor: validCursor },
+            defaultLocaleRouteExists: missing(),
+            galleryCursorNamesASlice: namesASlice(),
+          }),
+        ).resolves.toEqual({
+          kind: "redirect",
+          location: `/tarinat/maisemat/rannikko/rannikon-aamut?cursor=${validCursor}`,
+        });
+      });
+
+      it("does not treat section=all as redundant on a non-gallery route", async () => {
+        // The alias is meaningless there too, but decision 8 never redirects on
+        // an unrecognized parameter — it is preserved like any other.
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix: "tarinat",
+            segments: ["tekniikka", "valotuskolmio-kaytannossa"],
+            searchParams: { section: "all" },
+            defaultLocaleRouteExists: missing(),
+          }),
+        ).resolves.toEqual({
+          kind: "story",
+          locale: "fi",
+          route: {
+            kind: "content",
+            contentId: "content-understanding-exposure-triangle",
+            variant: "article",
+          },
+        });
+      });
+
+      it("404s an unknown section reached through a casing variant rather than redirecting", async () => {
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix: "tarinat",
+            segments: ["Maisemat", "Rannikko", "Rannikon-Aamut"],
+            searchParams: { section: "no-such-section" },
+            defaultLocaleRouteExists: missing(),
+            gallerySectionExists: sectionExists(),
+          }),
+        ).resolves.toEqual({ kind: "not-found" });
+      });
+
+      it("does not validate a section to answer an already-canonical address", async () => {
+        // Mirrors the equivalent cursor behaviour: the page validates the
+        // section while rendering, so nothing is read twice on the common path.
+        const sectionExistsSpy = sectionExists();
+
+        await resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["maisemat", "rannikko", "rannikon-aamut"],
+          searchParams: { section: "early" },
+          defaultLocaleRouteExists: missing(),
+          gallerySectionExists: sectionExistsSpy,
+        });
+
+        expect(sectionExistsSpy).not.toHaveBeenCalled();
+      });
+
+      it("refuses an unvalidated section rather than redirecting on trust", async () => {
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix: "tarinat",
+            segments: ["Maisemat", "Rannikko", "Rannikon-Aamut"],
+            searchParams: { section: "early" },
+            defaultLocaleRouteExists: missing(),
+          }),
+        ).resolves.toEqual({ kind: "not-found" });
+      });
+
+      it("404s a repeated section parameter on a canonical path, unconditionally", async () => {
+        // Mirrors the existing repeated-cursor case exactly, including that
+        // it is refused even though this path needs no other normalization:
+        // two values name no single filter, so there is nothing to pass the
+        // adapter but a guess about which the visitor meant. This is also
+        // what keeps this layer agreeing with `/api/gallery`, which already
+        // rejects a repeated `?section=` as an invalid request.
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix: "tarinat",
+            segments: ["maisemat", "rannikko", "rannikon-aamut"],
+            searchParams: { section: ["early", "late"] },
+            defaultLocaleRouteExists: missing(),
+            gallerySectionExists: sectionExists(),
+          }),
+        ).resolves.toEqual({ kind: "not-found" });
+      });
+
+      it("validates a cursor within its claimed section rather than the unfiltered view", async () => {
+        // The regression this guards against: checking the cursor and the
+        // section as two independent facts would validate "cursor-for-early"
+        // against the unfiltered scope, find it wrong-scope, and 404 a request
+        // that is actually valid.
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix: "tarinat",
+            segments: ["Maisemat", "Rannikko", "Rannikon-Aamut"],
+            searchParams: { section: "early", cursor: "cursor-for-early" },
+            defaultLocaleRouteExists: missing(),
+            galleryCursorNamesASlice: namesASliceForSection(),
+            gallerySectionExists: sectionExists(),
+          }),
+        ).resolves.toEqual({
+          kind: "redirect",
+          location:
+            "/tarinat/maisemat/rannikko/rannikon-aamut?section=early&cursor=cursor-for-early",
+        });
+      });
+
+      it("404s a cursor scoped to a different section than the one requested", async () => {
+        await expect(
+          resolveLocalePrefixRequest({
+            config,
+            trees,
+            redirects,
+            prefix: "tarinat",
+            segments: ["Maisemat", "Rannikko", "Rannikon-Aamut"],
+            searchParams: { section: "late", cursor: "cursor-for-early" },
+            defaultLocaleRouteExists: missing(),
+            galleryCursorNamesASlice: namesASliceForSection(),
+            gallerySectionExists: sectionExists(),
+          }),
+        ).resolves.toEqual({ kind: "not-found" });
+      });
+
+      it("asks the adapter which section was presented for, on the same normalizing request", async () => {
+        const sectionExistsSpy = sectionExists();
+
+        await resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["Maisemat", "Rannikko", "Rannikon-Aamut"],
+          searchParams: { section: "early" },
+          defaultLocaleRouteExists: missing(),
+          gallerySectionExists: sectionExistsSpy,
+        });
+
+        expect(sectionExistsSpy).toHaveBeenCalledWith(
+          "fi",
+          "content-coastal-mornings",
+          "early",
+        );
+      });
     });
 
     it("resolves a canonical content path inside a locale prefix", async () => {

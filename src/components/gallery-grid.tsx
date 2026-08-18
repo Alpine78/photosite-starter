@@ -31,6 +31,15 @@ type GalleryGridProps = {
    * reaches the browser.
    */
   galleryPath: string;
+  /**
+   * The active named section's slug, or `undefined` for the unfiltered `All`
+   * view. Threaded into both the continuation endpoint and the rebuilt link
+   * so an append fetched from inside a named section always asks for that
+   * section's next slice — this, together with the cursor's own scope
+   * binding, is what keeps AB#72 continuation from ever appending an
+   * out-of-section item.
+   */
+  activeSection?: string;
   labels: BuiltInLabels;
 };
 
@@ -82,6 +91,7 @@ export function GalleryGrid({
   label,
   initialSlice,
   galleryPath,
+  activeSection,
   labels,
 }: GalleryGridProps) {
   const [slice, setSlice] = useState(initialSlice);
@@ -97,6 +107,79 @@ export function GalleryGrid({
   const sliceRef = useRef(slice);
   // A second activation while one slice is in flight must not start another.
   const inFlightRef = useRef(false);
+  // Selecting a different section remounts this component (a fresh
+  // `initialSliceKey` in `ContentGallery`), but not synchronously: React keeps
+  // this instance mounted and running until the new section's navigation
+  // actually commits, so a continuation already in flight when that
+  // navigation *starts* can still resolve into this, the outgoing, instance —
+  // appending stale items and moving focus into a subtree about to be
+  // replaced. Unmount is the trailing edge of that window, not the leading
+  // one, so it is not by itself enough to satisfy "ignores stale in-flight
+  // responses": the moment a visitor initiates any other navigation, a
+  // capture-phase click listener marks this instance stale immediately,
+  // before Next.js's own transition has even started fetching.
+  const isStaleRef = useRef(false);
+  useEffect(() => {
+    isStaleRef.current = false;
+
+    const onDocumentClick = (event: MouseEvent) => {
+      // Only a plain primary click actually leaves this page — the same
+      // checks `onContinue` applies to its own link below. A modifier click
+      // or a non-primary button opens a new tab or does nothing, and the
+      // current instance is not going anywhere.
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      const link =
+        target instanceof Element ? target.closest("a") : null;
+      // The continuation control's own click is handled by `onContinue`
+      // below. An explicit new-tab link (the section intro's external links)
+      // leaves this tab exactly where it is, and a link back to this exact
+      // URL — re-activating the already-selected section — causes no
+      // navigation at all. Neither replaces this instance, so marking it
+      // stale for either would suppress every future continuation update on
+      // a gallery a visitor never actually left: the flag has no later
+      // moment to reset, since that only happens on an actual remount.
+      if (
+        link === null ||
+        link === continueRef.current ||
+        link.target === "_blank"
+      ) {
+        return;
+      }
+
+      const targetUrl = new URL(link.href, window.location.href);
+      const currentUrl = new URL(window.location.href);
+      if (
+        targetUrl.pathname === currentUrl.pathname &&
+        targetUrl.search === currentUrl.search
+      ) {
+        return;
+      }
+
+      isStaleRef.current = true;
+    };
+
+    const onPopState = () => {
+      isStaleRef.current = true;
+    };
+
+    document.addEventListener("click", onDocumentClick, true);
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      isStaleRef.current = true;
+      document.removeEventListener("click", onDocumentClick, true);
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, []);
   const statusId = useId();
 
   const { nextCursor } = slice;
@@ -118,28 +201,31 @@ export function GalleryGrid({
     setState("loading");
 
     try {
-      const next = await fetchGallerySlice(galleryPath, cursor);
+      const next = await fetchGallerySlice(galleryPath, cursor, activeSection);
       // Appending is what de-duplicates: a cursor names a boundary rather than
       // a set, so an overlapping slice is a legal answer and must not put the
       // same item on screen twice.
       const loaded = sliceRef.current;
       const merged = appendGallerySlice(loaded, next);
       sliceRef.current = merged;
-      setSlice(merged);
-      setState("idle");
-      return {
+      const outcome = {
         appended: merged.items.length > loaded.items.length,
         complete: merged.nextCursor === null,
       };
+      if (!isStaleRef.current) {
+        setSlice(merged);
+        setState("idle");
+      }
+      return outcome;
     } catch {
       // The failure is announced and the control becomes a retry. Nothing that
       // was already loaded is discarded: a visitor keeps everything they had.
-      setState("failed");
+      if (!isStaleRef.current) setState("failed");
       return { appended: false, complete: false };
     } finally {
       inFlightRef.current = false;
     }
-  }, [galleryPath]);
+  }, [galleryPath, activeSection]);
 
   /** The lightbox needs to know whether it grew or reached a clean end. */
   const continueForLightbox = useCallback(
@@ -189,6 +275,11 @@ export function GalleryGrid({
 
       event.preventDefault();
       void loadNext().then((outcome) => {
+        // Never on a stale instance: moving focus here after a visitor has
+        // already clicked away to another section would pull it back into a
+        // subtree on its way out, exactly the "steals focus" failure mode
+        // the click listener above exists to prevent.
+        if (isStaleRef.current) return;
         // Focus is predictable: it stays on the control a visitor activated for
         // as long as that control exists, and moves to the completion notice
         // only when the control itself goes away — never to the document body.
@@ -280,7 +371,7 @@ export function GalleryGrid({
         {nextCursor !== null && (
           <a
             ref={continueRef}
-            href={galleryContinuationHref(galleryPath, nextCursor)}
+            href={galleryContinuationHref(galleryPath, nextCursor, activeSection)}
             rel="next"
             onClick={onContinue}
             aria-describedby={statusId}

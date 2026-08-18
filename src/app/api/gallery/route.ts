@@ -24,7 +24,11 @@
  * be corrected later.
  */
 
-import { GalleryCursorError, getGalleryPage } from "@/lib/gallery";
+import {
+  GalleryCursorError,
+  UnknownGallerySectionError,
+  getGalleryPage,
+} from "@/lib/gallery";
 import { MAX_GALLERY_CURSOR_LENGTH } from "@/lib/gallery-pagination";
 import { resolveGalleryRequestTarget } from "@/lib/gallery-request";
 import { projectGallerySlice } from "@/lib/gallery-slice-server";
@@ -76,12 +80,17 @@ export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const paths = url.searchParams.getAll("path");
   const cursors = url.searchParams.getAll("cursor");
+  const sections = url.searchParams.getAll("section");
   const [path] = paths;
   const [cursor] = cursors;
+  // Zero values means the unfiltered view; more than one is ambiguous the same
+  // way a repeated `path` or `cursor` is.
+  const [section] = sections;
 
   if (
     paths.length !== 1 ||
     cursors.length !== 1 ||
+    sections.length > 1 ||
     path === undefined ||
     !isCarryableRequestPath(path) ||
     cursor === undefined ||
@@ -97,7 +106,12 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    const page = await getGalleryPage(target.locale, target.contentId, cursor);
+    const page = await getGalleryPage(
+      target.locale,
+      target.contentId,
+      cursor,
+      section,
+    );
     if (page === undefined) {
       return jsonResponse({ status: "not-found" }, 404);
     }
@@ -105,9 +119,13 @@ export async function GET(request: Request): Promise<Response> {
     return jsonResponse(projectGallerySlice(page), 200);
   } catch (error) {
     // A token that is malformed, tampered with, scoped to another query, or
-    // stale names no slice of this gallery — the same answer the `?cursor=`
-    // route gives, for the same reason.
-    if (error instanceof GalleryCursorError) {
+    // stale names no slice of this gallery, and an unresolvable section names
+    // none either — the same answer the `?cursor=` route gives, for the same
+    // reason.
+    if (
+      error instanceof GalleryCursorError ||
+      error instanceof UnknownGallerySectionError
+    ) {
       return jsonResponse({ status: "not-found" }, 404);
     }
     throw error;

@@ -165,6 +165,33 @@ describe("buildPageMetadata canonical URLs", () => {
 
     expect(metadata.alternates?.canonical).toBe("https://example.com/blog");
   });
+
+  it("emits no robots directive by default", () => {
+    const metadata = buildPageMetadata({ path: "/blog" }, context);
+
+    expect(metadata.robots).toBeUndefined();
+  });
+
+  it("marks a page noindex, still follow, when asked to", () => {
+    // ADR-0003 decision 8: a named gallery section view is `noindex` even
+    // though its canonical points elsewhere — canonicalizing alone is not
+    // sufficient, since a crawler may still index a non-canonical URL.
+    const metadata = buildPageMetadata(
+      { path: "/blog", noindex: true },
+      context,
+    );
+
+    expect(metadata.robots).toEqual({ index: false, follow: true });
+  });
+
+  it("omits the robots directive when noindex is explicitly false", () => {
+    const metadata = buildPageMetadata(
+      { path: "/blog", noindex: false },
+      context,
+    );
+
+    expect(metadata.robots).toBeUndefined();
+  });
 });
 
 describe("buildPageMetadata titles and descriptions", () => {

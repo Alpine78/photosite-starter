@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
+import { GallerySectionControls } from "@/components/gallery-section-controls";
+import { GallerySectionIntro } from "@/components/gallery-section-intro";
 import { GalleryGrid } from "@/components/gallery-grid";
 import {
   LanguageSwitch,
@@ -8,6 +10,10 @@ import {
 import type { GalleryContentPage } from "@/lib/content-page";
 import { formatDate } from "@/lib/date-format";
 import type { BuiltInLabels } from "@/lib/deployment-config";
+import type {
+  GallerySection,
+  GallerySectionSummary,
+} from "@/lib/gallery-sections";
 import type { GallerySlice } from "@/lib/gallery-slice";
 
 type ContentGalleryProps = {
@@ -33,6 +39,24 @@ type ContentGalleryProps = {
    * reaches the browser and no route knowledge is duplicated into a component.
    */
   galleryPath: string;
+  /** The gallery's declared section catalog, already ordered. Empty for a
+   * gallery with no sections, which renders no section controls at all. */
+  sections: readonly GallerySectionSummary[];
+  /**
+   * The active named section, resolved from the request's slug against
+   * `sections` on every slice — cursored or not. Drives the controls'
+   * selected state and the grid's section-scoped continuation. `undefined`
+   * means the unfiltered `All` view.
+   */
+  activeSection?: GallerySectionSummary;
+  /**
+   * The active named section, present only on the first, uncursored slice of
+   * it — the one state that renders `GallerySectionIntro`'s required heading
+   * and optional introduction. Distinct from `activeSection`, which is
+   * present on every slice of that same section: this field's *absence* on a
+   * continuation is what keeps the heading and introduction from repeating.
+   */
+  selectedSection?: GallerySection;
   /**
    * The gallery's parameter-free first page, present only when the visitor is
    * looking at a continuation. A continuation URL is indexable, so somebody can
@@ -58,9 +82,10 @@ type ContentGalleryProps = {
  * One `gallery`-variant content page at its canonical detail route.
  *
  * The document order is ADR-0003 decision 3's, as far as this slice of it
- * exists: title, short lead, then the image grid. The page-jump navigation and
- * long-form body sit between them once AB#106 authors them, and the section
- * controls once AB#105 does; neither renders here, so neither is stubbed.
+ * exists: title, short lead, section controls, the selected section's own
+ * heading and introduction, then the image grid. The page-jump navigation and
+ * long-form body sit between the lead and the controls once AB#106 authors
+ * them; neither renders here yet, so neither is stubbed.
  *
  * The cover is deliberately not repeated at the head of the page. A gallery's
  * cover is what a listing card shows, and the deterministic fallback makes it
@@ -91,6 +116,9 @@ export function ContentGallery({
   slice,
   initialSliceKey,
   galleryPath,
+  sections,
+  activeSection,
+  selectedSection,
   firstPageHref,
   isContinuation = false,
   breadcrumbs,
@@ -151,6 +179,26 @@ export function ContentGallery({
           aria-label={`${page.title} ${labels.gallery.images}`}
           className={isContinuation ? "mt-8" : "mt-12"}
         >
+          {/*
+            Section controls and the selected section's own heading render on
+            every slice, including a continuation and the empty-section state
+            (ADR-0003 decision 3): a visitor mid-gallery, or looking at a
+            section with nothing in it yet, still needs a way to switch. The
+            controls render nothing on their own when the gallery declares no
+            sections; the heading and introduction render only when
+            `selectedSection` is set, which the server limits to a named
+            section's first, uncursored slice.
+          */}
+          <GallerySectionControls
+            sections={sections}
+            activeSlug={activeSection?.slug}
+            galleryPath={galleryPath}
+            labels={labels}
+          />
+          {selectedSection !== undefined && (
+            <GallerySectionIntro section={selectedSection} />
+          )}
+
           {slice.items.length > 0 ? (
             <GalleryGrid
               // Keyed by the slice this render starts from, so a client-side
@@ -163,10 +211,11 @@ export function ContentGallery({
               label={page.title}
               initialSlice={slice}
               galleryPath={galleryPath}
+              activeSection={activeSection?.slug}
               labels={labels}
             />
           ) : (
-            <p className="text-foreground/70">{labels.gallery.empty}</p>
+            <p className="mt-6 text-foreground/70">{labels.gallery.empty}</p>
           )}
 
           {/*

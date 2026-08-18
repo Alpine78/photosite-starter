@@ -3,6 +3,7 @@ import {
   type ContentRedirects,
 } from "@/lib/content-redirects";
 import { resolveStoryRoute, type StoryRoute } from "@/lib/content-routes";
+import { RESERVED_ALL_SECTION_SLUG } from "@/lib/gallery-sections";
 import {
   buildStoryPath,
   resolvePrefixedRoute,
@@ -32,6 +33,18 @@ export type LocalePrefixRequestResolution =
        * names a slice (ADR-0003 decision 8).
        */
       readonly cursor?: string;
+      /**
+       * The gallery-local section filter this request carries, when the route
+       * is a gallery. `undefined` means the unfiltered `All` view — including
+       * when the raw parameter was absent, empty, or the reserved `all` token,
+       * all three of which decision 8 normalizes to the same thing before this
+       * value is ever set. A section name reaching here has already survived
+       * {@link GallerySectionExists} when normalization needed to ask it; an
+       * unknown one on an already-canonical path is still possible and is the
+       * render layer's to answer, the same way an unvalidated canonical-path
+       * cursor is.
+       */
+      readonly section?: string;
     }
   | { readonly kind: "not-found" };
 
@@ -44,11 +57,35 @@ type DefaultLocaleRouteExists = (path: string) => boolean | Promise<boolean>;
  * holds the signing key — this layer transports tokens and cannot read one. It
  * is consulted at exactly one moment: when a token arrives at a path that needs
  * normalizing, where the answer decides between a redirect and a 404.
+ *
+ * A cursor's own scope is bound to the section it was minted under (ADR-0003
+ * decision 8), so validating it without that context would check it against
+ * the wrong scope — the optional `sectionSlug` is this request's already-
+ * normalized section value (`undefined` for the unfiltered view), passed
+ * through unchanged so the adapter validates the pair together rather than
+ * two independent facts.
  */
 type GalleryCursorNamesASlice = (
   locale: string,
   contentId: string,
   cursor: string,
+  sectionSlug?: string,
+) => boolean | Promise<boolean>;
+
+/**
+ * Whether a gallery-local section slug names a real, declared section of one
+ * gallery.
+ *
+ * Injected for the same reason {@link GalleryCursorNamesASlice} is: only the
+ * gallery adapter holds the declared section catalog. Consulted at exactly the
+ * same moment cursor validation is — when a section value arrives at a path
+ * that needs normalizing — so an unknown section cannot ride along on a
+ * permanent redirect to a spelling that would make it appear meaningful.
+ */
+type GallerySectionExists = (
+  locale: string,
+  contentId: string,
+  sectionSlug: string,
 ) => boolean | Promise<boolean>;
 
 const NOT_FOUND = { kind: "not-found" } as const;
@@ -150,14 +187,104 @@ function resolveHistoricalStoryTarget(
  *   and ignores the rest, so a campaign or referral link never turns a real page
  *   into a 404.
  *
- * `section` is deliberately absent from all three. Gallery sections are AB#105's,
- * and until a gallery can have one, no value of that parameter names anything —
- * so it stays unrecognized and ignored rather than 404ing links that a later
- * story will make meaningful.
+ * `section` is a different parameter with its own disposition — see
+ * {@link sectionDisposition} — because ADR-0003 gives it no "recognized but
+ * unimplemented" state at any route the way `cursor` has at a category
+ * listing: it is either a gallery's own filter or it is nowhere meaningful at
+ * all.
  */
 function cursorDisposition(route: StoryRoute): "carry" | "reject" | "ignore" {
   if (route.kind !== "content") return "reject";
   return route.variant === "gallery" ? "carry" : "ignore";
+}
+
+/**
+ * What a `section` parameter means at this route.
+ *
+ * ADR-0003 decision 8 gives `section` exactly one meaning: a gallery-local
+ * filter of that gallery's own curated result. Unlike `cursor`, no other route
+ * kind recognizes it even in principle — a category listing, the story root,
+ * and an article all treat it as an ordinary unrecognized parameter, which
+ * decision 8 reads and ignores rather than 404s on. So this has only two
+ * states, never `cursorDisposition`'s "reject": a gallery `carry`s the value
+ * to the adapter, and everything else `ignore`s it.
+ */
+function sectionDisposition(route: StoryRoute): "carry" | "ignore" {
+  if (route.kind !== "content") return "ignore";
+  return route.variant === "gallery" ? "carry" : "ignore";
+}
+
+/**
+ * This request's section value, normalized the way decision 8 requires before
+ * it reaches a gallery: `undefined` for the unfiltered `All` view, whether the
+ * raw parameter was absent, an empty string, the reserved `all` token, or a
+ * route that does not carry section at all. A repeated `section` parameter
+ * also normalizes to `undefined` here — but only because
+ * {@link refusesSection} is always checked against the *raw* value first and
+ * refuses that case outright before this function's answer is ever used for
+ * anything but the cursor-scope check {@link refusesCursor} needs. This
+ * function alone would treat the ambiguous case as silently absent; it is
+ * `refusesSection` that makes it a 404 instead.
+ */
+function normalizedCarriedSection(
+  route: StoryRoute,
+  rawSection: string | readonly string[] | undefined,
+): string | undefined {
+  if (sectionDisposition(route) !== "carry") return undefined;
+  if (typeof rawSection !== "string") return undefined;
+  if (rawSection === "" || rawSection === RESERVED_ALL_SECTION_SLUG) {
+    return undefined;
+  }
+  return rawSection;
+}
+
+/**
+ * Whether this request's named section is unusable at this route.
+ *
+ * Mirrors {@link refusesCursor}'s shape and reasoning, minus the "reject"
+ * case `sectionDisposition` never has, plus one addition: a repeated
+ * `section` parameter is ambiguous the same way a repeated cursor is — there
+ * is no single filter to hand the adapter — so it is refused unconditionally,
+ * before `normalizing` is even consulted, exactly where `refusesCursor`
+ * refuses a non-string cursor. This is also what keeps this route-resolution
+ * layer agreeing with `/api/gallery`, which already rejects a repeated
+ * `?section=` as an invalid request.
+ *
+ * Everywhere else, `section` here is the *raw* value — `normalizedCarriedSection`
+ * only ever collapses a single string, so calling this with the raw value
+ * first and normalizing separately for `refusesCursor`'s scope check is what
+ * lets the array case be caught before it is silently normalized away.
+ * `undefined` and the alias values (`""`/`all`) both cover the unfiltered
+ * view and are never refused. Consulted only when the path is being
+ * normalized, for the same reason cursor validation is: on an already-
+ * canonical path, the render layer validates the section while building the
+ * page, so nothing is read twice.
+ */
+async function refusesSection(
+  locale: string,
+  route: StoryRoute,
+  rawSection: string | readonly string[] | undefined,
+  {
+    normalizing,
+    sectionExists,
+  }: {
+    readonly normalizing: boolean;
+    readonly sectionExists: GallerySectionExists | undefined;
+  },
+): Promise<boolean> {
+  if (rawSection === undefined) return false;
+  if (sectionDisposition(route) !== "carry") return false;
+  if (typeof rawSection !== "string") return true;
+  if (rawSection === "" || rawSection === RESERVED_ALL_SECTION_SLUG) {
+    return false;
+  }
+  if (!normalizing) return false;
+  if (route.kind !== "content") return true;
+
+  // Without a validator the safe answer is the strict one: refuse rather than
+  // emit a permanent redirect for a section slug nothing has vouched for.
+  if (sectionExists === undefined) return true;
+  return !(await sectionExists(locale, route.contentId, rawSection));
 }
 
 /**
@@ -175,11 +302,20 @@ function cursorDisposition(route: StoryRoute): "carry" | "reject" | "ignore" {
  * So `namesASlice` is asked — but only when the answer changes something, which
  * is when the path is being normalized. On a canonical path the token is carried
  * through and the page validates it while rendering, so nothing is read twice.
+ *
+ * `section` is this request's already-normalized section value (see
+ * {@link normalizedCarriedSection}), passed through to `namesASlice` unchanged.
+ * A cursor's own scope is bound to the section it was minted under, so
+ * validating it without that context would check it against the wrong scope —
+ * a cursor issued for a named section would then look wrong-scope against the
+ * unfiltered view and refuse a perfectly valid `?section=x&cursor=y` request
+ * that merely needed an unrelated normalization (casing, a redundant prefix).
  */
 async function refusesCursor(
   locale: string,
   route: StoryRoute,
   cursor: string | readonly string[] | undefined,
+  section: string | undefined,
   {
     normalizing,
     namesASlice,
@@ -206,7 +342,7 @@ async function refusesCursor(
   // Without a validator the safe answer is the strict one: refuse rather than
   // emit a permanent redirect for a token nothing has vouched for.
   if (namesASlice === undefined) return true;
-  return !(await namesASlice(locale, route.contentId, cursor));
+  return !(await namesASlice(locale, route.contentId, cursor, section));
 }
 
 /**
@@ -241,6 +377,7 @@ export async function resolveLocalePrefixRequest({
   searchParams,
   defaultLocaleRouteExists,
   galleryCursorNamesASlice,
+  gallerySectionExists,
   pathHasTrailingSlash = false,
 }: {
   readonly config: LocaleRouteConfig;
@@ -259,6 +396,13 @@ export async function resolveLocalePrefixRequest({
    */
   readonly galleryCursorNamesASlice?: GalleryCursorNamesASlice;
   /**
+   * Consulted only when a named section arrives at a path that needs
+   * normalizing, to choose between redirecting with it and refusing it. Absent,
+   * every such section is refused rather than redirected on trust — the same
+   * default {@link galleryCursorNamesASlice} takes when it is absent.
+   */
+  readonly gallerySectionExists?: GallerySectionExists;
+  /**
    * Whether the original pathname ended in `/` (apart from the site root).
    * Proxy carries the original bounded path because App Router params omit
    * this spelling difference. It participates in normalization only; it is
@@ -270,9 +414,37 @@ export async function resolveLocalePrefixRequest({
   const defaultRoute = config.byLocale.get(config.defaultLocale);
   if (defaultRoute === undefined) return NOT_FOUND;
 
-  const query = buildQueryString(searchParams);
-  const redirectTo = (location: string) =>
-    ({ kind: "redirect", location: `${location}${query}` }) as const;
+  /**
+   * The redirect target's query string, for one destination route.
+   *
+   * `section=all` and an empty `section=` are decision 8's redundant spelling
+   * of the unfiltered view and normalize away on any redirect landing on a
+   * gallery — the same class of normalization a casing variant already gets.
+   * Everywhere else `section` is an ordinary unrecognized parameter, and
+   * decision 8's own rule for those is to preserve them through a redirect
+   * happening for another reason, not to strip them — so stripping is scoped
+   * to exactly the gallery case, never applied by default.
+   */
+  const buildRedirectQuery = (route?: StoryRoute): string => {
+    if (route === undefined || sectionDisposition(route) !== "carry") {
+      return buildQueryString(searchParams);
+    }
+    const raw = searchParams.section;
+    if (
+      typeof raw !== "string" ||
+      (raw !== "" && raw !== RESERVED_ALL_SECTION_SLUG)
+    ) {
+      return buildQueryString(searchParams);
+    }
+    const rest: LocalePrefixSearchParams = { ...searchParams };
+    delete rest.section;
+    return buildQueryString(rest);
+  };
+  const redirectTo = (location: string, route?: StoryRoute) =>
+    ({
+      kind: "redirect",
+      location: `${location}${buildRedirectQuery(route)}`,
+    }) as const;
 
   if (resolution.kind === "redundant-default-prefix") {
     // Treat path values as untrusted even though Next normally supplies decoded
@@ -290,15 +462,23 @@ export async function resolveLocalePrefixRequest({
 
     const story = resolveStorySegments(trees, defaultRoute, canonical);
     if (story !== null) {
+      const section = normalizedCarriedSection(story, searchParams.section);
       if (
-        await refusesCursor(defaultRoute.locale, story, searchParams.cursor, {
+        (await refusesCursor(
+          defaultRoute.locale,
+          story,
+          searchParams.cursor,
+          section,
+          { normalizing: true, namesASlice: galleryCursorNamesASlice },
+        )) ||
+        (await refusesSection(defaultRoute.locale, story, searchParams.section, {
           normalizing: true,
-          namesASlice: galleryCursorNamesASlice,
-        })
+          sectionExists: gallerySectionExists,
+        }))
       ) {
         return NOT_FOUND;
       }
-      return redirectTo(toPath(canonical));
+      return redirectTo(toPath(canonical), story);
     }
 
     const historical = resolveHistoricalStoryTarget(
@@ -309,17 +489,28 @@ export async function resolveLocalePrefixRequest({
       canonical,
     );
     if (historical !== null) {
+      const section = normalizedCarriedSection(
+        historical.route,
+        searchParams.section,
+      );
       if (
-        await refusesCursor(
+        (await refusesCursor(
           defaultRoute.locale,
           historical.route,
           searchParams.cursor,
+          section,
           { normalizing: true, namesASlice: galleryCursorNamesASlice },
-        )
+        )) ||
+        (await refusesSection(
+          defaultRoute.locale,
+          historical.route,
+          searchParams.section,
+          { normalizing: true, sectionExists: gallerySectionExists },
+        ))
       ) {
         return NOT_FOUND;
       }
-      return redirectTo(historical.path);
+      return redirectTo(historical.path, historical.route);
     }
 
     return (await defaultLocaleRouteExists(toPath(canonical)))
@@ -357,30 +548,54 @@ export async function resolveLocalePrefixRequest({
       canonical,
     );
     if (historical === null) return NOT_FOUND;
-    return (await refusesCursor(
-      localeRoute.locale,
+    const section = normalizedCarriedSection(
       historical.route,
-      searchParams.cursor,
-      { normalizing: true, namesASlice: galleryCursorNamesASlice },
-    ))
-      ? NOT_FOUND
-      : redirectTo(historical.path);
+      searchParams.section,
+    );
+    const refused =
+      (await refusesCursor(
+        localeRoute.locale,
+        historical.route,
+        searchParams.cursor,
+        section,
+        { normalizing: true, namesASlice: galleryCursorNamesASlice },
+      )) ||
+      (await refusesSection(
+        localeRoute.locale,
+        historical.route,
+        searchParams.section,
+        { normalizing: true, sectionExists: gallerySectionExists },
+      ));
+    return refused ? NOT_FOUND : redirectTo(historical.path, historical.route);
   }
+
+  const rawSection = searchParams.section;
+  const isRedundantSectionAlias =
+    sectionDisposition(route) === "carry" &&
+    typeof rawSection === "string" &&
+    (rawSection === "" || rawSection === RESERVED_ALL_SECTION_SLUG);
 
   const normalizing =
     (resolution.kind === "localized" && !resolution.prefixIsCanonical) ||
     canonical.some((segment, index) => segment !== requested[index]) ||
-    pathHasTrailingSlash;
+    pathHasTrailingSlash ||
+    isRedundantSectionAlias;
 
-  // Refused before any normalization, so a token that means nothing here is a
-  // 404 at the address requested rather than a redirect to a different spelling
-  // that could make it appear meaningful. The cursor value itself is never
-  // normalized — decision 8 makes it case-sensitive.
+  const section = normalizedCarriedSection(route, rawSection);
+
+  // Refused before any normalization, so a token or section that means
+  // nothing here is a 404 at the address requested rather than a redirect to
+  // a different spelling that could make it appear meaningful. The cursor
+  // value itself is never normalized — decision 8 makes it case-sensitive.
   if (
-    await refusesCursor(localeRoute.locale, route, searchParams.cursor, {
+    (await refusesCursor(localeRoute.locale, route, searchParams.cursor, section, {
       normalizing,
       namesASlice: galleryCursorNamesASlice,
-    })
+    })) ||
+    (await refusesSection(localeRoute.locale, route, rawSection, {
+      normalizing,
+      sectionExists: gallerySectionExists,
+    }))
   ) {
     return NOT_FOUND;
   }
@@ -388,6 +603,7 @@ export async function resolveLocalePrefixRequest({
   if (normalizing) {
     return redirectTo(
       buildStoryPath(config, localeRoute.locale, canonical.slice(1)),
+      route,
     );
   }
 
@@ -402,5 +618,6 @@ export async function resolveLocalePrefixRequest({
     locale: localeRoute.locale,
     route,
     ...(cursor === undefined ? {} : { cursor }),
+    ...(section === undefined ? {} : { section }),
   };
 }
