@@ -152,6 +152,20 @@ test("the gallery grid opens a lightbox that navigates and closes by keyboard", 
     await expect(triggers.first()).toHaveAttribute("aria-haspopup", "dialog");
   });
 
+  await test.step("every trigger carries its own stable, distinct result identity", async () => {
+    // `data-item-id` is the DOM-visible half of the itemId/mediaId split
+    // (`lightbox-slides.ts`): a result identity, not a media identity, so a
+    // photo placed twice in the same gallery must still mint two values here.
+    // Distinctness itself is unit-tested at the projection; this guards the
+    // same property once it has reached real DOM attributes.
+    const itemIds = await triggers.evaluateAll((buttons) =>
+      buttons.map((button) => button.getAttribute("data-item-id")),
+    );
+
+    expect(itemIds.every((id): id is string => Boolean(id))).toBe(true);
+    expect(new Set(itemIds).size).toBe(itemIds.length);
+  });
+
   // Each opener is named by the photograph it opens, which is what lets the
   // rest of this journey follow one item without knowing the content.
   const itemNames = await galleryImageAlts(triggers);
