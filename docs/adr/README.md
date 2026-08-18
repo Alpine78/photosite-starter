@@ -49,12 +49,13 @@ Two conventions on top of the template:
 | [0006](0006-sanity-data-access-boundary.md) | AB#39 | Sanity data-access boundary and client transport | Proposed |
 | [0007](0007-proxy-request-path-boundary.md) | AB#72 | A Proxy request boundary carrying the requested path | Proposed |
 | [0008](0008-localized-authored-text.md) | AB#82 | Localized authored text in content schemas | Accepted |
+| [0009](0009-seeded-random-gallery-ordering.md) | AB#66 (ordering clauses only) | Seeded random gallery ordering contract | Accepted |
 
 Expected further entries:
 
 | Work item | Decision |
 | --- | --- |
-| AB#66 | Curated and dynamic gallery query contract |
+| AB#66 | Dynamic/virtual keyword-gallery query contract (remainder, after ADR-0009 split off ordering) |
 | AB#95 | Image sales, checkout, and fulfilment boundary |
 | AB#122 | Private gallery security, delivery, and retention boundary |
 | AB#41 | Customer customization and upstream update boundaries |

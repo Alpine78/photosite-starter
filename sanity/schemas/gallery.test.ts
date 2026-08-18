@@ -205,39 +205,6 @@ describe("ordering", () => {
   });
 });
 
-describe("placements", () => {
-  const placementIdField = () => itemFieldOf(fieldOf("placements"), "placementId");
-  const mediaField = () => itemFieldOf(fieldOf("placements"), "media");
-  const visibleField = () => itemFieldOf(fieldOf("placements"), "visible");
-
-  it("references media and requires a placement id, matching the documented form", async () => {
-    expect(mediaField().to).toEqual([{ type: MEDIA_TYPE_NAME }]);
-    const { required, run } = inspect(placementIdField().validation);
-    expect(required).toBe(true);
-    expect(await run("northern-coast-2026-01")).toEqual([true]);
-    expect((await run("Not Valid"))[0]).toEqual(expect.any(String));
-  });
-
-  it("defaults visible to true and pinned to false", () => {
-    expect(visibleField().initialValue).toBe(true);
-    expect(itemFieldOf(fieldOf("placements"), "pinned").initialValue).toBe(false);
-  });
-
-  it("warns, without blocking, when a photograph repeats across placements (ADR-0002 §2)", async () => {
-    const { runWarnings } = inspect(fieldOf("placements").validation);
-
-    const repeated = [
-      { media: { _ref: "media-a" } },
-      { media: { _ref: "media-b" } },
-      { media: { _ref: "media-a" } },
-    ];
-    expect((await runWarnings(repeated))[0]).toEqual(expect.any(String));
-
-    const distinct = [{ media: { _ref: "media-a" } }, { media: { _ref: "media-b" } }];
-    expect(await runWarnings(distinct)).toEqual([true]);
-  });
-});
-
 describe("sections", () => {
   const slugField = () => itemFieldOf(fieldOf("sections"), "slug");
 

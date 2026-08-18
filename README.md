@@ -375,11 +375,20 @@ a green pipeline. See [deployment](docs/deployment.md).
   content-tree domain, resolving category references locally rather than dereferencing in
   GROQ; the shared rich-content body-block schema (paragraph, heading, list, quote, media
   placement, click-to-load YouTube) now underlies both the article schema — one document
-  per published language, unlike a category's one document for every language — and a
-  future gallery body; the article and service schemas and adapters now project into the
-  existing `ContentPage`/`ContentPlacementInput` and `Service` contracts — route-facing
-  seams still use fixtures until the remaining gallery content schema lands; its adapter
-  and tagged caching/webhook revalidation remain pending*
+  per published language, unlike a category's one document for every language — and the
+  gallery body; the article, service, and gallery schemas and adapters now project into the
+  existing `ContentPage`/`ContentPlacementInput` and `Service` contracts. A gallery's own
+  curated items are their own document type (`galleryPlacement`, one per placement, not an
+  embedded array like a gallery's sections) so a large gallery can be read a bounded page at
+  a time — an id lookup plus a keyset range query, never the whole placement list — the same
+  shape `content-listing.ts` already uses for articles; `src/lib/sanity-gallery.ts`'s
+  `readSanityCuratedGalleryPage` composes that bounded read with the shared curated-gallery
+  pagination contract. A gallery may already declare a seeded-random ordering intent
+  ([ADR-0009](docs/adr/0009-seeded-random-gallery-ordering.md) decides its contract), but
+  nothing computes an order from it yet — the adapter refuses to serve such a gallery rather
+  than mis-paginate it, pending the materialized shuffle key AB#129 adds. Route-facing seams
+  still use fixtures until every adapter is ready, to avoid a mixed mock/Sanity deployment;
+  tagged caching/webhook revalidation remain pending*
 - [ ] Production deployment — *the Preview environment's repository half is done: pinned
   runtime and region, a gated deploy stage, and the check that refuses to publish a
   release-candidate URL unless its project/team ownership, access protection, and

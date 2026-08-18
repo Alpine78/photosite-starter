@@ -2,18 +2,22 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   GALLERY_DOCUMENT_TYPE,
+  GALLERY_PAGE_SIZE,
+  GALLERY_PLACEMENT_DOCUMENT_TYPE,
   projectGalleryContentPage,
   projectGalleryPlacement,
   projectGalleryPlacementInput,
   projectGallerySectionIntro,
   projectGallerySectionSummary,
   readPublicGalleryPage,
+  readSanityCuratedGalleryPage,
   SanityGalleryError,
   type RawGalleryDetailDocument,
   type RawGalleryPlacementDocument,
   type RawGalleryPlacementItem,
 } from "@/lib/sanity-gallery";
 import { galleryType } from "../../sanity/schemas/gallery";
+import { galleryPlacementType } from "../../sanity/schemas/gallery-placement";
 import {
   INTERNAL_LINK_PATH as SCHEMA_INTERNAL_LINK_PATH,
   MAX_INTRO_BLOCKS as SCHEMA_MAX_INTRO_BLOCKS,
@@ -28,6 +32,8 @@ import {
   MAX_SPANS_PER_BLOCK,
   MAX_SPAN_TEXT_LENGTH,
 } from "@/lib/gallery-sections";
+import { createHmacGalleryCursorCodec } from "@/lib/gallery-pagination";
+import type { CuratedGalleryResultItem } from "@/lib/gallery-result";
 import type { SanityClient, SanityQueryRequest } from "@/lib/sanity-client";
 import type { SanityConfig } from "@/lib/sanity-config";
 import type { RawPublicMediaDocument } from "@/lib/sanity-media";
@@ -302,13 +308,14 @@ describe("projectGallerySectionIntro", () => {
 describe("projectGalleryPlacement", () => {
   const rawOf = (overrides: Partial<RawGalleryPlacementItem> = {}): RawGalleryPlacementItem => ({
     placementId: "northern-coast-01",
+    order: 3,
     media: mediaDocumentOf(),
     visible: true,
     ...overrides,
   });
 
-  it("projects a visible placement with order from the caller's index", () => {
-    const placement = projectGalleryPlacement(rawOf(), 3, languages);
+  it("projects a visible placement with order from the row itself", () => {
+    const placement = projectGalleryPlacement(rawOf(), languages);
     expect(placement).toMatchObject({
       placementId: "northern-coast-01",
       order: 3,
@@ -320,7 +327,6 @@ describe("projectGalleryPlacement", () => {
   it("passes through altOverride and captionOverride", () => {
     const placement = projectGalleryPlacement(
       rawOf({ altOverride: "Custom alt", captionOverride: "Custom caption" }),
-      0,
       languages,
     );
     expect(placement?.altOverride).toBe("Custom alt");
@@ -328,21 +334,25 @@ describe("projectGalleryPlacement", () => {
   });
 
   it("reflects the placement's own visible: false", () => {
-    const placement = projectGalleryPlacement(rawOf({ visible: false }), 0, languages);
+    const placement = projectGalleryPlacement(rawOf({ visible: false }), languages);
     expect(placement?.visible).toBe(false);
   });
 
   it("resolves to undefined — not a thrown error — when the media is not publicly renderable (ADR-0002 §3)", () => {
     const placement = projectGalleryPlacement(
       rawOf({ media: mediaDocumentOf({ publiclyRenderable: false }) }),
-      0,
       languages,
     );
     expect(placement).toBeUndefined();
   });
 
   it("still throws for a genuinely malformed row: no placementId", () => {
-    const error = rejectionOf(() => projectGalleryPlacement(rawOf({ placementId: undefined }), 0, languages));
+    const error = rejectionOf(() => projectGalleryPlacement(rawOf({ placementId: undefined }), languages));
+    expect(error.rejection).toBe("malformed-result");
+  });
+
+  it("still throws for a genuinely malformed row: no usable order", () => {
+    const error = rejectionOf(() => projectGalleryPlacement(rawOf({ order: -1 }), languages));
     expect(error.rejection).toBe("malformed-result");
   });
 
@@ -350,9 +360,280 @@ describe("projectGalleryPlacement", () => {
     expect(() =>
       projectGalleryPlacement(
         rawOf({ media: mediaDocumentOf({ alt: [] }) }),
-        0,
         languages,
       ),
     ).toThrow();
+  });
+});
+
+describe("readSanityCuratedGalleryPage", () => {
+  const CONTENT_ID = "content-large-archive";
+  const TEST_SIGNING_KEY = "a".repeat(32);
+  const testCursorCodec = createHmacGalleryCursorCodec(TEST_SIGNING_KEY);
+  const LARGE_ARCHIVE_SIZE = 400;
+
+  type FixturePlacement = {
+    readonly placementId: string;
+    readonly order: number;
+    readonly sectionId?: string;
+    readonly visible: boolean;
+    readonly media: RawPublicMediaDocument;
+  };
+
+  function buildLargeArchive(): readonly FixturePlacement[] {
+    return Array.from({ length: LARGE_ARCHIVE_SIZE }, (_unused, index) => {
+      const position = index + 1;
+      const sectionId = position <= 150 ? "early" : position <= 300 ? "late" : undefined;
+      return {
+        placementId: `large-archive-${String(position).padStart(4, "0")}`,
+        order: index,
+        visible: true,
+        media: mediaDocumentOf({ mediaId: `media-${position}` }),
+        ...(sectionId === undefined ? {} : { sectionId }),
+      };
+    });
+  }
+
+  /**
+   * A fake Content Lake that answers exactly the two query shapes
+   * `sanity-gallery.ts`'s bounded source issues — dispatched by `request.tag`
+   * and computed from `request.params` — rather than a general GROQ
+   * interpreter. It applies the same visible/publiclyRenderable/section
+   * filter and `(order, placementId)` keyset comparison the real GROQ this
+   * adapter sends is built to express, so a pagination walk through it
+   * exercises the adapter's own query construction and cursor handling, not
+   * a second copy of the pagination logic under test.
+   */
+  function fakeGalleryStore(options: {
+    readonly placements: readonly FixturePlacement[];
+    readonly sections?: readonly { readonly sectionId: string; readonly slug: string; readonly label: string }[];
+    readonly orderingRule?: string;
+    readonly contentId?: string;
+  }): { readonly client: SanityClient; readonly requests: SanityQueryRequest[] } {
+    const requests: SanityQueryRequest[] = [];
+    const galleryContentId = options.contentId ?? CONTENT_ID;
+
+    const toRow = (placement: FixturePlacement) => ({
+      placementId: placement.placementId,
+      order: placement.order,
+      sectionId: placement.sectionId ?? null,
+      visible: placement.visible,
+      altOverride: null,
+      captionOverride: null,
+      media: placement.media,
+    });
+
+    const client: SanityClient = {
+      async query(request) {
+        requests.push(request);
+        const params = (request.params ?? {}) as Record<string, unknown>;
+
+        if (request.tag === "gallery.placements.basics") {
+          if (params.contentId !== galleryContentId) {
+            return { gallery: null, latestPlacementUpdatedAt: null };
+          }
+          return {
+            gallery: {
+              orderingRule: options.orderingRule ?? "manual",
+              sections: (options.sections ?? []).map((section) => ({
+                sectionId: section.sectionId,
+                slug: section.slug,
+                label: section.label,
+              })),
+            },
+            latestPlacementUpdatedAt: "2026-01-01T00:00:00.000Z",
+          };
+        }
+
+        if (request.tag === "gallery.placements.window") {
+          const sectionId = params.sectionId as string | undefined;
+          const candidateLimit = params.candidateLimit as number;
+          const afterOrder = params.afterOrder as number | undefined;
+          const afterPlacementId = params.afterPlacementId as string | undefined;
+
+          const matching = options.placements.filter(
+            (placement) =>
+              placement.visible &&
+              placement.media.publiclyRenderable === true &&
+              (sectionId === undefined || placement.sectionId === sectionId),
+          );
+          const sorted = matching.toSorted(
+            (a, b) => a.order - b.order || (a.placementId < b.placementId ? -1 : a.placementId > b.placementId ? 1 : 0),
+          );
+
+          if (afterPlacementId === undefined) {
+            return sorted.slice(0, candidateLimit).map(toRow);
+          }
+
+          const boundary = sorted.find((placement) => placement.placementId === afterPlacementId);
+          const candidates = sorted
+            .filter(
+              (placement) =>
+                placement.order > (afterOrder as number) ||
+                (placement.order === afterOrder && placement.placementId > afterPlacementId),
+            )
+            .slice(0, candidateLimit);
+
+          return {
+            boundary: boundary === undefined ? null : toRow(boundary),
+            candidates: candidates.map(toRow),
+          };
+        }
+
+        throw new Error(`no fixture behavior for tag "${request.tag}"`);
+      },
+    };
+
+    return { client, requests };
+  }
+
+  async function readPage(
+    client: SanityClient,
+    cursor?: string,
+    sectionSlug?: string,
+  ) {
+    return readSanityCuratedGalleryPage("en", CONTENT_ID, {
+      client,
+      config,
+      cursorCodec: testCursorCodec,
+      ...(cursor === undefined ? {} : { cursor }),
+      ...(sectionSlug === undefined ? {} : { sectionSlug }),
+    });
+  }
+
+  async function walkArchive(
+    client: SanityClient,
+    sectionSlug?: string,
+  ): Promise<readonly CuratedGalleryResultItem[]> {
+    const collected: CuratedGalleryResultItem[] = [];
+    let cursor: string | undefined;
+    let pages = 0;
+
+    for (;;) {
+      const page = await readPage(client, cursor, sectionSlug);
+      expect(page).toBeDefined();
+      if (page === undefined) break;
+
+      expect(page.items.length).toBeLessThanOrEqual(page.page.size);
+      collected.push(...page.items);
+      pages += 1;
+      expect(pages).toBeLessThanOrEqual(100);
+
+      if (!page.page.hasNextPage) break;
+      cursor = page.page.endCursor ?? undefined;
+    }
+
+    return collected;
+  }
+
+  it("returns undefined when no gallery matches this identity and language", async () => {
+    const { client } = fakeGalleryStore({ placements: [] });
+    const page = await readSanityCuratedGalleryPage("en", "content-does-not-exist", {
+      client,
+      config,
+      cursorCodec: testCursorCodec,
+    });
+    expect(page).toBeUndefined();
+  });
+
+  it("reads gallery basics and the first placement window in exactly two round trips", async () => {
+    const { client, requests } = fakeGalleryStore({ placements: buildLargeArchive() });
+    await readPage(client);
+    expect(requests.map((request) => request.tag)).toEqual([
+      "gallery.placements.basics",
+      "gallery.placements.window",
+    ]);
+  });
+
+  it(`reaches every one of ${LARGE_ARCHIVE_SIZE} items without duplicates or gaps across page boundaries`, async () => {
+    const { client } = fakeGalleryStore({ placements: buildLargeArchive() });
+    const items = await walkArchive(client);
+    const itemIds = items.map((item) => item.itemId);
+
+    expect(itemIds).toHaveLength(LARGE_ARCHIVE_SIZE);
+    expect(new Set(itemIds).size).toBe(LARGE_ARCHIVE_SIZE);
+    expect(itemIds).toEqual(
+      Array.from(
+        { length: LARGE_ARCHIVE_SIZE },
+        (_unused, index) => `large-archive-${String(index + 1).padStart(4, "0")}`,
+      ),
+    );
+  });
+
+  it("issues a bounded page every time, sized to GALLERY_PAGE_SIZE, with a short final page", async () => {
+    const { client } = fakeGalleryStore({ placements: buildLargeArchive() });
+    const first = await readPage(client);
+    expect(first?.page.hasNextPage).toBe(true);
+    expect(first?.items).toHaveLength(GALLERY_PAGE_SIZE);
+
+    let cursor = first?.page.endCursor ?? undefined;
+    let last = first;
+    while (last?.page.hasNextPage) {
+      last = await readPage(client, cursor);
+      if (last?.page.hasNextPage) cursor = last.page.endCursor ?? undefined;
+    }
+
+    expect(last?.page.endCursor).toBeNull();
+    expect(last?.items).toHaveLength(LARGE_ARCHIVE_SIZE % GALLERY_PAGE_SIZE);
+  });
+
+  it("continues a section spanning more than one page without loading the whole gallery", async () => {
+    const sections = [
+      { sectionId: "early", slug: "early", label: "Early" },
+      { sectionId: "late", slug: "late", label: "Late" },
+    ];
+    const { client } = fakeGalleryStore({ placements: buildLargeArchive(), sections });
+
+    const items = await walkArchive(client, "early");
+    expect(items.map((item) => item.itemId)).toEqual(
+      Array.from({ length: 150 }, (_unused, index) => `large-archive-${String(index + 1).padStart(4, "0")}`),
+    );
+  });
+
+  it("does not require a different section's window to answer the requested one", async () => {
+    const sections = [
+      { sectionId: "early", slug: "early", label: "Early" },
+      { sectionId: "late", slug: "late", label: "Late" },
+    ];
+    const { client, requests } = fakeGalleryStore({ placements: buildLargeArchive(), sections });
+    await readPage(client, undefined, "early");
+
+    const windowRequest = requests.find((request) => request.tag === "gallery.placements.window");
+    expect(windowRequest?.params?.sectionId).toBe("early");
+  });
+
+  it("excludes a hidden placement and one whose media is not publicly renderable", async () => {
+    const placements: readonly FixturePlacement[] = [
+      { placementId: "visible-01", order: 0, visible: true, media: mediaDocumentOf({ mediaId: "m1" }) },
+      { placementId: "hidden-01", order: 1, visible: false, media: mediaDocumentOf({ mediaId: "m2" }) },
+      {
+        placementId: "private-01",
+        order: 2,
+        visible: true,
+        media: mediaDocumentOf({ mediaId: "m3", publiclyRenderable: false }),
+      },
+      { placementId: "visible-02", order: 3, visible: true, media: mediaDocumentOf({ mediaId: "m4" }) },
+    ];
+    const { client } = fakeGalleryStore({ placements });
+    const page = await readPage(client);
+    expect(page?.items.map((item) => item.itemId)).toEqual(["visible-01", "visible-02"]);
+  });
+
+  it("throws a defined, loud error for a seeded-random gallery rather than mis-paginating it", async () => {
+    const { client } = fakeGalleryStore({
+      placements: buildLargeArchive().slice(0, 5),
+      orderingRule: "seeded-random",
+    });
+    const error = await readSanityCuratedGalleryPage("en", CONTENT_ID, {
+      client,
+      config,
+      cursorCodec: testCursorCodec,
+    }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(SanityGalleryError);
+    expect((error as SanityGalleryError).rejection).toBe("ordering-not-implemented");
+  });
+
+  it("reads the placement projection from the same document type the schema declares", () => {
+    expect(GALLERY_PLACEMENT_DOCUMENT_TYPE).toBe(galleryPlacementType.name);
   });
 });

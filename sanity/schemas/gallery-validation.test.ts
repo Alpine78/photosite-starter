@@ -1,108 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { GALLERY_TYPE_NAME } from "./gallery";
-import {
-  validateGalleryPlacementIdentity,
-  validateGalleryPublication,
-  type PlacementOwner,
-} from "./gallery-validation";
+import { validateGalleryPublication } from "./gallery-validation";
 import type { SchemaValidationClient, SchemaValidationContext } from "./schema-types";
-
-const currentDocument = {
-  documentId: "doc-abc",
-  contentId: "content-northern-coast",
-  language: "en",
-  slug: "northern-coast",
-  canonicalCategoryRef: null,
-  secondaryCategoryRefs: [],
-  placements: [
-    { placementId: "northern-coast-01", mediaId: "media-a" },
-    { placementId: "northern-coast-02", mediaId: "media-b", sectionId: "sec-intro" },
-  ],
-  sections: [],
-};
-
-describe("validateGalleryPlacementIdentity", () => {
-  it("passes when no other gallery shares a placement id", () => {
-    expect(validateGalleryPlacementIdentity(currentDocument, [], undefined)).toBe(true);
-  });
-
-  it("rejects a placement id repeated within this same document", () => {
-    const withDuplicate = {
-      ...currentDocument,
-      placements: [
-        { placementId: "same-id", mediaId: "media-a" },
-        { placementId: "same-id", mediaId: "media-b" },
-      ],
-    };
-    expect(validateGalleryPlacementIdentity(withDuplicate, [], undefined)).toContain(
-      "Duplicate placement id",
-    );
-  });
-
-  it("rejects a placement id already used by a different gallery (site-wide uniqueness)", () => {
-    const otherOwners: readonly PlacementOwner[] = [
-      {
-        contentId: "content-different-gallery",
-        placements: [{ placementId: "northern-coast-01", mediaId: "media-x" }],
-      },
-    ];
-    expect(
-      validateGalleryPlacementIdentity(currentDocument, otherOwners, undefined),
-    ).toContain("already used by a different gallery");
-  });
-
-  it("allows a matching placement id on a sibling-language version of the same gallery", () => {
-    const otherOwners: readonly PlacementOwner[] = [
-      {
-        contentId: currentDocument.contentId,
-        placements: [
-          { placementId: "northern-coast-01", mediaId: "media-a" },
-          { placementId: "northern-coast-02", mediaId: "media-b", sectionId: "sec-intro" },
-        ],
-      },
-    ];
-    expect(validateGalleryPlacementIdentity(currentDocument, otherOwners, undefined)).toBe(true);
-  });
-
-  it("rejects a sibling-language placement id rebound to a different photograph", () => {
-    const otherOwners: readonly PlacementOwner[] = [
-      {
-        contentId: currentDocument.contentId,
-        placements: [{ placementId: "northern-coast-01", mediaId: "media-different" }],
-      },
-    ];
-    expect(
-      validateGalleryPlacementIdentity(currentDocument, otherOwners, undefined),
-    ).toContain("different photograph or section");
-  });
-
-  it("rejects a sibling-language placement id rebound to a different section", () => {
-    const otherOwners: readonly PlacementOwner[] = [
-      {
-        contentId: currentDocument.contentId,
-        placements: [
-          { placementId: "northern-coast-02", mediaId: "media-b", sectionId: "sec-other" },
-        ],
-      },
-    ];
-    expect(
-      validateGalleryPlacementIdentity(currentDocument, otherOwners, undefined),
-    ).toContain("different photograph or section");
-  });
-
-  it("rejects replacing a published placement's media without minting a new placement id", () => {
-    const published = [{ placementId: "northern-coast-01", mediaId: "media-was-here" }];
-    expect(
-      validateGalleryPlacementIdentity(currentDocument, [], published),
-    ).toContain("already published against a different photograph");
-  });
-
-  it("allows re-publishing a placement whose media is unchanged", () => {
-    const published = [{ placementId: "northern-coast-01", mediaId: "media-a" }];
-    expect(validateGalleryPlacementIdentity(currentDocument, [], published)).toBe(true);
-  });
-});
 
 describe("validateGalleryPublication", () => {
   function harnessOf(answer: unknown) {
@@ -149,31 +49,11 @@ describe("validateGalleryPublication", () => {
     expect(queries).toHaveLength(0);
   });
 
-  it("rejects a placement referencing an undeclared section", async () => {
-    const { context } = harnessOf(undefined);
-
-    const result = await validateGalleryPublication(
-      {
-        _id: "abc",
-        contentId: "content-x",
-        language: "en",
-        slug: "x",
-        placements: [{ placementId: "p1", media: { _ref: "media-a" }, sectionId: "unknown" }],
-        sections: [],
-      },
-      context,
-      GALLERY_TYPE_NAME,
-    );
-
-    expect(result).toContain("unknown gallery section");
-  });
-
   it("blocks an ordinary edit that changes the published slug", async () => {
     const { context } = harnessOf({
       published: { language: "en", slug: "old-slug", canonicalCategoryRef: "doc-landscape" },
       categories: [landscapeCategoryRow],
       siblings: [],
-      placementOwners: [],
     });
 
     const result = await validateGalleryPublication(
@@ -197,12 +77,10 @@ describe("validateGalleryPublication", () => {
         language: "en",
         slug: "northern-coast",
         canonicalCategoryRef: null,
-        placements: [],
         sections: [{ sectionId: "sec-a", slug: "old-slug" }],
       },
       categories: [],
       siblings: [],
-      placementOwners: [],
     });
 
     const result = await validateGalleryPublication(
@@ -225,7 +103,6 @@ describe("validateGalleryPublication", () => {
       published: null,
       categories: [],
       siblings: [],
-      placementOwners: [],
     });
 
     const result = await validateGalleryPublication(
@@ -234,7 +111,6 @@ describe("validateGalleryPublication", () => {
         contentId: "content-x",
         language: "en",
         slug: "x",
-        placements: [{ placementId: "p1", media: { _ref: "media-a" } }],
         sections: [],
       },
       context,
@@ -256,7 +132,6 @@ describe("validateGalleryPublication", () => {
           secondaryCategoryRefs: [],
         },
       ],
-      placementOwners: [],
     });
 
     const result = await validateGalleryPublication(

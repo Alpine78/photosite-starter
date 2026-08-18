@@ -504,32 +504,57 @@ an article and a gallery, and a local slug collision between the two types is ca
 same way a collision between two articles already was. `gallery.ts` is one document per
 language, like `article.ts` and unlike `category.ts`, because its placement overrides and
 section labels are plain per-language text, matching `GalleryContentPage`'s own shape. Its
-curated items and named sections (AB#105) are gallery-local object arrays on the document
-itself — `placements`/`sections` — not separate document types, and its own document-level
-Studio guard (`gallery-validation.ts`) enforces what ADR-0002 leaves to be decided for a
-gallery specifically: every `placementId` is public and site-wide unique with an immutable
-media/section binding, except that the same occurrence may legitimately share one
-`placementId` across a gallery's own language versions; repeating a photograph within one
-gallery is allowed but flagged with Sanity's non-blocking `rule.warning(...)` rather than
-refused (ADR-0002 §2, closing that ADR's own deferred action item); and a section's slug is
-immutable once published, restating `gallery-sections.ts#assertGallerySectionsSlugStable`.
-A section's optional intro reuses the same restricted paragraph/list/emphasis/link model
-`gallery-sections.ts` already defines, through dedicated object types
-(`gallery-section-intro.ts`) rather than the six-kind shared body blocks, whose plain-string
-paragraphs and lists carry no inline structure. `orderingRule`/`orderingSeed` let a gallery
-declare a seeded-random ordering intent and carry its seed input now, satisfying that part
-of AB#113's acceptance criteria without building AB#129's shuffle itself; today's only
-applied ordering rule remains the placements array's own position. The read-side adapter
-(`src/lib/sanity-gallery.ts`) is deliberately narrower than the article one: it projects
-page-level metadata (title, lead, publication date, tags, optional body, an explicit cover
-only) and the bounded section catalog, plus two pure, independently unit-tested projectors —
-`projectGalleryPlacement` and `projectGallerySectionIntro` — that AB#114's still-unbuilt
-bounded/windowed placement query will call per row, rather than this story reading every
-placement eagerly itself. `projectGalleryPlacement` never rejects a whole gallery over one
-placement whose media is not publicly renderable (ADR-0002 §3's AND-composition): it
-resolves to no candidate row for that placement, distinct from throwing for a genuinely
-malformed one. Like every other content adapter, it is not wired into a route-facing seam
-yet.
+named sections (AB#105) stay a gallery-local object array on the document itself —
+`sections`, bounded to `MAX_GALLERY_SECTIONS` (20) — but its curated items do not: AB#114
+found, verified against Sanity's own technical-limits documentation, that an embedded
+`placements` array cannot be read as a bounded, keyset-paginated window without the query
+engine loading the whole document (Content Lake filters and projects whole documents; a
+single one is capped at 1,000 attributes on the Free/Growth plan, a ceiling a few hundred
+placements already approaches), so each placement is now its own `galleryPlacement`
+document (`sanity/schemas/gallery-placement.ts`), referencing its `gallery`. `order` is
+therefore an authored field rather than array position — a real authoring-experience cost
+(no more drag-to-reorder) accepted for the bounded-query property. Its own document-level
+Studio guard (`validateGalleryPlacementPublication`, one round trip per placement) enforces
+what ADR-0002 leaves to be decided for a gallery specifically: every `placementId` is
+public and site-wide unique with an immutable media/gallery binding, except that the same
+occurrence may legitimately share one `placementId` across a gallery's own language
+versions; repeating a photograph within one gallery is allowed but flagged with Sanity's
+non-blocking `rule.warning(...)` rather than refused (ADR-0002 §2, closing that ADR's own
+deferred action item); and a section's slug is immutable once published, restating
+`gallery-sections.ts#assertGallerySectionsSlugStable`. A section's optional intro reuses
+the same restricted paragraph/list/emphasis/link model `gallery-sections.ts` already
+defines, through dedicated object types (`gallery-section-intro.ts`) rather than the
+six-kind shared body blocks, whose plain-string paragraphs and lists carry no inline
+structure. `orderingRule`/`orderingSeed` let a gallery declare a seeded-random ordering
+intent and carry its seed input; [ADR-0009](docs/adr/0009-seeded-random-gallery-ordering.md)
+decides that rule's contract — a materialized, precomputed sort key recomputed on rotation,
+because GROQ has no hash function to compute one live and keyset pagination needs a stored,
+sortable field — narrowly split off AB#66's broader dynamic/keyword-gallery contract, which
+stays open. Nothing yet computes or consumes an order from `orderingRule`; today's only
+applied rule is manual (`order`), and the adapter refuses outright to serve a
+`seeded-random` gallery rather than mis-paginate it, pending the materialization AB#129
+adds against ADR-0009's decided contract. `src/lib/sanity-gallery.ts`'s
+`readSanityCuratedGalleryPage` (AB#114) is the bounded, windowed read: two HTTP round trips
+per page (this gallery's ordering rule, section catalog with intro, and a conservative
+`visibilityVersion` derived from the most recently updated matching placement's
+`_updatedAt`, then the placement window itself), composing `gallery-sections.ts`'s shared
+`CuratedGallerySectionSource` contract — an id lookup for a named cursor boundary plus a
+keyset range query for the rest, following Sanity's own documented `order > $after ||
+(order == $after && placementId > $afterId)` idiom rather than array-slice offset
+pagination — over `galleryPlacement` documents, filtered by `visible` and
+`media->publiclyRenderable` in GROQ itself so a returned row is already within
+`CuratedGallerySectionSource`'s contract and nothing here can silently shrink a page by
+dropping a row after the fetch. `projectGalleryPlacement` never rejects a whole gallery
+over one placement whose media is not publicly renderable (ADR-0002 §3's AND-composition):
+it resolves to no candidate row for that placement, distinct from throwing for a genuinely
+malformed one — though the GROQ-side filter means this call site never actually exercises
+that branch, since every row it sees already passed the same check server-side. A
+~400-placement fixture, exercised against a fake Content Lake that answers the adapter's own
+two query shapes rather than a general GROQ interpreter, walks the whole archive and a
+150-item section spanning several pages with no duplicate or missing item. Like every other
+content adapter, it is not wired into a route-facing seam yet — `src/lib/gallery.ts`'s
+`getGalleryPage` still reads only the mock layer, to avoid a mixed mock/Sanity deployment
+before every adapter is ready.
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test,
@@ -584,11 +609,11 @@ unprefixed-only for now — category listing continuation, which stays bounded t
 answers any `?cursor=` with a 404 — gallery section controls, URL wiring, and lightbox
 integration (AB#115; the section domain model and server-side query themselves are AB#105,
 above, whose bounded-query contract AB#134 has since supplied), seeded random gallery ordering
-(AB#129), lightbox zoom tuning, the gallery-item
+— ADR-0009 decides the contract, but the materialized shuffle key itself and the route
+cache-key wiring it requires remain AB#129's — lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
-sitemap/robots, structured data, the bounded/windowed Sanity gallery placement query that
-would put authored gallery items and section browsing behind the connection (AB#114) —
-the media, category, settings, home, article, service, and gallery schemas/adapters exist,
+sitemap/robots, structured data — the media, category, settings, home, article, service, and
+gallery schemas/adapters exist, including AB#114's bounded/windowed gallery placement query,
 but no route-facing seam reads any of them yet, so every page still renders from the mock
 layer — tagged caching and webhook revalidation (AB#83),
 and the deployment itself: provisioning is under way — a Vercel project exists, but
