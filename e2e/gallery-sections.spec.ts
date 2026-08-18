@@ -223,8 +223,19 @@ test("a reduced-motion visitor still gets the functional hide-on-scroll-down", a
   await expect(nav).toBeVisible();
   await expect(nav).not.toHaveClass(/-translate-y-full/);
 
-  await page.evaluate(() => window.scrollBy(0, 1200));
-  await expect(nav).toHaveClass(/-translate-y-full/);
+  // Unlike the "keeps focus visible" test above, nothing here first performs
+  // a real Playwright action (e.g. `.focus()`) whose auto-waiting incidentally
+  // guarantees the page has hydrated and the scroll listener is attached
+  // before a `scroll` event fires. A `window.scrollBy` issued too early loses
+  // that one event to nothing listening yet, and — the page already being at
+  // its scrolled position — never fires another, so a single attempt can flake
+  // under CI's slower hydration. Retrying the scroll is what closes that race:
+  // each attempt fires a fresh `scroll` event, so it succeeds as soon as
+  // hydration has actually completed.
+  await expect(async () => {
+    await page.evaluate(() => window.scrollBy(0, 1200));
+    await expect(nav).toHaveClass(/-translate-y-full/, { timeout: 1000 });
+  }).toPass();
 });
 
 test("the selected section restores from a reload, a shared link, and back/forward", async ({
