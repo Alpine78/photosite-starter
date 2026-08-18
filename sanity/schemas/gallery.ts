@@ -6,31 +6,29 @@
  *
  * ## One document per language, like `article.ts` — not like `category.ts`
  *
- * `CuratedGalleryPlacement.altOverride`/`captionOverride` are plain `string`
- * (not language-keyed arrays), and `GallerySection.label`/`intro` are plain
- * `string`/blocks. That matches `GalleryContentPage`'s own shape (`title`,
- * `summary`, `body` are plain per-language fields, exactly like
- * `ArticleContentPage`) — not `category.ts`'s one-document-every-language
- * model. So this is one document per language, identified by `contentId` +
- * `language` together, mirroring `article.ts` field for field on the page-level
- * fields. Placements and sections are gallery-local (AB#105: "membership is
- * placement-owned, never media-owned"), so they live as object arrays directly
- * on this document rather than as separate document types.
+ * `GallerySection.label`/`intro` are plain `string`/blocks, matching
+ * `GalleryContentPage`'s own shape (`title`, `summary`, `body` are plain
+ * per-language fields, exactly like `ArticleContentPage`) — not `category.ts`'s
+ * one-document-every-language model. So this is one document per language,
+ * identified by `contentId` + `language` together, mirroring `article.ts`
+ * field for field on the page-level fields. Sections are gallery-local (AB#105:
+ * "membership is placement-owned, never media-owned") and stay embedded here —
+ * a gallery declares at most `MAX_GALLERY_SECTIONS` (20), never the pagination
+ * bottleneck a placement list is.
  *
- * ## ADR-0002 obligations
+ * ## Placements live in `gallery-placement.ts`, not here
  *
- * `placementId` is public and site-wide unique, with an immutable media/
- * container binding (ADR-0002 §1) — enforced document-level by
- * `validateGalleryPlacements` in `gallery-validation.ts`, since it needs to
- * compare against every other gallery in the dataset, not just this document's
- * own array. Repeating a `mediaId` within one gallery is allowed but the
- * `placements` field below carries a `warning()` (ADR-0002 §2) — Sanity's
- * non-blocking severity, not `custom`'s hard error. Visibility composes by AND
- * (ADR-0002 §3): the `visible` field here is only the placement's own
- * subtractive bit; whether the referenced media is itself publicly renderable
- * is read separately by the adapter (`src/lib/sanity-gallery.ts`) and ANDed in
- * at project time — a placement referencing non-public media is never a reason
- * to reject this document.
+ * AB#113 originally embedded a gallery's placements as one array field on this
+ * document. AB#114 found that incompatible with its own "bounded, without
+ * loading the complete gallery" requirement — Sanity's Content Lake filters
+ * and projects whole documents, with no way to keyset-paginate a slice of one
+ * document's array field, and a ~400-placement gallery at ADR-0002 §1's field
+ * set already approaches Sanity's own 1,000-attribute document ceiling
+ * (verified against Sanity's technical-limits documentation). Each placement
+ * is therefore its own `galleryPlacement` document, referencing this one by
+ * `gallery` — see that file's module comment for what stayed the same
+ * (identity, uniqueness, immutability, visibility composing by AND per
+ * ADR-0002 §3) and what changed (`order` is authored, not array position).
  *
  * ## What is deliberately not here
  *
@@ -41,8 +39,8 @@
  * **AB#129's shuffle algorithm.** `orderingRule`/`orderingSeed` exist and are
  * validated so a gallery can already declare intent to use a seeded-random
  * order and carry the seed input, but nothing here computes or consumes an
- * order from them — manual (array position) is the only rule actually applied
- * anywhere yet.
+ * order from them — manual order is the only rule actually applied anywhere
+ * yet. ADR-0009 decides the seeded-random contract; AB#129 implements it.
  */
 
 import { CATEGORY_TYPE_NAME } from "./category";
@@ -69,8 +67,6 @@ export const GALLERY_TYPE_NAME = "gallery";
 
 /** Same shape as `article.ts`'s `contentId` — never derived, hand-minted. */
 const CONTENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-/** Site-wide unique (ADR-0002 §1); same shape as every other hand-minted id. */
-const PLACEMENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SECTION_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SECTION_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** Restates `gallery-sections.ts`'s `RESERVED_ALL_SECTION_SLUG`. */
@@ -115,103 +111,6 @@ function validatesOrderingSeed(
     ? true
     : "orderingSeed is only used while orderingRule is seeded-random";
 }
-
-type RawPlacementItem = { readonly media?: { readonly _ref?: unknown } };
-
-/**
- * ADR-0002 §2: allowed, but flagged. Pure array scan, no query — a placement's
- * uniqueness against other *documents'* placements is `validateGalleryPlacements`
- * (`gallery-validation.ts`)'s job, which does need a query.
- */
-function warnsAboutRepeatedMedia(
-  value: readonly RawPlacementItem[] | undefined,
-): SchemaValidationResult {
-  if (value === undefined) return true;
-  const seen = new Set<string>();
-  for (const item of value) {
-    const ref = item.media?._ref;
-    if (typeof ref !== "string") continue;
-    if (seen.has(ref)) {
-      return "This gallery repeats a photograph across more than one placement. Allowed (ADR-0002 §2), but confirm it is intentional — an accidental repeat is otherwise easy to miss in a large gallery.";
-    }
-    seen.add(ref);
-  }
-  return true;
-}
-
-const placementsField: SchemaFieldDefinition = {
-  name: "placements",
-  title: "Placements",
-  type: "array",
-  description:
-    "The gallery's curated, ordered items. Position in this list is the manual order (ADR-0002).",
-  of: [
-    {
-      type: "object",
-      fields: [
-        {
-          name: "placementId",
-          title: "Placement ID",
-          type: "string",
-          description:
-            "Site-wide unique occurrence identity (ADR-0002 §1). Replacing the media or moving this placement to another gallery requires a new placement id.",
-          validation: (rule) =>
-            rule.required().custom<string>((value) =>
-              value !== undefined && PLACEMENT_ID.test(value)
-                ? true
-                : "Use lowercase letters, digits, and single hyphens, e.g. northern-coast-2026-01",
-            ),
-        },
-        {
-          name: "media",
-          title: "Media",
-          type: "reference",
-          to: [{ type: MEDIA_TYPE_NAME }],
-          validation: (rule) => rule.required(),
-        },
-        {
-          name: "sectionId",
-          title: "Section",
-          type: "string",
-          description:
-            "This gallery's own section id, if any (AB#105). Validated against the sections declared below.",
-        },
-        {
-          name: "visible",
-          title: "Visible",
-          type: "boolean",
-          description:
-            "This placement's own visibility. Can only subtract from a publicly renderable photograph's visibility, never add to it (ADR-0002 §3).",
-          initialValue: true,
-          validation: (rule) => rule.required(),
-        },
-        {
-          name: "pinned",
-          title: "Pinned lead",
-          type: "boolean",
-          description:
-            "Keeps this placement first when a seeded-random ordering rule is active (AB#129). Not yet consumed by any ordering logic.",
-          initialValue: false,
-        },
-        {
-          name: "altOverride",
-          title: "Alt text override",
-          type: "string",
-          description:
-            "Optional, exceptional context override. May be left empty when this occurrence is decorative or redundant here.",
-        },
-        {
-          name: "captionOverride",
-          title: "Caption override",
-          type: "string",
-          description: "Optional. Falls back to the photograph's own caption.",
-        },
-      ],
-    },
-  ],
-  validation: (rule) =>
-    rule.warning<readonly RawPlacementItem[]>(warnsAboutRepeatedMedia),
-};
 
 const sectionsField: SchemaFieldDefinition = {
   name: "sections",
@@ -362,7 +261,7 @@ export const galleryType: SchemaTypeDefinition = {
       title: "Ordering",
       type: "string",
       description:
-        "Manual is the only rule actually applied today. Seeded-random is reserved for AB#129.",
+        "Manual is the only rule actually applied today. Seeded-random is reserved for AB#129 (ADR-0009).",
       initialValue: "manual" satisfies OrderingRule,
       options: {
         list: ORDERING_RULES.map((value) => ({
@@ -386,7 +285,6 @@ export const galleryType: SchemaTypeDefinition = {
         "Required exactly when ordering is seeded-random; unused otherwise (AB#129).",
       validation: (rule) => rule.custom(validatesOrderingSeed),
     },
-    placementsField,
     sectionsField,
     defineContentBodyField({
       name: "body",

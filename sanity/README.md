@@ -110,31 +110,53 @@ with `article.ts` through `content-placement-validation.ts`, which both document
 guards call so a `contentId` cannot be claimed by both an article and a gallery, and a
 local slug namespace collision is caught regardless of which of the two types causes it.
 
-A gallery's own curated items and named sections (AB#105) are gallery-local object arrays
-on the document — `placements` and `sections` — not separate document types, since
-ADR-0002 places section membership on the placement, never the photograph. Every
-`placementId` is public and site-wide unique with an immutable media binding
-(ADR-0002 §1); `gallery-validation.ts` enforces that document-level, including the rule
-this repository adds for what ADR-0002's MVP text left open: the same occurrence in two
-language versions of one gallery shares one `placementId`, and only when it keeps naming
-the same photograph and section. Repeating a photograph within one gallery is allowed but
-flagged with `rule.warning(...)` — Sanity's non-blocking severity — rather than refused
-(ADR-0002 §2). A placement's own `visible` flag is purely subtractive; whether the
-referenced photograph is itself publicly renderable is a separate question the read-side
-adapter (`src/lib/sanity-gallery.ts`) answers by excluding such a placement entirely,
-never by rejecting the whole gallery (ADR-0002 §3's AND-composition). A section's optional
-`intro` reuses the shared paragraph/list rich-text model in `gallery-section-intro.ts` —
-its own dedicated object types, not the six-kind `content-block.ts` set, since an intro
-needs inline emphasis and links that the shared body blocks' plain-string paragraphs and
-lists do not carry. `orderingRule`/`orderingSeed` let a gallery already declare a
-seeded-random ordering intent and carry its seed input; nothing yet computes an order from
-them (AB#129), and today's only applied rule is the placements array's own position.
+A gallery's named sections (AB#105) stay a gallery-local object array on the document —
+`sections` — bounded to `MAX_GALLERY_SECTIONS` (20) and never the pagination bottleneck a
+placement list is. A gallery's own curated items are a separate document type,
+`gallery-placement.ts` (`galleryPlacement`), each referencing its `gallery` — **not** an
+embedded array, unlike `sections`. AB#113 originally embedded placements the same way as
+sections; AB#114 found that incompatible with its own "bounded, without loading the
+complete gallery" requirement, verified against Sanity's own documentation: the Content
+Lake filters and projects whole documents, with no way to keyset-paginate a slice of one
+document's array field, and a document is capped at 1,000 attributes (Free/Growth plan) —
+a ceiling a few hundred placements already approaches. Splitting placements into their own
+documents is what lets `src/lib/sanity-gallery.ts` answer one page of a gallery with an id
+lookup plus a keyset range query, the same shape `content-listing.ts` already uses for
+articles under one category, instead of loading every placement to answer any one page.
 
-The bounded, windowed read of a gallery's placements — and the cover fallback to the first
-visible placement when none is explicitly authored — is deliberately not implemented by
-this schema/adapter pair (AB#113): that is AB#114's job, over the pure, independently
-tested projectors `src/lib/sanity-gallery.ts` already provides
-(`projectGalleryPlacement`, `projectGallerySectionIntro`).
+Every `placementId` is public and site-wide unique with an immutable media/gallery binding
+(ADR-0002 §1); `gallery-placement.ts`'s own Studio validation enforces that in one round
+trip per document, including the rule this repository adds for what ADR-0002's MVP text
+left open: the same occurrence in two language versions of one gallery shares one
+`placementId`, and only when it keeps naming the same photograph and section. Repeating a
+photograph within one gallery is allowed but flagged with `rule.warning(...)` — Sanity's
+non-blocking severity — rather than refused (ADR-0002 §2). A placement's own `visible` flag
+is purely subtractive; whether the referenced photograph is itself publicly renderable is a
+separate question the read-side adapter answers by excluding such a placement entirely,
+never by rejecting the whole gallery (ADR-0002 §3's AND-composition) — and, since AB#114's
+bounded query filters on `media->publiclyRenderable` directly, a returned row is always
+already excludable-or-not decided before it ever reaches that adapter code. `order` is an
+authored field on each placement document, not array position — splitting placements into
+documents left nothing for a position to be, a real authoring-experience cost (no more
+drag-to-reorder) accepted for the bounded-query property. A section's optional `intro`
+reuses the shared paragraph/list rich-text model in `gallery-section-intro.ts` — its own
+dedicated object types, not the six-kind `content-block.ts` set, since an intro needs
+inline emphasis and links that the shared body blocks' plain-string paragraphs and lists do
+not carry. `orderingRule`/`orderingSeed` let a gallery already declare a seeded-random
+ordering intent and carry its seed input; [ADR-0009](../docs/adr/0009-seeded-random-gallery-ordering.md)
+decides that rule's contract (a materialized, precomputed sort key — GROQ has no hash
+function to compute one live), but nothing yet computes or consumes an order from it —
+AB#114's adapter refuses to serve a `seeded-random` gallery outright rather than
+mis-paginate it, and AB#129 implements the materialization ADR-0009 requires.
+
+The bounded, windowed read of a gallery's placements is `src/lib/sanity-gallery.ts`'s
+`readSanityCuratedGalleryPage` (AB#114), composing `gallery-sections.ts`'s shared
+`CuratedGallerySectionSource` contract over `galleryPlacement` documents. The cover
+fallback to the first visible placement when none is explicitly authored remains
+unimplemented at the route-facing seam, matching every other Sanity adapter built so far
+(settings, home, article, service, and this one) — the adapter exists and is tested, but
+`src/lib/gallery.ts`'s route-facing `getGalleryPage` still reads only the mock layer, to
+avoid a mixed mock/Sanity deployment before every adapter is ready.
 
 Copying the files works too — they have no imports to satisfy — but a copy drifts. Prefer
 a path, a submodule, or a workspace dependency, so a schema change arriving from upstream

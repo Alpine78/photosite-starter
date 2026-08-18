@@ -30,12 +30,20 @@ import "server-only";
 
 import type { GalleryContentPage } from "@/lib/content-page";
 import type { ContentPlacementInput } from "@/lib/content-tree";
-import type { CuratedGalleryPlacement } from "@/lib/gallery-pagination";
 import type {
-  GallerySectionIntroBlock,
-  GallerySectionInlineMark,
-  GallerySectionInlineSpan,
-  GallerySectionSummary,
+  CuratedGalleryPlacement,
+  GalleryCursorCodec,
+} from "@/lib/gallery-pagination";
+import {
+  readCuratedGallerySectionPage,
+  type CuratedGalleryPage,
+  type CuratedGallerySectionSource,
+  type GallerySection,
+  type GallerySectionFilter,
+  type GallerySectionIntroBlock,
+  type GallerySectionInlineMark,
+  type GallerySectionInlineSpan,
+  type GallerySectionSummary,
 } from "@/lib/gallery-sections";
 import {
   CONTENT_BLOCK_PROJECTION,
@@ -69,6 +77,9 @@ const CONTENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const GALLERY_FILTER = `_type == "${GALLERY_DOCUMENT_TYPE}" && language == $language`;
 
+/** How many items one bounded page of a Sanity-backed gallery holds. */
+export const GALLERY_PAGE_SIZE = 24;
+
 /**
  * The gallery *page's* placement in the category tree — `contentId`, `slug`,
  * `canonicalCategoryRef`, `secondaryCategoryRefs` — unrelated to the gallery's
@@ -98,7 +109,9 @@ export type SanityGalleryRejection =
   | "incomplete-document"
   | "malformed-section"
   | "ambiguous-content-id"
-  | "malformed-result";
+  | "malformed-result"
+  /** The gallery's `orderingRule` is `seeded-random`, which this adapter does not yet implement (ADR-0009, AB#129). */
+  | "ordering-not-implemented";
 
 export class SanityGalleryError extends Error {
   readonly rejection: SanityGalleryRejection;
@@ -624,12 +637,29 @@ export function projectGallerySectionIntro(
 
 export type RawGalleryPlacementItem = {
   readonly placementId?: unknown;
+  readonly order?: unknown;
   readonly media?: unknown;
   readonly sectionId?: unknown;
   readonly visible?: unknown;
   readonly altOverride?: unknown;
   readonly captionOverride?: unknown;
 };
+
+/**
+ * `order` is now an authored field on the `galleryPlacement` document
+ * (AB#114 — see that schema's module comment for why it is no longer array
+ * position), so it is read off the row rather than supplied by a caller.
+ */
+function readOrder(value: unknown, placementId: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "a gallery placement has no usable order (expected a non-negative integer)",
+      placementId,
+    );
+  }
+  return value;
+}
 
 /**
  * Projects one raw placement row into `CuratedGalleryPlacement`, or `undefined`
@@ -650,21 +680,22 @@ export type RawGalleryPlacementItem = {
  * which are content defects distinct from ADR-0002 §3's ordinary visibility
  * composition.
  *
- * `order` comes from the caller's own array index (matching
- * `mock-gallery.ts`'s "position is the manual order" convention). Pure and
- * unit-tested independently of any query — this is the function AB#114's
- * bounded query calls per row, not something AB#113 calls itself from an
- * eager "fetch everything" read.
+ * `order` is read from the row itself, not supplied by a caller: it is an
+ * authored field on the `galleryPlacement` document (AB#114), not array
+ * position — see `readOrder` and `gallery-placement.ts`'s module comment.
+ * Pure and unit-tested independently of any query — this is the function
+ * AB#114's bounded query calls per row, not something AB#113 calls itself
+ * from an eager "fetch everything" read.
  */
 export function projectGalleryPlacement(
   raw: RawGalleryPlacementItem,
-  order: number,
   options: PublicMediaLanguage & { readonly config: SanityConfig },
 ): CuratedGalleryPlacement | undefined {
   const placementId = readString(raw.placementId);
   if (placementId === undefined) {
     throw new SanityGalleryError("malformed-result", "a gallery placement has no placementId");
   }
+  const order = readOrder(raw.order, placementId);
   if (!isRecord(raw.media)) {
     throw new SanityGalleryError(
       "malformed-result",
@@ -692,4 +723,344 @@ export function projectGalleryPlacement(
     ...(altOverride !== undefined ? { altOverride } : {}),
     ...(captionOverride !== undefined ? { captionOverride } : {}),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Bounded windowed placement query (AB#114): CuratedGallerySectionSource over
+// galleryPlacement documents, composed with readCuratedGallerySectionPage.
+// ---------------------------------------------------------------------------
+
+/** The document type AB#114's placements live in — see gallery-placement.ts. */
+export const GALLERY_PLACEMENT_DOCUMENT_TYPE = "galleryPlacement";
+
+const GALLERY_PLACEMENT_ITEM_PROJECTION = `{
+  placementId,
+  order,
+  sectionId,
+  visible,
+  altOverride,
+  captionOverride,
+  "media": media->${PUBLIC_MEDIA_PROJECTION}
+}`;
+
+/**
+ * The clauses every bounded placement query needs, regardless of section
+ * filter or cursor: this gallery (by contentId+language, dereferenced through
+ * `gallery->` rather than looked up by document id first — a placement names
+ * its gallery once and every query filters through that reference directly),
+ * visible, and its media already publicly renderable. Filtering visibility
+ * and public renderability in GROQ itself, not after the fetch, is what keeps
+ * a bounded window inside `CuratedGallerySectionSource`'s contract: every
+ * returned row is already usable, so nothing here can silently shrink a page
+ * below its requested size by dropping a row after the fact.
+ */
+function buildPlacementFilter(sectionId: string | undefined): string {
+  const sectionClause = sectionId === undefined ? "" : " && sectionId == $sectionId";
+  return `_type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery->contentId == $contentId && gallery->language == $language && visible == true && media->publiclyRenderable == true${sectionClause}`;
+}
+
+function sectionIdOf(filter: GallerySectionFilter): string | undefined {
+  return filter.kind === "section" ? filter.section.sectionId : undefined;
+}
+
+function readPlacementRow(value: unknown): RawGalleryPlacementItem {
+  if (!isRecord(value)) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "the content store answered a placement query with something other than a placement row",
+    );
+  }
+  return value as RawGalleryPlacementItem;
+}
+
+function readPlacementRows(value: unknown): readonly RawGalleryPlacementItem[] {
+  if (!Array.isArray(value)) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "the content store answered a placement query with something other than a list of rows",
+    );
+  }
+  return value.map(readPlacementRow);
+}
+
+type RawGalleryWindowQueryResult = {
+  readonly boundary?: unknown;
+  readonly candidates?: unknown;
+};
+
+function readWindowQueryResult(value: unknown): {
+  readonly boundary: RawGalleryPlacementItem | undefined;
+  readonly candidates: readonly RawGalleryPlacementItem[];
+} {
+  if (!isRecord(value)) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "the content store answered a windowed placement query with something other than the expected {boundary, candidates} shape",
+    );
+  }
+  const raw = value as RawGalleryWindowQueryResult;
+  const boundary =
+    raw.boundary === null || raw.boundary === undefined
+      ? undefined
+      : readPlacementRow(raw.boundary);
+  return { boundary, candidates: readPlacementRows(raw.candidates) };
+}
+
+/**
+ * Turns a projected `CuratedGalleryPlacement | undefined` back into a
+ * required value, for a row this function's own GROQ filter already
+ * guarantees is publicly renderable. `projectGalleryPlacement` only returns
+ * `undefined` when `!isPubliclyRenderable`, and every row reaching this point
+ * already matched `media->publiclyRenderable == true` in the same query — so
+ * `undefined` here can only mean the store's own filter and the adapter's own
+ * re-check disagree, which is a contract violation to raise, not a row to
+ * quietly drop and shrink the page.
+ */
+function assertAlreadyPublic(
+  placement: CuratedGalleryPlacement | undefined,
+): CuratedGalleryPlacement {
+  if (placement === undefined) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "a bounded placement query returned a row the store's own publiclyRenderable filter should already have excluded",
+    );
+  }
+  return placement;
+}
+
+/**
+ * `CuratedGallerySectionSource` (`gallery-sections.ts`) over `galleryPlacement`
+ * documents: one HTTP round trip per page — an id lookup for the boundary
+ * (only when the request names one) plus a keyset range query for the rest,
+ * both scoped to this gallery's contentId+language and the resolved section
+ * filter, never "every placement matching this filter" (AB#134). The
+ * candidate range follows Sanity's own documented two-field keyset idiom
+ * (`order > $after || (order == $after && placementId > $afterId)`, GROQ's
+ * recommended alternative to array-slice pagination — verified against
+ * https://www.sanity.io/docs/developer-guides/paginating-with-groq) rather
+ * than `[n...m]` offset slicing.
+ */
+function createSanityCuratedGallerySource(
+  client: SanityClient,
+  options: { readonly config: SanityConfig; readonly fallbackLanguage: string },
+): CuratedGallerySectionSource {
+  return async ({ locale, contentId, filter, window }) => {
+    const language = toLanguageSubtag(locale);
+    const sectionId = sectionIdOf(filter);
+    const placementFilter = buildPlacementFilter(sectionId);
+    const baseParams: Record<string, unknown> = {
+      contentId,
+      language,
+      candidateLimit: window.candidateLimit,
+      ...(sectionId === undefined ? {} : { sectionId }),
+    };
+
+    const { boundary: rawBoundary, candidates: rawCandidates } =
+      window.after === undefined
+        ? {
+            boundary: undefined,
+            candidates: readPlacementRows(
+              await client.query({
+                query: `*[${placementFilter}] | order(order asc, placementId asc) [0...$candidateLimit]${GALLERY_PLACEMENT_ITEM_PROJECTION}`,
+                params: baseParams,
+                tag: "gallery.placements.window",
+              }),
+            ),
+          }
+        : readWindowQueryResult(
+            await client.query({
+              query: `{
+                "boundary": *[${placementFilter} && placementId == $afterPlacementId][0]${GALLERY_PLACEMENT_ITEM_PROJECTION},
+                "candidates": *[${placementFilter} && (order > $afterOrder || (order == $afterOrder && placementId > $afterPlacementId))] | order(order asc, placementId asc) [0...$candidateLimit]${GALLERY_PLACEMENT_ITEM_PROJECTION}
+              }`,
+              params: {
+                ...baseParams,
+                afterOrder: window.after.order,
+                afterPlacementId: window.after.placementId,
+              },
+              tag: "gallery.placements.window",
+            }),
+          );
+
+    const languages: PublicMediaLanguage = {
+      language,
+      fallbackLanguage: options.fallbackLanguage,
+    };
+    const projectOptions = { ...languages, config: options.config };
+
+    const boundary =
+      rawBoundary === undefined
+        ? undefined
+        : assertAlreadyPublic(projectGalleryPlacement(rawBoundary, projectOptions));
+    const candidates = rawCandidates.map((row) =>
+      assertAlreadyPublic(projectGalleryPlacement(row, projectOptions)),
+    );
+
+    return { ...(boundary === undefined ? {} : { boundary }), candidates };
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Ordering + section catalog basics, and the top-level bounded page read.
+// ---------------------------------------------------------------------------
+
+/**
+ * The only rule this adapter applies. `gallery.ts`'s schema already lets an
+ * author declare `seeded-random`; ADR-0009 decides that rule's contract but
+ * defers the materialized shuffle key it requires to AB#129 (see that ADR's
+ * action items). A gallery declaring it gets a defined, loud refusal here,
+ * not a silent fall-back to manual order — publishing under the wrong rule is
+ * a worse failure than refusing to serve the page at all.
+ */
+function resolveOrderingScope(orderingRule: unknown, contentId: string): string {
+  if (orderingRule === "manual") return "manual-v1";
+  if (orderingRule === "seeded-random") {
+    throw new SanityGalleryError(
+      "ordering-not-implemented",
+      "this gallery's ordering rule is seeded-random, which this adapter does not yet implement — ADR-0009 decides the contract, AB#129 implements the materialized shuffle key it requires",
+      contentId,
+    );
+  }
+  throw new SanityGalleryError(
+    "malformed-result",
+    `the gallery has no usable orderingRule: ${JSON.stringify(orderingRule)}`,
+    contentId,
+  );
+}
+
+type RawGalleryPaginationSection = RawGallerySectionSummary & { readonly intro?: unknown };
+
+function projectGalleryPaginationSection(
+  raw: RawGalleryPaginationSection,
+  order: number,
+  contentId: string,
+): GallerySection {
+  const summary = projectGallerySectionSummary(raw, order, contentId);
+  const intro = projectGallerySectionIntro(
+    raw.intro as readonly RawGallerySectionIntroBlock[] | undefined,
+  );
+  return { ...summary, ...(intro.length > 0 ? { intro } : {}) };
+}
+
+function readGallerySections(value: unknown, contentId: string): readonly GallerySection[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || !value.every(isRecord)) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "the content store answered with something other than a list of gallery sections",
+      contentId,
+    );
+  }
+  return (value as readonly RawGalleryPaginationSection[]).map((raw, index) =>
+    projectGalleryPaginationSection(raw, index, contentId),
+  );
+}
+
+type RawGalleryPaginationBasics = {
+  readonly gallery: {
+    readonly orderingRule?: unknown;
+    readonly sections?: unknown;
+  } | null;
+  readonly latestPlacementUpdatedAt?: unknown;
+};
+
+function readPaginationBasics(value: unknown, contentId: string): RawGalleryPaginationBasics {
+  if (!isRecord(value) || !("gallery" in value)) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "the content store answered the gallery pagination read with an unexpected shape",
+      contentId,
+    );
+  }
+  const gallery = value.gallery;
+  if (gallery !== null && !isRecord(gallery)) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "the content store answered with a gallery that is neither a document nor null",
+      contentId,
+    );
+  }
+  return value as RawGalleryPaginationBasics;
+}
+
+const GALLERY_PAGINATION_BASICS_QUERY = `{
+  "gallery": *[${GALLERY_FILTER} && contentId == $contentId][0]{
+    orderingRule,
+    sections[]{sectionId, slug, label, intro}
+  },
+  "latestPlacementUpdatedAt": *[
+    _type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" &&
+    gallery->contentId == $contentId &&
+    gallery->language == $language
+  ] | order(_updatedAt desc) [0]._updatedAt
+}`;
+
+/**
+ * One bounded page of a Sanity-backed curated gallery, mirroring
+ * `mock-gallery.ts#getMockGalleryResult`'s call shape so `gallery.ts`'s route-
+ * facing seam can switch sources without a route or component change (AB#114's
+ * own acceptance criterion). Two HTTP round trips per page: this gallery's
+ * ordering rule, section catalog, and `visibilityVersion` input, then the
+ * bounded placement window `readCuratedGallerySectionPage` requests from
+ * `createSanityCuratedGallerySource` above — never a gallery's complete
+ * placement list.
+ *
+ * `visibilityVersion` is the most recently updated matching placement's
+ * `_updatedAt`, read through the same bounded `order() [0]` shape as every
+ * other query here — not a dedicated authored counter. This is a deliberately
+ * conservative approximation of `GalleryCursorScope.visibilityVersion`'s
+ * documented ideal ("appends and presentation-only edits deliberately keep
+ * the same version"): it is *safe* (a reorder, hide/show, or section
+ * reassignment always bumps a placement's own `_updatedAt`, so it can never
+ * fail to invalidate a boundary that moved) but not *precise* (a caption-only
+ * edit, or a brand-new placement's own first `_updatedAt`, also bumps it,
+ * invalidating outstanding cursors that a perfectly precise version would
+ * have left alone). Getting this exactly right needs a dedicated field this
+ * story does not add.
+ */
+export async function readSanityCuratedGalleryPage(
+  locale: string,
+  contentId: string,
+  options: {
+    readonly cursor?: string;
+    readonly sectionSlug?: string;
+    readonly cursorCodec?: GalleryCursorCodec;
+    readonly client?: SanityClient;
+    readonly config?: SanityConfig;
+  } = {},
+): Promise<CuratedGalleryPage | undefined> {
+  const client = options.client ?? getSanityClient();
+  const config = options.config ?? getSanityConfig();
+  const language = toLanguageSubtag(locale);
+  const fallbackLanguage = getFallbackLocale();
+
+  const raw = await client.query({
+    query: GALLERY_PAGINATION_BASICS_QUERY,
+    params: { contentId, language },
+    tag: "gallery.placements.basics",
+  });
+
+  const basics = readPaginationBasics(raw, contentId);
+  if (basics.gallery === null) return undefined;
+
+  const ordering = resolveOrderingScope(basics.gallery.orderingRule, contentId);
+  const sections = readGallerySections(basics.gallery.sections, contentId);
+  const visibilityVersion = readString(basics.latestPlacementUpdatedAt) ?? "none";
+
+  const source = createSanityCuratedGallerySource(client, { config, fallbackLanguage });
+
+  return readCuratedGallerySectionPage({
+    query: {
+      locale,
+      contentId,
+      pageSize: GALLERY_PAGE_SIZE,
+      ordering,
+      visibilityVersion,
+      ...(options.sectionSlug === undefined ? {} : { sectionSlug: options.sectionSlug }),
+      ...(options.cursor === undefined ? {} : { cursor: options.cursor }),
+    },
+    sections,
+    source,
+    ...(options.cursorCodec === undefined ? {} : { cursorCodec: options.cursorCodec }),
+  });
 }

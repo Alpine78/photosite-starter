@@ -17,6 +17,7 @@ import { articleType } from "./article";
 import { categoryType } from "./category";
 import { contentBlockTypes } from "./content-block";
 import { galleryType } from "./gallery";
+import { galleryPlacementType } from "./gallery-placement";
 import { gallerySectionIntroTypes } from "./gallery-section-intro";
 import { homePageType } from "./home-page";
 import { localizedSlugType } from "./localized-slug";
@@ -51,6 +52,7 @@ export function defineSchemaTypes(
     ...gallerySectionIntroTypes,
     articleType,
     galleryType,
+    galleryPlacementType,
     serviceType,
   ];
 }
