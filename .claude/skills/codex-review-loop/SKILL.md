@@ -69,7 +69,7 @@ phase too — check it before step 2's call, even though the rest of the
    treat it as authoritative, and do not spend tool calls trying to re-fetch
    it yourself. (Codex's default sandbox cannot reach it anyway; a past run
    burned a full round discovering that the hard way and then refusing to
-   review at all — see step 5.)
+   review at all — see step 6.)
 
    <plan text, verbatim>
    EOF
@@ -89,7 +89,18 @@ phase too — check it before step 2's call, even though the rest of the
    Codex** — this phase is bounded at exactly one round; the iterative
    back-and-forth belongs to "The loop" after implementation, not here.
 
-5. Two different failure shapes here, and only one earns a retry:
+5. **Optional manual review checkpoint.** Even when step 4's scope check
+   doesn't trigger a mandatory check-back, surface the revised plan to the
+   user before implementation starts: a short summary of what Codex flagged
+   and how the plan changed in response (or that nothing changed, if Codex's
+   concerns didn't hold up). This is a visibility offer, not a hard stop —
+   in Auto Mode, state the summary and proceed unless the user objects;
+   don't block waiting for an explicit go-ahead on every round. The point is
+   that a plan revision driven by an external tool's feedback stays
+   reviewable by the human even when it's too small to trip the mandatory
+   check-back in step 4.
+
+6. Two different failure shapes here, and only one earns a retry:
    - **The call itself fails to complete** (auth, crash, timeout): report
      the exact blocker and stop before implementing. Do not retry in a hot
      loop chasing a working plan review, and do not silently skip the phase
