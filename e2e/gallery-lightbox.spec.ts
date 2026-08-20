@@ -4,6 +4,7 @@ import {
   getCanonicalContentPath,
 } from "../src/lib/content-tree";
 import { getBuiltInLabels } from "@/lib/deployment-config";
+import { createHmacGalleryCursorCodec } from "../src/lib/gallery-pagination";
 import { getMockGalleryResult } from "../src/lib/mock-gallery";
 import { mockContentPages } from "../src/lib/mock-content-pages";
 import { mockContentTreeInputs } from "../src/lib/mock-content-tree";
@@ -94,6 +95,66 @@ async function emptyDefaultLocaleGallery(): Promise<string> {
   throw new Error("[e2e] The harness needs one published gallery with no items.");
 }
 
+/**
+ * Some galleries this suite scans (`content-large-archive`) are large enough
+ * to paginate, and a paginated result cannot be built without a codec to
+ * sign its continuation cursor — even for a first page that itself fits.
+ */
+const harnessCursorCodec = createHmacGalleryCursorCodec(
+  appUnderTestEnvironment.GALLERY_CURSOR_SIGNING_KEY,
+);
+
+/**
+ * A curated gallery whose first page places one photograph under two
+ * different result identities (ADR-0002 §2 allows exactly this). The base
+ * smoke test needs one to prove itemId/mediaId separation for real: in a
+ * gallery with one placement per photograph, an implementation that keyed
+ * `data-item-id` — or focus return — off `mediaId` instead of `itemId`
+ * would pass every other check here by accident, since the two only ever
+ * disagree once one photograph occupies more than one placement.
+ */
+async function repeatedMediaGallery(): Promise<{
+  readonly path: string;
+  /** Every item's `itemId`, in the source's own authoritative order. */
+  readonly expectedItemIds: readonly string[];
+  /** Indexes, in that same order, of the two placements sharing one mediaId. */
+  readonly repeated: readonly [number, number];
+}> {
+  const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
+  const treeInput = mockContentTreeInputs[language];
+  if (treeInput === undefined) {
+    throw new Error(`[e2e] The default locale ${language} publishes no mock tree.`);
+  }
+
+  const tree = buildContentTree(treeInput);
+  for (const [contentId, page] of mockContentPages[language] ?? []) {
+    if (page.variant !== "gallery") continue;
+
+    const path = getCanonicalContentPath(tree, contentId);
+    const result = await getMockGalleryResult(language, contentId, {
+      cursorCodec: harnessCursorCodec,
+    });
+    if (path === null || result === undefined) continue;
+
+    const firstIndexOfMediaId = new Map<string, number>();
+    for (const [index, item] of result.items.entries()) {
+      const firstIndex = firstIndexOfMediaId.get(item.mediaId);
+      if (firstIndex !== undefined) {
+        return {
+          path: `${STORY_ROOT}/${path.join("/")}`,
+          expectedItemIds: result.items.map((entry) => entry.itemId),
+          repeated: [firstIndex, index],
+        };
+      }
+      firstIndexOfMediaId.set(item.mediaId, index);
+    }
+  }
+
+  throw new Error(
+    "[e2e] The harness needs one gallery whose first page places one photograph under two placements.",
+  );
+}
+
 const STORY_ROOT = `/${DEFAULT_STORY_NAMESPACE}`;
 
 /**
@@ -103,10 +164,16 @@ const STORY_ROOT = `/${DEFAULT_STORY_NAMESPACE}`;
  */
 let GALLERY_PATH: string;
 let EMPTY_GALLERY_PATH: string;
+let REPEATED_MEDIA_GALLERY: {
+  readonly path: string;
+  readonly expectedItemIds: readonly string[];
+  readonly repeated: readonly [number, number];
+};
 
 test.beforeAll(async () => {
   GALLERY_PATH = await firstDefaultLocaleGallery();
   EMPTY_GALLERY_PATH = await emptyDefaultLocaleGallery();
+  REPEATED_MEDIA_GALLERY = await repeatedMediaGallery();
 });
 
 /** The unprefixed route under test belongs to the harness's default locale. */
@@ -280,6 +347,55 @@ test("the gallery grid opens a lightbox that navigates and closes by keyboard", 
   });
 
   expect(externalRequests).toEqual([]);
+});
+
+test("data-item-id stays distinct from mediaId, matches the source's own order, and survives a reload — even for a photograph placed twice", async ({
+  page,
+}) => {
+  // The mixed-ratio gallery `firstDefaultLocaleGallery` finds above places
+  // one photograph per placement, so distinctness and non-emptiness alone —
+  // asserted in the previous test — cannot tell `data-item-id={item.itemId}`
+  // apart from the AB#106/AB#88-violating `data-item-id={item.mediaId}`: with
+  // no repeated photograph, both would mint the same, all-distinct values.
+  // This journey uses a gallery where they provably would not.
+  await page.goto(REPEATED_MEDIA_GALLERY.path, { waitUntil: "load" });
+
+  const main = page.getByRole("main");
+  const triggers = main.getByRole("button");
+  const dialog = page.getByRole("dialog");
+
+  const readItemIds = () =>
+    triggers.evaluateAll((buttons) =>
+      buttons.map((button) => button.getAttribute("data-item-id")),
+    );
+
+  await test.step("DOM order matches the source's own itemId sequence, not just internal distinctness", async () => {
+    const itemIds = await readItemIds();
+    expect(itemIds.every((id): id is string => Boolean(id))).toBe(true);
+    expect(new Set(itemIds).size).toBe(itemIds.length);
+    expect(itemIds).toEqual(REPEATED_MEDIA_GALLERY.expectedItemIds);
+  });
+
+  await test.step("identity survives a reload rather than being minted fresh per render", async () => {
+    await page.reload({ waitUntil: "load" });
+    expect(await readItemIds()).toEqual(REPEATED_MEDIA_GALLERY.expectedItemIds);
+  });
+
+  await test.step("closing from the repeated photograph's second occurrence returns focus to that occurrence, not its first", async () => {
+    const [firstIndex, secondIndex] = REPEATED_MEDIA_GALLERY.repeated;
+
+    await openLightbox(dialog, () =>
+      triggers.nth(secondIndex).click({ timeout: OPEN_ACTION_TIMEOUT }),
+    );
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+
+    // Focus return keyed off mediaId instead of itemId would land back on
+    // the first occurrence of this same photograph instead — the concrete
+    // failure AB#88's own acceptance criteria names.
+    await expect(triggers.nth(secondIndex)).toBeFocused();
+    await expect(triggers.nth(firstIndex)).not.toBeFocused();
+  });
 });
 
 test("the lightbox shows whole, uncropped frames from the public rendition", async ({
