@@ -171,6 +171,7 @@ time; the Production set is never fetched by the Preview job.
 | `SANITY_DATASET`                               | a Preview dataset                                    | the production dataset                  |
 | `SANITY_DATASET_VISIBILITY`                    | that dataset's actual visibility                     | that dataset's actual visibility        |
 | `SANITY_READ_TOKEN`                            | a Preview runtime token in Vercel, required if private | a separate Production runtime token in Vercel, required if private |
+| `SANITY_WEBHOOK_SECRET`                        | one stable Preview secret                            | a separate, stable Production secret    |
 
 Two of these are safeguards rather than preferences. `SITE_CONTENT_SOURCE=mock` is
 **refused outright** in a production deployment, and so is `CONTACT_DELIVERY_ADAPTER=sink`:
@@ -200,7 +201,7 @@ by how secret it is:
 | --- | --- | --- |
 | Settings the **build** reads — every `SITE_*` value, `CONTACT_DELIVERY_ADAPTER`, and — when `SITE_CONTENT_SOURCE=sanity` — `SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_DATASET_VISIBILITY`, and `SANITY_API_VERSION` | plain | A Sensitive value never arrives. None of them is a credential either: the canonical base URL, locale, default social image and its dimensions are all published in the page's own HTML, and the project id and dataset are visible in every image URL the site serves. |
 | A credential used only by the trusted build — `SANITY_BUILD_READ_TOKEN`, when the dataset is private | Azure secret variable | The pipeline maps it to `SANITY_READ_TOKEN` only for `vercel build`. It is distinct from the runtime token, never echoed, and never deployed as an application setting. |
-| Credentials only the **running** application reads — `RESEND_API_KEY`, `GALLERY_CURSOR_SIGNING_KEY`, and private-dataset `SANITY_READ_TOKEN` | Sensitive | Vercel injects the real value at request time, where the build's inability to retrieve it costs nothing. ADR-0004 §5 requires delivery and CMS credentials to be environment-scoped sensitive variables. |
+| Credentials only the **running** application reads — `RESEND_API_KEY`, `GALLERY_CURSOR_SIGNING_KEY`, `SANITY_WEBHOOK_SECRET`, and private-dataset `SANITY_READ_TOKEN` | Sensitive | Vercel injects the real value at request time, where the build's inability to retrieve it costs nothing. ADR-0004 §5 requires delivery and CMS credentials to be environment-scoped sensitive variables. |
 
 `SITE_DEPLOYMENT_STAGE` marked Sensitive is the failure worth recognising: the build
 rejects `[SENSITIVE]` as not one of `development`, `preview`, `production`. Loud, but
@@ -241,6 +242,19 @@ The alternatives were a permanently public Preview dataset or moving the build t
 Vercel. The first would make archive locations impossible in Preview, and the second
 would abandon the prebuilt artifact and its Azure build log. Phase-scoped credentials
 preserve both boundaries at the cost of provisioning and rotating two read-only tokens.
+
+### The Sanity webhook signing secret
+
+`SANITY_WEBHOOK_SECRET` is a Sensitive, runtime-only value shared with exactly one
+environment's Sanity document webhook. Generate at least 32 random bytes (for example,
+`openssl rand -base64 48`), use a different stable value for Preview and Production, and
+rotate both Sanity and Vercel sides together. A mismatch makes every delivery fail closed
+with 401; the value is never a URL parameter or custom bearer token.
+
+The endpoint, exact GROQ projection, finite cache lifetime, tag map, retry behavior, and
+the promotion/rollback broad-expiry command are documented in
+[`cache-revalidation.md`](cache-revalidation.md). A webhook 200 proves that this
+deployment accepted the event; it does not by itself prove cross-instance propagation.
 
 ### The gallery cursor signing key
 

@@ -212,9 +212,7 @@ describe("query", () => {
     expect(calls[0].url).not.toContain("sk-fixture-token");
   });
 
-  it("does not let the runtime cache a content read", async () => {
-    // Caching and revalidation are AB#83's decision, made on purpose rather
-    // than inherited from whatever default the runtime applies.
+  it("keeps an operational query out of the public cache", async () => {
     const { fetchImplementation, calls } = stubFetch(() =>
       jsonResponse({ result: [] }),
     );
@@ -223,6 +221,29 @@ describe("query", () => {
     await client.query({ query: "*[false]", tag: "probe" });
 
     expect(calls[0].init?.cache).toBe("no-store");
+  });
+
+  it("gives a reviewed published query finite tagged Next.js caching", async () => {
+    const { fetchImplementation, calls } = stubFetch(() =>
+      jsonResponse({ result: fixtureServices }),
+    );
+    const client = createSanityClient({ config, fetchImplementation });
+
+    await client.query({ query: '*[_type == "service"]', tag: "service.list" });
+
+    const init = calls[0].init as RequestInit & {
+      readonly next?: { readonly revalidate: number; readonly tags: string[] };
+    };
+    expect(init.cache).toBeUndefined();
+    expect(init.next).toEqual({
+      revalidate: 3600,
+      tags: expect.arrayContaining([
+        "sanity:public",
+        "sanity:services",
+        "sanity:metadata",
+        "sanity:sitemap",
+      ]),
+    });
   });
 });
 

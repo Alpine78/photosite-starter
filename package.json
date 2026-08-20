@@ -16,9 +16,11 @@
     "diagrams:check": "node scripts/render-diagrams.mts --check",
     "identify:preview": "node scripts/identify-preview-deployment.mts",
     "remove:preview": "node scripts/remove-preview-deployment.mts",
+    "revalidate:public-cache": "node scripts/revalidate-public-cache.mts",
     "verify:preview": "node scripts/verify-preview-deployment.mts"
   },
   "dependencies": {
+    "@sanity/webhook": "4.0.4",
     "next": "^16.2.11",
     "photoswipe": "5.4.4",
     "react": "19.2.1",

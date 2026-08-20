@@ -12,9 +12,9 @@
  * No SDK. The Content Lake query API is one authenticated GET, and the project
  * already reaches its email provider the same way (`contact-delivery-resend.ts`).
  * A client library would add a dependency tree, a listener transport, and
- * retry and caching behavior this project has not decided on yet — AB#83 owns
- * caching and revalidation, and it should decide that on purpose. ADR-0006
- * records the trade-off.
+ * retry behavior the project does not need. AB#83's explicit finite Next.js
+ * cache policy is applied below; the signed webhook uses Sanity's separate,
+ * dependency-free verifier and does not widen this query transport.
  *
  * Verified against Sanity's HTTP API reference (2026-08-10):
  * `GET https://<projectId>.api.sanity.io/<apiVersion>/data/query/<dataset>`
@@ -42,6 +42,7 @@
 
 import "server-only";
 
+import { getSanityPublicCachePolicy } from "@/lib/sanity-cache";
 import { ContentSourceConfigurationError } from "@/lib/content-source";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
@@ -274,6 +275,7 @@ export function createSanityClient(
   return {
     async query(request: SanityQueryRequest): Promise<unknown> {
       const url = buildSanityQueryUrl(config, request);
+      const cachePolicy = getSanityPublicCachePolicy(request.tag);
       let response: Response;
 
       try {
@@ -289,10 +291,19 @@ export function createSanityClient(
               : { Authorization: `Bearer ${config.readToken}` }),
           },
           signal: AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS),
-          // The Content Lake is not a browsing context. Caching and
-          // revalidation are AB#83's decision, made deliberately rather than
-          // inherited from a default here.
-          cache: "no-store",
+          // One managed cache is authoritative. We deliberately keep the
+          // uncached api.sanity.io origin instead of stacking Sanity's API CDN
+          // ahead of Next's tagged Data Cache: a webhook invalidation then
+          // refetches the published perspective from Content Lake rather than
+          // racing a second cache whose keys this application cannot expire.
+          ...(cachePolicy === undefined
+            ? { cache: "no-store" as const }
+            : {
+                next: {
+                  revalidate: cachePolicy.revalidate,
+                  tags: [...cachePolicy.tags],
+                },
+              }),
         });
       } catch (cause) {
         const timedOut =
