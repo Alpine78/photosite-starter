@@ -167,6 +167,7 @@ describe("readSanityWebhook", () => {
   it("rejects malformed, extra, or inconsistent payload fields", async () => {
     const cases = [
       { ...articleUpdate, unexpected: true },
+      { ...articleUpdate, operation: ["create"] },
       { ...articleUpdate, operation: "delete", after: articleUpdate.after },
       {
         ...articleUpdate,

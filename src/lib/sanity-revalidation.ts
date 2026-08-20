@@ -200,9 +200,8 @@ function parsePayload(
     value.schemaVersion !== 1 ||
     typeof value.projectId !== "string" ||
     typeof value.dataset !== "string" ||
-    !["create", "update", "delete", "reconcile"].includes(
-      String(value.operation),
-    )
+    typeof value.operation !== "string" ||
+    !["create", "update", "delete", "reconcile"].includes(value.operation)
   ) {
     return fail("malformed-payload", 400);
   }
