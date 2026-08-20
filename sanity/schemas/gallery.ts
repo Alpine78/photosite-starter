@@ -36,11 +36,14 @@
  * visible placement.** AB#114 owns both; this schema only stores an explicit
  * `cover` override.
  *
- * **AB#129's shuffle algorithm.** `orderingRule`/`orderingSeed` exist and are
- * validated so a gallery can already declare intent to use a seeded-random
- * order and carry the seed input, but nothing here computes or consumes an
- * order from them — manual order is the only rule actually applied anywhere
- * yet. ADR-0009 decides the seeded-random contract; AB#129 implements it.
+ * **AB#129's shuffle algorithm.** `orderingRule`/`orderingSeed` exist and
+ * carry the seed input a draft can already prepare, but nothing here computes
+ * or consumes an order from them — manual order is the only rule actually
+ * applied anywhere yet, and `orderingRule`'s own validation blocks *publishing*
+ * `seeded-random` outright (a Save works, matching ADR-0003 decision 5's
+ * publish-only enforcement elsewhere), because `sanity-gallery.ts`'s adapter
+ * refuses to serve a gallery declaring it. ADR-0009 decides the seeded-random
+ * contract; AB#129 implements it and lifts this guard.
  */
 
 import { CATEGORY_TYPE_NAME } from "./category";
@@ -72,7 +75,22 @@ const SECTION_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** Restates `gallery-sections.ts`'s `RESERVED_ALL_SECTION_SLUG`. */
 const RESERVED_ALL_SECTION_SLUG = "all";
 
-const ORDERING_RULES = ["manual", "seeded-random"] as const;
+/**
+ * Restates `gallery-sections.ts`'s own bounds for its `sections` array and
+ * each entry's fields — schemas cannot import `src/lib` (ADR-0006), so these
+ * are duplicated here and pinned equal by a test, the same as
+ * `MAX_PLACEMENT_ID_LENGTH` in `gallery-placement.ts`. Without them, an
+ * ordinary Studio publish can create a section catalog
+ * `assertGallerySections` refuses at read time — too many sections, or an
+ * overlong id/slug/label — rejecting the whole gallery for something Studio
+ * itself allowed onto the page.
+ */
+export const MAX_GALLERY_SECTIONS = 20;
+export const MAX_SECTION_ID_LENGTH = 248;
+export const MAX_SECTION_SLUG_LENGTH = 256;
+export const MAX_SECTION_LABEL_LENGTH = 256;
+
+export const ORDERING_RULES = ["manual", "seeded-random"] as const;
 type OrderingRule = (typeof ORDERING_RULES)[number];
 
 function nonBlank(value: string | undefined): SchemaValidationResult {
@@ -116,7 +134,8 @@ const sectionsField: SchemaFieldDefinition = {
   name: "sections",
   title: "Sections",
   type: "array",
-  description: "Named, ordered subsets of this gallery's placements (AB#105).",
+  description: `Named, ordered subsets of this gallery's placements (AB#105). At most ${MAX_GALLERY_SECTIONS}.`,
+  validation: (rule) => rule.max(MAX_GALLERY_SECTIONS),
   of: [
     {
       type: "object",
@@ -126,11 +145,14 @@ const sectionsField: SchemaFieldDefinition = {
           title: "Section ID",
           type: "string",
           validation: (rule) =>
-            rule.required().custom<string>((value) =>
-              value !== undefined && SECTION_ID.test(value)
+            rule.required().custom<string>((value) => {
+              if (value === undefined || !SECTION_ID.test(value)) {
+                return "Use lowercase letters, digits, and single hyphens";
+              }
+              return value.length <= MAX_SECTION_ID_LENGTH
                 ? true
-                : "Use lowercase letters, digits, and single hyphens",
-            ),
+                : `Keep section id to ${MAX_SECTION_ID_LENGTH} characters or fewer`;
+            }),
         },
         {
           name: "slug",
@@ -141,16 +163,27 @@ const sectionsField: SchemaFieldDefinition = {
               if (value === undefined || !SECTION_SLUG_PATTERN.test(value)) {
                 return "Use lowercase letters, digits, and single hyphens";
               }
-              return value === RESERVED_ALL_SECTION_SLUG
-                ? `"${RESERVED_ALL_SECTION_SLUG}" is reserved for the unfiltered view`
-                : true;
+              if (value === RESERVED_ALL_SECTION_SLUG) {
+                return `"${RESERVED_ALL_SECTION_SLUG}" is reserved for the unfiltered view`;
+              }
+              return value.length <= MAX_SECTION_SLUG_LENGTH
+                ? true
+                : `Keep the path segment to ${MAX_SECTION_SLUG_LENGTH} characters or fewer`;
             }),
         },
         {
           name: "label",
           title: "Label",
           type: "string",
-          validation: (rule) => rule.required().custom(nonBlank),
+          validation: (rule) =>
+            rule.required().custom<string>((value) => {
+              if (value === undefined || value.trim().length === 0) {
+                return "Enter a non-empty value";
+              }
+              return value.length <= MAX_SECTION_LABEL_LENGTH
+                ? true
+                : `Keep the label to ${MAX_SECTION_LABEL_LENGTH} characters or fewer`;
+            }),
         },
         defineGallerySectionIntroField({
           name: "intro",
@@ -261,7 +294,7 @@ export const galleryType: SchemaTypeDefinition = {
       title: "Ordering",
       type: "string",
       description:
-        "Manual is the only rule actually applied today. Seeded-random is reserved for AB#129 (ADR-0009).",
+        "Manual is the only rule actually applied today. Seeded-random is reserved for AB#129 (ADR-0009) and cannot be published yet — the public adapter refuses to serve a gallery declaring it (SanityGalleryError \"ordering-not-implemented\"), so Studio blocks the mismatch at the source.",
       initialValue: "manual" satisfies OrderingRule,
       options: {
         list: ORDERING_RULES.map((value) => ({
@@ -271,11 +304,15 @@ export const galleryType: SchemaTypeDefinition = {
         layout: "radio",
       },
       validation: (rule) =>
-        rule.required().custom<string>((value) =>
-          value !== undefined && (ORDERING_RULES as readonly string[]).includes(value)
-            ? true
-            : `Choose one of: ${ORDERING_RULES.join(", ")}`,
-        ),
+        rule.required().custom<string>((value) => {
+          if (value === undefined || !(ORDERING_RULES as readonly string[]).includes(value)) {
+            return `Choose one of: ${ORDERING_RULES.join(", ")}`;
+          }
+          if (value === "seeded-random") {
+            return "Seeded random ordering is not implemented yet (AB#129, ADR-0009) — publishing with this rule would produce a gallery the public site refuses to serve. Choose Manual until AB#129 ships.";
+          }
+          return true;
+        }),
     },
     {
       name: "orderingSeed",

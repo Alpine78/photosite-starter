@@ -21,7 +21,7 @@
 
 import "server-only";
 
-import type { ContentBlock } from "@/lib/content-page";
+import { assertSemanticHeadingOrder, type ContentBlock } from "@/lib/content-page";
 import type { SanityConfig } from "@/lib/sanity-config";
 import {
   projectPublicMedia,
@@ -72,7 +72,9 @@ export type SanityContentBlockRejection =
   /** A block's `_type` names none of the six shared kinds. */
   | "unsupported-block-type"
   /** The body did not evaluate to a list of block objects. */
-  | "malformed-result";
+  | "malformed-result"
+  /** A level-3 heading appears before any level-2 heading (AB#106). */
+  | "non-semantic-heading-order";
 
 export class SanityContentBlockError extends Error {
   readonly rejection: SanityContentBlockRejection;
@@ -250,6 +252,15 @@ export function readContentBlocks(
       );
     }
     seenKeys.add(block.key);
+  }
+
+  try {
+    assertSemanticHeadingOrder(blocks);
+  } catch (cause) {
+    throw new SanityContentBlockError(
+      "non-semantic-heading-order",
+      cause instanceof TypeError ? cause.message : String(cause),
+    );
   }
 
   return blocks;

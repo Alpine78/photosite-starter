@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { CATEGORY_TYPE_NAME } from "./category";
 import { defineSchemaTypes } from "./index";
-import { galleryType, GALLERY_TYPE_NAME } from "./gallery";
+import {
+  galleryType,
+  GALLERY_TYPE_NAME,
+  MAX_GALLERY_SECTIONS,
+  MAX_SECTION_ID_LENGTH,
+  MAX_SECTION_LABEL_LENGTH,
+  MAX_SECTION_SLUG_LENGTH,
+} from "./gallery";
 import {
   GALLERY_SECTION_INTRO_LIST_TYPE_NAME,
   GALLERY_SECTION_INTRO_PARAGRAPH_TYPE_NAME,
@@ -30,6 +37,7 @@ function inspect(
   const warnings: CustomCheck[] = [];
   const queries: { query: string; params?: Readonly<Record<string, unknown>> }[] = [];
   let required = false;
+  let max: number | undefined;
 
   const rule: SchemaValidationRule = {
     required() {
@@ -39,7 +47,8 @@ function inspect(
     min() {
       return rule;
     },
-    max() {
+    max(value) {
+      max = value;
       return rule;
     },
     custom(check) {
@@ -74,7 +83,7 @@ function inspect(
   const runWarnings = async (value: unknown, document?: Record<string, unknown>) =>
     Promise.all(warnings.map((check) => check(value, contextFor(document))));
 
-  return { required, run, runWarnings, queries };
+  return { required, max, run, runWarnings, queries };
 }
 
 function fieldOf(name: string): SchemaFieldDefinition {
@@ -203,15 +212,48 @@ describe("ordering", () => {
     expect(await run(undefined, { orderingRule: "seeded-random" })).toEqual([expect.any(String)]);
     expect(await run("abc", { orderingRule: "seeded-random" })).toEqual([true]);
   });
+
+  it("accepts manual but blocks seeded-random from publishing, matching the adapter's own refusal (AB#114/AB#129)", async () => {
+    const { run } = inspect(fieldOf("orderingRule").validation);
+
+    expect(await run("manual")).toEqual([true]);
+    const [message] = await run("seeded-random");
+    expect(message).toContain("AB#129");
+    expect(message).not.toBe(true);
+  });
 });
 
 describe("sections", () => {
   const slugField = () => itemFieldOf(fieldOf("sections"), "slug");
+  const sectionIdField = () => itemFieldOf(fieldOf("sections"), "sectionId");
+  const labelField = () => itemFieldOf(fieldOf("sections"), "label");
 
   it("rejects the reserved 'all' slug", async () => {
     const { run } = inspect(slugField().validation);
     expect((await run("all"))[0]).toEqual(expect.any(String));
     expect(await run("behind-the-scenes")).toEqual([true]);
+  });
+
+  it("bounds the section count to MAX_GALLERY_SECTIONS, matching the read boundary's own limit", () => {
+    expect(inspect(fieldOf("sections").validation).max).toBe(MAX_GALLERY_SECTIONS);
+  });
+
+  it("rejects a section id longer than the read boundary's own limit", async () => {
+    const { run } = inspect(sectionIdField().validation);
+    expect((await run("a".repeat(MAX_SECTION_ID_LENGTH + 1)))[0]).toEqual(expect.any(String));
+    expect(await run("a".repeat(MAX_SECTION_ID_LENGTH))).toEqual([true]);
+  });
+
+  it("rejects a section slug longer than the read boundary's own limit", async () => {
+    const { run } = inspect(slugField().validation);
+    expect((await run("a".repeat(MAX_SECTION_SLUG_LENGTH + 1)))[0]).toEqual(expect.any(String));
+    expect(await run("a".repeat(MAX_SECTION_SLUG_LENGTH))).toEqual([true]);
+  });
+
+  it("rejects a section label longer than the read boundary's own limit", async () => {
+    const { run } = inspect(labelField().validation);
+    expect((await run("a".repeat(MAX_SECTION_LABEL_LENGTH + 1)))[0]).toEqual(expect.any(String));
+    expect(await run("a".repeat(MAX_SECTION_LABEL_LENGTH))).toEqual([true]);
   });
 
   it("carries a bounded intro field built from the shared block types", () => {

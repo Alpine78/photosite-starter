@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { asArticlePage, type ContentPage } from "@/lib/content-page";
+import {
+  asArticlePage,
+  assertSemanticHeadingOrder,
+  type ContentBlock,
+  type ContentPage,
+} from "@/lib/content-page";
 import { buildContentTree, type ContentTree } from "@/lib/content-tree";
 import { mockContentListingRecords } from "@/lib/mock-content-listing";
 import { mockContentPages } from "@/lib/mock-content-pages";
@@ -37,6 +42,41 @@ describe("asArticlePage", () => {
     expect(
       asArticlePage("article-id", { ...articlePage, variant: "gallery" }),
     ).toBeUndefined();
+  });
+});
+
+describe("assertSemanticHeadingOrder", () => {
+  const heading = (level: 2 | 3, text = "Heading"): ContentBlock => ({
+    type: "heading",
+    level,
+    text,
+  });
+  const paragraph = (text = "Text"): ContentBlock => ({ type: "paragraph", text });
+
+  it("accepts a body with no headings at all", () => {
+    expect(() => assertSemanticHeadingOrder([paragraph()])).not.toThrow();
+  });
+
+  it("accepts a level-2 heading followed by one or more level-3 headings", () => {
+    expect(() =>
+      assertSemanticHeadingOrder([heading(2), heading(3), heading(3)]),
+    ).not.toThrow();
+  });
+
+  it("accepts consecutive level-2 headings, each starting a new level-3 run", () => {
+    expect(() =>
+      assertSemanticHeadingOrder([heading(2), heading(3), heading(2), heading(3)]),
+    ).not.toThrow();
+  });
+
+  it("rejects a level-3 heading as the body's first heading", () => {
+    expect(() => assertSemanticHeadingOrder([heading(3)])).toThrow(TypeError);
+  });
+
+  it("rejects a level-3 heading preceded only by non-heading blocks", () => {
+    expect(() => assertSemanticHeadingOrder([paragraph(), heading(3)])).toThrow(
+      TypeError,
+    );
   });
 });
 
@@ -99,13 +139,14 @@ describe.each(languages)("mock content pages (%s)", (language) => {
     }
   });
 
-  it("starts every authored heading below the page's own h1", () => {
+  it("starts every authored heading below the page's own h1, in semantic order", () => {
     for (const page of pages.values()) {
       for (const block of page.body) {
         if (block.type === "heading") {
           expect(block.level).toBeGreaterThanOrEqual(2);
         }
       }
+      expect(() => assertSemanticHeadingOrder(page.body)).not.toThrow();
     }
   });
 
@@ -118,16 +159,23 @@ describe.each(languages)("mock content pages (%s)", (language) => {
 
     // A gallery's curated result set is the separate AB#67 contract, never a
     // field here. Its body is optional supporting context (ADR-0003 decision
-    // 3): this fixture authors one only for the gallery AB#106 exercises,
-    // through the same shared block set an article uses, and leaves every
-    // other gallery's body empty — proving absence is a normal, unstubbed
-    // state rather than a defect, and that the authored body did not drift
-    // onto (or get duplicated across) an unrelated gallery.
-    const AUTHORED_GALLERY_BODY_ID = "content-coastal-mornings";
+    // 3): this fixture authors one for the gallery AB#106 exercises and,
+    // separately, a short one on the large multi-page archive (AB#106
+    // decision 3's first-page-only rule needs a gallery that both spans a
+    // continuation and carries a body to prove the omission is a rule, not
+    // an accident of having nothing to omit) — through the same shared block
+    // set an article uses — and leaves every other gallery's body empty,
+    // proving absence is a normal, unstubbed state rather than a defect, and
+    // that neither authored body drifted onto (or got duplicated across) an
+    // unrelated gallery.
+    const AUTHORED_GALLERY_BODY_IDS: ReadonlySet<string> = new Set([
+      "content-coastal-mornings",
+      "content-large-archive",
+    ]);
 
     for (const placement of galleries) {
       const body = pages.get(placement.contentId)?.body ?? [];
-      if (placement.contentId === AUTHORED_GALLERY_BODY_ID) {
+      if (AUTHORED_GALLERY_BODY_IDS.has(placement.contentId)) {
         expect(body.length).toBeGreaterThan(0);
       } else {
         expect(body).toEqual([]);
