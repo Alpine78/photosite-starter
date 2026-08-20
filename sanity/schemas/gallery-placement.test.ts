@@ -5,6 +5,7 @@ import { GALLERY_TYPE_NAME } from "./gallery";
 import {
   galleryPlacementType,
   GALLERY_PLACEMENT_TYPE_NAME,
+  MAX_PLACEMENT_ID_LENGTH,
 } from "./gallery-placement";
 import { MEDIA_TYPE_NAME } from "./media";
 import type {
@@ -158,6 +159,23 @@ describe("placementId", () => {
     for (const rejected of ["Not Valid", "-leading", "", undefined]) {
       expect((await run(rejected, currentDocument()))[0]).toEqual(expect.any(String));
     }
+  });
+
+  it("rejects a placement id longer than the public read boundary's own limit", async () => {
+    const { run } = inspect(fieldOf("placementId").validation, {
+      answer: galleryAnswer(),
+    });
+    const tooLong = "a".repeat(MAX_PLACEMENT_ID_LENGTH + 1);
+    const result = await run(tooLong, currentDocument());
+    expect(result[0]).toContain(`${MAX_PLACEMENT_ID_LENGTH}`);
+  });
+
+  it("accepts a placement id exactly at the limit", async () => {
+    const { run } = inspect(fieldOf("placementId").validation, {
+      answer: galleryAnswer(),
+    });
+    const atLimit = "a".repeat(MAX_PLACEMENT_ID_LENGTH);
+    expect(await run(atLimit, currentDocument())).toEqual([true]);
   });
 
   it("passes a well-formed id whose gallery resolves and names no section", async () => {

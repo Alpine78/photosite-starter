@@ -35,6 +35,7 @@ import type {
   GalleryCursorCodec,
 } from "@/lib/gallery-pagination";
 import {
+  assertGallerySections,
   readCuratedGallerySectionPage,
   type CuratedGalleryPage,
   type CuratedGallerySectionSource,
@@ -294,6 +295,39 @@ function readDocuments<T>(result: unknown): readonly T[] {
   return result as readonly T[];
 }
 
+/**
+ * Resolves *the* published document matching a content identity from a
+ * bounded `[0...2]` probe: zero means "not published in this language" (a
+ * normal outcome, not an error), and more than one means the store holds an
+ * identity collision this boundary refuses to silently pick a winner from.
+ * Shared by every bounded-by-two identity read in this file — gallery detail
+ * and gallery pagination basics — so the message and the `contentId` attached
+ * to it can never drift between two hand-written copies of this check.
+ * Deliberately its own array-shape check rather than a thin wrapper around
+ * `readDocuments`: this function's contract always has a `contentId` to
+ * attach to a malformed-result error, which `readDocuments`'s other caller
+ * (a whole-language listing read with no single identity to attach) does not.
+ */
+function resolveUniqueDocument<T>(raw: unknown, contentId: string): T | undefined {
+  if (!Array.isArray(raw) || !raw.every(isRecord)) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "the content store answered with something other than a list of gallery documents",
+      contentId,
+    );
+  }
+  const documents = raw as readonly T[];
+  if (documents.length === 0) return undefined;
+  if (documents.length > 1) {
+    throw new SanityGalleryError(
+      "ambiguous-content-id",
+      "two published documents claim one content identity in this language",
+      contentId,
+    );
+  }
+  return documents[0];
+}
+
 function getFallbackLocale(): string {
   return getDeploymentConfig().localeRoutes.defaultLocale;
 }
@@ -412,17 +446,10 @@ export async function readPublicGalleryPage(
     tag: "gallery.detail",
   });
 
-  const documents = readDocuments<RawGalleryDetailDocument>(result);
-  if (documents.length === 0) return undefined;
-  if (documents.length > 1) {
-    throw new SanityGalleryError(
-      "ambiguous-content-id",
-      "two published documents claim one content identity in this language",
-      contentId,
-    );
-  }
+  const document = resolveUniqueDocument<RawGalleryDetailDocument>(result, contentId);
+  if (document === undefined) return undefined;
 
-  return projectGalleryContentPage(documents[0], {
+  return projectGalleryContentPage(document, {
     language,
     fallbackLanguage: getFallbackLocale(),
     config,
@@ -745,18 +772,27 @@ const GALLERY_PLACEMENT_ITEM_PROJECTION = `{
 
 /**
  * The clauses every bounded placement query needs, regardless of section
- * filter or cursor: this gallery (by contentId+language, dereferenced through
- * `gallery->` rather than looked up by document id first — a placement names
- * its gallery once and every query filters through that reference directly),
- * visible, and its media already publicly renderable. Filtering visibility
- * and public renderability in GROQ itself, not after the fetch, is what keeps
- * a bounded window inside `CuratedGallerySectionSource`'s contract: every
- * returned row is already usable, so nothing here can silently shrink a page
- * below its requested size by dropping a row after the fact.
+ * filter or cursor: this gallery, visible, and its media already publicly
+ * renderable. Filtered by direct reference identity (`gallery._ref ==
+ * $galleryDocumentId`), not a `gallery->contentId`/`gallery->language` join —
+ * verified against Sanity's own "Avoiding joins in filters" guidance
+ * (https://www.sanity.io/docs/developer-guides/high-performance-groq), which
+ * recommends filtering on a reference's `_ref` over its dereferenced fields
+ * for exactly this reason, and shows the same `field._ref == "doc-id"` shape
+ * used here. This filter runs on every row a bounded window scans, not once
+ * per page. The
+ * caller resolves `galleryDocumentId` once, from the same basics read that
+ * already looks the gallery up by `contentId`+`language` (see
+ * `readSanityCuratedGalleryPage`), so this never re-derives it per row.
+ * Filtering visibility and public renderability in GROQ itself, not after the
+ * fetch, is what keeps a bounded window inside `CuratedGallerySectionSource`'s
+ * contract: every returned row is already usable, so nothing here can
+ * silently shrink a page below its requested size by dropping a row after the
+ * fact.
  */
 function buildPlacementFilter(sectionId: string | undefined): string {
   const sectionClause = sectionId === undefined ? "" : " && sectionId == $sectionId";
-  return `_type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery->contentId == $contentId && gallery->language == $language && visible == true && media->publiclyRenderable == true${sectionClause}`;
+  return `_type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == $galleryDocumentId && visible == true && media->publiclyRenderable == true${sectionClause}`;
 }
 
 function sectionIdOf(filter: GallerySectionFilter): string | undefined {
@@ -832,8 +868,9 @@ function assertAlreadyPublic(
  * `CuratedGallerySectionSource` (`gallery-sections.ts`) over `galleryPlacement`
  * documents: one HTTP round trip per page — an id lookup for the boundary
  * (only when the request names one) plus a keyset range query for the rest,
- * both scoped to this gallery's contentId+language and the resolved section
- * filter, never "every placement matching this filter" (AB#134). The
+ * both scoped to this gallery's own document identity (`galleryDocumentId`,
+ * resolved once by the caller) and the resolved section filter, never "every
+ * placement matching this filter" (AB#134). The
  * candidate range follows Sanity's own documented two-field keyset idiom
  * (`order > $after || (order == $after && placementId > $afterId)`, GROQ's
  * recommended alternative to array-slice pagination — verified against
@@ -842,15 +879,18 @@ function assertAlreadyPublic(
  */
 function createSanityCuratedGallerySource(
   client: SanityClient,
-  options: { readonly config: SanityConfig; readonly fallbackLanguage: string },
+  options: {
+    readonly config: SanityConfig;
+    readonly fallbackLanguage: string;
+    readonly galleryDocumentId: string;
+  },
 ): CuratedGallerySectionSource {
-  return async ({ locale, contentId, filter, window }) => {
+  return async ({ locale, filter, window }) => {
     const language = toLanguageSubtag(locale);
     const sectionId = sectionIdOf(filter);
     const placementFilter = buildPlacementFilter(sectionId);
     const baseParams: Record<string, unknown> = {
-      contentId,
-      language,
+      galleryDocumentId: options.galleryDocumentId,
       candidateLimit: window.candidateLimit,
       ...(sectionId === undefined ? {} : { sectionId }),
     };
@@ -942,6 +982,20 @@ function projectGalleryPaginationSection(
   return { ...summary, ...(intro.length > 0 ? { intro } : {}) };
 }
 
+/**
+ * Studio's own document-level validation (`gallery-validation.ts`) restates
+ * `gallery-sections.ts#assertGallerySections`'s bounds — count, unique
+ * id/slug, slug shape, the reserved `all` slug — but only binds the ordinary
+ * Publish action. An API write reaches the Content Lake without going
+ * through Studio at all, so this bounded read calls that same function
+ * directly, in the spirit of the backstop `sanity-content-tree.ts` and
+ * `sanity-article.ts` already keep for their own API-write-bypass cases,
+ * rather than trusting a section catalog is well-formed just because it was
+ * published. `assertGallerySections` only ever throws `TypeError` (see its
+ * own implementation), so the catch below rewraps that one documented type
+ * into this file's own classified `SanityGalleryError` — it does not need to
+ * handle an arbitrary thrown value.
+ */
 function readGallerySections(value: unknown, contentId: string): readonly GallerySection[] {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value) || !value.every(isRecord)) {
@@ -951,49 +1005,58 @@ function readGallerySections(value: unknown, contentId: string): readonly Galler
       contentId,
     );
   }
-  return (value as readonly RawGalleryPaginationSection[]).map((raw, index) =>
+  const sections = (value as readonly RawGalleryPaginationSection[]).map((raw, index) =>
     projectGalleryPaginationSection(raw, index, contentId),
   );
+  try {
+    assertGallerySections(sections);
+  } catch (cause) {
+    throw new SanityGalleryError(
+      "malformed-section",
+      cause instanceof TypeError ? cause.message : String(cause),
+      contentId,
+    );
+  }
+  return sections;
 }
 
-type RawGalleryPaginationBasics = {
-  readonly gallery: {
-    readonly orderingRule?: unknown;
-    readonly sections?: unknown;
-  } | null;
+type RawGalleryPaginationBasicsDocument = {
+  readonly _id?: unknown;
+  readonly orderingRule?: unknown;
+  readonly sections?: unknown;
   readonly latestPlacementUpdatedAt?: unknown;
 };
 
-function readPaginationBasics(value: unknown, contentId: string): RawGalleryPaginationBasics {
-  if (!isRecord(value) || !("gallery" in value)) {
-    throw new SanityGalleryError(
-      "malformed-result",
-      "the content store answered the gallery pagination read with an unexpected shape",
-      contentId,
-    );
-  }
-  const gallery = value.gallery;
-  if (gallery !== null && !isRecord(gallery)) {
-    throw new SanityGalleryError(
-      "malformed-result",
-      "the content store answered with a gallery that is neither a document nor null",
-      contentId,
-    );
-  }
-  return value as RawGalleryPaginationBasics;
-}
-
-const GALLERY_PAGINATION_BASICS_QUERY = `{
-  "gallery": *[${GALLERY_FILTER} && contentId == $contentId][0]{
-    orderingRule,
-    sections[]{sectionId, slug, label, intro}
-  },
+/**
+ * Fetches at most two matching documents, not one, purely to detect the
+ * `ambiguous-content-id` state (two published documents claiming one
+ * identity) the same way `readPublicGalleryPage`'s own `[0...2]` read does —
+ * this bounded read never scales with gallery size. `latestPlacementUpdatedAt`
+ * is computed inside this same query via `^._id`, the parent-scope operator,
+ * so it can filter placements by direct reference identity (`gallery._ref ==
+ * ^._id`) instead of a `gallery->contentId`/`gallery->language` join, without
+ * costing a second HTTP round trip.
+ */
+const GALLERY_PAGINATION_BASICS_QUERY = `*[${GALLERY_FILTER} && contentId == $contentId][0...2]{
+  _id,
+  orderingRule,
+  sections[]{sectionId, slug, label, intro},
   "latestPlacementUpdatedAt": *[
-    _type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" &&
-    gallery->contentId == $contentId &&
-    gallery->language == $language
+    _type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == ^._id
   ] | order(_updatedAt desc) [0]._updatedAt
 }`;
+
+function readGalleryDocumentId(value: unknown, contentId: string): string {
+  const id = readString(value);
+  if (id === undefined) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "the content store answered a gallery document with no usable _id",
+      contentId,
+    );
+  }
+  return id;
+}
 
 /**
  * One bounded page of a Sanity-backed curated gallery, mirroring
@@ -1040,14 +1103,19 @@ export async function readSanityCuratedGalleryPage(
     tag: "gallery.placements.basics",
   });
 
-  const basics = readPaginationBasics(raw, contentId);
-  if (basics.gallery === null) return undefined;
+  const basics = resolveUniqueDocument<RawGalleryPaginationBasicsDocument>(raw, contentId);
+  if (basics === undefined) return undefined;
 
-  const ordering = resolveOrderingScope(basics.gallery.orderingRule, contentId);
-  const sections = readGallerySections(basics.gallery.sections, contentId);
+  const galleryDocumentId = readGalleryDocumentId(basics._id, contentId);
+  const ordering = resolveOrderingScope(basics.orderingRule, contentId);
+  const sections = readGallerySections(basics.sections, contentId);
   const visibilityVersion = readString(basics.latestPlacementUpdatedAt) ?? "none";
 
-  const source = createSanityCuratedGallerySource(client, { config, fallbackLanguage });
+  const source = createSanityCuratedGallerySource(client, {
+    config,
+    fallbackLanguage,
+    galleryDocumentId,
+  });
 
   return readCuratedGallerySectionPage({
     query: {

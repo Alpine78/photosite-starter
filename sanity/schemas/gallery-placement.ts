@@ -64,6 +64,16 @@ export const GALLERY_PLACEMENT_TYPE_NAME = "galleryPlacement";
 /** Same shape as `gallery.ts`'s (removed) embedded placement id field. */
 const PLACEMENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/**
+ * Duplicates `gallery-pagination.ts`'s `MAX_ITEM_ID_LENGTH`, the same way
+ * `media.ts` duplicates `MAX_PUBLIC_DELIVERY_DIMENSION` — a schema imports
+ * nothing from `src/` (ADR-0006), so the bound is restated here and pinned
+ * equal to the runtime constant by a test, rather than imported. Without this,
+ * Studio could publish a `placementId` the public read boundary's own
+ * `assertPlacements` refuses to serve.
+ */
+export const MAX_PLACEMENT_ID_LENGTH = 256;
+
 function exactString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
@@ -115,6 +125,9 @@ async function validateGalleryPlacementPublication(
 ): Promise<SchemaValidationResult> {
   if (value === undefined || !PLACEMENT_ID.test(value)) {
     return "Use lowercase letters, digits, and single hyphens, e.g. northern-coast-2026-01";
+  }
+  if (value.length > MAX_PLACEMENT_ID_LENGTH) {
+    return `Keep placement id to ${MAX_PLACEMENT_ID_LENGTH} characters or fewer — the public read boundary refuses a longer one.`;
   }
   const placementId = value;
 

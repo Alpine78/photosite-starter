@@ -16,8 +16,18 @@ import {
   type RawGalleryPlacementDocument,
   type RawGalleryPlacementItem,
 } from "@/lib/sanity-gallery";
-import { galleryType } from "../../sanity/schemas/gallery";
-import { galleryPlacementType } from "../../sanity/schemas/gallery-placement";
+import {
+  galleryType,
+  ORDERING_RULES,
+  MAX_GALLERY_SECTIONS as SCHEMA_MAX_GALLERY_SECTIONS,
+  MAX_SECTION_ID_LENGTH as SCHEMA_MAX_SECTION_ID_LENGTH,
+  MAX_SECTION_LABEL_LENGTH as SCHEMA_MAX_SECTION_LABEL_LENGTH,
+  MAX_SECTION_SLUG_LENGTH as SCHEMA_MAX_SECTION_SLUG_LENGTH,
+} from "../../sanity/schemas/gallery";
+import {
+  galleryPlacementType,
+  MAX_PLACEMENT_ID_LENGTH as SCHEMA_MAX_PLACEMENT_ID_LENGTH,
+} from "../../sanity/schemas/gallery-placement";
 import {
   INTERNAL_LINK_PATH as SCHEMA_INTERNAL_LINK_PATH,
   MAX_INTRO_BLOCKS as SCHEMA_MAX_INTRO_BLOCKS,
@@ -27,16 +37,63 @@ import {
 } from "../../sanity/schemas/gallery-section-intro";
 import {
   INTERNAL_LINK_PATH,
+  MAX_GALLERY_SECTIONS,
   MAX_INTRO_BLOCKS,
   MAX_LIST_ITEMS,
+  MAX_SECTION_ID_LENGTH,
   MAX_SPANS_PER_BLOCK,
   MAX_SPAN_TEXT_LENGTH,
 } from "@/lib/gallery-sections";
-import { createHmacGalleryCursorCodec } from "@/lib/gallery-pagination";
+import {
+  createHmacGalleryCursorCodec,
+  MAX_ITEM_ID_LENGTH,
+  MAX_SCOPE_FIELD_LENGTH,
+} from "@/lib/gallery-pagination";
 import type { CuratedGalleryResultItem } from "@/lib/gallery-result";
 import type { SanityClient, SanityQueryRequest } from "@/lib/sanity-client";
 import type { SanityConfig } from "@/lib/sanity-config";
 import type { RawPublicMediaDocument } from "@/lib/sanity-media";
+import type {
+  SchemaValidationContext,
+  SchemaValidationResult,
+  SchemaValidationRule,
+} from "../../sanity/schemas/schema-types";
+
+/**
+ * Runs `gallery.ts`'s own `orderingRule` custom validator against one value,
+ * with a bare-bones rule stub — mirrors the `inspect()` harness `gallery.test.ts`
+ * uses for the same field, kept minimal here since this file only needs the
+ * one `custom()` check, to cross-check the Studio guard against the runtime
+ * refusal below (see "ties Studio's seeded-random block to the runtime
+ * refusal").
+ */
+async function runOrderingRuleValidation(value: string): Promise<SchemaValidationResult> {
+  const field = galleryType.fields.find((candidate) => candidate.name === "orderingRule");
+  if (field === undefined) throw new Error("gallery.ts has no orderingRule field");
+  let check:
+    | ((
+        candidate: unknown,
+        context: SchemaValidationContext,
+      ) => SchemaValidationResult | Promise<SchemaValidationResult>)
+    | undefined;
+  const rule: SchemaValidationRule = {
+    required: () => rule,
+    min: () => rule,
+    max: () => rule,
+    custom: (fn) => {
+      check = fn as typeof check;
+      return rule;
+    },
+    warning: () => rule,
+  };
+  field.validation?.(rule);
+  if (check === undefined) throw new Error("orderingRule declares no custom validator");
+  return check(value, {
+    getClient: () => {
+      throw new Error("orderingRule's validator should not need a client");
+    },
+  });
+}
 
 vi.mock("@/lib/deployment-config", () => ({
   getDeploymentConfig: () => ({ localeRoutes: { defaultLocale: "fi-FI" } }),
@@ -119,6 +176,21 @@ describe("restated section-intro bounds stay pinned to gallery-sections.ts", () 
     expect(SCHEMA_MAX_LIST_ITEMS).toBe(MAX_LIST_ITEMS);
     expect(SCHEMA_MAX_SPAN_TEXT_LENGTH).toBe(MAX_SPAN_TEXT_LENGTH);
     expect(SCHEMA_INTERNAL_LINK_PATH.source).toBe(INTERNAL_LINK_PATH.source);
+  });
+});
+
+describe("gallery-placement.ts's restated placementId length bound", () => {
+  it("matches gallery-pagination.ts's MAX_ITEM_ID_LENGTH", () => {
+    expect(SCHEMA_MAX_PLACEMENT_ID_LENGTH).toBe(MAX_ITEM_ID_LENGTH);
+  });
+});
+
+describe("gallery.ts's restated section catalog bounds", () => {
+  it("matches every bound assertGallerySections enforces at the read boundary", () => {
+    expect(SCHEMA_MAX_GALLERY_SECTIONS).toBe(MAX_GALLERY_SECTIONS);
+    expect(SCHEMA_MAX_SECTION_ID_LENGTH).toBe(MAX_SECTION_ID_LENGTH);
+    expect(SCHEMA_MAX_SECTION_SLUG_LENGTH).toBe(MAX_ITEM_ID_LENGTH);
+    expect(SCHEMA_MAX_SECTION_LABEL_LENGTH).toBe(MAX_SCOPE_FIELD_LENGTH);
   });
 });
 
@@ -412,6 +484,7 @@ describe("readSanityCuratedGalleryPage", () => {
   }): { readonly client: SanityClient; readonly requests: SanityQueryRequest[] } {
     const requests: SanityQueryRequest[] = [];
     const galleryContentId = options.contentId ?? CONTENT_ID;
+    const galleryDocumentId = `gallery-doc-${galleryContentId}`;
 
     const toRow = (placement: FixturePlacement) => ({
       placementId: placement.placementId,
@@ -430,19 +503,20 @@ describe("readSanityCuratedGalleryPage", () => {
 
         if (request.tag === "gallery.placements.basics") {
           if (params.contentId !== galleryContentId) {
-            return { gallery: null, latestPlacementUpdatedAt: null };
+            return [];
           }
-          return {
-            gallery: {
+          return [
+            {
+              _id: galleryDocumentId,
               orderingRule: options.orderingRule ?? "manual",
               sections: (options.sections ?? []).map((section) => ({
                 sectionId: section.sectionId,
                 slug: section.slug,
                 label: section.label,
               })),
+              latestPlacementUpdatedAt: "2026-01-01T00:00:00.000Z",
             },
-            latestPlacementUpdatedAt: "2026-01-01T00:00:00.000Z",
-          };
+          ];
         }
 
         if (request.tag === "gallery.placements.window") {
@@ -451,12 +525,15 @@ describe("readSanityCuratedGalleryPage", () => {
           const afterOrder = params.afterOrder as number | undefined;
           const afterPlacementId = params.afterPlacementId as string | undefined;
 
-          const matching = options.placements.filter(
-            (placement) =>
-              placement.visible &&
-              placement.media.publiclyRenderable === true &&
-              (sectionId === undefined || placement.sectionId === sectionId),
-          );
+          const matching =
+            params.galleryDocumentId !== galleryDocumentId
+              ? []
+              : options.placements.filter(
+                  (placement) =>
+                    placement.visible &&
+                    placement.media.publiclyRenderable === true &&
+                    (sectionId === undefined || placement.sectionId === sectionId),
+                );
           const sorted = matching.toSorted(
             (a, b) => a.order - b.order || (a.placementId < b.placementId ? -1 : a.placementId > b.placementId ? 1 : 0),
           );
@@ -633,7 +710,78 @@ describe("readSanityCuratedGalleryPage", () => {
     expect((error as SanityGalleryError).rejection).toBe("ordering-not-implemented");
   });
 
+  it("ties Studio's seeded-random publish block to the runtime refusal: every ORDERING_RULES value the schema doesn't accept is exactly the one the adapter refuses to serve", async () => {
+    for (const rule of ORDERING_RULES) {
+      const studioResult = await runOrderingRuleValidation(rule);
+
+      if (rule === "manual") {
+        expect(studioResult).toBe(true);
+        continue;
+      }
+
+      expect(studioResult).not.toBe(true);
+
+      const { client } = fakeGalleryStore({
+        placements: buildLargeArchive().slice(0, 1),
+        orderingRule: rule,
+      });
+      const error = await readSanityCuratedGalleryPage("en", CONTENT_ID, {
+        client,
+        config,
+        cursorCodec: testCursorCodec,
+      }).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(SanityGalleryError);
+      expect((error as SanityGalleryError).rejection).toBe("ordering-not-implemented");
+    }
+  });
+
   it("reads the placement projection from the same document type the schema declares", () => {
     expect(GALLERY_PLACEMENT_DOCUMENT_TYPE).toBe(galleryPlacementType.name);
+  });
+
+  it("filters the placement window by direct gallery document reference, not a contentId/language join", async () => {
+    const { client, requests } = fakeGalleryStore({ placements: buildLargeArchive() });
+    await readPage(client);
+
+    const windowRequest = requests.find((request) => request.tag === "gallery.placements.window");
+    expect(windowRequest?.params?.galleryDocumentId).toBe(`gallery-doc-${CONTENT_ID}`);
+    expect(windowRequest?.params).not.toHaveProperty("contentId");
+    expect(windowRequest?.params).not.toHaveProperty("language");
+  });
+
+  it("rejects a section catalog Studio's own guard would have blocked, e.g. an API write with a duplicate section id", async () => {
+    const sections = [
+      { sectionId: "dup", slug: "dup-a", label: "A" },
+      { sectionId: "dup", slug: "dup-b", label: "B" },
+    ];
+    const { client } = fakeGalleryStore({ placements: buildLargeArchive().slice(0, 5), sections });
+    const error = await readSanityCuratedGalleryPage("en", CONTENT_ID, {
+      client,
+      config,
+      cursorCodec: testCursorCodec,
+    }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(SanityGalleryError);
+    expect((error as SanityGalleryError).rejection).toBe("malformed-section");
+  });
+
+  it("throws ambiguous-content-id when two gallery documents claim one identity in this language", async () => {
+    const client: SanityClient = {
+      async query(request) {
+        if (request.tag === "gallery.placements.basics") {
+          return [
+            { _id: "gallery-doc-a", orderingRule: "manual", sections: [], latestPlacementUpdatedAt: null },
+            { _id: "gallery-doc-b", orderingRule: "manual", sections: [], latestPlacementUpdatedAt: null },
+          ];
+        }
+        throw new Error(`no fixture behavior for tag "${request.tag}"`);
+      },
+    };
+    const error = await readSanityCuratedGalleryPage("en", CONTENT_ID, {
+      client,
+      config,
+      cursorCodec: testCursorCodec,
+    }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(SanityGalleryError);
+    expect((error as SanityGalleryError).rejection).toBe("ambiguous-content-id");
   });
 });
