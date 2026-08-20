@@ -208,10 +208,16 @@ being ignored. The token travels in an `Authorization` header, never in a URL, a
 never logged. Operational events carry only a correlation identifier, a state, a
 project-owned tag, and a redacted error class (ADR-0004 §5).
 
-### 6. Caching is deferred to AB#83
+### 6. Caching was deferred to AB#83
 
-Reads go to the uncached `api.sanity.io` host with `cache: "no-store"`. The API CDN, tag
-invalidation, and expiry belong to AB#83's cache contract.
+This ADR deliberately introduced reads on `api.sanity.io` with `cache: "no-store"` so it
+would not pre-empt AB#83. AB#83 has now retained that origin while replacing `no-store`
+for reviewed published queries with a finite Next.js tagged-cache policy. Keeping the
+Content Lake origin means Next.js is the one cache authority rather than stacking
+Sanity's API CDN ahead of an invalidation it cannot receive. The tag map, signed webhook,
+hard-expiry behavior, and recovery procedure live in
+[`docs/cache-revalidation.md`](../cache-revalidation.md); operational and unrecognized
+queries remain `no-store`.
 
 ## Options Considered
 
@@ -303,13 +309,14 @@ the adapters above it do not change.
 
 **Neutral**
 
-- The uncached host is a deliberate placeholder. Until AB#83, a Sanity-backed deployment
-  would make one request per read — correct, and not yet fast.
+- The origin host was a deliberate placeholder for AB#83's cache decision. AB#83 kept
+  that host but put the reviewed reads in Next.js's managed tagged Data Cache, so the
+  provider origin choice and the application cache authority remain separate decisions.
 
 ## Action Items
 
-- [ ] AB#83: decide the cache contract, including whether to move reads to
-      `apicdn.sanity.io`, and replace `cache: "no-store"` with the tag-based policy.
+- [x] AB#83 kept `api.sanity.io` as the uncached origin and made Next.js's managed tagged
+      Data Cache the one finite cache authority; see `docs/cache-revalidation.md`.
 - [x] AB#82 wrote the first adapter behind this boundary (`src/lib/sanity-media.ts`),
       validating the `unknown` result it receives and projecting an allow-list.
 - [x] AB#112 wrote the category adapter (`src/lib/sanity-content-tree.ts`), projecting

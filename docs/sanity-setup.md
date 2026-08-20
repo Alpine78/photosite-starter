@@ -3,10 +3,10 @@
 How a deployment connects to its content store, who owns that store, and what the site
 does when the store cannot be reached.
 
-This covers the connection and the site settings, home page, shared media, and category
-schemas. The remaining schemas, caching and webhook revalidation, and content seeding are
-separate work items (AB#81, AB#83, AB#113, AB#114); until they land, every deployment runs on
-`SITE_CONTENT_SOURCE=mock`.
+This covers the connection, the MVP schemas/adapters, and the published cache boundary.
+Content seeding and switching the route-facing seams remain separate work. Until that
+switch lands, every route still runs on `SITE_CONTENT_SOURCE=mock` even though the Sanity
+adapters and their cache/revalidation boundary are complete and tested in isolation.
 
 ## Ownership
 
@@ -363,12 +363,20 @@ Both select their source explicitly; neither reaches a real project.
   it cannot be a production build — a production build with demo content is exactly what
   the guard above refuses.
 
-## Not yet decided
+## Published caching and the webhook
 
-- **Caching, revalidation, and the API CDN.** Reads currently go to the uncached
-  `api.sanity.io` host with `cache: "no-store"`. AB#83 owns the cache contract — tag map,
-  invalidation, expiry, and whether to move to `apicdn.sanity.io` — and that choice
-  should be made there, deliberately, rather than inherited from a default set here.
+AB#83 keeps published reads on the Content Lake origin and makes Next.js's tagged Data
+Cache the one cache authority. The finite lifetime, complete tag/type map, signed webhook
+projection and setup, replay behavior, failure/retry rules, and broad reconciliation
+runbook are in [`docs/cache-revalidation.md`](cache-revalidation.md). Preview and
+Production use separate datasets, webhook URLs, and `SANITY_WEBHOOK_SECRET` values.
+
+Draft preview remains a future authenticated `no-store` surface. Draft and version
+documents are excluded from the webhook configuration and rejected at the public
+revalidation boundary.
+
+## Still not decided
+
 - **The POST query form.** Reads use GET, bounded at Sanity's documented 11 KB. A query
   that outgrows it fails loudly rather than being truncated; the API's POST form would be
   implemented then, not speculatively now.
