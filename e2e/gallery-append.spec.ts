@@ -3,6 +3,7 @@ import {
   getCanonicalContentPath,
 } from "../src/lib/content-tree";
 import { getBuiltInLabels } from "@/lib/deployment-config";
+import { STALE_RECOVERY_TIMEOUT_MS } from "@/components/gallery-grid";
 import { createHmacGalleryCursorCodec } from "../src/lib/gallery-pagination";
 import { getMockGalleryResult } from "../src/lib/mock-gallery";
 import { mockContentPages } from "../src/lib/mock-content-pages";
@@ -413,4 +414,187 @@ test("navigating to another slice of the same gallery replaces what is loaded", 
   // The first page's own slice, not the one the previous render held.
   await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
   expect(await presentedItemIds(page)).toEqual(firstItems);
+});
+
+test("a navigation that begins but never lands does not leave the control stuck loading forever", async ({
+  page,
+}) => {
+  // The grid marks itself provisionally stale the moment a qualifying
+  // navigation *begins* (before Next.js's own transition has even started
+  // fetching), because App Router keeps the outgoing instance mounted until
+  // the new page actually commits — see gallery-grid.tsx's own comment. A
+  // `popstate` event is one of the two signals that marking is based on
+  // (the other being a link click); dispatching one with no accompanying URL
+  // change reproduces exactly what a blocked, cancelled, or failed
+  // navigation looks like from this component's point of view: the "we might
+  // be leaving" signal fired, but the address never actually changed.
+  //
+  // A response resolving *before* `STALE_RECOVERY_TIMEOUT_MS` elapses is
+  // still correctly dropped — from this component's point of view a
+  // genuinely still-pending navigation looks identical up to that point, and
+  // `gallery-sections.spec.ts`'s own "a delayed in-flight continuation is
+  // ignored once a section switch begins" test requires exactly that (that
+  // test settles well inside the timeout window). What must not happen is
+  // the marking becoming a one-way latch with no route back to `false` at
+  // all: once the timeout elapses with no real navigation having landed, the
+  // very same still-in-flight response must be able to update the UI,
+  // proving the control recovers on its own rather than being stuck showing
+  // "loading" text forever with no way out but a full page reload.
+  await page.clock.install();
+  await page.goto(GALLERY.path, { waitUntil: "load" });
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+
+  let release: (() => void) | undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/gallery**", async (route) => {
+    await held;
+    await route.fallback();
+  });
+
+  const control = page.locator("a[rel='next']");
+  await continueControl(page).click();
+  await expect(control).toHaveAttribute("aria-busy", "true");
+
+  const urlBeforePopstate = page.url();
+  await page.evaluate(() => window.dispatchEvent(new PopStateEvent("popstate")));
+  await expect(page).toHaveURL(urlBeforePopstate);
+
+  // Advance past the recovery window before releasing the held response, so
+  // the recovery timer has definitely already cleared the stale marking by
+  // the time that response resolves.
+  await page.clock.fastForward(STALE_RECOVERY_TIMEOUT_MS + 1000);
+  release?.();
+
+  // The same original response, not a retry, updates the grid and returns
+  // the control to a non-busy state.
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
+  await expect(control).toHaveAttribute("aria-busy", "false");
+});
+
+test("a response that settles before the recovery window elapses is still reconciled once it does", async ({
+  page,
+}) => {
+  // The far more common ordering than the previous test's: most fetches
+  // settle well under `STALE_RECOVERY_TIMEOUT_MS`, so by the time a
+  // navigation is confirmed abandoned, the dropped response has usually
+  // already resolved and `loadNext` has already run its stale check against
+  // it. Without reconciling a *preserved* outcome — rather than only
+  // clearing the stale marking for some later, still-in-flight response to
+  // find — this ordering would leave the control stuck exactly as
+  // permanently as if no recovery existed at all.
+  await page.clock.install();
+  await page.goto(GALLERY.path, { waitUntil: "load" });
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+
+  let release: (() => void) | undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/gallery**", async (route) => {
+    await held;
+    await route.fallback();
+  });
+
+  const control = page.locator("a[rel='next']");
+  await continueControl(page).click();
+
+  const urlBeforePopstate = page.url();
+  await page.evaluate(() => window.dispatchEvent(new PopStateEvent("popstate")));
+  await expect(page).toHaveURL(urlBeforePopstate);
+
+  // The response settles shortly after the stale marking — long before the
+  // recovery window elapses — and is correctly dropped, exactly like the
+  // previous test's ordering, at this point. Waiting for the network
+  // response itself, rather than a grid count that was already true before
+  // anything happened, is what actually proves the drop occurred before the
+  // clock advances below — a count assertion alone cannot tell "already
+  // dropped" apart from "hasn't arrived yet".
+  const responseSettled = page.waitForResponse((response) =>
+    response.url().includes("/api/gallery"),
+  );
+  release?.();
+  await responseSettled;
+  // A small margin past the network response landing, for the page's own
+  // promise continuation (the `isStaleRef` check inside `loadNext`) to have
+  // actually run — `waitForResponse` observes the HTTP exchange, not the
+  // in-page JavaScript that reacts to it.
+  await page.waitForTimeout(200);
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+  await expect(control).toHaveAttribute("aria-busy", "true");
+
+  // Only once the recovery window elapses does the *already-settled*
+  // outcome get reconciled — no second request, no retry click.
+  await page.clock.fastForward(STALE_RECOVERY_TIMEOUT_MS + 1000);
+
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
+  await expect(control).toHaveAttribute("aria-busy", "false");
+});
+
+test("a later failed attempt does not hide an earlier successful one reconciled in the same window", async ({
+  page,
+}) => {
+  // Two attempts can land inside one abandoned-navigation window before
+  // recovery fires: the first succeeds (dropped, same as the previous
+  // test), then a second, explicit attempt on the same still-mounted
+  // instance fails outright. `sliceRef.current` already advanced past both
+  // — appending is what de-duplicates, so the first attempt's items are
+  // never re-fetched — but only the *state* (`"idle"` vs `"failed"`) should
+  // depend on which attempt was most recent. Reconciling only on the
+  // latest outcome, rather than always syncing to the accumulated
+  // `sliceRef.current`, would leave the first attempt's real, already-
+  // fetched items permanently invisible: a plain retry click reads the
+  // already-advanced cursor and would skip straight past them.
+  await page.clock.install();
+  await page.goto(GALLERY.path, { waitUntil: "load" });
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+
+  let releaseFirst: (() => void) | undefined;
+  const firstHeld = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  let requestCount = 0;
+  await page.route("**/api/gallery**", async (route) => {
+    requestCount += 1;
+    if (requestCount === 1) {
+      await firstHeld;
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({ status: 503, body: "" });
+  });
+
+  const control = page.locator("a[rel='next']");
+  await continueControl(page).click();
+
+  const urlBeforePopstate = page.url();
+  await page.evaluate(() => window.dispatchEvent(new PopStateEvent("popstate")));
+  await expect(page).toHaveURL(urlBeforePopstate);
+
+  const firstSettled = page.waitForResponse((response) =>
+    response.url().includes("/api/gallery"),
+  );
+  releaseFirst?.();
+  await firstSettled;
+  await page.waitForTimeout(200);
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+
+  // A second, explicit attempt on this same instance — still within the
+  // recovery window, so it too is dropped, but this one fails outright.
+  const secondSettled = page.waitForResponse((response) =>
+    response.url().includes("/api/gallery"),
+  );
+  await control.click();
+  await secondSettled;
+  await page.waitForTimeout(200);
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+
+  await page.clock.fastForward(STALE_RECOVERY_TIMEOUT_MS + 1000);
+
+  // The state reports the most recent attempt's own outcome (failed, so
+  // the control offers a retry) — but the first attempt's real, already-
+  // fetched items are visible, not hidden behind it.
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
+  await expect(page.getByRole("status")).toHaveText(galleryLabels.loadFailed);
 });

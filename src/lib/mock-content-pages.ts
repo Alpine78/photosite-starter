@@ -15,10 +15,16 @@
  * its ordered result set is deliberately not here: that is the AB#67 contract,
  * read through `gallery.ts` by the route that renders the grid. Most gallery
  * bodies below stay empty — a gallery is not required to carry one — while
- * `content-coastal-mornings` authors one (AB#106), so the long-form body,
- * its page-jump navigation, and a body media placement distinct from the
+ * `content-coastal-mornings` authors one (AB#106), so the long-form body, its
+ * page-jump navigation, and a body media placement distinct from the
  * gallery's own curated items are all exercised by a fixture rather than only
- * by a test.
+ * by a test. `content-large-archive` authors a short one too: it is the
+ * multi-page gallery `gallery-append.spec.ts`/`gallery-sections.spec.ts`
+ * already exercise for pagination, so it doubles as the one fixture that can
+ * prove AB#106 decision 3's first-page-only rule — the lead, the body, and
+ * the page-jump navigation appearing on the first page and actually being
+ * absent from a continuation, not merely absent everywhere because there was
+ * nothing to omit.
  *
  * One set per language subtag, keyed by the immutable `contentId`. Some pages
  * remain English-only, which is the normal state of a bilingual site whose
@@ -90,7 +96,23 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
   },
   "content-large-archive": {
     variant: "gallery",
-    body: [],
+    // Deliberately minimal: this gallery's own job is exercising pagination
+    // at scale (AB#114/AB#134), not editorial content. A short body still
+    // proves the first-page-only rendering rule (AB#106 decision 3) — the
+    // page-jump navigation and this body must appear on the first page and
+    // be absent from every continuation, not merely be absent everywhere
+    // because there was nothing to show in the first place.
+    body: [
+      {
+        type: "paragraph",
+        text: "This archive exists to exercise pagination at scale rather than to tell a story. Placeholder copy; replaced with real content from the CMS.",
+      },
+      { type: "heading", level: 2, text: "About this archive" },
+      {
+        type: "paragraph",
+        text: "Every item below is part of the same bounded, keyset-paginated result the grid and the lightbox share. Placeholder copy.",
+      },
+    ],
   },
   "content-reading-coastal-light": {
     variant: "article",
@@ -342,7 +364,17 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
   },
   "content-large-archive": {
     variant: "gallery",
-    body: [],
+    body: [
+      {
+        type: "paragraph",
+        text: "Tämä arkisto on olemassa laajan sivutuksen testaamista varten, ei tarinankerrontaa. Paikkamerkkisisältöä; korvataan CMS:n oikealla sisällöllä.",
+      },
+      { type: "heading", level: 2, text: "Tietoa tästä arkistosta" },
+      {
+        type: "paragraph",
+        text: "Jokainen alla oleva kohde on osa samaa rajattua, avaimin sivutettua tulosjoukkoa, jota ruudukko ja valotaulu jakavat. Paikkamerkkisisältöä.",
+      },
+    ],
   },
   "content-reading-coastal-light": {
     variant: "article",

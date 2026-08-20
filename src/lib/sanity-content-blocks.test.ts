@@ -227,4 +227,20 @@ describe("reading a whole body", () => {
     expect(error.rejection).toBe("malformed-result");
     expect(error.message).toContain("b1");
   });
+
+  it("rejects a level-3 heading appearing before any level-2 heading (AB#106) — an API import bypasses Studio's own guard", () => {
+    const body: readonly RawContentBlock[] = [
+      { _key: "b1", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 3, text: "Too soon" },
+    ];
+    const error = rejectionOf(() => readContentBlocks(body, options));
+    expect(error.rejection).toBe("non-semantic-heading-order");
+  });
+
+  it("accepts a level-2 heading followed by a level-3 heading", () => {
+    const body: readonly RawContentBlock[] = [
+      { _key: "b1", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 2, text: "Section" },
+      { _key: "b2", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 3, text: "Subsection" },
+    ];
+    expect(() => readContentBlocks(body, options)).not.toThrow();
+  });
 });

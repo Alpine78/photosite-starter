@@ -45,6 +45,23 @@ type GalleryGridProps = {
 
 type ContinuationState = "idle" | "loading" | "failed";
 
+/**
+ * How long a `GalleryGrid` instance waits, once a click or `popstate`
+ * predicts it is about to be replaced by a real navigation, before
+ * concluding that navigation is not coming and reconciling its own state
+ * itself. See the effect that schedules it, below, for the full reasoning.
+ *
+ * A fixed bound cannot distinguish "abandoned" from "genuinely still
+ * pending" with certainty — no signal for that is available to a sibling
+ * component here (`useLinkStatus` from `next/link` only observes its own
+ * nearest ancestor `<Link>`, not an arbitrary other component's pending
+ * transition). This value is a deliberately generous, chosen trade-off: long
+ * enough that an ordinary App Router transition is most unlikely to still be
+ * genuinely in flight once it elapses, short enough that a visitor stuck
+ * behind a truly abandoned one is not stuck for long.
+ */
+export const STALE_RECOVERY_TIMEOUT_MS = 8000;
+
 /** What a continuation attempt did, which decides where focus belongs after it. */
 type ContinuationOutcome = {
   readonly appended: boolean;
@@ -119,8 +136,62 @@ export function GalleryGrid({
   // capture-phase click listener marks this instance stale immediately,
   // before Next.js's own transition has even started fetching.
   const isStaleRef = useRef(false);
+  // A genuine App Router transition to a new page — the case this marking
+  // exists to protect — unmounts this instance well inside
+  // `STALE_RECOVERY_TIMEOUT_MS`, at which point the timeout below is moot;
+  // it only ever matters for a navigation that gets blocked, cancelled, or
+  // fails, which otherwise leaves `isStaleRef.current` a one-way latch with
+  // no route back to `false` short of a full page reload (see the two
+  // checks below that read it).
+  const staleRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  // What the most recent stale-dropped continuation attempt actually did,
+  // preserved so the recovery timeout can apply it once abandonment is
+  // confirmed. Without this, a response that resolves *before* the timeout
+  // fires — the common case, since most fetches settle well under
+  // `STALE_RECOVERY_TIMEOUT_MS` — would already have been dropped by the
+  // checks in `loadNext` below, leaving nothing for the timeout to react to
+  // and the control stuck regardless. `sliceRef.current` is always kept
+  // current independent of staleness, so reconciling never needs to know
+  // *which* attempt this was, only whether the most recent one succeeded or
+  // failed.
+  const pendingStaleOutcomeRef = useRef<"success" | "failed" | undefined>(undefined);
   useEffect(() => {
     isStaleRef.current = false;
+
+    const markStale = () => {
+      isStaleRef.current = true;
+      // Each new marking gets its own full window: a second qualifying
+      // event before the first one's timeout would have fired is still
+      // evidence a departure is genuinely underway, not a reason to let
+      // the earlier, shorter-lived timer clear the marking early.
+      if (staleRecoveryTimeoutRef.current !== undefined) {
+        clearTimeout(staleRecoveryTimeoutRef.current);
+      }
+      staleRecoveryTimeoutRef.current = setTimeout(() => {
+        isStaleRef.current = false;
+        const outcome = pendingStaleOutcomeRef.current;
+        pendingStaleOutcomeRef.current = undefined;
+        if (outcome === undefined) return;
+        // `sliceRef.current` is the one cumulative truth regardless of how
+        // many attempts happened while stale: an earlier attempt in this
+        // same window may have succeeded and advanced it before a later one
+        // failed, and that progress must not stay hidden just because the
+        // *most recent* attempt is the one being reported. Only `state`
+        // depends on which was most recent.
+        setSlice(sliceRef.current);
+        setState(outcome === "failed" ? "failed" : "idle");
+        // Mirrors `onContinue`'s own post-success focus handling below,
+        // which this reconciled attempt was unable to run at the time
+        // because it was still (correctly, at that moment) considered
+        // stale: focus stays on the control for as long as it exists, and
+        // moves to the completion notice only once it doesn't.
+        if (outcome === "success") {
+          setPendingFocus(sliceRef.current.nextCursor === null ? "completion" : "control");
+        }
+      }, STALE_RECOVERY_TIMEOUT_MS);
+    };
 
     const onDocumentClick = (event: MouseEvent) => {
       // Only a plain primary click actually leaves this page — the same
@@ -146,8 +217,7 @@ export function GalleryGrid({
       // URL — re-activating the already-selected section — causes no
       // navigation at all. Neither replaces this instance, so marking it
       // stale for either would suppress every future continuation update on
-      // a gallery a visitor never actually left: the flag has no later
-      // moment to reset, since that only happens on an actual remount.
+      // a gallery a visitor never actually left.
       if (
         link === null ||
         link === continueRef.current ||
@@ -165,21 +235,25 @@ export function GalleryGrid({
         return;
       }
 
-      isStaleRef.current = true;
+      markStale();
     };
 
     const onPopState = () => {
-      isStaleRef.current = true;
+      markStale();
     };
 
     document.addEventListener("click", onDocumentClick, true);
     window.addEventListener("popstate", onPopState);
     return () => {
       isStaleRef.current = true;
+      if (staleRecoveryTimeoutRef.current !== undefined) {
+        clearTimeout(staleRecoveryTimeoutRef.current);
+      }
       document.removeEventListener("click", onDocumentClick, true);
       window.removeEventListener("popstate", onPopState);
     };
   }, []);
+
   const statusId = useId();
 
   const { nextCursor } = slice;
@@ -215,12 +289,18 @@ export function GalleryGrid({
       if (!isStaleRef.current) {
         setSlice(merged);
         setState("idle");
+      } else {
+        pendingStaleOutcomeRef.current = "success";
       }
       return outcome;
     } catch {
       // The failure is announced and the control becomes a retry. Nothing that
       // was already loaded is discarded: a visitor keeps everything they had.
-      if (!isStaleRef.current) setState("failed");
+      if (!isStaleRef.current) {
+        setState("failed");
+      } else {
+        pendingStaleOutcomeRef.current = "failed";
+      }
       return { appended: false, complete: false };
     } finally {
       inFlightRef.current = false;

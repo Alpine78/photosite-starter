@@ -241,11 +241,53 @@ export const contentBlockTypes: readonly SchemaTypeDefinition[] = [
   contentYoutubeBlockType,
 ];
 
+type RawHeadingItem = { readonly _type?: unknown; readonly level?: unknown };
+
+/**
+ * The page title owns the single h1 (see `contentHeadingBlockType`'s own
+ * description), so a body's first heading has to be level 2 — a level-3
+ * heading appearing before any level-2 heading would skip a level. Restates
+ * `content-page.ts#assertSemanticHeadingOrder` as a Studio-facing message
+ * rather than a thrown error: schemas import nothing from `src/` (ADR-0006),
+ * so the two sides are pinned equal by a test instead. The field-level
+ * `level` validator on `contentHeadingBlockType` above only ever sees one
+ * heading's own value, never the body's order, so this array-level check is
+ * the only place that can see the whole sequence.
+ */
+function validatesSemanticHeadingOrder(
+  value: readonly RawHeadingItem[] | undefined,
+): SchemaValidationResult {
+  if (value === undefined) return true;
+  let sawLevel2 = false;
+  for (const item of value) {
+    if (item._type !== CONTENT_BLOCK_OBJECT_TYPES.heading) continue;
+    if (item.level === 2) {
+      sawLevel2 = true;
+    } else if (item.level === 3 && !sawLevel2) {
+      // Deliberately `=== 3`, not "anything that isn't 2": a heading block
+      // an editor has just added and not yet assigned a level to has
+      // `level === undefined`, which the field's own `required()` rule
+      // already reports. Treating that transient, mid-edit state as "a
+      // level-3 heading out of order" would show a second, misleading
+      // message for a block that has no heading level at all yet.
+      return "A level-3 heading appears before any level-2 heading. The page title owns h1, so the body's first heading must be level 2.";
+    }
+  }
+  return true;
+}
+
 /**
  * Builds a body field restricted to the given block kinds — every kind by
  * default, matching ADR-0003 decision 2's shared allow-list. A narrower
  * context, such as a future gallery section introduction, passes its own
  * smaller `allowedTypes` instead of a second field-building function.
+ *
+ * `validatesSemanticHeadingOrder` always applies, regardless of a caller's
+ * own `validation` option: it is composed onto the same rule rather than
+ * replaced by it, the way `rule.required().custom(fn)` chains in the Sanity
+ * docs — so `article.ts`'s `.required().min(1)` and this heading-order check
+ * both bind the same field, and a caller cannot accidentally opt out of the
+ * structural invariant just by supplying its own extra rules.
  */
 export function defineContentBodyField(options: {
   readonly name: string;
@@ -263,8 +305,13 @@ export function defineContentBodyField(options: {
       ? {}
       : { description: options.description }),
     of: allowed.map((kind) => ({ type: CONTENT_BLOCK_OBJECT_TYPES[kind] })),
-    ...(options.validation === undefined
-      ? {}
-      : { validation: options.validation }),
+    validation: (rule) => {
+      const withHeadingOrder = rule.custom<readonly RawHeadingItem[]>(
+        validatesSemanticHeadingOrder,
+      );
+      return options.validation === undefined
+        ? withHeadingOrder
+        : options.validation(withHeadingOrder);
+    },
   };
 }

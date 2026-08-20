@@ -9,6 +9,7 @@ import {
 } from "./content-block";
 import { defineSchemaTypes } from "./index";
 import { MEDIA_TYPE_NAME } from "./media";
+import { assertSemanticHeadingOrder, type ContentBlock } from "../../src/lib/content-page";
 import type {
   SchemaTypeDefinition,
   SchemaValidation,
@@ -226,5 +227,102 @@ describe("defineContentBodyField", () => {
       CONTENT_BLOCK_OBJECT_TYPES.paragraph,
       CONTENT_BLOCK_OBJECT_TYPES.list,
     ]);
+  });
+
+  describe("semantic heading order (AB#106)", () => {
+    const heading = (level: 2 | 3) => ({
+      _type: CONTENT_BLOCK_OBJECT_TYPES.heading,
+      level,
+    });
+    const paragraph = () => ({ _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph });
+
+    it("accepts an empty or heading-free body", async () => {
+      const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
+      expect(await run(undefined)).toEqual([true]);
+      expect(await run([paragraph()])).toEqual([true]);
+    });
+
+    it("accepts a level-2 heading followed by a level-3 heading", async () => {
+      const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
+      expect(await run([heading(2), heading(3)])).toEqual([true]);
+    });
+
+    it("rejects a level-3 heading as the body's first heading, matching the read-time adapter's own refusal", async () => {
+      const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
+      const [result] = await run([heading(3)]);
+      expect(result).toEqual(expect.any(String));
+    });
+
+    it("does not misreport a heading an editor has not yet assigned a level to", async () => {
+      // A newly added heading block has `level === undefined` until the
+      // editor picks one — the field's own `required()` rule already
+      // reports that. This check must not additionally claim "a level-3
+      // heading appears before any level-2 heading" for a block that has no
+      // level at all yet.
+      const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
+      const unleveled = { _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: undefined };
+      expect(await run([unleveled])).toEqual([true]);
+    });
+
+    it("still applies when the caller supplies its own extra validation", async () => {
+      // article.ts's body field adds .required().min(1) on top of this
+      // check — a caller must not be able to opt out of the structural
+      // invariant just by supplying its own rules.
+      const field = defineContentBodyField({
+        name: "body",
+        title: "Body",
+        validation: (rule) => rule.required().min(1),
+      });
+      const { required, min, run } = inspect(field.validation);
+      expect(required).toBe(true);
+      expect(min).toBe(1);
+      const [result] = await run([heading(3)]);
+      expect(result).toEqual(expect.any(String));
+    });
+
+    describe("stays pinned to content-page.ts#assertSemanticHeadingOrder", () => {
+      // Both sides claim to enforce "the same rule" (ADR-0006: a schema
+      // cannot import `src/`, so the two are separate implementations), but
+      // nothing before this ran them against a shared set of inputs to
+      // check that claim. Each case's heading levels are projected into
+      // both a raw Studio-shaped list and a `ContentBlock[]`, so a verdict
+      // mismatch here means the Studio guard and the read-time adapter
+      // would disagree about the same authored content.
+      const cases: ReadonlyArray<{
+        readonly name: string;
+        readonly levels: readonly (2 | 3)[];
+      }> = [
+        { name: "no headings", levels: [] },
+        { name: "a single level-2 heading", levels: [2] },
+        { name: "level 2 then level 3", levels: [2, 3] },
+        { name: "level 2, level 3, level 3", levels: [2, 3, 3] },
+        { name: "level 3 first", levels: [3] },
+        { name: "level 3 first, level 2 later", levels: [3, 2] },
+        { name: "level 2, level 3, level 2, level 3", levels: [2, 3, 2, 3] },
+      ];
+
+      it.each(cases)("$name", async ({ levels }) => {
+        const rawHeadings = levels.map((level) => ({
+          _type: CONTENT_BLOCK_OBJECT_TYPES.heading,
+          level,
+        }));
+        const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
+        const [schemaResult] = await run(rawHeadings);
+
+        const blocks: readonly ContentBlock[] = levels.map((level, index) => ({
+          type: "heading",
+          level,
+          text: `Heading ${index}`,
+        }));
+        let runtimeRejected = false;
+        try {
+          assertSemanticHeadingOrder(blocks);
+        } catch {
+          runtimeRejected = true;
+        }
+
+        expect(schemaResult !== true).toBe(runtimeRejected);
+      });
+    });
   });
 });

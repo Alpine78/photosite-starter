@@ -393,6 +393,89 @@ test("a delayed in-flight continuation is ignored once a section switch begins",
   expect(sectionItems).toHaveLength(GALLERY.pageSize);
 });
 
+test("a second continuation started while a section switch is still genuinely pending is ignored too, not just the first", async ({
+  page,
+}) => {
+  // gallery-grid.tsx recovers a continuation response that was wrongly
+  // marked stale by a navigation that never lands, on a bounded timeout —
+  // but that recovery must never fire while a real navigation is still
+  // genuinely in flight, no matter how many further continuation attempts
+  // happen on this exact instance before it actually commits. This is the
+  // scenario a too-eager recovery mechanism could reopen: the section
+  // switch here is held open for the whole test, well past a single
+  // request's own resolution, so a second "show more" click started after
+  // the first one's response was correctly dropped must be dropped too.
+  await page.goto(GALLERY.path, { waitUntil: "domcontentloaded" });
+  await expect(
+    page.getByRole("main").locator("[data-item-id]"),
+  ).toHaveCount(GALLERY.pageSize);
+
+  let releaseContinuation: () => void = () => {};
+  let continuationGate = new Promise<void>((resolve) => {
+    releaseContinuation = resolve;
+  });
+  await page.route("**/api/gallery**", async (route) => {
+    await continuationGate;
+    await route.fallback();
+  });
+
+  let releaseNavigation: () => void = () => {};
+  const navigationGate = new Promise<void>((resolve) => {
+    releaseNavigation = resolve;
+  });
+  await page.route(
+    (url) =>
+      url.pathname === GALLERY.path &&
+      url.searchParams.get("section") === GALLERY.multiPageSection.slug,
+    async (route) => {
+      await navigationGate;
+      await route.fallback();
+    },
+  );
+
+  const control = page.getByRole("main").locator("a[rel='next']");
+  await control.click();
+  await sectionsNav(page)
+    .getByRole("link", { name: GALLERY.multiPageSection.label, exact: true })
+    .click();
+
+  // The first continuation resolves — correctly dropped, per the existing
+  // "delayed in-flight continuation" test — freeing `inFlightRef` for a
+  // second attempt while the section switch is still held open. A short
+  // wait lets that resolution actually settle before proceeding.
+  releaseContinuation();
+  await page.waitForTimeout(200);
+
+  // A second, explicit continuation attempt on this same, still-mounted
+  // instance — the section switch is still gated, so it is unambiguously
+  // still pending, not abandoned. Not asserting focus here: clicking the
+  // control naturally focuses it, so a focus check right after this click
+  // would prove nothing about scripted focus-stealing either way. The
+  // count assertion below is the one that actually catches a leaked
+  // append from either dropped response.
+  continuationGate = new Promise<void>((resolve) => {
+    releaseContinuation = resolve;
+  });
+  await control.click();
+  releaseContinuation();
+  await page.waitForTimeout(300);
+
+  // Neither dropped response was allowed to take the control out of its
+  // busy state either — a leak here would show up before the append-count
+  // assertion below even gets to run.
+  await expect(control).toHaveAttribute("aria-busy", "true");
+
+  releaseNavigation();
+  await page.waitForURL(
+    (url) => url.searchParams.get("section") === GALLERY.multiPageSection.slug,
+  );
+
+  // Exactly one page of the new section — neither dropped response was
+  // ever allowed to append.
+  const sectionItems = await presentedItemIds(page, GALLERY.pageSize);
+  expect(sectionItems).toHaveLength(GALLERY.pageSize);
+});
+
 test("re-selecting the active section does not disable its own continuation", async ({
   page,
 }) => {

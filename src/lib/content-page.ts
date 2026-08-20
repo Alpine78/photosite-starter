@@ -106,6 +106,28 @@ export type GalleryContentPage = ContentPageBase & {
 export type ContentPage = ArticleContentPage | GalleryContentPage;
 
 /**
+ * The page title owns the single `h1` (see `ContentBlock`'s own doc comment),
+ * so a body's first heading has to be level 2 — a level-3 heading appearing
+ * before any level-2 heading would skip a level, breaking the semantic
+ * hierarchy AB#106 requires. Fails fast, matching this project's other
+ * structural `assert*` boundaries (`assertGallerySections`,
+ * `assertPlacements`), rather than collecting every issue.
+ */
+export function assertSemanticHeadingOrder(blocks: readonly ContentBlock[]): void {
+  let sawLevel2 = false;
+  for (const block of blocks) {
+    if (block.type !== "heading") continue;
+    if (block.level === 2) {
+      sawLevel2 = true;
+    } else if (!sawLevel2) {
+      throw new TypeError(
+        "A level-3 heading appears before any level-2 heading — the page title owns h1, so the body's first heading must be level 2",
+      );
+    }
+  }
+}
+
+/**
  * The data-access seam a detail route reads one content page through.
  *
  * The locale is part of the request, not context: ADR-0003 gives each locale its
