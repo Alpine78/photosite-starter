@@ -157,3 +157,24 @@ export function getLightboxImageSizes(
 
   return boundedImageSizes(maxCssWidth, maxCssWidth, "100vw");
 }
+
+/**
+ * How many adjacent slides the lightbox loads ahead of a visitor's own
+ * navigation: one behind, two ahead (AB#79).
+ *
+ * The underlying library ships this same pair as its own unstated default, so
+ * leaving it unset would make the window an inherited accident rather than a
+ * project decision the way `LIGHTBOX_MAX_CSS_WIDTH` and the zoom cap above
+ * already are. Restating the identical numbers here keeps today's navigation
+ * feel unchanged while making the bound explicit, reviewable, and the one
+ * place a future change to it is made. It is biased slightly forward because
+ * next is the more common navigation direction than previous.
+ *
+ * The window only ever addresses slides already present in the viewer's own
+ * loaded slide array (`gallery-lightbox.tsx` builds `dataSource` from exactly
+ * that array and appends to it in place as a continuation delivers more), so
+ * widening or narrowing this pair can never itself cross a gallery's page
+ * cursor — reaching a new page stays the separate, already-shipped mechanism
+ * that fires only once a visitor's current slide is the last one loaded.
+ */
+export const LIGHTBOX_PRELOAD_WINDOW: readonly [number, number] = [1, 2];
