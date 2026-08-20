@@ -4,6 +4,7 @@ import {
   getLightboxZoomCap,
   imageRenderProfiles,
   LIGHTBOX_MAX_CSS_WIDTH,
+  LIGHTBOX_PRELOAD_WINDOW,
 } from "@/lib/image-delivery";
 import { projectPublicImageMedia } from "@/lib/media";
 import { mockImages } from "@/lib/mock-media";
@@ -99,6 +100,25 @@ function photoSwipeZoomLevels(
 
   return { fit, initial, secondary, max };
 }
+
+describe("lightbox preload window", () => {
+  it("pins the decided one-back, two-forward bound (AB#79)", () => {
+    expect(LIGHTBOX_PRELOAD_WINDOW).toEqual([1, 2]);
+  });
+
+  it("is small enough that opening a large gallery cannot download it whole", () => {
+    const [before, after] = LIGHTBOX_PRELOAD_WINDOW;
+
+    expect(Number.isInteger(before)).toBe(true);
+    expect(Number.isInteger(after)).toBe(true);
+    expect(before).toBeGreaterThanOrEqual(0);
+    expect(after).toBeGreaterThanOrEqual(0);
+    // Far below any real gallery's item count, so a change to this constant
+    // that accidentally widened it into "most of the gallery" fails here
+    // before it ever reaches a browser.
+    expect(before + after).toBeLessThanOrEqual(5);
+  });
+});
 
 describe("lightbox zoom cap", () => {
   const uncapped = (level: number) => level;

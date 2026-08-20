@@ -135,6 +135,12 @@ image rendition boundary, the shared bounded gallery
 result contract, the fullscreen lightbox behind a project-owned PhotoSwipe wrapper
 (open, close, navigate, trapped focus, focus return keyed by `itemId`, and the caption
 and credit of the active item, associated with it for assistive technology),
+a bounded adjacent-image preload window (`LIGHTBOX_PRELOAD_WINDOW`, `image-delivery.ts`,
+ADR-0010) that replaces the library's own unstated default with one slide back and two
+forward, structurally unable to cross a gallery's page cursor because it only ever
+addresses slides already in the viewer's loaded array, with its own failure/retry
+behaviour and bounded network/memory footprint measured against a real browser and
+recorded in the ADR,
 the public content category domain model with its canonical placement
 contract, settings-driven page metadata with canonical URLs and Open Graph values, and
 the locale route contract — configured locale route spaces, root prefix reservation,

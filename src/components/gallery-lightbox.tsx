@@ -16,7 +16,10 @@ import {
   type ReactNode,
 } from "react";
 import type { BuiltInLabels } from "@/lib/deployment-config";
-import { getLightboxZoomCap } from "@/lib/image-delivery";
+import {
+  getLightboxZoomCap,
+  LIGHTBOX_PRELOAD_WINDOW,
+} from "@/lib/image-delivery";
 import {
   buildLightboxCaption,
   type LightboxCaptionPart,
@@ -248,6 +251,11 @@ export function GalleryLightbox({
           Math.max(1, zoomLevels.fit * 4),
           declaredSlotZoomCap(zoomLevels),
         ),
+      // AB#79's explicit, bounded window (image-delivery.ts) rather than the
+      // library's own unstated default. Spread into a fresh mutable pair: the
+      // library's own option type is not `readonly`, and the constant stays
+      // the one place this decision is made either way.
+      preload: [...LIGHTBOX_PRELOAD_WINDOW],
       imageClickAction: "zoom",
       trapFocus: true,
       // Focus returns to the trigger for the slide the visitor ended on, which
