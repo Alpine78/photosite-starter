@@ -13,6 +13,7 @@ import {
   DEFAULT_STORY_NAMESPACE,
 } from "./support/harness-environment";
 import { expect, test } from "./support/fixtures";
+import { openLightbox, presentedImage } from "./support/lightbox";
 
 /**
  * The gallery section journey: AB#115's URL-driven, accessible section
@@ -33,9 +34,11 @@ async function mockPage(
   language: string,
   contentId: string,
   sectionSlug?: string,
+  cursor?: string,
 ) {
   return getMockGalleryResult(language, contentId, {
     ...(sectionSlug === undefined ? {} : { sectionSlug }),
+    ...(cursor === undefined ? {} : { cursor }),
     cursorCodec: harnessCursorCodec,
   });
 }
@@ -50,6 +53,14 @@ type SectionedGallery = {
   readonly path: string;
   readonly pageSize: number;
   readonly multiPageSection: GallerySectionSummary;
+  /**
+   * The section's own itemId order across its first two pages, from the same
+   * source the running server reads — the ground truth a lightbox-triggered
+   * continuation is checked against, so a continuation that quietly escapes
+   * the section (fetching the unfiltered gallery's next slice instead) fails
+   * on identity even if the item count and the URL both still look right.
+   */
+  readonly multiPageSectionExpectedIds: readonly string[];
   readonly emptySection: GallerySectionSummary;
 };
 
@@ -70,23 +81,41 @@ async function sectionedDefaultLocaleGallery(): Promise<SectionedGallery> {
     }
 
     let multiPageSection: GallerySectionSummary | undefined;
+    let multiPageSectionExpectedIds: readonly string[] | undefined;
     let emptySection: GallerySectionSummary | undefined;
     for (const section of result.sections) {
       const sectionResult = await mockPage(language, contentId, section.slug);
       if (sectionResult === undefined) continue;
       if (sectionResult.items.length === 0) {
         emptySection ??= section;
-      } else if (sectionResult.page.hasNextPage) {
-        multiPageSection ??= section;
+      } else if (sectionResult.page.hasNextPage && multiPageSection === undefined) {
+        const secondPage = await mockPage(
+          language,
+          contentId,
+          section.slug,
+          sectionResult.page.endCursor ?? undefined,
+        );
+        if (secondPage !== undefined) {
+          multiPageSection = section;
+          multiPageSectionExpectedIds = [
+            ...sectionResult.items,
+            ...secondPage.items,
+          ].map((item) => item.itemId);
+        }
       }
     }
 
-    if (multiPageSection !== undefined && emptySection !== undefined) {
+    if (
+      multiPageSection !== undefined &&
+      multiPageSectionExpectedIds !== undefined &&
+      emptySection !== undefined
+    ) {
       return {
         contentId,
         path: `${STORY_ROOT}/${path.join("/")}`,
         pageSize: result.page.size,
         multiPageSection,
+        multiPageSectionExpectedIds,
         emptySection,
       };
     }
@@ -501,6 +530,67 @@ test("re-selecting the active section does not disable its own continuation", as
   await expect(
     page.getByRole("main").locator("[data-item-id]"),
   ).toHaveCount(GALLERY.pageSize * 2);
+});
+
+test("an open lightbox continues within the active section, past the last loaded item", async ({
+  page,
+}) => {
+  // `gallery-append.spec.ts` proves this auto-continuation for the unfiltered
+  // gallery; here it is exercised through the code path a section filter
+  // adds, since `gallery-grid.tsx`'s lightbox-triggered `continueForLightbox`
+  // and its link-triggered `onContinue` are two separate call sites onto the
+  // same section-scoped `loadNext`, and only the link-triggered path had a
+  // test proving the section survives an append.
+  await page.goto(
+    `${GALLERY.path}?section=${GALLERY.multiPageSection.slug}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  const items = await presentedItemIds(page, GALLERY.pageSize);
+
+  const dialog = page.getByRole("dialog");
+  const last = page
+    .getByRole("main")
+    .locator(`[data-item-id="${items[items.length - 1]}"]`);
+  await openLightbox(dialog, async () => {
+    await last.focus();
+    await page.keyboard.press("Enter");
+  });
+  const beforeAlt = (await presentedImage(dialog))?.alt;
+
+  // Reaching the section's last loaded item asks for one more slice, and the
+  // grown grid's own itemId order is checked against the section's ground
+  // truth — not just its length — so a continuation that quietly escaped the
+  // section (fetching the unfiltered gallery's next slice instead, while
+  // still landing on `pageSize * 2` items and leaving the URL alone) fails
+  // here instead of passing by coincidence.
+  const grown = await presentedItemIds(page, GALLERY.pageSize * 2);
+  expect(grown).toEqual(GALLERY.multiPageSectionExpectedIds);
+
+  // Still the selected section, not silently reset to "All" by the append.
+  await expect(
+    sectionsNav(page).getByRole("link", {
+      name: GALLERY.multiPageSection.label,
+      exact: true,
+    }),
+  ).toHaveAttribute("aria-current", "true");
+
+  // The viewer actually lands on the newly appended slide rather than a
+  // dialog that stayed open but silently ignored the key: the presented
+  // image both changes and matches the grid's own first appended item, the
+  // same identity/order guarantee `gallery-lightbox.spec.ts` proves for the
+  // base case.
+  await page.keyboard.press("ArrowRight");
+  const appendedAlt = await page
+    .getByRole("main")
+    .locator(`[data-item-id="${grown[GALLERY.pageSize]}"] img`)
+    .getAttribute("alt");
+  await expect
+    .poll(async () => (await presentedImage(dialog))?.alt)
+    .toBe(appendedAlt);
+  expect(appendedAlt).not.toBe(beforeAlt);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
 });
 
 // Continuation deliberately leaves the address bar alone once JavaScript

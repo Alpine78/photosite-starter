@@ -14,7 +14,11 @@ import {
   PREFIXED_LOCALE,
 } from "./support/harness-environment";
 import { expect, test } from "./support/fixtures";
-import { focusIsInside, openLightbox } from "./support/lightbox";
+import {
+  focusIsInside,
+  openLightbox,
+  presentedImage,
+} from "./support/lightbox";
 import { openHeaderNavigation } from "./support/public-page";
 
 /**
@@ -179,22 +183,6 @@ test.beforeAll(async () => {
 /** The unprefixed route under test belongs to the harness's default locale. */
 const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE).lightbox;
 const galleryLabels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE).gallery;
-
-/** What the visitor is actually looking at, measured rather than assumed. */
-type PresentedImage = {
-  readonly alt: string;
-  /** The element this photograph names as its description, if it names one. */
-  readonly describedBy: string | null;
-  readonly currentSrc: string;
-  readonly naturalWidth: number;
-  readonly naturalHeight: number;
-  readonly renderedWidth: number;
-  readonly renderedHeight: number;
-  readonly left: number;
-  readonly top: number;
-  readonly right: number;
-  readonly bottom: number;
-};
 
 test("the gallery grid opens a lightbox that navigates and closes by keyboard", async ({
   page,
@@ -866,60 +854,6 @@ test("the grid reads in the same order the lightbox navigates, at every column c
     );
   }
 });
-
-/**
- * The photograph currently on screen, measured rather than queried.
- *
- * Two things make that less obvious than it sounds: the library keeps
- * neighbouring slides mounted off to the sides, and it stacks a decorative
- * low-resolution stand-in behind the frame it is still loading. So the search
- * is for the image that covers the middle of the screen and is exposed to
- * assistive technology — which is exactly the one a visitor is looking at.
- */
-async function presentedImage(dialog: Locator): Promise<PresentedImage | null> {
-  return dialog.evaluate((root) => {
-    const centreX = window.innerWidth / 2;
-    const centreY = window.innerHeight / 2;
-
-    for (const image of root.querySelectorAll("img")) {
-      if (
-        image.getAttribute("aria-hidden") === "true" ||
-        image.getAttribute("role") === "presentation"
-      ) {
-        continue;
-      }
-
-      const rect = image.getBoundingClientRect();
-      const coversCentre =
-        rect.width > 0 &&
-        rect.height > 0 &&
-        rect.left <= centreX &&
-        rect.right >= centreX &&
-        rect.top <= centreY &&
-        rect.bottom >= centreY;
-
-      if (!coversCentre) {
-        continue;
-      }
-
-      return {
-        alt: image.alt,
-        describedBy: image.getAttribute("aria-describedby"),
-        currentSrc: image.currentSrc,
-        naturalWidth: image.naturalWidth,
-        naturalHeight: image.naturalHeight,
-        renderedWidth: rect.width,
-        renderedHeight: rect.height,
-        left: rect.left,
-        top: rect.top,
-        right: rect.right,
-        bottom: rect.bottom,
-      };
-    }
-
-    return null;
-  });
-}
 
 /**
  * Opens the gallery page and lets its grid settle.
