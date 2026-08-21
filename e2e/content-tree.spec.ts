@@ -71,6 +71,39 @@ function retiredDefaultRoute(): { readonly from: string; readonly to: string } {
 const RETIRED_DEFAULT_ROUTE = retiredDefaultRoute();
 
 /**
+ * One real category redirect from the deterministic content adapter. The
+ * content-page redirect above already proves the registry for a `content`
+ * kind; category renames are recorded and resolved the same way but were
+ * never exercised end to end, so this walks the same registry filtered to a
+ * `category` target instead.
+ */
+function retiredCategoryRoute(): { readonly from: string; readonly to: string } {
+  const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
+  const treeInput = mockContentTreeInputs[language];
+  if (treeInput === undefined) {
+    throw new Error(`[e2e] The default locale ${language} publishes no mock tree.`);
+  }
+
+  const tree = buildContentTree(treeInput);
+  const redirects = buildContentRedirects(
+    tree,
+    mockContentRedirectInputs[language] ?? [],
+  );
+  for (const [previousPath, currentPath] of redirects) {
+    if (resolveStoryRoute(tree, currentPath)?.kind === "category") {
+      return {
+        from: `${STORY_ROOT}/${previousPath}`,
+        to: `${STORY_ROOT}/${currentPath.join("/")}`,
+      };
+    }
+  }
+
+  throw new Error("[e2e] The harness needs one retired category path.");
+}
+
+const RETIRED_CATEGORY_ROUTE = retiredCategoryRoute();
+
+/**
  * One published article's canonical path, derived from the same adapter data
  * the harness serves rather than written down here.
  *
@@ -765,4 +798,31 @@ test("a retired path leads to the page's current one in a single redirect", asyn
 
   expect(redirects).toHaveLength(1);
   expect(new URL(page.url()).pathname).toBe(RETIRED_DEFAULT_ROUTE.to);
+});
+
+test("a retired category path leads to the branch's current one in a single redirect", async ({
+  page,
+}) => {
+  const redirects: string[] = [];
+  page.on("response", (response) => {
+    if (
+      response.request().isNavigationRequest() &&
+      (response.status() === 308 || response.status() === 301)
+    ) {
+      redirects.push(new URL(response.url()).pathname);
+    }
+  });
+
+  await page.goto(RETIRED_CATEGORY_ROUTE.from, {
+    waitUntil: "domcontentloaded",
+  });
+
+  expect(redirects).toHaveLength(1);
+  expect(new URL(page.url()).pathname).toBe(RETIRED_CATEGORY_ROUTE.to);
+
+  // Landed on a working branch, not merely a URL: the redirect target is a
+  // real category page with its own heading and breadcrumb, not a dead end.
+  await expect(page.getByRole("main")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(breadcrumbSteps(page).last().getByRole("link")).toHaveCount(0);
 });
