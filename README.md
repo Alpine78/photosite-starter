@@ -386,9 +386,16 @@ a green pipeline. See [deployment](docs/deployment.md).
   pagination contract. A gallery may already declare a seeded-random ordering intent
   ([ADR-0009](docs/adr/0009-seeded-random-gallery-ordering.md) decides its contract), but
   nothing computes an order from it yet — the adapter refuses to serve such a gallery rather
-  than mis-paginate it, pending the materialized shuffle key AB#129 adds. Route-facing seams
-  still use fixtures until every adapter is ready, to avoid a mixed mock/Sanity deployment;
-  tagged caching/webhook revalidation remain pending*
+  than mis-paginate it, pending the materialized shuffle key AB#129 adds. Tagged caching and
+  signed webhook revalidation are done ([cache-revalidation](docs/cache-revalidation.md)).
+  Sample content seeding is done too: an owner-run script
+  ([`seeding`](docs/sanity-seeding.md), `npm run seed:sanity`) writes 448 sample documents —
+  settings/home, a 3-level category tree, services, bilingual articles, and two galleries
+  (one with sections and a body, one with 400 placements testing the paginated read) — into
+  a real project over the plain HTTP API, distinguishable from real content by a
+  `path()`-queryable `seed.**` id namespace and removable in one query before go-live.
+  Route-facing seams still use fixtures until every adapter is wired in, to avoid a mixed
+  mock/Sanity deployment — seeding a project does not change what any page reads yet*
 - [ ] Production deployment — *the Preview environment's repository half is done: pinned
   runtime and region, a gated deploy stage, and the check that refuses to publish a
   release-candidate URL unless its project/team ownership, access protection, and

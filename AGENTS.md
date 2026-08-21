@@ -609,6 +609,44 @@ URL, because none of those properties implies the others. Failed or cancelled
 verification deletes only that verified deployment ID.
 The provisioning runbook, the Preview/Production environment split, and the recorded
 promotion and rollback commands are `docs/deployment.md`.
+Sample content seeding (AB#84) sits on top of every schema and adapter above: an
+owner-run script (`npm run seed:sanity`, `scripts/seed-sanity-content.mts`) that writes
+448 sample documents — a 3-level category tree, one published settings and home
+singleton, 3 services, 3 article documents (one page authored in both `fi` and `en`,
+one `fi`-only, exercising ADR-0003 decision 7's independent per-language publication),
+2 galleries, and 426 gallery placements — into a real Content Lake over the plain
+mutate/asset-upload HTTP API, never through a Studio and never wired into the
+application or CI. Every seeded document's own six real, already-vetted demo
+photographs (`public/gallery/*.webp`) back all 6 minted `media` documents — never more
+identities than there are photographs, per ADR-0002 — reused across hundreds of
+placements, including one photograph placed in both galleries under two different
+`placementId`s to prove identity survives reuse. One gallery (`featured`) has two named
+sections and a body; the other (`archive`) has neither and carries the 400 placements
+that exercise AB#114's keyset-paginated read across several pages. Every document's
+`_id` is a dot-segmented `seed.**` path — `path()`-queryable and therefore removable in
+one GROQ statement, the same mechanism `drafts.<id>` already relies on — which is the
+whole mechanism that distinguishes sample fixtures from customer content, with no
+schema field spent on it. The write is fully self-policed: because Sanity's mutate API
+does not run a Studio's async validation rules, `sanity-seed-fixtures.mts`'s own
+`validateSeedFixtures` re-derives every invariant an API import could otherwise violate
+(unique identities, every reference resolving to the right document type, an acyclic
+category tree, deterministic `_key`s on every array item so a later hand-edit in
+Studio is safe) before a byte is sent, and a preflight query refuses to run at all if a
+non-seeded `siteSettings`/`homePage` document already exists, rather than silently
+creating a second published singleton. `--yes` ends with a live verification step —
+hand-written GROQ existence/shape checks run against the dataset just written, proving
+this story's "representative content queries pass" acceptance criterion against a real
+project rather than a fake one — and reports (or, with `--prune-stale`, deletes) any
+previously seeded document a shrunk fixture no longer includes. `docs/sanity-seeding.md`
+is the full runbook: the write-token story (a separate, write-scoped
+`SANITY_SEED_TOKEN`, never the runtime app's read-only `SANITY_READ_TOKEN`), the
+go-live checklist that empties a dataset of every `seed.**` document and the six
+uploaded assets (which mint their own non-`seed.**` ids and need a manual Studio
+deletion, disclosed rather than automated at six files), and export/recovery through
+Sanity's own `dataset export`/`import` CLI. Seeding a dataset does not change what any
+route reads — every page still renders from the mock layer until the route-facing
+switch below lands, so a seeded project and the live site remain two separate,
+unconnected facts until that story ships.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — category listing continuation, which stays bounded to its first page and
@@ -779,6 +817,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `docs/asset-inventory.md` | licensing audit | any third-party asset, font, or shipped dependency is added or removed |
 | `docs/contact-data-flow.md` | the site owner, a visitor who asks, and the AB#117 launch review | the contact form's fields, delivery path, processors, logs, or retention change |
 | `docs/sanity-setup.md` | the site owner and whoever provisions a clone's CMS | the Sanity connection settings, ownership/transfer story, perspective, schemas, media policy, or failure behavior change |
+| `docs/sanity-seeding.md` | the site owner and whoever seeds a clone's sample or first content | the seed script's fixture content, id/idempotency contract, write-token story, verification steps, or go-live cleanup checklist change |
 | `sanity/README.md` | whoever wires a clone's Studio to these schemas | a document type is added, or how the Studio consumes them changes |
 | `docs/deployment.md` | the site owner and whoever provisions a clone's hosting | the Preview environment, pipeline deployment stage, environment-variable split, runtime pins, or promotion/rollback mechanism change |
 | `NOTICE`, `licenses/` | anyone receiving the product | a third-party component with an attribution requirement is added |
