@@ -416,6 +416,65 @@ test("navigating to another slice of the same gallery replaces what is loaded", 
   expect(await presentedItemIds(page)).toEqual(firstItems);
 });
 
+test("a reload after an append restores exactly the first page's slice", async ({
+  page,
+}) => {
+  // The append never touches the address (gallery-grid.tsx's own comment), so
+  // a reload of that same, untouched URL creates a fresh document from the
+  // server-rendered first page rather than resuming the accumulated one.
+  await page.goto(GALLERY.path, { waitUntil: "load" });
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+  const firstPageIds = await presentedItemIds(page);
+
+  await continueControl(page).click();
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
+
+  await page.reload({ waitUntil: "load" });
+
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+  expect(await presentedItemIds(page)).toEqual(firstPageIds);
+
+  // Restored working, not merely present: activating it again still grows
+  // the grid rather than being stuck in whatever state carried over.
+  await continueControl(page).click();
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
+});
+
+test("leaving the gallery and returning with the browser's back button restores the first page's slice", async ({
+  page,
+}) => {
+  // Unlike the simulated `popstate` the abandoned-navigation tests below
+  // dispatch, this is a real client-side navigation — through the
+  // breadcrumb's own link, the way a visitor actually leaves — building real
+  // browser history the way `page.goto()` to another address would not.
+  await page.goto(GALLERY.path, { waitUntil: "load" });
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+  const firstPageIds = await presentedItemIds(page);
+
+  await continueControl(page).click();
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
+
+  await page
+    .getByRole("main")
+    .getByRole("navigation")
+    .first()
+    .getByRole("link")
+    .first()
+    .click();
+  await page.waitForURL((url) => url.pathname !== GALLERY.path);
+
+  await page.goBack();
+  await page.waitForURL((url) => url.pathname === GALLERY.path);
+
+  // The grown grid this instance held before leaving does not come back with
+  // it: only the address's own first-page slice does.
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
+  expect(await presentedItemIds(page)).toEqual(firstPageIds);
+
+  await continueControl(page).click();
+  await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
+});
+
 test("a navigation that begins but never lands does not leave the control stuck loading forever", async ({
   page,
 }) => {
