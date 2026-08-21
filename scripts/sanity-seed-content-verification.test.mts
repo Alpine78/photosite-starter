@@ -10,8 +10,8 @@
  * which reference fields a query dereferences inline, which it leaves as
  * `{_ref}` — and a hand-guessed reproduction of that is itself a second,
  * unverified implementation of query behavior (the exact risk flagged in
- * this story's own Codex plan review). Calling each adapter's already-
- * exported pure projector function directly — `projectPublicMedia`,
+ * this story's own Codex plan review). Calling the simple adapters' exported
+ * pure projector functions directly — `projectPublicMedia`,
  * `projectSiteSettings`, `projectHomeContent` — sidesteps that: it feeds the
  * *documented* raw-document shape those functions already declare
  * (`RawPublicMediaDocument`, `RawSiteSettingsDocument`, `RawHomePageDocument`)
@@ -27,12 +27,18 @@
  * instead runs its own small, hand-written GROQ existence/shape checks
  * against a real project in its post-write verification step.
  *
+ * The gallery is the deliberate exception because AB#84 explicitly requires
+ * its 400-placement seed fixture to exercise the paginated adapter. A narrow
+ * fake store answers the two query tags the real adapter owns from the actual
+ * seed documents; production `readSanityCuratedGalleryPage` code still
+ * creates, scopes, decodes, and advances every cursor and projects every row.
+ * The test walks the first through final page and proves all 400 placements
+ * arrive once and in order.
+ *
  * ## What this file does not cover
  *
- * The gallery, article, content-tree, and services adapters are not exercised
- * here — their projections resolve several more layers of reference and, for
- * the gallery, a keyset-paginated window, which would need the same kind of
- * query-shape reproduction this file exists to avoid. Their coverage is:
+ * The article, content-tree, and services adapters are not exercised here —
+ * their projections resolve several more layers of reference. Their coverage is:
  * this story's own `validateSeedFixtures` (structural correctness — every
  * reference resolves, every identity is unique, the 400-item/two-section/
  * shared-media invariants hold); and the CLI's post-write verification step,
@@ -40,9 +46,15 @@
  * see `docs/sanity-seeding.md`.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import { createHmacGalleryCursorCodec } from "@/lib/gallery-pagination";
 import { buildLocaleRouteConfig } from "@/lib/locale-routes";
+import {
+  GALLERY_PAGE_SIZE,
+  readSanityCuratedGalleryPage,
+} from "@/lib/sanity-gallery";
+import type { SanityClient, SanityQueryRequest } from "@/lib/sanity-client";
 import type { SanityConfig } from "@/lib/sanity-config";
 import { projectHomeContent, type RawHomePageDocument } from "@/lib/sanity-home-content";
 import { projectPublicMedia, type RawPublicMediaDocument } from "@/lib/sanity-media";
@@ -50,11 +62,19 @@ import { projectSiteSettings, type RawSiteSettingsDocument } from "@/lib/sanity-
 
 import {
   buildSeedFixtures,
+  ARCHIVE_GALLERY_CONTENT_ID,
+  GALLERY_LANGUAGE,
+  GALLERY_PLACEMENT_TYPE_NAME,
+  GALLERY_TYPE_NAME,
   HOME_PAGE_TYPE_NAME,
   MEDIA_FIXTURES,
   MEDIA_TYPE_NAME,
   SITE_SETTINGS_TYPE_NAME,
 } from "./sanity-seed-fixtures.mts";
+
+vi.mock("@/lib/deployment-config", () => ({
+  getDeploymentConfig: () => ({ localeRoutes: { defaultLocale: "fi-FI" } }),
+}));
 
 const routeConfig = buildLocaleRouteConfig({
   locales: [
@@ -181,5 +201,176 @@ describe("seed fixture home page projects through the real home-content adapter"
     expect(home.hero.media.mediaId).toBe("coastal-landscape");
     expect(home.intro).toBe("Rannikon ja metsän valokuvausta, kausien mukaan.");
     expect(home.sections.length).toBe(2);
+  });
+});
+
+describe("seed archive exercises the real paginated Sanity gallery adapter", () => {
+  function referenceId(value: unknown): string | undefined {
+    if (typeof value !== "object" || value === null) return undefined;
+    const ref = (value as { readonly _ref?: unknown })._ref;
+    return typeof ref === "string" ? ref : undefined;
+  }
+
+  function fixtureGalleryStore(): {
+    readonly client: SanityClient;
+    readonly requests: readonly SanityQueryRequest[];
+  } {
+    const { documents } = buildSeedFixtures();
+    const gallery = documents.find(
+      (doc) =>
+        doc._type === GALLERY_TYPE_NAME &&
+        doc.contentId === ARCHIVE_GALLERY_CONTENT_ID &&
+        doc.language === GALLERY_LANGUAGE,
+    );
+    if (gallery === undefined) throw new Error("archive seed gallery is missing");
+
+    const mediaIdByDocumentId = new Map(
+      documents
+        .filter((doc) => doc._type === MEDIA_TYPE_NAME)
+        .map((doc) => [doc._id, doc.mediaId as string]),
+    );
+    const placements = documents.filter(
+      (doc) =>
+        doc._type === GALLERY_PLACEMENT_TYPE_NAME &&
+        referenceId(doc.gallery) === gallery._id,
+    );
+    const requests: SanityQueryRequest[] = [];
+
+    const toRow = (placement: (typeof placements)[number]) => {
+      const mediaDocumentId = referenceId(placement.media);
+      const mediaId =
+        mediaDocumentId === undefined
+          ? undefined
+          : mediaIdByDocumentId.get(mediaDocumentId);
+      if (mediaId === undefined) {
+        throw new Error(`placement ${String(placement.placementId)} has no seed media`);
+      }
+      return {
+        placementId: placement.placementId,
+        order: placement.order,
+        sectionId: placement.sectionId ?? null,
+        visible: placement.visible,
+        altOverride: placement.altOverride ?? null,
+        captionOverride: placement.captionOverride ?? null,
+        media: rawMediaDocumentFor(mediaId),
+      };
+    };
+
+    const client: SanityClient = {
+      async query(request) {
+        requests.push(request);
+        const params = (request.params ?? {}) as Record<string, unknown>;
+
+        if (request.tag === "gallery.placements.basics") {
+          if (
+            params.contentId !== ARCHIVE_GALLERY_CONTENT_ID ||
+            params.language !== GALLERY_LANGUAGE
+          ) {
+            return [];
+          }
+          return [
+            {
+              _id: gallery._id,
+              orderingRule: gallery.orderingRule,
+              sections: gallery.sections,
+              latestPlacementUpdatedAt: "2026-01-01T00:00:00.000Z",
+            },
+          ];
+        }
+
+        if (request.tag === "gallery.placements.window") {
+          const candidateLimit = params.candidateLimit as number;
+          const sectionId = params.sectionId as string | undefined;
+          const afterOrder = params.afterOrder as number | undefined;
+          const afterPlacementId = params.afterPlacementId as string | undefined;
+          const matching =
+            params.galleryDocumentId !== gallery._id
+              ? []
+              : placements
+                  .filter(
+                    (placement) =>
+                      placement.visible === true &&
+                      (sectionId === undefined || placement.sectionId === sectionId),
+                  )
+                  .toSorted((left, right) => {
+                    const orderDifference =
+                      (left.order as number) - (right.order as number);
+                    if (orderDifference !== 0) return orderDifference;
+                    const leftId = String(left.placementId);
+                    const rightId = String(right.placementId);
+                    return leftId < rightId ? -1 : leftId > rightId ? 1 : 0;
+                  });
+
+          if (afterPlacementId === undefined) {
+            return matching.slice(0, candidateLimit).map(toRow);
+          }
+
+          const boundary = matching.find(
+            (placement) => placement.placementId === afterPlacementId,
+          );
+          const candidates = matching
+            .filter(
+              (placement) =>
+                (placement.order as number) > (afterOrder as number) ||
+                (placement.order === afterOrder &&
+                  String(placement.placementId) > afterPlacementId),
+            )
+            .slice(0, candidateLimit);
+          return {
+            boundary: boundary === undefined ? null : toRow(boundary),
+            candidates: candidates.map(toRow),
+          };
+        }
+
+        throw new Error(`no seed store behavior for tag "${request.tag}"`);
+      },
+    };
+
+    return { client, requests };
+  }
+
+  it("walks all 400 seed placements through first, middle, and final cursor pages", async () => {
+    const { client, requests } = fixtureGalleryStore();
+    const cursorCodec = createHmacGalleryCursorCodec("s".repeat(32));
+    const placementIds: string[] = [];
+    let cursor: string | undefined;
+    let pageCount = 0;
+
+    for (;;) {
+      const page = await readSanityCuratedGalleryPage(
+        "fi-FI",
+        ARCHIVE_GALLERY_CONTENT_ID,
+        {
+          client,
+          config,
+          cursorCodec,
+          ...(cursor === undefined ? {} : { cursor }),
+        },
+      );
+      expect(page).toBeDefined();
+      if (page === undefined) break;
+
+      placementIds.push(...page.items.map((item) => item.itemId));
+      pageCount += 1;
+      if (!page.page.hasNextPage) break;
+      expect(page.page.endCursor).toBeTruthy();
+      cursor = page.page.endCursor ?? undefined;
+    }
+
+    expect(pageCount).toBe(Math.ceil(400 / GALLERY_PAGE_SIZE));
+    expect(placementIds).toHaveLength(400);
+    expect(new Set(placementIds).size).toBe(400);
+    expect(placementIds.at(0)).toBe("archive-0001");
+    expect(placementIds.at(-1)).toBe("archive-0400");
+    expect(
+      requests.filter((request) => request.tag === "gallery.placements.window"),
+    ).toHaveLength(pageCount);
+    expect(
+      requests.some(
+        (request) =>
+          request.tag === "gallery.placements.window" &&
+          request.params?.afterPlacementId !== undefined,
+      ),
+    ).toBe(true);
   });
 });

@@ -28,7 +28,7 @@ into a Sanity dataset over the plain HTTP mutate/asset-upload API. It is:
   owner-controlled workflow" — but nothing stops you from pointing it at a
   throwaway dataset first, either, which is the recommended way to try it.
 - **Repeatable, not incremental.** Every write is `createOrReplace` against a
-  fixed document id (see *The `seed.**` id namespace* below), so running the
+  fixed document id (see *The `seed--` id namespace* below), so running the
   command again updates the same documents rather than duplicating them. It is
   not a diffing tool: it has no notion of "what changed since last time"
   beyond the stale-document report described below.
@@ -132,31 +132,38 @@ more), prints a per-type count, and lists the six demo photograph files it
 found in `public/gallery/`. That is everything worth checking before you ever
 touch a real project, and none of it needs a credential.
 
-## The `seed.**` id namespace
+## The public `seed--` id namespace
 
-Every document this script writes gets a **deterministic, dot-segmented
-`_id`**: `seed.media.coastal-landscape`, `seed.category.tidal-pools`,
-`seed.gallery.archive.fi`, `seed.placement.archive-0001`, and so on, plus the
-two singletons `seed.site-settings` and `seed.home-page`. Dot segments are
-what Sanity's own `path()` GROQ function matches hierarchically — the same
-mechanism `drafts.<id>` already relies on — so **this one query finds or
-removes every document the script has ever written, and nothing else:**
+Every document this script writes gets a **deterministic, root-level,
+dot-free `_id`**: `seed--media--coastal-landscape`,
+`seed--category--tidal-pools`, `seed--gallery--archive--fi`,
+`seed--placement--archive-0001`, and so on, plus the two singletons
+`seed--site-settings` and `seed--home-page`. Sanity's
+[IDs and paths documentation](https://www.sanity.io/docs/content-lake/ids)
+states that every id containing a dot is restricted to authenticated reads,
+even in a public dataset. Keeping these
+ids at the root is therefore what lets the application's tokenless public-
+dataset client read the sample content; the CLI's write token must not be the
+only reason verification can see it.
 
-```groq
-*[_id in path("seed.**")]
-```
-
-This is what makes the fixture set both repeatable (re-running
+The reserved `seed--` prefix makes the fixture set both repeatable (re-running
 `--yes` is `createOrReplace` against the same ids, so it converges rather than
 duplicating) and, more importantly, **distinguishable from customer
-content** — no schema field, no separate "is this a fixture" flag, just an id
-convention that is reserved forever: never mint a real `mediaId`,
+content**. Cleanup normalizes published, `drafts.`, and
+`versions.<release>.` ids and checks this prefix locally, since one GROQ
+`path()` expression cannot match a root id plus both optional system prefixes.
+Never mint a real `mediaId`,
 `categoryId`, `contentId`, `placementId`, or singleton document under a
-`seed.` id yourself.
+`seed--` id yourself.
+
+The first AB#84 implementation briefly used private `seed.…` dot-path ids.
+`--delete-all` still recognizes and removes those legacy ids so an early
+smoke-test dataset can be cleaned before it is seeded again; the write path
+never creates them.
 
 **Uploaded assets are the one exception.** Sanity mints an asset document's id
 itself on upload (`image-<hash>-<dimensions>-<format>`), so the six uploaded
-photographs are not under `seed.**` and are not found by the query above.
+photographs are not under `seed--` and are not found by the document cleanup.
 With only six of them, this is a proportionate, disclosed manual step rather
 than something worth building orphan-asset detection for — see *Going live*.
 
@@ -164,7 +171,7 @@ than something worth building orphan-asset detection for — see *Going live*.
 
 If a future edit to `sanity-seed-fixtures.mts` removes something a previous
 run wrote (a placement, a service, an entire gallery), that old document is
-still sitting in your dataset under its old `seed.**` id — `createOrReplace`
+still sitting in your dataset under its old `seed--` id — `createOrReplace`
 only ever touches documents in the *current* manifest, it never deletes on
 its own. Every `--yes` run reports any such document by id. Add
 `--prune-stale` to actually delete them:
@@ -184,10 +191,8 @@ unused, and the report alone is often all you need.
    one of this fixture's own public identities under a *different* id: the
    `siteSettings`/`homePage` singletons, every `mediaId`, every `categoryId`,
    every service `slug`, and every article/gallery `(contentId, language)`
-   pair. (`placementId` is the one exception — see the code comment on
-   `preflightIdentityCollisions` for why checking all 426 of them in one
-   query isn't safe against Sanity's GET size limit, and why the risk it
-   would guard against is much lower for that field anyway.) This fixture's
+   pair, plus all 426 `placementId` values. Placement identities are checked
+   in bounded chunks so no GET crosses Sanity's URL-size limit. This fixture's
    own identity values ("landscapes", "featured", "coastal-landscape", …) are
    ordinary, plausible names a dataset that already has some real content
    could easily be using — and the mutate API has no Studio validation to
@@ -214,7 +219,9 @@ unused, and the report alone is often all you need.
    before whatever references it. Because every write targets a fixed id, **a
    run that fails partway through is safe to simply re-run in full**: every
    earlier batch's writes are idempotent no-ops the second time.
-4. **Live verification.** This is the actual proof of this story's
+4. **Stale report / prune**, as described above. It runs before verification
+   so the operator sees exactly what changed before the final readback.
+5. **Live verification.** This is the actual proof of this story's
    "representative content queries pass" acceptance criterion: a fixed set of
    hand-written GROQ checks — do the two singletons read back with their
    expected fields, does the category count match, does the archive gallery's
@@ -223,7 +230,6 @@ unused, and the report alone is often all you need.
    placement in both galleries — run against the dataset you just wrote to,
    for real. Each prints `PASS` or `FAIL`; any failure exits non-zero (the
    write already happened by this point; see below).
-5. **Stale report / prune**, as described above.
 
 ### What each verification layer actually proves
 
@@ -233,16 +239,17 @@ of each other:
 | Layer | What it proves | Needs a real project? |
 | --- | --- | --- |
 | `sanity-seed-fixtures.test.mts` (`validateSeedFixtures`) | The fixture set's own internal structure is correct — unique ids, every reference resolves, the tree is acyclic, the counts match | No |
-| `sanity-seed-content-verification.test.mts` | This fixture's `media`/`siteSettings`/`homePage` content projects correctly through the *real* `src/lib` adapters (`projectPublicMedia`, `projectSiteSettings`, `projectHomeContent`), called directly | No — offline, via Vitest's `server-only` stub |
+| `sanity-seed-content-verification.test.mts` | This fixture's `media`/`siteSettings`/`homePage` content projects through the real projectors, and the 400-placement archive walks first through final cursor pages through the real `readSanityCuratedGalleryPage` adapter | No — offline, via Vitest's `server-only` stub and a seed-document-backed store boundary |
 | `seed-sanity-content.mts --yes`'s live verification step | The written documents are actually queryable, in the shapes above, from a real Content Lake | Yes |
 
-The gallery, article, content-tree, and services adapters are not exercised
-by the offline verification file — their projections resolve several more
-layers of reference (and, for the gallery, a keyset-paginated window) that
-would need reproducing each adapter's exact GROQ projection shape by hand, the
-same risk a fake "Content Lake" carries. Their coverage is the first row
-(structural correctness) and the third (a real query against a real project);
-see that test file's own module comment for the full reasoning.
+The article, content-tree, and services adapters are not exercised by the
+offline verification file; their coverage is the first row (structural
+correctness) and the third (a real query against a real project). The gallery
+test is intentionally narrower than a GROQ interpreter: it answers the
+adapter's two owned query tags from the actual seed documents while leaving
+cursor creation, scope validation, keyset advancement, projection, page size,
+and completion to production adapter code. See the test file's module comment
+for the full boundary.
 
 ### `sanity-client.test.ts` already covers failure behavior
 
@@ -260,10 +267,10 @@ is finally something to be missing.
 **Do this before real customer content grows, not after.** `--delete-all`
 and `--prune-stale` both find candidates by fetching every document of each
 seeded type (`media`, `category`, `service`, `article`, `gallery`,
-`galleryPlacement`, plus the two singletons) and filtering to `seed.**`
-locally — GROQ's `path()` cannot express "optionally prefixed by `drafts.`
-or `versions.<release>.`" for a variable release segment, so the query
-cannot narrow to seeded documents on Sanity's own side. On a dataset that
+`galleryPlacement`, plus the two singletons) and filtering to the current
+`seed--` or legacy `seed.` prefix locally. One GROQ expression cannot narrow
+a root-level prefix while also allowing optional `drafts.` and
+`versions.<release>.` system prefixes. On a dataset that
 already holds a lot of real content of these types, that is a meaningfully
 bigger read than the few hundred documents this fixture itself seeds. This
 is exactly why the recommended order of operations is seed → verify →
@@ -278,11 +285,24 @@ one a production deployment reads), remove every document this script wrote:
    assets carrying any recognizable filename (the upload never sets one):
 
    ```groq
-   *[_id in path("seed.**") && _type == "media"].image.asset._ref
+   *[
+     _type == "media" &&
+     (_id in [
+       "seed--media--coastal-landscape",
+       "seed--media--forest-stream",
+       "seed--media--lakeside-reeds",
+       "seed--media--lichen-stones",
+       "seed--media--misty-birch",
+       "seed--media--open-marsh"
+     ] || _id in path("seed.media.**"))
+   ].image.asset._ref
    ```
 
+   The legacy `path()` branch only exists for datasets touched by the first
+   AB#84 smoke-test implementation.
+
    Keep this list; you delete these assets in step 3.
-2. **Delete every document under the `seed.**` path:**
+2. **Delete every seed-owned document:**
 
    ```bash
    SANITY_SEED_TOKEN=... npm run seed:sanity -- --project <id> --dataset <name> --api-version v2026-06-24 --delete-all --yes
@@ -310,18 +330,27 @@ one a production deployment reads), remove every document this script wrote:
    `scripts/sanity-seed-fixtures.mts` for the exact reference graph this
    reflects. A manual delete through Studio's bulk-delete UI or the
    `sanity documents delete` CLI works too, in that same wave order, if you
-   would rather not run the script.
-3. **Delete the six assets found in step 1** — they are not under `seed.**`
+   would rather not run the script. After deletion the command repeats its
+   raw-perspective lookup and exits non-zero while naming every seed-owned id
+   that remains; a successful exit is the document-cleanup verification.
+3. **Delete the six assets found in step 1** — they are not under `seed--`
    (Sanity mints an asset document's own id on upload) and are not deleted by
    step 2, so they need their own pass, using the ids you already have.
-4. **Verify emptiness** with the same query from step 1 — an empty result
-   confirms nothing seeded remains.
+4. **Verify asset deletion** by querying the six asset ids saved in step 1:
+
+   ```groq
+   *[_id in ["image-…", "image-…"]]._id
+   ```
+
+   An empty result confirms the separately managed assets are gone; step 2's
+   built-in raw-perspective verification already proved that no seed document,
+   draft, or release version remains.
 
 Nothing in this repository enforces that cleanup automatically. A production
 deployment refuses to declare `SITE_CONTENT_SOURCE=mock` (see
 `docs/sanity-setup.md`), but once route-facing seams read from `sanity`
 (a later story — see `AGENTS.md`'s feature-status paragraph), a deployment
-reading a dataset that still holds `seed.**` documents would serve them as if
+reading a dataset that still holds `seed--` documents would serve them as if
 they were real. Treat this checklist as part of go-live, not as optional
 cleanup.
 

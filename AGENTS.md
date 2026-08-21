@@ -623,16 +623,18 @@ placements, including one photograph placed in both galleries under two differen
 `placementId`s to prove identity survives reuse. One gallery (`featured`) has two named
 sections and a body; the other (`archive`) has neither and carries the 400 placements
 that exercise AB#114's keyset-paginated read across several pages. Every document's
-`_id` is a dot-segmented `seed.**` path — `path()`-queryable and therefore removable in
-one GROQ statement, the same mechanism `drafts.<id>` already relies on — which is the
-whole mechanism that distinguishes sample fixtures from customer content, with no
-schema field spent on it. The write is fully self-policed: because Sanity's mutate API
+`_id` is a public, root-level, dot-free `seed--` id: Sanity restricts dot-path ids to
+authenticated reads even in a public dataset, so the fixture cannot use `path()` as its
+namespace without becoming invisible to the application's tokenless public reads.
+Cleanup normalizes published, draft, and release ids and recognizes the reserved prefix
+locally; the legacy private `seed.…` ids from the first implementation are recognized
+for deletion but never written. The write is fully self-policed: because Sanity's mutate API
 does not run a Studio's async validation rules, `sanity-seed-fixtures.mts`'s own
 `validateSeedFixtures` re-derives every invariant an API import could otherwise violate
 (unique identities, every reference resolving to the right document type, an acyclic
 category tree, deterministic `_key`s on every array item so a later hand-edit in
 Studio is safe) before a byte is sent, and a preflight query refuses to run at all if a
-non-seeded `siteSettings`/`homePage` document already exists, rather than silently
+another `siteSettings`/`homePage` document already exists, rather than silently
 creating a second published singleton. `--yes` ends with a live verification step —
 hand-written GROQ existence/shape checks run against the dataset just written, proving
 this story's "representative content queries pass" acceptance criterion against a real
@@ -640,8 +642,8 @@ project rather than a fake one — and reports (or, with `--prune-stale`, delete
 previously seeded document a shrunk fixture no longer includes. `docs/sanity-seeding.md`
 is the full runbook: the write-token story (a separate, write-scoped
 `SANITY_SEED_TOKEN`, never the runtime app's read-only `SANITY_READ_TOKEN`), the
-go-live checklist that empties a dataset of every `seed.**` document and the six
-uploaded assets (which mint their own non-`seed.**` ids and need a manual Studio
+go-live checklist that empties and verifies every seed-owned document and the six
+uploaded assets (which mint their own non-`seed--` ids and need a manual Studio
 deletion, disclosed rather than automated at six files), and export/recovery through
 Sanity's own `dataset export`/`import` CLI. Seeding a dataset does not change what any
 route reads — every page still renders from the mock layer until the route-facing

@@ -15,9 +15,9 @@
  * network request is made). Add --yes to actually write, which additionally
  * requires SANITY_SEED_TOKEN
  * — a write-scoped credential, never the runtime app's SANITY_READ_TOKEN.
- * Add --prune-stale (with --yes) to delete any existing seed.**-path document
+ * Add --prune-stale (with --yes) to delete any existing seed-owned document
  * that this run's fixture set no longer includes; without it, such documents
- * are only reported. Add --delete-all (with --yes) to delete every seed.**
+ * are only reported. Add --delete-all (with --yes) to delete every seed-owned
  * document unconditionally, with no fixture build or write at all — the
  * real go-live cleanup command; see docs/sanity-seeding.md.
  */
@@ -39,13 +39,14 @@ import {
   GALLERY_TYPE_NAME,
   HOME_PAGE_ID,
   HOME_PAGE_TYPE_NAME,
+  isSeedDocumentId,
   MAX_PUBLIC_DELIVERY_DIMENSION,
   MEDIA_FIXTURES,
   MEDIA_TYPE_NAME,
   orderSeedDocumentsForDeletion,
   PUBLIC_DELIVERY_FORMATS,
   publishedIdOf,
-  SEED_ID_ROOT,
+  seedId,
   type SeedDocument,
   SERVICE_FIXTURES,
   SERVICE_TYPE_NAME,
@@ -156,10 +157,12 @@ function summarize(documents: ReturnType<typeof buildSeedFixtures>["documents"])
 }
 
 // ---------------------------------------------------------------------------
-// Preflight: refuse to write over an existing, non-seeded document that
-// already claims one of this fixture's own public identities.
+// Preflight: refuse to add a second document when an existing different id
+// already claims one of this fixture's own public identities. This includes
+// the legacy private `seed.…` ids: clean them with `--delete-all` before
+// writing the public root-level fixture.
 //
-// The mutate API is `createOrReplace` against this script's own `seed.**`
+// The mutate API is `createOrReplace` against this script's own `seed--`
 // ids — it does not, and cannot, know that a *different*-id document already
 // claims the same `mediaId`/`categoryId`/`contentId`/service `slug` (or is
 // the dataset's other siteSettings/homePage singleton). Every one of those
@@ -297,7 +300,7 @@ async function preflightIdentityCollisions(
 
   if (collisions.length > 0) {
     fail(
-      `${collisions.length} identity collision(s) with existing, non-seeded content — writing would create two documents claiming one public identity, which the site's own read adapters refuse to serve:\n  ${collisions.join("\n  ")}`,
+      `${collisions.length} identity collision(s) with differently identified content — writing would create two documents claiming one public identity, which the site's own read adapters refuse to serve. If these are legacy "seed.…" ids, run --delete-all first:\n  ${collisions.join("\n  ")}`,
     );
   }
 }
@@ -340,7 +343,7 @@ async function runCountQuery(
  * Verification's exact-count checks are scoped to *this run's own manifest*
  * (`_id in $ids`, or — for the 400-item archive gallery, where an id list
  * would repeat the placementId preflight's URL-size problem — `order <
- * $count`) rather than "every seed.** document of this type". A stale
+ * $count`) rather than "every seed-owned document of this type". A stale
  * document from a shrunk fixture revision is deliberately left in place when
  * `--prune-stale` isn't passed (see `reportAndPruneStale`); it must not also
  * make an otherwise-successful write report a spurious verification failure.
@@ -349,8 +352,8 @@ function buildVerificationChecks(
   connection: SeedConnection,
   documents: readonly SeedDocument[],
 ): readonly VerificationCheck[] {
-  const archiveGalleryRef = `${SEED_ID_ROOT}.gallery.${ARCHIVE_GALLERY_CONTENT_ID}.${GALLERY_LANGUAGE}`;
-  const featuredGalleryRef = `${SEED_ID_ROOT}.gallery.${FEATURED_GALLERY_CONTENT_ID}.${GALLERY_LANGUAGE}`;
+  const archiveGalleryRef = seedId("gallery", ARCHIVE_GALLERY_CONTENT_ID, GALLERY_LANGUAGE);
+  const featuredGalleryRef = seedId("gallery", FEATURED_GALLERY_CONTENT_ID, GALLERY_LANGUAGE);
   const countByIdsQuery = `count(*[_type == $type && _id in $ids])`;
   const idsOfType = (type: string) => documents.filter((doc) => doc._type === type).map((doc) => doc._id);
 
@@ -424,10 +427,9 @@ function buildVerificationChecks(
         // and report a false failure on an otherwise-successful run.
         //
         // The 400 placementIds can't go in one `in $ids` query — that was
-        // already measured to exceed the 11 KB GET budget by itself (see
-        // the preflight's own comment on why it skips placementId
-        // entirely) — so this chunks them via the same `chunk` helper
-        // `runSeedMutationBatches` uses for writes, and sums a `count(...
+        // already measured to exceed the 11 KB GET budget by itself, so this
+        // chunks them via the same `chunk` helper the placement-identity
+        // preflight and `runSeedMutationBatches` use, and sums a `count(...
         // && placementId in $ids)` per chunk. Each chunk asks only "are
         // exactly these N of mine here", so a stale extra document (with
         // *any* order or placementId this fixture doesn't itself claim)
@@ -528,24 +530,23 @@ const SEEDED_TYPES = [
 ];
 
 /**
- * Every document under the `seed.**` identity, at **any** perspective — a
+ * Every document under the current `seed--` identity (or the legacy `seed.`
+ * identity), at **any** perspective — a
  * seeded document a Studio editor has since opened as a draft, or copied
  * into a content release, is still found and still deleted. Querying only
  * the published perspective (this script's default everywhere else) would
- * miss that draft/version entirely: `path("seed.**")` only matches an `_id`
- * that *literally* starts with `seed.`, and a draft's raw `_id` starts with
- * `drafts.` instead — so this asks for every document of a seeded `_type`,
- * `perspective: "raw"`, and filters to the `seed.**` identity in JS via
- * `publishedIdOf` rather than relying on `path()` to understand a
- * `drafts.`/`versions.<release>.` prefix it was never asked to. A draft
+ * miss that draft/version entirely. This asks for every document of a seeded
+ * `_type`, `perspective: "raw"`, and recognizes the normalized seed identity
+ * in JS rather than assuming the raw id has no `drafts.` or
+ * `versions.<release>.` prefix. A draft
  * left behind would otherwise both survive `--delete-all`'s cleanup and, if
  * it holds a strong reference to a seeded document also being deleted,
  * could make that deletion fail outright.
  *
  * **Known scale limitation**, disclosed rather than solved here: this
- * fetches every document of a seeded `_type` — not filtered to `seed.**` on
+ * fetches every document of a seeded `_type` — not filtered to the seed prefix on
  * Sanity's side at all, only afterward, in JS — because `path()` cannot
- * express "starts with `seed.`, allowing an optional `drafts.`/`versions.
+ * express "starts with the root-level seed prefix, allowing an optional `drafts.`/`versions.
  * <anything>.` prefix" without a filter shape this project has not verified
  * against Sanity's actual documented `path()` glob semantics for a
  * *variable* middle segment (the release id). On a dataset that has grown
@@ -568,7 +569,7 @@ async function findAllSeededDocuments(connection: SeedConnection): Promise<reado
     params: { types: SEEDED_TYPES },
     perspective: "raw",
   })) as readonly FoundSeedDocument[];
-  return result.filter((doc) => publishedIdOf(doc._id).startsWith(`${SEED_ID_ROOT}.`));
+  return result.filter((doc) => isSeedDocumentId(doc._id));
 }
 
 /**
@@ -595,7 +596,7 @@ async function deleteInDependencySafeOrder(
 }
 
 /**
- * Deletes every `seed.**` document, unconditionally — the real go-live
+ * Deletes every seed-owned document, unconditionally — the real go-live
  * cleanup path (see `docs/sanity-seeding.md`'s "Going live" section). This
  * intentionally never builds or validates the fixture set: an operator
  * emptying it out first (an earlier draft of this workflow suggested exactly
@@ -608,17 +609,23 @@ async function deleteAllSeededDocuments(connection: SeedConnection): Promise<voi
   const existing = await findAllSeededDocuments(connection);
 
   if (existing.length === 0) {
-    console.log("Nothing to delete — no seed.** documents were found.");
+    console.log("Nothing to delete — no seed-owned documents were found.");
     return;
   }
 
-  console.log(`Deleting ${existing.length} seed.** document(s)...`);
+  console.log(`Deleting ${existing.length} seed-owned document(s)...`);
   await deleteInDependencySafeOrder(connection, existing);
-  console.log(`Deleted ${existing.length} document(s). Uploaded demo photograph assets are not under seed.** — see docs/sanity-seeding.md for how to find and remove those.`);
+  const remaining = await findAllSeededDocuments(connection);
+  if (remaining.length > 0) {
+    fail(
+      `${remaining.length} seed-owned document(s) remained after deletion:\n  ${remaining.map((doc) => doc._id).join("\n  ")}`,
+    );
+  }
+  console.log(`Deleted and verified ${existing.length} document(s). Uploaded demo photograph assets are not seed-owned — see docs/sanity-seeding.md for how to find and remove those.`);
 }
 
 /**
- * Reports (and, with `prune`, deletes) every `seed.**` document not part of
+ * Reports (and, with `prune`, deletes) every seed-owned document not part of
  * the current run's manifest. Returns whether anything was deleted, so the
  * caller can decide whether verification's exact-count checks need to run
  * again afterward.
@@ -663,7 +670,7 @@ async function main(): Promise<void> {
     // validate the fixture set at all — see deleteAllSeededDocuments's own
     // doc comment for why "empty the fixtures and re-run" cannot work.
     if (!apply) {
-      console.log("--delete-all found. Add --yes to actually delete every seed.** document. No network request was made.");
+      console.log("--delete-all found. Add --yes to actually delete every seed-owned document. No network request was made.");
       return;
     }
     const connection = parseSeedConnection({

@@ -221,7 +221,7 @@ function buildQueryUrl(connection: SeedConnection, request: SeedQueryRequest): s
   const size = new TextEncoder().encode(url).length;
   if (size > MAX_SEED_QUERY_URL_BYTES) {
     throw new SanitySeedHttpError(
-      `Query too large: the request URL is ${size} bytes, past the ${MAX_SEED_QUERY_URL_BYTES}-byte GET limit. This is most likely the stale-document listing query on a dataset holding many seed.** documents — narrow it or delete some first.`,
+      `Query too large: the request URL is ${size} bytes, past the ${MAX_SEED_QUERY_URL_BYTES}-byte GET limit. Narrow the query or delete some documents first.`,
     );
   }
   return url;

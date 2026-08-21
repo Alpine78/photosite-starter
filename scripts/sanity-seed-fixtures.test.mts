@@ -51,6 +51,7 @@ import {
   HOME_PAGE_ID,
   HOME_PAGE_TYPE_NAME,
   HOME_SECTION_TYPE_NAME,
+  isSeedDocumentId,
   isPendingAssetRef,
   LANGUAGE_SUBTAG,
   LOCALIZED_SLUG_TYPE_NAME,
@@ -62,7 +63,8 @@ import {
   NAVIGATION_ITEM_TYPE_NAME,
   PUBLIC_DELIVERY_FORMATS,
   publishedIdOf,
-  SEED_ID_ROOT,
+  SEED_ID_PREFIX,
+  seedId,
   SERVICE_TYPE_NAME,
   SITE_SETTINGS_ID,
   SITE_SETTINGS_TYPE_NAME,
@@ -147,13 +149,14 @@ describe("buildSeedFixtures", () => {
     expect(new Set(mediaDocs.map((doc) => doc.mediaId))).toEqual(new Set(MEDIA_KEYS));
   });
 
-  it("gives every document a dot-path id under the seed.** namespace", () => {
+  it("gives every document a public root-level id under the seed-- namespace", () => {
     const { documents } = buildSeedFixtures();
     for (const doc of documents) {
-      expect(doc._id.startsWith(`${SEED_ID_ROOT}.`)).toBe(true);
+      expect(doc._id.startsWith(SEED_ID_PREFIX)).toBe(true);
+      expect(doc._id).not.toContain(".");
     }
-    expect(SITE_SETTINGS_ID).toBe("seed.site-settings");
-    expect(HOME_PAGE_ID).toBe("seed.home-page");
+    expect(SITE_SETTINGS_ID).toBe("seed--site-settings");
+    expect(HOME_PAGE_ID).toBe("seed--home-page");
   });
 
   it("builds exactly one singleton site-settings and one home-page document", () => {
@@ -167,7 +170,7 @@ describe("buildSeedFixtures", () => {
     const categories = documents.filter((doc) => doc._type === CATEGORY_TYPE_NAME);
     expect(categories.length).toBeGreaterThanOrEqual(6);
 
-    const byId = new Map(categories.map((doc) => [doc.categoryId as string, doc]));
+    const byId = new Map(categories.map((doc) => [doc._id, doc]));
     let maxDepth = 0;
     for (const category of categories) {
       let depth = 1;
@@ -176,10 +179,9 @@ describe("buildSeedFixtures", () => {
       while (true) {
         const parentRef = (current.parent as { readonly _ref?: string } | undefined)?._ref;
         if (parentRef === undefined) break;
-        const parentCategoryId = parentRef.replace("seed.category.", "");
-        expect(visited.has(parentCategoryId)).toBe(false);
-        visited.add(parentCategoryId);
-        const parent = byId.get(parentCategoryId);
+        expect(visited.has(parentRef)).toBe(false);
+        visited.add(parentRef);
+        const parent = byId.get(parentRef);
         expect(parent).toBeDefined();
         current = parent!;
         depth += 1;
@@ -210,7 +212,7 @@ describe("buildSeedFixtures", () => {
 
   it("builds exactly the documented archive placement count", () => {
     const { documents } = buildSeedFixtures();
-    const archiveGalleryId = `seed.gallery.${ARCHIVE_GALLERY_CONTENT_ID}.${GALLERY_LANGUAGE}`;
+    const archiveGalleryId = seedId("gallery", ARCHIVE_GALLERY_CONTENT_ID, GALLERY_LANGUAGE);
     const archivePlacements = documents.filter(
       (doc) =>
         doc._type === GALLERY_PLACEMENT_TYPE_NAME &&
@@ -222,7 +224,7 @@ describe("buildSeedFixtures", () => {
 
   it("builds the documented featured-gallery placement count across two sections", () => {
     const { documents } = buildSeedFixtures();
-    const featuredGalleryId = `seed.gallery.${FEATURED_GALLERY_CONTENT_ID}.${GALLERY_LANGUAGE}`;
+    const featuredGalleryId = seedId("gallery", FEATURED_GALLERY_CONTENT_ID, GALLERY_LANGUAGE);
     const featuredPlacements = documents.filter(
       (doc) =>
         doc._type === GALLERY_PLACEMENT_TYPE_NAME &&
@@ -236,8 +238,8 @@ describe("buildSeedFixtures", () => {
   it("places the same media document in both galleries under distinct placement ids", () => {
     const { documents } = buildSeedFixtures();
     const placements = documents.filter((doc) => doc._type === GALLERY_PLACEMENT_TYPE_NAME);
-    const archiveGalleryId = `seed.gallery.${ARCHIVE_GALLERY_CONTENT_ID}.${GALLERY_LANGUAGE}`;
-    const featuredGalleryId = `seed.gallery.${FEATURED_GALLERY_CONTENT_ID}.${GALLERY_LANGUAGE}`;
+    const archiveGalleryId = seedId("gallery", ARCHIVE_GALLERY_CONTENT_ID, GALLERY_LANGUAGE);
+    const featuredGalleryId = seedId("gallery", FEATURED_GALLERY_CONTENT_ID, GALLERY_LANGUAGE);
 
     const mediaRef = (doc: (typeof placements)[number]) =>
       (doc.media as { readonly _ref?: string } | undefined)?._ref;
@@ -296,7 +298,7 @@ describe("validateSeedFixtures", () => {
     const { documents } = buildSeedFixtures();
     const tampered = documents.map((doc) =>
       doc._type === ARTICLE_TYPE_NAME
-        ? { ...doc, canonicalCategory: { _type: "reference", _ref: "seed.category.does-not-exist" } }
+        ? { ...doc, canonicalCategory: { _type: "reference", _ref: seedId("category", "does-not-exist") } }
         : doc,
     );
     const violations = validateSeedFixtures(tampered);
@@ -355,10 +357,10 @@ describe("validateSeedFixtures", () => {
       (doc) => doc._type === CATEGORY_TYPE_NAME && doc.categoryId === "tidal-pools",
     )!;
     const extraLevels = Array.from({ length: MAX_CATEGORY_DEPTH }, (_unused, index) => ({
-      _id: `seed.category.too-deep-${index}`,
+      _id: seedId("category", `too-deep-${index}`),
       _type: CATEGORY_TYPE_NAME,
       categoryId: `too-deep-${index}`,
-      parent: { _type: "reference", _ref: index === 0 ? tidalPools._id : `seed.category.too-deep-${index - 1}` },
+      parent: { _type: "reference", _ref: index === 0 ? tidalPools._id : seedId("category", `too-deep-${index - 1}`) },
       slug: [{ _key: "fi", _type: LOCALIZED_SLUG_TYPE_NAME, language: "fi", value: `too-deep-${index}` }],
       label: [{ _key: "fi", _type: LOCALIZED_TEXT_TYPE_NAME, language: "fi", value: `Too deep ${index}` }],
       order: 0,
@@ -374,24 +376,24 @@ describe("collectSeedIdentities", () => {
     const identities = collectSeedIdentities(documents);
 
     expect(identities.mediaIds).toContain("coastal-landscape");
-    expect(identities.expectedIdByIdentity.get("media:coastal-landscape")).toBe("seed.media.coastal-landscape");
+    expect(identities.expectedIdByIdentity.get("media:coastal-landscape")).toBe(seedId("media", "coastal-landscape"));
 
     expect(identities.categoryIds).toContain("tidal-pools");
-    expect(identities.expectedIdByIdentity.get("category:tidal-pools")).toBe("seed.category.tidal-pools");
+    expect(identities.expectedIdByIdentity.get("category:tidal-pools")).toBe(seedId("category", "tidal-pools"));
 
     expect(identities.serviceSlugs).toContain("portrait-sessions");
     expect(identities.expectedIdByIdentity.get("service:portrait-sessions")).toBe(
-      "seed.service.portrait-sessions",
+      seedId("service", "portrait-sessions"),
     );
 
     expect(identities.contentIds).toContain("coastal-light");
     expect(identities.expectedIdByIdentity.get("content:coastal-light:fi")).toBe(
-      "seed.article.coastal-light.fi",
+      seedId("article", "coastal-light", "fi"),
     );
     expect(identities.expectedIdByIdentity.get("content:coastal-light:en")).toBe(
-      "seed.article.coastal-light.en",
+      seedId("article", "coastal-light", "en"),
     );
-    expect(identities.expectedIdByIdentity.get("content:featured:fi")).toBe("seed.gallery.featured.fi");
+    expect(identities.expectedIdByIdentity.get("content:featured:fi")).toBe(seedId("gallery", "featured", "fi"));
   });
 
   it("collects every placementId, unchunked, with its expected _id", () => {
@@ -399,7 +401,7 @@ describe("collectSeedIdentities", () => {
     const identities = collectSeedIdentities(documents);
     expect(identities.placementIds.length).toBe(FEATURED_GALLERY_PLACEMENT_COUNT + ARCHIVE_GALLERY_PLACEMENT_COUNT);
     expect(identities.placementIds).toContain("archive-0001");
-    expect(identities.expectedIdByIdentity.get("placement:archive-0001")).toBe("seed.placement.archive-0001");
+    expect(identities.expectedIdByIdentity.get("placement:archive-0001")).toBe(seedId("placement", "archive-0001"));
   });
 
   it("records one variant per contentId, regardless of how many language versions it has", () => {
@@ -463,20 +465,39 @@ describe("orderSeedDocumentsForDeletion", () => {
 
 describe("publishedIdOf", () => {
   it("matches sanity/schemas/validation.ts's implementation for a plain, a draft, and a version id", () => {
-    for (const id of ["seed.media.coastal-landscape", "drafts.seed.media.coastal-landscape", "versions.release-1.seed.media.coastal-landscape"]) {
+    for (const id of ["seed--media--coastal-landscape", "drafts.seed--media--coastal-landscape", "versions.release-1.seed--media--coastal-landscape"]) {
       expect(publishedIdOf(id)).toBe(schemaPublishedIdOf(id));
     }
   });
 
   it("strips a drafts. prefix", () => {
-    expect(publishedIdOf("drafts.seed.category.landscapes")).toBe("seed.category.landscapes");
+    expect(publishedIdOf("drafts.seed--category--landscapes")).toBe("seed--category--landscapes");
   });
 
   it("strips a versions.<release>. prefix", () => {
-    expect(publishedIdOf("versions.summer-launch.seed.category.landscapes")).toBe("seed.category.landscapes");
+    expect(publishedIdOf("versions.summer-launch.seed--category--landscapes")).toBe("seed--category--landscapes");
   });
 
   it("leaves a plain id unchanged", () => {
-    expect(publishedIdOf("seed.category.landscapes")).toBe("seed.category.landscapes");
+    expect(publishedIdOf("seed--category--landscapes")).toBe("seed--category--landscapes");
+  });
+});
+
+describe("isSeedDocumentId", () => {
+  it("recognizes current ids and their draft/release forms", () => {
+    expect(isSeedDocumentId("seed--media--coastal-landscape")).toBe(true);
+    expect(isSeedDocumentId("drafts.seed--media--coastal-landscape")).toBe(true);
+    expect(isSeedDocumentId("versions.release-1.seed--media--coastal-landscape")).toBe(true);
+  });
+
+  it("recognizes legacy dot-path ids for cleanup only", () => {
+    expect(isSeedDocumentId("seed.media.coastal-landscape")).toBe(true);
+    expect(isSeedDocumentId("drafts.seed.media.coastal-landscape")).toBe(true);
+    expect(isSeedDocumentId("versions.release-1.seed.media.coastal-landscape")).toBe(true);
+  });
+
+  it("does not claim customer ids that merely contain the word seed", () => {
+    expect(isSeedDocumentId("customer-seed-media")).toBe(false);
+    expect(isSeedDocumentId("seedling--media")).toBe(false);
   });
 });

@@ -25,14 +25,16 @@
  * calls it again with the resolved id map to produce the documents that are
  * actually sent to Sanity's mutate endpoint.
  *
- * ## The `seed.**` id namespace
+ * ## The `seed--**` id namespace
  *
- * Every document below gets a dot-segmented `_id` under `seed.` — `seed.media.…`,
- * `seed.category.…`, `seed.gallery.<contentId>.<language>`, etc. Dot segments
- * are what Sanity's own `path()` GROQ function matches hierarchically (the same
- * mechanism `drafts.<id>` relies on), so `*[_id in path("seed.**")]` is a
- * correct single-query way to find or remove every document this script owns.
- * A hyphen prefix would not satisfy `path()` matching — see `docs/sanity-seeding.md`.
+ * Every document below gets a root-level, dot-free `_id` under the reserved
+ * `seed--` prefix — `seed--media--…`, `seed--category--…`,
+ * `seed--gallery--<contentId>--<language>`, etc. Sanity treats every id that
+ * contains a dot as a private path, even in a public dataset, so a dot-path
+ * fixture would pass this script's authenticated verification while remaining
+ * invisible to the application's intentionally tokenless public reads.
+ * Cleanup identifies this prefix after normalizing draft/release ids; see
+ * `docs/sanity-seeding.md`.
  *
  * ## Deterministic `_key`s
  *
@@ -137,21 +139,23 @@ export {
 };
 
 // ---------------------------------------------------------------------------
-// The `seed.**` id namespace
+// The public, root-level `seed--**` id namespace
 // ---------------------------------------------------------------------------
 
 export const SEED_ID_ROOT = "seed";
+export const SEED_ID_PREFIX = `${SEED_ID_ROOT}--`;
+const LEGACY_SEED_ID_PREFIX = `${SEED_ID_ROOT}.`;
 
 /** Restates every schema's own (unexported) identity-pattern regex. */
 export const SEED_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-function seedId(...segments: readonly string[]): string {
+export function seedId(...segments: readonly string[]): string {
   for (const segment of segments) {
     if (!SEED_ID_PATTERN.test(segment)) {
       throw new TypeError(`[sanity-seed-fixtures] Invalid id segment: "${segment}"`);
     }
   }
-  return [SEED_ID_ROOT, ...segments].join(".");
+  return [SEED_ID_ROOT, ...segments].join("--");
 }
 
 export const SITE_SETTINGS_ID = seedId("site-settings");
@@ -1034,6 +1038,18 @@ export function publishedIdOf(id: string): string {
   return id;
 }
 
+/**
+ * Whether an id belongs to this seed workflow, including the dot-path ids
+ * written by the first AB#84 implementation. Keeping that legacy prefix here
+ * lets `--delete-all` remove an earlier smoke-test run before the new public,
+ * root-level ids are written; new fixtures themselves must only use
+ * `SEED_ID_PREFIX`.
+ */
+export function isSeedDocumentId(id: string): boolean {
+  const publishedId = publishedIdOf(id);
+  return publishedId.startsWith(SEED_ID_PREFIX) || publishedId.startsWith(LEGACY_SEED_ID_PREFIX);
+}
+
 export type SeedIdentities = {
   readonly mediaIds: readonly string[];
   readonly categoryIds: readonly string[];
@@ -1311,8 +1327,8 @@ export function validateSeedFixtures(documents: readonly SeedDocument[]): readon
   const contentIdVariant = new Map<string, string>(); // contentId -> variant type
 
   for (const doc of documents) {
-    if (!doc._id.startsWith(`${SEED_ID_ROOT}.`)) {
-      violations.push(`${doc._id}: id is not under the "${SEED_ID_ROOT}.**" namespace`);
+    if (!doc._id.startsWith(SEED_ID_PREFIX) || doc._id.includes(".")) {
+      violations.push(`${doc._id}: id is not a public root-level id under the "${SEED_ID_PREFIX}" namespace`);
     }
 
     if (doc._type === MEDIA_TYPE_NAME) {

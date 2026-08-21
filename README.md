@@ -392,8 +392,8 @@ a green pipeline. See [deployment](docs/deployment.md).
   ([`seeding`](docs/sanity-seeding.md), `npm run seed:sanity`) writes 448 sample documents —
   settings/home, a 3-level category tree, services, bilingual articles, and two galleries
   (one with sections and a body, one with 400 placements testing the paginated read) — into
-  a real project over the plain HTTP API, distinguishable from real content by a
-  `path()`-queryable `seed.**` id namespace and removable in one query before go-live.
+  a real project over the plain HTTP API, distinguishable from real content by public,
+  root-level `seed--` ids and removable by the documented verified cleanup before go-live.
   Route-facing seams still use fixtures until every adapter is wired in, to avoid a mixed
   mock/Sanity deployment — seeding a project does not change what any page reads yet*
 - [ ] Production deployment — *the Preview environment's repository half is done: pinned
