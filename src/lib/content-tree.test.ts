@@ -13,6 +13,7 @@ import {
   getPublicChildCategories,
   getSecondaryContent,
   isCategoryPublic,
+  listPublicRoutePaths,
   validateContentTree,
   ContentTreeValidationError,
   type ContentCategoryInput,
@@ -572,6 +573,53 @@ describe("public visibility", () => {
     const tree = buildContentTree(input);
 
     expect(tree.publicCategoryIds.size).toBe(0);
+  });
+});
+
+describe("public route paths", () => {
+  it("lists a path for every public category and every canonically placed page, and nothing else", () => {
+    const tree = buildMockContentTree();
+    const paths = listPublicRoutePaths(tree);
+
+    const categoryIds = paths
+      .filter((path) => path.kind === "category")
+      .map((path) => path.id);
+    const contentIds = paths
+      .filter((path) => path.kind === "content")
+      .map((path) => path.id);
+
+    expect(categoryIds).toEqual([...tree.publicCategoryIds]);
+    expect(categoryIds).not.toContain("cat-archive");
+
+    // A canonically placed, published page appears once, at its full path.
+    expect(
+      paths.find((path) => path.id === "content-coastal-mornings"),
+    ).toEqual({
+      kind: "content",
+      id: "content-coastal-mornings",
+      segments: ["landscape", "coastal", "coastal-mornings"],
+    });
+
+    // A secondary-only listing (cat-events) owns no content path of its own.
+    expect(contentIds).not.toContain("cat-events");
+    // An unpublished, unplaced draft owns no path.
+    expect(contentIds).not.toContain("content-unplaced-draft");
+
+    // Every path is unique: the local-slug-namespace guarantee holds across
+    // categories and content together.
+    const joined = paths.map((path) => path.segments.join("/"));
+    expect(new Set(joined).size).toBe(joined.length);
+  });
+
+  it("returns nothing for a tree with no public categories", () => {
+    const tree = buildContentTree({
+      categories: [
+        { categoryId: "cat-draft", parentId: null, slug: "draft", label: "Draft", order: 0 },
+      ],
+      placements: [],
+    });
+
+    expect(listPublicRoutePaths(tree)).toEqual([]);
   });
 });
 

@@ -649,6 +649,44 @@ Sanity's own `dataset export`/`import` CLI. Seeding a dataset does not change wh
 route reads — every page still renders from the mock layer until the route-facing
 switch below lands, so a seeded project and the live site remain two separate,
 unconnected facts until that story ships.
+`/sitemap.xml` and `/robots.txt` (AB#85) sit on top of the public content tree,
+locale route configuration, and services boundary: fixed, language-neutral root
+routes per ADR-0003, generated from `src/lib/sitemap.ts`'s `buildSitemapPaths`, a
+pure function over exactly the seams route pages already read — `content.ts`'s
+`getContentTrees`, `services.ts`'s `getServices`, and deployment-owned locale route
+config — rather than a second query of its own, so a route not public, renderable,
+and indexable there is not public, renderable, and indexable here either. Category
+and content paths come from `content-tree.ts`'s `listPublicRoutePaths`, generalized
+from that module's own pre-existing private path index rather than a duplicated
+walk; a configured locale with no published tree yet, and a published tree with no
+public category yet, are both omitted the same way `resolveStoryRoute` 404s them,
+rather than emitting a URL that does not resolve. A gallery or category's `?cursor=`
+continuation and a gallery's `?section=` filter never enter the list, because they
+are not category-tree or static-page identities the walk ever reaches, matching
+ADR-0003 decision 8's parameter-free-only sitemap-eligibility rule exactly. A
+duplicate generated path is treated as a defect and throws rather than being
+silently deduplicated, the same posture `content-tree.ts` already takes toward its
+own structural invariants. `src/app/sitemap.ts` declares `force-dynamic`, because
+Next.js caches a metadata-route file like this one at build time by default —
+confirmed against the framework's own documentation — which would freeze the list
+against every later publish, unpublish, or slug change the AB#83 freshness target
+requires; `robots.txt` needs no such override, since Next already treats it as
+dynamic. `robots.txt` expresses crawl guidance only, never access control:
+`src/lib/robots.ts`'s `buildRobotsPolicy` disallows everything for a non-production
+`SITE_DEPLOYMENT_STAGE` as defense in depth, while a Preview deployment's actual
+protection remains the platform's own access control plus its `X-Robots-Tag:
+noindex` header, per `docs/deployment.md`. Two scope boundaries were considered and
+deliberately left alone rather than built speculatively: verifying that a
+tree-canonical placement's underlying detail record still exists would mean loading
+a full page body (or gallery page) per candidate during sitemap generation, the
+exact "a listing loads a body" pattern `content-listing.ts` and
+`mock-content-pages.ts` already reject elsewhere, so this boundary trusts the
+tree's `published` and canonical-placement state the same way `content.ts`'s own
+listing-record query does; and ADR-0002 §4's reserved, route-owned `indexable` field
+— letting an author keep one public gallery or article out of the sitemap without
+unpublishing it — is not implemented anywhere in `content-tree.ts`, the article or
+gallery Sanity schemas, or the mock fixtures yet, so there is no such state for the
+sitemap to consult today. Both are documented as deliberate, not silently dropped.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — category listing continuation, which stays bounded to its first page and
@@ -658,7 +696,7 @@ above, whose bounded-query contract AB#134 has since supplied), seeded random ga
 — ADR-0009 decides the contract, but the materialized shuffle key itself and the route
 cache-key wiring it requires remain AB#129's — lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
-sitemap/robots, structured data — the media, category, settings, home, article, service, and
+structured data — the media, category, settings, home, article, service, and
 gallery schemas/adapters exist, including AB#114's bounded/windowed gallery placement query,
 but no route-facing seam reads any of them yet, so every page still renders from the mock
 layer — tagged caching and webhook revalidation (AB#83),
