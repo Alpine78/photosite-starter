@@ -359,8 +359,11 @@ a green pipeline. See [deployment](docs/deployment.md).
   suite over validation, success, delivery failure, and retry; the gallery-item enquiry
   (AB#60) is a separate story*
 - [ ] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
-  canonical URLs, and Open Graph output done for every current public page; sitemap,
-  robots, and structured data pending*
+  canonical URLs, and Open Graph output done for every current public page; `sitemap.xml`
+  and `robots.txt` done (AB#85) — every published, public, indexable category, article,
+  gallery, service, and static page listed exactly once, parameter-free only (no cursor or
+  section URLs), deterministic and absolute from deployment settings, refreshed on every
+  request rather than frozen at build time; structured data pending*
 - [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`; validated
   customer-owned connection, published-perspective query client, and the enforced
   data-access boundary done ([setup](docs/sanity-setup.md),

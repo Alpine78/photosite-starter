@@ -739,15 +739,49 @@ export type CanonicalPathDiff = {
   readonly conflicts: readonly CanonicalPathConflict[];
 };
 
+export type PublicRoutePath = {
+  readonly kind: "category" | "content";
+  readonly id: string;
+  readonly segments: readonly string[];
+};
+
+/**
+ * Every public, indexable, parameter-free route path in a tree: each public
+ * category and each published, canonically placed content page, exactly once.
+ * A category outside `publicCategoryIds`, an unpublished page, and a
+ * secondary-only placement all own no path here, because `getCategoryPath`
+ * and `getCanonicalContentPath` already encode those exclusions — there is no
+ * separate renderability, discoverability, or indexability check left to
+ * apply on top of "this identity is in the public tree with a canonical
+ * path": ADR-0003 gives every such path exactly one dispensation, unlike a
+ * gallery's cursor and section views, which never reach this function because
+ * they are not category-tree identities at all.
+ */
+export function listPublicRoutePaths(
+  tree: ContentTree,
+): readonly PublicRoutePath[] {
+  const paths: PublicRoutePath[] = [];
+  for (const categoryId of tree.publicCategoryIds) {
+    paths.push({
+      kind: "category",
+      id: categoryId,
+      segments: getCategoryPath(tree, categoryId),
+    });
+  }
+  for (const contentId of tree.placements.keys()) {
+    const segments = getCanonicalContentPath(tree, contentId);
+    if (segments !== null) {
+      paths.push({ kind: "content", id: contentId, segments });
+    }
+  }
+  return paths;
+}
+
 /** Every public path in a tree, mapped to the identity that owns it. */
 function indexPublicPaths(tree: ContentTree): Map<string, string> {
   const owners = new Map<string, string>();
-  for (const categoryId of tree.publicCategoryIds) {
-    owners.set(getCategoryPath(tree, categoryId).join("/"), categoryId);
-  }
-  for (const contentId of tree.placements.keys()) {
-    const path = getCanonicalContentPath(tree, contentId);
-    if (path !== null) owners.set(path.join("/"), contentId);
+  for (const path of listPublicRoutePaths(tree)) {
+    owners.set(path.segments.join("/"), path.id);
   }
   return owners;
 }
