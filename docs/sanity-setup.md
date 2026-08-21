@@ -4,9 +4,11 @@ How a deployment connects to its content store, who owns that store, and what th
 does when the store cannot be reached.
 
 This covers the connection, the MVP schemas/adapters, and the published cache boundary.
-Content seeding and switching the route-facing seams remain separate work. Until that
-switch lands, every route still runs on `SITE_CONTENT_SOURCE=mock` even though the Sanity
-adapters and their cache/revalidation boundary are complete and tested in isolation.
+Seeding sample content into a real dataset is [`docs/sanity-seeding.md`](sanity-seeding.md);
+switching the route-facing seams remains separate work. Until that switch lands, every
+route still runs on `SITE_CONTENT_SOURCE=mock` even though the Sanity adapters and their
+cache/revalidation boundary are complete and tested in isolation, and a real dataset — seeded
+or not — is not yet read by any page.
 
 ## Ownership
 
