@@ -1,0 +1,1670 @@
+{
+  "note": "First-site deployment data for AB#19 (this production Joomla site's real crawl inventory) — not generic template content. Deliberately holds no page titles or other free-text identity beyond the crawled URL paths themselves and their HTTP status, matching AGENTS.md's generic-template rule; the full titled inventory stays in the AB#19 Azure Boards attachment for whoever resolves a pending row next. Test-only: nothing in src/proxy.ts or the runtime request path imports this file (see legacy-redirects-data.ts's own comment); it drives only legacy-redirects-data.test.ts's completeness checks. A clone with no Joomla migration empties 'records' to [] and sets recordCount/distinctPathCount to 0, the same way it empties legacy-redirects-data.ts and legacy-redirects-tracking.ts, rather than deleting this file, which would break the test that imports it.",
+  "schemaVersion": 1,
+  "sourceHost": "www.ilkansivu.net",
+  "crawledAt": "2026-07-30T11:10:52.2537770Z",
+  "recordCount": 442,
+  "distinctPathCount": 415,
+  "records": [
+    {
+      "path": "/",
+      "status": 200
+    },
+    {
+      "path": "/404",
+      "status": 200
+    },
+    {
+      "path": "/blogi",
+      "status": 200
+    },
+    {
+      "path": "/blogi/2016-suuri-makkaravertailu",
+      "status": 200
+    },
+    {
+      "path": "/blogi/370-fujifilm-x-pro2",
+      "status": 200
+    },
+    {
+      "path": "/blogi/canon-eos-1d-x",
+      "status": 200
+    },
+    {
+      "path": "/blogi/canon-powershot-sx610-hs",
+      "status": 200
+    },
+    {
+      "path": "/blogi/fujifilm-fujinon-xf100-400mmf45-56-r-lm-ois-wr",
+      "status": 200
+    },
+    {
+      "path": "/blogi/fujifilm-fujinon-xf18-135mmf3-5-5-6-r-lm-ois-wr",
+      "status": 200
+    },
+    {
+      "path": "/blogi/fujifilm-fujinon-xf35mmf2-r-wr",
+      "status": 200
+    },
+    {
+      "path": "/blogi/fujifilm-fujinon-xf50-140mm-f2-8-r-lm-ois-wr",
+      "status": 200
+    },
+    {
+      "path": "/blogi/fujifilm-fujinon-xf56mm-f1-2-r",
+      "status": 200
+    },
+    {
+      "path": "/blogi/fujifilm-x-pro2",
+      "status": 200
+    },
+    {
+      "path": "/blogi/fujifilm-x-t1",
+      "status": 200
+    },
+    {
+      "path": "/blogi/fujifilm-x-t10",
+      "status": 200
+    },
+    {
+      "path": "/blogi/garmin-vivoactive",
+      "status": 200
+    },
+    {
+      "path": "/blogi/nettisivujen-ulkoasu-uudistus-2017",
+      "status": 200
+    },
+    {
+      "path": "/blogi/nikon-d4s",
+      "status": 200
+    },
+    {
+      "path": "/blogi/nikon-df",
+      "status": 200
+    },
+    {
+      "path": "/blogi/pentax-645z",
+      "status": 200
+    },
+    {
+      "path": "/blogi/polar-m600-suunto-spartan-ultra",
+      "status": 200
+    },
+    {
+      "path": "/blogi/uudet-sivut-avattu",
+      "status": 200
+    },
+    {
+      "path": "/component/komento/profile",
+      "status": 200
+    },
+    {
+      "path": "/component/komento/profile/138",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/aanekoski",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/aanekoski-valtra",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/aktiivisuusranneke",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/alpit",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/alykello",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/assamaki",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/automatkailu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/brikettigrilli",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/canon",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/canon-eos-1d-x",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/chamonix",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/courmayeur",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/elamysmatkat",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/formula-1",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/formulamatkailu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/fujifilm",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/fujifilm-x-pro2",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/fujifilm-x-t1",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/fujinon",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/gardajarvi",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/garmin",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/graafinen-suunnittelu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/grillaus",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/haajuhla",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/haakuvaus",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/haat",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/halttula",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/harju",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/himos",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/italia",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/jarjestelmakamera",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/joomla",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/julkaisujarjestelma",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/junior-wrc",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/kakaristo",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/kamera",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/kesahaat",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/keskikoon-digi",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/kestotesti",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/kevathaat",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/kiinteapolttovalinen-objektiivi",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/kokeilu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/kuntoilu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/laaja-kokeilu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/lankamaa",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/lappi",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/laskettelu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/laukaa",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/leustu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/m600",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/makkara",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/maranello",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/matkailu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/matkakertomus",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/mikrojarjestelmakamera",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/milano",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/miljoomuotokuvaus",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/mokkipera",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/moksi",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/monza",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/moottoriurheilu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/nakki",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/neste-rally-finland",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/nikkor",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/nikon",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/nikon-d4s",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/nikon-df",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/norja",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/normaaliobjektiivi",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/objektiivi",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/oittila",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/omatoimimatka",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/opiskelu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/paijala",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/pakettimatka",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/parin-paivan-pikakokeilu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/pentax",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/pentax-645z",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/pihlajakoski",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/pokkari",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/polar",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/powershot",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/ralli",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/ranska",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/rapsula",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/ratamoottoriveneily",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/ruuhimaki",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/saalahti",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/sahloinen-moksi",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/slr",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/spartan-ultra",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/studio",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/superzoom",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/surkee",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/suunto",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/sx610-hs",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/sykemittari",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/syyshaat",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/talvihaat",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/teleobjektiivi",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/telezoom",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/telttailu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/urheilu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/urria",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/v-voactive",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/valokuvaajan-ammattitutkinto",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/vat-portfolio",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/vertailu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/vetomiehet",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/vihkiseremonia",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/websuunnittelu",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/wordpress",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/wrc",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/wrc2",
+      "status": 200
+    },
+    {
+      "path": "/component/tags/tag/x-t10",
+      "status": 200
+    },
+    {
+      "path": "/en/",
+      "status": 200
+    },
+    {
+      "path": "/en/404",
+      "status": 200
+    },
+    {
+      "path": "/en/about",
+      "status": 200
+    },
+    {
+      "path": "/en/blog",
+      "status": 200
+    },
+    {
+      "path": "/en/component/komento/profile",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/aanekoski-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/alps",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/assamaki",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/camping",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/chamonix-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/commercial-skills",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/courmayeur-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/digital-workflow",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/examination-portfolio",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/formula-1-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/france",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/halttula",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/harju",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/himos",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/home-studio",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/independent-travel",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/italy",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/junior-wrc-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/kakaristo-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/lake-garda",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/lankamaa",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/lankamaa-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/lapland",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/laukaa",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/leustu-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/maranello-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/milan",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/moksi-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/monza-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/motorsport",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/norway",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/on-location-photography",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/photography",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/powershot",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/rally",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/rally-finland",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/rapsula-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/roadtrip",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/ruuhimaki-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/sahloinen-moksi-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/skiing",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/sport",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/ss-aanekoski-valtra",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/ss-harju",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/ss-mokkipera",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/ss-oittila",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/ss-paijala",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/ss-pihlajakoski",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/ss-saalahti",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/ss-surkee",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/ss-urria",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/studio",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/travel",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/wedding-ceremony",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/wedding-photography",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/wedding-portrait",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/wedding-reception",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/wrc-en",
+      "status": 200
+    },
+    {
+      "path": "/en/component/tags/tag/wrc2-en",
+      "status": 200
+    },
+    {
+      "path": "/en/gear",
+      "status": 200
+    },
+    {
+      "path": "/en/photography",
+      "status": 200
+    },
+    {
+      "path": "/en/photography/business",
+      "status": 200
+    },
+    {
+      "path": "/en/photography/event",
+      "status": 200
+    },
+    {
+      "path": "/en/photography/funeral",
+      "status": 200
+    },
+    {
+      "path": "/en/photography/graduation",
+      "status": 200
+    },
+    {
+      "path": "/en/photography/kid-family",
+      "status": 200
+    },
+    {
+      "path": "/en/photography/real-estate",
+      "status": 200
+    },
+    {
+      "path": "/en/photos",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/misc",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/misc/examination-portfolio",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/misc/examination-portfolio/commercial-skills",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/misc/examination-portfolio/digital-workflow",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/misc/examination-portfolio/on-location-photography",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/misc/examination-portfolio/studio-photography",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/formula-1",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/formula-1/austrian-grand-prix-2021-en",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/other-motorsport",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/other-motorsport/racewknd-kuopio-2020",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/wrc",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/wrc/neste-rally-finland-2017",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/wrc/neste-rally-finland-2018",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/wrc/neste-rally-finland-2019",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/wrc/rally-estonia-2023",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/wrc/rally-finland-2001-2019",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/wrc/rally-finland-2016",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/wrc/secto-rally-finland-2021",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/wrc/secto-rally-finland-2022",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/wrc/secto-rally-finland-2023",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/motorsport/wrc/tet-rally-latvia-2024",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/travel",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/travel/alpine-trips",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/travel/alpine-trips/chamonix-ski-2006",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/travel/f1",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/travel/f1/italy-round-trip-monza-f1-2008",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/travel/f1/monza-f1-gp-2007",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/travel/norway",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/travel/norway/lapland-roundtrip-2010",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/annika-and-johannes",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/elisa-joni",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/elsku-and-janne",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/emilia-and-jussi",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/hanna-and-heikki",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/jenni-tomi",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/johanna-and-jani",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/kristiina-and-sampo",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/laurabrett",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/laurajukka",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/marianna-and-mikko",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/marittalassi",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/minnamikko",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/mirja-matti",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/olga-and-vesa",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/paula-and-ville",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/pirjo-and-ville",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/salla-and-vesa",
+      "status": 200
+    },
+    {
+      "path": "/en/photos/wedding/tiia-maria-and-jouni",
+      "status": 200
+    },
+    {
+      "path": "/en/portfolio-en",
+      "status": 200
+    },
+    {
+      "path": "/en/site",
+      "status": 200
+    },
+    {
+      "path": "/en/wedding",
+      "status": 200
+    },
+    {
+      "path": "/en/wedding-portfolio",
+      "status": 200
+    },
+    {
+      "path": "/en/wedding/ceremony",
+      "status": 200
+    },
+    {
+      "path": "/en/wedding/ceremony-portraits",
+      "status": 200
+    },
+    {
+      "path": "/en/wedding/from-morning",
+      "status": 200
+    },
+    {
+      "path": "/en/wedding/half-day",
+      "status": 200
+    },
+    {
+      "path": "/en/wedding/portraits",
+      "status": 200
+    },
+    {
+      "path": "/en/wedding/whole-day",
+      "status": 200
+    },
+    {
+      "path": "/fi/",
+      "status": 200
+    },
+    {
+      "path": "/fi/404",
+      "status": 200
+    },
+    {
+      "path": "/fi/blogi",
+      "status": 200
+    },
+    {
+      "path": "/fi/blogi/canon-powershot-sx610-hs",
+      "status": 200
+    },
+    {
+      "path": "/fi/haakuvaus",
+      "status": 200
+    },
+    {
+      "path": "/fi/haakuvaus/aamusta-iltaan",
+      "status": 200
+    },
+    {
+      "path": "/fi/haakuvaus/koko-paiva",
+      "status": 200
+    },
+    {
+      "path": "/fi/haakuvaus/miljoomuotokuvaus",
+      "status": 200
+    },
+    {
+      "path": "/fi/haakuvaus/puoli-paivaa",
+      "status": 200
+    },
+    {
+      "path": "/fi/haakuvaus/vihkiseremonia",
+      "status": 200
+    },
+    {
+      "path": "/fi/haakuvaus/vihkiseremonia-muotokuvaus",
+      "status": 200
+    },
+    {
+      "path": "/fi/kalusto",
+      "status": 200
+    },
+    {
+      "path": "/fi/kuvaaja",
+      "status": 200
+    },
+    {
+      "path": "/fi/portfolio",
+      "status": 200
+    },
+    {
+      "path": "/fi/sivusto",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/annika-johannes",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/elisa-joni",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/elsku-janne",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/emilia-jussi",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/hanna-heikki",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/jenni-tomi",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/johanna-jani",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/kristiina-sampo",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/laura-brett",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/laura-jukka",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/marianna-mikko",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/maritta-lassi",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/minna-mikko",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/mirja-matti",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/olga-vesa",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/paula-ville",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/pirjo-ville",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/salla-vesa",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/haakuvat/tiia-maria-jouni",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/matkailu",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/matkailu/alppireissut",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/matkailu/alppireissut/chamonix-2006",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/matkailu/f1",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/matkailu/f1/italia-monza-f1-2008",
+      "status": "error"
+    },
+    {
+      "path": "/fi/valokuvat/matkailu/f1/monza-f1-2007",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/matkailu/norja",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/matkailu/norja/lapin-kierros-2010",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/f1/austrian-grand-prix-2021",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/mm-ralli",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2016",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2017",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2018",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2019",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/mm-ralli/rally-estonia-2023",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/mm-ralli/rally-finland-2001-2019",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2021",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2022",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2023",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/mm-ralli/tet-rally-latvia-2024",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/muu-moottoriurheilu",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/moottoriurheilu/muu-moottoriurheilu/racewknd-kuopio-2020",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/sekalaiset",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/sekalaiset/vat-portfolio",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/sekalaiset/vat-portfolio/digitaalinen-tyonkulku",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/sekalaiset/vat-portfolio/kaupallinen",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/sekalaiset/vat-portfolio/miljoo",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvat/sekalaiset/vat-portfolio/studio",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvaus",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvaus/asuntokuvaus",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvaus/hautajaiskuvaus",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvaus/juhlakuvaus",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvaus/perhe-ja-lapsikuvaus",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvaus/valmistujaiskuvaus",
+      "status": 200
+    },
+    {
+      "path": "/fi/valokuvaus/yrityskuvaus",
+      "status": 200
+    },
+    {
+      "path": "/haakuvaus",
+      "status": 200
+    },
+    {
+      "path": "/haakuvaus/aamusta-iltaan",
+      "status": 200
+    },
+    {
+      "path": "/haakuvaus/koko-paiva",
+      "status": 200
+    },
+    {
+      "path": "/haakuvaus/miljoomuotokuvaus",
+      "status": 200
+    },
+    {
+      "path": "/haakuvaus/puoli-paivaa",
+      "status": 200
+    },
+    {
+      "path": "/haakuvaus/vihkiseremonia",
+      "status": 200
+    },
+    {
+      "path": "/haakuvaus/vihkiseremonia-muotokuvaus",
+      "status": 200
+    },
+    {
+      "path": "/kalusto",
+      "status": 200
+    },
+    {
+      "path": "/kuvaaja",
+      "status": 200
+    },
+    {
+      "path": "/portfolio",
+      "status": 200
+    },
+    {
+      "path": "/sivusto",
+      "status": 200
+    },
+    {
+      "path": "/sivustokartta/fujifilm-x-pro2-tarkennusnopeus",
+      "status": 200
+    },
+    {
+      "path": "/sivustokartta/haaportfolio",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/annika-johannes",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/elisa-joni",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/elsku-janne",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/emilia-jussi",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/hanna-heikki",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/jenni-tomi",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/johanna-jani",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/kristiina-sampo",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/laura-brett",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/laura-jukka",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/marianna-mikko",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/maritta-lassi",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/minna-mikko",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/mirja-matti",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/olga-vesa",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/paula-ville",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/pirjo-ville",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/salla-vesa",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/haakuvat/tiia-maria-jouni",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/matkailu",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/matkailu/alppireissut",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/matkailu/alppireissut/chamonix-2006",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/matkailu/f1",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/matkailu/f1/italia-monza-f1-2008",
+      "status": "error"
+    },
+    {
+      "path": "/valokuvat/matkailu/f1/monza-f1-2007",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/matkailu/norja",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/matkailu/norja/lapin-kierros-2010",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/f1",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/f1/austrian-grand-prix-2021",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/mm-ralli",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2016",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2017",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2018",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2019",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/mm-ralli/rally-estonia-2023",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/mm-ralli/rally-finland-2001-2019",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2021",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2022",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2023",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/mm-ralli/tet-rally-latvia-2024",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/muu-moottoriurheilu",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/moottoriurheilu/muu-moottoriurheilu/racewknd-kuopio-2020",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/sekalaiset",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/sekalaiset/vat-portfolio",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/sekalaiset/vat-portfolio/digitaalinen-tyonkulku",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/sekalaiset/vat-portfolio/kaupallinen",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/sekalaiset/vat-portfolio/miljoo",
+      "status": 200
+    },
+    {
+      "path": "/valokuvat/sekalaiset/vat-portfolio/studio",
+      "status": 200
+    },
+    {
+      "path": "/valokuvaus",
+      "status": 200
+    },
+    {
+      "path": "/valokuvaus/asuntokuvaus",
+      "status": 200
+    },
+    {
+      "path": "/valokuvaus/hautajaiskuvaus",
+      "status": 200
+    },
+    {
+      "path": "/valokuvaus/juhlakuvaus",
+      "status": 200
+    },
+    {
+      "path": "/valokuvaus/perhe-ja-lapsikuvaus",
+      "status": 200
+    },
+    {
+      "path": "/valokuvaus/valmistujaiskuvaus",
+      "status": 200
+    },
+    {
+      "path": "/valokuvaus/yrityskuvaus",
+      "status": 200
+    }
+  ]
+}
