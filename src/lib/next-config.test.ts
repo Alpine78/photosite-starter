@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { NextConfig } from "next";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { YOUTUBE_NOCOOKIE_ORIGIN } from "@/lib/embed-origins";
 import { MAX_PUBLIC_DELIVERY_DIMENSION } from "@/lib/image-delivery";
 import { mockImages } from "@/lib/mock-media";
 import {
@@ -52,9 +53,12 @@ async function configuredWith(
   return (await import("../../next.config")).default;
 }
 
-async function getConfigResponse(pathname: string) {
+async function getConfigResponse(
+  pathname: string,
+  environment: Readonly<Record<string, string>> = FIXTURE_DEPLOYMENT,
+) {
   Object.assign(globalThis, { AsyncLocalStorage });
-  const nextConfig = await configuredWith(FIXTURE_DEPLOYMENT);
+  const nextConfig = await configuredWith(environment);
   const { unstable_getResponseFromNextConfig } = await import(
     "next/experimental/testing/server"
   );
@@ -284,5 +288,124 @@ describe("public image Next.js configuration", () => {
     const response = await getConfigResponse(src);
 
     expect(response.headers.get("cache-control")).toBeNull();
+  });
+
+  it("carries both its own immutable Cache-Control and the site-wide security headers, not one instead of the other", async () => {
+    const response = await getConfigResponse(
+      "/gallery/coastal-landscape.1683eecb7e65.webp",
+    );
+
+    expect(response.headers.get("cache-control")).toBe(IMMUTABLE_CACHE_CONTROL);
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("content-security-policy")).toContain(
+      "default-src 'self'",
+    );
+  });
+});
+
+describe("security response headers", () => {
+  it.each(["/", "/contact", "/services/portrait-sessions", "/api/contact"])(
+    "applies the fixed security headers to every path: %s",
+    async (pathname) => {
+      const response = await getConfigResponse(pathname);
+
+      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(response.headers.get("x-frame-options")).toBe("DENY");
+      expect(response.headers.get("referrer-policy")).toBe(
+        "strict-origin-when-cross-origin",
+      );
+    },
+  );
+
+  it("never sets Strict-Transport-Security, leaving it to Vercel's platform default", async () => {
+    const response = await getConfigResponse("/");
+
+    expect(response.headers.get("strict-transport-security")).toBeNull();
+  });
+
+  it("denies features this application never uses", async () => {
+    const response = await getConfigResponse("/");
+    const permissionsPolicy = response.headers.get("permissions-policy") ?? "";
+
+    for (const feature of [
+      "camera",
+      "geolocation",
+      "microphone",
+      "midi",
+      "payment",
+      "usb",
+    ]) {
+      expect(permissionsPolicy).toContain(`${feature}=()`);
+    }
+  });
+
+  it("scopes the YouTube embed's own features to self and its origin, matching the iframe's allow attribute", async () => {
+    const response = await getConfigResponse("/");
+    const permissionsPolicy = response.headers.get("permissions-policy") ?? "";
+
+    for (const feature of [
+      "accelerometer",
+      "autoplay",
+      "clipboard-write",
+      "encrypted-media",
+      "fullscreen",
+      "gyroscope",
+      "picture-in-picture",
+    ]) {
+      expect(permissionsPolicy).toContain(
+        `${feature}=(self "${YOUTUBE_NOCOOKIE_ORIGIN}")`,
+      );
+    }
+  });
+
+  it("ships a CSP with no unsafe-eval, a denied frame-ancestors, and no wildcard sources", async () => {
+    const response = await getConfigResponse("/");
+    const csp = response.headers.get("content-security-policy") ?? "";
+
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).toContain("base-uri 'self'");
+    expect(csp).toContain("form-action 'self'");
+    expect(csp).toContain(`frame-src ${YOUTUBE_NOCOOKIE_ORIGIN}`);
+    expect(csp).not.toContain("unsafe-eval");
+    expect(csp).not.toContain("*");
+  });
+
+  it("allows unsafe-eval only in development, where React's own debugging eval() calls need it", async () => {
+    const devResponse = await getConfigResponse("/", {
+      ...FIXTURE_DEPLOYMENT,
+      NODE_ENV: "development",
+    });
+    const prodResponse = await getConfigResponse("/", {
+      ...FIXTURE_DEPLOYMENT,
+      NODE_ENV: "production",
+    });
+
+    expect(devResponse.headers.get("content-security-policy")).toContain(
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    );
+    expect(prodResponse.headers.get("content-security-policy")).not.toContain(
+      "unsafe-eval",
+    );
+  });
+
+  it("allows no remote image source for a deployment reading fixtures", async () => {
+    const response = await getConfigResponse("/");
+    const csp = response.headers.get("content-security-policy") ?? "";
+
+    expect(csp).toContain(`img-src 'self' data:;`);
+  });
+
+  it("scopes img-src to this deployment's own Sanity project and dataset path, not the whole asset CDN host", async () => {
+    const response = await getConfigResponse("/", PUBLIC_SANITY_DEPLOYMENT);
+    const csp = response.headers.get("content-security-policy") ?? "";
+
+    expect(csp).toContain(
+      `img-src 'self' data: https://${SANITY_ASSET_CDN_HOST}/images/${PUBLIC_SANITY_DEPLOYMENT.SANITY_PROJECT_ID}/${PUBLIC_SANITY_DEPLOYMENT.SANITY_DATASET}/;`,
+    );
+    // The bare host with no path must never appear as its own source — that
+    // would grant every other Sanity customer's project on the same CDN host.
+    expect(csp).not.toContain(`img-src 'self' data: https://${SANITY_ASSET_CDN_HOST};`);
   });
 });

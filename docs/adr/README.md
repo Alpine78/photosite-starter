@@ -51,6 +51,7 @@ Two conventions on top of the template:
 | [0008](0008-localized-authored-text.md) | AB#82 | Localized authored text in content schemas | Accepted |
 | [0009](0009-seeded-random-gallery-ordering.md) | AB#66 (ordering clauses only) | Seeded random gallery ordering contract | Accepted |
 | [0010](0010-lightbox-preload-window.md) | AB#79 | Bounded adjacent-image lightbox preload window | Accepted |
+| [0011](0011-security-response-headers.md) | AB#117 | Security response headers and the CSP inline-content trade-off | Accepted |
 
 Expected further entries:
 

@@ -15,7 +15,18 @@ const settings: SiteSettings = {
   photographerName: "Jane Example",
   tagline: "Timeless photography",
   navigation: [{ label: "Home", href: "/" }],
-  contact: { email: "hello@studio-example.com" },
+  contact: {
+    email: "hello@studio-example.com",
+    privacyNotice: {
+      collected: "Your name, email address, and message.",
+      purpose:
+        "Answering your enquiry. Nothing is used for marketing or profiling.",
+      recipient:
+        "Studio Example, delivered by our email provider. The message is not stored by this website.",
+      retention:
+        "Kept in our mailbox for as long as answering you requires, then deleted.",
+    },
+  },
   socialLinks: [],
   footerLinks: [],
   copyrightHolder: "Studio Example",
@@ -41,6 +52,8 @@ function buildDefaultSocialImage(alt: string) {
 }
 
 const deployment: DeploymentConfig = {
+  stage: "production",
+  contentSource: "mock",
   locale: "en-GB",
   localeRoutes: buildLocaleRouteConfig({
     locales: [{ locale: "en-GB", prefix: null, storyNamespace: "stories" }],
@@ -102,7 +115,11 @@ describe("buildSiteMetadata", () => {
   it("composes site-wide defaults from settings and deployment values", () => {
     const metadata = buildSiteMetadata(context);
 
-    expect(metadata.metadataBase?.href).toBe("https://example.com/");
+    // `String(...)` rather than `.href`: Next's `Metadata["metadataBase"]`
+    // type accepts `string | URL`, but `buildSiteMetadata` always passes
+    // through `deployment.canonicalBaseUrl`, which is a real `URL` — and a
+    // `URL`'s `toString()` is defined to equal its `.href`.
+    expect(String(metadata.metadataBase)).toBe("https://example.com/");
     expect(metadata.title).toEqual({
       default: "Studio Example",
       template: "%s | Studio Example",

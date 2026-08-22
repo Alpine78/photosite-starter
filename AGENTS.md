@@ -225,7 +225,9 @@ in-tree can tell it. One site-wide limitation bounds that link and predates this
 Next.js 16.2.11 the tested 404 responses carry their semantic UI only in the RSC payload,
 so no heading or link renders without JavaScript. ADR-0007 records the experiments already
 performed without claiming a framework root cause; AB#132 owns the minimal reproduction and
-version comparison.
+version comparison. AB#117 bumped Next.js to 16.3.2 (`npm audit fix`, dependency-vulnerability
+remediation) and the Playwright 404/redirect suite still passes at that version, but that is
+not the same check as AB#132's own version-comparison reproduction, which has not been rerun.
 One authoritative manual order governs the source, the DOM, keyboard focus, and the
 lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
 ratios, never cropped) precisely so the visual reading order cannot contradict it; the
@@ -728,15 +730,31 @@ enquiry (AB#60),
 structured data — the media, category, settings, home, article, service, and
 gallery schemas/adapters exist, including AB#114's bounded/windowed gallery placement query,
 but no route-facing seam reads any of them yet, so every page still renders from the mock
-layer — tagged caching and webhook revalidation (AB#83),
-and the deployment itself: provisioning is under way — a Vercel project exists, but
+layer.
+Tagged caching and webhook revalidation (AB#83) are built — see the large paragraph earlier
+in this file and `docs/cache-revalidation.md` — but AB#83 was reopened during AB#117's launch
+review: its own documented "Deployed verification gate" (cross-instance propagation observed
+on a real deployed Vercel runtime) has never run, since no deployment has ever run (below).
+Belongs here as "not fully done," not "not built."
+And the deployment itself: provisioning is under way — a Vercel project exists, but
 protection, Preview environment values, and deployment credentials are not finished;
 the disabled variable group currently carries only the non-secret project/team IDs, and
 no domain exists — so the deploy stage has never run and no release candidate has ever
-been produced or verified. Production promotion (AB#18) and exercised rollback and
+been produced or verified. Confirmed directly during AB#117's launch review (2026-08-22,
+`az pipelines runs show` on the latest `main` run: the `DeployPreview` stage shows
+`skipped`), which is why AB#116 was reopened to `Active` — it had been marked Closed
+despite this. Production promotion (AB#18) and exercised rollback and
 handoff (AB#118) are later stories. Legacy URL redirects (AB#19) are partially built —
 see above — with 238 of 415 distinct crawled paths still pending real content
 migration (including `component/komento/*` and `sivustokartta/*`).
+The production security and privacy launch review itself (AB#117) is built: security
+response headers (CSP, HSTS-adjacent, framing, MIME-sniffing, referrer, permissions —
+ADR-0011, `docs/security-privacy-review.md`), a dependency-vulnerability remediation
+(`npm audit fix`, 6 high-severity findings to 0), and the review document walking all
+8 acceptance criteria against evidence. Two criteria are only partly closeable today:
+AC3's live Vercel/Resend account verification and AC5's live Sanity asset-store audit
+both require infrastructure that does not exist yet (the same AB#116 gap above) and are
+carried forward as an explicit, owned checklist rather than marked done.
 
 The repository's architecture is also drawn, not only described: `docs/architecture/`
 holds the system context, the application and data boundaries, and the build/deployment
@@ -891,6 +909,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `docs/sanity-seeding.md` | the site owner and whoever seeds a clone's sample or first content | the seed script's fixture content, id/idempotency contract, write-token story, verification steps, or go-live cleanup checklist change |
 | `sanity/README.md` | whoever wires a clone's Studio to these schemas | a document type is added, or how the Studio consumes them changes |
 | `docs/deployment.md` | the site owner and whoever provisions a clone's hosting | the Preview environment, pipeline deployment stage, environment-variable split, runtime pins, or promotion/rollback mechanism change |
+| `docs/security-privacy-review.md` | the site owner and future launch reviews | the launch security/privacy review is rerun, a finding's disposition changes, or the security response headers change (also update ADR-0011) |
 | `NOTICE`, `licenses/` | anyone receiving the product | a third-party component with an attribution requirement is added |
 | `.claude/skills/`, `.agents/skills/` | agents | a recurring workflow needs a skill; duplicate into both, no symlinks |
 
