@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import {
+  YOUTUBE_EMBED_ALLOW_FEATURES,
+  YOUTUBE_NOCOOKIE_ORIGIN,
+} from "@/lib/embed-origins";
 
 const ONE_YEAR_SECONDS = 31_536_000;
 
@@ -159,9 +163,8 @@ function sanityBuildSettings(
  * every photograph is broken.
  */
 function sanityImageRemotePatterns(
-  environment: Record<string, string | undefined>,
+  settings: SanityBuildSettings | null,
 ): RemotePattern[] {
-  const settings = sanityBuildSettings(environment);
   if (settings === null) return [];
   const { projectId, dataset } = settings;
 
@@ -178,6 +181,133 @@ function sanityImageRemotePatterns(
   ];
 }
 
+/**
+ * Features this application's own pages never use, denied outright, and the
+ * handful the one opt-in third-party embed (`youtube-embed.tsx`) needs,
+ * scoped to `self` plus that embed's own known origin so the click-to-load
+ * video still plays. `fullscreen` covers the iframe's `allowFullScreen` prop
+ * (not part of its `allow` attribute); the rest is
+ * `YOUTUBE_EMBED_ALLOW_FEATURES`, the exact list the component's own `allow`
+ * attribute renders, so the two cannot drift from each other by hand-edit.
+ */
+function permissionsPolicy(): string {
+  const denied = [
+    "camera",
+    "geolocation",
+    "microphone",
+    "midi",
+    "payment",
+    "usb",
+  ];
+  const scopedToEmbed = [...YOUTUBE_EMBED_ALLOW_FEATURES, "fullscreen"];
+
+  return [
+    ...denied.map((feature) => `${feature}=()`),
+    ...scopedToEmbed.map(
+      (feature) => `${feature}=(self "${YOUTUBE_NOCOOKIE_ORIGIN}")`,
+    ),
+  ].join(", ");
+}
+
+/**
+ * `default-src 'self'` plus every directive that has a real answer for a
+ * self-hosted Next.js app with no client-side third-party requests: images
+ * come from this origin (plus this deployment's own validated Sanity project
+ * and dataset *path* on the asset CDN when configured — not the bare host,
+ * the same `/images/{projectId}/{dataset}/` prefix
+ * `sanityImageRemotePatterns` scopes the image optimizer's own allow-list to,
+ * so this grant cannot reach another Sanity customer's project on the same
+ * shared CDN host), the one opt-in video embed frames from its known origin,
+ * and nothing else is ever fetched, framed, or submitted cross-origin.
+ *
+ * `script-src`/`style-src` carry `'unsafe-inline'` as documented, accepted
+ * residual risk rather than an oversight — see
+ * `docs/adr/0011-security-response-headers.md`. Next.js's App Router injects
+ * an inline RSC hydration bootstrap script and inline style attributes
+ * (`next/image` sizing, `next/font` fallback) on every request; closing that
+ * with per-request nonces requires converting the whole site to dynamic
+ * rendering, which conflicts with the static-generation and tagged-caching
+ * architecture ADR-0004 and AB#83 already committed to. No inline HTML is
+ * ever rendered from unescaped input anywhere in this codebase (no
+ * `dangerouslySetInnerHTML`, no raw-HTML content block), so the realistic
+ * injection surface this would otherwise close is already effectively empty.
+ *
+ * `script-src` additionally carries `'unsafe-eval'` in development only
+ * (`process.env.NODE_ENV === "development"`, true for `npm run dev`, false
+ * for every built/started/deployed response). Next.js's own CSP guide
+ * documents this exact conditional: React uses `eval()` in development for
+ * reconstructing server-side error stacks and other debugging aids, and
+ * "`unsafe-eval` is not required for production. Neither React nor Next.js
+ * use `eval` in production by default." Confirmed against a real
+ * `npm run dev` server, not just the docs: without this, every dev-mode
+ * response's CSP blocked React's debugging `eval()` calls.
+ */
+function contentSecurityPolicy(settings: SanityBuildSettings | null): string {
+  const sanityImageOrigin =
+    settings === null
+      ? ""
+      : ` https://${SANITY_ASSET_CDN_HOST}/images/${settings.projectId}/${settings.dataset}/`;
+  const scriptSrc =
+    process.env.NODE_ENV === "development"
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+      : "script-src 'self' 'unsafe-inline'";
+
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    scriptSrc,
+    "style-src 'self' 'unsafe-inline'",
+    `img-src 'self' data:${sanityImageOrigin}`,
+    `frame-src ${YOUTUBE_NOCOOKIE_ORIGIN}`,
+    "connect-src 'self'",
+    "font-src 'self'",
+  ].join("; ");
+}
+
+/**
+ * Applied to every response. Deliberately does not set
+ * `Strict-Transport-Security`: Vercel's own edge already sends
+ * `max-age=63072000` on every deployment response
+ * (https://vercel.com/docs/headers/response-headers), and this project's
+ * hard rule of staying generic means it cannot assume every clone's own
+ * subdomains are HTTPS-ready, which `includeSubDomains`/`preload` would
+ * silently commit a customer's whole domain to. See
+ * `docs/adr/0011-security-response-headers.md`.
+ *
+ * Takes the already-computed `SanityBuildSettings` rather than raw
+ * environment variables: `images.remotePatterns` below computes the same
+ * settings from the same source once at module-evaluation time, and passing
+ * that one result into both places means the CMS-configured question is
+ * answered once per build, not re-derived (and potentially re-thrown) by two
+ * independent call sites that must otherwise be trusted to agree.
+ */
+function securityHeaders(
+  sanitySettings: SanityBuildSettings | null,
+): { key: string; value: string }[] {
+  return [
+    { key: "X-Content-Type-Options", value: "nosniff" },
+    { key: "X-Frame-Options", value: "DENY" },
+    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    { key: "Permissions-Policy", value: permissionsPolicy() },
+    {
+      key: "Content-Security-Policy",
+      value: contentSecurityPolicy(sanitySettings),
+    },
+  ];
+}
+
+/**
+ * Computed once at module-evaluation time (build start / dev-server start),
+ * the same point `images.remotePatterns` below always ran this at. Both that
+ * allow-list and the CSP's `img-src` answer "is this a Sanity deployment, and
+ * if so which project/dataset" from this one result, rather than each
+ * re-deriving (and re-validating, and potentially re-throwing) it separately.
+ */
+const sanitySettings = sanityBuildSettings(process.env);
+
 const nextConfig: NextConfig = {
   // Proxy owns trailing-slash normalization so a gallery cursor can be
   // validated before a permanent redirect is emitted. Without this flag,
@@ -189,7 +319,7 @@ const nextConfig: NextConfig = {
     // optimization. Filename versioning is enforced by the domain projection;
     // future CMS hosts must be added as narrow remotePatterns.
     localPatterns: [{ pathname: "/gallery/**", search: "" }],
-    remotePatterns: sanityImageRemotePatterns(process.env),
+    remotePatterns: sanityImageRemotePatterns(sanitySettings),
     // Public presentation currently supports source widths through 2048px.
     //
     // Reviewed for the lightbox (AB#15) and deliberately left as it is. The
@@ -212,6 +342,10 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      {
+        source: "/:path*",
+        headers: securityHeaders(sanitySettings),
+      },
       {
         source:
           "/gallery/:name([a-z0-9]+(?:-[a-z0-9]+)*).:version([0-9a-f]{12}).:extension(avif|jpg|jpeg|png|webp)",

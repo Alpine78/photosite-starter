@@ -143,7 +143,11 @@ answered exactly as a successful one and delivered nowhere.
 ## Before production launch
 
 These are AB#116's and AB#117's to close, and they are listed here so the gap is
-visible rather than assumed:
+visible rather than assumed. AB#117's launch review
+(`docs/security-privacy-review.md`, AC3) confirmed on 2026-08-22 that all four remain
+open: they require a live Vercel/Resend account, which does not exist yet (AB#116 was
+reopened for the same reason). Re-check this list once that account exists, rather
+than assuming it is still accurate.
 
 - [ ] Verify Resend's current data-residency options, retention terms,
       sub-processor list, and DPA (including EU transfer clauses) against the

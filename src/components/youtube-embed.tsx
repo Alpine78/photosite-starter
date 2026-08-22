@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import {
+  YOUTUBE_EMBED_ALLOW_FEATURES,
+  YOUTUBE_NOCOOKIE_ORIGIN,
+} from "@/lib/embed-origins";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 
 type YoutubeEmbedProps = {
@@ -30,9 +34,9 @@ export function YoutubeEmbed({
     return (
       <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
         <iframe
-          src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`}
+          src={`${YOUTUBE_NOCOOKIE_ORIGIN}/embed/${videoId}?autoplay=1`}
           title={title}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allow={YOUTUBE_EMBED_ALLOW_FEATURES.join("; ")}
           allowFullScreen
           className="absolute inset-0 h-full w-full"
         />
