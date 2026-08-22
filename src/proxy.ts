@@ -1,6 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
+  buildLegacyGoneHtml,
+  legacyRedirectDestinationSearch,
+  resolveLegacyGoneLanguage,
+  resolveLegacyGoneRoute,
+  resolveLegacyRedirect,
+} from "@/lib/legacy-redirects";
+import { LEGACY_REDIRECTS } from "@/lib/legacy-redirects-data";
+import {
   REQUEST_HAS_CURSOR_HEADER,
   REQUEST_HAS_CURSOR_VALUE,
   REQUEST_HAS_SECTION_HEADER,
@@ -17,6 +25,18 @@ import {
  * trailing-slash normalization now that a cursor must be validated before a
  * permanent redirect. App Router gives that boundary no props and renders it
  * before the page, so there is no in-tree way to tell it (ADR-0007).
+ *
+ * It also answers the deployment's legacy-URL registry (AB#19,
+ * `legacy-redirects.ts`) directly, terminating the request here rather than
+ * letting it reach the route tree — and *before* its own trailing-slash
+ * normalization below, since a legacy source may itself carry a trailing
+ * slash. That is not a stylistic choice: a Server Component page in this
+ * Next.js version can only emit 404/403/401 through its built-in error APIs,
+ * so a genuine `410 Gone` is only reachable from this layer, and a literal
+ * `301` (rather than the route tree's own `permanentRedirect()`, hardcoded
+ * to 308) is too. The lookup is a static deployment-config map, not a
+ * content or adapter read, so it costs nothing this file's own O(1) budget
+ * does not already allow.
  *
  * ## What it deliberately does not do
  *
@@ -51,6 +71,42 @@ export function proxy(request: NextRequest) {
   const hasCursor = request.nextUrl.searchParams.has("cursor");
   const hasSection = request.nextUrl.searchParams.has("section");
   const hasTrailingSlash = pathname.length > 1 && pathname.endsWith("/");
+
+  // Checked against the exact requested pathname, trailing slash and all,
+  // and *before* the generic trailing-slash normalization below — a legacy
+  // source may itself carry one (the crawl recorded at least one real
+  // directory-style URL with no slash-free equivalent, `/en/`; see
+  // `legacy-redirects.ts`'s own comment on `isCanonicalLegacyPath`), and
+  // stripping the slash first would turn one hop into a 308-then-redirect
+  // chain for exactly the sources this registry exists to answer cleanly.
+  // Applied for every request method — this file does not branch on method
+  // anywhere else, and a 301/410 is a meaningful answer to a HEAD or a stray
+  // POST the same way it is to a GET. The lookup key is the pathname only
+  // (ADR-0003 decision 9: a query string is never part of a row's identity),
+  // so a request that only differs from a decided row by its query still
+  // gets that row's outcome; what the query string itself does about it is
+  // decided below, per outcome kind.
+  const legacyOutcome = resolveLegacyRedirect(LEGACY_REDIRECTS, pathname);
+  if (legacyOutcome !== undefined) {
+    if (legacyOutcome.kind === "redirect") {
+      const destination = new URL(legacyOutcome.target, request.url);
+      destination.search = legacyRedirectDestinationSearch(
+        request.nextUrl.search,
+        legacyOutcome.reservedQueryParams,
+      );
+      return NextResponse.redirect(destination, 301);
+    }
+
+    const goneRoute = resolveLegacyGoneRoute(getDeploymentConfig().localeRoutes, pathname);
+    return new NextResponse(buildLegacyGoneHtml(goneRoute), {
+      status: 410,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "content-language": resolveLegacyGoneLanguage(goneRoute.locale),
+        "cache-control": "public, max-age=3600, must-revalidate",
+      },
+    });
+  }
 
   // Next's built-in slash redirect runs before the route can validate a cursor.
   // Keep its ordinary 308 for every other request, but let a possible story

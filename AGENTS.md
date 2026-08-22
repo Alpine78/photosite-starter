@@ -687,6 +687,35 @@ listing-record query does; and ADR-0002 §4's reserved, route-owned `indexable` 
 unpublishing it — is not implemented anywhere in `content-tree.ts`, the article or
 gallery Sanity schemas, or the mock fixtures yet, so there is no such state for the
 sitemap to consult today. Both are documented as deliberate, not silently dropped.
+AB#19's legacy-URL redirect registry (`src/lib/legacy-redirects.ts`) is partially
+built: a reusable, generic, pure validated-lookup module — same-shape precedent to
+`content-redirects.ts`, but a separate registry, since a legacy Joomla path is a
+disjoint taxonomy from the `/tarinat`/`/en/stories` namespace that file owns — wired
+into `src/proxy.ts`, the only layer in this Next.js version able to answer a genuine
+`410 Gone` at all (a Server Component page's built-in error APIs stop at 404/403/401)
+and the only one that can emit a literal `301` rather than the route tree's own
+308-hardcoded `permanentRedirect()`. Of the 442-record production Joomla crawl
+inventory (415 distinct paths) AB#19's own comments and ADR-0003 decision 9 govern,
+this pass decides only the 174 `component/tags/tag/...` and
+`en/component/tags/tag/...` Joomla tag-browsing pages, each a justified `410 Gone`
+because no current-site replacement exists (a future one is AB#66's). Every other
+path — every legacy gallery, article, category, and static page, plus
+`component/komento/*` (a real Joomla gallery component, not system debris) and
+`sivustokartta/*` (real aliased content, not a generic sitemap page) — stays recorded
+as an explicit pending row in `src/lib/legacy-redirects-tracking.ts` rather than a
+guessed target, because ADR-0003 decision 9 itself requires a migrated page's locale,
+canonical category, and slug to be known first, and no route reads real migrated
+content yet (`SITE_CONTENT_SOURCE=mock`). `legacy-redirects-data.test.ts` keeps this
+bookkeeping honest: every distinct crawled path is accounted for by exactly one of a
+decided row, a pending row, an excluded row (Joomla's own `/404` error page, owed no
+redirect), or an already-live row (the site root), and the decided set is pinned to
+its exact reviewed count so a future inventory update cannot silently reclassify an
+unreviewed path the way `component/komento/*` and `sivustokartta/*` first appeared to.
+The crawl also surfaces a finding for whoever resolves the Finnish `/portfolio` row:
+it was a real, live, published Joomla page, which is evidence against the assumption
+the 2026-08-10 ADR-0003 amendment relied on to remove this template's own dead
+`/portfolio` scaffold without a redirect — that removal was about the template's own
+never-deployed route, not the production site's real one at the same path.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — category listing continuation, which stays bounded to its first page and
@@ -704,8 +733,10 @@ and the deployment itself: provisioning is under way — a Vercel project exists
 protection, Preview environment values, and deployment credentials are not finished;
 the disabled variable group currently carries only the non-secret project/team IDs, and
 no domain exists — so the deploy stage has never run and no release candidate has ever
-been produced or verified. Production promotion (AB#18), exercised rollback and handoff
-(AB#118), and legacy URL redirects (AB#19) are later stories.
+been produced or verified. Production promotion (AB#18) and exercised rollback and
+handoff (AB#118) are later stories. Legacy URL redirects (AB#19) are partially built —
+see above — with 238 of 415 distinct crawled paths still pending real content
+migration (including `component/komento/*` and `sivustokartta/*`).
 
 The repository's architecture is also drawn, not only described: `docs/architecture/`
 holds the system context, the application and data boundaries, and the build/deployment
