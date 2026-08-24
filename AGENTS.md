@@ -733,28 +733,46 @@ but no route-facing seam reads any of them yet, so every page still renders from
 layer.
 Tagged caching and webhook revalidation (AB#83) are built — see the large paragraph earlier
 in this file and `docs/cache-revalidation.md` — but AB#83 was reopened during AB#117's launch
-review: its own documented "Deployed verification gate" (cross-instance propagation observed
-on a real deployed Vercel runtime) has never run, since no deployment has ever run (below).
-Belongs here as "not fully done," not "not built."
-And the deployment itself: provisioning is under way — a Vercel project exists, but
-protection, Preview environment values, and deployment credentials are not finished;
-the disabled variable group currently carries only the non-secret project/team IDs, and
-no domain exists — so the deploy stage has never run and no release candidate has ever
-been produced or verified. Confirmed directly during AB#117's launch review (2026-08-22,
-`az pipelines runs show` on the latest `main` run: the `DeployPreview` stage shows
-`skipped`), which is why AB#116 was reopened to `Active` — it had been marked Closed
-despite this. Production promotion (AB#18) and exercised rollback and
-handoff (AB#118) are later stories. Legacy URL redirects (AB#19) are partially built —
+review and remains open: its own documented "Deployed verification gate" (cross-instance
+propagation observed on a real deployed Vercel runtime) has not been run yet. A deployed
+runtime now exists (below), so this gate is reachable; the specific publish → webhook →
+repeated cross-instance fetch check itself still has to be performed and recorded before
+AB#83 can close.
+The deployment itself: AB#116 is **closed** — the Preview environment is fully provisioned
+and proven working by a real, verified, fully-automated pipeline run (build 144, `main`,
+2026-08-24). `DeployPreview` built, deployed to Preview, bound the deployment identity to
+the expected project/team, and verified both access protection (a 302 redirect to
+`vercel.com/sso-api`) and non-indexability (`X-Robots-Tag: noindex`) against a live URL.
+Three root causes were found and fixed only by actually running this, not by code review:
+`vercel deploy`/`vercel build` needed an explicit `--target=preview`, since a project's
+first-ever deployment is otherwise assigned to production regardless of the omitted
+`--prod` flag; a TypeScript parameter-property in `scripts/vercel-preview-api.mts` crashed
+under Node's native type stripping (vitest's transpiler tolerated it, so this was invisible
+until the script ran for real); and the Vercel project's own Framework Preset was "Other"
+instead of "Next.js," which made every deployment serve only a fallback 404 regardless of
+the two code fixes — corrected directly on the Vercel project, no code involved. The
+verification script's access-protection check was also wrong in its own right (assumed a
+bare `401`; Vercel Authentication actually redirects) and is fixed to bind to the specific
+redirect target rather than accepting any redirect status, preserving the original
+deliberate refusal to treat an ambiguous redirect as proof. Production promotion (AB#18)
+and exercised rollback and handoff (AB#118) are later stories, now unblocked rather than
+waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
 see above — with 238 of 415 distinct crawled paths still pending real content
 migration (including `component/komento/*` and `sivustokartta/*`).
 The production security and privacy launch review itself (AB#117) is built: security
 response headers (CSP, HSTS-adjacent, framing, MIME-sniffing, referrer, permissions —
 ADR-0011, `docs/security-privacy-review.md`), a dependency-vulnerability remediation
 (`npm audit fix`, 6 high-severity findings to 0), and the review document walking all
-8 acceptance criteria against evidence. Two criteria are only partly closeable today:
-AC3's live Vercel/Resend account verification and AC5's live Sanity asset-store audit
-both require infrastructure that does not exist yet (the same AB#116 gap above) and are
-carried forward as an explicit, owned checklist rather than marked done.
+8 acceptance criteria against evidence. Two criteria were only partly closeable at the
+time of that review: AC3's live Vercel/Resend account verification and AC5's live Sanity
+asset-store audit both named the same AB#116 gap now closed above. A live, protected
+Vercel deployment exists now, which makes both checklists reachable — but the specific
+items themselves (reading Resend's current DPA/data-residency terms, recording the Vercel
+privacy role and Runtime Logs access scope, auditing the Sanity dataset's actual asset
+population) have not been performed yet, and `docs/security-privacy-review.md` and
+`docs/contact-data-flow.md` have not been re-checked against this newly-live account. Do
+not assume either checklist is complete because the infrastructure gap that used to block
+it is gone.
 
 The repository's architecture is also drawn, not only described: `docs/architecture/`
 holds the system context, the application and data boundaries, and the build/deployment

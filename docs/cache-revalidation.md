@@ -132,7 +132,9 @@ identifier and always carry `Cache-Control: no-store`.
 Unit tests prove request validation, replay behavior, the invalidation map,
 hard-expiry calls, failures, and the broad fallback. ADR-0004 separately requires
 propagation to be observed on a deployed Vercel multi-instance runtime. No
-Production deployment currently exists; a local test cannot satisfy that gate.
-AB#83 therefore remains open until a staged/current deployment can run the
-publish → webhook → repeated cross-instance fetch check, unless the owner first
-accepts an ADR/work-item scope amendment assigning that evidence elsewhere.
+Production deployment exists yet (AB#18 is a later story), but a Preview
+deployment now does (AB#116, closed 2026-08-24) and is reachable for this gate —
+a local test still cannot satisfy it. AB#83 therefore remains open until the
+publish → webhook → repeated cross-instance fetch check has actually been run and
+recorded against that Preview deployment, unless the owner first accepts an
+ADR/work-item scope amendment assigning that evidence elsewhere.
