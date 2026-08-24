@@ -12,6 +12,9 @@ Counts were not recounted.
 **Amended:** 2026-08-13 — D2 diagram tooling added (AB#133): the `@terrastruct/d2`
 development dependency, and the Source Sans Pro subsets it embeds into the generated
 SVGs in `docs/architecture/`. Counts were not recounted.
+**Amended:** 2026-08-24 — the vendored `architecture` and `security-review` skills were
+adapted to the repository's own ADR, security, privacy, CMS, media, and deployment
+boundaries; their upstream licenses and attribution remain in place.
 
 ## Distribution model assumed by this audit
 
@@ -58,8 +61,8 @@ and none of its own code ends up in them.
 | Geist, Geist Mono typefaces | `vercel/geist-font` via `next/font/google` | The Geist Project Authors | OFL-1.1 | **Yes** — notice + license must accompany redistribution | Yes |
 | Next.js, React, React DOM client runtime | `vercel/next.js`, `facebook/react` via npm | Vercel, Meta and contributors | MIT | **Yes** — copyright + permission notice | Yes |
 | PhotoSwipe 5.4.4 (JS + CSS) | `dimsemenov/PhotoSwipe` via npm | Dmitry Semenov | MIT | **Yes** — copyright + permission notice | Yes |
-| `architecture` skill | `anthropics/knowledge-work-plugins` | Anthropic | Apache-2.0 | **Yes** — license copy, retained notices, state changes | Yes |
-| `security-review` skill | `affaan-m/ECC` | Affaan Mustafa | MIT | **Yes** — copyright + permission notice | Yes |
+| `architecture` skill (project-adapted derivative) | `anthropics/knowledge-work-plugins` | Anthropic | Apache-2.0 | **Yes** — license copy, retained notices, state changes | Yes |
+| `security-review` skill (project-adapted derivative) | `affaan-m/ECC` | Affaan Mustafa | MIT | **Yes** — copyright + permission notice | Yes |
 | Source Sans Pro subsets embedded in `docs/architecture/*.svg` | Adobe Source Sans Pro, vendored by D2 and subset into each generated SVG | Adobe | OFL-1.1 | **Yes** — notice + license must accompany redistribution | Yes |
 | Demo photographs (`public/gallery/`, 6 files) | OpenAI services | Project author (assigned) | Project MIT | No | Yes — see below |
 
@@ -150,9 +153,7 @@ warrant a note if the distribution model changes:
 
 | # | Item | Status |
 | --- | --- | --- |
-| 1 | `security-review` skill has diverged from upstream (5 lines, including an upstream fix `error.errors` → `error.issues`). Its source repo also moved to `affaan-m/ECC`. | Refresh from upstream; not blocking |
 | 2 | `skills-lock.json` records four skills but only two are vendored here; `computedHash` is not reproducible as a content hash and cannot be used to verify provenance. | Replace with pinned commit SHAs, or trim to what the repo actually contains |
-| 3 | `.claude/skills/architecture/SKILL.md` links to a `CONNECTORS.md` that does not exist. Verified as an **upstream** defect — the vendored copy is faithful. | Leave; report upstream if desired |
 | 4 | Distribution model unratified. | Blocked on AB#42 |
 
 ## Verifying provenance of a vendored skill
