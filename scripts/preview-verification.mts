@@ -32,27 +32,57 @@ export type ProbeOutcome = {
 };
 
 /**
- * The one status that proves Vercel Authentication answered: 401.
+ * The provider's own login-challenge redirect, which is what proves Vercel
+ * Authentication answered — verified against a real deployment (AB#116,
+ * 2026-08-24): an unauthenticated request receives a 3xx redirect whose
+ * `Location` names this exact host and path
+ * (`https://vercel.com/sso-api?url=...&nonce=...`), not the bare `401` this
+ * check originally assumed. Vercel's own documentation confirms the shape:
+ * "Users attempting to access the deployment will encounter a Vercel login
+ * redirect."
  *
- * 403 is deliberately **not** accepted, though a protection layer may return
- * it. The platform's firewall and bot protection also deny with 403, and the
- * automation bypass secret used by the second probe lifts those as well as
- * deployment protection. A 403/200 pair is therefore consistent with a
- * deployment that has no Vercel Authentication at all and was merely refusing
- * the agent's address — which would report "protected" for a deployment any
- * ordinary visitor could open.
- *
- * Failing on 403 costs an operator one investigation. Accepting it costs an
- * unprotected release candidate that the pipeline called verified, so the
- * ambiguous case fails.
+ * A bare redirect status is deliberately **not** sufficient on its own — this
+ * application has its own legitimate redirect logic (locale routing, content
+ * moves, trailing-slash normalization), so an app-issued redirect must not
+ * read as "protection answered." Requiring the redirect target to be this
+ * specific provider host and path keeps the same rigor the 403 rejection
+ * below already applies: a status code alone is never proof by itself.
  */
-const PROTECTION_CHALLENGE_STATUS = 401;
+const SSO_CHALLENGE_HOST = "vercel.com";
+const SSO_CHALLENGE_PATH = "/sso-api";
 
-export function classifyProtection(status: number): ProbeOutcome {
-  if (status === PROTECTION_CHALLENGE_STATUS) {
+/**
+ * Fetch's own redirect statuses — not the whole 3xx range. 304 (Not
+ * Modified) and 306 (unused) are 3xx but carry no redirect semantics; a
+ * `Location` header on one of those would not be a genuine provider
+ * challenge, and this check must not accept it as one.
+ */
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+function isSsoChallengeRedirect(status: number, location: string | null): boolean {
+  if (!REDIRECT_STATUSES.has(status) || location === null) return false;
+
+  let target: URL;
+  try {
+    target = new URL(location);
+  } catch {
+    return false;
+  }
+
+  return (
+    target.hostname === SSO_CHALLENGE_HOST &&
+    target.pathname === SSO_CHALLENGE_PATH
+  );
+}
+
+export function classifyProtection(
+  status: number,
+  location: string | null = null,
+): ProbeOutcome {
+  if (isSsoChallengeRedirect(status, location)) {
     return {
       ok: true,
-      detail: `unauthenticated request challenged with ${status}`,
+      detail: `unauthenticated request challenged with a ${status} redirect to ${SSO_CHALLENGE_HOST}${SSO_CHALLENGE_PATH}`,
     };
   }
 
@@ -63,8 +93,9 @@ export function classifyProtection(status: number): ProbeOutcome {
         "unauthenticated request was denied with 403, which does not prove " +
         "Vercel Authentication is enabled: the platform firewall and bot " +
         "protection deny with 403 too, and the automation bypass lifts those " +
-        "as well. Check Standard Protection on the project itself; a " +
-        "protected deployment challenges with 401.",
+        `as well. Check Standard Protection on the project itself; a ` +
+        `protected deployment challenges with a redirect to ` +
+        `${SSO_CHALLENGE_HOST}${SSO_CHALLENGE_PATH}.`,
     };
   }
 
@@ -136,6 +167,8 @@ export function classifyIndexing(
 export type PreviewProbes = {
   /** Status of a request that carried no bypass header. */
   readonly protectionStatus: number;
+  /** `Location` from that same unauthenticated response, or null when absent. */
+  readonly protectionLocation: string | null;
   /** Status of the request that carried the bypass header. */
   readonly bypassStatus: number;
   /** `X-Robots-Tag` from the bypassed response, or null when absent. */
@@ -158,7 +191,10 @@ export function verifyPreviewDeployment(
   probes: PreviewProbes,
 ): PreviewVerification {
   const checks: readonly PreviewCheck[] = [
-    { name: "access protection", ...classifyProtection(probes.protectionStatus) },
+    {
+      name: "access protection",
+      ...classifyProtection(probes.protectionStatus, probes.protectionLocation),
+    },
     {
       name: "noindex",
       ...classifyIndexing(probes.bypassStatus, probes.robotsTag),
