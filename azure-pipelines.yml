@@ -206,7 +206,7 @@ stages:
                 "" | '$('*) unset SANITY_READ_TOKEN ;;
                 *) export SANITY_READ_TOKEN="$build_read_token" ;;
               esac
-              vercel build --token="$VERCEL_TOKEN"
+              vercel build --target=preview --token="$VERCEL_TOKEN"
             displayName: "Build release candidate"
             env:
               VERCEL_ORG_ID: $(VERCEL_ORG_ID)
@@ -227,8 +227,14 @@ stages:
           # external service; this one builds it against the project's real
           # Preview configuration. The gates prove the commit, not the binary —
           # a release candidate is deployed only from a commit that passed them.
-          # No --prod: this is a Preview deployment on a generated
-          # URL, and it is never assigned a production domain (ADR-0004 §3).
+          # --target=preview, not just the absence of --prod: verified against a
+          # real first-ever deployment on this project (AB#116, 2026-08-24) that
+          # Vercel assigned to production anyway, aliasing it to the real
+          # production domain, because a project with no existing production
+          # deployment treats its very first deployment as production regardless
+          # of --prod being omitted. --target=preview is unambiguous regardless
+          # of deployment history; ADR-0004 §3's "never assigned a production
+          # domain" guarantee depends on this flag being present, not implied.
           # The CLI contract puts only the deployment URL on stdout. Before the
           # value becomes a pipeline variable, the authenticated Vercel API
           # resolves it to an immutable deployment ID and proves the returned
@@ -238,7 +244,7 @@ stages:
               echo "##vso[task.setvariable variable=previewDeploymentUrl]"
               echo "##vso[task.setvariable variable=previewDeploymentId]"
               echo "##vso[task.setvariable variable=previewDeploymentVerified]false"
-              url="$(vercel deploy --prebuilt --archive=tgz --token="$VERCEL_TOKEN")"
+              url="$(vercel deploy --prebuilt --target=preview --archive=tgz --token="$VERCEL_TOKEN")"
               echo "##vso[task.setvariable variable=previewDeploymentUrl]$url"
               deployment_id="$(npm run identify:preview --silent -- "$url")"
               echo "##vso[task.setvariable variable=previewDeploymentId]$deployment_id"
