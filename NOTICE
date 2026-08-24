@@ -26,8 +26,9 @@ Source: https://github.com/anthropics/knowledge-work-plugins
         engineering/skills/architecture/SKILL.md
 Licensed under the Apache License, Version 2.0 — see licenses/Apache-2.0.txt
 
-Vendored unmodified (verified byte-identical to upstream after line-ending
-normalization). The upstream repository ships no NOTICE file.
+Adapted for PhotoSite Starter's ADR threshold, repository format, Azure Boards gate,
+accepted-history rules, and generated D2 diagrams. The local derivative removes generic
+connector and unavailable skill references. The upstream repository ships no NOTICE file.
 
 -------------------------------------------------------------------------------
 security-review skill (.claude/skills/security-review, .agents/skills/...)
@@ -37,7 +38,10 @@ Source: https://github.com/affaan-m/ECC (formerly affaan-m/everything-claude-cod
         skills/security-review/SKILL.md
 Licensed under the MIT License — see licenses/MIT-affaan-m-ECC.txt
 
-Vendored, then diverged from upstream — see docs/asset-inventory.md.
+Adapted for PhotoSite Starter's request boundaries, server-only configuration, Sanity
+projection, public-media policy, privacy posture, and Vercel/Azure delivery pipeline. The
+local derivative replaces generic examples for unrelated stacks; see
+docs/asset-inventory.md.
 
 -------------------------------------------------------------------------------
 Next.js and React client runtime
