@@ -48,6 +48,7 @@ const REQUEST_TIMEOUT_MS = 20_000;
 
 type ProbeResponse = {
   readonly status: number;
+  readonly location: string | null;
   readonly robotsTag: string | null;
 };
 
@@ -66,9 +67,13 @@ async function probe(
   });
 
   // The body is never read. It is either a provider challenge page or the
-  // site's own HTML, and neither belongs in a retained pipeline log.
+  // site's own HTML, and neither belongs in a retained pipeline log. The
+  // `Location` header on an unauthenticated redirect is retained, though: it
+  // is what `classifyProtection` binds to the provider's own SSO host and
+  // path, and it names no secret or application content.
   return {
     status: response.status,
+    location: response.headers.get("location"),
     robotsTag: response.headers.get("x-robots-tag"),
   };
 }
@@ -126,6 +131,7 @@ async function main(): Promise<void> {
 
   const verification = verifyPreviewDeployment({
     protectionStatus: probes.protection.status,
+    protectionLocation: probes.protection.location,
     bypassStatus: probes.bypassed.status,
     robotsTag: probes.bypassed.robotsTag,
   });

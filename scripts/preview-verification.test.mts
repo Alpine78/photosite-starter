@@ -11,8 +11,54 @@ import {
 } from "./preview-verification.mts";
 
 describe("access protection", () => {
-  it("accepts the 401 challenge Vercel Authentication answers with", () => {
-    expect(classifyProtection(401).ok).toBe(true);
+  const SSO_REDIRECT = "https://vercel.com/sso-api?url=https%3A%2F%2Fexample.vercel.app%2F&nonce=abc";
+
+  it("accepts a redirect whose Location names the provider's own SSO host and path", () => {
+    // Verified against a real deployment (AB#116, 2026-08-24): Vercel
+    // Authentication answers an unauthenticated request with a 302 to
+    // https://vercel.com/sso-api, not the bare 401 this check originally
+    // assumed.
+    expect(classifyProtection(302, SSO_REDIRECT).ok).toBe(true);
+  });
+
+  it.each([301, 307, 308])(
+    "accepts any redirect status (%i) as long as the target is the SSO host and path",
+    (status) => {
+      expect(classifyProtection(status, SSO_REDIRECT).ok).toBe(true);
+    },
+  );
+
+  it("refuses a redirect to a host other than Vercel's own SSO challenge", () => {
+    // This application has its own legitimate redirect logic (locale
+    // routing, content moves, trailing-slash normalization). A redirect
+    // status alone must never read as "protection answered."
+    const outcome = classifyProtection(302, "https://example.com/somewhere");
+
+    expect(outcome.ok).toBe(false);
+  });
+
+  it("refuses a redirect to the right host but a different path", () => {
+    const outcome = classifyProtection(302, "https://vercel.com/some-other-path");
+
+    expect(outcome.ok).toBe(false);
+  });
+
+  it("refuses a redirect status with no Location header", () => {
+    expect(classifyProtection(302, null).ok).toBe(false);
+  });
+
+  it.each([304, 306])(
+    "refuses a non-redirect 3xx status (%i) even with a matching Location",
+    (status) => {
+      // 304 and 306 are within the 3xx range but carry no redirect
+      // semantics; accepting a Location on either would widen this check
+      // past what a real provider challenge actually looks like.
+      expect(classifyProtection(status, SSO_REDIRECT).ok).toBe(false);
+    },
+  );
+
+  it("refuses a malformed Location header rather than throwing", () => {
+    expect(classifyProtection(302, "not a url").ok).toBe(false);
   });
 
   it("refuses to read a 403 as proof that authentication is enabled", () => {
@@ -34,10 +80,10 @@ describe("access protection", () => {
   });
 
   it("treats an unrecognised answer as unverified rather than protected", () => {
-    // A redirect could be a protection layer bouncing the request or the app's
-    // own routing; a 404 could be either. Neither proves protection, and this
-    // check exists precisely to refuse to assume.
-    for (const status of [301, 302, 307, 308, 404, 500, 502]) {
+    // A 404 could be either the protection layer or the app's own routing.
+    // Neither proves protection, and this check exists precisely to refuse
+    // to assume.
+    for (const status of [404, 500, 502]) {
       expect(classifyProtection(status).ok).toBe(false);
     }
   });
@@ -103,10 +149,13 @@ describe("indexing check", () => {
 });
 
 describe("whole verification", () => {
+  const SSO_REDIRECT = "https://vercel.com/sso-api?url=https%3A%2F%2Fexample.vercel.app%2F&nonce=abc";
+
   it("passes only when protection and noindex both hold", () => {
     expect(
       verifyPreviewDeployment({
-        protectionStatus: 401,
+        protectionStatus: 302,
+        protectionLocation: SSO_REDIRECT,
         bypassStatus: 200,
         robotsTag: "noindex",
       }).ok,
@@ -116,6 +165,7 @@ describe("whole verification", () => {
   it("reports every failing check in one run", () => {
     const verification = verifyPreviewDeployment({
       protectionStatus: 200,
+      protectionLocation: null,
       bypassStatus: 200,
       robotsTag: null,
     });
@@ -130,6 +180,7 @@ describe("whole verification", () => {
     expect(
       verifyPreviewDeployment({
         protectionStatus: 200,
+        protectionLocation: null,
         bypassStatus: 200,
         robotsTag: "noindex",
       }).ok,
@@ -138,7 +189,8 @@ describe("whole verification", () => {
 
   it("names each check so a failure says which property is missing", () => {
     const names = verifyPreviewDeployment({
-      protectionStatus: 401,
+      protectionStatus: 302,
+      protectionLocation: SSO_REDIRECT,
       bypassStatus: 200,
       robotsTag: "noindex",
     }).checks.map((check) => check.name);
