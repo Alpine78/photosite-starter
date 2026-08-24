@@ -8,11 +8,38 @@
  * in an argument, URL, request body, or log. The signed body identifies the
  * expected project and dataset and asks the endpoint to expire the single
  * global public-content tag.
+ *
+ * Against a deployment sitting behind Vercel Authentication (every Preview
+ * deployment today), the request also needs the same automation bypass this
+ * project already uses in `verify-preview-deployment.mts`: an optional
+ * `VERCEL_AUTOMATION_BYPASS_SECRET`, sent as `x-vercel-protection-bypass`.
+ * Without it, a protected deployment answers with its SSO challenge redirect
+ * before this script's own request ever reaches `route.ts`. Production is
+ * expected to run on a real custom domain, which Vercel's SSO protection
+ * exempts, so the variable stays optional rather than required.
+ *
+ * The bypass secret is a reusable, project-wide credential, so it is never
+ * attached to an unverified host: whenever it is set, this script first
+ * resolves the endpoint's origin through Vercel's authenticated deployment
+ * API — the same `inspectPreviewDeployment` binding
+ * `verify-preview-deployment.mts` already uses — and refuses to send the
+ * header to anything that does not resolve to the expected project and team.
+ * That lookup needs `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`,
+ * required only on this path; a Production run with no bypass secret needs
+ * none of them.
  */
 
 import { encodeSignatureHeader, SIGNATURE_HEADER_NAME } from "@sanity/webhook";
 
+import {
+  inspectPreviewDeployment,
+  readVercelPreviewApiSettings,
+  VercelApiError,
+} from "./vercel-preview-api.mts";
+
 const REQUEST_TIMEOUT_MS = 20_000;
+const BYPASS_HEADER = "x-vercel-protection-bypass";
+const BYPASS_SECRET_SETTING = "VERCEL_AUTOMATION_BYPASS_SECRET";
 
 function fail(message: string): never {
   console.error(`Public-cache revalidation failed: ${message}`);
@@ -66,6 +93,22 @@ async function main(): Promise<void> {
     operation: "reconcile",
   });
   const signature = await encodeSignatureHeader(body, Date.now(), secret);
+  const bypassSecret = process.env[BYPASS_SECRET_SETTING]?.trim();
+
+  if (bypassSecret) {
+    try {
+      const settings = readVercelPreviewApiSettings();
+      await inspectPreviewDeployment(`${endpoint.origin}/`, settings);
+    } catch (cause) {
+      const detail =
+        cause instanceof VercelApiError || cause instanceof Error
+          ? cause.message
+          : String(cause);
+      return fail(
+        `refusing to send ${BYPASS_SECRET_SETTING} to an unverified host: ${detail}`,
+      );
+    }
+  }
 
   let response: Response;
   try {
@@ -75,9 +118,11 @@ async function main(): Promise<void> {
         "content-type": "application/json",
         "idempotency-key": crypto.randomUUID(),
         [SIGNATURE_HEADER_NAME]: signature,
+        ...(bypassSecret ? { [BYPASS_HEADER]: bypassSecret } : {}),
       },
       body,
       cache: "no-store",
+      redirect: "manual",
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
   } catch (cause) {
@@ -90,7 +135,11 @@ async function main(): Promise<void> {
   try {
     result = await response.json();
   } catch {
-    return fail(`the endpoint returned non-JSON with HTTP ${response.status}`);
+    const hint =
+      response.status >= 300 && response.status < 400 && !bypassSecret
+        ? ` (a redirect with no ${BYPASS_SECRET_SETTING} set usually means Vercel Authentication challenged the request before it reached the deployment)`
+        : "";
+    return fail(`the endpoint returned non-JSON with HTTP ${response.status}${hint}`);
   }
 
   if (
