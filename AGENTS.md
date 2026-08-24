@@ -825,10 +825,10 @@ Then iterate.
   `.agents/skills/` for Codex. A skill needed by both is duplicated into both locations
   (no symlinks — unreliable on Windows + Git). Tool-specific skills go only in that
   tool's directory: `architecture` and `security-review` are duplicated into both;
-  `codex-review-loop` (`.claude/skills/` only) automates the implement → `codex review`
-  → fix cycle as an independent second opinion and has no Codex-side equivalent, since
-  Codex does not need a skill for reviewing itself. Create further skills only for
-  recurring workflows.
+  `codex-review-loop` (`.claude/skills/` only) gives Claude Code an independent Codex
+  plan/diff reviewer, while `claude-review-loop` (`.agents/skills/` only) gives Codex the
+  mirrored Claude plan/diff reviewer and hands a recurring failed Codex correction to
+  Claude to edit directly. Create further skills only for recurring workflows.
 
 ## Commands
 
