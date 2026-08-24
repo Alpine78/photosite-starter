@@ -153,8 +153,8 @@ warrant a note if the distribution model changes:
 
 | # | Item | Status |
 | --- | --- | --- |
-| 2 | `skills-lock.json` records four skills but only two are vendored here; `computedHash` is not reproducible as a content hash and cannot be used to verify provenance. | Replace with pinned commit SHAs, or trim to what the repo actually contains |
-| 4 | Distribution model unratified. | Blocked on AB#42 |
+| 1 | `skills-lock.json` records four skills but only two are vendored here; `computedHash` is not reproducible as a content hash and cannot be used to verify provenance. | Replace with pinned commit SHAs, or trim to what the repo actually contains |
+| 2 | Distribution model unratified. | Blocked on AB#42 |
 
 ## Verifying provenance of a vendored skill
 

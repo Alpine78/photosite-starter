@@ -45,6 +45,8 @@ to Claude Code on the user's behalf.
 
 Before review, confirm the base branch and that there is a committed or uncommitted diff
 to inspect. Default the base to `main`; do not spend a review round on an empty change.
+Record `git rev-parse HEAD` before the first Claude call so the ending check can prove
+that neither agent committed during the workflow.
 
 If an Azure Boards item scopes the work, Codex must first read its description, acceptance
 criteria, discussion, and relevant relations under `AGENTS.md`. The plan sent to Claude
@@ -58,13 +60,14 @@ if it still cannot read the item, stop instead of weakening the gate.
 1. Draft a plan proportional to the task. Include the verified requirements, affected
    boundaries, tests, documentation, and the complete relevant Azure Boards context when
    an item governs the work.
-2. Send the plan to Claude once in a non-persistent, tool-free invocation. `--bare` keeps
-   Claude from loading `CLAUDE.md`, hooks, skills, plugins, MCP servers, or memory for this
-   phase; the self-contained plan is the only authority it needs. `--tools ""` and
-   `dontAsk` prevent independent repository or network work.
+2. Send the plan to Claude once in a non-persistent, tool-free invocation. `--safe-mode`
+   keeps Claude from loading `CLAUDE.md`, hooks, skills, plugins, MCP servers, or memory
+   for this phase while preserving the user's normal authentication; the self-contained
+   plan is the only authority it needs. `--tools ""` and `dontAsk` prevent independent
+   repository or network work.
 
    ```bash
-   claude --bare -p \
+   claude --safe-mode -p \
      --permission-mode dontAsk \
      --tools "" \
      --no-session-persistence \
@@ -102,10 +105,11 @@ Do not send obviously broken or unreviewed work to Claude.
 
 ## Phase 3: Claude review loop
 
-Maintain a small finding ledger for the loop. Identify a finding by its concrete root
-cause and code location or mechanism—not merely by a broad label such as "validation" or
-"accessibility." Record the first round, disposition, and whether Codex already attempted
-a correction.
+Maintain a small finding ledger for the loop. For each finding, record its concrete root
+cause, file plus line/function/component, first-seen round, latest disposition, owner, and
+whether Codex already attempted a correction. Match a recurrence by the root cause and
+location or mechanism—not merely by identical wording or a broad label such as
+"validation" or "accessibility."
 
 For each round, up to the configured limit:
 
@@ -185,6 +189,10 @@ After Claude returns:
 - **Never commit:** `AGENTS.md` forbids Codex and the delegated Claude subprocess from
   committing. Leave the working tree for the user and suggest a conventional commit
   message and, when applicable, PR text.
+
+Before reporting any ending state, compare `git rev-parse HEAD` with the value recorded
+before the first Claude call and inspect `git status`. If `HEAD` changed unexpectedly,
+stop and report it; never rewrite history or reset the user's branch to conceal it.
 
 ## CLI compatibility
 
