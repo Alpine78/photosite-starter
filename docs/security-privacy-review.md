@@ -360,14 +360,14 @@ harmless no-op.
 **Not verifiable yet**: a live inventory of the actually-provisioned Sanity dataset's
 asset store (checking for an abandoned upload, a draft still referencing a public
 asset, or a sensitive filename that reached the CDN before a publish was rejected)
-requires querying the real project. AB#84's seed script already ran against a real
-Content Lake project with a `--yes` live-verification step
-(`docs/sanity-seeding.md`) — that verification covers the *seeded* content's shape,
-not a general audit of everything ever uploaded to that dataset. This is a
-narrower, real gap than AC3's "no live account exists" gap (a Sanity project *does*
-exist here), and is recorded as a follow-up: run the dataset's own asset-listing query
-and cross-check against what's referenced by a published document before production
-promotion.
+requires querying the selected external project. AB#84 provides a `--yes` write and
+live-verification workflow (`docs/sanity-seeding.md`), but its PR #62 explicitly records
+that the write-enabled CLI was not run against an external dataset, and no later owner
+run is presently demonstrated. There is therefore no evidenced seeded asset store to
+audit yet. A separate Sanity project *does* exist for Preview; its bounded audit and the
+remaining draft limitation are recorded in the re-check below. Any eventual external
+seed target must receive the same asset-listing and published-reference cross-check
+before production promotion.
 
 **Re-checked and actually run, 2026-08-25.** AB#83's Preview Sanity wiring
 gives the reference deployment a live project and a dedicated `preview`
@@ -399,7 +399,14 @@ actually checking:
   raw mutate API rather than Studio, which enforces that field (the same
   "Studio validation doesn't bind an API import" gap `content-tree.ts` and
   the article/gallery Studio validators already exist to backstop).
-  `sanity.imageAsset` and `sanity.fileAsset` counts are both **zero**.
+  `sanity.imageAsset` and `sanity.fileAsset` counts were both **zero**.
+- **The published test artifact was removed on 2026-08-25.** After the site
+  owner deleted `webhook-test-1` with a temporary Editor token and revoked
+  that token, a second unauthenticated `GET` used Sanity's non-CDN
+  `api.sanity.io` query endpoint. The same response returned a successful
+  arithmetic canary (`2`), `null` for the exact document id, and a published
+  root-document count of zero. This closes the malformed *published*
+  document cleanup; it does not change the draft limitation below.
 - **What this audit method can and cannot prove — corrected after a further
   review round.** An earlier draft of this section claimed that adding
   `perspective=raw` to an unauthenticated request "confirmed, not assumed"
@@ -417,60 +424,53 @@ actually checking:
   query returning zero `drafts.**` matches is therefore consistent with
   either "no drafts exist" or "drafts exist but this request cannot see
   them" — it cannot distinguish the two. **The claim this audit can actually
-  support is narrower: no *published* (root-level) document beyond
-  `webhook-test-1`, and no published image/file asset, exist in this
-  dataset.** Whether an unpublished draft is sitting in `preview` — the
-  literal question AC5 asks — remains unverified, and would need a real,
-  authenticated Sanity token with draft-read permission to check, which this
-  session does not have and did not use.
-- **This document is not harmless, though, and closing the audit here would
-  be wrong.** `src/lib/sanity-services.ts`'s `projectPublicService` throws
+  support is narrower: at the time of the first read, no *published*
+  (root-level) document beyond `webhook-test-1`, and no published image/file
+  asset, existed in this dataset. The later non-CDN check confirms that the
+  published artifact is now gone.** Whether an unpublished draft is sitting
+  in `preview` — the
+  literal question AC5 asks — remains unverified. The temporary Editor token
+  used for deletion was revoked without running that authenticated draft
+  query, so a later check needs a new, read-capable credential.
+- **This document was not harmless, so deleting it was necessary.**
+  `src/lib/sanity-services.ts`'s `projectPublicService` throws
   (`readString(document.slug)` returns `undefined` for a `null` slug, which
   fails the `SERVICE_SLUG` check at lines 184–189) for exactly this
   document, and `readPublicServices` calls it inside an unguarded `.map()`
   over every result row — so the *entire* services listing throws, not just
   this one row, the moment a route actually reads services through
-  `SITE_CONTENT_SOURCE=sanity` against this dataset. That is not true today
-  (no route reads Sanity yet, `docs/deployment.md`), so nothing is broken
-  right now — but it is a live landmine for the first PR that wires services
-  into a route against this dataset, and it should be deleted (or corrected
-  with a real slug) before that happens. This session has no write-scoped
-  Sanity credential — `.vercel/.env.preview.local` carries only the runtime
-  app's values, and a write token is deliberately never placed in a deployed
-  environment (`docs/sanity-seeding.md`) — so deleting it is the site
-  owner's action, not something performed here. There is no abandoned
-  upload or stray sensitive filename among this dataset's *published*
-  content — that part of the audit is genuinely clean, within the
-  published-only limitation noted above — but this one malformed published
-  document is a real, actionable follow-up, not a closed finding, and the
-  draft question stays open.
-- **That result also settles the second open question**, decisively rather
-  than by inference: `preview` is *not* where AB#84's 448-document seed run
-  (6 `media`, 6 `category`, 1 `siteSettings`, 1 `homePage`, 3 `service`,
-  3 `article`, 2 `gallery`, 426 `galleryPlacement`) landed —
-  `webhook-test-1` is AB#83's own artifact, unrelated to that seed run.
-  Zero `media`, `category`, `article`, `gallery`, or `galleryPlacement`
-  documents exist here, against an expected several hundred. The seed
-  script's own contract explains why: it writes to
-  whatever `--dataset` its operator names, with no fixed relationship to any
-  deployment's Preview/Production dataset (`docs/sanity-seeding.md`: "nothing
-  stops you from pointing it at your real production dataset... or a
-  throwaway dataset first"). Wherever AB#84's actual seed content lives, it
-  is a *different* Sanity project/dataset than the one AB#83 wired to
-  Preview — this session has no record of which one (not in `.env.local`,
-  not on AB#83/AB#84/AB#116 in Azure Boards, not in this repository), and
-  that dataset — the one that actually holds the 6 real demo photographs
-  this audit exists to check for abandonment — remains unaudited.
+  `SITE_CONTENT_SOURCE=sanity` against this dataset. No route read Sanity at
+  the time, so it had not broken the site, and the owner removed it before
+  route wiring. There is no abandoned upload or stray sensitive filename
+  among this dataset's *published* content — that part of the audit is now
+  clean, within the published-only limitation noted above — but the draft
+  question stays open.
+- **The premise of the second open question was wrong.** This review
+  previously treated AB#84's 448-document fixture build as a completed
+  external seed run whose target had merely been lost. PR #62's own
+  verification record says the opposite: `npm run seed:sanity` and
+  `--delete-all` were run in their non-writing defaults, and "The
+  write-enabled CLI was not run against an external dataset as part of this
+  fix." AB#84 has no discussion recording a later owner run; the repository
+  and sanitized shell-history search found none either. One apparent local
+  log candidate was rejected rather than promoted to evidence: a live
+  non-CDN query found zero `seed--*` documents and only Sanity's unrelated
+  movie-example types. The supported conclusion is therefore **not** that a
+  known seed run landed in an unidentified dataset. It is that no external
+  AB#84 seed run is presently demonstrated. That is a handoff/acceptance
+  discrepancy, not an asset store AC5 can audit. The owner accepted the
+  finding on 2026-08-25 and reopened AB#84 to `Active`; it stays there until
+  evidence of the external run is supplied or the acceptance criterion is
+  explicitly narrowed and accepted.
 
-Three things remain, each narrower than "no live account exists" ever was:
-identify which project/dataset AB#84's seed run actually targeted (the
-operator's own shell history or terminal scrollback from that session is the
-likely record, since nothing durable captured it), then run this same query
-shape against it; delete or fix `webhook-test-1` in the `preview` dataset
-before any route reads services through it, since it is a confirmed
-landmine, not a closed finding; and check `preview` for drafts with an
-actually authenticated token, since this session's unauthenticated read
-could not do so and AC5 asks specifically about drafts.
+Two things remain for this Sanity finding: check `preview` for drafts with an
+authenticated read-capable token, since the unauthenticated reads cannot do
+so; and resolve AB#84's handoff discrepancy by either recording evidence of
+an owner-run external seed or treating the live seed as work still to be done
+against the deliberately selected deployment dataset. Any eventual external
+run must record its project/dataset target and then receive the same bounded
+document-and-asset audit. The malformed published artifact cleanup itself is
+complete.
 
 ## AC6 — No tracking cookies, local tracking, or auto-loaded third-party embeds
 
@@ -576,39 +576,41 @@ Still open, not applied by this review:
    share that blocker at all: it is very likely the site owner's
    already-existing mail service, not something Resend provisions, so it
    can be confirmed and recorded now.
-2. **Run a live Sanity asset-store audit against AB#84's actual seed target,
-   clean up `preview`, and check `preview` for drafts with a real token**
+2. **Resolve AB#84's live-seed handoff, and check `preview` for drafts with a
+   read-capable token**
    (see AC5). AB#83's `preview` dataset was queried live 2026-08-25
    (`SANITY_PROJECT_ID`/`SANITY_DATASET` recovered from
    `.vercel/.env.preview.local`, a gitignored file already on disk), but only
    unauthenticated — which, per Sanity's own access model, can see this
    dataset's *published, root-level* content and nothing else: a draft
    sitting in this dataset would be invisible to that read regardless of
-   `perspective=raw`. Within that limitation: `preview` holds exactly one
-   published document, AB#83's own `webhook-test-1`, and zero published
+   `perspective=raw`. Within that limitation, the first read found exactly
+   one published document, AB#83's own `webhook-test-1`, and zero published
    assets — no abandoned upload or sensitive filename among published
-   content. That one document has a null `slug`, which
+   content. That document had a null `slug`, which
    `src/lib/sanity-services.ts` will throw on for the whole services listing
-   the moment a route reads Sanity services against this dataset — a real,
-   confirmed landmine that needs deleting or fixing before that happens, not
-   a closed finding. The published-content result also shows `preview` is
-   not where AB#84's 448-document seed run (6 real demo photos among them)
-   landed — that script always writes published, root-level documents, so
-   this conclusion doesn't depend on the draft-visibility limitation — so
-   the audit AC5 actually needs, against whichever dataset that content
-   landed in, has not happened yet. What remains: identify which
-   project/dataset AB#84's seed run targeted, then run this same query shape
-   against it; delete or fix `webhook-test-1`; and re-check `preview` for
-   drafts using an authenticated token, since AC5 asks specifically about
-   drafts and this pass could not answer that.
+   the moment a route reads Sanity services against this dataset. The owner
+   deleted it on 2026-08-25; a follow-up unauthenticated `GET` through the
+   non-CDN API returned a successful canary, `null` for that exact id, and
+   zero published root documents. The cleanup is complete, but the same
+   request still cannot see drafts. A later evidence check also corrected
+   this review's earlier premise: PR #62 explicitly says AB#84 did not run
+   the write-enabled CLI against an external dataset, and no later owner run
+   is durably recorded. AB#84 was therefore reopened to `Active`; resolve
+   that handoff discrepancy first.
+   If an external run is then performed or evidenced, record its target and
+   audit that dataset's bounded document/type and asset counts; separately,
+   re-check `preview` for drafts using an authenticated read-capable token.
 3. Re-run this review's finding register (not necessarily the whole document) before
    the actual AB#18 production promotion. AC5's `preview`-dataset audit was
    actually executed this re-check (item 2 above) — clean on published
-   content and abandoned assets, one confirmed cleanup item
-   (`webhook-test-1`'s null slug), and the draft question genuinely open
+   content and abandoned assets; its one malformed published artifact
+   (`webhook-test-1`) was deleted and confirmed absent through the non-CDN
+   API on 2026-08-25, while the draft question remains genuinely open
    (this session's unauthenticated read structurally cannot see drafts).
-   What's left: that cleanup; the authenticated draft check; AC5's audit
-   against AB#84's real seed target, once identified; AC3's Vercel item's
+   What's left: the authenticated draft check; resolving AB#84's unperformed
+   or at least unrecorded external-seed handoff before treating any target as
+   auditable; AC3's Vercel item's
    still-open Production tier decision — item 4 above — which is not yet
    made either way; and AC3's Resend items, which now have a decided owner
    (AB#117, prerequisite work, per item 1 above) but still need the account
