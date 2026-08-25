@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
@@ -25,5 +25,10 @@ export default defineConfig({
       "sanity/**/*.test.ts",
       "scripts/**/*.test.mts",
     ],
+    // AB#84's live integration suite reaches a real Sanity Content Lake over
+    // the network — every other test here is required not to. It runs only
+    // through vitest.live.config.mts's own dedicated `npm run
+    // verify:sanity-live`, never as part of this default suite.
+    exclude: [...configDefaults.exclude, "src/lib/sanity-live-verification.test.ts"],
   },
 });

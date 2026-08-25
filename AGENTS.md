@@ -841,14 +841,43 @@ document was not harmless: its null `slug` would make `sanity-services.ts` throw
 the whole services listing the moment a route read Sanity services against this
 dataset. The owner deleted it on 2026-08-25; a second unauthenticated `GET` through
 Sanity's non-CDN API returned a successful canary, `null` for the exact id, and zero
-published root documents. The draft check is still open. A further evidence check also
+published root documents. The draft check is now closed: a later authenticated
+raw-perspective query (2026-08-25, same day) found zero `drafts.*` documents, with the
+dataset's only rows being Sanity's own internal `system.group`/`system.retention`
+records rather than customer or seed content. A further evidence check also
 corrected the earlier claim that AB#84's 448-document seed run had landed in an
 unidentified dataset: PR #62 explicitly says its write-enabled CLI was not run against
 an external dataset, and no later owner run is durably recorded. The owner accepted the
 finding on 2026-08-25 and reopened AB#84 to **Active**; it remains there until the
 external owner-run target and verification are evidenced or its acceptance criteria are
-explicitly amended and accepted. Only an evidenced future run has a target for AC5 to
-audit. The Resend-account items
+explicitly amended and accepted. That run happened the same day, against this same
+Preview project and dataset: a temporary, Editor-role `SANITY_SEED_TOKEN`, minted by the
+owner for this run only and revoked immediately after, drove `npm run seed:sanity -- --yes`
+to write exactly 448 `seed--` documents and upload the 6 demo-photograph assets, and
+all 8 of the script's built-in live-verification checks — both singletons, the
+category/service/article
+counts, the archive gallery's full 400-row placement window, the featured gallery's two
+sections, and the cross-gallery shared-media placement — reported `PASS`. A follow-up
+count confirmed no unrelated or malformed document remained: every non-`seed--`
+document in the dataset was either a Sanity-internal `system.*` record or one of the
+six expected image assets. AC5's audit now has a real, evidenced target — this Preview
+run, recorded on AB#84 — though AB#84 itself stays open until the owner reviews and
+accepts it; `docs/sanity-seeding.md`'s new *Production handoff* section is this run's
+distillation into the exact command, inputs, verification, and rollback path the later
+Production launch seed inherits. A codex-review-loop round on that handoff caught a real
+gap the run's own two verification layers left open: AC3 requires *representative
+repository adapter queries* against Content Lake, and neither the offline adapter test
+(which fakes the store) nor the seed script's own `--yes` step (hand-written GROQ, not
+adapter code) actually is that. `src/lib/sanity-live-verification.test.ts`
+(`npm run verify:sanity-live`) closes it: a third, opt-in, non-`npm test` suite that
+exercises the real `src/lib/sanity-*.ts` adapters — settings, home, services,
+categories/content tree, articles in every language they were actually published,
+gallery sections, media projection, sibling and placement ordering, and the full curated
+gallery's cursor chain page by page including the page-size boundary — against the same
+live Preview dataset, using a real `SanityClient` and the existing Vitest `server-only`
+stub, and all of it passed. It is Preview-only as built (a hardcoded read of
+`.vercel/.env.preview.local`) and, like every other Sanity adapter test, reaches no route
+or component. The Resend-account items
 (DPA, data-residency/retention terms) are unchanged in one sense — this deployment's
 own configuration still shows no Resend account wired in, and whether one exists at
 all is unverified — but their sequencing is no longer

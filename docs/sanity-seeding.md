@@ -233,23 +233,31 @@ unused, and the report alone is often all you need.
 
 ### What each verification layer actually proves
 
-Three different guarantees exist in this story, and they are not restatements
-of each other:
+Four different guarantees exist in this story, and they are not restatements
+of each other. Notably, the third row — this script's own built-in
+`--yes` step — is **not** adapter coverage: it is hand-written GROQ that
+proves the documents exist and are shaped right, not that the real
+`src/lib/sanity-*.ts` code that will eventually read them actually works.
+Only the fourth row proves that; an earlier draft of this document
+overstated the third row's reach, and AB#84's own review caught it.
 
 | Layer | What it proves | Needs a real project? |
 | --- | --- | --- |
 | `sanity-seed-fixtures.test.mts` (`validateSeedFixtures`) | The fixture set's own internal structure is correct — unique ids, every reference resolves, the tree is acyclic, the counts match | No |
 | `sanity-seed-content-verification.test.mts` | This fixture's `media`/`siteSettings`/`homePage` content projects through the real projectors, and the 400-placement archive walks first through final cursor pages through the real `readSanityCuratedGalleryPage` adapter | No — offline, via Vitest's `server-only` stub and a seed-document-backed store boundary |
-| `seed-sanity-content.mts --yes`'s live verification step | The written documents are actually queryable, in the shapes above, from a real Content Lake | Yes |
+| `seed-sanity-content.mts --yes`'s live verification step | The written documents are actually queryable, in the shapes above, from a real Content Lake — via hand-written GROQ, not the repository's own read adapters | Yes |
+| `src/lib/sanity-live-verification.test.ts` (`npm run verify:sanity-live`) | The real `src/lib/sanity-*.ts` adapters — settings, home, services, categories/content tree, articles in both published languages, gallery sections, media projection, sibling and placement ordering, and the full 400-item archive gallery's cursor chain page by page including the page-size boundary — actually work against a real Content Lake, using a real `SanityClient` and injected Preview configuration | Yes |
 
-The article, content-tree, and services adapters are not exercised by the
-offline verification file; their coverage is the first row (structural
-correctness) and the third (a real query against a real project). The gallery
-test is intentionally narrower than a GROQ interpreter: it answers the
-adapter's two owned query tags from the actual seed documents while leaving
-cursor creation, scope validation, keyset advancement, projection, page size,
-and completion to production adapter code. See the test file's module comment
-for the full boundary.
+The article, content-tree, and services adapters are exercised, live, only by
+the fourth row — the offline verification file's own module comment already
+disclosed that it covers gallery placements alone, narrower than a GROQ
+interpreter: it answers the adapter's two owned query tags from the actual
+seed documents while leaving cursor creation, scope validation, keyset
+advancement, projection, page size, and completion to production adapter
+code. `verify:sanity-live` is opt-in and separate from `npm test` (it reaches
+a real network) and from route wiring (nothing under `src/app` or
+`src/components` imports it) — it exists to prove the adapters work, not to
+switch anything over to them.
 
 ### `sanity-client.test.ts` already covers failure behavior
 
@@ -372,6 +380,183 @@ here:
 See Sanity's own CLI documentation for exact flags and current behavior —
 this project does not restate a vendor command reference that would drift out
 of date.
+
+## Production handoff
+
+AB#84 exists to prove this workflow against a real, customer-owned dataset
+before the later Production launch seed runs it for real. This section is
+that handoff: the exact command, inputs, verification, rollback, and owner
+actions the launch story needs, distilled from a real write-enabled run this
+story performed against the customer-owned Preview project and dataset.
+Seeding the reference *Production* dataset itself stays out of scope here —
+it is that later story's own work, not this one's.
+
+### Command
+
+The same script, pointed at the Production project and dataset instead of
+Preview:
+
+```bash
+export SANITY_SEED_TOKEN=...   # fresh, Production-scoped, Editor role — see
+                                # "The write token" above; never reuse a
+                                # token minted for a different dataset
+npm run seed:sanity -- \
+  --project <production-project-id> \
+  --dataset <production-dataset> \
+  --api-version <the Production deployment's own SANITY_API_VERSION> \
+  --yes
+```
+
+### Inputs the operator supplies
+
+| Input | Source | Notes |
+| --- | --- | --- |
+| `--project` | the Production deployment's `SANITY_PROJECT_ID` | never written into this repository — see `docs/sanity-setup.md`'s *Ownership* section |
+| `--dataset` | the Production deployment's `SANITY_DATASET` | not `preview` |
+| `--api-version` | the Production deployment's own `SANITY_API_VERSION` | keep the write on the same dated version the reading deployment is pinned to |
+| `SANITY_SEED_TOKEN` | minted fresh, Editor role, in the owner's own Sanity project settings | never the deployment's `SANITY_READ_TOKEN`; never committed, logged, or placed in a CI variable group — see *The write token* above |
+
+### Verification the run must reproduce
+
+Three independent layers, matching *What each verification layer actually
+proves* above — all three already pass today and must keep passing before a
+Production run is trusted. The first two prove the write; only the third
+proves the repository's own read adapters:
+
+1. `npm test` (or, scoped: `npx vitest run scripts/sanity-seed-fixtures.test.mts
+   scripts/sanity-seed-http.test.mts scripts/sanity-seed-content-verification.test.mts`)
+   — the offline fixture/HTTP/adapter-shape suite, which needs no live
+   project.
+2. The script's own built-in `--yes` live-verification step: 8 checks in
+   `buildVerificationChecks` (`scripts/seed-sanity-content.mts`) — both
+   singletons readable, the category/service/article counts, the archive
+   gallery's full 400-row placement window, the featured gallery's two named
+   sections, and the shared-media cross-gallery placement. Every check must
+   report `PASS`; the script already exits non-zero on a `FAIL`, but the
+   write has already happened by that point (see *What happens on `--yes`,
+   in order* above) — a failure here means investigating the live dataset
+   before anything reads from it, not re-running blindly. This step's checks
+   are hand-written GROQ, not the repository's own read adapters — it proves
+   the data, not the code that will eventually read it.
+3. `npm run verify:sanity-live` (`src/lib/sanity-live-verification.test.ts`):
+   the real `src/lib/sanity-*.ts` adapters — not hand-written GROQ, and not
+   an offline fake store — reading settings, home content, services,
+   categories and the content tree, articles in every language they were
+   actually published, gallery sections and media projection, sibling and
+   placement ordering, and the full curated gallery's cursor chain, page by
+   page, including the page-size boundary. This is what actually satisfies
+   "representative repository adapter queries... against Content Lake". It
+   needs only read access — every dataset this project uses is public, so
+   no token at all — but it is **Preview-only as built**: it reads
+   `.vercel/.env.preview.local` by a hardcoded path rather than accepting a
+   configurable target, so it proves the adapters work against Preview, not
+   against a Production run. Pointing it at another project/dataset is
+   unimplemented future work (see *Owner actions this handoff assumes*
+   below for what that means for a Production seed today). It is
+   deliberately separate from `npm test` (it reaches a real network) and
+   from route wiring (nothing under `src/app` or `src/components` imports
+   it): it exists to prove the adapters work, not to switch the deployment
+   over to them.
+
+Additionally, confirm the dataset holds *exactly* the intended manifest —
+neither a foreign document nor a stale leftover from an older fixture
+revision — the same way this story's own Preview run did:
+
+```groq
+{
+  "total": count(*[]),
+  "seedTotal": count(*[_id match "seed--*"]),
+  "assetTotal": count(*[_type == "sanity.imageAsset"]),
+  "nonSeedNonAsset": count(*[
+    !(_id match "seed--*") &&
+    _type != "sanity.imageAsset" &&
+    !(_type match "system.*")
+  ])
+}
+```
+
+Three separate checks against this one result, for three separate failure
+shapes:
+
+- **`nonSeedNonAsset` must be `0`.** A non-zero count means either real
+  content already existed before this run, or an unrelated document type
+  was left by something else — stop and investigate rather than proceeding.
+- **`seedTotal` must equal the fixture's own reported document count**
+  (the number the dry run prints as `Fixture set: N documents`, 448 as of
+  this fixture revision). This query's `!(_id match "seed--*")` predicate
+  cannot see a *stale* `seed--` document — one an earlier fixture revision
+  wrote that the current manifest no longer includes — because it is still
+  legitimately `seed--`-prefixed. `seedTotal` reading higher than the
+  fixture's own count is exactly that case: rely on the run's own stale-
+  document report (*Stale documents across a fixture revision* above,
+  which every `--yes` invocation prints unconditionally) to name the
+  specific leftover ids, and re-run with `--prune-stale` before trusting the
+  seed as clean. `seedTotal` reading lower means the write did not
+  complete — investigate before re-running.
+- **`assetTotal` must equal the number of demo photograph files the dry run
+  resolves** (`Resolved N demo photograph file(s) in public/gallery/`, 6 as
+  of this fixture revision). `nonSeedNonAsset` deliberately excludes every
+  `sanity.imageAsset` document rather than counting it — an asset's id is
+  minted by Sanity on upload, never `seed--`-prefixed, so this fixture's own
+  six assets would otherwise always read as "unrelated" — but that means it
+  cannot by itself catch an *extra* asset: an orphaned upload from an
+  earlier, incomplete run, or an unrelated file uploaded through Studio,
+  both silently pass `nonSeedNonAsset == 0`. `assetTotal` reading higher
+  than expected is exactly that case — investigate and remove the extra
+  asset (see *Going live* above for how to find and delete one by id) before
+  trusting the seed as clean; reading lower means an upload did not
+  complete.
+
+### Rollback evidence
+
+- **Before writing**, take a full export:
+  ```bash
+  SANITY_AUTH_TOKEN=$SANITY_SEED_TOKEN npx sanity dataset export <dataset> <local-path> -p <project-id>
+  ```
+  (`SANITY_AUTH_TOKEN` is the Sanity CLI's own non-interactive auth
+  variable — a separate name from this script's `SANITY_SEED_TOKEN`, even
+  though the same Editor-role token value satisfies both.) This story's own
+  Preview run found the target dataset already empty of content — zero
+  published documents, zero drafts — so no export was needed; a Production
+  dataset seeded after real content already exists always needs one first.
+- **After writing**, `--delete-all` (see *Going live* above) is the tested
+  rollback: it removes every `seed--`-owned document in reference-safe
+  deletion order, repeats its own raw-perspective lookup until none remain,
+  and names the six uploaded asset ids so they can be deleted separately —
+  the one part `--delete-all` cannot reach itself, since Sanity mints their
+  ids on upload.
+- Both the write and the built-in verification were exercised for real
+  against Preview during this story, not only read from documentation, with
+  the non-secret target identity and results recorded on AB#84.
+
+### Owner actions this handoff assumes
+
+1. Mint a fresh, Production-scoped, Editor-role `SANITY_SEED_TOKEN` — never
+   the token used for this story's Preview run, and never the deployment's
+   own `SANITY_READ_TOKEN`.
+2. Run the command above from the owner's own machine (or a one-off CI job),
+   never as part of the deployment pipeline — this script is never wired
+   into `azure-pipelines.yml` or the application build, by design (see *What
+   the script is, and is not*).
+3. Run both `npm test`-covered layers above (1–2) and confirm every check
+   passes before treating the seed as complete. `npm run verify:sanity-live`
+   (layer 3 above) is Preview-only as built — it reads
+   `.vercel/.env.preview.local` by a hardcoded path — so it proves the
+   adapters work against Preview, not against whatever this Production run
+   just wrote; pointing it at a different project/dataset is unimplemented
+   future work, not something to attempt ad hoc against a live Production
+   seed.
+4. Revoke the token immediately after, in Sanity's project API settings —
+   not by letting it expire — the same step this story's own Preview run
+   requires.
+5. Record the non-secret target identity (project id, dataset name, run
+   date, and the verification outcome) durably outside this repository — an
+   Azure Boards comment on the launch story, matching how this story
+   recorded its own Preview run (see `docs/sanity-setup.md`'s *Ownership*
+   section on why the project id itself never enters this repository).
+6. Treat *Going live: removing the sample content* above as mandatory before
+   real customer content is authored against the same dataset, exactly as it
+   already is for Preview.
 
 ## Testing this script itself
 

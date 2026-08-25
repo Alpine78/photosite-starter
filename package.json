@@ -18,7 +18,8 @@
     "remove:preview": "node scripts/remove-preview-deployment.mts",
     "revalidate:public-cache": "node scripts/revalidate-public-cache.mts",
     "verify:preview": "node scripts/verify-preview-deployment.mts",
-    "seed:sanity": "node scripts/seed-sanity-content.mts"
+    "seed:sanity": "node scripts/seed-sanity-content.mts",
+    "verify:sanity-live": "vitest run --config vitest.live.config.mts"
   },
   "dependencies": {
     "@sanity/webhook": "4.0.4",
