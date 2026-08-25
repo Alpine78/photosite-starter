@@ -15,6 +15,17 @@
  * rather than deleting this file, which would break the test that imports
  * it (`legacy-redirects-data.test.ts`, itself emptied the same way; see its
  * own comment).
+ *
+ * This bookkeeping tracks per-*pathname* completeness only. A separate,
+ * already-closed sub-decision of AB#19 is the numeric gallery lightbox
+ * query-state policy the original crawl comment flagged as unresolved
+ * (Joomla's own bare `?4738` query, layered on top of a page's pathname
+ * rather than a distinct crawled route): `legacy-redirects.ts`'s
+ * `legacyRedirectDestinationSearch` — never strip or translate such state
+ * automatically, per ADR-0003 decision 9 — is that decision, and it applies
+ * uniformly to every pathname below regardless of when each one's own
+ * source-to-target decision is made. It does not wait on, and is not
+ * counted among, {@link PENDING_LEGACY_PATHS}.
  */
 
 /**
