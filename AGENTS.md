@@ -637,10 +637,12 @@ does not run a Studio's async validation rules, `sanity-seed-fixtures.mts`'s own
 category tree, deterministic `_key`s on every array item so a later hand-edit in
 Studio is safe) before a byte is sent, and a preflight query refuses to run at all if a
 another `siteSettings`/`homePage` document already exists, rather than silently
-creating a second published singleton. `--yes` ends with a live verification step —
-hand-written GROQ existence/shape checks run against the dataset just written, proving
-this story's "representative content queries pass" acceptance criterion against a real
-project rather than a fake one — and reports (or, with `--prune-stale`, deletes) any
+creating a second published singleton. `--yes` ends with a live verification step:
+hand-written GROQ existence/shape checks run against the dataset just written, so a
+future owner-run external write can prove the "representative content queries pass"
+acceptance criterion against that real project rather than a fake one. PR #62 did not
+run this write-enabled path against an external dataset. The command also reports (or,
+with `--prune-stale`, deletes) any
 previously seeded document a shrunk fixture no longer includes. `docs/sanity-seeding.md`
 is the full runbook: the write-token story (a separate, write-scoped
 `SANITY_SEED_TOKEN`, never the runtime app's read-only `SANITY_READ_TOKEN`), the
@@ -824,26 +826,29 @@ Vercel project's Preview environment). Both were corrected by actually checking:
 provisioning work, carries the real values (project id and dataset `preview`,
 public — the project id itself stays out of this repository per
 `docs/sanity-setup.md`'s ownership boundary, the same as every other Sanity credential;
-it is recorded against AB#83 in Azure Boards). Queried live, unauthenticated
-(2026-08-25): exactly one published document, AB#83's own `webhook-test-1`
-webhook-verification artifact, and zero published image/file assets. **A prior draft of
+it is recorded against AB#83 in Azure Boards). The first live,
+unauthenticated query (2026-08-25) found exactly one published document,
+AB#83's own `webhook-test-1` webhook-verification artifact, and zero
+published image/file assets. **A prior draft of
 this same paragraph claimed adding `perspective=raw` "confirmed" no draft exists in
 this dataset — wrong, retracted after checking Sanity's own access-control
 documentation directly**: dataset public visibility grants unauthenticated read access
 only to root-level, non-dotted document IDs; a `drafts.<id>` document is hidden from an
 unauthorized client regardless of dataset visibility or perspective, so this session's
-read cannot rule drafts in or out. What it *can* show — no published document beyond
-`webhook-test-1`, no published asset — is genuinely clean, and separately, that one
-document is not harmless: its null `slug` makes `sanity-services.ts` throw for the
-whole services listing the moment a route reads Sanity services against this dataset,
-so it needs deleting or fixing before that happens — a confirmed follow-up, not a
-closed finding. The published-content result also proved `preview` is not where
-AB#84's 448-document seed run landed (zero `media`/`gallery`/`galleryPlacement`
-documents against an expected several hundred; that script always writes published
-root-level documents, so this conclusion doesn't depend on the draft-visibility
-limitation), so the audit AC5 actually needs — the real seed content, including 6 demo
-photographs — is still open against a still-unidentified dataset, and so is checking
-`preview` itself for drafts with an authenticated token. The Resend-account items
+read cannot rule drafts in or out. What it could show — no published document beyond
+`webhook-test-1`, no published asset — was genuinely clean, and separately, that one
+document was not harmless: its null `slug` would make `sanity-services.ts` throw for
+the whole services listing the moment a route read Sanity services against this
+dataset. The owner deleted it on 2026-08-25; a second unauthenticated `GET` through
+Sanity's non-CDN API returned a successful canary, `null` for the exact id, and zero
+published root documents. The draft check is still open. A further evidence check also
+corrected the earlier claim that AB#84's 448-document seed run had landed in an
+unidentified dataset: PR #62 explicitly says its write-enabled CLI was not run against
+an external dataset, and no later owner run is durably recorded. The owner accepted the
+finding on 2026-08-25 and reopened AB#84 to **Active**; it remains there until the
+external owner-run target and verification are evidenced or its acceptance criteria are
+explicitly amended and accepted. Only an evidenced future run has a target for AC5 to
+audit. The Resend-account items
 (DPA, data-residency/retention terms) are unchanged in one sense — this deployment's
 own configuration still shows no Resend account wired in, and whether one exists at
 all is unverified — but their sequencing is no longer
