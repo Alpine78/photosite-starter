@@ -193,6 +193,131 @@ reopened state). This review's honest position is: **AC3 is answered for the cod
 boundary; the live-account half is explicitly not done and must not be marked done**
 until AB#116 actually produces a deployment to verify against.
 
+**Re-checked 2026-08-25**, against AB#116 (closed 2026-08-24) and AB#83's
+Preview Sanity wiring (`docs/cache-revalidation.md`, 2026-08-25). The three
+items split three ways now, not one — mailbox retention turns out not to
+share the Resend items' blocker at all:
+
+- **Vercel privacy role, Runtime Logs access scoping, retention/deletion
+  terms.** The account is no longer hypothetical: AB#116 provisioned a real,
+  protected Preview deployment on the customer-owned Vercel team. An earlier
+  draft of this re-check claimed no Vercel CLI or authenticated API access
+  existed in this session — **wrong, corrected after actually checking**:
+  the repository-pinned CLI (`npx vercel@58.9.1 whoami`) is already
+  authenticated on this machine from earlier provisioning work, and the same
+  credential reads the team API. Checked live, 2026-08-25 — **this is a
+  Preview-account inspection; it is not, and does not claim to be, a
+  Production hosting-tier decision or a closed Production privacy
+  boundary**:
+  - **Team membership**: exactly one member, role `OWNER`, confirmed — no
+    names, emails, or tokens read beyond that.
+  - **`billing.plan` reads `"hobby"`, not `"pro"`** — contradicting ADR-0004
+    §1 and every deployment doc, which assumed Pro throughout. **No Production
+    deployment existing yet does not, by itself, settle the compliance
+    question**: Vercel's fair-use rule turns on the deployment's purpose of
+    financial gain, not on whether it is labeled Preview or Production, so
+    this repository's dual purpose as a professional software portfolio
+    (`AGENTS.md`) could put the current Preview/development usage inside
+    that definition already — see the residual-risk bullet below, which
+    applies to Preview today, not only to a future Production choice.
+    **Owner decision, 2026-08-25 (recorded on ADR-0004's own 2026-08-25
+    amendment and as comments on AB#117 and AB#18): Hobby remains in use for
+    development and Preview, accepting this as an open interpretation risk
+    rather than a settled one; no decision has been made to use Hobby for
+    Production, and the Production tier is unresolved, to be reconsidered
+    immediately before AB#18.** ADR-0004's original Decision (Pro) remains
+    the authoritative Production plan for now — this re-check does not
+    change it, and does not grant a Hobby exception for Production.
+    PhotoSite Starter as software is unaffected either way: it remains
+    production-grade and commercial-capable, and any clone actually run as
+    a commercial photography business needs Pro or Enterprise, unchanged.
+  - **Observability Plus and exact Runtime Logs retention for the current
+    Preview environment are now confirmed, not open.** Checked against
+    Vercel's own current documentation
+    (`vercel.com/docs/observability/observability-plus`, page dated
+    2026-07-06, checked 2026-08-25): Hobby's Runtime Logs retention is **one
+    hour** (not the Pro figure of one day this ADR and `docs/deployment.md`
+    state for Production), and Observability Plus is **not offered on
+    Hobby at all** — "Upgrade to a Paid Pro plan to access Observability
+    Plus." These are facts about Preview today; if Production stays on
+    Hobby, the same figures would apply there, and if Production moves to
+    Pro, the original one-day (or 30-day) figure applies instead — that
+    choice is what AB#18 has to make. Deployment Protection (Vercel
+    Authentication) and Protection Bypass for Automation are both confirmed
+    available and already working on Hobby (AB#116's verified `302` SSO
+    challenge; AB#83's two working named bypass secrets), unaffected by
+    which way the Production decision goes.
+  - **The interpretation risk is not scoped to a future Production choice —
+    it applies to the current Hobby-on-Preview usage too.** Vercel's
+    fair-use rule turns on the deployment's purpose, not its label; "no live
+    Production deployment yet" does not by itself put today's usage outside
+    the "financial gain of anyone involved in any part of the production"
+    wording, given this repository's dual purpose as a professional
+    software portfolio (`AGENTS.md`). This review does not claim that
+    question is settled by its own reading of the public terms, for Preview
+    or for Production — the owner accepts it as an open risk for as long as
+    Hobby remains in use, per the 2026-08-25 decision above. **Vercel
+    Support's explicit confirmation would give certainty for the current
+    Preview usage too, and becomes mandatory specifically if Hobby is later
+    proposed for Production** (not decided): that path would additionally
+    require the site to operate as genuinely non-commercial per Vercel's
+    fair-use definition (checked directly against
+    `vercel.com/docs/limits/fair-use-guidelines`, 2026-08-25) — no pricing,
+    no paid services, no prints for sale, no donations, no advertising, no
+    affiliate purpose. **If Pro is chosen for Production instead** —
+    matching ADR-0004's original Decision — that half of the analysis
+    becomes moot for Production; it does not retroactively resolve whatever
+    period this team spent on Hobby beforehand.
+  The gap changed from *"no account exists"* to *"the current Preview
+  account is fully inspected and its facts are recorded."* **AB#117 closes
+  the Preview-account inspection here. It does not close, and must not be
+  read as closing, the Production hosting-tier decision or the Production
+  privacy boundary** — both stay open until AB#18 actually decides the
+  tier and this section is re-read against whichever one is chosen.
+- **Resend account ownership, DPA, retention.** `docs/deployment.md`'s own
+  environment-variable table still lists `RESEND_API_KEY` as unset and
+  Production-only, and AB#18 (production promotion) is still `New` —
+  confirmed via `az boards work-item show --id 18` during this re-check.
+  There is no evidence a Resend account has been created at all — only that
+  this deployment's own configuration doesn't reference one, not that no
+  such account exists anywhere. **Owner decision, 2026-08-25: this item's
+  sequencing is resolved, not left circular.** Provisioning the Resend
+  account and completing this ownership/DPA/retention review is prerequisite
+  work owned by AB#117 itself, done before AB#18 — not something AB#18's own
+  production provisioning produces, and not a deferral or weakening of this
+  acceptance criterion. AB#18's scope narrows to match: it wires the
+  *already-reviewed* account into Production (secrets, sending domain) and
+  verifies contact delivery, and does not itself provision or review the
+  account. Recorded as a comment on both AB#117 and AB#18 (2026-08-25). The
+  account itself has not been provisioned yet — that is a real third-party
+  signup only the site owner can perform — so this item stays open until it
+  is, now with an unambiguous owner rather than an open sequencing question.
+- **Recipient mailbox retention/deletion practice.** This one does *not*
+  share the Resend blocker, on inspection: Resend is only the delivery
+  transport into a mailbox, not what creates one, and AB#116's own
+  provisioning record (Azure Boards) confirms the site owner already
+  operates a real mail service independent of this project — production
+  promotion is required to preserve its existing DNS mail records. The
+  recipient mailbox this item asks about is very likely that pre-existing
+  service, so confirming its retention practice does not need to wait for a
+  Resend account — see `docs/contact-data-flow.md`'s checklist, corrected
+  the same way.
+
+None of the three sub-items closes the Production privacy boundary by
+itself, though each makes different progress. The first — Vercel — has its
+*Preview*-account inspection closed: team membership, plan tier,
+Observability Plus availability, and Runtime Logs retention are all checked
+and recorded for the environment that actually exists today. The
+*Production* hosting tier remains genuinely undecided — ADR-0004's Pro
+Decision stands until AB#18 reconsiders it — so this sub-item's open action
+is that decision itself, plus (only if Hobby is chosen for Production)
+obtaining Vercel Support's confirmation first. The second — Resend — needs
+the site owner to actually provision the account as AB#117's own
+prerequisite work, then complete the review against it; the sequencing
+question is resolved, the provisioning itself is not yet done. The third —
+the recipient mailbox — can simply be done: confirm it with the site owner
+and record its provider's retention practice.
+
 ## AC4 — Contact and webhook method, origin, schema, body-size, replay/idempotency, abuse controls
 
 Both endpoints were already built to this exact contract (AB#12/ADR-0004 for contact,
@@ -243,6 +368,109 @@ narrower, real gap than AC3's "no live account exists" gap (a Sanity project *do
 exist here), and is recorded as a follow-up: run the dataset's own asset-listing query
 and cross-check against what's referenced by a published document before production
 promotion.
+
+**Re-checked and actually run, 2026-08-25.** AB#83's Preview Sanity wiring
+gives the reference deployment a live project and a dedicated `preview`
+dataset (`docs/cache-revalidation.md`, "Deployed verification gate"). Two
+earlier drafts of this re-check claimed the identifiers needed to query it
+weren't retrievable in this session; both were wrong, corrected here after
+actually checking:
+
+- **The identifiers were retrievable — from a file already on disk.**
+  `.vercel/.env.preview.local` exists in this checkout (`.vercel/` is
+  gitignored, so it wasn't visible to earlier searches of the repository) —
+  the product of an earlier `vercel link`/`vercel pull` run during AB#83's
+  own provisioning work. It carries the deployment's real Preview values,
+  including the two documented non-secret settings: `SANITY_PROJECT_ID` and
+  `SANITY_DATASET="preview"` (`SANITY_DATASET_VISIBILITY="public"`,
+  `SANITY_API_VERSION="v2025-02-19"`). The project id itself is not
+  reproduced here, consistent with `docs/sanity-setup.md`'s existing
+  ownership boundary for every other Sanity credential in this repository —
+  it stays in `.vercel/.env.preview.local` and Azure Boards (recorded
+  against AB#83), not in tracked files. Nothing else in that file was read.
+- **The audit was then actually run** — a live, unauthenticated `GET` against
+  that project's Content Lake API for the `preview` dataset, consistent with
+  the dataset's declared public visibility needing no read token for
+  root-level, non-draft documents. It found **exactly one document**,
+  `service` type, `_id: "webhook-test-1"` (`_createdAt` 2026-08-24,
+  `_updatedAt` 2026-08-25 — matching AB#83's own webhook-verification
+  timeline exactly, so this is that mutation, not an unexplained document),
+  published, with a null `slug` — a normal artifact of writing through the
+  raw mutate API rather than Studio, which enforces that field (the same
+  "Studio validation doesn't bind an API import" gap `content-tree.ts` and
+  the article/gallery Studio validators already exist to backstop).
+  `sanity.imageAsset` and `sanity.fileAsset` counts are both **zero**.
+- **What this audit method can and cannot prove — corrected after a further
+  review round.** An earlier draft of this section claimed that adding
+  `perspective=raw` to an unauthenticated request "confirmed, not assumed"
+  that no draft exists in this dataset. **That claim was wrong, and is
+  retracted here.** Checked directly against Sanity's own documentation
+  (`sanity.io/docs/content-lake/perspectives`, which states its walkthrough
+  "presumes... an authenticated client with permissions to see both drafts
+  and published content") and its IDs-and-paths access model: dataset
+  *public visibility* only grants unauthenticated read access to root-level
+  document IDs with no period in them; a draft's `drafts.<id>` form contains
+  a period and is hidden from an unauthorized client **regardless of dataset
+  visibility** — `perspective=raw` does not change that, since the
+  perspective controls *which version* of a document a query resolves to,
+  not *whether* the client is authorized to see it at all. An unauthenticated
+  query returning zero `drafts.**` matches is therefore consistent with
+  either "no drafts exist" or "drafts exist but this request cannot see
+  them" — it cannot distinguish the two. **The claim this audit can actually
+  support is narrower: no *published* (root-level) document beyond
+  `webhook-test-1`, and no published image/file asset, exist in this
+  dataset.** Whether an unpublished draft is sitting in `preview` — the
+  literal question AC5 asks — remains unverified, and would need a real,
+  authenticated Sanity token with draft-read permission to check, which this
+  session does not have and did not use.
+- **This document is not harmless, though, and closing the audit here would
+  be wrong.** `src/lib/sanity-services.ts`'s `projectPublicService` throws
+  (`readString(document.slug)` returns `undefined` for a `null` slug, which
+  fails the `SERVICE_SLUG` check at lines 184–189) for exactly this
+  document, and `readPublicServices` calls it inside an unguarded `.map()`
+  over every result row — so the *entire* services listing throws, not just
+  this one row, the moment a route actually reads services through
+  `SITE_CONTENT_SOURCE=sanity` against this dataset. That is not true today
+  (no route reads Sanity yet, `docs/deployment.md`), so nothing is broken
+  right now — but it is a live landmine for the first PR that wires services
+  into a route against this dataset, and it should be deleted (or corrected
+  with a real slug) before that happens. This session has no write-scoped
+  Sanity credential — `.vercel/.env.preview.local` carries only the runtime
+  app's values, and a write token is deliberately never placed in a deployed
+  environment (`docs/sanity-seeding.md`) — so deleting it is the site
+  owner's action, not something performed here. There is no abandoned
+  upload or stray sensitive filename among this dataset's *published*
+  content — that part of the audit is genuinely clean, within the
+  published-only limitation noted above — but this one malformed published
+  document is a real, actionable follow-up, not a closed finding, and the
+  draft question stays open.
+- **That result also settles the second open question**, decisively rather
+  than by inference: `preview` is *not* where AB#84's 448-document seed run
+  (6 `media`, 6 `category`, 1 `siteSettings`, 1 `homePage`, 3 `service`,
+  3 `article`, 2 `gallery`, 426 `galleryPlacement`) landed —
+  `webhook-test-1` is AB#83's own artifact, unrelated to that seed run.
+  Zero `media`, `category`, `article`, `gallery`, or `galleryPlacement`
+  documents exist here, against an expected several hundred. The seed
+  script's own contract explains why: it writes to
+  whatever `--dataset` its operator names, with no fixed relationship to any
+  deployment's Preview/Production dataset (`docs/sanity-seeding.md`: "nothing
+  stops you from pointing it at your real production dataset... or a
+  throwaway dataset first"). Wherever AB#84's actual seed content lives, it
+  is a *different* Sanity project/dataset than the one AB#83 wired to
+  Preview — this session has no record of which one (not in `.env.local`,
+  not on AB#83/AB#84/AB#116 in Azure Boards, not in this repository), and
+  that dataset — the one that actually holds the 6 real demo photographs
+  this audit exists to check for abandonment — remains unaudited.
+
+Three things remain, each narrower than "no live account exists" ever was:
+identify which project/dataset AB#84's seed run actually targeted (the
+operator's own shell history or terminal scrollback from that session is the
+likely record, since nothing durable captured it), then run this same query
+shape against it; delete or fix `webhook-test-1` in the `preview` dataset
+before any route reads services through it, since it is a confirmed
+landmine, not a closed finding; and check `preview` for drafts with an
+actually authenticated token, since this session's unauthenticated read
+could not do so and AC5 asks specifically about drafts.
 
 ## AC6 — No tracking cookies, local tracking, or auto-loaded third-party embeds
 
@@ -326,11 +554,76 @@ Dependabot — are done, not merely recommended:
 
 Still open, not applied by this review:
 
-1. **Complete `docs/contact-data-flow.md`'s "Before production launch" checklist**
-   once a live Vercel/Resend account exists (tracked by AB#116).
-2. **Run a live Sanity asset-store audit** once feasible (see AC5) — cross-check every
-   asset ever uploaded to the provisioned dataset against what a published document
-   actually references.
+1. **Complete `docs/contact-data-flow.md`'s "Before production launch" checklist.**
+   Split by what actually blocks each item as of the 2026-08-25 re-check (see AC3
+   above): the Vercel privacy-role/Runtime-Logs item's **Preview-account
+   inspection is closed** — team membership, plan tier, Observability Plus
+   availability, and Runtime Logs retention (one hour on Hobby, today) are
+   all checked and recorded. The **Production hosting tier remains
+   unresolved** — ADR-0004's Pro Decision stands until AB#18 reconsiders it
+   (`docs/adr/0004-reference-production-host-and-ownership-boundary.md`'s
+   2026-08-25 amendment) — so this item's real remaining action is that
+   decision itself: upgrade to Pro (needs nothing further), or bring Hobby
+   into Production (needs Vercel Support's confirmation first — see item 4
+   below). **The Resend items' sequencing is decided
+   (owner decision, 2026-08-25, recorded on AB#117 and AB#18):
+   provisioning the account and completing this ownership/DPA/retention
+   review is AB#117's own prerequisite work, done before AB#18, not
+   something AB#18's production provisioning produces or that AB#117 defers
+   to it.** What remains is the provisioning itself — a real third-party
+   signup the site owner has to perform — and then running this review
+   against the account that results. The recipient mailbox item does not
+   share that blocker at all: it is very likely the site owner's
+   already-existing mail service, not something Resend provisions, so it
+   can be confirmed and recorded now.
+2. **Run a live Sanity asset-store audit against AB#84's actual seed target,
+   clean up `preview`, and check `preview` for drafts with a real token**
+   (see AC5). AB#83's `preview` dataset was queried live 2026-08-25
+   (`SANITY_PROJECT_ID`/`SANITY_DATASET` recovered from
+   `.vercel/.env.preview.local`, a gitignored file already on disk), but only
+   unauthenticated — which, per Sanity's own access model, can see this
+   dataset's *published, root-level* content and nothing else: a draft
+   sitting in this dataset would be invisible to that read regardless of
+   `perspective=raw`. Within that limitation: `preview` holds exactly one
+   published document, AB#83's own `webhook-test-1`, and zero published
+   assets — no abandoned upload or sensitive filename among published
+   content. That one document has a null `slug`, which
+   `src/lib/sanity-services.ts` will throw on for the whole services listing
+   the moment a route reads Sanity services against this dataset — a real,
+   confirmed landmine that needs deleting or fixing before that happens, not
+   a closed finding. The published-content result also shows `preview` is
+   not where AB#84's 448-document seed run (6 real demo photos among them)
+   landed — that script always writes published, root-level documents, so
+   this conclusion doesn't depend on the draft-visibility limitation — so
+   the audit AC5 actually needs, against whichever dataset that content
+   landed in, has not happened yet. What remains: identify which
+   project/dataset AB#84's seed run targeted, then run this same query shape
+   against it; delete or fix `webhook-test-1`; and re-check `preview` for
+   drafts using an authenticated token, since AC5 asks specifically about
+   drafts and this pass could not answer that.
 3. Re-run this review's finding register (not necessarily the whole document) before
-   the actual AB#18 production promotion, since AC3's and AC5's carried-forward items
-   depend on infrastructure that does not exist at the time of this review.
+   the actual AB#18 production promotion. AC5's `preview`-dataset audit was
+   actually executed this re-check (item 2 above) — clean on published
+   content and abandoned assets, one confirmed cleanup item
+   (`webhook-test-1`'s null slug), and the draft question genuinely open
+   (this session's unauthenticated read structurally cannot see drafts).
+   What's left: that cleanup; the authenticated draft check; AC5's audit
+   against AB#84's real seed target, once identified; AC3's Vercel item's
+   still-open Production tier decision — item 4 above — which is not yet
+   made either way; and AC3's Resend items, which now have a decided owner
+   (AB#117, prerequisite work, per item 1 above) but still need the account
+   itself provisioned and the review run against it before AB#18's own
+   promotion checklist reads as complete.
+4. **Decide the Production Vercel plan tier before AB#18, and obtain Vercel
+   Support's confirmation first if Hobby is the chosen path.** Nothing is
+   decided yet: ADR-0004's original Decision (Pro) remains the standing
+   plan (see AC3 and
+   `docs/adr/0004-reference-production-host-and-ownership-boundary.md`'s
+   2026-08-25 amendment), and Hobby is only what Preview happens to be
+   running today. If Pro is chosen for Production, this item closes with no
+   further action. If Hobby is proposed for Production instead, this
+   repository's dual purpose as a professional software portfolio alongside
+   a personal photography site leaves a genuine interpretation risk under
+   Vercel's broad commercial-usage wording that this review's own reading
+   of the public terms does not settle — obtain Vercel Support's
+   confirmation before AB#18 promotes production, not after.

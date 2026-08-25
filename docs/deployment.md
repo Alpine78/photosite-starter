@@ -39,17 +39,42 @@ is the operational half: what to create, what to set, and what the pipeline does
 Vercel's console changes; their own [documentation](https://vercel.com/docs) is
 authoritative for the exact clicks. What this project needs from it:
 
-1. **Create the scope in the owner's own Vercel account, on Pro.** A commercial site
-   cannot rely on Hobby fair use. Enable MFA on the account before anything else.
+1. **Create the scope in the owner's own Vercel account.** Enable MFA on the account
+   before anything else.
+
+   **Plan tier depends on how the deployment is actually used, not on this template.**
+   A commercial site — one that advertises a paid product or service, processes payment,
+   accepts donations, carries ads, or pays anyone involved in producing it — cannot rely
+   on Hobby fair use and needs Pro or Enterprise; that requirement is unchanged and
+   applies to essentially every clone of this starter, including this repository's own
+   eventual Production deployment.
+
+   **This reference deployment's Preview environment currently runs on Hobby.** That is
+   not automatically fine just because it's Preview and not Production: Vercel's
+   fair-use rule turns on the deployment's purpose of financial gain, not on whether it
+   is labeled Preview or Production, and this repository's dual purpose as a
+   professional software portfolio leaves that question genuinely open for the current
+   usage too — the owner keeps Hobby in use for development, accepting this as an open
+   interpretation risk rather than a settled one. **The Production tier is a separate,
+   still-open decision**, not something this document or ADR-0004 has settled:
+   [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s Decision
+   (Pro) remains the current plan for Production, and its 2026-08-25 amendment records
+   the observed Hobby/Preview divergence without granting a Production exception. The
+   choice — stay on this ADR's original Pro plan, or bring Hobby into Production too —
+   will be made immediately before AB#18. Vercel Support's explicit confirmation would
+   give certainty for the current Preview usage too, and becomes mandatory specifically
+   if Hobby is chosen for Production; choosing Pro for Production needs no such
+   confirmation, though it would not retroactively resolve whatever period was spent on
+   Hobby beforehand.
 
    ADR-0004 §1 says "team" because it assumes the common case: the developer builds the
    site for a photographer, and the account has to belong to the photographer rather than
    to whoever wrote the code. When the site owner and the developer are the **same
-   person**, that requirement is met by the owner's own **one-person Pro team** — which
-   is what Vercel's default scope already is; Pro is billed per team and includes one
-   deploying seat, so this needs no second paying member. A clone built for someone else
-   needs a team owned by them, created before the project, because a later project
-   transfer leaves logs, drains, and some integrations behind.
+   person**, that requirement is met by the owner's own **one-person team** — which is
+   what Vercel's default scope already is, on either tier; Pro is billed per team and
+   includes one deploying seat, so a Pro clone needs no second paying member either. A
+   clone built for someone else needs a team owned by them, created before the project,
+   because a later project transfer leaves logs, drains, and some integrations behind.
 
 2. **Create the project empty — do not connect the Git repository.** This is the one
    step where the obvious path is the wrong one. The dashboard's "Add New → Project" flow
@@ -113,9 +138,21 @@ authoritative for the exact clicks. What this project needs from it:
    resource before any branch containing its reference is merged. Add and verify every
    other value, then change the flag to `true`. Do not grant open access to all pipelines.
 
-10. **Keep Observability Plus disabled** and limit Owner, Member, and Developer seats to
-    the people who need Runtime Logs; everyone else gets Pro Viewer. Both are privacy
-    decisions, not cost ones — see [Logs and telemetry](#logs-and-telemetry).
+10. **On Pro, keep Observability Plus disabled** and limit Owner, Member, and Developer
+    seats to the people who need Runtime Logs; everyone else gets Pro Viewer. Both are
+    privacy decisions, not cost ones, and remain the plan for Production, which is
+    still on this ADR's Pro Decision. **On Hobby — Preview's currently observed
+    tier — neither applies today**: Observability Plus isn't offered to enable at all,
+    and Hobby has no RBAC roles to configure at all. Separately, the live team was
+    checked 2026-08-25 and found to have exactly one member, role `OWNER` — so there is
+    currently no excess access to remove, not because Hobby's lack of RBAC causes that,
+    but because that is simply what the live check found. Hobby's fixed one-hour Runtime Logs
+    retention is itself the tightest posture Vercel offers below Pro. Whether Production
+    ends up on Pro or Hobby is unresolved and will be decided before AB#18 — if Pro, the
+    policy above applies directly there; if Hobby, re-read
+    [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s
+    2026-08-25 amendment for what that would require. See
+    [Logs and telemetry](#logs-and-telemetry).
 
 The group exists before its credentials do, so provisioning can remain incomplete without
 reddening `main`: the deploy stage skips while `PREVIEW_DEPLOYMENT_ENABLED=false`. Turning
@@ -448,11 +485,19 @@ identifiers. That boundary is enforced in code and documented in
 Logs record request metadata — path, query, user agent, status, region, request id — and
 Vercel acts as a controller for personal data in service-generated data, under
 provider-defined purposes that application code cannot narrow. ADR-0004 records the
-boundary the project owner accepted on 2026-08-04, and this is why the runbook keeps
-Observability Plus disabled (one-day Runtime Logs retention instead of thirty), limits
-operator seats, and adds no log drain. Before the production launch review (AB#117), the
-current provider terms, retention, and transfer boundary are re-read and recorded — they
-are the provider's to change, not ours.
+boundary the project owner accepted on 2026-08-04, and no log drain is added.
+**Preview** currently runs on Hobby, where Runtime Logs retention is one hour and
+Observability Plus — which would raise it to 30 days on Pro — is not available to
+enable at all; there is no operator seat to limit, since Hobby has no RBAC and the
+live team is confirmed to be exactly one member. **Production's tier is unresolved**
+(`docs/adr/0004-reference-production-host-and-ownership-boundary.md`'s 2026-08-25
+amendment) and stays on this ADR's original Pro Decision until AB#18 reconsiders it —
+this paragraph's Preview facts are not a Production privacy-boundary conclusion. The
+production launch review (AB#117) re-read and recorded the current Preview provider
+terms, retention, and access posture on 2026-08-25
+(`docs/security-privacy-review.md`'s AC3 section), and closed that inspection for
+Preview specifically — the Production privacy boundary remains open until the tier is
+decided and this section is re-read against whichever tier AB#18 chooses.
 
 The pipeline holds to the same line: the deploy job prints a deployment URL, statuses, and
 robots directives. It never prints a response body, a token, or a bypass secret.

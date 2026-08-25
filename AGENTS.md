@@ -774,14 +774,96 @@ ADR-0011, `docs/security-privacy-review.md`), a dependency-vulnerability remedia
 (`npm audit fix`, 6 high-severity findings to 0), and the review document walking all
 8 acceptance criteria against evidence. Two criteria were only partly closeable at the
 time of that review: AC3's live Vercel/Resend account verification and AC5's live Sanity
-asset-store audit both named the same AB#116 gap now closed above. A live, protected
-Vercel deployment exists now, which makes both checklists reachable — but the specific
-items themselves (reading Resend's current DPA/data-residency terms, recording the Vercel
-privacy role and Runtime Logs access scope, auditing the Sanity dataset's actual asset
-population) have not been performed yet, and `docs/security-privacy-review.md` and
-`docs/contact-data-flow.md` have not been re-checked against this newly-live account. Do
-not assume either checklist is complete because the infrastructure gap that used to block
-it is gone.
+asset-store audit both named the same AB#116 gap now closed above. `docs/security-privacy-review.md`
+and `docs/contact-data-flow.md` were re-checked on 2026-08-25 against the now-live
+Preview infrastructure (AB#116's closed Vercel deployment, AB#83's Preview Sanity
+wiring), and each carried-forward item split rather than closed outright, in different
+ways for the two accounts. Vercel: partially run, not just re-scoped — an earlier draft
+wrongly claimed this session had no Vercel CLI/API access; corrected after actually
+checking, since the repository-pinned CLI is already authenticated on this machine.
+Team membership checked live: one member, `OWNER` role, so "limit seats" is trivially
+satisfied for the environment that exists today. That check surfaced a real finding —
+the team's `billing.plan` reads `"hobby"`, not the `"pro"` ADR-0004 §1 and every
+deployment doc assume for Production. **This closes a Preview-account inspection, not
+a Production hosting-tier decision.** The owner's decision, 2026-08-25: Hobby remains
+in use for development and Preview; no decision has been made to use Hobby for
+Production, and the Production tier is unresolved, to be reconsidered immediately
+before AB#18. ADR-0004's original Decision (Pro) remains the authoritative Production
+plan for now — this re-check does not change it and does not grant a Hobby exception
+for Production. (An earlier draft of this paragraph stated the opposite — a settled
+decision to keep the whole reference deployment on Hobby, matching Vercel's
+non-commercial fair-use terms; that was wrong and was corrected at the owner's
+direction before any of it was committed.) PhotoSite Starter as software is
+unaffected either way — the starter remains the same generic, commercial-capable
+template it always was, and a photographer's clone actually run as a paid business
+still needs Pro or Enterprise, unchanged. Recorded as
+[ADR-0004](docs/adr/0004-reference-production-host-and-ownership-boundary.md)'s
+2026-08-25 amendment (which also records the verified Preview facts — Hobby's Runtime
+Logs retention is one hour, not the one-day Pro figure this ADR states for Production;
+Hobby has no RBAC at all — without rewriting the ADR's original Decision) and as
+comments on AB#117 and AB#18, including a correction of the earlier overstated
+framing. **That correction is not scoped to a future Production choice: the
+interpretation risk applies to the current Hobby-on-Preview usage too**, since
+Vercel's fair-use rule turns on the deployment's purpose, not its Preview/Production
+label — "no live Production deployment yet" does not by itself settle it, given this
+repository's dual purpose as a professional software portfolio. The owner accepts this
+as an open risk for as long as Hobby remains in use, not proof of Vercel
+Terms-of-Service compliance. Vercel Support's explicit confirmation would give
+certainty for Preview too, and becomes mandatory specifically **if Hobby is later
+proposed for Production** (one of two options AB#18 will choose between; not decided).
+**If Pro is chosen for Production instead** — this ADR's original Decision — that half
+of the analysis becomes moot for Production, though it does not retroactively resolve
+whatever period this team spent on Hobby beforehand.
+
+Sanity: this one was actually run too, not just re-scoped. Two earlier drafts of this
+re-check wrongly claimed the identifiers couldn't be retrieved — first blaming a
+missing credential (wrong: `preview` is public, no token needed), then blaming the
+Azure Pipelines variable group (wrong system: `docs/deployment.md` puts these in the
+Vercel project's Preview environment). Both were corrected by actually checking:
+`.vercel/.env.preview.local`, a gitignored file already on disk from AB#83's own
+provisioning work, carries the real values (project id and dataset `preview`,
+public — the project id itself stays out of this repository per
+`docs/sanity-setup.md`'s ownership boundary, the same as every other Sanity credential;
+it is recorded against AB#83 in Azure Boards). Queried live, unauthenticated
+(2026-08-25): exactly one published document, AB#83's own `webhook-test-1`
+webhook-verification artifact, and zero published image/file assets. **A prior draft of
+this same paragraph claimed adding `perspective=raw` "confirmed" no draft exists in
+this dataset — wrong, retracted after checking Sanity's own access-control
+documentation directly**: dataset public visibility grants unauthenticated read access
+only to root-level, non-dotted document IDs; a `drafts.<id>` document is hidden from an
+unauthorized client regardless of dataset visibility or perspective, so this session's
+read cannot rule drafts in or out. What it *can* show — no published document beyond
+`webhook-test-1`, no published asset — is genuinely clean, and separately, that one
+document is not harmless: its null `slug` makes `sanity-services.ts` throw for the
+whole services listing the moment a route reads Sanity services against this dataset,
+so it needs deleting or fixing before that happens — a confirmed follow-up, not a
+closed finding. The published-content result also proved `preview` is not where
+AB#84's 448-document seed run landed (zero `media`/`gallery`/`galleryPlacement`
+documents against an expected several hundred; that script always writes published
+root-level documents, so this conclusion doesn't depend on the draft-visibility
+limitation), so the audit AC5 actually needs — the real seed content, including 6 demo
+photographs — is still open against a still-unidentified dataset, and so is checking
+`preview` itself for drafts with an authenticated token. The Resend-account items
+(DPA, data-residency/retention terms) are unchanged in one sense — this deployment's
+own configuration still shows no Resend account wired in, and whether one exists at
+all is unverified — but their sequencing is no longer
+open: **owner decision, 2026-08-25, recorded as a comment on both AB#117 and AB#18:
+provisioning the Resend account and completing this ownership/DPA/retention review
+is AB#117's own prerequisite work, done before AB#18, not something AB#18's
+production provisioning produces.** AB#117's acceptance criteria are not weakened or
+deferred by this — AB#117 owns getting the account and running the review, in full;
+AB#18's own scope narrows to match, wiring the *already-reviewed* account's secrets
+and sending domain into Production and verifying delivery, not provisioning or
+reviewing the account itself. The account has not been provisioned yet — that is a
+real third-party signup only the site owner can perform, not something this
+repository's tooling does — so the item stays open, now with a decided owner rather
+than an unresolved circularity. The recipient-mailbox item turned out not to share that blocker on
+inspection: Resend is only the delivery transport into a mailbox, not what creates
+one, and AB#116's own provisioning record shows the site owner already operates a
+real mail service independent of this project — so confirming that mailbox's
+retention practice is answerable now, without a Resend account. Do not assume either checklist is
+complete because an infrastructure gap closed — read the 2026-08-25 re-check sections
+in both documents before treating any of AC3 or AC5 as done.
 
 The repository's architecture is also drawn, not only described: `docs/architecture/`
 holds the system context, the application and data boundaries, and the build/deployment

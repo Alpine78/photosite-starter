@@ -58,7 +58,9 @@ agent, status, region, and request identifier. Vercel also uses IP address and u
 data to identify requests from the current browser. Base Pro without Observability Plus
 has one-day Runtime Logs retention; Observability Plus raises it to 30 days. The public
 documentation provides no per-route switch that disables or redacts this
-hosting-provider-generated telemetry.
+hosting-provider-generated telemetry. *(Preview's currently observed tier and Runtime
+Logs figure are recorded by the 2026-08-25 amendment below; Production's tier, and
+therefore which figure applies there, is unresolved until AB#18.)*
 
 Vercel's Data Processing Addendum distinguishes Customer Data, for which Vercel acts as
 a processor, from personal data in Service-Generated Data, for which Vercel acts as a
@@ -78,13 +80,130 @@ recorded boundary triggers a revisit before launch.
 ## Decision
 
 **Use Vercel Pro as the reference production host, provisioned directly in a
-customer-owned Vercel team.**
+customer-owned Vercel team.** *(Still the plan for Production — see the 2026-08-25
+amendment below: Preview is currently observed running on Hobby, a development-time
+state, not a Production decision. The Production tier remains unresolved and will be
+reconsidered immediately before AB#18. PhotoSite Starter as software, and any
+commercial photographer's clone deployment, still requires Pro or Enterprise —
+unchanged either way.)*
 
 Keep the application boundary on standard Next.js APIs so Azure App Service, Azure
 Container Apps, or another full Node.js host remains a feasible exit target.
 
 This acceptance selects the maintained reference path and the privacy boundary above. It
 does not provision an environment or authorize a DNS change.
+
+### Amendment 2026-08-25 (AB#117) — Hobby observed in Preview; Production tier unresolved
+
+**Status of the record: still Accepted, and still the Production plan.** This
+amendment records an observed divergence between this ADR's Decision and what AB#116
+actually provisioned for **Preview**. It does not change the Decision, and it does not
+grant a Hobby exception for Production — that choice remains open, to be made before
+AB#18. An earlier draft of this amendment stated the opposite (a settled decision to
+keep the whole reference deployment on Hobby); that was wrong and is corrected here,
+at the project owner's direction, before this record was ever committed.
+
+**What was found:** AB#117's 2026-08-25 infrastructure re-check found the Vercel team
+AB#116 actually provisioned is on the Hobby (free) plan, not Pro as this ADR's Decision
+assumed. No Production deployment exists yet (see "What this ADR does not establish,"
+below), but that alone does not settle the compliance question: Vercel's fair-use rule
+(checked directly, 2026-08-25, against `vercel.com/docs/limits/fair-use-guidelines`)
+turns on the deployment's **purpose of financial gain**, not on whether it is labeled
+Preview or Production — so this repository's dual purpose as a professional software
+portfolio could put the current Preview/development usage inside that definition
+already, not only a future Production deployment. **The project owner keeps Hobby in
+use for development for now, accepting this as an open interpretation risk rather than
+a settled one** — see the residual-risk section below, which now applies to Preview
+today, not only to a hypothetical Hobby-for-Production choice.
+
+**The project owner's decision, recorded 2026-08-25:**
+
+- **Hobby remains in use for development and Preview.** No action is required to
+  change this; it already matches how a Preview environment is expected to be used.
+- **No decision has been made to use Hobby for Production.** This ADR's Decision —
+  Vercel Pro as the reference production host — remains the authoritative plan for
+  Production for now. This amendment does not supersede it.
+- **The Production hosting tier is unresolved and will be reconsidered immediately
+  before AB#18**, when the two live options are: upgrade this team to Pro (matching
+  this ADR's original Decision, and requiring none of the commercial-use analysis
+  below), or bring Hobby into Production too (requiring the non-commercial operating
+  constraint and Vercel Support confirmation described below, since Production is
+  where this repository's site actually goes live and could be read as commercial
+  use). Neither option is chosen yet.
+
+**PhotoSite Starter itself is unaffected either way.** This amendment concerns only
+this repository's own reference deployment's *current, Preview-scoped* Vercel billing
+tier. The starter remains a production-grade, generically brandable template, and a
+photographer who clones it to run a commercial site must still provision Pro or
+Enterprise, per Vercel's own terms — unchanged by anything here.
+
+**Verified facts about the current Preview environment** (checked live 2026-08-25 and
+against current Vercel documentation; these describe what is actually running today,
+not a Production commitment, and supersede the Pro-tier figures this ADR states
+elsewhere without rewriting them):
+
+- **Team membership**: exactly one member, role `OWNER`.
+- **Runtime Logs retention is one hour on Hobby, today** — not the Pro figure ("Base
+  Pro without Observability Plus... one day") §5 and the Capability Matrix's Logs row
+  state (`vercel.com/docs/observability/observability-plus`, Limitations table, checked
+  2026-08-25). If Production later moves to Pro, the original one-day (or 30-day with
+  Observability Plus) figure applies there; if Production stays on Hobby, this same
+  one-hour figure would apply to it too, since plan tier is a team-wide setting.
+- **Hobby has no configurable RBAC roles, and the live check found only one
+  member.** §5's "minimize access on Pro by limiting Owner, Member, and Developer
+  seats... use Pro Viewer for non-operators" and Action Item 3's identical
+  instruction describe Pro's model; Hobby has no Owner/Member/Billing/Viewer-Pro
+  tiers to configure at all (`vercel.com/docs/plans/hobby`, plan comparison
+  table, checked 2026-08-25). Separately, the live team was checked and found to
+  have exactly one member, role `OWNER` — so there is currently no excess access
+  to remove, not because Hobby's lack of RBAC causes that, but because that is
+  simply what the live check found.
+- **Observability Plus is not available to enable on Hobby at all** — not a matter of
+  keeping it "disabled" as a reversible choice (`vercel.com/docs/observability/observability-plus`:
+  "Hobby: Upgrade to a Paid Pro plan to access Observability Plus," checked 2026-08-25).
+- **Deployment Protection and Protection Bypass for Automation both already work on
+  this Hobby team**, unaffected by which way the Production decision goes: Vercel
+  Authentication is verified working (AB#116, 2026-08-24: `302` to
+  `vercel.com/sso-api`), and two separate named bypass secrets are already in use
+  against this same team (`docs/cache-revalidation.md`, AB#83, 2026-08-25).
+
+**The interpretation risk applies now, to Preview, not only to a future Production
+choice.** Vercel's fair-use rule turns on the deployment's purpose, not its label —
+"no live Production deployment yet" does not by itself put current Hobby usage outside
+the "financial gain of **anyone** involved in **any part of the production** of the
+project" wording, given this repository's dual purpose as a professional software
+portfolio (`AGENTS.md`). This ADR does not claim that question is settled by its own
+reading of the public terms, for Preview or for Production. The project owner accepts
+this as an **open, unresolved interpretation risk for as long as Hobby remains in
+use**, rather than treating "it's only Preview" as a resolution.
+
+**Vercel Support's explicit confirmation would give certainty for the current Preview
+usage too, and is mandatory before choosing Hobby for Production specifically** — if
+Hobby is later proposed for Production (not decided; one of two options under
+consideration before AB#18), the site would additionally have to operate as genuinely
+non-commercial — no pricing, no paid services, no prints for sale, no donations, no
+advertising, no affiliate purpose, no other commercial solicitation — and Support's
+confirmation should be obtained before choosing that path. **If Pro is chosen for
+Production instead** — this ADR's original, still-current Decision — that half of the
+analysis becomes moot for Production, since Pro carries no commercial-use restriction;
+it does not retroactively resolve whatever period this team spent on Hobby beforehand.
+
+**Evidence:** `vercel.com/docs/limits/fair-use-guidelines` (page dated 2026-07-29,
+checked 2026-08-25) for the commercial-usage definition; `vercel.com/docs/plans/hobby`
+(page dated 2026-06-16, checked 2026-08-25) for the Hobby/Pro feature comparison;
+`vercel.com/docs/observability/observability-plus` (page dated 2026-07-06, checked
+2026-08-25) for Runtime Logs retention and Observability Plus plan availability; the
+live Vercel team API, queried 2026-08-25 (team membership and `billing.plan`), recorded
+in `docs/security-privacy-review.md`'s AC3 section and as comments on AB#117 and AB#18;
+the owner's decision, and its 2026-08-25 correction narrowing an earlier overstated
+draft, recorded the same way.
+
+**Sections affected:** none of this ADR's Decision, §1–§6, Capability Matrix, or
+Action Items change for Production as a result of this amendment. It records Preview's
+observed current state and inline-points the few Pro-tier figures (§5's Runtime
+Logs/RBAC bullets, the Capability Matrix's Logs row, Action Item 3) that will need a
+fresh read once AB#18 actually decides the Production tier — those figures remain this
+ADR's stated Production plan until then.
 
 ### 1. Ownership and portability boundary
 
@@ -240,11 +359,15 @@ secret-scoping rules are unchanged and still govern how those values are stored.
   launch. Broader Service-Generated Data is not assumed to be deleted with the one-day
   Runtime Logs window. Do not enable Observability Plus or add a log drain unless a
   concrete retention or incident-response need justifies the extra privacy and cost
-  surface.
+  surface. *(Preview's currently observed Runtime Logs retention is one hour, on
+  Hobby — see the 2026-08-25 amendment below. This bullet remains the plan for
+  Production, which stays on this ADR's Pro Decision until AB#18 reconsiders it.)*
 - Minimize access on Pro by limiting Owner, Member, and Developer seats to operators who
   need Runtime Logs; use Pro Viewer for non-operators and remove maintainer access at
   handoff. Pro does not provide project-level roles, so its residual team-wide operator
-  access is part of the accepted trade-off.
+  access is part of the accepted trade-off. *(Doesn't apply to Preview's currently
+  observed Hobby tier, which has no RBAC at all — see the 2026-08-25 amendment below.
+  Still the plan for Production, pending AB#18's tier decision.)*
 - Application-generated operational events contain only a correlation identifier, state,
   and redacted error class. They exclude contact fields, webhook bodies, signed URLs,
   authorization values, secrets, and client identifiers. User-facing errors remain
@@ -301,6 +424,12 @@ This ADR records only the host constraint:
 | Secrets | Sensitive variables scoped to Preview or Production; changes apply to new deployments | App settings or Key Vault references with managed identity | App-scoped secrets or Key Vault references; rotation restarts or redeploys revisions |
 | Region | Stockholm function region (`arn1`), global CDN | North Europe or Sweden Central subject to SKU availability | Selected Azure region subject to current regional availability |
 | Future large private downloads | Authorize in a handler, then return a direct signed object-store URL; the 4.5 MB buffered-body limit makes ordinary proxying unsuitable, and this ADR excludes a streaming proxy | Same direct-download model recommended; App Service limits and egress still apply | Same direct-download model recommended; container ingress is not the archive delivery path |
+
+*The Logs row states the Pro figure this matrix compared at decision time, and remains
+the plan for Production. Preview is currently observed running on Hobby (one-hour
+Runtime Logs retention) — see the 2026-08-25 amendment below — but the Production tier
+is unresolved until AB#18; if it lands on Pro, this row's original figure applies
+there unchanged.*
 
 ## Options Considered
 
@@ -462,7 +591,13 @@ Observability Plus or an optional long-term log drain by default.
        Production values, keeps Observability Plus disabled, limits Runtime Logs to the
        minimum Owner, Member, and Developer seats, uses Pro Viewer for non-operators,
        records the current provider terms and telemetry settings, and leaves registrar
-       and authoritative DNS ownership with the customer.
+       and authoritative DNS ownership with the customer. *(As actually provisioned for
+       Preview, the team is Hobby, not Pro — see the 2026-08-25 amendment below for
+       what applies there today: no Observability Plus to disable, no RBAC seats to
+       limit, and a one-hour, not one-day, Runtime Logs retention. The Production tier
+       is unresolved and this item's Pro-specific guidance remains the plan until
+       AB#18 decides otherwise. MFA, Preview/Production value separation, `arn1`, and
+       DNS ownership are unaffected and were provisioned as written.)*
 4. [ ] AB#116 pins the deployment CLI, enables Standard Protection with Vercel
        Authentication, keeps the automation bypass in a trusted request header, deploys
        Preview after the gates, verifies access and `noindex`, uses a synthetic contact
