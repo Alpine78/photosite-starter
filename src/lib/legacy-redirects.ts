@@ -289,6 +289,21 @@ const RESERVED_QUERY_PARAMS = new Set(["cursor", "section"]);
  * bare flag like `?flag` into `flag=`. A signed or otherwise byte-sensitive
  * unrecognized parameter would silently become a different value than the
  * legacy URL had if this used that shortcut.
+ *
+ * This is also the decided answer to the numeric gallery lightbox query
+ * state the AB#19 crawl flagged as unresolved (e.g. Joomla's own `?4738` —
+ * a bare, key-less numeric flag identifying which image a lightbox plugin
+ * had open, layered on top of an ordinary page URL rather than a distinct
+ * crawled route). ADR-0003 decision 9: such state is never stripped or
+ * translated automatically, and AB#19 records an explicit per-value
+ * behavior only once a stable equivalent media target is known. No stable
+ * per-photo equivalent exists yet (`SITE_CONTENT_SOURCE=mock`), so the only
+ * behavior in scope today is this function's ordinary default: a bare
+ * numeric flag is exactly the `?flag` shape already covered above, name-only
+ * with no `=`, and rides through unexamined like any other unrecognized
+ * parameter — on a `redirect` outcome via this function, and on a `gone`
+ * outcome trivially, since a 410 has no destination URL to rewrite and the
+ * browser's own address bar keeps the query string it already had.
  */
 export function legacyRedirectDestinationSearch(
   originalSearch: string,

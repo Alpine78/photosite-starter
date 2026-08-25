@@ -377,4 +377,37 @@ describe("legacyRedirectDestinationSearch", () => {
       legacyRedirectDestinationSearch("?cursor=old&q=a%20b&flag", "strip"),
     ).toBe("q=a%20b&flag");
   });
+
+  it("rides a numeric gallery lightbox query state through unexamined, the crawl's own /?4738 shape — a bare, key-less flag like any other unrecognized parameter", () => {
+    expect(legacyRedirectDestinationSearch("?4738", "strip")).toBe("4738");
+    expect(legacyRedirectDestinationSearch("?4738", "preserve")).toBe("4738");
+    expect(
+      legacyRedirectDestinationSearch("?cursor=old&4738", "strip"),
+    ).toBe("4738");
+  });
+});
+
+describe("legacy redirect resolution with a numeric lightbox query state", () => {
+  it("carries a bare numeric flag onto a redirect's destination unchanged, composed through the real registry lookup rather than the pure search helper alone", () => {
+    // A synthetic row for this composition test only — not a real crawl
+    // decision; AB#19's actual redirect rows are recorded in
+    // `legacy-redirects-data.ts`.
+    const redirects = buildLegacyRedirects([
+      {
+        source: "/valokuvat/f1",
+        outcome: {
+          kind: "redirect",
+          target: "/tarinat/urheilu/f1",
+          reservedQueryParams: "strip",
+        },
+      },
+    ]);
+
+    const outcome = resolveLegacyRedirect(redirects, "/valokuvat/f1");
+    expect(outcome?.kind).toBe("redirect");
+    if (outcome?.kind !== "redirect") throw new Error("expected a redirect outcome");
+    expect(
+      legacyRedirectDestinationSearch("?4738", outcome.reservedQueryParams),
+    ).toBe("4738");
+  });
 });

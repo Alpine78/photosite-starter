@@ -718,6 +718,15 @@ it was a real, live, published Joomla page, which is evidence against the assump
 the 2026-08-10 ADR-0003 amendment relied on to remove this template's own dead
 `/portfolio` scaffold without a redirect — that removal was about the template's own
 never-deployed route, not the production site's real one at the same path.
+The numeric gallery lightbox query-state policy the crawl comment flagged as
+unresolved (Joomla's own bare `?4738` query, layered on a page's pathname rather than
+a distinct crawled route) is decided and closed, separately from the per-pathname
+decisions above: `legacyRedirectDestinationSearch` never strips or translates such
+state automatically (ADR-0003 decision 9), covered by dedicated Vitest and Playwright
+cases naming the crawl's own shape. No `redirect` row exists yet to exercise the
+301 case end-to-end — every decided row so far is a `410 Gone` tag page — and that gap
+stays open, deliberately, until a real redirect row exists; fabricating one to close it
+would mean guessing a canonical target this pass explicitly defers.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — category listing continuation, which stays bounded to its first page and

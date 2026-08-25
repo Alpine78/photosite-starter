@@ -143,6 +143,27 @@ test("a decided legacy tag page's query string rides through unexamined", async 
   expect(response?.status()).toBe(410);
 });
 
+test("a numeric gallery lightbox query state (the crawl's own /?4738 shape) does not change a decided legacy path's outcome", async ({
+  page,
+}) => {
+  test.skip(
+    RETIRED_TAG_PATHS.length === 0,
+    "no decided legacy rows in this clone's data",
+  );
+
+  // A bare, key-less numeric flag — Joomla's own per-image lightbox query
+  // state, layered on a page URL rather than a distinct crawled route (see
+  // `legacy-redirects-tracking.ts`). A 410 has no destination URL to rewrite,
+  // so the only assertion available at this layer is that the response is
+  // still the row's own decided outcome; `legacy-redirects.test.ts` proves
+  // the byte-for-byte forwarding a future `redirect` row would need.
+  const response = await page.goto(`${RETIRED_TAG_PATHS[0]}?4738`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  expect(response?.status()).toBe(410);
+});
+
 test("a decided legacy path's trailing-slash variant still resolves to the same outcome in one extra hop, not a chain onto a live target", async ({
   page,
 }) => {
