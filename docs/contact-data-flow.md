@@ -70,8 +70,8 @@ lives in the adapter that a production deployment already refuses to build.
 
 | Party | Role | Data it sees | Retention | Ownership |
 | --- | --- | --- | --- | --- |
-| **Vercel** (hosting) | Processor for the application; controller for its own Service-Generated Data | Request metadata: path, status, region, user agent, IP address. Not form fields — those are in the request body, which Runtime Logs do not record | Runtime Logs 1 day on Base Pro without Observability Plus. Broader Service-Generated Data is not assumed to be deleted with that window | Customer-owned Vercel Pro team (AB#116) |
-| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, message text | Email data 30 days on standard plans, per Resend's documentation | Customer-owned Resend account, customer-verified sending domain, environment-scoped API key |
+| **Vercel** (hosting) | Processor for the application; controller for its own Service-Generated Data | Request metadata: path, status, region, user agent, IP address. Not form fields — those are in the request body, which Runtime Logs do not record | **Preview, today: Runtime Logs 1 hour on Hobby** (checked live and against Vercel's own documentation, 2026-08-25 — this row's original "1 day on Base Pro" figure describes Production's still-undecided plan, per [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment; see "Before production launch" below). **Production's retention figure follows whichever tier AB#18 chooses** — unresolved. Broader Service-Generated Data is not assumed to be deleted with that window | Customer-owned Vercel team, provisioned by AB#116, currently on Hobby for Preview/development — **the Production tier is unresolved, not decided: ADR-0004's original Pro Decision stands until AB#18 reconsiders it. See [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment and "Before production launch" below** |
+| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, message text | Email data 30 days on standard plans, per Resend's documentation — **unconfirmed against a real account; see below** | Customer-owned Resend account, customer-verified sending domain, environment-scoped API key — **this describes the intended setup, not a verified live account: as of 2026-08-25 no Resend account has been confirmed to exist, and provisioning it is AB#117's own prerequisite work (see "Before production launch" below)** |
 | **Mailbox provider** | Processor for the received message | The whole email | Whatever the owner's mailbox retention is | Customer-owned |
 
 Open and click tracking are **disabled by default** for a Resend domain and are
@@ -146,8 +146,69 @@ These are AB#116's and AB#117's to close, and they are listed here so the gap is
 visible rather than assumed. AB#117's launch review
 (`docs/security-privacy-review.md`, AC3) confirmed on 2026-08-22 that all four remain
 open: they require a live Vercel/Resend account, which does not exist yet (AB#116 was
-reopened for the same reason). Re-check this list once that account exists, rather
-than assuming it is still accurate.
+reopened for the same reason).
+
+**Re-checked 2026-08-25**, against AB#116 (closed 2026-08-24). The four items
+no longer share one blocker — they split three ways:
+
+- **The Vercel item's Preview-account inspection is closed; the Production
+  hosting-tier decision is not.** Checked live 2026-08-25: exactly one
+  member, role `OWNER` (nobody else to limit); `billing.plan` reads
+  `"hobby"`, not the `"pro"` this project's own provisioning docs assume
+  for Production; Runtime Logs retention is one hour and Observability Plus
+  is not offered on Hobby at all (checked against Vercel's own current
+  documentation, 2026-08-25) — all facts about the environment that exists
+  today. **Owner decision, 2026-08-25: Hobby remains in use for development
+  and Preview; no decision has been made to use Hobby for Production, and
+  the Production tier is unresolved, to be reconsidered immediately before
+  AB#18.** ADR-0004's original Decision (Pro) remains the authoritative
+  Production plan for now. Recorded in full in
+  [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s
+  2026-08-25 amendment and as comments on AB#117 and AB#18. **The
+  interpretation risk isn't scoped to a future Production choice — it
+  applies to the current Hobby-on-Preview usage too**, since Vercel's
+  fair-use rule turns on the deployment's purpose, not its Preview/Production
+  label: this repository's own secondary purpose as a professional software
+  portfolio leaves a genuine interpretation risk under Vercel's broad
+  "financial gain of anyone involved in any part of the production" wording
+  that this review does not claim to have settled, for Preview or
+  Production. The owner accepts this as an open risk for as long as Hobby
+  remains in use. Vercel Support's explicit confirmation would give
+  certainty for Preview too, and is needed before AB#18 promotes production
+  **specifically if Hobby is proposed for Production**. **If Pro is chosen
+  for Production instead**, that half of the analysis becomes moot for
+  Production, though it doesn't retroactively resolve whatever period was
+  spent on Hobby beforehand.
+- **The two Resend-account items** (data-residency/DPA terms; replacing the
+  notice's Resend-related placeholders) are unchanged in one sense — this
+  deployment's own configuration still shows no Resend account wired in,
+  delivery for Preview still runs on the `sink` adapter (`docs/deployment.md`),
+  and `RESEND_API_KEY` stays unset and Production-only — but their sequencing
+  is no longer open. **Owner decision, 2026-08-25: provisioning the Resend
+  account and completing this ownership/DPA/retention review is prerequisite
+  work under AB#117, done before AB#18, not something AB#18's own production
+  provisioning produces.** This resolves the circularity the 2026-08-25
+  re-check first surfaced (AB#18's own description requires AB#117's
+  security/privacy gate complete before promotion, which made "wait on
+  AB#18" self-contradictory): AB#117 does not defer or weaken this
+  acceptance criterion, it owns provisioning the account and completing the
+  review directly. AB#18's own scope is narrowed to match — it wires the
+  *already-reviewed* account into Production (secrets, sending domain) and
+  verifies contact delivery works, and does not itself provision or review
+  the account. Recorded as a comment on both AB#117 and AB#18
+  (2026-08-25). The account has not been provisioned yet — provisioning a
+  real third-party account is the site owner's action, not something this
+  repository's tooling performs — so both items remain open until it is.
+- **The recipient-mailbox item** turns out not to share the Resend items'
+  blocker at all: Resend is only the delivery transport into a mailbox, not
+  what creates one, and AB#116's own provisioning record (Azure Boards)
+  confirms the site owner already operates a real mail service independent
+  of this project. The recipient mailbox this item asks about is very
+  likely that pre-existing service, answerable now without a Resend
+  account — see the checklist entry below.
+
+Re-check this list again once the Resend account is provisioned, rather than
+assuming it is still accurate.
 
 - [ ] Verify Resend's current data-residency options, retention terms,
       sub-processor list, and DPA (including EU transfer clauses) against the
@@ -155,11 +216,54 @@ than assuming it is still accurate.
       made on the understanding that email data is retained for 30 days and
       account data is held in the United States under SCCs — that has to be
       confirmed against the terms in force at provisioning, not assumed from
-      this file.
+      this file. **Owned by AB#117 as prerequisite work (decided
+      2026-08-25), not deferred to AB#18: the account still needs to be
+      provisioned, by the site owner, before this item can close.**
 - [ ] Record the Vercel privacy role, data categories, access, retention,
-      deletion, and transfer boundary in force at provisioning (ADR-0004,
+      deletion, and transfer boundary **in force for Production** (ADR-0004,
       action item 3), and limit Runtime Logs access to operators who need it.
+      **Preview's own facts are checked and recorded, 2026-08-25, but this
+      item asks about Production, and Production's tier is not decided.**
+      Team membership: exactly one member, `OWNER` role — nobody else to
+      limit, today. `billing.plan` for the current (Preview) team reads
+      `"hobby"`, not the `"pro"` ADR-0004's Decision states for Production;
+      owner decision: Hobby remains in use for development and Preview, no
+      decision has been made to use Hobby for Production, and the tier is
+      unresolved until AB#18 — see
+      [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s
+      2026-08-25 amendment. Runtime Logs retention is one hour on Hobby and
+      Observability Plus is not offered on Hobby at all (both checked
+      against Vercel's current documentation, 2026-08-25) — true of Preview
+      today, and would carry over to Production only if Hobby is chosen for
+      it. **This item stays open until the Production tier is decided and
+      its actual privacy role/retention/access facts are recorded against
+      that tier** — see the next item for what that decision needs.
+- [ ] **Decide the Production Vercel plan tier before AB#18.** Not decided:
+      ADR-0004's original Decision (Pro) still stands; Hobby is only what
+      Preview happens to be running. If Pro is chosen, this item and the one
+      above close together with no further action. **If Hobby is proposed
+      for Production instead, first obtain Vercel Support's explicit
+      confirmation that this repository's dual purpose as a professional
+      software portfolio alongside a personal photography site doesn't put
+      it outside Hobby's fair-use terms** — Vercel's own guidance recommends
+      contacting Support when unsure, this review's own reading of the
+      public terms is not a substitute for that confirmation, and getting it
+      before AB#18 promotes production is materially cheaper than reversing
+      a plan/ToS decision after the site is live on a real domain.
 - [ ] Confirm the recipient mailbox's own retention and deletion practice, and
-      write it into `SiteSettings.contact.privacyNotice`.
+      write it into `SiteSettings.contact.privacyNotice`. **Re-checked
+      2026-08-25: not blocked on Resend at all.** Resend is only the
+      delivery transport into a mailbox; it is not what creates the mailbox.
+      AB#116's own provisioning record (Azure Boards) confirms the site
+      owner already operates a real mail service independent of this
+      project — production promotion is required to preserve its existing
+      DNS mail records — so the recipient mailbox this item is asking about
+      is very likely that pre-existing service, not something Resend
+      provisions. This item is answerable now: confirm with the site owner
+      which mailbox receives contact enquiries and check that provider's own
+      retention terms.
 - [ ] Replace every placeholder value in that notice with what this deployment
-      actually does.
+      actually does. **Partially unblocked: the mailbox-retention half can
+      be written in now; the Resend data-residency/DPA half above is
+      AB#117's prerequisite work (decided 2026-08-25) and still needs the
+      account provisioned first.**
