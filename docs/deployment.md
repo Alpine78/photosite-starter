@@ -251,6 +251,19 @@ environment's Sanity document webhook. Generate at least 32 random bytes (for ex
 rotate both Sanity and Vercel sides together. A mismatch makes every delivery fail closed
 with 401; the value is never a URL parameter or custom bearer token.
 
+**"Rotate together" is necessary but not sufficient — a running deployment does not pick
+up the new Vercel-side value on its own.** Sensitive variables are injected at request
+time rather than baked into the build, but that injection is still fixed to whatever the
+deployment's own environment snapshot was when it was created; it does not follow a later
+change to the variable. Verified directly against a real Preview deployment (AB#83,
+2026-08-25): updating `SANITY_WEBHOOK_SECRET` and then delivering against the
+already-running deployment fails closed with `invalid-signature`, because that deployment
+still carries the value it was created with. **Rotation order:** update the secret in
+Vercel, deploy — the Preview pipeline stage or an equivalent manual
+`vercel build/deploy --target=preview` — and only then update the same value in Sanity's
+webhook `Secret` field, so no delivery is signed with the new secret before a deployment
+exists that can verify it.
+
 The endpoint, exact GROQ projection, finite cache lifetime, tag map, retry behavior, and
 the promotion/rollback broad-expiry command are documented in
 [`cache-revalidation.md`](cache-revalidation.md). A webhook 200 proves that this

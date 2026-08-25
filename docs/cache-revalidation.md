@@ -174,10 +174,12 @@ hard-expiry calls, failures, and the broad fallback. ADR-0004 separately require
 propagation to be observed on a deployed Vercel multi-instance runtime. No
 Production deployment exists yet (AB#18 is a later story), but a Preview
 deployment now does (AB#116, closed 2026-08-24) and is reachable for this gate —
-a local test still cannot satisfy it. AB#83 therefore remains open until the
-publish → webhook → repeated cross-instance fetch check has actually been run and
-recorded against that Preview deployment, unless the owner first accepts an
-ADR/work-item scope amendment assigning that evidence elsewhere.
+a local test still cannot satisfy it. **The publish → webhook part of that
+check has now been run and recorded against a real Preview deployment
+(2026-08-25, below); the repeated cross-instance fetch part has not, and
+cannot be until a separate route-wiring gap closes (also below). AB#83
+therefore remains open**, unless the owner first accepts an ADR/work-item
+scope amendment assigning that remaining evidence elsewhere.
 
 The gate has two independent halves, and only one is currently satisfiable.
 No route in `src/app` reads from Sanity yet — every content adapter exists
@@ -202,37 +204,46 @@ the generic template, and stay out of this repository per
 in Azure Boards instead. A fresh Preview deployment was built and deployed
 with `vercel build/deploy --target=preview` to pick them up — confirmed
 still protected (`302` to `vercel.com/sso-api`) and `X-Robots-Tag: noindex`.
-Still outstanding, requiring the project owner's own Sanity and Vercel
-dashboard access:
+**The webhook half is now verified**, against a real deployed Preview
+runtime (2026-08-25): a dedicated Protection Bypass for Automation secret
+was generated for this webhook in Project Settings → Deployment Protection
+(distinct from the pipeline's own, per the least-privilege reasoning above),
+a Sanity document webhook was created against a Preview deployment's
+generated URL per the contract above, a real document was mutated in the
+`preview` dataset via Sanity's HTTP mutate API, and the deployment's function
+logs recorded `{"event":"sanity.revalidation","correlationId":"dbb4c2b2-96c2-4672-9e03-e33dc3904173","state":"accepted"}`.
+Two operational findings surfaced getting there, worth keeping:
 
-1. Generate a new, dedicated Protection Bypass for Automation secret for
-   this webhook in Project Settings → Deployment Protection (not something
-   this session could create, read back, or relay itself).
-2. Create the Sanity document webhook per the contract above, including the
-   `x-vercel-protection-bypass` header, against the current Preview
-   deployment's generated URL. **This target is temporary, for this
-   verification run only.** Preview has no stable alias — the pipeline's
-   `DeployPreview` stage produces a brand-new, unique `<hash>.vercel.app`
-   URL on every `main` run, and nothing repoints an existing webhook when it
-   does. Vercel's Data Cache persists across deployments within one project
-   environment (Preview and Production never share it, but every Preview
-   deployment does) and `revalidateTag` invalidates it globally, so an old
-   webhook target does not by itself leave a newer release candidate stale —
-   a call through an old URL still expires the same shared tag the newest
-   deployment reads from. The real risks of an unrotated target are that the
-   old deployment is eventually cleaned up or deleted, silently ending
-   delivery, and that its code can drift from what is currently deployed —
-   an old `route.ts` invalidating a tag map or signature contract that no
-   longer matches the live one. Making Sanity's webhook durable across
-   deployments — a stable, protected Preview alias the pipeline repoints
-   after each verified deploy, or an equivalent — is a separate, currently
-   unbuilt piece of work, not something to improvise here; file it before
-   route wiring makes Preview's cache-carrying traffic real.
-3. Publish a real change to one filtered document type in the `preview`
-   dataset.
-4. Confirm, together, that Sanity's own delivery log shows a `200` and that
-   the deployment's function logs show one `sanity.revalidation` event with
-   `state: "accepted"` and a correlation id.
+- **A `SANITY_WEBHOOK_SECRET` change does not reach an already-created
+  deployment.** The first delivery attempt correctly reached `route.ts`
+  (past the SSO bypass) but failed with `invalid-signature`, because the
+  running deployment still carried the value it was built with, not the
+  updated one — confirming that a Sensitive variable's runtime injection is
+  still fixed to the deployment's own creation-time snapshot rather than
+  following a later change. `docs/deployment.md`'s webhook-secret rotation
+  guidance now records the correct order this requires (Vercel, then
+  deploy, then Sanity).
+- The target-staleness risk noted above was confirmed directly, from the
+  same rotation: the webhook's URL had to be repointed by hand to the new
+  deployment, and the old one kept answering `invalid-signature` to later
+  deliveries in the meantime — exactly the "old `route.ts` enforcing a
+  contract that no longer matches the live one" case, not a cache-staleness
+  one.
+
+**This target remains temporary — for this verification run only.** Preview
+has no stable alias — the pipeline's `DeployPreview` stage produces a
+brand-new, unique `<hash>.vercel.app` URL on every `main` run, and nothing
+repoints an existing webhook when it does. Vercel's Data Cache persists
+across deployments within one project environment (Preview and Production
+never share it, but every Preview deployment does) and `revalidateTag`
+invalidates it globally, so an old webhook target does not by itself leave a
+newer release candidate stale on cache-isolation grounds — but, as just
+confirmed, it does stop delivering at all once code or secrets drift, or the
+old deployment is eventually cleaned up. Making Sanity's webhook durable
+across deployments — a stable, protected Preview alias the pipeline
+repoints after each verified deploy, or an equivalent — is a separate,
+currently unbuilt piece of work, not something to improvise here; file it
+before route wiring makes Preview's cache-carrying traffic real.
 
 Also outstanding beforehand: during this session, an unrelated stray
 Production deployment (`source: cli`, no `X-Robots-Tag`, no SSO challenge) was
