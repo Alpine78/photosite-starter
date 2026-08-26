@@ -5,17 +5,21 @@ import {
   GALLERY_PAGE_SIZE,
   GALLERY_PLACEMENT_DOCUMENT_TYPE,
   projectGalleryContentPage,
+  projectGalleryListingRecord,
   projectGalleryPlacement,
   projectGalleryPlacementInput,
   projectGallerySectionIntro,
   projectGallerySectionSummary,
+  readPublicGalleryListingRecords,
   readPublicGalleryPage,
   readSanityCuratedGalleryPage,
   SanityGalleryError,
   type RawGalleryDetailDocument,
+  type RawGalleryListingDocument,
   type RawGalleryPlacementDocument,
   type RawGalleryPlacementItem,
 } from "@/lib/sanity-gallery";
+import { MAX_CONTENT_IDS_BYTES } from "@/lib/sanity-values";
 import {
   galleryType,
   ORDERING_RULES,
@@ -783,5 +787,151 @@ describe("readSanityCuratedGalleryPage", () => {
     }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(SanityGalleryError);
     expect((error as SanityGalleryError).rejection).toBe("ambiguous-content-id");
+  });
+});
+
+describe("projectGalleryListingRecord", () => {
+  it("projects the fields a listing card reads", () => {
+    const document: RawGalleryListingDocument = {
+      contentId: "content-coastal-mornings",
+      title: "Coastal mornings",
+      summary: "First light along the shoreline.",
+      publishedAt: "2024-06-18",
+      cover: mediaDocumentOf(),
+    };
+
+    expect(projectGalleryListingRecord(document, languages)).toMatchObject({
+      contentId: "content-coastal-mornings",
+      title: "Coastal mornings",
+      summary: "First light along the shoreline.",
+      publishedAt: "2024-06-18",
+    });
+  });
+
+  it("omits summary and cover when the gallery has none", () => {
+    const document: RawGalleryListingDocument = {
+      contentId: "content-awaiting-selection",
+      title: "Awaiting selection",
+      publishedAt: "2024-01-08",
+    };
+
+    expect(projectGalleryListingRecord(document, languages)).toEqual({
+      contentId: "content-awaiting-selection",
+      title: "Awaiting selection",
+      publishedAt: "2024-01-08",
+    });
+  });
+
+  it("throws incomplete-document when the gallery has no title", () => {
+    const error = rejectionOf(() =>
+      projectGalleryListingRecord(
+        { contentId: "content-x", publishedAt: "2024-01-01" },
+        languages,
+      ),
+    );
+    expect(error.rejection).toBe("incomplete-document");
+  });
+});
+
+describe("readPublicGalleryListingRecords", () => {
+  it("skips the query entirely for an empty candidate list", async () => {
+    const { client, requests } = fakeClient({});
+
+    const records = await readPublicGalleryListingRecords(
+      { contentIds: [], ordering: "published-desc-v1", limit: 25 },
+      { language: "en", client },
+    );
+
+    expect(records).toEqual([]);
+    expect(requests).toHaveLength(0);
+  });
+
+  it("bounds the query by the given ids and limit, tagged for the gallery cache family", async () => {
+    const { client, requests } = fakeClient({ "gallery.listing": [] });
+
+    await readPublicGalleryListingRecords(
+      {
+        contentIds: ["content-a", "content-b"],
+        ordering: "published-desc-v1",
+        limit: 5,
+      },
+      { language: "en", client, config },
+    );
+
+    expect(requests[0].tag).toBe("gallery.listing");
+    expect(requests[0].params).toMatchObject({
+      language: "en",
+      contentIds: ["content-a", "content-b"],
+      limit: 5,
+    });
+  });
+
+  it("chunks a candidate list that would exceed the GET URL budget into more than one request", async () => {
+    const contentIds = Array.from(
+      { length: 500 },
+      (_, index) => `content-${"x".repeat(40)}-${index}`,
+    );
+    const { client, requests } = fakeClient({ "gallery.listing": [] });
+
+    await readPublicGalleryListingRecords(
+      { contentIds, ordering: "published-desc-v1", limit: 25 },
+      { language: "en", client, config },
+    );
+
+    expect(requests.length).toBeGreaterThan(1);
+    const requestedIds = requests.flatMap(
+      (request) => request.params?.contentIds as readonly string[],
+    );
+    expect(new Set(requestedIds)).toEqual(new Set(contentIds));
+  });
+
+  it("merges and re-bounds chunked results to the requested limit, newest first", async () => {
+    const contentIds = Array.from(
+      { length: 500 },
+      (_, index) => `content-${"x".repeat(40)}-${index}`,
+    );
+    const olderRecord: RawGalleryListingDocument = {
+      contentId: "content-older",
+      title: "Older",
+      publishedAt: "2024-01-01",
+    };
+    const newerRecord: RawGalleryListingDocument = {
+      contentId: "content-newer",
+      title: "Newer",
+      publishedAt: "2024-06-01",
+    };
+
+    let call = 0;
+    const client: SanityClient = {
+      async query() {
+        call += 1;
+        if (call === 1) return [olderRecord];
+        if (call === 2) return [newerRecord];
+        return [];
+      },
+    };
+
+    const records = await readPublicGalleryListingRecords(
+      { contentIds, ordering: "published-desc-v1", limit: 1 },
+      { language: "en", client, config },
+    );
+
+    expect(records.map((record) => record.contentId)).toEqual(["content-newer"]);
+  });
+
+  it("reports an oversized single content id as a gallery error, never an article error", async () => {
+    // This is the specific bug the shared, provider-neutral
+    // `sanity-values.ts#chunkContentIds` prevents: a gallery-listing
+    // failure must never surface as `SanityArticleError`.
+    const hugeId = "x".repeat(MAX_CONTENT_IDS_BYTES + 100);
+    const { client } = fakeClient({ "gallery.listing": [] });
+
+    const error = await readPublicGalleryListingRecords(
+      { contentIds: [hugeId], ordering: "published-desc-v1", limit: 25 },
+      { language: "en", client, config },
+    ).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(SanityGalleryError);
+    expect((error as SanityGalleryError).rejection).toBe("incomplete-document");
   });
 });

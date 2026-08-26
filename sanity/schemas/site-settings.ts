@@ -189,6 +189,15 @@ export function defineSiteSettingsType(
       validation: (rule) => uniqueLanguages(rule.required().min(1)),
     },
     {
+      name: "servicesIntro",
+      title: "Services listing intro",
+      type: "array",
+      description:
+        "Optional short intro shown above the /services listing. A deployment with none omits the paragraph rather than showing a fixture placeholder.",
+      of: [{ type: LOCALIZED_TEXT_TYPE_NAME }],
+      validation: uniqueLanguages,
+    },
+    {
       name: "featuredGalleryId",
       title: "Featured gallery ID",
       type: "string",

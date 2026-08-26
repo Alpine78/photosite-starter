@@ -1,6 +1,6 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   RESERVED_LOCALE_ROUTE_SEGMENTS,
@@ -8,6 +8,13 @@ import {
   defaultLocaleRouteExists,
 } from "@/lib/public-routes";
 import { getServices } from "@/lib/services";
+
+// This suite exercises the mock content source only; `getServices`/`getService`
+// now consult `getDeploymentConfig().contentSource` before returning the
+// fixture array, so a real deployment environment is no longer optional here.
+vi.mock("@/lib/deployment-config", () => ({
+  getDeploymentConfig: () => ({ contentSource: "mock" }),
+}));
 
 /**
  * Literal root segments the App Router serves. Route groups contribute no URL

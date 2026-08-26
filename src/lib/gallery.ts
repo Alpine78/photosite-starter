@@ -13,6 +13,7 @@
  * through it a page at a time by spending the cursor the previous page issued.
  */
 
+import { getDeploymentConfig } from "@/lib/deployment-config";
 import { galleryCursorCodec } from "@/lib/gallery-cursor";
 import type { CuratedGalleryPage } from "@/lib/gallery-sections";
 import { getMockGalleryResult } from "@/lib/mock-gallery";
@@ -48,6 +49,24 @@ export async function getGalleryPage(
   cursor?: string,
   sectionSlug?: string,
 ): Promise<CuratedGalleryPage | undefined> {
+  const { contentSource } = getDeploymentConfig();
+
+  if (contentSource === "sanity") {
+    // Dynamic, not static: `sanity-gallery.ts` carries the `server-only`
+    // marker, and a static import would pull it into this seam's module
+    // graph unconditionally — including from contexts (e2e Playwright specs,
+    // which run outside Next's own bundler) that cannot satisfy that
+    // package's build-time "react-server" export condition.
+    const { readSanityCuratedGalleryPage } = await import(
+      "@/lib/sanity-gallery"
+    );
+    return readSanityCuratedGalleryPage(locale, contentId, {
+      ...(cursor === undefined ? {} : { cursor }),
+      ...(sectionSlug === undefined ? {} : { sectionSlug }),
+      cursorCodec: galleryCursorCodec,
+    });
+  }
+
   return getMockGalleryResult(locale, contentId, {
     ...(cursor === undefined ? {} : { cursor }),
     ...(sectionSlug === undefined ? {} : { sectionSlug }),

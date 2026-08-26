@@ -196,7 +196,7 @@ time; the Production set is never fetched by the Preview job.
 | Setting                                        | Preview                                              | Production (AB#18)                      |
 | ---------------------------------------------- | ---------------------------------------------------- | --------------------------------------- |
 | `SITE_DEPLOYMENT_STAGE`                        | `preview`                                            | `production`                            |
-| `SITE_CONTENT_SOURCE`                          | `mock` today; `sanity` once the content schemas land | `sanity`                                |
+| `SITE_CONTENT_SOURCE`                          | `sanity` for the reference Preview; `mock` remains valid for isolated fixture previews | `sanity`                                |
 | `SITE_LOCALE`, `SITE_LOCALE_ROUTES`            | same as production                                   | the launch route contract               |
 | `SITE_CANONICAL_BASE_URL`                      | a fixed non-production origin — see below            | the production origin                   |
 | `SITE_DEFAULT_SOCIAL_IMAGE` and its dimensions | same as production                                   | the launch social image                 |
@@ -217,11 +217,10 @@ enquiry that is silently discarded, are failures worth failing the build over. P
 where both are legitimate — its contact tests go to a sink, with synthetic data, and never
 to the owner's mailbox.
 
-Every deployment still runs on `mock` today: the Sanity connection exists (AB#39), and the
-media, category, settings, and home schemas and adapters behind it do (AB#82, AB#112,
-AB#80), but nothing reads them from a route yet and the remaining content schemas do not
-exist (AB#81, AB#113, AB#114).
-Preview flips to `sanity` with its own dataset when they land.
+Every content schema and adapter is now present, and AB#135 wires the public route-facing
+seams to dispatch on this setting. The reference Preview uses `sanity` with its seeded
+Preview dataset; `mock` remains an explicit non-Production choice for local development,
+CI, and isolated fixture previews.
 
 ### Sensitive variables and the prebuilt build
 
@@ -330,10 +329,10 @@ are unaffected.
 **It is read lazily, so a missing key is a late failure rather than a build failure.**
 Nothing at build time issues a cursor, and a gallery that fits inside one page never needs
 one either, so neither `next build` nor the CI gate will tell you the key is missing. The
-mock content source ships a gallery larger than one page, so today every deployment does
-need it: that gallery answers with a configuration error naming the setting while every
-other route keeps working. Set it during provisioning rather than discovering it from a
-single broken page later.
+mock fixtures and the reference Preview's Sanity seed both ship a gallery larger than one
+page, so either deployment needs it: that gallery answers with a configuration error naming
+the setting while every other route keeps working. Set it during provisioning rather than
+discovering it from a single broken page later.
 
 Generate one with `openssl rand -base64 48`. It needs 32 to 256 printable ASCII
 characters, must not be prefixed `NEXT_PUBLIC_` (the application refuses that outright,

@@ -8,6 +8,8 @@
 
 import "server-only";
 
+import { MAX_SANITY_GET_URL_BYTES } from "@/lib/sanity-client";
+
 type RawLocalizedText = {
   readonly language?: unknown;
   readonly value?: unknown;
@@ -55,4 +57,68 @@ export function selectLocalizedText(
   }
 
   return undefined;
+}
+
+/**
+ * Conservative share of `sanity-client.ts`'s whole-URL GET budget reserved for
+ * a serialized `contentIds` array parameter, leaving room for the origin, API
+ * version, dataset path, the rest of the query string, and any other params. A
+ * category or gallery holding a few hundred content pages can otherwise put
+ * more candidate ids in this one array than the whole request budget allows.
+ * Shared by every adapter that chunks a bounded multi-id listing query
+ * (`sanity-article.ts`, `sanity-gallery.ts`) so the budget cannot drift
+ * between them.
+ */
+export const MAX_CONTENT_IDS_BYTES = Math.floor(MAX_SANITY_GET_URL_BYTES / 2);
+
+/**
+ * The exact byte cost one chunk adds to the request URL:
+ * `sanity-client.ts#buildSanityQueryUrl` turns a parameter value into
+ * `encodeURIComponent(JSON.stringify(value))` before measuring the assembled
+ * URL with `TextEncoder`. A raw per-id character estimate systematically
+ * under-counts here — `encodeURIComponent` expands every JSON quote, comma,
+ * and bracket to a three-byte `%XX` escape — so this measures the same
+ * encoded form the real request builds, not an approximation of it.
+ */
+export function encodedContentIdsBytes(contentIds: readonly string[]): number {
+  return new TextEncoder().encode(encodeURIComponent(JSON.stringify(contentIds)))
+    .length;
+}
+
+/**
+ * Splits candidate ids into groups whose exact encoded size — measured the
+ * same way `buildSanityQueryUrl` measures the real request — stays under
+ * `maxBytes`, so a large category's listing read never builds one query the
+ * transport refuses outright.
+ *
+ * Provider-neutral on purpose: it throws nothing itself. A single
+ * pathologically large id that cannot fit any chunk by itself is reported
+ * through the caller-supplied `onOversized`, so each adapter can raise its own
+ * classified error (`SanityArticleError`, `SanityGalleryError`, ...) rather
+ * than one variant's error type leaking into another's failure.
+ */
+export function chunkContentIds(
+  contentIds: readonly string[],
+  maxBytes: number,
+  onOversized: (id: string) => never,
+): readonly (readonly string[])[] {
+  const chunks: string[][] = [];
+  let current: string[] = [];
+
+  for (const id of contentIds) {
+    if (encodedContentIdsBytes([id]) > maxBytes) {
+      onOversized(id);
+    }
+
+    const candidate = [...current, id];
+    if (current.length > 0 && encodedContentIdsBytes(candidate) > maxBytes) {
+      chunks.push(current);
+      current = [id];
+    } else {
+      current = candidate;
+    }
+  }
+  if (current.length > 0) chunks.push(current);
+
+  return chunks;
 }

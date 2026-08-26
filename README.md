@@ -32,9 +32,9 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 
 - [Next.js](https://nextjs.org) (App Router, TypeScript)
 - [Tailwind CSS](https://tailwindcss.com) v4
-- Headless CMS: [Sanity](https://www.sanity.io) — connection and data-access boundary in
-  place ([ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)); schemas pending, so the
-  site still runs on the mock layer
+- Headless CMS: [Sanity](https://www.sanity.io) — connection, schemas, and adapters in place
+  ([ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)), wired into every route-facing
+  seam behind `SITE_CONTENT_SOURCE`; the mock layer remains available outside Production
 - GitHub for source code
 - Azure DevOps (Boards for project management, Pipelines for CI)
 
@@ -210,9 +210,11 @@ Studio so the publish is blocked and again at the boundary because the Studio is
 only writer; a world-readable dataset is offered no field for archive locations at all,
 since anything in it is published whether the site reads it or not; and authored text is
 keyed by language subtag so adding a language is content rather than code
-([ADR-0008](docs/adr/0008-localized-authored-text.md)). The remaining schemas and the
-adapters that would read them are separate stories, so the site still renders from the
-mock layer today.
+([ADR-0008](docs/adr/0008-localized-authored-text.md)). The remaining schemas — category,
+article, gallery, service, site settings, and home page — and their adapters exist too, and
+are wired into every route-facing seam behind `SITE_CONTENT_SOURCE`: a deployment declaring
+`sanity` renders this content for real; one declaring `mock` (never allowed in Production)
+keeps rendering the fixture layer below.
 
 ```bash
 npm ci
@@ -397,8 +399,13 @@ a green pipeline. See [deployment](docs/deployment.md).
   (one with sections and a body, one with 400 placements testing the paginated read) — into
   a real project over the plain HTTP API, distinguishable from real content by public,
   root-level `seed--` ids and removable by the documented verified cleanup before go-live.
-  Route-facing seams still use fixtures until every adapter is wired in, to avoid a mixed
-  mock/Sanity deployment — seeding a project does not change what any page reads yet*
+  Every route-facing seam (`site-settings.ts`, `home-content.ts`, `services.ts`, `content.ts`,
+  `gallery.ts`) is now wired: `SITE_CONTENT_SOURCE=mock` keeps reading fixtures, and `sanity`
+  reads every one of these adapters, never a mixed mock/Sanity page. Closing that wiring
+  completed two adapter gaps it exposed — a bounded gallery listing-record read and a bounded
+  article sibling-navigation read — and gave the optional `/services` intro a matching
+  optional field on the settings singleton. A deployed Preview render of Sanity-authored
+  content, proving the AB#83 cross-instance cache-invalidation gate, remains open*
 - [ ] Production deployment — *the Preview environment's repository half is done: pinned
   runtime and region, a gated deploy stage, and the check that refuses to publish a
   release-candidate URL unless its project/team ownership, access protection, and
@@ -450,10 +457,10 @@ Found a bug or have an idea? Open an issue — that is welcome.
 ## Status
 
 🚧 Work in progress — MVP in progress. The public pages (home, services, contact, and the
-canonical article and gallery routes in the content tree) are built
-against a mock data layer whose images use the
-accepted project-owned public rendition contract and whose galleries use the shared
-paginated gallery result contract. The content tree's category domain model, canonical
+canonical article and gallery routes in the content tree) read from either source behind
+`SITE_CONTENT_SOURCE` — the mock fixture layer, or a customer's own Sanity project — whose
+images use the accepted project-owned public rendition contract and whose galleries use the
+shared paginated gallery result contract either way. The content tree's category domain model, canonical
 placement contract, and public category branch routes are built — breadcrumbs,
 deterministically ordered listings, permanent redirects for retired paths, and a visible
 identity-based language switch — plus a bounded recent-content overview on the story
@@ -473,10 +480,10 @@ return to the first page. Category listings still answer `?cursor=` with a 404, 
 none issues one. Static routes and authored
 SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
 separate story. The Sanity connection, its published-perspective query client, and the
-enforced data-access boundary are in place, as are the shared media and category documents
-and the site-settings and home-page schemas and adapters. Route-facing seams are not
-switched until the remaining authored content schemas exist, so every page still renders
-from the mock layer without mixing sources.
+enforced data-access boundary are in place, as are every schema and adapter — media,
+category, site settings, home page, article, service, and gallery — and every route-facing
+seam now dispatches on `SITE_CONTENT_SOURCE`, so a deployment reads consistently from one
+source and never mixes them on one page.
 The gallery grid lays its items out row by row, so what the eye reads is the order the
 source, the DOM, keyboard focus, and the lightbox all use, and every frame keeps its native
 aspect ratio uncropped. It opens a fullscreen lightbox that navigates the loaded result by
@@ -484,8 +491,8 @@ keyboard, control, and gesture and presents the caption and credit of the photog
 screen; its zoom tuning and preloading are a later slice. The contact form is built and
 delivers through a replaceable adapter that stores nothing, and a public-journey suite
 covers its validation, success, failure, and retry states; the gallery-item enquiry
-(AB#60) builds on it. Listing continuation, gallery sections, seeded random gallery
-ordering, and the CMS schemas and adapters are still open. The deployment path exists in
+(AB#60) builds on it. Listing continuation, gallery sections, and seeded random gallery
+ordering are still open; the CMS schemas and adapters are done and wired in. The deployment path exists in
 the repository — a pinned runtime and region, a pipeline stage that deploys a release
 candidate only after every gate passes, and a check that refuses to publish a URL whose
 project/team ownership, access protection, and non-indexability were not verified — but

@@ -7,9 +7,9 @@ import type { StaticNavigationLink } from "@/lib/site-navigation";
 
 /**
  * Site-wide brand, contact, and navigation settings live here, never
- * hardcoded in components. Currently backed by mock data; authored values
- * will be served by the CMS (Sanity) once integrated, which is why the
- * accessor is async.
+ * hardcoded in components. The async accessor below dispatches between the
+ * fixture layer and the authored Sanity singleton without exposing either
+ * implementation to a route or component.
  */
 
 /**
@@ -75,6 +75,13 @@ export type SiteSettings = {
   photographerName: string;
   /** Short tagline shown e.g. in the home page hero */
   tagline: string;
+  /**
+   * Short intro shown above the `/services` listing. Absent when a
+   * deployment has not authored one; the page omits the paragraph and
+   * `getPageMetadata` falls back to `defaultSeo.description` rather than
+   * inventing one.
+   */
+  servicesIntro?: string;
   navigation: NavigationItem[];
   /**
    * The curated gallery this deployment features as its portfolio, by stable
@@ -123,6 +130,8 @@ function buildMockSiteSettings(): SiteSettings {
     siteName: "Studio Example",
     photographerName: "Jane Example",
     tagline: "Timeless photography for life's important moments",
+    servicesIntro:
+      "An overview of what I offer and how we can work together. Placeholder copy; replaced with real wording from the CMS.",
     featuredGalleryId: FEATURED_GALLERY_ID,
     // These labels describe application-owned static routes, so they come from
     // deployment config rather than authored CMS content. Only routes that exist
@@ -187,6 +196,26 @@ function buildMockSiteSettings(): SiteSettings {
   };
 }
 
+/**
+ * Settings are not yet locale-aware (AGENTS.md's "not yet built" note): every
+ * source reads this deployment's own default locale regardless of which
+ * route space asked, matching `buildMockSiteSettings`'s existing behavior.
+ */
 export async function getSiteSettings(): Promise<SiteSettings> {
+  const { contentSource, locale, localeRoutes } = getDeploymentConfig();
+
+  if (contentSource === "sanity") {
+    // Dynamic, not static: `sanity-site-settings.ts` carries the
+    // `server-only` marker, and a static import would pull it into this
+    // seam's module graph unconditionally — including from contexts (e2e
+    // Playwright specs, which run outside Next's own bundler) that cannot
+    // satisfy that package's build-time "react-server" export condition.
+    const { readSanitySiteSettings } = await import(
+      "@/lib/sanity-site-settings"
+    );
+    const language = new Intl.Locale(locale).language;
+    return readSanitySiteSettings({ language, locale, config: localeRoutes });
+  }
+
   return buildMockSiteSettings();
 }

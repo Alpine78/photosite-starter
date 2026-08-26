@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCuratedGalleryPage,
   createHmacGalleryCursorCodec,
@@ -17,6 +17,7 @@ import type {
   GalleryCursor,
 } from "@/lib/gallery-result";
 import { UnknownGallerySectionError } from "@/lib/gallery-sections";
+import { getGalleryPage } from "@/lib/gallery";
 import type { ImageMedia, VideoMedia } from "@/lib/media";
 import {
   getMockGalleryCover,
@@ -24,6 +25,25 @@ import {
   MOCK_FEATURED_GALLERY_ID,
 } from "@/lib/mock-gallery";
 import { getMockImages, mockImages } from "@/lib/mock-media";
+
+// The seam dispatch tests below mock `@/lib/deployment-config` and
+// `@/lib/sanity-gallery` file-wide. Neither is imported by `mock-gallery.ts`
+// (a plain in-memory fixture with no deployment dependency of its own), so
+// every other describe block in this file — which reads `getMockGalleryResult`
+// directly, never through the `gallery.ts` seam — is unaffected by them.
+const deploymentConfig = vi.hoisted(() => ({
+  contentSource: "mock" as "mock" | "sanity",
+}));
+
+vi.mock("@/lib/deployment-config", () => ({
+  getDeploymentConfig: () => deploymentConfig,
+}));
+
+const sanityGalleryModule = vi.hoisted(() => ({
+  readSanityCuratedGalleryPage: vi.fn(),
+}));
+
+vi.mock("@/lib/sanity-gallery", () => sanityGalleryModule);
 
 const TEST_SIGNING_KEY =
   "test-only-gallery-cursor-signing-key-0123456789";
@@ -1294,5 +1314,54 @@ describe("sections", () => {
         }),
       "wrong-scope",
     );
+  });
+});
+
+describe("getGalleryPage seam dispatch", () => {
+  beforeEach(() => {
+    deploymentConfig.contentSource = "mock";
+    sanityGalleryModule.readSanityCuratedGalleryPage.mockReset();
+  });
+
+  it("reads the mock fixture when contentSource is mock", async () => {
+    const page = await getGalleryPage("en", MOCK_FEATURED_GALLERY_ID);
+
+    expect(page?.items.length).toBeGreaterThan(0);
+    expect(sanityGalleryModule.readSanityCuratedGalleryPage).not.toHaveBeenCalled();
+  });
+
+  it("mirrors the mock call shape into readSanityCuratedGalleryPage when contentSource is sanity", async () => {
+    deploymentConfig.contentSource = "sanity";
+    const fixture = {
+      items: [],
+      page: { size: 24, hasNextPage: false, endCursor: null },
+    };
+    sanityGalleryModule.readSanityCuratedGalleryPage.mockResolvedValue(fixture);
+    const page = await getGalleryPage(
+      "en",
+      "content-selected-work",
+      "a-cursor",
+      "a-section",
+    );
+
+    expect(page).toEqual(fixture);
+    expect(sanityGalleryModule.readSanityCuratedGalleryPage).toHaveBeenCalledWith(
+      "en",
+      "content-selected-work",
+      expect.objectContaining({
+        cursor: "a-cursor",
+        sectionSlug: "a-section",
+      }),
+    );
+  });
+
+  it("propagates a classified Sanity failure rather than falling back to the fixture", async () => {
+    deploymentConfig.contentSource = "sanity";
+    sanityGalleryModule.readSanityCuratedGalleryPage.mockRejectedValue(
+      new Error("classified sanity failure"),
+    );
+    await expect(
+      getGalleryPage("en", "content-selected-work"),
+    ).rejects.toThrow("classified sanity failure");
   });
 });

@@ -418,8 +418,9 @@ any of them; the runtime adapter repeats the check against validated route confi
 The home hero dereferences the shared media
 document through `PUBLIC_MEDIA_PROJECTION` and `projectPublicMedia`, retaining its public
 derivative and true dimensions. These adapters return the existing `SiteSettings` and
-`HomeContent` contracts but are not wired into route-facing seams until the other authored
-content adapters exist, avoiding a mixed mock/Sanity deployment.
+`HomeContent` contracts, and AB#135 wires both into their route-facing seams
+(`src/lib/site-settings.ts`, `src/lib/home-content.ts`) alongside every other content adapter,
+so a deployment never mixes a mock and a Sanity source on one page.
 The shared rich-content body-block schema and the article and service schemas and
 adapters sit beside those boundaries too. `sanity/schemas/content-block.ts` gives both
 public content variants the six ADR-0003 decision 2 body blocks — paragraph, heading,
@@ -503,8 +504,10 @@ list is chunked to the Sanity GET URL's byte budget — measured the same way
 hundred articles cannot make the query itself fail, and a single pathologically large id is
 rejected outright rather than silently emitted as an oversized chunk; and `readContentBlocks`
 rejects two body blocks sharing one stable key, since a duplicate breaks the render-time React
-identity the key exists to provide. None of these three adapters is wired into a route-facing
-seam yet, for the same reason the settings and home-page adapters are not.
+identity the key exists to provide. AB#135 wires the article and service adapters into their
+route-facing seams (`src/lib/content.ts`, `src/lib/services.ts`); the shared content-block
+schema and adapter were already reached transitively through every content page that renders
+a body.
 The gallery schema and adapter (AB#113) sit beside the article ones, sharing their
 identity/URL-freeze/local-slug-namespace guard through a new `content-placement-
 validation.ts` rather than duplicating it: a `contentId` can no longer be claimed by both
@@ -559,10 +562,31 @@ malformed one — though the GROQ-side filter means this call site never actuall
 that branch, since every row it sees already passed the same check server-side. A
 ~400-placement fixture, exercised against a fake Content Lake that answers the adapter's own
 two query shapes rather than a general GROQ interpreter, walks the whole archive and a
-150-item section spanning several pages with no duplicate or missing item. Like every other
-content adapter, it is not wired into a route-facing seam yet — `src/lib/gallery.ts`'s
-`getGalleryPage` still reads only the mock layer, to avoid a mixed mock/Sanity deployment
-before every adapter is ready.
+150-item section spanning several pages with no duplicate or missing item.
+AB#135 wires every content adapter above into its route-facing seam: `src/lib/gallery.ts`'s
+`getGalleryPage`, `src/lib/content.ts`'s tree/redirects/listing/detail-page/sibling-navigation
+reads, `src/lib/site-settings.ts`, `src/lib/home-content.ts`, and `src/lib/services.ts` all
+dispatch on `SITE_CONTENT_SOURCE` — `mock` continues to read the fixture layer unchanged, and
+`sanity` now reads every one of these adapters, never a mixed mock/Sanity page. Closing that
+wiring surfaced two gaps the adapters themselves had not: `sanity-gallery.ts` gained a bounded
+gallery listing-record read (`readPublicGalleryListingRecords`, mirroring the article
+adapter's own chunked, byte-budgeted multi-id query, since a category branch can list
+galleries and articles side by side) and `sanity-article.ts` gained a bounded two-row sibling
+query (`readPublicArticleAdjacentRecords`, one HTTP round trip via a `^`-referenced keyset
+comparison) — gallery sibling navigation stays unbuilt because no current route requests it.
+A locale with no published categories, articles, or galleries is omitted from the
+Sanity-backed tree entirely, matching the mock's own "unauthored locale is absent, not empty"
+contract; a placement without its localized category still reaches the tree validator and
+fails instead of being hidden as an empty locale. No adapter yet
+records previously published path history (ADR-0003 decision 7's URL-change workflow remains
+unbuilt), so a Sanity deployment's redirect map is honestly empty rather than borrowed from
+the mock. `/services`' optional listing intro gained a matching optional `servicesIntro`
+field on the `siteSettings` singleton (schema, adapter, and seed fixture), read through
+`getSiteSettings()` rather than its own separate source, so the page never mixes an authored
+catalog with fixture-only intro copy. `content.ts`'s Sanity tree build is wrapped in React's
+`cache()` so the several seams one request touches (`resolveRequest`'s trees and redirects,
+`getCategoryListing`, `getAdjacentContent`) share one per-locale read instead of repeating it,
+without reintroducing the cross-request module cache AB#83's revalidation cannot reach.
 The public-journey harness is
 in place too — a production-build Playwright suite with an external-request guard, gated
 in Azure Pipelines — carrying the home/navigation smoke test,
@@ -649,10 +673,11 @@ is the full runbook: the write-token story (a separate, write-scoped
 go-live checklist that empties and verifies every seed-owned document and the six
 uploaded assets (which mint their own non-`seed--` ids and need a manual Studio
 deletion, disclosed rather than automated at six files), and export/recovery through
-Sanity's own `dataset export`/`import` CLI. Seeding a dataset does not change what any
-route reads — every page still renders from the mock layer until the route-facing
-switch below lands, so a seeded project and the live site remain two separate,
-unconnected facts until that story ships.
+Sanity's own `dataset export`/`import` CLI. Seeding a dataset did not, on its own, change
+what any route reads — every page rendered from the mock layer until AB#135's route-facing
+switch landed (below), so a seeded project and the live site were two separate, unconnected
+facts until that story shipped. A deployment declaring `SITE_CONTENT_SOURCE=sanity` now
+renders this seeded content for real.
 `/sitemap.xml` and `/robots.txt` (AB#85) sit on top of the public content tree,
 locale route configuration, and services boundary: fixed, language-neutral root
 routes per ADR-0003, generated from `src/lib/sitemap.ts`'s `buildSitemapPaths`, a
@@ -738,10 +763,7 @@ above, whose bounded-query contract AB#134 has since supplied), seeded random ga
 — ADR-0009 decides the contract, but the materialized shuffle key itself and the route
 cache-key wiring it requires remain AB#129's — lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
-structured data — the media, category, settings, home, article, service, and
-gallery schemas/adapters exist, including AB#114's bounded/windowed gallery placement query,
-but no route-facing seam reads any of them yet, so every page still renders from the mock
-layer.
+structured data.
 Tagged caching and webhook revalidation (AB#83) are built — see the large paragraph earlier
 in this file and `docs/cache-revalidation.md` — but AB#83 was reopened during AB#117's launch
 review and remains open: its own documented "Deployed verification gate" (cross-instance

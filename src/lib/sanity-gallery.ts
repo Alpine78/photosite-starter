@@ -28,6 +28,11 @@
 
 import "server-only";
 
+import {
+  orderContentListingRecords,
+  type ContentListingQuery,
+  type ContentListingRecord,
+} from "@/lib/content-listing";
 import type { GalleryContentPage } from "@/lib/content-page";
 import type { ContentPlacementInput } from "@/lib/content-tree";
 import type {
@@ -63,7 +68,13 @@ import {
   type PublicMediaLanguage,
   type RawPublicMediaDocument,
 } from "@/lib/sanity-media";
-import { isRecord, readString, toLanguageSubtag } from "@/lib/sanity-values";
+import {
+  chunkContentIds as chunkContentIdsShared,
+  isRecord,
+  MAX_CONTENT_IDS_BYTES,
+  readString,
+  toLanguageSubtag,
+} from "@/lib/sanity-values";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 
 /**
@@ -359,6 +370,135 @@ export async function readPublicGalleryPlacements(
   return readDocuments<RawGalleryPlacementDocument>(result).map((document) =>
     projectGalleryPlacementInput(document, categoryIdsByDocumentId),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Listing record: the fields a category branch's card reads for a gallery,
+// mirroring `sanity-article.ts`'s equivalent read exactly (its own module
+// comment explains why a listing card must never load a body).
+// ---------------------------------------------------------------------------
+
+export const GALLERY_LISTING_PROJECTION = `{
+  contentId,
+  title,
+  summary,
+  publishedAt,
+  "cover": cover->${PUBLIC_MEDIA_PROJECTION}
+}`;
+
+/** The GROQ order `content-listing.ts`'s `CONTENT_LISTING_ORDERING` names. */
+export const GALLERY_LISTING_ORDER = `order(publishedAt desc, contentId asc)`;
+
+export type RawGalleryListingDocument = {
+  readonly contentId?: unknown;
+  readonly title?: unknown;
+  readonly summary?: unknown;
+  readonly publishedAt?: unknown;
+  readonly cover?: unknown;
+};
+
+type ListingProjectionOptions = {
+  readonly language: string;
+  readonly fallbackLanguage: string;
+  readonly config: SanityConfig;
+};
+
+/**
+ * Projects one document into the fields a listing card reads. Mirrors
+ * `sanity-article.ts#projectArticleListingRecord`.
+ */
+export function projectGalleryListingRecord(
+  document: RawGalleryListingDocument,
+  options: ListingProjectionOptions,
+): ContentListingRecord {
+  const contentId = readContentId(document.contentId);
+
+  const title = readString(document.title);
+  if (title === undefined) {
+    throw new SanityGalleryError(
+      "incomplete-document",
+      "the gallery has no title",
+      contentId,
+    );
+  }
+
+  const publishedAt = readPublishedAt(document.publishedAt, contentId);
+
+  const summary = readString(document.summary);
+  const cover = isRecord(document.cover)
+    ? projectPublicMedia(document.cover as RawPublicMediaDocument, options)
+    : undefined;
+
+  return {
+    contentId,
+    title,
+    publishedAt,
+    ...(summary === undefined ? {} : { summary }),
+    ...(cover === undefined ? {} : { cover }),
+  };
+}
+
+export type PublicGalleryListingReadOptions = {
+  readonly language: string;
+  readonly client?: SanityClient;
+  readonly config?: SanityConfig;
+};
+
+/**
+ * Splits candidate ids the same way `sanity-article.ts#chunkContentIds` does,
+ * with this adapter's own classified error for the id-too-large-by-itself
+ * case — `sanity-values.ts#chunkContentIds`'s provider-neutral mechanics keep
+ * a gallery-listing failure from ever surfacing as a `SanityArticleError`.
+ */
+function chunkGalleryContentIds(
+  contentIds: readonly string[],
+  maxBytes: number,
+): readonly (readonly string[])[] {
+  return chunkContentIdsShared(contentIds, maxBytes, (id) => {
+    throw new SanityGalleryError(
+      "incomplete-document",
+      "a content id is too large to fit any bounded listing request by itself",
+      id,
+    );
+  });
+}
+
+/**
+ * The bounded listing read `content-listing.ts`'s `ContentListingSource`
+ * describes, for gallery pages. Mirrors
+ * `sanity-article.ts#readPublicArticleListingRecords` exactly, including
+ * chunking `query.contentIds` to the GET URL budget: a category branch can
+ * list galleries and articles side by side, and this is the gallery half of
+ * that bounded multi-id read.
+ */
+export async function readPublicGalleryListingRecords(
+  query: ContentListingQuery,
+  options: PublicGalleryListingReadOptions,
+): Promise<readonly ContentListingRecord[]> {
+  if (query.contentIds.length === 0) return [];
+
+  const client = options.client ?? getSanityClient();
+  const language = toLanguageSubtag(options.language);
+  const config = options.config ?? getSanityConfig();
+  const languages = { language, fallbackLanguage: getFallbackLocale(), config };
+
+  const chunks = chunkGalleryContentIds(query.contentIds, MAX_CONTENT_IDS_BYTES);
+
+  const chunkedRecords = await Promise.all(
+    chunks.map(async (contentIds) => {
+      const result = await client.query({
+        query: `*[${GALLERY_FILTER} && contentId in $contentIds] | ${GALLERY_LISTING_ORDER} [0...$limit]${GALLERY_LISTING_PROJECTION}`,
+        params: { language, contentIds, limit: query.limit },
+        tag: "gallery.listing",
+      });
+
+      return readDocuments<RawGalleryListingDocument>(result).map((document) =>
+        projectGalleryListingRecord(document, languages),
+      );
+    }),
+  );
+
+  return orderContentListingRecords(chunkedRecords.flat()).slice(0, query.limit);
 }
 
 function readTags(value: unknown, contentId: string): readonly string[] {

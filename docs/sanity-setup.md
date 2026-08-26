@@ -3,12 +3,11 @@
 How a deployment connects to its content store, who owns that store, and what the site
 does when the store cannot be reached.
 
-This covers the connection, the MVP schemas/adapters, and the published cache boundary.
-Seeding sample content into a real dataset is [`docs/sanity-seeding.md`](sanity-seeding.md);
-switching the route-facing seams remains separate work. Until that switch lands, every
-route still runs on `SITE_CONTENT_SOURCE=mock` even though the Sanity adapters and their
-cache/revalidation boundary are complete and tested in isolation, and a real dataset — seeded
-or not — is not yet read by any page.
+This covers the connection, the MVP schemas/adapters, their route-facing source switch, and
+the published cache boundary. Seeding sample content into a real dataset is
+[`docs/sanity-seeding.md`](sanity-seeding.md). AB#135 wires every public content seam behind
+`SITE_CONTENT_SOURCE`: `mock` keeps the fixture layer available outside Production, while
+`sanity` reads the deployment's real dataset with no fixture fallback or mixed-source page.
 
 ## Ownership
 

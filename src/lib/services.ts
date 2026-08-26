@@ -1,8 +1,7 @@
 /**
  * Services content: the list of services offered, each with its own detail
- * page. Mock data for now; will be served by the CMS once integrated, which
- * is why the accessors are async — mirrors src/lib/site-settings.ts and
- * src/lib/home-content.ts.
+ * page. The async accessors dispatch between fixture data and authored Sanity
+ * documents — mirrors src/lib/site-settings.ts and src/lib/home-content.ts.
  *
  * Generic by design: no real photographer's service names, prices, or copy
  * are baked into the template. Both the cover image and pricing are optional
@@ -15,8 +14,10 @@
  * gallery grid and in article bodies, which are single-column.
  */
 
+import { getDeploymentConfig } from "@/lib/deployment-config";
 import type { Media } from "@/lib/media";
 import { mockImages } from "@/lib/mock-media";
+import { getSiteSettings } from "@/lib/site-settings";
 
 export type ServicePricePackage = {
   /** Package name, e.g. "Half day", "Full day". */
@@ -129,20 +130,46 @@ const mockServices: Service[] = [
 ];
 
 /**
- * Short intro shown above the services listing. Placeholder copy lives here,
- * not in the component, so the CMS can replace it — mirrors the home intro.
+ * Services carry no locale of their own (see the module comment), so the
+ * language passed to the Sanity adapter exists only to resolve a referenced
+ * cover photograph's alt text and caption — the deployment's own default
+ * locale, matching the still-unlocalized `/services` route.
  */
-const mockServicesIntro =
-  "An overview of what I offer and how we can work together. Placeholder copy; replaced with real wording from the CMS.";
+function defaultLanguage(): string {
+  return new Intl.Locale(getDeploymentConfig().locale).language;
+}
 
 export async function getServices(): Promise<Service[]> {
+  const { contentSource } = getDeploymentConfig();
+  if (contentSource === "sanity") {
+    // Dynamic, not a static top-level import: `sanity-services.ts` carries
+    // the `server-only` marker, and a static import would pull it into this
+    // module's graph unconditionally — reachable from e2e Playwright specs
+    // (e.g. `getServices` imported directly for fixture data), which run
+    // outside Next's own bundler and cannot satisfy that package's
+    // build-time "react-server" export condition. Loading it only once the
+    // sanity branch actually runs means the mock path never touches it.
+    const { readPublicServices } = await import("@/lib/sanity-services");
+    return [...(await readPublicServices({ language: defaultLanguage() }))];
+  }
   return mockServices;
 }
 
-export async function getServicesIntro(): Promise<string> {
-  return mockServicesIntro;
+/**
+ * Short intro shown above the services listing, when authored. Not sourced
+ * independently of site settings: `siteSettings.servicesIntro` is where it
+ * lives (mirrors the home intro's own field on `homePage`), so this is a
+ * proxy rather than its own mock/Sanity dispatch.
+ */
+export async function getServicesIntro(): Promise<string | undefined> {
+  return (await getSiteSettings()).servicesIntro;
 }
 
 export async function getService(slug: string): Promise<Service | undefined> {
+  const { contentSource } = getDeploymentConfig();
+  if (contentSource === "sanity") {
+    const { readPublicServiceBySlug } = await import("@/lib/sanity-services");
+    return readPublicServiceBySlug(slug, { language: defaultLanguage() });
+  }
   return mockServices.find((service) => service.slug === slug);
 }
