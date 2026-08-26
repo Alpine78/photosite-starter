@@ -165,6 +165,33 @@ export function projectHomeContent(
   };
 }
 
+/**
+ * The network half of `readSanityHomeContent`, split out (AB#139) so a
+ * caller that also needs to resolve something independent of this document's
+ * own content — `home-content.ts`'s featured-gallery href, read from
+ * `siteSettings`/the content tree — can run both concurrently instead of
+ * awaiting this fetch first purely to have a value to pass into projection
+ * afterward. `projectHomeContent` (below) is already a separately exported,
+ * pure function; this is the fetch-and-validate half it was always paired
+ * with here.
+ */
+export async function readSanityHomeDocument(options: {
+  readonly client?: SanityClient;
+}): Promise<RawHomePageDocument> {
+  const client = options.client ?? getSanityClient();
+  const result = await client.query({
+    query: `*[_type == "${HOME_PAGE_DOCUMENT_TYPE}"]${HOME_PAGE_PROJECTION}`,
+    tag: "home-page",
+  });
+  return readSingletonDocument<RawHomePageDocument>(
+    result,
+    "home page",
+    (rejection, detail) => {
+      throw new SanityHomeContentError(rejection, detail);
+    },
+  );
+}
+
 export async function readSanityHomeContent(options: {
   readonly language: string;
   readonly fallbackLanguage: string;
@@ -174,18 +201,9 @@ export async function readSanityHomeContent(options: {
   readonly client?: SanityClient;
   readonly sanityConfig?: SanityConfig;
 }): Promise<HomeContent> {
-  const client = options.client ?? getSanityClient();
-  const result = await client.query({
-    query: `*[_type == "${HOME_PAGE_DOCUMENT_TYPE}"]${HOME_PAGE_PROJECTION}`,
-    tag: "home-page",
+  const document = await readSanityHomeDocument({
+    ...(options.client === undefined ? {} : { client: options.client }),
   });
-  const document = readSingletonDocument<RawHomePageDocument>(
-    result,
-    "home page",
-    (rejection, detail) => {
-      throw new SanityHomeContentError(rejection, detail);
-    },
-  );
   return projectHomeContent(document, {
     ...options,
     sanityConfig: options.sanityConfig ?? getSanityConfig(),

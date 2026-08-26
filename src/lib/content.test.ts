@@ -358,8 +358,15 @@ describe("getAdjacentContent", () => {
     sanityContentTree.readPublicCategoryInputs.mockResolvedValue(categories);
     sanityGallery.readPublicGalleryPlacements.mockResolvedValue([galleryPlacement]);
 
-    await expect(
-      getAdjacentContent("en-GB", "content-gallery"),
-    ).rejects.toThrow(/no Sanity-backed sibling-navigation reader/);
+    const error = await getAdjacentContent("en-GB", "content-gallery").catch(
+      (thrown: unknown) => thrown,
+    );
+
+    // Classified (AB#139), not a plain Error: a route-level error boundary
+    // or log filter pattern-matching on this file's own Sanity*Error family
+    // must recognize this failure the same way it recognizes every other one.
+    expect(error).toBeInstanceOf(SanityContentPageError);
+    expect((error as SanityContentPageError).rejection).toBe("unsupported-variant");
+    expect((error as Error).message).toMatch(/no Sanity-backed sibling-navigation reader/);
   });
 });

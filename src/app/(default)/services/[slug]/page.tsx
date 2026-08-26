@@ -11,7 +11,29 @@ type ServicePageProps = {
   params: Promise<{ slug: string }>;
 };
 
-/** Pre-render every default-locale service detail at build time. */
+/**
+ * Pre-render every default-locale service detail at build time.
+ *
+ * Under `SITE_CONTENT_SOURCE=sanity`, `getServices()` can throw a classified
+ * `SanityServiceError`/`SanityQueryError` (AB#139 review note: a duplicated
+ * slug, an unauthorized or unavailable Content Lake, a timeout). Left
+ * uncaught here, that fails the whole production build rather than only a
+ * request — a materially larger blast radius than the mock fixture this
+ * function read before Sanity was wired in, which could never fail.
+ *
+ * That is intentional, not an oversight: this codebase's own rule is that a
+ * classified content-source failure fails through its documented boundary
+ * rather than silently rendering degraded content (AB#135's own acceptance
+ * criteria state this explicitly), and a build is exactly the boundary a
+ * bad or unreachable service catalog should stop at. The alternative —
+ * catching the error and returning `[]` — would make the build succeed
+ * looking green while quietly dropping every service detail page from
+ * static generation with no visible signal, which this project treats as
+ * worse than a red, retriable build. `dynamicParams` is not set on this
+ * page (defaults to `true`), so this only governs whether service pages are
+ * *pre*-rendered at build time; it is not what stands between a slug and a
+ * 404 at request time.
+ */
 export async function generateStaticParams() {
   const services = await getServices();
   return services.map((service) => ({ slug: service.slug }));

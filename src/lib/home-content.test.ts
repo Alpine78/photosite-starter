@@ -45,10 +45,18 @@ const siteSettingsModule = vi.hoisted(() => ({
 vi.mock("@/lib/site-settings", () => siteSettingsModule);
 
 const sanityHomeContent = vi.hoisted(() => ({
-  readSanityHomeContent: vi.fn(),
+  readSanityHomeDocument: vi.fn(),
+  projectHomeContent: vi.fn(),
 }));
 
 vi.mock("@/lib/sanity-home-content", () => sanityHomeContent);
+
+const fakeSanityConfig = { projectId: "test-project", dataset: "test" };
+const sanityConfigModule = vi.hoisted(() => ({
+  getSanityConfig: vi.fn(),
+}));
+
+vi.mock("@/lib/sanity-config", () => sanityConfigModule);
 
 const noFeaturedGallerySettings: SiteSettings = {
   siteName: "Studio Example",
@@ -80,7 +88,9 @@ beforeEach(() => {
   siteSettingsModule.getSiteSettings
     .mockReset()
     .mockResolvedValue(noFeaturedGallerySettings);
-  sanityHomeContent.readSanityHomeContent.mockReset();
+  sanityHomeContent.readSanityHomeDocument.mockReset();
+  sanityHomeContent.projectHomeContent.mockReset();
+  sanityConfigModule.getSanityConfig.mockReset().mockReturnValue(fakeSanityConfig);
 });
 
 describe("getHomeContent", () => {
@@ -88,32 +98,65 @@ describe("getHomeContent", () => {
     const content = await getHomeContent();
 
     expect(content.intro).toContain("CMS");
-    expect(sanityHomeContent.readSanityHomeContent).not.toHaveBeenCalled();
+    expect(sanityHomeContent.readSanityHomeDocument).not.toHaveBeenCalled();
+    expect(sanityHomeContent.projectHomeContent).not.toHaveBeenCalled();
   });
 
-  it("reads Sanity home content, resolved against the default locale, when contentSource is sanity", async () => {
+  it("reads the Sanity home document and projects it, resolved against the default locale, when contentSource is sanity", async () => {
     deploymentConfig.contentSource = "sanity";
+    const rawDocument = { heroMedia: { _id: "x" } };
     const fixture = {
       hero: { media: { type: "image" as const, mediaId: "x", alt: "x", rendition: { sourceKind: "public-web-derivative" as const, src: "/x.webp", version: "v1", width: 1, height: 1 } } },
       intro: "From Sanity",
       sections: [],
     };
-    sanityHomeContent.readSanityHomeContent.mockResolvedValue(fixture);
+    sanityHomeContent.readSanityHomeDocument.mockResolvedValue(rawDocument);
+    sanityHomeContent.projectHomeContent.mockReturnValue(fixture);
 
     const content = await getHomeContent();
 
     expect(content).toEqual(fixture);
-    expect(sanityHomeContent.readSanityHomeContent).toHaveBeenCalledWith({
+    expect(sanityHomeContent.readSanityHomeDocument).toHaveBeenCalledWith({});
+    expect(sanityHomeContent.projectHomeContent).toHaveBeenCalledWith(rawDocument, {
       language: "fi",
       fallbackLanguage: "fi",
       locale: "fi-FI",
       routeConfig: deploymentConfig.localeRoutes,
+      sanityConfig: fakeSanityConfig,
     });
+  });
+
+  it("reads the document and resolves the featured-gallery href concurrently, not one after the other", async () => {
+    deploymentConfig.contentSource = "sanity";
+    const order: string[] = [];
+    sanityHomeContent.readSanityHomeDocument.mockImplementation(async () => {
+      order.push("document-start");
+      await Promise.resolve();
+      order.push("document-end");
+      return { heroMedia: { _id: "x" } };
+    });
+    siteSettingsModule.getSiteSettings.mockImplementation(async () => {
+      order.push("settings-start");
+      await Promise.resolve();
+      order.push("settings-end");
+      return noFeaturedGallerySettings;
+    });
+    sanityHomeContent.projectHomeContent.mockReturnValue({
+      hero: { media: { type: "image" as const, mediaId: "x", alt: "x", rendition: { sourceKind: "public-web-derivative" as const, src: "/x.webp", version: "v1", width: 1, height: 1 } } },
+      intro: "x",
+      sections: [],
+    });
+
+    await getHomeContent();
+
+    // Both start before either finishes — proof they ran concurrently rather
+    // than the href being awaited to completion before the document read began.
+    expect(order).toEqual(["document-start", "settings-start", "document-end", "settings-end"]);
   });
 
   it("propagates a classified Sanity failure rather than falling back to the fixture", async () => {
     deploymentConfig.contentSource = "sanity";
-    sanityHomeContent.readSanityHomeContent.mockRejectedValue(
+    sanityHomeContent.readSanityHomeDocument.mockRejectedValue(
       new Error("classified sanity failure"),
     );
 

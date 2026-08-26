@@ -37,6 +37,18 @@ const isContinuousIntegration = Boolean(process.env.CI || process.env.TF_BUILD);
  * assertion runs. Applying the harness environment here, not only to
  * `webServer.env` below, is what keeps a spec's own "expected" data and the
  * app's actual rendered output reading from one identical configuration.
+ *
+ * This mutates `process.env` for every worker process this config spawns,
+ * not only the two spec files above (AB#139 correction: an earlier version
+ * of this comment scoped the justification to just those two, which no
+ * longer matched what the code actually does once more specs existed). That
+ * is deliberate, not merely tolerated: `appUnderTestEnvironment`'s values are
+ * harness-owned, non-secret, deterministic test constants — the exact same
+ * values `webServer.env` already gives the running application for every
+ * spec in this suite — so any spec reading one of these keys from
+ * `process.env` directly sees the one truth the whole harness already
+ * assumes, never a real credential or an environment-dependent value that
+ * could vary by who runs the suite.
  */
 Object.assign(process.env, appUnderTestEnvironment);
 

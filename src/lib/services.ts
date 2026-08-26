@@ -14,6 +14,7 @@
  * gallery grid and in article bodies, which are single-column.
  */
 
+import { dispatchContentSource } from "@/lib/content-source";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import type { Media } from "@/lib/media";
 import { mockImages } from "@/lib/mock-media";
@@ -141,18 +142,14 @@ function defaultLanguage(): string {
 
 export async function getServices(): Promise<Service[]> {
   const { contentSource } = getDeploymentConfig();
-  if (contentSource === "sanity") {
-    // Dynamic, not a static top-level import: `sanity-services.ts` carries
-    // the `server-only` marker, and a static import would pull it into this
-    // module's graph unconditionally — reachable from e2e Playwright specs
-    // (e.g. `getServices` imported directly for fixture data), which run
-    // outside Next's own bundler and cannot satisfy that package's
-    // build-time "react-server" export condition. Loading it only once the
-    // sanity branch actually runs means the mock path never touches it.
-    const { readPublicServices } = await import("@/lib/sanity-services");
-    return [...(await readPublicServices({ language: defaultLanguage() }))];
-  }
-  return mockServices;
+  return dispatchContentSource(contentSource, {
+    // See dispatchContentSource's own doc comment for why this import is dynamic.
+    sanity: async () => {
+      const { readPublicServices } = await import("@/lib/sanity-services");
+      return [...(await readPublicServices({ language: defaultLanguage() }))];
+    },
+    mock: async () => mockServices,
+  });
 }
 
 /**
@@ -167,9 +164,11 @@ export async function getServicesIntro(): Promise<string | undefined> {
 
 export async function getService(slug: string): Promise<Service | undefined> {
   const { contentSource } = getDeploymentConfig();
-  if (contentSource === "sanity") {
-    const { readPublicServiceBySlug } = await import("@/lib/sanity-services");
-    return readPublicServiceBySlug(slug, { language: defaultLanguage() });
-  }
-  return mockServices.find((service) => service.slug === slug);
+  return dispatchContentSource(contentSource, {
+    sanity: async () => {
+      const { readPublicServiceBySlug } = await import("@/lib/sanity-services");
+      return readPublicServiceBySlug(slug, { language: defaultLanguage() });
+    },
+    mock: async () => mockServices.find((service) => service.slug === slug),
+  });
 }

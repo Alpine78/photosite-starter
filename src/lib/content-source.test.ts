@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   ContentSourceConfigurationError,
+  dispatchContentSource,
   readContentSource,
 } from "@/lib/content-source";
 import { readDeploymentStage } from "@/lib/deployment-stage";
@@ -67,5 +68,40 @@ describe("readContentSource", () => {
     expect(() => read({ SITE_CONTENT_SOURCE: "mock" })).toThrow(
       "must not run in a production deployment",
     );
+  });
+});
+
+describe("dispatchContentSource", () => {
+  it("calls the sanity handler for \"sanity\" and never the mock one", async () => {
+    const mock = vi.fn(async () => "mock-result");
+    const sanity = vi.fn(async () => "sanity-result");
+
+    const result = await dispatchContentSource("sanity", { mock, sanity });
+
+    expect(result).toBe("sanity-result");
+    expect(sanity).toHaveBeenCalledTimes(1);
+    expect(mock).not.toHaveBeenCalled();
+  });
+
+  it("calls the mock handler for \"mock\" and never the sanity one", async () => {
+    const mock = vi.fn(async () => "mock-result");
+    const sanity = vi.fn(async () => "sanity-result");
+
+    const result = await dispatchContentSource("mock", { mock, sanity });
+
+    expect(result).toBe("mock-result");
+    expect(mock).toHaveBeenCalledTimes(1);
+    expect(sanity).not.toHaveBeenCalled();
+  });
+
+  it("propagates a handler's rejection rather than swallowing it", async () => {
+    await expect(
+      dispatchContentSource("sanity", {
+        mock: async () => "mock-result",
+        sanity: async () => {
+          throw new Error("classified sanity failure");
+        },
+      }),
+    ).rejects.toThrow("classified sanity failure");
   });
 });
