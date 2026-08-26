@@ -25,10 +25,15 @@ export default defineConfig({
       "sanity/**/*.test.ts",
       "scripts/**/*.test.mts",
     ],
-    // AB#84's live integration suite reaches a real Sanity Content Lake over
-    // the network — every other test here is required not to. It runs only
-    // through vitest.live.config.mts's own dedicated `npm run
-    // verify:sanity-live`, never as part of this default suite.
-    exclude: [...configDefaults.exclude, "src/lib/sanity-live-verification.test.ts"],
+    // AB#84's live integration suite, and AB#137's content-agnostic adapter
+    // smoke suite, each reach a real Sanity Content Lake over the network —
+    // every other test here is required not to. They run only through their
+    // own dedicated `vitest.live*.config.mts` and `npm run verify:sanity-*`
+    // scripts, never as part of this default suite.
+    exclude: [
+      ...configDefaults.exclude,
+      "src/lib/sanity-live-verification.test.ts",
+      "src/lib/sanity-adapter-smoke-verification.test.ts",
+    ],
   },
 });

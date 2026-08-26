@@ -456,8 +456,7 @@ proves the repository's own read adapters:
    verification suite, not a generic Sanity health check**: its assertions
    are the exact values `scripts/sanity-seed-fixtures.mts` writes, so it
    will correctly fail against a dataset that has not been seeded with that
-   fixture, Production included — verifying arbitrary owner-approved launch
-   content is a distinct, unimplemented need. The selected file must define
+   fixture, Production included. The selected file must define
    its own `SANITY_PROJECT_ID`/`SANITY_DATASET`/`SANITY_DATASET_VISIBILITY`/
    `SANITY_API_VERSION` rather than leaving any of them to the ambient shell
    environment (`src/lib/sanity-live-verification-config.ts` enforces this
@@ -466,6 +465,14 @@ proves the repository's own read adapters:
    reaches a real network) and from route wiring (nothing under `src/app` or
    `src/components` imports it): it exists to prove the adapters work, not
    to switch the deployment over to them.
+4. `npm run verify:sanity-adapters` (`src/lib/sanity-adapter-smoke-verification.test.ts`,
+   AB#137): the same real `src/lib/sanity-*.ts` adapters as layer 3, but
+   content-agnostic — it makes no assumption about which specific content
+   exists, so it is what actually satisfies "representative repository
+   adapter queries... against Content Lake" once Production holds real,
+   owner-approved launch content that differs from the AB#84 fixture (where
+   layer 3 will, correctly, fail). See *Adapter smoke verification (AB#137)*
+   below.
 
 Additionally, confirm the dataset holds *exactly* the intended manifest —
 neither a foreign document nor a stale leftover from an older fixture
@@ -553,15 +560,20 @@ shapes:
    `SANITY_LIVE_VERIFICATION_ENV_FILE` (AB#138) — but only run it against
    Production if this run actually wrote the exact AB#84 fixture set there;
    its assertions are fixture-specific, so it will (correctly) fail against
-   real, owner-approved launch content that differs from the fixture. Use
-   the read-only content audit tool below to verify a real Production seed
-   instead — it makes no assumption about which specific content was
-   written.
+   real, owner-approved launch content that differs from the fixture. For
+   real, owner-approved launch content, run `npm run verify:sanity-adapters`
+   (layer 4 above, AB#137) instead — it exercises the same real adapters
+   without assuming which specific content was written. The read-only
+   content audit tool below answers a different question ("what is actually
+   in this dataset") and does not exercise adapter queries or gallery
+   pagination at all — it does not substitute for either live-adapter layer.
 4. Revoke the token immediately after, in Sanity's project API settings —
    not by letting it expire — the same step this story's own Preview run
    requires.
-5. Record the non-secret target identity (project id, dataset name, run
-   date, and the verification outcome) durably outside this repository — an
+5. Record the non-secret target identity — project id, dataset name,
+   visibility (public/private), region, ownership (the account and, if
+   different, the operator who ran this handoff), run date, and the
+   verification outcome — durably outside this repository — an
    Azure Boards comment on the launch story, matching how this story
    recorded its own Preview run (see `docs/sanity-setup.md`'s *Ownership*
    section on why the project id itself never enters this repository).
@@ -681,6 +693,103 @@ variables instead; if both a flag and its matching environment variable are
 set and disagree, the tool refuses to guess which one was meant rather than
 silently picking one.
 
+## Adapter smoke verification (AB#137)
+
+`npm run verify:sanity-adapters` (`src/lib/sanity-adapter-smoke-verification.test.ts`,
+pure logic in `src/lib/sanity-adapter-smoke.ts`) closes the gap the audit
+tool above deliberately does not: AB#137's own AC4, "representative
+route-facing adapter queries and bounded gallery pagination succeed against
+Production content." The audit tool proves *what documents exist*, never
+calling the real `src/lib/sanity-*.ts` adapters at all; `verify:sanity-live`
+calls the real adapters, but only proves they work against the one exact
+AB#84 fixture set. This tool calls the real adapters — like the second — but
+makes no assumption about which specific content exists — like the first.
+
+### What it does
+
+For every configured route locale (`localeRoutes.locales`, not just the
+default): reads settings, home content, and services at the deployment's
+default locale (matching those seams' own actual route semantics — see
+`home-content.ts` and `services.ts`); builds the full category/content tree
+for that locale, which exercises the adapters' own internal-consistency
+checks (acyclic tree, every reference resolved, no orphaned parent) without
+re-implementing them; picks one deterministic published article per locale
+(lexicographically smallest `contentId`, so a repeat run samples the same
+document); reads the article's detail page; and searches published galleries
+in that same deterministic order — up to `MAX_GALLERIES_SEARCHED_PER_LOCALE`
+(20) — walking each one's real cursor chain (`readSanityCuratedGalleryPage`)
+to completion until one produces more than one page or the search is
+exhausted, then reads that gallery's own detail page. Searching rather than
+sampling a single gallery matters: a locale can have one small gallery sort
+first and a larger, multi-page one sort later, and stopping at the first
+would then report AC4's pagination requirement as undemonstrated even though
+the dataset does demonstrate it. Every gallery actually walked during the
+search — not only the one eventually reported — is watched for a duplicate
+placement id or a repeated cursor across pages; either is a distinct
+failure, not treated as "a large gallery," regardless of which candidate
+exposed it. A hard page cap (`GALLERY_PAGINATION_HARD_CAP_PAGES`, 500) per
+gallery guards against a runaway loop and is itself a failure if reached,
+never silent success.
+
+It deliberately does **not** re-validate what the adapters already validate
+themselves (an empty article title or body, an unresolved category
+reference, invalid media dimensions) — see `sanity-adapter-smoke.ts`'s own
+module comment. It is not exhaustive: it samples one article per locale and
+searches (rather than exhaustively walks) galleries, to stay a smoke test
+rather than a full walk that scales with Production's eventual size.
+
+**AC4 is only actually demonstrated, not merely attempted, if some gallery
+found during that search, in some configured locale, produces more than one
+page.** A dataset where every searched gallery fits on a single page never
+exercises cursor encode/decode or keyset continuation at all; the run's
+final check fails loudly in that case naming exactly what was and was not
+exercised, rather than reporting a pass that never proved pagination.
+
+A fresh, per-run random key exercises the cursor's own encode/decode logic;
+it does **not** prove a real deployment's own `GALLERY_CURSOR_SIGNING_KEY` is
+configured or reachable through the route-facing `gallery.ts` seam — a clean
+run is not evidence of that separate deployment secret's presence.
+
+**Run this against a quiet dataset**, the same operational assumption the
+audit tool above already carries: `readSanityCuratedGalleryPage` recomputes
+its cursor scope's `visibilityVersion` on every request, so a placement edit
+landing between two page fetches can legitimately invalidate an outstanding
+cursor mid-walk, and this run cannot distinguish that from a real bug.
+
+### Required credential
+
+Read-only, the same class as the deployment's own runtime `SANITY_READ_TOKEN`
+— no separate token type is minted for this tool. A public dataset needs
+none. A **private** dataset (Production may be private where Preview is
+public) needs one, and it must come from the selected env file itself, never
+an ambient shell variable: `assertPrivateDatasetHasUsableReadToken` refuses
+to run if `SANITY_DATASET_VISIBILITY` is `"private"` and the selected file
+does not define a real, non-placeholder `SANITY_READ_TOKEN` — this stops a
+Production-targeted run from silently borrowing an unrelated token a
+developer happened to have exported for other work. A **public** target
+whose selected file omits `SANITY_READ_TOKEN` gets the same isolation from
+the other direction: the suite unconditionally clears any ambient
+`SANITY_READ_TOKEN` before loading the file, so a public run can never
+silently attach an unrelated token left over in the shell either.
+
+The selected env file must also define `SITE_LOCALE` and `SITE_LOCALE_ROUTES`
+(`assertRouteConfigIsSelfContained`) — this suite reads locale route
+configuration to decide which locales and default locale to query, and
+without this check that could otherwise be silently inherited from the
+ambient shell instead of the selected target, letting a run query Production
+content through stale or unrelated routing while still reporting a pass.
+
+### Command
+
+```bash
+npm run verify:sanity-adapters
+```
+
+Uses the same env-file resolution as `verify:sanity-live`
+(`SANITY_LIVE_VERIFICATION_ENV_FILE`, defaulting to
+`.vercel/.env.preview.local`) — see that section above. Point it at a
+Production env file once one exists to actually satisfy AC4 there.
+
 ## Testing this script itself
 
 ```bash
@@ -693,12 +802,14 @@ All three run as part of `npm test`. Neither reaches a network — the fixture
 tests are pure, and the HTTP tests inject a fake `fetch`. Only an actual
 `--yes` invocation talks to a real project.
 
-The AB#138 audit tool and the `verify:sanity-live` configurability above
-have their own offline suites, also part of `npm test`:
+The AB#138 audit tool, the `verify:sanity-live` configurability above, and
+the AB#137 adapter smoke tool's pure orchestration logic each have their own
+offline suites, also part of `npm test`:
 
 ```bash
 npx vitest run scripts/sanity-audit.test.mts
 npx vitest run src/lib/sanity-live-verification-config.test.ts
+npx vitest run src/lib/sanity-adapter-smoke.test.ts
 ```
 
 The first exercises `runContentAudit`'s pagination, classification, and
