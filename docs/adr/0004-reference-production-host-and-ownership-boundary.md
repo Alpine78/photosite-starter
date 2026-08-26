@@ -605,7 +605,7 @@ Observability Plus or an optional long-term log drain by default.
 5. [ ] AB#18 disables automatic production-domain assignment, deploys the staged
        Production build after the launch gates, identifies the rollback target and
        procedure, and promotes the exact tested build.
-6. [ ] AB#83 implements published-only tagged caching and the signed webhook, then tests
+6. [x] AB#83 implements published-only tagged caching and the signed webhook, then tests
        deployed invalidation propagation, finite cache lifetime, hard visibility removal,
        missed-event recovery, and the bounded broad fallback.
 7. [ ] [ADR-0005](0005-public-image-rendition-boundary.md) proposes the image-cache and
