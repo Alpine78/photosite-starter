@@ -1,3 +1,6 @@
+import { cache } from "react";
+
+import { dispatchContentSource } from "@/lib/content-source";
 import {
   getDefaultLocaleLabels,
   getDeploymentConfig,
@@ -200,22 +203,57 @@ function buildMockSiteSettings(): SiteSettings {
  * Settings are not yet locale-aware (AGENTS.md's "not yet built" note): every
  * source reads this deployment's own default locale regardless of which
  * route space asked, matching `buildMockSiteSettings`'s existing behavior.
+ *
+ * Wrapped in React's `cache()` (AB#139): this singleton is read from several
+ * independent seams within one request — the site chrome layout
+ * (`site-root.tsx`), page metadata (`page-metadata.ts`), and page-specific
+ * content (`home-content.ts`, `services.ts`) each call this with no
+ * coordination between them. `sanity-client.ts` attaches an `AbortSignal` to
+ * every fetch, which per Next.js's own documentation opts every one of those
+ * reads out of the framework's automatic per-render fetch memoization, so
+ * without this `cache()` wrapper each call independently repeats the same
+ * live Sanity read — up to several times for one page view, and with no
+ * shared result if one of them races a webhook-driven cache invalidation
+ * differently than another. Mirrors `content.ts`'s `buildSanityPublicContent`,
+ * which documents the same reasoning for the same class of seam.
+ *
+ * The dedup itself is not, and cannot be, asserted by this project's own
+ * Vitest suite: `cache()` only memoizes within an actual React render, and
+ * Vitest provides none. Verified directly while building this fix: calling a
+ * `cache()`-wrapped function concurrently outside of a render — exactly what
+ * a plain Vitest test does — runs its body once per call with no
+ * memoization at all, since there is no render for React to scope a cache
+ * to. The fix still holds where it matters, a real Next.js Server Component
+ * render, the same way `content.ts`'s own equally Vitest-unverifiable
+ * `cache()` usage already does; this file's own tests cover the dispatch
+ * logic (which source, which arguments) rather than the dedup itself.
+ *
+ * A real integration test would need to render inside an actual React
+ * Server Components tree — `cache()` is an RSC-only primitive, not a plain
+ * SSR one, so a `react-dom/server` render does not provide it either. This
+ * repository has no such harness today (no `@testing-library/react`, no
+ * `react-server-dom-*` usage anywhere), and standing one up for this one
+ * assertion — with no existing precedent to build on — is a disproportionate
+ * amount of new, fragile test infrastructure for a fix whose dispatch
+ * behavior is otherwise already fully covered. Deliberately left
+ * unattempted rather than reached for.
+ *
+ * Caching the mock branch too is harmless: `buildMockSiteSettings()` is
+ * already pure and deterministic, so memoizing it changes nothing
+ * observable.
  */
-export async function getSiteSettings(): Promise<SiteSettings> {
+export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
   const { contentSource, locale, localeRoutes } = getDeploymentConfig();
 
-  if (contentSource === "sanity") {
-    // Dynamic, not static: `sanity-site-settings.ts` carries the
-    // `server-only` marker, and a static import would pull it into this
-    // seam's module graph unconditionally — including from contexts (e2e
-    // Playwright specs, which run outside Next's own bundler) that cannot
-    // satisfy that package's build-time "react-server" export condition.
-    const { readSanitySiteSettings } = await import(
-      "@/lib/sanity-site-settings"
-    );
-    const language = new Intl.Locale(locale).language;
-    return readSanitySiteSettings({ language, locale, config: localeRoutes });
-  }
-
-  return buildMockSiteSettings();
-}
+  return dispatchContentSource(contentSource, {
+    // See dispatchContentSource's own doc comment for why this import is dynamic.
+    sanity: async () => {
+      const { readSanitySiteSettings } = await import(
+        "@/lib/sanity-site-settings"
+      );
+      const language = new Intl.Locale(locale).language;
+      return readSanitySiteSettings({ language, locale, config: localeRoutes });
+    },
+    mock: async () => buildMockSiteSettings(),
+  });
+});

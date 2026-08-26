@@ -17,6 +17,7 @@
 
 import { getContentTrees } from "@/lib/content";
 import { getPublicContentRoute } from "@/lib/content-routes";
+import { dispatchContentSource } from "@/lib/content-source";
 import {
   getDefaultLocaleLabels,
   getDeploymentConfig,
@@ -148,29 +149,36 @@ export async function getHomeContent(): Promise<HomeContent> {
   const { contentSource, localeRoutes } = getDeploymentConfig();
   const locale = localeRoutes.defaultLocale;
 
-  if (contentSource === "sanity") {
-    // Dynamic, not static: `sanity-home-content.ts` carries the
-    // `server-only` marker, and a static import would pull it into this
-    // seam's module graph unconditionally — including from contexts (e2e
-    // Playwright specs, which run outside Next's own bundler) that cannot
-    // satisfy that package's build-time "react-server" export condition.
-    const { readSanityHomeContent } = await import(
-      "@/lib/sanity-home-content"
-    );
-    const language = new Intl.Locale(locale).language;
-    const featuredGalleryHref = await resolveFeaturedGalleryHref(
-      localeRoutes,
-      locale,
-    );
+  return dispatchContentSource(contentSource, {
+    // See dispatchContentSource's own doc comment for why these imports are dynamic.
+    sanity: async () => {
+      const [{ projectHomeContent, readSanityHomeDocument }, { getSanityConfig }] =
+        await Promise.all([
+          import("@/lib/sanity-home-content"),
+          import("@/lib/sanity-config"),
+        ]);
+      const language = new Intl.Locale(locale).language;
 
-    return readSanityHomeContent({
-      language,
-      fallbackLanguage: language,
-      locale,
-      routeConfig: localeRoutes,
-      ...(featuredGalleryHref === undefined ? {} : { featuredGalleryHref }),
-    });
-  }
+      // The home document's own fetch and the featured-gallery href (which
+      // reads siteSettings and the content tree — two unrelated Sanity
+      // documents) are independent: the href is only spliced in during
+      // projection, after this document has already arrived. Reading both
+      // concurrently, rather than awaiting the href first purely to have a
+      // value ready, halves the critical path (AB#139).
+      const [document, featuredGalleryHref] = await Promise.all([
+        readSanityHomeDocument({}),
+        resolveFeaturedGalleryHref(localeRoutes, locale),
+      ]);
 
-  return buildMockHomeContent(localeRoutes, locale);
+      return projectHomeContent(document, {
+        language,
+        fallbackLanguage: language,
+        locale,
+        routeConfig: localeRoutes,
+        sanityConfig: getSanityConfig(),
+        ...(featuredGalleryHref === undefined ? {} : { featuredGalleryHref }),
+      });
+    },
+    mock: async () => buildMockHomeContent(localeRoutes, locale),
+  });
 }

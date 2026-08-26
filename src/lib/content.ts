@@ -37,6 +37,7 @@ import {
   buildContentRedirects,
   type ContentRedirects,
 } from "@/lib/content-redirects";
+import { dispatchContentSource } from "@/lib/content-source";
 import { buildContentTree, type ContentTree } from "@/lib/content-tree";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import type { LocaleRouteConfig, LocalizedContentTrees } from "@/lib/locale-routes";
@@ -191,12 +192,13 @@ const buildSanityPublicContent = cache(
 
 async function getPublicContent(): Promise<PublicContent> {
   const { contentSource, localeRoutes } = getDeploymentConfig();
-  if (contentSource === "sanity") {
-    return buildSanityPublicContent(localeRoutes);
-  }
-
-  cachedMockContent ??= buildMockPublicContent(localeRoutes);
-  return cachedMockContent;
+  return dispatchContentSource(contentSource, {
+    sanity: async () => buildSanityPublicContent(localeRoutes),
+    mock: async () => {
+      cachedMockContent ??= buildMockPublicContent(localeRoutes);
+      return cachedMockContent;
+    },
+  });
 }
 
 export async function getContentTrees(): Promise<LocalizedContentTrees> {
@@ -231,52 +233,63 @@ async function queryListingRecords(
 ): Promise<readonly ContentListingRecord[]> {
   const { contentSource } = getDeploymentConfig();
 
-  if (contentSource === "sanity") {
-    const [{ readPublicArticleListingRecords }, { readPublicGalleryListingRecords }] =
-      await Promise.all([
-        import("@/lib/sanity-article"),
-        import("@/lib/sanity-gallery"),
+  return dispatchContentSource(contentSource, {
+    // See dispatchContentSource's own doc comment for why these imports are dynamic.
+    sanity: async () => {
+      const [{ readPublicArticleListingRecords }, { readPublicGalleryListingRecords }] =
+        await Promise.all([
+          import("@/lib/sanity-article"),
+          import("@/lib/sanity-gallery"),
+        ]);
+
+      const language = languageOf(locale);
+      const articleIds: string[] = [];
+      const galleryIds: string[] = [];
+      for (const contentId of query.contentIds) {
+        if (tree.placements.get(contentId)?.variant === "gallery") {
+          galleryIds.push(contentId);
+        } else {
+          articleIds.push(contentId);
+        }
+      }
+
+      const [articleRecords, galleryRecords] = await Promise.all([
+        readPublicArticleListingRecords(
+          { ...query, contentIds: articleIds },
+          { language },
+        ),
+        readPublicGalleryListingRecords(
+          { ...query, contentIds: galleryIds },
+          { language },
+        ),
       ]);
 
-    const language = languageOf(locale);
-    const articleIds: string[] = [];
-    const galleryIds: string[] = [];
-    for (const contentId of query.contentIds) {
-      if (tree.placements.get(contentId)?.variant === "gallery") {
-        galleryIds.push(contentId);
-      } else {
-        articleIds.push(contentId);
-      }
-    }
+      return orderContentListingRecords([
+        ...articleRecords,
+        ...galleryRecords,
+      ]).slice(0, query.limit);
+    },
+    mock: async () => {
+      const authored = mockContentListingRecords[languageOf(locale)];
+      const rows = query.contentIds.flatMap((contentId) => {
+        const record = authored?.get(contentId);
+        return record === undefined ? [] : [record];
+      });
 
-    const [articleRecords, galleryRecords] = await Promise.all([
-      readPublicArticleListingRecords(
-        { ...query, contentIds: articleIds },
-        { language },
-      ),
-      readPublicGalleryListingRecords(
-        { ...query, contentIds: galleryIds },
-        { language },
-      ),
-    ]);
-
-    return orderContentListingRecords([
-      ...articleRecords,
-      ...galleryRecords,
-    ]).slice(0, query.limit);
-  }
-
-  const authored = mockContentListingRecords[languageOf(locale)];
-  const rows = query.contentIds.flatMap((contentId) => {
-    const record = authored?.get(contentId);
-    return record === undefined ? [] : [record];
+      return orderContentListingRecords(rows).slice(0, query.limit);
+    },
   });
-
-  return orderContentListingRecords(rows).slice(0, query.limit);
 }
 
-/** Why a `contentId` could not resolve to one unambiguous content page. */
-export type SanityContentPageRejection = "ambiguous-content-identity";
+/**
+ * Why a content-page-seam Sanity read failed to answer at all: either a
+ * `contentId` did not resolve to one unambiguous content page, or a caller
+ * asked for something no reader is wired for yet (a content variant with no
+ * Sanity-backed reader).
+ */
+export type SanityContentPageRejection =
+  | "ambiguous-content-identity"
+  | "unsupported-variant";
 
 /**
  * Raised by `getContentPage`'s Sanity path, matching the classified-error
@@ -322,38 +335,44 @@ export const getContentPage: ContentPageSource = async (
 ) => {
   const { contentSource } = getDeploymentConfig();
 
-  if (contentSource === "sanity") {
-    const language = languageOf(locale);
+  return dispatchContentSource(contentSource, {
+    // See dispatchContentSource's own doc comment for why these imports are
+    // dynamic. The variant-hint branch below is a second, unrelated axis of
+    // dispatch — which reader to call, not which source — left as its own
+    // if/else rather than folded into dispatchContentSource, which only ever
+    // decides between exactly two source handlers.
+    sanity: async () => {
+      const language = languageOf(locale);
 
-    if (variant === "article") {
-      const { readPublicArticlePage } = await import("@/lib/sanity-article");
-      return readPublicArticlePage(contentId, { language });
-    }
-    if (variant === "gallery") {
-      const { readPublicGalleryPage } = await import("@/lib/sanity-gallery");
-      return readPublicGalleryPage(contentId, { language });
-    }
+      if (variant === "article") {
+        const { readPublicArticlePage } = await import("@/lib/sanity-article");
+        return readPublicArticlePage(contentId, { language });
+      }
+      if (variant === "gallery") {
+        const { readPublicGalleryPage } = await import("@/lib/sanity-gallery");
+        return readPublicGalleryPage(contentId, { language });
+      }
 
-    const [{ readPublicArticlePage }, { readPublicGalleryPage }] =
-      await Promise.all([
-        import("@/lib/sanity-article"),
-        import("@/lib/sanity-gallery"),
+      const [{ readPublicArticlePage }, { readPublicGalleryPage }] =
+        await Promise.all([
+          import("@/lib/sanity-article"),
+          import("@/lib/sanity-gallery"),
+        ]);
+      const [articlePage, galleryPage] = await Promise.all([
+        readPublicArticlePage(contentId, { language }),
+        readPublicGalleryPage(contentId, { language }),
       ]);
-    const [articlePage, galleryPage] = await Promise.all([
-      readPublicArticlePage(contentId, { language }),
-      readPublicGalleryPage(contentId, { language }),
-    ]);
-    if (articlePage !== undefined && galleryPage !== undefined) {
-      throw new SanityContentPageError(
-        "ambiguous-content-identity",
-        `this content identity resolves to both an article and a gallery in locale "${locale}"`,
-        contentId,
-      );
-    }
-    return articlePage ?? galleryPage;
-  }
-
-  return mockContentPages[languageOf(locale)]?.get(contentId);
+      if (articlePage !== undefined && galleryPage !== undefined) {
+        throw new SanityContentPageError(
+          "ambiguous-content-identity",
+          `this content identity resolves to both an article and a gallery in locale "${locale}"`,
+          contentId,
+        );
+      }
+      return articlePage ?? galleryPage;
+    },
+    mock: async () => mockContentPages[languageOf(locale)]?.get(contentId),
+  });
 };
 
 /**
@@ -405,8 +424,17 @@ async function querySanityAdjacentRecords(
     });
   }
 
-  throw new Error(
-    `getAdjacentContent has no Sanity-backed sibling-navigation reader for variant ${JSON.stringify(variant)} (contentId "${contentId}"); only "article" is wired, matching every current caller`,
+  // Classified (AB#139), not a plain Error: this file's own convention is
+  // that every Sanity-seam failure carries a `.rejection` discriminant a
+  // route-level error boundary or log filter can pattern-match on. Currently
+  // unreachable from production — every caller resolves a variant before
+  // requesting adjacent content — but a future caller hitting this should
+  // still fail through the same recognizable family as every other content-
+  // page error, not surface as a generic unhandled exception.
+  throw new SanityContentPageError(
+    "unsupported-variant",
+    `getAdjacentContent has no Sanity-backed sibling-navigation reader for variant ${JSON.stringify(variant)}; only "article" is wired, matching every current caller`,
+    contentId,
   );
 }
 
@@ -450,10 +478,10 @@ export async function getAdjacentContent(
   if (query === null) return {};
 
   const { contentSource } = getDeploymentConfig();
-  const records =
-    contentSource === "sanity"
-      ? await querySanityAdjacentRecords(locale, tree, contentId)
-      : await queryMockAdjacentRecords(locale, query);
+  const records = await dispatchContentSource(contentSource, {
+    sanity: async () => querySanityAdjacentRecords(locale, tree, contentId),
+    mock: async () => queryMockAdjacentRecords(locale, query),
+  });
 
   return resolveAdjacentContent({
     tree,

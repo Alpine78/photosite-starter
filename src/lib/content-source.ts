@@ -92,3 +92,29 @@ export function readContentSource(
 
   return source;
 }
+
+/**
+ * The one place every route-facing seam picks between its mock and Sanity
+ * reader (AB#139), instead of each seam repeating its own `if (contentSource
+ * === "sanity") {...} else {...}`. Nine near-identical copies of that shape
+ * — `content.ts`, `gallery.ts`, `home-content.ts`, `services.ts`, and
+ * `site-settings.ts` — meant there was no single place to audit "does every
+ * seam correctly handle both sources," and each carried its own copy of the
+ * explanation below.
+ *
+ * The `sanity` handler should reach its adapter through a *dynamic* import
+ * (`await import("@/lib/sanity-...")`), never a static one: every
+ * `sanity-*.ts` adapter module carries the `server-only` marker, and a
+ * static import would pull it into the importing seam's module graph
+ * unconditionally — including from contexts that cannot satisfy that
+ * package's build-time `react-server` export condition, e.g. e2e Playwright
+ * specs that import a seam like `services.ts` directly outside Next's own
+ * bundler. Loading the adapter only once the `sanity` branch actually runs
+ * means a deployment reading the mock source never touches it.
+ */
+export async function dispatchContentSource<T>(
+  contentSource: ContentSource,
+  handlers: { readonly sanity: () => Promise<T>; readonly mock: () => Promise<T> },
+): Promise<T> {
+  return contentSource === "sanity" ? handlers.sanity() : handlers.mock();
+}
