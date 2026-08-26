@@ -19,6 +19,9 @@ diff review starts one round; the Codex- or Claude-authored corrections it produ
 to that same round. The user may choose another limit or base branch. The plan review is
 separate and does not consume a post-implementation round.
 
+Every Claude invocation defaults to the pinned `claude-sonnet-5` model with `medium`
+effort. The user may explicitly request a different model or effort level for a run.
+
 If the skill is invoked only after a change already exists, do not manufacture a
 retroactive plan review. Start with Codex's self-review and the post-implementation loop.
 
@@ -68,6 +71,8 @@ if it still cannot read the item, stop instead of weakening the gate.
 
    ```bash
    claude --safe-mode -p \
+     --model claude-sonnet-5 \
+     --effort medium \
      --permission-mode dontAsk \
      --tools "" \
      --no-session-persistence \
@@ -120,6 +125,8 @@ For each round, up to the configured limit:
 
    ```bash
    claude -p \
+     --model claude-sonnet-5 \
+     --effort medium \
      --permission-mode plan \
      --no-session-persistence \
      "Review the current implementation against the repository instructions and authoritative work item. Inspect the diff from the configured base branch plus all staged and unstaged changes. Report only concrete correctness, security, accessibility, regression, or requirement gaps, ordered by severity, with file and line references, impact, and the smallest appropriate fix. Do not edit files. If there are no findings, say so explicitly." <<'EOF'
@@ -156,6 +163,8 @@ side effects:
 
 ```bash
 claude -p \
+  --model claude-sonnet-5 \
+  --effort medium \
   --permission-mode acceptEdits \
   --tools "Read,Grep,Glob,Edit,Write" \
   --disallowedTools "mcp__*" \

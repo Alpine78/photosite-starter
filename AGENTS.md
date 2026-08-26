@@ -765,12 +765,16 @@ cache-key wiring it requires remain AB#129's — lightbox zoom tuning, the galle
 enquiry (AB#60),
 structured data.
 Tagged caching and webhook revalidation (AB#83) are built — see the large paragraph earlier
-in this file and `docs/cache-revalidation.md` — but AB#83 was reopened during AB#117's launch
-review and remains open: its own documented "Deployed verification gate" (cross-instance
-propagation observed on a real deployed Vercel runtime) has not been run yet. A deployed
-runtime now exists (below), so this gate is reachable; the specific publish → webhook →
-repeated cross-instance fetch check itself still has to be performed and recorded before
-AB#83 can close.
+in this file and `docs/cache-revalidation.md`. Its previously outstanding "Deployed
+verification gate" is now complete: on 2026-08-26 a revision-guarded Preview publish and
+its revision-guarded restoration each produced an accepted signed webhook, a
+`REVALIDATED` response with a new ETag on the current route-wired Preview deployment, and
+seven further `HIT` responses that all carried the one current value. The webhook ran on
+an older Preview deployment while the reads ran against the newer one, directly proving
+that invalidation was not confined to one warm process or deployment. A raw-perspective
+audit confirmed the original seed value was restored and no draft or test marker remained.
+AB#83 can close when this evidence is reviewed and merged; the item remains Active until
+then.
 The deployment itself: AB#116 is **closed** — the Preview environment is fully provisioned
 and proven working by a real, verified, fully-automated pipeline run (build 144, `main`,
 2026-08-24). `DeployPreview` built, deployed to Preview, bound the deployment identity to

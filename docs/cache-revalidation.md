@@ -174,22 +174,48 @@ hard-expiry calls, failures, and the broad fallback. ADR-0004 separately require
 propagation to be observed on a deployed Vercel multi-instance runtime. No
 Production deployment exists yet (AB#18 is a later story), but a Preview
 deployment now does (AB#116, closed 2026-08-24) and is reachable for this gate —
-a local test still cannot satisfy it. **The publish → webhook part of that
-check has now been run and recorded against a real Preview deployment
-(2026-08-25, below); the repeated cross-instance fetch part has not. AB#135
-closed its route-wiring prerequisite on 2026-08-26 and deployed representative
-Sanity-authored routes, so that remaining AB#83 evidence is now executable but
-has not been claimed by this story. AB#83 therefore remains open**, unless the
-owner first accepts an ADR/work-item scope amendment assigning that evidence
-elsewhere.
+a local test still cannot satisfy it. **Both halves of the gate are now verified
+against the real protected Preview environment.** The signed publish → webhook
+half was first verified on 2026-08-25. After AB#135 deployed the route-facing
+Sanity reads, the publish → invalidation → repeated-fetch half was verified on
+2026-08-26 as recorded below. AB#83 has no remaining deployed-verification gap;
+its Boards item stays Active only until this evidence is reviewed and merged.
 
-The gate has two independent halves. The webhook half below is verified. AB#135
-now makes the other half possible: every public content seam dispatches on
-`SITE_CONTENT_SOURCE`, the reference Preview selects `sanity`, and a protected,
-`noindex` Preview deployment was verified to render the AB#84 seed's home,
-services, article, and gallery output. AB#83 still owns observing a real publish
-through repeated cross-instance fetches; route availability is no longer its
-blocker, but the publish/propagation experiment itself has not been rerun here.
+### 2026-08-26 managed-cache propagation run
+
+The run used the published `seed--service--portrait-sessions` document and the
+latest route-wired Preview deployment. Before the mutation, `/services` crossed
+the configured one-hour hard bound once (`STALE`, age 4,558 seconds), then five
+separate protected requests returned the refreshed baseline with one ETag and
+`HIT`. A revision-guarded patch added a unique marker to the service's short
+description at `2026-08-26T08:55:33Z`.
+
+Sanity delivered the signed event to `/api/revalidate` about one second later.
+The Vercel runtime log recorded HTTP 200 and
+`{"event":"sanity.revalidation","correlationId":"b08d72c3-2d8c-4a3c-8763-e886cd433db3","state":"accepted"}`.
+The first fetch from the current Preview URL returned the marker with
+`x-vercel-cache: REVALIDATED`, age zero, and a new ETag. Seven further requests,
+each with a distinct `x-vercel-id`, returned that same changed ETag with `HIT`;
+none served the baseline copy.
+
+The test then restored the exact original value with another revision-guarded
+patch. Its webhook delivery was also accepted with HTTP 200 (correlation
+`3a2e17ee-defe-4a56-9ce7-9e5afc2e3bf1`). The first subsequent fetch was
+`REVALIDATED`, age zero, with a third ETag, and seven further distinct requests
+were `HIT`; all eight contained the restored value and none contained the test
+marker. A final raw-perspective Content Lake read found exactly the restored
+published document, no draft counterpart, and no remaining marker.
+
+This run also exercised a boundary stronger than repeatedly reaching one warm
+process: the webhook still targets the older protected Preview deployment
+`photosite-starter-haxdsuyi4-ilkka-rytkonens-projects.vercel.app`, while the page
+checks targeted the newer
+`photosite-starter-d96la3nwz-ilkka-rytkonens-projects.vercel.app`. An invalidation
+accepted by the old deployment therefore revalidated the newer deployment's
+managed cache in both the forward and restoration directions. Vercel does not
+expose a process-instance identity in these responses, so the evidence does not
+pretend that distinct request ids name distinct processes; the cross-deployment
+result directly rules out success confined to the webhook handler's one process.
 
 The webhook half — real Sanity publish → real signed delivery → `/api/revalidate`
 verifying and accepting it on the deployed runtime — does not depend on route
@@ -230,17 +256,17 @@ Two operational findings surfaced getting there, worth keeping:
   contract that no longer matches the live one" case, not a cache-staleness
   one.
 
-**This target remains temporary — for this verification run only.** Preview
+**This target remains temporary rather than a durable Preview endpoint.** Preview
 has no stable alias — the pipeline's `DeployPreview` stage produces a
 brand-new, unique `<hash>.vercel.app` URL on every `main` run, and nothing
 repoints an existing webhook when it does. Vercel's Data Cache persists
 across deployments within one project environment (Preview and Production
 never share it, but every Preview deployment does) and `revalidateTag`
-invalidates it globally, so an old webhook target does not by itself leave a
-newer release candidate stale on cache-isolation grounds — but, as just
-confirmed, it does stop delivering at all once code or secrets drift, or the
-old deployment is eventually cleaned up. Making Sanity's webhook durable
-across deployments — a stable, protected Preview alias the pipeline
+invalidates it globally — now also observed directly by the cross-deployment
+run above — so an old webhook target does not by itself leave a newer release
+candidate stale on cache-isolation grounds. It still stops delivering entirely
+once code or secrets drift, or the old deployment is cleaned up. Making
+Sanity's webhook durable across deployments — a stable, protected Preview alias the pipeline
 repoints after each verified deploy, or an equivalent — is a separate,
 currently unbuilt piece of work, not something to improvise here. Route wiring
 now makes Preview's cache-carrying traffic real, so this remains an operational

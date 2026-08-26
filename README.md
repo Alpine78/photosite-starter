@@ -405,14 +405,15 @@ a green pipeline. See [deployment](docs/deployment.md).
   completed two adapter gaps it exposed — a bounded gallery listing-record read and a bounded
   article sibling-navigation read — and gave the optional `/services` intro a matching
   optional field on the settings singleton. A deployed Preview render of Sanity-authored
-  content, proving the AB#83 cross-instance cache-invalidation gate, remains open*
-- [ ] Production deployment — *the Preview environment's repository half is done: pinned
-  runtime and region, a gated deploy stage, and the check that refuses to publish a
-  release-candidate URL unless its project/team ownership, access protection, and
-  non-indexability are verified ([deployment](docs/deployment.md)). The customer-owned
-  Vercel project exists, but its Preview protection, environment variables, and deployment
-  credentials are not fully provisioned, so the stage has never run and no release
-  candidate exists yet. Production promotion and rollback are pending*
+  content enabled the AB#83 cross-instance cache-invalidation gate, which a managed-cache
+  propagation run verified on Preview on 2026-08-26; AB#83 remains Active only until that
+  evidence is reviewed and merged*
+- [ ] Production deployment — *the protected Preview environment is provisioned and its
+  fully automated pipeline was verified by build 144 on 2026-08-24: the pinned runtime and
+  region, gated deploy stage, project/team ownership, access protection, and non-indexability
+  checks all ran against a real release-candidate URL
+  ([deployment](docs/deployment.md)). Production promotion and exercised rollback remain
+  pending under AB#18 and AB#118*
 - [ ] Redirects for important legacy URLs (first implementation)
 
 ## Later roadmap (not in MVP)
