@@ -447,16 +447,25 @@ proves the repository's own read adapters:
    page, including the page-size boundary. This is what actually satisfies
    "representative repository adapter queries... against Content Lake". It
    needs only read access — every dataset this project uses is public, so
-   no token at all — but it is **Preview-only as built**: it reads
-   `.vercel/.env.preview.local` by a hardcoded path rather than accepting a
-   configurable target, so it proves the adapters work against Preview, not
-   against a Production run. Pointing it at another project/dataset is
-   unimplemented future work (see *Owner actions this handoff assumes*
-   below for what that means for a Production seed today). It is
-   deliberately separate from `npm test` (it reaches a real network) and
-   from route wiring (nothing under `src/app` or `src/components` imports
-   it): it exists to prove the adapters work, not to switch the deployment
-   over to them.
+   no token at all. As of AB#138, its target env file is configurable rather
+   than hardcoded: it defaults to `.vercel/.env.preview.local`, unchanged
+   from before, but setting `SANITY_LIVE_VERIFICATION_ENV_FILE` (absolute,
+   or relative to the repository root) points it at any other env file — for
+   example, a `.env` naming a Production project and dataset once one has
+   been seeded with this exact fixture set. It remains a **fixture
+   verification suite, not a generic Sanity health check**: its assertions
+   are the exact values `scripts/sanity-seed-fixtures.mts` writes, so it
+   will correctly fail against a dataset that has not been seeded with that
+   fixture, Production included — verifying arbitrary owner-approved launch
+   content is a distinct, unimplemented need. The selected file must define
+   its own `SANITY_PROJECT_ID`/`SANITY_DATASET`/`SANITY_DATASET_VISIBILITY`/
+   `SANITY_API_VERSION` rather than leaving any of them to the ambient shell
+   environment (`src/lib/sanity-live-verification-config.ts` enforces this
+   and the suite prints its resolved target before issuing any query, so an
+   operator can confirm it). It is deliberately separate from `npm test` (it
+   reaches a real network) and from route wiring (nothing under `src/app` or
+   `src/components` imports it): it exists to prove the adapters work, not
+   to switch the deployment over to them.
 
 Additionally, confirm the dataset holds *exactly* the intended manifest —
 neither a foreign document nor a stale leftover from an older fixture
@@ -540,12 +549,14 @@ shapes:
    the script is, and is not*).
 3. Run both `npm test`-covered layers above (1–2) and confirm every check
    passes before treating the seed as complete. `npm run verify:sanity-live`
-   (layer 3 above) is Preview-only as built — it reads
-   `.vercel/.env.preview.local` by a hardcoded path — so it proves the
-   adapters work against Preview, not against whatever this Production run
-   just wrote; pointing it at a different project/dataset is unimplemented
-   future work, not something to attempt ad hoc against a live Production
-   seed.
+   (layer 3 above) can now be pointed at a Production env file via
+   `SANITY_LIVE_VERIFICATION_ENV_FILE` (AB#138) — but only run it against
+   Production if this run actually wrote the exact AB#84 fixture set there;
+   its assertions are fixture-specific, so it will (correctly) fail against
+   real, owner-approved launch content that differs from the fixture. Use
+   the read-only content audit tool below to verify a real Production seed
+   instead — it makes no assumption about which specific content was
+   written.
 4. Revoke the token immediately after, in Sanity's project API settings —
    not by letting it expire — the same step this story's own Preview run
    requires.
@@ -558,6 +569,118 @@ shapes:
    real customer content is authored against the same dataset, exactly as it
    already is for Preview.
 
+## Content audit (AB#138)
+
+A separate, read-only tool — `npm run audit:sanity` (`scripts/audit-sanity-content.mts`,
+logic in `scripts/sanity-audit.mts`) — for exactly the launch-readiness
+question AB#137's own acceptance criteria ask, and that neither the seed
+script's own `--yes` verification nor `verify:sanity-live` answers: *what is
+actually in this dataset*, independent of which specific content was
+authored. Unlike `verify:sanity-live`, it makes no assumption that
+`scripts/sanity-seed-fixtures.mts`'s fixture — or any particular content —
+was ever written there; it simply reports what it finds.
+
+### What it reports
+
+One bounded, keyset-paginated scan (`_id > $after`, `order(_id)`, never an
+offset slice — Sanity's own documentation warns offset slicing is
+inefficient at scale) over every document in the dataset, at every
+perspective — published, drafts, and documents copied into a content
+release. Every document and every image/file asset the scan sees is listed
+individually in the printed report, by id — not just counted or sampled:
+"is any of this actually approved launch content?" is a question only a
+list of identifiers can answer, a count cannot. The report is:
+
+- every document's id, `_type`, and identity (published / draft / which
+  release a version belongs to), plus the same broken down as totals and by
+  `_type`;
+- `system.release` records (content releases themselves) and how many
+  document versions exist inside any release;
+- every image and file asset's id and dimensions, and which image assets
+  are missing their public derivative dimensions (a file asset having none
+  is expected and never flagged);
+- which assets have a stored original filename — `sanity/schemas/media.ts`
+  sets `storeOriginalFilename: false` specifically so this list should be
+  empty; a nonzero one is worth investigating before launch;
+- which `media` documents carry `archiveLocator` or `capturedAt` — the two
+  fields `SENSITIVE_MEDIA_METADATA_FIELDS` in `sanity-audit.mts` names as
+  private/internal.
+
+The asset-filename and media-private-field checks are scoped to their real
+types (`sanity.imageAsset`/`sanity.fileAsset`, and `media`, respectively): an
+unrelated document type that happens to declare a same-named field is never
+misreported as one of these, though it is never hidden either — every
+`_type` the scan sees, expected or not, appears in the per-type breakdown
+and the full document list above, since the scan itself has no type
+allow-list.
+
+It reports **presence and counts only, never a value**: the GROQ projection
+itself only ever asks `defined(<field>)`, a boolean, so a filename or an
+archive location never leaves the dataset in the first place, let alone
+reaches a log or a printed report. Deciding whether specific launch content
+is *approved* — AB#137's own "no unapproved demo, webhook-test, private,
+archive, sales, or abandoned content" acceptance criterion — is a manual
+judgment call this tool's numbers and ids inform; it names no specific past
+artifact and makes no approval decision itself.
+
+Every read is validated defensively: a malformed row, a page returning more
+than the requested page size, or a pagination cursor that fails to advance
+strictly are all reported as a classified `AuditQueryError` rather than a
+false empty result. The collected document count is checked against an
+initial `count(*[])` snapshot; a mismatch — the dataset changed while the
+audit was running — is reported as `AuditConsistencyError` rather than a
+report that looks complete but was actually built from a moving target.
+This catches any net growth or shrinkage in the document count during the
+scan, which is the realistic failure mode; a delete and an unrelated insert
+landing in the same window with the count unchanged is a known, disclosed
+gap this count-only check cannot see (closing it would mean a second,
+identity-comparing full scan — doubling the read cost to guard against a
+coincidence). **Run this tool against a quiet dataset** — no concurrent
+authoring or another process seeding it — the same operational expectation
+the seed script's own live-verification step already carries.
+
+### Required credential
+
+`SANITY_AUDIT_TOKEN` — environment-only, like `SANITY_SEED_TOKEN`, and never
+passed as a CLI flag (a process's argument list is visible to other
+processes and shell history). Its required role is deliberately the
+narrowest of the three tokens this project ever mints:
+
+| Token | Role | Can write | Sees drafts/releases |
+| --- | --- | --- | --- |
+| `SANITY_READ_TOKEN` (runtime) | — (or none, for a public dataset) | No | No — `src/lib/sanity-client.ts` hardcodes `perspective=published` |
+| `SANITY_SEED_TOKEN` (seeding) | Editor | Yes | Yes |
+| `SANITY_AUDIT_TOKEN` (this tool) | **Viewer** | No | Yes |
+
+Verified against Sanity's own documentation (2026-08-26): reading draft
+content requires an authenticated client, and Sanity's docs state that
+explicitly "requires an authenticated client with a viewer role" — the
+built-in, read-only Viewer role is sufficient. Content Releases are
+likewise gated only on authentication ("because releases are not public,
+all API requests must be authenticated"), with no documented requirement
+for a stronger role to read them. Never mint an Editor- or
+Administrator-role token for this tool — it never needs write access, and
+using a least-privilege credential means a leaked audit token cannot alter
+or delete anything.
+
+### Command
+
+```bash
+export SANITY_AUDIT_TOKEN=...   # fresh, Viewer role — read-only, safe to run repeatedly
+npm run audit:sanity -- \
+  --project <project-id> \
+  --dataset <dataset> \
+  --api-version <API version>
+```
+
+Safe to run against a live dataset at any time, including Production,
+before or after a seed — it never writes, mutates, or deletes anything.
+`--project`/`--dataset`/`--api-version` may also come from the
+`SANITY_PROJECT_ID`/`SANITY_DATASET`/`SANITY_API_VERSION` environment
+variables instead; if both a flag and its matching environment variable are
+set and disagree, the tool refuses to guess which one was meant rather than
+silently picking one.
+
 ## Testing this script itself
 
 ```bash
@@ -569,3 +692,19 @@ npx vitest run scripts/sanity-seed-content-verification.test.mts
 All three run as part of `npm test`. Neither reaches a network — the fixture
 tests are pure, and the HTTP tests inject a fake `fetch`. Only an actual
 `--yes` invocation talks to a real project.
+
+The AB#138 audit tool and the `verify:sanity-live` configurability above
+have their own offline suites, also part of `npm test`:
+
+```bash
+npx vitest run scripts/sanity-audit.test.mts
+npx vitest run src/lib/sanity-live-verification-config.test.ts
+```
+
+The first exercises `runContentAudit`'s pagination, classification, and
+consistency checks against a fake `runQuery`, and pins the sensitive-field
+policy against `sanity/schemas/media.ts`'s real field names. The second
+exercises the env-file resolution and target-completeness checks
+`sanity-live-verification.test.ts` itself now uses. Neither reaches a
+network; only `npm run verify:sanity-live` and an actual `npm run
+audit:sanity` invocation do.
