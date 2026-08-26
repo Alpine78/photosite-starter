@@ -164,7 +164,11 @@ export async function resolveNotFoundReturn(
 
   const contentPage = asGalleryPage(
     candidate.contentId,
-    await sources.contentPageSource(candidate.locale, candidate.contentId),
+    // `resolveGalleryReturnCandidate` already checked `route.variant ===
+    // "gallery"` before returning a candidate at all, so this is never a
+    // guess: the hint lets a Sanity-backed source read one detail query
+    // instead of both concurrently.
+    await sources.contentPageSource(candidate.locale, candidate.contentId, "gallery"),
   );
   if (contentPage === undefined) return undefined;
 

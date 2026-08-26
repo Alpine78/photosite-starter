@@ -19,6 +19,7 @@
  * boundary instead of leaking a query type into a component.
  */
 
+import type { ContentVariant } from "@/lib/content-tree";
 import type { ImageMedia, Media } from "@/lib/media";
 
 /**
@@ -134,10 +135,19 @@ export function assertSemanticHeadingOrder(blocks: readonly ContentBlock[]): voi
  * own tree and its own authored text, and a page may publish in one locale
  * without existing in another. An adapter that took only the id would have to
  * guess which language it was being asked for.
+ *
+ * `variant` is an optional performance hint, not a filter: a caller that
+ * already resolved the tree's placement for this `contentId` (the route
+ * always has) can pass it so a per-variant-document store reads only the one
+ * matching detail query instead of every variant concurrently. A caller with
+ * no placement in hand yet (an existence check reached from a redirect or
+ * not-found boundary) omits it, and every source must still resolve the page
+ * correctly either way.
  */
 export type ContentPageSource = (
   locale: string,
   contentId: string,
+  variant?: ContentVariant,
 ) => Promise<ContentPage | undefined>;
 
 /**

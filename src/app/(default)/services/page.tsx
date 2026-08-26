@@ -25,7 +25,9 @@ export default async function ServicesPage() {
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
           {getDefaultLocaleLabels().pages.services}
         </h1>
-        <p className="mt-3 text-foreground/70">{intro}</p>
+        {intro !== undefined && (
+          <p className="mt-3 text-foreground/70">{intro}</p>
+        )}
       </header>
 
       {/* 1 / 2 / 3 columns. items-start lets each card keep its natural height

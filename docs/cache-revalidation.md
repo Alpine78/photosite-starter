@@ -176,20 +176,20 @@ Production deployment exists yet (AB#18 is a later story), but a Preview
 deployment now does (AB#116, closed 2026-08-24) and is reachable for this gate —
 a local test still cannot satisfy it. **The publish → webhook part of that
 check has now been run and recorded against a real Preview deployment
-(2026-08-25, below); the repeated cross-instance fetch part has not, and
-cannot be until a separate route-wiring gap closes (also below). AB#83
-therefore remains open**, unless the owner first accepts an ADR/work-item
-scope amendment assigning that remaining evidence elsewhere.
+(2026-08-25, below); the repeated cross-instance fetch part has not. AB#135
+closed its route-wiring prerequisite on 2026-08-26 and deployed representative
+Sanity-authored routes, so that remaining AB#83 evidence is now executable but
+has not been claimed by this story. AB#83 therefore remains open**, unless the
+owner first accepts an ADR/work-item scope amendment assigning that evidence
+elsewhere.
 
-The gate has two independent halves, and only one is currently satisfiable.
-No route in `src/app` reads from Sanity yet — every content adapter exists
-(AB#80–82, AB#112–114) but none is wired into a route-facing seam, so
-`SITE_CONTENT_SOURCE` stays `mock` in every deployment today (`docs/deployment.md`).
-That means there is no visitor-facing output that a Sanity publish could ever
-change yet, so the gate's "repeated cross-instance fetch" half — observing a
-page actually reflect the new content — cannot be exercised until a route-wiring
-story lands. This is a scope gap in the epic, not a defect in AB#83's own code,
-and it blocks closing AB#83 regardless of how the webhook half below goes.
+The gate has two independent halves. The webhook half below is verified. AB#135
+now makes the other half possible: every public content seam dispatches on
+`SITE_CONTENT_SOURCE`, the reference Preview selects `sanity`, and a protected,
+`noindex` Preview deployment was verified to render the AB#84 seed's home,
+services, article, and gallery output. AB#83 still owns observing a real publish
+through repeated cross-instance fetches; route availability is no longer its
+blocker, but the publish/propagation experiment itself has not been rerun here.
 
 The webhook half — real Sanity publish → real signed delivery → `/api/revalidate`
 verifying and accepting it on the deployed runtime — does not depend on route
@@ -242,8 +242,9 @@ confirmed, it does stop delivering at all once code or secrets drift, or the
 old deployment is eventually cleaned up. Making Sanity's webhook durable
 across deployments — a stable, protected Preview alias the pipeline
 repoints after each verified deploy, or an equivalent — is a separate,
-currently unbuilt piece of work, not something to improvise here; file it
-before route wiring makes Preview's cache-carrying traffic real.
+currently unbuilt piece of work, not something to improvise here. Route wiring
+now makes Preview's cache-carrying traffic real, so this remains an operational
+follow-up before treating the temporary webhook target as durable.
 
 Also outstanding beforehand: during this session, an unrelated stray
 Production deployment (`source: cli`, no `X-Robots-Tag`, no SSO challenge) was

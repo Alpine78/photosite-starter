@@ -49,6 +49,7 @@ import "server-only";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
   orderContentListingRecords,
+  type AdjacentContentRecords,
   type ContentListingQuery,
   type ContentListingRecord,
 } from "@/lib/content-listing";
@@ -63,7 +64,6 @@ import {
 } from "@/lib/sanity-content-tree";
 import {
   getSanityClient,
-  MAX_SANITY_GET_URL_BYTES,
   type SanityClient,
 } from "@/lib/sanity-client";
 import { getSanityConfig, type SanityConfig } from "@/lib/sanity-config";
@@ -72,7 +72,14 @@ import {
   PUBLIC_MEDIA_PROJECTION,
   type RawPublicMediaDocument,
 } from "@/lib/sanity-media";
-import { isRecord, readString, toLanguageSubtag } from "@/lib/sanity-values";
+import {
+  chunkContentIds as chunkContentIdsShared,
+  encodedContentIdsBytes,
+  isRecord,
+  MAX_CONTENT_IDS_BYTES,
+  readString,
+  toLanguageSubtag,
+} from "@/lib/sanity-values";
 
 /**
  * The document type this adapter reads. Declared here rather than imported
@@ -449,71 +456,26 @@ export type PublicArticleListingReadOptions = {
   readonly config?: SanityConfig;
 };
 
-/**
- * Conservative share of `sanity-client.ts`'s whole-URL GET budget reserved
- * for the serialized `contentIds` array itself, leaving room for the origin,
- * API version, dataset path, the rest of the query string, and the other
- * params. A category holding a few hundred articles can otherwise put more
- * candidate ids in this one array than the whole request budget allows.
- */
-const MAX_CONTENT_IDS_BYTES = Math.floor(MAX_SANITY_GET_URL_BYTES / 2);
+export { encodedContentIdsBytes, MAX_CONTENT_IDS_BYTES };
 
 /**
- * The exact byte cost one chunk adds to the request URL:
- * `sanity-client.ts#buildSanityQueryUrl` turns a parameter value into
- * `encodeURIComponent(JSON.stringify(value))` before measuring the assembled
- * URL with `TextEncoder`. A raw per-id character estimate systematically
- * under-counts here — `encodeURIComponent` expands every JSON quote, comma,
- * and bracket to a three-byte `%XX` escape — so this measures the same
- * encoded form the real request builds, not an approximation of it.
- */
-export function encodedContentIdsBytes(contentIds: readonly string[]): number {
-  return new TextEncoder().encode(encodeURIComponent(JSON.stringify(contentIds)))
-    .length;
-}
-
-/**
- * Splits candidate ids into groups whose exact encoded size — measured the
- * same way `buildSanityQueryUrl` measures the real request — stays under
- * `maxBytes`, so a large category's listing read never builds one query the
- * transport refuses outright.
- *
- * `CONTENT_ID`'s own pattern has no length bound, so one pathological id —
- * from a hand-written import, not Studio, which has no length limit of its
- * own either — could be too large to fit a chunk by itself; a singleton
- * chunk skips the "does adding this overflow the chunk" comparison because
- * there is nothing yet to compare against, so that case needs its own
- * check. Rejecting it here, identifying the offending id, is clearer than
- * letting it become the generic byte-count error `buildSanityQueryUrl`
- * raises once the request is actually built.
+ * Splits candidate ids into groups whose exact encoded size stays under
+ * `maxBytes` — `sanity-values.ts#chunkContentIds`'s provider-neutral mechanics,
+ * with this adapter's own classified error supplied for the one id-too-large-
+ * by-itself case, so a gallery-listing failure can never surface under this
+ * variant's error type (see `sanity-values.ts`'s own doc comment).
  */
 export function chunkContentIds(
   contentIds: readonly string[],
   maxBytes: number,
 ): readonly (readonly string[])[] {
-  const chunks: string[][] = [];
-  let current: string[] = [];
-
-  for (const id of contentIds) {
-    if (encodedContentIdsBytes([id]) > maxBytes) {
-      throw new SanityArticleError(
-        "incomplete-document",
-        "a content id is too large to fit any bounded listing request by itself",
-        id,
-      );
-    }
-
-    const candidate = [...current, id];
-    if (current.length > 0 && encodedContentIdsBytes(candidate) > maxBytes) {
-      chunks.push(current);
-      current = [id];
-    } else {
-      current = candidate;
-    }
-  }
-  if (current.length > 0) chunks.push(current);
-
-  return chunks;
+  return chunkContentIdsShared(contentIds, maxBytes, (id) => {
+    throw new SanityArticleError(
+      "incomplete-document",
+      "a content id is too large to fit any bounded listing request by itself",
+      id,
+    );
+  });
 }
 
 /**
@@ -670,4 +632,91 @@ export async function readPublicArticlePage(
     fallbackLanguage: getFallbackLocale(),
     config,
   });
+}
+
+export type PublicArticleAdjacentReadOptions = {
+  readonly language: string;
+  readonly client?: SanityClient;
+  readonly config?: SanityConfig;
+};
+
+type RawArticleAdjacentResult = {
+  readonly previous?: unknown;
+  readonly next?: unknown;
+};
+
+/**
+ * The previous/next article either side of one page in the global, newest-
+ * published-first publication order `content-listing.ts`'s
+ * `AdjacentContentSource` describes — one bounded HTTP round trip reading
+ * exactly the two candidate rows a keyset comparison can return, never the
+ * whole article set.
+ *
+ * No `contentIds` candidate list is needed: `ARTICLE_FILTER` (type + language)
+ * already matches every published article in this language, and `article.ts`'s
+ * Studio validation requires a canonical category before publish, so every row
+ * this query can return is already a routed, canonically placed candidate —
+ * exactly what `buildAdjacentContentQuery` would otherwise have named. The
+ * anchor's own `publishedAt`/`contentId` are read via `^` (the same parent-
+ * scope idiom `sanity-gallery.ts#GALLERY_PAGINATION_BASICS_QUERY` uses for
+ * `^._id`) so the whole previous/next pair comes back in one request rather
+ * than a separate lookup for the anchor's own ordering key first.
+ *
+ * Returns `{}` when the anchor document itself does not resolve in this
+ * language: a defect elsewhere already surfaced the page this call is about,
+ * so a vanished anchor is "no neighbours to report," not a second error.
+ */
+export async function readPublicArticleAdjacentRecords(
+  contentId: string,
+  options: PublicArticleAdjacentReadOptions,
+): Promise<AdjacentContentRecords> {
+  const client = options.client ?? getSanityClient();
+  const language = toLanguageSubtag(options.language);
+  const config = options.config ?? getSanityConfig();
+  const languages = { language, fallbackLanguage: getFallbackLocale(), config };
+
+  const result = await client.query({
+    query: `*[${ARTICLE_FILTER} && contentId == $contentId][0]{
+      "previous": *[${ARTICLE_FILTER} && (publishedAt > ^.publishedAt || (publishedAt == ^.publishedAt && contentId < ^.contentId))] | order(publishedAt asc, contentId desc) [0]${ARTICLE_LISTING_PROJECTION},
+      "next": *[${ARTICLE_FILTER} && (publishedAt < ^.publishedAt || (publishedAt == ^.publishedAt && contentId > ^.contentId))] | order(publishedAt desc, contentId asc) [0]${ARTICLE_LISTING_PROJECTION}
+    }`,
+    params: { language, contentId },
+    tag: "article.adjacent",
+  });
+
+  if (result === null || result === undefined) return {};
+  if (!isRecord(result)) {
+    throw new SanityArticleError(
+      "malformed-result",
+      "the content store answered an adjacent-article query with something other than the expected {previous, next} shape",
+      contentId,
+    );
+  }
+
+  const raw = result as RawArticleAdjacentResult;
+  const projectAdjacent = (
+    value: unknown,
+    direction: "previous" | "next",
+  ): ContentListingRecord | undefined => {
+    if (value === null || value === undefined) return undefined;
+    if (!isRecord(value)) {
+      throw new SanityArticleError(
+        "malformed-result",
+        `the content store answered with a malformed ${direction} article`,
+        contentId,
+      );
+    }
+    return projectArticleListingRecord(
+      value as RawArticleListingDocument,
+      languages,
+    );
+  };
+
+  const previous = projectAdjacent(raw.previous, "previous");
+  const next = projectAdjacent(raw.next, "next");
+
+  return {
+    ...(previous === undefined ? {} : { previous }),
+    ...(next === undefined ? {} : { next }),
+  };
 }

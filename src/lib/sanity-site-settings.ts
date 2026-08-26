@@ -21,6 +21,7 @@ export const PROJECTED_SITE_SETTINGS_FIELDS = [
   "siteName",
   "photographerName",
   "tagline",
+  "servicesIntro",
   "featuredGalleryId",
   "navigation",
   "contact",
@@ -34,6 +35,7 @@ export const SITE_SETTINGS_PROJECTION = `{
   siteName,
   photographerName,
   tagline[]{language, value},
+  servicesIntro[]{language, value},
   featuredGalleryId,
   navigation[]{label[]{language, value}, target, href},
   contact{
@@ -219,6 +221,15 @@ export function projectSiteSettings(
     "contact.address",
     rejectIncomplete,
   );
+  // Optional, unlike `tagline`: a deployment with none omits the /services
+  // intro paragraph (`getPageMetadata`'s own description fallback already
+  // covers the metadata half) rather than borrowing fixture copy.
+  const servicesIntro = readOptionalLocalizedText(
+    document.servicesIntro,
+    options.language,
+    "servicesIntro",
+    rejectIncomplete,
+  );
   const businessId = readOptionalString(
     contact.businessId,
     "contact.businessId",
@@ -238,6 +249,7 @@ export function projectSiteSettings(
       "tagline",
       rejectIncomplete,
     ),
+    ...(servicesIntro === undefined ? {} : { servicesIntro }),
     navigation: [...navigation],
     ...(featuredGalleryId === undefined ? {} : { featuredGalleryId }),
     contact: {

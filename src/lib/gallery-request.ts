@@ -99,7 +99,7 @@ export async function resolveGalleryRequestTargetFromSources(
   // source has to agree before anything is served under that identity.
   const page = asGalleryPage(
     route.contentId,
-    await sources.contentPageSource(locale, route.contentId),
+    await sources.contentPageSource(locale, route.contentId, route.variant),
   );
   if (page === undefined) return undefined;
 

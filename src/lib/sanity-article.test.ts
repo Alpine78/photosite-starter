@@ -15,6 +15,7 @@ import {
   PROJECTED_ARTICLE_DETAIL_FIELDS,
   PROJECTED_ARTICLE_LISTING_FIELDS,
   PROJECTED_ARTICLE_PLACEMENT_FIELDS,
+  readPublicArticleAdjacentRecords,
   readPublicArticleListingRecords,
   readPublicArticlePage,
   readPublicArticlePlacements,
@@ -501,5 +502,114 @@ describe("reading one article's page", () => {
     });
 
     expect(page).toMatchObject({ contentId: "content-x", variant: "article" });
+  });
+});
+
+describe("reading adjacent (sibling) records", () => {
+  it("projects both neighbours in one bounded round trip", async () => {
+    const { client, requests } = fakeClient({
+      "article.adjacent": {
+        previous: {
+          contentId: "content-newer",
+          title: "Newer",
+          publishedAt: "2024-06-01",
+        },
+        next: {
+          contentId: "content-older",
+          title: "Older",
+          publishedAt: "2024-01-01",
+        },
+      },
+    });
+
+    const records = await readPublicArticleAdjacentRecords("content-anchor", {
+      language: "en",
+      client,
+      config,
+    });
+
+    expect(records).toEqual({
+      previous: {
+        contentId: "content-newer",
+        title: "Newer",
+        publishedAt: "2024-06-01",
+      },
+      next: {
+        contentId: "content-older",
+        title: "Older",
+        publishedAt: "2024-01-01",
+      },
+    });
+    expect(requests).toHaveLength(1);
+    expect(requests[0].tag).toBe("article.adjacent");
+    expect(requests[0].params).toEqual({ language: "en", contentId: "content-anchor" });
+  });
+
+  it("omits a side with no neighbour in that direction", async () => {
+    const { client } = fakeClient({
+      "article.adjacent": {
+        previous: null,
+        next: {
+          contentId: "content-older",
+          title: "Older",
+          publishedAt: "2024-01-01",
+        },
+      },
+    });
+
+    const records = await readPublicArticleAdjacentRecords("content-anchor", {
+      language: "en",
+      client,
+      config,
+    });
+
+    expect(records).toEqual({
+      next: {
+        contentId: "content-older",
+        title: "Older",
+        publishedAt: "2024-01-01",
+      },
+    });
+  });
+
+  it("answers no neighbours when the anchor itself does not resolve in this language", async () => {
+    const { client } = fakeClient({ "article.adjacent": null });
+
+    await expect(
+      readPublicArticleAdjacentRecords("content-anchor", {
+        language: "en",
+        client,
+        config,
+      }),
+    ).resolves.toEqual({});
+  });
+
+  it("rejects a malformed answer rather than silently answering no neighbours", async () => {
+    const { client } = fakeClient({ "article.adjacent": "not an object" });
+
+    await expect(
+      readPublicArticleAdjacentRecords("content-anchor", {
+        language: "en",
+        client,
+        config,
+      }),
+    ).rejects.toThrow(SanityArticleError);
+  });
+
+  it("rejects a malformed neighbour inside an otherwise shaped answer", async () => {
+    const { client } = fakeClient({
+      "article.adjacent": { previous: "not an article", next: null },
+    });
+
+    await expect(
+      readPublicArticleAdjacentRecords("content-anchor", {
+        language: "en",
+        client,
+        config,
+      }),
+    ).rejects.toMatchObject({
+      name: "SanityArticleError",
+      rejection: "malformed-result",
+    });
   });
 });

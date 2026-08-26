@@ -7,7 +7,16 @@
  * story routes 404 rather than falling back to another language's tree, because
  * showing Finnish categories at an English URL would claim a translation that
  * does not exist.
+ *
+ * No adapter yet records the previously published path history ADR-0003
+ * decision 7's project-owned URL-change workflow is meant to persist (no
+ * `sanity/schemas/*.ts` document carries a `previousPath`/redirect field). A
+ * Sanity-backed deployment therefore publishes no recorded redirect history —
+ * honestly empty, since nothing has recorded any yet, rather than a fixture
+ * value borrowed from the mock.
  */
+
+import { cache } from "react";
 
 import {
   buildAdjacentContentQuery,
@@ -17,7 +26,8 @@ import {
   resolveAdjacentContent,
   selectAdjacentRecords,
   type AdjacentContent,
-  type AdjacentContentSource,
+  type AdjacentContentQuery,
+  type AdjacentContentRecords,
   type CategoryListing,
   type ContentListingQuery,
   type ContentListingRecord,
@@ -38,10 +48,28 @@ import {
 } from "@/lib/mock-content-tree";
 
 /**
+ * `sanity-article.ts`, `sanity-content-tree.ts`, and `sanity-gallery.ts` each
+ * carry the `server-only` marker. A static top-level import of any of them
+ * would pull that marker into this seam's module graph unconditionally —
+ * including from contexts (e2e Playwright specs, which run outside Next's
+ * own bundler and cannot satisfy that package's build-time "react-server"
+ * export condition) that only ever exercise the mock path. Every function
+ * below imports them dynamically, inside its own `contentSource === "sanity"`
+ * branch, so the mock path never touches them at all.
+ */
+
+/**
  * Mock content is authored per language, while routes are configured per
  * locale: `en-GB` and `en-US` are different route spaces sharing one set of
  * English pages. The locale reached this point through the route config, so it
  * is already a validated BCP 47 tag.
+ *
+ * Deliberately not `sanity-values.ts#toLanguageSubtag`, even though it does
+ * the same reduction more defensively: that module carries the `server-only`
+ * marker (transitively, via its own `sanity-client.ts` import for the
+ * chunking byte budget), and this function runs unconditionally on the mock
+ * path too — including from contexts, like e2e Playwright specs, that run
+ * outside Next's own bundler and cannot tolerate that marker at all.
  */
 function languageOf(locale: string): string {
   return new Intl.Locale(locale).language;
@@ -55,7 +83,7 @@ type PublicContent = {
   readonly redirects: LocalizedContentRedirects;
 };
 
-function buildPublicContent(config: LocaleRouteConfig): PublicContent {
+function buildMockPublicContent(config: LocaleRouteConfig): PublicContent {
   const trees = new Map<string, ContentTree>();
   const redirects = new Map<string, ContentRedirects>();
 
@@ -77,35 +105,167 @@ function buildPublicContent(config: LocaleRouteConfig): PublicContent {
   return { trees, redirects };
 }
 
-let cachedContent: PublicContent | undefined;
+/**
+ * Static demo data never changes at runtime, so caching it in a module-level
+ * variable is safe and keeps every request from rebuilding it. This cache must
+ * never hold Sanity-sourced content — see `buildSanityPublicContent`'s own
+ * comment for why.
+ */
+let cachedMockContent: PublicContent | undefined;
 
-function getPublicContent(): PublicContent {
-  cachedContent ??= buildPublicContent(getDeploymentConfig().localeRoutes);
-  return cachedContent;
+/**
+ * Builds this deployment's public content tree fresh from Sanity: one read
+ * per configured locale, never kept in a module-level variable across
+ * requests.
+ *
+ * That absence of a *persistent* cache is deliberate, not an oversight.
+ * AB#83's webhook revalidation invalidates Next's own tagged fetch Data Cache
+ * (`revalidateTag`, driven by `sanity-cache.ts`'s query-tag map) — it has no
+ * way to reach into an arbitrary JS-level variable living for the process's
+ * whole lifetime. A plain module-level cache on top would mean a Sanity
+ * publish stays invisible until the server process restarts, which is
+ * exactly the failure AB#83 exists to prevent.
+ *
+ * It is, however, wrapped in React's `cache()`: several independent seams
+ * within one request all need this same result — the catch-all route's own
+ * `resolveRequest` reads both `getContentTrees()` and `getContentRedirects()`,
+ * and `getCategoryListing()`/`getAdjacentContent()` each read `getContentTrees()`
+ * again — and without request-scoped memoization, one page render would repeat
+ * the whole per-locale category-and-placement walk several times over.
+ * `cache()` dedupes calls carrying the same `config` reference *only within
+ * one request/render* (React's documented per-request-scope contract) and
+ * never persists anything across requests, so it adds nothing a fresh
+ * deployment-config read on the next request wouldn't already recompute —
+ * unlike the module-level cache above, it cannot go stale across a
+ * `revalidateTag`. Every read below still goes through `sanity-client.ts`'s
+ * own tagged `fetch` too, so cross-request, tag-scoped caching still happens
+ * at the layer that can actually be invalidated.
+ *
+ * A locale with no categories, articles, or galleries in its language is
+ * omitted from the result entirely, matching the mock's own "absent from the
+ * map" contract this module's header comment describes. Checking all three
+ * sources matters: an article or gallery whose localized category is missing
+ * is invalid tree input, not an unauthored locale, and `buildContentTree` must
+ * be allowed to classify that defect instead of this seam silently hiding it.
+ */
+const buildSanityPublicContent = cache(
+  async (config: LocaleRouteConfig): Promise<PublicContent> => {
+    const [{ readPublicCategoryInputs }, { readPublicArticlePlacements }, { readPublicGalleryPlacements }] =
+      await Promise.all([
+        import("@/lib/sanity-content-tree"),
+        import("@/lib/sanity-article"),
+        import("@/lib/sanity-gallery"),
+      ]);
+
+    const trees = new Map<string, ContentTree>();
+    const redirects = new Map<string, ContentRedirects>();
+
+    await Promise.all(
+      config.locales.map(async (route) => {
+        const language = languageOf(route.locale);
+        const [categories, articlePlacements, galleryPlacements] = await Promise.all([
+          readPublicCategoryInputs({ language }),
+          readPublicArticlePlacements({ language }),
+          readPublicGalleryPlacements({ language }),
+        ]);
+        if (
+          categories.length === 0 &&
+          articlePlacements.length === 0 &&
+          galleryPlacements.length === 0
+        ) {
+          return;
+        }
+
+        const tree = buildContentTree({
+          categories,
+          placements: [...articlePlacements, ...galleryPlacements],
+        });
+        trees.set(route.locale, tree);
+        redirects.set(route.locale, buildContentRedirects(tree, []));
+      }),
+    );
+
+    return { trees, redirects };
+  },
+);
+
+async function getPublicContent(): Promise<PublicContent> {
+  const { contentSource, localeRoutes } = getDeploymentConfig();
+  if (contentSource === "sanity") {
+    return buildSanityPublicContent(localeRoutes);
+  }
+
+  cachedMockContent ??= buildMockPublicContent(localeRoutes);
+  return cachedMockContent;
 }
 
 export async function getContentTrees(): Promise<LocalizedContentTrees> {
-  return getPublicContent().trees;
+  return (await getPublicContent()).trees;
 }
 
 /** Recorded path history per locale, for the route layer's permanent redirects. */
 export async function getContentRedirects(): Promise<LocalizedContentRedirects> {
-  return getPublicContent().redirects;
+  return (await getPublicContent()).redirects;
 }
 
 /**
  * Runs one bounded listing query.
  *
- * A fixture in memory is not a store, so the mock cannot demonstrate a pushed-
- * down limit — but it honors the same contract a CMS adapter must: it applies
- * the ordering rule first and returns no more than `limit` rows. The route never
- * sees a row past the page it asked for, and an adapter that answers the whole
- * query in the store satisfies this seam without changing a caller.
+ * The mock fixture in memory is not a store, so it cannot demonstrate a
+ * pushed-down limit — but it honors the same contract a CMS adapter must: it
+ * applies the ordering rule first and returns no more than `limit` rows. The
+ * Sanity path splits the request by variant (a category can list galleries
+ * and articles side by side) and runs both bounded reads concurrently, each
+ * already limited to `query.limit` candidates, then re-orders and re-bounds
+ * the merged result exactly as `content-listing.ts` orders a single page — the
+ * same "each side contributes its own top candidates" reasoning
+ * `sanity-article.ts#readPublicArticleListingRecords` already applies across
+ * its own byte-budget chunks. The route never sees a row past the page it
+ * asked for, and an adapter that answers the whole query in the store
+ * satisfies this seam without changing a caller.
  */
 async function queryListingRecords(
   locale: string,
+  tree: ContentTree,
   query: ContentListingQuery,
 ): Promise<readonly ContentListingRecord[]> {
+  const { contentSource } = getDeploymentConfig();
+
+  if (contentSource === "sanity") {
+    const [{ readPublicArticleListingRecords }, { readPublicGalleryListingRecords }] =
+      await Promise.all([
+        import("@/lib/sanity-article"),
+        import("@/lib/sanity-gallery"),
+      ]);
+
+    const language = languageOf(locale);
+    const articleIds: string[] = [];
+    const galleryIds: string[] = [];
+    for (const contentId of query.contentIds) {
+      if (tree.placements.get(contentId)?.variant === "gallery") {
+        galleryIds.push(contentId);
+      } else {
+        articleIds.push(contentId);
+      }
+    }
+
+    const [articleRecords, galleryRecords] = await Promise.all([
+      readPublicArticleListingRecords(
+        { ...query, contentIds: articleIds },
+        { language },
+      ),
+      readPublicGalleryListingRecords(
+        { ...query, contentIds: galleryIds },
+        { language },
+      ),
+    ]);
+
+    return orderContentListingRecords([
+      ...articleRecords,
+      ...galleryRecords,
+    ]).slice(0, query.limit);
+  }
+
   const authored = mockContentListingRecords[languageOf(locale)];
   const rows = query.contentIds.flatMap((contentId) => {
     const record = authored?.get(contentId);
@@ -115,26 +275,97 @@ async function queryListingRecords(
   return orderContentListingRecords(rows).slice(0, query.limit);
 }
 
+/** Why a `contentId` could not resolve to one unambiguous content page. */
+export type SanityContentPageRejection = "ambiguous-content-identity";
+
+/**
+ * Raised by `getContentPage`'s Sanity path, matching the classified-error
+ * convention every other Sanity adapter in this codebase follows
+ * (`SanityArticleError`, `SanityGalleryError`, `SanityContentTreeError`, each
+ * carrying a `.rejection` discriminant) — this seam's own composition of two
+ * of them deserves the same, rather than an unclassified `TypeError` a
+ * route-level error boundary or log pattern-matching on `Sanity*Error` would
+ * never recognize.
+ */
+export class SanityContentPageError extends Error {
+  readonly rejection: SanityContentPageRejection;
+  readonly contentId: string;
+
+  constructor(rejection: SanityContentPageRejection, detail: string, contentId: string) {
+    super(`[content] ${detail} (contentId "${contentId}")`);
+    this.name = "SanityContentPageError";
+    this.rejection = rejection;
+    this.contentId = contentId;
+  }
+}
+
 /**
  * One content page in one locale, or `undefined` when that locale publishes no
  * version of it.
  *
  * Read only by a detail route, and only after the tree has resolved the path to
  * this `contentId`: the body is exactly what a listing query must never load.
+ *
+ * `variant`, when the caller has it, lets the Sanity path read exactly one
+ * per-variant document instead of both concurrently — the route always has
+ * it, having just resolved this `contentId`'s placement from the tree. A
+ * caller with no hint (an existence check reached from a redirect or
+ * not-found boundary) gets both variants read concurrently and a thrown error
+ * if a content id somehow resolves to both, which would be a defect no
+ * current Studio validation can produce for an ordinary publish but which an
+ * API write bypassing it still could.
  */
-export const getContentPage: ContentPageSource = async (locale, contentId) => {
+export const getContentPage: ContentPageSource = async (
+  locale,
+  contentId,
+  variant,
+) => {
+  const { contentSource } = getDeploymentConfig();
+
+  if (contentSource === "sanity") {
+    const language = languageOf(locale);
+
+    if (variant === "article") {
+      const { readPublicArticlePage } = await import("@/lib/sanity-article");
+      return readPublicArticlePage(contentId, { language });
+    }
+    if (variant === "gallery") {
+      const { readPublicGalleryPage } = await import("@/lib/sanity-gallery");
+      return readPublicGalleryPage(contentId, { language });
+    }
+
+    const [{ readPublicArticlePage }, { readPublicGalleryPage }] =
+      await Promise.all([
+        import("@/lib/sanity-article"),
+        import("@/lib/sanity-gallery"),
+      ]);
+    const [articlePage, galleryPage] = await Promise.all([
+      readPublicArticlePage(contentId, { language }),
+      readPublicGalleryPage(contentId, { language }),
+    ]);
+    if (articlePage !== undefined && galleryPage !== undefined) {
+      throw new SanityContentPageError(
+        "ambiguous-content-identity",
+        `this content identity resolves to both an article and a gallery in locale "${locale}"`,
+        contentId,
+      );
+    }
+    return articlePage ?? galleryPage;
+  }
+
   return mockContentPages[languageOf(locale)]?.get(contentId);
 };
 
 /**
- * Runs one bounded neighbour query.
+ * Runs one bounded neighbour query against the mock's in-memory rows.
  *
- * The mock holds its rows in memory, so it orders and picks in memory. A
- * store-backed adapter runs the two keyset comparisons the query describes and
- * returns at most one row from each — either way, the route receives two rows
- * and never the category's whole content set.
+ * The mock holds its rows in memory, so it orders and picks in memory here.
+ * `querySanityAdjacentRecords` below is the store-backed counterpart.
  */
-const queryAdjacentRecords: AdjacentContentSource = async (locale, query) => {
+async function queryMockAdjacentRecords(
+  locale: string,
+  query: AdjacentContentQuery,
+): Promise<AdjacentContentRecords> {
   const authored = mockContentListingRecords[languageOf(locale)];
   const rows = query.contentIds.flatMap((contentId) => {
     const record = authored?.get(contentId);
@@ -142,7 +373,42 @@ const queryAdjacentRecords: AdjacentContentSource = async (locale, query) => {
   });
 
   return selectAdjacentRecords(rows, query.anchorContentId);
-};
+}
+
+/**
+ * Runs one bounded neighbour query against Sanity: the two keyset
+ * comparisons the query describes, returning at most one row from each
+ * direction — never the whole candidate set.
+ *
+ * Only the article variant has a real reader today
+ * (`readPublicArticleAdjacentRecords`): the one current caller of
+ * `getAdjacentContent` (the catch-all route's article branch) never requests
+ * gallery neighbours, and building an unreachable, untested reader ahead of
+ * any route that would call it is exactly the speculative capability this
+ * project's own MVP-first rule argues against. A gallery anchor reaching
+ * here — which no current route or caller does — fails loudly rather than
+ * silently answering `{}`, so a future caller that starts requesting it
+ * cannot mistake "not built yet" for "this gallery has no neighbours."
+ */
+async function querySanityAdjacentRecords(
+  locale: string,
+  tree: ContentTree,
+  contentId: string,
+): Promise<AdjacentContentRecords> {
+  const variant = tree.placements.get(contentId)?.variant;
+  if (variant === "article") {
+    const { readPublicArticleAdjacentRecords } = await import(
+      "@/lib/sanity-article"
+    );
+    return readPublicArticleAdjacentRecords(contentId, {
+      language: languageOf(locale),
+    });
+  }
+
+  throw new Error(
+    `getAdjacentContent has no Sanity-backed sibling-navigation reader for variant ${JSON.stringify(variant)} (contentId "${contentId}"); only "article" is wired, matching every current caller`,
+  );
+}
 
 function requireTree(
   trees: LocalizedContentTrees,
@@ -166,7 +432,7 @@ export async function getCategoryListing(
   return buildCategoryListing({
     tree,
     categoryId,
-    records: await queryListingRecords(locale, query),
+    records: await queryListingRecords(locale, tree, query),
   });
 }
 
@@ -183,9 +449,15 @@ export async function getAdjacentContent(
   const query = buildAdjacentContentQuery(tree, contentId);
   if (query === null) return {};
 
+  const { contentSource } = getDeploymentConfig();
+  const records =
+    contentSource === "sanity"
+      ? await querySanityAdjacentRecords(locale, tree, contentId)
+      : await queryMockAdjacentRecords(locale, query);
+
   return resolveAdjacentContent({
     tree,
     contentId,
-    records: await queryAdjacentRecords(locale, query),
+    records,
   });
 }

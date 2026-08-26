@@ -138,6 +138,23 @@ describe("projecting Sanity site settings", () => {
     expect(settings.navigation[1]).toEqual({ label: "Stories", href: "/en/stories" });
   });
 
+  it("maps an authored services intro, optional unlike tagline", () => {
+    const settings = project(
+      documentOf({
+        servicesIntro: localized("Palveluistamme", "About our services"),
+      }),
+    );
+
+    expect(settings.servicesIntro).toBe("Palveluistamme");
+  });
+
+  it("omits servicesIntro rather than inventing one when it was never authored", () => {
+    const settings = project(documentOf());
+
+    expect(settings.servicesIntro).toBeUndefined();
+    expect(Object.keys(settings)).not.toContain("servicesIntro");
+  });
+
   it("returns only the project-owned allow-list", () => {
     const serialized = JSON.stringify(
       project(documentOf({ _id: "settings", _type: "siteSettings", secret: "hidden" })),

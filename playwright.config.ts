@@ -27,6 +27,19 @@ import {
 /** Azure Pipelines sets TF_BUILD; CI is the cross-provider convention. */
 const isContinuousIntegration = Boolean(process.env.CI || process.env.TF_BUILD);
 
+/**
+ * A handful of spec files (`services.spec.ts`, `sitemap-robots.spec.ts`) call
+ * a `src/lib` seam function (`getServices`) directly, in the test runner's
+ * own process, to derive the fixture data a journey asserts against — not
+ * through a request to the running app. `getServices` reads
+ * `getDeploymentConfig()`, so this process needs the same settings the
+ * harness gives the app under test, or that direct call fails before any
+ * assertion runs. Applying the harness environment here, not only to
+ * `webServer.env` below, is what keeps a spec's own "expected" data and the
+ * app's actual rendered output reading from one identical configuration.
+ */
+Object.assign(process.env, appUnderTestEnvironment);
+
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.spec.ts",

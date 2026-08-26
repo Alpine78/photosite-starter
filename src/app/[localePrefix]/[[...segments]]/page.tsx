@@ -125,7 +125,7 @@ async function resolveContentPage(
 ): Promise<ContentPage | undefined> {
   if (route.kind !== "content") return undefined;
 
-  const page = await getContentPage(locale, route.contentId);
+  const page = await getContentPage(locale, route.contentId, route.variant);
   return route.variant === "gallery"
     ? asGalleryPage(route.contentId, page)
     : asArticlePage(route.contentId, page);

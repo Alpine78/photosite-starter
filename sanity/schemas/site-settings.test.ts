@@ -50,6 +50,7 @@ describe("the site settings and home schemas", () => {
       "siteName",
       "photographerName",
       "tagline",
+      "servicesIntro",
       "featuredGalleryId",
       "navigation",
       "contact",
