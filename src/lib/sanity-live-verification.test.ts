@@ -6,9 +6,29 @@
  * Run it explicitly: `npm run verify:sanity-live`. It exercises the real
  * `src/lib/sanity-*.ts` adapters this project ships — not hand-written GROQ,
  * and not the offline fake-store test in `scripts/sanity-seed-content-verification.test.mts`
- * — against whatever dataset `.vercel/.env.preview.local` names, asserting
- * against the known values `scripts/sanity-seed-fixtures.mts` seeded there.
- * See docs/sanity-seeding.md's "Production handoff" section.
+ * — against whatever dataset the resolved env file names (see
+ * `sanity-live-verification-config.ts`), asserting against the known values
+ * `scripts/sanity-seed-fixtures.mts` seeded there. See
+ * docs/sanity-seeding.md's "Production handoff" section.
+ *
+ * This remains a **fixture-verification suite, not a generic Sanity health
+ * check** (AB#138): its assertions are the exact values AB#84's seed fixture
+ * writes, unchanged by AB#138's env-file configurability. It will correctly
+ * fail against any dataset that has not been seeded with that exact fixture
+ * set — including a Production dataset seeded with different, owner-approved
+ * launch content — by design; that is a distinct future need, not this
+ * suite's job.
+ *
+ * By default this loads `.vercel/.env.preview.local`, unchanged from before
+ * AB#138. Setting `SANITY_LIVE_VERIFICATION_ENV_FILE` points it at a
+ * different env file instead — for example, once AB#137 seeds this exact
+ * fixture set into a Production dataset for verification purposes, at
+ * whatever local path that deployment's own `vercel env pull` writes to.
+ * The selected file must itself define every target-identifying setting
+ * (`REQUIRED_LIVE_VERIFICATION_TARGET_KEYS`); this suite refuses to
+ * silently complete a partial file's target from the ambient shell
+ * environment, and prints the resolved target before running so an operator
+ * can confirm it before any query is issued.
  *
  * Never imported by route or component code, and never wired into CI: it is
  * an owner-run proof that the adapters this deployment will eventually read
@@ -17,9 +37,13 @@
 
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 import { beforeAll, describe, expect, it } from "vitest";
+
+import {
+  assertLiveVerificationTargetIsSelfContained,
+  resolveLiveVerificationEnvFile,
+} from "./sanity-live-verification-config";
 
 import {
   ARCHIVE_GALLERY_CONTENT_ID,
@@ -56,7 +80,7 @@ import {
   readSanityCuratedGalleryPage,
 } from "@/lib/sanity-gallery";
 
-const ENV_FILE = resolve(process.cwd(), ".vercel", ".env.preview.local");
+const ENV_FILE = resolveLiveVerificationEnvFile(process.env, process.cwd());
 
 /**
  * Minimal parser for the `KEY="value"` lines `vercel env pull` writes —
@@ -97,6 +121,14 @@ beforeAll(() => {
   }
 
   const parsed = loadEnvFile(ENV_FILE);
+  assertLiveVerificationTargetIsSelfContained(parsed, ENV_FILE);
+  // Operator-facing: names the exact target before any query runs, so a
+  // wrong SANITY_LIVE_VERIFICATION_ENV_FILE is caught before it matters.
+  // Project id, dataset, and API version are not secret (docs/sanity-setup.md);
+  // the token itself is never printed.
+  console.log(
+    `[sanity-live-verification] target: project=${parsed.SANITY_PROJECT_ID} dataset=${parsed.SANITY_DATASET} apiVersion=${parsed.SANITY_API_VERSION} (from ${ENV_FILE})`,
+  );
   for (const [key, value] of Object.entries(parsed)) {
     process.env[key] = value;
   }

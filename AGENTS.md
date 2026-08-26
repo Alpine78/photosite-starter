@@ -901,9 +901,41 @@ categories/content tree, articles in every language they were actually published
 gallery sections, media projection, sibling and placement ordering, and the full curated
 gallery's cursor chain page by page including the page-size boundary — against the same
 live Preview dataset, using a real `SanityClient` and the existing Vitest `server-only`
-stub, and all of it passed. It is Preview-only as built (a hardcoded read of
+stub, and all of it passed. It was Preview-only as built (a hardcoded read of
 `.vercel/.env.preview.local`) and, like every other Sanity adapter test, reaches no route
-or component. The Resend-account items
+or component. AB#138 (2026-08-26) closed a prerequisite gap this section's own
+"unimplemented future work" once named for AB#137: `verify:sanity-live` now resolves its
+target env file through `src/lib/sanity-live-verification-config.ts`, defaulting to the
+same Preview file but overridable via `SANITY_LIVE_VERIFICATION_ENV_FILE`, and refuses to
+assemble a hybrid target from an incomplete file plus ambient environment variables. It
+remains a fixture-verification suite, not a generic health check — its assertions are
+still AB#84's exact fixture values, so it only proves anything against a dataset seeded
+with that same fixture, Production included. For a Production dataset carrying different,
+owner-approved launch content, AB#138 also added a separate read-only content audit tool
+(`npm run audit:sanity`, `scripts/audit-sanity-content.mts` and `scripts/sanity-audit.mts`,
+transport in the newly split-out `scripts/sanity-read-http.mts`) that makes no assumption
+about specific content: one bounded, keyset-paginated, `raw`-perspective scan over the
+whole dataset, classifying every document as published, draft, or a release version by id
+shape rather than a known-type allow-list (so an unexpected or obsolete document is
+listed, not silently omitted), listing every document and every image/file asset
+individually by id — a count alone cannot answer "is any of this actually approved
+launch content?" — with each asset's dimensions, and reporting only the *presence* of the
+two fields it treats as private/internal (`archiveLocator`, `capturedAt`) — never a value,
+matching the same never-log-sensitive-values posture the rest of this project's Sanity
+boundary already holds. The asset-filename and private-field checks are scoped to their
+real types (`sanity.imageAsset`/`sanity.fileAsset`, `media`), so a coincidentally
+same-named field on an unrelated type is never misreported as one of them, while the
+unfiltered per-type scan still surfaces that type either way. It fails closed on missing or ambiguous `--project`/`--dataset`/`--api-version`
+configuration (flag and environment variable disagreeing is refused rather than guessed),
+needs only a Viewer-role `SANITY_AUDIT_TOKEN` (verified against Sanity's own documentation:
+reading drafts and releases requires authentication but no stronger role), and both new
+offline suites (`scripts/sanity-audit.test.mts`,
+`src/lib/sanity-live-verification-config.test.ts`) run under `npm test` against a fake
+transport, reaching no live project. AB#138 is scoped entirely to this reusable tooling —
+it does not itself connect to, seed, or audit any real Production dataset — and is a
+recorded predecessor of AB#137, which still owns the real Production run once a real
+customer-owned project, owner-approved launch content, and a temporary credential exist.
+The Resend-account items
 (DPA, data-residency/retention terms) are unchanged in one sense — this deployment's
 own configuration still shows no Resend account wired in, and whether one exists at
 all is unverified — but their sequencing is no longer
