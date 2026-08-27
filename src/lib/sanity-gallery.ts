@@ -30,8 +30,9 @@ import "server-only";
 
 import {
   orderContentListingRecords,
-  type ContentListingQuery,
+  type CategorySubtreeListingQuery,
   type ContentListingRecord,
+  type RoutedContentListingQuery,
 } from "@/lib/content-listing";
 import type { GalleryContentPage } from "@/lib/content-page";
 import type { ContentPlacementInput } from "@/lib/content-tree";
@@ -55,7 +56,10 @@ import {
   CONTENT_BLOCK_PROJECTION,
   readContentBlocks,
 } from "@/lib/sanity-content-blocks";
-import { readCategoryDocumentIndex } from "@/lib/sanity-content-tree";
+import {
+  CATEGORY_DOCUMENT_TYPE,
+  readCategoryDocumentIndex,
+} from "@/lib/sanity-content-tree";
 import {
   getSanityClient,
   type SanityClient,
@@ -464,6 +468,34 @@ function chunkGalleryContentIds(
 }
 
 /**
+ * Resolves the requested project `categoryId`s to the Sanity document ids that
+ * carry them, with one targeted, chunked lookup of just those categories —
+ * mirroring `sanity-article.ts#resolveCategoryDocumentIds`. The read scales with
+ * the subtree in scope, not the whole category collection, and the gallery
+ * filter below keys on the resolved `_id`s through `references()` rather than
+ * dereferencing a category from the gallery side.
+ */
+async function resolveCategoryDocumentIds(
+  client: SanityClient,
+  categoryIds: readonly string[],
+): Promise<readonly string[]> {
+  const chunks = chunkGalleryContentIds(categoryIds, MAX_CONTENT_IDS_BYTES);
+  const perChunk = await Promise.all(
+    chunks.map(async (ids) => {
+      const result = await client.query({
+        query: `*[_type == "${CATEGORY_DOCUMENT_TYPE}" && categoryId in $categoryIds]{ _id }`,
+        params: { categoryIds: ids },
+        tag: "category.ids",
+      });
+      return readDocuments<{ readonly _id?: unknown }>(result).flatMap(
+        (document) => (typeof document._id === "string" ? [document._id] : []),
+      );
+    }),
+  );
+  return perChunk.flat();
+}
+
+/**
  * The bounded listing read `content-listing.ts`'s `ContentListingSource`
  * describes, for gallery pages. Mirrors
  * `sanity-article.ts#readPublicArticleListingRecords` exactly, including
@@ -472,7 +504,7 @@ function chunkGalleryContentIds(
  * that bounded multi-id read.
  */
 export async function readPublicGalleryListingRecords(
-  query: ContentListingQuery,
+  query: RoutedContentListingQuery,
   options: PublicGalleryListingReadOptions,
 ): Promise<readonly ContentListingRecord[]> {
   if (query.contentIds.length === 0) return [];
@@ -499,6 +531,60 @@ export async function readPublicGalleryListingRecords(
   );
 
   return orderContentListingRecords(chunkedRecords.flat()).slice(0, query.limit);
+}
+
+/**
+ * The gallery half of the `category-subtree` listing read, mirroring
+ * `sanity-article.ts#readPublicArticleListingRecordsInCategories` exactly:
+ * project `categoryId`s resolve to Sanity document ids through one targeted
+ * lookup of just those categories (so the filter keys on `_id` through
+ * `references()`, never a dereference from the gallery side), the id list is
+ * chunked to the GET URL budget, and the merged rows are de-duplicated by
+ * `contentId` because a chunk split can match one gallery on a canonical
+ * category in one chunk and a secondary in another.
+ */
+export async function readPublicGalleryListingRecordsInCategories(
+  query: CategorySubtreeListingQuery,
+  options: PublicGalleryListingReadOptions,
+): Promise<readonly ContentListingRecord[]> {
+  if (query.categoryIds.length === 0) return [];
+
+  const client = options.client ?? getSanityClient();
+  const language = toLanguageSubtag(options.language);
+  const config = options.config ?? getSanityConfig();
+  const languages = { language, fallbackLanguage: getFallbackLocale(), config };
+
+  const categoryDocumentIds = await resolveCategoryDocumentIds(
+    client,
+    query.categoryIds,
+  );
+  if (categoryDocumentIds.length === 0) return [];
+
+  const chunks = chunkGalleryContentIds(
+    categoryDocumentIds,
+    MAX_CONTENT_IDS_BYTES,
+  );
+
+  const chunkedRecords = await Promise.all(
+    chunks.map(async (categoryIds) => {
+      const result = await client.query({
+        query: `*[${GALLERY_FILTER} && references($categoryIds)] | ${GALLERY_LISTING_ORDER} [0...$limit]${GALLERY_LISTING_PROJECTION}`,
+        params: { language, categoryIds, limit: query.limit },
+        tag: "gallery.listing.by-category",
+      });
+
+      return readDocuments<RawGalleryListingDocument>(result).map((document) =>
+        projectGalleryListingRecord(document, languages),
+      );
+    }),
+  );
+
+  const byId = new Map<string, ContentListingRecord>();
+  for (const record of chunkedRecords.flat()) {
+    if (!byId.has(record.contentId)) byId.set(record.contentId, record);
+  }
+
+  return orderContentListingRecords([...byId.values()]).slice(0, query.limit);
 }
 
 function readTags(value: unknown, contentId: string): readonly string[] {

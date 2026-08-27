@@ -49,6 +49,81 @@ branches retain their canonical-and-secondary membership rule unchanged.
 Changed text: decision 8's category-listing paragraph. The canonical placement, ordering,
 continuation, and category-branch contracts are unaffected.
 
+### 2026-08-27 — A category branch listing aggregates its descendant subtree (AB#140)
+
+Decision 5 and decision 8 described a category branch listing as showing that category's
+own **directly** placed content — the pages whose canonical or secondary category *is that
+exact category* — one level deep. Decision 8 stated it twice: "a listing presents public
+child categories in sibling order first, then canonically placed content pages newest
+first", and "Category branch membership remains canonical-plus-secondary; the aggregation
+applies only to the story root." The 2026-08-10 amendment above restated it a third time:
+"Category branches retain their canonical-and-secondary membership rule unchanged."
+
+Implementing the tree produced evidence that rule leaves a real gap. A parent category
+with several child branches — "Motorsport" over "Formula" and "Rally" — shows none of
+either branch's galleries on its own page, because each gallery's canonical (and any
+secondary) placement is on the leaf, not the parent. A visitor at "Motorsport" sees only
+child-category links and must drill into each branch individually to see any content. The
+only pre-existing way to surface a leaf's gallery on an ancestor page was to add a manual
+secondary placement per gallery, which does not scale and duplicates information the tree
+already encodes.
+
+The rule now reads: a category branch listing includes every published page whose
+canonical **or** secondary placement is in that category **or in any category within its
+descendant subtree**. Aggregation flows downward only — a descendant category's own
+listing is unchanged and still shows only its own subtree scope, so visiting "Rally" never
+shows "Formula" content. Direct child-category navigation links are still listed alongside
+the aggregated content grid; aggregation supplements the sibling-category listing, it does
+not replace it. The deterministic order is unchanged (newest first, immutable content
+identifier as tie-breaker) and now spans the aggregated set, independent of which
+descendant branch an item's canonical category sits in. Secondary placement keeps its
+exact prior meaning and remains available as a manual cross-branch override, distinct from
+this automatic same-subtree aggregation. The story root's cross-category recent overview
+(2026-08-10 amendment) is unaffected — it was already a global projection.
+
+Aggregation is tree-driven from category ancestry and requires no author change to
+existing content: no page gains a newly required placement field.
+
+Consequences this introduces, recorded so a later reader does not treat them as defects:
+
+- A page now appears in the listing of every ancestor of each of its canonical and
+  secondary placements, not just its immediate categories.
+- Moving a category, or changing a placement, now changes the content shown on multiple
+  ancestor listings at once. It still changes no canonical detail URL, no breadcrumb (which
+  follows canonical ancestry), and no sitemap entry — aggregation is listing-only.
+- A secondary cross-branch placement now also gains ancestor-wide visibility up its new
+  branch, not only a single listing entry on the category it names.
+- The global newest-first order interleaves items from different descendant branches rather
+  than grouping them by branch.
+- The aggregated set is larger, so a branch listing reaches the one-page bound (decision 8,
+  `MAX_CONTENT_LISTING_PAGE_SIZE`) far more readily than a single-level one did. The read
+  stays bounded: the adapter is given the in-scope descendant category ids and applies the
+  ordering and the `pageSize + 1` limit in the store (a category-scoped query over those
+  ids), rather than receiving an unbounded per-content-id candidate list; work scales with
+  the number of categories in the subtree, not the amount of content in it. Paging past
+  that first bounded page is the continuation contract's job, below.
+
+Because the aggregated set routinely exceeds one page, AB#140 also builds the category
+listing continuation that decision 8 reserved ("Category listing pages use the same
+continuation contract without the filter") and that was previously left to AB#66/AB#115.
+AB#140 lands in two changes on one branch: the first (this amendment) is the aggregation
+rule and its bounded first-page read; the second is the continuation itself — an opaque
+cursor sharing the gallery cursor's signing secret, the route wiring that consumes it, and
+the canonical/indexing policy for a category continuation URL — recorded in its own
+**ADR-0013** because it is a URL/data contract in its own right. Until that second change
+merges, a branch whose aggregated content exceeds `MAX_CONTENT_LISTING_PAGE_SIZE` serves
+only its first page and answers `?cursor=` with a 404, exactly as every category listing
+does today; aggregation makes that state reachable with fewer items, and closing it is the
+same-story follow-up, not a deferral to another story. This amendment covers only the
+aggregation rule.
+
+Changed text: decision 5's "secondary listings" description of what a branch shows;
+decision 8's category-listing paragraph and its "the aggregation applies only to the story
+root" sentence; and the 2026-08-10 amendment's "Category branches retain their
+canonical-and-secondary membership rule unchanged." The canonical placement rule itself
+(one canonical category per published page), the detail-route, breadcrumb, redirect, and
+sitemap contracts, and the story-root overview are all unaffected.
+
 ## Context
 
 The public site needs one navigable category tree for curated galleries and editorial
@@ -539,17 +614,19 @@ route accepts `?cursor=`; `?section=` is a gallery-local filter and carries no m
 there, so it is ignored like any other unrecognized parameter. The parameter-free category
 page and its cursor continuations are self-canonical and indexable, and only the
 parameter-free URL enters the sitemap. A listing presents public child categories in
-sibling order first, then canonically placed content pages newest first with the immutable
-content identifier as the tie-breaker; a secondary listing uses the same order and links
-to the canonical detail route. What a listing entry shows is an implementation decision;
-its route, its deterministic order, and its continuation contract are decided here.
+sibling order first, then content pages newest first with the immutable content identifier
+as the tie-breaker. A branch's content pages are those whose canonical or secondary
+placement is in that category **or in any category within its descendant subtree**
+(2026-08-27 amendment); a secondary listing entry uses the same order and links to the one
+canonical detail route. What a listing entry shows is an implementation decision; its
+route, its deterministic order, and its continuation contract are decided here.
 
 The story root uses that same bounded listing projection for a cross-category recent
 overview. Its candidates are published pages whose variants currently have a served
 detail route, ordered newest first with the same immutable-id tie-breaker. An overview
-card still links to the category-owned canonical path and creates no root placement.
-Category branch membership remains canonical-plus-secondary; the aggregation applies
-only to the story root.
+card still links to the category-owned canonical path and creates no root placement. A
+category branch aggregates its own descendant subtree downward (2026-08-27 amendment); the
+story root aggregates the whole tree. Neither aggregation adds a placement or a second URL.
 
 A valid section with no public items returns a successful accessible empty state and
 remains `noindex`. An unknown section and a malformed, tampered, wrong-scope, or stale

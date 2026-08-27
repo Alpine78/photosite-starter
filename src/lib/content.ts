@@ -22,6 +22,7 @@ import {
   buildAdjacentContentQuery,
   buildCategoryListing,
   buildContentListingQuery,
+  listContentIdsInCategories,
   orderContentListingRecords,
   resolveAdjacentContent,
   selectAdjacentRecords,
@@ -215,16 +216,20 @@ export async function getContentRedirects(): Promise<LocalizedContentRedirects> 
  *
  * The mock fixture in memory is not a store, so it cannot demonstrate a
  * pushed-down limit — but it honors the same contract a CMS adapter must: it
- * applies the ordering rule first and returns no more than `limit` rows. The
- * Sanity path splits the request by variant (a category can list galleries
- * and articles side by side) and runs both bounded reads concurrently, each
- * already limited to `query.limit` candidates, then re-orders and re-bounds
- * the merged result exactly as `content-listing.ts` orders a single page — the
- * same "each side contributes its own top candidates" reasoning
- * `sanity-article.ts#readPublicArticleListingRecords` already applies across
- * its own byte-budget chunks. The route never sees a row past the page it
- * asked for, and an adapter that answers the whole query in the store
- * satisfies this seam without changing a caller.
+ * applies the ordering rule first and returns no more than `limit` rows. For a
+ * `category-subtree` query it resolves the in-scope content ids from the tree
+ * it already holds; for a `routed-content` query it uses the ids the query
+ * names.
+ *
+ * The Sanity path splits the request by variant (a category can list galleries
+ * and articles side by side) and runs both bounded reads concurrently, then
+ * re-orders and re-bounds the merged result exactly as `content-listing.ts`
+ * orders a single page — the same "each side contributes its own top
+ * candidates" reasoning the per-variant readers already apply across their own
+ * byte-budget chunks. A `category-subtree` query reaches the category-scoped
+ * readers, which page the store by the subtree category ids rather than by an
+ * unbounded per-content-id list; a `routed-content` query reaches the
+ * content-id readers. The route never sees a row past the page it asked for.
  */
 async function queryListingRecords(
   locale: string,
@@ -236,13 +241,34 @@ async function queryListingRecords(
   return dispatchContentSource(contentSource, {
     // See dispatchContentSource's own doc comment for why these imports are dynamic.
     sanity: async () => {
+      const language = languageOf(locale);
+
+      if (query.scope === "category-subtree") {
+        const [
+          { readPublicArticleListingRecordsInCategories },
+          { readPublicGalleryListingRecordsInCategories },
+        ] = await Promise.all([
+          import("@/lib/sanity-article"),
+          import("@/lib/sanity-gallery"),
+        ]);
+
+        const [articleRecords, galleryRecords] = await Promise.all([
+          readPublicArticleListingRecordsInCategories(query, { language }),
+          readPublicGalleryListingRecordsInCategories(query, { language }),
+        ]);
+
+        return orderContentListingRecords([
+          ...articleRecords,
+          ...galleryRecords,
+        ]).slice(0, query.limit);
+      }
+
       const [{ readPublicArticleListingRecords }, { readPublicGalleryListingRecords }] =
         await Promise.all([
           import("@/lib/sanity-article"),
           import("@/lib/sanity-gallery"),
         ]);
 
-      const language = languageOf(locale);
       const articleIds: string[] = [];
       const galleryIds: string[] = [];
       for (const contentId of query.contentIds) {
@@ -271,7 +297,11 @@ async function queryListingRecords(
     },
     mock: async () => {
       const authored = mockContentListingRecords[languageOf(locale)];
-      const rows = query.contentIds.flatMap((contentId) => {
+      const contentIds =
+        query.scope === "category-subtree"
+          ? listContentIdsInCategories(tree, query.categoryIds)
+          : query.contentIds;
+      const rows = contentIds.flatMap((contentId) => {
         const record = authored?.get(contentId);
         return record === undefined ? [] : [record];
       });

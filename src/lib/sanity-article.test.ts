@@ -17,6 +17,7 @@ import {
   PROJECTED_ARTICLE_PLACEMENT_FIELDS,
   readPublicArticleAdjacentRecords,
   readPublicArticleListingRecords,
+  readPublicArticleListingRecordsInCategories,
   readPublicArticlePage,
   readPublicArticlePlacements,
   SanityArticleError,
@@ -310,7 +311,7 @@ describe("reading listing records", () => {
     const { client, requests } = fakeClient({});
 
     const records = await readPublicArticleListingRecords(
-      { contentIds: [], ordering: "published-desc-v1", limit: 25 },
+      { scope: "routed-content", contentIds: [], ordering: "published-desc-v1", limit: 25 },
       { language: "en", client },
     );
 
@@ -323,6 +324,7 @@ describe("reading listing records", () => {
 
     await readPublicArticleListingRecords(
       {
+        scope: "routed-content",
         contentIds: ["content-a", "content-b"],
         ordering: "published-desc-v1",
         limit: 5,
@@ -348,7 +350,7 @@ describe("reading listing records", () => {
     const { client, requests } = fakeClient({ "article.listing": [] });
 
     await readPublicArticleListingRecords(
-      { contentIds, ordering: "published-desc-v1", limit: 25 },
+      { scope: "routed-content", contentIds, ordering: "published-desc-v1", limit: 25 },
       { language: "en", client, config },
     );
 
@@ -395,13 +397,141 @@ describe("reading listing records", () => {
     };
 
     const records = await readPublicArticleListingRecords(
-      { contentIds, ordering: "published-desc-v1", limit: 1 },
+      { scope: "routed-content", contentIds, ordering: "published-desc-v1", limit: 1 },
       { language: "en", client, config },
     );
 
     expect(requests.length).toBeGreaterThanOrEqual(2);
     expect(records).toHaveLength(1);
     expect(records[0].contentId).toBe("content-newer");
+  });
+});
+
+describe("reading listing records by category subtree", () => {
+  it("skips every query for an empty category scope", async () => {
+    const { client, requests } = fakeClient({});
+
+    const records = await readPublicArticleListingRecordsInCategories(
+      { scope: "category-subtree", categoryIds: [], ordering: "published-desc-v1", limit: 25 },
+      { language: "en", client, config },
+    );
+
+    expect(records).toEqual([]);
+    expect(requests).toHaveLength(0);
+  });
+
+  it("resolves the scope with a targeted lookup and filters by reference, not dereference", async () => {
+    const { client, requests } = fakeClient({
+      "category.ids": [{ _id: "doc-formula" }, { _id: "doc-rally" }],
+      "article.listing.by-category": [
+        { contentId: "content-rally-report", title: "Rally report", publishedAt: "2024-05-01" },
+      ],
+    });
+
+    const records = await readPublicArticleListingRecordsInCategories(
+      {
+        scope: "category-subtree",
+        categoryIds: ["cat-formula", "cat-rally"],
+        ordering: "published-desc-v1",
+        limit: 5,
+      },
+      { language: "en", client, config },
+    );
+
+    expect(records.map((record) => record.contentId)).toEqual([
+      "content-rally-report",
+    ]);
+
+    // The scope lookup asks only for the requested categories, never the whole
+    // collection.
+    const scopeRequest = requests.find(
+      (request) => request.tag === "category.ids",
+    );
+    expect(scopeRequest?.query).toContain("categoryId in $categoryIds");
+    expect(scopeRequest?.params).toMatchObject({
+      categoryIds: ["cat-formula", "cat-rally"],
+    });
+
+    const listingRequest = requests.find(
+      (request) => request.tag === "article.listing.by-category",
+    );
+    expect(listingRequest?.query).toContain("references($categoryIds)");
+    expect(listingRequest?.query).not.toContain("->categoryId");
+    expect(listingRequest?.params).toMatchObject({
+      language: "en",
+      categoryIds: ["doc-formula", "doc-rally"],
+      limit: 5,
+    });
+  });
+
+  it("returns nothing when the scope resolves to no known category document", async () => {
+    const { client, requests } = fakeClient({ "category.ids": [] });
+
+    const records = await readPublicArticleListingRecordsInCategories(
+      {
+        scope: "category-subtree",
+        categoryIds: ["cat-not-in-store"],
+        ordering: "published-desc-v1",
+        limit: 5,
+      },
+      { language: "en", client, config },
+    );
+
+    expect(records).toEqual([]);
+    expect(
+      requests.some((request) => request.tag === "article.listing.by-category"),
+    ).toBe(false);
+  });
+
+  it("de-duplicates an article matched by two chunks and re-bounds newest first", async () => {
+    // A subtree large enough to force both the scope lookup and the listing
+    // query to chunk.
+    const categoryIds = Array.from(
+      { length: 500 },
+      (_, index) => `cat-${"y".repeat(40)}-${index}`,
+    );
+    const shared: RawArticleListingDocument = {
+      contentId: "content-shared",
+      title: "Shared",
+      publishedAt: "2024-02-01",
+    };
+    const newer: RawArticleListingDocument = {
+      contentId: "content-newer",
+      title: "Newer",
+      publishedAt: "2024-09-01",
+    };
+
+    let call = 0;
+    const client: SanityClient = {
+      async query(request) {
+        if (request.tag === "category.ids") {
+          const asked = request.params?.categoryIds as readonly string[];
+          return asked.map((categoryId) => ({
+            _id: categoryId.replace("cat-", "doc-"),
+          }));
+        }
+        call += 1;
+        if (call === 1) return [shared];
+        if (call === 2) return [shared, newer];
+        return [];
+      },
+    };
+
+    const records = await readPublicArticleListingRecordsInCategories(
+      {
+        scope: "category-subtree",
+        categoryIds,
+        ordering: "published-desc-v1",
+        limit: 5,
+      },
+      { language: "en", client, config },
+    );
+
+    expect(call).toBeGreaterThanOrEqual(2);
+    expect(records.map((record) => record.contentId)).toEqual([
+      "content-newer",
+      "content-shared",
+    ]);
   });
 });
 

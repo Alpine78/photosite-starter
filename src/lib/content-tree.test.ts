@@ -13,6 +13,7 @@ import {
   getPublicChildCategories,
   getSecondaryContent,
   isCategoryPublic,
+  listCategorySubtreeIds,
   listPublicRoutePaths,
   validateContentTree,
   ContentTreeValidationError,
@@ -119,6 +120,60 @@ describe("category tree structure", () => {
     };
 
     expect(validateContentTree(input)).toEqual([]);
+  });
+});
+
+describe("listCategorySubtreeIds", () => {
+  const tree = buildMockContentTree();
+
+  it("returns just the category itself for a leaf", () => {
+    expect(listCategorySubtreeIds(tree, "cat-coastal")).toEqual(["cat-coastal"]);
+  });
+
+  it("walks the whole subtree, the category first, in sibling order", () => {
+    expect(listCategorySubtreeIds(tree, "cat-travel")).toEqual([
+      "cat-travel",
+      "cat-europe",
+      "cat-nordics",
+      "cat-winter",
+      "cat-polar-night",
+    ]);
+  });
+
+  it("includes categories that are not themselves public", () => {
+    // `cat-europe` is public only through its descendants, but it is still a
+    // structural node of the walk.
+    expect(listCategorySubtreeIds(tree, "cat-europe")).toEqual([
+      "cat-europe",
+      "cat-nordics",
+      "cat-winter",
+      "cat-polar-night",
+    ]);
+  });
+
+  it("returns nothing for a category the tree does not contain", () => {
+    expect(listCategorySubtreeIds(tree, "cat-nonexistent")).toEqual([]);
+  });
+
+  it("visits every category once when one parent has several branches", () => {
+    const input: ContentTreeInput = {
+      categories: [
+        { categoryId: "root", parentId: null, slug: "root", label: "Root", order: 0 },
+        { categoryId: "a", parentId: "root", slug: "a", label: "A", order: 0 },
+        { categoryId: "b", parentId: "root", slug: "b", label: "B", order: 1 },
+        { categoryId: "a1", parentId: "a", slug: "a1", label: "A1", order: 0 },
+        { categoryId: "b1", parentId: "b", slug: "b1", label: "B1", order: 0 },
+      ],
+      placements: [],
+    };
+
+    expect(listCategorySubtreeIds(buildContentTree(input), "root")).toEqual([
+      "root",
+      "a",
+      "b",
+      "a1",
+      "b1",
+    ]);
   });
 });
 

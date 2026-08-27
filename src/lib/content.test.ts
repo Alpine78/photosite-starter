@@ -41,6 +41,7 @@ vi.mock("@/lib/sanity-content-tree", () => sanityContentTree);
 const sanityArticle = vi.hoisted(() => ({
   readPublicArticlePlacements: vi.fn(),
   readPublicArticleListingRecords: vi.fn(),
+  readPublicArticleListingRecordsInCategories: vi.fn(),
   readPublicArticlePage: vi.fn(),
   readPublicArticleAdjacentRecords: vi.fn(),
 }));
@@ -49,6 +50,7 @@ vi.mock("@/lib/sanity-article", () => sanityArticle);
 const sanityGallery = vi.hoisted(() => ({
   readPublicGalleryPlacements: vi.fn(),
   readPublicGalleryListingRecords: vi.fn(),
+  readPublicGalleryListingRecordsInCategories: vi.fn(),
   readPublicGalleryPage: vi.fn(),
 }));
 vi.mock("@/lib/sanity-gallery", () => sanityGallery);
@@ -66,10 +68,16 @@ function resetSanityMocks(): void {
   sanityContentTree.readPublicCategoryInputs.mockReset();
   sanityArticle.readPublicArticlePlacements.mockReset().mockResolvedValue([]);
   sanityArticle.readPublicArticleListingRecords.mockReset().mockResolvedValue([]);
+  sanityArticle.readPublicArticleListingRecordsInCategories
+    .mockReset()
+    .mockResolvedValue([]);
   sanityArticle.readPublicArticlePage.mockReset().mockResolvedValue(undefined);
   sanityArticle.readPublicArticleAdjacentRecords.mockReset();
   sanityGallery.readPublicGalleryPlacements.mockReset().mockResolvedValue([]);
   sanityGallery.readPublicGalleryListingRecords.mockReset().mockResolvedValue([]);
+  sanityGallery.readPublicGalleryListingRecordsInCategories
+    .mockReset()
+    .mockResolvedValue([]);
   sanityGallery.readPublicGalleryPage.mockReset().mockResolvedValue(undefined);
 }
 
@@ -258,6 +266,7 @@ describe("getContentPage", () => {
 describe("getCategoryListing — sanity source splits by variant", () => {
   const categories = [
     { categoryId: "cat-a", parentId: null, slug: "cat-a", label: "Cat A", order: 0 },
+    { categoryId: "cat-a1", parentId: "cat-a", slug: "cat-a1", label: "Cat A1", order: 0 },
   ];
   const articlePlacement = {
     contentId: "content-article",
@@ -271,7 +280,7 @@ describe("getCategoryListing — sanity source splits by variant", () => {
     variant: "gallery" as const,
     slug: "a-gallery",
     published: true,
-    canonicalCategoryId: "cat-a",
+    canonicalCategoryId: "cat-a1",
   };
 
   beforeEach(() => {
@@ -281,11 +290,11 @@ describe("getCategoryListing — sanity source splits by variant", () => {
     sanityGallery.readPublicGalleryPlacements.mockResolvedValue([galleryPlacement]);
   });
 
-  it("reads each variant's own bounded listing query and merges the result", async () => {
-    sanityArticle.readPublicArticleListingRecords.mockResolvedValue([
+  it("reads each variant's category-scoped listing query for a branch and merges the result", async () => {
+    sanityArticle.readPublicArticleListingRecordsInCategories.mockResolvedValue([
       { contentId: "content-article", title: "An article", publishedAt: "2024-01-01" },
     ]);
-    sanityGallery.readPublicGalleryListingRecords.mockResolvedValue([
+    sanityGallery.readPublicGalleryListingRecordsInCategories.mockResolvedValue([
       { contentId: "content-gallery", title: "A gallery", publishedAt: "2024-06-01" },
     ]);
 
@@ -295,14 +304,60 @@ describe("getCategoryListing — sanity source splits by variant", () => {
       "content-gallery",
       "content-article",
     ]);
+    // A branch is scoped by its whole subtree — `cat-a` plus `cat-a1` — so the
+    // deep gallery surfaces on the parent (ADR-0003, 2026-08-27 amendment).
+    expect(
+      sanityArticle.readPublicArticleListingRecordsInCategories,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: "category-subtree",
+        categoryIds: ["cat-a", "cat-a1"],
+      }),
+      { language: "en" },
+    );
+    expect(
+      sanityGallery.readPublicGalleryListingRecordsInCategories,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: "category-subtree",
+        categoryIds: ["cat-a", "cat-a1"],
+      }),
+      { language: "en" },
+    );
+    expect(sanityArticle.readPublicArticleListingRecords).not.toHaveBeenCalled();
+  });
+
+  it("reads the routed-content listing query for the story root", async () => {
+    sanityArticle.readPublicArticleListingRecords.mockResolvedValue([
+      { contentId: "content-article", title: "An article", publishedAt: "2024-01-01" },
+    ]);
+    sanityGallery.readPublicGalleryListingRecords.mockResolvedValue([
+      { contentId: "content-gallery", title: "A gallery", publishedAt: "2024-06-01" },
+    ]);
+
+    const listing = await getCategoryListing("en-GB", null);
+
+    expect(listing.content.map((entry) => entry.contentId)).toEqual([
+      "content-gallery",
+      "content-article",
+    ]);
     expect(sanityArticle.readPublicArticleListingRecords).toHaveBeenCalledWith(
-      expect.objectContaining({ contentIds: ["content-article"] }),
+      expect.objectContaining({
+        scope: "routed-content",
+        contentIds: ["content-article"],
+      }),
       { language: "en" },
     );
     expect(sanityGallery.readPublicGalleryListingRecords).toHaveBeenCalledWith(
-      expect.objectContaining({ contentIds: ["content-gallery"] }),
+      expect.objectContaining({
+        scope: "routed-content",
+        contentIds: ["content-gallery"],
+      }),
       { language: "en" },
     );
+    expect(
+      sanityArticle.readPublicArticleListingRecordsInCategories,
+    ).not.toHaveBeenCalled();
   });
 });
 
