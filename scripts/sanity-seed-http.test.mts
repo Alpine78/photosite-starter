@@ -193,6 +193,26 @@ describe("runSeedMutationBatches", () => {
     expect(summary.batchesRun).toBe(2);
   });
 
+  it("omits the visibility parameter by default and appends it when requested", async () => {
+    const urls: string[] = [];
+    const fetchImplementation = vi.fn(async (url: string) => {
+      urls.push(url);
+      return jsonResponse({ results: [] });
+    });
+
+    await runSeedMutationBatches(connection, mutationsOf(1), {
+      fetchImplementation: fetchImplementation as unknown as typeof fetch,
+    });
+    expect(urls[0]).not.toContain("visibility=");
+
+    await runSeedMutationBatches(connection, mutationsOf(1), {
+      visibility: "async",
+      fetchImplementation: fetchImplementation as unknown as typeof fetch,
+    });
+    expect(urls[1]).toContain("/data/mutate/");
+    expect(urls[1]).toContain("?visibility=async");
+  });
+
   it("stops at the first failing batch and never sends a later one, without leaking the token", async () => {
     let callCount = 0;
     const fetchImplementation = vi.fn(async () => {
