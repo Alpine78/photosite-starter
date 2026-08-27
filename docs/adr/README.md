@@ -52,12 +52,12 @@ Two conventions on top of the template:
 | [0009](0009-seeded-random-gallery-ordering.md) | AB#66 (ordering clauses only) | Seeded random gallery ordering contract | Accepted |
 | [0010](0010-lightbox-preload-window.md) | AB#79 | Bounded adjacent-image lightbox preload window | Accepted |
 | [0011](0011-security-response-headers.md) | AB#117 | Security response headers and the CSP inline-content trade-off | Accepted |
+| [0012](0012-dynamic-keyword-gallery-query-contract.md) | AB#66 (remainder, after ADR-0009 split off ordering) | Dynamic keyword-gallery query contract | Accepted |
 
 Expected further entries:
 
 | Work item | Decision |
 | --- | --- |
-| AB#66 | Dynamic/virtual keyword-gallery query contract (remainder, after ADR-0009 split off ordering) |
 | AB#95 | Image sales, checkout, and fulfilment boundary |
 | AB#122 | Private gallery security, delivery, and retention boundary |
 | AB#41 | Customer customization and upstream update boundaries |
