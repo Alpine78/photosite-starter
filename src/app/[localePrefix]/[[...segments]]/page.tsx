@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { CategoryBranch } from "@/components/category-branch";
 import { ContentArticle } from "@/components/content-article";
 import { ContentGallery } from "@/components/content-gallery";
+import { JsonLd } from "@/components/json-ld";
 import type { BreadcrumbStep } from "@/components/breadcrumbs";
 import type { LanguageLink } from "@/components/language-switch";
 import {
@@ -50,6 +51,7 @@ import {
 } from "@/lib/locale-routes";
 import { getPageMetadata } from "@/lib/page-metadata";
 import { defaultLocaleRouteExists } from "@/lib/public-routes";
+import { buildArticleJsonLd } from "@/lib/structured-data";
 import { REQUEST_PATH_HEADER, readRequestPath } from "@/lib/request-path";
 
 /**
@@ -616,37 +618,57 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
     // publication order the pre-migration article route already used.
     const { previous, next } = await getAdjacentContent(locale, route.contentId);
 
+    const articlePath = buildStoryPath(
+      config,
+      locale,
+      getStoryRoutePath(tree, route),
+    );
+
     return (
-      <ContentArticle
-        locale={locale}
-        page={article}
-        breadcrumbs={buildBreadcrumbs(
-          config,
-          tree,
-          locale,
-          route,
-          labels,
-          article.title,
-        )}
-        languages={languages}
-        {...(previous === undefined
-          ? {}
-          : {
-              previous: {
-                title: previous.title,
-                href: buildStoryPath(config, locale, previous.path),
-              },
-            })}
-        {...(next === undefined
-          ? {}
-          : {
-              next: {
-                title: next.title,
-                href: buildStoryPath(config, locale, next.path),
-              },
-            })}
-        labels={labels}
-      />
+      <>
+        {/* Article structured data (AB#86). The `article` variant only — a
+            gallery, a category branch, and the story root emit none. Optional
+            fields (lead, cover, tags) are omitted when the page has none, and
+            no author/publisher entity is synthesized. */}
+        <JsonLd
+          data={buildArticleJsonLd({
+            page: article,
+            deployment: getDeploymentConfig(),
+            canonicalPath: articlePath,
+            locale,
+          })}
+        />
+        <ContentArticle
+          locale={locale}
+          page={article}
+          breadcrumbs={buildBreadcrumbs(
+            config,
+            tree,
+            locale,
+            route,
+            labels,
+            article.title,
+          )}
+          languages={languages}
+          {...(previous === undefined
+            ? {}
+            : {
+                previous: {
+                  title: previous.title,
+                  href: buildStoryPath(config, locale, previous.path),
+                },
+              })}
+          {...(next === undefined
+            ? {}
+            : {
+                next: {
+                  title: next.title,
+                  href: buildStoryPath(config, locale, next.path),
+                },
+              })}
+          labels={labels}
+        />
+      </>
     );
   }
 

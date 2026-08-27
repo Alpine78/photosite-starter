@@ -2,10 +2,15 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getDefaultLocaleLabels } from "@/lib/deployment-config";
+import { JsonLd } from "@/components/json-ld";
+import {
+  getDefaultLocaleLabels,
+  getDeploymentConfig,
+} from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import { getPageMetadata } from "@/lib/page-metadata";
 import { getService, getServices } from "@/lib/services";
+import { buildServiceJsonLd } from "@/lib/structured-data";
 
 type ServicePageProps = {
   params: Promise<{ slug: string }>;
@@ -66,6 +71,15 @@ export default async function ServicePage({ params }: ServicePageProps) {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      {/* Service structured data, from the Service record and deployment config
+          only — no provider/offers entity is synthesized (AB#86). */}
+      <JsonLd
+        data={buildServiceJsonLd({
+          service,
+          deployment: getDeploymentConfig(),
+        })}
+      />
+
       {/* Breadcrumb */}
       <nav
         aria-label={labels.navigation.breadcrumb}
