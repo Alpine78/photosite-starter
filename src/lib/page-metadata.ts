@@ -8,14 +8,17 @@
  * deployment configuration module — the one owner of those values. A page
  * supplies only what is specific to it.
  *
- * Sitemap, a site-wide `robots.txt` policy, and structured data belong to
- * their own stories and are deliberately absent here. The one exception is
- * `PageMetadataInput.noindex`: a narrow, page-specific `noindex` directive
+ * Sitemap and a site-wide `robots.txt` policy belong to their own stories and
+ * are deliberately absent here; JSON-LD structured data lives in
+ * `src/lib/structured-data.ts` (AB#86), which shares this module's canonical
+ * and asset URL rules through `canonical-url.ts`. The one robots exception here
+ * is `PageMetadataInput.noindex`: a narrow, page-specific `noindex` directive
  * ADR-0003 decision 8 already mandates for a named gallery section view, not
  * a general indexing policy.
  */
 
 import type { Metadata } from "next";
+import { absoluteAssetUrl, canonicalRouteUrl } from "@/lib/canonical-url";
 import {
   getDeploymentConfig,
   type DeploymentConfig,
@@ -95,20 +98,6 @@ function toOpenGraphLocale(locale: string): string | undefined {
   return region ? `${language}_${region}` : undefined;
 }
 
-/**
- * Absolute canonical URL for a route path. ADR-0003 gives canonical paths no
- * trailing slash and makes the site root the single exception. Next.js applies
- * the project's own `trailingSlash` setting to the value it emits, so the tag
- * on the site root reads as the bare origin.
- */
-function resolveCanonicalUrl(path: string, canonicalBaseUrl: URL): string {
-  const url = new URL(path, canonicalBaseUrl);
-  if (url.pathname !== "/" && url.pathname.endsWith("/")) {
-    url.pathname = url.pathname.replace(/\/+$/, "");
-  }
-  return url.href;
-}
-
 type AlternateLanguages = NonNullable<
   NonNullable<Metadata["alternates"]>["languages"]
 >;
@@ -150,7 +139,7 @@ function toAlternateLanguages(
   const languages: Record<string, string> = {};
   for (const version of versions) {
     const locale = resolvePageLocale(version.locale, deployment);
-    const url = resolveCanonicalUrl(version.path, deployment.canonicalBaseUrl);
+    const url = canonicalRouteUrl(version.path, deployment.canonicalBaseUrl);
     languages[locale] = url;
     if (locale === deployment.localeRoutes.defaultLocale) {
       languages["x-default"] = url;
@@ -185,7 +174,7 @@ function toOpenGraphImage(
   // the image explicitly.
   const alt = usesPageImage || includeDefaultAlt ? rendered.alt.trim() : "";
   return {
-    url: new URL(rendered.rendition.src, deployment.canonicalBaseUrl).href,
+    url: absoluteAssetUrl(rendered.rendition.src, deployment.canonicalBaseUrl),
     width: rendered.rendition.width,
     height: rendered.rendition.height,
     ...(alt.length === 0 ? {} : { alt }),
@@ -261,10 +250,7 @@ export function buildPageMetadata(
   input: PageMetadataInput,
   { settings, deployment }: MetadataContext,
 ): Metadata {
-  const canonical = resolveCanonicalUrl(
-    input.path,
-    deployment.canonicalBaseUrl,
-  );
+  const canonical = canonicalRouteUrl(input.path, deployment.canonicalBaseUrl);
   const locale = resolvePageLocale(input.locale, deployment);
   const openGraphLocale = toOpenGraphLocale(locale);
   const languages = toAlternateLanguages(

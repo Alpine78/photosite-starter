@@ -789,8 +789,25 @@ above, whose bounded-query contract AB#134 has since supplied), seeded random ga
 — ADR-0009 decides the contract, but the materialized shuffle key itself and the route
 cache-key wiring it requires remain AB#129's — the dynamic keyword-driven gallery and archive
 search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71 build it), lightbox zoom tuning, the gallery-item
-enquiry (AB#60),
-structured data.
+enquiry (AB#60).
+Validated JSON-LD structured data (AB#86) is built: `src/lib/structured-data.ts` is a pure
+builder + `</script>`-safe serializer (`<`, `>`, `&`, U+2028, U+2029 escaped — `JSON.stringify`
+alone does not, per Next.js's own guidance) rendered through the `<JsonLd>` server component.
+The supported set is core only, owner-decided at refinement: `WebSite` + `Organization` on the
+home/site root, `Service` on a service detail route, `Article` on the `article` content variant's
+canonical detail route. Nothing is emitted on a gallery detail, a category branch, the story
+root, the `/services` listing, `/contact`, or any `?cursor=` / `?section=` continuation. Every
+value is an explicitly modelled `SiteSettings`, `Service`, or `ContentPage` field or a
+deployment-config value: `Organization.name` is `siteName` and `sameAs` is the configured social
+links, but no `logo`, `contactPoint`, `provider`, `author`, `publisher`, `offers`, or address
+entity is synthesized, and an absent optional field omits its property rather than emitting a
+placeholder. Route URLs and asset URLs share `page-metadata.ts`'s rules through the new
+`canonical-url.ts` (`canonicalRouteUrl` applies ADR-0003's no-trailing-slash shape and must be
+origin-absolute against the canonical base; `absoluteAssetUrl` resolves a relative rendition and
+preserves an already-absolute public CDN derivative). The AC5 external-validator check is manual
+(CI reaches no external service); the representative builder outputs are the snapshot fixtures in
+`structured-data.test.ts`, and `e2e/structured-data.spec.ts` proves the per-route inclusion and
+exclusion wiring against a production build.
 The AB#65 spike that informs the keyword-taxonomy ADR (AB#55) and ADR-0012's own open
 questions has its **tooling** built — a deterministic ~8000-media synthetic fixture corpus
 (`scripts/keyword-benchmark-fixtures.mts`, entirely non-personal, validated), the three

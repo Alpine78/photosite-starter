@@ -372,7 +372,11 @@ a green pipeline. See [deployment](docs/deployment.md).
   and `robots.txt` done (AB#85) — every published, public, indexable category, article,
   gallery, service, and static page listed exactly once, parameter-free only (no cursor or
   section URLs), deterministic and absolute from deployment settings, refreshed on every
-  request rather than frozen at build time; structured data pending*
+  request rather than frozen at build time; validated JSON-LD structured data done
+  (AB#86) — `WebSite` + `Organization` on the site root, `Service` on a service detail,
+  `Article` on an article detail, nothing on gallery, category, listing, or continuation
+  routes; every value from typed settings or content, optional properties omitted rather
+  than fabricated, and `</script>`-safe serialization*
 - [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`; validated
   customer-owned connection, published-perspective query client, and the enforced
   data-access boundary done ([setup](docs/sanity-setup.md),

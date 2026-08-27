@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { JsonLd } from "@/components/json-ld";
+import { getDeploymentConfig } from "@/lib/deployment-config";
 import { getSiteSettings } from "@/lib/site-settings";
 import { getHomeContent } from "@/lib/home-content";
 import { HERO_IMAGE_SIZES } from "@/lib/image-delivery";
 import { getPageMetadata } from "@/lib/page-metadata";
+import {
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+} from "@/lib/structured-data";
 
 /**
  * The unprefixed default-locale site root keeps the SiteSettings site name as
@@ -22,9 +28,19 @@ export default async function Home() {
     getHomeContent(),
   ]);
   const { hero, intro, sections } = home;
+  const deployment = getDeploymentConfig();
 
   return (
     <main>
+      {/* WebSite + Organization: the site's identity, from SiteSettings and
+          deployment config only (AB#86). Emitted here rather than in the
+          layout so it stays on the site root, not every default-locale page. */}
+      <JsonLd
+        data={[
+          buildWebSiteJsonLd({ settings, deployment }),
+          buildOrganizationJsonLd({ settings, deployment }),
+        ]}
+      />
       {/* Hero image — full width, native aspect ratio, never cropped. Height
           follows its own ratio; width/height reserve space (no CLS).
           Video rendering is intentionally outside the current scope. */}
