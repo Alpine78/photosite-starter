@@ -780,7 +780,6 @@ async function runMove(): Promise<void> {
     });
     revert.push({ createOrReplace: { ...moved } });
 
-    let gainsNewParent = 0;
     for (const medium of media) {
       if (!medium.leafKeywordIds.some((leaf) => subtree.has(leaf))) continue;
       const newClosure = computeExpandedKeywordIds(medium.leafKeywordIds, postMoveIndex);
@@ -788,19 +787,37 @@ async function runMove(): Promise<void> {
       forward.push({ createOrReplace: { ...medium, expandedKeywordIds: newClosure } });
       revert.push({ createOrReplace: { ...medium } });
       writtenMediaIds.push(medium.mediaId);
-      if (!medium.expandedKeywordIds.includes(newParentId) && newClosure.includes(newParentId)) {
-        gainsNewParent += 1;
-      }
     }
+  }
 
-    // The re-sync completeness proof (below) is an aggregate
-    // `count(newParentId in expandedKeywordIds)`. That only proves *every*
-    // written doc is visible if every written doc newly gains `newParentId`
-    // — true for the shipped broad/deep scenarios, asserted here so a future
-    // scenario cannot silently break the proof.
-    if (gainsNewParent !== writtenMediaIds.length) {
+  // Re-sync completeness proof for strategy B: the moved subtree's closures
+  // gain the new parent's ancestor chain and lose the old parent's. Every
+  // written medium therefore *newly gains* at least one "added" ancestor or
+  // *newly loses* at least one "removed" ancestor. Polling an aggregate
+  // `count(<ancestor> in expandedKeywordIds)` for each such ancestor — rising
+  // to a known value for an added one, falling to a known value for a removed
+  // one — proves every written doc is query-visible once *all* those counts
+  // settle. Assert here that no written medium's change escapes that set, so
+  // a future scenario cannot silently defeat the proof.
+  const movedOldAncestors = new Set(moved.ancestorKeywordIds);
+  const movedNewAncestors = new Set(postMoveAncestorsOf(movedId));
+  const addedAncestors = [...movedNewAncestors].filter((id) => !movedOldAncestors.has(id));
+  const removedAncestors = [...movedOldAncestors].filter((id) => !movedNewAncestors.has(id));
+
+  if (strategy === "b") {
+    const explained = (medium: (typeof media)[number]): boolean => {
+      const after = computeExpandedKeywordIds(medium.leafKeywordIds, postMoveIndex);
+      const gains = addedAncestors.some((id) => !medium.expandedKeywordIds.includes(id) && after.includes(id));
+      const loses = removedAncestors.some((id) => medium.expandedKeywordIds.includes(id) && !after.includes(id));
+      return gains || loses;
+    };
+    const unexplained = writtenMediaIds.filter((id) => {
+      const medium = media.find((m) => m.mediaId === id)!;
+      return !explained(medium);
+    });
+    if (unexplained.length > 0) {
       fail(
-        `strategy-B move for scenario "${which}" writes ${writtenMediaIds.length} media but only ${gainsNewParent} newly gain "${newParentId}" — the aggregate re-sync probe cannot prove all writes are visible for this scenario. Add a scenario-specific probe before running it.`,
+        `strategy-B move for scenario "${which}" writes ${unexplained.length} media whose closure change is neither an added nor a removed ancestor of "${movedId}" — the aggregate re-sync probe cannot prove those are visible. Add a scenario-specific probe.`,
       );
     }
   }
@@ -821,22 +838,57 @@ async function runMove(): Promise<void> {
   // therefore issued `visibility=async`: the request returns on acceptance,
   // and the poll below times the real indexing lag. The revert stays `sync`,
   // so the baseline is guaranteed restored before the command exits.
-  const expectedVisibleCount =
+  // One or more aggregate probes, each `{ query, expected, satisfied }`.
+  // Strategy A: keyword docs gaining the new parent in `ancestorKeywordIds`
+  // (rises). Strategy B: media closures for every added ancestor (rises) and
+  // every removed one (falls).
+  type ReSyncProbe = {
+    readonly label: string;
+    readonly query: string;
+    readonly params: Readonly<Record<string, unknown>>;
+    readonly satisfied: (live: number) => boolean;
+    readonly expected: number;
+  };
+  const mediaWith = (ancestorId: string): number =>
+    media.filter((medium) =>
+      computeExpandedKeywordIds(medium.leafKeywordIds, postMoveIndex).includes(ancestorId),
+    ).length;
+  const keywordsWithNewParent = keywords.filter((k) =>
+    postMoveAncestorsOf(k.keywordId).includes(newParentId),
+  ).length;
+  const probes: readonly ReSyncProbe[] =
     strategy === "a"
-      ? keywords.filter((keyword) => postMoveAncestorsOf(keyword.keywordId).includes(newParentId)).length
-      : media.filter((medium) =>
-          computeExpandedKeywordIds(medium.leafKeywordIds, postMoveIndex).includes(newParentId),
-        ).length;
-  const probeQuery =
-    strategy === "a"
-      ? {
-          query: `count(*[_type == "benchmarkKeyword" && benchmarkRun == $run && $newParent in ancestorKeywordIds])`,
-          params: { run: scenario.benchmarkRun, newParent: newParentId },
-        }
-      : {
-          query: `count(*[_type == "benchmarkMedia" && benchmarkRun == $run && $newParent in expandedKeywordIds])`,
-          params: { run: scenario.benchmarkRun, newParent: newParentId },
-        };
+      ? [
+          {
+            label: `keyword docs with ${newParentId} in ancestorKeywordIds`,
+            query: `count(*[_type == "benchmarkKeyword" && benchmarkRun == $run && $anc in ancestorKeywordIds])`,
+            params: { run: scenario.benchmarkRun, anc: newParentId },
+            expected: keywordsWithNewParent,
+            satisfied: (live) => live >= keywordsWithNewParent,
+          },
+        ]
+      : [
+          ...addedAncestors.map((anc): ReSyncProbe => {
+            const expected = mediaWith(anc);
+            return {
+              label: `media with ${anc} in expandedKeywordIds (rises to ${expected})`,
+              query: `count(*[_type == "benchmarkMedia" && benchmarkRun == $run && $anc in expandedKeywordIds])`,
+              params: { run: scenario.benchmarkRun, anc },
+              expected,
+              satisfied: (live) => live >= expected,
+            };
+          }),
+          ...removedAncestors.map((anc): ReSyncProbe => {
+            const expected = mediaWith(anc);
+            return {
+              label: `media with ${anc} in expandedKeywordIds (falls to ${expected})`,
+              query: `count(*[_type == "benchmarkMedia" && benchmarkRun == $run && $anc in expandedKeywordIds])`,
+              params: { run: scenario.benchmarkRun, anc },
+              expected,
+              satisfied: (live) => live <= expected,
+            };
+          }),
+        ];
 
   try {
     // t0 — before the first batch — through to "every rewritten doc visible"
@@ -846,30 +898,37 @@ async function runMove(): Promise<void> {
     const acceptedMs = performance.now() - t0;
     console.log(`Forward mutation accepted (async) after ${acceptedMs.toFixed(0)} ms.`);
 
-    // Poll an *aggregate* count until it reflects *every* rewritten document,
-    // not just one from an early batch. Every mutation only adds
-    // `newParentId` to a closure — never removes it — so the matching count
-    // rises monotonically from its pre-move value to a known post-move
-    // value; re-sync is complete only when the count reaches that value.
+    // Each probe's count moves monotonically (added ancestor rises, removed
+    // ancestor falls) toward a known post-move value; re-sync is complete
+    // only when every probe has settled.
     let syncedMs: number | undefined;
-    let lastSeen = -1;
+    const lastSeen = new Map<string, number>();
     for (let attempt = 0; attempt < 60; attempt += 1) {
-      const measured = await runMeasuredQuery(connection, {
-        ...probeQuery,
-        endpoint: "api",
-        perspective: "published",
-      });
-      lastSeen = typeof measured.result === "number" ? measured.result : lastSeen;
-      if (lastSeen >= expectedVisibleCount) {
+      let allSatisfied = true;
+      for (const probe of probes) {
+        const measured = await runMeasuredQuery(connection, {
+          query: probe.query,
+          params: probe.params,
+          endpoint: "api",
+          perspective: "published",
+        });
+        const live = typeof measured.result === "number" ? measured.result : Number.NaN;
+        lastSeen.set(probe.label, live);
+        if (!probe.satisfied(live)) allSatisfied = false;
+      }
+      if (allSatisfied) {
         syncedMs = performance.now() - t0;
         break;
       }
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
+    const probeSummary = probes
+      .map((probe) => `${probe.label.split(" (")[0]}=${lastSeen.get(probe.label) ?? "?"}/${probe.expected}`)
+      .join(", ");
     console.log(
       syncedMs === undefined
-        ? `Re-sync: only ${lastSeen}/${expectedVisibleCount} rewritten docs query-visible within 30s — record this.`
-        : `End-to-end write + re-sync until all ${expectedVisibleCount} rewritten docs are query-visible: ${syncedMs.toFixed(0)} ms (acceptance ${acceptedMs.toFixed(0)} ms).`,
+        ? `Re-sync: probes did not all settle within 30s — ${probeSummary}. Record this.`
+        : `End-to-end write + re-sync until all rewritten docs are query-visible: ${syncedMs.toFixed(0)} ms (acceptance ${acceptedMs.toFixed(0)} ms; ${probeSummary}).`,
     );
   } finally {
     console.log(`Reverting ${revert.length} documents...`);
