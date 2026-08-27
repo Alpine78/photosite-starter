@@ -271,7 +271,10 @@ reading order at every column count, the lightbox, its metadata, its empty state
 cursor continuation without JavaScript, its compact continuation page, its in-place
 append and lightbox continuation, and the
 addresses it refuses — the services routes,
-the public content tree, and
+the public content tree — including a category branch listing's `?cursor=` continuation
+walked with JavaScript disabled: several pages through the real link with no duplicates or
+gaps, the compact continuation page and its self-canonical metadata, the link back to the
+first page, and the 404s for a tampered token and one minted for another branch — and
 contact submission — including invalid input, delivery failure, and retry; a
 route-specific suite joins the gate by landing in `e2e/`. The run
 leaves `.next` holding a build made with the harness settings, so run `npm run build`
@@ -333,8 +336,12 @@ a green pipeline. See [deployment](docs/deployment.md).
   contents derived from the body's headings, and publication-ordered sibling navigation —
   and the tree-driven site menu, which composes the configured static links with the
   first two category levels behind an accessible disclosure in both the wide and the
-  compact layout, the canonical curated gallery detail route, and gallery cursor
-  continuation and the in-place gallery append done; listing continuation pending*
+  compact layout, the canonical curated gallery detail route, gallery cursor
+  continuation and the in-place gallery append, and — now — category branch listing
+  continuation: a large branch pages through a keyset `?cursor=` (self-canonical,
+  indexable, no JavaScript required) sharing the gallery cursor's signing secret
+  ([ADR-0013](docs/adr/0013-category-listing-continuation-cursor.md)). Story-root listing
+  continuation and progressive append for category listings are deferred*
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))
@@ -480,8 +487,13 @@ deployed or indexed. A gallery larger than one page issues an opaque continuatio
 and serves the next bounded slice at its own indexable, self-canonical `?cursor=` URL; the
 control that reaches it is a real link, so a large gallery pages through with no JavaScript
 at all, and a token that names no slice of that gallery is a 404 rather than a silent
-return to the first page. Category listings still answer `?cursor=` with a 404, because
-none issues one. Static routes and authored
+return to the first page. A category branch listing whose aggregated subtree exceeds one
+page now pages through the same way ([ADR-0013](docs/adr/0013-category-listing-continuation-cursor.md)):
+a keyset `?cursor=` over `(publishedAt, contentId)`, signed with the shared
+`GALLERY_CURSOR_SIGNING_KEY`, on its own indexable self-canonical URL, reached by a real
+link that works with no JavaScript, with a compact continuation page and an invalid-cursor
+404 that links back to the branch. The story root still serves only its bounded first page.
+Static routes and authored
 SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
 separate story. The Sanity connection, its published-perspective query client, and the
 enforced data-access boundary are in place, as are every schema and adapter — media,

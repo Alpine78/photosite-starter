@@ -155,6 +155,16 @@ export type BuiltInLabels = {
     readonly parentCategoryFallback: string;
     /** Qualifies a language whose parent ancestry is missing too. */
     readonly storyRootFallback: string;
+    /**
+     * Marks a branch listing's continuation-page heading as a later slice of
+     * the same branch, appended to the branch title (ADR-0003 decision 8,
+     * AB#140).
+     */
+    readonly continued: string;
+    /** Names the link that continues into the branch listing's next page. */
+    readonly showMoreContent: string;
+    /** Names the link back to a branch listing's first page from a continuation. */
+    readonly backToStart: string;
   };
   readonly gallery: {
     readonly images: string;
@@ -316,6 +326,9 @@ const englishLabels = {
     languages: "Language",
     parentCategoryFallback: "opens the parent category",
     storyRootFallback: "opens all stories",
+    continued: "continued",
+    showMoreContent: "Show more",
+    backToStart: "Back to the start",
   },
   gallery: {
     images: "images",
@@ -421,6 +434,9 @@ const finnishLabels = {
     languages: "Kieli",
     parentCategoryFallback: "avaa yläkategorian",
     storyRootFallback: "avaa kaikki tarinat",
+    continued: "jatkuu",
+    showMoreContent: "Näytä lisää",
+    backToStart: "Takaisin alkuun",
   },
   gallery: {
     images: "kuvaa",

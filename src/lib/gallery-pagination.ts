@@ -1,4 +1,13 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  MAX_KEYSET_CURSOR_LENGTH,
+  MAX_KEYSET_ID_LENGTH,
+  MAX_KEYSET_SCOPE_FIELD_LENGTH,
+  KeysetCursorError,
+  assertBoundedString,
+  createHmacKeysetCursorCodec,
+  type KeysetCursorErrorCode,
+  type KeysetCursorScope,
+} from "@/lib/keyset-cursor";
 import type {
   CuratedGalleryResultItem,
   GalleryCursor,
@@ -7,39 +16,21 @@ import type {
 import type { ImageMedia, Media } from "@/lib/media";
 
 export const MAX_GALLERY_PAGE_SIZE = 100;
-export const MAX_GALLERY_CURSOR_LENGTH = 2048;
+export const MAX_GALLERY_CURSOR_LENGTH = MAX_KEYSET_CURSOR_LENGTH;
 
-export const MAX_SCOPE_FIELD_LENGTH = 256;
-export const MAX_ITEM_ID_LENGTH = 256;
-const CURSOR_VERSION = 2;
-const BASE64URL_SEGMENT = /^[A-Za-z0-9_-]+$/;
-const SHA_256_BASE64URL_LENGTH = 43;
+/** Kept as gallery-named re-exports for AB#67 callers and their tests. */
+export const MAX_SCOPE_FIELD_LENGTH = MAX_KEYSET_SCOPE_FIELD_LENGTH;
+export const MAX_ITEM_ID_LENGTH = MAX_KEYSET_ID_LENGTH;
+export { assertBoundedString };
 
-export type GalleryCursorScope = {
-  /** Stable project source identity, not a provider document id. */
-  readonly sourceId: string;
-  /** Canonical filter key; the adapter filters placements before this call. */
-  readonly normalizedFilter: string;
-  /** Stable ordering rule and rule version, for example `manual-v1`. */
-  readonly ordering: string;
-  /**
-   * Changes when public visibility changes invalidate existing boundaries.
-   * Appends and presentation-only edits deliberately keep the same version.
-   * A reorder, a hide/show, or a section reassignment does not: any of them
-   * can move a placement across another cursor's boundary key (AB#134),
-   * which would otherwise duplicate or skip that item mid-walk under keyset
-   * pagination — bumping this is what keeps an in-flight walk coherent, the
-   * same way it already protects against every other kind of drift.
-   */
-  readonly visibilityVersion: string;
-  readonly pageSize: number;
-};
+/**
+ * A gallery cursor's scope is the generic keyset scope (AB#140 extracted the
+ * codec into `keyset-cursor.ts`). The name is kept because AB#67's callers,
+ * fixtures, and tests refer to it; the shape and field meanings are unchanged.
+ */
+export type GalleryCursorScope = KeysetCursorScope;
 
-export type GalleryCursorErrorCode =
-  | "malformed"
-  | "tampered"
-  | "wrong-scope"
-  | "stale";
+export type GalleryCursorErrorCode = KeysetCursorErrorCode;
 
 export class GalleryCursorError extends Error {
   readonly code: GalleryCursorErrorCode;
@@ -61,14 +52,6 @@ export type CuratedGalleryPlacement = {
   readonly captionOverride?: string;
 };
 
-type CursorPayload = {
-  readonly version: typeof CURSOR_VERSION;
-  readonly queryScope: string;
-  readonly visibilityScope: string;
-  readonly afterOrder: number;
-  readonly afterPlacementId: string;
-};
-
 type DecodedGalleryCursor = {
   readonly afterOrder: number;
   readonly afterPlacementId: string;
@@ -80,6 +63,9 @@ type DecodedGalleryCursor = {
  * Implementations authenticate and bound an untrusted token before returning
  * a boundary key; `resolveGalleryWindowRequest` validates the returned value
  * again before it ever reaches a source's query.
+ *
+ * The gallery's primary boundary key is the placement's numeric manual `order`,
+ * so this narrows `keyset-cursor.ts`'s `string | number` key back to `number`.
  */
 export type GalleryCursorCodec = {
   readonly encode: (
@@ -92,39 +78,6 @@ export type GalleryCursorCodec = {
     scope: GalleryCursorScope,
   ) => DecodedGalleryCursor;
 };
-
-const cursorPayloadKeys = [
-  "version",
-  "queryScope",
-  "visibilityScope",
-  "afterOrder",
-  "afterPlacementId",
-] as const satisfies readonly (keyof CursorPayload)[];
-
-export function assertBoundedString(
-  value: unknown,
-  field: string,
-  maxLength = MAX_SCOPE_FIELD_LENGTH,
-): asserts value is string {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.length > maxLength
-  ) {
-    throw new TypeError(`${field} must be a non-empty bounded string`);
-  }
-}
-
-function assertSigningKey(signingKey: string): void {
-  if (
-    typeof signingKey !== "string" ||
-    signingKey.length < 32 ||
-    signingKey.length > 256 ||
-    !/^[\x21-\x7e]+$/.test(signingKey)
-  ) {
-    throw new Error("Gallery cursor signing key is not configured securely");
-  }
-}
 
 function assertScope(scope: GalleryCursorScope): void {
   assertBoundedString(scope.sourceId, "scope.sourceId");
@@ -142,202 +95,45 @@ function assertScope(scope: GalleryCursorScope): void {
   }
 }
 
-function cursorSignature(payload: string, signingKey: string): Buffer {
-  return createHmac("sha256", signingKey)
-    .update("gallery-cursor-token-v1")
-    .update("\0")
-    .update(payload)
-    .digest();
-}
-
-function scopeDigest(
-  label: string,
-  values: readonly (string | number)[],
-  signingKey: string,
-): string {
-  return createHmac("sha256", signingKey)
-    .update(label)
-    .update("\0")
-    .update(JSON.stringify(values))
-    .digest("base64url");
-}
-
-function matchesDigest(encodedDigest: string, expectedDigest: string): boolean {
-  const supplied = Buffer.from(encodedDigest, "base64url");
-  const expected = Buffer.from(expectedDigest, "base64url");
-  return (
-    supplied.length === expected.length && timingSafeEqual(supplied, expected)
-  );
-}
-
-function queryScopeDigest(
-  scope: GalleryCursorScope,
-  signingKey: string,
-): string {
-  return scopeDigest(
-    "gallery-query-scope-v1",
-    [
-      scope.sourceId,
-      scope.normalizedFilter,
-      scope.ordering,
-      scope.pageSize,
-    ],
-    signingKey,
-  );
-}
-
-function visibilityScopeDigest(
-  scope: GalleryCursorScope,
-  signingKey: string,
-): string {
-  return scopeDigest(
-    "gallery-visibility-scope-v1",
-    [scope.sourceId, scope.visibilityVersion],
-    signingKey,
-  );
-}
-
 /**
- * Encodes `{version, queryScope, visibilityScope, afterOrder, afterPlacementId}`
- * as one HMAC-signed blob. `afterOrder`/`afterPlacementId` travel in plaintext
- * inside it — unlike `queryScope`/`visibilityScope`, which stay digests because
- * nothing outside this module ever needs their raw inputs back. A caller
- * building a bounded store query needs the actual boundary values, not an
- * opaque hash of them, and this is not a new disclosure of anything sensitive:
- * `placementId` is already returned in plaintext on every page as `itemId`.
- * Both fields still get the same tamper-integrity `offset` always had as a
- * plaintext-but-signed field — `cursorSignature` covers the complete encoded
- * JSON, so neither can be edited, nor recombined with another cursor's
- * `queryScope`/`visibilityScope`, without invalidating the signature.
- */
-function encodeHmacCursor(
-  scope: GalleryCursorScope,
-  afterOrder: number,
-  afterPlacementId: string,
-  signingKey: string,
-): GalleryCursor {
-  const cursorPayload: CursorPayload = {
-    version: CURSOR_VERSION,
-    queryScope: queryScopeDigest(scope, signingKey),
-    visibilityScope: visibilityScopeDigest(scope, signingKey),
-    afterOrder,
-    afterPlacementId,
-  };
-  const encodedPayload = Buffer.from(JSON.stringify(cursorPayload)).toString(
-    "base64url",
-  );
-  const signature = cursorSignature(encodedPayload, signingKey).toString(
-    "base64url",
-  );
-
-  return `${encodedPayload}.${signature}` as GalleryCursor;
-}
-
-function parseHmacCursor(
-  cursor: unknown,
-  scope: GalleryCursorScope,
-  signingKey: string,
-): DecodedGalleryCursor {
-  if (
-    typeof cursor !== "string" ||
-    cursor.length === 0 ||
-    cursor.length > MAX_GALLERY_CURSOR_LENGTH
-  ) {
-    throw new GalleryCursorError("malformed");
-  }
-
-  const parts = cursor.split(".");
-  if (parts.length !== 2) {
-    throw new GalleryCursorError("malformed");
-  }
-
-  const [encodedPayload, encodedSignature] = parts;
-  if (
-    !BASE64URL_SEGMENT.test(encodedPayload) ||
-    !BASE64URL_SEGMENT.test(encodedSignature) ||
-    encodedSignature.length !== SHA_256_BASE64URL_LENGTH
-  ) {
-    throw new GalleryCursorError("malformed");
-  }
-
-  const suppliedSignature = Buffer.from(encodedSignature, "base64url");
-  const expectedSignature = cursorSignature(encodedPayload, signingKey);
-  if (
-    suppliedSignature.length !== expectedSignature.length ||
-    !timingSafeEqual(suppliedSignature, expectedSignature)
-  ) {
-    throw new GalleryCursorError("tampered");
-  }
-
-  let payload: unknown;
-  try {
-    payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString());
-  } catch {
-    throw new GalleryCursorError("malformed");
-  }
-
-  if (!isCursorPayload(payload)) {
-    throw new GalleryCursorError("malformed");
-  }
-  const expectedQueryScope = queryScopeDigest(scope, signingKey);
-  if (!matchesDigest(payload.queryScope, expectedQueryScope)) {
-    throw new GalleryCursorError("wrong-scope");
-  }
-  if (
-    !matchesDigest(
-      payload.visibilityScope,
-      visibilityScopeDigest(scope, signingKey),
-    )
-  ) {
-    throw new GalleryCursorError("stale");
-  }
-
-  return {
-    afterOrder: payload.afterOrder,
-    afterPlacementId: payload.afterPlacementId,
-  };
-}
-
-function isCursorPayload(value: unknown): value is CursorPayload {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return false;
-  }
-
-  const payload = value as Record<string, unknown>;
-  const keys = Object.keys(payload);
-  return (
-    keys.length === cursorPayloadKeys.length &&
-    cursorPayloadKeys.every((key) => Object.hasOwn(payload, key)) &&
-    payload.version === CURSOR_VERSION &&
-    typeof payload.queryScope === "string" &&
-    BASE64URL_SEGMENT.test(payload.queryScope) &&
-    payload.queryScope.length === SHA_256_BASE64URL_LENGTH &&
-    typeof payload.visibilityScope === "string" &&
-    BASE64URL_SEGMENT.test(payload.visibilityScope) &&
-    payload.visibilityScope.length === SHA_256_BASE64URL_LENGTH &&
-    Number.isSafeInteger(payload.afterOrder) &&
-    (payload.afterOrder as number) >= 0 &&
-    typeof payload.afterPlacementId === "string" &&
-    payload.afterPlacementId.length > 0 &&
-    payload.afterPlacementId.length <= MAX_ITEM_ID_LENGTH
-  );
-}
-
-/**
- * Reference authenticated codec used by browser-free contract tests. The
- * signing key is supplied by a future server adapter; AB#67 does not make it a
- * deployment setting or freeze this private encoding for AB#66.
+ * Reference authenticated codec used by browser-free contract tests.
+ *
+ * A thin adapter over `keyset-cursor.ts`'s generic codec (AB#140 extracted the
+ * HMAC machinery there so the category branch listing could share it and the
+ * signing secret): it narrows the generic `string | number` boundary key back
+ * to the gallery's numeric `order`, brands the token as a `GalleryCursor`, and
+ * re-raises the generic `KeysetCursorError` as the `GalleryCursorError` every
+ * gallery caller already pattern-matches on. The wire format, the signature
+ * domain string, and the digest labels are unchanged, so a cursor AB#67 issued
+ * still decodes.
  */
 export function createHmacGalleryCursorCodec(
   signingKey: string,
 ): GalleryCursorCodec {
-  assertSigningKey(signingKey);
+  const inner = createHmacKeysetCursorCodec(signingKey);
 
   return {
     encode: (scope, afterOrder, afterPlacementId) =>
-      encodeHmacCursor(scope, afterOrder, afterPlacementId, signingKey),
-    decode: (cursor, scope) =>
-      parseHmacCursor(cursor, scope, signingKey),
+      inner.encode(scope, afterOrder, afterPlacementId) as GalleryCursor,
+    decode: (cursor, scope) => {
+      try {
+        const decoded = inner.decode(cursor, scope);
+        if (typeof decoded.afterKey !== "number") {
+          // A gallery cursor's boundary key is always the numeric `order`; a
+          // string here means a token from another cursor family.
+          throw new GalleryCursorError("malformed");
+        }
+        return {
+          afterOrder: decoded.afterKey,
+          afterPlacementId: decoded.afterId,
+        };
+      } catch (error) {
+        if (error instanceof KeysetCursorError) {
+          throw new GalleryCursorError(error.code);
+        }
+        throw error;
+      }
+    },
   };
 }
 

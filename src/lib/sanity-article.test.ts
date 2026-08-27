@@ -483,6 +483,57 @@ describe("reading listing records by category subtree", () => {
     ).toBe(false);
   });
 
+  it("adds a keyset boundary clause and params for a category continuation cursor (AB#140)", async () => {
+    const { client, requests } = fakeClient({
+      "category.ids": [{ _id: "doc-a" }],
+      "article.listing.by-category": [],
+    });
+
+    await readPublicArticleListingRecordsInCategories(
+      {
+        scope: "category-subtree",
+        categoryIds: ["cat-a"],
+        ordering: "published-desc-v1",
+        limit: 5,
+        after: { publishedAt: "2024-06-18", contentId: "content-x" },
+      },
+      { language: "en", client, config },
+    );
+
+    const listingRequest = requests.find(
+      (request) => request.tag === "article.listing.by-category",
+    );
+    expect(listingRequest?.query).toContain(
+      "publishedAt < $afterPublishedAt || (publishedAt == $afterPublishedAt && contentId > $afterContentId)",
+    );
+    expect(listingRequest?.params).toMatchObject({
+      afterPublishedAt: "2024-06-18",
+      afterContentId: "content-x",
+    });
+  });
+
+  it("omits the keyset clause entirely on a first page", async () => {
+    const { client, requests } = fakeClient({
+      "category.ids": [{ _id: "doc-a" }],
+      "article.listing.by-category": [],
+    });
+
+    await readPublicArticleListingRecordsInCategories(
+      {
+        scope: "category-subtree",
+        categoryIds: ["cat-a"],
+        ordering: "published-desc-v1",
+        limit: 5,
+      },
+      { language: "en", client, config },
+    );
+
+    const listingRequest = requests.find(
+      (request) => request.tag === "article.listing.by-category",
+    );
+    expect(listingRequest?.query).not.toContain("afterPublishedAt");
+  });
+
   it("de-duplicates an article matched by two chunks and re-bounds newest first", async () => {
     // A subtree large enough to force both the scope lookup and the listing
     // query to chunk.

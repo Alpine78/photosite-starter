@@ -992,6 +992,35 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
     });
   });
 
+  it("adds a keyset boundary clause for a category continuation cursor (AB#140)", async () => {
+    const { client, requests } = fakeClient({
+      "category.ids": [{ _id: "doc-a" }],
+      "gallery.listing.by-category": [],
+    });
+
+    await readPublicGalleryListingRecordsInCategories(
+      {
+        scope: "category-subtree",
+        categoryIds: ["cat-a"],
+        ordering: "published-desc-v1",
+        limit: 5,
+        after: { publishedAt: "2024-06-18", contentId: "content-x" },
+      },
+      { language: "en", client, config },
+    );
+
+    const listingRequest = requests.find(
+      (request) => request.tag === "gallery.listing.by-category",
+    );
+    expect(listingRequest?.query).toContain(
+      "publishedAt < $afterPublishedAt || (publishedAt == $afterPublishedAt && contentId > $afterContentId)",
+    );
+    expect(listingRequest?.params).toMatchObject({
+      afterPublishedAt: "2024-06-18",
+      afterContentId: "content-x",
+    });
+  });
+
   it("returns nothing when no scope category exists in the store", async () => {
     const { client, requests } = fakeClient({ "category.ids": [] });
 

@@ -23,9 +23,26 @@
 import type { ContentRedirectInput } from "@/lib/content-redirects";
 import {
   buildContentTree,
+  type ContentPlacementInput,
   type ContentTree,
   type ContentTreeInput,
 } from "@/lib/content-tree";
+import {
+  FIELDNOTE_NUMBERS,
+  fieldnoteCanonicalCategoryId,
+  fieldnoteContentId,
+  fieldnoteSlug,
+} from "@/lib/mock-fieldnotes";
+
+/** The generated Gear "field note" articles — see `mock-fieldnotes.ts`. */
+const fieldnotePlacements: readonly ContentPlacementInput[] =
+  FIELDNOTE_NUMBERS.map((n) => ({
+    contentId: fieldnoteContentId(n),
+    variant: "article",
+    slug: fieldnoteSlug(n),
+    published: true,
+    canonicalCategoryId: fieldnoteCanonicalCategoryId(n),
+  }));
 
 const englishContentTree: ContentTreeInput = {
   categories: [
@@ -43,6 +60,11 @@ const englishContentTree: ContentTreeInput = {
     // this tree. Galleries and articles share one tree, so they are ordinary
     // categories rather than a separate article taxonomy.
     { categoryId: "cat-gear", parentId: null, slug: "gear", label: "Gear", order: 5 },
+    // A child of Gear filled with enough short notes that Gear's aggregated
+    // branch listing runs past its first page — the fixture the category
+    // listing continuation (AB#140, ADR-0013) is exercised against. English
+    // only, like `cat-gear` itself.
+    { categoryId: "cat-gear-notebook", parentId: "cat-gear", slug: "notebook", label: "Field notebook", order: 0 },
     { categoryId: "cat-technique", parentId: null, slug: "technique", label: "Technique", order: 6 },
     { categoryId: "cat-behind-the-scenes", parentId: null, slug: "behind-the-scenes", label: "Behind the scenes", order: 7 },
 
@@ -150,6 +172,7 @@ const englishContentTree: ContentTreeInput = {
       published: false,
       canonicalCategoryId: null,
     },
+    ...fieldnotePlacements,
   ],
 };
 

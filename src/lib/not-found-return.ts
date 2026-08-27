@@ -11,13 +11,15 @@
  * it already got, because a guessed destination is worse than none: it would
  * lead from one 404 to another.
  *
- * Why a gallery and nothing else: a gallery is the only route that issues a
- * continuation token, so it is the only one whose *resolvable* path can 404 at
- * all. A category or article path that resolves does not 404, so a link there
- * would never be reached; one that does not resolve is the unknown case above.
+ * Two route kinds issue a continuation token and so can 404 at a *resolvable*
+ * path: a gallery (an invalid `?cursor=` or `?section=`), and — since AB#140 —
+ * a category branch (an invalid `?cursor=`). Both get a link back to their own
+ * parameter-free page. An article resolves or does not; a story-root cursor is
+ * refused outright, and its way back is the story namespace root.
  */
 
 import {
+  getCategoryListing,
   getContentPage,
   getContentRedirects,
   getContentTrees,
@@ -44,6 +46,12 @@ export type NotFoundReturn = {
   readonly href: string;
   /** That locale, so the caller can label the link in the right language. */
   readonly locale: string;
+  /**
+   * What the link leads back to, so the 404 can name it in that route's own
+   * terms — "back to the start of this gallery" vs. a branch listing's plainer
+   * "back to the start".
+   */
+  readonly kind: "gallery" | "category" | "story-root";
 };
 
 type GalleryReturnCandidate = NotFoundReturn & {
@@ -51,6 +59,7 @@ type GalleryReturnCandidate = NotFoundReturn & {
 };
 
 type GalleryPageSource = typeof getGalleryPage;
+type CategoryListingSource = typeof getCategoryListing;
 
 export type NotFoundReturnSources = {
   readonly config: LocaleRouteConfig;
@@ -61,6 +70,7 @@ export type NotFoundReturnSources = {
   ) => boolean | Promise<boolean>;
   readonly contentPageSource: ContentPageSource;
   readonly galleryPageSource: GalleryPageSource;
+  readonly categoryListingSource: CategoryListingSource;
 };
 
 /**
@@ -94,6 +104,7 @@ function resolveGalleryReturnCandidate(
   return {
     href: buildStoryPath(config, locale, getStoryRoutePath(tree, route)),
     locale,
+    kind: "gallery",
     contentId: route.contentId,
   };
 }
@@ -106,7 +117,7 @@ export function resolveGalleryReturn(
   const candidate = resolveGalleryReturnCandidate(config, resolution, trees);
   return candidate === undefined
     ? undefined
-    : { href: candidate.href, locale: candidate.locale };
+    : { href: candidate.href, locale: candidate.locale, kind: "gallery" };
 }
 
 async function resolveRequestPath(
@@ -155,6 +166,34 @@ export async function resolveNotFoundReturn(
     return undefined;
   }
 
+  // A category branch (AB#140) now issues its own continuation token, so a
+  // resolvable category path can 404 on an invalid `?cursor=`. Offer the branch
+  // its own parameter-free page — after verifying the listing actually serves,
+  // the same honesty check the gallery return performs. A story-root cursor is
+  // refused outright; its way back is the story namespace root.
+  if (resolution.kind === "story" && resolution.route.kind !== "content") {
+    const { locale, route } = resolution;
+    const tree = sources.trees.get(locale);
+    if (tree === undefined) return undefined;
+
+    const href =
+      route.kind === "category"
+        ? buildStoryPath(
+            sources.config,
+            locale,
+            getStoryRoutePath(tree, route),
+          )
+        : buildStoryPath(sources.config, locale);
+
+    if (route.kind === "category") {
+      // Parity with the gallery return's honesty check: resolve the
+      // parameter-free listing so a link is offered only when it can be served.
+      await sources.categoryListingSource(locale, route.categoryId);
+      return { href, locale, kind: "category" };
+    }
+    return { href, locale, kind: "story-root" };
+  }
+
   const candidate = resolveGalleryReturnCandidate(
     sources.config,
     resolution,
@@ -178,7 +217,7 @@ export async function resolveNotFoundReturn(
   );
   if (firstPage === undefined) return undefined;
 
-  return { href: candidate.href, locale: candidate.locale };
+  return { href: candidate.href, locale: candidate.locale, kind: "gallery" };
 }
 
 /**
@@ -206,5 +245,6 @@ export async function getNotFoundReturn(
     defaultLocaleRouteExists,
     contentPageSource: getContentPage,
     galleryPageSource: getGalleryPage,
+    categoryListingSource: getCategoryListing,
   });
 }

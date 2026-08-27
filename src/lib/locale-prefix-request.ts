@@ -28,9 +28,10 @@ export type LocalePrefixRequestResolution =
       readonly route: StoryRoute;
       /**
        * The opaque continuation token this request carries, when the route has
-       * a continuation contract that gives one meaning. Transported unchanged
-       * and never interpreted here: only the gallery adapter can say whether it
-       * names a slice (ADR-0003 decision 8).
+       * a continuation contract that gives one meaning — a gallery, or (AB#140)
+       * a category branch. Transported unchanged and never interpreted here:
+       * only the adapter that holds the signing key can say whether it names a
+       * real slice (ADR-0003 decision 8).
        */
       readonly cursor?: string;
       /**
@@ -70,6 +71,22 @@ type GalleryCursorNamesASlice = (
   contentId: string,
   cursor: string,
   sectionSlug?: string,
+) => boolean | Promise<boolean>;
+
+/**
+ * Whether a continuation token names a real slice of one category branch's
+ * aggregated listing (AB#140, ADR-0013).
+ *
+ * Injected for the same reason {@link GalleryCursorNamesASlice} is: only the
+ * content adapter holds the signing key. Consulted at exactly one moment — when
+ * a token arrives at a category path that needs normalizing — to choose between
+ * redirecting once with the token carried unchanged and a 404 with no redirect.
+ * A category listing has no `section`, so there is no scope pair to pass.
+ */
+type CategoryListingCursorNamesASlice = (
+  locale: string,
+  categoryId: string,
+  cursor: string,
 ) => boolean | Promise<boolean>;
 
 /**
@@ -175,13 +192,14 @@ function resolveHistoricalStoryTarget(
  * gives it a meaning at exactly two kinds of address: a category listing and a
  * gallery.
  *
- * - A **gallery** now issues one, so it `carry`s the token to the adapter. Only
+ * - A **gallery** issues one, so it `carry`s the token to the adapter. Only
  *   the adapter holds the signing key, so only it can tell a slice boundary from
  *   a forgery; this layer transports the value and forms no opinion about it.
- * - A **category listing or the story root** recognizes the parameter but issues
- *   no token, so any that arrives is malformed, stale, or tampered with, and
- *   decision 8 answers those with a 404 rather than a page that quietly ignores
- *   it. Listing continuation is a separate story from AB#72.
+ * - A **category branch** now issues one too (AB#140, ADR-0013), so it `carry`s
+ *   the token the same way. The story root does not — it has no continuation
+ *   contract — so a cursor there is malformed, stale, or tampered with, and
+ *   decision 8 answers that with a 404 rather than a page that quietly ignores
+ *   it (`reject`).
  * - An **article** has no continuation contract at all, which makes `cursor` an
  *   ordinary unrecognized parameter: decision 8 reads the parameters it knows
  *   and ignores the rest, so a campaign or referral link never turns a real page
@@ -189,12 +207,13 @@ function resolveHistoricalStoryTarget(
  *
  * `section` is a different parameter with its own disposition — see
  * {@link sectionDisposition} — because ADR-0003 gives it no "recognized but
- * unimplemented" state at any route the way `cursor` has at a category
+ * unimplemented" state at any route the way `cursor` used to have at a category
  * listing: it is either a gallery's own filter or it is nowhere meaningful at
  * all.
  */
 function cursorDisposition(route: StoryRoute): "carry" | "reject" | "ignore" {
-  if (route.kind !== "content") return "reject";
+  if (route.kind === "category") return "carry";
+  if (route.kind === "story-root") return "reject";
   return route.variant === "gallery" ? "carry" : "ignore";
 }
 
@@ -318,31 +337,41 @@ async function refusesCursor(
   section: string | undefined,
   {
     normalizing,
-    namesASlice,
+    galleryNamesASlice,
+    categoryNamesASlice,
   }: {
     readonly normalizing: boolean;
-    readonly namesASlice: GalleryCursorNamesASlice | undefined;
+    readonly galleryNamesASlice: GalleryCursorNamesASlice | undefined;
+    readonly categoryNamesASlice: CategoryListingCursorNamesASlice | undefined;
   },
 ): Promise<boolean> {
   if (cursor === undefined) return false;
 
   const disposition = cursorDisposition(route);
   // An article's `cursor` is an ordinary unrecognized parameter, so it neither
-  // blocks a redirect nor rides along as anything but query text.
+  // blocks a redirect nor rides along as anything but query text. A story-root
+  // cursor is `reject` — no continuation contract there.
   if (disposition === "ignore") return false;
   if (disposition === "reject") return true;
 
-  // A gallery continues from one bookmark. Repeating the parameter names no
-  // single slice, so it is refused rather than handed to the adapter as a guess
-  // about which of them the visitor meant.
+  // A gallery or a category branch continues from one bookmark. Repeating the
+  // parameter names no single slice, so it is refused rather than handed to an
+  // adapter as a guess about which of them the visitor meant.
   if (typeof cursor !== "string") return true;
   if (!normalizing) return false;
-  if (route.kind !== "content") return true;
 
   // Without a validator the safe answer is the strict one: refuse rather than
   // emit a permanent redirect for a token nothing has vouched for.
-  if (namesASlice === undefined) return true;
-  return !(await namesASlice(locale, route.contentId, cursor, section));
+  if (route.kind === "category") {
+    if (categoryNamesASlice === undefined) return true;
+    return !(await categoryNamesASlice(locale, route.categoryId, cursor));
+  }
+  if (route.kind === "content" && route.variant === "gallery") {
+    if (galleryNamesASlice === undefined) return true;
+    return !(await galleryNamesASlice(locale, route.contentId, cursor, section));
+  }
+  // Unreachable: `cursorDisposition` only returns "carry" for the two above.
+  return true;
 }
 
 /**
@@ -377,6 +406,7 @@ export async function resolveLocalePrefixRequest({
   searchParams,
   defaultLocaleRouteExists,
   galleryCursorNamesASlice,
+  categoryListingCursorNamesASlice,
   gallerySectionExists,
   pathHasTrailingSlash = false,
 }: {
@@ -395,6 +425,13 @@ export async function resolveLocalePrefixRequest({
    * every such token is refused rather than redirected on trust.
    */
   readonly galleryCursorNamesASlice?: GalleryCursorNamesASlice;
+  /**
+   * The category-branch counterpart of {@link galleryCursorNamesASlice}
+   * (AB#140), consulted only when a continuation token arrives at a category
+   * path that needs normalizing. Absent, every such token is refused rather
+   * than redirected on trust.
+   */
+  readonly categoryListingCursorNamesASlice?: CategoryListingCursorNamesASlice;
   /**
    * Consulted only when a named section arrives at a path that needs
    * normalizing, to choose between redirecting with it and refusing it. Absent,
@@ -469,7 +506,11 @@ export async function resolveLocalePrefixRequest({
           story,
           searchParams.cursor,
           section,
-          { normalizing: true, namesASlice: galleryCursorNamesASlice },
+          {
+            normalizing: true,
+            galleryNamesASlice: galleryCursorNamesASlice,
+            categoryNamesASlice: categoryListingCursorNamesASlice,
+          },
         )) ||
         (await refusesSection(defaultRoute.locale, story, searchParams.section, {
           normalizing: true,
@@ -499,7 +540,11 @@ export async function resolveLocalePrefixRequest({
           historical.route,
           searchParams.cursor,
           section,
-          { normalizing: true, namesASlice: galleryCursorNamesASlice },
+          {
+            normalizing: true,
+            galleryNamesASlice: galleryCursorNamesASlice,
+            categoryNamesASlice: categoryListingCursorNamesASlice,
+          },
         )) ||
         (await refusesSection(
           defaultRoute.locale,
@@ -558,7 +603,11 @@ export async function resolveLocalePrefixRequest({
         historical.route,
         searchParams.cursor,
         section,
-        { normalizing: true, namesASlice: galleryCursorNamesASlice },
+        {
+            normalizing: true,
+            galleryNamesASlice: galleryCursorNamesASlice,
+            categoryNamesASlice: categoryListingCursorNamesASlice,
+          },
       )) ||
       (await refusesSection(
         localeRoute.locale,
@@ -590,7 +639,8 @@ export async function resolveLocalePrefixRequest({
   if (
     (await refusesCursor(localeRoute.locale, route, searchParams.cursor, section, {
       normalizing,
-      namesASlice: galleryCursorNamesASlice,
+      galleryNamesASlice: galleryCursorNamesASlice,
+      categoryNamesASlice: categoryListingCursorNamesASlice,
     })) ||
     (await refusesSection(localeRoute.locale, route, rawSection, {
       normalizing,

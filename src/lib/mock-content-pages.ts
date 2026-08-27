@@ -35,6 +35,7 @@ import type { ContentBlock, ContentPage } from "@/lib/content-page";
 import type { ContentVariant } from "@/lib/content-tree";
 import { withLocalizedText } from "@/lib/media";
 import { mockContentListingRecords } from "@/lib/mock-content-listing";
+import { FIELDNOTE_NUMBERS, fieldnoteContentId } from "@/lib/mock-fieldnotes";
 import { mockImages } from "@/lib/mock-media";
 
 /** What a page adds to the record a card already carries. */
@@ -44,7 +45,28 @@ type AuthoredPage = {
   readonly body: readonly ContentBlock[];
 };
 
+/**
+ * Minimal bodies for the generated Gear field notes — see `mock-fieldnotes.ts`.
+ * One paragraph each: enough for the detail route each listing card links to
+ * to resolve, without a body worth reading.
+ */
+const fieldnotePages: Readonly<Record<string, AuthoredPage>> = Object.fromEntries(
+  FIELDNOTE_NUMBERS.map((n) => [
+    fieldnoteContentId(n),
+    {
+      variant: "article" as const,
+      body: [
+        {
+          type: "paragraph",
+          text: "A short placeholder note. Replaced with real content from the CMS.",
+        },
+      ] satisfies readonly ContentBlock[],
+    },
+  ]),
+);
+
 const englishPages: Readonly<Record<string, AuthoredPage>> = {
+  ...fieldnotePages,
   "content-selected-work": {
     variant: "gallery",
     body: [],

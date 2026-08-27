@@ -49,6 +49,9 @@ const galleryPageSource: NotFoundReturnSources["galleryPageSource"] = async () =
   sections: [],
 });
 
+const categoryListingSource: NotFoundReturnSources["categoryListingSource"] =
+  async () => ({ childCategories: [], content: [], hasMoreContent: false });
+
 function sources(
   overrides: Partial<NotFoundReturnSources> = {},
 ): NotFoundReturnSources {
@@ -59,6 +62,7 @@ function sources(
     defaultLocaleRouteExists: async () => false,
     contentPageSource,
     galleryPageSource,
+    categoryListingSource,
     ...overrides,
   };
 }
@@ -82,6 +86,7 @@ describe("resolveGalleryReturn", () => {
     ).toEqual({
       href: "/en/stories/portfolio/large-archive",
       locale: "en",
+      kind: "gallery",
     });
   });
 
@@ -105,6 +110,7 @@ describe("resolveGalleryReturn", () => {
     ).toEqual({
       href: "/tarinat/portfolio/suuri-arkisto",
       locale: "fi",
+      kind: "gallery",
     });
   });
 
@@ -180,6 +186,7 @@ describe("resolveNotFoundReturn", () => {
     ).resolves.toEqual({
       href: "/en/stories/portfolio/large-archive",
       locale: "en",
+      kind: "gallery",
     });
   });
 
@@ -214,5 +221,36 @@ describe("resolveNotFoundReturn", () => {
         sources(),
       ),
     ).resolves.toBeUndefined();
+  });
+
+  it("offers a category branch its own parameter-free page (AB#140)", async () => {
+    // A category branch now issues its own continuation token, so a resolvable
+    // category path can 404 on a bad `?cursor=`. The way back is the branch.
+    await expect(
+      resolveNotFoundReturn("/en/stories/landscape/coastal", sources()),
+    ).resolves.toEqual({
+      href: "/en/stories/landscape/coastal",
+      locale: "en",
+      kind: "category",
+    });
+  });
+
+  it("verifies the category listing serves before offering the link", async () => {
+    const readListing = vi.fn(categoryListingSource);
+    await resolveNotFoundReturn(
+      "/en/stories/landscape/coastal",
+      sources({ categoryListingSource: readListing }),
+    );
+    expect(readListing).toHaveBeenCalledWith("en", "cat-coastal");
+  });
+
+  it("sends a story-root cursor 404 back to the story namespace root", async () => {
+    await expect(
+      resolveNotFoundReturn("/en/stories", sources()),
+    ).resolves.toEqual({
+      href: "/en/stories",
+      locale: "en",
+      kind: "story-root",
+    });
   });
 });

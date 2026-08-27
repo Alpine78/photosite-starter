@@ -11,13 +11,26 @@ import {
   orderContentListingRecords,
   resolveAdjacentContent,
   selectAdjacentRecords,
+  selectContentListingAfterBoundary,
+  type ContentListingBoundary,
   type ContentListingQuery,
   type ContentListingRecord,
 } from "@/lib/content-listing";
 import { buildContentTree, type ContentTreeInput } from "@/lib/content-tree";
 import { mockContentListingRecords } from "@/lib/mock-content-listing";
 import { mockContentTreeInputs } from "@/lib/mock-content-tree";
+import {
+  FIELDNOTE_NUMBERS,
+  fieldnoteContentId,
+} from "@/lib/mock-fieldnotes";
 import { mockImages } from "@/lib/mock-media";
+
+/**
+ * The generated Gear "field note" articles, in aggregated (newest-first) order.
+ * Every one is dated January 2023, so they sort after everything else in the
+ * English fixture and every tree-wide id list simply ends with this suffix.
+ */
+const FIELDNOTE_IDS = FIELDNOTE_NUMBERS.map(fieldnoteContentId);
 
 const english = buildContentTree(mockContentTreeInputs.en);
 const finnish = buildContentTree(mockContentTreeInputs.fi);
@@ -129,6 +142,7 @@ describe("listCategoryContentIds", () => {
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
+      ...FIELDNOTE_IDS,
     ]);
     expect(listCategoryContentIds(finnish, null)).toEqual([
       "content-selected-work",
@@ -161,6 +175,8 @@ describe("buildCategoryListing", () => {
   });
 
   it("lists recent routed content across the tree at the story root", () => {
+    // The story root is bounded to one page: the ten newest routed pages, then
+    // the newest field notes fill the rest of the page (all dated Jan 2023).
     expect(listing(null).content.map((entry) => entry.contentId)).toEqual([
       "content-selected-work",
       "content-polar-night-sessions",
@@ -172,6 +188,7 @@ describe("buildCategoryListing", () => {
       "content-shooting-in-low-light",
       "content-awaiting-selection",
       "content-large-archive",
+      ...FIELDNOTE_IDS.slice(0, MAX_CONTENT_LISTING_PAGE_SIZE - 10),
     ]);
   });
 
@@ -419,6 +436,7 @@ describe("buildContentListingQuery", () => {
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
+      ...FIELDNOTE_IDS,
     ]);
   });
 
@@ -553,6 +571,7 @@ describe("buildAdjacentContentQuery", () => {
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
+      ...FIELDNOTE_IDS,
     ]);
   });
 
@@ -614,6 +633,11 @@ describe("adjacent content", () => {
       previous: expect.objectContaining({
         contentId: "content-packing-for-a-photo-trip",
         path: ["travel", "packing-for-a-photo-trip"],
+      }),
+      // The newest field note (Jan 2023) is now the older neighbour.
+      next: expect.objectContaining({
+        contentId: fieldnoteContentId(1),
+        path: ["gear", "fieldnote-01"],
       }),
     });
   });
@@ -692,5 +716,152 @@ describe("selectAdjacentRecords", () => {
 
   it("finds nothing when the anchor is not among the candidates", () => {
     expect(selectAdjacentRecords([], "content-missing")).toEqual({});
+  });
+});
+
+describe("category listing continuation (AB#140, ADR-0013)", () => {
+  // A plain in-memory codec stands in for the HMAC one — signing is
+  // content-listing-cursor.test.ts's concern; here only the walk matters.
+  const encodeCursor = (b: ContentListingBoundary) => JSON.stringify(b);
+  const decodeCursor = (c: string): ContentListingBoundary => JSON.parse(c);
+
+  const subtreeIds = () => {
+    const q = buildContentListingQuery({ tree: english, categoryId: "cat-gear" });
+    if (q.scope !== "category-subtree") throw new Error("expected subtree scope");
+    return q.categoryIds;
+  };
+
+  const runPage = (pageSize: number, cursor?: string) => {
+    const after = cursor === undefined ? undefined : decodeCursor(cursor);
+    const query = buildContentListingQuery({
+      tree: english,
+      categoryId: "cat-gear",
+      pageSize,
+      ...(after === undefined ? {} : { after }),
+    });
+    const inScope = listContentIdsInCategories(english, subtreeIds()).flatMap(
+      (id) => {
+        const record = englishRecords.get(id);
+        return record === undefined ? [] : [record];
+      },
+    );
+    const windowed =
+      query.after === undefined
+        ? inScope
+        : selectContentListingAfterBoundary(inScope, query.after);
+    const rows = orderContentListingRecords(windowed).slice(0, query.limit);
+    return buildCategoryListing({
+      tree: english,
+      categoryId: "cat-gear",
+      records: rows,
+      pageSize,
+      encodeCursor,
+    });
+  };
+
+  it("walks the whole aggregated Gear subtree page by page with no gaps or duplicates", () => {
+    const expected = orderContentListingRecords(
+      listContentIdsInCategories(english, subtreeIds()).flatMap((id) => {
+        const record = englishRecords.get(id);
+        return record === undefined ? [] : [record];
+      }),
+    ).map((record) => record.contentId);
+
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < 100; page += 1) {
+      const result = runPage(3, cursor);
+      seen.push(...result.content.map((entry) => entry.contentId));
+      if (result.nextCursor === undefined) {
+        expect(result.hasMoreContent).toBe(false);
+        break;
+      }
+      expect(result.hasMoreContent).toBe(true);
+      cursor = result.nextCursor;
+    }
+
+    expect(seen).toEqual(expected);
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen.length).toBeGreaterThan(MAX_CONTENT_LISTING_PAGE_SIZE);
+  });
+
+  it("emits nextCursor only while a further page exists", () => {
+    const first = runPage(MAX_CONTENT_LISTING_PAGE_SIZE);
+    expect(first.hasMoreContent).toBe(true);
+    expect(first.nextCursor).toBeDefined();
+
+    const last = runPage(MAX_CONTENT_LISTING_PAGE_SIZE, first.nextCursor);
+    expect(last.hasMoreContent).toBe(false);
+    expect(last.nextCursor).toBeUndefined();
+  });
+
+  it("omits nextCursor when no encodeCursor is supplied, even with more content", () => {
+    const result = buildCategoryListing({
+      tree: english,
+      categoryId: "cat-gear",
+      records: orderContentListingRecords(
+        listContentIdsInCategories(english, subtreeIds()).flatMap((id) => {
+          const record = englishRecords.get(id);
+          return record === undefined ? [] : [record];
+        }),
+      ).slice(0, MAX_CONTENT_LISTING_PAGE_SIZE + 1),
+      pageSize: MAX_CONTENT_LISTING_PAGE_SIZE,
+    });
+    expect(result.hasMoreContent).toBe(true);
+    expect(result.nextCursor).toBeUndefined();
+  });
+
+  it("selectContentListingAfterBoundary keeps only records strictly after the key", () => {
+    const records: ContentListingRecord[] = [
+      { contentId: "a", title: "A", publishedAt: "2024-03-03" },
+      { contentId: "b", title: "B", publishedAt: "2024-01-01" },
+      { contentId: "c", title: "C", publishedAt: "2024-01-01" },
+      { contentId: "d", title: "D", publishedAt: "2023-12-31" },
+    ];
+    // Boundary at (2024-01-01, "b"): "a" is newer (before), "b" is the boundary
+    // itself, "c" ties on date but sorts after by id, "d" is older.
+    expect(
+      selectContentListingAfterBoundary(records, {
+        publishedAt: "2024-01-01",
+        contentId: "b",
+      }).map((r) => r.contentId),
+    ).toEqual(["c", "d"]);
+  });
+
+  it("orders and keyset-filters on the publishedAt string, matching a store's own comparison", () => {
+    // A date-only value and a same-day datetime are two strings, exactly as a
+    // GROQ `order(publishedAt desc)` and `publishedAt < $after` see them — so a
+    // full walk over the mix still visits every item once, with no dup or skip.
+    const records: ContentListingRecord[] = [
+      { contentId: "x", title: "X", publishedAt: "2024-06-18T12:00:00.000Z" },
+      { contentId: "y", title: "Y", publishedAt: "2024-06-18" },
+      { contentId: "z", title: "Z", publishedAt: "2024-06-17" },
+    ];
+    const ordered = orderContentListingRecords(records).map((r) => r.contentId);
+    expect(ordered).toEqual(["x", "y", "z"]);
+
+    const walked: string[] = [];
+    let remaining = records;
+    for (let i = 0; i < 5 && remaining.length > 0; i += 1) {
+      const [head] = orderContentListingRecords(remaining);
+      walked.push(head.contentId);
+      remaining = [
+        ...selectContentListingAfterBoundary(records, {
+          publishedAt: head.publishedAt,
+          contentId: head.contentId,
+        }),
+      ];
+    }
+    expect(walked).toEqual(["x", "y", "z"]);
+  });
+
+  it("buildContentListingQuery refuses an `after` boundary at the story root", () => {
+    expect(() =>
+      buildContentListingQuery({
+        tree: english,
+        categoryId: null,
+        after: { publishedAt: "2024-01-01", contentId: "x" },
+      }),
+    ).toThrow(/story root/);
   });
 });

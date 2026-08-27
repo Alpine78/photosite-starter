@@ -16,9 +16,11 @@
  * value borrowed from the mock.
  */
 
+import { createHash } from "node:crypto";
 import { cache } from "react";
 
 import {
+  MAX_CONTENT_LISTING_PAGE_SIZE,
   buildAdjacentContentQuery,
   buildCategoryListing,
   buildContentListingQuery,
@@ -26,20 +28,37 @@ import {
   orderContentListingRecords,
   resolveAdjacentContent,
   selectAdjacentRecords,
+  selectContentListingAfterBoundary,
   type AdjacentContent,
   type AdjacentContentQuery,
   type AdjacentContentRecords,
   type CategoryListing,
+  type ContentListingBoundary,
   type ContentListingQuery,
   type ContentListingRecord,
 } from "@/lib/content-listing";
+/**
+ * `content-listing-cursor.ts` carries the `server-only` marker. Importing it at
+ * the top level here would pull that marker into this seam's module graph
+ * unconditionally — including from contexts (e2e Playwright specs, which reach
+ * `content.ts` through `sitemap.ts`) that run outside Next's bundler and cannot
+ * satisfy that package's build-time "react-server" export condition. So
+ * `getCategoryListing` imports it dynamically, inside its own category branch,
+ * for the same reason the Sanity adapters below are imported dynamically. A
+ * route that needs the classified error type imports it from
+ * `content-listing-cursor.ts` directly.
+ */
 import type { ContentPageSource } from "@/lib/content-page";
 import {
   buildContentRedirects,
   type ContentRedirects,
 } from "@/lib/content-redirects";
 import { dispatchContentSource } from "@/lib/content-source";
-import { buildContentTree, type ContentTree } from "@/lib/content-tree";
+import {
+  buildContentTree,
+  listCategorySubtreeIds,
+  type ContentTree,
+} from "@/lib/content-tree";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import type { LocaleRouteConfig, LocalizedContentTrees } from "@/lib/locale-routes";
 import { mockContentListingRecords } from "@/lib/mock-content-listing";
@@ -306,9 +325,73 @@ async function queryListingRecords(
         return record === undefined ? [] : [record];
       });
 
-      return orderContentListingRecords(rows).slice(0, query.limit);
+      // The mock is not a store, so it applies the keyset boundary and the
+      // limit here — the same contract a `?cursor=` store query must honour.
+      const windowed =
+        query.after === undefined
+          ? rows
+          : selectContentListingAfterBoundary(rows, query.after);
+
+      return orderContentListingRecords(windowed).slice(0, query.limit);
     },
   });
+}
+
+/**
+ * The conservative `visibilityVersion` for one category branch's continuation
+ * cursor (AB#140, ADR-0013).
+ *
+ * Two halves, so both hazards a keyset cursor over `(publishedAt, contentId)`
+ * cannot otherwise survive are covered:
+ *
+ * - a digest of the in-scope subtree category id list — recomputed from the
+ *   tree every request, so a category re-parent that reshapes membership
+ *   changes it with no query; and
+ * - a content-mutation signal: for the mock, a digest of every in-scope
+ *   record's `(contentId, publishedAt)`, so editing any authored date changes
+ *   it; for Sanity, the most recently updated in-scope document's `_updatedAt`,
+ *   which a `publishedAt` edit always bumps (`sanity-content-tree.ts`).
+ */
+async function computeCategoryListingVisibilityVersion(
+  locale: string,
+  tree: ContentTree,
+  subtreeCategoryIds: readonly string[],
+): Promise<string> {
+  const subtreeDigest = digest(
+    JSON.stringify([...subtreeCategoryIds].sort()),
+  );
+  const { contentSource } = getDeploymentConfig();
+
+  const contentVersion = await dispatchContentSource(contentSource, {
+    sanity: async () => {
+      const { readPublicCategoryListingContentVersion } = await import(
+        "@/lib/sanity-content-tree"
+      );
+      return readPublicCategoryListingContentVersion({
+        subtreeCategoryIds,
+        language: languageOf(locale),
+      });
+    },
+    mock: async () => {
+      const authored = mockContentListingRecords[languageOf(locale)];
+      const pairs = listContentIdsInCategories(tree, subtreeCategoryIds)
+        .flatMap((contentId) => {
+          const record = authored?.get(contentId);
+          return record === undefined
+            ? []
+            : [`${contentId} ${record.publishedAt}`];
+        })
+        .sort();
+      return digest(JSON.stringify(pairs));
+    },
+  });
+
+  return `${subtreeDigest}:${contentVersion}`;
+}
+
+/** A short, bounded, URL-safe digest for a cursor scope field. */
+function digest(input: string): string {
+  return createHash("sha256").update(input).digest("base64url").slice(0, 32);
 }
 
 /**
@@ -479,18 +562,72 @@ function requireTree(
   return tree;
 }
 
-/** One branch listing: `null` lists the locale's story root. */
+/**
+ * One branch listing: `null` lists the locale's story root.
+ *
+ * `cursor` is an opaque category-listing continuation token (AB#140, ADR-0013),
+ * meaningful only for a category branch — the story root has no continuation
+ * contract, so the route never carries one there. A token that is malformed,
+ * tampered with, scoped to another branch/locale, or stale (an in-scope date
+ * edit or a subtree reshape has moved its boundary) throws
+ * `ContentListingCursorError`, which the route answers with a 404 rather than
+ * quietly serving the first page under a URL that promised a later slice.
+ */
 export async function getCategoryListing(
   locale: string,
   categoryId: string | null,
+  cursor?: string,
 ): Promise<CategoryListing> {
   const tree = requireTree(await getContentTrees(), locale);
-  const query = buildContentListingQuery({ tree, categoryId });
+
+  if (categoryId === null) {
+    // No continuation contract here; any `cursor` the route failed to reject is
+    // ignored rather than turned into a story-root continuation.
+    const query = buildContentListingQuery({ tree, categoryId });
+    return buildCategoryListing({
+      tree,
+      categoryId,
+      records: await queryListingRecords(locale, tree, query),
+    });
+  }
+
+  const { contentListingCursorCodec } = await import(
+    "@/lib/content-listing-cursor"
+  );
+
+  const subtreeCategoryIds = listCategorySubtreeIds(tree, categoryId);
+  const scope = {
+    locale,
+    categoryId,
+    visibilityVersion: await computeCategoryListingVisibilityVersion(
+      locale,
+      tree,
+      subtreeCategoryIds,
+    ),
+    pageSize: MAX_CONTENT_LISTING_PAGE_SIZE,
+  };
+
+  let after: ContentListingBoundary | undefined;
+  if (cursor !== undefined) {
+    // Throws ContentListingCursorError on an unspendable token; the route 404s.
+    const decoded = contentListingCursorCodec.decode(cursor, scope);
+    after = {
+      publishedAt: decoded.afterPublishedAt,
+      contentId: decoded.afterContentId,
+    };
+  }
+
+  const query = buildContentListingQuery({ tree, categoryId, after });
 
   return buildCategoryListing({
     tree,
     categoryId,
     records: await queryListingRecords(locale, tree, query),
+    encodeCursor: (boundary) =>
+      contentListingCursorCodec.encode(scope, {
+        afterPublishedAt: boundary.publishedAt,
+        afterContentId: boundary.contentId,
+      }),
   });
 }
 

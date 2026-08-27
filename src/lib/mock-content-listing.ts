@@ -20,11 +20,27 @@
  */
 
 import type { ContentListingRecord } from "@/lib/content-listing";
+import {
+  FIELDNOTE_NUMBERS,
+  fieldnoteContentId,
+  fieldnotePublishedAt,
+} from "@/lib/mock-fieldnotes";
 import { getMockGalleryCover } from "@/lib/mock-gallery";
 import { getMockImages } from "@/lib/mock-media";
 
 const englishImages = getMockImages("en");
 const finnishImages = getMockImages("fi");
+
+/** Cards for the generated Gear field notes — see `mock-fieldnotes.ts`. */
+const fieldnoteRecords: readonly ContentListingRecord[] = FIELDNOTE_NUMBERS.map(
+  (n) => ({
+    contentId: fieldnoteContentId(n),
+    title: `Field note ${n}`,
+    summary:
+      "A short placeholder note. Replaced with real content from the CMS.",
+    publishedAt: fieldnotePublishedAt(n),
+  }),
+);
 
 const englishRecords: readonly ContentListingRecord[] = [
   {
@@ -107,6 +123,7 @@ const englishRecords: readonly ContentListingRecord[] = [
     publishedAt: "2024-02-29",
     cover: englishImages.lichenStones,
   },
+  ...fieldnoteRecords,
 ];
 
 const finnishRecords: readonly ContentListingRecord[] = [

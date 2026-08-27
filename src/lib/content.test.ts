@@ -35,6 +35,7 @@ vi.mock("@/lib/deployment-config", () => ({
 
 const sanityContentTree = vi.hoisted(() => ({
   readPublicCategoryInputs: vi.fn(),
+  readPublicCategoryListingContentVersion: vi.fn(),
 }));
 vi.mock("@/lib/sanity-content-tree", () => sanityContentTree);
 
@@ -66,6 +67,9 @@ deploymentConfig.localeRoutes = buildLocaleRouteConfig({
 
 function resetSanityMocks(): void {
   sanityContentTree.readPublicCategoryInputs.mockReset();
+  sanityContentTree.readPublicCategoryListingContentVersion
+    .mockReset()
+    .mockResolvedValue("test-version");
   sanityArticle.readPublicArticlePlacements.mockReset().mockResolvedValue([]);
   sanityArticle.readPublicArticleListingRecords.mockReset().mockResolvedValue([]);
   sanityArticle.readPublicArticleListingRecordsInCategories
@@ -423,5 +427,58 @@ describe("getAdjacentContent", () => {
     expect(error).toBeInstanceOf(SanityContentPageError);
     expect((error as SanityContentPageError).rejection).toBe("unsupported-variant");
     expect((error as Error).message).toMatch(/no Sanity-backed sibling-navigation reader/);
+  });
+});
+
+describe("getCategoryListing — category continuation cursor (AB#140)", () => {
+  beforeEach(() => {
+    deploymentConfig.contentSource = "mock";
+    vi.stubEnv(
+      "GALLERY_CURSOR_SIGNING_KEY",
+      "a-valid-test-content-listing-cursor-signing-key",
+    );
+  });
+
+  it("issues a spendable nextCursor and walks a large branch to its end", async () => {
+    const first = await getCategoryListing("en-GB", "cat-gear");
+    expect(first.hasMoreContent).toBe(true);
+    expect(first.nextCursor).toBeDefined();
+    expect(first.content).toHaveLength(24);
+
+    const second = await getCategoryListing("en-GB", "cat-gear", first.nextCursor);
+    expect(second.hasMoreContent).toBe(false);
+    expect(second.nextCursor).toBeUndefined();
+
+    const firstIds = new Set(first.content.map((entry) => entry.contentId));
+    for (const entry of second.content) {
+      expect(firstIds.has(entry.contentId)).toBe(false);
+    }
+    expect(first.content.length + second.content.length).toBeGreaterThan(24);
+  });
+
+  it("throws ContentListingCursorError for a token minted for another branch", async () => {
+    const { nextCursor } = await getCategoryListing("en-GB", "cat-gear");
+    const { ContentListingCursorError } = await import(
+      "@/lib/content-listing-cursor"
+    );
+    await expect(
+      getCategoryListing("en-GB", "cat-technique", nextCursor),
+    ).rejects.toBeInstanceOf(ContentListingCursorError);
+  });
+
+  it("throws ContentListingCursorError for a tampered token", async () => {
+    const { nextCursor } = await getCategoryListing("en-GB", "cat-gear");
+    const { ContentListingCursorError } = await import(
+      "@/lib/content-listing-cursor"
+    );
+    await expect(
+      getCategoryListing("en-GB", "cat-gear", `${nextCursor}x`),
+    ).rejects.toBeInstanceOf(ContentListingCursorError);
+  });
+
+  it("ignores a cursor at the story root, which has no continuation contract", async () => {
+    await expect(
+      getCategoryListing("en-GB", null, "any-token"),
+    ).resolves.toMatchObject({ hasMoreContent: true });
   });
 });

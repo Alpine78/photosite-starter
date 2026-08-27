@@ -39,6 +39,21 @@ type CategoryBranchProps = {
   content: readonly BranchContentCard[];
   /** The root calls its cross-category overview "latest"; branches do not. */
   contentHeading: string;
+  /**
+   * This is a `?cursor=` continuation slice, not the branch's first page
+   * (AB#140, ADR-0003 decision 8). The heading is marked "continued" and no
+   * editorial framing (the story-root introduction) is repeated; child-category
+   * links stay, being navigation rather than republished content.
+   */
+  isContinuation?: boolean;
+  /** The branch's own parameter-free path, for the "back to the start" link. */
+  firstPageHref?: string;
+  /**
+   * Present when a further page exists: a real `href` carrying the next
+   * `?cursor=` URL, so the listing pages through with no JavaScript at all
+   * (decision 8). Progressive in-place append is a later story.
+   */
+  continuation?: { readonly moreHref: string };
   labels: BuiltInLabels;
 };
 
@@ -64,6 +79,9 @@ export function CategoryBranch({
   childCategories,
   content,
   contentHeading,
+  isContinuation = false,
+  firstPageHref,
+  continuation,
   labels,
 }: CategoryBranchProps) {
   return (
@@ -74,10 +92,21 @@ export function CategoryBranch({
 
       <header className="mt-6">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          {title}
+          {isContinuation
+            ? `${title} (${labels.contentTree.continued})`
+            : title}
         </h1>
-        {introduction && (
-          <p className="mt-4 max-w-2xl text-foreground/70">{introduction}</p>
+        {isContinuation && firstPageHref ? (
+          <Link
+            href={firstPageHref}
+            className={`mt-3 inline-block text-sm underline underline-offset-4 transition-colors hover:text-foreground ${focusRing}`}
+          >
+            {labels.contentTree.backToStart}
+          </Link>
+        ) : (
+          introduction && (
+            <p className="mt-4 max-w-2xl text-foreground/70">{introduction}</p>
+          )
         )}
       </header>
 
@@ -155,6 +184,17 @@ export function CategoryBranch({
               </li>
             ))}
           </ul>
+
+          {continuation && (
+            <p className="mt-10">
+              <Link
+                href={continuation.moreHref}
+                className={`inline-block rounded-full border border-black/20 px-5 py-2 text-sm transition-colors hover:border-black/40 dark:border-white/20 dark:hover:border-white/40 ${focusRing}`}
+              >
+                {labels.contentTree.showMoreContent}
+              </Link>
+            </p>
+          )}
         </section>
       )}
     </main>

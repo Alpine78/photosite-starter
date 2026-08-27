@@ -62,6 +62,8 @@ import {
   type ContentTree,
 } from "@/lib/content-tree";
 import {
+  MAX_CONTENT_IDS_BYTES,
+  chunkContentIds,
   isRecord,
   toLanguageSubtag,
 } from "@/lib/sanity-values";
@@ -390,6 +392,84 @@ export async function readCategoryDocumentIndex(
   });
 
   return indexCategoryIds(readDocuments(result));
+}
+
+/**
+ * A conservative freshness signal for one category branch's aggregated listing,
+ * for the category-listing continuation cursor's `visibilityVersion` (AB#140,
+ * ADR-0013).
+ *
+ * A keyset cursor over `(publishedAt, contentId)` stays coherent across appends
+ * and removals, but not across an edit to an in-scope item's authored
+ * `publishedAt` — which can move it past an issued boundary and cause a skip or
+ * duplicate. So this returns the most recently updated in-scope published
+ * `article`/`gallery` document's `_updatedAt` (a `publishedAt` edit always bumps
+ * it), keyed to the branch by the caller folding in a digest of the subtree
+ * category id list — that half catches a re-parent that reshapes membership,
+ * and needs no query because the tree already recomputed it.
+ *
+ * Bounded like every other read here: the subtree category doc ids come from the
+ * already-fetched `readCategoryDocumentIndex`, and the `references()` scan is
+ * chunked to the GET URL budget. One HTTP round trip.
+ */
+export async function readPublicCategoryListingContentVersion(options: {
+  readonly subtreeCategoryIds: readonly string[];
+  readonly language: string;
+  readonly client?: SanityClient;
+}): Promise<string> {
+  if (options.subtreeCategoryIds.length === 0) return "empty";
+
+  const client = options.client ?? getSanityClient();
+  const language = toLanguageSubtag(options.language);
+
+  const idByCategoryId = new Map(
+    [...(await readCategoryDocumentIndex(client))].map(([docId, categoryId]) => [
+      categoryId,
+      docId,
+    ]),
+  );
+  const categoryDocIds = options.subtreeCategoryIds.flatMap((categoryId) => {
+    const docId = idByCategoryId.get(categoryId);
+    return docId === undefined ? [] : [docId];
+  });
+  if (categoryDocIds.length === 0) return "empty";
+
+  const chunks = chunkContentIds(categoryDocIds, MAX_CONTENT_IDS_BYTES, (id) => {
+    throw new TypeError(
+      `category document id "${id}" is too long to query for a listing version`,
+    );
+  });
+
+  const perChunk = await Promise.all(
+    chunks.map(async (categoryIds) => {
+      const result = await client.query({
+        query: `*[(_type == "article" || _type == "gallery") && language == $language && references($categoryIds)] | order(_updatedAt desc) [0]._updatedAt`,
+        params: { language, categoryIds },
+        tag: "category.listing.version",
+      });
+
+      // `order(...)[0].<field>` returns the scalar, or `null` when the chunk
+      // matches no document. Anything else is a malformed answer and must be a
+      // classified defect — not silently coerced to "no update", which would
+      // hand the cursor a fabricated-stable visibility version and defeat its
+      // own staleness guarantee.
+      if (result === null) return undefined;
+      if (typeof result !== "string" || Number.isNaN(Date.parse(result))) {
+        throw new SanityContentTreeError(
+          "malformed-result",
+          `the category listing version query returned a non-timestamp value: ${JSON.stringify(result)}`,
+        );
+      }
+      return result;
+    }),
+  );
+
+  const latest = perChunk
+    .filter((value): value is string => value !== undefined)
+    .sort()
+    .at(-1);
+
+  return latest ?? "empty";
 }
 
 export type PublicContentTreeReadOptions = PublicCategoryReadOptions & {

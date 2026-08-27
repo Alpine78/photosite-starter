@@ -305,12 +305,14 @@ the promotion/rollback broad-expiry command are documented in
 [`cache-revalidation.md`](cache-revalidation.md). A webhook 200 proves that this
 deployment accepted the event; it does not by itself prove cross-instance propagation.
 
-### The gallery cursor signing key
+### The continuation cursor signing key
 
-A gallery larger than one page issues an opaque continuation cursor, and the deployment
-signs it with `GALLERY_CURSOR_SIGNING_KEY` (AB#72). It sits in the Sensitive, runtime-only
-row above deliberately: the build never issues a cursor, so it never needs the key, and
-keeping it out of the build is what lets it stay unreadable after creation.
+`GALLERY_CURSOR_SIGNING_KEY` signs every opaque continuation cursor this deployment
+issues: for a gallery larger than one page (AB#72) and — since AB#140 — for a category
+branch listing larger than one page (ADR-0013). **One shared secret signs both.** It sits
+in the Sensitive, runtime-only row above deliberately: the build never issues a cursor, so
+it never needs the key, and keeping it out of the build is what lets it stay unreadable
+after creation.
 
 Three properties are worth knowing before provisioning it.
 
@@ -319,20 +321,21 @@ continuation URLs indexable, and serverless instances do not share a process. A 
 differed per deploy — or per instance — would 404 a cursor another instance had just
 issued, so generating one at boot is not an option.
 
-**Rotating it retires every continuation URL already issued and indexed.** That is the
-same property that stops a forged token from being spendable, so it is a cost rather than
-a defect, but it makes rotation a deliberate act: expect crawlers to re-discover the
-continuation URLs afterwards, and do not rotate as routine hygiene. Rotate it if the value
-leaks. Nothing else is invalidated — a gallery's own pages, and every parameter-free URL,
-are unaffected.
+**Rotating it retires every continuation URL already issued and indexed** — gallery *and*
+category-branch continuations. That is the same property that stops a forged token from
+being spendable, so it is a cost rather than a defect, but it makes rotation a deliberate
+act: expect crawlers to re-discover the continuation URLs afterwards, and do not rotate as
+routine hygiene. Rotate it if the value leaks. Nothing else is invalidated — a gallery's or
+a branch's own pages, and every parameter-free URL, are unaffected.
 
 **It is read lazily, so a missing key is a late failure rather than a build failure.**
-Nothing at build time issues a cursor, and a gallery that fits inside one page never needs
-one either, so neither `next build` nor the CI gate will tell you the key is missing. The
-mock fixtures and the reference Preview's Sanity seed both ship a gallery larger than one
-page, so either deployment needs it: that gallery answers with a configuration error naming
-the setting while every other route keeps working. Set it during provisioning rather than
-discovering it from a single broken page later.
+Nothing at build time issues a cursor, and a gallery or a category branch that fits inside
+one page never needs one either, so neither `next build` nor the CI gate will tell you the
+key is missing. The mock fixtures ship both a gallery and a category branch larger than one
+page (and the reference Preview's Sanity seed ships the large gallery), so a deployment
+needs the key: that page answers with a configuration error naming the setting while every
+other route keeps working. Set it during provisioning rather than discovering it from a
+single broken page later.
 
 Generate one with `openssl rand -base64 48`. It needs 32 to 256 printable ASCII
 characters, must not be prefixed `NEXT_PUBLIC_` (the application refuses that outright,
