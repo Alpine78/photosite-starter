@@ -55,7 +55,9 @@ export async function ContentRouteNotFound() {
           href={back.href}
           className="text-sm underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
         >
-          {getBuiltInLabels(back.locale).gallery.backToStart}
+          {back.kind === "gallery"
+            ? getBuiltInLabels(back.locale).gallery.backToStart
+            : getBuiltInLabels(back.locale).contentTree.backToStart}
         </Link>
       )}
     </main>

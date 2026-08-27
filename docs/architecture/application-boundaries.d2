@@ -66,7 +66,7 @@ lib: "src/lib — domain contracts, data-access seams, and fixtures" {
     class: built
   }
 
-  domain: "Domain and result contracts\ncontent-tree, content-page, media,\nimage-delivery, gallery-result,\ngallery-slice, gallery-pagination" {
+  domain: "Domain and result contracts\ncontent-tree, content-page, media,\nimage-delivery, gallery-result, gallery-slice,\ngallery-pagination, keyset-cursor" {
     class: built
   }
 
@@ -103,7 +103,7 @@ restricted: "Server-only modules" {
     class: built
   }
 
-  gallery-cursor: "gallery-cursor.ts\nGALLERY_CURSOR_SIGNING_KEY,\nresolved lazily" {
+  continuation-cursors: "gallery-cursor.ts / content-listing-cursor.ts\nShared GALLERY_CURSOR_SIGNING_KEY,\nresolved lazily (gallery and category-branch\ncontinuation, ADR-0013)" {
     class: built
   }
 }

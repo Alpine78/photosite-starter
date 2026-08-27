@@ -42,15 +42,21 @@ import {
   createHmacGalleryCursorCodec,
   type GalleryCursorCodec,
 } from "@/lib/gallery-pagination";
+import {
+  KEYSET_CURSOR_SIGNING_KEY_SETTING,
+  KeysetCursorConfigurationError,
+  loadKeysetCursorSigningKey,
+  type KeysetCursorEnvironment,
+} from "@/lib/keyset-cursor";
 
-const SIGNING_KEY_SETTING = "GALLERY_CURSOR_SIGNING_KEY";
+const SIGNING_KEY_SETTING = KEYSET_CURSOR_SIGNING_KEY_SETTING;
 
 /**
  * The same shape `loadDeploymentConfig` and `loadSanityConfig` read. Not
  * `NodeJS.ProcessEnv`: Next augments that with a required `NODE_ENV`, which
  * would make every caller construct one to pass two settings.
  */
-type GalleryCursorEnvironment = Record<string, string | undefined>;
+type GalleryCursorEnvironment = KeysetCursorEnvironment;
 
 export class GalleryCursorConfigurationError extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -65,26 +71,24 @@ export class GalleryCursorConfigurationError extends Error {
  * Separate from the memoized accessor below so a test can supply an environment
  * directly, the way `loadDeploymentConfig` and `loadSanityConfig` do — the
  * validation stays deterministic without a module-cache reset.
+ *
+ * The environment contract (the `NEXT_PUBLIC_` refusal, the missing-key
+ * message) is shared with `content-listing-cursor.ts` through
+ * `loadKeysetCursorSigningKey`; the generic `KeysetCursorConfigurationError` it
+ * raises is re-wrapped so this module's own callers and tests keep seeing a
+ * `GalleryCursorConfigurationError`.
  */
 export function loadGalleryCursorCodec(
   environment: GalleryCursorEnvironment,
 ): GalleryCursorCodec {
-  // Refused rather than ignored, for the same reason the Sanity read token is:
-  // Next.js compiles a `NEXT_PUBLIC_` value into the browser bundle, and a
-  // signing key published to every visitor lets anyone mint cursors this
-  // deployment would accept.
-  const publicName = `NEXT_PUBLIC_${SIGNING_KEY_SETTING}`;
-  if (environment[publicName] !== undefined) {
-    throw new GalleryCursorConfigurationError(
-      `Invalid ${publicName}: a NEXT_PUBLIC_ prefixed value is compiled into the browser bundle, so the cursor signing key must never be set under that name. Remove it and set ${SIGNING_KEY_SETTING} instead.`,
-    );
-  }
-
-  const signingKey = environment[SIGNING_KEY_SETTING];
-  if (signingKey === undefined || signingKey.length === 0) {
-    throw new GalleryCursorConfigurationError(
-      `Missing ${SIGNING_KEY_SETTING}: a gallery large enough to paginate issues a continuation cursor, which this deployment signs with its own key. Set one stable secret value per environment — rotating it retires every continuation URL already issued and indexed.`,
-    );
+  let signingKey: string;
+  try {
+    signingKey = loadKeysetCursorSigningKey(environment);
+  } catch (cause) {
+    if (cause instanceof KeysetCursorConfigurationError) {
+      throw new GalleryCursorConfigurationError(cause.message, { cause });
+    }
+    throw cause;
   }
 
   try {

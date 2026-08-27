@@ -591,11 +591,26 @@ export async function readPublicArticleListingRecordsInCategories(
 
   const chunks = chunkContentIds(categoryDocumentIds, MAX_CONTENT_IDS_BYTES);
 
+  // A category-listing continuation cursor (AB#140, ADR-0013) resumes strictly
+  // after a `(publishedAt, contentId)` boundary. `publishedAt` is compared as
+  // the stored string, exactly as `ARTICLE_LISTING_ORDER` orders it.
+  const keysetFilter =
+    query.after === undefined
+      ? ""
+      : " && (publishedAt < $afterPublishedAt || (publishedAt == $afterPublishedAt && contentId > $afterContentId))";
+  const keysetParams =
+    query.after === undefined
+      ? {}
+      : {
+          afterPublishedAt: query.after.publishedAt,
+          afterContentId: query.after.contentId,
+        };
+
   const chunkedRecords = await Promise.all(
     chunks.map(async (categoryIds) => {
       const result = await client.query({
-        query: `*[${ARTICLE_FILTER} && references($categoryIds)] | ${ARTICLE_LISTING_ORDER} [0...$limit]${ARTICLE_LISTING_PROJECTION}`,
-        params: { language, categoryIds, limit: query.limit },
+        query: `*[${ARTICLE_FILTER} && references($categoryIds)${keysetFilter}] | ${ARTICLE_LISTING_ORDER} [0...$limit]${ARTICLE_LISTING_PROJECTION}`,
+        params: { language, categoryIds, limit: query.limit, ...keysetParams },
         tag: "article.listing.by-category",
       });
 

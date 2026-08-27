@@ -565,11 +565,27 @@ export async function readPublicGalleryListingRecordsInCategories(
     MAX_CONTENT_IDS_BYTES,
   );
 
+  // See `sanity-article.ts#readPublicArticleListingRecordsInCategories`: a
+  // category-listing continuation cursor (AB#140, ADR-0013) resumes strictly
+  // after a `(publishedAt, contentId)` boundary, `publishedAt` compared as the
+  // stored string exactly as `GALLERY_LISTING_ORDER` orders it.
+  const keysetFilter =
+    query.after === undefined
+      ? ""
+      : " && (publishedAt < $afterPublishedAt || (publishedAt == $afterPublishedAt && contentId > $afterContentId))";
+  const keysetParams =
+    query.after === undefined
+      ? {}
+      : {
+          afterPublishedAt: query.after.publishedAt,
+          afterContentId: query.after.contentId,
+        };
+
   const chunkedRecords = await Promise.all(
     chunks.map(async (categoryIds) => {
       const result = await client.query({
-        query: `*[${GALLERY_FILTER} && references($categoryIds)] | ${GALLERY_LISTING_ORDER} [0...$limit]${GALLERY_LISTING_PROJECTION}`,
-        params: { language, categoryIds, limit: query.limit },
+        query: `*[${GALLERY_FILTER} && references($categoryIds)${keysetFilter}] | ${GALLERY_LISTING_ORDER} [0...$limit]${GALLERY_LISTING_PROJECTION}`,
+        params: { language, categoryIds, limit: query.limit, ...keysetParams },
         tag: "gallery.listing.by-category",
       });
 

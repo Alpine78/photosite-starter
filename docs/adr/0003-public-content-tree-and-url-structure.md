@@ -117,6 +117,15 @@ does today; aggregation makes that state reachable with fewer items, and closing
 same-story follow-up, not a deferral to another story. This amendment covers only the
 aggregation rule.
 
+**2026-08-27, PR 2 merged:** the continuation is now built and recorded in
+[ADR-0013](0013-category-listing-continuation-cursor.md). A category branch whose
+aggregated content exceeds `MAX_CONTENT_LISTING_PAGE_SIZE` now pages through a keyset
+`?cursor=` continuation (over `(publishedAt, contentId)`, signed with the shared
+`GALLERY_CURSOR_SIGNING_KEY`, self-canonical and indexable, no JavaScript required). The
+"first page only" interim state above no longer holds for a category branch. The story
+root still serves only its bounded first page — story-root continuation was deliberately
+left out of AB#140's scope (see ADR-0013).
+
 Changed text: decision 5's "secondary listings" description of what a branch shows;
 decision 8's category-listing paragraph and its "the aggregation applies only to the story
 root" sentence; and the 2026-08-10 amendment's "Category branches retain their

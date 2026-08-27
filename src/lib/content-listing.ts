@@ -96,11 +96,27 @@ export type CategoryListing = {
   readonly childCategories: readonly CategoryLink[];
   readonly content: readonly ContentListingEntry[];
   /**
-   * True when the page size cut the content list short. The continuation link
-   * that will expose the rest is AB#66's and AB#72's; reporting the fact keeps
-   * the listing from silently claiming to be complete.
+   * True when the page size cut the content list short — i.e. a continuation
+   * page exists past this one.
    */
   readonly hasMoreContent: boolean;
+  /**
+   * The opaque continuation token for the next page, present exactly when
+   * `hasMoreContent` is true and `buildCategoryListing` was given an
+   * `encodeCursor` (AB#140, ADR-0013). It names "continue strictly after the
+   * last item on this page" in `(publishedAt DESC, contentId ASC)` order. The
+   * story root issues none — it has no continuation contract.
+   */
+  readonly nextCursor?: string;
+};
+
+/**
+ * A keyset boundary: the `(publishedAt, contentId)` of the last item on a page,
+ * handed to `buildCategoryListing`'s `encodeCursor` to mint the next token.
+ */
+export type ContentListingBoundary = {
+  readonly publishedAt: string;
+  readonly contentId: string;
 };
 
 /**
@@ -124,6 +140,17 @@ export type ContentListingQuery = {
   readonly ordering: typeof CONTENT_LISTING_ORDERING;
   /** Hard row limit: one page plus the row that reveals a next page exists. */
   readonly limit: number;
+  /**
+   * A keyset continuation boundary (AB#140, ADR-0013). When set, the adapter
+   * returns only rows whose `(publishedAt, contentId)` sort key is strictly
+   * after this one, still ordered and still capped at `limit`. A store
+   * expresses it as `publishedAt < $afterPublishedAt || (publishedAt ==
+   * $afterPublishedAt && contentId > $afterContentId)` — `publishedAt` is
+   * compared as the stored string, so the boundary carries it verbatim.
+   * Absent on a first page and always absent for the story root, which has no
+   * continuation contract.
+   */
+  readonly after?: ContentListingBoundary;
 } & (
   | { readonly scope: "category-subtree"; readonly categoryIds: readonly string[] }
   | { readonly scope: "routed-content"; readonly contentIds: readonly string[] }
@@ -398,16 +425,28 @@ export function buildContentListingQuery({
   tree,
   categoryId,
   pageSize = MAX_CONTENT_LISTING_PAGE_SIZE,
+  after,
 }: {
   readonly tree: ContentTree;
   readonly categoryId: string | null;
   readonly pageSize?: number;
+  /**
+   * A keyset continuation boundary (AB#140). The story root has no continuation
+   * contract, so passing one with `categoryId === null` is a caller error.
+   */
+  readonly after?: ContentListingBoundary;
 }): ContentListingQuery {
   assertPageSize(pageSize);
+  if (after !== undefined && categoryId === null) {
+    throw new TypeError(
+      "the story root listing has no continuation contract, so it takes no `after` boundary",
+    );
+  }
 
   const common = {
     ordering: CONTENT_LISTING_ORDERING,
     limit: pageSize + 1,
+    ...(after === undefined ? {} : { after }),
   } as const;
 
   if (categoryId === null) {
@@ -425,6 +464,33 @@ export function buildContentListingQuery({
   };
 }
 
+/**
+ * The in-memory expression of `ContentListingQuery.after`: keep only the
+ * records whose `(publishedAt, contentId)` sort key is strictly after the
+ * boundary, in `CONTENT_LISTING_ORDERING`. The mock adapter applies this before
+ * it limits; a store expresses the same comparison in its own query language.
+ */
+export function selectContentListingAfterBoundary(
+  records: readonly ContentListingRecord[],
+  after: ContentListingBoundary,
+): readonly ContentListingRecord[] {
+  if (Number.isNaN(Date.parse(after.publishedAt))) {
+    throw new TypeError(
+      `content listing cursor boundary has an unparseable publishedAt: "${after.publishedAt}"`,
+    );
+  }
+
+  // The same comparison a store expresses as `publishedAt < $afterPublishedAt ||
+  // (publishedAt == $afterPublishedAt && contentId > $afterContentId)` — on the
+  // `publishedAt` string, not a parsed timestamp, so it agrees exactly with
+  // `compareEntries` and with the GROQ keyset filter.
+  return records.filter((record) => {
+    const publishedAt = toOrderingKey(record);
+    if (publishedAt !== after.publishedAt) return publishedAt < after.publishedAt;
+    return record.contentId > after.contentId;
+  });
+}
+
 function assertPageSize(pageSize: number): void {
   if (
     !Number.isSafeInteger(pageSize) ||
@@ -437,34 +503,46 @@ function assertPageSize(pageSize: number): void {
   }
 }
 
-/** An entry with its ordering key resolved, so sorting never re-parses a date. */
+/** An entry with its ordering key resolved, so sorting never re-reads a field. */
 type OrderedEntry<T> = {
   readonly value: T;
-  readonly timestamp: number;
+  readonly publishedAt: string;
   readonly contentId: string;
 };
 
 /**
- * Reads the ordering key of one record.
+ * The ordering key of one record: its `publishedAt` **verbatim**.
  *
- * Every record passes through here, including the only one in a single-entry
- * listing: a date the listing cannot order by is an adapter defect whether or
- * not this particular branch happens to have a second page to compare it with.
+ * The comparison below sorts on this string, not on a parsed timestamp,
+ * precisely so the in-memory order is byte-for-byte identical to a store's
+ * `order(publishedAt desc, contentId asc)` and to the keyset continuation
+ * filter's `publishedAt < $afterPublishedAt` string comparison
+ * (`sanity-article.ts`, `sanity-gallery.ts`, ADR-0013). Parsing to a timestamp
+ * here would let two representations of one instant (`2024-06-18` and
+ * `2024-06-18T00:00:00.000Z`) compare equal in memory while the store treats
+ * them as distinct, so a cursor cut between them could skip or repeat an item.
+ * `publishedAt` values must therefore be stored in a form whose lexical order
+ * is their chronological order — ISO 8601, same offset — which the schema's own
+ * `Date.UTC` round-trip validation already enforces.
+ *
+ * `Date.parse` is still used, but only to reject an unorderable value as an
+ * adapter defect. Every record passes through here, including the only one in a
+ * single-entry listing.
  */
-function toOrderingKey(record: ContentListingRecord): number {
-  const timestamp = Date.parse(record.publishedAt);
-  if (Number.isNaN(timestamp)) {
+function toOrderingKey(record: ContentListingRecord): string {
+  if (Number.isNaN(Date.parse(record.publishedAt))) {
     throw new TypeError(
       `listing record for content "${record.contentId}" has an unparseable publishedAt: "${record.publishedAt}"`,
     );
   }
-  return timestamp;
+  return record.publishedAt;
 }
 
 /**
- * Newest first, then by immutable content identifier.
+ * Newest first (descending `publishedAt` string), then by immutable content
+ * identifier ascending.
  *
- * The tie-breaker is not cosmetic: two pages published on the same day must
+ * The tie-breaker is not cosmetic: two pages published on the same date must
  * still order identically on every request, or a continuation page would repeat
  * or skip entries once one exists.
  */
@@ -472,8 +550,9 @@ function compareEntries<T>(
   left: OrderedEntry<T>,
   right: OrderedEntry<T>,
 ): number {
-  const difference = right.timestamp - left.timestamp;
-  if (difference !== 0) return difference;
+  if (left.publishedAt !== right.publishedAt) {
+    return left.publishedAt < right.publishedAt ? 1 : -1;
+  }
   return left.contentId < right.contentId
     ? -1
     : left.contentId > right.contentId
@@ -487,7 +566,7 @@ function order<T extends ContentListingRecord>(
   return records
     .map((value) => ({
       value,
-      timestamp: toOrderingKey(value),
+      publishedAt: toOrderingKey(value),
       contentId: value.contentId,
     }))
     .sort(compareEntries)
@@ -522,6 +601,7 @@ export function buildCategoryListing({
   categoryId,
   records,
   pageSize = MAX_CONTENT_LISTING_PAGE_SIZE,
+  encodeCursor,
 }: {
   readonly tree: ContentTree;
   /** `null` lists the story root's categories and recent routed content. */
@@ -529,8 +609,21 @@ export function buildCategoryListing({
   /** At most `pageSize + 1` rows, as `buildContentListingQuery` asked for. */
   readonly records: readonly ContentListingRecord[];
   readonly pageSize?: number;
+  /**
+   * Mints the continuation token for the next page from the last on-page
+   * item's keyset boundary (AB#140, ADR-0013). Supplied only for a category
+   * branch — the story root has no continuation contract — and only when a
+   * signing key is available. When it is absent, `hasMoreContent` can still be
+   * true; `nextCursor` is simply omitted.
+   */
+  readonly encodeCursor?: (boundary: ContentListingBoundary) => string;
 }): CategoryListing {
   assertPageSize(pageSize);
+  if (encodeCursor !== undefined && categoryId === null) {
+    throw new TypeError(
+      "the story root listing has no continuation contract, so it takes no `encodeCursor`",
+    );
+  }
 
   if (records.length > pageSize + 1) {
     throw new TypeError(
@@ -570,10 +663,26 @@ export function buildCategoryListing({
   });
 
   const ordered = order(entries);
+  const hasMoreContent = ordered.length > pageSize;
+  const content = ordered.slice(0, pageSize);
+
+  // The boundary for the next page is the last item that made *this* page, so
+  // the continuation resumes strictly after it. `content` is non-empty whenever
+  // `hasMoreContent` is true (there is a `pageSize + 1`th row only if there are
+  // at least `pageSize` before it).
+  const lastOnPage = content[content.length - 1];
+  const nextCursor =
+    hasMoreContent && encodeCursor !== undefined && lastOnPage !== undefined
+      ? encodeCursor({
+          publishedAt: lastOnPage.publishedAt,
+          contentId: lastOnPage.contentId,
+        })
+      : undefined;
 
   return {
     childCategories,
-    content: ordered.slice(0, pageSize),
-    hasMoreContent: ordered.length > pageSize,
+    content,
+    hasMoreContent,
+    ...(nextCursor === undefined ? {} : { nextCursor }),
   };
 }

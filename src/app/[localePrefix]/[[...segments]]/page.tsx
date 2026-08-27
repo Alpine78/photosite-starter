@@ -13,6 +13,7 @@ import {
   getContentRedirects,
   getContentTrees,
 } from "@/lib/content";
+import { ContentListingCursorError } from "@/lib/content-listing-cursor";
 import {
   asArticlePage,
   asGalleryPage,
@@ -99,6 +100,7 @@ async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
       searchParams: resolvedSearchParams,
       defaultLocaleRouteExists,
       galleryCursorNamesASlice,
+      categoryListingCursorNamesASlice,
       gallerySectionExists,
       pathHasTrailingSlash:
         requestPath !== undefined &&
@@ -173,6 +175,46 @@ async function gallerySectionExists(
   return (
     (await resolveGalleryPage(locale, contentId, undefined, sectionSlug)) !==
     undefined
+  );
+}
+
+/**
+ * One bounded page of a category branch's aggregated listing, or `undefined`
+ * when the request's `?cursor=` names no slice — malformed, tampered with,
+ * scoped to another branch/locale, or stale (an in-scope date edit or a subtree
+ * reshape has moved its boundary). ADR-0003 decision 8 answers that with a 404,
+ * not a quiet fall back to the first page. The mirror of {@link resolveGalleryPage}.
+ */
+async function resolveCategoryListing(
+  locale: string,
+  categoryId: string | null,
+  cursor?: string,
+) {
+  try {
+    return await getCategoryListing(locale, categoryId, cursor);
+  } catch (error) {
+    if (error instanceof ContentListingCursorError) return undefined;
+    throw error;
+  }
+}
+
+/**
+ * Whether a continuation token names a real slice of one category branch.
+ *
+ * The resolver asks this before it turns a non-canonical category address into
+ * a permanent redirect: a good token deserves the redirect and keeps its value
+ * (decision 8 makes the cursor case-sensitive and never normalized), and only a
+ * token that names nothing 404s without creating a redirect. This layer is the
+ * only one that can tell the two apart, because the signing key is behind
+ * `content.ts`. The mirror of {@link galleryCursorNamesASlice}.
+ */
+async function categoryListingCursorNamesASlice(
+  locale: string,
+  categoryId: string,
+  cursor: string,
+): Promise<boolean> {
+  return (
+    (await resolveCategoryListing(locale, categoryId, cursor)) !== undefined
   );
 }
 
@@ -401,12 +443,32 @@ export async function generateMetadata(
   const localeVersions = listRouteVersions(config, trees, route);
 
   if (page === undefined) {
-    return getPageMetadata({
-      path,
-      title: branchTitle(tree, route, getBuiltInLabels(locale).pages.stories),
-      locale,
-      localeVersions,
-    });
+    const title = branchTitle(
+      tree,
+      route,
+      getBuiltInLabels(locale).pages.stories,
+    );
+
+    // A category branch continuation (AB#140, ADR-0003 decision 8): validate
+    // the token first so metadata is never emitted for what will 404, then
+    // self-canonicalize to the `?cursor=` URL and name no `hreflang`
+    // alternates — the cursor is scoped to one locale's ordering, so no other
+    // locale holds an equivalent slice, exactly as for a gallery continuation.
+    if (resolution.cursor !== undefined && route.kind === "category") {
+      const continued = await resolveCategoryListing(
+        locale,
+        route.categoryId,
+        resolution.cursor,
+      );
+      if (continued === undefined) return {};
+      return getPageMetadata({
+        path: buildGalleryHref(path, { cursor: resolution.cursor }),
+        title,
+        locale,
+      });
+    }
+
+    return getPageMetadata({ path, title, locale, localeVersions });
   }
 
   const activeSection =
@@ -588,17 +650,32 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
     );
   }
 
-  const listing = await getCategoryListing(
-    locale,
-    route.kind === "category" ? route.categoryId : null,
-  );
   const isStoryRoot = route.kind === "story-root";
+  const categoryId = route.kind === "category" ? route.categoryId : null;
+
+  // A category continuation only exists for a real category branch; the story
+  // root has no continuation contract, so it never carries a cursor.
+  const isContinuation = !isStoryRoot && resolution.cursor !== undefined;
+
+  const listing = await resolveCategoryListing(
+    locale,
+    categoryId,
+    isContinuation ? resolution.cursor : undefined,
+  );
+  if (listing === undefined) {
+    // A cursor that names no slice — the 404 that follows carries the way back
+    // to this branch, reconstructed by the not-found boundary from the Proxy's
+    // request-path header (ADR-0007), exactly as an invalid gallery cursor's does.
+    notFound();
+  }
+
+  const branchPath = buildStoryPath(config, locale, getStoryRoutePath(tree, route));
 
   return (
     <CategoryBranch
       locale={locale}
       title={branchTitle(tree, route, labels.pages.stories)}
-      {...(isStoryRoot
+      {...(isStoryRoot && !isContinuation
         ? { introduction: labels.contentTree.storyRootIntroduction }
         : {})}
       breadcrumbs={
@@ -625,6 +702,18 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
           ? labels.contentTree.latestContent
           : labels.contentTree.content
       }
+      {...(isContinuation
+        ? { isContinuation: true, firstPageHref: branchPath }
+        : {})}
+      {...(listing.nextCursor === undefined
+        ? {}
+        : {
+            continuation: {
+              moreHref: buildGalleryHref(branchPath, {
+                cursor: listing.nextCursor,
+              }),
+            },
+          })}
       labels={labels}
     />
   );

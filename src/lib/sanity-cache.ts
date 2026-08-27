@@ -55,6 +55,17 @@ const QUERY_CACHE_TAGS: Readonly<
   "article.adjacent": [T.articles, T.categories, T.media, T.metadata, T.sitemap],
   "category.index": [T.categories, T.articles, T.galleries, T.metadata, T.sitemap],
   "category.ids": [T.categories, T.articles, T.galleries, T.metadata, T.sitemap],
+  // The conservative freshness signal for a category-listing continuation cursor
+  // (AB#140, ADR-0013). It reads `_updatedAt` of in-scope articles and
+  // galleries and the subtree category set, so a publish, unpublish, date edit,
+  // or re-parent of any of those must invalidate it.
+  "category.listing.version": [
+    T.categories,
+    T.articles,
+    T.galleries,
+    T.metadata,
+    T.sitemap,
+  ],
   "category.tree": [T.categories, T.articles, T.galleries, T.metadata, T.sitemap],
   "gallery.detail": [T.galleries, T.categories, T.media, T.metadata, T.sitemap],
   "gallery.listing": [T.galleries, T.categories, T.media, T.metadata, T.sitemap],

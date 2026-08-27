@@ -1063,7 +1063,10 @@ describe("resolveLocalePrefixRequest", () => {
       ).resolves.toEqual({ kind: "not-found" });
     });
 
-    it("404s a cursor, because no category cursor has been issued yet", async () => {
+    it("carries a category branch's cursor through on a canonical path (AB#140)", async () => {
+      // The resolver transports the token; only the content adapter, which
+      // holds the signing key, can tell a real slice from a forgery, so the
+      // render layer validates it and 404s a bad one.
       await expect(
         resolveLocalePrefixRequest({
           config,
@@ -1071,10 +1074,63 @@ describe("resolveLocalePrefixRequest", () => {
           redirects,
           prefix: "tarinat",
           segments: ["maisemat"],
-          searchParams: { cursor: "not-a-token-this-route-minted" },
+          searchParams: { cursor: "some-opaque-token" },
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({
+        kind: "story",
+        locale: "fi",
+        route: { kind: "category", categoryId: "cat-landscape" },
+        cursor: "some-opaque-token",
+      });
+    });
+
+    it("404s a repeated category cursor, which names no single slice", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["maisemat"],
+          searchParams: { cursor: ["a", "b"] },
           defaultLocaleRouteExists: missing(),
         }),
       ).resolves.toEqual({ kind: "not-found" });
+    });
+
+    it("404s a category cursor at a casing variant when nothing vouches for it", async () => {
+      // Normalizing, and no `categoryListingCursorNamesASlice` predicate: the
+      // strict default refuses rather than redirect a token nothing validated.
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["MAISEMAT"],
+          searchParams: { cursor: "some-opaque-token" },
+          defaultLocaleRouteExists: missing(),
+        }),
+      ).resolves.toEqual({ kind: "not-found" });
+    });
+
+    it("redirects a category cursor at a casing variant, carrying the token, when it names a slice", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "tarinat",
+          segments: ["MAISEMAT"],
+          searchParams: { cursor: "some-opaque-token" },
+          defaultLocaleRouteExists: missing(),
+          categoryListingCursorNamesASlice: () => true,
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: "/tarinat/maisemat?cursor=some-opaque-token",
+      });
     });
 
     it.each([

@@ -761,10 +761,29 @@ cases naming the crawl's own shape. No `redirect` row exists yet to exercise the
 301 case end-to-end — every decided row so far is a `410 Gone` tag page — and that gap
 stays open, deliberately, until a real redirect row exists; fabricating one to close it
 would mean guessing a canonical target this pass explicitly defers.
+The category branch listing continuation is now built (AB#140 PR 2, ADR-0013): a branch
+whose aggregated subtree exceeds `MAX_CONTENT_LISTING_PAGE_SIZE` pages through a keyset
+`?cursor=` over `(publishedAt, contentId)`, signed with the shared
+`GALLERY_CURSOR_SIGNING_KEY` (one HMAC primitive extracted to `keyset-cursor.ts`, one
+secret for both cursor families). The cursor scope carries a conservative
+`visibilityVersion` — a digest of the in-scope subtree category ids plus, for a store, the
+most recent in-scope content `_updatedAt` (`readPublicCategoryListingContentVersion`); for
+the mock, an in-memory `(contentId, publishedAt)` digest — so an authored-date edit or a
+category re-parent invalidates an in-flight token with `stale`. `cursorDisposition` now
+`carry`s a `?cursor=` at a `category` route (the story root still `reject`s one, having no
+continuation contract); a token at a non-canonical spelling is validated by an injected
+`categoryListingCursorNamesASlice` before a redirect. A continuation page is compact —
+branch title marked "continued", a link back to the first page, the child-category
+navigation, the language switch (which drops the cursor), then the grid — self-canonical
+with its `?cursor=` and naming no `hreflang` alternates, and its control is a real `<a>`
+so it pages through with no JavaScript (progressive in-place append is deliberately not
+built). The invalid-cursor 404 offers the branch's own parameter-free page
+(`not-found-return.ts`). Only the parameter-free URL enters the sitemap. Story-root listing
+continuation is deliberately out of AB#140's scope.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
-unprefixed-only for now — category listing continuation, which stays bounded to its first page and
-answers any `?cursor=` with a 404 — gallery section controls, URL wiring, and lightbox
+unprefixed-only for now — story-root listing continuation and progressive in-place append
+for category listings (both deferred by ADR-0013) — gallery section controls, URL wiring, and lightbox
 integration (AB#115; the section domain model and server-side query themselves are AB#105,
 above, whose bounded-query contract AB#134 has since supplied), seeded random gallery ordering
 — ADR-0009 decides the contract, but the materialized shuffle key itself and the route

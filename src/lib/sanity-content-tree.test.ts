@@ -545,3 +545,103 @@ describe("reading from the store", () => {
     ).rejects.toThrow(ContentTreeValidationError);
   });
 });
+
+describe("readPublicCategoryListingContentVersion (AB#140, ADR-0013)", () => {
+  function taggedClient(
+    byTag: Record<string, unknown>,
+  ): { client: SanityClient; requests: SanityQueryRequest[] } {
+    const requests: SanityQueryRequest[] = [];
+    return {
+      requests,
+      client: {
+        async query(request) {
+          requests.push(request);
+          return byTag[request.tag ?? ""] ?? null;
+        },
+      },
+    };
+  }
+
+  it("returns the most recent in-scope content _updatedAt, scoped by reference and language", async () => {
+    const { client, requests } = taggedClient({
+      "category.index": [
+        { _id: "doc-gear", categoryId: "cat-gear" },
+        { _id: "doc-other", categoryId: "cat-other" },
+      ],
+      "category.listing.version": "2024-09-09T10:00:00Z",
+    });
+
+    const { readPublicCategoryListingContentVersion } = await import(
+      "@/lib/sanity-content-tree"
+    );
+    const version = await readPublicCategoryListingContentVersion({
+      subtreeCategoryIds: ["cat-gear"],
+      language: "en",
+      client,
+    });
+
+    expect(version).toBe("2024-09-09T10:00:00Z");
+    const versionRequest = requests.find(
+      (request) => request.tag === "category.listing.version",
+    );
+    expect(versionRequest?.query).toContain("references($categoryIds)");
+    expect(versionRequest?.query).toContain('_type == "article" || _type == "gallery"');
+    expect(versionRequest?.params).toMatchObject({
+      language: "en",
+      categoryIds: ["doc-gear"],
+    });
+  });
+
+  it("is a stable sentinel when the scope resolves to no category or no content", async () => {
+    const { readPublicCategoryListingContentVersion } = await import(
+      "@/lib/sanity-content-tree"
+    );
+
+    await expect(
+      readPublicCategoryListingContentVersion({
+        subtreeCategoryIds: [],
+        language: "en",
+        client: taggedClient({}).client,
+      }),
+    ).resolves.toBe("empty");
+
+    await expect(
+      readPublicCategoryListingContentVersion({
+        subtreeCategoryIds: ["cat-gear"],
+        language: "en",
+        client: taggedClient({ "category.index": [] }).client,
+      }),
+    ).resolves.toBe("empty");
+  });
+
+  it("treats a null answer as 'no in-scope update', not a defect", async () => {
+    const { readPublicCategoryListingContentVersion } = await import(
+      "@/lib/sanity-content-tree"
+    );
+    await expect(
+      readPublicCategoryListingContentVersion({
+        subtreeCategoryIds: ["cat-gear"],
+        language: "en",
+        client: taggedClient({
+          "category.index": [{ _id: "doc-gear", categoryId: "cat-gear" }],
+          "category.listing.version": null,
+        }).client,
+      }),
+    ).resolves.toBe("empty");
+  });
+
+  it("rejects a malformed (non-timestamp) version answer as a classified defect", async () => {
+    const { readPublicCategoryListingContentVersion, SanityContentTreeError } =
+      await import("@/lib/sanity-content-tree");
+    await expect(
+      readPublicCategoryListingContentVersion({
+        subtreeCategoryIds: ["cat-gear"],
+        language: "en",
+        client: taggedClient({
+          "category.index": [{ _id: "doc-gear", categoryId: "cat-gear" }],
+          "category.listing.version": 1234,
+        }).client,
+      }),
+    ).rejects.toBeInstanceOf(SanityContentTreeError);
+  });
+});
