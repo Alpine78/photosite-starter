@@ -11,6 +11,7 @@ import {
   projectGallerySectionIntro,
   projectGallerySectionSummary,
   readPublicGalleryListingRecords,
+  readPublicGalleryListingRecordsInCategories,
   readPublicGalleryPage,
   readSanityCuratedGalleryPage,
   SanityGalleryError,
@@ -838,7 +839,7 @@ describe("readPublicGalleryListingRecords", () => {
     const { client, requests } = fakeClient({});
 
     const records = await readPublicGalleryListingRecords(
-      { contentIds: [], ordering: "published-desc-v1", limit: 25 },
+      { scope: "routed-content", contentIds: [], ordering: "published-desc-v1", limit: 25 },
       { language: "en", client },
     );
 
@@ -851,6 +852,7 @@ describe("readPublicGalleryListingRecords", () => {
 
     await readPublicGalleryListingRecords(
       {
+        scope: "routed-content",
         contentIds: ["content-a", "content-b"],
         ordering: "published-desc-v1",
         limit: 5,
@@ -874,7 +876,7 @@ describe("readPublicGalleryListingRecords", () => {
     const { client, requests } = fakeClient({ "gallery.listing": [] });
 
     await readPublicGalleryListingRecords(
-      { contentIds, ordering: "published-desc-v1", limit: 25 },
+      { scope: "routed-content", contentIds, ordering: "published-desc-v1", limit: 25 },
       { language: "en", client, config },
     );
 
@@ -912,7 +914,7 @@ describe("readPublicGalleryListingRecords", () => {
     };
 
     const records = await readPublicGalleryListingRecords(
-      { contentIds, ordering: "published-desc-v1", limit: 1 },
+      { scope: "routed-content", contentIds, ordering: "published-desc-v1", limit: 1 },
       { language: "en", client, config },
     );
 
@@ -927,11 +929,85 @@ describe("readPublicGalleryListingRecords", () => {
     const { client } = fakeClient({ "gallery.listing": [] });
 
     const error = await readPublicGalleryListingRecords(
-      { contentIds: [hugeId], ordering: "published-desc-v1", limit: 25 },
+      { scope: "routed-content", contentIds: [hugeId], ordering: "published-desc-v1", limit: 25 },
       { language: "en", client, config },
     ).catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(SanityGalleryError);
     expect((error as SanityGalleryError).rejection).toBe("incomplete-document");
+  });
+});
+
+describe("readPublicGalleryListingRecordsInCategories", () => {
+  it("skips every query for an empty category scope", async () => {
+    const { client, requests } = fakeClient({});
+
+    const records = await readPublicGalleryListingRecordsInCategories(
+      { scope: "category-subtree", categoryIds: [], ordering: "published-desc-v1", limit: 25 },
+      { language: "en", client, config },
+    );
+
+    expect(records).toEqual([]);
+    expect(requests).toHaveLength(0);
+  });
+
+  it("resolves the scope with a targeted lookup and filters galleries by reference", async () => {
+    const { client, requests } = fakeClient({
+      "category.ids": [{ _id: "doc-formula" }, { _id: "doc-rally" }],
+      "gallery.listing.by-category": [
+        { contentId: "content-rally-gallery", title: "Rally", publishedAt: "2024-05-01" },
+      ],
+    });
+
+    const records = await readPublicGalleryListingRecordsInCategories(
+      {
+        scope: "category-subtree",
+        categoryIds: ["cat-formula", "cat-rally"],
+        ordering: "published-desc-v1",
+        limit: 5,
+      },
+      { language: "en", client, config },
+    );
+
+    expect(records.map((record) => record.contentId)).toEqual([
+      "content-rally-gallery",
+    ]);
+
+    const scopeRequest = requests.find(
+      (request) => request.tag === "category.ids",
+    );
+    expect(scopeRequest?.query).toContain("categoryId in $categoryIds");
+    expect(scopeRequest?.params).toMatchObject({
+      categoryIds: ["cat-formula", "cat-rally"],
+    });
+
+    const listingRequest = requests.find(
+      (request) => request.tag === "gallery.listing.by-category",
+    );
+    expect(listingRequest?.query).toContain("references($categoryIds)");
+    expect(listingRequest?.params).toMatchObject({
+      language: "en",
+      categoryIds: ["doc-formula", "doc-rally"],
+      limit: 5,
+    });
+  });
+
+  it("returns nothing when no scope category exists in the store", async () => {
+    const { client, requests } = fakeClient({ "category.ids": [] });
+
+    const records = await readPublicGalleryListingRecordsInCategories(
+      {
+        scope: "category-subtree",
+        categoryIds: ["cat-unknown"],
+        ordering: "published-desc-v1",
+        limit: 5,
+      },
+      { language: "en", client, config },
+    );
+
+    expect(records).toEqual([]);
+    expect(
+      requests.some((request) => request.tag === "gallery.listing.by-category"),
+    ).toBe(false);
   });
 });

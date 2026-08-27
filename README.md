@@ -463,7 +463,10 @@ canonical article and gallery routes in the content tree) read from either sourc
 images use the accepted project-owned public rendition contract and whose galleries use the
 shared paginated gallery result contract either way. The content tree's category domain model, canonical
 placement contract, and public category branch routes are built — breadcrumbs,
-deterministically ordered listings, permanent redirects for retired paths, and a visible
+deterministically ordered listings that aggregate every canonically and secondarily
+placed page in the category's whole descendant subtree, not only its direct
+placements ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md),
+2026-08-27 amendment), permanent redirects for retired paths, and a visible
 identity-based language switch — plus a bounded recent-content overview on the story
 root — in every configured locale space, with
 `hreflang`/`x-default` alternates. Articles render at their canonical detail routes in

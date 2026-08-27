@@ -151,7 +151,14 @@ routes are in place on top of that: the story-namespace root and every public ca
 path in each configured locale space, with breadcrumbs following canonical ancestry, a
 deterministically ordered listing of child categories and content (secondary listings
 included, each linking to the one canonical detail route) read through a bounded query
-that pushes the order and row limit to the adapter, a bounded recent-content overview on
+that pushes the order and row limit to the adapter. That branch listing aggregates every
+canonically and secondarily placed page in the category's whole descendant subtree, not
+only its direct placements (ADR-0003, 2026-08-27 amendment, AB#140): a parent surfaces a
+deep branch's galleries with no per-item secondary placement, aggregation flows downward
+only, and the query is scoped by the in-scope subtree category ids so a store-backed
+adapter pages it with a category-scoped `references()` query rather than an unbounded
+per-content-id list — the story root keeps its own explicit routed-content id list. There
+is also a bounded recent-content overview on
 the story root, uncropped cover media with a defined
 missing-cover state, single-hop permanent redirects for casing variants and for the
 recorded previous paths a move or rename retired, `hreflang`/`x-default` alternates, and

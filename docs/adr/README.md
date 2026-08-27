@@ -58,6 +58,7 @@ Expected further entries:
 
 | Work item | Decision |
 | --- | --- |
+| AB#140 | Category-listing continuation cursor contract (opaque token, shared signing secret, canonical/index policy) |
 | AB#95 | Image sales, checkout, and fulfilment boundary |
 | AB#122 | Private gallery security, delivery, and retention boundary |
 | AB#41 | Customer customization and upstream update boundaries |

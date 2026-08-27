@@ -9,13 +9,25 @@
  * show. What an entry *displays* is presentation; this module decides which
  * entries exist, in which order, and how many.
  *
+ * A branch lists content from its whole descendant subtree, not only its own
+ * direct placements (ADR-0003, 2026-08-27 amendment): a page whose canonical or
+ * secondary placement is in this category or in any category beneath it takes
+ * part in the one order above. Aggregation is downward only — a descendant's own
+ * listing is unaffected. The story root keeps its own separate rule: every
+ * published, routed, canonically placed page across the whole tree.
+ *
  * The listing projection is deliberately narrow, and so is the query. A branch
  * page must never load an article body or a gallery's media collection to
  * render a card, and it must never read a category's whole content set to show
- * one page of it. So the adapter receives a query naming the candidate ids, the
- * ordering rule, and a hard row limit, and returns at most that many already
- * ordered records. A record it did not return is not an error: it is the query
- * doing its job.
+ * one page of it. So for a branch the adapter receives the in-scope subtree
+ * category ids, the ordering rule, and a hard row limit, and answers with a
+ * category-scoped query — its cost scales with the number of categories in the
+ * subtree, not the amount of content in it. The story root query still names
+ * its candidate content ids directly. Either way the adapter returns at most
+ * `limit` already-ordered records; a record it did not return is not an error,
+ * it is the query doing its job. (Paging past that first bounded page is the
+ * category continuation contract's, added under AB#140 and recorded in
+ * ADR-0013.)
  *
  * The limit is one row wider than the page. That extra row is how the listing
  * knows more content exists without asking for a count, and it is dropped
@@ -25,10 +37,9 @@
  */
 
 import {
-  getCanonicalContent,
   getCanonicalContentPath,
   getPublicChildCategories,
-  getSecondaryContent,
+  listCategorySubtreeIds,
   type ContentTree,
   type ContentVariant,
 } from "@/lib/content-tree";
@@ -96,13 +107,39 @@ export type CategoryListing = {
  * One bounded listing query. An adapter must apply `ordering` first and then
  * return at most `limit` records — limiting an unordered set would return an
  * arbitrary subset of the branch.
+ *
+ * Two scopes, because a category branch and the story root bound their
+ * candidates differently (ADR-0003, 2026-08-27 amendment):
+ *
+ * - `category-subtree` names the in-scope category ids — this category plus
+ *   every category beneath it — and the adapter returns the published pages
+ *   whose canonical or secondary placement is in one of them. The candidate
+ *   set is expressed as categories, not content ids, so a store-backed adapter
+ *   pages it with a category-scoped query whose cost tracks the number of
+ *   subtree categories rather than the amount of content in them.
+ * - `routed-content` names the candidate content ids directly, for the story
+ *   root's cross-tree recent overview, whose membership is not a subtree.
  */
 export type ContentListingQuery = {
-  readonly contentIds: readonly string[];
   readonly ordering: typeof CONTENT_LISTING_ORDERING;
   /** Hard row limit: one page plus the row that reveals a next page exists. */
   readonly limit: number;
-};
+} & (
+  | { readonly scope: "category-subtree"; readonly categoryIds: readonly string[] }
+  | { readonly scope: "routed-content"; readonly contentIds: readonly string[] }
+);
+
+/** A branch query, scoped by the subtree category ids the adapter pages over. */
+export type CategorySubtreeListingQuery = Extract<
+  ContentListingQuery,
+  { scope: "category-subtree" }
+>;
+
+/** The story root's query, scoped by an explicit candidate content-id list. */
+export type RoutedContentListingQuery = Extract<
+  ContentListingQuery,
+  { scope: "routed-content" }
+>;
 
 /** The data-access seam a branch route reads its listing rows through. */
 export type ContentListingSource = (
@@ -284,14 +321,21 @@ export function resolveAdjacentContent({
 }
 
 /**
- * Every published page a branch lists: the ones it owns canonically and the
- * ones placed there as secondary listings. `null` is the story root, whose
- * recent-content overview draws from every published variant that currently
- * has a detail route. It does not create a root placement or a second canonical
- * path: every overview card still links to the page's category-owned route.
+ * Every published page a branch lists: the ones canonically or secondarily
+ * placed in this category or in any category within its descendant subtree
+ * (ADR-0003, 2026-08-27 amendment). Aggregation is downward only, so a
+ * descendant's own call returns only its own subtree's pages.
  *
- * The adapter is given exactly these ids, so a branch page never queries the
- * whole content set to find its own.
+ * `null` is the story root, whose recent-content overview instead draws from
+ * every published, routed, canonically placed page across the whole tree. It
+ * does not create a root placement or a second canonical path: every overview
+ * card still links to the page's category-owned route.
+ *
+ * One pass over `tree.placements` (keyed by content identity, so the result is
+ * naturally de-duplicated when a page is placed more than once inside the
+ * subtree). Used to build the branch's membership set for validation and by the
+ * mock adapter, which holds its rows in memory; a store-backed adapter is
+ * instead handed the subtree category ids and pages them itself.
  */
 export function listCategoryContentIds(
   tree: ContentTree,
@@ -308,15 +352,47 @@ export function listCategoryContentIds(
       .map((placement) => placement.contentId);
   }
 
-  return [
-    ...getCanonicalContent(tree, categoryId),
-    ...getSecondaryContent(tree, categoryId),
-  ].map((placement) => placement.contentId);
+  return listContentIdsInCategories(
+    tree,
+    listCategorySubtreeIds(tree, categoryId),
+  );
+}
+
+/**
+ * Every published page whose canonical or secondary placement is in one of
+ * `categoryIds`, in `tree.placements` iteration order.
+ *
+ * One pass over `tree.placements`, which is keyed by content identity, so a
+ * page placed more than once inside the set appears exactly once. This is the
+ * in-memory expression of the `category-subtree` scope: the mock adapter and
+ * the branch-membership guard use it directly, while a store-backed adapter
+ * runs the equivalent category-scoped query against `categoryIds` itself.
+ */
+export function listContentIdsInCategories(
+  tree: ContentTree,
+  categoryIds: readonly string[],
+): readonly string[] {
+  const scope = new Set(categoryIds);
+  const ids: string[] = [];
+  for (const placement of tree.placements.values()) {
+    if (!placement.published) continue;
+    const inScope =
+      (placement.canonicalCategoryId !== null &&
+        scope.has(placement.canonicalCategoryId)) ||
+      placement.secondaryCategoryIds.some((id) => scope.has(id));
+    if (inScope) ids.push(placement.contentId);
+  }
+  return ids;
 }
 
 /**
  * The bounded query for one branch. The extra row past the page size is what
  * answers "is there more" without a second count query.
+ *
+ * A category branch is scoped by its subtree category ids so a store-backed
+ * adapter pages it without an unbounded per-content-id candidate list; the
+ * story root keeps its explicit candidate id list, its membership not being a
+ * subtree (ADR-0003, 2026-08-27 amendment).
  */
 export function buildContentListingQuery({
   tree,
@@ -329,10 +405,23 @@ export function buildContentListingQuery({
 }): ContentListingQuery {
   assertPageSize(pageSize);
 
-  return {
-    contentIds: listCategoryContentIds(tree, categoryId),
+  const common = {
     ordering: CONTENT_LISTING_ORDERING,
     limit: pageSize + 1,
+  } as const;
+
+  if (categoryId === null) {
+    return {
+      ...common,
+      scope: "routed-content",
+      contentIds: listCategoryContentIds(tree, null),
+    };
+  }
+
+  return {
+    ...common,
+    scope: "category-subtree",
+    categoryIds: listCategorySubtreeIds(tree, categoryId),
   };
 }
 

@@ -50,8 +50,9 @@ import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
   orderContentListingRecords,
   type AdjacentContentRecords,
-  type ContentListingQuery,
+  type CategorySubtreeListingQuery,
   type ContentListingRecord,
+  type RoutedContentListingQuery,
 } from "@/lib/content-listing";
 import type { ArticleContentPage } from "@/lib/content-page";
 import type { ContentPlacementInput } from "@/lib/content-tree";
@@ -60,6 +61,7 @@ import {
   readContentBlocks,
 } from "@/lib/sanity-content-blocks";
 import {
+  CATEGORY_DOCUMENT_TYPE,
   readCategoryDocumentIndex,
 } from "@/lib/sanity-content-tree";
 import {
@@ -493,7 +495,7 @@ export function chunkContentIds(
  * budget would have received.
  */
 export async function readPublicArticleListingRecords(
-  query: ContentListingQuery,
+  query: RoutedContentListingQuery,
   options: PublicArticleListingReadOptions,
 ): Promise<readonly ContentListingRecord[]> {
   if (query.contentIds.length === 0) return [];
@@ -520,6 +522,103 @@ export async function readPublicArticleListingRecords(
   );
 
   return orderContentListingRecords(chunkedRecords.flat()).slice(0, query.limit);
+}
+
+/**
+ * Resolves the requested project `categoryId`s to the Sanity document ids that
+ * carry them, with one targeted lookup of just those categories — the read
+ * scales with the subtree in scope, not the whole category collection. The
+ * article filter below then keys on those `_id`s through `references()` and
+ * never dereferences a category from the article side, keeping "a reference
+ * that does not resolve" distinct from "no reference" the way
+ * `sanity-content-tree.ts` requires.
+ *
+ * The `categoryId` list is chunked to the GET URL budget the same way a
+ * content-id list is, so a very deep or broad subtree still issues a bounded
+ * request.
+ */
+async function resolveCategoryDocumentIds(
+  client: SanityClient,
+  categoryIds: readonly string[],
+): Promise<readonly string[]> {
+  const chunks = chunkContentIds(categoryIds, MAX_CONTENT_IDS_BYTES);
+  const perChunk = await Promise.all(
+    chunks.map(async (ids) => {
+      const result = await client.query({
+        query: `*[_type == "${CATEGORY_DOCUMENT_TYPE}" && categoryId in $categoryIds]{ _id }`,
+        params: { categoryIds: ids },
+        tag: "category.ids",
+      });
+      return readDocuments<{ readonly _id?: unknown }>(result).flatMap(
+        (document) => (typeof document._id === "string" ? [document._id] : []),
+      );
+    }),
+  );
+  return perChunk.flat();
+}
+
+/**
+ * The `category-subtree` listing read: at most `query.limit` records among the
+ * published articles whose canonical or secondary placement is one of
+ * `query.categoryIds`, in the same order as the content-id read.
+ *
+ * The candidate set is expressed as categories, so the cost tracks the number
+ * of subtree categories, not the amount of content in them: one targeted
+ * `categoryId in $ids` lookup to resolve the scope's document ids, then a
+ * `references()` filter over those ids. Both id lists are chunked to the GET
+ * URL budget the same way a content-id list is; because a chunk split can
+ * place an article's canonical category in one chunk and a secondary in
+ * another, the merged rows are de-duplicated by `contentId` before the final
+ * ordering — a content-id read never needs that, since `contentId in $chunk`
+ * partitions cleanly.
+ */
+export async function readPublicArticleListingRecordsInCategories(
+  query: CategorySubtreeListingQuery,
+  options: PublicArticleListingReadOptions,
+): Promise<readonly ContentListingRecord[]> {
+  if (query.categoryIds.length === 0) return [];
+
+  const client = options.client ?? getSanityClient();
+  const language = toLanguageSubtag(options.language);
+  const config = options.config ?? getSanityConfig();
+  const languages = { language, fallbackLanguage: getFallbackLocale(), config };
+
+  const categoryDocumentIds = await resolveCategoryDocumentIds(
+    client,
+    query.categoryIds,
+  );
+  if (categoryDocumentIds.length === 0) return [];
+
+  const chunks = chunkContentIds(categoryDocumentIds, MAX_CONTENT_IDS_BYTES);
+
+  const chunkedRecords = await Promise.all(
+    chunks.map(async (categoryIds) => {
+      const result = await client.query({
+        query: `*[${ARTICLE_FILTER} && references($categoryIds)] | ${ARTICLE_LISTING_ORDER} [0...$limit]${ARTICLE_LISTING_PROJECTION}`,
+        params: { language, categoryIds, limit: query.limit },
+        tag: "article.listing.by-category",
+      });
+
+      return readDocuments<RawArticleListingDocument>(result).map((document) =>
+        projectArticleListingRecord(document, languages),
+      );
+    }),
+  );
+
+  return orderContentListingRecords(
+    dedupeListingRecordsByContentId(chunkedRecords.flat()),
+  ).slice(0, query.limit);
+}
+
+/** Keeps the first record seen per `contentId`; order is restored afterward. */
+function dedupeListingRecordsByContentId(
+  records: readonly ContentListingRecord[],
+): readonly ContentListingRecord[] {
+  const byId = new Map<string, ContentListingRecord>();
+  for (const record of records) {
+    if (!byId.has(record.contentId)) byId.set(record.contentId, record);
+  }
+  return [...byId.values()];
 }
 
 function readTags(value: unknown, contentId: string): readonly string[] {

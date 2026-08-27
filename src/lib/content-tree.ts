@@ -652,6 +652,45 @@ export function getPublicChildCategories(
   );
 }
 
+/**
+ * Every category id in `categoryId`'s subtree: `categoryId` itself first, then
+ * its descendants in a deterministic breadth-first, sibling-ordered walk.
+ *
+ * Operates on an already-validated tree, so ancestry is acyclic and bounded by
+ * `MAX_CATEGORY_DEPTH`; the `seen` guard is defensive belt-and-braces, not the
+ * depth bound. Breadth is not bounded — a subtree may hold arbitrarily many
+ * categories — so this is not a fixed-size result, only a finite one.
+ *
+ * Returns `[]` when `categoryId` names no category in the tree, matching
+ * `getCategoryAncestry`. Not filtered to `publicCategoryIds`: a private
+ * descendant holds no published placement anywhere in its own subtree by
+ * definition, so including it changes no aggregated content set while keeping
+ * this a pure structural walk.
+ */
+export function listCategorySubtreeIds(
+  tree: ContentTree,
+  categoryId: string,
+): readonly string[] {
+  if (!tree.categories.has(categoryId)) return [];
+
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  const queue: string[] = [categoryId];
+
+  while (queue.length > 0) {
+    const current = queue.shift() as string;
+    if (seen.has(current)) continue;
+    seen.add(current);
+    ids.push(current);
+
+    for (const child of tree.childCategoryIds.get(current) ?? []) {
+      if (!seen.has(child)) queue.push(child);
+    }
+  }
+
+  return ids;
+}
+
 export function isCategoryPublic(
   tree: ContentTree,
   categoryId: string,

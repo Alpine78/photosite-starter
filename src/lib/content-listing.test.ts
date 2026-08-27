@@ -6,10 +6,12 @@ import {
   buildContentListingQuery,
   CONTENT_LISTING_ORDERING,
   listCategoryContentIds,
+  listContentIdsInCategories,
   MAX_CONTENT_LISTING_PAGE_SIZE,
   orderContentListingRecords,
   resolveAdjacentContent,
   selectAdjacentRecords,
+  type ContentListingQuery,
   type ContentListingRecord,
 } from "@/lib/content-listing";
 import { buildContentTree, type ContentTreeInput } from "@/lib/content-tree";
@@ -21,6 +23,16 @@ const english = buildContentTree(mockContentTreeInputs.en);
 const finnish = buildContentTree(mockContentTreeInputs.fi);
 const englishRecords = mockContentListingRecords.en;
 
+/**
+ * The candidate content ids the mock adapter resolves for a query, honoring
+ * both scopes exactly as `content.ts#queryListingRecords` does.
+ */
+function candidateContentIds(query: ContentListingQuery): readonly string[] {
+  return query.scope === "category-subtree"
+    ? listContentIdsInCategories(english, query.categoryIds)
+    : query.contentIds;
+}
+
 /** Runs the bounded query the route runs, then assembles what it returned. */
 function listing(categoryId: string | null, pageSize?: number) {
   const tree = english;
@@ -30,7 +42,7 @@ function listing(categoryId: string | null, pageSize?: number) {
     ...(pageSize === undefined ? {} : { pageSize }),
   });
   const rows = orderContentListingRecords(
-    query.contentIds.flatMap((id) => {
+    candidateContentIds(query).flatMap((id) => {
       const record = englishRecords.get(id);
       return record === undefined ? [] : [record];
     }),
@@ -75,6 +87,27 @@ describe("listCategoryContentIds", () => {
       "content-coastal-mornings",
     ]);
     expect(listCategoryContentIds(english, "cat-events")).toEqual([
+      "content-coastal-mornings",
+    ]);
+  });
+
+  it("aggregates content from the whole descendant subtree", () => {
+    // `cat-europe` places nothing of its own, but its depth-5 descendant
+    // `cat-polar-night` holds a gallery — the parent now surfaces it.
+    expect(listCategoryContentIds(english, "cat-europe")).toEqual([
+      "content-polar-night-sessions",
+    ]);
+    // `cat-landscape` has its own article plus a gallery in child `cat-coastal`.
+    expect(listCategoryContentIds(english, "cat-landscape")).toEqual([
+      "content-coastal-mornings",
+      "content-reading-coastal-light",
+    ]);
+  });
+
+  it("aggregates downward only — a descendant never shows a sibling's content", () => {
+    // `cat-coastal` is a child of `cat-landscape`; it must not pick up
+    // `cat-landscape`'s own `content-reading-coastal-light`.
+    expect(listCategoryContentIds(english, "cat-coastal")).toEqual([
       "content-coastal-mornings",
     ]);
   });
@@ -142,23 +175,30 @@ describe("buildCategoryListing", () => {
     ]);
   });
 
-  it("renders a branch category as its children, with no content of its own", () => {
+  it("shows a branch category's own child links beside its aggregated subtree content", () => {
     const branch = listing("cat-europe");
 
+    // `cat-europe` places nothing directly; the grid is its descendant
+    // `cat-polar-night`'s gallery, and the child link into `cat-nordics` is
+    // still listed alongside it.
     expect(branch.childCategories.map((child) => child.categoryId)).toEqual([
       "cat-nordics",
     ]);
-    expect(branch.content).toEqual([]);
+    expect(branch.content.map((entry) => entry.contentId)).toEqual([
+      "content-polar-night-sessions",
+    ]);
   });
 
-  it("lists both child categories and canonical content in one branch", () => {
+  it("lists both child categories and aggregated subtree content in one branch", () => {
     const branch = listing("cat-landscape");
 
     expect(branch.childCategories.map((child) => child.path)).toEqual([
       ["landscape", "coastal"],
     ]);
+    // Its own article, newest first, then the child category's gallery.
     expect(branch.content.map((entry) => entry.contentId)).toEqual([
       "content-reading-coastal-light",
+      "content-coastal-mornings",
     ]);
   });
 
@@ -343,23 +383,29 @@ describe("buildCategoryListing", () => {
 });
 
 describe("buildContentListingQuery", () => {
-  it("asks for one page plus the row that reveals a next page", () => {
+  it("scopes a branch by its subtree category ids, one page plus one row", () => {
+    // `cat-europe` plus every category beneath it, so a store adapter pages the
+    // subtree without an unbounded per-content-id candidate list.
     expect(
       buildContentListingQuery({
         tree: english,
-        categoryId: "cat-coastal",
+        categoryId: "cat-europe",
         pageSize: 4,
       }),
     ).toEqual({
-      contentIds: ["content-coastal-mornings"],
+      scope: "category-subtree",
+      categoryIds: ["cat-europe", "cat-nordics", "cat-winter", "cat-polar-night"],
       ordering: CONTENT_LISTING_ORDERING,
       limit: 5,
     });
   });
 
-  it("names the ordering the adapter must apply before limiting", () => {
+  it("scopes the story root by an explicit routed-content id list", () => {
     const query = buildContentListingQuery({ tree: english, categoryId: null });
 
+    if (query.scope !== "routed-content") {
+      throw new Error(`expected a routed-content query, got ${query.scope}`);
+    }
     expect(query.ordering).toBe(CONTENT_LISTING_ORDERING);
     expect(query.limit).toBe(MAX_CONTENT_LISTING_PAGE_SIZE + 1);
     expect(query.contentIds).toEqual([
@@ -384,6 +430,85 @@ describe("buildContentListingQuery", () => {
         pageSize: MAX_CONTENT_LISTING_PAGE_SIZE + 1,
       }),
     ).toThrow(RangeError);
+  });
+});
+
+describe("subtree aggregation edge cases", () => {
+  // Motorsport
+  //   ├─ Formula   (holds `formula-gp` canonically)
+  //   └─ Rally     (holds `rally-finland` canonically; `formula-gp` secondary)
+  // plus `landscape-feature`, canonical outside Motorsport, secondary in Rally.
+  const input: ContentTreeInput = {
+    categories: [
+      { categoryId: "motorsport", parentId: null, slug: "motorsport", label: "Motorsport", order: 0 },
+      { categoryId: "formula", parentId: "motorsport", slug: "formula", label: "Formula", order: 0 },
+      { categoryId: "rally", parentId: "motorsport", slug: "rally", label: "Rally", order: 1 },
+      { categoryId: "landscape", parentId: null, slug: "landscape", label: "Landscape", order: 1 },
+    ],
+    placements: [
+      {
+        contentId: "formula-gp",
+        variant: "gallery",
+        slug: "formula-gp",
+        published: true,
+        canonicalCategoryId: "formula",
+        secondaryCategoryIds: ["rally"],
+      },
+      {
+        contentId: "rally-finland",
+        variant: "gallery",
+        slug: "rally-finland",
+        published: true,
+        canonicalCategoryId: "rally",
+      },
+      {
+        contentId: "landscape-feature",
+        variant: "article",
+        slug: "landscape-feature",
+        published: true,
+        canonicalCategoryId: "landscape",
+        secondaryCategoryIds: ["rally"],
+      },
+    ],
+  };
+  const tree = buildContentTree(input);
+
+  it("lists a page placed in two descendants of the subtree exactly once", () => {
+    // `formula-gp` is canonical in Formula and secondary in Rally, both under
+    // Motorsport. It appears once, not twice.
+    expect(listCategoryContentIds(tree, "motorsport")).toEqual([
+      "formula-gp",
+      "rally-finland",
+      "landscape-feature",
+    ]);
+  });
+
+  it("rolls a page up to an ancestor through a secondary placement inside the subtree", () => {
+    // `landscape-feature` is canonical under Landscape — outside Motorsport —
+    // but secondary-placed in Rally, so Motorsport surfaces it (AC1) while
+    // Rally shows it directly and Formula does not.
+    expect(listCategoryContentIds(tree, "rally")).toEqual([
+      "formula-gp",
+      "rally-finland",
+      "landscape-feature",
+    ]);
+    expect(listCategoryContentIds(tree, "formula")).toEqual(["formula-gp"]);
+    // Landscape's own listing is unaffected by the cross-branch secondary link.
+    expect(listCategoryContentIds(tree, "landscape")).toEqual([
+      "landscape-feature",
+    ]);
+  });
+
+  it("keeps the mock adapter's candidate resolution in step with the query scope", () => {
+    const query = buildContentListingQuery({ tree, categoryId: "motorsport" });
+    if (query.scope !== "category-subtree") {
+      throw new Error("expected a category-subtree query");
+    }
+    expect(listContentIdsInCategories(tree, query.categoryIds)).toEqual([
+      "formula-gp",
+      "rally-finland",
+      "landscape-feature",
+    ]);
   });
 });
 
