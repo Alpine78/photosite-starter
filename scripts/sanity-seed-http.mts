@@ -93,14 +93,26 @@ export function chunk<T>(items: readonly T[], size: number): readonly (readonly 
  * fixed `_id`, a run that fails partway through is safe to simply re-run in
  * full afterward — every earlier batch's writes are idempotent no-ops the
  * second time.
+ *
+ * `visibility` maps to the Mutation API's own query parameter. The default
+ * (omitted) is Sanity's `sync`: the request only returns once the changes
+ * are queryable, which is what the seed script wants — a verification query
+ * right after must see the write. A benchmark that needs to *measure* how
+ * long that indexing takes passes `"async"`, so the request returns as soon
+ * as the mutation is accepted and the caller can then time query visibility
+ * itself.
  */
 export async function runSeedMutationBatches(
   connection: SeedConnection,
   mutations: readonly SeedMutation[],
-  options?: RequestOptions & { readonly batchSize?: number },
+  options?: RequestOptions & {
+    readonly batchSize?: number;
+    readonly visibility?: "sync" | "async" | "deferred";
+  },
 ): Promise<{ readonly batchesRun: number; readonly mutationCount: number }> {
   const batches = chunk(mutations, options?.batchSize ?? MUTATION_BATCH_SIZE);
-  const url = `https://${connection.projectId}.api.sanity.io/${connection.apiVersion}/data/mutate/${connection.dataset}`;
+  const base = `https://${connection.projectId}.api.sanity.io/${connection.apiVersion}/data/mutate/${connection.dataset}`;
+  const url = options?.visibility === undefined ? base : `${base}?visibility=${options.visibility}`;
 
   for (const [index, batch] of batches.entries()) {
     const response = await sendSanityHttpRequest(

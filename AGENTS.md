@@ -761,9 +761,29 @@ answers any `?cursor=` with a 404 — gallery section controls, URL wiring, and 
 integration (AB#115; the section domain model and server-side query themselves are AB#105,
 above, whose bounded-query contract AB#134 has since supplied), seeded random gallery ordering
 — ADR-0009 decides the contract, but the materialized shuffle key itself and the route
-cache-key wiring it requires remain AB#129's — lightbox zoom tuning, the gallery-item
+cache-key wiring it requires remain AB#129's — the dynamic keyword-driven gallery and archive
+search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71 build it), lightbox zoom tuning, the gallery-item
 enquiry (AB#60),
 structured data.
+The AB#65 spike that informs the keyword-taxonomy ADR (AB#55) and ADR-0012's own open
+questions has its **tooling** built — a deterministic ~8000-media synthetic fixture corpus
+(`scripts/keyword-benchmark-fixtures.mts`, entirely non-personal, validated), the three
+ancestor-strategy GROQ builders and an in-memory equivalence oracle
+(`scripts/keyword-benchmark-queries.mts`), the analytical models for ADR-0012 §3's
+selection-collapse, §6's cache cardinality (collapse-aware antichain count, not just
+`Σ C(V,k)`) and invalidation fan-out, and hierarchy-move write amplification
+(`scripts/keyword-benchmark-model.mts`), a measurement-capable read-only transport that the
+shipped one could not provide — endpoint (API vs API-CDN) selection, server `ms`, payload
+bytes, cache headers (`scripts/keyword-benchmark-http.mts`) — the full measurement matrix and
+its Markdown renderer (`scripts/keyword-benchmark-plan.mts`), and an owner-run orchestrator
+(`npm run benchmark:keywords -- plan|seed|run|move|clean`, `scripts/keyword-benchmark.mts`)
+that seeds a **dedicated disposable** dataset, runs a strategy × shape × endpoint matrix with
+a GROQ-vs-JS ordering correctness gate (ADR-0012 §9), and performs one reverting hierarchy
+move with query-visibility-lag timing (AC7). The **live measurement itself is an owner step**
+and has not been run; `docs/keyword-query-benchmark.md` carries the methodology, the computed
+analytical findings, empty result tables, and a preliminary recommendation (materialize on
+the keyword document, resolved two-step) with the trigger that would flip it. AB#65 stays
+Active until the live run fills those tables.
 Tagged caching and webhook revalidation (AB#83) are built — see the large paragraph earlier
 in this file and `docs/cache-revalidation.md`. Its previously outstanding "Deployed
 verification gate" is now complete: on 2026-08-26 a revision-guarded Preview publish and
@@ -1042,6 +1062,7 @@ npm run test:e2e  # Playwright public-journey smoke tests (CI gate, builds and s
 npm run diagrams  # regenerate docs/architecture/*.svg from their .d2 sources
 npm run diagrams:check # CI gate: sources compile and committed SVGs are current
 npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
+npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy benchmark (owner-run for the live matrix)
 ```
 
 `npm run test:e2e` needs the browsers once: `npx playwright install chromium webkit`
@@ -1111,6 +1132,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `sanity/README.md` | whoever wires a clone's Studio to these schemas | a document type is added, or how the Studio consumes them changes |
 | `docs/deployment.md` | the site owner and whoever provisions a clone's hosting | the Preview environment, pipeline deployment stage, environment-variable split, runtime pins, or promotion/rollback mechanism change |
 | `docs/security-privacy-review.md` | the site owner and future launch reviews | the launch security/privacy review is rerun, a finding's disposition changes, or the security response headers change (also update ADR-0011) |
+| `docs/keyword-query-benchmark.md` | AB#55's taxonomy ADR and whoever runs the AB#65 spike | the keyword-query benchmark fixture, harness, or matrix changes, or an owner-run live measurement is completed and its numbers/recommendation are filled in |
 | `NOTICE`, `licenses/` | anyone receiving the product | a third-party component with an attribution requirement is added |
 | `.claude/skills/`, `.agents/skills/` | agents | a recurring workflow needs a skill; duplicate into both, no symlinks |
 
