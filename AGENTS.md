@@ -779,11 +779,18 @@ its Markdown renderer (`scripts/keyword-benchmark-plan.mts`), and an owner-run o
 (`npm run benchmark:keywords -- plan|seed|run|move|clean`, `scripts/keyword-benchmark.mts`)
 that seeds a **dedicated disposable** dataset, runs a strategy × shape × endpoint matrix with
 a GROQ-vs-JS ordering correctness gate (ADR-0012 §9), and performs one reverting hierarchy
-move with query-visibility-lag timing (AC7). The **live measurement itself is an owner step**
-and has not been run; `docs/keyword-query-benchmark.md` carries the methodology, the computed
-analytical findings, empty result tables, and a preliminary recommendation (materialize on
-the keyword document, resolved two-step) with the trigger that would flip it. AB#65 stays
-Active until the live run fills those tables.
+move with query-visibility-lag timing (AC7). **The live measurement was run** (2026-08-27,
+against a throwaway Sanity project seeded and torn down; results and reasoning in
+`docs/keyword-query-benchmark.md`). It **reversed the pre-run hypothesis**: `media-expansion`
+(ancestor closure materialized on the medium) is the fastest read at every shape (~1.7–2.4×
+faster than the keyword-side join strategies, and the only one whose paginated walk is one
+request per page), so the recommendation to AB#55 is **strategy B**, accepting the
+expensive-but-rare hierarchy move (moving the broad root rewrote 3541 media docs: ~15 s to
+re-sync, ~45 s to revert) rather than paying a join on every visitor request. The
+GROQ-vs-JS keyset ordering agreed on every walk including the sub-second `capturedAt` pairs,
+so ADR-0012 §9's risk did not materialise. 3 of 4 hierarchy-move cells were measured live;
+`deep`×strategyB is modelled (its re-sync probe needed a fix, landed after the run). AB#65
+stays Active until this write-up is reviewed and merged.
 Tagged caching and webhook revalidation (AB#83) are built — see the large paragraph earlier
 in this file and `docs/cache-revalidation.md`. Its previously outstanding "Deployed
 verification gate" is now complete: on 2026-08-26 a revision-guarded Preview publish and

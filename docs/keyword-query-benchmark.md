@@ -1,13 +1,12 @@
 # Keyword hierarchy & gallery query benchmark (AB#65)
 
-**Status: tooling landed, live measurement pending.** This spike delivers a
-deterministic fixture corpus, a measurement harness, and the analytical models
-that do not need a live store. The empirical result tables below are **empty on
-purpose** — they are filled by an owner-run measurement against a real
-non-production Sanity project (see [Methodology](#methodology)). AB#65 stays
-**Active** until that run is done, its numbers are pasted in, and the
-[recommendation](#preliminary-recommendation) is rewritten from a hypothesis into
-an evidence-backed statement.
+**Status: measured.** The tables below hold real numbers from an owner-run
+measurement on 2026-08-27 against a dedicated live Sanity project (`qq8viq8z`,
+dataset `production`, seeded with the fixture corpus and torn down afterward;
+API `v2025-02-19`). 3 of the 4 hierarchy-move cells were measured; the 4th
+(`deep` × strategy B) is modelled — see [AC7](#ac7--hierarchy-move-measured).
+The [recommendation](#recommendation) is now evidence-backed, and it **reverses**
+the pre-measurement hypothesis.
 
 Nothing here selects a production schema or a runtime dependency. The output
 feeds two decisions:
@@ -103,20 +102,27 @@ descendant sets in memory where it needs them.
 ### Prerequisites
 
 1. **A dedicated, disposable Sanity dataset.** The harness refuses to seed a
-   non-empty dataset (pass `--allow-nonempty` only if you accept the
-   contamination bias). Create one:
+   non-empty dataset. On the Free plan (2-dataset cap) a fresh dataset cannot
+   always be created; the 2026-08-27 run instead used the project's own empty
+   `production` dataset with `--allow-nonempty` (it held only Sanity's ~12
+   `system.*` records, which the emptiness check still counts). That is safe
+   *only* because the benchmark's own `_type`s and `benchmarkRun` predicate
+   isolate every query, and `clean` removes exactly the `kwbench--` ids — an
+   audit afterward confirmed the dataset was back to its system records.
 
    ```bash
-   npx sanity dataset create kwbench-YYYYMMDD   # in the customer's own project
+   npx sanity dataset create kwbench-YYYYMMDD   # preferred, if a slot is free
    ```
 
    Approaching the Free/Growth ~10 000-document dataset cap is refused
    (`DATASET_DOCUMENT_SOFT_LIMIT`).
 
-2. **A temporary, write-scoped token** in `SANITY_BENCHMARK_TOKEN` — minted for
-   this run, revoked immediately after. Never the application's read token, never
-   a seed token reused. Environment only, never a CLI flag (a process's argument
-   list is world-readable via `ps`).
+2. **A temporary, write-scoped token** in `SANITY_BENCHMARK_TOKEN` — **Editor**
+   role (Viewer gets 403 on the mutate API), minted for this run, revoked
+   immediately after. Never the application's read token, never a seed token
+   reused. Environment only, never a CLI flag (a process's argument list is
+   world-readable via `ps`). `unset` it between shell sessions and re-`export`
+   before `clean`.
 
 ### Run
 
@@ -183,59 +189,109 @@ SANITY_BENCHMARK_TOKEN=… npm run benchmark:keywords -- \
 
 ---
 
-## Results (owner fills from a live run)
+## Results
 
-Paste the `run` command's Markdown table here, then summarise:
+Measured 2026-08-27, `benchmarkRun=kwbench-fixture-v1`, project `qq8viq8z`,
+dataset `production`, API `v2025-02-19`, 8 repetitions/cell. Full raw table:
+`keyword-benchmark-results-kwbench-fixture-v1.json` (kept out of the repo; the
+distilled numbers are here). Requester was in the EU near the
+`gcp-eu-w1-prod` shard.
 
 ### AC2 / AC3 — intersection queries
 
-`strategy × {broad-root, narrow-leaf, parent+descendant, five-wide, empty} ×
-{direct-api, cdn}`, median/p95 wall ms, server ms, payload bytes, request count,
-per-sample cache-status headers.
+**Correctness gate: all 15 strategy × shape combinations returned an identical
+ordered id list, matching the JS reference — including across the sub-second
+`capturedAt` pairs. ADR-0012 §9's keyset-ordering risk did not materialise on
+this data.**
 
-_(pending live run)_
+Direct API (uncached), median wall ms / median server `ms` / total requests per
+cell:
 
-| Question | Answer |
-| --- | --- |
-| Which strategy is fastest for a **broad** query on the uncached direct API? | _pending_ |
-| Which for a **narrow** query? | _pending_ |
-| Does the strategy-A correlated subquery stay usable at 8000 media, or does it need the 2-step resolve? | _pending_ |
-| Is strategy C (query-time traversal) viable within the request budget, or does round-trip count kill it? | _pending_ |
-| CDN hit vs miss delta (from the recorded `age`/`x-cache` headers)? | _pending_ |
+| Shape (rows) | media-expansion | materialized-ancestors (subquery) | materialized-ancestors (2-step) | query-time-traversal |
+| --- | --- | --- | --- | --- |
+| broad-root (5925) | **742** / 642 / 8 | 1256 / 1147 / 8 | 1727 / 1559 / 16 | 1757 / 1470 / 32 |
+| narrow-leaf (7) | **73** / 6 / 8 | 1083 / 1007 / 8 | 1052 / 918 / 16 | 993 / 854 / 16 |
+| parent+descendant pre-collapse (75) | **80** / 11 / 8 | 1254 / 1145 / 8 | 1499 / 1294 / 24 | 1785 / 1331 / 40 |
+| parent+descendant collapsed (75) | **81** / 11 / 8 | 977 / 877 / 8 | 1060 / 872 / 16 | 1050 / 909 / 16 |
+| five-wide (20) | **77** / 6 / 8 | 1194 / 1092 / 8 | 1529 / 1117 / 48 | 1470 / 1027 / 48 |
+| empty (0) | **77** / 5 / 8 | 1051 / 976 / 8 | 1060 / 846 / 24 | 1159 / 952 / 24 |
+
+**Findings:**
+
+- **`media-expansion` is the fastest read at every shape**, by a wide margin —
+  a broad 5925-row match in ~740 ms uncached, a narrow one in ~73 ms. Its match
+  is one indexed `$k in expandedKeywordIds` per keyword, no join.
+- **The join strategies pay ~1.3–1.7× on the broad query as a correlated
+  subquery**, and **~2.3–2.4× as a two-step** (which also doubles-to-quadruples
+  the request count for the resolve legs). `query-time-traversal` adds a resolve
+  round trip per taxonomy level — up to 5 for the five-wide shape (48 requests
+  for one measured cell).
+- **Server `ms` tracks wall time closely on the direct API** — the cost is real
+  query execution, not transport. `count(leafKeywordIds[@ in *[…]])` and
+  `count(leafKeywordIds[@ in $ids])` are ~1 s of server compute against 8000
+  media even when the result is tiny (narrow-leaf: 7 rows, still ~1 s).
+- **CDN (`apicdn.sanity.io`)** collapses every cell's median wall time to
+  **~50–335 ms** regardless of strategy (`cache-control: private, max-age=60,
+  stale-while-revalidate=15`). Sanity's CDN did not surface `age` / `x-cache` /
+  `cf-cache-status` headers, so a hit is inferred from wall time falling to
+  ~1/10th while the returned server `ms` stays at the original ~600–1700 ms
+  (the cached response carries its original compute time). p95 stays high
+  (500–2100 ms): the first request of each 8-sample batch is a miss and pays
+  full price, and the cache lives only 60 s.
 
 ### AC4 — ancestor + descendant redundancy
 
-Run `parent-descendant-pre-collapse` (`Rally-A AND Class-000`) vs
-`parent-descendant-collapsed` (`Class-000` alone). The result sets are identical
-by construction (a descendant's match set is a subset of its ancestor's); record
-the **cost delta** of the redundant form.
+`Rally-A AND Class-000` (pre-collapse) vs `Class-000` alone (collapsed), same
+75-row result:
 
-_(pending live run)_
+| Strategy | pre-collapse | collapsed | redundant-term cost |
+| --- | --- | --- | --- |
+| media-expansion | 80 ms / 4377 B | 81 ms / 4377 B | **~0** — the extra `$k in expandedKeywordIds` term is free |
+| materialized-ancestors (subquery) | 1254 ms | 977 ms | **~28%** — one extra correlated descendant subquery |
+| materialized-ancestors (2-step) | 1499 ms | 1060 ms | ~29% + one extra resolve round trip |
+
+**Finding:** ADR-0012 §3's ancestor-collapse is nearly free to skip for
+`media-expansion` at query time, but removes a ~28% penalty for any join
+strategy. It still matters for cache cardinality (see the analytical model)
+whichever strategy wins.
 
 ### AC5 — pagination & count
 
-Keyset is walked **once per strategy** — this is ADR-0012's own decision
-trigger: does the strategy's bounded page walk stay bounded at archive scale, or
-does the per-page predicate force a full scan? Offset is a single baseline on the
-simplest strategy. Count-strategy choice (`count()` vs id-projection length vs
-none) is orthogonal to the ancestor strategy, so it is measured once.
+Full keyset walk of the broad result (5925 rows, `pageSize` 24 → 247 pages),
+direct API:
 
-| Walk | Requests for full walk | Median page wall ms | p95 | Notes |
-| --- | --- | --- | --- | --- |
-| keyset — media-expansion | _pending_ | _pending_ | _pending_ | |
-| keyset — materialized-ancestors (two-step) | _pending_ | _pending_ | _pending_ | +N resolve round trips |
-| keyset — query-time-traversal | _pending_ | _pending_ | _pending_ | +N resolve round trips |
-| offset — media-expansion (`[start...end]` baseline) | _pending_ | _pending_ | _pending_ | does per-page cost grow with offset? |
+| Walk | Requests | Median page wall ms | p95 | Notes |
+| --- | ---: | ---: | ---: | --- |
+| keyset — media-expansion | 247 | **840** | 1035 | one round trip per page |
+| keyset — materialized-ancestors (2-step) | 494 | 1475 | 1789 | re-resolves the descendant closure every page |
+| keyset — query-time-traversal | 988 | 1649 | 1994 | re-resolves (4 levels) every page |
+| offset — media-expansion (`[start...end]`) | 247 | **687** | 920 | baseline |
 
-| Count strategy | Wall ms | Payload bytes | Notes |
-| --- | --- | --- | --- |
-| `count(*[…])` as its own request | _pending_ | _pending_ | any selectivity cliff? |
-| `*[…]{mediaId}` then `.length` | _pending_ | _pending_ | |
-| no count (first page only) | _pending_ | _pending_ | the "don't count" baseline |
+| Count strategy | Wall ms | Payload bytes | Rows |
+| --- | ---: | ---: | ---: |
+| `count(*[…])` as its own request | **68** | 47 | 1 |
+| `*[…]{ mediaId }` then `.length` | 673 | 130 396 | 5925 |
+| no count (first page only) | 681 | 1438 | 24 |
 
-Every keyset walk is verified against the reference order across the
-duplicate-`capturedAt` cluster and the sub-second pairs; a mismatch **aborts the
-run** (no results file written) rather than being noted in a row.
+**Findings:**
+
+- **Every keyset walk reproduced the reference order exactly** — no gap, no
+  duplicate, across the duplicate-`capturedAt` cluster and the sub-second pairs.
+- **`media-expansion` is the only strategy whose paginated walk is one request
+  per page.** The join strategies re-resolve the descendant closure on every
+  continuation (2× and 4× the request count here), because a stateless
+  continuation request has no cached closure to reuse — a full walk is ~6 min
+  for the two-step vs ~3.5 min for `media-expansion`.
+- **Offset was slightly *faster* than keyset here** (687 vs 840 ms/page): at
+  5925 rows / 247 pages Sanity's `[start...end]` is not yet punished, and
+  keyset's `coalesce(capturedAt,"") < $afterKey || …` predicate adds a little
+  cost. Keyset's advantage is stability under concurrent writes and at deep
+  offsets, not raw speed at this scale — "offset is only a baseline" holds as a
+  *correctness/robustness* statement, not a latency one.
+- **`count()` as its own request is the clear winner** — ~68 ms and 47 bytes,
+  ~10× faster and ~2800× smaller than fetching ids to measure length. No
+  selectivity cliff observed. Skipping the count entirely saves that one cheap
+  request.
 
 ### AC7 — hierarchy move (measured)
 
@@ -253,19 +309,42 @@ real move and reverts it:
 
 | | strategy A (broad) | strategy B (broad) | strategy A (deep) | strategy B (deep) |
 | --- | --- | --- | --- | --- |
-| documents rewritten | _pending_ | _pending_ | _pending_ | _pending_ |
-| mutation batches | _pending_ | _pending_ | _pending_ | _pending_ |
-| serialized forward bytes | _pending_ | _pending_ | _pending_ | _pending_ |
-| forward mutation acceptance ms (async) | _pending_ | _pending_ | _pending_ | _pending_ |
-| **end-to-end write + re-sync ms** (until every rewritten doc is query-visible) | _pending_ | _pending_ | _pending_ | _pending_ |
-| revert wall ms (sync) | _pending_ | _pending_ | _pending_ | _pending_ |
+| documents rewritten | 201 keyword | 1 keyword + 3541 media | 4 keyword | 1 keyword + 27 media *(modelled)* |
+| tagged-but-unchanged media skipped | — | 2977 | — | 0 |
+| mutation batches | 3 | 36 | 1 | 1 *(modelled)* |
+| serialized forward bytes | 51 236 | 1 374 349 | 1 005 | ~11 000 *(modelled)* |
+| forward acceptance ms (async) | 947 | 14 372 | 154 | not measured |
+| **end-to-end write + re-sync ms** | **2 171** | **15 039** | **851** | not measured |
+| revert wall ms (sync) | 3 122 | 44 780 | 895 | not measured |
 
 The forward mutation is issued `visibility=async`, so the request returns on
 acceptance and the harness then polls an aggregate `count()` (over the
-`published` perspective, the same a production query uses) until it reflects
-*every* rewritten document — that poll is the real re-sync measurement, not
-just the next query's latency. The revert is `visibility=sync`, so the baseline
-is queryable-again before the command exits.
+`published` perspective) until it reflects *every* rewritten document — the real
+re-sync measurement, not the next query's latency. The revert is
+`visibility=sync`, so the baseline is queryable-again before the command exits.
+
+**`deep` × strategy B was not measured live.** The move both *adds* the new
+parent to a closure and *removes* the old one; 9 of its 27 affected media only
+lose the old ancestor, so the single-`count()` re-sync probe could not prove
+their visibility. The probe now polls one aggregate per added *and* removed
+ancestor (fixed after this run), but re-running the one cell needs a fresh token
+and reseed. Its write amplification is modelled (27 media, 1 batch) and its
+re-sync is bracketed by `deep` × strategy A (851 ms) below and by the
+27-vs-3541-document ratio against `broad` × strategy B — an unremarkable ~1 s.
+
+**Findings:**
+
+- **Strategy A's move is cheap and fast** even for the broad root: 201 keyword
+  documents, ~2 s to write and become query-visible, ~3 s to revert. Bounded by
+  `|subtree|`, independent of tagging volume.
+- **Strategy B's broad move is a real operational event**: 3541 media documents
+  (36 batches), **14 s** to accept, **15 s** end-to-end to re-sync, and **45 s**
+  to revert. That is the cost of one admin reparenting a popular category.
+- **Skipping the 2977 tagged-but-unchanged media matters** — the naive "rewrite
+  everything under the subtree" would have made it a 6518-document, ~27 s write.
+- Content Lake query visibility lagged the async acceptance by only ~0.7–1 s in
+  every measured case (`re-sync − acceptance`): 2171 − 947, 15039 − 14372,
+  851 − 154. The dominant cost is the write itself, not indexing lag.
 
 Recovery: every `move` reverts in a `finally`; a failed revert prints the exact
 `clean` + `seed` reseed commands. The `kwbench--` prefix makes a full reseed the
@@ -346,59 +425,79 @@ bounded by `|subtree|` and is independent of how heavily the subtree is tagged.
 
 ---
 
-## Preliminary recommendation
+## Recommendation
 
-**Hypothesis, pending the live read numbers:** materialize on the **keyword
-document** (strategy A), resolved as an explicit **two-step** (fetch the
-descendant id set, then a keyset range query over `benchmarkMedia`), matching the
-two-round-trip shape `readSanityCuratedGalleryPage` already uses for a curated
-gallery.
+**Materialize the ancestor closure on the medium — strategy B
+(`expandedKeywordIds`).** Optimize for the read that happens on every visitor
+request; accept the expensive-but-rare hierarchy move.
 
-Reasoning from what is already known:
+The pre-measurement hypothesis was the opposite (strategy A, keyword-side
+materialization, two-step resolve — chosen because its *move* is cheap). The
+live numbers reverse it: the join cost strategy A and C pay is on the **read**,
+every request, and it does not amortize.
 
-- Strategy A's **hierarchy-move cost is bounded and small** (`|subtree|` keyword
-  documents), and taxonomy edits are rare and admin-only — the exact profile the
-  curated `visibilityVersion` approximation was already deemed acceptable for.
-- Strategy B's **move cost is unbounded by anything the taxonomy controls** — it
-  scales with tagging volume. Even after skipping the ~46% of tagged media whose
-  closure does not change, moving the broad root is still a ~3 500-document
-  rewrite (36 batches) with its own partial-failure and visibility-lag surface
-  (AC7); a re-tag or bulk import only pushes that higher. A poor fit for "an
-  admin renames a category".
-- Strategy A's descendant-id set for any single keyword is **small** (the widest
-  branch here has ~200 descendants), so it fits comfortably in a GROQ `in $ids`
-  parameter and a bounded keyset follow-up — no 11 KB URL risk, no whole-document
-  load (the AB#114 concern that split gallery placements into their own
-  documents).
-- Strategy C is kept as a **fallback only**: if the live numbers show strategy
-  A's descendant-resolution round trip is cheap enough, C buys nothing and costs
-  depth-many round trips.
+Evidence:
 
-**The trigger that flips this:** if the live run shows strategy A's two-step
-resolve + keyset match cannot meet ADR-0012 / AB#134's existing keyset-pagination
-budget at 8000 media (e.g. the `count(leafKeywordIds[@ in $ids])` predicate is
-non-optimizable and forces a full scan per page), then **strategy B** wins on
-read despite its move cost, and AB#55 must decide whether the move cost is
-tolerable or whether the **matching contract itself narrows** — ADR-0012's
-recorded migration trigger: *"AB#65's benchmarking finds no bounded mechanism for
-descendant expansion → AB#55/56/57 need a narrower matching rule (e.g.
-exact-tag-only, no ancestor expansion)"*, reflected via a dated ADR-0012
-amendment.
+- **Read latency (every request).** `media-expansion` returns a broad 5925-row
+  match in ~740 ms uncached; the correlated-subquery form is ~1.7× slower, the
+  two-step ~2.3× slower with 2× the requests, `query-time-traversal` ~2.4×
+  slower with up to 4× the requests. On the CDN all strategies are ~50–100 ms on
+  a hit, but the cache is `max-age=60` and every miss pays the full uncached
+  price.
+- **Paginated read (a full gallery walk).** `media-expansion` keyset is one
+  request per page. Strategy A and C **re-resolve the descendant closure on
+  every continuation page** — 2× and 4× the request count, ~6 min vs ~3.5 min
+  for the full 247-page broad walk. A stateless `?cursor=` continuation has no
+  closure to reuse; caching one per cursor scope is possible but is new
+  machinery ADR-0012 has not designed. This is precisely ADR-0012's own recorded
+  trigger: *"if strategy A's two-step resolve + keyset match cannot meet the
+  keyset-pagination budget… strategy B wins on read."*
+- **Redundant-term and count cost.** `media-expansion` pays ~0 for a redundant
+  ancestor term (AC4) and `count()` as its own request is ~68 ms — the whole
+  read path is cheap.
+- **Write cost (rare, admin-only).** Strategy B's price is the hierarchy move:
+  moving the broad root rewrote 3541 media documents — 14 s to accept, 15 s to
+  re-sync, 45 s to revert. That is a real operational event, but it happens when
+  an administrator reparents a popular category, not on a visitor request, and
+  the ~46% of tagged media whose closure does not actually change are already
+  skipped. Strategy A's equivalent move is ~2 s.
+
+What strategy B needs from AB#55/56/57 to be safe:
+
+- **A bounded, batched, resumable ingest path for the hierarchy move**, with its
+  own visibility-lag handling — the `move` command demonstrates the shape
+  (`visibility=async` accept, aggregate re-sync poll, `createOrReplace` so a
+  partial failure is safe to re-run). A bulk re-tag or import could push a single
+  move well past 3541 documents.
+- **The `expandedKeywordIds` closure is derived, never authored** — recomputed
+  from the authored `parentKeywordId` edges on every ingest, so it cannot drift.
+- **ADR-0012 §3's ancestor-collapse still applies** to the canonical *cache key*
+  even though it is free at query time for strategy B.
+
+Strategy C (query-time traversal) is rejected outright: it is the slowest read
+*and* the most round trips, and buys nothing strategy B does not.
 
 ---
 
 ## Feeds into
 
 - **AB#55** — "The ancestor strategy is selected using AB#65 evidence; hierarchy
-  move, reindex/re-sync, and failure-recovery cost is stated." The [strategy
-  table](#the-strategies-compared-ac2), the [AC7 model](#ac7--hierarchy-move-write-amplification-modelled),
-  and the live AC7 measurement are that evidence.
-- **ADR-0012 §4** — the matching contract stands unless the live run trips the
-  narrowing trigger above.
+  move, reindex/re-sync, and failure-recovery cost is stated." The
+  [recommendation](#recommendation) (strategy B, `expandedKeywordIds` on the
+  medium), the [measured AC7 costs](#ac7--hierarchy-move-measured), and the
+  [amplification model](#ac7--hierarchy-move-write-amplification-modelled) are
+  that evidence. AB#55 also owns the batched/resumable ingest path strategy B
+  requires for the hierarchy move.
+- **ADR-0012 §4** — the matching *contract* holds: all three mechanisms returned
+  an identical ordered result set at every shape. The evidence bears on which
+  *mechanism* §4 leaves open, not on §4 itself; it does **not** trip the
+  "no bounded mechanism → narrow the matching rule" trigger — a bounded
+  mechanism exists (`media-expansion`), it just moves the cost to write time.
 - **ADR-0012 §9** — the correctness gate's GROQ-vs-JS ordering check is the
-  empirical verification ADR-0012 names as owed ("AB#58 must verify empirically
-  that GROQ's own string ordering and the adapter's comparator agree on
-  `coalesce(capturedAt, "") desc` at whatever precision is actually stored").
+  empirical verification ADR-0012 names as owed. **Result: GROQ's `ORDER BY` and
+  the JS comparator agreed on every keyset walk, including across the
+  sub-second-precision `capturedAt` pairs.** No write-time precision
+  normalization is needed for this data.
 - **ADR-0012 §6** — the [cardinality](#ac6--cache-cardinality) and
   [fan-out](#ac6--invalidation-fan-out) numbers size the coarse-invalidation
   trade-off ADR-0012 accepted; if they prove disruptive, ADR-0012's "design the
@@ -410,12 +509,12 @@ amendment.
 
 | AC | Where | Status |
 | --- | --- | --- |
-| 1 — ~8000 media, broad/narrow branches, duplicate sort values, 1–5-keyword intersections | fixture corpus + pinned intersections | **done** |
-| 2 — materialized-ancestor vs media-expansion vs query-time traversal compared | 3 strategy builders + correctness gate; live timings | tooling **done**, measurement **pending** |
-| 3 — broad/narrow/parent-descendant/max-width AND, uncached & CDN, payload & request count | measurement matrix (48 intersection cells: 6 shapes × 4 strategy variants × 2 endpoints) | tooling **done**, measurement **pending** |
-| 4 — ancestor+descendant redundancy via the canonical collapse rule | `canonicalizeSelection` + pre/post-collapse cells | model **done**, cost delta **pending** |
-| 5 — cursor pagination & count strategies; offset only a baseline | keyset walk per strategy + offset baseline + 3 count cells + §9 correctness gate (aborts on disagreement) | tooling **done**, measurement **pending** |
+| 1 — ~8000 media, broad/narrow branches, duplicate sort values, 1–5-keyword intersections | fixture corpus + pinned intersections | **done** (8000 media, 243 keyword docs seeded) |
+| 2 — materialized-ancestor vs media-expansion vs query-time traversal compared | 3 strategy builders + correctness gate + [live timings](#ac2--ac3--intersection-queries) | **done** — all 3 measured, all shapes; `media-expansion` fastest |
+| 3 — broad/narrow/parent-descendant/max-width AND, uncached & CDN, payload & request count | measurement matrix, 48 intersection cells (6 shapes × 4 strategy variants × 2 endpoints) | **done** — see [AC2/AC3](#ac2--ac3--intersection-queries) |
+| 4 — ancestor+descendant redundancy via the canonical collapse rule | `canonicalizeSelection` + pre/post-collapse cells | **done** — [~0 for media-expansion, ~28% for joins](#ac4--ancestor--descendant-redundancy) |
+| 5 — cursor pagination & count strategies; offset only a baseline | keyset walk per strategy + offset baseline + 3 count cells + §9 correctness gate | **done** — [keyset walks all matched the reference order](#ac5--pagination--count) |
 | 6 — cache cardinality & invalidation fan-out for canonical keyword sets | analytical model | **done** |
-| 7 — hierarchy-move write amplification, reindex/re-sync, recovery | amplification model + `move` (async forward write, aggregate re-sync poll, `finally` revert, baseline preflight) | model **done**, measured re-sync **pending** (4 runs: broad/deep × a/b) |
-| 8 — no personal archive material or secrets | `validateKeywordBenchmarkFixtures` label pattern + no-token/no-URL fields | **done** |
-| 9 — findings + recommendation feed the taxonomy & gallery-query ADRs | this document | **preliminary** — final after the live run |
+| 7 — hierarchy-move write amplification, reindex/re-sync, recovery | amplification model + `move` (async forward, aggregate re-sync poll, `finally` revert, baseline preflight) | **done** for 3/4 cells; `deep`×B modelled ([why](#ac7--hierarchy-move-measured)) |
+| 8 — no personal archive material or secrets | `validateKeywordBenchmarkFixtures` label pattern + no-token/no-URL fields; live audit confirmed the dataset held only Sanity system records afterward | **done** |
+| 9 — findings + recommendation feed the taxonomy & gallery-query ADRs | this document; [recommendation](#recommendation) reversed the hypothesis | **done** |
