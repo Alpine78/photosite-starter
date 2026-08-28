@@ -36,10 +36,13 @@ import {
 } from "@/lib/content-listing";
 import type { GalleryContentPage } from "@/lib/content-page";
 import type { ContentPlacementInput } from "@/lib/content-tree";
-import type {
-  CuratedGalleryPlacement,
-  GalleryCursorCodec,
-  GalleryOrdering,
+import {
+  MAX_GALLERY_ORDERING_SEED_LENGTH,
+  orderingScopeString,
+  type CuratedGalleryPlacement,
+  type GalleryCursorCodec,
+  type GalleryOrdering,
+  type GalleryWindowRequest,
 } from "@/lib/gallery-pagination";
 import {
   assertGallerySections,
@@ -128,7 +131,17 @@ export type SanityGalleryRejection =
   | "ambiguous-content-id"
   | "malformed-result"
   /** The gallery's `orderingRule` is `seeded-random`, which this adapter does not yet implement (ADR-0009, AB#129). */
-  | "ordering-not-implemented";
+  | "ordering-not-implemented"
+  /**
+   * A `seeded-random` gallery whose placements' materialized `shuffledOrder`
+   * keys do not all match the gallery's current `orderingSeed` — i.e. the
+   * seed was rotated and `npm run recompute:shuffled-order` has not finished.
+   * A transient, retryable state, not a defect (ADR-0009 2026-08-28 amendment):
+   * the route serves an accessible "temporarily unavailable" page, and the
+   * gallery recovers on its own once the recompute lands and the
+   * `sanity:galleries` cache tag is invalidated.
+   */
+  | "ordering-stale";
 
 export class SanityGalleryError extends Error {
   readonly rejection: SanityGalleryRejection;
@@ -913,6 +926,9 @@ export type RawGalleryPlacementItem = {
   readonly visible?: unknown;
   readonly altOverride?: unknown;
   readonly captionOverride?: unknown;
+  readonly pinned?: unknown;
+  readonly shuffledOrder?: unknown;
+  readonly shuffledOrderSeed?: unknown;
 };
 
 /**
@@ -926,6 +942,17 @@ function readOrder(value: unknown, placementId: string): number {
       "malformed-result",
       "a gallery placement has no usable order (expected a non-negative integer)",
       placementId,
+    );
+  }
+  return value;
+}
+
+/** A GROQ `count(...)` result, defended against a malformed store answer. */
+function readCount(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      `expected a non-negative integer count, got ${JSON.stringify(value)}`,
     );
   }
   return value;
@@ -956,10 +983,22 @@ function readOrder(value: unknown, placementId: string): number {
  * Pure and unit-tested independently of any query — this is the function
  * AB#114's bounded query calls per row, not something AB#113 calls itself
  * from an eager "fetch everything" read.
+ *
+ * `ordering` (AB#129): for a `seeded-random` gallery this also carries
+ * `pinned` and the materialized `shuffledOrder` (64-hex) onto the result, so
+ * `gallery-pagination.ts`'s tiered comparator has what it needs. A gallery-wide
+ * staleness check already happened in the basics query
+ * (`readSanityCuratedGalleryPage`), so a per-row mismatch here is defense in
+ * depth: a non-pinned row whose `shuffledOrder` is missing or was computed from
+ * a different seed raises `ordering-stale` rather than being silently
+ * mis-sorted. Under `manual` these fields are ignored.
  */
 export function projectGalleryPlacement(
   raw: RawGalleryPlacementItem,
-  options: PublicMediaLanguage & { readonly config: SanityConfig },
+  options: PublicMediaLanguage & {
+    readonly config: SanityConfig;
+    readonly ordering?: GalleryOrdering;
+  },
 ): CuratedGalleryPlacement | undefined {
   const placementId = readString(raw.placementId);
   if (placementId === undefined) {
@@ -984,6 +1023,11 @@ export function projectGalleryPlacement(
   const altOverride = readString(raw.altOverride);
   const captionOverride = readString(raw.captionOverride);
 
+  const seeded =
+    options.ordering !== undefined && options.ordering.kind === "seeded-random"
+      ? projectSeededOrderingFields(raw, placementId, options.ordering.seed)
+      : {};
+
   return {
     placementId,
     order,
@@ -992,7 +1036,47 @@ export function projectGalleryPlacement(
     ...(sectionId !== undefined ? { sectionId } : {}),
     ...(altOverride !== undefined ? { altOverride } : {}),
     ...(captionOverride !== undefined ? { captionOverride } : {}),
+    ...seeded,
   };
+}
+
+/**
+ * `pinned` / `shuffledOrder` for one row of a `seeded-random` gallery. A
+ * pinned lead carries no `shuffledOrder` (it sorts by manual `order`); a
+ * non-pinned row must carry a 64-hex `shuffledOrder` whose `shuffledOrderSeed`
+ * matches the gallery's current seed, else `ordering-stale` (defense in depth
+ * behind the basics-query aggregate).
+ */
+function projectSeededOrderingFields(
+  raw: RawGalleryPlacementItem,
+  placementId: string,
+  seed: string,
+): { readonly pinned?: boolean; readonly shuffledOrder?: string } {
+  if (raw.pinned === true) {
+    return { pinned: true };
+  }
+  // Read raw, not via `readString` (which trims): GROQ orders and filters on
+  // the stored value verbatim, so a whitespace-padded `shuffledOrder` that
+  // `readString` trimmed to 64-hex would make the cursor boundary this row
+  // mints disagree with the store's own keyset comparison and skip later
+  // rows. Any deviation from a clean 64-hex value / matching seed is
+  // `ordering-stale` — the recompute step repatches it.
+  const shuffledOrder =
+    typeof raw.shuffledOrder === "string" ? raw.shuffledOrder : undefined;
+  const shuffledOrderSeed =
+    typeof raw.shuffledOrderSeed === "string" ? raw.shuffledOrderSeed : undefined;
+  if (
+    shuffledOrder === undefined ||
+    !/^[0-9a-f]{64}$/.test(shuffledOrder) ||
+    shuffledOrderSeed !== seed
+  ) {
+    throw new SanityGalleryError(
+      "ordering-stale",
+      "a placement's shuffledOrder is missing or does not match the gallery's current orderingSeed",
+      placementId,
+    );
+  }
+  return { shuffledOrder };
 }
 
 // ---------------------------------------------------------------------------
@@ -1010,6 +1094,9 @@ const GALLERY_PLACEMENT_ITEM_PROJECTION = `{
   visible,
   altOverride,
   captionOverride,
+  "pinned": coalesce(pinned, false),
+  shuffledOrder,
+  shuffledOrderSeed,
   "media": media->${PUBLIC_MEDIA_PROJECTION}
 }`;
 
@@ -1108,17 +1195,146 @@ function assertAlreadyPublic(
 }
 
 /**
+ * The keyset predicate for one lane, following Sanity's own documented
+ * two-field idiom (`key > $after || (key == $after && placementId > $afterId)`,
+ * GROQ's recommended alternative to array-slice pagination — verified against
+ * https://www.sanity.io/docs/developer-guides/paginating-with-groq).
+ */
+function laneKeysetPredicate(keyField: string, afterParam: string): string {
+  return `(${keyField} > ${afterParam} || (${keyField} == ${afterParam} && placementId > $afterPlacementId))`;
+}
+
+type PlannedWindowQuery = {
+  readonly query: string;
+  readonly params: Record<string, unknown>;
+  readonly readResult: (result: unknown) => {
+    readonly boundary: RawGalleryPlacementItem | undefined;
+    readonly candidates: readonly RawGalleryPlacementItem[];
+  };
+};
+
+/**
+ * The bounded window query for a `manual` gallery — unchanged since AB#114: a
+ * bare array projection for the first page, a `{boundary, candidates}` object
+ * for a continuation, both ordered by `(order, placementId)`.
+ */
+function planManualWindowQuery(
+  placementFilter: string,
+  window: GalleryWindowRequest,
+): PlannedWindowQuery {
+  const after = window.after;
+  if (after === undefined) {
+    return {
+      query: `*[${placementFilter}] | order(order asc, placementId asc) [0...$candidateLimit]${GALLERY_PLACEMENT_ITEM_PROJECTION}`,
+      params: {},
+      readResult: (result) => ({
+        boundary: undefined,
+        candidates: readPlacementRows(result),
+      }),
+    };
+  }
+  return {
+    query: `{
+      "boundary": *[${placementFilter} && placementId == $afterPlacementId][0]${GALLERY_PLACEMENT_ITEM_PROJECTION},
+      "candidates": *[${placementFilter} && ${laneKeysetPredicate("order", "$afterOrder")}] | order(order asc, placementId asc) [0...$candidateLimit]${GALLERY_PLACEMENT_ITEM_PROJECTION}
+    }`,
+    params: { ...boundaryQueryParams(after), afterPlacementId: after.placementId },
+    readResult: readWindowQueryResult,
+  };
+}
+
+/**
+ * The bounded window query for a `seeded-random` gallery (AB#129). ADR-0009
+ * §3's tiered `(pinnedTier, key, placementId)` order — pinned leads by manual
+ * `order`, then the rest by materialized `shuffledOrder` — is served as two
+ * lanes in one round trip rather than one GROQ `order()` clause: expressing
+ * the tier switch inline would need a `select()` in `order()` whose behaviour a
+ * unit test over a fake store cannot pin, and `compareOrderingBoundaries` is
+ * the contract that must match exactly. Every pinned row sorts before every
+ * shuffled row, so concatenating `pinnedLane` then `shuffledLane` and slicing
+ * to `candidateLimit` reproduces the tiered order.
+ *
+ * `$orderingScope` (an always-true comparison) makes the seed a genuine,
+ * serialized parameter of the request URL, so the Next fetch cache key varies
+ * by seed — belt-and-suspenders over `sanity:galleries` tag invalidation
+ * (ADR-0009 §5 / 2026-08-28 amendment). It changes no row match.
+ */
+function planSeededWindowQuery(
+  placementFilterBase: string,
+  window: GalleryWindowRequest,
+): PlannedWindowQuery {
+  const filter = `${placementFilterBase} && $orderingScope == $orderingScope`;
+  const after = window.after;
+  const tier = after?.pinnedTier;
+  const candidateLimit = window.candidateLimit;
+
+  const pinnedKeyset =
+    tier === undefined
+      ? "true"
+      : tier === 0
+        ? laneKeysetPredicate("order", "$afterOrder")
+        : "false";
+  const shuffledKeyset =
+    tier === undefined || tier === 0
+      ? "true"
+      : laneKeysetPredicate("shuffledOrder", "$afterShuffledOrder");
+
+  const params: Record<string, unknown> =
+    after === undefined
+      ? {}
+      : { ...boundaryQueryParams(after), afterPlacementId: after.placementId };
+
+  const boundaryLine =
+    after === undefined
+      ? ""
+      : `"boundary": *[${filter} && placementId == $afterPlacementId][0]${GALLERY_PLACEMENT_ITEM_PROJECTION},\n      `;
+
+  return {
+    query: `{
+      ${boundaryLine}"pinnedLane": *[${filter} && coalesce(pinned, false) == true && (${pinnedKeyset})] | order(order asc, placementId asc) [0...$candidateLimit]${GALLERY_PLACEMENT_ITEM_PROJECTION},
+      "shuffledLane": *[${filter} && coalesce(pinned, false) == false && (${shuffledKeyset})] | order(shuffledOrder asc, placementId asc) [0...$candidateLimit]${GALLERY_PLACEMENT_ITEM_PROJECTION}
+    }`,
+    params,
+    readResult: (result) => {
+      if (!isRecord(result)) {
+        throw new SanityGalleryError(
+          "malformed-result",
+          "the content store answered a seeded windowed query with something other than the expected {pinnedLane, shuffledLane} shape",
+        );
+      }
+      const raw = result as {
+        readonly boundary?: unknown;
+        readonly pinnedLane?: unknown;
+        readonly shuffledLane?: unknown;
+      };
+      return {
+        boundary:
+          raw.boundary === null || raw.boundary === undefined
+            ? undefined
+            : readPlacementRow(raw.boundary),
+        // Every pinned row sorts before every shuffled row, so the first
+        // `candidateLimit` of `pinned ++ shuffled` is the tiered window
+        // `buildCuratedGalleryPage` expects (each lane was already bounded to
+        // `candidateLimit` server-side; the concatenation can hold up to
+        // twice that until this slice).
+        candidates: [
+          ...readPlacementRows(raw.pinnedLane),
+          ...readPlacementRows(raw.shuffledLane),
+        ].slice(0, candidateLimit),
+      };
+    },
+  };
+}
+
+/**
  * `CuratedGallerySectionSource` (`gallery-sections.ts`) over `galleryPlacement`
  * documents: one HTTP round trip per page — an id lookup for the boundary
  * (only when the request names one) plus a keyset range query for the rest,
  * both scoped to this gallery's own document identity (`galleryDocumentId`,
  * resolved once by the caller) and the resolved section filter, never "every
- * placement matching this filter" (AB#134). The
- * candidate range follows Sanity's own documented two-field keyset idiom
- * (`order > $after || (order == $after && placementId > $afterId)`, GROQ's
- * recommended alternative to array-slice pagination — verified against
- * https://www.sanity.io/docs/developer-guides/paginating-with-groq) rather
- * than `[n...m]` offset slicing.
+ * placement matching this filter" (AB#134). The query shape is chosen by the
+ * active ordering rule (AB#129) — `planManualWindowQuery` /
+ * `planSeededWindowQuery`.
  */
 function createSanityCuratedGallerySource(
   client: SanityClient,
@@ -1126,53 +1342,56 @@ function createSanityCuratedGallerySource(
     readonly config: SanityConfig;
     readonly fallbackLanguage: string;
     readonly galleryDocumentId: string;
+    readonly ordering: GalleryOrdering;
+    /**
+     * The gallery is mid-rotation (its basics `staleShuffledOrderCount` was
+     * non-zero). Refuse here, not in `readSanityCuratedGalleryPage`, so
+     * `readCuratedGallerySectionPage` has already validated `?cursor=` and
+     * resolved `?section=` — a bad token/section still 404s during a rotation.
+     */
+    readonly orderingStale: boolean;
   },
 ): CuratedGallerySectionSource {
   return async ({ locale, filter, window }) => {
+    if (options.orderingStale) {
+      throw new SanityGalleryError(
+        "ordering-stale",
+        "this seeded-random gallery's shuffledOrder keys do not all match its current orderingSeed — run \"npm run recompute:shuffled-order\"",
+      );
+    }
     const language = toLanguageSubtag(locale);
     const sectionId = sectionIdOf(filter);
     const placementFilter = buildPlacementFilter(sectionId);
-    const baseParams: Record<string, unknown> = {
-      galleryDocumentId: options.galleryDocumentId,
-      candidateLimit: window.candidateLimit,
-      ...(sectionId === undefined ? {} : { sectionId }),
-    };
+    const planned =
+      options.ordering.kind === "manual"
+        ? planManualWindowQuery(placementFilter, window)
+        : planSeededWindowQuery(placementFilter, window);
 
-    const { boundary: rawBoundary, candidates: rawCandidates } =
-      window.after === undefined
-        ? {
-            boundary: undefined,
-            candidates: readPlacementRows(
-              await client.query({
-                query: `*[${placementFilter}] | order(order asc, placementId asc) [0...$candidateLimit]${GALLERY_PLACEMENT_ITEM_PROJECTION}`,
-                params: baseParams,
-                tag: "gallery.placements.window",
-              }),
-            ),
-          }
-        : readWindowQueryResult(
-            await client.query({
-              query: `{
-                "boundary": *[${placementFilter} && placementId == $afterPlacementId][0]${GALLERY_PLACEMENT_ITEM_PROJECTION},
-                "candidates": *[${placementFilter} && (order > $afterOrder || (order == $afterOrder && placementId > $afterPlacementId))] | order(order asc, placementId asc) [0...$candidateLimit]${GALLERY_PLACEMENT_ITEM_PROJECTION}
-              }`,
-              params: {
-                ...baseParams,
-                // This adapter only serves `manual` galleries (see
-                // `resolveOrdering`), so a boundary is always tier 0 with a
-                // numeric `order` key. AB#129 PR2 adds the seeded keyset shape.
-                afterOrder: asManualBoundaryOrder(window.after.key),
-                afterPlacementId: window.after.placementId,
-              },
-              tag: "gallery.placements.window",
-            }),
-          );
+    const { boundary: rawBoundary, candidates: rawCandidates } = planned.readResult(
+      await client.query({
+        query: planned.query,
+        params: {
+          galleryDocumentId: options.galleryDocumentId,
+          candidateLimit: window.candidateLimit,
+          ...(sectionId === undefined ? {} : { sectionId }),
+          ...(options.ordering.kind === "seeded-random"
+            ? { orderingScope: orderingScopeString(options.ordering) }
+            : {}),
+          ...planned.params,
+        },
+        tag: "gallery.placements.window",
+      }),
+    );
 
     const languages: PublicMediaLanguage = {
       language,
       fallbackLanguage: options.fallbackLanguage,
     };
-    const projectOptions = { ...languages, config: options.config };
+    const projectOptions = {
+      ...languages,
+      config: options.config,
+      ordering: options.ordering,
+    };
 
     const boundary =
       rawBoundary === undefined
@@ -1193,43 +1412,73 @@ function createSanityCuratedGallerySource(
 /**
  * The only rule this adapter applies. `gallery.ts`'s schema already lets an
  * author declare `seeded-random`; ADR-0009 decides that rule's contract and
- * AB#129's PR1 generalizes the pagination core for it, but the materialized
- * `shuffledOrder` field this adapter would read, and the recompute-on-rotation
- * mechanism, are AB#129's PR2. A gallery declaring `seeded-random` gets a
- * defined, loud refusal here, not a silent fall-back to manual order —
- * publishing under the wrong rule is a worse failure than refusing to serve the
- * page at all.
+ * Both `manual` and `seeded-random` are served (AB#129 PR2 lifted the
+ * `seeded-random` refusal). A `seeded-random` gallery needs a non-empty
+ * `orderingSeed` within the same length ceiling the pagination boundary
+ * enforces; a missing one is a content defect, not a transient state.
  */
-/**
- * Narrows a `GalleryOrderingBoundary.key` to the numeric manual `order` this
- * adapter's keyset query needs. This path only ever runs for a `manual` gallery
- * (`resolveOrdering` throws for `seeded-random`), so a non-number here is a
- * contract violation, not a case to handle.
- */
-function asManualBoundaryOrder(key: string | number): number {
-  if (typeof key !== "number") {
-    throw new SanityGalleryError(
-      "malformed-result",
-      `a manual gallery window boundary carried a non-numeric key: ${JSON.stringify(key)}`,
-    );
-  }
-  return key;
-}
-
-function resolveOrdering(orderingRule: unknown, contentId: string): GalleryOrdering {
+function resolveOrdering(
+  orderingRule: unknown,
+  orderingSeed: unknown,
+  contentId: string,
+): GalleryOrdering {
   if (orderingRule === "manual") return { kind: "manual" };
   if (orderingRule === "seeded-random") {
-    throw new SanityGalleryError(
-      "ordering-not-implemented",
-      "this gallery's ordering rule is seeded-random, which this adapter does not yet implement — ADR-0009 decides the contract, AB#129 PR2 implements the materialized shuffle key it requires",
-      contentId,
-    );
+    // Read raw, not via `readString` (which trims): the seed is used verbatim
+    // downstream — `orderingScopeString` embeds it, the recompute step writes
+    // it as `shuffledOrderSeed`, and the basics stale-count query compares that
+    // marker against `^.orderingSeed`. A seed with surrounding whitespace
+    // (rejected by the Studio schema, still possible via an API import) would
+    // trim inconsistently across that chain and strand the gallery
+    // `ordering-stale` forever, so it is a content defect here.
+    const seed = typeof orderingSeed === "string" ? orderingSeed : undefined;
+    if (
+      seed === undefined ||
+      seed.length === 0 ||
+      seed.length > MAX_GALLERY_ORDERING_SEED_LENGTH ||
+      seed !== seed.trim()
+    ) {
+      throw new SanityGalleryError(
+        "malformed-result",
+        `a seeded-random gallery has no usable orderingSeed (expected 1-${MAX_GALLERY_ORDERING_SEED_LENGTH} characters, no surrounding whitespace)`,
+        contentId,
+      );
+    }
+    return { kind: "seeded-random", seed };
   }
   throw new SanityGalleryError(
     "malformed-result",
     `the gallery has no usable orderingRule: ${JSON.stringify(orderingRule)}`,
     contentId,
   );
+}
+
+/**
+ * The `$after*` GROQ params a bounded window query needs, from the decoded
+ * cursor boundary. Under `manual` (and a seeded gallery's pinned tier) the
+ * boundary key is the numeric `order`; under a seeded gallery's shuffled tier
+ * it is the 64-hex `shuffledOrder` string.
+ */
+function boundaryQueryParams(after: NonNullable<GalleryWindowRequest["after"]>): {
+  readonly afterOrder?: number;
+  readonly afterShuffledOrder?: string;
+} {
+  if (after.pinnedTier === 0) {
+    if (typeof after.key !== "number") {
+      throw new SanityGalleryError(
+        "malformed-result",
+        `a pinned-tier window boundary carried a non-numeric key: ${JSON.stringify(after.key)}`,
+      );
+    }
+    return { afterOrder: after.key };
+  }
+  if (typeof after.key !== "string") {
+    throw new SanityGalleryError(
+      "malformed-result",
+      `a shuffled-tier window boundary carried a non-string key: ${JSON.stringify(after.key)}`,
+    );
+  }
+  return { afterShuffledOrder: after.key };
 }
 
 type RawGalleryPaginationSection = RawGallerySectionSummary & { readonly intro?: unknown };
@@ -1287,8 +1536,10 @@ function readGallerySections(value: unknown, contentId: string): readonly Galler
 type RawGalleryPaginationBasicsDocument = {
   readonly _id?: unknown;
   readonly orderingRule?: unknown;
+  readonly orderingSeed?: unknown;
   readonly sections?: unknown;
   readonly latestPlacementUpdatedAt?: unknown;
+  readonly staleShuffledOrderCount?: unknown;
 };
 
 /**
@@ -1296,18 +1547,33 @@ type RawGalleryPaginationBasicsDocument = {
  * `ambiguous-content-id` state (two published documents claiming one
  * identity) the same way `readPublicGalleryPage`'s own `[0...2]` read does —
  * this bounded read never scales with gallery size. `latestPlacementUpdatedAt`
- * is computed inside this same query via `^._id`, the parent-scope operator,
- * so it can filter placements by direct reference identity (`gallery._ref ==
- * ^._id`) instead of a `gallery->contentId`/`gallery->language` join, without
- * costing a second HTTP round trip.
+ * and `staleShuffledOrderCount` are computed inside this same query via `^._id`,
+ * the parent-scope operator, so they filter placements by direct reference
+ * identity (`gallery._ref == ^._id`) instead of a
+ * `gallery->contentId`/`gallery->language` join, without costing a second HTTP
+ * round trip.
+ *
+ * `staleShuffledOrderCount` is the gallery-wide consistency guard AB#129's
+ * `ordering-stale` state needs: a bounded `count()` of this seeded gallery's
+ * non-pinned placements whose materialized `shuffledOrder` is missing or was
+ * computed from a seed other than the gallery's current `orderingSeed`. The
+ * bounded placement *window* only ever sees `pageSize + 1` rows, so a per-row
+ * check on the read path cannot prove the whole order is one generation —
+ * this count can, in one bounded aggregate (ADR-0009 2026-08-28 amendment).
  */
 const GALLERY_PAGINATION_BASICS_QUERY = `*[${GALLERY_FILTER} && contentId == $contentId][0...2]{
   _id,
   orderingRule,
+  orderingSeed,
   sections[]{sectionId, slug, label, intro},
   "latestPlacementUpdatedAt": *[
     _type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == ^._id
-  ] | order(_updatedAt desc) [0]._updatedAt
+  ] | order(_updatedAt desc) [0]._updatedAt,
+  "staleShuffledOrderCount": count(*[
+    _type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == ^._id &&
+    !coalesce(pinned, false) &&
+    (!defined(shuffledOrder) || shuffledOrderSeed != ^.orderingSeed)
+  ])
 }`;
 
 function readGalleryDocumentId(value: unknown, contentId: string): string {
@@ -1371,7 +1637,26 @@ export async function readSanityCuratedGalleryPage(
   if (basics === undefined) return undefined;
 
   const galleryDocumentId = readGalleryDocumentId(basics._id, contentId);
-  const ordering = resolveOrdering(basics.orderingRule, contentId);
+  const ordering = resolveOrdering(basics.orderingRule, basics.orderingSeed, contentId);
+
+  // Gallery-wide consistency guard (ADR-0009 2026-08-28 amendment). A
+  // `seeded-random` gallery whose non-pinned placements do not all carry a
+  // `shuffledOrder` matching the current `orderingSeed` is mid-rotation: the
+  // route serves an accessible "temporarily unavailable" page rather than a
+  // mis-paginated one, and the gallery recovers on its own once
+  // `npm run recompute:shuffled-order` lands and the `sanity:galleries` cache
+  // tag is invalidated. This adapter holds no sticky state — every uncached
+  // basics read re-evaluates the count.
+  //
+  // The refusal is deferred to the *source* call rather than thrown here, so
+  // `readCuratedGallerySectionPage` first resolves `?section=` and decodes
+  // `?cursor=`: a malformed/tampered cursor or an unknown section must still
+  // 404 during a rotation, not return the reordering page (and an existence
+  // probe must not treat a garbage token as redirectable).
+  const orderingStale =
+    ordering.kind === "seeded-random" &&
+    readCount(basics.staleShuffledOrderCount) > 0;
+
   const sections = readGallerySections(basics.sections, contentId);
   const visibilityVersion = readString(basics.latestPlacementUpdatedAt) ?? "none";
 
@@ -1379,6 +1664,8 @@ export async function readSanityCuratedGalleryPage(
     config,
     fallbackLanguage,
     galleryDocumentId,
+    ordering,
+    orderingStale,
   });
 
   return readCuratedGallerySectionPage({

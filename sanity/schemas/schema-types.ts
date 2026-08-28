@@ -115,6 +115,13 @@ export type SchemaFieldDefinition = {
   readonly fields?: readonly SchemaFieldDefinition[];
   readonly options?: SchemaFieldOptions;
   readonly initialValue?: string | boolean;
+  /**
+   * Renders the field but forbids editing it. Used for values a document
+   * carries but does not author — a generated key an owner-run script
+   * materializes (AB#129's `shuffledOrder`), where hiding it would leave an
+   * editor unable to see why a Publish is blocked.
+   */
+  readonly readOnly?: boolean;
   readonly validation?: SchemaValidation;
 };
 

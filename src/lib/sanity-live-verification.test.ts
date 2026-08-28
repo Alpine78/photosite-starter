@@ -54,9 +54,15 @@ import {
   FEATURED_GALLERY_SECTION_SIZE,
   MEDIA_KEYS,
   SERVICE_FIXTURES,
+  SHUFFLED_GALLERY_CONTENT_ID,
+  SHUFFLED_GALLERY_PINNED_COUNT,
+  SHUFFLED_GALLERY_PLACEMENT_COUNT,
+  SHUFFLED_GALLERY_SEED,
+  SHUFFLED_GALLERY_SHUFFLED_COUNT,
 } from "../../scripts/sanity-seed-fixtures.mts";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import { createHmacGalleryCursorCodec } from "@/lib/gallery-pagination";
+import { computeShuffledOrder } from "@/lib/gallery-shuffle";
 import {
   createSanityClient,
   type SanityClient,
@@ -372,5 +378,73 @@ describe("AB#84 live integration: the full 400-item archive gallery", () => {
       (_unused, index) => MEDIA_KEYS[index % MEDIA_KEYS.length],
     );
     expect(items.map((item) => item.mediaId)).toEqual(expectedMediaIds);
+  });
+});
+
+describe("AB#129 live integration: the seeded-random gallery", () => {
+  /** The exact tiered order the fixture must walk in (ADR-0009 §3). */
+  function expectedSeededSequence(): readonly string[] {
+    const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+    const pinned = Array.from(
+      { length: SHUFFLED_GALLERY_PINNED_COUNT },
+      (_u, i) => `shuffled-pin-${String(i + 1).padStart(2, "0")}`,
+    );
+    const shuffled = Array.from(
+      { length: SHUFFLED_GALLERY_SHUFFLED_COUNT },
+      (_u, i) => `shuffled-item-${String(i + 1).padStart(2, "0")}`,
+    ).toSorted(
+      (a, b) =>
+        cmp(
+          computeShuffledOrder(SHUFFLED_GALLERY_SEED, a),
+          computeShuffledOrder(SHUFFLED_GALLERY_SEED, b),
+        ) || cmp(a, b),
+    );
+    return [...pinned, ...shuffled];
+  }
+
+  it("walks the whole gallery in the materialized tiered order — pinned leads, then the shuffle — with every placement exactly once", async () => {
+    const walked: string[] = [];
+    let cursor: string | undefined;
+    for (let guard = 0; guard < 100; guard += 1) {
+      const page = await readSanityCuratedGalleryPage("fi", SHUFFLED_GALLERY_CONTENT_ID, {
+        ...(cursor === undefined ? {} : { cursor }),
+        client,
+        config: sanityConfig,
+        cursorCodec,
+      });
+      expect(page).toBeDefined();
+      if (page === undefined) break;
+      expect(page.items.length).toBeLessThanOrEqual(page.page.size);
+      walked.push(...page.items.map((item) => item.placementId));
+      if (!page.page.hasNextPage) break;
+      cursor = page.page.endCursor;
+    }
+
+    expect(walked).toHaveLength(SHUFFLED_GALLERY_PLACEMENT_COUNT);
+    expect(new Set(walked).size).toBe(SHUFFLED_GALLERY_PLACEMENT_COUNT);
+    // Not just "every item once" — the exact HMAC-derived sequence, so a
+    // silently manual or reversed order would fail here (Codex PR2 review #4).
+    expect(walked).toEqual(expectedSeededSequence());
+  });
+
+  it("is deterministic — a second independent walk produces the identical sequence", async () => {
+    const walkOnce = async () => {
+      const ids: string[] = [];
+      let cursor: string | undefined;
+      for (let guard = 0; guard < 100; guard += 1) {
+        const page = await readSanityCuratedGalleryPage("fi", SHUFFLED_GALLERY_CONTENT_ID, {
+          ...(cursor === undefined ? {} : { cursor }),
+          client,
+          config: sanityConfig,
+          cursorCodec,
+        });
+        if (page === undefined) break;
+        ids.push(...page.items.map((i) => i.placementId));
+        if (!page.page.hasNextPage) break;
+        cursor = page.page.endCursor;
+      }
+      return ids;
+    };
+    expect(await walkOnce()).toEqual(await walkOnce());
   });
 });

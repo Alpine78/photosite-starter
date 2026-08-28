@@ -293,7 +293,7 @@ describe("placementId", () => {
   it("rejects replacing a published placement's media without minting a new placement id", async () => {
     const { run } = inspect(fieldOf("placementId").validation, {
       answer: galleryAnswer({
-        published: { galleryRef: "gallery-doc-abc", mediaRef: "media-was-here" },
+        published: { placementId: "northern-coast-01", galleryRef: "gallery-doc-abc", mediaRef: "media-was-here" },
       }),
     });
     const result = await run("northern-coast-01", currentDocument());
@@ -303,7 +303,7 @@ describe("placementId", () => {
   it("allows re-publishing a placement whose media and gallery are unchanged", async () => {
     const { run } = inspect(fieldOf("placementId").validation, {
       answer: galleryAnswer({
-        published: { galleryRef: "gallery-doc-abc", mediaRef: "media-a" },
+        published: { placementId: "northern-coast-01", galleryRef: "gallery-doc-abc", mediaRef: "media-a" },
       }),
     });
     expect(await run("northern-coast-01", currentDocument())).toEqual([true]);
@@ -312,11 +312,38 @@ describe("placementId", () => {
   it("rejects moving a published placement to a different gallery", async () => {
     const { run } = inspect(fieldOf("placementId").validation, {
       answer: galleryAnswer({
-        published: { galleryRef: "gallery-doc-different", mediaRef: "media-a" },
+        published: { placementId: "northern-coast-01", galleryRef: "gallery-doc-different", mediaRef: "media-a" },
       }),
     });
     const result = await run("northern-coast-01", currentDocument());
     expect(result[0]).toContain("already published under a different gallery");
+  });
+
+  it("rejects renaming a published placement's id in place (it is a permanent identity, and a seeded key's HMAC input)", async () => {
+    const { run } = inspect(fieldOf("placementId").validation, {
+      answer: galleryAnswer({
+        published: {
+          placementId: "northern-coast-was-here",
+          galleryRef: "gallery-doc-abc",
+          mediaRef: "media-a",
+        },
+      }),
+    });
+    const result = await run("northern-coast-01", currentDocument());
+    expect(result[0]).toContain("permanent identity");
+  });
+
+  it("allows re-publishing a placement whose id is unchanged", async () => {
+    const { run } = inspect(fieldOf("placementId").validation, {
+      answer: galleryAnswer({
+        published: {
+          placementId: "northern-coast-01",
+          galleryRef: "gallery-doc-abc",
+          mediaRef: "media-a",
+        },
+      }),
+    });
+    expect(await run("northern-coast-01", currentDocument())).toEqual([true]);
   });
 });
 
@@ -339,5 +366,40 @@ describe("repeated media within one gallery", () => {
       answer: { siblings: [{ _id: "placement-doc-abc", mediaRef: "media-a" }] },
     });
     expect(await runWarnings({ _ref: "media-a" }, currentDocument())).toEqual([true]);
+  });
+});
+
+describe("generated ordering fields (shuffledOrder / shuffledOrderSeed, AB#129)", () => {
+  const HEX = "a".repeat(64);
+  const run = (document: Record<string, unknown>) =>
+    inspect(fieldOf("placementId").validation, {
+      answer: {
+        published: null,
+        conflicting: [],
+        galleryVersions: [{ _id: "gallery-doc-abc", contentId: "g", sections: [] }],
+      },
+    }).run("northern-coast-01", currentDocument(document));
+
+  it("declares both as read-only generated fields", () => {
+    expect(fieldOf("shuffledOrder").readOnly).toBe(true);
+    expect(fieldOf("shuffledOrderSeed").readOnly).toBe(true);
+  });
+
+  it("blocks the only structurally impossible state: a shuffledOrder that is not a generated key", async () => {
+    const [message] = await run({ shuffledOrder: "not-hex", shuffledOrderSeed: "s" });
+    expect(message).toContain("not a valid generated key");
+  });
+
+  it("allows every other combination — those are transient states the recompute step resolves, and blocking would deadlock the author", async () => {
+    for (const document of [
+      {}, // nothing set
+      { pinned: false, shuffledOrder: HEX, shuffledOrderSeed: "seed-1" }, // a normal seeded item
+      { pinned: false }, // a brand-new / just-unpinned seeded item, no key yet
+      { pinned: false, shuffledOrder: HEX, shuffledOrderSeed: "old-seed" }, // rotation in progress
+      { pinned: true, shuffledOrder: HEX, shuffledOrderSeed: "seed-1" }, // just flipped to pinned, stale key still on it
+      { shuffledOrder: HEX, shuffledOrderSeed: "s" }, // a manual gallery with a leftover key
+    ]) {
+      expect(await run(document)).toEqual([true]);
+    }
   });
 });

@@ -195,6 +195,13 @@ export type BuiltInLabels = {
      * whenever a gallery carries a long body (ADR-0003 decision 3).
      */
     readonly jumpToImages: string;
+    /**
+     * Heading of the transient state a seeded-random gallery serves while its
+     * order is being recomputed after a seed change (AB#129, ADR-0009).
+     */
+    readonly reorderingTitle: string;
+    /** Body copy under {@link reorderingTitle}; invites the visitor to retry. */
+    readonly reorderingBody: string;
   };
   readonly lightbox: {
     /** Accessible name of the fullscreen dialog itself. */
@@ -343,6 +350,9 @@ const englishLabels = {
     sectionsNav: "Gallery sections",
     allSections: "All",
     jumpToImages: "Jump to the image grid",
+    reorderingTitle: "This gallery is being reordered",
+    reorderingBody:
+      "Its order is being refreshed and will be back in a few minutes. This page will reload automatically.",
   },
   lightbox: {
     viewer: "Image viewer",
@@ -451,6 +461,9 @@ const finnishLabels = {
     sectionsNav: "Gallerian osiot",
     allSections: "Kaikki",
     jumpToImages: "Siirry kuvaruudukkoon",
+    reorderingTitle: "Tätä galleriaa järjestetään uudelleen",
+    reorderingBody:
+      "Gallerian järjestystä päivitetään, ja se palaa muutamassa minuutissa. Tämä sivu latautuu automaattisesti uudelleen.",
   },
   lightbox: {
     viewer: "Kuvakatselin",

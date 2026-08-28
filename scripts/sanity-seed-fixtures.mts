@@ -67,10 +67,21 @@
  * schema constant so the two copies cannot silently drift.
  */
 
+import { createHmac } from "node:crypto";
+
 const ARTICLE_TYPE_NAME = "article";
 const CATEGORY_TYPE_NAME = "category";
 const GALLERY_TYPE_NAME = "gallery";
 const GALLERY_PLACEMENT_TYPE_NAME = "galleryPlacement";
+
+/**
+ * Restates `src/lib/gallery-shuffle.ts`'s `computeShuffledOrder` (this module
+ * imports nothing but node builtins — see its comment on relative-import
+ * resolution). Pinned equal by `sanity-seed-fixtures.test.mts`.
+ */
+function computeShuffledOrderKey(seed: string, placementId: string): string {
+  return createHmac("sha256", seed).update(placementId, "utf8").digest("hex");
+}
 const HOME_PAGE_TYPE_NAME = "homePage";
 const HOME_ACTION_TYPE_NAME = "homeAction";
 const HOME_SECTION_TYPE_NAME = "homeSection";
@@ -664,6 +675,21 @@ export const FEATURED_GALLERY_SECTION_SIZE = 13;
 export const FEATURED_GALLERY_PLACEMENT_COUNT = FEATURED_GALLERY_SECTION_SIZE * 2;
 export const ARCHIVE_GALLERY_PLACEMENT_COUNT = 400;
 
+/**
+ * The seeded-random gallery (AB#129 PR2). Small — 3 pinned leads + 22 shuffled,
+ * spanning more than one 24-item page — so `verify:sanity-live` can walk a real
+ * seeded gallery in its materialized tiered order. Its `shuffledOrder` keys are
+ * pre-computed here (`computeShuffledOrderKey`, the same function
+ * `npm run recompute:shuffled-order` uses), so the seeded fixture is already
+ * consistent the moment it is written and needs no recompute pass of its own.
+ */
+export const SHUFFLED_GALLERY_CONTENT_ID = "shuffled";
+export const SHUFFLED_GALLERY_SEED = "seed-fixture-shuffle-2026";
+export const SHUFFLED_GALLERY_PINNED_COUNT = 3;
+export const SHUFFLED_GALLERY_SHUFFLED_COUNT = 22;
+export const SHUFFLED_GALLERY_PLACEMENT_COUNT =
+  SHUFFLED_GALLERY_PINNED_COUNT + SHUFFLED_GALLERY_SHUFFLED_COUNT;
+
 function mediaIdAt(index: number): string {
   return MEDIA_KEYS[index % MEDIA_KEYS.length];
 }
@@ -696,6 +722,10 @@ function buildPlacement(options: {
   readonly galleryRef: string;
   readonly mediaId: string;
   readonly sectionId?: string;
+  readonly pinned?: boolean;
+  /** The materialized seeded-random key, for a non-pinned placement of a seeded gallery. */
+  readonly shuffledOrder?: string;
+  readonly shuffledOrderSeed?: string;
 }): SeedDocument {
   return {
     _id: seedId("placement", options.placementId),
@@ -705,7 +735,9 @@ function buildPlacement(options: {
     order: options.order,
     ...(options.sectionId === undefined ? {} : { sectionId: options.sectionId }),
     visible: true,
-    pinned: false,
+    pinned: options.pinned ?? false,
+    ...(options.shuffledOrder === undefined ? {} : { shuffledOrder: options.shuffledOrder }),
+    ...(options.shuffledOrderSeed === undefined ? {} : { shuffledOrderSeed: options.shuffledOrderSeed }),
     media: reference(seedId("media", options.mediaId)),
   };
 }
@@ -742,9 +774,35 @@ function buildArchiveGalleryPlacements(): readonly SeedDocument[] {
   );
 }
 
+function buildShuffledGalleryPlacements(): readonly SeedDocument[] {
+  const galleryRef = seedId("gallery", SHUFFLED_GALLERY_CONTENT_ID, GALLERY_LANGUAGE);
+  const pinned = Array.from({ length: SHUFFLED_GALLERY_PINNED_COUNT }, (_unused, index) =>
+    buildPlacement({
+      placementId: `shuffled-pin-${String(index + 1).padStart(2, "0")}`,
+      order: index,
+      galleryRef,
+      mediaId: mediaIdAt(index),
+      pinned: true,
+    }),
+  );
+  const shuffled = Array.from({ length: SHUFFLED_GALLERY_SHUFFLED_COUNT }, (_unused, index) => {
+    const placementId = `shuffled-item-${String(index + 1).padStart(2, "0")}`;
+    return buildPlacement({
+      placementId,
+      order: SHUFFLED_GALLERY_PINNED_COUNT + index,
+      galleryRef,
+      mediaId: mediaIdAt(SHUFFLED_GALLERY_PINNED_COUNT + index),
+      shuffledOrder: computeShuffledOrderKey(SHUFFLED_GALLERY_SEED, placementId),
+      shuffledOrderSeed: SHUFFLED_GALLERY_SEED,
+    });
+  });
+  return [...pinned, ...shuffled];
+}
+
 function buildGalleryDocuments(): readonly SeedDocument[] {
-  /** Restates `gallery.ts`'s `ORDERING_RULES` — the only rule actually applied anywhere yet. */
+  /** Restates `gallery.ts`'s `ORDERING_RULES`. */
   const manualOrdering = "manual" as const;
+  const seededOrdering = "seeded-random" as const;
 
   const featured: SeedDocument = {
     _id: seedId("gallery", FEATURED_GALLERY_CONTENT_ID, GALLERY_LANGUAGE),
@@ -805,7 +863,24 @@ function buildGalleryDocuments(): readonly SeedDocument[] {
     sections: [],
   };
 
-  return [featured, archive];
+  const shuffled: SeedDocument = {
+    _id: seedId("gallery", SHUFFLED_GALLERY_CONTENT_ID, GALLERY_LANGUAGE),
+    _type: GALLERY_TYPE_NAME,
+    contentId: SHUFFLED_GALLERY_CONTENT_ID,
+    language: GALLERY_LANGUAGE,
+    title: "Sekoitettu näyttely",
+    slug: "sekoitettu-nayttely",
+    summary: "Deterministisesti sekoitettu kokoelma, jossa kolme ensimmäistä kuvaa on kiinnitetty.",
+    publishedAt: "2025-12-01T08:00:00.000Z",
+    cover: reference(seedId("media", "misty-birch")),
+    tags: ["forest", "shuffled"],
+    canonicalCategory: reference(seedId("category", "forest")),
+    orderingRule: seededOrdering,
+    orderingSeed: SHUFFLED_GALLERY_SEED,
+    sections: [],
+  };
+
+  return [featured, archive, shuffled];
 }
 
 // ---------------------------------------------------------------------------
@@ -1004,6 +1079,7 @@ export function buildSeedFixtures(options?: {
     ...buildGalleryDocuments(),
     ...buildFeaturedGalleryPlacements(),
     ...buildArchiveGalleryPlacements(),
+    ...buildShuffledGalleryPlacements(),
   ];
 
   return { documents };
@@ -1416,8 +1492,17 @@ export function validateSeedFixtures(documents: readonly SeedDocument[]): readon
         }
       }
 
-      if (doc._type === GALLERY_TYPE_NAME && doc.orderingRule !== "manual") {
-        violations.push(`gallery ${contentId}: orderingRule must be "manual"`);
+      if (doc._type === GALLERY_TYPE_NAME) {
+        const rule = doc.orderingRule;
+        if (rule !== "manual" && rule !== "seeded-random") {
+          violations.push(`gallery ${contentId}: orderingRule must be "manual" or "seeded-random"`);
+        }
+        if (rule === "seeded-random" && typeof doc.orderingSeed !== "string") {
+          violations.push(`gallery ${contentId}: seeded-random requires an orderingSeed`);
+        }
+        if (rule === "manual" && doc.orderingSeed !== undefined) {
+          violations.push(`gallery ${contentId}: orderingSeed is only used with seeded-random`);
+        }
       }
 
       if (hasHeadingOrderViolation(doc.body)) {
@@ -1476,7 +1561,10 @@ export function validateSeedFixtures(documents: readonly SeedDocument[]): readon
     }
   }
 
-  // --- exactly one gallery has sections + body, the other neither ---------
+  // --- at least one gallery with sections + body, at least one with neither ---
+  // (AB#129 PR2 added a third, bodyless seeded gallery, so "exactly one with
+  //  neither" no longer holds — the coverage this guarantees is "both shapes
+  //  are exercised", which "at least one of each" states directly.)
   const galleries = documents.filter((doc) => doc._type === GALLERY_TYPE_NAME);
   const galleryShapes = galleries.map((doc) => ({
     hasSections: Array.isArray(doc.sections) && doc.sections.length > 0,
@@ -1486,13 +1574,47 @@ export function validateSeedFixtures(documents: readonly SeedDocument[]): readon
     (shape) => shape.hasSections && shape.hasBody,
   ).length;
   const withNeitherCount = galleryShapes.filter((shape) => !shape.hasSections && !shape.hasBody).length;
-  if (withSectionsAndBodyCount !== 1) {
-    violations.push(
-      `expected exactly one gallery with both sections and a body, found ${withSectionsAndBodyCount}`,
-    );
+  if (withSectionsAndBodyCount < 1) {
+    violations.push("expected at least one gallery with both sections and a body, found none");
   }
-  if (withNeitherCount !== 1) {
-    violations.push(`expected exactly one gallery with neither sections nor a body, found ${withNeitherCount}`);
+  if (withNeitherCount < 1) {
+    violations.push("expected at least one gallery with neither sections nor a body, found none");
+  }
+
+  // --- seeded galleries: every placement is already a consistent generation ---
+  const galleriesById = new Map(
+    galleries.map((doc) => [doc._id, doc]),
+  );
+  for (const doc of documents) {
+    if (doc._type !== GALLERY_PLACEMENT_TYPE_NAME) continue;
+    const galleryRef = referencedId(doc.gallery);
+    const gallery = galleryRef === undefined ? undefined : galleriesById.get(galleryRef);
+    if (gallery === undefined) continue; // resolved elsewhere
+    const placementId = doc.placementId as string;
+    const pinned = doc.pinned === true;
+    const hasKey = typeof doc.shuffledOrder === "string";
+    const hasKeySeed = typeof doc.shuffledOrderSeed === "string";
+
+    if (gallery.orderingRule !== "seeded-random") {
+      if (hasKey || hasKeySeed) {
+        violations.push(`placement ${placementId}: a manual gallery's placement carries a shuffledOrder`);
+      }
+      continue;
+    }
+    if (pinned) {
+      if (hasKey || hasKeySeed) {
+        violations.push(`placement ${placementId}: a pinned lead carries a shuffledOrder`);
+      }
+      continue;
+    }
+    const seed = gallery.orderingSeed as string;
+    const expected = computeShuffledOrderKey(seed, placementId);
+    if (doc.shuffledOrder !== expected) {
+      violations.push(`placement ${placementId}: shuffledOrder does not match HMAC(seed, placementId)`);
+    }
+    if (doc.shuffledOrderSeed !== seed) {
+      violations.push(`placement ${placementId}: shuffledOrderSeed does not match the gallery's orderingSeed`);
+    }
   }
 
   // --- archive gallery placement count -------------------------------------

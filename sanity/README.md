@@ -142,16 +142,29 @@ drag-to-reorder) accepted for the bounded-query property. A section's optional `
 reuses the shared paragraph/list rich-text model in `gallery-section-intro.ts` — its own
 dedicated object types, not the six-kind `content-block.ts` set, since an intro needs
 inline emphasis and links that the shared body blocks' plain-string paragraphs and lists do
-not carry. `orderingRule`/`orderingSeed` let a gallery already declare a seeded-random
-ordering intent and carry its seed input; [ADR-0009](../docs/adr/0009-seeded-random-gallery-ordering.md)
-decides that rule's contract (a materialized, precomputed sort key — GROQ has no hash
-function to compute one live), but nothing yet computes or consumes an order from it —
-AB#114's adapter refuses to serve a `seeded-random` gallery outright rather than
-mis-paginate it, and AB#129 implements the materialization ADR-0009 requires.
+not carry. `orderingRule`/`orderingSeed` let a gallery declare a seeded-random ordering
+(AB#129, [ADR-0009](../docs/adr/0009-seeded-random-gallery-ordering.md)); each
+`galleryPlacement` also carries the materialized sort key — `shuffledOrder` (a read-only,
+generated 64-character hex value) and a `shuffledOrderSeed` marker, both empty on a pinned
+lead and on a manually-ordered gallery. A routine Publish of a `seeded-random` gallery,
+and of a new or re-pinned placement in one, is always allowed — the placement-level
+publication validator blocks only the one *structurally impossible* value: a
+`shuffledOrder` that is present but not a 64-char hex string. An absent, now-stale, or
+leftover-after-a-rule-switch key all publish fine, because those are transient states
+`npm run recompute:shuffled-order` (which reads only published placements) exists to
+resolve — blocking them would deadlock the author. That owner-run step materializes the
+keys after a seed change.
+Between a seed edit and that recompute the public site serves the gallery as temporarily
+unavailable rather than mis-paginated (ADR-0009's 2026-08-28
+amendment).
 
 The bounded, windowed read of a gallery's placements is `src/lib/sanity-gallery.ts`'s
 `readSanityCuratedGalleryPage` (AB#114), composing `gallery-sections.ts`'s shared
-`CuratedGallerySectionSource` contract over `galleryPlacement` documents. The cover
+`CuratedGallerySectionSource` contract over `galleryPlacement` documents. For a
+`seeded-random` gallery it serves the tiered order (pinned leads by `order`, then the rest
+by `shuffledOrder`) as two keyset lanes in one round trip and includes a bounded
+consistency aggregate that raises `ordering-stale` while a recompute is outstanding
+(AB#129 PR2). The cover
 fallback to the first visible placement when none is explicitly authored remains
 unimplemented at the route-facing seam, matching every other Sanity adapter built so far
 (settings, home, article, service, and this one) — the adapter exists and is tested, but

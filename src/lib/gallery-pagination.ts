@@ -108,6 +108,24 @@ export class GalleryCursorError extends Error {
   }
 }
 
+/**
+ * A `seeded-random` gallery whose materialized `shuffledOrder` keys are being
+ * recomputed after a seed change — a transient, retryable state, not a defect
+ * (AB#129, ADR-0009 2026-08-28 amendment). Provider-neutral so a route can
+ * distinguish it from a 404 without reaching past `@/lib/gallery`: the Sanity
+ * adapter's own classified `ordering-stale` is re-raised as this at the seam.
+ * The mock never produces it (a fixture reseed is atomic).
+ */
+export class GalleryOrderingStaleError extends Error {
+  readonly contentId: string;
+
+  constructor(contentId: string) {
+    super(`Gallery ordering is being recomputed (contentId "${contentId}")`);
+    this.name = "GalleryOrderingStaleError";
+    this.contentId = contentId;
+  }
+}
+
 export type CuratedGalleryPlacement = {
   readonly placementId: string;
   readonly order: number;

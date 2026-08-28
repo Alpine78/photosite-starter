@@ -37,7 +37,15 @@ every content family that can reuse the rendition; category changes invalidate
 both content variants and route/metadata inputs; gallery and placement changes
 expire the same `sanity:galleries` consistency group. This keeps gallery
 metadata, sections, items, ordering/filter versions, and cursor validation from
-knowingly remaining on different cache generations.
+knowingly remaining on different cache generations. It is also what recovers a
+seeded-random gallery from the transient `ordering-stale` state after a seed
+rotation (AB#129, ADR-0009): every `galleryPlacement` patch
+`npm run recompute:shuffled-order` writes, and the `gallery` seed edit itself,
+expire `sanity:galleries`, so the next `gallery.placements.basics` read sees a
+consistent generation with no operator action beyond running the recompute. The
+seeded placement-window query also carries the resolved ordering scope
+(`seeded-random-v1:<seed>`) as an `$orderingScope` parameter, so its own fetch
+cache key varies by seed independently of tag invalidation.
 
 All invalidations use `revalidateTag(tag, {expire: 0})`. Route Handlers cannot
 use `updateTag`, and hard expiry is the safe common behavior for publish,

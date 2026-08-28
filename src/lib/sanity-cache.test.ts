@@ -21,6 +21,7 @@ describe("published Sanity query cache policy", () => {
     ["category.listing.version", "articles"],
     ["category.listing.version", "galleries"],
     ["article.listing.by-category", "articles"],
+    ["gallery.placements.basics", "galleries"],
     ["gallery.placements.window", "galleries"],
     ["gallery.listing", "galleries"],
     ["gallery.listing.by-category", "galleries"],
@@ -60,6 +61,18 @@ describe("document invalidation map", () => {
       SANITY_PUBLIC_CACHE_TAGS.metadata,
       SANITY_PUBLIC_CACHE_TAGS.sitemap,
     ]);
+  });
+
+  it("invalidates the galleries family after a gallery or galleryPlacement change, so a seeded reseed + recompute recovers (AB#129)", () => {
+    // The `ordering-stale` state recovers when the cached `basics` fetch
+    // (tagged `sanity:galleries`) is dropped. Both a `gallery` seed edit and
+    // every `galleryPlacement` patch the recompute writes must fan out to it.
+    expect(getSanityDocumentInvalidationTags(["gallery"])).toContain(
+      SANITY_PUBLIC_CACHE_TAGS.galleries,
+    );
+    expect(getSanityDocumentInvalidationTags(["galleryPlacement"])).toContain(
+      SANITY_PUBLIC_CACHE_TAGS.galleries,
+    );
   });
 
   it("de-duplicates a before/after type set and keeps bounded order", () => {

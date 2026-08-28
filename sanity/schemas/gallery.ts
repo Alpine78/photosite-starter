@@ -36,14 +36,15 @@
  * visible placement.** AB#114 owns both; this schema only stores an explicit
  * `cover` override.
  *
- * **AB#129's shuffle algorithm.** `orderingRule`/`orderingSeed` exist and
- * carry the seed input a draft can already prepare, but nothing here computes
- * or consumes an order from them — manual order is the only rule actually
- * applied anywhere yet, and `orderingRule`'s own validation blocks *publishing*
- * `seeded-random` outright (a Save works, matching ADR-0003 decision 5's
- * publish-only enforcement elsewhere), because `sanity-gallery.ts`'s adapter
- * refuses to serve a gallery declaring it. ADR-0009 decides the seeded-random
- * contract; AB#129 implements it and lifts this guard.
+ * **AB#129's shuffle key.** `orderingRule`/`orderingSeed` declare a
+ * seeded-random gallery; the materialized sort key each placement needs lives
+ * on `galleryPlacement` (`shuffledOrder`/`shuffledOrderSeed`), written by
+ * `npm run recompute:shuffled-order`, not here. This schema no longer blocks
+ * publishing `seeded-random` (AB#129 PR2 lifted that): a routine publish is
+ * allowed, and if the placements' keys do not yet match the current seed the
+ * public adapter serves the gallery as temporarily unavailable
+ * (`SanityGalleryError "ordering-stale"`) until the recompute runs. ADR-0009
+ * and its 2026-08-28 amendment decide that two-step contract.
  */
 
 import { CATEGORY_TYPE_NAME } from "./category";
@@ -93,6 +94,16 @@ export const MAX_SECTION_LABEL_LENGTH = 256;
 export const ORDERING_RULES = ["manual", "seeded-random"] as const;
 type OrderingRule = (typeof ORDERING_RULES)[number];
 
+/**
+ * Restates `src/lib/gallery-pagination.ts`'s `MAX_GALLERY_ORDERING_SEED_LENGTH`
+ * (a schema imports nothing from `src/` — ADR-0006), pinned equal by a test.
+ * The seed rides inside `GalleryCursorScope.ordering` as
+ * `seeded-random-v1:<seed>`, which is bounded to 256 chars; the 17-char prefix
+ * leaves 239 for the seed itself. Without this a Studio publish could mint a
+ * seed the pagination boundary later rejects.
+ */
+export const MAX_ORDERING_SEED_LENGTH = 256 - "seeded-random-v1:".length;
+
 function nonBlank(value: string | undefined): SchemaValidationResult {
   return value !== undefined && value.trim().length > 0
     ? true
@@ -121,9 +132,21 @@ function validatesOrderingSeed(
 ): SchemaValidationResult {
   const rule = (context.document as RawOrderingDocument | undefined)?.orderingRule;
   if (rule === "seeded-random") {
-    return value !== undefined && value.trim().length > 0
+    if (value === undefined || value.trim().length === 0) {
+      return "orderingSeed is required while orderingRule is seeded-random";
+    }
+    // Surrounding whitespace is rejected, not silently trimmed: the seed is
+    // stored verbatim on the gallery, written verbatim as `shuffledOrderSeed`
+    // on each placement by the recompute step, and compared for equality in
+    // the adapter's stale-count query. A trim anywhere in that chain that is
+    // not applied everywhere would leave the gallery permanently
+    // `ordering-stale` (AB#129).
+    if (value !== value.trim()) {
+      return "orderingSeed must not begin or end with whitespace";
+    }
+    return value.length <= MAX_ORDERING_SEED_LENGTH
       ? true
-      : "orderingSeed is required while orderingRule is seeded-random";
+      : `Keep the ordering seed to ${MAX_ORDERING_SEED_LENGTH} characters or fewer`;
   }
   return value === undefined
     ? true
@@ -294,7 +317,7 @@ export const galleryType: SchemaTypeDefinition = {
       title: "Ordering",
       type: "string",
       description:
-        "Manual is the only rule actually applied today. Seeded-random is reserved for AB#129 (ADR-0009) and cannot be published yet — the public adapter refuses to serve a gallery declaring it (SanityGalleryError \"ordering-not-implemented\"), so Studio blocks the mismatch at the source.",
+        "Manual places items in each placement's authored order. Seeded-random shuffles them deterministically (ADR-0009): pinned leads stay put, the rest are ordered by a materialized key. After choosing Seeded-random, or changing the seed below, run \"npm run recompute:shuffled-order\" — until it completes the public site serves the gallery as temporarily unavailable.",
       initialValue: "manual" satisfies OrderingRule,
       options: {
         list: ORDERING_RULES.map((value) => ({
@@ -308,9 +331,6 @@ export const galleryType: SchemaTypeDefinition = {
           if (value === undefined || !(ORDERING_RULES as readonly string[]).includes(value)) {
             return `Choose one of: ${ORDERING_RULES.join(", ")}`;
           }
-          if (value === "seeded-random") {
-            return "Seeded random ordering is not implemented yet (AB#129, ADR-0009) — publishing with this rule would produce a gallery the public site refuses to serve. Choose Manual until AB#129 ships.";
-          }
           return true;
         }),
     },
@@ -319,7 +339,7 @@ export const galleryType: SchemaTypeDefinition = {
       title: "Ordering seed",
       type: "string",
       description:
-        "Required exactly when ordering is seeded-random; unused otherwise (AB#129).",
+        "Required exactly when ordering is seeded-random; unused otherwise. Changing it re-shuffles the gallery — run \"npm run recompute:shuffled-order\" afterwards (ADR-0009).",
       validation: (rule) => rule.custom(validatesOrderingSeed),
     },
     sectionsField,

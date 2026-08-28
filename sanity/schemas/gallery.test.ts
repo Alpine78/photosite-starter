@@ -6,6 +6,7 @@ import {
   galleryType,
   GALLERY_TYPE_NAME,
   MAX_GALLERY_SECTIONS,
+  MAX_ORDERING_SEED_LENGTH,
   MAX_SECTION_ID_LENGTH,
   MAX_SECTION_LABEL_LENGTH,
   MAX_SECTION_SLUG_LENGTH,
@@ -204,22 +205,37 @@ describe("ordering", () => {
     ]);
   });
 
-  it("requires orderingSeed exactly when orderingRule is seeded-random", async () => {
+  it("requires orderingSeed exactly when orderingRule is seeded-random, and bounds its length", async () => {
     const { run } = inspect(fieldOf("orderingSeed").validation);
 
     expect(await run(undefined, { orderingRule: "manual" })).toEqual([true]);
     expect(await run("abc", { orderingRule: "manual" })).toEqual([expect.any(String)]);
     expect(await run(undefined, { orderingRule: "seeded-random" })).toEqual([expect.any(String)]);
     expect(await run("abc", { orderingRule: "seeded-random" })).toEqual([true]);
+    expect(
+      await run("x".repeat(MAX_ORDERING_SEED_LENGTH), { orderingRule: "seeded-random" }),
+    ).toEqual([true]);
+    expect(
+      await run("x".repeat(MAX_ORDERING_SEED_LENGTH + 1), { orderingRule: "seeded-random" }),
+    ).toEqual([expect.any(String)]);
   });
 
-  it("accepts manual but blocks seeded-random from publishing, matching the adapter's own refusal (AB#114/AB#129)", async () => {
+  it("rejects an ordering seed with surrounding whitespace (it is used verbatim everywhere — AB#129)", async () => {
+    const { run } = inspect(fieldOf("orderingSeed").validation);
+    for (const bad of [" summer", "summer ", "  summer  ", "\tsummer"]) {
+      expect((await run(bad, { orderingRule: "seeded-random" }))[0]).toEqual(
+        expect.stringContaining("whitespace"),
+      );
+    }
+    expect(await run("summer-2026", { orderingRule: "seeded-random" })).toEqual([true]);
+  });
+
+  it("accepts both manual and seeded-random rules (AB#129 PR2 lifted the publish block)", async () => {
     const { run } = inspect(fieldOf("orderingRule").validation);
 
     expect(await run("manual")).toEqual([true]);
-    const [message] = await run("seeded-random");
-    expect(message).toContain("AB#129");
-    expect(message).not.toBe(true);
+    expect(await run("seeded-random")).toEqual([true]);
+    expect((await run("nonsense"))[0]).toEqual(expect.any(String));
   });
 });
 

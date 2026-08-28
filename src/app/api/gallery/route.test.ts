@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GalleryCursorError } from "@/lib/gallery-pagination";
+import {
+  GalleryCursorError,
+  GalleryOrderingStaleError,
+} from "@/lib/gallery-pagination";
 import { UnknownGallerySectionError } from "@/lib/gallery-sections";
 
 const dependencies = vi.hoisted(() => ({
@@ -13,15 +16,19 @@ vi.mock("@/lib/gallery-request", () => ({
 }));
 
 vi.mock("@/lib/gallery", async () => {
-  const { GalleryCursorError: CursorError } = await vi.importActual<
-    typeof import("@/lib/gallery-pagination")
-  >("@/lib/gallery-pagination");
+  const {
+    GalleryCursorError: CursorError,
+    GalleryOrderingStaleError: OrderingStaleError,
+  } = await vi.importActual<typeof import("@/lib/gallery-pagination")>(
+    "@/lib/gallery-pagination",
+  );
   const { UnknownGallerySectionError: SectionError } = await vi.importActual<
     typeof import("@/lib/gallery-sections")
   >("@/lib/gallery-sections");
 
   return {
     GalleryCursorError: CursorError,
+    GalleryOrderingStaleError: OrderingStaleError,
     UnknownGallerySectionError: SectionError,
     getGalleryPage: dependencies.getGalleryPage,
   };
@@ -193,6 +200,23 @@ describe("GET /api/gallery", () => {
     const response = await GET(galleryRequest());
 
     expect(response.status).toBe(404);
+    expect(dependencies.projectSlice).not.toHaveBeenCalled();
+  });
+
+  it("answers a retryable 503 while a seeded-random gallery is being reordered (AB#129)", async () => {
+    dependencies.getGalleryPage.mockRejectedValueOnce(
+      new GalleryOrderingStaleError("content-shuffled"),
+    );
+
+    const response = await GET(galleryRequest());
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("retry-after")).toBe("120");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({
+      status: "unavailable",
+      reason: "reordering",
+    });
     expect(dependencies.projectSlice).not.toHaveBeenCalled();
   });
 
