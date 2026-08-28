@@ -245,3 +245,57 @@ Residual checks that remain manual, and were not performed:
   same handler a finger reaches, on a synthetic device profile. Swipe and pinch-to-zoom
   on real glass are unverified, and the spike already found that emulated touch can
   mislead. Verify on a physical device before launch.
+
+## What implementation found (AB#78 — zoom and pan)
+
+The one-click zoom this ADR chose is a library option (`imageClickAction: "zoom"`), and
+the magnification bound is ADR-0005's zoom cap, already applied to every zoom level in
+AB#15. So the interaction itself — a click, a tap, the `z` key, a double-tap, or a
+pinch, all going to the library's own `toggleZoom`; arrow keys panning a zoomed frame;
+zoom and pan resetting to the fitted level on a slide change and on close; pan clamped
+to the image's own bounds — is entirely the library's, and this story added no code for
+any of it. What it added is the two things the library does not do:
+
+- **The caption gets out of the way while zoomed.** AB#16 left a dormant hook
+  (`data-visually-hidden` on the caption region, plus a CSS rule) for exactly this. The
+  wrapper now toggles it from the `zoomPanUpdate` event — the one event that covers the
+  button, the key, and both gestures — using a browser-free predicate
+  (`isLightboxZoomed`, `src/lib/lightbox-zoom-state.ts`: current level strictly above
+  the level the slide opened at, which is correctly `false` when ADR-0005's cap has
+  collapsed a large image's levels together and the zoom toggle is a no-op). While
+  hidden the region is `opacity: 0` **and** `pointer-events: none` **and**
+  `tabindex="-1"`: an invisible element that still took pointer input would eat the pan
+  gesture, and one left in the tab order would be a focus stop a keyboard visitor could
+  not see. The text and the image's `aria-describedby` link are untouched throughout, so
+  assistive technology loses nothing. If the caption itself holds focus when zoom
+  begins, focus moves to the zoom control rather than vanishing.
+- **The zoom control exposes its state.** The library's zoom `<button>` has an
+  accessible name (from `zoomTitle`) and is keyboard-operable inside the trapped-focus
+  dialog, but exposes no pressed/zoomed state. The wrapper resolves that button lazily
+  from the dialog (it does not exist yet during `uiRegister`) and keeps `aria-pressed`
+  in step with the same predicate, from the same handler. The button is the library's,
+  not a project-owned duplicate — reimplementing its ordering, visibility, icon state
+  and zoom-eligibility wiring to add one attribute was not worth it.
+
+The per-frame `zoomPanUpdate` handler caches the last boolean and touches the DOM only
+when it flips, so panning a zoomed image does not thrash the caption or the button.
+
+Two PhotoSwipe-5.4.4 facts the plan review got half right, confirmed against the source:
+horizontal arrow keys navigate slides **even while zoomed** (`arrowKeys` is `true` and
+that branch wins over panning); only `ArrowUp`/`ArrowDown` pan, and a horizontal pointer
+drag long enough to reach the horizontal pan bound tips over into a slide change. So the
+pan-bound clamp is asserted on the **vertical** axis — the one that does not double as
+slide navigation — with the Next button used for the slide-change reset.
+
+Residual check that remains manual and was **not** performed — AC6 is therefore partial
+and AB#78 stays open until it is:
+
+- **Physical-device pinch and pan.** `e2e/gallery-lightbox-zoom.spec.ts` covers a mouse
+  click, a synthesized touch tap and double-tap (`page.touchscreen.tap` on the WebKit
+  mobile profile), the `z` key, keyboard pan, and a pointer-drag pan — including one that
+  starts inside the hidden caption's own rectangle, which is what proves the
+  `pointer-events: none` on that region actually lets the gesture reach the photograph —
+  and asserts the vertical pan-bound clamp at both edges. It does not — cannot — cover a
+  real finger: a two-finger pinch to a chosen magnification, and a dragged pan, on physical
+  glass. Before launch, perform that check on one real device and record device,
+  OS/browser, the tap / pinch / pan / close behaviour observed, and the result.

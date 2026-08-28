@@ -135,6 +135,23 @@ image rendition boundary, the shared bounded gallery
 result contract, the fullscreen lightbox behind a project-owned PhotoSwipe wrapper
 (open, close, navigate, trapped focus, focus return keyed by `itemId`, and the caption
 and credit of the active item, associated with it for assistive technology),
+its zoom and pan behaviour (AB#78): the one-click/tap/`z`-key magnification and the
+gesture pan are the library's own, bounded by ADR-0005's zoom cap, and the wrapper adds
+only the two things the library omits — `aria-pressed` on the library's zoom button,
+synced from a cached `zoomPanUpdate` handler through the browser-free `isLightboxZoomed`
+predicate (`src/lib/lightbox-zoom-state.ts`), and the caption stepping out of the way
+while zoomed (AB#16's dormant `data-visually-hidden` hook, now also dropping the region's
+`pointer-events` and `tabindex` so it neither eats a pan gesture nor holds a keyboard
+stop) while its text and the image's `aria-describedby` link stay intact; zoom, pan, and
+caption state reset with the slide and on close because the library resets the
+magnification and rebuilds the dialog. `e2e/gallery-lightbox-zoom.spec.ts` covers mouse,
+synthesized tap/double-tap, keyboard, and pointer-drag paths — including a drag that
+starts over the hidden caption, proving the region's dropped `pointer-events` lets the
+gesture through — and the vertical pan-bound clamp (the axis that does not double as
+slide navigation); the one physical-device pinch/pan check (AC6) is documented as
+outstanding in ADR-0001 and AB#78 stays open until it is done. Zoom *animation and level
+tuning* stay a later slice.
+There is also
 a bounded adjacent-image preload window (`LIGHTBOX_PRELOAD_WINDOW`, `image-delivery.ts`,
 ADR-0010) that replaces the library's own unstated default with one slide back and two
 forward, structurally unable to cross a gallery's page cursor because it only ever

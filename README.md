@@ -268,6 +268,9 @@ npx playwright show-report               # after a failure
 projects: desktop Chromium and mobile WebKit. The suite protects the home page, the site
 menu's composition and disclosure behavior, the curated gallery route — its grid's
 reading order at every column count, the lightbox, its metadata, its empty state, its
+zoom and pan behaviour — click/tap/keyboard magnification with no crop, a
+state-announcing zoom control, the caption stepping aside while keeping its accessible
+text, bounded pan, and state resetting on slide change and close — its
 cursor continuation without JavaScript, its compact continuation page, its in-place
 append and lightbox continuation, and the
 addresses it refuses — the services routes,
@@ -359,8 +362,10 @@ a green pipeline. See [deployment](docs/deployment.md).
   and the in-place append — the same link enhanced to bring the next slice into the
   page, with the lightbox continuing past the items it was opened from — and an
   optional lead and long-form body sharing the article variant's own block set and
-  content-derived page-jump navigation (AB#106) — done; zoom tuning, preloading,
-  section controls, and seeded random ordering pending*
+  content-derived page-jump navigation (AB#106), and click/tap/keyboard zoom with
+  bounded pan, a state-announcing zoom control, and a caption that steps aside while
+  zoomed (AB#78) — done; zoom animation/level tuning, section controls, and seeded
+  random ordering pending, and AB#78's one physical-device pinch/pan check outstanding*
 - [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
   handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
   for development, CI, and Preview), abuse controls, and operational events carrying no
@@ -507,8 +512,10 @@ source and never mixes them on one page.
 The gallery grid lays its items out row by row, so what the eye reads is the order the
 source, the DOM, keyboard focus, and the lightbox all use, and every frame keeps its native
 aspect ratio uncropped. It opens a fullscreen lightbox that navigates the loaded result by
-keyboard, control, and gesture and presents the caption and credit of the photograph on
-screen; its zoom tuning and preloading are a later slice. The contact form is built and
+keyboard, control, and gesture, presents the caption and credit of the photograph on
+screen, and magnifies a frame on a click, tap, or the `z` key with pan bounded to the
+image and the caption stepping aside while zoomed; its zoom animation/level tuning is a
+later slice. The contact form is built and
 delivers through a replaceable adapter that stores nothing, and a public-journey suite
 covers its validation, success, failure, and retry states; the gallery-item enquiry
 (AB#60) builds on it. Listing continuation, gallery sections, and seeded random gallery

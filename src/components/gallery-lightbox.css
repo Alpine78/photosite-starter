@@ -98,10 +98,18 @@
  * Visually hidden, not removed: a zoomed visitor gets the whole frame back,
  * while the text stays in the accessibility tree and stays the description the
  * photograph points at. The wrapper writes the attribute on every slide
- * change, so caption state resets with the slide rather than persisting.
+ * change, so caption state resets with the slide rather than persisting, and it
+ * drops the region's `tabindex` in the same step so a keyboard visitor cannot
+ * land on it while it is invisible.
+ *
+ * `pointer-events: none` matters as much as the opacity: this region overlays
+ * the lower half of the frame and normally takes pointer input so a long
+ * caption can scroll, and an invisible element that still swallowed a drag
+ * would eat the pan gesture the zoomed visitor is trying to make.
  */
 .pswp .pswp__gallery-caption[data-visually-hidden="true"] {
   opacity: 0;
+  pointer-events: none;
 }
 
 /*

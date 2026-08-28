@@ -1,19 +1,21 @@
-import type { Locator, Page } from "@playwright/test";
-import {
-  buildContentTree,
-  getCanonicalContentPath,
-} from "../src/lib/content-tree";
+import type { Page } from "@playwright/test";
 import { getBuiltInLabels } from "@/lib/deployment-config";
-import { createHmacGalleryCursorCodec } from "../src/lib/gallery-pagination";
-import { getMockGalleryResult } from "../src/lib/mock-gallery";
-import { mockContentPages } from "../src/lib/mock-content-pages";
-import { mockContentTreeInputs } from "../src/lib/mock-content-tree";
 import {
   appUnderTestEnvironment,
-  DEFAULT_STORY_NAMESPACE,
   PREFIXED_LOCALE,
 } from "./support/harness-environment";
 import { expect, test } from "./support/fixtures";
+import {
+  emptyGalleryPath,
+  expectApprovedPublicRendition,
+  firstMixedRatioGalleryPath,
+  galleryCaptions,
+  galleryImageAlts,
+  galleryItems,
+  OPEN_ACTION_TIMEOUT,
+  repeatedMediaGallery,
+  STORY_ROOT,
+} from "./support/gallery";
 import {
   focusIsInside,
   openLightbox,
@@ -37,131 +39,6 @@ import { openHeaderNavigation } from "./support/public-page";
  */
 
 /**
- * A curated gallery's canonical path, derived from the same adapter data the
- * harness serves rather than written down here.
- *
- * A clone renames every category and slug in this tree, so naming one would
- * make the gate depend on this fixture's content. What the journey needs is a
- * gallery with enough items to navigate between and enough differently shaped
- * ones to prove the layout never crops or reorders them.
- */
-async function firstDefaultLocaleGallery(): Promise<string> {
-  const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
-  const treeInput = mockContentTreeInputs[language];
-  if (treeInput === undefined) {
-    throw new Error(`[e2e] The default locale ${language} publishes no mock tree.`);
-  }
-
-  const tree = buildContentTree(treeInput);
-  for (const [contentId, page] of mockContentPages[language] ?? []) {
-    if (page.variant !== "gallery") continue;
-
-    const path = getCanonicalContentPath(tree, contentId);
-    const result = await getMockGalleryResult(language, contentId);
-    if (path === null || result === undefined) continue;
-
-    const ratios = new Set(
-      result.items.map(
-        (item) => item.media.rendition.width / item.media.rendition.height,
-      ),
-    );
-    if (result.items.length > 1 && ratios.size > 1) {
-      return `${STORY_ROOT}/${path.join("/")}`;
-    }
-  }
-
-  throw new Error("[e2e] The harness needs one mixed-ratio gallery of two or more items.");
-}
-
-/**
- * A published gallery with no items, by the same derivation. The empty state is
- * a state the site serves, so the journey has to find it in the adapter data
- * rather than assume which page it is.
- */
-async function emptyDefaultLocaleGallery(): Promise<string> {
-  const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
-  const treeInput = mockContentTreeInputs[language];
-  if (treeInput === undefined) {
-    throw new Error(`[e2e] The default locale ${language} publishes no mock tree.`);
-  }
-
-  const tree = buildContentTree(treeInput);
-  for (const [contentId, page] of mockContentPages[language] ?? []) {
-    if (page.variant !== "gallery") continue;
-
-    const path = getCanonicalContentPath(tree, contentId);
-    const result = await getMockGalleryResult(language, contentId);
-    if (path !== null && result?.items.length === 0) {
-      return `${STORY_ROOT}/${path.join("/")}`;
-    }
-  }
-
-  throw new Error("[e2e] The harness needs one published gallery with no items.");
-}
-
-/**
- * Some galleries this suite scans (`content-large-archive`) are large enough
- * to paginate, and a paginated result cannot be built without a codec to
- * sign its continuation cursor — even for a first page that itself fits.
- */
-const harnessCursorCodec = createHmacGalleryCursorCodec(
-  appUnderTestEnvironment.GALLERY_CURSOR_SIGNING_KEY,
-);
-
-/**
- * A curated gallery whose first page places one photograph under two
- * different result identities (ADR-0002 §2 allows exactly this). The base
- * smoke test needs one to prove itemId/mediaId separation for real: in a
- * gallery with one placement per photograph, an implementation that keyed
- * `data-item-id` — or focus return — off `mediaId` instead of `itemId`
- * would pass every other check here by accident, since the two only ever
- * disagree once one photograph occupies more than one placement.
- */
-async function repeatedMediaGallery(): Promise<{
-  readonly path: string;
-  /** Every item's `itemId`, in the source's own authoritative order. */
-  readonly expectedItemIds: readonly string[];
-  /** Indexes, in that same order, of the two placements sharing one mediaId. */
-  readonly repeated: readonly [number, number];
-}> {
-  const language = new Intl.Locale(appUnderTestEnvironment.SITE_LOCALE).language;
-  const treeInput = mockContentTreeInputs[language];
-  if (treeInput === undefined) {
-    throw new Error(`[e2e] The default locale ${language} publishes no mock tree.`);
-  }
-
-  const tree = buildContentTree(treeInput);
-  for (const [contentId, page] of mockContentPages[language] ?? []) {
-    if (page.variant !== "gallery") continue;
-
-    const path = getCanonicalContentPath(tree, contentId);
-    const result = await getMockGalleryResult(language, contentId, {
-      cursorCodec: harnessCursorCodec,
-    });
-    if (path === null || result === undefined) continue;
-
-    const firstIndexOfMediaId = new Map<string, number>();
-    for (const [index, item] of result.items.entries()) {
-      const firstIndex = firstIndexOfMediaId.get(item.mediaId);
-      if (firstIndex !== undefined) {
-        return {
-          path: `${STORY_ROOT}/${path.join("/")}`,
-          expectedItemIds: result.items.map((entry) => entry.itemId),
-          repeated: [firstIndex, index],
-        };
-      }
-      firstIndexOfMediaId.set(item.mediaId, index);
-    }
-  }
-
-  throw new Error(
-    "[e2e] The harness needs one gallery whose first page places one photograph under two placements.",
-  );
-}
-
-const STORY_ROOT = `/${DEFAULT_STORY_NAMESPACE}`;
-
-/**
  * Resolved once in `beforeAll` rather than at module scope: finding either
  * gallery now awaits a bounded source (AB#134), and Playwright test files
  * load before any hook runs.
@@ -175,8 +52,8 @@ let REPEATED_MEDIA_GALLERY: {
 };
 
 test.beforeAll(async () => {
-  GALLERY_PATH = await firstDefaultLocaleGallery();
-  EMPTY_GALLERY_PATH = await emptyDefaultLocaleGallery();
+  GALLERY_PATH = await firstMixedRatioGalleryPath();
+  EMPTY_GALLERY_PATH = await emptyGalleryPath();
   REPEATED_MEDIA_GALLERY = await repeatedMediaGallery();
 });
 
@@ -865,91 +742,4 @@ test("the grid reads in the same order the lightbox navigates, at every column c
  */
 async function gotoGallery(page: Page): Promise<void> {
   await page.goto(GALLERY_PATH, { waitUntil: "load" });
-}
-
-/**
- * Time an opening action gets to land before it is treated as blocked.
- *
- * Short on purpose: a click that cannot reach the trigger has nothing to wait
- * for, and waiting out the default would spend the budget below on it.
- */
-const OPEN_ACTION_TIMEOUT = 3_000;
-
-/**
- * Performs an opening action and waits until the dialog has finished opening.
- *
- * Three real waits are folded in here.
- *
- * The grid is rendered on the server, so an action landing before React has
- * wired the opener does nothing at all; the action is therefore repeated, but
- * only while no dialog exists, so it can never open a second one.
- *
- * A repeat can also arrive while an earlier one is still opening — the viewer
- * module is fetched on first use — and then the trigger is already covered by
- * the dialog and the action cannot land. That is success in flight rather than
- * a failure, so a blocked action is swallowed and the poll simply keeps
- * waiting. A genuine failure still surfaces: the dialog never appears.
- *
- * And taking focus is the library's own last step of opening, which makes it
- * the honest readiness signal: a control clicked before that point is clicked
- * at a dialog that is still animating in.
- */
-/**
- * The alternative text of each grid photograph, in result order. Content, so
- * the journey reads it from the page rather than knowing it: a clone replaces
- * every one of these photographs with its own.
- */
-async function galleryImageAlts(triggers: Locator): Promise<string[]> {
-  return triggers.evaluateAll((buttons) =>
-    buttons.map((button) => button.querySelector("img")?.alt ?? ""),
-  );
-}
-
-/**
- * The grid's own items.
- *
- * A gallery page carries other lists — the breadcrumb trail, the language
- * switch, the tags — so "every list item in main" would mix them into the
- * sequence. The grid's list is the one whose items open images, which is a
- * property of what it does rather than of what this fixture happens to contain.
- */
-function galleryItems(main: Locator): Locator {
-  return main
-    .getByRole("list")
-    .filter({ has: main.page().getByRole("button") })
-    .first()
-    .getByRole("listitem");
-}
-
-/**
- * What the grid itself says about each photograph, in result order, with an
- * empty string where it says nothing. Content again, so it is read from the
- * page: it is the expectation the viewer is measured against.
- */
-async function galleryCaptions(main: Locator): Promise<string[]> {
-  return galleryItems(main).evaluateAll((items) =>
-    items.map(
-      (item) => item.querySelector("figcaption")?.textContent?.trim() ?? "",
-    ),
-  );
-}
-
-/**
- * The browser may only ever hold a versioned public web derivative, optimized
- * or not. Anything else reaching the viewer is the failure ADR-0005 exists to
- * prevent, so it is asserted rather than assumed.
- */
-function expectApprovedPublicRendition(currentSrc: string): void {
-  const delivered = new URL(currentSrc);
-  const versionedPublicPath =
-    /^\/gallery\/[a-z0-9]+(?:-[a-z0-9]+)*\.[a-f0-9]{12}\.(?:avif|jpe?g|png|webp)$/;
-
-  const source =
-    delivered.pathname === "/_next/image"
-      ? (delivered.searchParams.get("url") ?? "")
-      : delivered.pathname;
-
-  expect(source, `unexpected lightbox source: ${currentSrc}`).toMatch(
-    versionedPublicPath,
-  );
 }

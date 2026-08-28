@@ -25,6 +25,7 @@ import {
   type LightboxCaptionPart,
 } from "@/lib/lightbox-caption";
 import type { LightboxSlide } from "@/lib/lightbox-slides";
+import { isLightboxZoomed } from "@/lib/lightbox-zoom-state";
 
 /**
  * The project's only contact surface with the lightbox library (ADR-0001).
@@ -197,6 +198,13 @@ export function GalleryLightbox({
     let captionElement: HTMLElement | null = null;
     let describedElement: Element | null = null;
     let continuationElement: HTMLElement | null = null;
+    // The library's own zoom button, resolved from the dialog the first time it
+    // is needed rather than in `uiRegister` — that event fires while the UI is
+    // still being described, before any button element exists.
+    let zoomControlElement: HTMLElement | null = null;
+    // Last observed zoom state, so the frequent `zoomPanUpdate` (one per pan
+    // frame) only touches the DOM when zoomed-in actually flips.
+    let zoomedIn = false;
 
     /**
      * One continuation attempt, with its failure shown inside the dialog.
@@ -336,6 +344,65 @@ export function GalleryLightbox({
       describeActiveItem(captionElement !== null && parts.length > 0);
     };
 
+    /**
+     * Keeps the caption and the zoom control in step with the current
+     * magnification (AB#78).
+     *
+     * While a slide is zoomed past the level it opened at, the caption gives the
+     * whole frame back — visually hidden, but still in the DOM, still the text
+     * the photograph points at, so assistive technology loses nothing (AC4).
+     * It also leaves the tab order while hidden, so a keyboard visitor cannot
+     * land on an invisible region; if it held focus at that moment, focus moves
+     * to the zoom control rather than vanishing. The zoom control itself gains
+     * `aria-pressed`, the state the library's own button never exposes (AC3).
+     *
+     * Driven from `zoomPanUpdate` — the one event that covers the button, the
+     * `z` key, a double-tap, and a pinch alike — and again on every slide
+     * change, where the library has already reset the magnification, so state
+     * resets predictably with the slide (AC5). The `zoomedIn` cache keeps the
+     * per-frame call cheap: the DOM is touched only when the boolean flips.
+     */
+    const syncZoomedState = () => {
+      // Resolve the library's own zoom button once it exists — it is built
+      // synchronously right after `uiRegister`, so the first `change` or
+      // `zoomPanUpdate` on open is the earliest this can succeed — and seed the
+      // pressed state so the attribute is present before the first zoom.
+      if (zoomControlElement === null) {
+        zoomControlElement =
+          lightbox.pswp?.element?.querySelector<HTMLElement>(
+            ".pswp__button--zoom",
+          ) ?? null;
+        zoomControlElement?.setAttribute("aria-pressed", "false");
+      }
+
+      const slide = lightbox.pswp?.currSlide;
+      const nowZoomedIn =
+        slide !== undefined &&
+        isLightboxZoomed(slide.currZoomLevel, slide.zoomLevels.initial);
+
+      if (nowZoomedIn === zoomedIn) {
+        return;
+      }
+      zoomedIn = nowZoomedIn;
+
+      if (captionElement !== null) {
+        captionElement.dataset.visuallyHidden = nowZoomedIn ? "true" : "false";
+        // A long caption is a scroll container and so a tab stop; an invisible
+        // one must not be. The text and the `aria-describedby` link are
+        // untouched either way.
+        captionElement.tabIndex = nowZoomedIn ? -1 : 0;
+
+        if (nowZoomedIn && captionElement.contains(document.activeElement)) {
+          (zoomControlElement ?? lightbox.pswp?.element)?.focus();
+        }
+      }
+
+      zoomControlElement?.setAttribute(
+        "aria-pressed",
+        nowZoomedIn ? "true" : "false",
+      );
+    };
+
     // `role="dialog"` is the library's; a dialog also needs a name, and needs
     // to say that the page behind it is inert while it is open.
     lightbox.on("uiRegister", () => {
@@ -406,6 +473,10 @@ export function GalleryLightbox({
         activeItemIdRef.current = active.itemId;
       }
       presentActiveCaption();
+      // The library has already reset the magnification for the new slide by
+      // now, so this settles the caption and the zoom control back to their
+      // un-zoomed state rather than carrying the previous slide's over.
+      syncZoomedState();
 
       // Reaching the end of what is loaded is the only thing that asks for
       // more. Nothing is fetched ahead of the visitor, so browsing a
@@ -424,10 +495,18 @@ export function GalleryLightbox({
       void attemptContinuation();
     });
 
+    // Covers the button, the `z` key, a double-tap, and a pinch with one
+    // handler; the `zoomedIn` cache keeps this per-frame event cheap.
+    lightbox.on("zoomPanUpdate", syncZoomedState);
+
     lightbox.on("destroy", () => {
       captionElement = null;
       describedElement = null;
       continuationElement = null;
+      // The dialog and its buttons are rebuilt on the next open, so the
+      // resolved control and the cached state must not outlive this one.
+      zoomControlElement = null;
+      zoomedIn = false;
 
       const itemId = activeItemIdRef.current;
       activeItemIdRef.current = null;
