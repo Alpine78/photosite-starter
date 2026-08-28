@@ -34,6 +34,9 @@ import {
   CATEGORY_TYPE_NAME,
   collectSeedIdentities,
   FEATURED_GALLERY_CONTENT_ID,
+  SHUFFLED_GALLERY_CONTENT_ID,
+  SHUFFLED_GALLERY_PLACEMENT_COUNT,
+  SHUFFLED_GALLERY_SEED,
   GALLERY_LANGUAGE,
   GALLERY_PLACEMENT_TYPE_NAME,
   GALLERY_TYPE_NAME,
@@ -354,6 +357,7 @@ function buildVerificationChecks(
 ): readonly VerificationCheck[] {
   const archiveGalleryRef = seedId("gallery", ARCHIVE_GALLERY_CONTENT_ID, GALLERY_LANGUAGE);
   const featuredGalleryRef = seedId("gallery", FEATURED_GALLERY_CONTENT_ID, GALLERY_LANGUAGE);
+  const shuffledGalleryRef = seedId("gallery", SHUFFLED_GALLERY_CONTENT_ID, GALLERY_LANGUAGE);
   const countByIdsQuery = `count(*[_type == $type && _id in $ids])`;
   const idsOfType = (type: string) => documents.filter((doc) => doc._type === type).map((doc) => doc._id);
 
@@ -468,6 +472,43 @@ function buildVerificationChecks(
         const found = new Set(sections ?? []);
         if (!found.has("high-tide") || !found.has("low-tide")) {
           throw new Error(`expected sections "high-tide" and "low-tide", found ${[...found].join(", ")}`);
+        }
+      },
+    },
+    {
+      name: `the seeded-random gallery has ${SHUFFLED_GALLERY_PLACEMENT_COUNT} placements, all on the current seed (AB#129)`,
+      run: async () => {
+        const gallery = (await runSeedQuery(connection, {
+          query: `*[_id == $id][0]{orderingRule, orderingSeed}`,
+          params: { id: shuffledGalleryRef },
+        })) as { readonly orderingRule?: unknown; readonly orderingSeed?: unknown } | null;
+        if (gallery?.orderingRule !== "seeded-random" || gallery.orderingSeed !== SHUFFLED_GALLERY_SEED) {
+          throw new Error("the seeded gallery did not read back with orderingRule seeded-random and the fixture seed");
+        }
+        const total = await runCountQuery(
+          connection,
+          `count(*[_type == $type && gallery._ref == $galleryRef])`,
+          { type: GALLERY_PLACEMENT_TYPE_NAME, galleryRef: shuffledGalleryRef },
+          "seeded gallery placement count",
+        );
+        if (total !== SHUFFLED_GALLERY_PLACEMENT_COUNT) {
+          throw new Error(`expected ${SHUFFLED_GALLERY_PLACEMENT_COUNT} seeded gallery placements, found ${total}`);
+        }
+        // The adapter's own `staleShuffledOrderCount` aggregate: a non-zero
+        // result here would make the public site serve this gallery as
+        // temporarily unavailable (`ordering-stale`).
+        const stale = await runCountQuery(
+          connection,
+          `count(*[_type == $type && gallery._ref == $galleryRef && !coalesce(pinned, false) && (!defined(shuffledOrder) || shuffledOrderSeed != $seed)])`,
+          {
+            type: GALLERY_PLACEMENT_TYPE_NAME,
+            galleryRef: shuffledGalleryRef,
+            seed: SHUFFLED_GALLERY_SEED,
+          },
+          "seeded gallery stale-key count",
+        );
+        if (stale !== 0) {
+          throw new Error(`${stale} seeded placement(s) do not carry a shuffledOrder for the current seed`);
         }
       },
     },

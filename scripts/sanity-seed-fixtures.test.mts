@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { MAX_CATEGORY_DEPTH as SCHEMA_MAX_CATEGORY_DEPTH } from "@/lib/content-tree";
+import { computeShuffledOrder } from "@/lib/gallery-shuffle";
 import { ARTICLE_TYPE_NAME as SCHEMA_ARTICLE_TYPE_NAME } from "../sanity/schemas/article";
 import { publishedIdOf as schemaPublishedIdOf } from "../sanity/schemas/validation";
 import { CATEGORY_TYPE_NAME as SCHEMA_CATEGORY_TYPE_NAME } from "../sanity/schemas/category";
@@ -38,6 +39,9 @@ import {
   collectSeedIdentities,
   FEATURED_GALLERY_CONTENT_ID,
   FEATURED_GALLERY_PLACEMENT_COUNT,
+  SHUFFLED_GALLERY_CONTENT_ID,
+  SHUFFLED_GALLERY_PLACEMENT_COUNT,
+  SHUFFLED_GALLERY_SEED,
   GALLERY_LANGUAGE,
   orderSeedDocumentsForDeletion,
   GALLERY_PLACEMENT_TYPE_NAME,
@@ -191,10 +195,11 @@ describe("buildSeedFixtures", () => {
     expect(maxDepth).toBe(3);
   });
 
-  it("builds exactly one gallery with sections+body and one with neither", () => {
+  it("exercises both gallery shapes: at least one with sections+body, at least one with neither", () => {
     const { documents } = buildSeedFixtures();
     const galleries = documents.filter((doc) => doc._type === GALLERY_TYPE_NAME);
-    expect(galleries).toHaveLength(2);
+    // featured (both), archive (neither), shuffled (neither, seeded — AB#129).
+    expect(galleries).toHaveLength(3);
 
     const withBoth = galleries.filter((doc) => {
       const sections = doc.sections as readonly unknown[];
@@ -206,8 +211,8 @@ describe("buildSeedFixtures", () => {
       const body = doc.body as readonly unknown[] | undefined;
       return sections.length === 0 && (body?.length ?? 0) === 0;
     });
-    expect(withBoth).toHaveLength(1);
-    expect(withNeither).toHaveLength(1);
+    expect(withBoth.length).toBeGreaterThanOrEqual(1);
+    expect(withNeither.length).toBeGreaterThanOrEqual(1);
   });
 
   it("builds exactly the documented archive placement count", () => {
@@ -233,6 +238,43 @@ describe("buildSeedFixtures", () => {
     expect(featuredPlacements).toHaveLength(FEATURED_GALLERY_PLACEMENT_COUNT);
     const sectionIds = new Set(featuredPlacements.map((doc) => doc.sectionId));
     expect(sectionIds).toEqual(new Set(["high-tide", "low-tide"]));
+  });
+
+  it("builds a seeded-random gallery whose placements are already a consistent generation (AB#129)", () => {
+    const { documents } = buildSeedFixtures();
+    const galleryDoc = documents.find(
+      (doc) => doc._type === GALLERY_TYPE_NAME && doc.contentId === SHUFFLED_GALLERY_CONTENT_ID,
+    );
+    expect(galleryDoc?.orderingRule).toBe("seeded-random");
+    expect(galleryDoc?.orderingSeed).toBe(SHUFFLED_GALLERY_SEED);
+
+    const shuffledGalleryId = seedId("gallery", SHUFFLED_GALLERY_CONTENT_ID, GALLERY_LANGUAGE);
+    const placements = documents.filter(
+      (doc) =>
+        doc._type === GALLERY_PLACEMENT_TYPE_NAME &&
+        (doc.gallery as { readonly _ref?: string } | undefined)?._ref === shuffledGalleryId,
+    );
+    expect(placements).toHaveLength(SHUFFLED_GALLERY_PLACEMENT_COUNT);
+
+    const pinned = placements.filter((doc) => doc.pinned === true);
+    const shuffled = placements.filter((doc) => doc.pinned !== true);
+    expect(pinned).toHaveLength(3);
+    // A pinned lead carries no key; a shuffled item carries the exact HMAC.
+    for (const doc of pinned) {
+      expect(doc.shuffledOrder).toBeUndefined();
+      expect(doc.shuffledOrderSeed).toBeUndefined();
+    }
+    for (const doc of shuffled) {
+      expect(doc.shuffledOrder).toMatch(/^[0-9a-f]{64}$/);
+      expect(doc.shuffledOrderSeed).toBe(SHUFFLED_GALLERY_SEED);
+      // Pins the fixture module's restated HMAC to src/lib/gallery-shuffle.ts.
+      expect(doc.shuffledOrder).toBe(
+        computeShuffledOrder(SHUFFLED_GALLERY_SEED, doc.placementId as string),
+      );
+    }
+    // The fixture is written consistent, so validateSeedFixtures (which checks
+    // every key against HMAC(seed, placementId)) passes with no violation.
+    expect(validateSeedFixtures(documents)).toEqual([]);
   });
 
   it("places the same media document in both galleries under distinct placement ids", () => {
@@ -399,7 +441,9 @@ describe("collectSeedIdentities", () => {
   it("collects every placementId, unchunked, with its expected _id", () => {
     const { documents } = buildSeedFixtures();
     const identities = collectSeedIdentities(documents);
-    expect(identities.placementIds.length).toBe(FEATURED_GALLERY_PLACEMENT_COUNT + ARCHIVE_GALLERY_PLACEMENT_COUNT);
+    expect(identities.placementIds.length).toBe(
+      FEATURED_GALLERY_PLACEMENT_COUNT + ARCHIVE_GALLERY_PLACEMENT_COUNT + SHUFFLED_GALLERY_PLACEMENT_COUNT,
+    );
     expect(identities.placementIds).toContain("archive-0001");
     expect(identities.expectedIdByIdentity.get("placement:archive-0001")).toBe(seedId("placement", "archive-0001"));
   });
@@ -419,7 +463,9 @@ describe("orderSeedDocumentsForDeletion", () => {
     const { documents } = buildSeedFixtures();
     const waves = orderSeedDocumentsForDeletion(documents);
 
-    expect(waves[0].length).toBe(FEATURED_GALLERY_PLACEMENT_COUNT + ARCHIVE_GALLERY_PLACEMENT_COUNT);
+    expect(waves[0].length).toBe(
+      FEATURED_GALLERY_PLACEMENT_COUNT + ARCHIVE_GALLERY_PLACEMENT_COUNT + SHUFFLED_GALLERY_PLACEMENT_COUNT,
+    );
     expect(waves[0].every((doc) => doc._type === "galleryPlacement")).toBe(true);
     expect(waves.slice(1).flat().every((doc) => doc._type !== "galleryPlacement")).toBe(true);
     expect(waves.flat().length).toBe(documents.length);

@@ -19,6 +19,7 @@
     "revalidate:public-cache": "node scripts/revalidate-public-cache.mts",
     "verify:preview": "node scripts/verify-preview-deployment.mts",
     "seed:sanity": "node scripts/seed-sanity-content.mts",
+    "recompute:shuffled-order": "node scripts/recompute-shuffled-order.mts",
     "audit:sanity": "node scripts/audit-sanity-content.mts",
     "verify:sanity-live": "vitest run --config vitest.live.config.mts",
     "verify:sanity-adapters": "vitest run --config vitest.live-adapters.config.mts",

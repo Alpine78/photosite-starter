@@ -235,23 +235,27 @@ AB#129 ships in two PRs (like AB#140): PR1 is the pagination core, the keyed fun
 and the mock fixture; PR2 is the Sanity side (`shuffledOrder` stored field, recompute
 on rotation, GROQ keyset, and lifting the adapter/Studio guards).
 
-1. [~] The keyed deterministic function is done (`src/lib/gallery-shuffle.ts`,
-       `computeShuffledOrder` — HMAC-SHA256 of `placementId` keyed by `orderingSeed`,
-       fixed-width lowercase hex), and the mock fixture materializes it once per
-       gallery build (PR1). The **stored** `shuffledOrder` field on the
-       `galleryPlacement` Sanity schema and the recompute-on-`orderingSeed`-change
-       mechanism are PR2.
+1. [x] The keyed deterministic function is `src/lib/gallery-shuffle.ts`'s
+       `computeShuffledOrder` (HMAC-SHA256 of `placementId` keyed by `orderingSeed`,
+       fixed-width lowercase hex). The mock fixture materializes it once per gallery
+       build (PR1); the `galleryPlacement` Sanity schema stores it as
+       `shuffledOrder` (raw 64-hex) plus a `shuffledOrderSeed` marker, and
+       `npm run recompute:shuffled-order` (PR2) is the recompute-on-rotation
+       mechanism — see the 2026-08-28 amendment below.
 2. [x] `gallery-pagination.ts`'s boundary key is generalized to the tiered
        `(pinnedTier, key, placementId)` triple: `GalleryOrderingBoundary`,
        `GalleryWindowRequest.after`, and the `GalleryCursorCodec` all carry it, with
        the tier recoverable from `key`'s type so `keyset-cursor.ts`'s wire format (and
        the category-listing cursors sharing it) is unchanged and a pre-AB#129 `manual`
        cursor still decodes byte for byte (PR1, pinned by a frozen-cursor test).
-3. [~] For the mock, the seed rides in `GalleryCursorScope.ordering`
-       (`orderingScopeString` → `seeded-random-v1:<seed>`), so it is part of the cursor
-       digest and a reseed fails an in-flight cursor as `wrong-scope` (PR1). Wiring the
-       **Sanity fetch cache** key/tags to `orderingSeed` end to end is PR2, where that
-       cache actually exists.
+3. [x] The seed rides in `GalleryCursorScope.ordering` (`orderingScopeString` →
+       `seeded-random-v1:<seed>`), so it is part of the cursor digest and a reseed
+       fails an in-flight cursor as `wrong-scope` (PR1). On the Sanity side (PR2) the
+       resolved scope string is also passed into the placement-window query as an
+       always-true `$orderingScope` comparison, so the Next fetch-cache key for that
+       query varies by seed; the `basics` query's URL does not change across
+       rotations and is seed-sensitive only through `sanity:galleries` tag
+       invalidation (see the amendment).
 4. [x] AB#114 reads `orderingRule`/`orderingSeed` from the gallery document and composes
        `GalleryCursorScope.ordering` per §4 for both rules, but implements the bounded
        windowed query only for `manual` — a gallery whose `orderingRule` is
@@ -275,3 +279,78 @@ fixture is static.
   choosing and testing the concrete function is AB#129's.
 - **How large a recomputation batch is safe to run inline versus deferred.** Left to AB#129
   to size against whatever store operation actually performs it.
+
+## 2026-08-28 amendment — rotation is a two-step administrator operation
+
+§5 above assumes "changing `orderingSeed` is what rotates the order … it changes every
+non-pinned placement's sort key at once" — i.e. rotation is atomic on publish. With a
+**materialized** `shuffledOrder` field that is not true, and AB#129 PR2 makes the
+two-step nature explicit.
+
+**Storage.** `shuffledOrder` is stored on each `galleryPlacement` as the raw 64-character
+hex `computeShuffledOrder(orderingSeed, placementId)`, alongside `shuffledOrderSeed` (the
+seed that value was computed from). Both are absent on a pinned lead and on every
+placement of a `manual` gallery. Studio marks them read-only; a routine publish is
+allowed (the pre-AB#129 "cannot publish `seeded-random`" block is lifted). Placement-level
+Studio validation blocks only a *structurally impossible* value — a `shuffledOrder`
+present but not 64-hex — never an absent or stale one, since blocking those would deadlock
+an author (the recompute step reads only published placements). It also freezes
+`placementId` once published, because it is the HMAC input: a key would otherwise silently
+point at an old id with no `ordering-stale` signal. GROQ has no hash function, so the
+adapter's stale-count aggregate (below) cannot itself verify `shuffledOrder ==
+HMAC(seed, placementId)`; a key/id mismatch introduced by an API import that bypasses both
+Studio and the seed script's own `validateSeedFixtures` would serve a subtly wrong order
+until the next `npm run recompute:shuffled-order` (whose planner does check the HMAC and
+repatches it). This residual is accepted, not closed.
+
+**Rotation** is: (1) edit `orderingSeed` on the gallery in Studio and publish, then
+(2) run `npm run recompute:shuffled-order -- --gallery <contentId> --language <lang>`.
+The script reads the published gallery and its placements, patches each stale placement
+under `ifRevisionID` (a 409 re-reads that placement and retries, bounded), re-checks the
+gallery's `_rev`/`orderingSeed` before the first and after the last patch (a change
+aborts with "re-run"), and ends with an authoritative `staleShuffledOrderCount == 0`
+query that gates **the command's exit code only**.
+
+**Between the two steps** the gallery's placements carry a mix of `shuffledOrderSeed`
+values. `sanity-gallery.ts`'s `basics` query includes a bounded
+`count(*[… !coalesce(pinned,false) && (!defined(shuffledOrder) || shuffledOrderSeed !=
+^.orderingSeed)])` aggregate; a non-zero result raises `SanityGalleryError
+"ordering-stale"`, re-raised at the `@/lib/gallery` seam as the provider-neutral
+`GalleryOrderingStaleError`. This surfaces in two places, each giving the best answer it
+can: the **detail route** (a Server Component page) renders an accessible "this gallery is
+being reordered" notice — an `<h1>`, a link back to the parent category via the
+breadcrumb, `<meta refresh>` — distinct from the 404 boundary; the **`/api/gallery`
+continuation endpoint** (a Route Handler) returns a genuine `503 Service Unavailable` +
+`Retry-After: 120`. Both refuse the cursor/section validation path first, so a bad token
+still 404s during a rotation. This is strictly smaller than the pre-AB#129 refusal, which
+rejected a `seeded-random` gallery entirely.
+
+**Named limitation — the *detail route* state is HTTP 200, not 503.** The correct status
+is `503 Service Unavailable` + `Retry-After`, and the continuation endpoint gives exactly
+that. An App Router *page* render cannot (`next/navigation` exposes only
+`notFound()`/`redirect()`; an `error.tsx` still responds 200; the Proxy runs before the
+page and does no content read), so the detail route ships the accessible 200 body with
+`robots: noindex` metadata and a client `<meta refresh>`. A crawler or an HTTP cache
+cannot tell that page apart from a normal one by status code alone. A follow-up may route
+the gallery detail response through a handler for a real 503 (tracked with AB#132's
+status-code limitation).
+
+**Recovery is the adapter's, not the command's.** A visitor's request serves normally
+again as a pure function of two things it observes directly: (1) the bounded
+`staleShuffledOrderCount` aggregate reads zero (true once the last placement patch
+lands), and (2) the cached `basics` fetch has been invalidated — every `galleryPlacement`
+patch and the `gallery` seed edit both fan out to the `sanity:galleries` cache tag. The
+adapter keeps no sticky flag. The recompute command's final consistency query is the
+operator's "done" signal, not a gate on the read path; a request can recover slightly
+before or after the command finishes.
+
+**AC3 clarified.** "The seed rotates on a defined schedule owned by the deployment"
+means an **administrator-defined cadence** — an ordinary authoring act — not an
+infrastructure-owned cron. PR2 adds no scheduler (consistent with §5's "there is no
+separate infrastructure-owned rotation clock").
+
+**Migration trigger — `shuffledOrderGeneration` atomic flip.** If the `ordering-stale`
+window during recompute ever becomes unacceptable, stage new keys under a
+`shuffledOrderGeneration` integer and switch a single active-generation pointer
+atomically. This changes only the field set and the script, not the read-path contract;
+it is not built now.

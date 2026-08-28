@@ -40,7 +40,7 @@ into a Sanity dataset over the plain HTTP mutate/asset-upload API. It is:
 
 ### What it writes
 
-One run creates 448 documents, all deliberately built from the six real,
+One run creates 474 documents, all deliberately built from the six real,
 already-vetted, non-personal demo photographs in `public/gallery/` — no other
 image bytes are ever uploaded, and one photograph legitimately backs many
 documents, the same way ADR-0002 describes a real archive working:
@@ -53,23 +53,30 @@ documents, the same way ADR-0002 describes a real archive working:
 | `homePage` | 1 | The other published singleton |
 | `service` | 3 | Portrait sessions, wedding coverage, fine art prints |
 | `article` | 3 | One page authored in both `fi` and `en`, one `fi` only — demonstrating ADR-0003 decision 7's independent per-language publication |
-| `gallery` | 2 | `featured` (2 sections, a body) and `archive` (neither) — see below |
-| `galleryPlacement` | 426 | 26 in `featured` across its two sections, 400 in `archive` |
+| `gallery` | 3 | `featured` (2 sections, a body), `archive` (neither), `shuffled` (seeded-random) — see below |
+| `galleryPlacement` | 451 | 26 in `featured` across its two sections, 400 in `archive`, 25 in `shuffled` |
 
-The two galleries are deliberately built to exercise different parts of the
+The three galleries are deliberately built to exercise different parts of the
 gallery schema at once:
 
 - **`featured`** has two named sections (`high-tide`, `low-tide`) and a body
   (paragraph, heading, list, quote, and a media block) — the "sections and
-  body" half of this story's acceptance criteria.
+  body" half of AB#105/AB#106's acceptance criteria.
 - **`archive`** has neither, and its 400 placements are the "roughly
   400-placement fixture" half — enough to exercise
   `src/lib/sanity-gallery.ts`'s keyset-paginated read across several pages,
   not just its first one.
+- **`shuffled`** (AB#129) is a `seeded-random` gallery: 3 pinned leads plus 22
+  non-pinned placements, each of the 22 carrying a `shuffledOrder` key
+  pre-computed from the fixture's own `orderingSeed`. It is written already
+  consistent — every non-pinned placement's `shuffledOrderSeed` matches the
+  gallery seed — so it serves immediately, with no `recompute:shuffled-order`
+  pass needed. `verify:sanity-live` walks its materialized tiered order (pinned
+  leads by `order`, then the rest by `shuffledOrder`).
 - One photograph (from the shared 6-item pool) has a placement in **both**
-  galleries, under two different `placementId`s — proving a single `media`
-  document keeps one identity while appearing in two curated placements
-  (ADR-0002).
+  `featured` and `archive`, under two different `placementId`s — proving a
+  single `media` document keeps one identity while appearing in two curated
+  placements (ADR-0002).
 
 ### Locales
 
@@ -123,12 +130,14 @@ variables:
 ### Dry run is the default, on purpose
 
 `--yes` is the only thing that makes a network call. Without it, the script
-builds the full 448-document fixture set, runs every structural invariant
+builds the full 474-document fixture set, runs every structural invariant
 check it knows about (`validateSeedFixtures` in `sanity-seed-fixtures.mts` —
 unique ids, every reference resolving to the right document type, no cycle in
-the category tree, exactly one gallery with sections *and* a body and one
-with neither, exactly 400 archive placements, the shared-media invariant, and
-more), prints a per-type count, and lists the six demo photograph files it
+the category tree, at least one gallery with sections *and* a body and at
+least one with neither, exactly 400 archive placements, every seeded-random
+placement's `shuffledOrder` matching `HMAC(seed, placementId)`, the
+shared-media invariant, and more), prints a per-type count, and lists the six
+demo photograph files it
 found in `public/gallery/`. That is everything worth checking before you ever
 touch a real project, and none of it needs a credential.
 
@@ -208,7 +217,7 @@ unused, and the report alone is often all you need.
    format/mime-type agreement) before it is trusted, even though these six
    files are already known-good — the only check available for a write that
    goes around the Studio entirely.
-3. **Write.** All 448 documents are sent as `createOrReplace` mutations, in
+3. **Write.** All 474 documents are sent as `createOrReplace` mutations, in
    batches (a self-chosen, conservative size — not a documented Sanity limit —
    so one request stays small and one failure is cheap to diagnose), ordered
    categories → media → settings/home/services/articles/galleries →
@@ -498,7 +507,7 @@ shapes:
   content already existed before this run, or an unrelated document type
   was left by something else — stop and investigate rather than proceeding.
 - **`seedTotal` must equal the fixture's own reported document count**
-  (the number the dry run prints as `Fixture set: N documents`, 448 as of
+  (the number the dry run prints as `Fixture set: N documents`, 474 as of
   this fixture revision). This query's `!(_id match "seed--*")` predicate
   cannot see a *stale* `seed--` document — one an earlier fixture revision
   wrote that the current manifest no longer includes — because it is still
@@ -580,6 +589,57 @@ shapes:
 6. Treat *Going live: removing the sample content* above as mandatory before
    real customer content is authored against the same dataset, exactly as it
    already is for Preview.
+
+## Rotating a seeded-random gallery's order (AB#129)
+
+A gallery whose `orderingRule` is `seeded-random` (ADR-0009) has a per-placement
+`shuffledOrder` key that is **materialized**, not computed on the read path.
+Changing the gallery's `orderingSeed` in Studio does not, on its own, re-shuffle
+anything — it only marks every existing key stale. Rotation is two steps:
+
+```bash
+# 1. In Studio: edit `orderingSeed` on the gallery document and Publish.
+
+# 2. Materialize the new keys (owner-run, same credential story as seeding):
+export SANITY_SEED_TOKEN=...   # Editor-role, write-scoped — never SANITY_READ_TOKEN
+npm run recompute:shuffled-order -- \
+  --project <id> --dataset <name> --api-version v2026-06-24 \
+  --gallery <contentId> --language <lang> --yes
+```
+
+- `--gallery` and `--language` are **both required**. One `contentId` can have a
+  document per language (ADR-0008); an ambiguous or absent match aborts rather
+  than guessing.
+- Without `--yes` it is a **dry run**: it reads, prints how many placements would
+  change, and writes nothing.
+- **Resolve outstanding drafts first.** The command patches only *published*
+  documents, so if the gallery (`drafts.<id>`) or any of its placements has an
+  unpublished Studio draft, the command refuses to run — publishing that draft
+  afterwards would overwrite the corrected document. It re-checks for drafts as
+  part of the final gate too, so a draft created *during* the run also fails the
+  command. Publish or discard the drafts, then re-run.
+- With `--yes` it patches each stale placement under `ifRevisionID` (an editor
+  touching a placement mid-run causes a bounded retry, or an abort if the
+  placement's id or pinned flag changed), re-checks the gallery's revision, rule,
+  and seed **before the first and after the last** patch, and ends with an
+  authoritative "every placement is consistent" query — which runs even when the
+  initial plan had zero patches. Any of those checks failing exits non-zero; re-run.
+- **Between step 1 and a successful step 2, the public site serves that gallery
+  as an accessible "this gallery is being reordered" state** (`SanityGalleryError
+  "ordering-stale"`), not a mis-paginated one — an HTTP 200 page on the detail
+  route, an HTTP 503 + `Retry-After` from the `/api/gallery` continuation
+  endpoint. It recovers on its own — no further action — once step 2's placement
+  writes invalidate the `sanity:galleries` cache tag (the same webhook path AB#83
+  already wires). The command's final check is the operator's "done" signal; it
+  does not gate that recovery.
+
+Known limitation: on the *detail route* that state is HTTP 200 with `noindex`,
+not `503` — an App Router page render cannot set an arbitrary status (the
+continuation endpoint, a Route Handler, does return a real 503). See ADR-0009's
+2026-08-28 amendment.
+
+The seed fixture's own `shuffled` gallery (above) is written already consistent,
+so a fresh `npm run seed:sanity` never needs a recompute pass.
 
 ## Content audit (AB#138)
 

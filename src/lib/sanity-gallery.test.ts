@@ -25,6 +25,7 @@ import {
   galleryType,
   ORDERING_RULES,
   MAX_GALLERY_SECTIONS as SCHEMA_MAX_GALLERY_SECTIONS,
+  MAX_ORDERING_SEED_LENGTH as SCHEMA_MAX_ORDERING_SEED_LENGTH,
   MAX_SECTION_ID_LENGTH as SCHEMA_MAX_SECTION_ID_LENGTH,
   MAX_SECTION_LABEL_LENGTH as SCHEMA_MAX_SECTION_LABEL_LENGTH,
   MAX_SECTION_SLUG_LENGTH as SCHEMA_MAX_SECTION_SLUG_LENGTH,
@@ -48,12 +49,16 @@ import {
   MAX_SECTION_ID_LENGTH,
   MAX_SPANS_PER_BLOCK,
   MAX_SPAN_TEXT_LENGTH,
+  UnknownGallerySectionError,
 } from "@/lib/gallery-sections";
 import {
   createHmacGalleryCursorCodec,
+  GalleryCursorError,
+  MAX_GALLERY_ORDERING_SEED_LENGTH,
   MAX_ITEM_ID_LENGTH,
   MAX_SCOPE_FIELD_LENGTH,
 } from "@/lib/gallery-pagination";
+import { computeShuffledOrder } from "@/lib/gallery-shuffle";
 import type { CuratedGalleryResultItem } from "@/lib/gallery-result";
 import type { SanityClient, SanityQueryRequest } from "@/lib/sanity-client";
 import type { SanityConfig } from "@/lib/sanity-config";
@@ -455,7 +460,64 @@ describe("readSanityCuratedGalleryPage", () => {
     readonly sectionId?: string;
     readonly visible: boolean;
     readonly media: RawPublicMediaDocument;
+    readonly pinned?: boolean;
+    readonly shuffledOrder?: string;
+    readonly shuffledOrderSeed?: string;
   };
+
+  const SEEDED_SEED = "test-shuffle-seed-2026";
+
+  /**
+   * A seeded-random fixture gallery: `pinnedCount` pinned leads (order 0..n),
+   * then `shuffledCount` non-pinned placements each carrying a real
+   * `computeShuffledOrder(seed, placementId)` key. Small `order`s on the
+   * shuffled rows are inert — the shuffle decides their sequence.
+   */
+  function buildSeededGallery(options: {
+    readonly pinnedCount: number;
+    readonly shuffledCount: number;
+    readonly seed?: string;
+  }): readonly FixturePlacement[] {
+    const seed = options.seed ?? SEEDED_SEED;
+    const pinned = Array.from({ length: options.pinnedCount }, (_u, i) => ({
+      placementId: `shuffled-pin-${String(i + 1).padStart(3, "0")}`,
+      order: i,
+      visible: true,
+      media: mediaDocumentOf({ mediaId: `media-pin-${i + 1}` }),
+      pinned: true,
+    }));
+    const shuffled = Array.from({ length: options.shuffledCount }, (_u, i) => {
+      const placementId = `shuffled-item-${String(i + 1).padStart(3, "0")}`;
+      return {
+        placementId,
+        order: options.pinnedCount + i,
+        visible: true,
+        media: mediaDocumentOf({ mediaId: `media-item-${i + 1}` }),
+        pinned: false,
+        shuffledOrder: computeShuffledOrder(seed, placementId),
+        shuffledOrderSeed: seed,
+      };
+    });
+    return [...pinned, ...shuffled];
+  }
+
+  /** The tiered order a seeded fixture should walk in (ADR-0009 §3). */
+  function expectedSeededSequence(
+    placements: readonly FixturePlacement[],
+  ): readonly string[] {
+    const cmpId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+    const pinned = placements
+      .filter((p) => p.pinned === true && p.visible)
+      .toSorted((a, b) => a.order - b.order || cmpId(a.placementId, b.placementId));
+    const rest = placements
+      .filter((p) => p.pinned !== true && p.visible)
+      .toSorted(
+        (a, b) =>
+          cmpId(a.shuffledOrder ?? "", b.shuffledOrder ?? "") ||
+          cmpId(a.placementId, b.placementId),
+      );
+    return [...pinned, ...rest].map((p) => p.placementId);
+  }
 
   function buildLargeArchive(): readonly FixturePlacement[] {
     return Array.from({ length: LARGE_ARCHIVE_SIZE }, (_unused, index) => {
@@ -485,11 +547,15 @@ describe("readSanityCuratedGalleryPage", () => {
     readonly placements: readonly FixturePlacement[];
     readonly sections?: readonly { readonly sectionId: string; readonly slug: string; readonly label: string }[];
     readonly orderingRule?: string;
+    readonly orderingSeed?: string;
     readonly contentId?: string;
+    /** Overrides the computed `staleShuffledOrderCount` (for the ordering-stale path). */
+    readonly staleShuffledOrderCount?: number;
   }): { readonly client: SanityClient; readonly requests: SanityQueryRequest[] } {
     const requests: SanityQueryRequest[] = [];
     const galleryContentId = options.contentId ?? CONTENT_ID;
     const galleryDocumentId = `gallery-doc-${galleryContentId}`;
+    const seed = options.orderingSeed;
 
     const toRow = (placement: FixturePlacement) => ({
       placementId: placement.placementId,
@@ -498,8 +564,24 @@ describe("readSanityCuratedGalleryPage", () => {
       visible: placement.visible,
       altOverride: null,
       captionOverride: null,
+      pinned: placement.pinned === true,
+      shuffledOrder: placement.shuffledOrder ?? null,
+      shuffledOrderSeed: placement.shuffledOrderSeed ?? null,
       media: placement.media,
     });
+
+    // Only meaningful for a seeded gallery — the adapter reads it only when
+    // `ordering.kind === "seeded-random"`.
+    const computedStaleCount =
+      seed === undefined
+        ? 0
+        : options.placements.filter(
+            (p) =>
+              p.pinned !== true &&
+              (p.shuffledOrder === undefined || p.shuffledOrderSeed !== seed),
+          ).length;
+
+    const cmpId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
     const client: SanityClient = {
       async query(request) {
@@ -514,12 +596,15 @@ describe("readSanityCuratedGalleryPage", () => {
             {
               _id: galleryDocumentId,
               orderingRule: options.orderingRule ?? "manual",
+              ...(seed === undefined ? {} : { orderingSeed: seed }),
               sections: (options.sections ?? []).map((section) => ({
                 sectionId: section.sectionId,
                 slug: section.slug,
                 label: section.label,
               })),
               latestPlacementUpdatedAt: "2026-01-01T00:00:00.000Z",
+              staleShuffledOrderCount:
+                options.staleShuffledOrderCount ?? computedStaleCount,
             },
           ];
         }
@@ -528,6 +613,7 @@ describe("readSanityCuratedGalleryPage", () => {
           const sectionId = params.sectionId as string | undefined;
           const candidateLimit = params.candidateLimit as number;
           const afterOrder = params.afterOrder as number | undefined;
+          const afterShuffledOrder = params.afterShuffledOrder as string | undefined;
           const afterPlacementId = params.afterPlacementId as string | undefined;
 
           const matching =
@@ -539,6 +625,57 @@ describe("readSanityCuratedGalleryPage", () => {
                     placement.media.publiclyRenderable === true &&
                     (sectionId === undefined || placement.sectionId === sectionId),
                 );
+
+          // --- seeded-random: two-lane query shape ({boundary, pinnedLane, shuffledLane}) ---
+          if (options.orderingRule === "seeded-random") {
+            const pinnedSorted = matching
+              .filter((p) => p.pinned === true)
+              .toSorted((a, b) => a.order - b.order || cmpId(a.placementId, b.placementId));
+            const shuffledSorted = matching
+              .filter((p) => p.pinned !== true)
+              .toSorted(
+                (a, b) =>
+                  cmpId(a.shuffledOrder ?? "", b.shuffledOrder ?? "") ||
+                  cmpId(a.placementId, b.placementId),
+              );
+
+            const boundary =
+              afterPlacementId === undefined
+                ? null
+                : (matching.find((p) => p.placementId === afterPlacementId) ?? null);
+
+            let pinnedLane: readonly FixturePlacement[];
+            let shuffledLane: readonly FixturePlacement[];
+            if (afterPlacementId === undefined) {
+              pinnedLane = pinnedSorted;
+              shuffledLane = shuffledSorted;
+            } else if (afterShuffledOrder !== undefined) {
+              // tier 1 boundary: no pinned rows after, only shuffled strictly after
+              pinnedLane = [];
+              shuffledLane = shuffledSorted.filter(
+                (p) =>
+                  (p.shuffledOrder ?? "") > afterShuffledOrder ||
+                  ((p.shuffledOrder ?? "") === afterShuffledOrder &&
+                    p.placementId > afterPlacementId),
+              );
+            } else {
+              // tier 0 boundary: pinned strictly after, plus every shuffled row
+              pinnedLane = pinnedSorted.filter(
+                (p) =>
+                  p.order > (afterOrder as number) ||
+                  (p.order === afterOrder && p.placementId > afterPlacementId),
+              );
+              shuffledLane = shuffledSorted;
+            }
+
+            return {
+              boundary: boundary === null ? null : toRow(boundary),
+              pinnedLane: pinnedLane.slice(0, candidateLimit).map(toRow),
+              shuffledLane: shuffledLane.slice(0, candidateLimit).map(toRow),
+            };
+          }
+
+          // --- manual: unchanged single-lane query ---
           const sorted = matching.toSorted(
             (a, b) => a.order - b.order || (a.placementId < b.placementId ? -1 : a.placementId > b.placementId ? 1 : 0),
           );
@@ -701,10 +838,17 @@ describe("readSanityCuratedGalleryPage", () => {
     expect(page?.items.map((item) => item.itemId)).toEqual(["visible-01", "visible-02"]);
   });
 
-  it("throws a defined, loud error for a seeded-random gallery rather than mis-paginating it", async () => {
+  it("both manual and seeded-random are accepted rules the Studio no longer blocks (AB#129 PR2)", async () => {
+    for (const rule of ORDERING_RULES) {
+      expect(await runOrderingRuleValidation(rule)).toBe(true);
+    }
+  });
+
+  it("rejects a seeded-random gallery with no usable orderingSeed as a content defect", async () => {
     const { client } = fakeGalleryStore({
-      placements: buildLargeArchive().slice(0, 5),
+      placements: buildSeededGallery({ pinnedCount: 1, shuffledCount: 2 }),
       orderingRule: "seeded-random",
+      // no orderingSeed
     });
     const error = await readSanityCuratedGalleryPage("en", CONTENT_ID, {
       client,
@@ -712,32 +856,22 @@ describe("readSanityCuratedGalleryPage", () => {
       cursorCodec: testCursorCodec,
     }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(SanityGalleryError);
-    expect((error as SanityGalleryError).rejection).toBe("ordering-not-implemented");
+    expect((error as SanityGalleryError).rejection).toBe("malformed-result");
   });
 
-  it("ties Studio's seeded-random publish block to the runtime refusal: every ORDERING_RULES value the schema doesn't accept is exactly the one the adapter refuses to serve", async () => {
-    for (const rule of ORDERING_RULES) {
-      const studioResult = await runOrderingRuleValidation(rule);
-
-      if (rule === "manual") {
-        expect(studioResult).toBe(true);
-        continue;
-      }
-
-      expect(studioResult).not.toBe(true);
-
-      const { client } = fakeGalleryStore({
-        placements: buildLargeArchive().slice(0, 1),
-        orderingRule: rule,
-      });
-      const error = await readSanityCuratedGalleryPage("en", CONTENT_ID, {
-        client,
-        config,
-        cursorCodec: testCursorCodec,
-      }).catch((caught: unknown) => caught);
-      expect(error).toBeInstanceOf(SanityGalleryError);
-      expect((error as SanityGalleryError).rejection).toBe("ordering-not-implemented");
-    }
+  it("rejects a seeded-random gallery whose orderingSeed has surrounding whitespace (used verbatim everywhere)", async () => {
+    const { client } = fakeGalleryStore({
+      placements: buildSeededGallery({ pinnedCount: 1, shuffledCount: 2, seed: " padded " }),
+      orderingRule: "seeded-random",
+      orderingSeed: " padded ",
+    });
+    const error = await readSanityCuratedGalleryPage("en", CONTENT_ID, {
+      client,
+      config,
+      cursorCodec: testCursorCodec,
+    }).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(SanityGalleryError);
+    expect((error as SanityGalleryError).rejection).toBe("malformed-result");
   });
 
   it("reads the placement projection from the same document type the schema declares", () => {
@@ -788,6 +922,222 @@ describe("readSanityCuratedGalleryPage", () => {
     }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(SanityGalleryError);
     expect((error as SanityGalleryError).rejection).toBe("ambiguous-content-id");
+  });
+
+  // --- Seeded-random ordering (AB#129 PR2, ADR-0009) ---
+
+  const readSeededPage = (
+    client: SanityClient,
+    cursor?: string,
+  ) =>
+    readSanityCuratedGalleryPage("en", CONTENT_ID, {
+      client,
+      config,
+      cursorCodec: testCursorCodec,
+      ...(cursor === undefined ? {} : { cursor }),
+    });
+
+  async function walkSeeded(client: SanityClient): Promise<readonly string[]> {
+    const ids: string[] = [];
+    let cursor: string | undefined;
+    for (let guard = 0; guard < 100; guard += 1) {
+      const page = await readSeededPage(client, cursor);
+      expect(page).toBeDefined();
+      if (page === undefined) break;
+      expect(page.items.length).toBeLessThanOrEqual(page.page.size);
+      ids.push(...page.items.map((item) => item.itemId));
+      if (!page.page.hasNextPage) break;
+      cursor = page.page.endCursor ?? undefined;
+    }
+    return ids;
+  }
+
+  it("walks a seeded gallery in the tiered order (pinned by manual order, then by shuffledOrder) with every placement exactly once", async () => {
+    const placements = buildSeededGallery({ pinnedCount: 3, shuffledCount: 60 });
+    const { client } = fakeGalleryStore({
+      placements,
+      orderingRule: "seeded-random",
+      orderingSeed: SEEDED_SEED,
+    });
+    const walked = await walkSeeded(client);
+    expect(walked).toEqual(expectedSeededSequence(placements));
+    expect(new Set(walked).size).toBe(placements.length);
+    expect(walked.slice(0, 3)).toEqual([
+      "shuffled-pin-001",
+      "shuffled-pin-002",
+      "shuffled-pin-003",
+    ]);
+  });
+
+  it("exercises a pinned-tier continuation boundary (more pinned leads than one page)", async () => {
+    // GALLERY_PAGE_SIZE pinned + a few, so page 1's endCursor names a pinned
+    // boundary and page 2's query uses the `after.pinnedTier === 0` branch.
+    const placements = buildSeededGallery({
+      pinnedCount: GALLERY_PAGE_SIZE + 5,
+      shuffledCount: 10,
+    });
+    const { client, requests } = fakeGalleryStore({
+      placements,
+      orderingRule: "seeded-random",
+      orderingSeed: SEEDED_SEED,
+    });
+    const walked = await walkSeeded(client);
+    expect(walked).toEqual(expectedSeededSequence(placements));
+
+    // The second window request carried a numeric (pinned-tier) boundary.
+    const windowRequests = requests.filter((r) => r.tag === "gallery.placements.window");
+    expect(windowRequests.length).toBeGreaterThanOrEqual(2);
+    expect(typeof windowRequests[1]?.params?.afterOrder).toBe("number");
+    expect(windowRequests[1]?.params).not.toHaveProperty("afterShuffledOrder");
+  });
+
+  it("continues from a shuffled-tier boundary using the shuffledOrder keyset", async () => {
+    const placements = buildSeededGallery({ pinnedCount: 2, shuffledCount: 40 });
+    const { client, requests } = fakeGalleryStore({
+      placements,
+      orderingRule: "seeded-random",
+      orderingSeed: SEEDED_SEED,
+    });
+    await walkSeeded(client);
+    const windowRequests = requests.filter((r) => r.tag === "gallery.placements.window");
+    // The second page's boundary is a shuffled item (only 2 pinned, page size 24).
+    expect(typeof windowRequests[1]?.params?.afterShuffledOrder).toBe("string");
+  });
+
+  it("passes the seed into the window request as $orderingScope so the fetch cache key varies by seed", async () => {
+    const { client, requests } = fakeGalleryStore({
+      placements: buildSeededGallery({ pinnedCount: 1, shuffledCount: 3 }),
+      orderingRule: "seeded-random",
+      orderingSeed: SEEDED_SEED,
+    });
+    await readSeededPage(client);
+    const windowRequest = requests.find((r) => r.tag === "gallery.placements.window");
+    expect(windowRequest?.params?.orderingScope).toBe(`seeded-random-v1:${SEEDED_SEED}`);
+    expect(windowRequest?.query).toContain("$orderingScope == $orderingScope");
+  });
+
+  it("does not add $orderingScope for a manual gallery", async () => {
+    const { client, requests } = fakeGalleryStore({ placements: buildLargeArchive() });
+    await readPage(client);
+    const windowRequest = requests.find((r) => r.tag === "gallery.placements.window");
+    expect(windowRequest?.params).not.toHaveProperty("orderingScope");
+  });
+
+  it("serves ordering-stale when the basics count reports placements on a wrong/absent seed", async () => {
+    const { client } = fakeGalleryStore({
+      placements: buildSeededGallery({ pinnedCount: 1, shuffledCount: 3 }),
+      orderingRule: "seeded-random",
+      orderingSeed: SEEDED_SEED,
+      staleShuffledOrderCount: 2,
+    });
+    const error = await readSeededPage(client).catch((c: unknown) => c);
+    expect(error).toBeInstanceOf(SanityGalleryError);
+    expect((error as SanityGalleryError).rejection).toBe("ordering-stale");
+  });
+
+  it("still 404s a malformed cursor during a rotation window, rather than returning the reordering page", async () => {
+    const { client } = fakeGalleryStore({
+      placements: buildSeededGallery({ pinnedCount: 1, shuffledCount: 3 }),
+      orderingRule: "seeded-random",
+      orderingSeed: SEEDED_SEED,
+      staleShuffledOrderCount: 5,
+    });
+    const error = await readSeededPage(client, "not-a-real-cursor").catch((c: unknown) => c);
+    // The cursor is validated before the ordering-stale short-circuit.
+    expect(error).toBeInstanceOf(GalleryCursorError);
+  });
+
+  it("still 404s an unknown section during a rotation window", async () => {
+    const { client } = fakeGalleryStore({
+      placements: buildSeededGallery({ pinnedCount: 1, shuffledCount: 3 }),
+      orderingRule: "seeded-random",
+      orderingSeed: SEEDED_SEED,
+      sections: [{ sectionId: "real", slug: "real", label: "Real" }],
+      staleShuffledOrderCount: 5,
+    });
+    const error = await readSanityCuratedGalleryPage("en", CONTENT_ID, {
+      client,
+      config,
+      cursorCodec: testCursorCodec,
+      sectionSlug: "does-not-exist",
+    }).catch((c: unknown) => c);
+    expect(error).toBeInstanceOf(UnknownGallerySectionError);
+  });
+
+  it("holds no sticky state — recovers on the next read once the stale count is zero", async () => {
+    // First: a store that reports a non-zero stale count -> throws.
+    const stale = fakeGalleryStore({
+      placements: buildSeededGallery({ pinnedCount: 1, shuffledCount: 3 }),
+      orderingRule: "seeded-random",
+      orderingSeed: SEEDED_SEED,
+      staleShuffledOrderCount: 1,
+    });
+    await expect(readSeededPage(stale.client)).rejects.toMatchObject({
+      rejection: "ordering-stale",
+    });
+
+    // Then: a fresh store (post-recompute, count now zero) -> serves normally.
+    // The adapter kept no flag from the failed read; recovery is purely a
+    // function of the basics aggregate, not any command signal.
+    const recovered = fakeGalleryStore({
+      placements: buildSeededGallery({ pinnedCount: 1, shuffledCount: 3 }),
+      orderingRule: "seeded-random",
+      orderingSeed: SEEDED_SEED,
+      staleShuffledOrderCount: 0,
+    });
+    const page = await readSeededPage(recovered.client);
+    expect(page?.items.map((i) => i.itemId)[0]).toBe("shuffled-pin-001");
+  });
+
+  it("raises ordering-stale (defense in depth) if a returned row's shuffledOrderSeed is wrong despite a clean count", async () => {
+    const placements = buildSeededGallery({ pinnedCount: 1, shuffledCount: 3 }).map(
+      (p, i) =>
+        i === 2 ? { ...p, shuffledOrderSeed: "some-other-seed" } : p,
+    );
+    const { client } = fakeGalleryStore({
+      placements,
+      orderingRule: "seeded-random",
+      orderingSeed: SEEDED_SEED,
+      staleShuffledOrderCount: 0, // aggregate lies / lags; per-row check still catches it
+    });
+    const error = await readSeededPage(client).catch((c: unknown) => c);
+    expect(error).toBeInstanceOf(SanityGalleryError);
+    expect((error as SanityGalleryError).rejection).toBe("ordering-stale");
+  });
+
+  it("raises ordering-stale for a whitespace-padded shuffledOrder rather than trimming it to a boundary the store would not agree with", async () => {
+    const clean = buildSeededGallery({ pinnedCount: 1, shuffledCount: 3 });
+    const padded = clean.map((p, i) =>
+      i === 2 && p.shuffledOrder !== undefined
+        ? { ...p, shuffledOrder: ` ${p.shuffledOrder} ` }
+        : p,
+    );
+    const { client } = fakeGalleryStore({
+      placements: padded,
+      orderingRule: "seeded-random",
+      orderingSeed: SEEDED_SEED,
+      staleShuffledOrderCount: 0,
+    });
+    const error = await readSeededPage(client).catch((c: unknown) => c);
+    expect(error).toBeInstanceOf(SanityGalleryError);
+    expect((error as SanityGalleryError).rejection).toBe("ordering-stale");
+  });
+
+  it("produces a different walk order for a different seed", async () => {
+    const a = buildSeededGallery({ pinnedCount: 2, shuffledCount: 30, seed: "seed-a" });
+    const b = buildSeededGallery({ pinnedCount: 2, shuffledCount: 30, seed: "seed-b" });
+    const walkA = await walkSeeded(
+      fakeGalleryStore({ placements: a, orderingRule: "seeded-random", orderingSeed: "seed-a" }).client,
+    );
+    const walkB = await walkSeeded(
+      fakeGalleryStore({ placements: b, orderingRule: "seeded-random", orderingSeed: "seed-b" }).client,
+    );
+    expect([...walkA].sort()).toEqual([...walkB].sort());
+    expect(walkA).not.toEqual(walkB);
+  });
+
+  it("pins the schema's restated ordering-seed length ceiling to the runtime constant", () => {
+    expect(SCHEMA_MAX_ORDERING_SEED_LENGTH).toBe(MAX_GALLERY_ORDERING_SEED_LENGTH);
   });
 });
 

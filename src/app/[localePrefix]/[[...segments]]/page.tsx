@@ -34,9 +34,11 @@ import {
 } from "@/lib/deployment-config";
 import {
   GalleryCursorError,
+  GalleryOrderingStaleError,
   UnknownGallerySectionError,
   getGalleryPage,
 } from "@/lib/gallery";
+import { GalleryReorderingNotice } from "@/components/gallery-reordering-notice";
 import { buildGalleryHref } from "@/lib/gallery-slice";
 import { projectGallerySlice } from "@/lib/gallery-slice-server";
 import type { GallerySectionSummary } from "@/lib/gallery-sections";
@@ -233,6 +235,14 @@ async function categoryListingCursorNamesASlice(
  * particular slice, and serving a different one under it would be a claim a
  * crawler then indexes.
  */
+/**
+ * Sentinel: a seeded-random gallery mid-recompute (AB#129). Distinct from
+ * `undefined` (which means 404): the gallery exists and is temporarily
+ * unavailable, so the route renders `GalleryReorderingNotice`, not `notFound()`.
+ * Metadata and the existence probes treat it as "the gallery exists".
+ */
+const GALLERY_ORDERING_STALE = Symbol("gallery-ordering-stale");
+
 async function resolveGalleryPage(
   locale: string,
   contentId: string,
@@ -247,6 +257,9 @@ async function resolveGalleryPage(
       error instanceof UnknownGallerySectionError
     ) {
       return undefined;
+    }
+    if (error instanceof GalleryOrderingStaleError) {
+      return GALLERY_ORDERING_STALE;
     }
     throw error;
   }
@@ -440,6 +453,11 @@ export async function generateMetadata(
   if (page?.variant === "gallery" && galleryResult === undefined) {
     return {};
   }
+  // A seeded-random gallery mid-recompute (AB#129): the page renders a
+  // transient notice, so it must not be indexed under its canonical URL.
+  if (page?.variant === "gallery" && galleryResult === GALLERY_ORDERING_STALE) {
+    return { robots: { index: false, follow: false } };
+  }
 
   const path = buildStoryPath(config, locale, getStoryRoutePath(tree, route));
   const localeVersions = listRouteVersions(config, trees, route);
@@ -474,7 +492,7 @@ export async function generateMetadata(
   }
 
   const activeSection =
-    galleryResult === undefined
+    galleryResult === undefined || galleryResult === GALLERY_ORDERING_STALE
       ? undefined
       : resolveActiveSection(galleryResult.sections, resolution.section);
 
@@ -563,6 +581,26 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
         // carried (ADR-0007), and shows it only when a cursor or an unknown
         // section was refused.
         notFound();
+      }
+
+      if (result === GALLERY_ORDERING_STALE) {
+        // A seeded-random gallery whose order is being recomputed after a seed
+        // change (AB#129, ADR-0009 amendment). Transient and retryable, not a
+        // 404: render an accessible notice with the way back and let the
+        // browser retry. `generateMetadata` marks this `noindex`.
+        return (
+          <GalleryReorderingNotice
+            labels={labels}
+            breadcrumbs={buildBreadcrumbs(
+              config,
+              tree,
+              locale,
+              route,
+              labels,
+              page.title,
+            )}
+          />
+        );
       }
 
       // Resolved from the catalog every slice carries, not from

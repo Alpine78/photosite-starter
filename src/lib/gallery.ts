@@ -16,10 +16,14 @@
 import { dispatchContentSource } from "@/lib/content-source";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import { galleryCursorCodec } from "@/lib/gallery-cursor";
+import { GalleryOrderingStaleError } from "@/lib/gallery-pagination";
 import type { CuratedGalleryPage } from "@/lib/gallery-sections";
 import { getMockGalleryResult } from "@/lib/mock-gallery";
 
-export { GalleryCursorError } from "@/lib/gallery-pagination";
+export {
+  GalleryCursorError,
+  GalleryOrderingStaleError,
+} from "@/lib/gallery-pagination";
 export { UnknownGallerySectionError } from "@/lib/gallery-sections";
 
 /**
@@ -63,7 +67,22 @@ export async function getGalleryPage(
       const { readSanityCuratedGalleryPage } = await import(
         "@/lib/sanity-gallery"
       );
-      return readSanityCuratedGalleryPage(locale, contentId, options);
+      try {
+        return await readSanityCuratedGalleryPage(locale, contentId, options);
+      } catch (error) {
+        // Re-raise the Sanity adapter's classified `ordering-stale` as the
+        // provider-neutral `GalleryOrderingStaleError` a route pattern-matches,
+        // so no Sanity type crosses this seam (AB#129, ADR-0006 boundary).
+        if (
+          error !== null &&
+          typeof error === "object" &&
+          (error as { name?: unknown }).name === "SanityGalleryError" &&
+          (error as { rejection?: unknown }).rejection === "ordering-stale"
+        ) {
+          throw new GalleryOrderingStaleError(contentId);
+        }
+        throw error;
+      }
     },
     mock: async () => getMockGalleryResult(locale, contentId, options),
   });

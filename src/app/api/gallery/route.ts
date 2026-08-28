@@ -26,6 +26,7 @@
 
 import {
   GalleryCursorError,
+  GalleryOrderingStaleError,
   UnknownGallerySectionError,
   getGalleryPage,
 } from "@/lib/gallery";
@@ -127,6 +128,19 @@ export async function GET(request: Request): Promise<Response> {
       error instanceof UnknownGallerySectionError
     ) {
       return jsonResponse({ status: "not-found" }, 404);
+    }
+    // A seeded-random gallery mid-recompute (AB#129, ADR-0009). Unlike the page
+    // route — which cannot set a status from a render — this Route Handler can,
+    // so it gives the honest one: 503 + `Retry-After`, retryable, indexes
+    // nothing. The append control retries a failed continuation on its own.
+    if (error instanceof GalleryOrderingStaleError) {
+      return Response.json(
+        { status: "unavailable", reason: "reordering" },
+        {
+          status: 503,
+          headers: { "Cache-Control": "no-store", "Retry-After": "120" },
+        },
+      );
     }
     throw error;
   }

@@ -256,24 +256,38 @@ One authoritative order governs the source, the DOM, keyboard focus, and the
 lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
 ratios, never cropped) precisely so the visual reading order cannot contradict it; the
 column-major CSS masonry it replaced did. That order is manual (the administrator's
-authored `order`) unless a gallery opts into the **seeded-random rule** (AB#129 PR1,
+authored `order`) unless a gallery opts into the **seeded-random rule** (AB#129,
 ADR-0009): a deterministic shuffle whose per-placement sort key
 (`computeShuffledOrder` in `src/lib/gallery-shuffle.ts` — HMAC-SHA256 of `placementId`
 keyed by `orderingSeed`, fixed-width hex) is *materialized* once by whoever produces the
 rows, never recomputed on the read path, with pinned lead placements kept in their exact
 manual positions ahead of the shuffled rest (ADR-0009 §3). `gallery-pagination.ts`'s
-boundary key is now the tiered `(pinnedTier, key, placementId)` triple
+boundary key is the tiered `(pinnedTier, key, placementId)` triple
 (`GalleryOrderingBoundary`), with the tier recoverable from `key`'s type so
 `keyset-cursor.ts`'s wire format is unchanged and a pre-AB#129 `manual` cursor still
 decodes. `GalleryOrdering` (`{kind:"manual"}` | `{kind:"seeded-random", seed}`) is the
 one structured value a caller supplies; `orderingScopeString` derives the
 `GalleryCursorScope.ordering` value centrally (`seeded-random-v1:<seed>`), so the seed is
 part of the cursor digest and a reseed retires an in-flight cursor as `wrong-scope`, not
-`stale`. The mock fixture serves one seeded gallery (`content-shuffled-showcase`, 34
-placements, 3 pinned) end to end; the Sanity side — a stored `shuffledOrder` field, the
-recompute-on-rotation step, the fetch-cache key wiring, and lifting `sanity-gallery.ts`'s
-`ordering-not-implemented` refusal and the Studio publish guard — is AB#129 PR2, so a
-`SITE_CONTENT_SOURCE=sanity` deployment still refuses a `seeded-random` gallery.
+`stale`. Both sources serve it: the mock fixture's `content-shuffled-showcase` (34
+placements, 3 pinned), and (AB#129 PR2) a `SITE_CONTENT_SOURCE=sanity` deployment —
+`galleryPlacement` stores `shuffledOrder` (raw 64-hex) + a `shuffledOrderSeed` marker,
+`sanity-gallery.ts` serves the tiered order as two keyset lanes (pinned by `order`, then
+by `shuffledOrder`) in one round trip, and the Studio publish block on `seeded-random` is
+lifted. Rotation is two steps (ADR-0009 2026-08-28 amendment): edit `orderingSeed` in
+Studio, then `npm run recompute:shuffled-order -- --gallery <id> --language <lang>`
+(owner-run, `ifRevisionID`-guarded, refuses to run while an unpublished draft of the
+gallery or a placement exists, re-checks the gallery rev/rule/seed before and after the
+patches, ends with an authoritative consistency query that runs even for an empty plan).
+Between the two the `basics` query's bounded `staleShuffledOrderCount` aggregate makes the
+adapter raise `ordering-stale` (re-raised at the `@/lib/gallery` seam as
+`GalleryOrderingStaleError`) — *after* the cursor/section validation, so a bad token still
+404s mid-rotation. The detail route renders an accessible "being reordered" notice
+(**HTTP 200 + `noindex`** — an App Router page render cannot set 503; named limitation,
+follow-up tracked with AB#132), and the `/api/gallery` continuation endpoint (a Route
+Handler, which can) returns a real **503 + `Retry-After`**. Recovery is automatic once the
+recompute's placement patches invalidate the `sanity:galleries` cache tag; the command's
+final check gates only its own exit code.
 A gallery's listing card takes its explicit
 cover or the deterministic first public item in the active order
 (`selectCuratedGalleryCover`), a published
@@ -579,18 +593,28 @@ deferred action item); and a section's slug is immutable once published, restati
 the same restricted paragraph/list/emphasis/link model `gallery-sections.ts` already
 defines, through dedicated object types (`gallery-section-intro.ts`) rather than the
 six-kind shared body blocks, whose plain-string paragraphs and lists carry no inline
-structure. `orderingRule`/`orderingSeed` let a gallery declare a seeded-random ordering
-intent and carry its seed input; [ADR-0009](docs/adr/0009-seeded-random-gallery-ordering.md)
-decides that rule's contract — a materialized, precomputed sort key recomputed on rotation,
-because GROQ has no hash function to compute one live and keyset pagination needs a stored,
-sortable field — narrowly split off AB#66's broader dynamic/keyword-gallery contract, which
-stays open. AB#129 PR1 has since built the read side of that contract in the pagination
-core and the mock (see the gallery-order paragraph earlier in this file), but the Sanity
-schema still only stores `orderingRule`/`orderingSeed` as intent — there is no
-`shuffledOrder` field on `galleryPlacement` yet — and `src/lib/sanity-gallery.ts`'s
-`resolveOrdering` still refuses a `seeded-random` gallery outright
-(`SanityGalleryError "ordering-not-implemented"`) rather than mis-paginate it, pending the
-stored field and the recompute-on-rotation step AB#129 PR2 adds. `src/lib/sanity-gallery.ts`'s
+structure. `orderingRule`/`orderingSeed` let a gallery declare a seeded-random ordering,
+and (AB#129 PR2) `galleryPlacement` also stores the materialized key: `shuffledOrder`
+(read-only, raw 64-hex `computeShuffledOrder(orderingSeed, placementId)`) and a
+`shuffledOrderSeed` marker, absent on a pinned lead and on a `manual` gallery.
+[ADR-0009](docs/adr/0009-seeded-random-gallery-ordering.md) decides that rule's contract
+— a materialized, precomputed sort key recomputed on rotation, because GROQ has no hash
+function to compute one live and keyset pagination needs a stored, sortable field —
+narrowly split off AB#66's broader dynamic/keyword-gallery contract, which stays open.
+Placement-level Studio validation (folded into the existing one-round-trip publication
+query) blocks only the one *structurally impossible* generated value — a `shuffledOrder`
+present but not a 64-char hex string. Absent, now-stale, leftover-after-a-rule-switch, and
+just-re-pinned states all publish fine, because those are transient and the recompute step
+(which reads only published placements) resolves them — blocking would deadlock the
+author. What that same validator now *does* freeze once published is `placementId` itself
+(alongside the media/gallery binding it already froze): it is an identity (ADR-0002 §1)
+and the HMAC input for `shuffledOrder`, so renaming it in place would leave a read-only
+key pointing at the old id with no `ordering-stale` signal — a re-identification is a new
+placement. The `gallery`
+document's publish block on `seeded-random` is lifted; `orderingSeed` gains the pagination
+boundary's length ceiling and is rejected if it has surrounding whitespace (it is used
+verbatim by `orderingScopeString`, the recompute step, and the stale-count query — an
+inconsistent trim anywhere would strand the gallery `ordering-stale`). `src/lib/sanity-gallery.ts`'s
 `readSanityCuratedGalleryPage` (AB#114) is the bounded, windowed read: two HTTP round trips
 per page (this gallery's ordering rule, section catalog with intro, and a conservative
 `visibilityVersion` derived from the most recently updated matching placement's
@@ -601,7 +625,15 @@ keyset range query for the rest, following Sanity's own documented `order > $aft
 pagination — over `galleryPlacement` documents, filtered by `visible` and
 `media->publiclyRenderable` in GROQ itself so a returned row is already within
 `CuratedGallerySectionSource`'s contract and nothing here can silently shrink a page by
-dropping a row after the fetch. `projectGalleryPlacement` never rejects a whole gallery
+dropping a row after the fetch. For a `seeded-random` gallery (AB#129 PR2) the same read
+adds `orderingSeed` and a bounded `staleShuffledOrderCount` aggregate to the basics query
+(non-zero => `SanityGalleryError "ordering-stale"`, the two-step-rotation window), serves
+the tiered order as two keyset lanes in one round trip — `pinned` (by `order`) then
+non-pinned (by `shuffledOrder`), using `coalesce(pinned, false)` so a null/absent
+`pinned` still counts as non-pinned — concatenated and sliced, because ADR-0009 §3's
+tiered key cannot be one GROQ `order()` clause without a `select()` a fake-store test
+cannot pin; and passes the scope string as an always-true `$orderingScope` param so the
+window fetch-cache key varies by seed. `projectGalleryPlacement` never rejects a whole gallery
 over one placement whose media is not publicly renderable (ADR-0002 §3's AND-composition):
 it resolves to no candidate row for that placement, distinct from throwing for a genuinely
 malformed one — though the GROQ-side filter means this call site never actually exercises
@@ -683,18 +715,21 @@ The provisioning runbook, the Preview/Production environment split, and the reco
 promotion and rollback commands are `docs/deployment.md`.
 Sample content seeding (AB#84) sits on top of every schema and adapter above: an
 owner-run script (`npm run seed:sanity`, `scripts/seed-sanity-content.mts`) that writes
-448 sample documents — a 3-level category tree, one published settings and home
+474 sample documents — a 3-level category tree, one published settings and home
 singleton, 3 services, 3 article documents (one page authored in both `fi` and `en`,
 one `fi`-only, exercising ADR-0003 decision 7's independent per-language publication),
-2 galleries, and 426 gallery placements — into a real Content Lake over the plain
+3 galleries, and 451 gallery placements — into a real Content Lake over the plain
 mutate/asset-upload HTTP API, never through a Studio and never wired into the
 application or CI. Every seeded document's own six real, already-vetted demo
 photographs (`public/gallery/*.webp`) back all 6 minted `media` documents — never more
 identities than there are photographs, per ADR-0002 — reused across hundreds of
 placements, including one photograph placed in both galleries under two different
 `placementId`s to prove identity survives reuse. One gallery (`featured`) has two named
-sections and a body; the other (`archive`) has neither and carries the 400 placements
-that exercise AB#114's keyset-paginated read across several pages. Every document's
+sections and a body; `archive` has neither and carries the 400 placements that exercise
+AB#114's keyset-paginated read across several pages; `shuffled` (AB#129 PR2) is a
+`seeded-random` gallery of 25 placements — 3 pinned leads, 22 with pre-computed
+`shuffledOrder` keys — so the seed run writes a gallery that is already a consistent
+generation and `verify:sanity-live` can walk its materialized tiered order. Every document's
 `_id` is a public, root-level, dot-free `seed--` id: Sanity restricts dot-path ids to
 authenticated reads even in a public dataset, so the fixture cannot use `path()` as its
 namespace without becoming invisible to the application's tokenless public reads.
@@ -824,13 +859,15 @@ localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — story-root listing continuation and progressive in-place append
 for category listings (both deferred by ADR-0013) — gallery section controls, URL wiring, and lightbox
 integration (AB#115; the section domain model and server-side query themselves are AB#105,
-above, whose bounded-query contract AB#134 has since supplied), the Sanity side of seeded
-random gallery ordering — AB#129 PR1 built the pagination core, the keyed function, and a
-seeded mock gallery; PR2 adds the stored `shuffledOrder` field on the `galleryPlacement`
-schema, the recompute-on-rotation step, the Sanity fetch-cache key wiring, and lifts the
-adapter/Studio guards — the dynamic keyword-driven gallery and archive
-search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71 build it), lightbox zoom tuning, the gallery-item
-enquiry (AB#60).
+above, whose bounded-query contract AB#134 has since supplied), a **true HTTP 503** for
+the seeded gallery `ordering-stale` state *on the detail route* — the `/api/gallery`
+endpoint already returns a real 503, but PR2 serves the detail page as an accessible HTTP
+200 + `noindex` because an App Router page render cannot set an arbitrary status (a
+follow-up would route the gallery detail through a handler; tracked with AB#132) — and its
+`shuffledOrderGeneration` atomic-flip alternative to the brief recompute refusal window
+(a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
+and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
+build it), lightbox zoom tuning, the gallery-item enquiry (AB#60).
 Validated JSON-LD structured data (AB#86) is built: `src/lib/structured-data.ts` is a pure
 builder + `</script>`-safe serializer (`<`, `>`, `&`, U+2028, U+2029 escaped — `JSON.stringify`
 alone does not, per Next.js's own guidance) rendered through the `<JsonLd>` server component.

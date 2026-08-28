@@ -3,6 +3,7 @@ import {
   buildCuratedGalleryPage,
   createHmacGalleryCursorCodec,
   GalleryCursorError,
+  GalleryOrderingStaleError,
   MAX_GALLERY_CURSOR_LENGTH,
   MAX_GALLERY_PAGE_SIZE,
   resolveGalleryWindowRequest,
@@ -1375,5 +1376,31 @@ describe("getGalleryPage seam dispatch", () => {
     await expect(
       getGalleryPage("en", "content-selected-work"),
     ).rejects.toThrow("classified sanity failure");
+  });
+
+  it("re-raises the adapter's ordering-stale as the provider-neutral GalleryOrderingStaleError (AB#129)", async () => {
+    deploymentConfig.contentSource = "sanity";
+    // Shaped like `SanityGalleryError` without importing the Sanity module.
+    const sanityStale = Object.assign(new Error("[sanity-gallery] ..."), {
+      name: "SanityGalleryError",
+      rejection: "ordering-stale" as const,
+    });
+    sanityGalleryModule.readSanityCuratedGalleryPage.mockRejectedValue(sanityStale);
+
+    const error = await getGalleryPage("en", "content-shuffled").catch(
+      (caught: unknown) => caught,
+    );
+    expect(error).toBeInstanceOf(GalleryOrderingStaleError);
+    expect((error as GalleryOrderingStaleError).contentId).toBe("content-shuffled");
+  });
+
+  it("does not convert any other classified Sanity rejection into GalleryOrderingStaleError", async () => {
+    deploymentConfig.contentSource = "sanity";
+    const other = Object.assign(new Error("[sanity-gallery] malformed"), {
+      name: "SanityGalleryError",
+      rejection: "malformed-result" as const,
+    });
+    sanityGalleryModule.readSanityCuratedGalleryPage.mockRejectedValue(other);
+    await expect(getGalleryPage("en", "content-shuffled")).rejects.toBe(other);
   });
 });

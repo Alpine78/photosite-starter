@@ -65,6 +65,14 @@ export const GALLERY_PLACEMENT_TYPE_NAME = "galleryPlacement";
 const PLACEMENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
+ * Restates `src/lib/gallery-shuffle.ts`'s `SHUFFLED_ORDER_PATTERN` (a schema
+ * imports nothing from `src/` — ADR-0006), pinned equal by a test. A
+ * `galleryPlacement`'s `shuffledOrder` is the materialized seeded-random sort
+ * key an owner-run script writes, never authored here (AB#129, ADR-0009).
+ */
+const SHUFFLED_ORDER_HEX = /^[0-9a-f]{64}$/;
+
+/**
  * Duplicates `gallery-pagination.ts`'s `MAX_ITEM_ID_LENGTH`, the same way
  * `media.ts` duplicates `MAX_PUBLIC_DELIVERY_DIMENSION` — a schema imports
  * nothing from `src/` (ADR-0006), so the bound is restated here and pinned
@@ -97,6 +105,7 @@ function readRefField(
 
 type RawPublicationQueryResult = {
   readonly published: {
+    readonly placementId: string | null;
     readonly galleryRef: string | null;
     readonly mediaRef: string | null;
   } | null;
@@ -112,6 +121,41 @@ type RawPublicationQueryResult = {
     readonly sections: readonly { readonly sectionId?: string | null }[] | null;
   }[];
 };
+
+/**
+ * `shuffledOrder` (AB#129, ADR-0009 2026-08-28 amendment) is generated, never
+ * hand-authored. The only thing worth blocking a Publish over here is a value
+ * that is *structurally impossible* for the generator to have produced: a
+ * present `shuffledOrder` that is not a 64-char lowercase hex string.
+ *
+ * Everything else that could look "wrong" is a **transient state
+ * `npm run recompute:shuffled-order` exists to resolve**, and blocking it would
+ * deadlock the author, because that command reads only *published* placements —
+ * it cannot act on a draft it cannot see. So a routine Publish is allowed for:
+ *
+ * - a non-pinned seeded placement with no `shuffledOrder` yet (brand new, or
+ *   just flipped from pinned) — the public adapter serves the gallery as
+ *   temporarily unavailable until the recompute runs;
+ * - a placement whose `pinned` flag just flipped *to* true while a stale
+ *   `shuffledOrder` still sits on it (Studio cannot clear a read-only field;
+ *   the recompute does, once the pinned version is published);
+ * - a `shuffledOrderSeed` that no longer matches the gallery's current seed
+ *   (a rotation in progress);
+ * - a `manual` gallery's placement still carrying leftover keys after a
+ *   rule switch (the adapter ignores them for `manual`; the recompute clears
+ *   them).
+ *
+ * The field descriptions carry the "run the recompute" guidance.
+ */
+function validateGeneratedOrderingFields(
+  document: Readonly<Record<string, unknown>>,
+): SchemaValidationResult {
+  const shuffledOrder = exactString(document.shuffledOrder);
+  if (shuffledOrder !== undefined && !SHUFFLED_ORDER_HEX.test(shuffledOrder)) {
+    return 'This placement\'s shuffledOrder is not a valid generated key. Clear it and run "npm run recompute:shuffled-order".';
+  }
+  return true;
+}
 
 /**
  * Field-level validator on `placementId` itself, mirroring `media.ts`'s
@@ -150,6 +194,7 @@ async function validateGalleryPlacementPublication(
   const result = await validationClientOf(context).fetch<RawPublicationQueryResult>(
     `{
       "published": *[_id == $published][0]{
+        placementId,
         "galleryRef": gallery._ref,
         "mediaRef": media._ref
       },
@@ -202,6 +247,13 @@ async function validateGalleryPlacementPublication(
     return `This placement references a section ("${sectionId}") that gallery does not declare.`;
   }
 
+  // Generated ordering fields (AB#129, ADR-0009). `shuffledOrder`/`shuffledOrderSeed`
+  // are materialized by `npm run recompute:shuffled-order`, never authored — the
+  // check reuses this one round trip rather than a second validator, so it also
+  // catches an illegal `shuffledOrderSeed` when `shuffledOrder` is absent.
+  const orderingCheck = validateGeneratedOrderingFields(document);
+  if (orderingCheck !== true) return orderingCheck;
+
   const ownGalleryContentId = exactString(gallery.contentId ?? undefined);
   for (const conflict of result.conflicting) {
     if (conflict._id === documentId) continue;
@@ -226,6 +278,20 @@ async function validateGalleryPlacementPublication(
   }
 
   if (result.published !== null) {
+    // `placementId` is an *identity* (ADR-0002 §1), and it is also the input to
+    // a seeded gallery's materialized `shuffledOrder` key
+    // (`HMAC(orderingSeed, placementId)`, AB#129). Renaming it in place would
+    // leave that read-only key pointing at the old id with no signal that it
+    // is stale — the public order would then depend on edit history rather
+    // than the current id. So it is frozen once published, the same way
+    // `parent`/`slug` are frozen on a category and `language`/`slug` on an
+    // article: a genuine re-identification is a new document.
+    if (
+      result.published.placementId !== null &&
+      result.published.placementId !== placementId
+    ) {
+      return `Placement "${result.published.placementId}" was already published under that id. A placement id is a permanent identity — to re-identify this occurrence, create a new placement instead of renaming this one (ADR-0002 §1).`;
+    }
     if (result.published.mediaRef !== null && result.published.mediaRef !== mediaRef) {
       return `Placement "${placementId}" was already published against a different photograph. Replacing the media requires a new placement id (ADR-0002 §1).`;
     }
@@ -341,8 +407,24 @@ const fields: readonly SchemaFieldDefinition[] = [
     title: "Pinned lead",
     type: "boolean",
     description:
-      "Keeps this placement first when a seeded-random ordering rule is active (ADR-0009). Not yet consumed by any ordering logic.",
+      "Keeps this placement in the pinned lead tier when the gallery's ordering rule is seeded-random (ADR-0009 §3): pinned placements sort before every shuffled one, among themselves by manual order. Ignored for a manually-ordered gallery. Changing this flag needs a recompute — see below.",
     initialValue: false,
+  },
+  {
+    name: "shuffledOrder",
+    title: "Shuffled order key (generated)",
+    type: "string",
+    readOnly: true,
+    description:
+      'Generated, do not edit. The materialized seeded-random sort key for this placement (ADR-0009). Written only by "npm run recompute:shuffled-order"; empty for a pinned lead and for every placement of a manually-ordered gallery.',
+  },
+  {
+    name: "shuffledOrderSeed",
+    title: "Shuffled order seed (generated)",
+    type: "string",
+    readOnly: true,
+    description:
+      'Generated, do not edit. The orderingSeed value the shuffled order key above was computed from. Must match the gallery\'s current orderingSeed; if it does not, the public site serves the gallery as temporarily unavailable until "npm run recompute:shuffled-order" runs.',
   },
   {
     name: "media",
