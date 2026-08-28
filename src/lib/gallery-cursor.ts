@@ -124,7 +124,6 @@ function resolveCodec(): GalleryCursorCodec {
  * only if that particular gallery turns out to need one.
  */
 export const galleryCursorCodec: GalleryCursorCodec = {
-  encode: (scope, afterOrder, afterPlacementId) =>
-    resolveCodec().encode(scope, afterOrder, afterPlacementId),
+  encode: (scope, boundary) => resolveCodec().encode(scope, boundary),
   decode: (cursor, scope) => resolveCodec().decode(cursor, scope),
 };

@@ -136,6 +136,13 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
       },
     ],
   },
+  "content-shuffled-showcase": {
+    // The seeded-random gallery (AB#129). Like the large archive, its job is
+    // exercising an ordering rule and its keyset pagination, not editorial
+    // content, so it carries no body.
+    variant: "gallery",
+    body: [],
+  },
   "content-reading-coastal-light": {
     variant: "article",
     tags: ["light", "coastal", "landscape"],
@@ -397,6 +404,10 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
         text: "Jokainen alla oleva kohde on osa samaa rajattua, avaimin sivutettua tulosjoukkoa, jota ruudukko ja valotaulu jakavat. Paikkamerkkisisältöä.",
       },
     ],
+  },
+  "content-shuffled-showcase": {
+    variant: "gallery",
+    body: [],
   },
   "content-reading-coastal-light": {
     variant: "article",

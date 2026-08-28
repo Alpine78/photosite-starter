@@ -26,9 +26,11 @@ import {
   comparePlacementIds,
   MAX_ITEM_ID_LENGTH,
   MAX_SCOPE_FIELD_LENGTH,
+  orderingScopeString,
   resolveGalleryWindowRequest,
   type CuratedGalleryPlacement,
   type GalleryCursorCodec,
+  type GalleryOrdering,
   type GalleryWindowRequest,
   type GalleryWindowResult,
 } from "@/lib/gallery-pagination";
@@ -438,7 +440,13 @@ export type GallerySectionQuery = {
   readonly sectionSlug?: string;
   readonly cursor?: string;
   readonly pageSize: number;
-  readonly ordering: string;
+  /**
+   * The active ordering rule (AB#129). `GalleryCursorScope.ordering` — the
+   * string the cursor digest binds — is derived from it here, centrally, so a
+   * caller cannot supply a scope string that disagrees with the rule the
+   * window is sorted by.
+   */
+  readonly ordering: GalleryOrdering;
   readonly visibilityVersion: string;
 };
 
@@ -518,12 +526,13 @@ export async function readCuratedGallerySectionPage({
   const scope = {
     sourceId: `${query.contentId}@${query.locale}`,
     normalizedFilter: normalizedFilterKey(filter),
-    ordering: query.ordering,
+    ordering: orderingScopeString(query.ordering),
     visibilityVersion: query.visibilityVersion,
     pageSize: query.pageSize,
   };
   const windowRequest = resolveGalleryWindowRequest({
     scope,
+    ordering: query.ordering,
     ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
     ...(cursorCodec === undefined ? {} : { cursorCodec }),
   });
@@ -538,6 +547,7 @@ export async function readCuratedGallerySectionPage({
   const page = buildCuratedGalleryPage({
     windowResult,
     scope,
+    ordering: query.ordering,
     windowRequest,
     ...(cursorCodec === undefined ? {} : { cursorCodec }),
   });

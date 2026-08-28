@@ -129,6 +129,15 @@ const englishContentTree: ContentTreeInput = {
       published: true,
       canonicalCategoryId: "cat-portfolio",
     },
+    {
+      // The seeded-random gallery (AB#129): more than one page, so its keyset
+      // walk under the shuffle crosses a real page boundary.
+      contentId: "content-shuffled-showcase",
+      variant: "gallery",
+      slug: "shuffled-showcase",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
+    },
     // The migrated articles keep the categories they were already filed under.
     // The old model listed them unordered; the migration rule is that the first
     // authored category became the canonical placement and any remaining ones
@@ -235,6 +244,13 @@ const finnishContentTree: ContentTreeInput = {
       contentId: "content-large-archive",
       variant: "gallery",
       slug: "suuri-arkisto",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
+    },
+    {
+      contentId: "content-shuffled-showcase",
+      variant: "gallery",
+      slug: "sekoitettu-esittely",
       published: true,
       canonicalCategoryId: "cat-portfolio",
     },

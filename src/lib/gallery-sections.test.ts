@@ -418,7 +418,7 @@ describe("readCuratedGallerySectionPage", () => {
     locale: "en",
     contentId: "content-test",
     pageSize: 24,
-    ordering: "manual-v1",
+    ordering: { kind: "manual" },
     visibilityVersion: "v1",
   } as const;
 
@@ -485,7 +485,7 @@ describe("readCuratedGallerySectionPage", () => {
       filter: { kind: "section", section: sections[0] },
       window: {
         candidateLimit: 3,
-        after: { order: 1, placementId: "e1" },
+        after: { pinnedTier: 0, key: 1, placementId: "e1" },
       },
     });
   });

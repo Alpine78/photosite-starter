@@ -11,6 +11,7 @@ import {
   type CuratedGalleryPlacement,
   type GalleryCursorCodec,
   type GalleryCursorScope,
+  type GalleryOrdering,
 } from "@/lib/gallery-pagination";
 import type {
   CuratedGalleryResultItem,
@@ -48,6 +49,7 @@ vi.mock("@/lib/sanity-gallery", () => sanityGalleryModule);
 const TEST_SIGNING_KEY =
   "test-only-gallery-cursor-signing-key-0123456789";
 const testCursorCodec = createHmacGalleryCursorCodec(TEST_SIGNING_KEY);
+const MANUAL_ORDERING: GalleryOrdering = { kind: "manual" };
 
 /** The gallery that outgrew one page, and the reason continuation exists. */
 const LARGE_GALLERY_ID = "content-large-archive";
@@ -93,22 +95,30 @@ function buildPage({
   cursor,
   cursorScope = scope,
   cursorCodec = testCursorCodec,
+  ordering = { kind: "manual" } as const,
 }: {
   readonly sourcePlacements?: readonly CuratedGalleryPlacement[];
   readonly cursor?: string;
   readonly cursorScope?: GalleryCursorScope;
   readonly cursorCodec?: GalleryCursorCodec;
+  readonly ordering?: GalleryOrdering;
 } = {}) {
   const windowRequest = resolveGalleryWindowRequest({
     scope: cursorScope,
+    ordering,
     cursor,
     cursorCodec,
   });
-  const windowResult = selectGalleryWindow(sourcePlacements, windowRequest);
+  const windowResult = selectGalleryWindow(
+    sourcePlacements,
+    windowRequest,
+    ordering,
+  );
 
   return buildCuratedGalleryPage({
     windowResult,
     scope: cursorScope,
+    ordering,
     windowRequest,
     cursorCodec,
   });
@@ -249,7 +259,7 @@ describe("curated gallery result contract", () => {
     // A NaN order breaks compareGalleryOrderKey's transitivity for the whole
     // array, not just the malformed entry — validating before sorting is what
     // stops that corruption, not just an eventual per-item type check.
-    const windowRequest = resolveGalleryWindowRequest({ scope });
+    const windowRequest = resolveGalleryWindowRequest({ scope, ordering: MANUAL_ORDERING });
 
     expect(() =>
       selectGalleryWindow(
@@ -404,7 +414,7 @@ describe("gallery page boundaries", () => {
   });
 
   it("requires an adapter codec only when a continuation is needed", () => {
-    const windowRequest = resolveGalleryWindowRequest({ scope });
+    const windowRequest = resolveGalleryWindowRequest({ scope, ordering: MANUAL_ORDERING });
 
     expect(() =>
       buildCuratedGalleryPage({
@@ -414,7 +424,7 @@ describe("gallery page boundaries", () => {
       }),
     ).toThrow("A gallery cursor codec is required for a paginated result");
 
-    const singleWindowRequest = resolveGalleryWindowRequest({ scope });
+    const singleWindowRequest = resolveGalleryWindowRequest({ scope, ordering: MANUAL_ORDERING });
     expect(() =>
       buildCuratedGalleryPage({
         windowResult: selectGalleryWindow(
@@ -498,8 +508,9 @@ describe("gallery cursor safety and durability", () => {
     const invalidCodec: GalleryCursorCodec = {
       encode: testCursorCodec.encode,
       decode: () => ({
-        afterOrder: -1,
-        afterPlacementId: "placement-b",
+        pinnedTier: 0,
+        key: -1,
+        placementId: "placement-b",
       }),
     };
 
@@ -521,8 +532,9 @@ describe("gallery cursor safety and durability", () => {
         decode: () => {
           decodeCalled = true;
           return {
-            afterOrder: 1,
-            afterPlacementId: "placement-b",
+            pinnedTier: 0,
+            key: 1,
+            placementId: "placement-b",
           };
         },
       };
@@ -555,7 +567,6 @@ describe("gallery cursor safety and durability", () => {
   it.each([
     { sourceId: "another-gallery" },
     { normalizedFilter: "section:nature" },
-    { ordering: "newest-v1" },
     { pageSize: 3 },
   ])("rejects a cursor used with the wrong scope: %o", (change) => {
     expectCursorError(
@@ -697,7 +708,7 @@ describe("gallery cursor safety and durability", () => {
 
 describe("resolveGalleryWindowRequest", () => {
   it("returns no boundary for a cursorless request", () => {
-    expect(resolveGalleryWindowRequest({ scope })).toEqual({
+    expect(resolveGalleryWindowRequest({ scope, ordering: MANUAL_ORDERING })).toEqual({
       candidateLimit: scope.pageSize + 1,
     });
   });
@@ -707,13 +718,14 @@ describe("resolveGalleryWindowRequest", () => {
     (afterPlacementId) => {
       const permissiveCodec: GalleryCursorCodec = {
         encode: testCursorCodec.encode,
-        decode: () => ({ afterOrder: 1, afterPlacementId }),
+        decode: () => ({ pinnedTier: 0, key: 1, placementId: afterPlacementId }),
       };
 
       expectCursorError(
         () =>
           resolveGalleryWindowRequest({
             scope,
+            ordering: MANUAL_ORDERING,
             cursor: buildPage().page.endCursor as string,
             cursorCodec: permissiveCodec,
           }),
@@ -730,7 +742,7 @@ describe("resolveGalleryWindowRequest", () => {
  * directly, rather than through a well-behaved reference source.
  */
 describe("buildCuratedGalleryPage rejects a source that violates its contract", () => {
-  const windowRequest = resolveGalleryWindowRequest({ scope });
+  const windowRequest = resolveGalleryWindowRequest({ scope, ordering: MANUAL_ORDERING });
 
   it("rejects more candidates than the requested candidateLimit", () => {
     const overLimitCandidates = Array.from({ length: scope.pageSize + 2 }, (_unused, index) =>
@@ -775,7 +787,7 @@ describe("buildCuratedGalleryPage rejects a source that violates its contract", 
   });
 
   it("rejects a candidate at or before the requested boundary", () => {
-    const after = { order: 1, placementId: "placement-b" };
+    const after = { pinnedTier: 0 as const, key: 1, placementId: "placement-b" };
 
     expect(() =>
       buildCuratedGalleryPage({
