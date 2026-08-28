@@ -364,8 +364,13 @@ a green pipeline. See [deployment](docs/deployment.md).
   optional lead and long-form body sharing the article variant's own block set and
   content-derived page-jump navigation (AB#106), and click/tap/keyboard zoom with
   bounded pan, a state-announcing zoom control, and a caption that steps aside while
-  zoomed (AB#78) — done; zoom animation/level tuning, section controls, and seeded
-  random ordering pending, and AB#78's one physical-device pinch/pan check outstanding*
+  zoomed (AB#78), and an optional per-gallery seeded-random ordering rule — a
+  deterministic shuffle with pinned leads, materialized once rather than rolled per
+  request, so the grid, every continuation page, and the lightbox share one order and a
+  reseed retires an in-flight cursor as `wrong-scope` (AB#129, [ADR-0009](docs/adr/0009-seeded-random-gallery-ordering.md))
+  — done; the seeded rule currently renders from the mock fixture, its Sanity
+  materialization and the `?section=` controls pending, along with zoom animation/level
+  tuning and AB#78's one physical-device pinch/pan check*
 - [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
   handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
   for development, CI, and Preview), abuse controls, and operational events carrying no
@@ -404,10 +409,11 @@ a green pipeline. See [deployment](docs/deployment.md).
   a time — an id lookup plus a keyset range query, never the whole placement list — the same
   shape `content-listing.ts` already uses for articles; `src/lib/sanity-gallery.ts`'s
   `readSanityCuratedGalleryPage` composes that bounded read with the shared curated-gallery
-  pagination contract. A gallery may already declare a seeded-random ordering intent
-  ([ADR-0009](docs/adr/0009-seeded-random-gallery-ordering.md) decides its contract), but
-  nothing computes an order from it yet — the adapter refuses to serve such a gallery rather
-  than mis-paginate it, pending the materialized shuffle key AB#129 adds. Tagged caching and
+  pagination contract. That contract now understands a seeded-random ordering rule (AB#129,
+  [ADR-0009](docs/adr/0009-seeded-random-gallery-ordering.md)) — a materialized per-placement
+  shuffle key with a pinned lead tier — and the mock fixture serves one such gallery; the
+  Sanity adapter still refuses a `seeded-random` gallery rather than mis-paginate it, pending
+  the stored `shuffledOrder` field and recompute-on-rotation step (AB#129 PR2). Tagged caching and
   signed webhook revalidation are done ([cache-revalidation](docs/cache-revalidation.md)).
   Sample content seeding is done too: an owner-run script
   ([`seeding`](docs/sanity-seeding.md), `npm run seed:sanity`) writes 448 sample documents —
@@ -518,8 +524,9 @@ image and the caption stepping aside while zoomed; its zoom animation/level tuni
 later slice. The contact form is built and
 delivers through a replaceable adapter that stores nothing, and a public-journey suite
 covers its validation, success, failure, and retry states; the gallery-item enquiry
-(AB#60) builds on it. Listing continuation, gallery sections, and seeded random gallery
-ordering are still open; the CMS schemas and adapters are done and wired in. The deployment path exists in
+(AB#60) builds on it. Seeded random gallery ordering renders from the mock fixture (its
+Sanity materialization is a follow-up); listing continuation and gallery section controls
+are still open; the CMS schemas and adapters are done and wired in. The deployment path exists in
 the repository — a pinned runtime and region, a pipeline stage that deploys a release
 candidate only after every gate passes, and a check that refuses to publish a URL whose
 project/team ownership, access protection, and non-indexability were not verified — but

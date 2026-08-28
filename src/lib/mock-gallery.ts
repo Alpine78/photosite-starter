@@ -24,11 +24,14 @@
  */
 
 import {
+  assertGalleryOrdering,
   selectCuratedGalleryCover,
   selectGalleryWindow,
   type CuratedGalleryPlacement,
   type GalleryCursorCodec,
+  type GalleryOrdering,
 } from "@/lib/gallery-pagination";
+import { computeShuffledOrder } from "@/lib/gallery-shuffle";
 import {
   assertGallerySections,
   assertPlacementSectionReferences,
@@ -61,6 +64,18 @@ type MockPlacementInput = {
   readonly caption?: Readonly<Record<string, string>>;
   /** Gallery-local section this placement belongs to, if any (AB#105). */
   readonly sectionId?: string;
+  /**
+   * Keeps this placement in the pinned lead tier under a `seeded-random`
+   * ordering rule (AB#129, ADR-0009 §3). Ignored for a `manual` gallery.
+   */
+  readonly pinned?: boolean;
+};
+
+/** How a mock gallery is ordered. Absent means `manual`, the default. */
+type MockOrderingInput = {
+  readonly orderingRule?: "manual" | "seeded-random";
+  /** Required exactly when `orderingRule` is `seeded-random`. */
+  readonly orderingSeed?: string;
 };
 
 /**
@@ -76,7 +91,7 @@ type MockGallerySectionInput = {
   readonly intro?: Readonly<Record<string, readonly GallerySectionIntroBlock[]>>;
 };
 
-type MockGalleryInput = {
+type MockGalleryInput = MockOrderingInput & {
   readonly placements: readonly MockPlacementInput[];
   readonly sections?: readonly MockGallerySectionInput[];
 };
@@ -242,6 +257,53 @@ const largeArchiveSections: readonly MockGallerySectionInput[] = [
   },
 ];
 
+/**
+ * The seeded-random gallery (AB#129, ADR-0009). It exists so the shuffled
+ * ordering rule is a state the site actually serves — the grid, every
+ * continuation page, and the lightbox all read one materialized order — rather
+ * than one only a unit test has seen.
+ *
+ * Generated like the large archive, and deliberately more than one 24-item mock
+ * page (34 placements), so a keyset walk under the shuffle crosses a real page
+ * boundary. The first three placements are `pinned`: ADR-0009 §3 keeps them in
+ * their exact manual positions (`order` 0, 1, 2 from `buildPlacements`), ahead
+ * of the shuffled rest. The remaining 31 also receive an ascending `order` from
+ * `buildPlacements`, but it is inert for them — the materialized `shuffledOrder`,
+ * not `order`, decides their sequence, which is the whole point of the rule.
+ *
+ * `SHUFFLED_SHOWCASE_SEED` is the fixture's fixed seed. A test that rebuilds the
+ * gallery with a different seed proves "different seed => different order" and
+ * that replaying the first seed's cursor fails `wrong-scope`.
+ */
+export const SHUFFLED_SHOWCASE_SEED = "showcase-seed-2026-08";
+const SHUFFLED_SHOWCASE_SIZE = 34;
+const SHUFFLED_SHOWCASE_PINNED_COUNT = 3;
+
+const shuffledShowcasePlacements: readonly MockPlacementInput[] = Array.from(
+  { length: SHUFFLED_SHOWCASE_SIZE },
+  (_unused, index): MockPlacementInput => {
+    const position = index + 1;
+    const pinned = index < SHUFFLED_SHOWCASE_PINNED_COUNT;
+    const image = archiveImageCycle[index % archiveImageCycle.length];
+
+    return {
+      placementId: `shuffled-showcase-${String(position).padStart(3, "0")}`,
+      image,
+      // A pinned lead keeps its authored position; a shuffled item's `order`
+      // is not what sequences it, so it is left at the generator default.
+      ...(pinned ? { pinned: true } : {}),
+      ...(position % 4 === 0
+        ? {}
+        : {
+            caption: {
+              en: `Showcase image ${position}`,
+              fi: `Esittelykuva ${position}`,
+            },
+          }),
+    };
+  },
+);
+
 const authoredGalleries: Readonly<Record<string, MockGalleryInput>> = {
   "content-selected-work": { placements: selectedWorkPlacements },
   "content-coastal-mornings": { placements: coastalMorningsPlacements },
@@ -250,6 +312,11 @@ const authoredGalleries: Readonly<Record<string, MockGalleryInput>> = {
   "content-large-archive": {
     placements: largeArchivePlacements,
     sections: largeArchiveSections,
+  },
+  "content-shuffled-showcase": {
+    placements: shuffledShowcasePlacements,
+    orderingRule: "seeded-random",
+    orderingSeed: SHUFFLED_SHOWCASE_SEED,
   },
 };
 
@@ -262,14 +329,51 @@ export const MOCK_FEATURED_GALLERY_ID = "content-selected-work";
  */
 const AUTHORED_LANGUAGES: ReadonlySet<string> = new Set(["en", "fi"]);
 
+/**
+ * Resolves a gallery's authored ordering into a validated `GalleryOrdering`.
+ * A `seeded-random` gallery must name a seed; a `manual` one must not.
+ */
+function resolveMockOrdering(input: MockOrderingInput): GalleryOrdering {
+  if (input.orderingRule === "seeded-random") {
+    if (input.orderingSeed === undefined) {
+      throw new TypeError(
+        "A seeded-random mock gallery must declare an orderingSeed",
+      );
+    }
+    const ordering: GalleryOrdering = {
+      kind: "seeded-random",
+      seed: input.orderingSeed,
+    };
+    assertGalleryOrdering(ordering);
+    return ordering;
+  }
+  if (input.orderingSeed !== undefined) {
+    throw new TypeError(
+      "orderingSeed is only used while orderingRule is seeded-random",
+    );
+  }
+  return { kind: "manual" };
+}
+
 function buildPlacements(
   language: string,
   inputs: readonly MockPlacementInput[],
+  ordering: GalleryOrdering,
 ): readonly CuratedGalleryPlacement[] {
   const images = getMockImages(language);
+  const seed = ordering.kind === "seeded-random" ? ordering.seed : undefined;
 
   return inputs.map((input, index) => {
     const caption = input.caption?.[language];
+    const pinned = input.pinned === true;
+    // ADR-0009 §2: the shuffle key is materialized once, here, not recomputed
+    // on the read path. A store-backed adapter (PR2) stores it as a field; the
+    // mock computes it while building its cached placements. Only a non-pinned
+    // placement of a seeded gallery gets one — a pinned lead sorts by `order`.
+    const shuffledOrder =
+      seed !== undefined && !pinned
+        ? computeShuffledOrder(seed, input.placementId)
+        : undefined;
 
     return {
       placementId: input.placementId,
@@ -278,6 +382,8 @@ function buildPlacements(
       media: images[input.image],
       ...(caption === undefined ? {} : { captionOverride: caption }),
       ...(input.sectionId === undefined ? {} : { sectionId: input.sectionId }),
+      ...(pinned ? { pinned: true } : {}),
+      ...(shuffledOrder === undefined ? {} : { shuffledOrder }),
     };
   });
 }
@@ -315,16 +421,18 @@ function buildSections(
  * nothing at all. Within one gallery it still builds that gallery's placements,
  * which is the part only a store can avoid.
  *
- * What is remembered is the gallery's *placements and sections* rather than a
- * built page. Every cursor names a different slice of the same sequence, so
- * caching pages would mint an entry per token a visitor happens to hold; the
- * ordered source is the part worth keeping, and slicing it again is cheap.
- * The two are cached together, one map entry per gallery, so they can never
- * desync — a lookup that finds one always finds the other.
+ * What is remembered is the gallery's *placements, sections, and resolved
+ * ordering* rather than a built page. Every cursor names a different slice of
+ * the same sequence, so caching pages would mint an entry per token a visitor
+ * happens to hold; the ordered source is the part worth keeping, and slicing it
+ * again is cheap. They are cached together, one map entry per gallery, so they
+ * can never desync — and, for a seeded gallery, the materialized `shuffledOrder`
+ * on each placement is computed exactly once, when this entry is built.
  */
 type CachedGallery = {
   readonly placements: readonly CuratedGalleryPlacement[];
   readonly sections: readonly GallerySection[];
+  readonly ordering: GalleryOrdering;
 };
 
 const galleriesByLanguageAndId = new Map<string, CachedGallery>();
@@ -350,7 +458,8 @@ function getOrBuildGallery(
   const cached = galleriesByLanguageAndId.get(key);
   if (cached !== undefined) return cached;
 
-  const placements = buildPlacements(language, input.placements);
+  const ordering = resolveMockOrdering(input);
+  const placements = buildPlacements(language, input.placements, ordering);
   const sections =
     input.sections === undefined ? [] : buildSections(language, input.sections);
   // The same kind of authoring-time checks AB#113's Studio schema will run
@@ -359,7 +468,7 @@ function getOrBuildGallery(
   assertGallerySections(sections);
   assertPlacementSectionReferences(placements, sections);
 
-  const gallery: CachedGallery = { placements, sections };
+  const gallery: CachedGallery = { placements, sections, ordering };
   galleriesByLanguageAndId.set(key, gallery);
   return gallery;
 }
@@ -378,10 +487,13 @@ function getOrBuildGallery(
  * locale (AB#114) — by which point the tokens would already be indexed.
  *
  * Without a cursor this is the first page of the requested filter; with one it
- * is the slice that follows that token's boundary. `ordering` is the authored
- * manual order, the only rule the MVP has (AB#129 adds the seeded one).
- * `visibilityVersion` is not bumped by an append or a presentation-only edit —
- * only by a change that could move a cursor's boundary.
+ * is the slice that follows that token's boundary. `ordering` is the gallery's
+ * resolved rule (`manual` for every fixture but `content-shuffled-showcase`,
+ * which is `seeded-random`); `readCuratedGallerySectionPage` derives the
+ * `GalleryCursorScope.ordering` string from it, so a reseed of a seeded gallery
+ * retires its outstanding cursors as `wrong-scope`. `visibilityVersion` is not
+ * bumped by an append or a presentation-only edit — only by a change that could
+ * move a cursor's boundary.
  *
  * The codec is handed in rather than reached for. A fixture describes what the
  * photographer authored, and which key this deployment signs its continuation
@@ -426,7 +538,7 @@ export async function getMockGalleryResult(
         : gallery.placements.filter(
             (placement) => placement.sectionId === filter.section.sectionId,
           );
-    return selectGalleryWindow(filtered, window);
+    return selectGalleryWindow(filtered, window, gallery.ordering);
   };
 
   return readCuratedGallerySectionPage({
@@ -434,7 +546,7 @@ export async function getMockGalleryResult(
       locale,
       contentId,
       pageSize: MOCK_GALLERY_PAGE_SIZE,
-      ordering: "manual-v1",
+      ordering: gallery.ordering,
       visibilityVersion: `mock-${contentId}-v1`,
       ...(sectionSlug === undefined ? {} : { sectionSlug }),
       ...(cursor === undefined ? {} : { cursor }),
@@ -446,13 +558,15 @@ export async function getMockGalleryResult(
 }
 
 /**
- * The cover a gallery's listing card falls back to.
+ * The cover a gallery's listing card falls back to: the first visible placement
+ * in the gallery's active order (manual, or — for `content-shuffled-showcase` —
+ * pinned leads then the materialized shuffle), whose media renders publicly.
  *
- * The rule is handed one placement, which is the shape of the query that matters:
- * a CMS adapter projects that single row beside the card's other fields instead
- * of loading a gallery to produce a thumbnail. Getting to it here still walks
- * the authored list, because an in-memory fixture has nowhere else to order —
- * the bounding is real, the saving is not, and only a store can have both.
+ * A store-backed adapter answers this with a one-row `order(...) [0]` query and
+ * hands `selectCuratedGalleryCover` that single row. The in-memory fixture has
+ * nowhere else to order, so it passes the whole visible list plus the ordering
+ * rule and lets `selectCuratedGalleryCover` sort — the bounding is real for a
+ * store, the saving is not, and only a store can have both.
  */
 export function getMockGalleryCover(
   language: string,
@@ -464,13 +578,7 @@ export function getMockGalleryCover(
   const key = cacheKey(language, contentId);
   if (covers.has(key)) return covers.get(key);
 
-  // The first visible placement in authored order, and nothing after it, which
-  // is what the adapter's one-row query returns. Filtering before the slice
-  // matters — a hidden opening placement is not the cover, it is skipped.
-  const opening = gallery.placements
-    .filter((placement) => placement.visible)
-    .slice(0, 1);
-  const cover = selectCuratedGalleryCover(opening);
+  const cover = selectCuratedGalleryCover(gallery.placements, gallery.ordering);
   covers.set(key, cover);
   return cover;
 }

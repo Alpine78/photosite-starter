@@ -39,6 +39,7 @@ import type { ContentPlacementInput } from "@/lib/content-tree";
 import type {
   CuratedGalleryPlacement,
   GalleryCursorCodec,
+  GalleryOrdering,
 } from "@/lib/gallery-pagination";
 import {
   assertGallerySections,
@@ -1157,7 +1158,10 @@ function createSanityCuratedGallerySource(
               }`,
               params: {
                 ...baseParams,
-                afterOrder: window.after.order,
+                // This adapter only serves `manual` galleries (see
+                // `resolveOrdering`), so a boundary is always tier 0 with a
+                // numeric `order` key. AB#129 PR2 adds the seeded keyset shape.
+                afterOrder: asManualBoundaryOrder(window.after.key),
                 afterPlacementId: window.after.placementId,
               },
               tag: "gallery.placements.window",
@@ -1188,18 +1192,36 @@ function createSanityCuratedGallerySource(
 
 /**
  * The only rule this adapter applies. `gallery.ts`'s schema already lets an
- * author declare `seeded-random`; ADR-0009 decides that rule's contract but
- * defers the materialized shuffle key it requires to AB#129 (see that ADR's
- * action items). A gallery declaring it gets a defined, loud refusal here,
- * not a silent fall-back to manual order — publishing under the wrong rule is
- * a worse failure than refusing to serve the page at all.
+ * author declare `seeded-random`; ADR-0009 decides that rule's contract and
+ * AB#129's PR1 generalizes the pagination core for it, but the materialized
+ * `shuffledOrder` field this adapter would read, and the recompute-on-rotation
+ * mechanism, are AB#129's PR2. A gallery declaring `seeded-random` gets a
+ * defined, loud refusal here, not a silent fall-back to manual order —
+ * publishing under the wrong rule is a worse failure than refusing to serve the
+ * page at all.
  */
-function resolveOrderingScope(orderingRule: unknown, contentId: string): string {
-  if (orderingRule === "manual") return "manual-v1";
+/**
+ * Narrows a `GalleryOrderingBoundary.key` to the numeric manual `order` this
+ * adapter's keyset query needs. This path only ever runs for a `manual` gallery
+ * (`resolveOrdering` throws for `seeded-random`), so a non-number here is a
+ * contract violation, not a case to handle.
+ */
+function asManualBoundaryOrder(key: string | number): number {
+  if (typeof key !== "number") {
+    throw new SanityGalleryError(
+      "malformed-result",
+      `a manual gallery window boundary carried a non-numeric key: ${JSON.stringify(key)}`,
+    );
+  }
+  return key;
+}
+
+function resolveOrdering(orderingRule: unknown, contentId: string): GalleryOrdering {
+  if (orderingRule === "manual") return { kind: "manual" };
   if (orderingRule === "seeded-random") {
     throw new SanityGalleryError(
       "ordering-not-implemented",
-      "this gallery's ordering rule is seeded-random, which this adapter does not yet implement — ADR-0009 decides the contract, AB#129 implements the materialized shuffle key it requires",
+      "this gallery's ordering rule is seeded-random, which this adapter does not yet implement — ADR-0009 decides the contract, AB#129 PR2 implements the materialized shuffle key it requires",
       contentId,
     );
   }
@@ -1349,7 +1371,7 @@ export async function readSanityCuratedGalleryPage(
   if (basics === undefined) return undefined;
 
   const galleryDocumentId = readGalleryDocumentId(basics._id, contentId);
-  const ordering = resolveOrderingScope(basics.orderingRule, contentId);
+  const ordering = resolveOrdering(basics.orderingRule, contentId);
   const sections = readGallerySections(basics.sections, contentId);
   const visibilityVersion = readString(basics.latestPlacementUpdatedAt) ?? "none";
 

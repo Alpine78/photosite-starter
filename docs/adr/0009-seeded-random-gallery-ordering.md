@@ -231,19 +231,37 @@ itself; nothing here prevents that, but nothing here schedules it either.
 
 ## Action Items
 
-1. [ ] AB#129 implements the materialization: the `shuffledOrder` field (or equivalent
-       store representation), the keyed deterministic function producing it, and the
-       mechanism that recomputes it when `orderingSeed` changes.
-2. [ ] AB#129 generalizes `gallery-pagination.ts`'s boundary-key shape
-       (`GalleryWindowRequest.after` / `GalleryCursorScope`) from the manual-only
-       `(order, placementId)` pair to the tiered `(pinnedTier, key, placementId)` triple
-       §3 describes, without changing behavior for existing `manual` galleries.
-3. [ ] AB#129 wires the gallery route's cache identity and revalidation to the active
-       `orderingSeed`, per §5.
+AB#129 ships in two PRs (like AB#140): PR1 is the pagination core, the keyed function,
+and the mock fixture; PR2 is the Sanity side (`shuffledOrder` stored field, recompute
+on rotation, GROQ keyset, and lifting the adapter/Studio guards).
+
+1. [~] The keyed deterministic function is done (`src/lib/gallery-shuffle.ts`,
+       `computeShuffledOrder` — HMAC-SHA256 of `placementId` keyed by `orderingSeed`,
+       fixed-width lowercase hex), and the mock fixture materializes it once per
+       gallery build (PR1). The **stored** `shuffledOrder` field on the
+       `galleryPlacement` Sanity schema and the recompute-on-`orderingSeed`-change
+       mechanism are PR2.
+2. [x] `gallery-pagination.ts`'s boundary key is generalized to the tiered
+       `(pinnedTier, key, placementId)` triple: `GalleryOrderingBoundary`,
+       `GalleryWindowRequest.after`, and the `GalleryCursorCodec` all carry it, with
+       the tier recoverable from `key`'s type so `keyset-cursor.ts`'s wire format (and
+       the category-listing cursors sharing it) is unchanged and a pre-AB#129 `manual`
+       cursor still decodes byte for byte (PR1, pinned by a frozen-cursor test).
+3. [~] For the mock, the seed rides in `GalleryCursorScope.ordering`
+       (`orderingScopeString` → `seeded-random-v1:<seed>`), so it is part of the cursor
+       digest and a reseed fails an in-flight cursor as `wrong-scope` (PR1). Wiring the
+       **Sanity fetch cache** key/tags to `orderingSeed` end to end is PR2, where that
+       cache actually exists.
 4. [x] AB#114 reads `orderingRule`/`orderingSeed` from the gallery document and composes
        `GalleryCursorScope.ordering` per §4 for both rules, but implements the bounded
        windowed query only for `manual` — a gallery whose `orderingRule` is
        `seeded-random` is out of scope for AB#114's adapter until action item 1 lands.
+
+**PR2 also owns the rotation-consistency protocol** the "To revisit" note flags: a reader
+must never see the new seed with stale keys, or a half-recomputed mix. PR1's
+`shuffledOrder` shape is seed-agnostic and forward-compatible with a generation/version
+marker if PR2 needs one; nothing in PR1 depends on rotation being atomic because the mock
+fixture is static.
 
 ## What this ADR did not establish
 

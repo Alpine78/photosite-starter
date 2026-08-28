@@ -54,23 +54,25 @@ describe("loadGalleryCursorCodec", () => {
 
   it("issues a cursor its own key can spend again", () => {
     const codec = loadGalleryCursorCodec({ [SETTING]: VALID_KEY });
-    const cursor = codec.encode(scope, 24, "large-archive-0024");
+    const boundary = {
+      pinnedTier: 0 as const,
+      key: 24,
+      placementId: "large-archive-0024",
+    };
+    const cursor = codec.encode(scope, boundary);
 
-    expect(codec.decode(cursor, scope).afterOrder).toBe(24);
-    expect(codec.decode(cursor, scope).afterPlacementId).toBe(
-      "large-archive-0024",
-    );
+    expect(codec.decode(cursor, scope)).toEqual(boundary);
   });
 
   it("retires every issued cursor when the key is rotated", () => {
     // The documented cost of rotation: continuation URLs are indexable, so
     // changing the key deliberately invalidates the ones already published. The
     // same property is what stops a forged token from being spendable.
-    const cursor = loadGalleryCursorCodec({ [SETTING]: VALID_KEY }).encode(
-      scope,
-      24,
-      "large-archive-0024",
-    );
+    const cursor = loadGalleryCursorCodec({ [SETTING]: VALID_KEY }).encode(scope, {
+      pinnedTier: 0,
+      key: 24,
+      placementId: "large-archive-0024",
+    });
     const rotated = loadGalleryCursorCodec({ [SETTING]: OTHER_KEY });
 
     expect(() => rotated.decode(cursor, scope)).toThrow(/tampered/);
@@ -93,20 +95,27 @@ describe("galleryCursorCodec", () => {
     vi.stubEnv(SETTING, "");
     const { galleryCursorCodec } = await import("@/lib/gallery-cursor");
 
-    expect(() => galleryCursorCodec.encode(scope, 24, "large-archive-0024")).toThrow(
-      SETTING,
-    );
+    expect(() =>
+      galleryCursorCodec.encode(scope, {
+        pinnedTier: 0,
+        key: 24,
+        placementId: "large-archive-0024",
+      }),
+    ).toThrow(SETTING);
   });
 
   it("signs with the deployment's configured key", async () => {
     vi.stubEnv(SETTING, VALID_KEY);
     const { galleryCursorCodec } = await import("@/lib/gallery-cursor");
 
-    const cursor = galleryCursorCodec.encode(scope, 24, "large-archive-0024");
+    const cursor = galleryCursorCodec.encode(scope, {
+      pinnedTier: 0,
+      key: 24,
+      placementId: "large-archive-0024",
+    });
 
     expect(
-      loadGalleryCursorCodec({ [SETTING]: VALID_KEY }).decode(cursor, scope)
-        .afterOrder,
+      loadGalleryCursorCodec({ [SETTING]: VALID_KEY }).decode(cursor, scope).key,
     ).toBe(24);
   });
 });

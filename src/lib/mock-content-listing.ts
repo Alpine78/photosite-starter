@@ -91,6 +91,13 @@ const englishRecords: readonly ContentListingRecord[] = [
     publishedAt: "2024-01-05",
   },
   {
+    contentId: "content-shuffled-showcase",
+    title: "Shuffled showcase",
+    summary:
+      "A gallery in seeded-random order, long enough to continue past its first page. Placeholder gallery content.",
+    publishedAt: "2024-01-04",
+  },
+  {
     contentId: "content-choosing-a-telephoto-lens",
     title: "Choosing a telephoto lens: what the specs don't tell you",
     summary:
@@ -168,6 +175,13 @@ const finnishRecords: readonly ContentListingRecord[] = [
     summary:
       "Galleria, joka jatkuu ensimmäisen sivunsa yli. Paikkamerkkisisältöä.",
     publishedAt: "2024-01-05",
+  },
+  {
+    contentId: "content-shuffled-showcase",
+    title: "Sekoitettu esittely",
+    summary:
+      "Galleria satunnaistetussa järjestyksessä, joka jatkuu ensimmäisen sivunsa yli. Paikkamerkkisisältöä.",
+    publishedAt: "2024-01-04",
   },
   {
     contentId: "content-understanding-exposure-triangle",

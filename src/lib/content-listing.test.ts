@@ -138,6 +138,7 @@ describe("listCategoryContentIds", () => {
       "content-polar-night-sessions",
       "content-awaiting-selection",
       "content-large-archive",
+      "content-shuffled-showcase",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
@@ -151,6 +152,7 @@ describe("listCategoryContentIds", () => {
       "content-polar-night-sessions",
       "content-awaiting-selection",
       "content-large-archive",
+      "content-shuffled-showcase",
       "content-understanding-exposure-triangle",
       "content-shooting-in-low-light",
     ]);
@@ -175,8 +177,8 @@ describe("buildCategoryListing", () => {
   });
 
   it("lists recent routed content across the tree at the story root", () => {
-    // The story root is bounded to one page: the ten newest routed pages, then
-    // the newest field notes fill the rest of the page (all dated Jan 2023).
+    // The story root is bounded to one page: the eleven newest routed pages,
+    // then the newest field notes fill the rest of the page (all dated Jan 2023).
     expect(listing(null).content.map((entry) => entry.contentId)).toEqual([
       "content-selected-work",
       "content-polar-night-sessions",
@@ -188,7 +190,8 @@ describe("buildCategoryListing", () => {
       "content-shooting-in-low-light",
       "content-awaiting-selection",
       "content-large-archive",
-      ...FIELDNOTE_IDS.slice(0, MAX_CONTENT_LISTING_PAGE_SIZE - 10),
+      "content-shuffled-showcase",
+      ...FIELDNOTE_IDS.slice(0, MAX_CONTENT_LISTING_PAGE_SIZE - 11),
     ]);
   });
 
@@ -432,6 +435,7 @@ describe("buildContentListingQuery", () => {
       "content-polar-night-sessions",
       "content-awaiting-selection",
       "content-large-archive",
+      "content-shuffled-showcase",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
