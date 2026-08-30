@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createCorrelationId, logContactEvent } from "@/lib/contact-log";
+import {
+  createCorrelationId,
+  logContactEvent,
+  logEnquiryEvent,
+} from "@/lib/contact-log";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -57,6 +61,52 @@ describe("logContactEvent", () => {
     logContactEvent({ correlationId: "a\nb", state: "accepted" });
 
     expect(String(info.mock.calls[0][0])).not.toContain("\n");
+  });
+});
+
+describe("logEnquiryEvent", () => {
+  it("writes its own event name and only the fixed schema fields", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    logEnquiryEvent({ correlationId: "id", state: "accepted" });
+
+    expect(JSON.parse(String(info.mock.calls[0][0]))).toEqual({
+      event: "enquiry.submission",
+      correlationId: "id",
+      state: "accepted",
+    });
+  });
+
+  it("carries a redacted enquiry-only class on a non-success state", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    logEnquiryEvent({
+      correlationId: "id",
+      state: "delivery-failed",
+      errorClass: "source-unavailable",
+    });
+
+    expect(JSON.parse(String(error.mock.calls[0][0]))).toEqual({
+      event: "enquiry.submission",
+      correlationId: "id",
+      state: "delivery-failed",
+      errorClass: "source-unavailable",
+    });
+  });
+
+  it("shares the failure/success console split with the contact wrapper", () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    logEnquiryEvent({ correlationId: "id", state: "delivered" });
+    logEnquiryEvent({
+      correlationId: "id",
+      state: "rejected",
+      errorClass: "honeypot",
+    });
+
+    expect(info).toHaveBeenCalledOnce();
+    expect(error).toHaveBeenCalledOnce();
   });
 });
 

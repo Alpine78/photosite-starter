@@ -224,8 +224,10 @@ reads it, so it never reaches a page. One server-only path does read it: the AB#
 enquiry resolver (`src/lib/sanity-enquiry-media.ts`) uses it to tell you which master a
 visitor is asking about, in an email to you — never in anything a visitor receives. It is
 length-bounded (512 characters) in the schema and again in that resolver, which refuses a
-value past the limit rather than passing it on. Storing it is still a decision about the
-dataset, not about the site:
+value past the limit rather than passing it on, and the resolver surfaces it **only when
+`SANITY_DATASET_VISIBILITY` is `private`** — on a public dataset any stored value is
+dropped, because there is no private archive boundary to lead back across. Storing it is
+still a decision about the dataset, not about the site:
 
 - **A public dataset is world-readable.** Anyone with the project id can query every
   published document in it. The schema therefore **does not offer the field at all** when

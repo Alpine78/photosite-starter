@@ -855,7 +855,9 @@ built). The invalid-cursor 404 offers the branch's own parameter-free page
 (`not-found-return.ts`). Only the parameter-free URL enters the sitemap. Story-root listing
 continuation is deliberately out of AB#140's scope.
 The gallery-item enquiry (AB#60) is partially built — its server-only identity and
-authorization seam only. `src/lib/enquiry-media.ts` (`import "server-only"`) takes a
+authorization seam (PR1) and its `POST /api/enquiry` endpoint (PR2); the lightbox entry
+point and the e2e journey (PR3 / AB#123) remain. `src/lib/enquiry-media.ts`
+(`import "server-only"`) takes a
 **discriminated** request — `{kind:"curated", locale, contentId, itemId}` where
 `itemId === placementId`, or `{kind:"dynamic", locale, itemId}` where `itemId === mediaId`
 (ADR-0002 §1); the caller states the kind because the two identity spaces share one syntax
@@ -880,10 +882,34 @@ and a serialization test proves the projection cannot start leaking them. The Sa
 `placementId` is never picked), explicitly projected, `[0...2]` ambiguity-detected; the
 Sanity **dynamic** path fails closed (`dynamic-unsupported`, no query) until AB#58 (the
 dynamic query and its result context) and AB#68 (`dynamicallyDiscoverable` in the model)
-exist — the mock dynamic path is fully implemented and unit-tested. No `/api/enquiry`
-endpoint, no contact-form or lightbox entry point, and no e2e journey (AB#123) yet; AB#60
-stays open until a real dynamic result can be wired in or its acceptance criteria are
-amended.
+exist — the mock dynamic path is fully implemented and unit-tested. A classified
+content-store failure during resolution surfaces through `classifyEnquiryFailure`: a
+`SanityQueryError` (transport) keeps its own retry decision — `source-unavailable`
+(retryable) or `source-error` (not) — while any other `Sanity…Error` (a read that
+completed and returned a document the adapter refused to trust — content tree, article,
+gallery, settings, media) becomes `malformed-source`. `resolveEnquiryTarget` wraps its
+whole tree+source operation, and the route re-runs the same classifier over
+`getSiteSettings()`/email composition, so a route never answers a raw provider error with
+a bare 500 or an `accepted` event with no terminal.
+`POST /api/enquiry` (PR2) reuses the contact path rather than restating it: the same
+`checkContactRequestHeaders` ahead of the throttle, `readContactSubmission` (now taking an
+optional `extraFields` whitelist — the contact route passes none, so its result shape is
+unchanged) widened by exactly `kind`/`locale`/`contentId`/`itemId`, the same honeypot rule,
+`buildEnquiryEmail` beside `buildContactEmail` in one delivery module, the shared
+`jsonNoStore` + `DELIVERY_FAILURE_STATUS`, and one private `writeSubmissionLine` under two
+separately-closed wrappers (`logContactEvent` / `logEnquiryEvent`, `event:"enquiry.submission"`).
+Its own rate-limiter instance, so an enquiry and a contact message never spend each other's
+allowance; its idempotency key is namespaced `enquiry:<submissionId>`. Every resolver
+rejection collapses to one generic browser answer — `malformed-request` → 400, the five
+identity/authorization rejections → one `404 {reason:"item-unavailable"}` that discloses
+nothing, `source-unavailable` → 503 retryable, `source-error`/`malformed-source` → 500 —
+while the operational log keeps the specific class. After the `accepted` event, every path
+(resolution, settings read, email composition, delivery, an unclassifiable defect →
+`internal`) writes exactly one terminal event. `archiveLocator` and the resolved
+`mediaId`/caption/credit reach only the owner's email — never a response, never a log line
+(route tests assert both). No contact-form or lightbox entry point and no e2e journey
+(AB#123) yet; AB#60 stays open until a real dynamic result can be wired in or its
+acceptance criteria are amended.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — story-root listing continuation and progressive in-place append
@@ -897,9 +923,9 @@ follow-up would route the gallery detail through a handler; tracked with AB#132)
 `shuffledOrderGeneration` atomic-flip alternative to the brief recompute refusal window
 (a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
 and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
-build it), lightbox zoom tuning, and the rest of the gallery-item enquiry (AB#60): its
-`/api/enquiry` endpoint reusing the contact validation/abuse/delivery path, the lightbox
-entry point, and the identity/origin smoke (AB#123).
+build it), lightbox zoom tuning, and the rest of the gallery-item enquiry (AB#60): the lightbox
+entry point that captures the item context, its public-journey test, and the identity/origin
+smoke (AB#123).
 Validated JSON-LD structured data (AB#86) is built: `src/lib/structured-data.ts` is a pure
 builder + `</script>`-safe serializer (`<`, `>`, `&`, U+2028, U+2029 escaped — `JSON.stringify`
 alone does not, per Next.js's own guidance) rendered through the `<JsonLd>` server component.

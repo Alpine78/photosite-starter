@@ -23,6 +23,7 @@ import {
   type DeploymentStage,
 } from "@/lib/deployment-stage";
 import type { ContactMessage } from "@/lib/contact-message";
+import type { ResolvedEnquiryTarget } from "@/lib/enquiry-media";
 import { createResendDeliveryAdapter } from "@/lib/contact-delivery-resend";
 import { createSinkDeliveryAdapter } from "@/lib/contact-delivery-sink";
 
@@ -71,6 +72,22 @@ export type ContactDeliveryOutcome =
       readonly retryable: boolean;
     };
 
+/**
+ * HTTP status for a delivery attempt that was made and did not succeed. Kept
+ * beside the error classes it maps, and shared by the contact and
+ * gallery-enquiry endpoints so they answer a provider failure identically.
+ * `provider-quota-exceeded` is 502 rather than 503: the allowance resets on the
+ * provider's own schedule, so presenting it as a momentary unavailability would
+ * invite a retry that cannot succeed.
+ */
+export const DELIVERY_FAILURE_STATUS: Record<ContactDeliveryErrorClass, number> = {
+  configuration: 500,
+  "provider-rejected": 502,
+  "provider-quota-exceeded": 502,
+  "provider-unavailable": 503,
+  timeout: 503,
+};
+
 export type ContactDeliveryRequest = {
   readonly subject: string;
   /** Plain text only. The MVP sends no HTML part and no attachments. */
@@ -113,6 +130,72 @@ export function buildContactEmail(
     text: [
       `${contact.nameLabel}: ${message.name}`,
       `${contact.emailLabel}: ${message.email}`,
+      "",
+      `${contact.messageLabel}:`,
+      message.message,
+    ].join("\n"),
+    replyTo: message.email,
+  };
+}
+
+/**
+ * Composes the email the site owner receives for a gallery-item enquiry
+ * (AB#60). Same rules as {@link buildContactEmail} — no visitor text in the
+ * subject, `Reply-To` is the enquirer, labels are the deployment's own — plus
+ * the resolved item context the owner needs to answer:
+ *
+ * - the stable `mediaId`, and the caption/credit already resolved for it;
+ * - for a curated enquiry, the gallery `contentId` (and section, if any);
+ * - **`archiveLocator`**, the private-dataset locator that leads to the master.
+ *   This is the one field that must never appear anywhere a visitor or a log
+ *   can see it (ADR-0002 §1); the enquiry endpoint keeps it out of every
+ *   response and every operational-log line, and it reaches here only because
+ *   this text is delivered solely to the owner's own mailbox.
+ *
+ * The `mediaId` may appear in the subject: it is a project-minted public
+ * identifier the adapters already validated, not anything the visitor wrote.
+ */
+export function buildEnquiryEmail(
+  message: ContactMessage,
+  target: ResolvedEnquiryTarget,
+  { siteName, labels }: { siteName: string; labels: BuiltInLabels },
+): Omit<ContactDeliveryRequest, "idempotencyKey"> {
+  const { contact } = labels;
+
+  const contextLines: string[] = [
+    `${contact.enquiryItemLabel}: ${target.mediaId}`,
+  ];
+  if (target.caption !== undefined) {
+    contextLines.push(`${contact.enquiryCaptionLabel}: ${target.caption}`);
+  }
+  if (target.credit !== undefined) {
+    contextLines.push(`${contact.enquiryCreditLabel}: ${target.credit}`);
+  }
+  if (target.kind === "curated") {
+    const gallery =
+      target.sectionId === undefined
+        ? target.contentId
+        : `${target.contentId} / ${target.sectionId}`;
+    contextLines.push(`${contact.enquiryGalleryLabel}: ${gallery}`);
+    // The occurrence, not just the photograph: the same image may be placed in
+    // one gallery twice, and the visitor asked about one of them (ADR-0002 §2).
+    contextLines.push(
+      `${contact.enquiryPlacementLabel}: ${target.placementId}`,
+    );
+  }
+  if (target.archiveLocator !== undefined) {
+    contextLines.push(
+      `${contact.enquiryArchiveLabel}: ${target.archiveLocator}`,
+    );
+  }
+
+  return {
+    subject: `${contact.enquirySubject}: ${target.mediaId} — ${siteName}`,
+    text: [
+      `${contact.nameLabel}: ${message.name}`,
+      `${contact.emailLabel}: ${message.email}`,
+      "",
+      ...contextLines,
       "",
       `${contact.messageLabel}:`,
       message.message,

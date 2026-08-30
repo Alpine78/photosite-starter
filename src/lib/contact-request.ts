@@ -98,6 +98,15 @@ export type ContactRequestResult =
       readonly outcome: "accepted";
       readonly message: ContactMessage;
       readonly submissionId: string;
+      /**
+       * The raw string values of any `extraFields` the caller asked for that
+       * the body actually carried. Present only when `extraFields` was passed
+       * and non-empty — the contact endpoint asks for none, so its result shape
+       * is unchanged. The gallery enquiry endpoint (AB#60) asks for its own
+       * item-context fields here and hands them straight to its own validator;
+       * nothing in this module interprets them.
+       */
+      readonly extra?: Readonly<Record<string, string>>;
     }
   /**
    * The honeypot was filled. The caller answers exactly as it answers a
@@ -120,6 +129,19 @@ export const CONTACT_REJECTION_STATUS: Record<ContactRejectionReason, number> = 
   "invalid-fields": 422,
   "rate-limited": 429,
 };
+
+/**
+ * A JSON response that is never a cacheable representation of anything and
+ * carries no CORS headers, so a cross-origin script cannot read it even if it
+ * could provoke it. Shared by the contact and gallery-enquiry endpoints, which
+ * answer with the same posture (ADR-0004 §5).
+ */
+export function jsonNoStore(body: unknown, status: number): Response {
+  return Response.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
 
 function hasJsonContentType(request: Request): boolean {
   const header = request.headers.get("content-type");
@@ -220,13 +242,14 @@ async function readBoundedBody(
  */
 function isAcceptedEnvelope(
   parsed: unknown,
+  acceptedKeys: readonly string[],
 ): parsed is Record<string, string> {
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     return false;
   }
   return Object.entries(parsed).every(
     ([key, value]) =>
-      ACCEPTED_KEYS.includes(key) && typeof value === "string",
+      acceptedKeys.includes(key) && typeof value === "string",
   );
 }
 
@@ -256,7 +279,16 @@ export function checkContactRequestHeaders(
  */
 export async function readContactSubmission(
   request: Request,
+  options?: { readonly extraFields?: readonly string[] },
 ): Promise<ContactRequestResult> {
+  // A closed whitelist per call: the contact fields plus whatever context
+  // fields this caller declared. An un-whitelisted key is still a
+  // `malformed-body`, so a caller cannot probe which fields a later version
+  // might honor.
+  const extraFields = options?.extraFields ?? [];
+  const acceptedKeys =
+    extraFields.length === 0 ? ACCEPTED_KEYS : [...ACCEPTED_KEYS, ...extraFields];
+
   const body = await readBoundedBody(request, CONTACT_REQUEST_MAX_BYTES);
   if (body === undefined) {
     return { outcome: "rejected", reason: "payload-too-large" };
@@ -269,7 +301,7 @@ export async function readContactSubmission(
     return { outcome: "rejected", reason: "malformed-body" };
   }
 
-  if (!isAcceptedEnvelope(parsed)) {
+  if (!isAcceptedEnvelope(parsed, acceptedKeys)) {
     return { outcome: "rejected", reason: "malformed-body" };
   }
 
@@ -290,7 +322,17 @@ export async function readContactSubmission(
   }
 
   const result = parseContactMessage(fields);
-  return result.ok
-    ? { outcome: "accepted", message: result.message, submissionId }
-    : { outcome: "rejected", reason: "invalid-fields", issues: result.issues };
+  if (!result.ok) {
+    return { outcome: "rejected", reason: "invalid-fields", issues: result.issues };
+  }
+
+  if (extraFields.length === 0) {
+    return { outcome: "accepted", message: result.message, submissionId };
+  }
+
+  const extra: Record<string, string> = {};
+  for (const field of extraFields) {
+    if (field in parsed) extra[field] = parsed[field];
+  }
+  return { outcome: "accepted", message: result.message, submissionId, extra };
 }

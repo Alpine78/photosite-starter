@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   assertEnquiryEligible,
+  classifyEnquiryFailure,
   EnquiryResolutionError,
   resolveEnquiryTarget,
   type EnquiryTargetRequest,
@@ -300,6 +301,148 @@ describe("resolveEnquiryTarget — request shape", () => {
 
     expect(error.rejection).toBe("malformed-request");
     expect(source).not.toHaveBeenCalled();
+  });
+
+  it("rejects a dynamic request that also carries a contentId (closed per kind)", async () => {
+    const source = vi.fn();
+    const error = await (async () => {
+      try {
+        await resolveEnquiryTarget(
+          {
+            kind: "dynamic",
+            locale: "en-GB",
+            contentId: "content-selected-work",
+            itemId: "coastal-landscape",
+          },
+          source,
+        );
+      } catch (thrown) {
+        return thrown as InstanceType<typeof EnquiryResolutionError>;
+      }
+      throw new Error("expected a throw");
+    })();
+
+    expect(error.rejection).toBe("malformed-request");
+    expect(source).not.toHaveBeenCalled();
+  });
+
+  it("rejects a curated request with no contentId", async () => {
+    expect(
+      (
+        await rejectionOf({
+          kind: "curated",
+          locale: "en-GB",
+          itemId: "selected-work-coastal-landscape",
+        })
+      ).rejection,
+    ).toBe("malformed-request");
+  });
+
+  it.each([
+    {
+      label: "curated",
+      request: {
+        kind: "curated",
+        locale: "en-GB",
+        contentId: "content-selected-work",
+        itemId: "selected-work-coastal-landscape",
+      },
+    },
+    {
+      label: "dynamic",
+      request: { kind: "dynamic", locale: "en-GB", itemId: "coastal-landscape" },
+    },
+  ])("passes the exact $label context shape through to the source", async ({ request }) => {
+    const source = vi
+      .fn()
+      .mockResolvedValue({ kind: "dynamic", mediaId: "coastal-landscape" });
+
+    await resolveEnquiryTarget(request, source);
+
+    expect(source).toHaveBeenCalledTimes(1);
+    expect(source.mock.calls[0][0]).toEqual(request);
+  });
+});
+
+describe("classifyEnquiryFailure and store-failure surfacing", () => {
+  class FakeSanityQueryError extends Error {
+    readonly retryable: boolean;
+    constructor(retryable: boolean) {
+      super("fake");
+      this.name = "SanityQueryError";
+      this.retryable = retryable;
+    }
+  }
+
+  it("returns an EnquiryResolutionError unchanged", () => {
+    const original = new EnquiryResolutionError("not-enquirable");
+    expect(classifyEnquiryFailure(original)).toBe(original);
+  });
+
+  it.each([
+    [true, "source-unavailable"],
+    [false, "source-error"],
+  ])(
+    "maps a SanityQueryError-shaped throw (retryable=%s) to %s",
+    (retryable, rejection) => {
+      const classified = classifyEnquiryFailure(new FakeSanityQueryError(retryable));
+      expect(classified?.rejection).toBe(rejection);
+    },
+  );
+
+  it("returns undefined for a genuine unclassifiable defect", () => {
+    expect(classifyEnquiryFailure(new Error("boom"))).toBeUndefined();
+    expect(classifyEnquiryFailure({ name: "SanityQueryError" })).toBeUndefined();
+    // A SanityQueryError-shaped throw with no retry decision is not a
+    // classified transport failure — treat it as a defect, not a guess.
+    const noRetryable = Object.assign(new Error("x"), { name: "SanityQueryError" });
+    expect(classifyEnquiryFailure(noRetryable)).toBeUndefined();
+  });
+
+  it.each([
+    "SanityContentTreeError",
+    "SanityArticleError",
+    "SanityGalleryError",
+    "SanitySiteSettingsError",
+    "SanityMediaError",
+  ])("maps a completed-but-untrusted %s to malformed-source", (name) => {
+    const classified = classifyEnquiryFailure(
+      Object.assign(new Error("bad document"), { name }),
+    );
+    expect(classified?.rejection).toBe("malformed-source");
+  });
+
+  it.each([
+    [true, "source-unavailable"],
+    [false, "source-error"],
+  ])(
+    "surfaces a store failure from the source (retryable=%s) as %s",
+    async (retryable, rejection) => {
+      const source = vi.fn().mockRejectedValue(new FakeSanityQueryError(retryable));
+      const error = await (async () => {
+        try {
+          await resolveEnquiryTarget(
+            curated("content-selected-work", "selected-work-coastal-landscape"),
+            source,
+          );
+        } catch (thrown) {
+          return thrown as InstanceType<typeof EnquiryResolutionError>;
+        }
+        throw new Error("expected a throw");
+      })();
+      expect(error).toBeInstanceOf(EnquiryResolutionError);
+      expect(error.rejection).toBe(rejection);
+    },
+  );
+
+  it("lets a genuine defect from the source propagate unchanged", async () => {
+    const source = vi.fn().mockRejectedValue(new Error("real bug"));
+    await expect(
+      resolveEnquiryTarget(
+        curated("content-selected-work", "selected-work-coastal-landscape"),
+        source,
+      ),
+    ).rejects.toThrow("real bug");
   });
 });
 
