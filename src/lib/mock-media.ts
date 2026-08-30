@@ -139,3 +139,18 @@ const imagesByLanguage: Readonly<Record<string, MockImages>> = {
 export function getMockImages(language: string): MockImages {
   return imagesByLanguage[language] ?? mockImages;
 }
+
+/**
+ * One mock photograph by its stable `mediaId`, or `undefined` when the fixture
+ * has none. The counterpart to a store's "read one media by id" — a dynamic
+ * enquiry (ADR-0002 §1, `itemId === mediaId`) has no placement to look up, so it
+ * resolves the photograph directly.
+ */
+export function findMockImageByMediaId(
+  language: string,
+  mediaId: string,
+): ImageMedia | undefined {
+  return Object.values(getMockImages(language)).find(
+    (image) => image.mediaId === mediaId,
+  );
+}

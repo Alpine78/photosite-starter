@@ -854,6 +854,36 @@ so it pages through with no JavaScript (progressive in-place append is deliberat
 built). The invalid-cursor 404 offers the branch's own parameter-free page
 (`not-found-return.ts`). Only the parameter-free URL enters the sitemap. Story-root listing
 continuation is deliberately out of AB#140's scope.
+The gallery-item enquiry (AB#60) is partially built — its server-only identity and
+authorization seam only. `src/lib/enquiry-media.ts` (`import "server-only"`) takes a
+**discriminated** request — `{kind:"curated", locale, contentId, itemId}` where
+`itemId === placementId`, or `{kind:"dynamic", locale, itemId}` where `itemId === mediaId`
+(ADR-0002 §1); the caller states the kind because the two identity spaces share one syntax
+and inferring it would let a stale or wrong-container curated reference resolve as dynamic.
+It validates the route locale against the configured locales and the identities against
+the shared `MAX_ITEM_ID_LENGTH` bound, authorizes a curated request's container through the
+public content tree (`getPublicContentRoute(..., "gallery")` — a published Sanity gallery
+document alone does not establish a supported public route, and this check runs before the
+content source is touched), then dispatches to a mock or Sanity resolver that composes
+`publiclyRenderable && enquiryEligible && !privateOnly` (ADR-0002 §3/§4, plus
+`dynamicallyDiscoverable` for a dynamic request per ADR-0012 §2, every flag compared strict
+`=== true` so a pre-field document fails closed) and returns the stable `mediaId`, the
+resolved caption/credit, and — from the private dataset only — the `archiveLocator`, as a
+discriminated union whose dynamic arm cannot carry a `placementId`. `enquiryEligible` is a
+new opt-in media field (both dataset visibilities); `archiveLocator` gains a 512-char
+schema bound restated and pinned in the resolver, which raises `malformed-source` on a
+value past it rather than passing it to a later email. The resolved target is
+server-consumer-facing — the public gallery result contract carries none of these fields
+and a serialization test proves the projection cannot start leaking them. The Sanity
+**curated** path is a two-round-trip read (gallery `_id` for `contentId`+`language`, then
+`galleryPlacement` scoped by `gallery._ref` so a sibling-language placement sharing the
+`placementId` is never picked), explicitly projected, `[0...2]` ambiguity-detected; the
+Sanity **dynamic** path fails closed (`dynamic-unsupported`, no query) until AB#58 (the
+dynamic query and its result context) and AB#68 (`dynamicallyDiscoverable` in the model)
+exist — the mock dynamic path is fully implemented and unit-tested. No `/api/enquiry`
+endpoint, no contact-form or lightbox entry point, and no e2e journey (AB#123) yet; AB#60
+stays open until a real dynamic result can be wired in or its acceptance criteria are
+amended.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — story-root listing continuation and progressive in-place append
@@ -867,7 +897,9 @@ follow-up would route the gallery detail through a handler; tracked with AB#132)
 `shuffledOrderGeneration` atomic-flip alternative to the brief recompute refusal window
 (a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
 and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
-build it), lightbox zoom tuning, the gallery-item enquiry (AB#60).
+build it), lightbox zoom tuning, and the rest of the gallery-item enquiry (AB#60): its
+`/api/enquiry` endpoint reusing the contact validation/abuse/delivery path, the lightbox
+entry point, and the identity/origin smoke (AB#123).
 Validated JSON-LD structured data (AB#86) is built: `src/lib/structured-data.ts` is a pure
 builder + `</script>`-safe serializer (`<`, `>`, `&`, U+2028, U+2029 escaped — `JSON.stringify`
 alone does not, per Next.js's own guidance) rendered through the `<JsonLd>` server component.

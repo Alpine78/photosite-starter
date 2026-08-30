@@ -4,6 +4,7 @@ import { defineSchemaTypes } from "./index";
 import { localizedTextType } from "./localized-text";
 import {
   defineMediaType,
+  MAX_ARCHIVE_LOCATOR_LENGTH,
   MAX_PUBLIC_DELIVERY_DIMENSION,
   MEDIA_TYPE_NAME,
 } from "./media";
@@ -45,6 +46,7 @@ function inspect(
   const clientSettings: { perspective: string; useCdn?: boolean }[] = [];
   let required = false;
   let min: number | undefined;
+  let max: number | undefined;
 
   const rule: SchemaValidationRule = {
     required() {
@@ -55,7 +57,8 @@ function inspect(
       min = value;
       return rule;
     },
-    max() {
+    max(value) {
+      max = value;
       return rule;
     },
     custom(check) {
@@ -91,7 +94,7 @@ function inspect(
   const run = async (value: unknown, document?: Record<string, unknown>) =>
     Promise.all(checks.map((check) => check(value, contextFor(document))));
 
-  return { required, min, run, queries, clientSettings };
+  return { required, min, max, run, queries, clientSettings };
 }
 
 function fieldOf(
@@ -183,6 +186,30 @@ describe("where a master's location may be recorded", () => {
 
   it("offers it in a dataset that requires a credential to read", () => {
     expect(fieldNames(privateMedia)).toContain("archiveLocator");
+  });
+
+  it("bounds its length, so a pasted document is a defect rather than trusted data", () => {
+    // AB#60's enquiry resolver puts this value into a photographer-facing
+    // email; the runtime restates the same ceiling and a test pins the two
+    // equal.
+    expect(inspect(fieldOf(privateMedia, "archiveLocator").validation).max).toBe(
+      MAX_ARCHIVE_LOCATOR_LENGTH,
+    );
+  });
+});
+
+describe("whether a photograph may receive enquiries (AB#60)", () => {
+  it("is offered in both a public and a private dataset", () => {
+    // Unlike the archive location, this is a yes/no the site acts on, not
+    // sensitive data, so it exists regardless of dataset visibility.
+    expect(fieldNames(publicMedia)).toContain("enquiryEligible");
+    expect(fieldNames(privateMedia)).toContain("enquiryEligible");
+  });
+
+  it("is a boolean that is off until an editor opts in (ADR-0002 §4)", () => {
+    const field = fieldOf(publicMedia, "enquiryEligible");
+    expect(field.type).toBe("boolean");
+    expect(field.initialValue).toBe(false);
   });
 });
 

@@ -61,6 +61,7 @@ import type {
   SchemaTypeDefinition,
   SchemaValidationContext,
   SchemaValidationResult,
+  SchemaValidationRule,
 } from "./schema-types";
 import { publishedIdOf, validationClientOf } from "./validation";
 
@@ -258,12 +259,24 @@ async function validatePublicDerivative(
   return true;
 }
 
+/**
+ * Longest an archive locator may be. It is a folder path, a catalogue
+ * reference, or a drive label — never a document — so a generous single-line
+ * ceiling both keeps an accidental paste bounded and lets the AB#60 enquiry
+ * resolver treat anything past it as a malformed value rather than trusted
+ * data on its way into a photographer-facing email. Restated as
+ * `MAX_ARCHIVE_LOCATOR_LENGTH` in `src/lib/sanity-enquiry-media.ts` and pinned
+ * equal by a test, the same way the placement-id bound is.
+ */
+export const MAX_ARCHIVE_LOCATOR_LENGTH = 512;
+
 const archiveLocatorField = {
   name: "archiveLocator",
   title: "Archive location",
   type: "string",
   description:
     "Where your master file lives — a folder path, a catalogue reference, a drive label. The website never reads it into a page. It is stored in this dataset, which is private, so it is readable only with a credential.",
+  validation: (rule: SchemaValidationRule) => rule.max(MAX_ARCHIVE_LOCATOR_LENGTH),
 } as const;
 
 /**
@@ -368,6 +381,14 @@ export function defineMediaType(
         description:
           "Turn this off to keep a published photograph out of every public page without unpublishing the document. Off also wins over anything that places it: a gallery can hide a photograph, never reveal a hidden one.",
         initialValue: true,
+      },
+      {
+        name: "enquiryEligible",
+        title: "May receive enquiries",
+        type: "boolean",
+        description:
+          "Turn this on to let a visitor start an enquiry about buying or licensing this photograph from a gallery. Off by default and never assumed from publication — an image can be public without being for sale.",
+        initialValue: false,
       },
       ...(options.datasetVisibility === "private" ? [archiveLocatorField] : []),
     ],
