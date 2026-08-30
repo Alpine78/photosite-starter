@@ -309,6 +309,11 @@ describe("curated gallery result contract", () => {
       masterUrl: "master-url-sentinel",
       publicationState: "draft",
       privateOnly: true,
+      // AB#60 adds these two server-only, media-owned fields. The public gallery
+      // result contract carries neither, and this projection cannot start
+      // leaking them into a browser payload.
+      enquiryEligible: true,
+      dynamicallyDiscoverable: true,
       rendition: {
         ...source.rendition,
         providerAssetRef: "provider-asset-sentinel",
@@ -330,6 +335,8 @@ describe("curated gallery result contract", () => {
     expect(serialized).not.toContain("provider-asset-sentinel");
     expect(serialized).not.toContain("privateOnly");
     expect(serialized).not.toContain("publicationState");
+    expect(serialized).not.toContain("enquiryEligible");
+    expect(serialized).not.toContain("dynamicallyDiscoverable");
     expect(result.items[0].media).toEqual(source);
   });
 

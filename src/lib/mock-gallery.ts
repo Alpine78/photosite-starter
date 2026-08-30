@@ -69,6 +69,13 @@ type MockPlacementInput = {
    * ordering rule (AB#129, ADR-0009 §3). Ignored for a `manual` gallery.
    */
   readonly pinned?: boolean;
+  /**
+   * This placement's own visibility (ADR-0002 §3). Absent means visible; `false`
+   * hides this occurrence while leaving the photograph public elsewhere. The
+   * grid already filters a hidden placement out; the enquiry resolver treats one
+   * as an unavailable container (AB#60).
+   */
+  readonly visible?: boolean;
 };
 
 /** How a mock gallery is ordered. Absent means `manual`, the default. */
@@ -172,6 +179,23 @@ const polarNightPlacements: readonly MockPlacementInput[] = [
     placementId: "polar-night-lichen-stones",
     image: "lichenStones",
     caption: { en: "Frozen detail", fi: "Jäätynyt yksityiskohta" },
+  },
+  // AB#60 enquiry-resolution fixtures. A hidden occurrence: it stays out of the
+  // grid and the enquiry resolver rejects it as an unavailable container.
+  {
+    placementId: "polar-night-hidden-occurrence",
+    image: "forestStream",
+    visible: false,
+  },
+  // A placement whose id is deliberately also a real `mediaId` ("open-marsh"),
+  // so the enquiry resolver's `kind` discriminator is what tells a curated
+  // reference from a dynamic one — this resolves to the coastal-landscape
+  // photograph as a curated placement, while `kind:"dynamic"` + "open-marsh"
+  // resolves the open-marsh photograph.
+  {
+    placementId: "open-marsh",
+    image: "coastalLandscape",
+    caption: { en: "Shared identity", fi: "Jaettu tunniste" },
   },
 ];
 
@@ -378,7 +402,7 @@ function buildPlacements(
     return {
       placementId: input.placementId,
       order: index,
-      visible: true,
+      visible: input.visible ?? true,
       media: images[input.image],
       ...(caption === undefined ? {} : { captionOverride: caption }),
       ...(input.sectionId === undefined ? {} : { sectionId: input.sectionId }),
@@ -555,6 +579,29 @@ export async function getMockGalleryResult(
     source,
     ...(cursorCodec === undefined ? {} : { cursorCodec }),
   });
+}
+
+/**
+ * One curated placement of one gallery, by its site-wide `placementId`, in the
+ * language a route renders — or `undefined` when the gallery or the placement is
+ * not in the fixture.
+ *
+ * The enquiry resolver (AB#60) needs a placement's own facts — which photograph,
+ * its section, whether this occurrence is visible, and the resolved caption —
+ * without going through the bounded windowed read a grid uses. A store-backed
+ * adapter answers this with a single keyed lookup; the fixture reads its own
+ * cached placement list. `contentId` is resolved to a supported public route by
+ * the caller before this is reached, so a `undefined` here means the fixture and
+ * the content tree disagree.
+ */
+export function findMockCuratedPlacement(
+  language: string,
+  contentId: string,
+  placementId: string,
+): CuratedGalleryPlacement | undefined {
+  return getOrBuildGallery(language, contentId)?.placements.find(
+    (placement) => placement.placementId === placementId,
+  );
 }
 
 /**

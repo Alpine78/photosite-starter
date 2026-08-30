@@ -106,6 +106,10 @@ restricted: "Server-only modules" {
   continuation-cursors: "gallery-cursor.ts / content-listing-cursor.ts\nShared GALLERY_CURSOR_SIGNING_KEY,\nresolved lazily (gallery and category-branch\ncontinuation, ADR-0013)" {
     class: built
   }
+
+  enquiry-media: "enquiry-media.ts (+ mock-enquiry-media.ts / sanity-enquiry-media.ts)\nServer-only itemId -> mediaId resolution for the AB#60 enquiry flow.\nAuthorizes the container against the public content tree, then resolves\nand validates the private archiveLocator. The resolved target never\nreturns to a browser; no route consumes it yet (endpoint is a later slice)." {
+    class: built
+  }
 }
 
 external: "Outside the deployment" {

@@ -219,9 +219,13 @@ to that name. The build fails without it rather than the site quietly serving an
 version of itself.
 
 **Archive locations, and where they may live.** The media document can carry an *Archive
-location* — where your master lives, in your own archive. No query the site runs reads it,
-so it never reaches a page. But storing it is a decision about the dataset, not about the
-site:
+location* — where your master lives, in your own archive. No query the site *renders*
+reads it, so it never reaches a page. One server-only path does read it: the AB#60 gallery
+enquiry resolver (`src/lib/sanity-enquiry-media.ts`) uses it to tell you which master a
+visitor is asking about, in an email to you — never in anything a visitor receives. It is
+length-bounded (512 characters) in the schema and again in that resolver, which refuses a
+value past the limit rather than passing it on. Storing it is still a decision about the
+dataset, not about the site:
 
 - **A public dataset is world-readable.** Anyone with the project id can query every
   published document in it. The schema therefore **does not offer the field at all** when
@@ -234,6 +238,13 @@ site:
 Verify which one you have during provisioning rather than assuming — a dataset created as
 public and later filled with archive paths is a disclosure, not a misconfiguration to fix
 later.
+
+**Enquiries are opt-in per photograph.** The media document carries a *May receive
+enquiries* switch (`enquiryEligible`), off by default in every dataset. A photograph can
+be public without being one a visitor may ask to buy or license, so this is never inferred
+from publication — turn it on only for work you are willing to field enquiries about
+(AB#60). It is a plain yes/no the site acts on, not sensitive data, so it exists whether
+the dataset is public or private.
 
 **Visibility never applies to assets.** Uploaded files are served from public CDN URLs in
 both cases. That is what the export rules below exist for.

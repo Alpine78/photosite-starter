@@ -181,6 +181,17 @@ const englishContentTree: ContentTreeInput = {
       published: false,
       canonicalCategoryId: null,
     },
+    {
+      // A gallery placed under a category but not published yet. Its detail
+      // route 404s, and the enquiry resolver (AB#60) treats an item that names
+      // it as an unavailable container — the same "not a supported public
+      // route" state a routed article or a bogus id produces.
+      contentId: "content-unpublished-gallery-draft",
+      variant: "gallery",
+      slug: "unpublished-gallery-draft",
+      published: false,
+      canonicalCategoryId: "cat-portfolio",
+    },
     ...fieldnotePlacements,
   ],
 };
@@ -270,6 +281,16 @@ const finnishContentTree: ContentTreeInput = {
       slug: "hamarakuvaus-ilman-jalustaa",
       published: true,
       canonicalCategoryId: "cat-technique",
+    },
+    {
+      // The Finnish side of the unpublished gallery draft (AB#60): the same
+      // stable identity, still unpublished, so an enquiry naming it in either
+      // locale resolves to `container-unavailable`.
+      contentId: "content-unpublished-gallery-draft",
+      variant: "gallery",
+      slug: "julkaisematon-galleria-luonnos",
+      published: false,
+      canonicalCategoryId: "cat-portfolio",
     },
   ],
 };
