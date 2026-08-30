@@ -290,4 +290,59 @@ describe("readContactSubmission", () => {
       ],
     });
   });
+
+  it("keeps the accepted result shape unchanged when no extra fields are asked for", async () => {
+    // The contact endpoint passes no `extraFields`, so its result must not
+    // gain an `extra` key.
+    const result = await readContactSubmission(contactRequest());
+    expect(result).toEqual({
+      outcome: "accepted",
+      submissionId: SUBMISSION_ID,
+      message: {
+        name: "Jane Example",
+        email: "jane@example.com",
+        message: "Are you available in June?",
+      },
+    });
+  });
+
+  it("widens the whitelist by the caller's extra fields and returns their raw values", async () => {
+    const result = await readContactSubmission(
+      contactRequest({
+        body: JSON.stringify({
+          ...validBody,
+          kind: "curated",
+          contentId: "content-selected-work",
+          itemId: "selected-work-coastal-landscape",
+        }),
+      }),
+      { extraFields: ["kind", "locale", "contentId", "itemId"] },
+    );
+
+    expect(result).toEqual({
+      outcome: "accepted",
+      submissionId: SUBMISSION_ID,
+      message: {
+        name: "Jane Example",
+        email: "jane@example.com",
+        message: "Are you available in June?",
+      },
+      extra: {
+        kind: "curated",
+        contentId: "content-selected-work",
+        itemId: "selected-work-coastal-landscape",
+      },
+    });
+  });
+
+  it("still refuses a key outside the widened whitelist", async () => {
+    const result = await readContactSubmission(
+      contactRequest({
+        body: JSON.stringify({ ...validBody, kind: "curated", nickname: "x" }),
+      }),
+      { extraFields: ["kind"] },
+    );
+
+    expect(result).toEqual({ outcome: "rejected", reason: "malformed-body" });
+  });
 });

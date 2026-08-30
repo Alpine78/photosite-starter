@@ -80,8 +80,12 @@ HTML part, and no tracking pixel.
 
 ## Application-emitted logs
 
-The application writes one event per submission and nothing else. Its schema is
-fixed by ADR-0004 §5 and enforced by `src/lib/contact-log.ts`:
+The application writes at most two events per submission and nothing else — an
+`accepted` event once a request is a real submission, then exactly one terminal
+event (`delivered`, `delivery-failed`, or `rejected`). A request refused before
+it becomes a submission writes at most one `rejected` event, or none at all (see
+below). The schema is fixed by ADR-0004 §5 and enforced by
+`src/lib/contact-log.ts`:
 
 ```json
 {"event":"contact.submission","correlationId":"<random uuid>","state":"delivered"}
@@ -123,6 +127,66 @@ random value minted at process start.
 
 The honeypot field carries no data of its own: a submission that fills it is
 answered exactly as a successful one and delivered nowhere.
+
+## Gallery-item enquiry (`/api/enquiry`)
+
+Since AB#60 a second endpoint lets a visitor ask the photographer about one
+specific gallery photograph. It reuses this same flow — the same header checks
+ahead of the throttle, the same bounded body and closed field whitelist, the
+same honeypot rule, the same delivery adapter and mailbox, and the same
+per-instance abuse counter — and adds only the item context.
+
+**What is collected.** The three contact fields above, plus the *public*
+identity of the photograph the visitor is looking at:
+
+| Field | Purpose |
+| --- | --- |
+| `kind` | `curated` or `dynamic` — which kind of result the item came from |
+| `locale` | The route locale, so the server reads the right content tree |
+| `contentId` | The gallery's stable identity (curated enquiries only) |
+| `itemId` | The occurrence (`placementId`) or the photograph (`mediaId`), per ADR-0002 §1 |
+
+The endpoint refuses a request carrying any other field. Nothing here is a
+provider identifier, an archive path, or a file URL: those are resolved
+**server-side** and never accepted from the browser.
+
+**Server-side resolution.** The server turns the submitted context into the
+photographer-facing facts an answer needs — the stable `mediaId`, the caption
+and credit already resolved for it, the gallery it sits in, and, **only from a
+private Sanity dataset**, the `archiveLocator` that points at the master file
+(ADR-0002 §1). A curated container is authorized against the public content tree
+first; an unknown, unpublished, private, or non-enquirable item, or a dynamic
+enquiry the content source cannot yet authorize, all resolve to one generic
+`404` so a probe cannot tell which check failed.
+
+**Where the resolved facts go.** Into the body of the email the site owner
+receives, and nowhere else. The `archiveLocator` in particular appears **only**
+in that email — never in the HTTP response, never in an operational-log line,
+never in a URL. It reaches the email because that message is delivered solely to
+the owner's own mailbox, the same one the contact form uses.
+
+**Delivery.** The same Resend account (or the non-production sink) as the
+contact form. The idempotency key is namespaced `enquiry:<submissionId>` so an
+enquiry and a contact submission can never share a provider key even if their
+client-generated identifiers coincide.
+
+**Logs.** The same three-field schema, under a distinct event name and its own
+closed class set:
+
+```json
+{"event":"enquiry.submission","correlationId":"<random uuid>","state":"delivered"}
+```
+
+Same `state` values, same `errorClass` rules — structural classes only, never a
+provider message and never the resolved `mediaId` or `archiveLocator`. As with
+the contact endpoint, an `accepted` event is followed by exactly one terminal
+event on every path, including a content-store outage during resolution or the
+settings read; a store failure is recorded as `source-unavailable` (retryable)
+or `source-error` (not), an unclassifiable defect as `internal`.
+
+**Nothing is stored.** No enquiry field, and no resolved fact, is written
+anywhere. The processing record for a delivered enquiry is the email in the
+owner's mailbox, subject to that mailbox's own retention.
 
 ## Boundary rules the code enforces
 

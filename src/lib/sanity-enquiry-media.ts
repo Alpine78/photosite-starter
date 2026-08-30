@@ -41,6 +41,16 @@
  * is not a bounded non-empty string are all `malformed-source` — the store and
  * the tree disagree, or the store returned something this resolver cannot
  * trust. Only a placement that genuinely is not there is `unknown-item`.
+ *
+ * ## The archive locator is private-dataset only
+ *
+ * A world-readable dataset is not offered the archive-location field in the
+ * Studio schema, but the Studio does not bind an API import. So the adapter
+ * enforces the boundary too: it surfaces `archiveLocator` only when
+ * `SANITY_DATASET_VISIBILITY` is `private`. On a public dataset any stored value
+ * is dropped — the enquiry still resolves, the email just carries no archive
+ * line — rather than crossing a private-archive boundary that a public dataset
+ * does not have (`docs/sanity-setup.md`, ADR-0002 §1).
  */
 
 import "server-only";
@@ -52,6 +62,7 @@ import {
   type ResolvedEnquiryTarget,
 } from "@/lib/enquiry-media";
 import { getSanityClient, type SanityClient } from "@/lib/sanity-client";
+import { getSanityConfig, type SanityConfig } from "@/lib/sanity-config";
 import {
   isRecord,
   readString,
@@ -131,6 +142,8 @@ type RawEnquiryPlacement = {
 export type SanityEnquiryReadOptions = {
   /** Injected in tests; production resolves the deployment's own client. */
   readonly client?: SanityClient;
+  /** Injected in tests; production resolves the deployment's own config. */
+  readonly config?: SanityConfig;
 };
 
 function readRows(result: unknown): readonly unknown[] {
@@ -182,7 +195,10 @@ async function resolveGalleryDocumentId(
   return id;
 }
 
-function projectEnquiryMedia(raw: unknown): {
+function projectEnquiryMedia(
+  raw: unknown,
+  includeArchiveLocator: boolean,
+): {
   mediaId: string;
   archiveLocator?: string;
   credit?: string;
@@ -209,7 +225,11 @@ function projectEnquiryMedia(raw: unknown): {
     "curated",
   );
 
-  const archiveLocator = readArchiveLocator(media.archiveLocator);
+  // On a public dataset the archive-location field is not part of the contract;
+  // any stored value is ignored rather than validated or transmitted.
+  const archiveLocator = includeArchiveLocator
+    ? readArchiveLocator(media.archiveLocator)
+    : undefined;
   const credit = readString(media.credit);
 
   return {
@@ -232,6 +252,7 @@ export async function resolveSanityEnquiryTarget(
   }
 
   const client = options.client ?? getSanityClient();
+  const config = options.config ?? getSanityConfig();
   const subtag = toLanguageSubtag(language);
 
   const galleryId = await resolveGalleryDocumentId(
@@ -264,7 +285,10 @@ export async function resolveSanityEnquiryTarget(
     throw new EnquiryResolutionError("container-unavailable");
   }
 
-  const media = projectEnquiryMedia(placement.media);
+  const media = projectEnquiryMedia(
+    placement.media,
+    config.datasetVisibility === "private",
+  );
   const sectionId = readString(placement.sectionId);
   const caption =
     readString(placement.captionOverride) ??

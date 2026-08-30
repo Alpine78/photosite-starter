@@ -120,7 +120,24 @@ export type EnquiryResolutionRejection =
   | "not-enquirable"
   /** A dynamic-result enquiry against a source that cannot authorize one yet. */
   | "dynamic-unsupported"
-  /** The content store answered with something this resolver cannot trust. */
+  /**
+   * A read against the content store failed in a way a retry could survive —
+   * a timeout, a 5xx, a rate limit. The visitor is told it may be worth trying
+   * again.
+   */
+  | "source-unavailable"
+  /**
+   * A read against the content store failed in a way a retry cannot fix — the
+   * credential was refused, the project or dataset is wrong, the query was
+   * rejected, or the HTTP envelope was not the documented one. A deployment
+   * problem, not the visitor's.
+   */
+  | "source-error"
+  /**
+   * A read *succeeded* but returned a shape this resolver cannot trust —
+   * distinct from `source-error`: the request reached the store and came back,
+   * the data is just wrong.
+   */
   | "malformed-source";
 
 /**
@@ -140,6 +157,10 @@ const REJECTION_MESSAGES: Record<EnquiryResolutionRejection, string> = {
   "not-enquirable": "the photograph is not open to enquiries",
   "dynamic-unsupported":
     "a dynamic-result enquiry is not supported by this content source yet",
+  "source-unavailable":
+    "a content-store read failed in a way a retry could survive",
+  "source-error":
+    "a content-store read failed in a way a retry cannot fix",
   "malformed-source":
     "the content store answered with something this resolver cannot trust",
 };
@@ -152,6 +173,52 @@ export class EnquiryResolutionError extends Error {
     this.name = "EnquiryResolutionError";
     this.rejection = rejection;
   }
+}
+
+/**
+ * Classifies a failure raised while resolving an enquiry target.
+ *
+ * `resolveEnquiryTarget` reads the content store more than once for a curated
+ * request — `getContentTrees()` for the container authorization, then the source
+ * adapter — and its callers read further (`getSiteSettings()`). Every one of
+ * those can throw one of the content boundary's own classified errors, and none
+ * of them may reach a route as an unclassified 500:
+ *
+ * - **`SanityQueryError`** is a transport failure. It carries the client's own
+ *   retry decision, preserved here: `source-unavailable` when a retry could
+ *   survive it, `source-error` when it cannot.
+ * - **Any other `Sanity…Error`** (`SanityContentTreeError`, `SanityArticleError`,
+ *   `SanityGalleryError`, `SanitySiteSettingsError`, `SanityMediaError`, …) is a
+ *   read that *completed* and returned a document the adapter refused to trust —
+ *   exactly `malformed-source`.
+ *
+ * All checks are structural (`name`), so no provider type is imported into this
+ * seam — the same approach `gallery.ts` takes with `SanityGalleryError`.
+ * Returns `undefined` for a genuine, unclassifiable defect, which the caller
+ * then lets propagate.
+ */
+export function classifyEnquiryFailure(
+  error: unknown,
+): EnquiryResolutionError | undefined {
+  if (error instanceof EnquiryResolutionError) {
+    return error;
+  }
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+  if (error.name === "SanityQueryError") {
+    const retryable = (error as { readonly retryable?: unknown }).retryable;
+    if (typeof retryable === "boolean") {
+      return new EnquiryResolutionError(
+        retryable ? "source-unavailable" : "source-error",
+      );
+    }
+    return undefined;
+  }
+  if (/^Sanity[A-Za-z]*Error$/.test(error.name)) {
+    return new EnquiryResolutionError("malformed-source");
+  }
+  return undefined;
 }
 
 /** The site-wide identity syntax `mediaId` and `placementId` already share. */
@@ -216,6 +283,12 @@ function normalizeEnquiryRequest(request: unknown): EnquiryTargetRequest {
   assertIdentity(raw.itemId);
 
   if (raw.kind === "dynamic") {
+    // A dynamic result has no container, so a `contentId` alongside it is a
+    // malformed request rather than a field to quietly drop — the allow-list is
+    // closed per kind, not merely projected.
+    if ("contentId" in raw) {
+      throw new EnquiryResolutionError("malformed-request");
+    }
     return { kind: "dynamic", locale: raw.locale, itemId: raw.itemId };
   }
   if (raw.kind === "curated") {
@@ -275,6 +348,13 @@ async function resolveViaContentSource(
  * a language subtag), so `language` is derived from a real `LocaleRoute` rather
  * than from arbitrary input. For a curated request the container is authorized
  * through the public content tree before `source` is called at all.
+ *
+ * Everything after the pure request/locale validation — the content-tree read,
+ * the authorization, and the source call — is wrapped so a classified
+ * content-store failure surfaces as an `EnquiryResolutionError`
+ * (`source-unavailable` / `source-error`) rather than an unclassified error a
+ * route would answer with a bare 500. A genuine, unclassifiable defect still
+ * propagates.
  */
 export async function resolveEnquiryTarget(
   request: unknown,
@@ -289,19 +369,27 @@ export async function resolveEnquiryTarget(
   }
   const language = new Intl.Locale(localeRoute.locale).language;
 
-  if (normalized.kind === "curated") {
-    const trees = await getContentTrees();
-    const route = getPublicContentRoute(
-      localeRoutes,
-      trees.get(localeRoute.locale),
-      localeRoute.locale,
-      normalized.contentId,
-      "gallery",
-    );
-    if (route === undefined) {
-      throw new EnquiryResolutionError("container-unavailable");
+  try {
+    if (normalized.kind === "curated") {
+      const trees = await getContentTrees();
+      const route = getPublicContentRoute(
+        localeRoutes,
+        trees.get(localeRoute.locale),
+        localeRoute.locale,
+        normalized.contentId,
+        "gallery",
+      );
+      if (route === undefined) {
+        throw new EnquiryResolutionError("container-unavailable");
+      }
     }
-  }
 
-  return source(normalized, language);
+    return await source(normalized, language);
+  } catch (error) {
+    const classified = classifyEnquiryFailure(error);
+    if (classified !== undefined) {
+      throw classified;
+    }
+    throw error;
+  }
 }

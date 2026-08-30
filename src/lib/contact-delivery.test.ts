@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildContactDeliveryAdapter,
   buildContactEmail,
+  buildEnquiryEmail,
   ContactDeliveryConfigurationError,
+  DELIVERY_FAILURE_STATUS,
 } from "@/lib/contact-delivery";
+import type { ResolvedEnquiryTarget } from "@/lib/enquiry-media";
 import { getBuiltInLabels } from "@/lib/deployment-config";
 
 const labels = getBuiltInLabels("en-GB");
@@ -60,6 +63,105 @@ describe("buildContactEmail", () => {
 
     expect(finnish.subject).toBe("Uusi yhteydenotto — Studio Example");
     expect(finnish.text).toContain("Nimi: Jane Example");
+  });
+});
+
+describe("buildEnquiryEmail", () => {
+  const curatedTarget: ResolvedEnquiryTarget = {
+    kind: "curated",
+    mediaId: "coastal-landscape",
+    placementId: "selected-work-coastal-landscape",
+    contentId: "content-selected-work",
+    sectionId: "leads",
+    archiveLocator: "/Volumes/Archive/2019/coast/DSCF1042.RAF",
+    caption: "Quiet coast",
+    credit: "Placeholder credit",
+  };
+
+  it("keeps the subject free of visitor text and carries the project-minted mediaId", () => {
+    const email = buildEnquiryEmail(message, curatedTarget, {
+      siteName: "Studio Example",
+      labels,
+    });
+    expect(email.subject).toBe(
+      "Gallery enquiry: coastal-landscape — Studio Example",
+    );
+    expect(email.subject).not.toContain(message.name);
+    expect(email.subject).not.toContain(message.email);
+    expect(email.replyTo).toBe(message.email);
+  });
+
+  it("puts the resolved item context and the private archive locator in the body", () => {
+    const email = buildEnquiryEmail(message, curatedTarget, {
+      siteName: "Studio Example",
+      labels,
+    });
+    expect(email.text).toBe(
+      [
+        "Name: Jane Example",
+        "Email: jane@example.com",
+        "",
+        "Photograph: coastal-landscape",
+        "Caption: Quiet coast",
+        "Credit: Placeholder credit",
+        "Gallery: content-selected-work / leads",
+        "Placement: selected-work-coastal-landscape",
+        "Archive location: /Volumes/Archive/2019/coast/DSCF1042.RAF",
+        "",
+        "Message:",
+        message.message,
+      ].join("\n"),
+    );
+  });
+
+  it("names the occurrence so a repeated photograph's two enquiries differ", () => {
+    const first = buildEnquiryEmail(
+      message,
+      { ...curatedTarget, placementId: "selected-work-lead-a" },
+      { siteName: "Studio Example", labels },
+    );
+    const second = buildEnquiryEmail(
+      message,
+      { ...curatedTarget, placementId: "selected-work-lead-b" },
+      { siteName: "Studio Example", labels },
+    );
+    expect(first.text).toContain("Placement: selected-work-lead-a");
+    expect(second.text).toContain("Placement: selected-work-lead-b");
+    expect(first.text).not.toBe(second.text);
+  });
+
+  it("omits the archive line when the target recorded none", () => {
+    const { archiveLocator: _drop, ...withoutLocator } = curatedTarget;
+    void _drop;
+    const email = buildEnquiryEmail(message, withoutLocator, {
+      siteName: "Studio Example",
+      labels,
+    });
+    expect(email.text).not.toContain("Archive location");
+  });
+
+  it("omits the gallery line for a dynamic target and carries no placement", () => {
+    const dynamicTarget: ResolvedEnquiryTarget = {
+      kind: "dynamic",
+      mediaId: "forest-stream",
+      caption: "Forest stream",
+    };
+    const email = buildEnquiryEmail(message, dynamicTarget, {
+      siteName: "Studio Example",
+      labels,
+    });
+    expect(email.text).not.toContain("Gallery:");
+    expect(email.text).not.toContain("Placement:");
+    expect(email.text).toContain("Photograph: forest-stream");
+  });
+});
+
+describe("DELIVERY_FAILURE_STATUS", () => {
+  it("maps a spent quota to 502, not 503, because a retry cannot help", () => {
+    expect(DELIVERY_FAILURE_STATUS["provider-quota-exceeded"]).toBe(502);
+    expect(DELIVERY_FAILURE_STATUS["provider-unavailable"]).toBe(503);
+    expect(DELIVERY_FAILURE_STATUS.timeout).toBe(503);
+    expect(DELIVERY_FAILURE_STATUS.configuration).toBe(500);
   });
 });
 

@@ -4,17 +4,21 @@ const delivery = vi.hoisted(() => ({
   deliver: vi.fn(),
 }));
 
-vi.mock("@/lib/contact-delivery", () => ({
-  buildContactEmail: () => ({
-    subject: "Contact message",
-    text: "Bounded synthetic test message",
-    replyTo: "visitor@route.test",
-  }),
-  getContactDeliveryAdapter: () => ({
-    name: "test",
-    deliver: delivery.deliver,
-  }),
-}));
+vi.mock("@/lib/contact-delivery", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/contact-delivery")>();
+  return {
+    ...actual,
+    buildContactEmail: () => ({
+      subject: "Contact message",
+      text: "Bounded synthetic test message",
+      replyTo: "visitor@route.test",
+    }),
+    getContactDeliveryAdapter: () => ({
+      name: "test",
+      deliver: delivery.deliver,
+    }),
+  };
+});
 
 vi.mock("@/lib/deployment-config", () => ({
   getDefaultLocaleLabels: () => ({}),

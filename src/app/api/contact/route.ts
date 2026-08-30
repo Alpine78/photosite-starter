@@ -24,13 +24,14 @@
 import {
   CONTACT_REJECTION_STATUS,
   checkContactRequestHeaders,
+  jsonNoStore,
   readContactSubmission,
   type ContactRejectionReason,
 } from "@/lib/contact-request";
 import {
   buildContactEmail,
+  DELIVERY_FAILURE_STATUS,
   getContactDeliveryAdapter,
-  type ContactDeliveryErrorClass,
 } from "@/lib/contact-delivery";
 import {
   createContactRateLimiter,
@@ -58,28 +59,6 @@ export const runtime = "nodejs";
  */
 const rateLimiter = createContactRateLimiter();
 
-/** HTTP status for a delivery that was attempted and did not succeed. */
-const DELIVERY_FAILURE_STATUS: Record<ContactDeliveryErrorClass, number> = {
-  configuration: 500,
-  "provider-rejected": 502,
-  // Not 503: the allowance resets on the provider's schedule, so presenting it
-  // as a momentary unavailability would invite a retry that cannot succeed.
-  "provider-quota-exceeded": 502,
-  "provider-unavailable": 503,
-  timeout: 503,
-};
-
-function jsonResponse(body: unknown, status: number): Response {
-  return Response.json(body, {
-    status,
-    headers: {
-      // A contact response describes one submission by one person. It is never
-      // a cacheable representation of a resource, anywhere in the path.
-      "Cache-Control": "no-store",
-    },
-  });
-}
-
 function rejectionResponse(
   reason: ContactRejectionReason,
   {
@@ -87,7 +66,7 @@ function rejectionResponse(
     issues,
   }: { readonly correlationId?: string; readonly issues?: unknown } = {},
 ): Response {
-  return jsonResponse(
+  return jsonNoStore(
     {
       status: "rejected",
       reason,
@@ -113,7 +92,7 @@ function logged(
  * the control stops working.
  */
 function accepted(correlationId: string): Response {
-  return jsonResponse({ status: "delivered", correlationId }, 200);
+  return jsonNoStore({ status: "delivered", correlationId }, 200);
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -194,7 +173,7 @@ export async function POST(request: Request): Promise<Response> {
     errorClass: outcome.errorClass,
   });
 
-  return jsonResponse(
+  return jsonNoStore(
     { status: "failed", retryable: outcome.retryable, correlationId },
     DELIVERY_FAILURE_STATUS[outcome.errorClass],
   );

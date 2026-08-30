@@ -11,6 +11,7 @@ import {
 import { EnquiryResolutionError, type EnquiryTargetRequest } from "@/lib/enquiry-media";
 import { PUBLIC_MEDIA_PROJECTION } from "@/lib/sanity-media";
 import type { SanityClient, SanityQueryRequest } from "@/lib/sanity-client";
+import type { SanityConfig } from "@/lib/sanity-config";
 import { galleryType } from "../../sanity/schemas/gallery";
 import { galleryPlacementType } from "../../sanity/schemas/gallery-placement";
 import {
@@ -42,6 +43,14 @@ const CURATED: EnquiryTargetRequest = {
   contentId: "content-northern-coast",
   itemId: "northern-coast-lead",
 };
+
+const PRIVATE_CONFIG: SanityConfig = {
+  projectId: "zp7mbokg",
+  dataset: "production",
+  datasetVisibility: "private",
+  apiVersion: "v2026-06-24",
+};
+const PUBLIC_CONFIG: SanityConfig = { ...PRIVATE_CONFIG, datasetVisibility: "public" };
 
 function mediaRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -129,7 +138,7 @@ describe("resolveSanityEnquiryTarget — curated", () => {
   it("resolves the placement scoped to this language's gallery document", async () => {
     const { client, requests } = fakeClient(twoStep({}));
 
-    const target = await resolveSanityEnquiryTarget(CURATED, "en", { client });
+    const target = await resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG });
 
     expect(target).toEqual({
       kind: "curated",
@@ -161,12 +170,8 @@ describe("resolveSanityEnquiryTarget — curated", () => {
     const en = fakeClient(noOverride);
     const fi = fakeClient(noOverride);
 
-    const enTarget = await resolveSanityEnquiryTarget(CURATED, "en", {
-      client: en.client,
-    });
-    const fiTarget = await resolveSanityEnquiryTarget(CURATED, "fi", {
-      client: fi.client,
-    });
+    const enTarget = await resolveSanityEnquiryTarget(CURATED, "en", { client: en.client, config: PRIVATE_CONFIG });
+    const fiTarget = await resolveSanityEnquiryTarget(CURATED, "fi", { client: fi.client, config: PRIVATE_CONFIG });
 
     expect(enTarget.caption).toBe("Media default caption");
     expect(fiTarget.caption).toBe("Median oletuskuvateksti");
@@ -185,13 +190,55 @@ describe("resolveSanityEnquiryTarget — curated", () => {
       }),
     );
 
-    const target = await resolveSanityEnquiryTarget(CURATED, "en", { client });
+    const target = await resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG });
+    expect("archiveLocator" in target).toBe(false);
+  });
+
+  it("drops a stored archive locator on a public dataset without failing the enquiry", async () => {
+    // A world-readable dataset is not offered the field in the Studio, but an
+    // API import could still set it. The adapter enforces the boundary: the
+    // enquiry resolves, the locator does not cross into it.
+    const { client } = fakeClient(
+      twoStep({
+        placementRows: [
+          placementRow({
+            media: mediaRow({ archiveLocator: "/Volumes/Should/Not/Leak.raf" }),
+          }),
+        ],
+      }),
+    );
+
+    const target = await resolveSanityEnquiryTarget(CURATED, "en", {
+      client,
+      config: PUBLIC_CONFIG,
+    });
+
+    expect(target.kind).toBe("curated");
+    expect("archiveLocator" in target).toBe(false);
+    expect(JSON.stringify(target)).not.toContain("Should/Not/Leak");
+  });
+
+  it("does not even validate a malformed archive locator on a public dataset", async () => {
+    // On a private dataset a numeric archiveLocator is `malformed-source`; on a
+    // public one the field is simply not part of the contract, so it is ignored.
+    const { client } = fakeClient(
+      twoStep({
+        placementRows: [
+          placementRow({ media: mediaRow({ archiveLocator: 12345 as unknown }) }),
+        ],
+      }),
+    );
+
+    const target = await resolveSanityEnquiryTarget(CURATED, "en", {
+      client,
+      config: PUBLIC_CONFIG,
+    });
     expect("archiveLocator" in target).toBe(false);
   });
 
   it("treats a missing gallery document as the store disagreeing with the tree", async () => {
     const { client } = fakeClient(twoStep({ galleryRowsByLanguage: { en: [] } }));
-    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client }))).rejection).toBe(
+    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG }))).rejection).toBe(
       "malformed-source",
     );
   });
@@ -200,14 +247,14 @@ describe("resolveSanityEnquiryTarget — curated", () => {
     const { client } = fakeClient(
       twoStep({ galleryRowsByLanguage: { en: [{ _id: "a" }, { _id: "b" }] } }),
     );
-    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client }))).rejection).toBe(
+    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG }))).rejection).toBe(
       "malformed-source",
     );
   });
 
   it("rejects an absent placement as unknown-item", async () => {
     const { client } = fakeClient(twoStep({ placementRows: [] }));
-    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client }))).rejection).toBe(
+    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG }))).rejection).toBe(
       "unknown-item",
     );
   });
@@ -216,7 +263,7 @@ describe("resolveSanityEnquiryTarget — curated", () => {
     const { client } = fakeClient(
       twoStep({ placementRows: [placementRow(), placementRow()] }),
     );
-    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client }))).rejection).toBe(
+    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG }))).rejection).toBe(
       "malformed-source",
     );
   });
@@ -225,7 +272,7 @@ describe("resolveSanityEnquiryTarget — curated", () => {
     const { client } = fakeClient(
       twoStep({ placementRows: [placementRow({ visible: false })] }),
     );
-    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client }))).rejection).toBe(
+    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG }))).rejection).toBe(
       "container-unavailable",
     );
   });
@@ -234,7 +281,7 @@ describe("resolveSanityEnquiryTarget — curated", () => {
     const { client } = fakeClient(
       twoStep({ placementRows: [placementRow({ media: mediaRow({ enquiryEligible: false }) })] }),
     );
-    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client }))).rejection).toBe(
+    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG }))).rejection).toBe(
       "not-enquirable",
     );
   });
@@ -243,7 +290,7 @@ describe("resolveSanityEnquiryTarget — curated", () => {
     const { client } = fakeClient(
       twoStep({ placementRows: [placementRow({ media: mediaRow({ publiclyRenderable: false }) })] }),
     );
-    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client }))).rejection).toBe(
+    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG }))).rejection).toBe(
       "not-public",
     );
   });
@@ -265,7 +312,7 @@ describe("resolveSanityEnquiryTarget — curated", () => {
         ],
       }),
     );
-    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client }))).rejection).toBe(
+    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG }))).rejection).toBe(
       "not-public",
     );
   });
@@ -278,14 +325,14 @@ describe("resolveSanityEnquiryTarget — curated", () => {
     const { client } = fakeClient(
       twoStep({ placementRows: [placementRow({ media: mediaRow({ archiveLocator }) })] }),
     );
-    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client }))).rejection).toBe(
+    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG }))).rejection).toBe(
       "malformed-source",
     );
   });
 
   it("rejects a placement row that is not a record", async () => {
     const { client } = fakeClient(twoStep({ placementRows: ["not-a-record"] }));
-    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client }))).rejection).toBe(
+    expect((await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PRIVATE_CONFIG }))).rejection).toBe(
       "malformed-source",
     );
   });

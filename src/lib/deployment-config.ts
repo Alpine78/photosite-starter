@@ -87,6 +87,24 @@ export type BuiltInLabels = {
      * client shows before anyone has decided to trust the message.
      */
     readonly emailSubject: string;
+    /**
+     * Subject prefix for a gallery-item enquiry email (AB#60). Carries no
+     * visitor text either; the endpoint appends the project-minted `mediaId`
+     * and the site name.
+     */
+    readonly enquirySubject: string;
+    /** Body line prefixes for the enquiry email's resolved item context. */
+    readonly enquiryItemLabel: string;
+    readonly enquiryCaptionLabel: string;
+    readonly enquiryCreditLabel: string;
+    readonly enquiryGalleryLabel: string;
+    /**
+     * The occurrence identity (ADR-0002 §2). Distinct from the gallery: the
+     * same photograph may be placed in one gallery twice, and the photographer
+     * needs to know which occurrence a visitor asked about.
+     */
+    readonly enquiryPlacementLabel: string;
+    readonly enquiryArchiveLabel: string;
     readonly nameLabel: string;
     readonly emailLabel: string;
     readonly messageLabel: string;
@@ -296,6 +314,13 @@ const englishLabels = {
   },
   contact: {
     emailSubject: "New contact message",
+    enquirySubject: "Gallery enquiry",
+    enquiryItemLabel: "Photograph",
+    enquiryCaptionLabel: "Caption",
+    enquiryCreditLabel: "Credit",
+    enquiryGalleryLabel: "Gallery",
+    enquiryPlacementLabel: "Placement",
+    enquiryArchiveLabel: "Archive location",
     nameLabel: "Name",
     emailLabel: "Email",
     messageLabel: "Message",
@@ -407,6 +432,13 @@ const finnishLabels = {
   },
   contact: {
     emailSubject: "Uusi yhteydenotto",
+    enquirySubject: "Galleriakysely",
+    enquiryItemLabel: "Valokuva",
+    enquiryCaptionLabel: "Kuvateksti",
+    enquiryCreditLabel: "Tekijätiedot",
+    enquiryGalleryLabel: "Galleria",
+    enquiryPlacementLabel: "Sijoitus",
+    enquiryArchiveLabel: "Arkistosijainti",
     nameLabel: "Nimi",
     emailLabel: "Sähköposti",
     messageLabel: "Viesti",
