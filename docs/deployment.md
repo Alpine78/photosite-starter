@@ -350,13 +350,22 @@ and `noindex` checks, `npm run repoint:preview` runs the repoint as a transactio
 
 1. it re-binds the just-deployed generated URL to the expected project and team;
 2. the **monotonic guard** — it refuses to move the alias to a deployment created *before*
-   (or at the same time as) the one it already points at. Ordering is by Vercel
-   `createdAt`, not by commit ancestry — see the known limitation below;
-3. it assigns the alias to this deployment through Vercel's atomic
+   (or at the same time as) the one it already points at (by Vercel `createdAt`). It is
+   retained as defence in depth, including for an owner-run invocation of this same
+   repoint script outside CI. A direct `vercel alias` command bypasses the script and its
+   safeguards;
+3. the **revision gate** (AB#144) — immediately before the assignment it resolves `main`'s
+   tip live (`git ls-remote`) and compares it with `$(Build.SourceVersion)`, the commit
+   this deployment was built from. If `main` has moved past that commit, this deployment
+   is an ineligible candidate: the alias is **left exactly as it was** (`superseded`, a
+   pipeline warning, not a failure) and never pointed at a stale revision. If the tip
+   cannot be resolved the step **fails closed** rather than falling back to `createdAt`
+   ordering;
+4. it assigns the alias to this deployment through Vercel's atomic
    `POST /v2/deployments/{id}/aliases`;
-4. it re-verifies the alias host itself for the same SSO challenge and exact
+5. it re-verifies the alias host itself for the same SSO challenge and exact
    `X-Robots-Tag: noindex` (AC1/AC4), with a short bounded retry for propagation lag;
-5. if anything fails once the assignment has been attempted — a lost response to the
+6. if anything fails once the assignment has been attempted — a lost response to the
    POST, or a failed re-verification — it **reconciles**: it re-reads the alias and
    restores the previous target (or removes a first assignment) while the alias still
    points at what this run assigned; if a newer run has since published to it, this run
@@ -369,21 +378,23 @@ resolves to a `target: "production"` deployment — a misconfigured value can ne
 production domain onto Preview.
 
 Concurrent `DeployPreview` runs are serialized by the stage's `lockBehavior: sequential`
-plus the Exclusive lock check on the variable group (provisioning step 10); the guard and
-ownership check above are defence in depth for a manual `vercel alias` run outside CI.
+plus the Exclusive lock check on the variable group (provisioning step 10) — but that
+serializes *execution*, not commit order, which is why step 3's revision gate exists.
 
-**Known limitation — the alias is not guaranteed to hold the newest `main` revision
-(AB#144).** The monotonic guard orders by *deployment creation time*, not by commit
-ancestry. If two `main` runs overlap and the run for an **older** commit completes
-`DeployPreview` **after** the run for a **newer** commit, the older commit's deployment
-has the later `createdAt`, so the guard permits it and the alias — and the webhook — ends
-up on a superseded `main` revision. That target is still a fully verified,
-access-protected, non-indexable `main` deployment, so this is a freshness gap, not a
-security or durability one. It is **not self-healing**: the alias stays on the stale
-revision until a later `DeployPreview` run succeeds, which may be indefinite if none does.
-Recovery is the manual **Rollback**/**Verification** commands below. Closing this needs
-an authoritative source-revision check immediately before the alias is mutated — tracked
-as AB#144.
+**Residual behaviour, by design (AB#144).** The gate never initiates an assignment for a
+candidate already known to be superseded. The alias can nevertheless remain on an older
+revision after `main` advances: if the current-tip run fails, is cancelled, or has not yet
+completed, the alias stays on its last verified target. That target is stale relative to
+the current tip, but remains a real, verified, access-protected `main` deployment. A
+`superseded` warning makes a declined older run visible; the current-tip run's own failure
+or cancellation remains visible in that run. Recovery, if needed, is the manual
+**Rollback**/**Verification** commands below.
+
+**Clone note.** Step 3 resolves the tip through `git ls-remote origin refs/heads/main` in
+the DeployPreview checkout. The reference repository is public, so no credential is needed.
+A **private-repo clone** must give the `DeployPreview` job an explicit
+`- checkout: self` with `persistCredentials: true` (or add a token), otherwise
+`ls-remote` fails and — correctly — the repoint fails closed.
 
 **Why `*.vercel.app` only.** Standard Protection "protects all domains except production
 domains" on every plan, so a `*.vercel.app` alias inherits Vercel Authentication and
@@ -540,11 +551,11 @@ what the pipeline log accounts for — a rebuild of the gated commit against the
 Preview configuration, not the gate's own fixture-built artifact. Before a project
 secret is sent to the deployment, the pipeline resolves the generated URL through
 Vercel's authenticated API and compares its immutable deployment ID, project ID, owner
-ID, and hostname with the expected values. It verifies the deployment; then repoints
-`PREVIEW_STABLE_ALIAS` at it and re-verifies access protection and `noindex` on the
-alias host itself (AB#136 — see
-[The stable Preview integration alias](#the-stable-preview-integration-alias)); and only
-then publishes the URL to the run summary. A failed or unverified deployment never
+ID, and hostname with the expected values. It verifies the deployment; then — unless
+`main` has already moved past this commit — repoints `PREVIEW_STABLE_ALIAS` at it and
+re-verifies access protection and `noindex` on the alias host itself (AB#136 / AB#144 —
+see [The stable Preview integration alias](#the-stable-preview-integration-alias)); and
+only then publishes the URL to the run summary. A failed or unverified deployment never
 reaches the repoint step, so the alias keeps pointing at the last deployment that passed.
 The whole stage holds an exclusive lock, so two runs cannot repoint the alias at once.
 

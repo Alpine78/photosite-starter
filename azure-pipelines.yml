@@ -117,13 +117,15 @@ stages:
     # the repoints one at a time keeps two of them from racing the same alias.
     # `sequential` takes effect because the customer-owned
     # `photosite-starter-vercel-preview` variable group carries an Exclusive
-    # lock check (added during provisioning — see docs/deployment.md). The
-    # in-script monotonic guard (on deployment createdAt) and ownership-aware
-    # restore are defence in depth for a manual `vercel alias` run outside this
-    # pipeline. Neither the lock nor the guard orders by commit ancestry, so an
-    # older `main` commit whose deployment is created later can still win the
-    # alias — a non-self-healing limitation tracked as AB#144 (see
-    # docs/deployment.md).
+    # lock check (added during provisioning — see docs/deployment.md). The lock
+    # orders execution, not commit ancestry: what stops an older `main` commit
+    # (whose deployment can be created later, giving it a newer `createdAt`)
+    # from winning the alias is the repoint's own revision gate (AB#144) — it
+    # resolves `main`'s tip live, immediately before the assignment, and leaves
+    # the alias unchanged if this run's commit is no longer that tip. The
+    # `createdAt` guard and ownership-aware restore stay as defence in depth,
+    # including when an owner runs this same repoint script outside CI. A direct
+    # `vercel alias` command bypasses these in-script safeguards.
     lockBehavior: sequential
     # Keep the provider credentials outside the quality-gate stage. The group
     # is a protected resource authorized only for this pipeline, and its values
@@ -287,18 +289,23 @@ stages:
           # stable Preview integration alias (`PREVIEW_STABLE_ALIAS`) at this
           # verified deployment so a webhook configured once keeps working across
           # ordinary redeploys (AB#136). The step runs the whole repoint as a
-          # transaction — monotonic guard (on deployment createdAt, not commit
-          # order), then re-verify access protection and noindex on the alias
-          # host itself, then restore the previous target if that re-verification
-          # fails. A failed or unverified deployment never reaches here
-          # (`previewDeploymentVerified` gate), so the alias keeps pointing at a
-          # deployment that did pass — ADR-0004 §3 (2026-08-31 amendment). The
-          # stage's exclusive lock serializes concurrent runs' execution. It
-          # does not guarantee the alias tracks the newest `main` commit: see
-          # AB#144 / docs/deployment.md.
+          # transaction: bind and inspect the deployment and current alias, run
+          # the `createdAt` monotonic guard, then run the revision gate (AB#144 —
+          # `$(Build.SourceVersion)` vs. a live `git ls-remote` of `main`,
+          # resolved immediately before the assignment; a superseded commit
+          # leaves the alias untouched, an unresolvable tip fails closed), then
+          # assign and re-verify access protection and noindex on the alias host,
+          # restoring the previous target if that re-verification fails. A
+          # failed or unverified deployment never
+          # reaches here (`previewDeploymentVerified` gate) — ADR-0004 §3
+          # (2026-08-31 amendment). The tip is resolved through the implicit
+          # `checkout: self` `origin`; the reference repo is public so no
+          # credential is needed (a private-repo clone must set
+          # `persistCredentials: true`, or this step fails closed).
           - script: |
               set -euo pipefail
-              npm run repoint:preview --silent -- "$(previewDeploymentUrl)" "$(previewDeploymentId)"
+              npm run repoint:preview --silent -- \
+                "$(previewDeploymentUrl)" "$(previewDeploymentId)" "$(Build.SourceVersion)"
             displayName: "Repoint the stable Preview alias"
             condition: >-
               and(

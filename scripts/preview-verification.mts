@@ -476,3 +476,31 @@ export function parseDeploymentId(value: string): string {
 
   return normalized;
 }
+
+const GIT_COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/;
+
+/**
+ * Validates a full Git commit SHA (AB#144). The stable Preview alias repoint
+ * compares the deployed revision against the current `main` tip, and both must
+ * be an unambiguous 40-hex object name — a short SHA, a ref name, or an
+ * unresolved Azure macro is refused so the comparison fails closed rather than
+ * silently permitting a superseded revision. Returns the lowercased SHA.
+ */
+export function parseGitCommitSha(value: string): string {
+  const setting = "a Git commit SHA";
+  if (typeof value !== "string") {
+    throw new Error(`Invalid ${setting}: expected a 40-character hex string`);
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized.startsWith("$(")) {
+    throw new Error(
+      `Invalid ${setting}: received an unresolved pipeline variable ("${value.trim()}")`,
+    );
+  }
+  if (!GIT_COMMIT_SHA_PATTERN.test(normalized)) {
+    throw new Error(
+      `Invalid ${setting}: expected a full 40-character hex object name, received "${value.trim()}"`,
+    );
+  }
+  return normalized;
+}

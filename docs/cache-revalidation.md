@@ -278,17 +278,18 @@ release candidate stale on cache-isolation grounds. It still stopped delivering 
 once code or secrets drifted, or the old deployment was cleaned up.
 
 AB#136 closes that gap: `PREVIEW_STABLE_ALIAS` is one bare `*.vercel.app` host the
-pipeline repoints at each verified deployment (as a transaction, with a monotonic
-`createdAt` guard, an alias-host re-verification of access protection and `noindex`, and
-an ownership-aware restore on failure — `docs/deployment.md`, ADR-0004 §3 2026-08-31
-amendment). The Preview Sanity webhook is configured once with
+pipeline repoints at each verified deployment (as a transaction, with a revision gate
+(AB#144), a `createdAt` monotonic guard, an alias-host re-verification of access
+protection and `noindex`, and an ownership-aware restore on failure — `docs/deployment.md`,
+ADR-0004 §3 2026-08-31 amendment). The Preview Sanity webhook is configured once with
 `https://<PREVIEW_STABLE_ALIAS>/api/revalidate` and its URL is edited only on a deliberate
-alias-name rotation. One known limitation carries over (AB#144): the guard orders by
-deployment creation time, not commit ancestry, so two overlapping `main` runs can leave
-the alias on a superseded — but still verified and protected — `main` deployment until a
-later deploy succeeds; recovery is the manual repoint in `docs/deployment.md`. The live
-"exercise against Preview" (AB#136 AC5) is owner-run and its evidence is recorded on the
-work item.
+alias-name rotation. The revision gate resolves `main`'s tip live, immediately before the
+assignment, and does not initiate a repoint to a candidate already known to be
+superseded. The residual (by design) is that the alias may stay on its last verified,
+access-protected `main` deployment if the current-tip run has not itself succeeded; that
+target is then stale relative to the current tip even though this run did not repoint it.
+The live "exercise against Preview" (AB#136 AC5) is owner-run and its evidence is
+recorded on the work item.
 
 Also outstanding beforehand: during this session, an unrelated stray
 Production deployment (`source: cli`, no `X-Robots-Tag`, no SSO challenge) was

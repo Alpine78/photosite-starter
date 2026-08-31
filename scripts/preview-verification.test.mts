@@ -6,6 +6,7 @@ import {
   hasNoindexDirective,
   parseDeploymentId,
   parseDeploymentUrl,
+  parseGitCommitSha,
   parsePreviewAliasHost,
   validateDeploymentIdentity,
   verifyPreviewDeployment,
@@ -451,5 +452,29 @@ describe("stable Preview alias host", () => {
     expect(() =>
       parsePreviewAliasHost(`${"a".repeat(64)}.vercel.app`),
     ).toThrow(/64|longer than 63/);
+  });
+});
+
+describe("Git commit SHA (AB#144 revision gate)", () => {
+  const SHA = "a".repeat(40);
+
+  it("accepts a full 40-hex object name and normalizes case", () => {
+    expect(parseGitCommitSha(SHA)).toBe(SHA);
+    expect(parseGitCommitSha(` ${"AB".repeat(20)}\n`)).toBe("ab".repeat(20));
+  });
+
+  it("refuses an unresolved pipeline macro", () => {
+    expect(() => parseGitCommitSha("$(Build.SourceVersion)")).toThrow(
+      /unresolved pipeline variable/,
+    );
+  });
+
+  it("refuses a short SHA, a ref name, or non-hex — the comparison must be exact", () => {
+    expect(() => parseGitCommitSha("a1b2c3d")).toThrow(/40-character hex/);
+    expect(() => parseGitCommitSha("refs/heads/main")).toThrow(/40-character hex/);
+    expect(() => parseGitCommitSha(`${SHA}z`)).toThrow(/40-character hex/);
+    expect(() => parseGitCommitSha(`${"g".repeat(40)}`)).toThrow(/40-character hex/);
+    expect(() => parseGitCommitSha("")).toThrow(/40-character hex/);
+    expect(() => parseGitCommitSha("   ")).toThrow(/40-character hex/);
   });
 });
