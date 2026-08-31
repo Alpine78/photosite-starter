@@ -1335,4 +1335,123 @@ describe("resolveLocalePrefixRequest", () => {
       });
     });
   });
+
+  describe("gallery enquiry action state (?enquire=)", () => {
+    // The canonical Finnish path of the `content-coastal-mornings` gallery.
+    const GALLERY_SEGMENTS = ["maisemat", "rannikko", "rannikon-aamut"];
+    const GALLERY_PATH = "/tarinat/maisemat/rannikko/rannikon-aamut";
+    const ITEM = "coastal-mornings-coastal-landscape";
+
+    const call = (
+      segments: readonly string[],
+      searchParams: Record<string, string | string[] | undefined>,
+      prefix = "tarinat",
+    ) =>
+      resolveLocalePrefixRequest({
+        config,
+        trees,
+        redirects,
+        prefix,
+        segments,
+        searchParams,
+        defaultLocaleRouteExists: missing(),
+        galleryCursorNamesASlice: vi.fn().mockResolvedValue(true),
+        gallerySectionExists: vi.fn().mockResolvedValue(true),
+      });
+
+    it("resolves an enquiry action state on a canonical gallery path", async () => {
+      await expect(call(GALLERY_SEGMENTS, { enquire: ITEM })).resolves.toEqual({
+        kind: "story",
+        locale: "fi",
+        route: {
+          kind: "content",
+          contentId: "content-coastal-mornings",
+          variant: "gallery",
+        },
+        enquire: ITEM,
+      });
+    });
+
+    it("carries ?enquire= through a casing-normalization redirect, unchanged", async () => {
+      await expect(
+        call(["Maisemat", "Rannikko", "Rannikon-Aamut"], { enquire: ITEM }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: `${GALLERY_PATH}?enquire=${ITEM}`,
+      });
+    });
+
+    it("carries ?enquire= through a redundant-default-prefix redirect", async () => {
+      await expect(
+        call(
+          ["tarinat", "maisemat", "rannikko", "rannikon-aamut"],
+          { enquire: ITEM },
+          "fi",
+        ),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: `${GALLERY_PATH}?enquire=${ITEM}`,
+      });
+    });
+
+    it("preserves an unrelated unknown parameter alongside ?enquire= on a redirect", async () => {
+      await expect(
+        call(["Maisemat", "Rannikko", "Rannikon-Aamut"], {
+          enquire: ITEM,
+          utm_source: "newsletter",
+        }),
+      ).resolves.toEqual({
+        kind: "redirect",
+        location: `${GALLERY_PATH}?enquire=${ITEM}&utm_source=newsletter`,
+      });
+    });
+
+    it.each([
+      ["a cursor, on the canonical path", GALLERY_SEGMENTS, { enquire: ITEM, cursor: "AnOpaque-Token_v1" }],
+      ["a section, on the canonical path", GALLERY_SEGMENTS, { enquire: ITEM, section: "early" }],
+      ["a cursor, on a casing variant", ["Maisemat", "Rannikko", "Rannikon-Aamut"], { enquire: ITEM, cursor: "AnOpaque-Token_v1" }],
+      ["a section, on a casing variant", ["Maisemat", "Rannikko", "Rannikon-Aamut"], { enquire: ITEM, section: "early" }],
+    ] as const)("404s ?enquire= combined with %s, without a redirect", async (_label, segments, params) => {
+      await expect(call(segments, params)).resolves.toEqual({ kind: "not-found" });
+    });
+
+    it("ignores a repeated ?enquire= as an unknown parameter (renders the gallery)", async () => {
+      await expect(
+        call(GALLERY_SEGMENTS, { enquire: ["a", "b"] }),
+      ).resolves.toEqual({
+        kind: "story",
+        locale: "fi",
+        route: {
+          kind: "content",
+          contentId: "content-coastal-mornings",
+          variant: "gallery",
+        },
+      });
+    });
+
+    it.each(["Not_An_Id", "-leading", "trailing-", "double--hyphen", "a".repeat(300)])(
+      "ignores a malformed ?enquire=%j as an unknown parameter",
+      async (enquire) => {
+        await expect(call(GALLERY_SEGMENTS, { enquire })).resolves.toMatchObject({
+          kind: "story",
+          route: { contentId: "content-coastal-mornings" },
+        });
+        await expect(
+          call(GALLERY_SEGMENTS, { enquire }),
+        ).resolves.not.toHaveProperty("enquire");
+      },
+    );
+
+    it("does not recognize ?enquire= on an article route", async () => {
+      await expect(
+        call(["tekniikka", "valotuskolmio-kaytannossa"], { enquire: ITEM }),
+      ).resolves.toMatchObject({
+        kind: "story",
+        route: { variant: "article" },
+      });
+      await expect(
+        call(["tekniikka", "valotuskolmio-kaytannossa"], { enquire: ITEM }),
+      ).resolves.not.toHaveProperty("enquire");
+    });
+  });
 });

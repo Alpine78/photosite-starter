@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { CategoryBranch } from "@/components/category-branch";
 import { ContentArticle } from "@/components/content-article";
 import { ContentGallery } from "@/components/content-gallery";
+import { GalleryItemEnquiry } from "@/components/gallery-item-enquiry";
 import { JsonLd } from "@/components/json-ld";
 import type { BreadcrumbStep } from "@/components/breadcrumbs";
 import type { LanguageLink } from "@/components/language-switch";
@@ -436,6 +437,20 @@ export async function generateMetadata(
   const page = await resolveContentPage(locale, route);
   if (route.kind === "content" && page === undefined) return {};
 
+  // The `?enquire=` view (ADR-0003 §8, 2026-08-30): a successful `200` form, so
+  // `noindex, follow` with its canonical pointing at the parameter-free gallery
+  // and no `hreflang` alternates — not the `follow: false` a failure state gets.
+  // Resolved before any gallery-result read, so a gallery being reordered never
+  // blocks it.
+  if (page?.variant === "gallery" && resolution.enquire !== undefined) {
+    return getPageMetadata({
+      path: buildStoryPath(config, locale, getStoryRoutePath(tree, route)),
+      title: getBuiltInLabels(locale).enquiry.pageTitle,
+      locale,
+      noindex: true,
+    });
+  }
+
   const galleryResult =
     page?.variant === "gallery"
       ? await resolveGalleryPage(
@@ -557,6 +572,36 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
     }
 
     if (page.variant === "gallery") {
+      // The `?enquire=` action state (ADR-0003 §8, 2026-08-30): a `noindex`
+      // form for one occurrence, shown instead of the grid. It does not read
+      // the gallery result — the item is authorized on submit by
+      // `/api/enquiry` — so it renders for any syntactically valid `itemId`
+      // and a gallery being reordered does not block it.
+      if (resolution.enquire !== undefined) {
+        return (
+          <GalleryItemEnquiry
+            locale={locale}
+            contentId={page.contentId}
+            itemId={resolution.enquire}
+            galleryTitle={page.title}
+            galleryPath={buildStoryPath(
+              config,
+              locale,
+              getStoryRoutePath(tree, route),
+            )}
+            breadcrumbs={buildBreadcrumbs(
+              config,
+              tree,
+              locale,
+              route,
+              labels,
+              page.title,
+            )}
+            labels={labels}
+          />
+        );
+      }
+
       // One bounded page of the gallery, read by the identity the tree resolved
       // and positioned by whatever cursor and section the request carried. It
       // is a separate read from the page above because the two have different

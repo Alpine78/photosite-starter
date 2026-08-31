@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -132,6 +132,50 @@ root" sentence; and the 2026-08-10 amendment's "Category branches retain their
 canonical-and-secondary membership rule unchanged." The canonical placement rule itself
 (one canonical category per published page), the detail-route, breadcrumb, redirect, and
 sitemap contracts, and the story-root overview are all unaffected.
+
+### 2026-08-30 — `?enquire=` is a recognized gallery action state (AB#60)
+
+Decision 8 enumerated exactly two recognized gallery query parameters, `section` and
+`cursor`, and one rule for everything else: "the resolver reads the parameters it knows
+and ignores the rest." It also fixed that a malformed, repeated, tampered, wrong-scope,
+or stale `cursor`, and an unknown `section`, "return an accessible 404 response … they
+are `noindex` and create no redirect or successful cache entry."
+
+AB#60's gallery-item enquiry (PR3) needs a third recognized parameter,
+`?enquire=<itemId>`, which replaces the gallery grid with a server-rendered enquiry form
+for one occurrence (`itemId` is the public `placementId`, ADR-0002 §1). Left as "an
+unknown parameter the resolver ignores", it would have no defined interaction with the two
+existing ones, and a URL decision 8 requires to 404 — a tampered `?cursor=`, say — could be
+turned into a *successful* enquiry page by appending `?enquire=`. That is the outcome
+decision 8 exists to prevent.
+
+**Replacement.** `enquire` is a recognized parameter with a deliberately narrow contract:
+
+- **Grammar.** A single value matching the site-wide public-identity grammar
+  (`/^[a-z0-9]+(?:-[a-z0-9]+)*$/`, at most `MAX_ITEM_ID_LENGTH`). A repeated, empty, or
+  malformed `enquire` is not recognized — it is preserved through path normalization and
+  otherwise ignored like any other unknown parameter, and the gallery renders normally
+  with its `cursor`/`section` disposition unchanged.
+- **Composition.** A recognized `enquire` may appear **only** on a gallery route and
+  **only** without `cursor` and without `section`. `enquire` together with either is a
+  `404` with no redirect and no successful response or cache entry — exactly as decision 8
+  already answers a bad `cursor` or an unknown `section`. Every internal path to the form
+  (the lightbox control) emits the parameter-free gallery path plus `?enquire=<itemId>`
+  and nothing else, so no supported journey produces the forbidden combination.
+- **Canonicalization.** A path that differs from canonical only by casing, the redundant
+  default prefix, or a trailing slash still redirects permanently to the canonical form,
+  carrying `?enquire=<itemId>` and any unrelated unknown parameters unchanged — the same
+  normalization decision 8 already performs. The `enquire` value itself is never rewritten.
+- **Indexing.** A valid `?enquire=` view is a **successful `200` form**, not a failure
+  state, so its posture differs from a named-section view's: it is `noindex, follow`; its
+  **canonical metadata points to the parameter-free gallery URL** (the form is an action
+  on that gallery, not a page of its own); it names **no `hreflang` language alternates**;
+  and it is **excluded from the sitemap**. Only the forbidden `enquire` + `cursor`/`section`
+  combination is the 404 that creates no successful response or cache entry.
+
+**Sections affected:** decision 8 only. Decisions 3 (gallery page content order), 5, 6, 7,
+and 9 are unaffected: the enquiry view is an action state layered on one gallery route,
+not a new route, a new content placement, or a change to slug/redirect rules.
 
 ## Context
 

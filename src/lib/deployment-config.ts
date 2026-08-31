@@ -233,10 +233,34 @@ export type BuiltInLabels = {
     /** Joins position and total in the counter, as in "1 of 6". */
     readonly indexSeparator: string;
     readonly loadError: string;
+    /** Accessible name of the control that opens the item enquiry form (AB#60). */
+    readonly enquire: string;
   };
   readonly media: {
     readonly video: string;
     readonly youtubePrivacyNotice: string;
+  };
+  /**
+   * The visitor-facing copy of the gallery-item enquiry route (AB#60). Distinct
+   * from `contact.enquiry*`, which is the *owner-facing* email that
+   * `/api/enquiry` composes — this is what the person filling the form reads.
+   */
+  readonly enquiry: {
+    /** The enquiry page heading and its `<title>`. */
+    readonly pageTitle: string;
+    /** Names the gallery the enquiry is about: `{gallery}` is the gallery title. */
+    readonly aboutItem: string;
+    /** The link back to the gallery's parameter-free page. */
+    readonly backToGallery: string;
+    /**
+     * States that the selected item's identity travels with the message —
+     * worded so it also holds for a future dynamic result, which has no
+     * persisted gallery context. The authored `privacyNotice` still owns the
+     * provider, purpose, recipient, and retention statements.
+     */
+    readonly itemContextNotice: string;
+    /** Shown when `/api/enquiry` answers `404 item-unavailable`. */
+    readonly unavailable: string;
   };
 };
 
@@ -388,11 +412,20 @@ const englishLabels = {
     zoom: "Zoom",
     indexSeparator: " of ",
     loadError: "The image cannot be loaded",
+    enquire: "Enquire about this photograph",
   },
   media: {
     video: "Video",
     youtubePrivacyNotice:
       "Opens an embedded YouTube player. YouTube may set cookies.",
+  },
+  enquiry: {
+    pageTitle: "Enquire about a photograph",
+    aboutItem: "You are asking about a photograph in {gallery}.",
+    backToGallery: "Back to the gallery",
+    itemContextNotice:
+      "A reference to the photograph you are asking about is sent with your message.",
+    unavailable: "This photograph is not available for enquiries.",
   },
 } as const satisfies BuiltInLabels;
 
@@ -507,11 +540,20 @@ const finnishLabels = {
     // A counter reads "1 / 6" in Finnish, where English reads "1 of 6".
     indexSeparator: " / ",
     loadError: "Kuvaa ei voi ladata",
+    enquire: "Kysy tästä valokuvasta",
   },
   media: {
     video: "Video",
     youtubePrivacyNotice:
       "Avaa upotetun YouTube-soittimen. YouTube voi asettaa evästeitä.",
+  },
+  enquiry: {
+    pageTitle: "Kysy valokuvasta",
+    aboutItem: "Kysyt valokuvasta galleriassa {gallery}.",
+    backToGallery: "Takaisin galleriaan",
+    itemContextNotice:
+      "Viestisi mukana lähetetään viittaus valokuvaan, josta kysyt.",
+    unavailable: "Tästä valokuvasta ei voi tehdä tiedustelua.",
   },
 } as const satisfies BuiltInLabels;
 

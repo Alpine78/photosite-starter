@@ -4,6 +4,7 @@ import {
 } from "@/lib/content-redirects";
 import { resolveStoryRoute, type StoryRoute } from "@/lib/content-routes";
 import { RESERVED_ALL_SECTION_SLUG } from "@/lib/gallery-sections";
+import { isPublicIdentity } from "@/lib/public-identity";
 import {
   buildStoryPath,
   resolvePrefixedRoute,
@@ -46,6 +47,16 @@ export type LocalePrefixRequestResolution =
        * cursor is.
        */
       readonly section?: string;
+      /**
+       * The occurrence a `?enquire=<itemId>` request names (ADR-0003 §8's
+       * 2026-08-30 amendment, AB#60). Present only on a gallery route, only when
+       * the value is a single well-formed public identity, and only when the
+       * request carries no `cursor` and no `section` — the render layer shows a
+       * `noindex` enquiry form for this item instead of the grid. `enquire`
+       * together with a `cursor` or a `section` is a 404, resolved before this
+       * value is ever set.
+       */
+      readonly enquire?: string;
     }
   | { readonly kind: "not-found" };
 
@@ -231,6 +242,39 @@ function cursorDisposition(route: StoryRoute): "carry" | "reject" | "ignore" {
 function sectionDisposition(route: StoryRoute): "carry" | "ignore" {
   if (route.kind !== "content") return "ignore";
   return route.variant === "gallery" ? "carry" : "ignore";
+}
+
+/**
+ * What `?enquire=<itemId>` means at this route (ADR-0003 §8's 2026-08-30
+ * amendment, AB#60).
+ *
+ * It opens a `noindex` enquiry form for one gallery occurrence, and its
+ * contract is deliberately narrow: recognized only as a *single* value in the
+ * shared public-identity grammar, only on a gallery route, and only with
+ * neither `cursor` nor `section` alongside it. `enquire` together with either is
+ * a 404 — `"conflict"` here — exactly as decision 8 already answers a bad
+ * cursor, and never a redirect. An unrecognized `enquire` (repeated, empty, or
+ * malformed) is `"none"`: an ordinary unknown parameter the resolver preserves
+ * through normalization and otherwise ignores.
+ */
+function enquiryDisposition(
+  route: StoryRoute,
+  searchParams: LocalePrefixSearchParams,
+):
+  | { readonly kind: "none" }
+  | { readonly kind: "conflict" }
+  | { readonly kind: "enquire"; readonly itemId: string } {
+  if (route.kind !== "content" || route.variant !== "gallery") {
+    return { kind: "none" };
+  }
+  const raw = searchParams.enquire;
+  if (typeof raw !== "string" || !isPublicIdentity(raw)) {
+    return { kind: "none" };
+  }
+  if (searchParams.cursor !== undefined || searchParams.section !== undefined) {
+    return { kind: "conflict" };
+  }
+  return { kind: "enquire", itemId: raw };
 }
 
 /**
@@ -499,6 +543,12 @@ export async function resolveLocalePrefixRequest({
 
     const story = resolveStorySegments(trees, defaultRoute, canonical);
     if (story !== null) {
+      // `?enquire=` with a `cursor` or `section` is a 404 before any redirect
+      // (ADR-0003 §8, 2026-08-30). A recognized `enquire` alone carries through
+      // the redirect below as an ordinary query value.
+      if (enquiryDisposition(story, searchParams).kind === "conflict") {
+        return NOT_FOUND;
+      }
       const section = normalizedCarriedSection(story, searchParams.section);
       if (
         (await refusesCursor(
@@ -530,6 +580,11 @@ export async function resolveLocalePrefixRequest({
       canonical,
     );
     if (historical !== null) {
+      if (
+        enquiryDisposition(historical.route, searchParams).kind === "conflict"
+      ) {
+        return NOT_FOUND;
+      }
       const section = normalizedCarriedSection(
         historical.route,
         searchParams.section,
@@ -593,6 +648,11 @@ export async function resolveLocalePrefixRequest({
       canonical,
     );
     if (historical === null) return NOT_FOUND;
+    if (
+      enquiryDisposition(historical.route, searchParams).kind === "conflict"
+    ) {
+      return NOT_FOUND;
+    }
     const section = normalizedCarriedSection(
       historical.route,
       searchParams.section,
@@ -632,6 +692,15 @@ export async function resolveLocalePrefixRequest({
 
   const section = normalizedCarriedSection(route, rawSection);
 
+  // ADR-0003 §8 (2026-08-30): `?enquire=` with a `cursor` or `section` is a 404
+  // before any normalization, exactly like a bad cursor. A recognized `enquire`
+  // alone rides through a normalizing redirect below as an ordinary query value
+  // and reaches the resolution otherwise.
+  const enquire = enquiryDisposition(route, searchParams);
+  if (enquire.kind === "conflict") {
+    return NOT_FOUND;
+  }
+
   // Refused before any normalization, so a token or section that means
   // nothing here is a 404 at the address requested rather than a redirect to
   // a different spelling that could make it appear meaningful. The cursor
@@ -669,5 +738,6 @@ export async function resolveLocalePrefixRequest({
     route,
     ...(cursor === undefined ? {} : { cursor }),
     ...(section === undefined ? {} : { section }),
+    ...(enquire.kind === "enquire" ? { enquire: enquire.itemId } : {}),
   };
 }
