@@ -1357,6 +1357,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `docs/deployment.md` | the site owner and whoever provisions a clone's hosting | the Preview environment, pipeline deployment stage, environment-variable split, runtime pins, or promotion/rollback mechanism change |
 | `docs/security-privacy-review.md` | the site owner and future launch reviews | the launch security/privacy review is rerun, a finding's disposition changes, or the security response headers change (also update ADR-0011) |
 | `docs/keyword-query-benchmark.md` | AB#55's taxonomy ADR and whoever runs the AB#65 spike | the keyword-query benchmark fixture, harness, or matrix changes, or an owner-run live measurement is completed and its numbers/recommendation are filled in |
+| `docs/keyword-extraction-spike.md` | AB#55's taxonomy ADR and whoever runs the AB#54 spike | the Lightroom export / Sanity upload measurement is run and its verbatim outputs and conclusions are filled in, or the extraction-point / library recommendation changes |
 | `NOTICE`, `licenses/` | anyone receiving the product | a third-party component with an attribution requirement is added |
 | `.claude/skills/`, `.agents/skills/` | agents | a recurring workflow needs a skill; duplicate into both, no symlinks |
 
