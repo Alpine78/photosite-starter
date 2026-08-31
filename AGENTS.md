@@ -932,9 +932,24 @@ photograph travels with the message. `e2e/gallery-enquiry.spec.ts` walks the jou
 delivery, a `delivery-failure.test` failure + retry, a not-`enquiryEligible` item's
 accessible refusal, a malformed `?enquire=` ignored, and `?enquire=`+`cursor=` → 404) and
 asserts the `noindex`/gallery-canonical/absent-`hreflang` metadata.
-No dynamic-result entry point (AB#58/AB#71 own the dynamic query and its UI), and the
-identity/origin smoke is AB#123; AB#60 stays open until a real dynamic result can be wired
-in or its acceptance criteria are amended.
+No dynamic-result entry point (AB#58/AB#71 own the dynamic query and its UI); AB#60 stays
+open until a real dynamic result can be wired in or its acceptance criteria are amended.
+The identity/origin smoke is built (AB#123): `e2e/enquiry-identity.spec.ts` is a
+production-build Playwright suite that proves the whole chain is *wired and enforced* when
+the app really runs — the browser-driven curated journey sends exactly the public context
+(`kind`/`locale`/`contentId`/`itemId`, nothing resolved or private) and gets back only the
+generic receipt, the enquiry view reuses the contact privacy notice, and a direct request
+to the running endpoint covers the dynamic origin that has no UI (a dynamic reference
+resolves; a dynamic request carrying a container is a `malformed-body`; an unknown
+occurrence collapses to the one generic `404 item-unavailable`; the reused cross-origin and
+content-type guards still hold). The resolution *semantics* it complements — which trusted
+`mediaId` a reference resolves to, context preservation, no invented placement, every
+tampered/unknown/private/unpublished/non-enquirable class — are already proven against the
+real mock content source by `src/lib/enquiry-media.test.ts`, the route's generic-answer
+collapse and no-leak posture by `route.test.ts`, and `buildEnquiryEmail`'s private
+`archiveLocator` handling by `contact-delivery.test.ts`, so the smoke asserts wiring and
+the browser-only properties rather than re-deriving the matrix. It joins the Azure
+Pipelines gate through `testMatch: "**/*.spec.ts"` — no pipeline change.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — story-root listing continuation and progressive in-place append
@@ -948,8 +963,7 @@ follow-up would route the gallery detail through a handler; tracked with AB#132)
 `shuffledOrderGeneration` atomic-flip alternative to the brief recompute refusal window
 (a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
 and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
-build it), lightbox zoom tuning, the dynamic-result enquiry entry point (AB#58/AB#71), and the
-gallery-item enquiry identity/origin smoke (AB#123).
+build it), lightbox zoom tuning, and the dynamic-result enquiry entry point (AB#58/AB#71).
 Validated JSON-LD structured data (AB#86) is built: `src/lib/structured-data.ts` is a pure
 builder + `</script>`-safe serializer (`<`, `>`, `&`, U+2028, U+2029 escaped — `JSON.stringify`
 alone does not, per Next.js's own guidance) rendered through the `<JsonLd>` server component.
