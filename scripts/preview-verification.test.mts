@@ -6,6 +6,7 @@ import {
   hasNoindexDirective,
   parseDeploymentId,
   parseDeploymentUrl,
+  parsePreviewAliasHost,
   validateDeploymentIdentity,
   verifyPreviewDeployment,
 } from "./preview-verification.mts";
@@ -375,5 +376,80 @@ describe("authenticated deployment identity", () => {
     expect(() => parseDeploymentId("https://example.vercel.app")).toThrow(
       /immutable dpl_/,
     );
+  });
+});
+
+describe("stable Preview alias host", () => {
+  it("accepts a bare multi-label *.vercel.app host and normalizes case", () => {
+    expect(parsePreviewAliasHost("Acme-Photosite-Preview.vercel.app")).toBe(
+      "acme-photosite-preview.vercel.app",
+    );
+    expect(parsePreviewAliasHost("preview.acme-photo.vercel.app")).toBe(
+      "preview.acme-photo.vercel.app",
+    );
+  });
+
+  it("treats an unset or unresolved-macro value as not set", () => {
+    expect(() => parsePreviewAliasHost("")).toThrow(/is not set/);
+    expect(() => parsePreviewAliasHost("   ")).toThrow(/is not set/);
+    expect(() => parsePreviewAliasHost("$(PREVIEW_STABLE_ALIAS)")).toThrow(
+      /is not set/,
+    );
+  });
+
+  it("refuses surrounding whitespace rather than silently trimming it", () => {
+    // Unlike a captured deployment URL, this value is authored by hand in a
+    // variable group; stray whitespace is a mistake worth surfacing.
+    expect(() => parsePreviewAliasHost(" acme-preview.vercel.app")).toThrow(
+      /whitespace/,
+    );
+  });
+
+  it("refuses anything that is not a bare hostname", () => {
+    expect(() =>
+      parsePreviewAliasHost("https://acme-preview.vercel.app"),
+    ).toThrow(/bare hostname/);
+    expect(() => parsePreviewAliasHost("acme-preview.vercel.app/api")).toThrow(
+      /bare hostname/,
+    );
+    expect(() =>
+      parsePreviewAliasHost("acme-preview.vercel.app:443"),
+    ).toThrow(/bare hostname/);
+    expect(() =>
+      parsePreviewAliasHost("user@acme-preview.vercel.app"),
+    ).toThrow(/bare hostname/);
+    expect(() =>
+      parsePreviewAliasHost("acme-preview.vercel.app?x=1"),
+    ).toThrow(/bare hostname/);
+  });
+
+  it("refuses a custom domain so the alias always inherits protection and noindex", () => {
+    expect(() => parsePreviewAliasHost("preview.acme.photography")).toThrow(
+      /custom domain is refused/,
+    );
+    expect(() => parsePreviewAliasHost("acme-preview.vercel.dev")).toThrow(
+      /custom domain is refused/,
+    );
+  });
+
+  it("refuses the bare provider apex with no subdomain", () => {
+    expect(() => parsePreviewAliasHost(".vercel.app")).toThrow(/bare apex/);
+    // Missing the leading dot is not the apex — it is simply not a
+    // `.vercel.app` host at all.
+    expect(() => parsePreviewAliasHost("vercel.app")).toThrow(
+      /custom domain is refused/,
+    );
+  });
+
+  it("refuses an invalid or over-long DNS label", () => {
+    expect(() =>
+      parsePreviewAliasHost("acme_preview.vercel.app"),
+    ).toThrow(/invalid DNS label/);
+    expect(() =>
+      parsePreviewAliasHost("-acme-preview.vercel.app"),
+    ).toThrow(/invalid DNS label/);
+    expect(() =>
+      parsePreviewAliasHost(`${"a".repeat(64)}.vercel.app`),
+    ).toThrow(/64|longer than 63/);
   });
 });

@@ -312,6 +312,66 @@ secret-scoping rules are unchanged and still govern how those values are stored.
   affected cache tags. Secret rotation requires a new deployment; an older deployment is
   not a safe rollback target merely because its code is known-good.
 
+#### Amendment 2026-08-31 (AB#136) — §3, a dedicated protected Preview integration alias
+
+**Status of the record: still Accepted.** This amendment narrows one clause of §3;
+nothing else in ADR-0004 changes.
+
+**The original rule, preserved:** "Pull Preview-scoped variables and create an immutable
+Preview deployment for review. Use its generated Vercel URL, not a custom preview
+domain." A **human reviewing a release candidate** still opens the generated,
+per-deployment URL the pipeline publishes to the run summary, and the project's default
+`<project>.vercel.app` domain still stays connected to Production, never Preview.
+
+**What changed:** a Preview deployment's generated URL is unique to that deployment, so a
+**durable machine integration** pointed at one — the Sanity revalidation webhook (AB#83),
+potentially others later — stops delivering the moment a newer deployment supersedes it.
+Discovered during AB#83's 2026-08-25 webhook verification, where the webhook URL had to be
+repointed by hand after a redeploy.
+
+**The allowance, for durable integrations only:** one stable `*.vercel.app` host
+(`PREVIEW_STABLE_ALIAS`) that the `DeployPreview` stage repoints at each newly verified
+Preview deployment. It is constrained to `*.vercel.app` because Vercel Standard Protection
+"protects all domains except production domains" on every plan, so such an alias inherits
+Vercel Authentication and `X-Robots-Tag: noindex`; the tooling refuses any other host, and
+also refuses — before any mutation — the project's own default production domain
+(`<project>.vercel.app`) and any `*.vercel.app` alias that currently resolves to a
+`target: "production"` deployment, so a misconfigured `PREVIEW_STABLE_ALIAS` cannot pull a
+production domain onto Preview. The alias is repointed **only after** the deployment has
+passed the same access-protection and `noindex` checks on its generated URL, and the alias
+host is **itself re-verified** for both on every repoint. The repoint is transactional: a
+monotonic guard forbids moving the alias to a deployment created before its current target
+(ordering by Vercel `createdAt`, not commit ancestry), concurrent `DeployPreview` runs are
+serialized by a stage-level exclusive lock, and any failure once the assignment has been
+attempted — a lost response, a failed re-verification — is reconciled by re-reading the
+alias and restoring the previous target (or removing a first assignment) while it still
+points at what that run assigned; an alias whose state cannot be read or restored afterwards
+is reported as unreconciled and fails the step loudly. A failed or unverified deployment
+never reaches the repoint step, so "a failed deployment leaves the prior healthy target in
+place."
+
+**Known limitation (AB#144).** The guard's `createdAt` ordering does not track commit
+ancestry, and the lock serializes execution rather than commit order. Two overlapping
+`main` runs where an older commit's deployment is created *after* a newer commit's can
+leave the alias — and the webhook — on a superseded `main` revision. That target is still
+a verified, access-protected, non-indexable `main` deployment (so §3's durability and
+security guarantees hold), but the stale state is not self-healing: it persists until a
+later `DeployPreview` run succeeds. AB#144 adds an authoritative source-revision check
+immediately before the alias is mutated, fail-closed when the current `main` revision
+cannot be established.
+
+**Evidence:** Vercel `vercel.com/docs/deployment-protection` (Standard Protection scope,
+checked 2026-08-31); the atomic `POST /v2/deployments/{id}/aliases`
+(`vercel.com/docs/rest-api/aliases/assign-an-alias`); Azure Pipelines `lockBehavior` and
+the Exclusive lock check on a variable group
+(`learn.microsoft.com/azure/devops/pipelines/process/approvals`). The live "exercise
+against Preview" (AC5) is owner-run and recorded on AB#136.
+
+**Sections affected:** §3 bullet 2 ("Use its generated Vercel URL, not a custom preview
+domain") and the Capability Matrix's "Preview and `noindex`" row, both now read subject to
+this dedicated, verified, machine-only alias. §3's promotion and rollback bullets, §4, and
+§5 are unchanged.
+
 ### 4. Cache and revalidation
 
 - Production Sanity reads use the explicit published perspective and Next.js cache tags.

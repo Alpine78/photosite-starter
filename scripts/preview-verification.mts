@@ -269,6 +269,92 @@ export function parseDeploymentUrl(value: string): URL {
   return url;
 }
 
+/** DNS limits: a label is at most 63 octets, a hostname at most 253. */
+const MAX_DNS_LABEL_LENGTH = 63;
+const MAX_DNS_HOSTNAME_LENGTH = 253;
+const DNS_LABEL_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
+
+/**
+ * Validates the stable Preview integration alias (`PREVIEW_STABLE_ALIAS`, AB#136).
+ *
+ * The alias is deliberately constrained to a bare `*.vercel.app` host and
+ * nothing else. Only a non-production `*.vercel.app` host is *guaranteed* to
+ * inherit the project's Standard Protection and Vercel's `X-Robots-Tag:
+ * noindex` (Vercel Standard Protection "protects all domains except production
+ * domains", on every plan). A custom apex or registered domain carries no such
+ * guarantee, and a fixed, unprotected copy of the site at a stable address is
+ * exactly what `docs/deployment.md` warns against — so this refuses one rather
+ * than assign it.
+ *
+ * Returns the normalized (trimmed, lowercased) host. Errors name the setting
+ * and never echo a secret. The Vercel `alias set` contract also requires a
+ * bare host with no scheme, which this enforces.
+ */
+export function parsePreviewAliasHost(value: string): string {
+  const setting = "PREVIEW_STABLE_ALIAS";
+  if (typeof value !== "string") {
+    throw new Error(`${setting} is not set`);
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error(`${setting} is not set`);
+  }
+  if (trimmed !== value) {
+    throw new Error(`${setting} must not have leading or trailing whitespace`);
+  }
+  if (trimmed.startsWith("$(")) {
+    // An Azure Pipelines variable that was never defined arrives as the literal
+    // macro text; the "Check deployment configuration" step treats that shape
+    // as missing too.
+    throw new Error(`${setting} is not set`);
+  }
+  if (/\s/.test(trimmed)) {
+    throw new Error(`${setting} must be a bare hostname with no whitespace`);
+  }
+  if (/[:/@?#]/.test(trimmed)) {
+    // A scheme, port, path, credentials, query, or fragment — the Vercel
+    // `alias set` contract wants a bare host, and every one of these characters
+    // is a sign the value is a URL instead.
+    throw new Error(
+      `${setting} must be a bare hostname — no scheme, port, path, credentials, query, or fragment (received "${trimmed}")`,
+    );
+  }
+
+  const host = trimmed.toLowerCase();
+  if (!host.endsWith(DEPLOYMENT_HOST_SUFFIX)) {
+    throw new Error(
+      `${setting} must be a "${DEPLOYMENT_HOST_SUFFIX}" host so it inherits Standard Protection and noindex; a custom domain is refused (received "${trimmed}")`,
+    );
+  }
+  if (host.length > MAX_DNS_HOSTNAME_LENGTH) {
+    throw new Error(
+      `${setting} is longer than the ${MAX_DNS_HOSTNAME_LENGTH}-character DNS hostname limit`,
+    );
+  }
+
+  const subdomain = host.slice(0, -DEPLOYMENT_HOST_SUFFIX.length);
+  if (!subdomain) {
+    throw new Error(
+      `${setting} must name a subdomain of "${DEPLOYMENT_HOST_SUFFIX}", not the bare apex`,
+    );
+  }
+  for (const label of subdomain.split(".")) {
+    if (!DNS_LABEL_PATTERN.test(label)) {
+      throw new Error(
+        `${setting} has an invalid DNS label "${label}" (received "${trimmed}")`,
+      );
+    }
+    if (label.length > MAX_DNS_LABEL_LENGTH) {
+      throw new Error(
+        `${setting} has a DNS label longer than ${MAX_DNS_LABEL_LENGTH} characters`,
+      );
+    }
+  }
+
+  return host;
+}
+
 const DEPLOYMENT_ID_PATTERN = /^dpl_[A-Za-z0-9]+$/;
 
 export type ExpectedDeploymentIdentity = {
