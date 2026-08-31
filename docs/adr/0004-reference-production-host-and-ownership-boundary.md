@@ -350,15 +350,17 @@ is reported as unreconciled and fails the step loudly. A failed or unverified de
 never reaches the repoint step, so "a failed deployment leaves the prior healthy target in
 place."
 
-**Known limitation (AB#144).** The guard's `createdAt` ordering does not track commit
-ancestry, and the lock serializes execution rather than commit order. Two overlapping
-`main` runs where an older commit's deployment is created *after* a newer commit's can
-leave the alias — and the webhook — on a superseded `main` revision. That target is still
-a verified, access-protected, non-indexable `main` deployment (so §3's durability and
-security guarantees hold), but the stale state is not self-healing: it persists until a
-later `DeployPreview` run succeeds. AB#144 adds an authoritative source-revision check
-immediately before the alias is mutated, fail-closed when the current `main` revision
-cannot be established.
+**Revision gate (AB#144).** The `createdAt` guard and the exclusive lock order deployment
+creation time and stage execution, not commit ancestry: an older `main` commit whose
+deployment is created *after* a newer commit's could otherwise win the alias. AB#144 adds
+an authoritative source-revision check immediately before the assignment — `main`'s tip is
+resolved live (`git ls-remote`) and compared with the commit the deployment was built
+from; a superseded commit leaves the alias untouched, and an unresolvable tip fails
+closed. The `createdAt` guard and the lock are retained as defence in depth. The gate
+therefore never initiates an assignment for a candidate already known to be superseded.
+The alias can still remain on an older revision after `main` advances when the current-tip
+deployment has not succeeded; that target is stale relative to the tip, but remains the
+last verified `main` target and still satisfies §3's durability and security guarantees.
 
 **Evidence:** Vercel `vercel.com/docs/deployment-protection` (Standard Protection scope,
 checked 2026-08-31); the atomic `POST /v2/deployments/{id}/aliases`

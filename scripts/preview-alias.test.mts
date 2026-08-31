@@ -22,6 +22,10 @@ const OUR_ID = "dpl_new123";
 const OLD_ID = "dpl_old99";
 const PROD_ID = "dpl_prod1";
 
+/** The commit this deployment was built from; matches the default `main` tip. */
+const DEPLOYED_SHA = "a".repeat(40);
+const NEWER_SHA = "b".repeat(40);
+
 type DeploymentRecord = {
   readonly id: string;
   readonly projectId: string;
@@ -211,16 +215,19 @@ function run(
   overrides: Partial<Parameters<typeof repointAndVerifyPreviewAlias>[0]> = {},
 ) {
   const sleep = vi.fn(async () => {});
+  const resolveCurrentMainRevision = vi.fn(async () => DEPLOYED_SHA);
   return {
     sleep,
     fake,
+    resolveCurrentMainRevision,
     promise: repointAndVerifyPreviewAlias({
       deploymentUrl: OUR_URL,
       deploymentId: OUR_ID,
       aliasHost: ALIAS,
+      deployedRevision: DEPLOYED_SHA,
       settings: SETTINGS,
       retryDelayMs: 1,
-      deps: { fetcher: fake.fetcher, probe, sleep },
+      deps: { fetcher: fake.fetcher, probe, sleep, resolveCurrentMainRevision },
       ...overrides,
     }),
   };
@@ -283,8 +290,14 @@ describe("repointAndVerifyPreviewAlias", () => {
         deploymentUrl: "https://photosite-starter-old99-acme.vercel.app",
         deploymentId: OLD_ID,
         aliasHost: ALIAS,
+        deployedRevision: DEPLOYED_SHA,
         settings: SETTINGS,
-        deps: { fetcher: fake.fetcher, probe, sleep },
+        deps: {
+          fetcher: fake.fetcher,
+          probe,
+          sleep,
+          resolveCurrentMainRevision: async () => DEPLOYED_SHA,
+        },
       }),
     ).resolves.toMatchObject({ kind: "already-current", currentTarget: OUR_ID });
     expect(fake.state.aliasTarget).toBe(OUR_ID);
@@ -419,8 +432,14 @@ describe("repointAndVerifyPreviewAlias", () => {
         deploymentUrl: OUR_URL,
         deploymentId: OUR_ID,
         aliasHost: `${PROJECT_NAME}.vercel.app`,
+        deployedRevision: DEPLOYED_SHA,
         settings: SETTINGS,
-        deps: { fetcher: fake.fetcher, probe, sleep: vi.fn(async () => {}) },
+        deps: {
+          fetcher: fake.fetcher,
+          probe,
+          sleep: vi.fn(async () => {}),
+          resolveCurrentMainRevision: async () => DEPLOYED_SHA,
+        },
       }),
     ).resolves.toMatchObject({ kind: "refused" });
     expect(fake.calls.some((call) => call.method === "POST")).toBe(false);
@@ -483,5 +502,142 @@ describe("repointAndVerifyPreviewAlias", () => {
     await expect(promise).resolves.toMatchObject({ kind: "unreconciled" });
     // The alias is left wherever the lost POST put it; a human must fix it.
     expect(fake.state.aliasTarget).toBe(OUR_ID);
+  });
+
+  // AB#144 — the commit-ordering hazard the `createdAt` guard cannot see.
+  it("leaves the alias untouched when main advanced past this deployment's commit", async () => {
+    // Alias points at OLD_ID (createdAt 1000); OUR deployment is createdAt 2000,
+    // so the monotonic `createdAt` guard would happily let it through. But main
+    // has moved on since this run started: the live resolver returns a newer
+    // SHA than the one this deployment was built from.
+    const fake = createFakeVercel(OLD_ID);
+    const probe = vi.fn<AliasProbe>().mockResolvedValue(PASS);
+    const resolveCurrentMainRevision = vi.fn(async () => {
+      // Record the moment of resolution relative to the Vercel reads.
+      fake.calls.push({ method: "GIT", pathname: "ls-remote refs/heads/main" });
+      return NEWER_SHA;
+    });
+
+    await expect(
+      repointAndVerifyPreviewAlias({
+        deploymentUrl: OUR_URL,
+        deploymentId: OUR_ID,
+        aliasHost: ALIAS,
+        deployedRevision: DEPLOYED_SHA,
+        settings: SETTINGS,
+        retryDelayMs: 1,
+        deps: {
+          fetcher: fake.fetcher,
+          probe,
+          sleep: vi.fn(async () => {}),
+          resolveCurrentMainRevision,
+        },
+      }),
+    ).resolves.toEqual({
+      kind: "superseded",
+      deployedRevision: DEPLOYED_SHA,
+      currentRevision: NEWER_SHA,
+      detail: expect.stringContaining("main is now at"),
+    });
+
+    // Nothing was mutated, and the alias was never probed.
+    expect(fake.calls.some((call) => call.method === "POST")).toBe(false);
+    expect(fake.calls.some((call) => call.method === "DELETE")).toBe(false);
+    expect(fake.state.aliasTarget).toBe(OLD_ID);
+    expect(probe).not.toHaveBeenCalled();
+
+    // The tip was resolved *after* the deployment and alias reads and *before*
+    // any would-be mutation — as close to the POST as possible.
+    const gitIndex = fake.calls.findIndex((call) => call.method === "GIT");
+    const lastReadIndex = fake.calls.reduce(
+      (last, call, i) => (call.method === "GET" ? i : last),
+      -1,
+    );
+    expect(gitIndex).toBeGreaterThan(lastReadIndex);
+  });
+
+  it("proceeds normally when the deployment's commit is still the main tip", async () => {
+    // Default `run()` wiring: deployedRevision === resolver result.
+    const probe = vi.fn<AliasProbe>().mockResolvedValue(PASS);
+    const { promise, fake, resolveCurrentMainRevision } = run(probe);
+
+    await expect(promise).resolves.toMatchObject({ kind: "assigned" });
+    expect(resolveCurrentMainRevision).toHaveBeenCalledTimes(1);
+    expect(fake.state.aliasTarget).toBe(OUR_ID);
+  });
+
+  it("fails closed when the current main revision cannot be established", async () => {
+    const fake = createFakeVercel(OLD_ID);
+    const probe = vi.fn<AliasProbe>().mockResolvedValue(PASS);
+
+    await expect(
+      repointAndVerifyPreviewAlias({
+        deploymentUrl: OUR_URL,
+        deploymentId: OUR_ID,
+        aliasHost: ALIAS,
+        deployedRevision: DEPLOYED_SHA,
+        settings: SETTINGS,
+        retryDelayMs: 1,
+        deps: {
+          fetcher: fake.fetcher,
+          probe,
+          sleep: vi.fn(async () => {}),
+          resolveCurrentMainRevision: async () => {
+            throw new Error("git ls-remote failed: could not read from remote repository");
+          },
+        },
+      }),
+    ).rejects.toThrow(/ls-remote/);
+
+    expect(fake.calls.some((call) => call.method === "POST")).toBe(false);
+    expect(fake.state.aliasTarget).toBe(OLD_ID);
+  });
+
+  it("fails closed on a malformed tip rather than proceeding on createdAt alone", async () => {
+    const fake = createFakeVercel(OLD_ID);
+    const probe = vi.fn<AliasProbe>().mockResolvedValue(PASS);
+
+    await expect(
+      repointAndVerifyPreviewAlias({
+        deploymentUrl: OUR_URL,
+        deploymentId: OUR_ID,
+        aliasHost: ALIAS,
+        deployedRevision: DEPLOYED_SHA,
+        settings: SETTINGS,
+        retryDelayMs: 1,
+        deps: {
+          fetcher: fake.fetcher,
+          probe,
+          sleep: vi.fn(async () => {}),
+          resolveCurrentMainRevision: async () => "HEAD -> main",
+        },
+      }),
+    ).rejects.toThrow(/40-character hex/);
+
+    expect(fake.calls.some((call) => call.method === "POST")).toBe(false);
+  });
+
+  it("rejects a malformed deployedRevision before any IO", async () => {
+    const fake = createFakeVercel(OLD_ID);
+    const resolveCurrentMainRevision = vi.fn(async () => DEPLOYED_SHA);
+
+    await expect(
+      repointAndVerifyPreviewAlias({
+        deploymentUrl: OUR_URL,
+        deploymentId: OUR_ID,
+        aliasHost: ALIAS,
+        deployedRevision: "$(Build.SourceVersion)",
+        settings: SETTINGS,
+        deps: {
+          fetcher: fake.fetcher,
+          probe: vi.fn<AliasProbe>(),
+          sleep: vi.fn(async () => {}),
+          resolveCurrentMainRevision,
+        },
+      }),
+    ).rejects.toThrow(/unresolved pipeline variable/);
+
+    expect(fake.fetcher).not.toHaveBeenCalled();
+    expect(resolveCurrentMainRevision).not.toHaveBeenCalled();
   });
 });

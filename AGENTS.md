@@ -723,21 +723,28 @@ Sanity webhook configured once with `https://<alias>/api/revalidate` keeps worki
 across ordinary redeploys instead of going stale. The repoint is a transaction
 (`scripts/repoint-preview-alias.mts`, decision logic in `scripts/preview-alias.mts`):
 it refuses the project's default production domain and any alias currently resolving to a
-production deployment; a monotonic guard forbids moving the alias to a deployment created
-before its current target (ordering by Vercel `createdAt`, not commit ancestry); the
-alias host is re-verified for the same SSO challenge + exact `noindex`; and a failed
-re-verification restores the previous target (or removes a first assignment) only while
-the alias still points at what that run assigned. Concurrent `DeployPreview` runs are
-serialized by a stage-level exclusive lock (`lockBehavior: sequential` + an Exclusive
-lock check on the variable group). The alias is constrained to `*.vercel.app` because
-only that inherits Standard Protection + `noindex`; a custom domain is refused.
-`PREVIEW_STABLE_ALIAS` is required once the deploy stage is enabled.
-`npm run verify:preview-alias` is the read-only check for handoff/rollback. Known
-limitation, not self-healing: because the guard orders by `createdAt` and neither it nor
-the lock orders by commit ancestry, two overlapping `main` runs where an older commit's
-deployment is created after a newer commit's can leave the alias on a superseded
-(but still verified, protected, non-indexable) `main` revision until a later deploy
-succeeds — tracked as AB#144. The live AC5 exercise is owner-run; ADR-0004 §3
+production deployment; a **revision gate** (AB#144) resolves `main`'s tip live
+(`git ls-remote`) immediately before the assignment and, if this deployment's commit
+(`$(Build.SourceVersion)`) is no longer that tip, leaves the alias untouched
+(`superseded`, a pipeline warning, not a failure) — fail-closed if the tip can't be
+resolved; the monotonic `createdAt` guard runs earlier and is retained as defence in depth
+(including for an owner-run invocation of the same repoint script outside CI; a direct
+`vercel alias` command bypasses it); the alias host is re-verified for the
+same SSO challenge + exact `noindex`; and a failed re-verification restores the previous
+target (or removes a first assignment) only while the alias still points at what that run
+assigned. Concurrent `DeployPreview` runs are serialized by a stage-level exclusive lock
+(`lockBehavior: sequential` + an Exclusive lock check on the variable group) — execution,
+not commit order, which is why the revision gate exists. The alias is constrained to
+`*.vercel.app` because only that inherits Standard Protection + `noindex`; a custom domain
+is refused. `PREVIEW_STABLE_ALIAS` is required once the deploy stage is enabled.
+`npm run verify:preview-alias` is the read-only check for handoff/rollback. The revision
+gate never initiates an assignment for a candidate already known to be superseded; the
+residual is that the alias may remain on its last verified `main` target after `main`
+advances if the current-tip run has not itself succeeded. That target is stale relative
+to the tip but remains verified and protected. A declined older run emits the
+`superseded` warning. The tip is resolved through
+the checkout's `origin`; a private-repo clone must enable `persistCredentials`. The live
+AC5 exercise is owner-run; ADR-0004 §3
 has a 2026-08-31 amendment for the "generated URL, not a custom preview domain" clause.
 The provisioning runbook, the Preview/Production environment split, and the recorded
 promotion and rollback commands are `docs/deployment.md`.

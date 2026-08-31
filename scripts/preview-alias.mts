@@ -14,17 +14,20 @@
  * backward-move guard, the bounded propagation retry, and the ownership-aware
  * restore — deterministically testable with fakes.
  *
- * Three safeguards, because a stale or unprotected durable address is worse
+ * Four safeguards, because a stale or unprotected durable address is worse
  * than none:
  *
  *  - **Monotonic guard.** The alias is never moved to a deployment created
  *    before (or at the same time as) the one it already points at — ordering is
- *    by Vercel `createdAt`, *not* by commit ancestry. This stops a run whose
- *    deployment predates the current target from dragging the alias backward.
- *    It does *not* guarantee the alias tracks the newest `main` commit: two
- *    overlapping runs where an older commit's deployment is created later than a
- *    newer commit's can still let the older commit win, and that stale state is
- *    not self-healing (AB#144).
+ *    by Vercel `createdAt`, *not* by commit ancestry. It stops a run whose
+ *    deployment predates the current target from dragging the alias backward
+ *    and is retained as defence in depth.
+ *  - **Revision gate (AB#144).** Immediately before the assignment, `main`'s
+ *    tip is resolved live and compared with the commit this deployment was
+ *    built from. A deployment whose commit `main` has already moved past is an
+ *    ineligible candidate — the alias is left untouched (`superseded`), so this
+ *    run does not repoint to a candidate already known to be stale. If the tip
+ *    cannot be resolved the check fails closed rather than proceeding.
  *  - **Post-repoint verification.** After assignment the alias host itself is
  *    checked for the same SSO challenge and exact `X-Robots-Tag: noindex` a
  *    generated Preview URL must carry (`verify-preview-deployment.mts`).
@@ -36,8 +39,9 @@
  * The Azure Pipelines stage that calls this also holds an exclusive lock on the
  * `photosite-starter-vercel-preview` variable group (`lockBehavior: sequential`),
  * so concurrent `DeployPreview` runs serialize their execution (not their
- * commit order); the guard and ownership check are defence in depth for a
- * manual `vercel alias` run outside CI.
+ * commit order). The guard and ownership check also apply when an owner runs
+ * this same repoint orchestrator outside CI; a direct `vercel alias` command
+ * bypasses its in-script safeguards.
  */
 import {
   assignPreviewAlias,
@@ -48,6 +52,7 @@ import {
   type VercelPreviewApiSettings,
 } from "./vercel-preview-api.mts";
 import {
+  parseGitCommitSha,
   parsePreviewAliasHost,
   verifyPreviewDeployment,
   type PreviewCheck,
@@ -69,12 +74,21 @@ export type RepointDeps = {
   readonly fetcher: typeof fetch;
   readonly probe: AliasProbe;
   readonly sleep: (ms: number) => Promise<void>;
+  /**
+   * Resolves the current `main` branch tip, live, at the moment it is called
+   * (AB#144). The real implementation runs `git ls-remote`; it must throw
+   * rather than return a stale or ambiguous value so the revision check fails
+   * closed.
+   */
+  readonly resolveCurrentMainRevision: () => Promise<string>;
 };
 
 export type RepointInput = {
   readonly deploymentUrl: string;
   readonly deploymentId: string;
   readonly aliasHost: string;
+  /** The commit SHA this deployment was built from — `$(Build.SourceVersion)`. */
+  readonly deployedRevision: string;
   readonly settings: VercelPreviewApiSettings;
   readonly deps: RepointDeps;
   readonly maxAttempts?: number;
@@ -91,6 +105,16 @@ export type RepointOutcome =
       // The configured alias is a production domain — refused before any
       // mutation, so it is never atomically pulled onto a Preview deployment.
       readonly kind: "refused";
+      readonly detail: string;
+    }
+  | {
+      // This deployment's commit is no longer `main`'s tip (AB#144): an
+      // ineligible candidate. The alias is left exactly as it was — never
+      // pointed at a superseded revision. Not an error; this run declined
+      // correctly.
+      readonly kind: "superseded";
+      readonly deployedRevision: string;
+      readonly currentRevision: string;
       readonly detail: string;
     }
   | {
@@ -139,7 +163,8 @@ export async function repointAndVerifyPreviewAlias(
   input: RepointInput,
 ): Promise<RepointOutcome> {
   const aliasHost = parsePreviewAliasHost(input.aliasHost);
-  const { fetcher, probe, sleep } = input.deps;
+  const deployedRevision = parseGitCommitSha(input.deployedRevision);
+  const { fetcher, probe, sleep, resolveCurrentMainRevision } = input.deps;
   const maxAttempts = input.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
   const retryDelayMs = input.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
   const aliasUrl = new URL(`https://${aliasHost}/`);
@@ -184,8 +209,9 @@ export async function repointAndVerifyPreviewAlias(
     }
     // Monotonic guard on Vercel `createdAt` — deployment creation time, not
     // commit ancestry. It only refuses a deployment created before the current
-    // target; an older `main` commit whose deployment is created *later* than a
-    // newer commit's is not caught here (AB#144).
+    // target. The commit-ordering hazard (an older `main` commit deployed
+    // later) is handled by the revision gate below (AB#144); this stays as
+    // defence in depth.
     if (
       prior.createdAt !== null &&
       ours.createdAt !== null &&
@@ -244,6 +270,23 @@ export async function repointAndVerifyPreviewAlias(
     }
     return { ok: false, checks, attempts };
   };
+
+  // AB#144: resolve `main`'s tip *now* — immediately before the mutation, not
+  // at pipeline-step start — and refuse to publish a deployment whose commit
+  // `main` has already moved past. The `createdAt` guard above cannot catch
+  // this (an older commit can be deployed later, giving it a newer
+  // `createdAt`). A resolver failure or a malformed SHA throws here and
+  // propagates out: nothing has been mutated, so the caller fails closed
+  // rather than falling through to `createdAt` ordering alone.
+  const currentMainRevision = parseGitCommitSha(await resolveCurrentMainRevision());
+  if (deployedRevision !== currentMainRevision) {
+    return {
+      kind: "superseded",
+      deployedRevision,
+      currentRevision: currentMainRevision,
+      detail: `this deployment was built from ${deployedRevision.slice(0, 12)}, but main is now at ${currentMainRevision.slice(0, 12)}`,
+    };
+  }
 
   // From here the alias may have been mutated. Any failure — a lost response to
   // the assignment POST, a failed verification, or a thrown probe budget —
