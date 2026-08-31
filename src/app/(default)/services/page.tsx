@@ -26,7 +26,7 @@ export default async function ServicesPage() {
           {getDefaultLocaleLabels().pages.services}
         </h1>
         {intro !== undefined && (
-          <p className="mt-3 text-foreground/70">{intro}</p>
+          <p className="mt-3 text-muted">{intro}</p>
         )}
       </header>
 

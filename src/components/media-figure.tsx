@@ -42,7 +42,7 @@ export function MediaFigure({
         className="h-auto w-full rounded-lg"
       />
       {(caption || credit) && (
-        <figcaption className="mt-2 text-sm text-foreground/60">
+        <figcaption className="mt-2 text-sm text-subtle">
           {caption}
           {caption && credit && " — "}
           {credit}

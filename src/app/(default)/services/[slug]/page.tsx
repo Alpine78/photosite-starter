@@ -83,7 +83,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
       {/* Breadcrumb */}
       <nav
         aria-label={labels.navigation.breadcrumb}
-        className="text-sm text-foreground/60"
+        className="text-sm text-subtle"
       >
         <ol className="flex flex-wrap items-center gap-1">
           <li>
@@ -95,7 +95,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
             </Link>
           </li>
           <li aria-hidden="true">/</li>
-          <li className="text-foreground/80">{name}</li>
+          <li className="text-body">{name}</li>
         </ol>
       </nav>
 
@@ -105,7 +105,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             {name}
           </h1>
-          <div className="mt-6 space-y-4 text-foreground/80">
+          <div className="mt-6 space-y-4 text-body">
             {description.map((paragraph, index) => (
               <p key={index} className="leading-7">
                 {paragraph}
@@ -127,7 +127,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
         {/* Pricing + contact CTA */}
         <aside className="lg:sticky lg:top-8 lg:self-start">
           {pricing && pricing.length > 0 && (
-            <div className="rounded-lg border border-black/10 p-6 dark:border-white/15">
+            <div className="rounded-lg border border-border p-6">
               <h2 className="text-lg font-medium tracking-tight">
                 {labels.services.pricing}
               </h2>
@@ -136,12 +136,12 @@ export default async function ServicePage({ params }: ServicePageProps) {
                   <div key={pkg.name}>
                     <div className="flex items-baseline justify-between gap-4">
                       <dt className="text-sm font-medium">{pkg.name}</dt>
-                      <dd className="text-sm font-medium text-foreground/80">
+                      <dd className="text-sm font-medium text-body">
                         {pkg.price}
                       </dd>
                     </div>
                     {pkg.note && (
-                      <p className="mt-1 text-sm text-foreground/60">
+                      <p className="mt-1 text-sm text-subtle">
                         {pkg.note}
                       </p>
                     )}
@@ -153,7 +153,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
 
           <Link
             href={`/contact?service=${encodeURIComponent(name)}`}
-            className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             {labels.actions.contactAboutService}
             <span aria-hidden="true"> →</span>

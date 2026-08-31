@@ -99,7 +99,7 @@ export function SiteHeader({ siteName, navigation, labels }: SiteHeaderProps) {
     // The site chrome stays above page content. A hero whose overlay is taller
     // than its image — a wide frame on a narrow screen — otherwise spills over
     // the header and swallows taps on the menu button and the open menu panel.
-    <header className="relative z-10 border-b border-black/10 dark:border-white/15">
+    <header className="relative z-10 border-b border-border">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
         <Link
           href="/"
@@ -131,7 +131,7 @@ export function SiteHeader({ siteName, navigation, labels }: SiteHeaderProps) {
         id={COMPACT_PANEL_ID}
         ref={panelRef}
         hidden={!menuOpen}
-        className="max-h-[70svh] overflow-y-auto border-t border-black/10 px-4 pb-4 dark:border-white/15 sm:hidden"
+        className="max-h-[70svh] overflow-y-auto border-t border-border px-4 pb-4 sm:hidden"
       >
         <SiteNavigation
           items={navigation}

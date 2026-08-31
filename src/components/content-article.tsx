@@ -76,7 +76,7 @@ export function ContentArticle({
           </h1>
           <time
             dateTime={page.publishedAt}
-            className="mt-2 block text-sm text-foreground/60"
+            className="mt-2 block text-sm text-subtle"
           >
             {formatDate(page.publishedAt, locale)}
           </time>
@@ -96,7 +96,7 @@ export function ContentArticle({
         )}
 
         {page.summary && (
-          <p className="mt-8 text-lg leading-8 text-foreground/80">
+          <p className="mt-8 text-lg leading-8 text-body">
             {page.summary}
           </p>
         )}
@@ -111,15 +111,15 @@ export function ContentArticle({
         </div>
 
         {page.tags && page.tags.length > 0 && (
-          <footer className="mt-12 border-t border-black/10 pt-6 dark:border-white/15">
-            <p className="text-xs font-medium uppercase tracking-wider text-foreground/70">
+          <footer className="mt-12 border-t border-border pt-6">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted">
               {labels.contentTree.tags}
             </p>
             <ul className="mt-2 flex flex-wrap gap-2">
               {page.tags.map((tag) => (
                 <li
                   key={tag}
-                  className="rounded border border-black/10 px-2.5 py-0.5 text-sm text-foreground/70 dark:border-white/15"
+                  className="rounded-sm border border-border px-2.5 py-0.5 text-sm text-muted"
                 >
                   {tag}
                 </li>
@@ -132,7 +132,7 @@ export function ContentArticle({
       {(previous || next) && (
         <nav
           aria-label={labels.navigation.adjacentContent}
-          className="mt-10 grid grid-cols-2 gap-4 border-t border-black/10 pt-8 dark:border-white/15"
+          className="mt-10 grid grid-cols-2 gap-4 border-t border-border pt-8"
         >
           <div>
             {previous && (
@@ -140,7 +140,7 @@ export function ContentArticle({
                 href={previous.href}
                 className={`group flex flex-col gap-1 ${focusRing}`}
               >
-                <span className="text-xs font-medium uppercase tracking-wider text-foreground/70">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted">
                   <span aria-hidden="true">← </span>
                   {labels.actions.previousPage}
                 </span>
@@ -156,7 +156,7 @@ export function ContentArticle({
                 href={next.href}
                 className={`group flex flex-col gap-1 ${focusRing}`}
               >
-                <span className="text-xs font-medium uppercase tracking-wider text-foreground/70">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted">
                   {labels.actions.nextPage}
                   <span aria-hidden="true"> →</span>
                 </span>

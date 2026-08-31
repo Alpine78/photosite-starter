@@ -1,27 +1,146 @@
 @import "tailwindcss";
 
+/*
+ * Semantic design tokens — the theme contract (AB#36).
+ *
+ * Shared components style every brand-sensitive surface through these tokens,
+ * never through raw `black`/`white`/colour-scale utilities. A theme preset
+ * (AB#37) or a clone rebrands by overriding the primitives below; it never
+ * edits a component. The full contract — every token, the allowed override
+ * points, and what deliberately stays explicit (the home hero photographic
+ * scrim, the PhotoSwipe lightbox viewer) — is documented in
+ * `docs/theme-contract.md`.
+ */
+
 :root {
+  color-scheme: light;
+
+  /* Palette primitives — the values a preset swaps. */
   --background: #ffffff;
   --foreground: #171717;
+  --surface: #ffffff;
+  --surface-muted: rgb(0 0 0 / 0.05);
+  --surface-hover: rgb(0 0 0 / 0.05);
+  --border: rgb(0 0 0 / 0.1);
+  --border-control: rgb(0 0 0 / 0.2);
+  --border-strong: rgb(0 0 0 / 0.4);
+  --danger: oklch(50.5% 0.213 27.518); /* = Tailwind red-700 */
+
+  /* Text roles — derived once, so they track --foreground with no dark
+     override. `text-foreground/N` already compiles to this exact mix. */
+  --body: color-mix(in oklab, var(--foreground) 80%, transparent);
+  --muted: color-mix(in oklab, var(--foreground) 70%, transparent);
+  --subtle: color-mix(in oklab, var(--foreground) 60%, transparent);
+
+  /* Accent + focus — default to the ink/paper inversion the site ships with;
+     a preset gives them a brand colour without touching a component. */
+  --accent: var(--foreground);
+  --accent-foreground: var(--background);
+  --focus: var(--foreground);
+
+  /* Type families. `--font-family-*` is the project-owned override point and
+     carries a real fallback stack; it defaults to the Geist faces loaded by
+     next/font. Overriding the family here does not load a different web font —
+     that is a separate step (see docs/theme-contract.md). */
+  --font-family-sans: var(--font-geist-sans), ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-family-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular,
+    Menlo, Consolas, "Liberation Mono", monospace;
 }
 
+/*
+ * Dark palette. Reachable two ways, and the two blocks below MUST hold the
+ * same values — `theme-contract.test.ts` parses both and fails CI on drift:
+ *   - the OS preference, unless an explicit `data-theme="light"` pins light
+ *   - an explicit `data-theme="dark"` on <html>, which also wins in a light OS
+ * `<html>` carries no attribute by default, so the shipped default is
+ * "follow the OS", exactly as before this refactor.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --surface: #0a0a0a;
+    --surface-muted: rgb(255 255 255 / 0.05);
+    --surface-hover: rgb(255 255 255 / 0.1);
+    --border: rgb(255 255 255 / 0.15);
+    --border-control: rgb(255 255 255 / 0.25);
+    --border-strong: rgb(255 255 255 / 0.4);
+    --danger: oklch(70.4% 0.191 22.216); /* = Tailwind red-400 */
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --surface: #0a0a0a;
+  --surface-muted: rgb(255 255 255 / 0.05);
+  --surface-hover: rgb(255 255 255 / 0.1);
+  --border: rgb(255 255 255 / 0.15);
+  --border-control: rgb(255 255 255 / 0.25);
+  --border-strong: rgb(255 255 255 / 0.4);
+  --danger: oklch(70.4% 0.191 22.216); /* = Tailwind red-400 */
+}
+
+/*
+ * Register the tokens as Tailwind theme values. `inline` makes the generated
+ * utilities resolve the underlying custom property at use time, so `bg-surface`,
+ * `text-muted`, `border-border-strong`, `outline-focus`, … all track the active
+ * palette above (Tailwind's own docs prescribe `inline` for values that
+ * reference other variables).
+ */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-hover: var(--surface-hover);
+  --color-body: var(--body);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-border-control: var(--border-control);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-danger: var(--danger);
+  --color-focus: var(--focus);
+  --font-sans: var(--font-family-sans);
+  --font-mono: var(--font-family-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/*
+ * Shared corner treatment. Redeclared here at Tailwind's current defaults so
+ * the radius scale is one owned override point rather than an implicit
+ * framework value. `rounded-full` is deliberately exempt — a pill is a shape,
+ * not a radius (see docs/theme-contract.md).
+ */
+@theme {
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+}
+
+/*
+ * The focus indicator's colour. Tailwind's `outline`/`outline-2` utilities set
+ * the ring's width and style but not its colour, so this base rule is the one
+ * place the focus token is applied. An element that sets its own `outline-*`
+ * colour utility (the hero CTA over the photo scrim) still wins — the utilities
+ * layer sits above base. The lightbox re-points `--color-focus` to white for
+ * its black surface.
+ */
+@layer base {
+  :focus-visible {
+    outline-color: var(--color-focus);
   }
 }
 
 /* Typography comes from the `font-sans` utility on <body> (see layout.tsx),
-   which resolves to --font-sans → the Geist face loaded by next/font. */
+   which resolves to --font-sans → --font-family-sans → the Geist face loaded
+   by next/font. */
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-background);
+  color: var(--color-foreground);
 }

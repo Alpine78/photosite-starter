@@ -23,7 +23,7 @@ export function ServiceCard({ service }: ServiceCardProps) {
   return (
     <Link
       href={`/services/${slug}`}
-      className="group flex h-full flex-col overflow-hidden rounded-lg border border-black/10 transition-colors hover:border-black/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/15 dark:hover:border-white/40"
+      className="group flex h-full flex-col overflow-hidden rounded-lg border border-border transition-colors hover:border-border-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       {coverMedia?.type === "image" && (
         <Image
@@ -37,9 +37,9 @@ export function ServiceCard({ service }: ServiceCardProps) {
       )}
       <div className="flex flex-1 flex-col p-6">
         <h2 className="text-lg font-medium tracking-tight">{name}</h2>
-        <p className="mt-2 text-sm text-foreground/70">{shortDescription}</p>
+        <p className="mt-2 text-sm text-muted">{shortDescription}</p>
         {startingPrice && (
-          <p className="mt-4 text-sm font-medium text-foreground/80">
+          <p className="mt-4 text-sm font-medium text-body">
             {startingPrice}
           </p>
         )}

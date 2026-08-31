@@ -82,7 +82,7 @@ export default async function Home() {
 
       {/* Intro */}
       <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-        <p className="text-lg leading-8 text-foreground/80">{intro}</p>
+        <p className="text-lg leading-8 text-body">{intro}</p>
       </section>
 
       {/* Links to main sections */}
@@ -92,12 +92,12 @@ export default async function Home() {
             <li key={section.href}>
               <Link
                 href={section.href}
-                className="group block h-full rounded-lg border border-black/10 p-6 transition-colors hover:border-black/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/15 dark:hover:border-white/40"
+                className="group block h-full rounded-lg border border-border p-6 transition-colors hover:border-border-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               >
                 <h2 className="text-lg font-medium tracking-tight">
                   {section.title}
                 </h2>
-                <p className="mt-2 text-sm text-foreground/70">
+                <p className="mt-2 text-sm text-muted">
                   {section.description}
                 </p>
               </Link>

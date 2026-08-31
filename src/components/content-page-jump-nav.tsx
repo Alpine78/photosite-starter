@@ -36,9 +36,9 @@ export function ContentPageJumpNav({
   return (
     <nav
       aria-label={label}
-      className="mt-8 border-l-2 border-black/10 pl-4 dark:border-white/15"
+      className="mt-8 border-l-2 border-border pl-4"
     >
-      <p className="text-xs font-medium uppercase tracking-wider text-foreground/70">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted">
         {label}
       </p>
       <ol className="mt-2 space-y-1 text-sm">
@@ -46,7 +46,7 @@ export function ContentPageJumpNav({
           <li>
             <Link
               href={leadingLink.href}
-              className={`text-foreground/70 underline underline-offset-4 hover:text-foreground ${focusRing}`}
+              className={`text-muted underline underline-offset-4 hover:text-foreground ${focusRing}`}
             >
               {leadingLink.label}
             </Link>
@@ -56,7 +56,7 @@ export function ContentPageJumpNav({
           <li key={heading.id}>
             <Link
               href={`#${heading.id}`}
-              className={`text-foreground/70 underline underline-offset-4 hover:text-foreground ${focusRing}`}
+              className={`text-muted underline underline-offset-4 hover:text-foreground ${focusRing}`}
             >
               {heading.text}
             </Link>

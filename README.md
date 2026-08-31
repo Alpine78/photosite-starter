@@ -322,6 +322,10 @@ a green pipeline. See [deployment](docs/deployment.md).
 - [x] Next.js App Router project setup (TypeScript, Tailwind, `src/`)
 - [x] CI pipeline (lint + test + build + production-build smoke tests)
 - [x] Responsive base layout with header and footer
+- [x] Semantic design tokens and a documented theme contract — *brand-sensitive
+  colours, text roles, borders, accent, focus, type, and corners defined once in
+  `src/app/globals.css`, explicit light/dark, override points for a future preset in
+  [`docs/theme-contract.md`](docs/theme-contract.md)*
 - [x] Site and deployment settings (branding, contact, navigation, locale, canonical base URL, default social image, built-in labels)
 - [x] Home page
 - [x] Services listing and individual service pages

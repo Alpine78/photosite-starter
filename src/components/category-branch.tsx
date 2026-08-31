@@ -105,7 +105,7 @@ export function CategoryBranch({
           </Link>
         ) : (
           introduction && (
-            <p className="mt-4 max-w-2xl text-foreground/70">{introduction}</p>
+            <p className="mt-4 max-w-2xl text-muted">{introduction}</p>
           )
         )}
       </header>
@@ -120,7 +120,7 @@ export function CategoryBranch({
         <section aria-labelledby="branch-categories" className="mt-10">
           <h2
             id="branch-categories"
-            className="text-xs font-medium uppercase tracking-wider text-foreground/70"
+            className="text-xs font-medium uppercase tracking-wider text-muted"
           >
             {labels.contentTree.categories}
           </h2>
@@ -129,7 +129,7 @@ export function CategoryBranch({
               <li key={category.categoryId}>
                 <Link
                   href={category.href}
-                  className={`inline-block rounded-full border border-black/20 px-4 py-1.5 text-sm transition-colors hover:border-black/40 dark:border-white/20 dark:hover:border-white/40 ${focusRing}`}
+                  className={`inline-block rounded-full border border-border-control px-4 py-1.5 text-sm transition-colors hover:border-border-strong ${focusRing}`}
                 >
                   {category.label}
                 </Link>
@@ -143,7 +143,7 @@ export function CategoryBranch({
         <section aria-labelledby="branch-content" className="mt-12">
           <h2
             id="branch-content"
-            className="text-xs font-medium uppercase tracking-wider text-foreground/70"
+            className="text-xs font-medium uppercase tracking-wider text-muted"
           >
             {contentHeading}
           </h2>
@@ -152,7 +152,7 @@ export function CategoryBranch({
               <li key={entry.contentId}>
                 <Link
                   href={entry.href}
-                  className={`group flex h-full flex-col overflow-hidden rounded-lg border border-black/10 transition-colors hover:border-black/30 dark:border-white/15 dark:hover:border-white/40 ${focusRing}`}
+                  className={`group flex h-full flex-col overflow-hidden rounded-lg border border-border transition-colors hover:border-border-strong ${focusRing}`}
                 >
                   {entry.cover && (
                     <Image
@@ -169,13 +169,13 @@ export function CategoryBranch({
                       {entry.title}
                     </h3>
                     {entry.summary && (
-                      <p className="mt-2 text-sm text-foreground/70">
+                      <p className="mt-2 text-sm text-muted">
                         {entry.summary}
                       </p>
                     )}
                     <time
                       dateTime={entry.publishedAt}
-                      className="mt-4 text-xs text-foreground/70"
+                      className="mt-4 text-xs text-muted"
                     >
                       {formatDate(entry.publishedAt, locale)}
                     </time>
@@ -189,7 +189,7 @@ export function CategoryBranch({
             <p className="mt-10">
               <Link
                 href={continuation.moreHref}
-                className={`inline-block rounded-full border border-black/20 px-5 py-2 text-sm transition-colors hover:border-black/40 dark:border-white/20 dark:hover:border-white/40 ${focusRing}`}
+                className={`inline-block rounded-full border border-border-control px-5 py-2 text-sm transition-colors hover:border-border-strong ${focusRing}`}
               >
                 {labels.contentTree.showMoreContent}
               </Link>

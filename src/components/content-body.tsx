@@ -49,7 +49,7 @@ export function ContentBody({
         switch (block.type) {
           case "paragraph":
             return (
-              <p key={block.key ?? index} className="leading-7 text-foreground/80">
+              <p key={block.key ?? index} className="leading-7 text-body">
                 {block.text}
               </p>
             );
@@ -81,11 +81,11 @@ export function ContentBody({
             return (
               <blockquote
                 key={block.key ?? index}
-                className="border-l-4 border-black/20 pl-4 italic text-foreground/70 dark:border-white/25"
+                className="border-l-4 border-border-control pl-4 italic text-muted"
               >
                 <p>{block.text}</p>
                 {block.attribution && (
-                  <footer className="mt-1 text-sm not-italic text-foreground/70">
+                  <footer className="mt-1 text-sm not-italic text-muted">
                     — {block.attribution}
                   </footer>
                 )}
@@ -112,7 +112,7 @@ export function ContentBody({
               return (
                 <ol
                   key={block.key ?? index}
-                  className="list-decimal space-y-1 pl-6 text-foreground/80"
+                  className="list-decimal space-y-1 pl-6 text-body"
                 >
                   {block.items.map((item, i) => (
                     <li key={i} className="leading-7">
@@ -125,7 +125,7 @@ export function ContentBody({
             return (
               <ul
                 key={block.key ?? index}
-                className="list-disc space-y-1 pl-6 text-foreground/80"
+                className="list-disc space-y-1 pl-6 text-body"
               >
                 {block.items.map((item, i) => (
                   <li key={i} className="leading-7">

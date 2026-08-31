@@ -44,7 +44,7 @@ function IntroBlock({
 }) {
   if (block.type === "paragraph") {
     return (
-      <p key={block.key ?? index} className="text-foreground/80">
+      <p key={block.key ?? index} className="text-body">
         {block.spans.map((span, spanIndex) => (
           <InlineSpan key={spanIndex} span={span} />
         ))}
@@ -56,7 +56,7 @@ function IntroBlock({
   return (
     <ListTag
       key={block.key ?? index}
-      className={`text-foreground/80 ${
+      className={`text-body ${
         block.ordered ? "list-decimal" : "list-disc"
       } ml-5 space-y-1`}
     >

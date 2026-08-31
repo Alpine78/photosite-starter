@@ -39,7 +39,7 @@ export function EnquiryForm({
       labels={labels.contact}
       unavailableMessage={labels.enquiry.unavailable}
       intro={
-        <p className="text-sm text-foreground/70">
+        <p className="text-sm text-muted">
           {labels.enquiry.aboutItem.replace("{gallery}", galleryTitle)}
         </p>
       }
