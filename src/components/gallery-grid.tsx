@@ -376,6 +376,7 @@ export function GalleryGrid({
     <GalleryLightbox
       slides={slice.slides}
       labels={labels.lightbox}
+      enquiryBasePath={galleryPath}
       {...(nextCursor === null
         ? {}
         : {

@@ -188,11 +188,27 @@ or `source-error` (not), an unclassifiable defect as `internal`.
 anywhere. The processing record for a delivered enquiry is the email in the
 owner's mailbox, subject to that mailbox's own retention.
 
+**How a visitor reaches it.** From the gallery lightbox: an "Enquire about this
+photograph" control links to the gallery's own URL with `?enquire=<itemId>`,
+which renders a `noindex` form for that one occurrence instead of the grid. The
+form shows the deployment-authored privacy notice — provider, purpose,
+recipient, retention — plus one generic sentence stating that a reference to the
+selected photograph is sent with the message (the authored notice, worded for
+the general contact case, does not mention it). The exact fields resolved
+server-side and placed in the owner's email — `mediaId`, the resolved
+caption/credit, the gallery and section, and, only from a private dataset, the
+`archiveLocator` — are as listed above.
+
 ## Boundary rules the code enforces
 
 - Form fields travel only in the bounded request body — never in a path, query
   string, or fragment, and therefore never in a referrer or a hosting-provider
-  request log. Query parameters on the route are not read or copied anywhere.
+  request log. Neither `POST /api/contact` nor `POST /api/enquiry` reads or
+  copies any query parameter. The *gallery page* does read one — `?enquire=<itemId>`
+  selects the `noindex` enquiry form — but `itemId` is a public occurrence
+  identity (a `placementId`, ADR-0002 §1), never form data, and it is not written
+  to any application log; the form then submits it in the request body like every
+  other field.
 - Only `POST` and only `application/json` are accepted, and the `Origin` must
   match the host the browser addressed. Those checks run *before* the throttle,
   so a cross-origin POST — which a browser will send without a preflight — cannot

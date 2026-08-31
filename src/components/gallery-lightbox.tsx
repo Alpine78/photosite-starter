@@ -117,11 +117,22 @@ export function GalleryLightbox({
   slides,
   labels,
   continuation,
+  enquiryBasePath,
   children,
 }: {
   /** Ordered by the shared gallery result, never by grid layout order. */
   readonly slides: readonly LightboxSlide[];
   readonly labels: GalleryLightboxLabels;
+  /**
+   * This gallery's canonical, parameter-free path. When present, the viewer
+   * shows an "Enquire about this photograph" control whose `href` is
+   * `${enquiryBasePath}?enquire=<itemId>` for the slide on screen (AB#60,
+   * ADR-0003 §8's 2026-08-30 amendment). A stable string, not a callback, so it
+   * is safe in the setup effect's dependencies — a different gallery remounts
+   * the grid. Absent for a future dynamic gallery, whose enquiry entry point is
+   * AB#58's.
+   */
+  readonly enquiryBasePath?: string;
   /**
    * How this viewer continues past the last loaded slide, when anything
    * follows it. Absent once nothing does.
@@ -189,6 +200,7 @@ export function GalleryLightbox({
     zoom,
     indexSeparator,
     loadError,
+    enquire,
   } = labels;
 
   useEffect(() => {
@@ -198,6 +210,17 @@ export function GalleryLightbox({
     let captionElement: HTMLElement | null = null;
     let describedElement: Element | null = null;
     let continuationElement: HTMLElement | null = null;
+    // The "Enquire about this photograph" anchor, when this gallery has an
+    // enquiry base path. Its `href` is kept pointed at the slide on screen.
+    let enquireElement: HTMLAnchorElement | null = null;
+
+    /** `${enquiryBasePath}?enquire=<itemId>` for the slide that is current. */
+    const refreshEnquireHref = () => {
+      if (enquireElement === null || enquiryBasePath === undefined) return;
+      const itemId = identitiesOf(lightbox.pswp?.currSlide?.data)?.itemId;
+      if (itemId === undefined) return;
+      enquireElement.href = `${enquiryBasePath}?enquire=${encodeURIComponent(itemId)}`;
+    };
     // The library's own zoom button, resolved from the dialog the first time it
     // is needed rather than in `uiRegister` — that event fires while the UI is
     // still being described, before any button element exists.
@@ -447,6 +470,30 @@ export function GalleryLightbox({
         },
       });
 
+      // "Enquire about this photograph": a real anchor in the top bar whose
+      // href is `${enquiryBasePath}?enquire=<itemId>` for the slide on screen
+      // (ADR-0003 §8, 2026-08-30). Activating it is an ordinary navigation, so
+      // the viewer closes because the page changes — no bespoke close logic.
+      // `order` sits it just after the counter and before zoom/close.
+      if (enquiryBasePath !== undefined) {
+        pswp.ui?.registerElement({
+          name: "gallery-enquire",
+          order: 9,
+          tagName: "a",
+          appendTo: "bar",
+          html: enquire,
+          onInit: (element) => {
+            const anchor = element as HTMLAnchorElement;
+            anchor.classList.add("pswp__button", "pswp__button--enquire");
+            anchor.dataset.galleryEnquire = "";
+            anchor.setAttribute("aria-label", enquire);
+            anchor.title = enquire;
+            enquireElement = anchor;
+            refreshEnquireHref();
+          },
+        });
+      }
+
       pswp.ui?.registerElement({
         name: "gallery-caption",
         appendTo: "root",
@@ -473,6 +520,7 @@ export function GalleryLightbox({
         activeItemIdRef.current = active.itemId;
       }
       presentActiveCaption();
+      refreshEnquireHref();
       // The library has already reset the magnification for the new slide by
       // now, so this settles the caption and the zoom control back to their
       // un-zoomed state rather than carrying the previous slide's over.
@@ -503,6 +551,7 @@ export function GalleryLightbox({
       captionElement = null;
       describedElement = null;
       continuationElement = null;
+      enquireElement = null;
       // The dialog and its buttons are rebuilt on the next open, so the
       // resolved control and the cached state must not outlive this one.
       zoomControlElement = null;
@@ -538,6 +587,9 @@ export function GalleryLightbox({
     zoom,
     indexSeparator,
     loadError,
+    enquire,
+    // A stable string within one gallery; a different gallery remounts the grid.
+    enquiryBasePath,
   ]);
 
   const open = useCallback((index: number) => {

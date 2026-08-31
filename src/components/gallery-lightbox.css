@@ -162,3 +162,24 @@
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
+
+/*
+ * "Enquire about this photograph": a text anchor in the top bar (AB#60). The
+ * library's bar buttons are 44x44 icon squares; this one carries a short
+ * sentence, so it opts out of the fixed width and sits at the bar's height with
+ * comfortable horizontal padding. It keeps the library's own focus ring.
+ */
+.pswp .pswp__button--enquire {
+  width: auto;
+  padding: 0 12px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: var(--pswp-icon-size, 44px);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.pswp .pswp__button--enquire:hover {
+  text-decoration: underline;
+}

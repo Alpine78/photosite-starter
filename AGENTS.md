@@ -907,9 +907,34 @@ while the operational log keeps the specific class. After the `accepted` event, 
 (resolution, settings read, email composition, delivery, an unclassifiable defect →
 `internal`) writes exactly one terminal event. `archiveLocator` and the resolved
 `mediaId`/caption/credit reach only the owner's email — never a response, never a log line
-(route tests assert both). No contact-form or lightbox entry point and no e2e journey
-(AB#123) yet; AB#60 stays open until a real dynamic result can be wired in or its
-acceptance criteria are amended.
+(route tests assert both).
+PR3 adds the visitor-facing surface. The lightbox carries an "Enquire about this
+photograph" control — a real `<a>` in the PhotoSwipe top bar whose `href` is the gallery's
+own parameter-free path plus `?enquire=<itemId>` for the slide on screen (a stable string
+prop, not a callback, so it does not churn the open viewer). ADR-0003 §8's 2026-08-30
+amendment makes `?enquire=` a recognized gallery *action state*: a single value in the
+shared public-identity grammar (`src/lib/public-identity.ts`, used by both the route parser
+and `enquiry-media.ts` so they cannot drift), recognized only on a gallery route and only
+with neither `cursor` nor `section` — `enquire` plus either is a 404 with no redirect,
+resolved in `resolveLocalePrefixRequest` before the cursor/section refusal checks; an
+unrecognized `enquire` is preserved through normalization and otherwise ignored. The view
+is a `200` `noindex, follow` server form (`GalleryItemEnquiry`) whose canonical points at
+the parameter-free gallery, with no `hreflang` and no sitemap entry; its metadata
+short-circuits before any gallery-result read, so a gallery being reordered does not block
+it. The form is `EnquiryForm` over a shared `SubmissionForm` extracted from `ContactForm`
+(the status machine, honeypot, hydration guard, and error summary are now shared, not
+duplicated; the idempotency `submissionId` is bound to message + endpoint + a discriminated
+enquiry context, and the server page keys the form by `itemId` so a new `?enquire=` URL
+starts fresh). It reuses the deployment-authored `SiteSettings.contact.privacyNotice` and
+adds one generic line (`labels.enquiry.itemContextNotice`) that a reference to the
+photograph travels with the message. `e2e/gallery-enquiry.spec.ts` walks the journey
+(lightbox → second slide → Enter-key and click activation → the `?enquire=` form →
+delivery, a `delivery-failure.test` failure + retry, a not-`enquiryEligible` item's
+accessible refusal, a malformed `?enquire=` ignored, and `?enquire=`+`cursor=` → 404) and
+asserts the `noindex`/gallery-canonical/absent-`hreflang` metadata.
+No dynamic-result entry point (AB#58/AB#71 own the dynamic query and its UI), and the
+identity/origin smoke is AB#123; AB#60 stays open until a real dynamic result can be wired
+in or its acceptance criteria are amended.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — story-root listing continuation and progressive in-place append
@@ -923,9 +948,8 @@ follow-up would route the gallery detail through a handler; tracked with AB#132)
 `shuffledOrderGeneration` atomic-flip alternative to the brief recompute refusal window
 (a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
 and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
-build it), lightbox zoom tuning, and the rest of the gallery-item enquiry (AB#60): the lightbox
-entry point that captures the item context, its public-journey test, and the identity/origin
-smoke (AB#123).
+build it), lightbox zoom tuning, the dynamic-result enquiry entry point (AB#58/AB#71), and the
+gallery-item enquiry identity/origin smoke (AB#123).
 Validated JSON-LD structured data (AB#86) is built: `src/lib/structured-data.ts` is a pure
 builder + `</script>`-safe serializer (`<`, `>`, `&`, U+2028, U+2029 escaped — `JSON.stringify`
 alone does not, per Next.js's own guidance) rendered through the `<JsonLd>` server component.

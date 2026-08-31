@@ -14,10 +14,11 @@
  *
  * 1. **The request is shaped like one of ours.** The route locale must be a
  *    configured locale; `itemId` (and, for a curated request, `contentId`) must
- *    match the site-wide identity syntax and the shared `MAX_ITEM_ID_LENGTH`
- *    bound. Nothing the caller sent is echoed back in an error — an `itemId`
- *    reaching this module is attacker-controlled and is not assumed free of
- *    personal data, and ADR-0004 §5 keeps user-facing errors generic anyway.
+ *    match the shared public-identity grammar and length bound
+ *    (`public-identity.ts`). Nothing the caller sent is echoed back in an error
+ *    — an `itemId` reaching this module is attacker-controlled and is not
+ *    assumed free of personal data, and ADR-0004 §5 keeps user-facing errors
+ *    generic anyway.
  * 2. **The container is a supported public route.** A curated request's
  *    `contentId` must resolve, through the *public content tree* for that exact
  *    locale, to a published, canonically placed `gallery` — the same check
@@ -50,7 +51,7 @@ import { getContentTrees } from "@/lib/content";
 import { getPublicContentRoute } from "@/lib/content-routes";
 import { dispatchContentSource } from "@/lib/content-source";
 import { getDeploymentConfig } from "@/lib/deployment-config";
-import { MAX_ITEM_ID_LENGTH } from "@/lib/gallery-pagination";
+import { isPublicIdentity } from "@/lib/public-identity";
 
 /**
  * What the browser submits. `kind` is stated by the caller, never inferred from
@@ -221,9 +222,6 @@ export function classifyEnquiryFailure(
   return undefined;
 }
 
-/** The site-wide identity syntax `mediaId` and `placementId` already share. */
-const PUBLIC_IDENTITY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
 export type EnquiryEligibilityFlags = {
   readonly publiclyRenderable: boolean;
   readonly enquiryEligible: boolean;
@@ -254,12 +252,7 @@ export function assertEnquiryEligible(
 }
 
 function assertIdentity(value: unknown): asserts value is string {
-  if (
-    typeof value !== "string" ||
-    value.length === 0 ||
-    value.length > MAX_ITEM_ID_LENGTH ||
-    !PUBLIC_IDENTITY.test(value)
-  ) {
+  if (typeof value !== "string" || !isPublicIdentity(value)) {
     throw new EnquiryResolutionError("malformed-request");
   }
 }
