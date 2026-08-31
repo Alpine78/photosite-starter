@@ -123,9 +123,9 @@ function contextBody(context: SubmissionContext): Record<string, string> {
 const subscribeToNothing = () => () => {};
 
 const fieldClasses =
-  "w-full rounded-md border border-black/20 bg-background px-3 py-2 text-base " +
+  "w-full rounded-md border border-border-control bg-background px-3 py-2 text-base " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
-  "aria-[invalid=true]:border-red-700 dark:border-white/25 dark:aria-[invalid=true]:border-red-400";
+  "aria-[invalid=true]:border-danger";
 
 export function SubmissionForm({
   endpoint,
@@ -324,20 +324,20 @@ export function SubmissionForm({
           role="status"
           className={`mb-8 rounded-md border p-4 ${
             status.kind === "succeeded"
-              ? "border-black/15 dark:border-white/20"
-              : "border-red-700 dark:border-red-400"
+              ? "border-border-control"
+              : "border-danger"
           }`}
         >
           {status.kind === "succeeded" ? (
             <>
               <p className="font-medium">{labels.successTitle}</p>
-              <p className="mt-1 text-foreground/70">{labels.successBody}</p>
+              <p className="mt-1 text-muted">{labels.successBody}</p>
             </>
           ) : (
             <>
               <p>{status.message}</p>
               {status.reference !== undefined && (
-                <p className="mt-1 text-sm text-foreground/70">
+                <p className="mt-1 text-sm text-muted">
                   {labels.referenceLabel}:{" "}
                   <code className="font-mono">{status.reference}</code>
                 </p>
@@ -352,7 +352,7 @@ export function SubmissionForm({
           ref={summaryRef}
           tabIndex={-1}
           role="alert"
-          className="mb-8 rounded-md border border-red-700 p-4 dark:border-red-400"
+          className="mb-8 rounded-md border border-danger p-4"
         >
           <h2 className="font-medium">{labels.errorSummaryTitle}</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -395,7 +395,7 @@ export function SubmissionForm({
                 className="block text-sm font-medium"
               >
                 {labels[`${field}Label`]}
-                <span aria-hidden="true" className="ml-0.5 text-foreground/60">
+                <span aria-hidden="true" className="ml-0.5 text-subtle">
                   {labels.requiredMark}
                 </span>
               </label>
@@ -432,7 +432,7 @@ export function SubmissionForm({
               {issue !== undefined && (
                 <p
                   id={errorId(field)}
-                  className="mt-2 text-sm text-red-700 dark:text-red-400"
+                  className="mt-2 text-sm text-danger"
                 >
                   {messageFor(issue)}
                 </p>
@@ -466,7 +466,7 @@ export function SubmissionForm({
         <button
           type="submit"
           disabled={!hydrated || status.kind === "submitting"}
-          className="rounded-md bg-foreground px-5 py-2.5 font-medium text-background transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
+          className="rounded-md bg-accent px-5 py-2.5 font-medium text-accent-foreground transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
         >
           {status.kind === "submitting"
             ? labels.submitting

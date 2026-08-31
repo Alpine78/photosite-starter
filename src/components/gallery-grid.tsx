@@ -396,7 +396,7 @@ export function GalleryGrid({
 
           return (
             <li key={item.itemId}>
-              <figure className="rounded-sm bg-black/5 dark:bg-white/5">
+              <figure className="rounded-sm bg-surface-muted">
                 <GalleryLightboxTrigger
                   itemId={item.itemId}
                   index={index}
@@ -415,7 +415,7 @@ export function GalleryGrid({
                   />
                 </GalleryLightboxTrigger>
                 {media.caption && (
-                  <figcaption className="px-3 py-2 text-sm text-foreground/65">
+                  <figcaption className="px-3 py-2 text-sm text-subtle">
                     {media.caption}
                   </figcaption>
                 )}
@@ -438,8 +438,8 @@ export function GalleryGrid({
           tabIndex={-1}
           className={
             hasFailed
-              ? "text-sm text-foreground/80"
-              : "text-sm text-foreground/60"
+              ? "text-sm text-body"
+              : "text-sm text-subtle"
           }
         >
           {hasFailed
@@ -461,7 +461,7 @@ export function GalleryGrid({
             // away mid-flight would break the unenhanced path if script fails
             // between renders. The in-flight guard is what prevents a second
             // request.
-            className="rounded-sm border border-black/15 px-5 py-2.5 text-sm font-medium transition-colors hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
+            className="rounded-sm border border-border-control px-5 py-2.5 text-sm font-medium transition-colors hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
           >
             {isLoading
               ? labels.gallery.loadingMore

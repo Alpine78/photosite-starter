@@ -23,14 +23,14 @@ type BreadcrumbsProps = {
  */
 export function Breadcrumbs({ label, steps }: BreadcrumbsProps) {
   return (
-    <nav aria-label={label} className="text-sm text-foreground/60">
+    <nav aria-label={label} className="text-sm text-subtle">
       <ol className="flex flex-wrap items-center gap-1">
         {steps.map((step, index) => (
           <Fragment key={step.href ?? `${index}-${step.label}`}>
             {index > 0 && <li aria-hidden="true">/</li>}
             <li className="truncate">
               {step.href === undefined ? (
-                <span aria-current="page" className="text-foreground/80">
+                <span aria-current="page" className="text-body">
                   {step.label}
                 </span>
               ) : (

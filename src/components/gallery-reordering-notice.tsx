@@ -38,7 +38,7 @@ export function GalleryReorderingNotice({
         <h1 className="text-3xl font-semibold tracking-tight">
           {labels.gallery.reorderingTitle}
         </h1>
-        <p className="max-w-prose text-foreground/70">
+        <p className="max-w-prose text-muted">
           {labels.gallery.reorderingBody}
         </p>
       </div>

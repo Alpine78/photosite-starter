@@ -22,8 +22,8 @@ const focusRing =
 function optionClassName(isActive: boolean): string {
   return `${focusRing} shrink-0 rounded-full border px-4 py-1.5 text-sm transition-colors ${
     isActive
-      ? "border-foreground bg-foreground text-background"
-      : "border-black/15 text-foreground/80 hover:border-black/30 hover:text-foreground dark:border-white/20 dark:hover:border-white/35"
+      ? "border-accent bg-accent text-accent-foreground"
+      : "border-border-control text-body hover:border-border-strong hover:text-foreground"
   }`;
 }
 
@@ -119,7 +119,7 @@ export function GallerySectionControls({
     <nav
       ref={navRef}
       aria-label={labels.gallery.sectionsNav}
-      className={`sticky top-0 z-10 -mx-4 bg-background/95 px-4 py-2 backdrop-blur transition-transform duration-200 motion-reduce:transition-none sm:-mx-6 sm:px-6 ${
+      className={`sticky top-0 z-10 -mx-4 bg-surface/95 px-4 py-2 backdrop-blur transition-transform duration-200 motion-reduce:transition-none sm:-mx-6 sm:px-6 ${
         hidden ? "-translate-y-full" : "translate-y-0"
       }`}
     >

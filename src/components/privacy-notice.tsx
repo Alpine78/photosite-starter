@@ -28,7 +28,7 @@ export function PrivacyNotice({
   return (
     <section
       aria-labelledby={headingId}
-      className="rounded-md border border-black/10 p-4 text-sm text-foreground/70 dark:border-white/15"
+      className="rounded-md border border-border p-4 text-sm text-muted"
     >
       <h2 id={headingId} className="font-medium text-foreground">
         {labels.privacyTitle}

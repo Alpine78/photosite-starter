@@ -40,7 +40,7 @@ export function LanguageSwitch({ label, links }: LanguageSwitchProps) {
       aria-label={label}
       className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm"
     >
-      <span className="font-medium text-foreground/70">{label}:</span>
+      <span className="font-medium text-muted">{label}:</span>
       <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         {links.map((language) => {
           const noteId = language.note
@@ -54,12 +54,12 @@ export function LanguageSwitch({ label, links }: LanguageSwitchProps) {
                 hrefLang={language.locale}
                 lang={language.locale}
                 aria-describedby={noteId}
-                className="inline-flex rounded-full border border-black/20 px-3 py-1 text-foreground/70 transition-colors hover:border-black/40 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/20 dark:hover:border-white/40"
+                className="inline-flex rounded-full border border-border-control px-3 py-1 text-muted transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               >
                 {language.label}
               </Link>
               {language.note && (
-                <span id={noteId} className="text-foreground/70">
+                <span id={noteId} className="text-muted">
                   {" "}
                   ({language.note})
                 </span>

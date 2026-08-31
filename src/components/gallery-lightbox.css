@@ -6,6 +6,19 @@
  */
 
 /*
+ * The viewer is an always-black surface over the page, so the site's focus
+ * token (dark ink under a light palette) would draw a near-invisible ring on
+ * it. Re-point `--color-focus` for the whole subtree: the `globals.css` base
+ * rule `:focus-visible { outline-color: var(--color-focus) }` then resolves to
+ * white for every control inside the lightbox, matching the library's own
+ * light-on-black chrome. Documented in `docs/theme-contract.md` as a
+ * deliberate black-overlay exception (AB#36).
+ */
+.pswp {
+  --color-focus: #fff;
+}
+
+/*
  * Keep the previous and next controls on touch devices.
  *
  * The library hides them there on the assumption that a touch visitor swipes.

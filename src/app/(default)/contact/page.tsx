@@ -33,7 +33,7 @@ export default async function ContactPage() {
           visitor to write directly instead — advice that needs a target on the
           page they are already looking at.
         */}
-        <ul className="mt-4 space-y-1 text-foreground/70">
+        <ul className="mt-4 space-y-1 text-muted">
           <li>
             <a
               href={`mailto:${settings.contact.email}`}

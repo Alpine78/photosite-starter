@@ -34,7 +34,7 @@ export function SiteFooter({
   const labels = getDefaultLocaleLabels();
 
   return (
-    <footer className="border-t border-black/10 dark:border-white/15">
+    <footer className="border-t border-border">
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="grid gap-8 sm:grid-cols-3">
           {/* Contact */}
@@ -45,7 +45,7 @@ export function SiteFooter({
             >
               {labels.footer.contact}
             </h2>
-            <address className="mt-3 flex flex-col gap-1 text-sm not-italic text-foreground/70">
+            <address className="mt-3 flex flex-col gap-1 text-sm not-italic text-muted">
               <a href={`mailto:${contact.email}`} className={linkClasses}>
                 {contact.email}
               </a>
@@ -77,7 +77,7 @@ export function SiteFooter({
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className={`text-sm text-foreground/70 ${linkClasses}`}
+                      className={`text-sm text-muted ${linkClasses}`}
                     >
                       {item.label}
                     </Link>
@@ -104,7 +104,7 @@ export function SiteFooter({
                       aria-label={social.label}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`text-sm text-foreground/70 ${linkClasses}`}
+                      className={`text-sm text-muted ${linkClasses}`}
                     >
                       {platformLabel(social.platform)}
                     </a>
@@ -115,7 +115,7 @@ export function SiteFooter({
           )}
         </div>
 
-        <p className="mt-8 border-t border-black/10 pt-6 text-sm text-foreground/60 dark:border-white/15">
+        <p className="mt-8 border-t border-border pt-6 text-sm text-subtle">
           © {year} {copyrightHolder}. {labels.footer.rightsReserved}
         </p>
       </div>

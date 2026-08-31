@@ -96,7 +96,7 @@ function NavigationLink({
       onClick={onNavigate}
       className={`${className} transition-colors ${focusRing} ${
         state === "elsewhere"
-          ? "text-foreground/70 hover:text-foreground"
+          ? "text-muted hover:text-foreground"
           : "font-medium text-foreground"
       }`}
     >
@@ -220,7 +220,7 @@ export function SiteNavigation({
                     // as a second link-alike with the same name.
                     aria-label={labels.submenu.replace("{name}", item.label)}
                     onClick={() => setOpenKey(expanded ? null : item.key)}
-                    className={`inline-flex h-9 w-9 items-center justify-center rounded text-foreground/70 transition-colors hover:text-foreground ${focusRing}`}
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-sm text-muted transition-colors hover:text-foreground ${focusRing}`}
                   >
                     <DisclosureIcon expanded={expanded} />
                   </button>
@@ -239,7 +239,7 @@ export function SiteNavigation({
                         // in flow so it does not reflow the page beneath it,
                         // and height-capped so a wide tree cannot grow past the
                         // bottom of the window.
-                        "absolute inset-x-0 top-full z-20 max-h-[70svh] overflow-y-auto border-b border-black/10 bg-background shadow-lg dark:border-white/15"
+                        "absolute inset-x-0 top-full z-20 max-h-[70svh] overflow-y-auto border-b border-border bg-surface shadow-lg"
                       : "pb-2 pl-3"
                   }
                 >
@@ -260,7 +260,7 @@ export function SiteNavigation({
                         />
 
                         {child.children.length > 0 && (
-                          <ul className="mt-1 flex flex-col gap-1 border-l border-black/10 pl-3 dark:border-white/15">
+                          <ul className="mt-1 flex flex-col gap-1 border-l border-border pl-3">
                             {child.children.map((grandchild) => (
                               <li key={grandchild.key}>
                                 <NavigationLink

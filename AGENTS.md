@@ -130,7 +130,13 @@ never having tried.
 
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
 configuration, responsive header and footer, home page, services listing and detail
-pages, the shared generic media model, the public
+pages, a semantic design-token layer (AB#36) — the brand-sensitive colours, text
+roles, borders, accent, focus indicator, type families, and corner scale defined once
+in `src/app/globals.css`, consumed by shared components through static Tailwind
+utilities, with explicit light/dark (`prefers-color-scheme` plus a `data-theme` pin,
+`color-scheme` set), a documented override contract for a future preset
+(`docs/theme-contract.md`, AB#37), and AA text/focus contrast enforced by
+`src/lib/theme-contract.test.ts` and `e2e/theme.spec.ts`; the shared generic media model, the public
 image rendition boundary, the shared bounded gallery
 result contract, the fullscreen lightbox behind a project-owned PhotoSwipe wrapper
 (open, close, navigate, trapped focus, focus return keyed by `itemId`, and the caption
@@ -1256,6 +1262,13 @@ Then iterate.
   site name, navigation labels, and content, so a journey test must not depend on them.
 - TypeScript strict mode; build must pass with `npm run build`
 - Tailwind CSS v4 (CSS-based config via `@tailwindcss/postcss`, no `tailwind.config` file)
+- Brand-sensitive styling (colours, text roles, borders, accent, focus, type families,
+  corner scale) goes through the semantic tokens in `src/app/globals.css` —
+  `bg-surface`, `text-muted`, `border-border-strong`, `text-danger`, … — never a raw
+  `black`/`white`/colour-scale utility or a hand-written `dark:` pair in a component.
+  Deliberate photographic treatments (the hero scrim, the lightbox viewer) are the
+  documented exception. The full contract and the preset override points are in
+  `docs/theme-contract.md`
 - Mobile-first, semantic HTML, visible focus states
 - No UI component libraries that define the overall look (e.g., Material UI, Bootstrap,
   Ant Design, Chakra) — the visual design is custom, built with Tailwind. Targeted
@@ -1349,6 +1362,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `CLAUDE.md` | Claude Code only | a Claude-specific skill or workflow changes — it imports this file, so put shared rules here |
 | `docs/adr/` | future maintainers | a hard-to-reverse technical decision is made (see below) |
 | `docs/architecture/` | anyone forming a mental model of the system | a system boundary, layer, external dependency, or the deploy flow changes — edit the `.d2` source and re-run `npm run diagrams`, never the `.svg` |
+| `docs/theme-contract.md` | whoever restyles a clone or builds a theme preset (AB#37) | a semantic design token is added, renamed, or revalued, the light/dark mechanism changes, or a surface moves in or out of the "stays explicit" list |
 | `docs/asset-inventory.md` | licensing audit | any third-party asset, font, or shipped dependency is added or removed |
 | `docs/contact-data-flow.md` | the site owner, a visitor who asks, and the AB#117 launch review | the contact form's fields, delivery path, processors, logs, or retention change |
 | `docs/sanity-setup.md` | the site owner and whoever provisions a clone's CMS | the Sanity connection settings, ownership/transfer story, perspective, schemas, media policy, or failure behavior change |

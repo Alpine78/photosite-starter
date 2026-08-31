@@ -171,7 +171,7 @@ export function ContentGallery({
             </h1>
             <time
               dateTime={page.publishedAt}
-              className="mt-2 block text-sm text-foreground/60"
+              className="mt-2 block text-sm text-subtle"
             >
               {formatDate(page.publishedAt, locale)}
             </time>
@@ -180,7 +180,7 @@ export function ContentGallery({
               links={languages}
             />
             {page.summary && (
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-foreground/80">
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-body">
                 {page.summary}
               </p>
             )}
@@ -256,7 +256,7 @@ export function ContentGallery({
               labels={labels}
             />
           ) : (
-            <p className="mt-6 text-foreground/70">{labels.gallery.empty}</p>
+            <p className="mt-6 text-muted">{labels.gallery.empty}</p>
           )}
 
           {/*
@@ -268,7 +268,7 @@ export function ContentGallery({
             <p className="mt-6 flex justify-center">
               <Link
                 href={firstPageHref}
-                className="text-sm text-foreground/70 underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                className="text-sm text-muted underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               >
                 {labels.gallery.backToStart}
               </Link>
@@ -277,15 +277,15 @@ export function ContentGallery({
         </section>
 
         {!isContinuation && page.tags && page.tags.length > 0 && (
-          <footer className="mt-12 border-t border-black/10 pt-6 dark:border-white/15">
-            <p className="text-xs font-medium uppercase tracking-wider text-foreground/70">
+          <footer className="mt-12 border-t border-border pt-6">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted">
               {labels.contentTree.tags}
             </p>
             <ul className="mt-2 flex flex-wrap gap-2">
               {page.tags.map((tag) => (
                 <li
                   key={tag}
-                  className="rounded border border-black/10 px-2.5 py-0.5 text-sm text-foreground/70 dark:border-white/15"
+                  className="rounded-sm border border-border px-2.5 py-0.5 text-sm text-muted"
                 >
                   {tag}
                 </li>
