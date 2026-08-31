@@ -13,6 +13,44 @@ boundary").
 
 ---
 
+## How to resume this (read first)
+
+This document is the single source of truth for AB#54 — everything needed to
+finish it is here or in the branch, not in any one machine's local state.
+
+**Where things stand:** branch `feature/54-keyword-extraction-spike`. The scaffold
+is committed and reviewed (a Claude self-review plus five Codex review rounds; the
+only unresolved Codex note is "run the measurement before merging", which is
+expected — see the split below). AB#54 is `Active`. No PR yet.
+
+**Two-phase split, agreed with the project owner:**
+
+1. **Scaffold (done):** this structure, the [owner checklist](#owner-checklist),
+   the completed [AC6 library research + recommendation](#recommended-extraction-point-and-node-dependency-ac6),
+   and the AC4/AC5 hypotheses.
+2. **Measurement (owner-run, pending):** the owner runs the three Lightroom
+   exports and the non-production Sanity upload on a machine with Lightroom, and
+   pastes the verbatim outputs into the `_(pending)_` sections. Then Claude fills
+   the conclusions (AC4, AC5), the [findings for AB#55](#findings-for-ab55-ac8),
+   and updates the coverage table. **AB#54 stays `Active` until the owner reviews
+   and accepts that.**
+
+**To continue on any machine:** `git switch feature/54-keyword-extraction-spike`,
+`npm ci`, then work the [owner checklist](#owner-checklist) top to bottom and
+paste the three captures (§E) back into this file. A fresh Claude session only
+needs: *"Continue AB#54 — read `docs/keyword-extraction-spike.md` and pick up from
+the checklist."* If resuming the Codex loop, the machine also needs the Codex CLI
+authenticated and a one-time `az devops login` (per the `codex-review-loop`
+skill's Prerequisite 3).
+
+**Where this sits in the keyword chain:** AB#54 → **AB#55** (this feeds its
+taxonomy/ingest ADR) → **AB#56** (keyword schema) → **AB#68** (media-keyword
+domain model). AB#55/56/68 are deliberately not started until their predecessors
+close; AB#68 gets no ADR of its own (ADR-0002 and ADR-0012 already govern that
+boundary).
+
+---
+
 ## Why this spike
 
 [ADR-0012 §4](adr/0012-dynamic-keyword-gallery-query-contract.md) fixes the
