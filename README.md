@@ -312,10 +312,11 @@ the Playwright smoke suite. Test results are published on every
 run; traces and screenshots are published as a pipeline artifact when the suite fails.
 
 **Preview release candidate** deploys `main` to the site owner's own Vercel project after
-those gates pass, verifies that the deployment is access-protected and non-indexable, and
-publishes the URL to the run summary. It never runs for a pull request, and it skips
-entirely until the hosting is provisioned — so a clone without a Vercel project still gets
-a green pipeline. See [deployment](docs/deployment.md).
+those gates pass, verifies that the deployment is access-protected and non-indexable,
+repoints a stable protected `*.vercel.app` alias at it so a webhook configured once keeps
+working across redeploys (AB#136), and publishes the URL to the run summary. It never runs
+for a pull request, and it skips entirely until the hosting is provisioned — so a clone
+without a Vercel project still gets a green pipeline. See [deployment](docs/deployment.md).
 
 ## MVP scope
 

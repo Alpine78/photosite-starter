@@ -107,22 +107,39 @@ authoritative for the exact clicks. What this project needs from it:
 5. **Generate Protection Bypass for Automation** and keep the secret. The pipeline sends
    it as a request header so the verification step can read what a reviewer would see.
 
-6. **Nothing to do about production-domain assignment — it is a deploy-time flag, not a
+6. **Choose the stable Preview integration alias** (AB#136). Pick an unused
+   `<name>.vercel.app` host — for example `<project>-preview.vercel.app` — that the
+   pipeline will repoint at each verified Preview deployment so a webhook configured once
+   keeps working across ordinary redeploys. It must be a `*.vercel.app` host, not a custom
+   domain: Standard Protection "protects all domains except production domains" on every
+   plan, so a `*.vercel.app` alias inherits Vercel Authentication and `X-Robots-Tag:
+   noindex`, while a custom domain's protection posture is not guaranteed. This alias is
+   **not** the human review URL — reviewers still open the generated, per-deployment URL
+   from the run summary — and it must never be added to the project as a Production
+   domain. The pipeline creates the alias on its first run; there is nothing to register
+   in the Vercel dashboard beforehand. Its value goes in the variable group as
+   `PREVIEW_STABLE_ALIAS` (step 10). See
+   [The stable Preview integration alias](#the-stable-preview-integration-alias).
+
+7. **Nothing to do about production-domain assignment — it is a deploy-time flag, not a
    project setting.** ADR-0004 §3 requires that a production build never take the
    production domain merely by being deployed. Vercel expresses that as
    `vercel deploy --prod --skip-domain`, which AB#18's promotion sequence below already
    uses; there is no switch to turn off here, and no custom domain exists yet anyway.
 
    Leave the project's default `<project>.vercel.app` domain connected to **Production**,
-   where Vercel puts it. Do not repoint it at Preview and do not remove it: a release
-   candidate is reviewed at the **generated, per-deployment URL** the pipeline publishes,
-   never at a stable preview domain (ADR-0004 §3). A fixed preview address would be one
-   protection mistake away from being a second, permanently-live copy of the site.
+   where Vercel puts it. Do not repoint that default domain at Preview and do not remove
+   it. A release candidate is **reviewed by a person** at the generated, per-deployment
+   URL the pipeline publishes, never at a stable preview domain (ADR-0004 §3). The
+   `PREVIEW_STABLE_ALIAS` from step 6 is a different thing: a dedicated, access-protected,
+   `noindex` address for **machine integrations only**, repointed by the pipeline solely
+   after a deployment has passed the same two publication checks, and re-verified on every
+   repoint (ADR-0004 §3, 2026-08-31 amendment).
 
-7. **Set the Preview-scoped environment variables** from the table below. Scope them to
+8. **Set the Preview-scoped environment variables** from the table below. Scope them to
    Preview only — Production values are set in AB#18, and the two must never be one set.
 
-8. **Create a deployment token** scoped to the team, and read the team (org) id and
+9. **Create a deployment token** scoped to the team, and read the team (org) id and
    project id. Linking the checkout writes both to a local file:
 
    ```bash
@@ -132,13 +149,20 @@ authoritative for the exact clicks. What this project needs from it:
 
    `.vercel/` is gitignored, so nothing here reaches the repository.
 
-9. **Create the variable group** `photosite-starter-vercel-preview`, authorize only this
-   pipeline to use it, and add the values from the table below. Create the group with
-   `PREVIEW_DEPLOYMENT_ENABLED=false` first; the YAML must be able to resolve the protected
-   resource before any branch containing its reference is merged. Add and verify every
-   other value, then change the flag to `true`. Do not grant open access to all pipelines.
+10. **Create the variable group** `photosite-starter-vercel-preview`, authorize only this
+    pipeline to use it, and add the values from the table below. Create the group with
+    `PREVIEW_DEPLOYMENT_ENABLED=false` first; the YAML must be able to resolve the
+    protected resource before any branch containing its reference is merged. Add and
+    verify every other value — including `PREVIEW_STABLE_ALIAS` (step 6), which the deploy
+    stage now treats as required — then change the flag to `true`. Do not grant open
+    access to all pipelines. Finally, on the group's **Approvals and checks** tab, add an
+    **Exclusive lock** check: the `DeployPreview` stage declares `lockBehavior:
+    sequential`, and the lock only engages because the stage consumes this group, so two
+    `DeployPreview` runs never repoint the alias at the same time. (Serializing execution
+    is not the same as ordering by commit — see the known limitation in
+    [The stable Preview integration alias](#the-stable-preview-integration-alias).)
 
-10. **On Pro, keep Observability Plus disabled** and limit Owner, Member, and Developer
+11. **On Pro, keep Observability Plus disabled** and limit Owner, Member, and Developer
     seats to the people who need Runtime Logs; everyone else gets Pro Viewer. Both are
     privacy decisions, not cost ones, and remain the plan for Production, which is
     still on this ADR's Pro Decision. **On Hobby — Preview's currently observed
@@ -157,6 +181,11 @@ authoritative for the exact clicks. What this project needs from it:
 The group exists before its credentials do, so provisioning can remain incomplete without
 reddening `main`: the deploy stage skips while `PREVIEW_DEPLOYMENT_ENABLED=false`. Turning
 that flag on is the explicit handoff from provisioning to the first release-candidate run.
+`PREVIEW_STABLE_ALIAS` is required from that point on — a Preview deployment that does not
+also maintain the durable webhook alias is the regression AB#136 exists to prevent — so
+add it to the group **before** flipping the enable flag. If Preview is already enabled and
+this is being added later, expect the deploy stage's "Check deployment configuration" step
+to fail by name until the variable is set.
 
 ## Pipeline variables
 
@@ -172,7 +201,8 @@ the deployment stage rather than the quality gates.
 | `VERCEL_ORG_ID`                   | no     | Team expected to own every deployment the pipeline handles.           |
 | `VERCEL_PROJECT_ID`               | no     | Project expected to own every deployment the pipeline handles.        |
 | `VERCEL_TOKEN`                    | yes    | Team-scoped deployment/API credential, rotated or revoked at handoff. |
-| `VERCEL_AUTOMATION_BYPASS_SECRET` | yes    | Lets the verification probe read the protected deployment.            |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | yes    | Lets the verification probe — and the alias probe — read the protected deployment. |
+| `PREVIEW_STABLE_ALIAS`            | no     | Bare `*.vercel.app` host the pipeline repoints at each verified Preview deployment so a webhook configured once keeps working (AB#136). Required once `PREVIEW_DEPLOYMENT_ENABLED=true`. |
 | `SANITY_BUILD_READ_TOKEN`         | yes    | Read-only Preview credential used only while a private dataset is prerendered; omit for a public dataset. |
 
 The GitHub service connection that supplies this repository to Azure Pipelines is also
@@ -305,6 +335,114 @@ the promotion/rollback broad-expiry command are documented in
 [`cache-revalidation.md`](cache-revalidation.md). A webhook 200 proves that this
 deployment accepted the event; it does not by itself prove cross-instance propagation.
 
+### The stable Preview integration alias
+
+A Preview deployment's generated `<hash>.vercel.app` URL is unique to that deployment. A
+webhook — the Sanity revalidation webhook today, potentially other integrations later —
+pointed at one goes stale (stops delivering) the moment a newer deployment supersedes it.
+`PREVIEW_STABLE_ALIAS` (AB#136) is the fix: one bare `*.vercel.app` host that the
+`DeployPreview` stage repoints at each newly verified deployment, so the webhook is
+configured once with `https://<PREVIEW_STABLE_ALIAS>/api/revalidate` and never edited
+again for an ordinary redeploy.
+
+**What the pipeline does with it.** After the generated URL passes the access-protection
+and `noindex` checks, `npm run repoint:preview` runs the repoint as a transaction:
+
+1. it re-binds the just-deployed generated URL to the expected project and team;
+2. the **monotonic guard** — it refuses to move the alias to a deployment created *before*
+   (or at the same time as) the one it already points at. Ordering is by Vercel
+   `createdAt`, not by commit ancestry — see the known limitation below;
+3. it assigns the alias to this deployment through Vercel's atomic
+   `POST /v2/deployments/{id}/aliases`;
+4. it re-verifies the alias host itself for the same SSO challenge and exact
+   `X-Robots-Tag: noindex` (AC1/AC4), with a short bounded retry for propagation lag;
+5. if anything fails once the assignment has been attempted — a lost response to the
+   POST, or a failed re-verification — it **reconciles**: it re-reads the alias and
+   restores the previous target (or removes a first assignment) while the alias still
+   points at what this run assigned; if a newer run has since published to it, this run
+   leaves it alone. If the alias cannot be read or restored afterwards, the step fails
+   loudly as *unreconciled* — run `npm run verify:preview-alias` and repoint by hand.
+
+Before any of that, the repoint **refuses** a `PREVIEW_STABLE_ALIAS` that is the
+project's own default production domain (`<project>.vercel.app`) or that currently
+resolves to a `target: "production"` deployment — a misconfigured value can never pull a
+production domain onto Preview.
+
+Concurrent `DeployPreview` runs are serialized by the stage's `lockBehavior: sequential`
+plus the Exclusive lock check on the variable group (provisioning step 10); the guard and
+ownership check above are defence in depth for a manual `vercel alias` run outside CI.
+
+**Known limitation — the alias is not guaranteed to hold the newest `main` revision
+(AB#144).** The monotonic guard orders by *deployment creation time*, not by commit
+ancestry. If two `main` runs overlap and the run for an **older** commit completes
+`DeployPreview` **after** the run for a **newer** commit, the older commit's deployment
+has the later `createdAt`, so the guard permits it and the alias — and the webhook — ends
+up on a superseded `main` revision. That target is still a fully verified,
+access-protected, non-indexable `main` deployment, so this is a freshness gap, not a
+security or durability one. It is **not self-healing**: the alias stays on the stale
+revision until a later `DeployPreview` run succeeds, which may be indefinite if none does.
+Recovery is the manual **Rollback**/**Verification** commands below. Closing this needs
+an authoritative source-revision check immediately before the alias is mutated — tracked
+as AB#144.
+
+**Why `*.vercel.app` only.** Standard Protection "protects all domains except production
+domains" on every plan, so a `*.vercel.app` alias inherits Vercel Authentication and
+`noindex`. The tooling refuses any other host: a fixed, unprotected copy of the site at a
+stable address is exactly what step 7 warns against.
+
+**Rollback** (repoint the alias to a known-good earlier deployment by hand):
+
+```bash
+vercel alias set <previous-good-deployment-url> <PREVIEW_STABLE_ALIAS> --token="$VERCEL_TOKEN"
+```
+
+As with any rollback, an older deployment is only a safe target if its captured
+environment values are still valid — a rotated secret needs a fresh deployment, not an
+alias move (ADR-0004 §3, and "Promotion and rollback" below).
+
+**Rotation** is two things, kept separate:
+
+- *The alias name.* Change `PREVIEW_STABLE_ALIAS` in the variable group, run one Preview
+  deploy so the new alias is assigned and verified, then update the Sanity webhook URL to
+  the new host once. This is the only time the webhook URL changes.
+- *The automation bypass secret* (`VERCEL_AUTOMATION_BYPASS_SECRET`). Vercel supports
+  multiple named bypass secrets; rotate the pipeline's and, separately, the one the Sanity
+  webhook itself carries as `x-vercel-protection-bypass`
+  ([`cache-revalidation.md`](cache-revalidation.md)). Neither rotation touches the alias.
+
+**Verification** — safe to run by hand at any time; it never assigns or removes the alias:
+
+```bash
+PREVIEW_STABLE_ALIAS=<host> VERCEL_AUTOMATION_BYPASS_SECRET=... \
+VERCEL_TOKEN=... VERCEL_ORG_ID=... VERCEL_PROJECT_ID=... \
+npm run verify:preview-alias
+```
+
+**Owner handoff.** The alias is a customer-owned Vercel resource, like the project and
+its domains. Nothing about it — the host, the token, the bypass secret — lives in this
+repository. At handoff, transfer or re-create it in the owner's team and rotate the token
+and bypass secrets alongside every other credential.
+
+**Exercise against Preview (owner-run, AB#136 AC5).** Run these against the real protected
+Preview environment and record the evidence on the work item before the item is closed:
+
+1. First assignment: enable the stage with `PREVIEW_STABLE_ALIAS` set, run a deploy,
+   confirm the run's "Repoint the stable Preview alias" step reports `-> dpl_…` and that
+   `npm run verify:preview-alias` passes.
+2. Ordinary redeploy: run a second deploy from `main`; confirm the alias moves to the new
+   deployment and the Sanity webhook still delivers **without editing its URL**.
+3. Real signed delivery: mutate a document in the `preview` dataset and confirm
+   `/api/revalidate` at `https://<PREVIEW_STABLE_ALIAS>/…` logs `state:"accepted"` — using
+   the webhook's own `x-vercel-protection-bypass` secret, not the pipeline's.
+4. Rollback and roll-forward: `vercel alias set` the alias to the previous deployment,
+   verify, then run a deploy to move it forward again.
+5. Rotation: rotate the alias name (and update the webhook URL once), then separately
+   rotate the automation bypass secret; verify after each.
+6. Protection intact: after every step above, `npm run verify:preview-alias` still passes
+   (SSO challenge without the bypass, exact `noindex` with it).
+7. Handoff dry-run: confirm the alias, token, and bypass secrets are all customer-owned
+   and rotatable, and that none appears in this repository.
+
 ### The continuation cursor signing key
 
 `GALLERY_CURSOR_SIGNING_KEY` signs every opaque continuation cursor this deployment
@@ -402,8 +540,13 @@ what the pipeline log accounts for — a rebuild of the gated commit against the
 Preview configuration, not the gate's own fixture-built artifact. Before a project
 secret is sent to the deployment, the pipeline resolves the generated URL through
 Vercel's authenticated API and compares its immutable deployment ID, project ID, owner
-ID, and hostname with the expected values. It verifies the deployment, and only then
-publishes the URL to the run summary.
+ID, and hostname with the expected values. It verifies the deployment; then repoints
+`PREVIEW_STABLE_ALIAS` at it and re-verifies access protection and `noindex` on the
+alias host itself (AB#136 — see
+[The stable Preview integration alias](#the-stable-preview-integration-alias)); and only
+then publishes the URL to the run summary. A failed or unverified deployment never
+reaches the repoint step, so the alias keeps pointing at the last deployment that passed.
+The whole stage holds an exclusive lock, so two runs cannot repoint the alias at once.
 
 ## Verifying a release candidate
 

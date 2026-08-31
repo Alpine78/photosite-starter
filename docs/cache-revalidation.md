@@ -58,7 +58,10 @@ acknowledging the event, and returns 503 if any call fails.
 
 Configure one Sanity **document webhook per deployment environment**:
 
-- URL: `https://<deployment>/api/revalidate`
+- URL: `https://<deployment>/api/revalidate`. For **Preview**, use the stable integration
+  alias — `https://<PREVIEW_STABLE_ALIAS>/api/revalidate` — which the pipeline repoints at
+  each verified deployment (AB#136, `docs/deployment.md`), so this URL is set once and not
+  edited for an ordinary redeploy. Production uses its own custom domain.
 - dataset: the environment's exact `SANITY_DATASET`
 - trigger: create, update, and delete
 - filter:
@@ -264,21 +267,28 @@ Two operational findings surfaced getting there, worth keeping:
   contract that no longer matches the live one" case, not a cache-staleness
   one.
 
-**This target remains temporary rather than a durable Preview endpoint.** Preview
-has no stable alias — the pipeline's `DeployPreview` stage produces a
-brand-new, unique `<hash>.vercel.app` URL on every `main` run, and nothing
-repoints an existing webhook when it does. Vercel's Data Cache persists
-across deployments within one project environment (Preview and Production
-never share it, but every Preview deployment does) and `revalidateTag`
-invalidates it globally — now also observed directly by the cross-deployment
-run above — so an old webhook target does not by itself leave a newer release
-candidate stale on cache-isolation grounds. It still stops delivering entirely
-once code or secrets drift, or the old deployment is cleaned up. Making
-Sanity's webhook durable across deployments — a stable, protected Preview alias the pipeline
-repoints after each verified deploy, or an equivalent — is a separate,
-currently unbuilt piece of work, not something to improvise here. Route wiring
-now makes Preview's cache-carrying traffic real, so this remains an operational
-follow-up before treating the temporary webhook target as durable.
+**The temporary per-deployment target this run used is superseded by AB#136.** When
+that verification ran, Preview had no stable alias — the `DeployPreview` stage
+produced a brand-new `<hash>.vercel.app` URL on every `main` run and nothing repointed
+an existing webhook when it did. Vercel's Data Cache persists across deployments within
+one project environment (Preview and Production never share it, but every Preview
+deployment does) and `revalidateTag` invalidates it globally — observed directly by the
+cross-deployment run above — so an old webhook target did not by itself leave a newer
+release candidate stale on cache-isolation grounds. It still stopped delivering entirely
+once code or secrets drifted, or the old deployment was cleaned up.
+
+AB#136 closes that gap: `PREVIEW_STABLE_ALIAS` is one bare `*.vercel.app` host the
+pipeline repoints at each verified deployment (as a transaction, with a monotonic
+`createdAt` guard, an alias-host re-verification of access protection and `noindex`, and
+an ownership-aware restore on failure — `docs/deployment.md`, ADR-0004 §3 2026-08-31
+amendment). The Preview Sanity webhook is configured once with
+`https://<PREVIEW_STABLE_ALIAS>/api/revalidate` and its URL is edited only on a deliberate
+alias-name rotation. One known limitation carries over (AB#144): the guard orders by
+deployment creation time, not commit ancestry, so two overlapping `main` runs can leave
+the alias on a superseded — but still verified and protected — `main` deployment until a
+later deploy succeeds; recovery is the manual repoint in `docs/deployment.md`. The live
+"exercise against Preview" (AB#136 AC5) is owner-run and its evidence is recorded on the
+work item.
 
 Also outstanding beforehand: during this session, an unrelated stray
 Production deployment (`source: cli`, no `X-Robots-Tag`, no SSO challenge) was
