@@ -131,6 +131,16 @@ export type CuratedGalleryPlacement = {
   readonly order: number;
   readonly visible: boolean;
   readonly media: Media;
+  /**
+   * The media record's `privateOnly` flag (ADR-0002), surfaced on the placement
+   * the pagination layer sees. A `privateOnly` photograph is a private
+   * client-gallery asset and is refused from every public surface outright
+   * (ADR-0014 §2): whoever builds these rows — the mock fixture, or the Sanity
+   * projection — resolves it, the bounded source filters it out the same way it
+   * filters a hidden placement, and `buildCuratedGalleryPage` rejects one that
+   * still slips through a window as a source-contract violation.
+   */
+  readonly privateOnly?: boolean;
   readonly sectionId?: string;
   readonly altOverride?: string;
   readonly captionOverride?: string;
@@ -400,6 +410,14 @@ export function assertPlacements(
       throw new TypeError("placement.visible must be a boolean");
     }
     if (
+      placement.privateOnly !== undefined &&
+      typeof placement.privateOnly !== "boolean"
+    ) {
+      throw new TypeError(
+        "placement.privateOnly must be a boolean when provided",
+      );
+    }
+    if (
       placement.pinned !== undefined &&
       typeof placement.pinned !== "boolean"
     ) {
@@ -495,7 +513,9 @@ function orderVisiblePlacements(
   ordering: GalleryOrdering,
 ): readonly CuratedGalleryPlacement[] {
   return placements
-    .filter((placement) => placement.visible)
+    .filter(
+      (placement) => placement.visible && placement.privateOnly !== true,
+    )
     .toSorted((left, right) =>
       comparePlacementsByOrdering(left, right, ordering),
     );
@@ -840,6 +860,11 @@ export function buildCuratedGalleryPage({
     if (!placement.visible) {
       throw new Error(
         "Gallery source returned a hidden placement in a bounded window",
+      );
+    }
+    if (placement.privateOnly === true) {
+      throw new Error(
+        "Gallery source returned a privateOnly placement in a bounded window",
       );
     }
     if (placement.media.type !== "image") {

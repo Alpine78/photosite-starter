@@ -333,11 +333,72 @@ describe("curated gallery result contract", () => {
     expect(serialized).not.toContain("archive-locator-sentinel");
     expect(serialized).not.toContain("master-url-sentinel");
     expect(serialized).not.toContain("provider-asset-sentinel");
+    // A media-level `privateOnly` here is one more server-only sentinel the
+    // projector must not copy — the whole *item* being refused when the
+    // *placement* is `privateOnly` is a separate guarantee, covered below.
     expect(serialized).not.toContain("privateOnly");
     expect(serialized).not.toContain("publicationState");
     expect(serialized).not.toContain("enquiryEligible");
     expect(serialized).not.toContain("dynamicallyDiscoverable");
     expect(result.items[0].media).toEqual(source);
+  });
+
+  it("refuses a privateOnly placement from the public page and still fills it", () => {
+    const result = buildPage({
+      sourcePlacements: [
+        placement("public-a", 0, mockImages.coastalLandscape),
+        { ...placement("private", 1, mockImages.mistyBirch), privateOnly: true },
+        placement("public-b", 2, mockImages.lakesideReeds),
+        placement("public-c", 3, mockImages.forestStream),
+      ],
+      cursorScope: { ...scope, pageSize: 2 },
+    });
+
+    // The private-marked placement is absent, and the page is filled from the
+    // public placements after it rather than left one item short.
+    expect(result.items.map((item) => item.itemId)).toEqual([
+      "public-a",
+      "public-b",
+    ]);
+    expect(result.page.hasNextPage).toBe(true);
+    expect(JSON.stringify(result)).not.toContain("private");
+
+    const second = buildPage({
+      sourcePlacements: [
+        placement("public-a", 0, mockImages.coastalLandscape),
+        { ...placement("private", 1, mockImages.mistyBirch), privateOnly: true },
+        placement("public-b", 2, mockImages.lakesideReeds),
+        placement("public-c", 3, mockImages.forestStream),
+      ],
+      cursorScope: { ...scope, pageSize: 2 },
+      cursor: result.page.endCursor as string,
+    });
+    expect(second.items.map((item) => item.itemId)).toEqual(["public-c"]);
+  });
+
+  it("rejects a privateOnly placement that a source leaks into a bounded window", () => {
+    const windowRequest = resolveGalleryWindowRequest({
+      scope: { ...scope, pageSize: 2 },
+      ordering: MANUAL_ORDERING,
+      cursorCodec: testCursorCodec,
+    });
+
+    expect(() =>
+      buildCuratedGalleryPage({
+        windowResult: {
+          candidates: [
+            {
+              ...placement("leaked-private", 0, mockImages.coastalLandscape),
+              privateOnly: true,
+            },
+          ],
+        },
+        scope: { ...scope, pageSize: 2 },
+        ordering: MANUAL_ORDERING,
+        windowRequest,
+        cursorCodec: testCursorCodec,
+      }),
+    ).toThrow("privateOnly placement in a bounded window");
   });
 
   it("fails before pagination when a visible media type is unsupported", () => {

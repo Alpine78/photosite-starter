@@ -1,6 +1,6 @@
 # ADR-0014: Private client gallery security, delivery, and retention boundary
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-08-31
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#122
