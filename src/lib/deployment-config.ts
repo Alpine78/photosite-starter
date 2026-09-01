@@ -85,6 +85,19 @@ export type BuiltInLabels = {
   readonly services: {
     readonly pricing: string;
   };
+  /**
+   * The private client-gallery bootstrap (ADR-0014 §3). `invalidLink` is the
+   * **one** message every refusal shows — an unknown handle, a revoked link, a
+   * closed access window, and a wrong capability are deliberately
+   * indistinguishable, so the page never reveals whether a handle exists.
+   */
+  readonly privateGallery: {
+    readonly title: string;
+    readonly opening: string;
+    readonly connected: string;
+    readonly invalidLink: string;
+    readonly javascriptRequired: string;
+  };
   readonly contact: {
     /**
      * Subject of the email the site owner receives. It carries no
@@ -349,6 +362,15 @@ const englishLabels = {
   services: {
     pricing: "Pricing",
   },
+  privateGallery: {
+    title: "Private gallery",
+    opening: "Opening your gallery…",
+    connected: "Your gallery link is confirmed.",
+    invalidLink:
+      "This link is not valid. Ask the photographer for a new one.",
+    javascriptRequired:
+      "This gallery needs JavaScript to open your link.",
+  },
   contact: {
     emailSubject: "New contact message",
     enquirySubject: "Gallery enquiry",
@@ -475,6 +497,13 @@ const finnishLabels = {
   },
   services: {
     pricing: "Hinnoittelu",
+  },
+  privateGallery: {
+    title: "Yksityinen galleria",
+    opening: "Avataan galleriaasi…",
+    connected: "Gallerialinkkisi on vahvistettu.",
+    invalidLink: "Tämä linkki ei kelpaa. Pyydä valokuvaajalta uusi.",
+    javascriptRequired: "Tämä galleria tarvitsee JavaScriptin linkin avaamiseen.",
   },
   contact: {
     emailSubject: "Uusi yhteydenotto",
@@ -954,7 +983,7 @@ export function loadDeploymentConfig(
   );
 
   const stage = readDeploymentStage(environment);
-  const privateGallery = readPrivateGalleryDeployment(environment);
+  const privateGallery = readPrivateGalleryDeployment(environment, stage);
 
   return {
     stage,

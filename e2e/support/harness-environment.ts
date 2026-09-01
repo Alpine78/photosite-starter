@@ -102,4 +102,15 @@ export const appUnderTestEnvironment: Record<string, string> = {
   // Not a credential: it protects nothing but this fixture's page boundaries,
   // and it is deliberately safe to publish in a failure artifact.
   GALLERY_CURSOR_SIGNING_KEY: "e2e-harness-gallery-cursor-signing-key",
+  // The private client-gallery store (ADR-0014), resolved to the in-process
+  // development fixture. It is the same shape of choice as the two above: the
+  // suite exercises the real routes, the real capability crypto, and the real
+  // session contract without a database, an object store, or a credential in
+  // this environment — and `memory` is refused outright in a production
+  // deployment, because its fixture link is a published constant. Nothing here
+  // is a secret: the fixture's handle and capability are exported from
+  // `private-gallery-memory-store.ts` and are deliberately safe to appear in a
+  // published failure trace. Each run seals them under a fresh ephemeral key,
+  // so an artifact from one run authorizes nothing anywhere.
+  PRIVATE_GALLERY_STORE: "memory",
 };

@@ -36,6 +36,8 @@
  */
 
 import { randomUUID } from "node:crypto";
+
+import type { PrivateGalleryExchangeFailure } from "@/lib/private-gallery-access";
 import type { ContactDeliveryErrorClass } from "@/lib/contact-delivery";
 import type { ContactRejectionReason } from "@/lib/contact-request";
 import type { EnquiryResolutionRejection } from "@/lib/enquiry-media";
@@ -75,7 +77,10 @@ export type SubmissionState =
   | "delivery-failed";
 
 /** The closed set of event names the submission-log family emits. */
-type SubmissionEventName = "contact.submission" | "enquiry.submission";
+type SubmissionEventName =
+  | "contact.submission"
+  | "enquiry.submission"
+  | "private-gallery.exchange";
 
 export type ContactEvent =
   | {
@@ -101,6 +106,24 @@ export type EnquiryEvent =
       readonly errorClass: EnquiryErrorClass;
     };
 
+/**
+ * One private-gallery exchange event (AB#29, ADR-0014 §3). The class is the
+ * facade's own refusal reason, imported as a type so the two cannot drift; the
+ * route emits an event only for the refusals the facade marks `logWorthy`, so a
+ * prober sending well-formed handles cannot flood the log.
+ */
+export type PrivateGalleryExchangeEvent =
+  | {
+      readonly correlationId: string;
+      readonly state: "accepted";
+      readonly errorClass?: never;
+    }
+  | {
+      readonly correlationId: string;
+      readonly state: "rejected";
+      readonly errorClass: PrivateGalleryExchangeFailure["reason"];
+    };
+
 export function createCorrelationId(): string {
   return randomUUID();
 }
@@ -120,7 +143,10 @@ function writeSubmissionLine(
   name: SubmissionEventName,
   correlationId: string,
   state: SubmissionState,
-  errorClass?: ContactErrorClass | EnquiryErrorClass,
+  errorClass?:
+    | ContactErrorClass
+    | EnquiryErrorClass
+    | PrivateGalleryExchangeFailure["reason"],
 ): void {
   const line = JSON.stringify({
     event: name,
@@ -150,6 +176,18 @@ export function logContactEvent(event: ContactEvent): void {
 export function logEnquiryEvent(event: EnquiryEvent): void {
   writeSubmissionLine(
     "enquiry.submission",
+    event.correlationId,
+    event.state,
+    event.errorClass,
+  );
+}
+
+/** Emits one private-gallery capability-exchange event (AB#29). */
+export function logPrivateGalleryExchangeEvent(
+  event: PrivateGalleryExchangeEvent,
+): void {
+  writeSubmissionLine(
+    "private-gallery.exchange",
     event.correlationId,
     event.state,
     event.errorClass,

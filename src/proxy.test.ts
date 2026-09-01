@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { REQUEST_PATH_HEADER } from "@/lib/request-path";
+
 /**
  * The Proxy reads `getDeploymentConfig()`, which resolves `process.env` and
  * memoizes. Each case here stubs the environment, resets the module graph, and
@@ -33,8 +35,8 @@ async function loadProxy(extraEnv: Record<string, string> = {}) {
   const { NextRequest } = await import("next/server");
   return {
     proxy,
-    request: (path: string) =>
-      new NextRequest(new URL(path, "https://proxy.test")),
+    request: (path: string, headers?: Record<string, string>) =>
+      new NextRequest(new URL(path, "https://proxy.test"), { headers }),
   };
 }
 
@@ -115,5 +117,133 @@ describe("private route response hygiene (ADR-0014 §6)", () => {
     const privateResponse = proxy(request("/private/anything"));
     expect(privateResponse.status).not.toBe(301);
     expect(headersOf(privateResponse)).toMatchObject(HYGIENE);
+  });
+});
+
+describe("private namespace rewrite (ADR-0014 §9)", () => {
+  /** `NextResponse.rewrite`'s own wire signal, read back as the rewrite target. */
+  const rewriteTarget = (response: { headers: Headers }) =>
+    response.headers.get("x-middleware-rewrite");
+
+  it.each([
+    ["/private", "/private-gallery"],
+    ["/private/handle", "/private-gallery/handle"],
+    ["/private/handle/exchange", "/private-gallery/handle/exchange"],
+  ])("rewrites %s onto the internal segment", async (path, expected) => {
+    const { proxy, request } = await loadProxy();
+    const response = proxy(request(path));
+
+    expect(new URL(rewriteTarget(response) ?? "").pathname).toBe(expected);
+    // The rewrite is invisible to the browser, so §6's headers still apply.
+    expect(headersOf(response)).toMatchObject(HYGIENE);
+  });
+
+  it("rewrites a custom prefix onto the same fixed internal segment", async () => {
+    const { proxy, request } = await loadProxy({
+      PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
+    });
+    const response = proxy(request("/clients/handle"));
+
+    expect(new URL(rewriteTarget(response) ?? "").pathname).toBe(
+      "/private-gallery/handle",
+    );
+  });
+
+  it("preserves the query string across the rewrite", async () => {
+    const { proxy, request } = await loadProxy();
+    const response = proxy(request("/private/handle?a=1&b=2"));
+
+    expect(new URL(rewriteTarget(response) ?? "").search).toBe("?a=1&b=2");
+  });
+
+  it("rewrites nothing for a non-private path", async () => {
+    const { proxy, request } = await loadProxy();
+    expect(rewriteTarget(proxy(request("/stories")))).toBeNull();
+  });
+
+  it.each([
+    "/private-gallery",
+    "/private-gallery/handle",
+    "/private-gallery/handle/exchange",
+  ])("answers 404 for a direct request to %s", async (path) => {
+    // The internal segment is the rewrite *target*, never a public door: a
+    // request that arrived there on its own carries no rewrite source, so
+    // nothing links it to a configured-prefix request.
+    const { proxy, request } = await loadProxy();
+    expect(proxy(request(path)).status).toBe(404);
+  });
+
+  it("passes the Proxy's own second pass through with the hygiene headers", async () => {
+    // Next.js runs this Proxy again on the path it rewrote to (verified against
+    // a production build in `e2e/private-gallery-link.spec.ts`), carrying the
+    // request headers the first pass set. That second pass must reach the
+    // route, and must answer with §6's headers — as a `next()`, which is what
+    // makes `Referrer-Policy: no-referrer` replace the site-wide value.
+    const { proxy, request } = await loadProxy();
+    const response = proxy(
+      request("/private-gallery/handle", {
+        [REQUEST_PATH_HEADER]: "/private/handle",
+      }),
+    );
+
+    expect(response.status).not.toBe(404);
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(headersOf(response)).toMatchObject(HYGIENE);
+  });
+
+  it.each([
+    ["names a different gallery", "/private/other-handle"],
+    ["is not a private path at all", "/stories/portfolio"],
+    ["is the internal path itself", "/private-gallery/handle"],
+    ["is unusable as a path", "https://elsewhere.test/private/handle"],
+  ])(
+    "still answers 404 when the carried source path %s",
+    async (_case, carried) => {
+      // The header is client-settable, so it is checked for consistency rather
+      // than trusted: it must be a private path under *this* deployment's
+      // prefix whose rewrite is exactly the path being served.
+      const { proxy, request } = await loadProxy();
+      const response = proxy(
+        request("/private-gallery/handle", {
+          [REQUEST_PATH_HEADER]: carried,
+        }),
+      );
+
+      expect(response.status).toBe(404);
+    },
+  );
+
+  it("does not accept a source path under a prefix this deployment does not use", async () => {
+    const { proxy, request } = await loadProxy({
+      PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
+    });
+
+    expect(
+      proxy(
+        request("/private-gallery/handle", {
+          [REQUEST_PATH_HEADER]: "/private/handle",
+        }),
+      ).status,
+    ).toBe(404);
+    expect(
+      proxy(
+        request("/private-gallery/handle", {
+          [REQUEST_PATH_HEADER]: "/clients/handle",
+        }),
+      ).status,
+    ).not.toBe(404);
+  });
+
+  it("does not 404 a path that merely starts with the internal segment", async () => {
+    const { proxy, request } = await loadProxy();
+    // The bootstrap script itself lives at this root path.
+    expect(proxy(request("/private-gallery-bootstrap.js")).status).not.toBe(404);
+  });
+
+  it("refuses the internal segment even when a deployment renames the prefix", async () => {
+    const { proxy, request } = await loadProxy({
+      PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
+    });
+    expect(proxy(request("/private-gallery/handle")).status).toBe(404);
   });
 });
