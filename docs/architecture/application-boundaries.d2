@@ -30,7 +30,7 @@ proxy: "src/proxy.ts — the Proxy (ADR-0007)\nCopies the requested path and a s
 
 routes: "src/app — App Router" {
   class: built
-  grid-columns: 3
+  grid-columns: 4
 
   static: "(default) route group\n/, /services, /services/[slug],\n/contact\nUnprefixed default locale only" {
     class: built
@@ -42,6 +42,10 @@ routes: "src/app — App Router" {
 
   api: "Route handlers\napi/contact, api/enquiry — same-origin JSON,\nclosed field whitelist, shared abuse + delivery path\napi/gallery — one bounded slice" {
     class: built
+  }
+
+  private: "Private client galleries (planned — ADR-0014)\nfragment-capability access exchanged for a\nserver session; two-stage per-asset auth;\nalways dynamic, never cached, never indexed;\nseparate admin boundary" {
+    class: planned
   }
 }
 
@@ -110,6 +114,10 @@ restricted: "Server-only modules" {
   enquiry-media: "enquiry-media.ts (+ mock-enquiry-media.ts / sanity-enquiry-media.ts)\nServer-only itemId -> mediaId resolution for the AB#60 enquiry flow.\nAuthorizes the container against the public content tree, then resolves\nand validates the private archiveLocator. api/enquiry consumes it and puts\nthe archiveLocator only in the owner's email — never a response or a log." {
     class: built
   }
+
+  private-gallery: "private-gallery adapters (planned — ADR-0014)\nObject-store (signed GET) and Postgres access,\ncapability/session, publication outbox, retention worker.\nServer-only, ESLint-bounded; never reached by a public read." {
+    class: planned
+  }
 }
 
 external: "Outside the deployment" {
@@ -122,6 +130,14 @@ external: "Outside the deployment" {
 
   delivery: "Resend HTTP API\nOr the sink adapter, which a\nproduction deployment refuses to build" {
     class: external
+  }
+
+  private-store: "Private object store (planned — ADR-0014)\nS3-compatible, customer-owned, separate\nfrom Sanity and any public bucket;\nwatermarked proofs, web previews, one ZIP" {
+    class: [store; planned]
+  }
+
+  private-db: "Private Postgres (planned — ADR-0014)\ncustomer-owned; galleries, capabilities,\nsessions, proof selections, notification outbox,\nretention state" {
+    class: [store; planned]
   }
 }
 
@@ -136,5 +152,5 @@ lib -> restricted: "The only crossing there is.\nESLint refuses these imports fr
   style.bold: true
 }
 
-restricted -> external: "Published reads (planned)" {class: pending-flow}
+restricted -> external: "Published reads, and private-gallery\nobject-store + Postgres access (planned)" {class: pending-flow}
 lib -> external: "Delivers one enquiry.\nNo form content is stored anywhere."

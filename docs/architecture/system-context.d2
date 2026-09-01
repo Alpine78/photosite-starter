@@ -59,11 +59,21 @@ resend: "Resend\nContact delivery from the site\nowner's own account — ADR-000
   class: external
 }
 
+private-store: "Private object store (planned — ADR-0014)\nS3-compatible, the site owner's own account,\nseparate from Sanity — client-gallery previews,\nwatermarked proofs, and one ZIP per delivery gallery" {
+  class: [store; external]
+}
+
+private-db: "Private Postgres (planned — ADR-0014)\nThe site owner's own database — private gallery\nrecords, access capabilities, sessions, proof\nselections, notification outbox, retention state" {
+  class: [store; external]
+}
+
 visitor -> site: "Reads pages,\nbrowses galleries"
 visitor -> site: Sends an enquiry
 
 owner -> repo: Commits
 owner -> sanity: "Authors content\n(planned)" {class: pending-flow}
+owner -> site: "Administers client galleries\nthrough the app's admin route — ADR-0014 §4\n(planned)" {class: pending-flow}
+owner -> private-store: "Uploads locally-prepared derivatives and ZIPs\nwith an owner-run CLI — not a browser (planned)" {class: pending-flow}
 
 repo -> pipeline: Triggers every push and PR
 pipeline -> vercel: "Deploys a release candidate\n(built and gated, never yet run)" {class: pending-flow}
@@ -72,3 +82,6 @@ vercel -> site: "Runs the site\n(not yet deployed)" {class: pending-flow}
 site -> fixtures: SITE_CONTENT_SOURCE=mock
 site -> sanity: "Reads published content\n(connection built, reads planned)" {class: pending-flow}
 site -> resend: Delivers an enquiry over HTTPS
+site -> private-store: "Mints short-lived signed GETs;\nno private byte through a Function (planned)" {class: pending-flow}
+site -> private-db: "Authorizes access, records selections\nand retention state (planned)" {class: pending-flow}
+visitor -> private-store: "Downloads previews and the ZIP\ndirect from storage (planned)" {class: pending-flow}

@@ -38,12 +38,24 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   the *photographer supplying a wide-format image*, not from a fixed-height crop band.
   Always pass the asset's true pixel dimensions so the ratio (and CLS reservation) is
   correct.
-- **Public derivatives only.** Browser-facing media may contain only a versioned public
-  web-delivery derivative and that derivative's true intrinsic dimensions. Camera
-  masters, archive locators, provider internals, and private or sales assets stay behind
-  a server-only adapter and never enter the optimizer or browser payload. Use bounded,
-  context-specific responsive `sizes`; transforms may downscale but never crop or
-  upscale. URL parameters are optimization controls, not access protection.
+- **Public derivatives only.** Browser-facing media on the **public** surface may contain
+  only a versioned public web-delivery derivative and that derivative's true intrinsic
+  dimensions. Camera masters, archive locators, provider internals, and private or
+  sales/fulfilment assets stay behind a server-only adapter and never enter the optimizer
+  or any browser payload. Use bounded, context-specific responsive `sizes`; transforms may
+  downscale but never crop or upscale. URL parameters are optimization controls, not
+  access protection.
+  **Private client galleries (ADR-0014) are the one scoped exception,** for an
+  **authorized holder of a valid gallery link or session** (the model proves possession of
+  the capability, not identity), through a short-lived single-object signed object-store
+  URL the server mints per request, never touching the public optimizer or the public
+  media contract: (a) a bounded private **web derivative** — a watermarked proof, or a
+  web-resolution (≤ 2048 px longest edge) delivery preview; and (b) for a delivery
+  gallery, **one protected full-gallery ZIP** of the delivered full-resolution processed
+  JPEGs, delivered whole — no individual full-resolution downloads. Camera masters,
+  archive locators, and provider internals still never reach any browser. **This exception
+  is for ADR-0014 client galleries only and grants nothing to AB#95 sales/fulfilment
+  assets,** which stay fully behind the server-only adapter until their own decision.
 - **Privacy by default.** No tracking cookies, no Google Analytics, no auto-loading
   third-party embeds. Goal: no cookie banner.
 - **Accessibility:** target WCAG 2.1 AA. Keyboard navigation matters, especially in galleries.
@@ -999,6 +1011,19 @@ follow-up would route the gallery detail through a handler; tracked with AB#132)
 (a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
 and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
 build it), lightbox zoom tuning, and the dynamic-result enquiry entry point (AB#58/AB#71).
+Private client galleries are **not built**, and their security, delivery, proof-selection,
+and retention boundary is **drafted for decision, not yet accepted**:
+[ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md) (AB#122)
+is **Proposed** — awaiting the project owner's explicit acceptance before it becomes
+`Accepted` and before AB#122 closes. It proposes a structural public/private isolation
+boundary, a fragment-capability link exchanged for a server session, two-stage per-asset
+authorization with direct short-lived signed object-store URLs (never a private byte
+through a Function), an S3-compatible object store plus a separate PostgreSQL-family
+private store, and a worker-authoritative six-month retention lifecycle. It authorises no
+implementation; AB#29 (delivery + ZIP) and AB#130 (proof selection) would build on it.
+The one canonical-rule change it makes is a scoped exception to "Public derivatives only"
+above, for an authorized gallery-link/session holder — restoring the `private or
+sales/fulfilment` clause that exception must not weaken.
 Validated JSON-LD structured data (AB#86) is built: `src/lib/structured-data.ts` is a pure
 builder + `</script>`-safe serializer (`<`, `>`, `&`, U+2028, U+2029 escaped — `JSON.stringify`
 alone does not, per Next.js's own guidance) rendered through the `<JsonLd>` server component.
