@@ -57,9 +57,10 @@ const eslintConfig = defineConfig([
                 "@/lib/private-gallery",
                 "@/lib/private-gallery-config",
                 "@/lib/private-gallery-capability",
+                "@/lib/private-gallery-session",
               ],
               message:
-                "Reach private client galleries through a server-side adapter in src/lib. The private-store credentials, domain model, and capability crypto stay behind that boundary (ADR-0014 §2, §3).",
+                "Reach private client galleries through a server-side adapter in src/lib. The private-store credentials, domain model, capability crypto, and session model stay behind that boundary (ADR-0014 §2, §3).",
             },
           ],
         },
