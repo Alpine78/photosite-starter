@@ -6,6 +6,7 @@ import {
   readDeploymentStage,
   type DeploymentStage,
 } from "@/lib/deployment-stage";
+import { LEGACY_REDIRECTS } from "@/lib/legacy-redirects-data";
 import {
   buildLocaleRouteConfig,
   type LocaleRouteConfig,
@@ -688,6 +689,21 @@ function parseLocale(value: string): string {
 }
 
 /**
+ * The distinct first path segments of every legacy-redirect source
+ * (`legacy-redirects-data.ts`). Empty for a clone with no Joomla migration.
+ * Computed once — the registry is built at module load and never changes.
+ */
+let cachedLegacyRedirectRootSegments: ReadonlySet<string> | undefined;
+function legacyRedirectRootSegments(): ReadonlySet<string> {
+  cachedLegacyRedirectRootSegments ??= new Set(
+    [...LEGACY_REDIRECTS.keys()]
+      .map((source) => source.split("/").find((segment) => segment.length > 0))
+      .filter((segment): segment is string => segment !== undefined),
+  );
+  return cachedLegacyRedirectRootSegments;
+}
+
+/**
  * Reads the deployment's locale routing: one `locale|prefix|namespace` entry
  * per supported locale, separated by commas. The default locale leaves the
  * prefix field empty, because its routes carry no prefix:
@@ -717,6 +733,17 @@ function parseLocaleRoutes(
   if (RESERVED_ROOT_SEGMENTS.includes(privateGalleryRoutePrefix)) {
     throw new Error(
       `[deployment-config] Invalid PRIVATE_GALLERY_ROUTE_PREFIX: "${privateGalleryRoutePrefix}" is already a root route segment the application owns`,
+    );
+  }
+  // A private path must never also be a legacy-redirect path (ADR-0014 §6): the
+  // Proxy answers the legacy registry before it can apply the private
+  // response-hygiene headers, so a colliding prefix would let a `/<prefix>/...`
+  // request return a cacheable 410. The Proxy also skips the legacy lookup for a
+  // private path, making this a fail-at-build guard against a contradictory
+  // clone config rather than the only thing standing between the two.
+  if (legacyRedirectRootSegments().has(privateGalleryRoutePrefix)) {
+    throw new Error(
+      `[deployment-config] Invalid PRIVATE_GALLERY_ROUTE_PREFIX: "${privateGalleryRoutePrefix}" is the root of a legacy-redirect path`,
     );
   }
   const reservedRootSegments = [

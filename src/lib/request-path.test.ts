@@ -4,6 +4,7 @@ import {
   REQUEST_HAS_CURSOR_VALUE,
   isCarryableRequestPath,
   isPotentialStoryRequestPath,
+  isPrivateRequestPath,
   readRequestHasCursor,
   readRequestPath,
 } from "@/lib/request-path";
@@ -122,5 +123,32 @@ describe("isPotentialStoryRequestPath", () => {
     "//example.com/stories/portfolio/",
   ])("leaves a non-story path to ordinary slash normalization: %s", (path) => {
     expect(isPotentialStoryRequestPath(localeRoutes, path)).toBe(false);
+  });
+});
+
+describe("isPrivateRequestPath", () => {
+  it.each([
+    "/private",
+    "/private/",
+    "/private/some-handle",
+    "/private/some-handle/asset.jpg",
+    "/private/a/b/c",
+  ])("matches the prefix segment and everything beneath it: %s", (path) => {
+    expect(isPrivateRequestPath(path, "private")).toBe(true);
+  });
+
+  it.each([
+    "/",
+    "/privateer",
+    "/private-galleries",
+    "/x/private",
+    "/services",
+  ])("does not match a path outside the namespace: %s", (path) => {
+    expect(isPrivateRequestPath(path, "private")).toBe(false);
+  });
+
+  it("uses the configured prefix, not a hardcoded one", () => {
+    expect(isPrivateRequestPath("/clients/handle", "clients")).toBe(true);
+    expect(isPrivateRequestPath("/private/handle", "clients")).toBe(false);
   });
 });

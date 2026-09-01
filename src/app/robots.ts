@@ -5,6 +5,10 @@ import { readDeploymentStage } from "@/lib/deployment-stage";
 import { buildRobotsPolicy } from "@/lib/robots";
 
 export default function robots(): MetadataRoute.Robots {
-  const { canonicalBaseUrl } = getDeploymentConfig();
-  return buildRobotsPolicy(readDeploymentStage(process.env), canonicalBaseUrl);
+  const { canonicalBaseUrl, privateGallery } = getDeploymentConfig();
+  return buildRobotsPolicy(
+    readDeploymentStage(process.env),
+    canonicalBaseUrl,
+    privateGallery.routePrefix,
+  );
 }
