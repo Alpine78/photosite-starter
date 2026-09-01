@@ -141,6 +141,18 @@ describe("loadDeploymentConfig", () => {
       ).toThrow(/PRIVATE_GALLERY_ROUTE_PREFIX/);
     });
 
+    it("fails the build when the private route prefix is a legacy-redirect root (ADR-0014 §6)", () => {
+      // `component` is the root of every retired Joomla tag path
+      // (`legacy-redirects-data.ts`); a `/component/...` request would resolve
+      // as a cacheable 410 before the private response-hygiene headers apply.
+      expect(() =>
+        loadDeploymentConfig({
+          ...validEnvironment,
+          PRIVATE_GALLERY_ROUTE_PREFIX: "component",
+        }),
+      ).toThrow(/legacy-redirect path/);
+    });
+
     it("fails the build on a NEXT_PUBLIC_ mirror of a private-gallery secret, feature off", () => {
       expect(() =>
         loadDeploymentConfig({

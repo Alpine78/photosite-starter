@@ -16,7 +16,34 @@ import {
   REQUEST_PATH_HEADER,
   isCarryableRequestPath,
   isPotentialStoryRequestPath,
+  isPrivateRequestPath,
 } from "@/lib/request-path";
+
+/**
+ * ADR-0014 §6's response-hygiene headers for the reserved private client-gallery
+ * namespace. ADR-0014 §9 makes this the Proxy's rule, not `next.config.ts`'s:
+ * one owner, and the Proxy runs after `next.config.ts` `headers()` and replaces
+ * a same-name value, so `Referrer-Policy` here overrides the site-wide
+ * `strict-origin-when-cross-origin`. `Cache-Control` and `X-Robots-Tag` have no
+ * site-wide entry, so there is nothing to override for those.
+ *
+ * This is the namespace-level application response contract only. Dynamic
+ * rendering, Data/tagged-cache bypass, a Route Handler not replacing
+ * `Cache-Control`, the object store's own `no-store` metadata, and the CSP
+ * `img-src` grant are each a later route/delivery slice's job (ADR-0014 §6, §5).
+ */
+const PRIVATE_HYGIENE_HEADERS: Readonly<Record<string, string>> = {
+  "cache-control": "no-store",
+  "x-robots-tag": "noindex, nofollow",
+  "referrer-policy": "no-referrer",
+};
+
+function withPrivateHygieneHeaders(response: NextResponse): NextResponse {
+  for (const [key, value] of Object.entries(PRIVATE_HYGIENE_HEADERS)) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
 
 /**
  * The project's Proxy (Next.js 16's name for what was Middleware).
@@ -72,6 +99,16 @@ export function proxy(request: NextRequest) {
   const hasSection = request.nextUrl.searchParams.has("section");
   const hasTrailingSlash = pathname.length > 1 && pathname.endsWith("/");
 
+  // The reserved private client-gallery namespace (ADR-0014 §9). Its prefix is
+  // validated and reserved by `loadDeploymentConfig` — including against a
+  // legacy-redirect root — so a private path is never also a legacy path, and
+  // the legacy lookup below is skipped for it. Every response the Proxy returns
+  // for such a path carries §6's hygiene headers.
+  const privatePath = isPrivateRequestPath(
+    pathname,
+    getDeploymentConfig().privateGallery.routePrefix,
+  );
+
   // Checked against the exact requested pathname, trailing slash and all,
   // and *before* the generic trailing-slash normalization below — a legacy
   // source may itself carry one (the crawl recorded at least one real
@@ -86,7 +123,9 @@ export function proxy(request: NextRequest) {
   // so a request that only differs from a decided row by its query still
   // gets that row's outcome; what the query string itself does about it is
   // decided below, per outcome kind.
-  const legacyOutcome = resolveLegacyRedirect(LEGACY_REDIRECTS, pathname);
+  const legacyOutcome = privatePath
+    ? undefined
+    : resolveLegacyRedirect(LEGACY_REDIRECTS, pathname);
   if (legacyOutcome !== undefined) {
     if (legacyOutcome.kind === "redirect") {
       const destination = new URL(legacyOutcome.target, request.url);
@@ -125,7 +164,8 @@ export function proxy(request: NextRequest) {
     // slash back into Location, producing a self-redirect.
     const destination = new URL(request.url);
     destination.pathname = pathname.slice(0, -1);
-    return NextResponse.redirect(destination, 308);
+    const redirect = NextResponse.redirect(destination, 308);
+    return privatePath ? withPrivateHygieneHeaders(redirect) : redirect;
   }
 
   if (pathname === "/api" || pathname.startsWith("/api/")) {
@@ -161,17 +201,48 @@ export function proxy(request: NextRequest) {
     requestHeaders.delete(REQUEST_HAS_SECTION_HEADER);
   }
 
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  return privatePath ? withPrivateHygieneHeaders(response) : response;
 }
 
 /**
- * Routes that need the request boundary or restored slash normalization.
+ * Routes that need the request boundary, restored slash normalization, or a
+ * private-namespace response header (ADR-0014 §6).
  *
- * Next's own build output, image optimizer, and static assets are excluded.
- * API routes remain matched so disabling Next's built-in slash redirect does
- * not silently change `/api/x/` from its former 308 into a 404; ordinary API
- * requests still take the O(1) pass-through and read none of these headers.
+ * The negative lookahead excludes exactly the paths that need none of those:
+ *
+ * - `_next/` — Next's own build output and optimizer.
+ * - `gallery/` — the only directory in `public/`; every real URL under it is a
+ *   versioned image derivative served as a static file (`next.config.ts`).
+ * - `[^/]+\.[^/]+$` — a **root-level** file with an extension (`favicon.ico`,
+ *   `robots.txt`, `sitemap.xml`). The bound is deliberately a single segment:
+ *   an earlier form excluded *any* dotted last segment, which also skipped a
+ *   deep path like `/<private-prefix>/<handle>/preview.jpg` and left it without
+ *   §6's headers. A Next.js matcher value must be a build-time constant, so the
+ *   configurable `PRIVATE_GALLERY_ROUTE_PREFIX` cannot be named here; making the
+ *   pattern prefix-independent — it matches every deep dotted path, then
+ *   `isPrivateRequestPath` classifies it at request time — covers a custom
+ *   prefix as well as the default.
+ *
+ * The widening only adds the Proxy's O(1) pass to deep dotted paths the
+ * application defines no route for (they 404 either way); `public/` has no such
+ * files. API routes stay matched so disabling Next's built-in slash redirect
+ * does not turn `/api/x/` from a 308 into a 404.
+ *
+ * **Framework limitation, not this slice's:** a URL with a repeated separator
+ * (`/private//handle`, `//private/x`) gets a bare `308` to the collapsed form
+ * from `resolveRoutes` in Next 16.3.2 *before* the Proxy or this matcher runs,
+ * so that one redirect carries neither §6's headers nor the site-wide security
+ * headers. It is not decoratable at the application layer (`skipMiddlewareUrlNormalize`
+ * does not move it, verified). The impact is bounded: the target is the clean,
+ * fully-protected private URL, and `robots.txt`'s `Disallow: /<prefix>/` still
+ * covers the malformed form. `/api/contact` — the existing endpoint that
+ * handles PII, has the identical property today, so this is a project-wide
+ * item, not a private-namespace regression. The concrete future fix is an
+ * edge-level `vercel.json` `headers` rule (a different layer that also decorates
+ * framework redirects), decided with the live-edge verification a later slice
+ * runs (ADR-0011 §, ADR-0014 §6).
  */
 export const config = {
-  matcher: ["/((?!_next/|.*\\.[^/]*$).*)"],
+  matcher: ["/((?!_next/|gallery/|[^/]+\\.[^/]+$).*)"],
 };

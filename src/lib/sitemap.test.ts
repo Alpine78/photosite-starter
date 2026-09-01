@@ -128,6 +128,21 @@ describe("buildSitemapPaths", () => {
     }
   });
 
+  it("never reaches the private client-gallery namespace (ADR-0014 §6)", () => {
+    // `buildSitemapPaths` reads only the static pages, the services, and the
+    // per-locale public content tree — it has no input that could name the
+    // private prefix. The prefix is also a reserved root segment
+    // (`deployment-config.ts`), so no locale prefix or story namespace can be
+    // it. This is regression documentation of an isolation that holds by
+    // construction, for every possible configured prefix.
+    const paths = buildSitemapPaths({ localeRoutes, trees, services });
+
+    for (const prefix of ["private", "clients", "kundgalleri"]) {
+      expect(paths).not.toContain(`/${prefix}`);
+      expect(paths.some((path) => path.startsWith(`/${prefix}/`))).toBe(false);
+    }
+  });
+
   it("returns a deterministically sorted, duplicate-free list", () => {
     const first = buildSitemapPaths({ localeRoutes, trees, services });
     const second = buildSitemapPaths({ localeRoutes, trees, services });

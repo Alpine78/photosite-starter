@@ -54,6 +54,24 @@ export const REQUEST_HAS_SECTION_HEADER = "x-photosite-request-has-section";
 /** The only value the flag is ever set to, and the only one read back as true. */
 export const REQUEST_HAS_SECTION_VALUE = "1";
 
+/**
+ * Whether a pathname is inside the reserved private client-gallery namespace
+ * (ADR-0014 §9): the `<prefix>` segment itself, or anything beneath it.
+ *
+ * The Proxy uses this to stamp ADR-0014 §6's response-hygiene headers
+ * (`Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`,
+ * `Referrer-Policy: no-referrer`) on every response for such a path — feature
+ * on or off, since the prefix is reserved unconditionally and a request here is
+ * a 404 today that still must not be indexed or cached.
+ *
+ * `prefix` is a validated single lowercase segment
+ * (`readPrivateGalleryDeployment`), so no escaping is needed; `pathname` is
+ * already normalized by the time the Proxy sees it.
+ */
+export function isPrivateRequestPath(pathname: string, prefix: string): boolean {
+  return pathname === `/${prefix}` || pathname.startsWith(`/${prefix}/`);
+}
+
 const ROUTE_SEGMENT_PATTERN = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
 
 function matchesRouteSegment(value: string | undefined, expected: string): boolean {
