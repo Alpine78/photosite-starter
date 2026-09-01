@@ -267,6 +267,17 @@ capability **generation** (below), and `accessExpiresAt`.
 After the exchange the browser is at the clean URL `.../<gallery-handle>` with no
 fragment, and every later request authorizes on the session cookie.
 
+**Amendment 2026-09-01 (AB#29 session slice):** the cookie `Path` is
+`/<private-prefix>/<gallery-handle>`, not the bare private prefix. This is within — and
+stricter than — "scoped to the private prefix", and it lets one browser hold concurrent
+sessions for two galleries (a client with both an engagement and a wedding gallery)
+instead of the second exchange silently overwriting the first. Every
+cookie-authenticated endpoint — the exchange, the gallery page, the proof API, and
+logout — therefore lives under `/<private-prefix>/<gallery-handle>/…`. The cookie
+carries **no `Domain` attribute** (a `__Secure-` name plus an explicit host-only cookie);
+a request that presents more than one cookie of the session name is refused rather than
+resolved to the first.
+
 **JavaScript is an accepted requirement** for customer-gallery access, documented in the
 deployment's privacy notice and handoff docs. There is deliberately **no**
 query-parameter fallback and **no** token-in-URL mode — see Options Considered. A
