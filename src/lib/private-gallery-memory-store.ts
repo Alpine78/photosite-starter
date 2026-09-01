@@ -1,0 +1,189 @@
+/**
+ * A development-only private-gallery store held in process memory
+ * (`PRIVATE_GALLERY_STORE=memory`).
+ *
+ * It exists so the capability exchange can actually be *run* — locally and in
+ * the Playwright harness — before the Postgres and object-store adapters land.
+ * It is the same shape of safeguard `SITE_CONTENT_SOURCE=mock` and
+ * `CONTACT_DELIVERY_ADAPTER=sink` already carry, and it is **refused outright in
+ * a production deployment** by `readPrivateGalleryDeployment` for the same
+ * reason: a gallery whose capability is a published constant is not something a
+ * real photographer's site may ever serve.
+ *
+ * Three properties make that safe rather than merely discouraged:
+ *
+ * - The **keyring is ephemeral** — 32 random bytes minted at first use and never
+ *   written anywhere. Nothing here reads `PRIVATE_GALLERY_CAPABILITY_KEYS`, so a
+ *   fixture can never be sealed under a deployment's real key, and a restart
+ *   simply re-seals the same fixture under a fresh key.
+ * - The fixture's handle and capability are **deliberately constant and
+ *   published below**, so a developer can open the link without a seeding step.
+ *   They are not secrets and are not treated as any.
+ * - Everything lives in one process. Two instances share nothing, so this is
+ *   useless as anything but a single-machine development aid.
+ */
+
+import "server-only";
+
+import { randomBytes } from "node:crypto";
+
+import type {
+  PrivateGallery,
+  PrivateGalleryCapability,
+  PrivateGallerySession,
+} from "@/lib/private-gallery";
+import {
+  sealCapability,
+  type PrivateGalleryCapabilityMaterial,
+} from "@/lib/private-gallery-capability";
+import type { PrivateGalleryCapabilityKeyring } from "@/lib/private-gallery-config";
+import {
+  evaluatePrivateGalleryExchangeRate,
+  type PrivateGalleryExchangeLookup,
+  type PrivateGalleryExchangeRateConfig,
+  type PrivateGalleryExchangeRateCounter,
+  type PrivateGalleryExchangeStore,
+} from "@/lib/private-gallery-exchange";
+import type { PrivateGallerySessionStore } from "@/lib/private-gallery-session";
+
+/**
+ * The fixture gallery's link, in full:
+ * `/<PRIVATE_GALLERY_ROUTE_PREFIX>/<handle>#<capability>`.
+ *
+ * Both halves are fixed constants, not secrets — see this module's own note.
+ */
+export const MEMORY_GALLERY_HANDLE = Buffer.alloc(16, 0x11).toString("base64url");
+export const MEMORY_GALLERY_CAPABILITY =
+  Buffer.alloc(32, 0x2d).toString("base64url");
+
+const MEMORY_GALLERY_ID = "memory-fixture-gallery";
+const MEMORY_GALLERY_GENERATION = 1;
+/** A fixture window, not the six-calendar-month rule the real publish applies. */
+const MEMORY_ACCESS_WINDOW_MS = 180 * 24 * 60 * 60 * 1000;
+
+export type PrivateGalleryMemoryStore = {
+  readonly exchangeStore: PrivateGalleryExchangeStore;
+  readonly sessionStore: PrivateGallerySessionStore;
+  readonly keyring: PrivateGalleryCapabilityKeyring;
+  /** The fixture gallery, for a route that wants to render its authorized state. */
+  readonly gallery: PrivateGallery;
+};
+
+function ephemeralKeyring(): PrivateGalleryCapabilityKeyring {
+  const keyId = "memory";
+  const key = randomBytes(32);
+  return {
+    activeKeyId: keyId,
+    keyIds: Object.freeze([keyId]),
+    getKey: (id) => (id === keyId ? Uint8Array.from(key) : undefined),
+  };
+}
+
+function build(now: Date): PrivateGalleryMemoryStore {
+  const keyring = ephemeralKeyring();
+  const gallery: PrivateGallery = {
+    galleryId: MEMORY_GALLERY_ID,
+    galleryHandle: MEMORY_GALLERY_HANDLE,
+    state: "published",
+    capabilityGeneration: MEMORY_GALLERY_GENERATION,
+    createdAt: now,
+    publishedAt: now,
+    accessExpiresAt: new Date(now.getTime() + MEMORY_ACCESS_WINDOW_MS),
+  };
+
+  const material: PrivateGalleryCapabilityMaterial = sealCapability(
+    keyring,
+    {
+      galleryId: gallery.galleryId,
+      handle: gallery.galleryHandle,
+      generation: gallery.capabilityGeneration,
+    },
+    MEMORY_GALLERY_CAPABILITY,
+  );
+  const capability: PrivateGalleryCapability = {
+    galleryId: gallery.galleryId,
+    capabilityGeneration: gallery.capabilityGeneration,
+    keyId: material.keyId,
+    envelope: material.envelope,
+    createdAt: now,
+  };
+
+  // Keyed by galleryId, never by a caller-supplied handle: an unknown handle
+  // must not be able to create a row (the contract `consumeExchangeAttempt`
+  // states, and the property the Postgres adapter enforces with a foreign key).
+  const counters = new Map<string, PrivateGalleryExchangeRateCounter>();
+  const sessions: PrivateGallerySession[] = [];
+
+  const exchangeStore: PrivateGalleryExchangeStore = {
+    async consumeExchangeAttempt(
+      handle: string,
+      attemptedAt: Date,
+      config: PrivateGalleryExchangeRateConfig,
+    ): Promise<PrivateGalleryExchangeLookup> {
+      if (handle !== gallery.galleryHandle) return { outcome: "unknown-handle" };
+
+      const decision = evaluatePrivateGalleryExchangeRate(
+        counters.get(gallery.galleryId),
+        attemptedAt,
+        config,
+      );
+      counters.set(gallery.galleryId, decision.next);
+      if (!decision.allowed) {
+        return {
+          outcome: "rate-limited",
+          firstRefusalInWindow: decision.firstRefusalInWindow,
+        };
+      }
+      return { outcome: "ok", gallery, capability };
+    },
+  };
+
+  const groupKey = (session: PrivateGallerySession) =>
+    `${session.galleryId} ${session.capabilityGeneration}`;
+
+  const sessionStore: PrivateGallerySessionStore = {
+    async create(session, activeSessionCap) {
+      sessions.push(session);
+      const group = sessions
+        .filter((row) => groupKey(row) === groupKey(session))
+        .sort(
+          (a, b) =>
+            a.createdAt.getTime() - b.createdAt.getTime() ||
+            (a.sessionIdHash < b.sessionIdHash ? -1 : 1),
+        );
+      for (const evicted of group.slice(
+        0,
+        Math.max(0, group.length - activeSessionCap),
+      )) {
+        sessions.splice(sessions.indexOf(evicted), 1);
+      }
+    },
+    async findByHash(sessionIdHash) {
+      return sessions.find((row) => row.sessionIdHash === sessionIdHash);
+    },
+    async deleteByHash(sessionIdHash) {
+      const index = sessions.findIndex(
+        (row) => row.sessionIdHash === sessionIdHash,
+      );
+      if (index >= 0) sessions.splice(index, 1);
+    },
+  };
+
+  return { exchangeStore, sessionStore, keyring, gallery };
+}
+
+let cached: PrivateGalleryMemoryStore | undefined;
+
+/**
+ * The process-wide fixture store. Built on first use so the ephemeral keyring
+ * and the sealed fixture capability are minted once per process.
+ */
+export function getPrivateGalleryMemoryStore(): PrivateGalleryMemoryStore {
+  cached ??= build(new Date());
+  return cached;
+}
+
+/** Test-only: drop the singleton so a case can start from a clean fixture. */
+export function resetPrivateGalleryMemoryStore(): void {
+  cached = undefined;
+}

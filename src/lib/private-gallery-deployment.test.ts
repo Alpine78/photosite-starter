@@ -9,7 +9,7 @@ import {
 
 describe("readPrivateGalleryDeployment", () => {
   it("defaults to off with the default route prefix when nothing is set", () => {
-    expect(readPrivateGalleryDeployment({})).toEqual({
+    expect(readPrivateGalleryDeployment({}, "development")).toEqual({
       store: "off",
       routePrefix: DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX,
     });
@@ -20,20 +20,45 @@ describe("readPrivateGalleryDeployment", () => {
       readPrivateGalleryDeployment({
         PRIVATE_GALLERY_STORE: " enabled ",
         PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
-      }),
+      }, "development"),
     ).toEqual({ store: "enabled", routePrefix: "clients" });
+  });
+
+  it.each(["development", "preview"] as const)(
+    "accepts the memory fixture store in a %s deployment",
+    (stage) => {
+      expect(
+        readPrivateGalleryDeployment({ PRIVATE_GALLERY_STORE: "memory" }, stage),
+      ).toEqual({
+        store: "memory",
+        routePrefix: DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX,
+      });
+    },
+  );
+
+  it("refuses the memory fixture store in a production deployment", () => {
+    // The fixture's capability is a published constant, so a production
+    // deployment that reached this configuration would be serving a gallery
+    // anyone holding this repository could open. It fails the build, the same
+    // way `SITE_CONTENT_SOURCE=mock` and `CONTACT_DELIVERY_ADAPTER=sink` do.
+    expect(() =>
+      readPrivateGalleryDeployment(
+        { PRIVATE_GALLERY_STORE: "memory" },
+        "production",
+      ),
+    ).toThrow(PrivateGalleryDeploymentError);
   });
 
   it("rejects an unknown store mode", () => {
     expect(() =>
-      readPrivateGalleryDeployment({ PRIVATE_GALLERY_STORE: "on" }),
+      readPrivateGalleryDeployment({ PRIVATE_GALLERY_STORE: "on" }, "development"),
     ).toThrow(PrivateGalleryDeploymentError);
   });
 
   it("rejects a prefix that is not one lowercase segment", () => {
     for (const bad of ["Private", "a/b", "with space", "trailing-", "-lead", "a".repeat(33)]) {
       expect(() =>
-        readPrivateGalleryDeployment({ PRIVATE_GALLERY_ROUTE_PREFIX: bad }),
+        readPrivateGalleryDeployment({ PRIVATE_GALLERY_ROUTE_PREFIX: bad }, "development"),
       ).toThrow(PrivateGalleryDeploymentError);
     }
   });
@@ -43,7 +68,7 @@ describe("readPrivateGalleryDeployment", () => {
       readPrivateGalleryDeployment({
         PRIVATE_GALLERY_STORE: "off",
         NEXT_PUBLIC_PRIVATE_GALLERY_DATABASE_URL: "postgres://x/y",
-      }),
+      }, "development"),
     ).toThrow(/NEXT_PUBLIC_PRIVATE_GALLERY_DATABASE_URL/);
   });
 

@@ -72,6 +72,36 @@ export function isPrivateRequestPath(pathname: string, prefix: string): boolean 
   return pathname === `/${prefix}` || pathname.startsWith(`/${prefix}/`);
 }
 
+/**
+ * The application-internal root segment a private-gallery request is rewritten
+ * onto.
+ *
+ * The public prefix is deployment-configured (`PRIVATE_GALLERY_ROUTE_PREFIX`),
+ * but a Next.js file-system route cannot be — so the Proxy, which already owns
+ * the private prefix (ADR-0014 §9), reconciles the two with one rewrite onto
+ * this literal segment. It is a reserved root segment (`public-routes.ts`), so
+ * no clone can configure it as a prefix, locale prefix, or story namespace, and
+ * the Proxy answers a *direct* request to it with a 404 — otherwise it would be
+ * a second, unprefixed door into the private namespace, reachable without §6's
+ * response hygiene.
+ */
+export const PRIVATE_GALLERY_INTERNAL_SEGMENT = "private-gallery";
+
+export function isPrivateGalleryInternalPath(pathname: string): boolean {
+  return (
+    pathname === `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}` ||
+    pathname.startsWith(`/${PRIVATE_GALLERY_INTERNAL_SEGMENT}/`)
+  );
+}
+
+/** `/<prefix>/rest` → `/private-gallery/rest`; `/<prefix>` → `/private-gallery`. */
+export function privateGalleryInternalPath(
+  pathname: string,
+  prefix: string,
+): string {
+  return `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}${pathname.slice(prefix.length + 1)}`;
+}
+
 const ROUTE_SEGMENT_PATTERN = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
 
 function matchesRouteSegment(value: string | undefined, expected: string): boolean {

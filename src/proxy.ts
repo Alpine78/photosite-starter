@@ -16,16 +16,26 @@ import {
   REQUEST_PATH_HEADER,
   isCarryableRequestPath,
   isPotentialStoryRequestPath,
+  isPrivateGalleryInternalPath,
   isPrivateRequestPath,
+  privateGalleryInternalPath,
+  readRequestPath,
 } from "@/lib/request-path";
 
 /**
  * ADR-0014 §6's response-hygiene headers for the reserved private client-gallery
  * namespace. ADR-0014 §9 makes this the Proxy's rule, not `next.config.ts`'s:
- * one owner, and the Proxy runs after `next.config.ts` `headers()` and replaces
- * a same-name value, so `Referrer-Policy` here overrides the site-wide
+ * one owner, and a `NextResponse.next()` response's headers replace a same-named
+ * `next.config.ts` value, so `Referrer-Policy` here overrides the site-wide
  * `strict-origin-when-cross-origin`. `Cache-Control` and `X-Robots-Tag` have no
  * site-wide entry, so there is nothing to override for those.
+ *
+ * That precedence holds for `next()` and **not** for `NextResponse.rewrite()`,
+ * which is why the private rewrite below is followed by a `next()` pass rather
+ * than being the response the client receives — see the internal-path branch.
+ * Found by measuring a production build, not by reading: the rewrite silently
+ * lost only `Referrer-Policy`, and `e2e/private-route-hygiene.spec.ts` is what
+ * caught it.
  *
  * This is the namespace-level application response contract only. Dynamic
  * rendering, Data/tagged-cache bypass, a Route Handler not replacing
@@ -104,10 +114,40 @@ export function proxy(request: NextRequest) {
   // legacy-redirect root — so a private path is never also a legacy path, and
   // the legacy lookup below is skipped for it. Every response the Proxy returns
   // for such a path carries §6's hygiene headers.
-  const privatePath = isPrivateRequestPath(
-    pathname,
-    getDeploymentConfig().privateGallery.routePrefix,
-  );
+  const privateRoutePrefix = getDeploymentConfig().privateGallery.routePrefix;
+
+  // The internal rewrite target (`privateGalleryInternalPath`). **This Proxy
+  // runs again on the path it rewrote to** — verified against a production
+  // build, not assumed — so this branch is both the second pass of a genuine
+  // private request and the door a stranger might try directly.
+  //
+  // The two are told apart by the request path the first pass carried, which is
+  // this exact rewrite's source. A client can send that header itself, and this
+  // does not pretend otherwise: it is a namespace-hygiene rule, not an
+  // authorization one. What it buys is that no crawler, link, or ordinary
+  // client ever reaches a second URL shape for a private gallery — and what a
+  // forged header would reach is a bootstrap page that looks nothing up and an
+  // exchange that still demands the real capability and answers with a cookie
+  // scoped to the *public* path, which no browser would then send here.
+  // Authorization is the capability and the session, never the URL shape.
+  if (isPrivateGalleryInternalPath(pathname)) {
+    const carried = readRequestPath(request.headers.get(REQUEST_PATH_HEADER));
+    const isOwnRewrite =
+      carried !== undefined &&
+      isPrivateRequestPath(carried, privateRoutePrefix) &&
+      privateGalleryInternalPath(carried, privateRoutePrefix) === pathname;
+    if (!isOwnRewrite) return new NextResponse(null, { status: 404 });
+
+    // A pass-through, not a second rewrite — and that is also what makes §6's
+    // `Referrer-Policy: no-referrer` stick: a `next()` response's headers
+    // replace `next.config.ts`'s site-wide value, while a `rewrite()` response's
+    // do not (see `PRIVATE_HYGIENE_HEADERS` above).
+    return withPrivateHygieneHeaders(
+      NextResponse.next({ request: { headers: requestHeaders } }),
+    );
+  }
+
+  const privatePath = isPrivateRequestPath(pathname, privateRoutePrefix);
 
   // Checked against the exact requested pathname, trailing slash and all,
   // and *before* the generic trailing-slash normalization below — a legacy
@@ -201,8 +241,24 @@ export function proxy(request: NextRequest) {
     requestHeaders.delete(REQUEST_HAS_SECTION_HEADER);
   }
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
-  return privatePath ? withPrivateHygieneHeaders(response) : response;
+  if (!privatePath) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
+  // One rewrite reconciles the deployment-configured public prefix with the
+  // literal file-system route (`src/app/private-gallery/...`). The browser keeps
+  // the address it asked for, which is also what the session cookie's own
+  // `Path` is scoped to.
+  //
+  // `nextUrl.clone()` is the framework's own idiom for an internal rewrite, and
+  // the trailing-slash hazard that made the 308 above avoid `clone()` cannot
+  // arise here: a private path with a trailing slash is never a potential story
+  // path, so it was already redirected.
+  const target = request.nextUrl.clone();
+  target.pathname = privateGalleryInternalPath(pathname, privateRoutePrefix);
+  return withPrivateHygieneHeaders(
+    NextResponse.rewrite(target, { request: { headers: requestHeaders } }),
+  );
 }
 
 /**

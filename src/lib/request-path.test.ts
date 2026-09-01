@@ -3,8 +3,11 @@ import {
   MAX_REQUEST_PATH_LENGTH,
   REQUEST_HAS_CURSOR_VALUE,
   isCarryableRequestPath,
+  PRIVATE_GALLERY_INTERNAL_SEGMENT,
   isPotentialStoryRequestPath,
+  isPrivateGalleryInternalPath,
   isPrivateRequestPath,
+  privateGalleryInternalPath,
   readRequestHasCursor,
   readRequestPath,
 } from "@/lib/request-path";
@@ -150,5 +153,54 @@ describe("isPrivateRequestPath", () => {
   it("uses the configured prefix, not a hardcoded one", () => {
     expect(isPrivateRequestPath("/clients/handle", "clients")).toBe(true);
     expect(isPrivateRequestPath("/private/handle", "clients")).toBe(false);
+  });
+});
+
+describe("isPrivateGalleryInternalPath", () => {
+  it.each([
+    `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}`,
+    `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}/handle`,
+    `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}/handle/exchange`,
+  ])("matches the internal segment and everything beneath it: %s", (path) => {
+    expect(isPrivateGalleryInternalPath(path)).toBe(true);
+  });
+
+  it.each([
+    "/",
+    "/private",
+    "/private/handle",
+    // The bootstrap script sits beside the namespace, not inside it, so the
+    // Proxy's 404 guard needs no exception for it.
+    "/private-gallery-bootstrap.js",
+    "/private-galleries",
+    "/x/private-gallery",
+  ])("does not match a path outside it: %s", (path) => {
+    expect(isPrivateGalleryInternalPath(path)).toBe(false);
+  });
+});
+
+describe("privateGalleryInternalPath", () => {
+  it.each([
+    ["/private", "private", `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}`],
+    ["/private/h", "private", `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}/h`],
+    [
+      "/private/h/exchange",
+      "private",
+      `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}/h/exchange`,
+    ],
+    ["/clients/h", "clients", `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}/h`],
+    // A prefix of a different length must not shift the remainder.
+    ["/c/h/i", "c", `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}/h/i`],
+  ])("maps %s under prefix %s to %s", (path, prefix, expected) => {
+    expect(privateGalleryInternalPath(path, prefix)).toBe(expected);
+  });
+
+  it("produces a path the internal-path guard recognises", () => {
+    // The two must agree: the Proxy rewrites onto this segment and refuses a
+    // direct request to it, so a mapping the guard did not recognise would be
+    // a second, unguarded door.
+    expect(
+      isPrivateGalleryInternalPath(privateGalleryInternalPath("/private/h", "private")),
+    ).toBe(true);
   });
 });

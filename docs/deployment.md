@@ -314,8 +314,12 @@ preserve both boundaries at the cost of provisioning and rotating two read-only 
 Post-MVP and **off on every environment today**. The feature is a separate service
 boundary — a private S3-compatible object store and a private PostgreSQL-family database
 in accounts the site owner controls, never Sanity and never a public bucket (ADR-0014
-§8, §9). AB#29 ships it in slices; only slice 1 (the isolation boundary and its
-validated configuration) exists so far.
+§8, §9). AB#29 ships it in slices; the isolation boundary, the reserved route namespace
+and its response hygiene, the capability envelope, the session and cookie contract, the
+rate-limited exchange, and the link/exchange routes exist so far. **No store adapter
+does** — `PRIVATE_GALLERY_STORE=enabled` throws on the first request that needs one, by
+design, so a deployment that turns the feature on before AB#29's provisioning slice fails
+visibly instead of half-serving.
 
 Two build-safe settings, read during `loadDeploymentConfig` like the `SITE_*` values:
 
@@ -323,6 +327,25 @@ Two build-safe settings, read during `loadDeploymentConfig` like the `SITE_*` va
 | --- | --- | --- |
 | `PRIVATE_GALLERY_STORE` | `off` (or unset) | `off` (or unset) until AB#29 provisioning |
 | `PRIVATE_GALLERY_ROUTE_PREFIX` | unset (defaults to `private`) | same |
+
+`PRIVATE_GALLERY_STORE` accepts a third value, `memory`, which
+`readPrivateGalleryDeployment` **refuses when `SITE_DEPLOYMENT_STAGE` is `production`** —
+the same production-refusal safeguard `SITE_CONTENT_SOURCE=mock` and
+`CONTACT_DELIVERY_ADAPTER=sink` already carry, and for the same reason: its one fixture
+gallery has a **published, non-secret** capability. It exists so the exchange can actually
+be run — locally with `npm run dev`, and by the Playwright harness, which sets it in
+`e2e/support/harness-environment.ts`. It reads none of the Sensitive settings below: the
+fixture is sealed under an ephemeral key minted per process and never written anywhere, so
+a restart re-seals the same link under a fresh key and nothing from one run authorizes
+anything in another. The link is
+
+```
+/<PRIVATE_GALLERY_ROUTE_PREFIX>/EREREREREREREREREREREQ#LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0
+```
+
+— the two constants `src/lib/private-gallery-memory-store.ts` exports. Do not set it on
+Preview: Preview is a shared, access-protected environment standing in for Production, and
+a fixture gallery there would be a private-namespace surface nobody reviewed.
 
 `PRIVATE_GALLERY_ROUTE_PREFIX` is validated and reserved as a root segment **whether the
 feature is on or off**, so a deployment can never assign `/private` to a locale prefix or

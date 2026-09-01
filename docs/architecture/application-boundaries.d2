@@ -44,7 +44,7 @@ routes: "src/app — App Router" {
     class: built
   }
 
-  private: "Private client galleries (planned — ADR-0014)\nfragment-capability access exchanged for a\nserver session; two-stage per-asset auth;\nalways dynamic, never cached, never indexed;\nseparate admin boundary" {
+  private: "Private client galleries (part built — ADR-0014, AB#29)\nBUILT: reserved prefix rewritten onto an internal route;\nlink bootstrap + capability exchange -> session cookie;\nalways dynamic, never cached, never indexed\nPLANNED: two-stage per-asset auth, delivery,\nseparate admin boundary" {
     class: planned
   }
 }
@@ -115,7 +115,7 @@ restricted: "Server-only modules" {
     class: built
   }
 
-  private-gallery: "private-gallery adapters (planned — ADR-0014)\nObject-store (signed GET) and Postgres access,\ncapability/session, publication outbox, retention worker.\nServer-only, ESLint-bounded; never reached by a public read." {
+  private-gallery: "private-gallery modules (part built — ADR-0014, AB#29)\nBUILT: capability envelope, session + cookie contract,\nrate-limited exchange, and the one route-facing facade\n(private-gallery-access.ts) every other module hides behind;\na memory fixture store for development only.\nPLANNED: object-store (signed GET) and Postgres adapters,\npublication outbox, retention worker.\nServer-only, ESLint-bounded; never reached by a public read." {
     class: planned
   }
 }

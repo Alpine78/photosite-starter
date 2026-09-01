@@ -32,6 +32,7 @@ import "server-only";
 
 import {
   PrivateGalleryExchangeError,
+  assertPrivateGalleryHandleShape,
   createPrivateGalleryExchangeIpLimiter,
   resolveVerifiedPrivateGalleryCapability,
   type PrivateGalleryExchangeErrorReason,
@@ -46,6 +47,8 @@ import {
 } from "@/lib/private-gallery-session";
 
 import type { ContactRateLimiter } from "@/lib/contact-rate-limit";
+import { getPrivateGalleryDeployment } from "@/lib/private-gallery-deployment";
+import { getPrivateGalleryMemoryStore } from "@/lib/private-gallery-memory-store";
 import type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
 import type { PrivateGallerySession } from "@/lib/private-gallery";
 
@@ -53,6 +56,20 @@ export type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session"
 export type { PrivateGallerySession } from "@/lib/private-gallery";
 export { createPrivateGalleryExchangeIpLimiter };
 export { deriveClientKey } from "@/lib/contact-rate-limit";
+
+/**
+ * Whether a value is shaped like a gallery handle, as a predicate — a route
+ * decides with it rather than catching an exception for control flow. A handle
+ * that fails this can never name a gallery, so refusing it reveals nothing.
+ */
+export function isPrivateGalleryHandle(handle: string): boolean {
+  try {
+    assertPrivateGalleryHandleShape(handle);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** For the operational log only. Never shaped into a response. */
 export type PrivateGalleryExchangeFailure = {
@@ -190,4 +207,54 @@ export async function exchangePrivateGalleryCapability(
     }
     return { ok: false, failure: { reason: "unexpected", logWorthy: true } };
   }
+}
+
+/** The dependency bundle a private-gallery route needs, for this deployment. */
+export type PrivateGalleryStores = {
+  readonly exchangeStore: PrivateGalleryExchangeStore;
+  readonly sessionStore: PrivateGallerySessionStore;
+  readonly keyring: PrivateGalleryCapabilityKeyring;
+};
+
+/** Raised when a route asks for stores this deployment cannot provide. */
+export class PrivateGalleryStoresUnavailableError extends Error {
+  constructor(message: string) {
+    super(`[private-gallery-access] ${message}`);
+    this.name = "PrivateGalleryStoresUnavailableError";
+  }
+}
+
+/**
+ * Resolves this deployment's private-gallery stores.
+ *
+ * A route must check `getDeploymentConfig().privateGallery.store` and answer
+ * `notFound()` while the feature is `off` — reaching here in that state is a
+ * wiring mistake, not a runtime condition, so it throws rather than returning
+ * an empty store.
+ *
+ * `enabled` throws too, loudly: the Postgres and object-store adapters are a
+ * later slice, and a deployment that turns the feature on before they exist
+ * should fail visibly rather than half-serve.
+ */
+export function getPrivateGalleryStores(): PrivateGalleryStores {
+  const { store } = getPrivateGalleryDeployment();
+
+  if (store === "memory") {
+    const memory = getPrivateGalleryMemoryStore();
+    return {
+      exchangeStore: memory.exchangeStore,
+      sessionStore: memory.sessionStore,
+      keyring: memory.keyring,
+    };
+  }
+
+  if (store === "enabled") {
+    throw new PrivateGalleryStoresUnavailableError(
+      'PRIVATE_GALLERY_STORE is "enabled", but no private-gallery store adapter is implemented yet. Use "memory" for development until the Postgres adapter lands.',
+    );
+  }
+
+  throw new PrivateGalleryStoresUnavailableError(
+    'PRIVATE_GALLERY_STORE is "off"; a route must answer notFound() before asking for stores.',
+  );
 }

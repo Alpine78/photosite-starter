@@ -1011,7 +1011,9 @@ follow-up would route the gallery detail through a handler; tracked with AB#132)
 (a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
 and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
 build it), lightbox zoom tuning, and the dynamic-result enquiry entry point (AB#58/AB#71).
-Private client galleries are **partially built, and serve nothing yet**. Their security,
+Private client galleries are **partially built**: a link can now be opened and exchanged
+for a session, but only against a development fixture store — a real deployment still
+serves nothing. Their security,
 delivery, proof-selection, and retention boundary is
 [ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md)
 (AB#122, **Accepted**): a structural public/private isolation boundary, a
@@ -1024,8 +1026,9 @@ for an authorized gallery-link/session holder — restoring the `private or
 sales/fulfilment` clause that exception must not weaken. AB#29 (delivery + ZIP) builds on
 it in slices and stays **Active**; AB#130 (proof selection) has not started.
 
-Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no route,
-no store adapter, and no provisioned infrastructure**, so nothing is reachable: the
+Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no store
+adapter and no provisioned infrastructure**, so an `enabled` deployment throws on the
+first request that needs a store rather than half-serving: the
 isolation boundary and validated two-phase configuration, the domain model and its
 nine-state machine, and the `privateOnly` fail-closed guard on every public projection
 (#101); the reserved route namespace's response hygiene in `src/proxy.ts` — `no-store`,
@@ -1035,10 +1038,32 @@ primitives (#103); the session model and its per-gallery-path `__Secure-` cookie
 (#104); and the capability exchange's two rate-limiting layers, its gallery/capability
 lookup, and the constant-time verification of a submitted capability, behind
 `src/lib/private-gallery-access.ts` — the one facade a route may import, since it owns an
-ordering a route must not reassemble. Everything else is unbuilt: the bootstrap document
-and fragment script, the `POST` exchange endpoint, the private gallery page, two-stage
-per-request authorization and signed-URL minting, the owner-run upload CLI, the
-publication state machine and notification outbox, the retention worker, and the concrete
+ordering a route must not reassemble (#105).
+The link and its exchange are now routes: the Proxy rewrites the deployment-configured
+prefix onto a reserved internal segment (`/private-gallery`, `request-path.ts`) so a
+file-system route can serve a configurable public path, and refuses a direct request to
+that segment. **Next.js runs the Proxy again on the path it rewrote to** — measured
+against a production build, not assumed — so the internal branch tells its own second pass
+apart from a stranger by the request path the first pass carried, and answers it with a
+`next()` rather than a second rewrite, because only a `next()` response's headers replace
+`next.config.ts`'s site-wide `Referrer-Policy` (a `rewrite()`'s do not, which silently cost
+§6's `no-referrer` until `e2e/private-route-hygiene.spec.ts` caught it). That header check
+is namespace hygiene, not authorization: it keeps a second URL shape away from crawlers and
+links, and a forged header reaches only a page that looks nothing up and an exchange that
+still demands the real capability. The bootstrap document renders identically for every
+well-formed handle and **looks nothing up**, because the capability is in the fragment and
+a browser never sends one; `public/private-gallery-bootstrap.js` (an external same-origin
+file, so no new inline-script grant) reads it, strips it from the address bar with
+`replaceState`, and posts it to `POST <prefix>/<handle>/exchange`, which answers a session
+cookie or **one indistinguishable 403** for every failure class — same status, same body,
+no `Retry-After` — so nothing separates an unknown handle from a throttled known one.
+`PRIVATE_GALLERY_STORE=memory` is a development-only fixture store (refused in a production
+deployment, like `SITE_CONTENT_SOURCE=mock`) whose published, non-secret link is what the
+Playwright journey and a local `npm run dev` actually exercise; it seals that fixture under
+an ephemeral per-process key and never reads the deployment keyring.
+Everything else is unbuilt: the private gallery page itself, two-stage per-request
+authorization and signed-URL minting, the owner-run upload CLI, the publication state
+machine and notification outbox, the retention worker, and the concrete
 object-store/Postgres providers with their live provisioning gate.
 Validated JSON-LD structured data (AB#86) is built: `src/lib/structured-data.ts` is a pure
 builder + `</script>`-safe serializer (`<`, `>`, `&`, U+2028, U+2029 escaped — `JSON.stringify`
