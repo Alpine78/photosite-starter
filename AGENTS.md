@@ -1011,19 +1011,35 @@ follow-up would route the gallery detail through a handler; tracked with AB#132)
 (a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
 and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
 build it), lightbox zoom tuning, and the dynamic-result enquiry entry point (AB#58/AB#71).
-Private client galleries are **not built**, and their security, delivery, proof-selection,
-and retention boundary is **drafted for decision, not yet accepted**:
-[ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md) (AB#122)
-is **Proposed** — awaiting the project owner's explicit acceptance before it becomes
-`Accepted` and before AB#122 closes. It proposes a structural public/private isolation
-boundary, a fragment-capability link exchanged for a server session, two-stage per-asset
+Private client galleries are **partially built, and serve nothing yet**. Their security,
+delivery, proof-selection, and retention boundary is
+[ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md)
+(AB#122, **Accepted**): a structural public/private isolation boundary, a
+fragment-capability link exchanged for a server session, two-stage per-asset
 authorization with direct short-lived signed object-store URLs (never a private byte
 through a Function), an S3-compatible object store plus a separate PostgreSQL-family
-private store, and a worker-authoritative six-month retention lifecycle. It authorises no
-implementation; AB#29 (delivery + ZIP) and AB#130 (proof selection) would build on it.
-The one canonical-rule change it makes is a scoped exception to "Public derivatives only"
-above, for an authorized gallery-link/session holder — restoring the `private or
-sales/fulfilment` clause that exception must not weaken.
+private store, and a worker-authoritative six-month retention lifecycle. The one
+canonical-rule change it makes is a scoped exception to "Public derivatives only" above,
+for an authorized gallery-link/session holder — restoring the `private or
+sales/fulfilment` clause that exception must not weaken. AB#29 (delivery + ZIP) builds on
+it in slices and stays **Active**; AB#130 (proof selection) has not started.
+
+Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no route,
+no store adapter, and no provisioned infrastructure**, so nothing is reachable: the
+isolation boundary and validated two-phase configuration, the domain model and its
+nine-state machine, and the `privateOnly` fail-closed guard on every public projection
+(#101); the reserved route namespace's response hygiene in `src/proxy.ts` — `no-store`,
+`noindex, nofollow`, `Referrer-Policy: no-referrer` — plus `robots.txt`'s `Disallow` (#102);
+the AES-256-GCM capability envelope with its canonical associated data and rotation
+primitives (#103); the session model and its per-gallery-path `__Secure-` cookie contract
+(#104); and the capability exchange's two rate-limiting layers, its gallery/capability
+lookup, and the constant-time verification of a submitted capability, behind
+`src/lib/private-gallery-access.ts` — the one facade a route may import, since it owns an
+ordering a route must not reassemble. Everything else is unbuilt: the bootstrap document
+and fragment script, the `POST` exchange endpoint, the private gallery page, two-stage
+per-request authorization and signed-URL minting, the owner-run upload CLI, the
+publication state machine and notification outbox, the retention worker, and the concrete
+object-store/Postgres providers with their live provisioning gate.
 Validated JSON-LD structured data (AB#86) is built: `src/lib/structured-data.ts` is a pure
 builder + `</script>`-safe serializer (`<`, `>`, `&`, U+2028, U+2029 escaped — `JSON.stringify`
 alone does not, per Next.js's own guidance) rendered through the `<JsonLd>` server component.
