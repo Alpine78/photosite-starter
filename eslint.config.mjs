@@ -28,6 +28,13 @@ const eslintConfig = defineConfig([
   // The gallery cursor signing key is kept out of the same places for the same
   // reason (AB#72): a route transports an opaque token and never mints or
   // inspects one, so only the adapter behind `@/lib/gallery` holds the key.
+  //
+  // The private client-gallery boundary (AB#29, ADR-0014 §2) is the same shape:
+  // the request-time credential loader and the private domain model stay behind
+  // a server adapter, so a route or component cannot put the private store's
+  // shape — or its credentials — into the render tree. Like the rules above it
+  // matches `@/lib/...` alias imports only, not a relative path or an indirect
+  // re-export; `import "server-only"` covers the indirect case.
   {
     files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
     rules: {
@@ -44,6 +51,11 @@ const eslintConfig = defineConfig([
               group: ["@/lib/gallery-cursor"],
               message:
                 "Read a gallery page through `@/lib/gallery` instead. The cursor signing key stays behind that adapter; a route only transports the opaque token (ADR-0003 decision 8).",
+            },
+            {
+              group: ["@/lib/private-gallery", "@/lib/private-gallery-config"],
+              message:
+                "Reach private client galleries through a server-side adapter in src/lib. The private-store credentials and domain model stay behind that boundary (ADR-0014 §2).",
             },
           ],
         },

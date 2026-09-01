@@ -18,6 +18,10 @@ import {
   type ImageMedia,
 } from "@/lib/media";
 import {
+  type PrivateGalleryDeployment,
+  readPrivateGalleryDeployment,
+} from "@/lib/private-gallery-deployment";
+import {
   RESERVED_LOCALE_ROUTE_SEGMENTS,
   RESERVED_ROOT_SEGMENTS,
 } from "@/lib/public-routes";
@@ -300,6 +304,14 @@ export type DeploymentConfig = {
    * canonical base URL itself.
    */
   readonly defaultSocialImage: ImageMedia;
+  /**
+   * The build-safe half of the private client-gallery configuration (ADR-0014
+   * §9): whether the feature is `enabled`, and the root path segment its routes
+   * are reserved under. The credential-bearing settings are the request-time
+   * Sensitive half and are not part of this build-time contract
+   * (`private-gallery-config.ts`).
+   */
+  readonly privateGallery: PrivateGalleryDeployment;
 };
 
 const englishLabels = {
@@ -686,13 +698,31 @@ function parseLocale(value: string): string {
  * prefixes, no collision with a root route or localized static route — is the
  * route contract's, so the values are validated there and reported against the
  * setting that supplied them.
+ *
+ * The private client-gallery route prefix (ADR-0014 §9) is reserved here too,
+ * feature on or off: it is added to the root segments the route contract
+ * forbids a locale prefix, the redundant default-locale prefix, or the default
+ * locale's story namespace from claiming, so an `off` clone cannot assign
+ * `/<prefix>` to public routing and then be unable to enable private galleries
+ * without a public URL migration.
  */
 function parseLocaleRoutes(
   environment: DeploymentEnvironment,
   defaultLocale: string,
+  privateGalleryRoutePrefix: string,
 ): LocaleRouteConfig {
   const settingName = deploymentSettingNames.localeRoutes;
   const value = requireSetting(environment, settingName);
+
+  if (RESERVED_ROOT_SEGMENTS.includes(privateGalleryRoutePrefix)) {
+    throw new Error(
+      `[deployment-config] Invalid PRIVATE_GALLERY_ROUTE_PREFIX: "${privateGalleryRoutePrefix}" is already a root route segment the application owns`,
+    );
+  }
+  const reservedRootSegments = [
+    ...RESERVED_ROOT_SEGMENTS,
+    privateGalleryRoutePrefix,
+  ];
 
   const locales: LocaleRouteInput[] = value
     .split(",")
@@ -717,7 +747,7 @@ function parseLocaleRoutes(
   try {
     config = buildLocaleRouteConfig({
       locales,
-      reservedRootSegments: RESERVED_ROOT_SEGMENTS,
+      reservedRootSegments,
       reservedLocaleRouteSegments: RESERVED_LOCALE_ROUTE_SEGMENTS,
     });
   } catch (cause) {
@@ -897,14 +927,20 @@ export function loadDeploymentConfig(
   );
 
   const stage = readDeploymentStage(environment);
+  const privateGallery = readPrivateGalleryDeployment(environment);
 
   return {
     stage,
     contentSource: readContentSource(environment, stage),
     locale,
-    localeRoutes: parseLocaleRoutes(environment, locale),
+    localeRoutes: parseLocaleRoutes(
+      environment,
+      locale,
+      privateGallery.routePrefix,
+    ),
     canonicalBaseUrl,
     defaultSocialImage: parseDefaultSocialImage(environment),
+    privateGallery,
   };
 }
 

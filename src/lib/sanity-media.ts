@@ -100,7 +100,7 @@ export const ORDERED_MEDIA_FIELDS = ["capturedAt", "mediaId"] as const;
 /**
  * Effective public renderability, as a GROQ predicate.
  *
- * Two conditions, and Sanity supplies the third: `sanity-client.ts` asks only
+ * Three conditions, and Sanity supplies the fourth: `sanity-client.ts` asks only
  * for the published perspective, so an unpublished document is not merely
  * filtered out, it is not in the data the query runs against. ADR-0002 §4 keeps
  * these as separate decisions rather than one `published` boolean, and this is
@@ -109,9 +109,14 @@ export const ORDERED_MEDIA_FIELDS = ["capturedAt", "mediaId"] as const;
  *
  * `publiclyRenderable` is compared to `true` rather than tested for truthiness,
  * so a document created before the field existed is excluded rather than
- * assumed public.
+ * assumed public. `privateOnly` (ADR-0002, its enforcement fixed by ADR-0014
+ * §2) hard-excludes a private client-gallery asset. It is checked the same
+ * fail-closed way, not `!= true`: the Studio schema does not validate this
+ * field yet, so an import could write the string `"true"` — which `!= true`
+ * would wave through. Only the three explicit "not private" shapes pass:
+ * absent, `null`, or the boolean `false`.
  */
-export const PUBLIC_MEDIA_FILTER = `_type == "${MEDIA_DOCUMENT_TYPE}" && publiclyRenderable == true`;
+export const PUBLIC_MEDIA_FILTER = `_type == "${MEDIA_DOCUMENT_TYPE}" && publiclyRenderable == true && (privateOnly == false || !defined(privateOnly))`;
 
 /**
  * The order any public media listing uses, and the reasoning it rests on.
@@ -154,6 +159,7 @@ export const PUBLIC_MEDIA_PROJECTION = `{
   mediaId,
   mediaType,
   publiclyRenderable,
+  privateOnly,
   alt[]{language, value},
   caption[]{language, value},
   credit,
@@ -242,6 +248,7 @@ export type RawPublicMediaDocument = {
   readonly mediaId?: unknown;
   readonly mediaType?: unknown;
   readonly publiclyRenderable?: unknown;
+  readonly privateOnly?: unknown;
   readonly alt?: unknown;
   readonly caption?: unknown;
   readonly credit?: unknown;
@@ -280,12 +287,21 @@ const MEDIA_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  * the fetch. Not redundancy for its own sake: this projection is embedded in
  * other adapters' queries, and one of them will eventually join media through a
  * reference whose filter someone forgot to repeat. Fail closed there rather
- * than publish something the photographer switched off.
+ * than publish something the photographer switched off — or a private
+ * client-gallery asset the photographer never meant for a public surface
+ * (`privateOnly`, ADR-0002 / ADR-0014 §2).
+ *
+ * `privateOnly` is treated fail-closed: only an absent value, `null`, or the
+ * boolean `false` count as "not private", so an unvalidated import that wrote
+ * the string `"true"` (or anything else) is excluded rather than served.
  */
 export function isPubliclyRenderable(
   document: RawPublicMediaDocument,
 ): boolean {
-  return document.publiclyRenderable === true;
+  const privateOnly = document.privateOnly;
+  const notPrivate =
+    privateOnly === undefined || privateOnly === null || privateOnly === false;
+  return document.publiclyRenderable === true && notPrivate;
 }
 
 /**

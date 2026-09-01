@@ -296,6 +296,33 @@ describe("refusing what cannot be published", () => {
     expect(rejectionOf(() => project(document)).rejection).toBe("not-public");
   });
 
+  it.each([
+    ["the boolean true", true],
+    ["the string \"true\" from an unvalidated import", "true"],
+    ["any other non-false shape", 1],
+  ])("refuses a privateOnly photograph set to %s", (_case, value) => {
+    const document = documentOf({
+      publiclyRenderable: true,
+      privateOnly: value,
+    });
+
+    expect(isPubliclyRenderable(document)).toBe(false);
+    expect(rejectionOf(() => project(document)).rejection).toBe("not-public");
+  });
+
+  it("keeps rendering a photograph whose privateOnly is absent, null, or false", () => {
+    expect(isPubliclyRenderable(documentOf({ publiclyRenderable: true }))).toBe(
+      true,
+    );
+    for (const value of [null, false]) {
+      expect(
+        isPubliclyRenderable(
+          documentOf({ publiclyRenderable: true, privateOnly: value }),
+        ),
+      ).toBe(true);
+    }
+  });
+
   it("refuses a master-sized upload with the limit in the message", () => {
     const error = rejectionOf(() =>
       project(
@@ -441,7 +468,7 @@ describe("the query contract", () => {
 
   it("combines the visibility decisions in one filter", () => {
     expect(PUBLIC_MEDIA_FILTER).toBe(
-      '_type == "media" && publiclyRenderable == true',
+      '_type == "media" && publiclyRenderable == true && (privateOnly == false || !defined(privateOnly))',
     );
   });
 

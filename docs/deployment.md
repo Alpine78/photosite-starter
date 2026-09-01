@@ -309,6 +309,43 @@ Vercel. The first would make archive locations impossible in Preview, and the se
 would abandon the prebuilt artifact and its Azure build log. Phase-scoped credentials
 preserve both boundaries at the cost of provisioning and rotating two read-only tokens.
 
+### Private client galleries (ADR-0014, not yet provisioned)
+
+Post-MVP and **off on every environment today**. The feature is a separate service
+boundary — a private S3-compatible object store and a private PostgreSQL-family database
+in accounts the site owner controls, never Sanity and never a public bucket (ADR-0014
+§8, §9). AB#29 ships it in slices; only slice 1 (the isolation boundary and its
+validated configuration) exists so far.
+
+Two build-safe settings, read during `loadDeploymentConfig` like the `SITE_*` values:
+
+| Setting | Preview | Production |
+| --- | --- | --- |
+| `PRIVATE_GALLERY_STORE` | `off` (or unset) | `off` (or unset) until AB#29 provisioning |
+| `PRIVATE_GALLERY_ROUTE_PREFIX` | unset (defaults to `private`) | same |
+
+`PRIVATE_GALLERY_ROUTE_PREFIX` is validated and reserved as a root segment **whether the
+feature is on or off**, so a deployment can never assign `/private` to a locale prefix or
+a story namespace and then be unable to enable the feature without a public URL
+migration. A collision fails the build.
+
+The credential-bearing settings — `PRIVATE_GALLERY_DATABASE_URL`, the
+`PRIVATE_GALLERY_S3_*` endpoint/region/bucket/key-prefix and verifier credentials, and
+the `PRIVATE_GALLERY_CAPABILITY_KEYS` keyring plus
+`PRIVATE_GALLERY_CAPABILITY_ACTIVE_KEY_ID` — are **request-time Sensitive**, exactly like
+`GALLERY_CURSOR_SIGNING_KEY`: read lazily when a private route first needs one, never by
+`next build`, and stored as Vercel Sensitive variables per environment. None is ever
+prefixed `NEXT_PUBLIC_`; that name is refused unconditionally. ADR-0014 §8a defines
+**three** least-privilege object-store credentials — the deployed runtime/verifier pair
+(GET signing + metadata HEAD only), the retention worker's prefix-scoped
+enumerate/delete pair, and the owner-run upload CLI's write/multipart pair that lives
+only on the photographer's machine (the same posture as `SANITY_SEED_TOKEN`). Only the
+verifier pair belongs in a deployed environment. `.env.example` lists all of them.
+
+When AB#29 provisions the feature, this section gains the provisioning runbook, the
+backup/PITR and retention-worker schedule, and the exit path for both new services
+(ADR-0014 Action Item 9).
+
 ### The Sanity webhook signing secret
 
 `SANITY_WEBHOOK_SECRET` is a Sensitive, runtime-only value shared with exactly one

@@ -1,0 +1,52 @@
+import { describe, expect, it } from "vitest";
+
+import { MAX_PUBLIC_DELIVERY_DIMENSION } from "@/lib/image-delivery";
+import {
+  PRIVATE_GALLERY_ACCESS_BUDGET_WINDOW_DAYS,
+  PRIVATE_GALLERY_DEFAULT_ACCESS_BUDGET_BYTE_MULTIPLIER,
+  PRIVATE_GALLERY_DEFAULT_MAX_CLI_UPLOAD_CONCURRENCY,
+  PRIVATE_GALLERY_DEFAULT_MAX_DERIVATIVE_BYTES,
+  PRIVATE_GALLERY_DEFAULT_MAX_DERIVATIVE_LONGEST_EDGE_PX,
+  PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY,
+  PRIVATE_GALLERY_DEFAULT_MAX_PAGE_SIZE,
+  PRIVATE_GALLERY_DEFAULT_MAX_PROOF_SELECTION_BODY_BYTES,
+  PRIVATE_GALLERY_DEFAULT_MAX_TOTAL_BYTES,
+  PRIVATE_GALLERY_DEFAULT_MAX_ZIP_BYTES,
+  PRIVATE_GALLERY_DEFAULT_SIGNED_URL_MINTS_PER_MINUTE_PER_SESSION,
+} from "@/lib/private-gallery-limits";
+
+// Pins to ADR-0014 §8e. A change to any of these numbers is a change to the
+// ADR's default ceiling and must move together with it.
+describe("private gallery default ceilings (ADR-0014 §8e)", () => {
+  it("fixes the exact byte counts, interpreted in binary units", () => {
+    expect(PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY).toBe(1_000);
+    expect(PRIVATE_GALLERY_DEFAULT_MAX_PAGE_SIZE).toBe(100);
+    expect(PRIVATE_GALLERY_DEFAULT_MAX_DERIVATIVE_BYTES).toBe(8 * 1024 * 1024);
+    expect(PRIVATE_GALLERY_DEFAULT_MAX_TOTAL_BYTES).toBe(
+      25 * 1024 * 1024 * 1024,
+    );
+    expect(PRIVATE_GALLERY_DEFAULT_MAX_ZIP_BYTES).toBe(20 * 1024 * 1024 * 1024);
+    expect(PRIVATE_GALLERY_DEFAULT_MAX_PROOF_SELECTION_BODY_BYTES).toBe(
+      64 * 1024,
+    );
+    expect(PRIVATE_GALLERY_DEFAULT_MAX_CLI_UPLOAD_CONCURRENCY).toBe(8);
+    expect(
+      PRIVATE_GALLERY_DEFAULT_SIGNED_URL_MINTS_PER_MINUTE_PER_SESSION,
+    ).toBe(60);
+    expect(PRIVATE_GALLERY_DEFAULT_ACCESS_BUDGET_BYTE_MULTIPLIER).toBe(10);
+    expect(PRIVATE_GALLERY_ACCESS_BUDGET_WINDOW_DAYS).toBe(30);
+  });
+
+  it("ties the derivative pixel bound to the public web-delivery export policy", () => {
+    expect(PRIVATE_GALLERY_DEFAULT_MAX_DERIVATIVE_LONGEST_EDGE_PX).toBe(2048);
+    expect(PRIVATE_GALLERY_DEFAULT_MAX_DERIVATIVE_LONGEST_EDGE_PX).toBe(
+      MAX_PUBLIC_DELIVERY_DIMENSION,
+    );
+  });
+
+  it("keeps the ZIP ceiling below the total-gallery ceiling", () => {
+    expect(PRIVATE_GALLERY_DEFAULT_MAX_ZIP_BYTES).toBeLessThan(
+      PRIVATE_GALLERY_DEFAULT_MAX_TOTAL_BYTES,
+    );
+  });
+});

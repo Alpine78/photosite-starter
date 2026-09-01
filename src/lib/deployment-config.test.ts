@@ -104,6 +104,53 @@ describe("loadDeploymentConfig", () => {
     );
   });
 
+  describe("private client galleries (ADR-0014 §9)", () => {
+    it("defaults to off with the reserved default route prefix", () => {
+      expect(loadDeploymentConfig(validEnvironment).privateGallery).toEqual({
+        store: "off",
+        routePrefix: "private",
+      });
+    });
+
+    it("reads an explicit enabled switch and a custom prefix", () => {
+      expect(
+        loadDeploymentConfig({
+          ...validEnvironment,
+          PRIVATE_GALLERY_STORE: "enabled",
+          PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
+        }).privateGallery,
+      ).toEqual({ store: "enabled", routePrefix: "clients" });
+    });
+
+    it("fails the build when a locale prefix collides with the private route prefix", () => {
+      expect(() =>
+        loadDeploymentConfig({
+          ...validEnvironment,
+          SITE_LOCALE_ROUTES: "en-GB||stories,fi|clients|tarinat",
+          PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
+        }),
+      ).toThrow(/locale prefix "clients" collides/);
+    });
+
+    it("fails the build when the private route prefix is a segment the app already owns", () => {
+      expect(() =>
+        loadDeploymentConfig({
+          ...validEnvironment,
+          PRIVATE_GALLERY_ROUTE_PREFIX: "services",
+        }),
+      ).toThrow(/PRIVATE_GALLERY_ROUTE_PREFIX/);
+    });
+
+    it("fails the build on a NEXT_PUBLIC_ mirror of a private-gallery secret, feature off", () => {
+      expect(() =>
+        loadDeploymentConfig({
+          ...validEnvironment,
+          NEXT_PUBLIC_PRIVATE_GALLERY_CAPABILITY_KEYS: "k:AAAA",
+        }),
+      ).toThrow(/NEXT_PUBLIC_PRIVATE_GALLERY_CAPABILITY_KEYS/);
+    });
+  });
+
   it("keeps a declared default social image alt text", () => {
     const config = loadDeploymentConfig({
       ...validEnvironment,

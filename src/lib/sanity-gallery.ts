@@ -1122,7 +1122,13 @@ const GALLERY_PLACEMENT_ITEM_PROJECTION = `{
  */
 function buildPlacementFilter(sectionId: string | undefined): string {
   const sectionClause = sectionId === undefined ? "" : " && sectionId == $sectionId";
-  return `_type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == $galleryDocumentId && visible == true && media->publiclyRenderable == true${sectionClause}`;
+  // The `media->privateOnly` clause mirrors `PUBLIC_MEDIA_FILTER` exactly,
+  // fail-closed shape and all: a private client-gallery asset (ADR-0002 /
+  // ADR-0014 §2) is excluded from the bounded window server-side, the same as a
+  // hidden placement or a non-renderable one, so a returned row is already
+  // within `CuratedGallerySectionSource`'s contract and `buildCuratedGalleryPage`
+  // never has to drop one after the fetch.
+  return `_type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == $galleryDocumentId && visible == true && media->publiclyRenderable == true && (media->privateOnly == false || !defined(media->privateOnly))${sectionClause}`;
 }
 
 function sectionIdOf(filter: GallerySectionFilter): string | undefined {
@@ -1177,10 +1183,11 @@ function readWindowQueryResult(value: unknown): {
  * required value, for a row this function's own GROQ filter already
  * guarantees is publicly renderable. `projectGalleryPlacement` only returns
  * `undefined` when `!isPubliclyRenderable`, and every row reaching this point
- * already matched `media->publiclyRenderable == true` in the same query — so
- * `undefined` here can only mean the store's own filter and the adapter's own
- * re-check disagree, which is a contract violation to raise, not a row to
- * quietly drop and shrink the page.
+ * already matched `media->publiclyRenderable == true` and the fail-closed
+ * `media->privateOnly` clause in the same query — so `undefined` here can only
+ * mean the store's own filter and the adapter's own re-check disagree, which
+ * is a contract violation to raise, not a row to quietly drop and shrink the
+ * page.
  */
 function assertAlreadyPublic(
   placement: CuratedGalleryPlacement | undefined,
@@ -1560,6 +1567,15 @@ type RawGalleryPaginationBasicsDocument = {
  * bounded placement *window* only ever sees `pageSize + 1` rows, so a per-row
  * check on the read path cannot prove the whole order is one generation —
  * this count can, in one bounded aggregate (ADR-0009 2026-08-28 amendment).
+ *
+ * The aggregate carries the **same eligibility filter as the window**
+ * (`visible`, `media->publiclyRenderable`, and the fail-closed
+ * `media->privateOnly`): a placement that is never served cannot make the
+ * served order inconsistent, and — critically — a hidden or `privateOnly`
+ * placement added without a rotation must not push the public gallery into the
+ * `ordering-stale` state (a degraded detail page, a 503 continuation) until an
+ * owner happens to re-run the recompute. This keeps a private asset from
+ * affecting public availability (ADR-0014 §2).
  */
 const GALLERY_PAGINATION_BASICS_QUERY = `*[${GALLERY_FILTER} && contentId == $contentId][0...2]{
   _id,
@@ -1571,6 +1587,8 @@ const GALLERY_PAGINATION_BASICS_QUERY = `*[${GALLERY_FILTER} && contentId == $co
   ] | order(_updatedAt desc) [0]._updatedAt,
   "staleShuffledOrderCount": count(*[
     _type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == ^._id &&
+    visible == true && media->publiclyRenderable == true &&
+    (media->privateOnly == false || !defined(media->privateOnly)) &&
     !coalesce(pinned, false) &&
     (!defined(shuffledOrder) || shuffledOrderSeed != ^.orderingSeed)
   ])

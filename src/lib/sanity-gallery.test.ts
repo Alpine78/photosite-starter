@@ -428,6 +428,16 @@ describe("projectGalleryPlacement", () => {
     expect(placement).toBeUndefined();
   });
 
+  it("resolves to undefined for a privateOnly photograph (ADR-0002 / ADR-0014 §2)", () => {
+    const placement = projectGalleryPlacement(
+      rawOf({
+        media: mediaDocumentOf({ publiclyRenderable: true, privateOnly: true }),
+      }),
+      languages,
+    );
+    expect(placement).toBeUndefined();
+  });
+
   it("still throws for a genuinely malformed row: no placementId", () => {
     const error = rejectionOf(() => projectGalleryPlacement(rawOf({ placementId: undefined }), languages));
     expect(error.rejection).toBe("malformed-result");
@@ -570,13 +580,26 @@ describe("readSanityCuratedGalleryPage", () => {
       media: placement.media,
     });
 
+    // Mirrors the GROQ `media->privateOnly` fail-closed shape: only absent,
+    // null, or the boolean `false` count as "not private".
+    const notPrivate = (media: { privateOnly?: unknown }) =>
+      media.privateOnly === undefined ||
+      media.privateOnly === null ||
+      media.privateOnly === false;
+    const servable = (p: FixturePlacement) =>
+      p.visible &&
+      p.media.publiclyRenderable === true &&
+      notPrivate(p.media);
+
     // Only meaningful for a seeded gallery — the adapter reads it only when
-    // `ordering.kind === "seeded-random"`.
+    // `ordering.kind === "seeded-random"`. Carries the same eligibility filter
+    // as the window: an unservable placement never counts toward staleness.
     const computedStaleCount =
       seed === undefined
         ? 0
         : options.placements.filter(
             (p) =>
+              servable(p) &&
               p.pinned !== true &&
               (p.shuffledOrder === undefined || p.shuffledOrderSeed !== seed),
           ).length;
@@ -621,8 +644,7 @@ describe("readSanityCuratedGalleryPage", () => {
               ? []
               : options.placements.filter(
                   (placement) =>
-                    placement.visible &&
-                    placement.media.publiclyRenderable === true &&
+                    servable(placement) &&
                     (sectionId === undefined || placement.sectionId === sectionId),
                 );
 
@@ -836,6 +858,60 @@ describe("readSanityCuratedGalleryPage", () => {
     const { client } = fakeGalleryStore({ placements });
     const page = await readPage(client);
     expect(page?.items.map((item) => item.itemId)).toEqual(["visible-01", "visible-02"]);
+  });
+
+  it("excludes a privateOnly placement from the bounded window (ADR-0014 §2)", async () => {
+    const placements: readonly FixturePlacement[] = [
+      { placementId: "public-01", order: 0, visible: true, media: mediaDocumentOf({ mediaId: "m1" }) },
+      {
+        placementId: "private-only-01",
+        order: 1,
+        visible: true,
+        media: mediaDocumentOf({ mediaId: "m2", publiclyRenderable: true, privateOnly: true }),
+      },
+      { placementId: "public-02", order: 2, visible: true, media: mediaDocumentOf({ mediaId: "m3" }) },
+    ];
+    const { client, requests } = fakeGalleryStore({ placements });
+    const page = await readPage(client);
+
+    expect(page?.items.map((item) => item.itemId)).toEqual(["public-01", "public-02"]);
+    const windowRequest = requests.find((request) => request.tag === "gallery.placements.window");
+    expect(windowRequest?.query).toContain(
+      "(media->privateOnly == false || !defined(media->privateOnly))",
+    );
+  });
+
+  it("a privateOnly placement missing a fresh shuffledOrder does not wedge a seeded gallery (ADR-0014 §2)", async () => {
+    // A non-pinned privateOnly placement with no shuffledOrder for the current
+    // seed. It is excluded from the window, and must not be counted by the
+    // stale-order aggregate either — otherwise the public gallery reports
+    // `ordering-stale` (a degraded page, a 503 continuation) until an owner
+    // re-runs the recompute, over an asset that is never served.
+    const seed = "seed-fixed";
+    const placements: readonly FixturePlacement[] = [
+      ...buildSeededGallery({ pinnedCount: 1, shuffledCount: 3, seed }),
+      {
+        placementId: "private-no-key",
+        order: 99,
+        visible: true,
+        pinned: false,
+        media: mediaDocumentOf({ mediaId: "priv", publiclyRenderable: true, privateOnly: true }),
+      },
+    ];
+    const { client } = fakeGalleryStore({
+      placements,
+      orderingRule: "seeded-random",
+      orderingSeed: seed,
+    });
+
+    const page = await readSanityCuratedGalleryPage("en", CONTENT_ID, {
+      client,
+      config,
+      cursorCodec: testCursorCodec,
+    });
+
+    expect(page?.items.some((item) => item.itemId === "private-no-key")).toBe(false);
+    expect(page?.items.length).toBeGreaterThan(0);
   });
 
   it("both manual and seeded-random are accepted rules the Studio no longer blocks (AB#129 PR2)", async () => {
