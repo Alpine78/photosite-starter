@@ -54,13 +54,13 @@ Two conventions on top of the template:
 | [0011](0011-security-response-headers.md) | AB#117 | Security response headers and the CSP inline-content trade-off | Accepted |
 | [0012](0012-dynamic-keyword-gallery-query-contract.md) | AB#66 (remainder, after ADR-0009 split off ordering) | Dynamic keyword-gallery query contract | Accepted |
 | [0013](0013-category-listing-continuation-cursor.md) | AB#140 | Category-listing continuation cursor contract (keyset over `(publishedAt, contentId)`, shared signing secret, self-canonical indexable pages) | Accepted |
+| [0014](0014-private-gallery-security-delivery-retention-boundary.md) | AB#122 | Private client gallery security, delivery, proof selection, and retention boundary (fragment-capability access + server session, structural public/private isolation, S3-compatible object store + PostgreSQL-family private store, worker-authoritative six-month retention) | Proposed |
 
 Expected further entries:
 
 | Work item | Decision |
 | --- | --- |
 | AB#95 | Image sales, checkout, and fulfilment boundary |
-| AB#122 | Private gallery security, delivery, and retention boundary |
 | AB#41 | Customer customization and upstream update boundaries |
 | AB#42 | Free Core vs. Premium product boundary |
 
