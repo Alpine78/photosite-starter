@@ -53,9 +53,13 @@ const eslintConfig = defineConfig([
                 "Read a gallery page through `@/lib/gallery` instead. The cursor signing key stays behind that adapter; a route only transports the opaque token (ADR-0003 decision 8).",
             },
             {
-              group: ["@/lib/private-gallery", "@/lib/private-gallery-config"],
+              group: [
+                "@/lib/private-gallery",
+                "@/lib/private-gallery-config",
+                "@/lib/private-gallery-capability",
+              ],
               message:
-                "Reach private client galleries through a server-side adapter in src/lib. The private-store credentials and domain model stay behind that boundary (ADR-0014 §2).",
+                "Reach private client galleries through a server-side adapter in src/lib. The private-store credentials, domain model, and capability crypto stay behind that boundary (ADR-0014 §2, §3).",
             },
           ],
         },
