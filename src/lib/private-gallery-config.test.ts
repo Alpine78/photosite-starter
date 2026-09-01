@@ -162,6 +162,7 @@ describe("loadPrivateGalleryRuntimeConfig", () => {
       ["a wrong-length key", "k1:QUJD"],
       ["a non-canonical encoding", "k1:QR=="],
       ["a duplicate id", `k1:${KEY_A},k1:${KEY_B}`],
+      ["two ids with identical key bytes", `k1:${KEY_A},k2:${KEY_A}`],
       ["an uppercase id", `K1:${KEY_A}`],
       ["an entry without a colon", `k1${KEY_A}`],
     ])("rejects %s", (_label, value) => {
@@ -173,9 +174,10 @@ describe("loadPrivateGalleryRuntimeConfig", () => {
     });
 
     it("rejects more than sixteen keys", () => {
-      const many = Array.from({ length: 17 }, (_v, i) => `k${i}:${KEY_A}`).join(
-        ",",
-      );
+      const many = Array.from(
+        { length: 17 },
+        (_v, i) => `k${i}:${Buffer.alloc(32, i + 10).toString("base64")}`,
+      ).join(",");
       expect(() =>
         loadPrivateGalleryRuntimeConfig(
           validEnv({

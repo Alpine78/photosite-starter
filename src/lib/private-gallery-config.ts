@@ -239,7 +239,14 @@ function parseObjectStore(
   };
 }
 
-const KEY_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+/**
+ * The grammar a capability keyring id must match: 1–64 characters, lowercase
+ * letters/digits/inner hyphens. Exported because `private-gallery-capability.ts`
+ * validates the `keyId` inside a stored envelope against the same rule.
+ */
+export const PRIVATE_GALLERY_CAPABILITY_KEY_ID_PATTERN =
+  /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+const KEY_ID_PATTERN = PRIVATE_GALLERY_CAPABILITY_KEY_ID_PATTERN;
 const STANDARD_BASE64_PATTERN =
   /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
@@ -273,6 +280,11 @@ function parseCapabilityKeyring(
 
   const entries = raw.split(",");
   const keys = new Map<string, Uint8Array>();
+  // Two ids carrying identical key bytes would make a "rotation" that only
+  // relabels: the active id changes but the ciphertext is unchanged, and
+  // `keyId` is deliberately not part of the AEAD associated data (ADR-0014 §3),
+  // so a substituted id still authenticates. Reject it at configuration time.
+  const keyMaterialSeen = new Set<string>();
   // Errors report an entry's position, never its text: an entry with a missing
   // colon is otherwise raw key material interpolated into a log line.
   for (const [index, entry] of entries.entries()) {
@@ -299,7 +311,15 @@ function parseCapabilityKeyring(
         `Invalid ${settingNames.capabilityKeys}: key id "${id}" appears more than once`,
       );
     }
-    keys.set(id, decodeCapabilityKey(id, encoded));
+    const key = decodeCapabilityKey(id, encoded);
+    const fingerprint = Buffer.from(key).toString("hex");
+    if (keyMaterialSeen.has(fingerprint)) {
+      throw new PrivateGalleryConfigurationError(
+        `Invalid ${settingNames.capabilityKeys}: two key ids carry identical key material`,
+      );
+    }
+    keyMaterialSeen.add(fingerprint);
+    keys.set(id, key);
   }
 
   if (keys.size === 0) {
