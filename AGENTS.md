@@ -1195,9 +1195,28 @@ keys in the database for objects the CLI was never told to write. Sizes here are
 read, because a declaration is a claim and the bucket is the fact — checking only at
 completion would mean writing gigabytes before refusing, and checking only at planning
 would trust the client.
-Everything else is unbuilt: the signer itself, the ZIP, the owner-run upload CLI, the
-completion/verification step, the retention worker's IO, and the concrete
-object-store/Postgres providers with their live provisioning gate (the owner-run runbook for those two services
+**Completion** closes that loop (`src/lib/private-gallery-upload-completion.ts`): it
+reconciles three independent accounts of the same objects — the plan the server assigned,
+the receipts the CLI reports, and metadata-only reads of those exact keys — and **only the
+third is evidence**. A receipt is a claim, carried solely so a checksum the store cannot
+compute for us has somewhere to travel; it never proves an object exists or is the right
+size. An object at a key the plan never assigned fails the completion, because nothing
+vouches for it and it would sit in the bucket uncovered by any manifest. One bad object
+fails the whole thing: a half-verified gallery is one a customer could be shown with
+photographs missing, and the failure list is bounded so a bad run cannot flood an
+administrator's status. **An ETag is never accepted as a content hash** — §8c says so, and
+it is the one plausible shortcut that would be wrong, since a multipart ETag is a digest of
+part digests, so comparing it against a hash of the file fails for correct data and
+*sometimes passes*, which is worse than always failing. Which checksum algorithm a
+deployment uses stays the provisioning-time decision §8c defers: the comparison is
+algorithm-agnostic and refuses two differently-named digests rather than guessing. On
+success the outcome names the ZIP pointer swap and, when it supersedes one, how long the
+predecessor must be retained — the longest a ZIP URL can live plus a clock-skew margin
+(this slice's hour, not an ADR number), because without it a regeneration would break an
+in-flight download or `Range` resume minted against the old immutable key.
+Everything else is unbuilt: the signer itself, the ZIP generation, the owner-run upload
+CLI, the retention worker's IO, and the concrete object-store/Postgres providers with their
+live provisioning gate (the owner-run runbook for those two services
 is in `docs/deployment.md`). **Administration — creating a gallery, publishing it, the
 customer notification with its delivery state and resend, and revoking or replacing
 access — split out of AB#29 into AB#145 on 2026-09-02** and has not started.
