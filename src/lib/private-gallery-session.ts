@@ -19,8 +19,13 @@
 
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
-
+import {
+  PRIVATE_GALLERY_SESSION_ID_BYTES,
+  generateSessionId,
+  hashSessionId,
+  isCanonicalSessionId,
+  readSingleCookie,
+} from "@/lib/private-gallery-session-token";
 import {
   isPrivateGalleryCustomerVisible,
   type PrivateGallery,
@@ -39,16 +44,17 @@ export const PRIVATE_GALLERY_ACTIVE_SESSION_CAP_DEFAULT = 50;
 /** A configured cap above this is a mistake, not a policy. */
 export const MAX_PRIVATE_GALLERY_ACTIVE_SESSION_CAP = 10_000;
 
-/** 256 bits — ADR-0014 §3's recommendation, above its 128-bit floor. */
-export const PRIVATE_GALLERY_SESSION_ID_BYTES = 32;
-/** 32 bytes as unpadded base64url is exactly 43 characters. */
-const SESSION_ID_CHARS = 43;
+/**
+ * 256 bits — ADR-0014 §3's recommendation, above its 128-bit floor. Re-exported
+ * from the shared bearer primitives so this module's own contract still names
+ * it; the administrator session reads the same constant.
+ */
+export { PRIVATE_GALLERY_SESSION_ID_BYTES };
 
-const UNPADDED_BASE64URL = /^[A-Za-z0-9_-]+$/;
 /** One lowercase path segment. */
 const ROUTE_PREFIX = /^[a-z][a-z0-9-]*$/;
 /** A gallery handle is itself unpadded base64url (ADR-0014 §3). */
-const GALLERY_HANDLE = UNPADDED_BASE64URL;
+const GALLERY_HANDLE = /^[A-Za-z0-9_-]+$/;
 
 export type PrivateGallerySessionErrorReason =
   | "invalid-parameter"
@@ -90,7 +96,7 @@ function isFiniteDate(value: unknown): value is Date {
  * only point the raw value exists server-side after it leaves in a `Set-Cookie`.
  */
 export function generatePrivateGallerySessionId(): string {
-  return randomBytes(PRIVATE_GALLERY_SESSION_ID_BYTES).toString("base64url");
+  return generateSessionId();
 }
 
 /**
@@ -100,19 +106,11 @@ export function generatePrivateGallerySessionId(): string {
  * malformed cookie costs nothing and is simply "not a session".
  */
 export function assertPrivateGallerySessionIdShape(value: unknown): void {
-  if (
-    typeof value !== "string" ||
-    value.length !== SESSION_ID_CHARS ||
-    !UNPADDED_BASE64URL.test(value)
-  ) {
-    fail("invalid-session", "the session identifier is malformed");
-  }
-  const decoded = Buffer.from(value, "base64url");
-  if (
-    decoded.length !== PRIVATE_GALLERY_SESSION_ID_BYTES ||
-    decoded.toString("base64url") !== value
-  ) {
-    fail("invalid-session", "the session identifier is not canonically encoded");
+  if (!isCanonicalSessionId(value)) {
+    fail(
+      "invalid-session",
+      "the session identifier is not a canonical 256-bit token",
+    );
   }
 }
 
@@ -125,7 +123,7 @@ export function assertPrivateGallerySessionIdShape(value: unknown): void {
  */
 export function hashPrivateGallerySessionId(sessionId: string): string {
   assertPrivateGallerySessionIdShape(sessionId);
-  return createHash("sha256").update(sessionId).digest("base64url");
+  return hashSessionId(sessionId);
 }
 
 // ---------------------------------------------------------------------------
@@ -218,24 +216,14 @@ export function buildPrivateGallerySessionClearCookie(parts: {
 export function extractPrivateGallerySessionCookie(
   cookieHeader: string | null | undefined,
 ): string | undefined {
-  if (!cookieHeader) return undefined;
-  const values: string[] = [];
-  for (const part of cookieHeader.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq < 0) continue;
-    if (part.slice(0, eq).trim() !== PRIVATE_GALLERY_SESSION_COOKIE_NAME) {
-      continue;
-    }
-    let value = part.slice(eq + 1).trim();
-    if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
-      value = value.slice(1, -1);
-    }
-    values.push(value);
-  }
-  if (values.length > 1) {
+  const read = readSingleCookie(
+    cookieHeader,
+    PRIVATE_GALLERY_SESSION_COOKIE_NAME,
+  );
+  if (read.kind === "duplicate") {
     fail("invalid-session", "more than one session cookie was presented");
   }
-  return values[0];
+  return read.kind === "one" ? read.value : undefined;
 }
 
 // ---------------------------------------------------------------------------
