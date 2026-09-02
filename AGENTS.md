@@ -1151,6 +1151,23 @@ be a crop-shaped decision made by the wrong layer. A malformed row throws rather
 being skipped, because a skipped item silently shortens a customer's gallery and nobody
 would know a delivered photograph is missing; a page over the 100-item bound is refused
 rather than truncated, and two placements sharing an identifier are a defect.
+The authorized view now renders those items as a **grid of reserved frames**
+(`src/components/private-gallery-grid.tsx`): row-major, one to three columns,
+top-aligned, each frame at its own native ratio via an inline `aspect-ratio` built from
+the derivative's true pixels — per-item data Tailwind cannot generate a class for, and
+rounding every photograph to the nearest available class would be cropping by another
+name. The frames hold **no bytes**: §5 Stage 2's signed preview URLs need the object
+store that is not provisioned, so what exists is the geometry, and the `<img>` a later
+slice drops in cannot reflow the page. The page says that in words, because a grid of
+empty boxes would otherwise read as "your gallery is empty" — a different and alarming
+claim that has its own separate wording. `e2e/private-gallery-link.spec.ts` measures the
+laid-out box of every frame in a real browser against the ratio the fixture declares, and
+asserts the fixture's shapes genuinely differ (landscape, portrait, square, panorama), so
+a cropping grid could actually fail it; a second case proves no object key reaches the
+document, RSC payload included. The item read happens strictly **after** authorization —
+an unauthorized request never reaches a placement row — and a projection or store defect
+falls back to the unauthorized document rather than rendering a gallery quietly missing
+photographs.
 Everything else is unbuilt: the signer itself, the ZIP, the owner-run upload CLI, the
 retention worker's IO, and the concrete object-store/Postgres providers with their live
 provisioning gate (the owner-run runbook for those two services

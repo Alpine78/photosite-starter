@@ -107,6 +107,8 @@ export type BuiltInLabels = {
      * photographs land.
      */
     readonly deliveryPending: string;
+    /** A published gallery that genuinely holds nothing — a real state, not an error. */
+    readonly noPhotographs: string;
   };
   readonly contact: {
     /**
@@ -384,6 +386,7 @@ const englishLabels = {
     accessUntil: "This gallery stays available until {date}.",
     deliveryPending:
       "Your photographs are not available for viewing here yet.",
+    noPhotographs: "This gallery does not contain any photographs.",
   },
   contact: {
     emailSubject: "New contact message",
@@ -521,6 +524,7 @@ const finnishLabels = {
     galleryHeading: "Galleriasi",
     accessUntil: "Galleria on käytettävissä {date} asti.",
     deliveryPending: "Valokuvasi eivät ole vielä katseltavissa täällä.",
+    noPhotographs: "Tässä galleriassa ei ole valokuvia.",
   },
   contact: {
     emailSubject: "Uusi yhteydenotto",

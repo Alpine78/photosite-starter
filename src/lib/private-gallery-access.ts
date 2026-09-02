@@ -56,11 +56,18 @@ import { getPrivateGalleryMemoryStore } from "@/lib/private-gallery-memory-store
 import type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
 import type {
   PrivateGallery,
+  PrivateGalleryPlacement,
   PrivateGallerySession,
 } from "@/lib/private-gallery";
+import {
+  PRIVATE_GALLERY_ITEM_LIMITS,
+  projectPrivateGalleryItems,
+  type PrivateGalleryItem,
+} from "@/lib/private-gallery-item";
 
 export type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
 export type { PrivateGallery, PrivateGallerySession } from "@/lib/private-gallery";
+export type { PrivateGalleryItem } from "@/lib/private-gallery-item";
 export { createPrivateGalleryExchangeIpLimiter };
 export { deriveClientKey } from "@/lib/contact-rate-limit";
 
@@ -289,6 +296,20 @@ export function getPrivateGalleryStores(): PrivateGalleryStores {
  */
 export type PrivateGalleryViewStore = {
   findGalleryById(galleryId: string): Promise<PrivateGallery | undefined>;
+  /**
+   * One bounded page of this gallery's placements, in the photographer's
+   * authored order. Keyed by `galleryId` for the same reason
+   * {@link PrivateGalleryViewStore.findGalleryById} is: the caller has already
+   * proved a session for that gallery, and nothing here is ever addressed by
+   * something a URL supplied.
+   *
+   * `limit` is the caller's page bound; a store that returned more is a defect
+   * the projection refuses rather than silently truncates.
+   */
+  listPlacements(
+    galleryId: string,
+    limit: number,
+  ): Promise<readonly PrivateGalleryPlacement[]>;
 };
 
 /** For the operational log only, exactly like the exchange's own failure. */
@@ -411,4 +432,28 @@ export async function authorizePrivateGalleryView(
     }
     return { authorized: false, failure: { reason: "unexpected", logWorthy: true } };
   }
+}
+
+/**
+ * This gallery's items, projected into what a page may render.
+ *
+ * Separate from {@link authorizePrivateGalleryView} rather than folded into it,
+ * because the two answer different questions and a page that is not authorized
+ * must never reach this at all — a caller has to hold an authorized gallery
+ * before it can ask, and the type is what says so.
+ *
+ * The bound is applied twice: once as the store's `limit`, and again by
+ * `projectPrivateGalleryItems`, which refuses an over-long page rather than
+ * truncating it. A store that ignored the limit would be a defect, and a
+ * silently short gallery is precisely what must not happen.
+ */
+export async function listPrivateGalleryItems(
+  viewStore: PrivateGalleryViewStore,
+  gallery: PrivateGallery,
+): Promise<readonly PrivateGalleryItem[]> {
+  const placements = await viewStore.listPlacements(
+    gallery.galleryId,
+    PRIVATE_GALLERY_ITEM_LIMITS.maxPageSize,
+  );
+  return projectPrivateGalleryItems(placements);
 }

@@ -314,6 +314,52 @@ test.describe("private gallery session in a browser", () => {
     );
   });
 
+  test("reserves every frame at the photograph's own ratio", async ({ page }) => {
+    // The hard rule, measured in a real browser rather than asserted about a
+    // class name: each frame's laid-out box matches the intrinsic ratio of the
+    // derivative that will fill it. A grid that cropped — a fixed aspect cell,
+    // an `object-cover` — would make these all the same shape, which is why the
+    // fixture deliberately mixes landscape, portrait, square, and panorama.
+    await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+
+    const frames = page.locator("[data-item-id]");
+    await expect(frames).not.toHaveCount(0);
+
+    const measured = await frames.evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const box = node.getBoundingClientRect();
+        return {
+          declared:
+            Number(node.getAttribute("data-aspect-width")) /
+            Number(node.getAttribute("data-aspect-height")),
+          laidOut: box.width / box.height,
+        };
+      }),
+    );
+
+    for (const { declared, laidOut } of measured) {
+      expect(laidOut).toBeCloseTo(declared, 1);
+    }
+
+    // And the shapes genuinely differ, so the assertion above could fail.
+    const ratios = new Set(measured.map(({ declared }) => declared.toFixed(3)));
+    expect(ratios.size).toBeGreaterThan(2);
+  });
+
+  test("renders no object key in the authorized document", async ({ page }) => {
+    await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+
+    // The projection drops it; this is the end-to-end proof that nothing puts
+    // it back on the way to the browser, RSC payload included.
+    expect(await page.content()).not.toContain("memory/preview/");
+  });
+
   test("renders no credential in the authorized document", async ({ page }) => {
     await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
