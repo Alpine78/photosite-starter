@@ -51,6 +51,28 @@ import {
 } from "@/lib/private-gallery-session";
 
 import type { ContactRateLimiter } from "@/lib/contact-rate-limit";
+import {
+  consumePrivateGalleryAdminLoginAttempt,
+  PrivateGalleryAdminLoginError,
+  type PrivateGalleryAdminLoginRateConfig,
+  type PrivateGalleryAdminLoginStore,
+} from "@/lib/private-gallery-admin-login";
+import {
+  loadPrivateGalleryAdminCredential,
+  PrivateGalleryAdminCredentialError,
+  verifyPrivateGalleryAdminSecret,
+} from "@/lib/private-gallery-admin-credential";
+import {
+  assertPrivateGalleryAdminReauthenticated,
+  authorizePrivateGalleryAdminRequest,
+  buildPrivateGalleryAdminSessionClearCookie,
+  createPrivateGalleryAdminSession,
+  extractPrivateGalleryAdminSessionCookie,
+  PrivateGalleryAdminSessionError,
+  type PrivateGalleryAdminSessionCookie,
+  type PrivateGalleryAdminSessionStore,
+} from "@/lib/private-gallery-admin-session";
+import type { PrivateGalleryAdminSession } from "@/lib/private-gallery";
 import { getPrivateGalleryDeployment } from "@/lib/private-gallery-deployment";
 import { getPrivateGalleryMemoryStore } from "@/lib/private-gallery-memory-store";
 import type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
@@ -699,4 +721,274 @@ export async function mintPrivateGalleryAssetUrl(
     }
     return { ok: false, failure: { reason: "unexpected", logWorthy: true } };
   }
+}
+
+
+// ---------------------------------------------------------------------------
+// Administration (ADR-0015)
+// ---------------------------------------------------------------------------
+
+export type { PrivateGalleryAdminSession } from "@/lib/private-gallery";
+export type { PrivateGalleryAdminSessionCookie } from "@/lib/private-gallery-admin-session";
+
+/**
+ * Why an administrator request was refused. **Operational log only.** Every one
+ * of these is answered to the browser identically — ADR-0015 §3 requires a
+ * throttled attempt and a wrong secret to be indistinguishable, and there is no
+ * reading of "administration is not provisioned" that a stranger is entitled to.
+ */
+export type PrivateGalleryAdminFailureReason =
+  | "rate-limited"
+  | "login-counter-malformed"
+  | "not-provisioned"
+  | "credential-malformed"
+  | "wrong-secret"
+  | "no-session"
+  | "session-refused"
+  | "reauthentication-required"
+  | "unexpected";
+
+export type PrivateGalleryAdminFailure = {
+  readonly reason: PrivateGalleryAdminFailureReason;
+  readonly logWorthy: boolean;
+};
+
+/**
+ * A wrong secret and a throttled attempt are what this boundary exists to
+ * refuse; they are not defects. A malformed configured credential, a session the
+ * store returned in an unusable shape, and anything unclassified are.
+ */
+const ADMIN_LOG_WORTHY: ReadonlySet<PrivateGalleryAdminFailureReason> = new Set([
+  "login-counter-malformed",
+  "not-provisioned",
+  "credential-malformed",
+  "session-refused",
+  "unexpected",
+]);
+
+function adminFailure(
+  reason: PrivateGalleryAdminFailureReason,
+  logWorthy = ADMIN_LOG_WORTHY.has(reason),
+): { readonly ok: false; readonly failure: PrivateGalleryAdminFailure } {
+  return { ok: false, failure: { reason, logWorthy } };
+}
+
+/**
+ * Maps a credential-loading failure to this boundary's vocabulary. "Missing" is
+ * kept apart from "malformed" for the operational log only: both refuse a login
+ * identically, but one means nobody provisioned administration and the other
+ * means someone provisioned it wrongly, and an operator reading a log needs to
+ * know which.
+ */
+function adminCredentialFailureReason(
+  error: PrivateGalleryAdminCredentialError,
+): PrivateGalleryAdminFailureReason {
+  return error.reason === "missing" ? "not-provisioned" : "credential-malformed";
+}
+
+export type PrivateGalleryAdminLoginDeps = {
+  readonly loginStore: PrivateGalleryAdminLoginStore;
+  readonly sessionStore: PrivateGalleryAdminSessionStore;
+  /** Shared per-process; created once by the route module, not per request. */
+  readonly ipLimiter: ContactRateLimiter;
+  /** Injected so a test needs no environment; defaults to `process.env`. */
+  readonly environment?: Record<string, string | undefined>;
+  readonly rateConfig?: PrivateGalleryAdminLoginRateConfig;
+  readonly activeSessionCap?: number;
+  readonly sessionTtlMs?: number;
+};
+
+export type PrivateGalleryAdminLoginRequest = {
+  readonly submittedSecret: string;
+  /** `deriveClientKey(request)` — a salted, unreversible per-instance key. */
+  readonly clientKey: string;
+  readonly now: Date;
+};
+
+export type PrivateGalleryAdminLoginOutcome =
+  | {
+      readonly ok: true;
+      readonly session: PrivateGalleryAdminSession;
+      readonly cookie: PrivateGalleryAdminSessionCookie;
+    }
+  | { readonly ok: false; readonly failure: PrivateGalleryAdminFailure };
+
+/**
+ * Verifies the administrator secret and mints a session, in the one order that
+ * is safe (ADR-0015 §3): **throttle first, verify second**.
+ *
+ * That order is the whole reason this lives behind the facade. `scrypt` is
+ * deliberately expensive — roughly 74 ms of CPU per attempt — so a route that
+ * verified before consuming the counter would be offering unmetered CPU to
+ * anyone who can reach it, and every individual piece would still pass its own
+ * tests.
+ *
+ * The credential is resolved **after** the throttle for the same reason a
+ * refusal carries no detail: an unprovisioned deployment must not be
+ * distinguishable, by timing or otherwise, from a throttled one.
+ *
+ * Never throws. On success the caller sets `cookie` with
+ * `NextResponse.cookies.set(cookie.name, cookie.value, cookie.options)` —
+ * `cookie.value` is the only place the raw session identifier exists.
+ */
+export async function attemptPrivateGalleryAdminLogin(
+  deps: PrivateGalleryAdminLoginDeps,
+  request: PrivateGalleryAdminLoginRequest,
+): Promise<PrivateGalleryAdminLoginOutcome> {
+  try {
+    const attempt = await consumePrivateGalleryAdminLoginAttempt({
+      ipLimiter: deps.ipLimiter,
+      store: deps.loginStore,
+      clientKey: request.clientKey,
+      now: request.now,
+      ...(deps.rateConfig === undefined ? {} : { config: deps.rateConfig }),
+    });
+    if (attempt.outcome === "refused") {
+      return adminFailure("rate-limited", attempt.firstRefusalInWindow);
+    }
+
+    const credential = loadPrivateGalleryAdminCredential(
+      deps.environment ?? process.env,
+    );
+
+    if (!verifyPrivateGalleryAdminSecret(credential, request.submittedSecret)) {
+      return adminFailure("wrong-secret");
+    }
+
+    const { session, cookie } = await createPrivateGalleryAdminSession(
+      deps.sessionStore,
+      {
+        credentialGeneration: credential.generation,
+        now: request.now,
+        ...(deps.activeSessionCap === undefined
+          ? {}
+          : { activeSessionCap: deps.activeSessionCap }),
+        ...(deps.sessionTtlMs === undefined
+          ? {}
+          : { ttlMs: deps.sessionTtlMs }),
+      },
+    );
+
+    return { ok: true, session, cookie };
+  } catch (error) {
+    if (error instanceof PrivateGalleryAdminLoginError) {
+      // A corrupt counter row refuses the login rather than failing open, and
+      // says which row it was: "nobody can log in" is otherwise a long evening.
+      return adminFailure(
+        error.reason === "malformed-record"
+          ? "login-counter-malformed"
+          : "unexpected",
+      );
+    }
+    if (error instanceof PrivateGalleryAdminCredentialError) {
+      return adminFailure(adminCredentialFailureReason(error));
+    }
+    if (error instanceof PrivateGalleryAdminSessionError) {
+      return adminFailure("session-refused");
+    }
+    return adminFailure("unexpected");
+  }
+}
+
+export type PrivateGalleryAdminRequestDeps = {
+  readonly sessionStore: PrivateGalleryAdminSessionStore;
+  readonly environment?: Record<string, string | undefined>;
+};
+
+export type PrivateGalleryAdminRequest = {
+  /** The raw `Cookie` header — `request.headers.get("cookie")`. */
+  readonly cookieHeader: string | null | undefined;
+  readonly now: Date;
+};
+
+export type PrivateGalleryAdminAuthorization =
+  | { readonly ok: true; readonly session: PrivateGalleryAdminSession }
+  | { readonly ok: false; readonly failure: PrivateGalleryAdminFailure };
+
+/**
+ * The per-request administrator authorization every administrator route and
+ * **every administrator mutation** runs (ADR-0015 §2). There is no "the page
+ * loaded, so the mutation is authorized" gap, exactly as ADR-0014 §5 Stage 1
+ * leaves none for customers.
+ *
+ * The credential is re-resolved here rather than carried from login, which is
+ * what makes rotation a revocation: the session's stored generation is compared
+ * against the deployment's current one on every request, so changing
+ * `PRIVATE_GALLERY_ADMIN_SECRET_HASH` and redeploying ends every live session
+ * with no table to clear.
+ *
+ * Never throws.
+ */
+export async function authorizePrivateGalleryAdministrator(
+  deps: PrivateGalleryAdminRequestDeps,
+  request: PrivateGalleryAdminRequest,
+): Promise<PrivateGalleryAdminAuthorization> {
+  try {
+    const cookieValue = extractPrivateGalleryAdminSessionCookie(
+      request.cookieHeader,
+    );
+    if (cookieValue === undefined) {
+      return adminFailure("no-session", false);
+    }
+
+    const credential = loadPrivateGalleryAdminCredential(
+      deps.environment ?? process.env,
+    );
+
+    const session = await authorizePrivateGalleryAdminRequest(
+      deps.sessionStore,
+      cookieValue,
+      credential.generation,
+      request.now,
+    );
+
+    return { ok: true, session };
+  } catch (error) {
+    if (error instanceof PrivateGalleryAdminCredentialError) {
+      return adminFailure(adminCredentialFailureReason(error));
+    }
+    if (error instanceof PrivateGalleryAdminSessionError) {
+      // An expired, unknown, or superseded session is the ordinary state of a
+      // browser left open; only an unusable stored row is a defect worth an
+      // operator's attention. The session module classifies the two, so this
+      // reads a reason rather than a message.
+      return adminFailure(
+        "session-refused",
+        error.reason === "malformed-record",
+      );
+    }
+    return adminFailure("unexpected");
+  }
+}
+
+/**
+ * The extra gate an irreversible operation passes — delete, revoke, replace
+ * (ADR-0015 §2). Run it **after** {@link authorizePrivateGalleryAdministrator}
+ * on the session that returned; it asks only whether the credential was proved
+ * recently and says nothing about whether the session is otherwise valid.
+ *
+ * Never throws.
+ */
+export function requirePrivateGalleryAdminReauthentication(
+  session: PrivateGalleryAdminSession,
+  now: Date,
+): { readonly ok: true } | { readonly ok: false; readonly failure: PrivateGalleryAdminFailure } {
+  try {
+    assertPrivateGalleryAdminReauthenticated(session, now);
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof PrivateGalleryAdminSessionError) {
+      return adminFailure(
+        error.reason === "reauthentication-required"
+          ? "reauthentication-required"
+          : "session-refused",
+      );
+    }
+    return adminFailure("unexpected");
+  }
+}
+
+/** The `Set-Cookie` descriptor for administrator logout. */
+export function buildPrivateGalleryAdminLogoutCookie(): PrivateGalleryAdminSessionCookie {
+  return buildPrivateGalleryAdminSessionClearCookie();
 }

@@ -121,6 +121,14 @@ const CREDENTIAL_GENERATION = /^[A-Za-z0-9_-]+$/;
 export type PrivateGalleryAdminSessionErrorReason =
   | "invalid-parameter"
   | "invalid-session"
+  /**
+   * The row exists but the store returned it in a shape this module refuses.
+   * Kept apart from `invalid-session` — which is the ordinary state of a browser
+   * presenting a cookie that has expired or been superseded — because only this
+   * one is a defect an operator has to act on. Same name, same meaning as
+   * `private-gallery-exchange.ts`'s.
+   */
+  | "malformed-record"
   | "expired-session"
   | "stale-credential"
   | "reauthentication-required";
@@ -468,21 +476,21 @@ export async function readPrivateGalleryAdminSession(
     !isFiniteDate(session.expiresAt) ||
     !isFiniteDate(session.reauthenticatedAt)
   ) {
-    fail("invalid-session", "the session row has invalid dates");
+    fail("malformed-record", "the session row has invalid dates");
   }
   assertCredentialGeneration(
     session.credentialGeneration,
     "the session row's credentialGeneration",
-    "invalid-session",
+    "malformed-record",
   );
   if (session.createdAt.getTime() >= session.expiresAt.getTime()) {
-    fail("invalid-session", "the session row is not ordered in time");
+    fail("malformed-record", "the session row is not ordered in time");
   }
   if (
     session.expiresAt.getTime() - session.createdAt.getTime() >
     MAX_PRIVATE_GALLERY_ADMIN_SESSION_TTL_MS
   ) {
-    fail("invalid-session", "the session row outlives the maximum lifetime");
+    fail("malformed-record", "the session row outlives the maximum lifetime");
   }
   // A re-authentication cannot predate the session or outlast it; either would
   // be a row that grants a longer destructive-operation window than any real
@@ -491,7 +499,10 @@ export async function readPrivateGalleryAdminSession(
     session.reauthenticatedAt.getTime() < session.createdAt.getTime() ||
     session.reauthenticatedAt.getTime() > session.expiresAt.getTime()
   ) {
-    fail("invalid-session", "the session row's re-authentication is out of range");
+    fail(
+      "malformed-record",
+      "the session row's re-authentication is out of range",
+    );
   }
   if (now.getTime() >= session.expiresAt.getTime()) {
     fail("expired-session", "the administrator session has expired");

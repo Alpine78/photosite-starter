@@ -246,9 +246,12 @@ WebAuthn.
 2. [ ] **(AB#145)** Implement the boundary: the reserved admin segment with its response hygiene, the
    `__Host-` session over the private metadata store, the persisted login rate limit, and
    re-authentication for irreversible operations.
-3. [ ] **(AB#145)** `.env.example` and `docs/deployment.md`: the admin route prefix and
+3. [x] **(AB#145)** `.env.example` and `docs/deployment.md`: the admin route prefix and
    `PRIVATE_GALLERY_ADMIN_SECRET_HASH`, with the generation command and the explicit rule
-   that a memorable passphrase is not an acceptable value.
+   that a memorable passphrase is not an acceptable value. **Done** — the prefix landed
+   with §1 on 2026-09-02 and the credential with §4 the same day, together with
+   `npm run admin:secret`, which generates the secret rather than leaving the operator to
+   choose one.
 4. [x] **(AB#145)** `docs/private-gallery-data-flow.md`: replace the "the administrator-authentication
    boundary is not designed" open item with what this record decided, and add the
    administrator session to the cookie section. **Done** — the open item was
