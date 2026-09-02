@@ -512,8 +512,101 @@ settle while you are in the consoles:
   reintroduces data the lifecycle promised was gone. A restore also re-runs the worker,
   by design — that is what makes expiry restore-safe.
 
-When the delivery slices land, this section gains the backup/PITR runbook and the exit
-path for both new services (ADR-0014 Action Item 9).
+#### Backups, and the gate a restore has to pass
+
+Two stores, two different rules, and they do not meet in the middle.
+
+The **object store** must not carry backup or version history that outlives
+`accessExpiresAt + 30 days`. If versioning is enabled for accident recovery, its
+noncurrent-version expiration must be **at most the 30-day deletion grace** — otherwise
+the lifecycle's promise that a gallery's bytes are gone becomes a promise that they are
+gone *except in versions*, which is not the same statement and is not the one the
+customer was given.
+
+The **metadata store's** point-in-time-recovery window is bounded at **30 days**, and may
+be set lower. PITR is never a substitute for the retention worker: it recovers from a
+mistake, it does not implement the access clock.
+
+**The restore gate.** A restore from any metadata backup **runs the retention worker
+before traffic resumes**. ADR-0014 §7 states this as a gate rather than a suggestion, and
+the reason is concrete: a backup taken before an expiry, restored after it, brings back
+rows describing a gallery whose access window has since closed. Without the worker running
+first, that gallery is briefly accessible again — a customer's photographs reachable after
+the six months they were told about. The order is: restore, run the worker to completion,
+verify the gallery states it moved, then allow traffic.
+
+A restore that cannot run the worker first is not a restore that may be put into service.
+
+**Test it before you need it.** ADR-0014 makes a *tested* restore a provider-selection
+criterion, not a nice-to-have. Restore into a scratch database, run the worker against it,
+and confirm both that it completes and that an expired gallery came back expired. Record
+the date and the outcome against AB#29 the way AB#116's deployment verification and
+AB#84's seed run are recorded — an untested restore is an assumption with a runbook
+attached.
+
+#### Drift monitoring
+
+The backstop lifecycle policy is the net under the retention worker, and a net nobody
+checks is a net that has already failed. The worker's **final step asserts that the policy
+is present and enabled, and reports if it is not** (ADR-0014 §7). A silently disabled
+policy is a finding, not a warning to be skimmed: it means orphaned objects — the ones the
+worker itself missed — now live indefinitely.
+
+Three things drift in practice, and the first is the only one automated:
+
+- **the backstop lifecycle policy** — asserted by the worker on every scheduled run;
+- **the bucket's default-deny posture** — re-run §8a's live checks after any console change
+  to the bucket, because an unsigned `GET` that starts succeeding is not something the
+  application can detect from inside;
+- **the three credentials' scopes** — a credential that gains permissions is invisible until
+  something uses them. Re-check them when the provider's console is touched and at the same
+  cadence as any other credential review.
+
+#### Owner-run repair and backfill
+
+The retention worker's normal mechanism is the **scheduled** run, at least once every 24
+hours. The same script may be invoked by hand, and that invocation is for **repair or
+backfill only** — after an incident, after a restore, or to reconcile a preparation the
+scheduled run could not finish.
+
+It is never the normal mechanism, for the reason ADR-0014 §7 gives: a lifecycle that
+depends on somebody remembering to run it is not a lifecycle. If hand-running becomes
+routine, the schedule is broken and that is the thing to fix.
+
+An owner-run invocation is subject to the same rules as the scheduled one — it obeys the
+same deadlines, the same bounded batches, and the same deletion guard — and it should be
+recorded when it changes state, because "why did this gallery move to `deleting` on a
+Sunday" is a question somebody will eventually ask.
+
+#### The exit path
+
+Both services are the site owner's, and ADR-0004's ownership boundary means leaving has to
+be possible without asking anyone's permission. Neither store holds anything that cannot
+be taken out.
+
+**Getting the data out.** The metadata store exports with the provider's own dump — it is
+ordinary PostgreSQL, thousands of rows, no media. The object store's contents are
+enumerable and downloadable with the retention-worker credential's prefix-scoped list plus
+any S3-compatible client. **What matters is what is *not* there:** the camera masters were
+never uploaded (ADR-0014 §8c — the photographer prepares everything locally), so an export
+is derivatives and delivery ZIPs, not the archive. The archive is already on the
+photographer's own machine, which is the point of that decision.
+
+**Shutting it down.** Set `PRIVATE_GALLERY_STORE=off` and redeploy: the routes stop serving
+and the reserved prefix stays reserved, so nothing else can claim it. Then delete the
+objects, drop the database, and **revoke all three credentials plus the capability
+keyring** — the keyring last, because a retained key is what would let a recovered envelope
+be opened later.
+
+**What the customer keeps.** Nothing about shutting the service down reaches a customer who
+already downloaded their ZIP; it is on their machine. A customer who has not downloaded it
+loses access at shutdown exactly as they would at the six-month expiry, which is the
+argument for telling them before it happens rather than after.
+
+**None of this has been exercised.** No deployment has provisioned either service, so every
+step here is derived from the ADR and the providers' documented capabilities rather than
+from a run. The first owner to follow it should correct it where it is wrong — that is more
+useful than leaving it aspirational.
 
 ### The Sanity webhook signing secret
 
