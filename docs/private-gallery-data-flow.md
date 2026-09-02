@@ -198,9 +198,11 @@ generation). Neither records who made a request.
 Open, and listed so the gap is visible rather than assumed:
 
 - **The two services are not provisioned.** The object store and the database,
-  their three least-privilege credentials, the bucket's default-deny policy, and
-  the live verification gate are all in [`deployment.md`](deployment.md) and are
-  the site owner's to run.
+  their three least-privilege credentials, the bucket's default-deny policy, the
+  live verification gate, the backup and restore rules, drift monitoring, and the
+  exit path are all in [`deployment.md`](deployment.md) and are the site owner's
+  to run. None of it has been exercised, because no deployment has provisioned
+  either service.
 - **The Resend account does not exist**, and its DPA and data-residency review is
   AB#117's own prerequisite work.
 - **The administrator-authentication boundary is designed but not built.**

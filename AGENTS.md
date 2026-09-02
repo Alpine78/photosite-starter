@@ -1274,6 +1274,23 @@ reads at build for the optimizer allow-list, and it fails the build if missing r
 shipping a gallery whose every photograph the browser blocks with no error to explain it.
 The value is validated as a bare `https://` origin before interpolation, because a stray
 space or semicolon in a CSP source widens the whole policy.
+**ADR-0014's action list is now closed except for the two items that need the services to
+exist** (its own item 1, and AB#130). The administrator-authentication boundary it left
+open is decided in [ADR-0015](docs/adr/0015-administrator-authentication-boundary.md),
+accepted 2026-09-02 — own reserved namespace, a `__Host-` session sharing nothing with the
+customer path, a persisted login rate limit, and a **generated** single-operator secret
+verified with `scrypt`, because §4 requires the boundary to be *stronger* than a 256-bit
+customer capability and a human-chosen passphrase is not; a passkey is the recorded upgrade
+path, deferred for its dependency and its lost-device recovery converging back on a
+configuration secret. Implementation is **AB#145's**. `docs/private-gallery-data-flow.md`
+is the processing record behind any privacy notice, and `docs/deployment.md` now carries
+the whole operational runbook: provisioning and the live gate, the object-key layout the
+IAM policies are scoped to, the worker's at-least-daily schedule and backstop policy, the
+backup rules for both stores with §7's **worker-runs-first restore gate** (a backup taken
+before an expiry and restored after it brings a closed gallery back accessible), drift
+monitoring, owner-run repair, and the exit path. **None of that has been exercised** — no
+deployment has provisioned either service, and every one of those documents says so rather
+than reading as though it had.
 Everything else is unbuilt: the ZIP generation, the owner-run upload
 CLI, the retention worker's IO, and the concrete object-store/Postgres providers with their
 live provisioning gate (the owner-run runbook for those two services

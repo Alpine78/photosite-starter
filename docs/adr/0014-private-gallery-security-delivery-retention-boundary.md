@@ -1194,7 +1194,7 @@ a per-deployment call, with UpCloud as the reference.
 6. [x] **`buildSitemapPaths`**: add a test asserting the private namespace never enters
    the sitemap. *Done (AB#29, PR #102) — `src/lib/sitemap.test.ts`, across three different
    configured prefixes so the assertion is about the namespace rather than one spelling.*
-7. [ ] **`.env.example` and `docs/deployment.md`**: document the validated server-only
+7. [x] **`.env.example` and `docs/deployment.md`**: document the validated server-only
    `PRIVATE_GALLERY_CAPABILITY_KEYS` keyring (base64-encoded **256-bit random** AES keys)
    and `PRIVATE_GALLERY_CAPABILITY_ACTIVE_KEY_ID` (request-time Sensitive,
    per-environment, never `NEXT_PUBLIC_`; old keys retained through the §3 scan), the
@@ -1206,15 +1206,29 @@ a per-deployment call, with UpCloud as the reference.
    write/multipart access with no read/delete/list/ACL/policy permission. The CLI credential
    lives only on the photographer's machine (or a one-off provisioning run), never in a
    deployed environment — the same posture `docs/sanity-seeding.md` takes for
-   `SANITY_SEED_TOKEN`.
+   `SANITY_SEED_TOKEN`. *Done (AB#29, 2026-09-02): the keyring and its generation command,
+   the active key id, the object-store endpoint/region/bucket/key-prefix, the Postgres
+   connection, the route prefix, and all three credentials as a table naming which
+   environment each may live in — with the CLI credential marked as the photographer's
+   machine only. `PRIVATE_GALLERY_S3_ENDPOINT`'s additional build-time role is recorded
+   there too (item 4).*
 8. [x] **`docs/architecture/application-boundaries.d2` and `system-context.d2`**: the
    private route group, the private-gallery adapter node, the private object store, and
    the private Postgres are added as dashed `planned` nodes with `pending-flow` edges in
    this ADR's change (both SVGs regenerated). AB#29 makes them solid.
    `deployment-flow.d2` is unchanged — no deploy step operates yet.
-9. [ ] **`docs/deployment.md` and the AB#118 handoff runbook**: provisioning, backup /
+9. [x] **`docs/deployment.md` and the AB#118 handoff runbook**: provisioning, backup /
    PITR, the mandatory at-least-daily retention-worker schedule, owner-run repair /
-   backfill, drift monitoring, and the exit path for both new services.
+   backfill, drift monitoring, and the exit path for both new services. *Done (AB#29,
+   2026-09-02). The restore section states §7's **worker-runs-first gate** as a gate with
+   its reason — a backup taken before an expiry and restored after it brings a closed
+   gallery back accessible — and requires a tested restore recorded against AB#29 rather
+   than assumed. Drift names the one thing the worker asserts automatically (the backstop
+   policy) and the two it cannot (the bucket's default-deny posture, the credential
+   scopes). The exit path covers export, shutdown order — keyring revoked **last**, since a
+   retained key is what would open a recovered envelope — and what a customer keeps.
+   **Written from the ADR and the providers' documented capabilities, not from a run:** no
+   deployment has provisioned either service, and the document says so.*
 10. [x] A privacy-notice section (the deployment owner's, per ADR-0004's "not a legal
     conclusion") for the access-session cookie and the private-gallery data flow, sibling
     to `docs/contact-data-flow.md`. *Done (AB#29, 2026-09-02):
