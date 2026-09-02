@@ -2,13 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 
 import type {
   PrivateGallery,
+  PrivateGalleryPlacement,
   PrivateGalleryCapability,
   PrivateGallerySession,
 } from "@/lib/private-gallery";
 import {
   authorizePrivateGalleryView,
   exchangePrivateGalleryCapability,
+  listPrivateGalleryItems,
 } from "@/lib/private-gallery-access";
+import { PRIVATE_GALLERY_ITEM_LIMITS } from "@/lib/private-gallery-item";
 import {
   generateCapabilitySecret,
   generateGalleryHandle,
@@ -397,12 +400,14 @@ async function viewFixture(
   const findGalleryById = vi.fn(async (id: string) =>
     id === gallery.galleryId ? gallery : undefined,
   );
+  const listPlacements = vi.fn(async () => [] as PrivateGalleryPlacement[]);
 
   return {
     gallery,
     rows,
     findGalleryById,
-    deps: { sessionStore, viewStore: { findGalleryById } },
+    listPlacements,
+    deps: { sessionStore, viewStore: { findGalleryById, listPlacements } },
     header: `${PRIVATE_GALLERY_SESSION_COOKIE_NAME}=${cookie.value}`,
     cookieValue: cookie.value,
   };
@@ -613,5 +618,73 @@ describe("authorizePrivateGalleryView", () => {
     expect(serialized).not.toContain(VIEW_GALLERY.galleryHandle);
     expect(serialized).not.toContain(f.cookieValue);
     expect(serialized).not.toContain(f.rows[0]?.sessionIdHash);
+  });
+});
+
+describe("listPrivateGalleryItems", () => {
+  const placement = (
+    overrides: Partial<PrivateGalleryPlacement> = {},
+  ): PrivateGalleryPlacement => ({
+    galleryId: VIEW_GALLERY.galleryId,
+    placementId: "placement-1",
+    objectKey: "private/g/1.webp",
+    order: 1,
+    derivativeKind: "delivery-preview",
+    nominalBytes: 1_000_000,
+    width: 2048,
+    height: 1365,
+    ...overrides,
+  });
+
+  it("projects the store's page, keyed by the gallery it was given", async () => {
+    const f = await viewFixture();
+    f.listPlacements.mockResolvedValueOnce([
+      placement({ placementId: "a" }),
+      placement({ placementId: "b", width: 1365, height: 2048 }),
+    ]);
+
+    const items = await listPrivateGalleryItems(f.deps.viewStore, f.gallery);
+
+    expect(items).toEqual([
+      { itemId: "a", width: 2048, height: 1365, derivativeKind: "delivery-preview" },
+      { itemId: "b", width: 1365, height: 2048, derivativeKind: "delivery-preview" },
+    ]);
+    expect(f.listPlacements).toHaveBeenCalledWith(
+      VIEW_GALLERY.galleryId,
+      PRIVATE_GALLERY_ITEM_LIMITS.maxPageSize,
+    );
+  });
+
+  it("carries no object key out of the store row", async () => {
+    const f = await viewFixture();
+    f.listPlacements.mockResolvedValueOnce([placement()]);
+
+    const items = await listPrivateGalleryItems(f.deps.viewStore, f.gallery);
+
+    expect(JSON.stringify(items)).not.toContain("private/g/1.webp");
+  });
+
+  it("refuses a store that ignored the page bound", async () => {
+    // Two locks on the same bound: the store's `limit` and the projection's own
+    // refusal. A store that returned more is a defect, and a silently short
+    // gallery is exactly what must not happen instead.
+    const f = await viewFixture();
+    f.listPlacements.mockResolvedValueOnce(
+      Array.from({ length: PRIVATE_GALLERY_ITEM_LIMITS.maxPageSize + 1 }, (_, i) =>
+        placement({ placementId: `p-${i}` }),
+      ),
+    );
+
+    await expect(
+      listPrivateGalleryItems(f.deps.viewStore, f.gallery),
+    ).rejects.toThrow();
+  });
+
+  it("answers an empty gallery with an empty page", async () => {
+    const f = await viewFixture();
+
+    await expect(
+      listPrivateGalleryItems(f.deps.viewStore, f.gallery),
+    ).resolves.toEqual([]);
   });
 });

@@ -41,6 +41,7 @@ import { randomBytes } from "node:crypto";
 import type {
   PrivateGallery,
   PrivateGalleryCapability,
+  PrivateGalleryPlacement,
   PrivateGallerySession,
 } from "@/lib/private-gallery";
 import {
@@ -70,6 +71,70 @@ export const MEMORY_GALLERY_CAPABILITY =
   Buffer.alloc(32, 0x2d).toString("base64url");
 
 const MEMORY_GALLERY_ID = "memory-fixture-gallery";
+
+/**
+ * The fixture's photographs, as placements.
+ *
+ * Deliberately mixed shapes — landscape, portrait, square, and one panorama —
+ * because the one thing this fixture exists to exercise before any byte can be
+ * delivered is that a frame is reserved at its **own** ratio. A set of
+ * uniformly-shaped items would make a cropping grid look correct.
+ *
+ * The dimensions sit inside §8e's 2 048 px ceiling, and the byte sizes are
+ * plausible web derivatives, so the projection's read-time bounds are exercised
+ * by real-looking values rather than round numbers that happen to pass.
+ */
+const MEMORY_PLACEMENTS: readonly Omit<PrivateGalleryPlacement, "galleryId">[] = [
+  {
+    placementId: "memory-placement-01",
+    objectKey: "memory/preview/01.webp",
+    order: 1,
+    derivativeKind: "delivery-preview",
+    nominalBytes: 1_482_000,
+    width: 2048,
+    height: 1365,
+    alt: "Landscape frame",
+  },
+  {
+    placementId: "memory-placement-02",
+    objectKey: "memory/preview/02.webp",
+    order: 2,
+    derivativeKind: "delivery-preview",
+    nominalBytes: 1_268_400,
+    width: 1365,
+    height: 2048,
+    alt: "Portrait frame",
+  },
+  {
+    placementId: "memory-placement-03",
+    objectKey: "memory/preview/03.webp",
+    order: 3,
+    derivativeKind: "delivery-preview",
+    nominalBytes: 1_104_900,
+    width: 1600,
+    height: 1600,
+    alt: "Square frame",
+  },
+  {
+    placementId: "memory-placement-04",
+    objectKey: "memory/preview/04.webp",
+    order: 4,
+    derivativeKind: "delivery-preview",
+    nominalBytes: 1_930_200,
+    width: 2048,
+    height: 768,
+    alt: "Panorama frame",
+  },
+  {
+    placementId: "memory-placement-05",
+    objectKey: "memory/preview/05.webp",
+    order: 5,
+    derivativeKind: "watermarked-proof",
+    nominalBytes: 872_300,
+    width: 1800,
+    height: 1200,
+  },
+];
 const MEMORY_GALLERY_GENERATION = 1;
 
 export type PrivateGalleryMemoryStore = {
@@ -183,12 +248,24 @@ function build(now: Date): PrivateGalleryMemoryStore {
     },
   };
 
-  // A point read by id, matching the seam's contract. It answers only for the
+  const placements: readonly PrivateGalleryPlacement[] = MEMORY_PLACEMENTS.map(
+    (placement) => ({ ...placement, galleryId: gallery.galleryId }),
+  );
+
+  // Point reads by id, matching the seam's contract. They answer only for the
   // one fixture gallery — a handle a visitor invented resolves to nothing here
   // just as it would resolve to no row in Postgres.
   const viewStore: PrivateGalleryViewStore = {
     async findGalleryById(galleryId) {
       return galleryId === gallery.galleryId ? gallery : undefined;
+    },
+    async listPlacements(galleryId, limit) {
+      if (galleryId !== gallery.galleryId) return [];
+      // Ordered by the photographer's authored `order`, and bounded by the
+      // caller's limit — the two properties a Postgres adapter has to reproduce.
+      return [...placements]
+        .sort((a, b) => a.order - b.order)
+        .slice(0, limit);
     },
   };
 

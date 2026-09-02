@@ -13,8 +13,11 @@ import {
   authorizePrivateGalleryView,
   getPrivateGalleryStores,
   isPrivateGalleryHandle,
+  listPrivateGalleryItems,
   type PrivateGallery,
+  type PrivateGalleryItem,
 } from "@/lib/private-gallery-access";
+import { PrivateGalleryGrid } from "@/components/private-gallery-grid";
 
 /**
  * The one address a private gallery link has, serving two documents (ADR-0014
@@ -61,14 +64,15 @@ export default async function PrivateGalleryPage({
   if (!isPrivateGalleryHandle(handle)) notFound();
 
   const labels = getBuiltInLabels(localeRoutes.defaultLocale).privateGallery;
-  const gallery = await resolveAuthorizedGallery(handle);
+  const authorized = await resolveAuthorizedGallery(handle);
 
-  return gallery === undefined ? (
-    <PrivateGalleryBootstrap labels={labels} />
-  ) : (
+  if (authorized === undefined) return <PrivateGalleryBootstrap labels={labels} />;
+
+  return (
     <PrivateGalleryView
       labels={labels}
-      gallery={gallery}
+      gallery={authorized.gallery}
+      items={authorized.items}
       locale={localeRoutes.defaultLocale}
     />
   );
@@ -86,9 +90,13 @@ export default async function PrivateGalleryPage({
  * visitor state, so it is logged and then treated as "not authorized" — the
  * bootstrap document is a safe answer to every question this page is asked.
  */
-async function resolveAuthorizedGallery(
-  handle: string,
-): Promise<PrivateGallery | undefined> {
+async function resolveAuthorizedGallery(handle: string): Promise<
+  | {
+      readonly gallery: PrivateGallery;
+      readonly items: readonly PrivateGalleryItem[];
+    }
+  | undefined
+> {
   let stores;
   try {
     stores = getPrivateGalleryStores();
@@ -121,7 +129,24 @@ async function resolveAuthorizedGallery(
     return undefined;
   }
 
-  return outcome.gallery;
+  // The item read is deliberately *after* authorization, not beside it: a
+  // request that is not authorized must never reach a placement row at all.
+  // A store or projection defect here is a defect, not a visitor state, so it
+  // is logged and the page falls back to the unauthorized document rather than
+  // rendering a gallery that is missing photographs nobody would know about.
+  try {
+    return {
+      gallery: outcome.gallery,
+      items: await listPrivateGalleryItems(stores.viewStore, outcome.gallery),
+    };
+  } catch {
+    logPrivateGalleryViewEvent({
+      correlationId: createCorrelationId(),
+      state: "rejected",
+      errorClass: "unexpected",
+    });
+    return undefined;
+  }
 }
 
 /** The credential-free document. It holds no gallery data because it has none. */
@@ -159,23 +184,26 @@ function PrivateGalleryBootstrap({ labels }: { labels: Labels }) {
 }
 
 /**
- * The authorized view.
+ * The authorized view: the access window, and the gallery's frames.
  *
- * It renders what the gallery record actually knows today — that it is open,
- * and until when. The photographs are a later slice: they need the private
- * object store and §5 Stage 2's per-asset signed URLs, and neither exists yet.
- * Saying so plainly is deliberate; an empty grid would claim the gallery had
- * been delivered and found to contain nothing.
+ * The frames are reserved at each photograph's true ratio but hold no bytes —
+ * §5 Stage 2's signed preview URLs need the object store this deployment has
+ * not provisioned. The page says so in words rather than leaving a grid of
+ * empty boxes to be read as "your gallery is empty", which is a different and
+ * alarming claim; a genuinely empty gallery has its own separate wording.
  *
- * No handle, no session identifier, and no internal gallery id is rendered.
+ * No handle, no session identifier, no internal gallery id, and no object key
+ * is rendered — `projectPrivateGalleryItem` is what guarantees the last one.
  */
 function PrivateGalleryView({
   labels,
   gallery,
+  items,
   locale,
 }: {
   labels: Labels;
   gallery: PrivateGallery;
+  items: readonly PrivateGalleryItem[];
   locale: string;
 }) {
   const expiresAt = gallery.accessExpiresAt;
@@ -198,6 +226,7 @@ function PrivateGalleryView({
         </p>
       )}
       <p className="text-body">{labels.deliveryPending}</p>
+      <PrivateGalleryGrid items={items} emptyLabel={labels.noPhotographs} />
     </main>
   );
 }
