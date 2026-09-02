@@ -203,9 +203,15 @@ Open, and listed so the gap is visible rather than assumed:
   the site owner's to run.
 - **The Resend account does not exist**, and its DPA and data-residency review is
   AB#117's own prerequisite work.
-- **The administrator-authentication boundary is not designed** (ADR-0014 §4,
-  action item 3): the mechanism is deliberately open, and only the separation
-  from the customer path is fixed.
+- **The administrator-authentication boundary is designed but not built.**
+  [ADR-0015](adr/0015-administrator-authentication-boundary.md), accepted
+  2026-09-02, decides it: its own reserved namespace, a `__Host-` administrator
+  session sharing nothing with the customer path, a persisted login rate limit,
+  and a generated single-operator secret verified with scrypt. Nothing of it
+  exists yet, so no administrator session cookie is set by any deployment. When
+  it is built, this file gains that cookie in the section above and the record's
+  accepted residuals — a bearer credential with no second factor, and no audit
+  trail of administrative changes — belong here too.
 - **No visitor-facing privacy notice exists for the private gallery**, as above.
 - **This file has not been reviewed against a running deployment**, because there
   is not one. Every retention and processor claim here describes intended
