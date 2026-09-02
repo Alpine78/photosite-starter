@@ -378,6 +378,46 @@ already answers with `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow
 to behave privately *before* it has content, or the deployment that adds the first route
 is also the first one crawled.
 
+#### The administrator credential
+
+`PRIVATE_GALLERY_ADMIN_SECRET_HASH` (ADR-0015 §4) is the whole administrator identity
+mechanism: a `scrypt` hash of a **generated** secret, carrying its own salt and cost
+parameters:
+
+```
+scrypt$1$32768$8$1$<salt>$<hash>
+```
+
+Produce it with the repository's own command, which generates the secret, hashes it, and
+verifies its own output before printing anything:
+
+```bash
+npm run admin:secret
+```
+
+It prints two values and writes neither to disk. The **secret** goes into the operator's
+password manager — it is printed once and is not recoverable. The **hash** becomes this
+Sensitive environment variable on the deployment.
+
+- **A memorable passphrase is not an acceptable value.** ADR-0015 §4 makes that a
+  requirement of the decision rather than advice, because the boundary has to be
+  *stronger* than a 256-bit customer capability, and there is deliberately no
+  password-reset flow to fall back on. The command generates the secret for you; if you
+  supply your own with `--secret`, it enforces a length floor.
+- **Rotation and recovery are the same operation**: change the variable, redeploy. That
+  ends every live administrator session immediately (ADR-0015 §2), because each session
+  row stores a digest of the credential it was minted against and every request compares
+  it. There is no table to clear and nothing to remember.
+- It is read **lazily at request time**, never at build, so a deployment that has not
+  provisioned administration still builds — the same posture `GALLERY_CURSOR_SIGNING_KEY`
+  has. Administration simply refuses every login until the value is set.
+- Never `NEXT_PUBLIC_`, which is refused unconditionally at two layers.
+
+The parameters are ADR-0015 §4's `N = 2^15, r = 8, p = 1`, roughly 74 ms of CPU per
+verification. A deployment may raise the cost and never lower it; the parser enforces that
+floor. There is a ceiling too, so a mistyped `N` fails the command rather than exhausting
+memory inside a login.
+
 #### Consider platform access control in front of the administrator namespace
 
 The administrator login will carry a **deployment-wide** persisted rate limit (ADR-0015

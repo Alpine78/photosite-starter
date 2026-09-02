@@ -415,7 +415,7 @@ describe("reading a session", () => {
       "a malformed credential generation",
       { credentialGeneration: "not a token" },
     ],
-  ])("refuses a stored row with %s", async (_label, patch) => {
+  ])("refuses a stored row with %s as a defect, not a stale cookie", async (_label, patch) => {
     const { store, rows } = makeStore();
     const { cookie } = await createPrivateGalleryAdminSession(store, {
       credentialGeneration: GENERATION,
@@ -427,7 +427,36 @@ describe("reading a session", () => {
       await asyncReason(() =>
         readPrivateGalleryAdminSession(store, cookie.value, NOW),
       ),
-    ).toBe("invalid-session");
+    ).toBe("malformed-record");
+  });
+
+  it("keeps a corrupt row apart from a cookie with no row", async () => {
+    // Both refuse the request identically, but only one is something an
+    // operator has to act on, and the reason is what reaches their log.
+    const { store, rows } = makeStore();
+    const { cookie } = await createPrivateGalleryAdminSession(store, {
+      credentialGeneration: GENERATION,
+      now: NOW,
+    });
+
+    const absent = await asyncReason(() =>
+      readPrivateGalleryAdminSession(
+        store,
+        generatePrivateGalleryAdminSessionId(),
+        NOW,
+      ),
+    );
+
+    rows[0] = {
+      ...(rows[0] as PrivateGalleryAdminSession),
+      createdAt: new Date("nope"),
+    };
+    const corrupt = await asyncReason(() =>
+      readPrivateGalleryAdminSession(store, cookie.value, NOW),
+    );
+
+    expect(absent).toBe("invalid-session");
+    expect(corrupt).toBe("malformed-record");
   });
 });
 

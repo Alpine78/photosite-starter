@@ -1346,11 +1346,36 @@ a global counter means sustained attempts can deny the operator a login until th
 rolls over. ADR-0015 does not discuss it; `docs/deployment.md` now does, together with the
 platform-level mitigation, because the application-level alternatives are worse. A
 throttled attempt and a wrong credential must answer identically — same status, same body,
-**no `Retry-After`** — so the refusal reason is operational-log-only. §4's scrypt-verified
-secret and the routes themselves are the remaining slices; **no administrator credential is
-read, verified, or stored anywhere today**, and nothing administrative is in the
-`private-gallery-access.ts` facade yet, because there is no credential generation to compare
-an authorized request against.
+**no `Retry-After`** — so the refusal reason is operational-log-only. **§4 completes the boundary**: `private-gallery-admin-credential-format.ts` owns the
+encoding — `scrypt$1$<N>$<r>$<p>$<salt>$<hash>`, self-describing so raising the cost later
+cannot silently invalidate a configured value — with its parsing, bounds, constant-time
+verification, and the session generation digest; `private-gallery-admin-credential.ts` is
+the server-only half that resolves `PRIVATE_GALLERY_ADMIN_SECRET_HASH` lazily, refuses a
+`NEXT_PUBLIC_` mirror, and reports a missing value distinctly from a malformed one. The
+split exists because `scripts/generate-admin-secret.mts` (`npm run admin:secret`) runs under
+plain Node, where `server-only`'s CommonJS entry throws by design — and a security format
+with two implementations is exactly the drift avoided elsewhere. That command generates the
+secret rather than letting an operator choose one, which is how §4's "a memorable passphrase
+is not an acceptable value" becomes executable rather than advisory; it verifies its own
+output before printing and writes nothing to disk. One measured detail would otherwise have
+broken every login: §4's own parameters need `128·N·r` = exactly 33 554 432 bytes and Node's
+default `maxmem` is exactly that, with OpenSSL rejecting at `>=`, so **the ADR's parameters
+throw with the default** — `maxmem` is always passed explicitly, and the parameter ceilings
+exist so that derived value can never ask for a gigabyte from a typo. The generation digest
+is SHA-256 over the *encoded credential*, never the stored hash: it lives in the session
+table and every backup, and the scrypt hash is the offline-attack target.
+With §4 present the ordering is complete, so administration finally joins the
+`private-gallery-access.ts` facade: `attemptPrivateGalleryAdminLogin` (throttle, *then*
+resolve the credential, *then* verify, *then* mint — a route that verified first would be
+offering unmetered CPU, and every individual piece would still pass its own tests) and
+`authorizePrivateGalleryAdminRequestSession`, which re-resolves the credential on every
+request so rotation is revocation. Both never throw, and every refusal — throttled, wrong
+secret, unprovisioned, malformed credential, stale session — is one indistinguishable answer
+with the class kept for the operational log. Building it also refined §2: a corrupt session
+row now classifies as `malformed-record` rather than `invalid-session`, because the facade
+needed to tell "a browser left open" from "your table is corrupt" and was otherwise reduced
+to matching an error message. **The routes and the administrator UI are all that remain of
+AB#145's boundary work.**
 `docs/private-gallery-data-flow.md`
 is the processing record behind any privacy notice, and `docs/deployment.md` now carries
 the whole operational runbook: provisioning and the live gate, the object-key layout the
@@ -1711,6 +1736,7 @@ npm run diagrams  # regenerate docs/architecture/*.svg from their .d2 sources
 npm run diagrams:check # CI gate: sources compile and committed SVGs are current
 npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
 npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy benchmark (owner-run for the live matrix)
+npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
 ```
 
 `npm run test:e2e` needs the browsers once: `npx playwright install chromium webkit`

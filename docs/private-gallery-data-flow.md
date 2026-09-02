@@ -115,10 +115,16 @@ slices. Nothing about a customer is stored in it or alongside it.
 | `Domain` | **absent** | Required by `__Host-` |
 | Lifetime | 2 hours by default, 12 hours maximum, absolute | No sliding renewal: using the session never extends it |
 
-The login that will mint it is rate-limited by a counter holding **a window start
+The login that mints it is rate-limited by a counter holding **a window start
 and an attempt count, and nothing else** — no address, no client identifier, no
 record of who tried. It is one row for the whole deployment, so there is nothing
 in it that is about a person.
+
+The credential itself is a `scrypt` hash in the deployment's own configuration
+(`PRIVATE_GALLERY_ADMIN_SECRET_HASH`). It is not a customer's data and not a
+record of anyone: there is one operator, no user table, no email address, and no
+account to enumerate. Nothing about a login attempt — successful or not — is
+stored beyond that counter.
 
 Two properties are worth stating plainly, because they are what a reader of this
 record would otherwise have to take on trust:
