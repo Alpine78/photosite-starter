@@ -72,6 +72,7 @@ const eslintConfig = defineConfig([
                 "@/lib/private-gallery-item",
                 "@/lib/private-gallery-object-key",
                 "@/lib/private-gallery-upload",
+                "@/lib/private-gallery-upload-completion",
                 "@/lib/private-gallery-memory-store",
                 "@/lib/private-gallery-retention",
               ],
