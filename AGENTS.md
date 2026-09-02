@@ -1675,6 +1675,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `docs/theme-contract.md` | whoever restyles a clone or builds a theme preset (AB#37) | a semantic design token is added, renamed, or revalued, the light/dark mechanism changes, or a surface moves in or out of the "stays explicit" list |
 | `docs/asset-inventory.md` | licensing audit | any third-party asset, font, or shipped dependency is added or removed |
 | `docs/contact-data-flow.md` | the site owner, a visitor who asks, and the AB#117 launch review | the contact form's fields, delivery path, processors, logs, or retention change |
+| `docs/private-gallery-data-flow.md` | the site owner, a customer who asks, and the AB#117 launch review | a private gallery's stored data, the access link or cookie, its processors, logs, or retention change |
 | `docs/sanity-setup.md` | the site owner and whoever provisions a clone's CMS | the Sanity connection settings, ownership/transfer story, perspective, schemas, media policy, or failure behavior change |
 | `docs/sanity-seeding.md` | the site owner and whoever seeds a clone's sample or first content | the seed script's fixture content, id/idempotency contract, write-token story, verification steps, or go-live cleanup checklist change |
 | `sanity/README.md` | whoever wires a clone's Studio to these schemas | a document type is added, or how the Studio consumes them changes |
