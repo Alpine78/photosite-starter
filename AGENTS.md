@@ -1323,9 +1323,34 @@ gates irreversible operations (delete, revoke) to a five-minute window, refusing
 future-dated value rather than reading it as "very recent". A stored row with a malformed
 credential digest classifies as `invalid-session`, not `invalid-parameter`, because the
 reason reaches the operational log and a corrupt row must not point an operator at their own
-call site. §3's persisted login rate limit, §4's scrypt-verified secret, and the routes
-themselves are the remaining slices; **no administrator credential is read, verified, or
-stored anywhere today.**
+call site. **§3 is built too**: `src/lib/private-gallery-admin-login.ts` carries the login's request
+boundary and its two throttling layers, everything that must happen *before* a credential
+is ever verified. The request boundary is reused rather than reinvented — a thin wrapper
+over the same `checkContactRequestHeaders` the contact and enquiry endpoints already pass
+through, so the administrator path cannot drift from a boundary reviewed twice. Layer 1 is
+an in-process per-IP limiter in its own instance (a login never spends the contact, enquiry,
+or exchange allowance); layer 2 is the persisted counter ADR-0015 §3 calls "the actual
+defence", with the same saturating fixed-window semantics
+`evaluatePrivateGalleryExchangeRate` already established, throwing on a corrupt row rather
+than resetting — this is the one counter whose failing open would make an expensive
+operation free. Two things about it are deliberate and stated rather than implied. It is
+**keyed globally**, one row for the whole deployment: administration has no gallery row to
+own a counter and no account to key on, so a global key is both the honest shape and
+trivially bounded storage, where a per-client persisted counter would reintroduce exactly
+the unbounded key space ADR-0014 §3 avoided. And what it actually bounds is **`scrypt` CPU
+cost**, not guessing — §4 requires a generated 256-bit secret, so no rate on a human
+timescale affects that search space, while thirty attempts per fifteen minutes caps the
+endpoint at roughly two seconds of CPU per window and also bounds the case the rule cannot
+enforce, an operator who configures a passphrase anyway. The accepted cost is availability:
+a global counter means sustained attempts can deny the operator a login until the window
+rolls over. ADR-0015 does not discuss it; `docs/deployment.md` now does, together with the
+platform-level mitigation, because the application-level alternatives are worse. A
+throttled attempt and a wrong credential must answer identically — same status, same body,
+**no `Retry-After`** — so the refusal reason is operational-log-only. §4's scrypt-verified
+secret and the routes themselves are the remaining slices; **no administrator credential is
+read, verified, or stored anywhere today**, and nothing administrative is in the
+`private-gallery-access.ts` facade yet, because there is no credential generation to compare
+an authorized request against.
 `docs/private-gallery-data-flow.md`
 is the processing record behind any privacy notice, and `docs/deployment.md` now carries
 the whole operational runbook: provisioning and the live gate, the object-key layout the

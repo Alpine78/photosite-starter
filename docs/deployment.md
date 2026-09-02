@@ -378,6 +378,29 @@ already answers with `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow
 to behave privately *before* it has content, or the deployment that adds the first route
 is also the first one crawled.
 
+#### Consider platform access control in front of the administrator namespace
+
+The administrator login will carry a **deployment-wide** persisted rate limit (ADR-0015
+§3): thirty attempts per fifteen minutes, for the whole site rather than per client. That
+is the right shape for what it protects — one operator, one shared CPU budget, and a
+counter whose key nothing a caller sends can influence, so it cannot be used to grow a
+table — but it has an accepted cost the ADR does not discuss:
+
+> **Sustained attempts from anywhere can exhaust the window and leave the operator unable
+> to log in until it rolls over.** The failure mode is a wait of at most fifteen minutes,
+> not an escalating lockout, and it does not affect customers: a private gallery link and
+> an already-issued administrator session both keep working.
+
+The reason it is accepted rather than solved in the application is that the alternatives
+are worse. A per-client persisted counter reintroduces the unbounded key space ADR-0014 §3
+deliberately avoided for the capability exchange, and rotating addresses defeat it anyway.
+
+If that residual matters for a given deployment, the fix belongs at the platform rather
+than in this repository: restrict the administrator namespace at the edge — an IP allow
+list, or the host's own access control — so the endpoint is not reachable from the open
+internet in the first place. Nothing in the application depends on that being configured,
+and nothing about it is required for correctness; it is a defence against a nuisance.
+
 **One exception to the request-time rule.** `PRIVATE_GALLERY_S3_ENDPOINT` is additionally
 read at **build** time, and only when `PRIVATE_GALLERY_STORE=enabled`. The private routes
 grant that origin — and only that origin — in their Content-Security-Policy `img-src`
