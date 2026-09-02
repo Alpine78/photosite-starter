@@ -25,6 +25,7 @@ const FAR_FUTURE = new Date("2027-03-02T12:00:00.000Z");
 const GALLERY: PrivateGallery = {
   galleryId: "gallery-1",
   galleryHandle: "handle-1",
+  kind: "delivery",
   state: "published",
   capabilityGeneration: 2,
   createdAt: new Date("2026-08-01T00:00:00.000Z"),

@@ -120,6 +120,7 @@ function scenario(
   const gallery: PrivateGallery = {
     galleryId,
     galleryHandle: handle,
+    kind: "delivery",
     state: "published",
     capabilityGeneration: generation,
     createdAt: new Date(0),
