@@ -83,6 +83,7 @@ function build(
   const gallery: PrivateGallery = {
     galleryId,
     galleryHandle: handle,
+    kind: "delivery",
     state: "published",
     capabilityGeneration: generation,
     createdAt: new Date(0),
@@ -372,6 +373,7 @@ describe("exchangePrivateGalleryCapability", () => {
 const VIEW_GALLERY: PrivateGallery = {
   galleryId: "gallery-under-test",
   galleryHandle: generateGalleryHandle(),
+  kind: "delivery",
   state: "published",
   capabilityGeneration: 3,
   createdAt: new Date(NOW.getTime() - DAY),

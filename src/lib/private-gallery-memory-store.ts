@@ -161,6 +161,7 @@ function build(now: Date): PrivateGalleryMemoryStore {
   const gallery: PrivateGallery = {
     galleryId: MEMORY_GALLERY_ID,
     galleryHandle: MEMORY_GALLERY_HANDLE,
+    kind: "delivery",
     state: "published",
     capabilityGeneration: MEMORY_GALLERY_GENERATION,
     createdAt: now,

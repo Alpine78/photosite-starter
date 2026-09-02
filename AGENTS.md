@@ -1214,6 +1214,21 @@ success the outcome names the ZIP pointer swap and, when it supersedes one, how 
 predecessor must be retained — the longest a ZIP URL can live plus a clock-skew margin
 (this slice's hour, not an ADR number), because without it a regeneration would break an
 in-flight download or `Range` resume minted against the old immutable key.
+**Readiness is per gallery kind** (§8c), which the model could not express until now: a
+`PrivateGalleryKind` discriminant joins the gallery, and
+`src/lib/private-gallery-readiness.ts` decides whether the *verified* objects satisfy it —
+evidence from the completion step, not what a plan intended. A **delivery** gallery is not
+ready without both a derivative and a verified ZIP that `activeZipObjectKey` actually
+names; publishing one without it hands a customer a gallery whose whole promise is missing,
+indistinguishable to them from one that had not finished loading. The kind is stored rather
+than inferred from `activeZipObjectKey`, because a delivery gallery *before* its ZIP is
+verified and a proof gallery that will never have one look identical by that field, and
+guessing would publish the first as the second. **Proof readiness is refused, not guessed**:
+§8c gives it three conditions this story owns none of — watermarked derivatives, a frozen
+pricing snapshot, and every proof's permanent `001`-based reference — so a "ready" here on
+the one visible condition would look like a decision AB#130 has not made. Every blocker is
+reported at once, because an administrator told about one missing thing at a time is how a
+publication takes four attempts.
 Everything else is unbuilt: the signer itself, the ZIP generation, the owner-run upload
 CLI, the retention worker's IO, and the concrete object-store/Postgres providers with their
 live provisioning gate (the owner-run runbook for those two services

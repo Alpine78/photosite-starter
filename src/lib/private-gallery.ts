@@ -147,9 +147,22 @@ export type PrivateGalleryDerivativeKind =
  * absent for a proof gallery and for a delivery gallery before its ZIP is
  * verified.
  */
+/**
+ * Which product a gallery is (ADR-0014 §8c). The two differ in what makes them
+ * *ready*, not merely in what they display: a delivery gallery is not ready
+ * until a verified ZIP exists, and a proof gallery has no ZIP at all.
+ *
+ * A discriminant rather than an inference from `activeZipObjectKey`, because a
+ * delivery gallery before its ZIP is verified and a proof gallery that will
+ * never have one look identical by that field — and treating the first as the
+ * second would publish a delivery gallery with nothing to download.
+ */
+export type PrivateGalleryKind = "delivery" | "proof";
+
 export type PrivateGallery = {
   readonly galleryId: string;
   readonly galleryHandle: string;
+  readonly kind: PrivateGalleryKind;
   readonly state: PrivateGalleryState;
   /**
    * Bumped by every revoke, replace, and delete. A session whose generation no
