@@ -48,6 +48,8 @@ const PLACEMENT: PrivateGalleryPlacement = {
   order: 1,
   derivativeKind: "delivery-preview",
   nominalBytes: 2 * MIB,
+  width: 2048,
+  height: 1365,
 };
 
 const ZIP: PrivateGalleryZipVersion = {

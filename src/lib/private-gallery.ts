@@ -222,6 +222,27 @@ export type PrivateGalleryPlacement = {
   readonly order: number;
   readonly derivativeKind: PrivateGalleryDerivativeKind;
   readonly nominalBytes: number;
+  /**
+   * The derivative's **true intrinsic pixels** — not a display size, not a
+   * requested one.
+   *
+   * Required, because `AGENTS.md`'s no-crop rule ("gallery, preview, and hero
+   * images must always show their original aspect ratio and full frame") cannot
+   * be expressed at all without them: a layout that does not know a
+   * photograph's shape can only guess it, and guessing is cropping. They are
+   * also what reserves the right box before any byte arrives, so a gallery does
+   * not reflow as it loads. ADR-0005 makes this the rule for a public
+   * rendition; ADR-0014 §5 says it applies to a private preview "exactly as to
+   * a public one".
+   */
+  readonly width: number;
+  readonly height: number;
+  /**
+   * Alternative text, when the photographer authored some. Optional because a
+   * delivery gallery is the customer's own shoot — they know what is in it —
+   * and an invented description would be worse than none.
+   */
+  readonly alt?: string;
 };
 
 /**
