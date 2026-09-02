@@ -1229,7 +1229,35 @@ pricing snapshot, and every proof's permanent `001`-based reference — so a "re
 the one visible condition would look like a decision AB#130 has not made. Every blocker is
 reported at once, because an administrator told about one missing thing at a time is how a
 publication takes four attempts.
-Everything else is unbuilt: the signer itself, the ZIP generation, the owner-run upload
+The **presigner** is built (`src/lib/private-gallery-signed-url.ts`): hand-written SigV4
+query-string signing over `node:crypto`, which is what ADR-0014 §8a's "a small, justified
+dependency; a full cloud-vendor SDK is not required and is avoided" asks for — presigning
+is four HMACs and a string concatenation, while an SDK would bring a credential-provider
+chain, a retry layer, and a request pipeline this path wants none of. It decides nothing:
+handed the wrong key or an unbounded expiry it would faithfully sign both, which is why
+`private-gallery-delivery.ts` owns that. `uriEncode` is written out rather than delegated
+to `encodeURIComponent`, which leaves `!'()*` unencoded — AWS's own guidance is that a
+platform encoder "might not work", and one differing byte changes the canonical request and
+so the signature. Only `GET` is ever produced: a presigner that took a method would be one
+mistake from handing out a write URL for a bucket whose whole model assumes the browser
+never writes to it. Response-header overrides are signed like any other parameter, so
+`Content-Disposition: attachment` and `Cache-Control: no-store` hold for a given URL
+whatever metadata the upload set.
+**How far that is verified matters and is stated rather than blurred.** The core —
+canonical-request hashing, the string to sign, the four-step key derivation, the final HMAC
+— is pinned against **AWS's own published worked example**, reproduced exactly from its
+documented inputs to its documented signature: a real known-answer test, not the
+implementation agreeing with itself. Three other documentation sources yielded no usable
+vector, and AWS's *second* example on the same page is deliberately not pinned because its
+published signature cannot be reproduced from its published canonical request — a vector
+that does not reproduce is not a vector, and the test file records why so nobody adds it
+back believing it was overlooked. What no vector can establish is whether *this* provider
+accepts the result: §8a's provisioning gate owns that ("a presigned `GET` minted with the
+verifier credential succeeds", plus `Range` on a large object). Verified against the
+specification, unverified against the provider — different claims, and only the first is
+made. Path-style addressing is used because `PRIVATE_GALLERY_S3_ENDPOINT` is a bare origin
+rather than a bucket host; virtual-host style is a small change the live gate would settle.
+Everything else is unbuilt: the ZIP generation, the owner-run upload
 CLI, the retention worker's IO, and the concrete object-store/Postgres providers with their
 live provisioning gate (the owner-run runbook for those two services
 is in `docs/deployment.md`). **Administration — creating a gallery, publishing it, the

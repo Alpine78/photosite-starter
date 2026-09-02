@@ -68,6 +68,7 @@ const eslintConfig = defineConfig([
                 "@/lib/private-gallery-capability",
                 "@/lib/private-gallery-delivery",
                 "@/lib/private-gallery-session",
+                "@/lib/private-gallery-signed-url",
                 "@/lib/private-gallery-exchange",
                 "@/lib/private-gallery-item",
                 "@/lib/private-gallery-readiness",
@@ -78,7 +79,7 @@ const eslintConfig = defineConfig([
                 "@/lib/private-gallery-retention",
               ],
               message:
-                "Reach private client galleries through `@/lib/private-gallery-access`. The private-store credentials, domain model, capability crypto, session model, exchange, delivery authorization, item projection, object keys, upload preparation, retention rules, and development fixture store stay behind that facade, which owns the ordering a route must not reassemble — including the capability comparison (ADR-0014 §2, §3).",
+                "Reach private client galleries through `@/lib/private-gallery-access`. The private-store credentials, domain model, capability crypto, session model, exchange, delivery authorization, URL signing, item projection, object keys, upload preparation, retention rules, and development fixture store stay behind that facade, which owns the ordering a route must not reassemble — including the capability comparison (ADR-0014 §2, §3).",
             },
           ],
         },
