@@ -1024,7 +1024,8 @@ private store, and a worker-authoritative six-month retention lifecycle. The one
 canonical-rule change it makes is a scoped exception to "Public derivatives only" above,
 for an authorized gallery-link/session holder — restoring the `private or
 sales/fulfilment` clause that exception must not weaken. AB#29 (delivery + ZIP) builds on
-it in slices and stays **Active**; AB#130 (proof selection) has not started.
+it in slices and stays **Active**; **AB#145** (administration and customer notification,
+split out of AB#29 on 2026-09-02) and AB#130 (proof selection) have not started.
 
 Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no store
 adapter and no provisioned infrastructure**, so an `enabled` deployment throws on the
@@ -1062,10 +1063,33 @@ no `Retry-After` — so nothing separates an unknown handle from a throttled kno
 it is a shared environment standing in for production) whose published, non-secret link is what the
 Playwright journey and a local `npm run dev` actually exercise; it seals that fixture under
 an ephemeral per-process key and never reads the deployment keyring.
-Everything else is unbuilt: the private gallery page itself, two-stage per-request
-authorization and signed-URL minting, the owner-run upload CLI, the publication state
-machine and notification outbox, the retention worker, and the concrete
-object-store/Postgres providers with their live provisioning gate.
+That same address then serves a second document: with a session cookie that currently
+authorizes *this* gallery it renders the gallery itself, and ADR-0014 §5 Stage 1 is
+re-derived on **every** request from the cookie plus a fresh gallery read, so a revoke or a
+closed access window takes effect on the next navigation rather than whenever the session
+would have run out. The gallery is read by the **session's own `galleryId`**, never by the
+handle in the URL: a `findGalleryByHandle` would be an unauthenticated lookup primitive
+over a caller-supplied string, so the requested handle is instead compared against what the
+session already named. Every unauthorized outcome — no session, an expired one, a
+superseded capability generation, a session belonging to another gallery — renders the same
+bootstrap document, so the page is no more of an existence oracle than the exchange is. The
+authorized view is deliberately thin: it names the access window and says the photographs
+are not viewable yet, because §5 Stage 2's per-asset signed URLs need the object store that
+does not exist; an empty grid would claim the gallery had been delivered and found empty.
+Building it surfaced a defect in the fixture store that a single-process assumption had
+hidden: **Next.js compiles each route into its own server bundle, so a module imported by
+both the exchange Route Handler and the page is instantiated twice under one `next start`**
+— measured with a construction probe against a production build — which gave the two routes
+two different fixtures and made a session minted by one invisible to the other. The
+singleton is now pinned to `globalThis`, the pattern Next.js documents for a
+development-only client; the Postgres adapter keeps its state in Postgres and never had the
+problem.
+Everything else is unbuilt: two-stage per-asset authorization and signed-URL minting, the
+ZIP, the owner-run upload CLI, the retention worker, and the concrete object-store/Postgres
+providers with their live provisioning gate (the owner-run runbook for those two services
+is in `docs/deployment.md`). **Administration — creating a gallery, publishing it, the
+customer notification with its delivery state and resend, and revoking or replacing
+access — split out of AB#29 into AB#145 on 2026-09-02** and has not started.
 Validated JSON-LD structured data (AB#86) is built: `src/lib/structured-data.ts` is a pure
 builder + `</script>`-safe serializer (`<`, `>`, `&`, U+2028, U+2029 escaped — `JSON.stringify`
 alone does not, per Next.js's own guidance) rendered through the `<JsonLd>` server component.

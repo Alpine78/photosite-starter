@@ -97,6 +97,16 @@ export type BuiltInLabels = {
     readonly connected: string;
     readonly invalidLink: string;
     readonly javascriptRequired: string;
+    /** Heading of the authorized view, once a session is verified. */
+    readonly galleryHeading: string;
+    /** Names the access window's end. `{date}` is the only placeholder. */
+    readonly accessUntil: string;
+    /**
+     * The delivery surface is a later slice, so the authorized view says so
+     * rather than implying an empty gallery. Replaced, not extended, when the
+     * photographs land.
+     */
+    readonly deliveryPending: string;
   };
   readonly contact: {
     /**
@@ -370,6 +380,10 @@ const englishLabels = {
       "This link is not valid. Ask the photographer for a new one.",
     javascriptRequired:
       "This gallery needs JavaScript to open your link.",
+    galleryHeading: "Your gallery",
+    accessUntil: "This gallery stays available until {date}.",
+    deliveryPending:
+      "Your photographs are not available for viewing here yet.",
   },
   contact: {
     emailSubject: "New contact message",
@@ -504,6 +518,9 @@ const finnishLabels = {
     connected: "Gallerialinkkisi on vahvistettu.",
     invalidLink: "Tämä linkki ei kelpaa. Pyydä valokuvaajalta uusi.",
     javascriptRequired: "Tämä galleria tarvitsee JavaScriptin linkin avaamiseen.",
+    galleryHeading: "Galleriasi",
+    accessUntil: "Galleria on käytettävissä {date} asti.",
+    deliveryPending: "Valokuvasi eivät ole vielä katseltavissa täällä.",
   },
   contact: {
     emailSubject: "Uusi yhteydenotto",

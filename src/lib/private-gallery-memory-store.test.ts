@@ -146,6 +146,17 @@ describe("the fixture's own safety properties", () => {
     );
   });
 
+  it("resolves the fixture gallery by id, and nothing else", async () => {
+    const store = getPrivateGalleryMemoryStore();
+
+    await expect(
+      store.viewStore.findGalleryById(store.gallery.galleryId),
+    ).resolves.toBe(store.gallery);
+    await expect(
+      store.viewStore.findGalleryById("some-other-gallery"),
+    ).resolves.toBeUndefined();
+  });
+
   it("returns one store for the whole process", () => {
     expect(getPrivateGalleryMemoryStore()).toBe(getPrivateGalleryMemoryStore());
   });

@@ -41,8 +41,12 @@ import {
 } from "@/lib/private-gallery-exchange";
 import type { PrivateGalleryCapabilityKeyring } from "@/lib/private-gallery-config";
 import {
+  assertPrivateGallerySessionAuthorizesGallery,
   createPrivateGallerySession,
+  extractPrivateGallerySessionCookie,
   PrivateGallerySessionError,
+  readPrivateGallerySession,
+  type PrivateGallerySessionErrorReason,
   type PrivateGallerySessionStore,
 } from "@/lib/private-gallery-session";
 
@@ -50,10 +54,13 @@ import type { ContactRateLimiter } from "@/lib/contact-rate-limit";
 import { getPrivateGalleryDeployment } from "@/lib/private-gallery-deployment";
 import { getPrivateGalleryMemoryStore } from "@/lib/private-gallery-memory-store";
 import type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
-import type { PrivateGallerySession } from "@/lib/private-gallery";
+import type {
+  PrivateGallery,
+  PrivateGallerySession,
+} from "@/lib/private-gallery";
 
 export type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
-export type { PrivateGallerySession } from "@/lib/private-gallery";
+export type { PrivateGallery, PrivateGallerySession } from "@/lib/private-gallery";
 export { createPrivateGalleryExchangeIpLimiter };
 export { deriveClientKey } from "@/lib/contact-rate-limit";
 
@@ -213,6 +220,7 @@ export async function exchangePrivateGalleryCapability(
 export type PrivateGalleryStores = {
   readonly exchangeStore: PrivateGalleryExchangeStore;
   readonly sessionStore: PrivateGallerySessionStore;
+  readonly viewStore: PrivateGalleryViewStore;
   readonly keyring: PrivateGalleryCapabilityKeyring;
 };
 
@@ -244,6 +252,7 @@ export function getPrivateGalleryStores(): PrivateGalleryStores {
     return {
       exchangeStore: memory.exchangeStore,
       sessionStore: memory.sessionStore,
+      viewStore: memory.viewStore,
       keyring: memory.keyring,
     };
   }
@@ -257,4 +266,149 @@ export function getPrivateGalleryStores(): PrivateGalleryStores {
   throw new PrivateGalleryStoresUnavailableError(
     'PRIVATE_GALLERY_STORE is "off"; a route must answer notFound() before asking for stores.',
   );
+}
+
+// ---------------------------------------------------------------------------
+// Session-authorized gallery view (ADR-0014 §5 Stage 1)
+// ---------------------------------------------------------------------------
+
+/**
+ * The one read a private page needs beyond the session itself.
+ *
+ * **Keyed by the session's own `galleryId`, never by the handle in the URL.**
+ * A `findGalleryByHandle` would be an unauthenticated lookup primitive over a
+ * caller-supplied string — cheap to invent, unbounded, and exactly the shape
+ * `consumeExchangeAttempt` refuses to be for the same reason. Reading the
+ * gallery the *session* names means a visitor can only ever address the one
+ * gallery they already hold a session for; the requested handle is then
+ * compared to what came back, and a mismatch is refused.
+ *
+ * The read must be **fresh and uncached per request** (ADR-0014 §5, §9): the
+ * whole point of re-authorizing on every request is that a revoke or an expiry
+ * takes effect on the next one, which a cached row would defeat.
+ */
+export type PrivateGalleryViewStore = {
+  findGalleryById(galleryId: string): Promise<PrivateGallery | undefined>;
+};
+
+/** For the operational log only, exactly like the exchange's own failure. */
+export type PrivateGalleryViewFailure = {
+  readonly reason:
+    | PrivateGallerySessionErrorReason
+    | "wrong-gallery"
+    | "gallery-missing"
+    | "unexpected";
+  readonly logWorthy: boolean;
+};
+
+export type PrivateGalleryViewOutcome =
+  | {
+      readonly authorized: true;
+      readonly gallery: PrivateGallery;
+      readonly session: PrivateGallerySession;
+    }
+  | { readonly authorized: false; readonly failure: PrivateGalleryViewFailure };
+
+/**
+ * Which view refusals are a defect rather than an ordinary state. An absent,
+ * malformed, expired, or superseded session is what this check exists to
+ * refuse — a visitor whose link was replaced, or whose week ran out, produces
+ * one of those on an ordinary Tuesday. Only a session naming a gallery that no
+ * longer exists, or something unclassifiable, says anything is wrong.
+ */
+const VIEW_LOG_WORTHY: ReadonlySet<string> = new Set([
+  "gallery-missing",
+  "invalid-parameter",
+  "unexpected",
+]);
+
+export type PrivateGalleryViewDeps = {
+  readonly sessionStore: PrivateGallerySessionStore;
+  readonly viewStore: PrivateGalleryViewStore;
+};
+
+export type PrivateGalleryViewRequest = {
+  /** The handle from the URL. Compared to the session's gallery, never looked up. */
+  readonly handle: string;
+  /** `request.headers.get("cookie")` — the raw header, not a parsed accessor. */
+  readonly cookieHeader: string | null | undefined;
+  readonly now: Date;
+};
+
+/**
+ * ADR-0014 §5 Stage 1, as the one call a private page makes: is this request
+ * carrying a session that currently authorizes *this* gallery?
+ *
+ * Like {@link exchangePrivateGalleryCapability} it **never throws** — every
+ * outcome is a value, so a page cannot accidentally turn one failure class into
+ * a different response than another. The page renders the same unauthorized
+ * bootstrap document for every `authorized: false`, and that document looks
+ * nothing up, so a visitor with no session, one whose session expired, and one
+ * asking about a handle that names nothing all see the same page.
+ *
+ * The raw `Cookie` header is taken rather than a framework cookie accessor on
+ * purpose: `extractPrivateGallerySessionCookie` refuses a request carrying two
+ * session cookies (a host-only one plus a cookie-tossed `Domain` sibling), and
+ * a name-keyed accessor has already silently picked one by the time it answers.
+ *
+ * **A stale cookie is not cleared here.** An App Router page render cannot set
+ * one — `cookies().set()` is a Server Action or Route Handler operation — so a
+ * dead session simply keeps failing and the bootstrap re-exchanges over it,
+ * writing the same name at the same path. Nothing accumulates.
+ */
+export async function authorizePrivateGalleryView(
+  deps: PrivateGalleryViewDeps,
+  request: PrivateGalleryViewRequest,
+): Promise<PrivateGalleryViewOutcome> {
+  const { handle, cookieHeader, now } = request;
+
+  try {
+    const cookieValue = extractPrivateGallerySessionCookie(cookieHeader);
+    if (cookieValue === undefined) {
+      return {
+        authorized: false,
+        failure: { reason: "invalid-session", logWorthy: false },
+      };
+    }
+
+    // The session is read first so the gallery read below is keyed by what the
+    // session names, never by anything the URL supplied.
+    const session = await readPrivateGallerySession(
+      deps.sessionStore,
+      cookieValue,
+      now,
+    );
+    const gallery = await deps.viewStore.findGalleryById(session.galleryId);
+    if (gallery === undefined) {
+      return {
+        authorized: false,
+        failure: { reason: "gallery-missing", logWorthy: true },
+      };
+    }
+
+    // The URL's handle is compared against the gallery the session already
+    // named. A visitor pointing a valid session at another gallery's address
+    // gets the unauthorized document, and no store read ever saw that address.
+    if (gallery.galleryHandle !== handle) {
+      return {
+        authorized: false,
+        failure: { reason: "wrong-gallery", logWorthy: false },
+      };
+    }
+
+    assertPrivateGallerySessionAuthorizesGallery(session, gallery, now);
+
+    return { authorized: true, gallery, session };
+  } catch (error) {
+    if (error instanceof PrivateGallerySessionError) {
+      return {
+        authorized: false,
+        failure: {
+          reason: error.reason,
+          logWorthy: VIEW_LOG_WORTHY.has(error.reason),
+        },
+      };
+    }
+    return { authorized: false, failure: { reason: "unexpected", logWorthy: true } };
+  }
 }

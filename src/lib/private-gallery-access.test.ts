@@ -5,7 +5,10 @@ import type {
   PrivateGalleryCapability,
   PrivateGallerySession,
 } from "@/lib/private-gallery";
-import { exchangePrivateGalleryCapability } from "@/lib/private-gallery-access";
+import {
+  authorizePrivateGalleryView,
+  exchangePrivateGalleryCapability,
+} from "@/lib/private-gallery-access";
 import {
   generateCapabilitySecret,
   generateGalleryHandle,
@@ -20,7 +23,9 @@ import {
 } from "@/lib/private-gallery-exchange";
 import {
   assertPrivateGallerySessionAuthorizesGallery,
+  createPrivateGallerySession,
   hashPrivateGallerySessionId,
+  PRIVATE_GALLERY_SESSION_COOKIE_NAME,
   PrivateGallerySessionError,
   type PrivateGallerySessionStore,
 } from "@/lib/private-gallery-session";
@@ -354,5 +359,259 @@ describe("exchangePrivateGalleryCapability", () => {
         new Date(NOW.getTime() + 1000),
       ),
     ).toThrow(PrivateGallerySessionError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Session-authorized view (ADR-0014 §5 Stage 1)
+// ---------------------------------------------------------------------------
+
+const VIEW_GALLERY: PrivateGallery = {
+  galleryId: "gallery-under-test",
+  galleryHandle: generateGalleryHandle(),
+  state: "published",
+  capabilityGeneration: 3,
+  createdAt: new Date(NOW.getTime() - DAY),
+  publishedAt: new Date(NOW.getTime() - DAY),
+  accessExpiresAt: new Date(NOW.getTime() + 30 * DAY),
+};
+
+/**
+ * A view fixture with a real session minted through the real session module, so
+ * the cookie value under test is one the exchange would actually have issued.
+ */
+async function viewFixture(
+  overrides: { gallery?: Partial<PrivateGallery> } = {},
+) {
+  const gallery: PrivateGallery = { ...VIEW_GALLERY, ...overrides.gallery };
+  const { store: sessionStore, rows } = makeSessionStore();
+  const { cookie } = await createPrivateGallerySession(sessionStore, {
+    galleryId: VIEW_GALLERY.galleryId,
+    galleryHandle: VIEW_GALLERY.galleryHandle,
+    routePrefix: "private",
+    capabilityGeneration: VIEW_GALLERY.capabilityGeneration,
+    accessExpiresAt: VIEW_GALLERY.accessExpiresAt as Date,
+    now: NOW,
+  });
+
+  const findGalleryById = vi.fn(async (id: string) =>
+    id === gallery.galleryId ? gallery : undefined,
+  );
+
+  return {
+    gallery,
+    rows,
+    findGalleryById,
+    deps: { sessionStore, viewStore: { findGalleryById } },
+    header: `${PRIVATE_GALLERY_SESSION_COOKIE_NAME}=${cookie.value}`,
+    cookieValue: cookie.value,
+  };
+}
+
+describe("authorizePrivateGalleryView", () => {
+  it("authorizes the gallery the session was minted for", async () => {
+    const f = await viewFixture();
+
+    const outcome = await authorizePrivateGalleryView(f.deps, {
+      handle: VIEW_GALLERY.galleryHandle,
+      cookieHeader: f.header,
+      now: NOW,
+    });
+
+    expect(outcome.authorized).toBe(true);
+    if (!outcome.authorized) return;
+    expect(outcome.gallery.galleryId).toBe(VIEW_GALLERY.galleryId);
+    expect(outcome.session.capabilityGeneration).toBe(3);
+  });
+
+  it("reads the gallery by the session's id, never by the requested handle", async () => {
+    // The load-bearing property: no store lookup is ever keyed by something the
+    // URL supplied, so this page is not an enumeration primitive over handles.
+    const f = await viewFixture();
+
+    await authorizePrivateGalleryView(f.deps, {
+      handle: VIEW_GALLERY.galleryHandle,
+      cookieHeader: f.header,
+      now: NOW,
+    });
+
+    expect(f.findGalleryById).toHaveBeenCalledExactlyOnceWith(
+      VIEW_GALLERY.galleryId,
+    );
+  });
+
+  it("consults no store at all without a session cookie", async () => {
+    const f = await viewFixture();
+
+    const outcome = await authorizePrivateGalleryView(f.deps, {
+      handle: VIEW_GALLERY.galleryHandle,
+      cookieHeader: null,
+      now: NOW,
+    });
+
+    expect(outcome.authorized).toBe(false);
+    expect(f.findGalleryById).not.toHaveBeenCalled();
+  });
+
+  it("refuses a valid session pointed at another gallery's address", async () => {
+    const f = await viewFixture();
+
+    const outcome = await authorizePrivateGalleryView(f.deps, {
+      handle: generateGalleryHandle(),
+      cookieHeader: f.header,
+      now: NOW,
+    });
+
+    expect(outcome).toEqual({
+      authorized: false,
+      failure: { reason: "wrong-gallery", logWorthy: false },
+    });
+  });
+
+  it("refuses a request carrying two session cookies", async () => {
+    // A host-only cookie plus a cookie-tossed `Domain` sibling. Refused rather
+    // than resolved to whichever one a name-keyed parser would have kept.
+    const f = await viewFixture();
+
+    const outcome = await authorizePrivateGalleryView(f.deps, {
+      handle: VIEW_GALLERY.galleryHandle,
+      cookieHeader: `${f.header}; ${f.header}`,
+      now: NOW,
+    });
+
+    expect(outcome.authorized).toBe(false);
+  });
+
+  it.each([
+    ["a malformed cookie value", "not-a-session-id"],
+    ["a well-formed but unknown identifier", "B".repeat(43)],
+  ])("refuses %s", async (_case, value) => {
+    const f = await viewFixture();
+
+    const outcome = await authorizePrivateGalleryView(f.deps, {
+      handle: VIEW_GALLERY.galleryHandle,
+      cookieHeader: `${PRIVATE_GALLERY_SESSION_COOKIE_NAME}=${value}`,
+      now: NOW,
+    });
+
+    expect(outcome.authorized).toBe(false);
+  });
+
+  it("refuses once the session's own lifetime has run out", async () => {
+    const f = await viewFixture();
+
+    const outcome = await authorizePrivateGalleryView(f.deps, {
+      handle: VIEW_GALLERY.galleryHandle,
+      cookieHeader: f.header,
+      now: new Date(NOW.getTime() + 8 * DAY),
+    });
+
+    expect(outcome).toEqual({
+      authorized: false,
+      failure: { reason: "expired-session", logWorthy: false },
+    });
+  });
+
+  it("refuses a session whose capability generation was superseded", async () => {
+    // What a revoke or replace actually does: the administrator bumps the
+    // generation, and the next request on an old session stops working.
+    const f = await viewFixture({ gallery: { capabilityGeneration: 4 } });
+
+    const outcome = await authorizePrivateGalleryView(f.deps, {
+      handle: VIEW_GALLERY.galleryHandle,
+      cookieHeader: f.header,
+      now: NOW,
+    });
+
+    expect(outcome).toEqual({
+      authorized: false,
+      failure: { reason: "stale-generation", logWorthy: false },
+    });
+  });
+
+  it.each([
+    // What a revoke leaves behind, what a gallery looks like before publication,
+    // and what the retention worker moves it to at six months.
+    ["access-suspended", "gallery-unavailable"],
+    ["draft", "gallery-unavailable"],
+    ["expiring", "gallery-unavailable"],
+  ] as const)(
+    "refuses a gallery in state %s",
+    async (state, reason) => {
+      const f = await viewFixture({ gallery: { state } });
+
+      const outcome = await authorizePrivateGalleryView(f.deps, {
+        handle: VIEW_GALLERY.galleryHandle,
+        cookieHeader: f.header,
+        now: NOW,
+      });
+
+      expect(outcome).toEqual({
+        authorized: false,
+        failure: { reason, logWorthy: false },
+      });
+    },
+  );
+
+  it("refuses once the gallery's own access window has closed", async () => {
+    const f = await viewFixture();
+
+    const outcome = await authorizePrivateGalleryView(f.deps, {
+      handle: VIEW_GALLERY.galleryHandle,
+      cookieHeader: f.header,
+      // Past the gallery's expiry but well inside the session's own week, so
+      // only the gallery-side check can catch this.
+      now: new Date(NOW.getTime() + 31 * DAY),
+    });
+
+    expect(outcome.authorized).toBe(false);
+  });
+
+  it("logs a session naming a gallery that no longer exists, and nothing else", async () => {
+    // The one genuine defect among these: an ordinary expiry or revoke is a
+    // Tuesday, and logging those would let anyone fill the log by reloading.
+    const f = await viewFixture();
+    f.findGalleryById.mockResolvedValueOnce(undefined);
+
+    const outcome = await authorizePrivateGalleryView(f.deps, {
+      handle: VIEW_GALLERY.galleryHandle,
+      cookieHeader: f.header,
+      now: NOW,
+    });
+
+    expect(outcome).toEqual({
+      authorized: false,
+      failure: { reason: "gallery-missing", logWorthy: true },
+    });
+  });
+
+  it("returns a failure rather than throwing when the store fails", async () => {
+    const f = await viewFixture();
+    f.findGalleryById.mockRejectedValueOnce(new Error("connection reset"));
+
+    await expect(
+      authorizePrivateGalleryView(f.deps, {
+        handle: VIEW_GALLERY.galleryHandle,
+        cookieHeader: f.header,
+        now: NOW,
+      }),
+    ).resolves.toEqual({
+      authorized: false,
+      failure: { reason: "unexpected", logWorthy: true },
+    });
+  });
+
+  it("never carries the handle, the session id, or its hash in a failure", async () => {
+    const f = await viewFixture();
+    const outcome = await authorizePrivateGalleryView(f.deps, {
+      handle: VIEW_GALLERY.galleryHandle,
+      cookieHeader: `${PRIVATE_GALLERY_SESSION_COOKIE_NAME}=${"B".repeat(43)}`,
+      now: NOW,
+    });
+
+    const serialized = JSON.stringify(outcome);
+    expect(serialized).not.toContain(VIEW_GALLERY.galleryHandle);
+    expect(serialized).not.toContain(f.cookieValue);
+    expect(serialized).not.toContain(f.rows[0]?.sessionIdHash);
   });
 });

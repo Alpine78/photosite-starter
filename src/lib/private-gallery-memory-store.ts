@@ -21,6 +21,17 @@
  *   They are not secrets and are not treated as any.
  * - Everything lives in one process. Two instances share nothing, so this is
  *   useless as anything but a single-machine development aid.
+ *
+ * **One process is not one module instance.** Next.js compiles each route into
+ * its own server bundle, so a module imported by both the exchange Route
+ * Handler and the gallery Page is *instantiated twice* even under a single
+ * `next start` — measured with a construction probe against a production build,
+ * which logged two builds under one pid. A plain module-level `let` therefore
+ * gave the exchange and the page two different fixtures, and a session minted by
+ * one was invisible to the other. The singleton is pinned to `globalThis`, the
+ * same pattern Next.js documents for a development-only database client, so
+ * every bundle in the process shares one store. This is a fixture concern only:
+ * the Postgres adapter keeps its state in Postgres and has no such problem.
  */
 
 import "server-only";
@@ -45,6 +56,7 @@ import {
   type PrivateGalleryExchangeStore,
 } from "@/lib/private-gallery-exchange";
 import type { PrivateGallerySessionStore } from "@/lib/private-gallery-session";
+import type { PrivateGalleryViewStore } from "@/lib/private-gallery-access";
 
 /**
  * The fixture gallery's link, in full:
@@ -64,6 +76,7 @@ const MEMORY_ACCESS_WINDOW_MS = 180 * 24 * 60 * 60 * 1000;
 export type PrivateGalleryMemoryStore = {
   readonly exchangeStore: PrivateGalleryExchangeStore;
   readonly sessionStore: PrivateGallerySessionStore;
+  readonly viewStore: PrivateGalleryViewStore;
   readonly keyring: PrivateGalleryCapabilityKeyring;
   /** The fixture gallery, for a route that wants to render its authorized state. */
   readonly gallery: PrivateGallery;
@@ -169,21 +182,42 @@ function build(now: Date): PrivateGalleryMemoryStore {
     },
   };
 
-  return { exchangeStore, sessionStore, keyring, gallery };
+  // A point read by id, matching the seam's contract. It answers only for the
+  // one fixture gallery — a handle a visitor invented resolves to nothing here
+  // just as it would resolve to no row in Postgres.
+  const viewStore: PrivateGalleryViewStore = {
+    async findGalleryById(galleryId) {
+      return galleryId === gallery.galleryId ? gallery : undefined;
+    },
+  };
+
+  return { exchangeStore, sessionStore, viewStore, keyring, gallery };
 }
 
-let cached: PrivateGalleryMemoryStore | undefined;
+/**
+ * Keyed on the global registry rather than a module-local binding, so the
+ * exchange route's bundle and the page's bundle resolve to the same fixture —
+ * see this module's own note on why one process is not one module instance.
+ */
+const MEMORY_STORE_KEY = Symbol.for(
+  "photosite-starter.private-gallery.memory-store",
+);
+
+type GlobalWithMemoryStore = typeof globalThis & {
+  [MEMORY_STORE_KEY]?: PrivateGalleryMemoryStore;
+};
 
 /**
  * The process-wide fixture store. Built on first use so the ephemeral keyring
  * and the sealed fixture capability are minted once per process.
  */
 export function getPrivateGalleryMemoryStore(): PrivateGalleryMemoryStore {
-  cached ??= build(new Date());
-  return cached;
+  const scope = globalThis as GlobalWithMemoryStore;
+  scope[MEMORY_STORE_KEY] ??= build(new Date());
+  return scope[MEMORY_STORE_KEY];
 }
 
 /** Test-only: drop the singleton so a case can start from a clean fixture. */
 export function resetPrivateGalleryMemoryStore(): void {
-  cached = undefined;
+  delete (globalThis as GlobalWithMemoryStore)[MEMORY_STORE_KEY];
 }
