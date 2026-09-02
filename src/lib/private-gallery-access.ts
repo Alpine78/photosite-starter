@@ -58,7 +58,24 @@ import type {
   PrivateGallery,
   PrivateGalleryPlacement,
   PrivateGallerySession,
+  PrivateGalleryZipVersion,
 } from "@/lib/private-gallery";
+import {
+  planPrivateGalleryMint,
+  PRIVATE_GALLERY_ACCESS_BUDGET_WINDOW_MS,
+  PrivateGalleryDeliveryError,
+  type PrivateGalleryAccessBudgetConfig,
+  type PrivateGalleryAccessBudgetDecision,
+  type PrivateGalleryDeliveryErrorReason,
+  type PrivateGalleryMintKind,
+  type PrivateGalleryMintRequest,
+} from "@/lib/private-gallery-delivery";
+import { presignPrivateGalleryObjectUrl } from "@/lib/private-gallery-signed-url";
+import { PRIVATE_GALLERY_DEFAULT_ACCESS_BUDGET_BYTE_MULTIPLIER } from "@/lib/private-gallery-limits";
+import {
+  getPrivateGalleryRuntimeConfig,
+  PrivateGalleryConfigurationError,
+} from "@/lib/private-gallery-config";
 import {
   PRIVATE_GALLERY_ITEM_LIMITS,
   projectPrivateGalleryItems,
@@ -68,6 +85,7 @@ import {
 export type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
 export type { PrivateGallery, PrivateGallerySession } from "@/lib/private-gallery";
 export type { PrivateGalleryItem } from "@/lib/private-gallery-item";
+export type { PrivateGalleryMintRequest } from "@/lib/private-gallery-delivery";
 export { createPrivateGalleryExchangeIpLimiter };
 export { deriveClientKey } from "@/lib/contact-rate-limit";
 
@@ -456,4 +474,229 @@ export async function listPrivateGalleryItems(
     PRIVATE_GALLERY_ITEM_LIMITS.maxPageSize,
   );
   return projectPrivateGalleryItems(placements);
+}
+
+// ---------------------------------------------------------------------------
+// Signed asset delivery (ADR-0014 §5 Stage 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * The reads and the one write a mint needs.
+ *
+ * Both lookups are keyed by the **gallery the session already named**, never by
+ * anything a request supplied on its own — the same rule
+ * {@link PrivateGalleryViewStore} follows, and the reason a caller can name a
+ * `placementId` without that becoming an IDOR primitive.
+ *
+ * `consumeAccessBudget` is one **atomic** operation, exactly as
+ * `consumeExchangeAttempt` is, computing the semantics
+ * `evaluatePrivateGalleryAccessBudget` defines. A caller that read the counter,
+ * decided, and wrote it back would race a concurrent mint and let two requests
+ * each spend the last of an allowance.
+ */
+export type PrivateGalleryDeliveryStore = {
+  findPlacement(
+    galleryId: string,
+    placementId: string,
+  ): Promise<PrivateGalleryPlacement | undefined>;
+  findZipVersion(
+    galleryId: string,
+    objectKey: string,
+  ): Promise<PrivateGalleryZipVersion | undefined>;
+  consumeAccessBudget(params: {
+    readonly galleryId: string;
+    readonly capabilityGeneration: number;
+    readonly chargeBytes: number;
+    readonly now: Date;
+    readonly config: PrivateGalleryAccessBudgetConfig;
+  }): Promise<PrivateGalleryAccessBudgetDecision>;
+  /** The gallery's own total nominal bytes, which the budget is a multiple of. */
+  totalGalleryBytes(galleryId: string): Promise<number>;
+};
+
+/** For the operational log only, like every other failure in this facade. */
+export type PrivateGalleryMintFailure = {
+  readonly reason:
+    | PrivateGalleryDeliveryErrorReason
+    | "no-object-store"
+    | "unexpected";
+  readonly logWorthy: boolean;
+};
+
+export type PrivateGalleryMintOutcome =
+  | {
+      readonly ok: true;
+      readonly url: string;
+      readonly kind: PrivateGalleryMintKind;
+      readonly expiresAt: Date;
+    }
+  | { readonly ok: false; readonly failure: PrivateGalleryMintFailure };
+
+/**
+ * Which mint refusals are a defect rather than an ordinary state. A gallery that
+ * left `published`, a superseded generation, or a closed window are all things a
+ * customer meets on an ordinary afternoon; a malformed row, a missing object
+ * store, or an unclassifiable error are not.
+ *
+ * `budget-exhausted` is deliberately log-worthy: it is the one refusal that says
+ * something about *usage* rather than about one request, and it is the signal
+ * §8e exists to produce.
+ */
+const MINT_LOG_WORTHY: ReadonlySet<string> = new Set([
+  "malformed-record",
+  "invalid-parameter",
+  "budget-exhausted",
+  "no-object-store",
+  "unexpected",
+]);
+
+export type PrivateGalleryMintDeps = {
+  readonly deliveryStore: PrivateGalleryDeliveryStore;
+};
+
+export type PrivateGalleryMintUrlRequest = {
+  /** An already-authorized gallery, read fresh in this request. */
+  readonly gallery: PrivateGallery;
+  /** The session `authorizePrivateGalleryView` returned for it. */
+  readonly session: PrivateGallerySession;
+  readonly request: PrivateGalleryMintRequest;
+  readonly now: Date;
+};
+
+/**
+ * The whole of ADR-0014 §5 Stage 2, as the one call a route makes: resolve the
+ * asset, authorize the mint, spend the budget, and sign.
+ *
+ * This exists because the pieces must not be assembled by a route. The delivery
+ * decision and the signer are both behind `eslint.config.mjs`'s import ban, so
+ * before this function there was no legal way to reach either — the security
+ * ordering was implemented and unreachable. That ordering is the point:
+ *
+ * 1. every **free** check first (state, generation, ownership of the resolved
+ *    row, the TTL), so a request that was never going to be authorized cannot
+ *    spend a gallery's allowance;
+ * 2. then the **atomic** budget consume, which the store owns;
+ * 3. then, and only then, the signature.
+ *
+ * A route that did this itself could get the order wrong in a way no test of
+ * the individual pieces would catch.
+ *
+ * Like the rest of this facade it **never throws**: every outcome is a value, so
+ * a route cannot turn one failure class into a different response than another.
+ * The caller answers every `ok: false` identically.
+ */
+export async function mintPrivateGalleryAssetUrl(
+  deps: PrivateGalleryMintDeps,
+  params: PrivateGalleryMintUrlRequest,
+): Promise<PrivateGalleryMintOutcome> {
+  const { gallery, session, request, now } = params;
+
+  try {
+    // The object store is read first only to fail fast on a deployment that has
+    // none: `memory` and `off` can authorize a mint perfectly well and then have
+    // nothing to sign against, and discovering that after spending the budget
+    // would charge a gallery for a URL nobody received.
+    let objectStore;
+    try {
+      objectStore = getPrivateGalleryRuntimeConfig().objectStore;
+    } catch (error) {
+      if (error instanceof PrivateGalleryConfigurationError) {
+        return {
+          ok: false,
+          failure: { reason: "no-object-store", logWorthy: true },
+        };
+      }
+      throw error;
+    }
+
+    const subject =
+      request.kind === "zip"
+        ? {
+            ...(gallery.activeZipObjectKey === undefined
+              ? {}
+              : {
+                  zipVersion: await deps.deliveryStore.findZipVersion(
+                    gallery.galleryId,
+                    gallery.activeZipObjectKey,
+                  ),
+                }),
+          }
+        : {
+            ...(await (async () => {
+              const placement = await deps.deliveryStore.findPlacement(
+                gallery.galleryId,
+                request.placementId,
+              );
+              return placement === undefined ? {} : { placement };
+            })()),
+          };
+
+    const plan = planPrivateGalleryMint({
+      gallery,
+      session,
+      request,
+      subject,
+      now,
+    });
+
+    const decision = await deps.deliveryStore.consumeAccessBudget({
+      galleryId: gallery.galleryId,
+      capabilityGeneration: gallery.capabilityGeneration,
+      chargeBytes: plan.chargedBytes,
+      now,
+      config: {
+        totalGalleryBytes: await deps.deliveryStore.totalGalleryBytes(
+          gallery.galleryId,
+        ),
+        multiplier: PRIVATE_GALLERY_DEFAULT_ACCESS_BUDGET_BYTE_MULTIPLIER,
+        windowMs: PRIVATE_GALLERY_ACCESS_BUDGET_WINDOW_MS,
+      },
+    });
+    if (!decision.allowed) {
+      return {
+        ok: false,
+        failure: {
+          reason: "budget-exhausted",
+          logWorthy: decision.firstRefusalInWindow,
+        },
+      };
+    }
+
+    const url = presignPrivateGalleryObjectUrl({
+      endpoint: objectStore.endpoint,
+      bucket: objectStore.bucket,
+      region: objectStore.region,
+      objectKey: plan.objectKey,
+      accessKeyId: objectStore.verifierAccessKeyId,
+      secretAccessKey: objectStore.verifierSecretAccessKey,
+      expiresInSeconds: plan.ttlSeconds,
+      now,
+      // Signed, so a recipient cannot alter them: the response carries these
+      // whatever metadata the upload happened to set (ADR-0014 §5, §6).
+      responseHeaders: {
+        cacheControl: "no-store",
+        ...(request.kind === "zip"
+          ? { contentDisposition: "attachment" }
+          : {}),
+      },
+    });
+
+    return {
+      ok: true,
+      url,
+      kind: request.kind,
+      expiresAt: new Date(now.getTime() + plan.ttlSeconds * 1000),
+    };
+  } catch (error) {
+    if (error instanceof PrivateGalleryDeliveryError) {
+      return {
+        ok: false,
+        failure: {
+          reason: error.reason,
+          logWorthy: MINT_LOG_WORTHY.has(error.reason),
+        },
+      };
+    }
+    return { ok: false, failure: { reason: "unexpected", logWorthy: true } };
+  }
 }

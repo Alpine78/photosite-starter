@@ -10,6 +10,7 @@ import {
   authorizePrivateGalleryView,
   exchangePrivateGalleryCapability,
   listPrivateGalleryItems,
+  mintPrivateGalleryAssetUrl,
 } from "@/lib/private-gallery-access";
 import { PRIVATE_GALLERY_ITEM_LIMITS } from "@/lib/private-gallery-item";
 import {
@@ -688,5 +689,260 @@ describe("listPrivateGalleryItems", () => {
     await expect(
       listPrivateGalleryItems(f.deps.viewStore, f.gallery),
     ).resolves.toEqual([]);
+  });
+});
+
+describe("mintPrivateGalleryAssetUrl", () => {
+  const MINT_GALLERY: PrivateGallery = {
+    ...VIEW_GALLERY,
+    activeZipObjectKey: "private-galleries/g/gallery-under-test/zip/aaaa",
+  };
+
+  const PLACEMENT: PrivateGalleryPlacement = {
+    galleryId: MINT_GALLERY.galleryId,
+    placementId: "placement-1",
+    objectKey: "private-galleries/g/gallery-under-test/preview/aaaa",
+    order: 1,
+    derivativeKind: "delivery-preview",
+    nominalBytes: 2_000_000,
+    width: 2048,
+    height: 1365,
+  };
+
+  const ZIP = {
+    galleryId: MINT_GALLERY.galleryId,
+    objectKey: MINT_GALLERY.activeZipObjectKey as string,
+    nominalBytes: 4_000_000_000,
+    createdAt: NOW,
+  };
+
+  const OBJECT_STORE = {
+    endpoint: "https://objects.example",
+    region: "eu-north-1",
+    bucket: "private-bucket",
+    keyPrefix: "private-galleries",
+    verifierAccessKeyId: "AKIAIOSFODNN7EXAMPLE",
+    verifierSecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+  };
+
+  function deliveryStore(overrides: Record<string, unknown> = {}) {
+    return {
+      findPlacement: vi.fn(async () => PLACEMENT),
+      findZipVersion: vi.fn(async () => ZIP),
+      consumeAccessBudget: vi.fn(async () => ({
+        allowed: true as const,
+        firstRefusalInWindow: false,
+        next: { windowStartedAt: NOW, chargedBytes: 1 },
+      })),
+      totalGalleryBytes: vi.fn(async () => 40_000_000_000),
+      ...overrides,
+    };
+  }
+
+  async function mint(
+    options: {
+      store?: ReturnType<typeof deliveryStore>;
+      gallery?: PrivateGallery;
+      request?: { kind: "preview"; placementId: string } | { kind: "zip" };
+      objectStore?: typeof OBJECT_STORE | null;
+    } = {},
+  ) {
+    const store = options.store ?? deliveryStore();
+    const config = await import("@/lib/private-gallery-config");
+    const spy = vi
+      .spyOn(config, "getPrivateGalleryRuntimeConfig")
+      .mockImplementation(() => {
+        if (options.objectStore === null) {
+          throw new config.PrivateGalleryConfigurationError(
+            "no object store configured",
+          );
+        }
+        return {
+          databaseUrl: "postgres://x/y",
+          objectStore: options.objectStore ?? OBJECT_STORE,
+          capabilityKeyring: keyring(),
+        };
+      });
+
+    try {
+      const outcome = await mintPrivateGalleryAssetUrl(
+        { deliveryStore: store },
+        {
+          gallery: options.gallery ?? MINT_GALLERY,
+          session: {
+            sessionIdHash: "hash",
+            galleryId: MINT_GALLERY.galleryId,
+            capabilityGeneration: MINT_GALLERY.capabilityGeneration,
+            createdAt: NOW,
+            expiresAt: new Date(NOW.getTime() + DAY),
+          },
+          request: options.request ?? {
+            kind: "preview",
+            placementId: PLACEMENT.placementId,
+          },
+          now: NOW,
+        },
+      );
+      return { outcome, store };
+    } finally {
+      spy.mockRestore();
+    }
+  }
+
+  it("signs a preview against the placement's own key", async () => {
+    const { outcome } = await mint();
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    const url = new URL(outcome.url);
+    expect(url.pathname).toBe(`/private-bucket/${PLACEMENT.objectKey}`);
+    expect(url.searchParams.get("X-Amz-Signature")).toMatch(/^[0-9a-f]{64}$/);
+    expect(url.searchParams.get("response-cache-control")).toBe("no-store");
+  });
+
+  it("marks a ZIP as an attachment and a preview not", async () => {
+    const zip = await mint({ request: { kind: "zip" } });
+    const preview = await mint();
+
+    if (!zip.outcome.ok || !preview.outcome.ok) throw new Error("expected both");
+    expect(
+      new URL(zip.outcome.url).searchParams.get("response-content-disposition"),
+    ).toBe("attachment");
+    expect(
+      new URL(preview.outcome.url).searchParams.get(
+        "response-content-disposition",
+      ),
+    ).toBeNull();
+  });
+
+  it("charges the budget the object's own size", async () => {
+    const { store } = await mint({ request: { kind: "zip" } });
+
+    expect(store.consumeAccessBudget).toHaveBeenCalledWith(
+      expect.objectContaining({
+        galleryId: MINT_GALLERY.galleryId,
+        capabilityGeneration: MINT_GALLERY.capabilityGeneration,
+        chargeBytes: ZIP.nominalBytes,
+      }),
+    );
+  });
+
+  it("spends nothing when a free check refuses", async () => {
+    // The ordering the composition exists to guarantee: a request that was
+    // never going to be authorized must not consume a gallery's allowance.
+    const { outcome, store } = await mint({
+      gallery: { ...MINT_GALLERY, state: "access-suspended" },
+    });
+
+    expect(outcome).toEqual({
+      ok: false,
+      failure: { reason: "gallery-unavailable", logWorthy: false },
+    });
+    expect(store.consumeAccessBudget).not.toHaveBeenCalled();
+  });
+
+  it("signs nothing when the budget refuses", async () => {
+    const store = deliveryStore({
+      consumeAccessBudget: vi.fn(async () => ({
+        allowed: false as const,
+        firstRefusalInWindow: true,
+        next: { windowStartedAt: NOW, chargedBytes: 1 },
+      })),
+    });
+
+    const { outcome } = await mint({ store });
+
+    expect(outcome).toEqual({
+      ok: false,
+      failure: { reason: "budget-exhausted", logWorthy: true },
+    });
+  });
+
+  it("refuses before spending anything when there is no object store", async () => {
+    // `memory` and `off` can authorize a mint perfectly well and then have
+    // nothing to sign against; discovering that after the charge would bill a
+    // gallery for a URL nobody received.
+    const store = deliveryStore();
+
+    const { outcome } = await mint({ store, objectStore: null });
+
+    expect(outcome).toEqual({
+      ok: false,
+      failure: { reason: "no-object-store", logWorthy: true },
+    });
+    expect(store.consumeAccessBudget).not.toHaveBeenCalled();
+  });
+
+  it("looks a placement up by the session's gallery, never by the request alone", async () => {
+    const { store } = await mint();
+
+    expect(store.findPlacement).toHaveBeenCalledWith(
+      MINT_GALLERY.galleryId,
+      PLACEMENT.placementId,
+    );
+  });
+
+  it("refuses a placement that resolved to another gallery", async () => {
+    const store = deliveryStore({
+      findPlacement: vi.fn(async () => ({ ...PLACEMENT, galleryId: "other" })),
+    });
+
+    const { outcome } = await mint({ store });
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      failure: { reason: "wrong-gallery" },
+    });
+  });
+
+  it("refuses an identifier that resolved to nothing", async () => {
+    const store = deliveryStore({ findPlacement: vi.fn(async () => undefined) });
+
+    const { outcome } = await mint({ store });
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      failure: { reason: "unknown-asset" },
+    });
+  });
+
+  it("refuses a ZIP when the gallery has no active pointer", async () => {
+    const withoutZip: PrivateGallery = { ...MINT_GALLERY };
+    delete (withoutZip as { activeZipObjectKey?: string }).activeZipObjectKey;
+    const store = deliveryStore();
+
+    const { outcome } = await mint({
+      store,
+      gallery: withoutZip,
+      request: { kind: "zip" },
+    });
+
+    expect(outcome).toMatchObject({ ok: false, failure: { reason: "no-zip" } });
+    expect(store.findZipVersion).not.toHaveBeenCalled();
+  });
+
+  it("returns a failure rather than throwing when the store fails", async () => {
+    const store = deliveryStore({
+      findPlacement: vi.fn(async () => {
+        throw new Error("connection reset");
+      }),
+    });
+
+    const { outcome } = await mint({ store });
+
+    expect(outcome).toEqual({
+      ok: false,
+      failure: { reason: "unexpected", logWorthy: true },
+    });
+  });
+
+  it("never carries the signing secret or an object key in a failure", async () => {
+    const { outcome } = await mint({
+      gallery: { ...MINT_GALLERY, state: "expiring" },
+    });
+
+    const serialized = JSON.stringify(outcome);
+    expect(serialized).not.toContain(OBJECT_STORE.verifierSecretAccessKey);
+    expect(serialized).not.toContain(PLACEMENT.objectKey);
   });
 });

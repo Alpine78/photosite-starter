@@ -1291,6 +1291,21 @@ before an expiry and restored after it brings a closed gallery back accessible),
 monitoring, owner-run repair, and the exit path. **None of that has been exercised** — no
 deployment has provisioned either service, and every one of those documents says so rather
 than reading as though it had.
+The delivery path is finally **composed** rather than only implemented:
+`mintPrivateGalleryAssetUrl` is the one call a route makes, and it exists because the
+pieces must not be assembled by a route. The mint decision and the signer are both behind
+`eslint.config.mjs`'s import ban, so until now there was no legal way for a route to reach
+either — the security ordering was written and unreachable. That ordering is the point:
+every **free** check first (state, generation, the resolved row's ownership, the TTL), so a
+request that was never going to be authorized cannot spend a gallery's allowance; then the
+**atomic** budget consume, which the store owns because a read-decide-write would race a
+concurrent mint; then, and only then, the signature. A route doing this itself could get
+the order wrong in a way no test of the individual pieces would catch. The object store's
+configuration is read *first*, so a deployment that has none (`off`, `memory`) refuses
+before charging a gallery for a URL nobody receives, and the response's `no-store` — plus
+`Content-Disposition: attachment` for the ZIP — is **signed** rather than left to upload
+metadata. `planPrivateGalleryMint` was split out of `authorizePrivateGalleryMint` for this,
+leaving the pure reference evaluator intact and its tests unchanged.
 Everything else is unbuilt: the ZIP generation, the owner-run upload
 CLI, the retention worker's IO, and the concrete object-store/Postgres providers with their
 live provisioning gate (the owner-run runbook for those two services
