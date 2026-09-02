@@ -1257,6 +1257,23 @@ verifier credential succeeds", plus `Range` on a large object). Verified against
 specification, unverified against the provider — different claims, and only the first is
 made. Path-style addressing is used because `PRIVATE_GALLERY_S3_ENDPOINT` is a bare origin
 rather than a bucket host; virtual-host style is a small change the live gate would settle.
+The private routes now carry their own **`img-src` grant** for the object-store origin
+(ADR-0011 action item 4), which had been outstanding since the routes landed and would
+have blocked every private preview in the browser the moment an object store existed. It
+is emitted **only** for `PRIVATE_GALLERY_STORE=enabled`, applies to the private routes and
+nowhere else, and adds **no `connect-src`** — a preview is an `<img>`, never a script
+fetch, which is also why the bucket needs no CORS policy. Two `next.config.ts` behaviours
+were measured against a production build rather than assumed, and both had been guessed
+wrongly earlier in this story: a `headers()` rule matches the original request path **and**
+the path the Proxy rewrote to, and among matching rules the **last** one wins for a given
+header name. The rule is therefore sourced at the internal rewrite target — a build-time
+constant, unlike the configurable prefix — and placed after the site-wide entry. This makes
+`PRIVATE_GALLERY_S3_ENDPOINT` a **build-time** input for an `enabled` deployment: an origin
+rather than a credential, on the same footing as the Sanity ids `next.config.ts` already
+reads at build for the optimizer allow-list, and it fails the build if missing rather than
+shipping a gallery whose every photograph the browser blocks with no error to explain it.
+The value is validated as a bare `https://` origin before interpolation, because a stray
+space or semicolon in a CSP source widens the whole policy.
 Everything else is unbuilt: the ZIP generation, the owner-run upload
 CLI, the retention worker's IO, and the concrete object-store/Postgres providers with their
 live provisioning gate (the owner-run runbook for those two services

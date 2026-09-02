@@ -409,3 +409,104 @@ describe("security response headers", () => {
     expect(csp).not.toContain(`img-src 'self' data: https://${SANITY_ASSET_CDN_HOST};`);
   });
 });
+
+describe("the private routes' image policy (ADR-0011 action item 4)", () => {
+  const ENABLED_PRIVATE_STORE = {
+    PRIVATE_GALLERY_STORE: "enabled",
+    PRIVATE_GALLERY_S3_ENDPOINT: "https://objects.example",
+  } as const;
+
+  const policyOf = (response: { headers: Headers }) =>
+    response.headers.get("content-security-policy") ?? "";
+  const directive = (policy: string, name: string) =>
+    policy
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${name} `)) ?? "";
+
+  it("lets the private routes load images from the private object store", async () => {
+    // Without this every private preview is blocked by the browser: a preview
+    // is an <img> pointed at a signed object-store URL (ADR-0014 §5).
+    const response = await getConfigResponse("/private-gallery/handle", {
+      ...FIXTURE_DEPLOYMENT,
+      ...ENABLED_PRIVATE_STORE,
+    });
+
+    expect(directive(policyOf(response), "img-src")).toBe(
+      "img-src 'self' data: https://objects.example",
+    );
+  });
+
+  it("does not widen the policy anywhere else", async () => {
+    // "On the private routes only" is the whole point: a site-wide grant would
+    // let any page load from the private store.
+    const response = await getConfigResponse("/", {
+      ...FIXTURE_DEPLOYMENT,
+      ...ENABLED_PRIVATE_STORE,
+    });
+
+    expect(directive(policyOf(response), "img-src")).toBe("img-src 'self' data:");
+  });
+
+  it("grants no connect-src, because a preview is never a script fetch", async () => {
+    // ADR-0014 §8c: the browser never fetches the store from script, which is
+    // also why the bucket needs no CORS policy at all.
+    const response = await getConfigResponse("/private-gallery/handle", {
+      ...FIXTURE_DEPLOYMENT,
+      ...ENABLED_PRIVATE_STORE,
+    });
+
+    expect(directive(policyOf(response), "connect-src")).toBe(
+      "connect-src 'self'",
+    );
+  });
+
+  it.each([
+    ["off", "off"],
+    ["the development fixture", "memory"],
+  ])("emits no grant when the store is %s", async (_case, store) => {
+    const response = await getConfigResponse("/private-gallery/handle", {
+      ...FIXTURE_DEPLOYMENT,
+      PRIVATE_GALLERY_STORE: store,
+      PRIVATE_GALLERY_S3_ENDPOINT: "https://objects.example",
+    });
+
+    expect(policyOf(response)).not.toContain("objects.example");
+  });
+
+  it("keeps the private routes' other security headers intact", async () => {
+    // The private entry replaces the site-wide one for these paths, so it has
+    // to carry everything that entry did rather than only the policy it widens.
+    const response = await getConfigResponse("/private-gallery/handle", {
+      ...FIXTURE_DEPLOYMENT,
+      ...ENABLED_PRIVATE_STORE,
+    });
+
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("x-frame-options")).toBe("DENY");
+    expect(response.headers.get("permissions-policy") ?? "").not.toBe("");
+    expect(directive(policyOf(response), "frame-ancestors")).toBe(
+      "frame-ancestors 'none'",
+    );
+  });
+
+  it("fails the build when an enabled store names no endpoint", async () => {
+    await expect(
+      configuredWith({
+        ...FIXTURE_DEPLOYMENT,
+        PRIVATE_GALLERY_STORE: "enabled",
+        PRIVATE_GALLERY_S3_ENDPOINT: "",
+      }),
+    ).rejects.toThrow(/PRIVATE_GALLERY_S3_ENDPOINT/);
+  });
+
+  it("fails the build on an endpoint that would widen the policy", async () => {
+    await expect(
+      configuredWith({
+        ...FIXTURE_DEPLOYMENT,
+        PRIVATE_GALLERY_STORE: "enabled",
+        PRIVATE_GALLERY_S3_ENDPOINT: "https://objects.example; script-src *",
+      }),
+    ).rejects.toThrow(/bare https:\/\/ origin/);
+  });
+});

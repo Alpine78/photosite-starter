@@ -3,6 +3,7 @@ import {
   YOUTUBE_EMBED_ALLOW_FEATURES,
   YOUTUBE_NOCOOKIE_ORIGIN,
 } from "@/lib/embed-origins";
+import { readPrivateObjectStoreOrigin } from "@/lib/private-object-store-origin";
 
 const ONE_YEAR_SECONDS = 31_536_000;
 
@@ -242,7 +243,10 @@ function permissionsPolicy(): string {
  * `npm run dev` server, not just the docs: without this, every dev-mode
  * response's CSP blocked React's debugging `eval()` calls.
  */
-function contentSecurityPolicy(settings: SanityBuildSettings | null): string {
+function contentSecurityPolicy(
+  settings: SanityBuildSettings | null,
+  privateObjectStoreOrigin?: string,
+): string {
   const sanityImageOrigin =
     settings === null
       ? ""
@@ -260,7 +264,9 @@ function contentSecurityPolicy(settings: SanityBuildSettings | null): string {
     "frame-ancestors 'none'",
     scriptSrc,
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data:${sanityImageOrigin}`,
+    `img-src 'self' data:${sanityImageOrigin}${
+      privateObjectStoreOrigin === undefined ? "" : ` ${privateObjectStoreOrigin}`
+    }`,
     `frame-src ${YOUTUBE_NOCOOKIE_ORIGIN}`,
     "connect-src 'self'",
     "font-src 'self'",
@@ -286,6 +292,7 @@ function contentSecurityPolicy(settings: SanityBuildSettings | null): string {
  */
 function securityHeaders(
   sanitySettings: SanityBuildSettings | null,
+  privateObjectStoreOrigin?: string,
 ): { key: string; value: string }[] {
   return [
     { key: "X-Content-Type-Options", value: "nosniff" },
@@ -294,7 +301,7 @@ function securityHeaders(
     { key: "Permissions-Policy", value: permissionsPolicy() },
     {
       key: "Content-Security-Policy",
-      value: contentSecurityPolicy(sanitySettings),
+      value: contentSecurityPolicy(sanitySettings, privateObjectStoreOrigin),
     },
   ];
 }
@@ -307,6 +314,7 @@ function securityHeaders(
  * re-deriving (and re-validating, and potentially re-throwing) it separately.
  */
 const sanitySettings = sanityBuildSettings(process.env);
+const privateObjectStoreOrigin = readPrivateObjectStoreOrigin(process.env);
 
 const nextConfig: NextConfig = {
   // Proxy owns trailing-slash normalization so a gallery cursor can be
@@ -346,6 +354,32 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders(sanitySettings),
       },
+      // ADR-0011 action item 4 / ADR-0014 §6: the private routes, and only they,
+      // may load images from the private object store. `img-src` is widened by
+      // exactly that origin and nothing else is — in particular no `connect-src`
+      // grant, because a preview is delivered by an `<img>` and never by a script
+      // `fetch` (§8c), which is also why the bucket needs no CORS policy at all.
+      //
+      // Sourced at the internal rewrite target rather than the configured public
+      // prefix, because that segment is a build-time constant while the prefix is
+      // not. Measured against a production build rather than assumed: a
+      // `headers()` rule matches both the original request path and the path the
+      // Proxy rewrote to, and among matching rules the **last** one wins for a
+      // given header name — which is why these sit after the site-wide entry.
+      // `e2e/private-route-hygiene.spec.ts` is what would notice if either
+      // behaviour changed.
+      ...(privateObjectStoreOrigin === undefined
+        ? []
+        : [
+            {
+              source: "/private-gallery",
+              headers: securityHeaders(sanitySettings, privateObjectStoreOrigin),
+            },
+            {
+              source: "/private-gallery/:path*",
+              headers: securityHeaders(sanitySettings, privateObjectStoreOrigin),
+            },
+          ]),
       {
         source:
           "/gallery/:name([a-z0-9]+(?:-[a-z0-9]+)*).:version([0-9a-f]{12}).:extension(avif|jpg|jpeg|png|webp)",
