@@ -100,6 +100,26 @@ test.describe("private route namespace response hygiene", () => {
     }
   });
 
+  test("grants no object-store image source when there is no object store", async ({
+    request,
+  }) => {
+    // The harness runs `PRIVATE_GALLERY_STORE=memory`, which has no object
+    // store, so the private routes' `img-src` must not be widened. This is the
+    // half of ADR-0011 action item 4 that can be observed here: the grant is
+    // conditional, and a build that emitted it unconditionally would be a
+    // permanent hole for a feature most deployments never enable. The positive
+    // case — the grant appearing for an `enabled` store — is in
+    // `src/lib/next-config.test.ts`, which can vary the build configuration.
+    const policy =
+      (await request.get("/private/some-handle", { maxRedirects: 0 })).headers()[
+        "content-security-policy"
+      ] ?? "";
+
+    expect(policy).toContain("img-src 'self' data:");
+    expect(policy).toContain("connect-src 'self'");
+    expect(policy).not.toMatch(/img-src[^;]*https:/);
+  });
+
   test("robots.txt disallows the namespace as crawl guidance", async ({
     request,
   }) => {

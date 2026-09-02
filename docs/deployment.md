@@ -355,6 +355,19 @@ feature is on or off**, so a deployment can never assign `/private` to a locale 
 a story namespace and then be unable to enable the feature without a public URL
 migration. A collision fails the build.
 
+**One exception to the request-time rule.** `PRIVATE_GALLERY_S3_ENDPOINT` is additionally
+read at **build** time, and only when `PRIVATE_GALLERY_STORE=enabled`. The private routes
+grant that origin — and only that origin — in their Content-Security-Policy `img-src`
+(ADR-0011 action item 4, ADR-0014 §6), because a private preview is an `<img>` pointed at
+a signed object-store URL; a CSP is a static response header and cannot be assembled per
+request. The endpoint is an origin rather than a credential, and this follows the
+precedent already in `next.config.ts`, where `SANITY_PROJECT_ID` and `SANITY_DATASET` are
+read at build for the optimizer's allow-list. Practical consequence: **an `enabled` build
+must supply the endpoint**, and fails closed if it does not — the alternative is a gallery
+whose every photograph the browser blocks with no build error to explain it. No
+`connect-src` grant is added, because the browser never fetches the store from script,
+which is also why the bucket needs no CORS policy.
+
 The credential-bearing settings — `PRIVATE_GALLERY_DATABASE_URL`, the
 `PRIVATE_GALLERY_S3_*` endpoint/region/bucket/key-prefix and verifier credentials, and
 the `PRIVATE_GALLERY_CAPABILITY_KEYS` keyring plus

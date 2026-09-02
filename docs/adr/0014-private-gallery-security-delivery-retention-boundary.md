@@ -1165,13 +1165,27 @@ a per-deployment call, with UpCloud as the reference.
    confirmation status to assistive technology.
 3. [ ] The administrator-authentication boundary (§4) is designed and reviewed in
    AB#29 — mechanism open, separation from the customer path fixed.
-4. [ ] **ADR-0011**: add the private object-store origin to `img-src` (previews load as
+4. [x] **ADR-0011**: add the private object-store origin to `img-src` (previews load as
    `<img>`; no `connect-src` grant — §6) on the private routes only, in the same change
-   that introduces them; add `next-config.test.ts` coverage.
-5. [ ] **ADR-0007 / `src/proxy.ts`**: add the private-prefix response rules (`no-store`,
+   that introduces them; add `next-config.test.ts` coverage. *Done (AB#29, 2026-09-02).*
+   The grant is emitted only for `PRIVATE_GALLERY_STORE=enabled` and is sourced at the
+   internal rewrite target, a build-time constant, rather than the configurable public
+   prefix. Two `next.config.ts` behaviours were **measured against a production build**
+   rather than assumed, and both had been guessed wrongly earlier in this story: a
+   `headers()` rule matches the original request path *and* the path the Proxy rewrote to,
+   and among matching rules the **last** one wins for a given header name. This makes
+   `PRIVATE_GALLERY_S3_ENDPOINT` a build-time input for an `enabled` deployment — an
+   origin, not a credential, on the same footing as the Sanity ids the optimizer allow-list
+   already reads at build; recorded in `.env.example` and `docs/deployment.md`.
+5. [x] **ADR-0007 / `src/proxy.ts`**: add the private-prefix response rules (`no-store`,
    `noindex`, `Referrer-Policy: no-referrer`); `buildRobotsPolicy` gains the `Disallow`.
-6. [ ] **`buildSitemapPaths`**: add a test asserting the private namespace never enters
-   the sitemap.
+   *Done (AB#29, PR #102), with one behaviour found later and recorded in `src/proxy.ts`:
+   a `NextResponse.next()` response's headers replace a same-named `next.config.ts` value
+   while a `rewrite()` response's do not, which silently cost `no-referrer` until
+   `e2e/private-route-hygiene.spec.ts` caught it.*
+6. [x] **`buildSitemapPaths`**: add a test asserting the private namespace never enters
+   the sitemap. *Done (AB#29, PR #102) — `src/lib/sitemap.test.ts`, across three different
+   configured prefixes so the assertion is about the namespace rather than one spelling.*
 7. [ ] **`.env.example` and `docs/deployment.md`**: document the validated server-only
    `PRIVATE_GALLERY_CAPABILITY_KEYS` keyring (base64-encoded **256-bit random** AES keys)
    and `PRIVATE_GALLERY_CAPABILITY_ACTIVE_KEY_ID` (request-time Sensitive,
