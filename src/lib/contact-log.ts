@@ -37,7 +37,10 @@
 
 import { randomUUID } from "node:crypto";
 
-import type { PrivateGalleryExchangeFailure } from "@/lib/private-gallery-access";
+import type {
+  PrivateGalleryExchangeFailure,
+  PrivateGalleryViewFailure,
+} from "@/lib/private-gallery-access";
 import type { ContactDeliveryErrorClass } from "@/lib/contact-delivery";
 import type { ContactRejectionReason } from "@/lib/contact-request";
 import type { EnquiryResolutionRejection } from "@/lib/enquiry-media";
@@ -80,7 +83,8 @@ export type SubmissionState =
 type SubmissionEventName =
   | "contact.submission"
   | "enquiry.submission"
-  | "private-gallery.exchange";
+  | "private-gallery.exchange"
+  | "private-gallery.view";
 
 export type ContactEvent =
   | {
@@ -124,6 +128,18 @@ export type PrivateGalleryExchangeEvent =
       readonly errorClass: PrivateGalleryExchangeFailure["reason"];
     };
 
+/**
+ * One private-gallery view authorization event (AB#29, ADR-0014 §5 Stage 1).
+ * Only the defects are recorded — an absent, expired, or superseded session is
+ * an ordinary state, and logging it would let anyone fill the log by loading a
+ * private URL repeatedly.
+ */
+export type PrivateGalleryViewEvent = {
+  readonly correlationId: string;
+  readonly state: "rejected";
+  readonly errorClass: PrivateGalleryViewFailure["reason"];
+};
+
 export function createCorrelationId(): string {
   return randomUUID();
 }
@@ -146,7 +162,8 @@ function writeSubmissionLine(
   errorClass?:
     | ContactErrorClass
     | EnquiryErrorClass
-    | PrivateGalleryExchangeFailure["reason"],
+    | PrivateGalleryExchangeFailure["reason"]
+    | PrivateGalleryViewFailure["reason"],
 ): void {
   const line = JSON.stringify({
     event: name,
@@ -188,6 +205,18 @@ export function logPrivateGalleryExchangeEvent(
 ): void {
   writeSubmissionLine(
     "private-gallery.exchange",
+    event.correlationId,
+    event.state,
+    event.errorClass,
+  );
+}
+
+/** Emits one private-gallery view authorization event (AB#29). */
+export function logPrivateGalleryViewEvent(
+  event: PrivateGalleryViewEvent,
+): void {
+  writeSubmissionLine(
+    "private-gallery.view",
     event.correlationId,
     event.state,
     event.errorClass,

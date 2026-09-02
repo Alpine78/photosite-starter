@@ -1,4 +1,9 @@
-import { HARNESS_BASE_URL } from "./support/harness-environment";
+import { getBuiltInLabels } from "@/lib/deployment-config";
+
+import {
+  appUnderTestEnvironment,
+  HARNESS_BASE_URL,
+} from "./support/harness-environment";
 import { expect, test } from "./support/fixtures";
 
 /**
@@ -32,6 +37,15 @@ const GALLERY_PATH = `/private/${HANDLE}`;
  */
 const UNKNOWN_HANDLE = "MzMzMzMzMzMzMzMzMzMzMw";
 
+/**
+ * The authorized view's heading. A clone rebrands application labels, so this
+ * is read from the harness's own configured locale rather than hardcoded as
+ * prose — `getBuiltInLabels` is the same source the page renders from.
+ */
+const GALLERY_HEADING = getBuiltInLabels(
+  appUnderTestEnvironment.SITE_LOCALE as string,
+).privateGallery.galleryHeading;
+
 test.describe("private gallery link", () => {
   test("exchanges the fragment capability for a session", async ({ page }) => {
     const exchanges: string[] = [];
@@ -40,14 +54,9 @@ test.describe("private gallery link", () => {
     });
 
     await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
-
-    const status = page.getByRole("status");
-    // Asserted against the label the page itself declares, not a hardcoded
-    // string: a clone rebrands these, and the property under test is which
-    // state was reached, not what it is called.
-    const connected = await status.getAttribute("data-connected");
-    expect(connected).toBeTruthy();
-    await expect(status).toHaveText(connected as string);
+    // The listener above is already recording, so poll it rather than starting
+    // a fresh wait: the exchange fires during `goto` and would be missed.
+    await expect.poll(() => exchanges.length).toBe(1);
 
     // The capability is gone from the address bar, so it cannot be shoulder-read,
     // screenshotted, or reached with the Back button.
@@ -106,9 +115,8 @@ test.describe("private gallery link", () => {
     );
 
     await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
-    const status = page.getByRole("status");
-    await expect(status).toHaveText(
-      (await status.getAttribute("data-connected")) as string,
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
     );
 
     const cookie = (await context.cookies()).find((row) =>
@@ -234,5 +242,95 @@ test.describe("private gallery link", () => {
     expect(await shape(`/private/${UNKNOWN_HANDLE}`, CAPABILITY)).toEqual(
       await shape(GALLERY_PATH, "A".repeat(43)),
     );
+  });
+});
+
+/**
+ * Everything that needs the browser to actually *hold* the session.
+ *
+ * The harness serves plain HTTP on a loopback address and WebKit refuses to
+ * store a `Secure` cookie there at all, while Chromium treats loopback as
+ * trustworthy and accepts one. A real deployment is HTTPS, so this is a harness
+ * limitation and not a product one — the cookie's own contract is asserted on
+ * the wire for every browser in the group above, and the server-side
+ * authorization matrix (expired, superseded, another gallery's session, a
+ * gallery that vanished) is proven against the real modules in
+ * `src/lib/private-gallery-access.test.ts`. What is left here is the property
+ * only a browser shows: that the two documents are actually wired to the cookie.
+ */
+test.describe("private gallery session in a browser", () => {
+  test.skip(
+    ({ browserName }) => browserName === "webkit",
+    "WebKit does not store a Secure cookie over the harness's plain-HTTP loopback origin.",
+  );
+
+  test("lands on the gallery once the capability is exchanged", async ({
+    page,
+  }) => {
+    await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
+
+    // The server, not the browser, decides this: it is the session cookie it
+    // now sees. One `h1` naming the gallery is the observable difference
+    // between holding a link and holding a session.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+    // The bootstrap's status region belongs to the unauthorized document only.
+    await expect(page.getByRole("status")).toHaveCount(0);
+  });
+
+  test("keeps the gallery on a later visit, without the link", async ({
+    page,
+  }) => {
+    // The whole point of the session: the visitor comes back to the plain
+    // address — no fragment, no capability — and is still in.
+    await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+
+    await page.goto(GALLERY_PATH);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+    await expect(page.getByRole("status")).toHaveCount(0);
+  });
+
+  test("does not carry the session to another gallery's address", async ({
+    page,
+  }) => {
+    // A valid session pointed at a different handle gets the same
+    // credential-free document a stranger gets, so it never reveals whether
+    // that handle names anything.
+    await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+
+    await page.goto(`/private/${UNKNOWN_HANDLE}`);
+    const status = page.getByRole("status");
+    await expect(status).toHaveText(
+      (await status.getAttribute("data-invalid")) as string,
+    );
+  });
+
+  test("renders no credential in the authorized document", async ({ page }) => {
+    await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+
+    // The handle is deliberately not asserted on: it is the address the visitor
+    // asked for, so the routing payload carries it and always will. What must
+    // never appear is the credential itself or anything derived from the
+    // session — those the visitor's browser holds, and the document does not.
+    const body = await page.content();
+    expect(body).not.toContain(CAPABILITY);
+
+    const cookie = (await page.context().cookies()).find((row) =>
+      row.name.startsWith("__Secure-"),
+    );
+    expect(cookie?.value).toBeTruthy();
+    expect(body).not.toContain(cookie?.value as string);
   });
 });

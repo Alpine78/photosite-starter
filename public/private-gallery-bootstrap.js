@@ -74,7 +74,26 @@
       // Every refusal answers identically by design, so there is exactly one
       // failure message here — there is nothing more specific to say, and
       // inventing a distinction would undo the endpoint's own uniformity.
-      say(response.ok ? "data-connected" : "data-invalid");
+      if (!response.ok) {
+        say("data-invalid");
+        return;
+      }
+
+      // The browser now holds the session cookie, and the same address renders
+      // the gallery itself once the server can see it. Reloading is what turns
+      // the exchange into a page rather than a message: no client-side render
+      // of private content, no second URL, and the visitor lands somewhere they
+      // can bookmark and return to for as long as the session lasts.
+      //
+      // `location.replace`, not `reload`: the entry being replaced is the one
+      // whose URL carried the capability before `replaceState` rewrote it, and
+      // this keeps the history stack from holding a step that re-POSTs nothing
+      // useful. The confirmation is still shown, because a browser that refuses
+      // the navigation should not be left on "opening…".
+      say("data-connected");
+      window.location.replace(
+        window.location.pathname + window.location.search,
+      );
     })
     .catch(function () {
       say("data-invalid");
