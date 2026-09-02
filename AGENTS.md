@@ -1133,6 +1133,24 @@ can be spent across a boundary. Accepted because the budget counts *authorizatio
 delivered bytes* — a replayed URL costs nothing and `Range` is invisible — so precision was
 never available where it would matter; a two-counter sliding approximation (~1.1×) is the
 recorded upgrade path if Fair Transfer pressure ever makes the burst shape matter.
+What a private item may *be*, once it crosses into a browser payload, is fixed too
+(`src/lib/private-gallery-item.ts`) — the private counterpart of `projectPublicMedia`, for
+the same reason: a store row carries more than a page may render, and the safe subset is
+produced by one function rather than remembered at each call site. A `PrivateGalleryItem`
+has **no `objectKey`** (a page holding one could ask for a signature by naming it, the
+exact request shape the delivery boundary refuses), no `galleryId`, and no `nominalBytes`;
+it is built field by field rather than by spreading the row, so a column added later
+cannot reach a payload by merely existing. The placement gained its **true intrinsic
+`width`/`height`**, which the model lacked entirely — without them `AGENTS.md`'s no-crop
+rule is not expressible at all, since a layout that does not know a photograph's shape can
+only guess it, and guessing is cropping. §8e's derivative ceilings (2 048 px longest edge,
+tied to `MAX_PUBLIC_DELIVERY_DIMENSION` so a private preview cannot quietly out-resolve a
+public one, and 8 MB) are enforced again at read time rather than trusted from the upload
+tool, and an oversized derivative is **refused, never downscaled on the fly** — that would
+be a crop-shaped decision made by the wrong layer. A malformed row throws rather than
+being skipped, because a skipped item silently shortens a customer's gallery and nobody
+would know a delivered photograph is missing; a page over the 100-item bound is refused
+rather than truncated, and two placements sharing an identifier are a defect.
 Everything else is unbuilt: the signer itself, the ZIP, the owner-run upload CLI, the
 retention worker's IO, and the concrete object-store/Postgres providers with their live
 provisioning gate (the owner-run runbook for those two services
