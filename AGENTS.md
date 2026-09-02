@@ -1168,9 +1168,36 @@ document, RSC payload included. The item read happens strictly **after** authori
 an unauthorized request never reaches a placement row — and a projection or store defect
 falls back to the unauthorized document rather than rendering a gallery quietly missing
 photographs.
+Objects now have an assigned shape (`src/lib/private-gallery-object-key.ts`):
+`<keyPrefix>/g/<galleryId>/<preview|proof|zip>/<128-bit CSPRNG token>`. The token is not a
+counter, which is what makes the runtime credential's deliberate *absence* of `ListBucket`
+meaningful — sequential keys would make reading one object imply reading the gallery. A key
+carries nothing about the customer or the photograph (no name, no filename, no capture
+date, no gallery handle): it is not browser-facing, but it is visible to anyone who can
+list the bucket and to the provider's own tooling. Every part is validated before it is
+joined, so an "opaque" gallery id carrying a separator or a dot cannot place an object
+outside the prefix that all three credentials and the backstop lifecycle rule are scoped
+to, and `isPrivateGalleryObjectKeyInPrefix` checks a stored key segment-wise on the way
+back out, so `photos-private/…` never passes as being inside `photos`. The key layout is
+now in `docs/deployment.md`'s runbook, because the IAM policies cannot be written against a
+guess.
+The bounded **upload preparation** (`src/lib/private-gallery-upload.ts`) is §8c's answer to
+an object store and a database that cannot share a transaction: the database always knows
+first. `openPrivateGalleryUploadPreparation` validates a declared manifest against §8e's
+ceilings — file count, per-derivative pixels and bytes, one ZIP at most, and the gallery
+total — assigns one immutable key per entry, and returns a plan with the 30-day deadline;
+the administrator boundary commits it and moves the gallery to `preparing` **before** the
+CLI writes a byte, so the retention worker always has an enclosing preparation to reconcile.
+An object written without one would be invisible to cleanup and would survive until the
+275-day backstop. A bad entry refuses the *whole* manifest, since a partial plan would put
+keys in the database for objects the CLI was never told to write. Sizes here are
+*declared*, not measured: the completion step re-checks the real object with a metadata
+read, because a declaration is a claim and the bucket is the fact — checking only at
+completion would mean writing gigabytes before refusing, and checking only at planning
+would trust the client.
 Everything else is unbuilt: the signer itself, the ZIP, the owner-run upload CLI, the
-retention worker's IO, and the concrete object-store/Postgres providers with their live
-provisioning gate (the owner-run runbook for those two services
+completion/verification step, the retention worker's IO, and the concrete
+object-store/Postgres providers with their live provisioning gate (the owner-run runbook for those two services
 is in `docs/deployment.md`). **Administration — creating a gallery, publishing it, the
 customer notification with its delivery state and resend, and revoking or replacing
 access — split out of AB#29 into AB#145 on 2026-09-02** and has not started.
