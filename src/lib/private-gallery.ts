@@ -222,6 +222,49 @@ export type PrivateGallerySession = {
 };
 
 /**
+ * The operator's own session (ADR-0015 §2) — the administrator counterpart of
+ * {@link PrivateGallerySession}, and deliberately **not** a variant of it.
+ *
+ * It shares the shape and none of the state: no `galleryId`, because
+ * administration is not scoped to one gallery; no `capabilityGeneration`,
+ * because an operator holds no capability. There is no operator identity field
+ * either — this deployment has one operator, no user table, and nobody to
+ * enumerate (ADR-0015 Context), so a row here means "the secret was proved",
+ * not "this person logged in".
+ */
+export type PrivateGalleryAdminSession = {
+  /** Hash of the session cookie's value — never the raw bearer identifier. */
+  readonly sessionIdHash: string;
+  /**
+   * An opaque digest of the credential this session was minted against. A
+   * session whose value no longer matches the deployment's current one is
+   * refused, so **rotating the administrator secret revokes every live session
+   * by itself** — the central revocation ADR-0015 §2 asks for, with no operator
+   * action and no second mechanism to remember. The same role
+   * `capabilityGeneration` plays for a customer session.
+   *
+   * It must be a value *derived from* the configured credential and never the
+   * credential or its stored hash itself. This column lives in the session
+   * table, which is read on every administrator request and appears in any
+   * database backup; putting the verifier's own hash there would hand an
+   * offline attacker the target and its salt from a table that exists for an
+   * entirely different purpose. Whoever mints it (ADR-0015 §4's slice) owes a
+   * one-way, bounded digest, and this module only ever compares it.
+   */
+  readonly credentialGeneration: string;
+  readonly createdAt: Date;
+  readonly expiresAt: Date;
+  /**
+   * When the operator last proved the credential. Equal to `createdAt` at
+   * login, and moved forward by a later re-authentication. An irreversible
+   * operation — delete, revoke — requires this to be recent (ADR-0015 §2),
+   * because a session left open on an unlocked laptop must not be able to
+   * destroy a customer's gallery.
+   */
+  readonly reauthenticatedAt: Date;
+};
+
+/**
  * One placement in a private gallery. `placementId` is server-owned and opaque;
  * `objectKey` is opaque and encodes no customer name, filename, job number, or
  * sequential id (ADR-0014 §2). `nominalBytes` is what a signed-URL mint charges

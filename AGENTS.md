@@ -1299,9 +1299,33 @@ route, while administration owns no route at all, so every path under the prefix
 which is the point of doing this first, since a namespace has to behave privately before it
 has content or the deployment that adds the first route is also the first one crawled.
 `PRIVATE_GALLERY_ADMIN_SECRET_HASH` is already in the `NEXT_PUBLIC_` refusal list, though
-nothing reads it yet. §2–§4 — the `__Host-` session, the persisted login rate limit, the
-scrypt-verified secret, and re-authentication for irreversible operations — are the next
-slices, and no administrator credential is read or stored anywhere today.
+nothing reads it yet.
+**§2's session is built too**: `src/lib/private-gallery-admin-session.ts` carries the
+operator's session model, its `__Host-pg_admin_session` cookie contract, and the two checks
+every administrator route and mutation re-derives per request. It shares the *shape* of the
+customer session and none of its state — a separate store contract over its own rows, a
+different cookie name, no `galleryId` and no `capabilityGeneration`, and no operator
+identity field at all, because this deployment has one operator and nobody to enumerate.
+The shape it does share is extracted rather than copied: `private-gallery-session-token.ts`
+now owns identifier minting, the canonical-encoding check (a round trip, since several
+43-character strings decode to one 32-byte value), the unsalted SHA-256 the store keeps,
+and the single-cookie read that refuses a duplicate — so the two models cannot drift in the
+one place a silent divergence would matter. `__Host-` is browser-enforced (`Secure`,
+`Path=/`, no `Domain`), which is what the customer cookie could not use because it needs a
+per-gallery `Path`; the cost is that this cookie travels on public requests too, accepted
+for a cookie no sibling subdomain can set. `SameSite=Strict`, two hours by default against
+a twelve-hour ceiling a deployment may lower and never raise, absolute with no sliding
+renewal. Each row carries an opaque digest of the credential it was minted against and every
+request compares it, so **rotating the administrator secret revokes every live session by
+itself** — ADR-0015 §2's central revocation with no operator action; the digest is supplied
+by the caller rather than read here, so §4's mechanism stays replaceable. `reauthenticatedAt`
+gates irreversible operations (delete, revoke) to a five-minute window, refusing a
+future-dated value rather than reading it as "very recent". A stored row with a malformed
+credential digest classifies as `invalid-session`, not `invalid-parameter`, because the
+reason reaches the operational log and a corrupt row must not point an operator at their own
+call site. §3's persisted login rate limit, §4's scrypt-verified secret, and the routes
+themselves are the remaining slices; **no administrator credential is read, verified, or
+stored anywhere today.**
 `docs/private-gallery-data-flow.md`
 is the processing record behind any privacy notice, and `docs/deployment.md` now carries
 the whole operational runbook: provisioning and the live gate, the object-key layout the

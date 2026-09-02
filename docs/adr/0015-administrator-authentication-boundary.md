@@ -249,9 +249,11 @@ WebAuthn.
 3. [ ] **(AB#145)** `.env.example` and `docs/deployment.md`: the admin route prefix and
    `PRIVATE_GALLERY_ADMIN_SECRET_HASH`, with the generation command and the explicit rule
    that a memorable passphrase is not an acceptable value.
-4. [ ] **(AB#145)** `docs/private-gallery-data-flow.md`: replace the "the administrator-authentication
+4. [x] **(AB#145)** `docs/private-gallery-data-flow.md`: replace the "the administrator-authentication
    boundary is not designed" open item with what this record decided, and add the
-   administrator session to the cookie section.
+   administrator session to the cookie section. **Done** — the open item was
+   rewritten when this record was accepted, and the session joined the cookie
+   section with §2's slice on 2026-09-02, marked as a contract no route sets yet.
 5. [x] **(AB#145)** `docs/architecture/application-boundaries.d2`: draw the administrator boundary as
    its own node, `planned` until it is built, and regenerate the SVG. **Done**
    2026-09-02 with §1's namespace slice; the node states what is built (the reserved

@@ -97,6 +97,39 @@ a cookie banner rests on that characterisation — which is an engineering
 description, not a legal conclusion, and the deployment owner is the one who
 decides what their notice says.
 
+## The administrator session cookie
+
+A second cookie, entirely separate, for the site owner rather than a customer.
+The model and its contract are built (ADR-0015 §2); **no route sets this cookie
+yet**, because the login that mints it and the credential it proves are later
+slices. Nothing about a customer is stored in it or alongside it.
+
+| Property | Value | Why |
+| --- | --- | --- |
+| Name | `__Host-pg_admin_session` | The prefix is browser-enforced: `Secure`, `Path=/`, and no `Domain`, so no sibling subdomain can set it |
+| Contents | A 256-bit random identifier, and nothing else | The server holds only its SHA-256 hash; there is no operator identity in it, because there is one operator and no user table |
+| `HttpOnly` | yes | Script cannot read it |
+| `Secure` | yes | Never sent over plain HTTP |
+| `SameSite` | `Strict` | An administrator route is never arrived at by following a link from elsewhere |
+| `Path` | `/` | Required by `__Host-`. The cookie therefore travels on public requests too — the deliberate trade for a cookie a subdomain cannot set |
+| `Domain` | **absent** | Required by `__Host-` |
+| Lifetime | 2 hours by default, 12 hours maximum, absolute | No sliding renewal: using the session never extends it |
+
+Two properties are worth stating plainly, because they are what a reader of this
+record would otherwise have to take on trust:
+
+- **Rotating the administrator secret ends every live session.** Each session
+  row carries a digest of the credential it was minted against, and every
+  request compares it against the deployment's current one. Central revocation
+  is therefore a configuration change and a redeploy, not a table anyone has to
+  remember to clear.
+- **An irreversible operation — deleting a gallery, revoking or replacing access
+  — needs the credential proved again** within the preceding five minutes, so a
+  session left open on an unlocked laptop cannot destroy a customer's gallery.
+
+It shares no store, no cookie name, no lifetime, and no field with the customer
+access cookie above. Neither can be presented as the other.
+
 There is **no visitor-facing privacy notice on the private gallery page today**.
 The contact form has one (`SiteSettings.contact.privacyNotice`); whether the
 private gallery needs its own, and what it says, is an open question for AB#145
@@ -205,21 +238,22 @@ Open, and listed so the gap is visible rather than assumed:
   either service.
 - **The Resend account does not exist**, and its DPA and data-residency review is
   AB#117's own prerequisite work.
-- **The administrator-authentication boundary is designed, and only its
-  namespace is built.**
+- **The administrator-authentication boundary is designed; its namespace and
+  session model are built, and nothing that authenticates is.**
   [ADR-0015](adr/0015-administrator-authentication-boundary.md), accepted
   2026-09-02, decides it: its own reserved namespace, a `__Host-` administrator
   session sharing nothing with the customer path, a persisted login rate limit,
   and a generated single-operator secret verified with scrypt. What exists today
-  is §1's namespace only — `PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX`, reserved as a
-  root segment separate from the customer prefix, carrying the same `no-store`,
+  is §1's namespace — `PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX`, reserved as a root
+  segment separate from the customer prefix, carrying the same `no-store`,
   `noindex, nofollow`, and `no-referrer` response hygiene and a production
-  `robots.txt` `Disallow`. It owns no route, so every path under it is a 404,
-  **no administrator session cookie is set by any deployment, and no
-  administrator credential is read or stored anywhere.** When the rest is built,
-  this file gains that cookie in the section above and the record's accepted
-  residuals — a bearer credential with no second factor, and no audit trail of
-  administrative changes — belong here too.
+  `robots.txt` `Disallow` — and §2's session model and cookie contract, recorded
+  in the section above. It owns no route, so every path under it is a 404, **no
+  administrator session cookie is set by any deployment, and no administrator
+  credential is read, verified, or stored anywhere.** §3's persisted login rate
+  limit and §4's `scrypt`-verified secret are the remaining slices. The record's
+  accepted residuals — a bearer credential with no second factor, and no audit
+  trail of administrative changes — belong here once they are real.
 - **No visitor-facing privacy notice exists for the private gallery**, as above.
 - **This file has not been reviewed against a running deployment**, because there
   is not one. Every retention and processor claim here describes intended
