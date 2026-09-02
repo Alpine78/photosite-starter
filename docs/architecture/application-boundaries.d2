@@ -48,7 +48,7 @@ routes: "src/app — App Router" {
     class: planned
   }
 
-  admin: "Administrator boundary (part built — ADR-0015, AB#145)\nBUILT: its own reserved root prefix, separate from the\ncustomer one and never nested under it; same response\nhygiene (no-store, noindex/nofollow, no-referrer) and\nrobots Disallow, feature on or off; the __Host- session\nmodel + cookie contract, sharing no store, name or field\nwith the customer session; secret rotation revokes centrally;\nre-auth gate for irreversible operations. Owns no route yet.\nPLANNED: persisted login rate limit, scrypt-verified\ngenerated secret, the routes themselves" {
+  admin: "Administrator boundary (part built — ADR-0015, AB#145)\nBUILT: its own reserved root prefix, separate from the\ncustomer one and never nested under it; same response\nhygiene (no-store, noindex/nofollow, no-referrer) and\nrobots Disallow, feature on or off; the __Host- session\nmodel + cookie contract, sharing no store, name or field\nwith the customer session; secret rotation revokes centrally;\nre-auth gate for irreversible operations; the reused request\nboundary + two-layer login throttle, deployment-wide and\npersisted, consumed before any verification. Owns no route yet.\nPLANNED: scrypt-verified generated secret, the routes themselves" {
     class: planned
   }
 }

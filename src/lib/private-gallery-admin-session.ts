@@ -45,10 +45,12 @@
  *
  * Deliberately **not exported through `private-gallery-access.ts` yet.** That
  * facade exists to own an ordering a route must not reassemble, and the
- * administrator ordering is not complete: §3's persisted login rate limit does
- * not exist, so a facade entry point offered now would be one a route could use
- * to authorize a request that had never passed a rate limit. It joins the facade
- * with the slice that finishes the ordering, not before.
+ * administrator ordering is still incomplete — though for a different reason
+ * than when this module landed. §3's persisted login rate limit now exists
+ * (`private-gallery-admin-login.ts`); what is still missing is §4's credential,
+ * and with it the `currentCredentialGeneration` every authorized request must be
+ * compared against. A facade entry point offered now would have nothing to pass.
+ * It joins the facade with §4.
  */
 
 import "server-only";

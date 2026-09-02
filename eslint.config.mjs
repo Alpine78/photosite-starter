@@ -70,6 +70,7 @@ const eslintConfig = defineConfig([
                 "@/lib/private-gallery-session",
                 "@/lib/private-gallery-session-token",
                 "@/lib/private-gallery-admin-session",
+                "@/lib/private-gallery-admin-login",
                 "@/lib/private-gallery-signed-url",
                 "@/lib/private-gallery-exchange",
                 "@/lib/private-gallery-item",
