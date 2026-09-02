@@ -48,6 +48,7 @@ import {
   type PrivateGalleryCapabilityMaterial,
 } from "@/lib/private-gallery-capability";
 import type { PrivateGalleryCapabilityKeyring } from "@/lib/private-gallery-config";
+import { computePrivateGalleryAccessExpiry } from "@/lib/private-gallery-retention";
 import {
   evaluatePrivateGalleryExchangeRate,
   type PrivateGalleryExchangeLookup,
@@ -70,8 +71,6 @@ export const MEMORY_GALLERY_CAPABILITY =
 
 const MEMORY_GALLERY_ID = "memory-fixture-gallery";
 const MEMORY_GALLERY_GENERATION = 1;
-/** A fixture window, not the six-calendar-month rule the real publish applies. */
-const MEMORY_ACCESS_WINDOW_MS = 180 * 24 * 60 * 60 * 1000;
 
 export type PrivateGalleryMemoryStore = {
   readonly exchangeStore: PrivateGalleryExchangeStore;
@@ -101,7 +100,9 @@ function build(now: Date): PrivateGalleryMemoryStore {
     capabilityGeneration: MEMORY_GALLERY_GENERATION,
     createdAt: now,
     publishedAt: now,
-    accessExpiresAt: new Date(now.getTime() + MEMORY_ACCESS_WINDOW_MS),
+    // The real six-calendar-month rule, not a fixture approximation, so a
+    // development gallery expires exactly when a published one would.
+    accessExpiresAt: computePrivateGalleryAccessExpiry(now),
   };
 
   const material: PrivateGalleryCapabilityMaterial = sealCapability(

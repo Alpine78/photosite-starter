@@ -459,8 +459,29 @@ stays `off` until step 4 has actually passed — the code refuses to half-serve,
 `enabled` deployment with a half-provisioned bucket is a deployment throwing on every
 private request.
 
-When the delivery slices land, this section gains the backup/PITR and retention-worker
-schedule and the exit path for both new services (ADR-0014 Action Item 9).
+**6. The scheduled retention worker.** ADR-0014 §7 makes a metadata-driven worker
+authoritative for the six-month lifecycle, and it must run **at least once every 24
+hours** — a platform cron or scheduled job, not an owner-run command. Owner-run
+invocation of the same script is for repair or backfill only. The worker's decision
+rules are already built and tested (`src/lib/private-gallery-retention.ts`); the job
+that performs the IO lands with the store adapters. Two provisioning consequences to
+settle while you are in the consoles:
+
+- the object store needs the **backstop lifecycle policy** — expire objects on the
+  private prefix at **275 days** after creation, expire noncurrent versions at **30
+  days**, abort incomplete multipart uploads at **7 days**. It is a backstop for
+  objects the worker missed, never the access clock: an age rule cannot see a
+  gallery's publication-derived expiry, and the 275 days sit beyond every legitimate
+  object lifetime, so the rule can only ever hit a genuine orphan. A deployment may
+  lower these ages; raising one breaks the derivation.
+- the database's **PITR window** must sit inside the ≤ 30-day retention ceiling, which
+  is why step 3 lists it as a selection criterion rather than a nice-to-have: a backup
+  that can restore private objects' metadata from beyond the deletion horizon
+  reintroduces data the lifecycle promised was gone. A restore also re-runs the worker,
+  by design — that is what makes expiry restore-safe.
+
+When the delivery slices land, this section gains the backup/PITR runbook and the exit
+path for both new services (ADR-0014 Action Item 9).
 
 ### The Sanity webhook signing secret
 
