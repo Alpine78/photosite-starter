@@ -11,9 +11,16 @@ import { expect, test } from "./support/fixtures";
  * site-wide value (`strict-origin-when-cross-origin`, `next.config.ts`), so its
  * override on a private path proves the precedence documented in `src/proxy.ts`.
  *
+ * The same contract covers the reserved **administrator** namespace (ADR-0015
+ * §1), which owns no route at all yet — the boundary itself is AB#145's later
+ * slice. That is the point of asserting it here: a namespace has to behave
+ * privately before it has content, or the deployment that adds the first
+ * administrator route is also the first one crawled.
+ *
  * The harness runs `SITE_DEPLOYMENT_STAGE: development` and the default
- * `PRIVATE_GALLERY_ROUTE_PREFIX` (`private`). `buildRobotsPolicy`'s
- * production-only `Disallow: /private/` has deterministic coverage in
+ * `PRIVATE_GALLERY_ROUTE_PREFIX` (`private`) and
+ * `PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX` (`admin`). `buildRobotsPolicy`'s
+ * production-only `Disallow` entries have deterministic coverage in
  * `src/lib/robots.test.ts`, since this harness's stage cannot flip live.
  */
 
@@ -129,5 +136,61 @@ test.describe("private route namespace response hygiene", () => {
     // allowed.
     const body = await (await request.get("/robots.txt")).text();
     expect(body).not.toMatch(/Allow:\s*\/private/i);
+  });
+});
+
+test.describe("administrator route namespace response hygiene", () => {
+  for (const path of [
+    "/admin",
+    "/admin/login",
+    "/admin/galleries/some-gallery-id",
+    // A deep dotted path, for the same matcher reason the private cases above
+    // cover one: an earlier form of the Proxy matcher excluded these.
+    "/admin/galleries/some-gallery-id/export.zip",
+  ]) {
+    test(`${path} is a non-indexable, uncached 404`, async ({ request }) => {
+      const response = await request.get(path, { maxRedirects: 0 });
+      expect(response.status()).toBe(404);
+
+      const headers = response.headers();
+      for (const [key, value] of Object.entries(HYGIENE)) {
+        expect(headers[key]).toBe(value);
+      }
+      for (const key of SITE_WIDE_PRESENT) {
+        expect(headers[key] ?? "").not.toBe("");
+      }
+    });
+  }
+
+  test("an admin path's trailing-slash 308 also carries the hygiene headers", async ({
+    request,
+  }) => {
+    const response = await request.get("/admin/login/", { maxRedirects: 0 });
+    expect(response.status()).toBe(308);
+    expect(response.headers()["location"] ?? "").toContain("/admin/login");
+    for (const [key, value] of Object.entries(HYGIENE)) {
+      expect(response.headers()[key]).toBe(value);
+    }
+  });
+
+  test("a path that merely starts with the prefix is an ordinary public 404", async ({
+    request,
+  }) => {
+    // `/administrator` is Joomla's own admin path and a plausible probe. It is
+    // not in the namespace, so it must not silently inherit its headers — that
+    // would be the reservation quietly claiming more than one segment.
+    const response = await request.get("/administrator", { maxRedirects: 0 });
+    expect(response.status()).toBe(404);
+    expect(response.headers()["x-robots-tag"]).toBeUndefined();
+    expect(response.headers()["referrer-policy"]).toBe(
+      "strict-origin-when-cross-origin",
+    );
+  });
+
+  test("robots.txt does not allow the administrator namespace", async ({
+    request,
+  }) => {
+    const body = await (await request.get("/robots.txt")).text();
+    expect(body).not.toMatch(/Allow:\s*\/admin/i);
   });
 });

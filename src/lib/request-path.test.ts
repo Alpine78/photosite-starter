@@ -5,6 +5,7 @@ import {
   isCarryableRequestPath,
   PRIVATE_GALLERY_INTERNAL_SEGMENT,
   isPotentialStoryRequestPath,
+  isPrivateAdminRequestPath,
   isPrivateGalleryInternalPath,
   isPrivateRequestPath,
   privateGalleryInternalPath,
@@ -153,6 +154,45 @@ describe("isPrivateRequestPath", () => {
   it("uses the configured prefix, not a hardcoded one", () => {
     expect(isPrivateRequestPath("/clients/handle", "clients")).toBe(true);
     expect(isPrivateRequestPath("/private/handle", "clients")).toBe(false);
+  });
+});
+
+describe("isPrivateAdminRequestPath", () => {
+  it.each([
+    "/admin",
+    "/admin/",
+    "/admin/login",
+    "/admin/galleries/some-id",
+    "/admin/galleries/some-id/export.zip",
+  ])("matches the prefix segment and everything beneath it: %s", (path) => {
+    expect(isPrivateAdminRequestPath(path, "admin")).toBe(true);
+  });
+
+  it.each([
+    "/",
+    "/administrator",
+    "/admin-tools",
+    "/x/admin",
+    "/services",
+  ])("does not match a path outside the namespace: %s", (path) => {
+    expect(isPrivateAdminRequestPath(path, "admin")).toBe(false);
+  });
+
+  it("uses the configured prefix, not a hardcoded one", () => {
+    expect(isPrivateAdminRequestPath("/studio/login", "studio")).toBe(true);
+    expect(isPrivateAdminRequestPath("/admin/login", "studio")).toBe(false);
+  });
+
+  it("classifies a path into at most one namespace, given the configuration the build allows", () => {
+    // `readPrivateGalleryDeployment` refuses equal prefixes, so the Proxy can
+    // treat the two branches as mutually exclusive.
+    for (const path of ["/private/handle", "/admin/login", "/stories"]) {
+      const matches = [
+        isPrivateRequestPath(path, "private"),
+        isPrivateAdminRequestPath(path, "admin"),
+      ].filter(Boolean);
+      expect(matches.length).toBeLessThanOrEqual(1);
+    }
   });
 });
 

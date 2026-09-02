@@ -10,5 +10,6 @@ export default function robots(): MetadataRoute.Robots {
     readDeploymentStage(process.env),
     canonicalBaseUrl,
     privateGallery.routePrefix,
+    privateGallery.adminRoutePrefix,
   );
 }

@@ -321,12 +321,13 @@ does** — `PRIVATE_GALLERY_STORE=enabled` throws on the first request that need
 design, so a deployment that turns the feature on before AB#29's provisioning slice fails
 visibly instead of half-serving.
 
-Two build-safe settings, read during `loadDeploymentConfig` like the `SITE_*` values:
+Three build-safe settings, read during `loadDeploymentConfig` like the `SITE_*` values:
 
 | Setting | Preview | Production |
 | --- | --- | --- |
 | `PRIVATE_GALLERY_STORE` | `off` (or unset) | `off` (or unset) until AB#29 provisioning |
 | `PRIVATE_GALLERY_ROUTE_PREFIX` | unset (defaults to `private`) | same |
+| `PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX` | unset (defaults to `admin`) | same |
 
 `PRIVATE_GALLERY_STORE` accepts a third value, `memory`, which
 `readPrivateGalleryDeployment` accepts **only when `SITE_DEPLOYMENT_STAGE` is
@@ -354,6 +355,28 @@ surface nobody reviewed. `npm run dev` and the Playwright harness both declare
 feature is on or off**, so a deployment can never assign `/private` to a locale prefix or
 a story namespace and then be unable to enable the feature without a public URL
 migration. A collision fails the build.
+
+`PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX` (ADR-0015 §1) is the administrator namespace's own
+root segment, reserved on exactly the same terms and for the same reason. Two things
+about it are worth knowing before a clone changes it:
+
+- **It must differ from `PRIVATE_GALLERY_ROUTE_PREFIX`,** and the build refuses a
+  configuration where the two are equal. ADR-0015 §1 keeps the namespaces from
+  overlapping at all: the customer session cookie is `Path`-scoped beneath the customer
+  prefix, so a shared root would place an administrator route inside the scope of a
+  customer credential.
+- **The prefix is not a secret and is not a security control.** Changing it to something
+  unguessable is fine and costs nothing, but the boundary is the credential, the
+  persisted login rate limit, and the `__Host-` session ADR-0015 §2–§4 decide — none of
+  which is built yet (AB#145). Note in particular that **production `robots.txt`
+  publishes whatever value you choose**, as a `Disallow` line: renaming the prefix is
+  not concealment, and nothing here is designed on the assumption that it is.
+
+Administration does not exist yet, so every path under this prefix is a 404 today. It
+already answers with `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`, and
+`Referrer-Policy: no-referrer`, and production `robots.txt` disallows it: a namespace has
+to behave privately *before* it has content, or the deployment that adds the first route
+is also the first one crawled.
 
 **One exception to the request-time rule.** `PRIVATE_GALLERY_S3_ENDPOINT` is additionally
 read at **build** time, and only when `PRIVATE_GALLERY_STORE=enabled`. The private routes

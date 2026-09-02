@@ -120,6 +120,97 @@ describe("private route response hygiene (ADR-0014 §6)", () => {
   });
 });
 
+describe("administrator route response hygiene (ADR-0015 §1)", () => {
+  it.each(["/admin", "/admin/login", "/admin/galleries/some-id"])(
+    "stamps no-store / noindex / no-referrer on a pass-through response for %s",
+    async (path) => {
+      const { proxy, request } = await loadProxy();
+      expect(headersOf(proxy(request(path)))).toMatchObject(HYGIENE);
+    },
+  );
+
+  it("stamps the hygiene headers on an admin path's trailing-slash 308", async () => {
+    const { proxy, request } = await loadProxy();
+    const response = proxy(request("/admin/login/"));
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toContain("/admin/login");
+    expect(headersOf(response)).toMatchObject(HYGIENE);
+  });
+
+  it("honours a deployment-configured custom admin prefix", async () => {
+    const { proxy, request } = await loadProxy({
+      PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "studio",
+    });
+    expect(headersOf(proxy(request("/studio/login")))).toMatchObject(HYGIENE);
+    // The default prefix is now an ordinary path.
+    expect(
+      headersOf(proxy(request("/admin/login")))["cache-control"],
+    ).toBeUndefined();
+  });
+
+  it("does not treat a same-stem non-namespace path as administrative", async () => {
+    const { proxy, request } = await loadProxy();
+    expect(
+      headersOf(proxy(request("/administrator")))["cache-control"],
+    ).toBeUndefined();
+  });
+
+  it("skips the legacy-redirect lookup for an admin path", async () => {
+    // Same hazard the customer namespace has: the legacy registry answers
+    // before the hygiene headers apply, so a match would return a cacheable
+    // 410 from inside the administrator namespace.
+    vi.doMock("@/lib/legacy-redirects", async () => {
+      const actual = await vi.importActual<
+        typeof import("@/lib/legacy-redirects")
+      >("@/lib/legacy-redirects");
+      return {
+        ...actual,
+        resolveLegacyRedirect: () => ({
+          kind: "redirect" as const,
+          target: "/redirected-away",
+          reservedQueryParams: new Set<string>(),
+        }),
+      };
+    });
+    const { proxy, request } = await loadProxy();
+
+    expect(proxy(request("/anything")).status).toBe(301);
+    const adminResponse = proxy(request("/admin/login"));
+    expect(adminResponse.status).not.toBe(301);
+    expect(headersOf(adminResponse)).toMatchObject(HYGIENE);
+  });
+
+  it("rewrites an admin path nowhere — the namespace owns no route yet", async () => {
+    // The customer namespace needs a rewrite to reconcile a configurable
+    // prefix with a fixed file-system route. Administration has no route to
+    // reach, so a pass-through is both correct and what keeps
+    // `Referrer-Policy` overriding the site-wide value.
+    const { proxy, request } = await loadProxy();
+    const response = proxy(request("/admin/login"));
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(headersOf(response)).toMatchObject(HYGIENE);
+  });
+
+  it("keeps the two namespaces independent under custom prefixes", async () => {
+    const { proxy, request } = await loadProxy({
+      PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
+      PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "studio",
+    });
+
+    // The customer path is rewritten onto the internal segment; the
+    // administrator path is not rewritten at all. Both carry the hygiene.
+    const customer = proxy(request("/clients/handle"));
+    expect(
+      new URL(customer.headers.get("x-middleware-rewrite") ?? "").pathname,
+    ).toBe("/private-gallery/handle");
+    expect(headersOf(customer)).toMatchObject(HYGIENE);
+
+    const admin = proxy(request("/studio/login"));
+    expect(admin.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(headersOf(admin)).toMatchObject(HYGIENE);
+  });
+});
+
 describe("private namespace rewrite (ADR-0014 §9)", () => {
   /** `NextResponse.rewrite`'s own wire signal, read back as the rewrite target. */
   const rewriteTarget = (response: { headers: Headers }) =>

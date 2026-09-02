@@ -1282,7 +1282,27 @@ customer path, a persisted login rate limit, and a **generated** single-operator
 verified with `scrypt`, because §4 requires the boundary to be *stronger* than a 256-bit
 customer capability and a human-chosen passphrase is not; a passkey is the recorded upgrade
 path, deferred for its dependency and its lost-device recovery converging back on a
-configuration secret. Implementation is **AB#145's**. `docs/private-gallery-data-flow.md`
+configuration secret. Implementation is **AB#145's**, and its first slice is built: ADR-0015
+§1's **reserved administrator namespace**, and nothing else. `PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX`
+(default `admin`) is validated as one lowercase segment and reserved as a root segment
+whether the feature is on or off, exactly as the customer prefix is — against locale
+prefixes, the redundant default prefix, story namespaces, application-owned segments, and
+legacy-redirect roots — and additionally **refused if it equals the customer prefix**,
+because that prefix is what the customer session cookie's `Path` is scoped beneath, so a
+shared root would put an administrator route inside the scope of a customer credential.
+The Proxy stamps the same `no-store` / `noindex, nofollow` / `no-referrer` hygiene on every
+response in it and skips the legacy-redirect lookup for it (a match would otherwise return
+a cacheable 410 from inside the namespace), production `robots.txt` disallows it, and one
+constant now serves both namespaces so the two cannot drift. There is **no rewrite**: the
+customer namespace needs one to reconcile a configurable prefix with a fixed file-system
+route, while administration owns no route at all, so every path under the prefix is a 404 —
+which is the point of doing this first, since a namespace has to behave privately before it
+has content or the deployment that adds the first route is also the first one crawled.
+`PRIVATE_GALLERY_ADMIN_SECRET_HASH` is already in the `NEXT_PUBLIC_` refusal list, though
+nothing reads it yet. §2–§4 — the `__Host-` session, the persisted login rate limit, the
+scrypt-verified secret, and re-authentication for irreversible operations — are the next
+slices, and no administrator credential is read or stored anywhere today.
+`docs/private-gallery-data-flow.md`
 is the processing record behind any privacy notice, and `docs/deployment.md` now carries
 the whole operational runbook: provisioning and the live gate, the object-key layout the
 IAM policies are scoped to, the worker's at-least-daily schedule and backstop policy, the

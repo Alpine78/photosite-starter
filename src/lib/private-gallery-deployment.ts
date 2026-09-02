@@ -2,7 +2,7 @@
  * The build-safe half of a deployment's private client-gallery configuration
  * (ADR-0014 §9).
  *
- * Two settings only, and neither is a secret, so this module is read during
+ * Three settings, none of them a secret, so this module is read during
  * `loadDeploymentConfig` like `SITE_*` — a misconfiguration fails the build,
  * not the first request:
  *
@@ -16,10 +16,18 @@
  *   **whether the feature is on or off**, so an `off` clone can never assign
  *   `/private` to a locale prefix or a story namespace and then be unable to
  *   turn the feature on without a public URL migration (ADR-0014 §9).
+ * - **`PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX`** — the reserved root segment the
+ *   administrator routes will live under (default `admin`, ADR-0015 §1).
+ *   Reserved on the same terms and for the same reason, and additionally
+ *   required to differ from the customer prefix: ADR-0015 §1 keeps the two
+ *   namespaces from overlapping at all, so "isolated from the customer path" is
+ *   verifiable by looking at the URL rather than by reasoning about cookie
+ *   scoping.
  *
  * The secret-bearing settings — the database URL, the object-store verifier
- * credentials, and the capability keyring — are the request-time Sensitive half,
- * read lazily in `private-gallery-config.ts` and never required by `next build`
+ * credentials, the capability keyring, and the administrator secret hash — are
+ * the request-time Sensitive half, read lazily in `private-gallery-config.ts`
+ * and never required by `next build`
  * (the same posture as `GALLERY_CURSOR_SIGNING_KEY`). This module still refuses,
  * unconditionally, to let any of those be mirrored under a `NEXT_PUBLIC_` name:
  * `off` must not excuse a secret that is already on its way into the browser
@@ -46,9 +54,17 @@ export type PrivateGalleryDeployment = {
   readonly store: PrivateGalleryStoreMode;
   /** A single lowercase root path segment; reserved even when `store` is `off`. */
   readonly routePrefix: string;
+  /**
+   * The administrator namespace's own root segment (ADR-0015 §1). Reserved on
+   * the same terms as {@link routePrefix}, never equal to it, and never nested
+   * beneath it.
+   */
+  readonly adminRoutePrefix: string;
 };
 
 export const DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX = "private";
+
+export const DEFAULT_PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX = "admin";
 
 /**
  * One lowercase path segment: a letter, then letters/digits/inner hyphens, no
@@ -60,6 +76,7 @@ const ROUTE_PREFIX_PATTERN = /^[a-z](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
 const settingNames = {
   store: "PRIVATE_GALLERY_STORE",
   routePrefix: "PRIVATE_GALLERY_ROUTE_PREFIX",
+  adminRoutePrefix: "PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX",
 } as const;
 
 /**
@@ -87,6 +104,10 @@ export const PRIVATE_GALLERY_SECRET_SETTING_NAMES = [
   "PRIVATE_GALLERY_RETENTION_SECRET_ACCESS_KEY",
   "PRIVATE_GALLERY_CLI_ACCESS_KEY_ID",
   "PRIVATE_GALLERY_CLI_SECRET_ACCESS_KEY",
+  // A scrypt hash rather than the secret itself (ADR-0015 §4), and still listed
+  // here: shipping it to every visitor would hand an attacker an offline target
+  // and a salt, and there is no reason whatsoever for a browser to hold it.
+  "PRIVATE_GALLERY_ADMIN_SECRET_HASH",
 ] as const;
 
 const STORE_MODES: readonly PrivateGalleryStoreMode[] = [
@@ -154,12 +175,16 @@ function parseStoreMode(
   return mode;
 }
 
-function parseRoutePrefix(value: string | undefined): string {
+function parseRoutePrefix(
+  value: string | undefined,
+  settingName: string,
+  fallback: string,
+): string {
   const trimmed = value?.trim();
-  if (!trimmed) return DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX;
+  if (!trimmed) return fallback;
   if (!ROUTE_PREFIX_PATTERN.test(trimmed)) {
     throw new PrivateGalleryDeploymentError(
-      `Invalid ${settingNames.routePrefix}: expected one lowercase path segment (a letter, then letters, digits, or inner hyphens, no trailing hyphen), at most 32 characters, received "${trimmed}"`,
+      `Invalid ${settingName}: expected one lowercase path segment (a letter, then letters, digits, or inner hyphens, no trailing hyphen), at most 32 characters, received "${trimmed}"`,
     );
   }
   return trimmed;
@@ -178,10 +203,35 @@ export function readPrivateGalleryDeployment(
   stage: DeploymentStage,
 ): PrivateGalleryDeployment {
   assertNoPublicPrivateGallerySecretMirror(environment);
-  return {
-    store: parseStoreMode(environment[settingNames.store], stage),
-    routePrefix: parseRoutePrefix(environment[settingNames.routePrefix]),
-  };
+
+  // Parsed before the prefixes so that a deployment getting several settings
+  // wrong is told about the store switch first, exactly as it was before the
+  // administrator prefix joined this function.
+  const store = parseStoreMode(environment[settingNames.store], stage);
+  const routePrefix = parseRoutePrefix(
+    environment[settingNames.routePrefix],
+    settingNames.routePrefix,
+    DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX,
+  );
+  const adminRoutePrefix = parseRoutePrefix(
+    environment[settingNames.adminRoutePrefix],
+    settingNames.adminRoutePrefix,
+    DEFAULT_PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX,
+  );
+
+  // ADR-0015 §1: the administrator namespace is not nested under the customer
+  // one, and the two do not overlap at all. Both are a single segment, so
+  // equality is the only overlap available — and it would be a real one: the
+  // customer session cookie is `Path`-scoped to `/<prefix>/<handle>`, so a
+  // shared root would put an administrator route inside the scope of a
+  // customer credential.
+  if (adminRoutePrefix === routePrefix) {
+    throw new PrivateGalleryDeploymentError(
+      `Invalid ${settingNames.adminRoutePrefix}: "${adminRoutePrefix}" is also ${settingNames.routePrefix}, but the administrator namespace must not overlap the customer one (ADR-0015 §1)`,
+    );
+  }
+
+  return { store, routePrefix, adminRoutePrefix };
 }
 
 let cached: PrivateGalleryDeployment | undefined;

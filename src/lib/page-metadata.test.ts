@@ -64,7 +64,11 @@ const deployment: DeploymentConfig = {
   defaultSocialImage: buildDefaultSocialImage(
     "Rocky shoreline beside calm water",
   ),
-  privateGallery: { store: "off", routePrefix: "private" },
+  privateGallery: {
+    store: "off",
+    routePrefix: "private",
+    adminRoutePrefix: "admin",
+  },
 };
 
 const context = { settings, deployment };

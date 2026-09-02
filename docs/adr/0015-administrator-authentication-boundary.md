@@ -252,8 +252,10 @@ WebAuthn.
 4. [ ] **(AB#145)** `docs/private-gallery-data-flow.md`: replace the "the administrator-authentication
    boundary is not designed" open item with what this record decided, and add the
    administrator session to the cookie section.
-5. [ ] **(AB#145)** `docs/architecture/application-boundaries.d2`: draw the administrator boundary as
-   its own node, `planned` until it is built, and regenerate the SVG.
+5. [x] **(AB#145)** `docs/architecture/application-boundaries.d2`: draw the administrator boundary as
+   its own node, `planned` until it is built, and regenerate the SVG. **Done**
+   2026-09-02 with §1's namespace slice; the node states what is built (the reserved
+   prefix and its response hygiene) and what is not (§2&ndash;§4).
 6. [ ] Revisit option C once administration exists and the dependency can be judged
    against real usage, rather than in the abstract.
 

@@ -16,6 +16,7 @@ import {
   REQUEST_PATH_HEADER,
   isCarryableRequestPath,
   isPotentialStoryRequestPath,
+  isPrivateAdminRequestPath,
   isPrivateGalleryInternalPath,
   isPrivateRequestPath,
   privateGalleryInternalPath,
@@ -24,7 +25,10 @@ import {
 
 /**
  * ADR-0014 §6's response-hygiene headers for the reserved private client-gallery
- * namespace. ADR-0014 §9 makes this the Proxy's rule, not `next.config.ts`'s:
+ * namespace, and — on ADR-0015 §1's instruction that the administrator routes
+ * carry "the same response hygiene the private namespace already does" — for the
+ * reserved administrator namespace too. One constant, so the two cannot drift.
+ * ADR-0014 §9 makes this the Proxy's rule, not `next.config.ts`'s:
  * one owner, and a `NextResponse.next()` response's headers replace a same-named
  * `next.config.ts` value, so `Referrer-Policy` here overrides the site-wide
  * `strict-origin-when-cross-origin`. `Cache-Control` and `X-Robots-Tag` have no
@@ -42,14 +46,16 @@ import {
  * `Cache-Control`, the object store's own `no-store` metadata, and the CSP
  * `img-src` grant are each a later route/delivery slice's job (ADR-0014 §6, §5).
  */
-const PRIVATE_HYGIENE_HEADERS: Readonly<Record<string, string>> = {
+const RESERVED_NAMESPACE_HYGIENE_HEADERS: Readonly<Record<string, string>> = {
   "cache-control": "no-store",
   "x-robots-tag": "noindex, nofollow",
   "referrer-policy": "no-referrer",
 };
 
-function withPrivateHygieneHeaders(response: NextResponse): NextResponse {
-  for (const [key, value] of Object.entries(PRIVATE_HYGIENE_HEADERS)) {
+function withReservedNamespaceHygieneHeaders(
+  response: NextResponse,
+): NextResponse {
+  for (const [key, value] of Object.entries(RESERVED_NAMESPACE_HYGIENE_HEADERS)) {
     response.headers.set(key, value);
   }
   return response;
@@ -109,12 +115,14 @@ export function proxy(request: NextRequest) {
   const hasSection = request.nextUrl.searchParams.has("section");
   const hasTrailingSlash = pathname.length > 1 && pathname.endsWith("/");
 
-  // The reserved private client-gallery namespace (ADR-0014 §9). Its prefix is
-  // validated and reserved by `loadDeploymentConfig` — including against a
-  // legacy-redirect root — so a private path is never also a legacy path, and
-  // the legacy lookup below is skipped for it. Every response the Proxy returns
-  // for such a path carries §6's hygiene headers.
-  const privateRoutePrefix = getDeploymentConfig().privateGallery.routePrefix;
+  // The two reserved namespaces: the private client-gallery one (ADR-0014 §9)
+  // and the administrator one (ADR-0015 §1). Both prefixes are validated and
+  // reserved by `loadDeploymentConfig` — including against each other and
+  // against a legacy-redirect root — so neither is ever also a legacy path, and
+  // the legacy lookup below is skipped for both. Every response the Proxy
+  // returns for such a path carries §6's hygiene headers.
+  const { routePrefix: privateRoutePrefix, adminRoutePrefix } =
+    getDeploymentConfig().privateGallery;
 
   // The internal rewrite target (`privateGalleryInternalPath`). **This Proxy
   // runs again on the path it rewrote to** — verified against a production
@@ -141,13 +149,24 @@ export function proxy(request: NextRequest) {
     // A pass-through, not a second rewrite — and that is also what makes §6's
     // `Referrer-Policy: no-referrer` stick: a `next()` response's headers
     // replace `next.config.ts`'s site-wide value, while a `rewrite()` response's
-    // do not (see `PRIVATE_HYGIENE_HEADERS` above).
-    return withPrivateHygieneHeaders(
+    // do not (see `RESERVED_NAMESPACE_HYGIENE_HEADERS` above).
+    return withReservedNamespaceHygieneHeaders(
       NextResponse.next({ request: { headers: requestHeaders } }),
     );
   }
 
   const privatePath = isPrivateRequestPath(pathname, privateRoutePrefix);
+
+  // The reserved administrator namespace (ADR-0015 §1). It owns no route yet —
+  // the boundary itself is a later slice — so every path here is a 404 today.
+  // That is exactly why the hygiene applies now: a namespace must behave
+  // privately *before* it has content, or the first deployment that adds a
+  // route is also the first one crawled.
+  //
+  // `readPrivateGalleryDeployment` refuses a configuration where the two
+  // prefixes are equal, so `privatePath` and `adminPath` are mutually exclusive.
+  const adminPath = isPrivateAdminRequestPath(pathname, adminRoutePrefix);
+  const reservedNamespacePath = privatePath || adminPath;
 
   // Checked against the exact requested pathname, trailing slash and all,
   // and *before* the generic trailing-slash normalization below — a legacy
@@ -163,7 +182,7 @@ export function proxy(request: NextRequest) {
   // so a request that only differs from a decided row by its query still
   // gets that row's outcome; what the query string itself does about it is
   // decided below, per outcome kind.
-  const legacyOutcome = privatePath
+  const legacyOutcome = reservedNamespacePath
     ? undefined
     : resolveLegacyRedirect(LEGACY_REDIRECTS, pathname);
   if (legacyOutcome !== undefined) {
@@ -205,7 +224,9 @@ export function proxy(request: NextRequest) {
     const destination = new URL(request.url);
     destination.pathname = pathname.slice(0, -1);
     const redirect = NextResponse.redirect(destination, 308);
-    return privatePath ? withPrivateHygieneHeaders(redirect) : redirect;
+    return reservedNamespacePath
+      ? withReservedNamespaceHygieneHeaders(redirect)
+      : redirect;
   }
 
   if (pathname === "/api" || pathname.startsWith("/api/")) {
@@ -241,6 +262,16 @@ export function proxy(request: NextRequest) {
     requestHeaders.delete(REQUEST_HAS_SECTION_HEADER);
   }
 
+  // No rewrite for the administrator namespace: it has no file-system route to
+  // reconcile a configurable prefix with yet. A pass-through is also what makes
+  // §6's `Referrer-Policy: no-referrer` stick, for the reason the private
+  // internal-path branch above documents.
+  if (adminPath) {
+    return withReservedNamespaceHygieneHeaders(
+      NextResponse.next({ request: { headers: requestHeaders } }),
+    );
+  }
+
   if (!privatePath) {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
@@ -256,7 +287,7 @@ export function proxy(request: NextRequest) {
   // path, so it was already redirected.
   const target = request.nextUrl.clone();
   target.pathname = privateGalleryInternalPath(pathname, privateRoutePrefix);
-  return withPrivateHygieneHeaders(
+  return withReservedNamespaceHygieneHeaders(
     NextResponse.rewrite(target, { request: { headers: requestHeaders } }),
   );
 }

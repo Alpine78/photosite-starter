@@ -765,8 +765,9 @@ function legacyRedirectRootSegments(): ReadonlySet<string> {
  * route contract's, so the values are validated there and reported against the
  * setting that supplied them.
  *
- * The private client-gallery route prefix (ADR-0014 §9) is reserved here too,
- * feature on or off: it is added to the root segments the route contract
+ * Both reserved private-gallery root prefixes — the customer namespace
+ * (ADR-0014 §9) and the administrator one (ADR-0015 §1) — are reserved here
+ * too, feature on or off: each is added to the root segments the route contract
  * forbids a locale prefix, the redundant default-locale prefix, or the default
  * locale's story namespace from claiming, so an `off` clone cannot assign
  * `/<prefix>` to public routing and then be unable to enable private galleries
@@ -775,30 +776,47 @@ function legacyRedirectRootSegments(): ReadonlySet<string> {
 function parseLocaleRoutes(
   environment: DeploymentEnvironment,
   defaultLocale: string,
-  privateGalleryRoutePrefix: string,
+  privateGallery: PrivateGalleryDeployment,
 ): LocaleRouteConfig {
   const settingName = deploymentSettingNames.localeRoutes;
   const value = requireSetting(environment, settingName);
 
-  if (RESERVED_ROOT_SEGMENTS.includes(privateGalleryRoutePrefix)) {
-    throw new Error(
-      `[deployment-config] Invalid PRIVATE_GALLERY_ROUTE_PREFIX: "${privateGalleryRoutePrefix}" is already a root route segment the application owns`,
-    );
+  // The two namespaces are reserved on identical terms, so the rules are
+  // written once and applied to both rather than restated for the newer one.
+  const reservedPrefixes = [
+    {
+      settingName: "PRIVATE_GALLERY_ROUTE_PREFIX",
+      value: privateGallery.routePrefix,
+    },
+    {
+      settingName: "PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX",
+      value: privateGallery.adminRoutePrefix,
+    },
+  ];
+
+  for (const prefix of reservedPrefixes) {
+    if (RESERVED_ROOT_SEGMENTS.includes(prefix.value)) {
+      throw new Error(
+        `[deployment-config] Invalid ${prefix.settingName}: "${prefix.value}" is already a root route segment the application owns`,
+      );
+    }
+    // A private path must never also be a legacy-redirect path (ADR-0014 §6,
+    // ADR-0015 §1): the Proxy answers the legacy registry before it can apply
+    // the response-hygiene headers, so a colliding prefix would let a
+    // `/<prefix>/...` request return a cacheable 410. The Proxy also skips the
+    // legacy lookup for both namespaces, making this a fail-at-build guard
+    // against a contradictory clone config rather than the only thing standing
+    // between the two.
+    if (legacyRedirectRootSegments().has(prefix.value)) {
+      throw new Error(
+        `[deployment-config] Invalid ${prefix.settingName}: "${prefix.value}" is the root of a legacy-redirect path`,
+      );
+    }
   }
-  // A private path must never also be a legacy-redirect path (ADR-0014 §6): the
-  // Proxy answers the legacy registry before it can apply the private
-  // response-hygiene headers, so a colliding prefix would let a `/<prefix>/...`
-  // request return a cacheable 410. The Proxy also skips the legacy lookup for a
-  // private path, making this a fail-at-build guard against a contradictory
-  // clone config rather than the only thing standing between the two.
-  if (legacyRedirectRootSegments().has(privateGalleryRoutePrefix)) {
-    throw new Error(
-      `[deployment-config] Invalid PRIVATE_GALLERY_ROUTE_PREFIX: "${privateGalleryRoutePrefix}" is the root of a legacy-redirect path`,
-    );
-  }
+
   const reservedRootSegments = [
     ...RESERVED_ROOT_SEGMENTS,
-    privateGalleryRoutePrefix,
+    ...reservedPrefixes.map((prefix) => prefix.value),
   ];
 
   const locales: LocaleRouteInput[] = value
@@ -1010,11 +1028,7 @@ export function loadDeploymentConfig(
     stage,
     contentSource: readContentSource(environment, stage),
     locale,
-    localeRoutes: parseLocaleRoutes(
-      environment,
-      locale,
-      privateGallery.routePrefix,
-    ),
+    localeRoutes: parseLocaleRoutes(environment, locale, privateGallery),
     canonicalBaseUrl,
     defaultSocialImage: parseDefaultSocialImage(environment),
     privateGallery,
