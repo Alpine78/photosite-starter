@@ -1163,8 +1163,16 @@ a per-deployment call, with UpCloud as the reference.
    gallery, invalid/expired-access state, upload/status surface, and proof-selection
    control is keyboard-operable, has visible focus, and exposes loading, error, and
    confirmation status to assistive technology.
-3. [ ] The administrator-authentication boundary (§4) is designed and reviewed in
-   AB#29 — mechanism open, separation from the customer path fixed.
+3. [x] The administrator-authentication boundary (§4) is designed and reviewed in
+   AB#29 — mechanism open, separation from the customer path fixed. *Closed 2026-09-02 by
+   [ADR-0015](0015-administrator-authentication-boundary.md), **Accepted** the same day:
+   its own reserved namespace, a `__Host-` session sharing nothing with the customer path,
+   a persisted login rate limit, and a generated single-operator secret verified with
+   scrypt — with a passkey recorded as the upgrade path. §4's requirement that the
+   mechanism be **stronger** than a 256-bit customer capability is what rules out a
+   human-chosen passphrase and makes the generated credential a requirement rather than
+   advice. The same decision assigned the **implementation to AB#145**, which owns
+   administration; this item named AB#29 only because it predates that split.*
 4. [x] **ADR-0011**: add the private object-store origin to `img-src` (previews load as
    `<img>`; no `connect-src` grant — §6) on the private routes only, in the same change
    that introduces them; add `next-config.test.ts` coverage. *Done (AB#29, 2026-09-02).*
