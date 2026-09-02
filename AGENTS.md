@@ -1057,8 +1057,9 @@ file, so no new inline-script grant) reads it, strips it from the address bar wi
 `replaceState`, and posts it to `POST <prefix>/<handle>/exchange`, which answers a session
 cookie or **one indistinguishable 403** for every failure class — same status, same body,
 no `Retry-After` — so nothing separates an unknown handle from a throttled known one.
-`PRIVATE_GALLERY_STORE=memory` is a development-only fixture store (refused in a production
-deployment, like `SITE_CONTENT_SOURCE=mock`) whose published, non-secret link is what the
+`PRIVATE_GALLERY_STORE=memory` is a development-only fixture store (accepted only where
+`SITE_DEPLOYMENT_STAGE` is `development` — preview is refused as well as production, since
+it is a shared environment standing in for production) whose published, non-secret link is what the
 Playwright journey and a local `npm run dev` actually exercise; it seals that fixture under
 an ephemeral per-process key and never reads the deployment keyring.
 Everything else is unbuilt: the private gallery page itself, two-stage per-request

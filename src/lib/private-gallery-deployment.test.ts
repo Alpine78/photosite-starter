@@ -24,30 +24,32 @@ describe("readPrivateGalleryDeployment", () => {
     ).toEqual({ store: "enabled", routePrefix: "clients" });
   });
 
-  it.each(["development", "preview"] as const)(
-    "accepts the memory fixture store in a %s deployment",
-    (stage) => {
-      expect(
-        readPrivateGalleryDeployment({ PRIVATE_GALLERY_STORE: "memory" }, stage),
-      ).toEqual({
-        store: "memory",
-        routePrefix: DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX,
-      });
-    },
-  );
-
-  it("refuses the memory fixture store in a production deployment", () => {
-    // The fixture's capability is a published constant, so a production
-    // deployment that reached this configuration would be serving a gallery
-    // anyone holding this repository could open. It fails the build, the same
-    // way `SITE_CONTENT_SOURCE=mock` and `CONTACT_DELIVERY_ADAPTER=sink` do.
-    expect(() =>
+  it("accepts the memory fixture store in a development deployment", () => {
+    expect(
       readPrivateGalleryDeployment(
         { PRIVATE_GALLERY_STORE: "memory" },
-        "production",
+        "development",
       ),
-    ).toThrow(PrivateGalleryDeploymentError);
+    ).toEqual({
+      store: "memory",
+      routePrefix: DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX,
+    });
   });
+
+  it.each(["preview", "production"] as const)(
+    "refuses the memory fixture store in a %s deployment",
+    (stage) => {
+      // The fixture's capability is a published constant, so any deployment
+      // that reached this configuration would serve a gallery anyone holding
+      // this repository could open. Preview is refused as well as production:
+      // it is a shared, access-protected environment standing in for
+      // production, not a developer's machine. It fails the build, the same way
+      // `SITE_CONTENT_SOURCE=mock` and `CONTACT_DELIVERY_ADAPTER=sink` do.
+      expect(() =>
+        readPrivateGalleryDeployment({ PRIVATE_GALLERY_STORE: "memory" }, stage),
+      ).toThrow(PrivateGalleryDeploymentError);
+    },
+  );
 
   it("rejects an unknown store mode", () => {
     expect(() =>

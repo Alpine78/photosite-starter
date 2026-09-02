@@ -41,7 +41,12 @@ const UNKNOWN_HANDLE = Buffer.alloc(16, 0x33).toString("base64url");
 function post(
   handle: string,
   body: unknown,
-  init: { headers?: Record<string, string>; raw?: string } = {},
+  init: {
+    headers?: Record<string, string>;
+    raw?: string;
+    /** A streamed body, so the request carries no `Content-Length` at all. */
+    stream?: ReadableStream<Uint8Array>;
+  } = {},
 ) {
   const request = new Request(`${ORIGIN}/private/${handle}/exchange`, {
     method: "POST",
@@ -51,9 +56,34 @@ function post(
       origin: ORIGIN,
       ...init.headers,
     },
-    body: init.raw ?? JSON.stringify(body),
-  });
+    body: init.stream ?? init.raw ?? JSON.stringify(body),
+    ...(init.stream === undefined ? {} : { duplex: "half" }),
+  } as RequestInit);
   return POST(request, { params: Promise.resolve({ handle }) });
+}
+
+/**
+ * A body that keeps producing chunks and records how many bytes the endpoint
+ * actually pulled. A reader that buffers first and measures afterwards drains
+ * the whole thing; a bounded one abandons the stream near the limit.
+ */
+function endlessBody(chunkBytes = 1024) {
+  const state = { pulled: 0, cancelled: false };
+  const chunk = new Uint8Array(chunkBytes).fill(0x41);
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      state.pulled += chunk.byteLength;
+      if (state.pulled > 5_000_000) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(chunk);
+    },
+    cancel() {
+      state.cancelled = true;
+    },
+  });
+  return { stream, state };
 }
 
 /**
@@ -163,6 +193,19 @@ describe("every refusal answers identically", () => {
         }),
     ],
     [
+      "an oversized body with no declared length",
+      () => post(MEMORY_GALLERY_HANDLE, undefined, { stream: endlessBody().stream }),
+    ],
+    [
+      "a body that lies about its length",
+      () =>
+        post(
+          MEMORY_GALLERY_HANDLE,
+          { capability: "A".repeat(2048) },
+          { headers: { "content-length": "42" } },
+        ),
+    ],
+    [
       "a cross-origin request",
       () =>
         post(
@@ -230,6 +273,22 @@ describe("every refusal answers identically", () => {
     expect(await refusalShape(throttled as Response)).toEqual(
       await refusalShape(unknown),
     );
+  });
+
+  it("abandons an oversized body instead of buffering it", async () => {
+    // The endpoint is reached before the per-IP throttle, so a body read that
+    // buffered first and measured afterwards would let one unthrottled request
+    // pull an unbounded amount into memory. `content-length` is absent here —
+    // a claim the reader may not rely on anyway — so only the running byte
+    // count can stop it.
+    const { stream, state } = endlessBody();
+    const response = await post(MEMORY_GALLERY_HANDLE, undefined, { stream });
+
+    expect(response.status).toBe(403);
+    expect(state.cancelled).toBe(true);
+    // A little over the bound (one chunk's granularity), nowhere near the
+    // megabytes the stream would have supplied.
+    expect(state.pulled).toBeLessThan(64 * 1024);
   });
 
   it("writes no operational event for an ordinary credential refusal", async () => {
