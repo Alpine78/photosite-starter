@@ -1105,9 +1105,37 @@ real clock rather than an approximation. **The worker that performs the IO is no
 ADR-0014 names it as its own action item and it needs both stores; its schedule (at least
 every 24 hours) and the backstop lifecycle policy are in `docs/deployment.md` so they can
 be provisioned with everything else.
-Everything else is unbuilt: two-stage per-asset authorization and signed-URL minting, the
-ZIP, the owner-run upload CLI, the retention worker's IO, and the concrete
-object-store/Postgres providers with their live provisioning gate (the owner-run runbook for those two services
+ADR-0014 §5 **Stage 2's decision** is built as pure policy too
+(`src/lib/private-gallery-delivery.ts`) — everything that happens before a signature,
+which is where the security is: a signer handed the wrong key or an unbounded expiry is
+correct and useless. `PrivateGalleryMintRequest` has **no object-key field**, so a caller
+names a `placementId` this deployment minted or nothing at all for the gallery's one ZIP,
+and the key comes back from the store row — the type is what stops the endpoint being an
+IDOR probe or a signing oracle, rather than a validation someone must remember. Stage 1's
+state and generation are re-checked rather than inherited, because minting is the step
+that hands out bytes and a gallery can leave `published` between a page render and a click
+on the download control; a placement or ZIP row belonging to another gallery is refused,
+and a ZIP is only ever signed against `activeZipObjectKey` (§8c makes the pointer the sole
+answer to "which version is current"). `computePrivateGallerySignedUrlTtlSeconds` is
+`min(configuredTTL, accessExpiresAt − now)` floored to seconds, with per-kind ceilings —
+single-digit minutes for a preview, six hours for the ZIP — that a deployment may shorten
+and never lengthen, since the TTL is exactly what a leaked URL is worth. §8e's per-gallery
+access budget (10× the gallery's own bytes, charged at full nominal size on every mint,
+keyed by gallery **and** capability generation so re-exchanging does not reset it) is a
+counter evaluator of the same shape as the exchange's, consulted only after every free
+check has passed so an unauthorized request cannot spend a gallery's allowance; a corrupt
+row throws rather than resetting, the one direction a budget must not fail. The window is
+**fixed rather than rolling**, which ADR-0014 §8e's 2026-09-02 amendment now says outright
+after this slice found the table and the design disagreeing: one persisted counter row
+cannot express a rolling window (that needs every mint's timestamp — a thousand rows per
+browse of a 1 000-file gallery, summed on every image load), so up to twice the allowance
+can be spent across a boundary. Accepted because the budget counts *authorizations, not
+delivered bytes* — a replayed URL costs nothing and `Range` is invisible — so precision was
+never available where it would matter; a two-counter sliding approximation (~1.1×) is the
+recorded upgrade path if Fair Transfer pressure ever makes the burst shape matter.
+Everything else is unbuilt: the signer itself, the ZIP, the owner-run upload CLI, the
+retention worker's IO, and the concrete object-store/Postgres providers with their live
+provisioning gate (the owner-run runbook for those two services
 is in `docs/deployment.md`). **Administration — creating a gallery, publishing it, the
 customer notification with its delivery state and resend, and revoking or replacing
 access — split out of AB#29 into AB#145 on 2026-09-02** and has not started.
