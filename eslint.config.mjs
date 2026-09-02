@@ -35,8 +35,17 @@ const eslintConfig = defineConfig([
   // shape — or its credentials — into the render tree. Like the rules above it
   // matches `@/lib/...` alias imports only, not a relative path or an indirect
   // re-export; `import "server-only"` covers the indirect case.
+  //
+  // Colocated tests are excluded. The boundary exists to keep a *shipped* route
+  // or component from reassembling what an adapter owns; a `*.test.ts` beside a
+  // route is not shipped, and a route test that may not name the module it is
+  // driving would have to reach it through an indirection that proves less.
   {
     files: ["src/app/**/*.{ts,tsx}", "src/components/**/*.{ts,tsx}"],
+    ignores: [
+      "src/app/**/*.test.{ts,tsx}",
+      "src/components/**/*.test.{ts,tsx}",
+    ],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -59,9 +68,10 @@ const eslintConfig = defineConfig([
                 "@/lib/private-gallery-capability",
                 "@/lib/private-gallery-session",
                 "@/lib/private-gallery-exchange",
+                "@/lib/private-gallery-memory-store",
               ],
               message:
-                "Reach private client galleries through `@/lib/private-gallery-access`. The private-store credentials, domain model, capability crypto, session model, and exchange stay behind that facade, which owns the ordering a route must not reassemble — including the capability comparison (ADR-0014 §2, §3).",
+                "Reach private client galleries through `@/lib/private-gallery-access`. The private-store credentials, domain model, capability crypto, session model, exchange, and development fixture store stay behind that facade, which owns the ordering a route must not reassemble — including the capability comparison (ADR-0014 §2, §3).",
             },
           ],
         },

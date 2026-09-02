@@ -329,7 +329,8 @@ Two build-safe settings, read during `loadDeploymentConfig` like the `SITE_*` va
 | `PRIVATE_GALLERY_ROUTE_PREFIX` | unset (defaults to `private`) | same |
 
 `PRIVATE_GALLERY_STORE` accepts a third value, `memory`, which
-`readPrivateGalleryDeployment` **refuses when `SITE_DEPLOYMENT_STAGE` is `production`** —
+`readPrivateGalleryDeployment` accepts **only when `SITE_DEPLOYMENT_STAGE` is
+`development`** —
 the same production-refusal safeguard `SITE_CONTENT_SOURCE=mock` and
 `CONTACT_DELIVERY_ADAPTER=sink` already carry, and for the same reason: its one fixture
 gallery has a **published, non-secret** capability. It exists so the exchange can actually
@@ -343,9 +344,11 @@ anything in another. The link is
 /<PRIVATE_GALLERY_ROUTE_PREFIX>/EREREREREREREREREREREQ#LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0
 ```
 
-— the two constants `src/lib/private-gallery-memory-store.ts` exports. Do not set it on
-Preview: Preview is a shared, access-protected environment standing in for Production, and
-a fixture gallery there would be a private-namespace surface nobody reviewed.
+— the two constants `src/lib/private-gallery-memory-store.ts` exports. Preview is refused
+as well as production, and deliberately: Preview is a shared, access-protected environment
+standing in for Production, so a fixture gallery there would be a private-namespace
+surface nobody reviewed. `npm run dev` and the Playwright harness both declare
+`development` already, so nothing that legitimately needs the fixture loses it.
 
 `PRIVATE_GALLERY_ROUTE_PREFIX` is validated and reserved as a root segment **whether the
 feature is on or off**, so a deployment can never assign `/private` to a locale prefix or
@@ -365,9 +368,99 @@ enumerate/delete pair, and the owner-run upload CLI's write/multipart pair that 
 only on the photographer's machine (the same posture as `SANITY_SEED_TOKEN`). Only the
 verifier pair belongs in a deployed environment. `.env.example` lists all of them.
 
-When AB#29 provisions the feature, this section gains the provisioning runbook, the
-backup/PITR and retention-worker schedule, and the exit path for both new services
-(ADR-0014 Action Item 9).
+#### Provisioning the two private services — owner-run, before the delivery slices
+
+**Nothing in this repository can do this part.** The object store and the database are
+accounts in the site owner's own name (ADR-0014 §8), the same way the Resend account is
+AB#117's own prerequisite. It is written down here now, ahead of the code that needs it,
+because it is the long-lead item on AB#29: the delivery slices (signed URLs, the ZIP)
+cannot start without it, and every step below is a decision or a signup rather than a
+deployment.
+
+The reference object store is **UpCloud Managed Object Storage** (ADR-0014 §8a: an EU/
+Finnish company, S3-compatible, presigned `GET`, zero-cost egress under Fair Transfer);
+Cloudflare R2 is the named alternative. The database is **any PostgreSQL-family managed
+service the owner controls**, vendor deliberately left open (§8b). What follows is
+provider-neutral: it states what must be *true* and how to *verify* it over the S3 and
+Postgres wire protocols. Console paths change and are not restated here — read them from
+the provider's current documentation, per this repository's anti-hallucination rule.
+
+**1. Object store: one bucket, default-deny.** ADR-0014 §8a: *"naming it private is not
+the control."* The bucket must satisfy all of:
+
+- an EU region, in the owner's own account, holding nothing else;
+- no public-read ACL on the bucket or on any object, and no credential below permitted to
+  set one;
+- an explicit policy (or the provider's equivalent) that **rejects anonymous and unsigned
+  access for every operation** while still honouring a valid presigned `GET`. UpCloud
+  exposes no S3 `PublicAccessBlock` API — verified against its S3-compatibility table on
+  2026-08-31 — so the deny policy plus the no-public-ACL rule *is* the control there, and
+  it is verified live in step 4 rather than assumed from a toggle;
+- one key prefix for private-gallery objects, which becomes `PRIVATE_GALLERY_S3_KEY_PREFIX`.
+
+**2. Object store: three credentials, not one (§8a).** Each is least-privilege and scoped
+to the private key prefix in this one bucket. None may write a bucket policy or ACL,
+delete the bucket, or reach another bucket.
+
+| Credential | Permissions | Lives in |
+| --- | --- | --- |
+| **Runtime / verifier** | object read on the key prefix, plus metadata-only `HEAD` for an exact key. **No `ListBucket`, no writes.** | The deployed environment — `PRIVATE_GALLERY_S3_VERIFIER_ACCESS_KEY_ID` / `…_SECRET_ACCESS_KEY` as Vercel Sensitive values. The **only** storage credential a deployment ever holds. |
+| **Retention worker** | prefix-scoped enumeration and deletion of objects, versions, and incomplete multipart uploads. Nothing else. | The scheduled worker's own environment only (§7). Never the web deployment. |
+| **Owner-run upload CLI** | `PutObject` and the multipart create/upload/complete/abort operations on the prefix. **No read, delete, list, ACL, or policy.** | The photographer's machine only — the same posture as `SANITY_SEED_TOKEN`. Never any deployed environment, never CI. |
+
+**3. Private metadata store.** A PostgreSQL-family managed service. Before committing to a
+vendor, verify and record each of these — §8b makes them the decision criteria, not a
+wish list: EU region; encryption at rest and in transit; automated backup **and** a
+point-in-time-recovery window inside §7's ≤ 30-day ceiling; a **restore actually tested**,
+not merely offered; unambiguous customer ownership and a working export; connection
+pooling suited to serverless invocation (a pooler endpoint or an HTTP driver); a
+schema-migration path; and current price. The connection URL becomes
+`PRIVATE_GALLERY_DATABASE_URL`, Sensitive, request-time only.
+
+**4. The live verification gate.** ADR-0014 §8a requires these to pass against the real
+bucket *before* the deployment is accepted. They are protocol-level, so they hold whatever
+the console looked like:
+
+- an unsigned `GET` of a known object key **fails**;
+- an unsigned `LIST` of the bucket or prefix **fails**;
+- a presigned `GET` minted with the verifier credential **succeeds**;
+- a `Range` request against a large (~20 GB) ZIP object **succeeds and returns 206**, so a
+  resumed download works;
+- object responses carry `Cache-Control: no-store`, and the ZIP additionally carries
+  `Content-Disposition: attachment`;
+- the CLI credential **cannot** read or delete, and the verifier credential **cannot**
+  write or list — check the denials, not only the grants. A credential that is merely
+  *not used* for an operation is not the same as one that *cannot* perform it.
+
+Record the results against AB#29 in Azure Boards, the way AB#116's Preview verification
+and AB#84's seed run were recorded: which provider, which region, the date, and the
+observed outcome of each check. A provisioning claim with no evidence is what the AB#117
+re-check found and had to retract twice.
+
+**5. Generate the capability keyring.** Independent of both services, and the one value
+this repository can tell you how to produce exactly:
+
+```bash
+# One 256-bit key, standard base64. The id is yours to choose (lowercase, digits, hyphens).
+printf '%s:%s\n' "k1" "$(openssl rand -base64 32)"
+```
+
+Set `PRIVATE_GALLERY_CAPABILITY_KEYS` to the comma-separated `id:base64` list and
+`PRIVATE_GALLERY_CAPABILITY_ACTIVE_KEY_ID` to the id new capabilities are sealed under.
+Both are Sensitive and request-time. Rotation adds a key and moves the active id; the old
+key stays in the list until every stored envelope has been re-sealed under the new one
+(ADR-0014 §3). A key removed too early makes those galleries permanently unopenable — the
+envelope is encrypted, not hashed, precisely so links can be re-issued, and that only
+works while its key is still in the ring.
+
+**What must never happen:** none of these values belongs in a pull-request job, in
+`.env.example`, in a Playwright artifact, or in this repository. `PRIVATE_GALLERY_STORE`
+stays `off` until step 4 has actually passed — the code refuses to half-serve, but an
+`enabled` deployment with a half-provisioned bucket is a deployment throwing on every
+private request.
+
+When the delivery slices land, this section gains the backup/PITR and retention-worker
+schedule and the exit path for both new services (ADR-0014 Action Item 9).
 
 ### The Sanity webhook signing secret
 

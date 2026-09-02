@@ -139,9 +139,15 @@ function parseStoreMode(
 
   // Fail while the deployment is being built, not when a visitor opens a
   // fixture gallery on a real photographer's site.
-  if (mode === "memory" && stage === "production") {
+  //
+  // `development` only, not "anything but production": Preview is a shared,
+  // access-protected environment that stands in for Production, and a gallery
+  // whose capability is published in this repository is not a private-namespace
+  // surface anyone reviewed for it. Nothing loses anything — `npm run dev` and
+  // the Playwright harness both declare `development` already.
+  if (mode === "memory" && stage !== "development") {
     throw new PrivateGalleryDeploymentError(
-      `Invalid ${settingNames.store}: the "memory" store is a development fixture with a published, non-secret capability, so it must not run in a production deployment. Configure "enabled", or declare SITE_DEPLOYMENT_STAGE as development or preview.`,
+      `Invalid ${settingNames.store}: the "memory" store is a development fixture with a published, non-secret capability, so it runs only where SITE_DEPLOYMENT_STAGE is development — not in a ${stage} deployment. Configure "enabled" instead.`,
     );
   }
 

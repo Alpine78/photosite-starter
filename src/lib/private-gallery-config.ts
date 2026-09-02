@@ -33,6 +33,8 @@
 
 import "server-only";
 
+import { createHash } from "node:crypto";
+
 import {
   getPrivateGalleryDeployment,
   PRIVATE_GALLERY_SECRET_SETTING_NAMES,
@@ -312,7 +314,12 @@ function parseCapabilityKeyring(
       );
     }
     const key = decodeCapabilityKey(id, encoded);
-    const fingerprint = Buffer.from(key).toString("hex");
+    // A digest, not the key itself. Two ids carrying identical material collide
+    // here just as reliably, and this module is otherwise careful never to let
+    // key bytes escape as anything but a fresh copy — a hex string of the whole
+    // 256-bit key would be an immutable, unzeroable copy held for the length of
+    // the parse, which is a weaker posture for no gain.
+    const fingerprint = createHash("sha256").update(key).digest("hex");
     if (keyMaterialSeen.has(fingerprint)) {
       throw new PrivateGalleryConfigurationError(
         `Invalid ${settingNames.capabilityKeys}: two key ids carry identical key material`,

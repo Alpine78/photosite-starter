@@ -7,6 +7,7 @@ import {
 import {
   checkContactRequestHeaders,
   jsonNoStore,
+  readBoundedBody,
 } from "@/lib/contact-request";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
@@ -30,7 +31,13 @@ import {
  */
 export const dynamic = "force-dynamic";
 
-/** A capability is 43 base64url characters; nothing here needs a large body. */
+/**
+ * A capability is 43 base64url characters, so `{"capability":"…"}` is about 60
+ * bytes; 512 leaves room for whitespace and nothing else. Counted in bytes by
+ * `readBoundedBody`, which abandons the stream the moment the bound is passed
+ * rather than buffering first and measuring after — the distinction matters
+ * here, because this endpoint is reached before the per-IP throttle.
+ */
 const MAX_BODY_BYTES = 512;
 
 /** One instance per process, so an exchange never spends another endpoint's allowance. */
@@ -41,11 +48,8 @@ function refused(): Response {
 }
 
 async function readCapability(request: Request): Promise<string | undefined> {
-  const declared = request.headers.get("content-length");
-  if (declared !== null && Number(declared) > MAX_BODY_BYTES) return undefined;
-
-  const raw = await request.text();
-  if (raw.length > MAX_BODY_BYTES) return undefined;
+  const raw = await readBoundedBody(request, MAX_BODY_BYTES);
+  if (raw === undefined) return undefined;
 
   let body: unknown;
   try {

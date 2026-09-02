@@ -190,8 +190,18 @@ function isSameOrigin(request: Request): boolean {
  * nothing, but it is a claim rather than a measurement, so the stream is
  * counted as it arrives and an oversized body is abandoned instead of
  * buffered.
+ *
+ * Exported because it is the *only* correct way to read a request body in this
+ * codebase, and the private-gallery exchange (ADR-0014 §3) needs it with a much
+ * smaller bound than a contact submission. Reaching for `request.text()`
+ * instead is what this exists to prevent: that buffers the whole body before
+ * any length can be checked, so a chunked request — or one whose
+ * `Content-Length` is absent or unparseable — is read in full no matter what
+ * the caller compares afterwards. The count here is in **bytes**, which is also
+ * the unit a body bound is meant to be in; a length taken from the decoded
+ * string would be UTF-16 code units.
  */
-async function readBoundedBody(
+export async function readBoundedBody(
   request: Request,
   maxBytes: number,
 ): Promise<string | undefined> {
