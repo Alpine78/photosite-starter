@@ -1084,9 +1084,30 @@ two different fixtures and made a session minted by one invisible to the other. 
 singleton is now pinned to `globalThis`, the pattern Next.js documents for a
 development-only client; the Postgres adapter keeps its state in Postgres and never had the
 problem.
+The six-month lifecycle's *rules* are built too, as pure policy over the state machine
+(`src/lib/private-gallery-retention.ts`), the same split the exchange rate limiter already
+uses: `computePrivateGalleryAccessExpiry` adds six to the **UTC** month and clamps to the
+target month's last day with the time of day preserved — calendar months rather than 180
+days, because "six months" is what a photographer tells a customer, and the ADR's own
+worked examples are golden vectors; `evaluatePrivateGalleryRetention` decides what one
+scheduled run does with one gallery (an abandoned preparation, a reached access expiry, a
+revoked gallery never replaced, cleanup due, a failed deletion retried until a human
+acknowledges it), refusing to treat a **missing** retention timestamp as an unreached
+deadline, because one corrupt row would otherwise keep private objects alive indefinitely.
+Every proposed transition is checked against the state machine, so this module cannot
+invent an edge; nothing here ever proposes a way back to `published` (§7's deletion guard).
+The 275-day backstop bucket age is pinned to the parts it is derived from — preparation +
+the longest six-calendar-month span (184 days) + suspension + deletion grace + a day — so
+lowering a window without revisiting the rule fails a test, and
+`assertPrivateGalleryRetentionWindows` makes "a deployment may lower a window but never
+raise one" executable rather than advisory. The development fixture publishes through the
+real clock rather than an approximation. **The worker that performs the IO is not built** —
+ADR-0014 names it as its own action item and it needs both stores; its schedule (at least
+every 24 hours) and the backstop lifecycle policy are in `docs/deployment.md` so they can
+be provisioned with everything else.
 Everything else is unbuilt: two-stage per-asset authorization and signed-URL minting, the
-ZIP, the owner-run upload CLI, the retention worker, and the concrete object-store/Postgres
-providers with their live provisioning gate (the owner-run runbook for those two services
+ZIP, the owner-run upload CLI, the retention worker's IO, and the concrete
+object-store/Postgres providers with their live provisioning gate (the owner-run runbook for those two services
 is in `docs/deployment.md`). **Administration — creating a gallery, publishing it, the
 customer notification with its delivery state and resend, and revoking or replacing
 access — split out of AB#29 into AB#145 on 2026-09-02** and has not started.
