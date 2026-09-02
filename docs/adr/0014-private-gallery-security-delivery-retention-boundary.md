@@ -1207,9 +1207,15 @@ a per-deployment call, with UpCloud as the reference.
 9. [ ] **`docs/deployment.md` and the AB#118 handoff runbook**: provisioning, backup /
    PITR, the mandatory at-least-daily retention-worker schedule, owner-run repair /
    backfill, drift monitoring, and the exit path for both new services.
-10. [ ] A privacy-notice section (the deployment owner's, per ADR-0004's "not a legal
+10. [x] A privacy-notice section (the deployment owner's, per ADR-0004's "not a legal
     conclusion") for the access-session cookie and the private-gallery data flow, sibling
-    to `docs/contact-data-flow.md`.
+    to `docs/contact-data-flow.md`. *Done (AB#29, 2026-09-02):
+    `docs/private-gallery-data-flow.md`. It records the operational facts a notice would
+    be written from, not the notice itself. Two gaps it surfaces rather than closes: no
+    visitor-facing privacy notice exists on the private gallery page — the contact form
+    has one, and whether this needs its own belongs with AB#145's customer-facing
+    surface — and nothing in it has been checked against a running deployment, because
+    there is not one.*
 11. [x] **`AGENTS.md`** "Public derivatives only" is amended in this change with a scoped
     exception naming this ADR (§5), so AB#29's authorized private-derivative delivery
     (link/session-holder, not identity) does not require violating a canonical rule. The
