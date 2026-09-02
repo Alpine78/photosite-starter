@@ -398,6 +398,25 @@ the control."* The bucket must satisfy all of:
   it is verified live in step 4 rather than assumed from a toggle;
 - one key prefix for private-gallery objects, which becomes `PRIVATE_GALLERY_S3_KEY_PREFIX`.
 
+**1b. The key layout the policies are scoped to.** Objects are written under a shape the
+application assigns; nothing else may write into the prefix. Knowing it before you write
+the policies matters, because all three credentials below are prefix-scoped and a policy
+written against a guess would either be too wide or would refuse the application's own
+objects:
+
+```
+<PRIVATE_GALLERY_S3_KEY_PREFIX>/g/<galleryId>/<preview|proof|zip>/<128-bit token>
+```
+
+The trailing token is CSPRNG, not a counter, so one key never implies a sibling — that is
+what makes the runtime credential's *absence* of `ListBucket` meaningful. The key carries
+**nothing about the customer or the photograph**: no name, no shoot title, no original
+filename, no capture date, no gallery handle. A key is not browser-facing, but it is
+visible to anyone who can list the bucket and to the provider's own tooling, and a listing
+that read `.../smith-wedding-2026/DSC_0431.jpg` would have published the customer
+relationship to all of them. `src/lib/private-gallery-object-key.ts` is the only place a
+key is created, and it refuses any gallery id that would escape the prefix.
+
 **2. Object store: three credentials, not one (§8a).** Each is least-privilege and scoped
 to the private key prefix in this one bucket. None may write a bucket policy or ACL,
 delete the bucket, or reach another bucket.
