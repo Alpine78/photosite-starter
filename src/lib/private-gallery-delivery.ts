@@ -339,26 +339,30 @@ export type PrivateGalleryMintAuthorization = {
  * by class would tell a holder of one gallery's link which placement ids exist
  * in another.
  */
-export function authorizePrivateGalleryMint(params: {
+/**
+ * Everything Stage 2 decides **except** the budget: the free checks, the object
+ * key, what it costs, and how long a URL for it may live.
+ *
+ * Split out because the budget is a *persisted* counter whose evaluation the
+ * store performs atomically — the same shape `consumeExchangeAttempt` already
+ * has. A caller that read the counter, decided here, and wrote it back would
+ * race a concurrent mint. This keeps the ordering the security depends on
+ * (every free check before anything stateful) available to a caller that lets
+ * the store own the increment.
+ */
+export function planPrivateGalleryMint(params: {
   readonly gallery: PrivateGallery;
   readonly session: PrivateGallerySession;
   readonly request: PrivateGalleryMintRequest;
   readonly subject: PrivateGalleryMintSubject;
-  readonly budget: PrivateGalleryAccessBudgetCounter | undefined;
   readonly now: Date;
   readonly configuredTtlSeconds?: number;
-  /**
-   * The gallery's own total nominal bytes, and optionally a deployment's
-   * tightened multiplier or window. Required, because a budget with no idea how
-   * big the gallery is could only be unbounded.
-   */
-  readonly budgetConfig: {
-    readonly totalGalleryBytes: number;
-    readonly multiplier?: number;
-    readonly windowMs?: number;
-  };
-}): PrivateGalleryMintAuthorization {
-  const { gallery, session, request, subject, budget, now } = params;
+}): {
+  readonly objectKey: string;
+  readonly chargedBytes: number;
+  readonly ttlSeconds: number;
+} {
+  const { gallery, session, request, subject, now } = params;
 
   if (!isFiniteDate(now)) {
     fail("invalid-parameter", "now must be a valid date");
@@ -399,6 +403,32 @@ export function authorizePrivateGalleryMint(params: {
       "the access window leaves no usable URL lifetime",
     );
   }
+
+  return { objectKey, chargedBytes, ttlSeconds };
+}
+
+export function authorizePrivateGalleryMint(params: {
+  readonly gallery: PrivateGallery;
+  readonly session: PrivateGallerySession;
+  readonly request: PrivateGalleryMintRequest;
+  readonly subject: PrivateGalleryMintSubject;
+  readonly budget: PrivateGalleryAccessBudgetCounter | undefined;
+  readonly now: Date;
+  readonly configuredTtlSeconds?: number;
+  /**
+   * The gallery's own total nominal bytes, and optionally a deployment's
+   * tightened multiplier or window. Required, because a budget with no idea how
+   * big the gallery is could only be unbounded.
+   */
+  readonly budgetConfig: {
+    readonly totalGalleryBytes: number;
+    readonly multiplier?: number;
+    readonly windowMs?: number;
+  };
+}): PrivateGalleryMintAuthorization {
+  const { budget, now, request } = params;
+
+  const { objectKey, chargedBytes, ttlSeconds } = planPrivateGalleryMint(params);
 
   const decision = evaluatePrivateGalleryAccessBudget(budget, chargedBytes, now, {
     totalGalleryBytes: params.budgetConfig.totalGalleryBytes,
