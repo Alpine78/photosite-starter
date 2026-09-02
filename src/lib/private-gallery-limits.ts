@@ -85,5 +85,11 @@ export const PRIVATE_GALLERY_DEFAULT_SIGNED_URL_MINTS_PER_MINUTE_PER_SESSION = 6
  */
 export const PRIVATE_GALLERY_DEFAULT_ACCESS_BUDGET_BYTE_MULTIPLIER = 10;
 
-/** Rolling window the access budget is measured over. */
+/**
+ * The window the access budget is measured over. **Fixed**, not rolling
+ * (ADR-0014 §8e, amendment 2026-09-02): it opens on the first charge and resets
+ * when it lapses, because the single persisted counter row this design uses
+ * cannot express a rolling window. `private-gallery-delivery.ts` carries the
+ * reasoning and the upgrade path.
+ */
 export const PRIVATE_GALLERY_ACCESS_BUDGET_WINDOW_DAYS = 30;

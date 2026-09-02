@@ -207,15 +207,22 @@ export type PrivateGalleryAccessBudgetDecision = {
  * counter, and for the same reason: the policy is testable without a store, and
  * the adapter has something exact to match.
  *
- * **This is a fixed window, not the rolling one §8e's table names.** A true
- * rolling window needs the timestamp of every mint, which is unbounded
- * per-gallery history; the ADR's own design persists *one counter row*, and one
- * row cannot express a rolling window. The consequence is the standard one: up
- * to twice the allowance can be spent across a boundary. That is acceptable
- * here because the budget bounds bulk re-authorization rather than metering
- * egress — §8e says so itself — and because doubling a ceiling already set at
- * ten times the gallery's own size still refuses a scrape. Worth reconciling in
- * the ADR's wording rather than leaving the two descriptions to disagree.
+ * **A fixed window, decided rather than defaulted into** (ADR-0014 §8e,
+ * amendment 2026-09-02). One counter row cannot express a rolling window: that
+ * would need the timestamp and size of every mint, which for a 1 000-file
+ * gallery is a thousand rows per full browse, summed on every image load. The
+ * fixed form opens on the first charge and resets when it lapses, so **up to
+ * twice the allowance can be spent across a boundary** — the ceiling late in one
+ * window, the ceiling again early in the next.
+ *
+ * That is accepted because the budget counts *authorizations, not delivered
+ * bytes*: a URL replayed inside its TTL costs nothing and `Range` requests are
+ * invisible, so precision was never available in the dimension that matters.
+ * Doubling a ceiling already set at ten times the gallery's own size still
+ * refuses a scrape, and the per-session mint rate, the short TTLs, and
+ * generation revocation all bind first. The documented upgrade path, if the
+ * burst shape ever matters, is a two-counter sliding approximation (worst case
+ * ~1.1×) — one extra column, not a schema change.
  *
  * A corrupt row **throws** rather than resetting: silently starting a fresh
  * window would let a damaged counter fail open, which is the one direction a

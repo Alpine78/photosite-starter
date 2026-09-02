@@ -1124,10 +1124,15 @@ access budget (10× the gallery's own bytes, charged at full nominal size on eve
 keyed by gallery **and** capability generation so re-exchanging does not reset it) is a
 counter evaluator of the same shape as the exchange's, consulted only after every free
 check has passed so an unauthorized request cannot spend a gallery's allowance; a corrupt
-row throws rather than resetting, the one direction a budget must not fail. **Deviation
-worth reconciling:** §8e's table calls the budget window *rolling*, but its own design
-persists one counter row, and one row cannot express a rolling window — this is a fixed
-window with the standard up-to-2×-across-a-boundary property, documented in the module.
+row throws rather than resetting, the one direction a budget must not fail. The window is
+**fixed rather than rolling**, which ADR-0014 §8e's 2026-09-02 amendment now says outright
+after this slice found the table and the design disagreeing: one persisted counter row
+cannot express a rolling window (that needs every mint's timestamp — a thousand rows per
+browse of a 1 000-file gallery, summed on every image load), so up to twice the allowance
+can be spent across a boundary. Accepted because the budget counts *authorizations, not
+delivered bytes* — a replayed URL costs nothing and `Range` is invisible — so precision was
+never available where it would matter; a two-counter sliding approximation (~1.1×) is the
+recorded upgrade path if Fair Transfer pressure ever makes the burst shape matter.
 Everything else is unbuilt: the signer itself, the ZIP, the owner-run upload CLI, the
 retention worker's IO, and the concrete object-store/Postgres providers with their live
 provisioning gate (the owner-run runbook for those two services

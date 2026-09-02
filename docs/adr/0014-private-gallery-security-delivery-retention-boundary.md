@@ -892,7 +892,34 @@ is ~5–15 MB.
 | Proof-selection request body | **64 KB** | A selection is a list of references, not content. |
 | Selected-image count (proof) | **= files-per-gallery ceiling** | A customer cannot select more than exists. |
 | Signed-URL mint rate | **60 / minute per session** | Covers a fast gallery scroll; not a bulk-scrape rate. |
-| **Aggregate authorized-access budget per gallery** | **10 × the gallery's total bytes per rolling 30 days**, charged at the authorized object's full nominal byte size for every signed-URL mint across **all** sessions of the gallery's current capability generation, persisted in Postgres | A ZIP mint costs the whole ZIP size; a preview mint costs that derivative's size. Clearing the cookie and re-exchanging for a fresh session does **not** reset the budget, because it is keyed on the gallery + generation, not the session. A generation bump resets it, which is intended: a replaced link is a fresh grant. |
+| **Aggregate authorized-access budget per gallery** | **10 × the gallery's total bytes per fixed 30-day window** (see the 2026-09-02 amendment), charged at the authorized object's full nominal byte size for every signed-URL mint across **all** sessions of the gallery's current capability generation, persisted in Postgres | A ZIP mint costs the whole ZIP size; a preview mint costs that derivative's size. Clearing the cookie and re-exchanging for a fresh session does **not** reset the budget, because it is keyed on the gallery + generation, not the session. A generation bump resets it, which is intended: a replaced link is a fresh grant. |
+
+**Amendment 2026-09-02 (AB#29 signed-URL slice):** the access-budget window is
+**fixed, not rolling**. The original table said "rolling 30 days", which this record's own
+design cannot express: it persists **one counter row** per gallery and capability
+generation, and a rolling window needs the timestamp and size of every mint — for a
+1 000-file gallery that is a thousand rows per full browse, pruned forever, summed on
+every image load. One row cannot answer "what was spent in the last 30 days"; it can only
+answer "what has been spent since this window opened".
+
+The implemented semantics are therefore a fixed window that opens on the first charge and
+resets when it lapses, with the standard consequence that **up to twice the allowance can
+be spent across a boundary** — the ceiling late in one window, the ceiling again early in
+the next. For a 5 GB gallery (52 GB budget, ~10 ZIP mints) that is ~20 mints inside about
+48 hours rather than 10 in 30 days.
+
+That is accepted rather than worked around, on this reasoning: the budget already counts
+**authorizations, not delivered bytes** — a URL replayed inside its TTL costs nothing and
+`Range` requests are invisible, as this section says itself — so precision was never
+available in the dimension that matters. Doubling a ceiling already set at ten times the
+gallery's own size still refuses a scrape, reaching it needs deliberate timing at the
+boundary by someone who already holds a valid link and session, and the per-session mint
+rate, the short signed TTLs, and generation revocation all bind first. A bounded sliding
+approximation (two counters, worst case ~1.1×) was considered and rejected: it buys
+precision in an already-approximate control at the cost of complicating the one atomic
+statement that runs on **every image load**. If Fair Transfer pressure ever makes the
+burst shape matter, that two-counter form is the documented upgrade path and needs one
+extra column, not a schema change.
 
 A request that would exceed a bound is refused, never queued unboundedly. The per-session
 mint rate and the per-gallery authorized-access budget are **both** enforced; the budget
