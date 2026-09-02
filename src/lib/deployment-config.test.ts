@@ -109,6 +109,7 @@ describe("loadDeploymentConfig", () => {
       expect(loadDeploymentConfig(validEnvironment).privateGallery).toEqual({
         store: "off",
         routePrefix: "private",
+        adminRoutePrefix: "admin",
       });
     });
 
@@ -118,8 +119,13 @@ describe("loadDeploymentConfig", () => {
           ...validEnvironment,
           PRIVATE_GALLERY_STORE: "enabled",
           PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
+          PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "studio",
         }).privateGallery,
-      ).toEqual({ store: "enabled", routePrefix: "clients" });
+      ).toEqual({
+        store: "enabled",
+        routePrefix: "clients",
+        adminRoutePrefix: "studio",
+      });
     });
 
     it("fails the build when a locale prefix collides with the private route prefix", () => {
@@ -151,6 +157,79 @@ describe("loadDeploymentConfig", () => {
           PRIVATE_GALLERY_ROUTE_PREFIX: "component",
         }),
       ).toThrow(/legacy-redirect path/);
+    });
+
+    it("fails the build when a locale prefix collides with the admin route prefix", () => {
+      expect(() =>
+        loadDeploymentConfig({
+          ...validEnvironment,
+          SITE_LOCALE_ROUTES: "en-GB||stories,fi|studio|tarinat",
+          PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "studio",
+        }),
+      ).toThrow(/locale prefix "studio" collides/);
+    });
+
+    it("fails the build when a story namespace collides with the admin route prefix", () => {
+      // The whole point of reserving the segment while the feature is off: a
+      // clone that gave `/studio` to public routing could not turn
+      // administration on later without a public URL migration.
+      expect(() =>
+        loadDeploymentConfig({
+          ...validEnvironment,
+          SITE_LOCALE_ROUTES: "en-GB||studio,fi|fi|tarinat",
+          PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "studio",
+        }),
+      ).toThrow(/studio/);
+    });
+
+    it("fails the build when the admin route prefix is a segment the app already owns", () => {
+      expect(() =>
+        loadDeploymentConfig({
+          ...validEnvironment,
+          PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "services",
+        }),
+      ).toThrow(/PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX/);
+    });
+
+    it("fails the build when the admin route prefix is a legacy-redirect root (ADR-0015 §1)", () => {
+      // Same hazard as the customer namespace: the Proxy answers the legacy
+      // registry before it can apply the response-hygiene headers, so a
+      // colliding prefix would let an administrator path return a cacheable 410.
+      expect(() =>
+        loadDeploymentConfig({
+          ...validEnvironment,
+          PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "component",
+        }),
+      ).toThrow(/legacy-redirect path/);
+    });
+
+    it("reserves both namespaces at once rather than only the customer one", () => {
+      // Both prefixes custom, so neither reservation can be passing by
+      // coincidence of a default. Each is claimed by a locale prefix in turn.
+      const customPrefixes = {
+        ...validEnvironment,
+        PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
+        PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "studio",
+      };
+
+      expect(() =>
+        loadDeploymentConfig({
+          ...customPrefixes,
+          SITE_LOCALE_ROUTES: "en-GB||stories,fi|clients|tarinat",
+        }),
+      ).toThrow(/locale prefix "clients" collides/);
+
+      expect(() =>
+        loadDeploymentConfig({
+          ...customPrefixes,
+          SITE_LOCALE_ROUTES: "en-GB||stories,fi|studio|tarinat",
+        }),
+      ).toThrow(/locale prefix "studio" collides/);
+
+      // And the same configuration with neither claimed is valid, so the two
+      // assertions above are refusals of the collision rather than of the
+      // configuration itself.
+      expect(() => loadDeploymentConfig(customPrefixes)).not.toThrow();
     });
 
     it("fails the build on a NEXT_PUBLIC_ mirror of a private-gallery secret, feature off", () => {

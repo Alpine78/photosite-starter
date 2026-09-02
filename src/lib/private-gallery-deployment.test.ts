@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertNoPublicPrivateGallerySecretMirror,
+  DEFAULT_PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX,
   DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX,
+  PRIVATE_GALLERY_SECRET_SETTING_NAMES,
   PrivateGalleryDeploymentError,
   readPrivateGalleryDeployment,
 } from "@/lib/private-gallery-deployment";
@@ -12,6 +14,7 @@ describe("readPrivateGalleryDeployment", () => {
     expect(readPrivateGalleryDeployment({}, "development")).toEqual({
       store: "off",
       routePrefix: DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX,
+      adminRoutePrefix: DEFAULT_PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX,
     });
   });
 
@@ -20,8 +23,13 @@ describe("readPrivateGalleryDeployment", () => {
       readPrivateGalleryDeployment({
         PRIVATE_GALLERY_STORE: " enabled ",
         PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
+        PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: " studio ",
       }, "development"),
-    ).toEqual({ store: "enabled", routePrefix: "clients" });
+    ).toEqual({
+      store: "enabled",
+      routePrefix: "clients",
+      adminRoutePrefix: "studio",
+    });
   });
 
   it("accepts the memory fixture store in a development deployment", () => {
@@ -33,6 +41,83 @@ describe("readPrivateGalleryDeployment", () => {
     ).toEqual({
       store: "memory",
       routePrefix: DEFAULT_PRIVATE_GALLERY_ROUTE_PREFIX,
+      adminRoutePrefix: DEFAULT_PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX,
+    });
+  });
+
+  describe("the administrator route prefix (ADR-0015 §1)", () => {
+    it("defaults to a segment that is not the customer namespace", () => {
+      const deployment = readPrivateGalleryDeployment({}, "development");
+      expect(deployment.adminRoutePrefix).toBe(
+        DEFAULT_PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX,
+      );
+      expect(deployment.adminRoutePrefix).not.toBe(deployment.routePrefix);
+    });
+
+    it("is validated by the same one-lowercase-segment rule as the customer prefix", () => {
+      for (const value of [
+        "Admin",
+        "admin/panel",
+        "admin-",
+        "-admin",
+        "ad min",
+        "a".repeat(33),
+      ]) {
+        expect(() =>
+          readPrivateGalleryDeployment(
+            { PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: value },
+            "development",
+          ),
+        ).toThrow(PrivateGalleryDeploymentError);
+      }
+    });
+
+    it("names the setting that supplied a bad value, not the other one", () => {
+      expect(() =>
+        readPrivateGalleryDeployment(
+          { PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "Admin" },
+          "development",
+        ),
+      ).toThrow(/PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX/);
+    });
+
+    it("refuses a prefix equal to the customer namespace", () => {
+      // ADR-0015 §1 keeps the two namespaces from overlapping at all. Both are
+      // one segment, so equality is the only overlap available — and a real
+      // one: the customer session cookie is `Path`-scoped beneath the customer
+      // prefix, so a shared root would put an administrator route inside the
+      // scope of a customer credential.
+      expect(() =>
+        readPrivateGalleryDeployment(
+          {
+            PRIVATE_GALLERY_ROUTE_PREFIX: "clients",
+            PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "clients",
+          },
+          "development",
+        ),
+      ).toThrow(/must not overlap/);
+    });
+
+    it("refuses the collision that only appears once one side is left at its default", () => {
+      expect(() =>
+        readPrivateGalleryDeployment(
+          { PRIVATE_GALLERY_ROUTE_PREFIX: "admin" },
+          "development",
+        ),
+      ).toThrow(PrivateGalleryDeploymentError);
+    });
+
+    it("refuses a NEXT_PUBLIC_ mirror of the administrator secret hash", () => {
+      // A scrypt hash rather than the secret, and still never a browser value:
+      // shipping it would hand an attacker an offline target and its salt.
+      expect(PRIVATE_GALLERY_SECRET_SETTING_NAMES).toContain(
+        "PRIVATE_GALLERY_ADMIN_SECRET_HASH",
+      );
+      expect(() =>
+        assertNoPublicPrivateGallerySecretMirror({
+          NEXT_PUBLIC_PRIVATE_GALLERY_ADMIN_SECRET_HASH: "scrypt$...",
+        }),
+      ).toThrow(PrivateGalleryDeploymentError);
     });
   });
 

@@ -69,6 +69,37 @@ export const REQUEST_HAS_SECTION_VALUE = "1";
  * already normalized by the time the Proxy sees it.
  */
 export function isPrivateRequestPath(pathname: string, prefix: string): boolean {
+  return isPathInReservedNamespace(pathname, prefix);
+}
+
+/**
+ * Whether a pathname is inside the reserved **administrator** namespace
+ * (ADR-0015 §1): the `<adminPrefix>` segment itself, or anything beneath it.
+ *
+ * Separate from {@link isPrivateRequestPath} at the call site and identical in
+ * rule, which is the point — ADR-0015 §1 gives the administrator routes "the
+ * same response hygiene the private namespace already does", so the two share
+ * one predicate rather than two that could drift. What must never be shared is
+ * the *prefix*: `readPrivateGalleryDeployment` refuses a configuration where
+ * they are equal, so a path can satisfy at most one of these.
+ *
+ * Like the customer namespace, this holds whether the feature is on or off: the
+ * prefix is reserved unconditionally, and a request here is a 404 today that
+ * still must not be indexed, cached, or leak a referrer.
+ */
+export function isPrivateAdminRequestPath(
+  pathname: string,
+  adminPrefix: string,
+): boolean {
+  return isPathInReservedNamespace(pathname, adminPrefix);
+}
+
+/**
+ * The shared rule behind both reserved namespaces. `prefix` is a validated
+ * single lowercase segment (`readPrivateGalleryDeployment`), so no escaping is
+ * needed; `pathname` is already normalized by the time the Proxy sees it.
+ */
+function isPathInReservedNamespace(pathname: string, prefix: string): boolean {
   return pathname === `/${prefix}` || pathname.startsWith(`/${prefix}/`);
 }
 

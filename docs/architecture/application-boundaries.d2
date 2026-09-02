@@ -44,7 +44,11 @@ routes: "src/app — App Router" {
     class: built
   }
 
-  private: "Private client galleries (part built — ADR-0014, AB#29)\nBUILT: reserved prefix rewritten onto an internal route;\nlink bootstrap + capability exchange -> session cookie;\nalways dynamic, never cached, never indexed\nPLANNED: two-stage per-asset auth, delivery,\nseparate admin boundary" {
+  private: "Private client galleries (part built — ADR-0014, AB#29)\nBUILT: reserved prefix rewritten onto an internal route;\nlink bootstrap + capability exchange -> session cookie;\nalways dynamic, never cached, never indexed\nPLANNED: two-stage per-asset auth, delivery" {
+    class: planned
+  }
+
+  admin: "Administrator boundary (namespace only — ADR-0015, AB#145)\nBUILT: its own reserved root prefix, separate from the\ncustomer one and never nested under it; same response\nhygiene (no-store, noindex/nofollow, no-referrer) and\nrobots Disallow, feature on or off. Owns no route yet.\nPLANNED: __Host- session sharing nothing with the customer\npath, persisted login rate limit, scrypt-verified generated\nsecret, re-auth for irreversible operations" {
     class: planned
   }
 }

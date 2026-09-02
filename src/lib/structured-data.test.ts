@@ -39,7 +39,11 @@ const deployment: DeploymentConfig = {
     },
     alt: "Rocky shoreline beside calm water",
   }),
-  privateGallery: { store: "off", routePrefix: "private" },
+  privateGallery: {
+    store: "off",
+    routePrefix: "private",
+    adminRoutePrefix: "admin",
+  },
 };
 
 const localCover = projectPublicImageMedia({
