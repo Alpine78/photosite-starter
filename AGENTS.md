@@ -1719,7 +1719,10 @@ Then iterate.
 - Public-journey tests use Playwright, live in `e2e/**/*.spec.ts`, and run against a
   **production build** that the harness builds and serves itself (`npm run test:e2e`).
   Import the project test object from `e2e/support/fixtures.ts`, never `@playwright/test`
-  directly: it carries the guard that fails a test which reaches a third-party origin.
+  directly: it carries the guard that fails a test which reaches a third-party origin, and
+  it gives every test its own synthetic client address — on the browser context *and* on
+  `request`, Playwright's API context, so a spec that posts to an endpoint directly does
+  not silently share one throttle bucket with the entire matrix (AB#146).
   The application under test runs on harness-owned settings in
   `e2e/support/harness-environment.ts` — that is where a test adapter for external
   delivery is selected, and it must stay free of credentials and personal data, because
