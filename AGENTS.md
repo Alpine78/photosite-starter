@@ -32,10 +32,10 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   fixed-aspect crop cells, no `<Image fill>` cover. Use layouts that respect each image's
   native ratio (masonry, or `object-contain`). A cropped preview misrepresents the work
   and can make a strong image go unseen.
-- **Hero convention.** Heroes display at the image's *native* ratio — whatever it is
+- **Hero convention.** Heroes display at the image's _native_ ratio — whatever it is
   (16:9, 3:2, 4:5, …) — via `h-auto w-full` plus the asset's real `width`/`height`; the
   code imposes no aspect ratio and never crops. The "full-width banner" look comes from
-  the *photographer supplying a wide-format image*, not from a fixed-height crop band.
+  the _photographer supplying a wide-format image_, not from a fixed-height crop band.
   Always pass the asset's true pixel dimensions so the ratio (and CLS reservation) is
   correct.
 - **Public derivatives only.** Browser-facing media on the **public** surface may contain
@@ -75,8 +75,8 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
 
 - NEVER invent technical facts, library capabilities, API signatures, or framework behavior.
 - NEVER assume missing information. NEVER present guesses as facts.
-- If information is missing, STOP and say so clearly: *"I don't have enough information
-  to answer this correctly."* Then ask for the missing code, file, requirement, or docs.
+- If information is missing, STOP and say so clearly: _"I don't have enough information
+  to answer this correctly."_ Then ask for the missing code, file, requirement, or docs.
 - When library/framework behavior may be version-sensitive (Next.js, Tailwind v4, Sanity),
   verify against current documentation instead of answering from memory. Use a
   documentation lookup tool if available (e.g., Context7 MCP); otherwise consult the
@@ -102,6 +102,7 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
 
   `az boards work-item show` does not accept `--project`; the configured default supplies
   project context for commands that need it.
+
 - If the work item cannot be read because authentication, tooling, permissions, or
   connectivity is missing, **stop before implementation or review**. State the blocker
   and get the Azure Boards connection working, or ask the user to provide the complete
@@ -169,8 +170,8 @@ gesture through — and the vertical pan-bound clamp (the axis that does not dou
 slide navigation); the one physical-device pinch/pan check (AC6) is documented as
 outstanding in ADR-0001. AB#78 itself is closed; that one manual check is tracked
 separately by the open **AB#141**, whose acceptance criteria require a real touch device
-and the result recorded back into ADR-0001. Zoom *animation and level
-tuning* stay a later slice.
+and the result recorded back into ADR-0001. Zoom _animation and level
+tuning_ stay a later slice.
 There is also
 a bounded adjacent-image preload window (`LIGHTBOX_PRELOAD_WINDOW`, `image-delivery.ts`,
 ADR-0010) that replaces the library's own unstated default with one slide back and two
@@ -253,7 +254,7 @@ return to the first page, and so is a repeated `?cursor=` — and a token arrivi
 non-canonical spelling (casing, redundant prefix, retired path, or trailing slash) is
 validated before normalization: a good token redirects once to the canonical address and
 keeps its exact value, while an invalid one 404s without creating a redirect. The cursor is scoped to
-the gallery *and the full route locale*, so a slice cannot cross between `en-GB` and
+the gallery _and the full route locale_, so a slice cannot cross between `en-GB` and
 `en-US`. The key enters at the
 `gallery.ts` seam rather than in the fixture, ESLint keeps `src/app` and `src/components`
 away from it, and rotating it retires every continuation URL already issued and indexed.
@@ -284,7 +285,7 @@ column-major CSS masonry it replaced did. That order is manual (the administrato
 authored `order`) unless a gallery opts into the **seeded-random rule** (AB#129,
 ADR-0009): a deterministic shuffle whose per-placement sort key
 (`computeShuffledOrder` in `src/lib/gallery-shuffle.ts` — HMAC-SHA256 of `placementId`
-keyed by `orderingSeed`, fixed-width hex) is *materialized* once by whoever produces the
+keyed by `orderingSeed`, fixed-width hex) is _materialized_ once by whoever produces the
 rows, never recomputed on the read path, with pinned lead placements kept in their exact
 manual positions ahead of the shuffled rest (ADR-0009 §3). `gallery-pagination.ts`'s
 boundary key is the tiered `(pinnedTier, key, placementId)` triple
@@ -306,7 +307,7 @@ gallery or a placement exists, re-checks the gallery rev/rule/seed before and af
 patches, ends with an authoritative consistency query that runs even for an empty plan).
 Between the two the `basics` query's bounded `staleShuffledOrderCount` aggregate makes the
 adapter raise `ordering-stale` (re-raised at the `@/lib/gallery` seam as
-`GalleryOrderingStaleError`) — *after* the cursor/section validation, so a bad token still
+`GalleryOrderingStaleError`) — _after_ the cursor/section validation, so a bad token still
 404s mid-rotation. The detail route renders an accessible "being reordered" notice
 (**HTTP 200 + `noindex`** — an App Router page render cannot set 503; a named limitation
 that no open work item tracks, and a different one from AB#132's 404 initial-HTML gap),
@@ -379,7 +380,7 @@ cursor staleness from "any change anywhere in the gallery that shifts an array o
 behaviour of keyset over offset pagination, deliberately chosen over preserving the old,
 broader trigger. What AB#105 already made bounded and tested before AB#134, and remains true
 now, is the axis it always owned: a section-scoped read is never required to load a
-*different* section's placements, or the rest of an unsectioned gallery, to answer correctly.
+_different_ section's placements, or the rest of an unsectioned gallery, to answer correctly.
 A gallery's optional lead and long-form body (AB#106) are ordinary `ContentPage` fields,
 not a gallery-specific type: the short lead already rendered from AB#104's own
 `page.summary`, and the long body reuses the exact `ContentBlock` set and `ContentBody`
@@ -520,7 +521,7 @@ media block reuses `projectPublicMedia` unchanged, so a photograph placed in a b
 validated by exactly the boundary ADR-0005 established for every other public rendition.
 The article schema (`sanity/schemas/article.ts`) is the `article` variant of the shared
 content-page boundary, and — unlike a category's one document for every language — is one
-document *per* language: ADR-0003 decision 7 lets a page's languages be authored and
+document _per_ language: ADR-0003 decision 7 lets a page's languages be authored and
 published independently, so `language` plus the immutable `contentId` together identify
 one version, and two documents may share a `contentId` (one per published language) but
 never both `contentId` and `language`. `canonicalCategory` is required, so a standard
@@ -531,7 +532,7 @@ unplaced draft content. Field-level requirement is not the whole guard, though:
 article in this language, overlays the document being edited, and restates
 `content-tree.ts`'s own public-category propagation and local-slug-namespace computation —
 not just a check against other articles in the same category, which would still miss a
-sibling *category*'s slug, or a collision only exposed because this very publish turns a
+sibling _category_'s slug, or a collision only exposed because this very publish turns a
 previously private canonical- or secondary-placement ancestor category public for the
 first time. So a routine "Publish"
 click cannot be the moment a colliding local slug (ADR-0003 decision 6) or a canonical
@@ -630,11 +631,11 @@ and (AB#129 PR2) `galleryPlacement` also stores the materialized key: `shuffledO
 function to compute one live and keyset pagination needs a stored, sortable field —
 narrowly split off AB#66's broader dynamic/keyword-gallery contract, which stays open.
 Placement-level Studio validation (folded into the existing one-round-trip publication
-query) blocks only the one *structurally impossible* generated value — a `shuffledOrder`
+query) blocks only the one _structurally impossible_ generated value — a `shuffledOrder`
 present but not a 64-char hex string. Absent, now-stale, leftover-after-a-rule-switch, and
 just-re-pinned states all publish fine, because those are transient and the recompute step
 (which reads only published placements) resolves them — blocking would deadlock the
-author. What that same validator now *does* freeze once published is `placementId` itself
+author. What that same validator now _does_ freeze once published is `placementId` itself
 (alongside the media/gallery binding it already froze): it is an identity (ADR-0002 §1)
 and the HMAC input for `shuffledOrder`, so renaming it in place would leave a read-only
 key pointing at the old id with no `ordering-stale` signal — a re-identification is a new
@@ -969,7 +970,7 @@ PR3 adds the visitor-facing surface. The lightbox carries an "Enquire about this
 photograph" control — a real `<a>` in the PhotoSwipe top bar whose `href` is the gallery's
 own parameter-free path plus `?enquire=<itemId>` for the slide on screen (a stable string
 prop, not a callback, so it does not churn the open viewer). ADR-0003 §8's 2026-08-30
-amendment makes `?enquire=` a recognized gallery *action state*: a single value in the
+amendment makes `?enquire=` a recognized gallery _action state_: a single value in the
 shared public-identity grammar (`src/lib/public-identity.ts`, used by both the route parser
 and `enquiry-media.ts` so they cannot drift), recognized only on a gallery route and only
 with neither `cursor` nor `section` — `enquire` plus either is a 404 with no redirect,
@@ -992,14 +993,14 @@ asserts the `noindex`/gallery-canonical/absent-`hreflang` metadata.
 No dynamic-result entry point (AB#58/AB#71 own the dynamic query and its UI); AB#60 stays
 open until a real dynamic result can be wired in or its acceptance criteria are amended.
 The identity/origin smoke is built (AB#123): `e2e/enquiry-identity.spec.ts` is a
-production-build Playwright suite that proves the whole chain is *wired and enforced* when
+production-build Playwright suite that proves the whole chain is _wired and enforced_ when
 the app really runs — the browser-driven curated journey sends exactly the public context
 (`kind`/`locale`/`contentId`/`itemId`, nothing resolved or private) and gets back only the
 generic receipt, the enquiry view reuses the contact privacy notice, and a direct request
 to the running endpoint covers the dynamic origin that has no UI (a dynamic reference
 resolves; a dynamic request carrying a container is a `malformed-body`; an unknown
 occurrence collapses to the one generic `404 item-unavailable`; the reused cross-origin and
-content-type guards still hold). The resolution *semantics* it complements — which trusted
+content-type guards still hold). The resolution _semantics_ it complements — which trusted
 `mediaId` a reference resolves to, context preservation, no invented placement, every
 tampered/unknown/private/unpublished/non-enquirable class — are already proven against the
 real mock content source by `src/lib/enquiry-media.test.ts`, the route's generic-answer
@@ -1011,7 +1012,7 @@ Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — story-root listing continuation and progressive in-place append
 for category listings (both deferred by ADR-0013) — a **true HTTP 503** for
-the seeded gallery `ordering-stale` state *on the detail route* — the `/api/gallery`
+the seeded gallery `ordering-stale` state _on the detail route_ — the `/api/gallery`
 endpoint already returns a real 503, but PR2 serves the detail page as an accessible HTTP
 200 + `noindex` because an App Router page render cannot set an arbitrary status (a
 follow-up would route the gallery detail through a handler; **no open work item tracks
@@ -1075,7 +1076,7 @@ it is a shared environment standing in for production) whose published, non-secr
 Playwright journey and a local `npm run dev` actually exercise; it seals that fixture under
 an ephemeral per-process key and never reads the deployment keyring.
 That same address then serves a second document: with a session cookie that currently
-authorizes *this* gallery it renders the gallery itself, and ADR-0014 §5 Stage 1 is
+authorizes _this_ gallery it renders the gallery itself, and ADR-0014 §5 Stage 1 is
 re-derived on **every** request from the cookie plus a fresh gallery read, so a revoke or a
 closed access window takes effect on the next navigation rather than whenever the session
 would have run out. The gallery is read by the **session's own `galleryId`**, never by the
@@ -1095,7 +1096,7 @@ two different fixtures and made a session minted by one invisible to the other. 
 singleton is now pinned to `globalThis`, the pattern Next.js documents for a
 development-only client; the Postgres adapter keeps its state in Postgres and never had the
 problem.
-The six-month lifecycle's *rules* are built too, as pure policy over the state machine
+The six-month lifecycle's _rules_ are built too, as pure policy over the state machine
 (`src/lib/private-gallery-retention.ts`), the same split the exchange rate limiter already
 uses: `computePrivateGalleryAccessExpiry` adds six to the **UTC** month and clamps to the
 target month's last day with the time of day preserved — calendar months rather than 180
@@ -1140,11 +1141,11 @@ row throws rather than resetting, the one direction a budget must not fail. The 
 after this slice found the table and the design disagreeing: one persisted counter row
 cannot express a rolling window (that needs every mint's timestamp — a thousand rows per
 browse of a 1 000-file gallery, summed on every image load), so up to twice the allowance
-can be spent across a boundary. Accepted because the budget counts *authorizations, not
-delivered bytes* — a replayed URL costs nothing and `Range` is invisible — so precision was
+can be spent across a boundary. Accepted because the budget counts _authorizations, not
+delivered bytes_ — a replayed URL costs nothing and `Range` is invisible — so precision was
 never available where it would matter; a two-counter sliding approximation (~1.1×) is the
 recorded upgrade path if Fair Transfer pressure ever makes the burst shape matter.
-What a private item may *be*, once it crosses into a browser payload, is fixed too
+What a private item may _be_, once it crosses into a browser payload, is fixed too
 (`src/lib/private-gallery-item.ts`) — the private counterpart of `projectPublicMedia`, for
 the same reason: a store row carries more than a page may render, and the safe subset is
 produced by one function rather than remembered at each call site. A `PrivateGalleryItem`
@@ -1181,7 +1182,7 @@ falls back to the unauthorized document rather than rendering a gallery quietly 
 photographs.
 Objects now have an assigned shape (`src/lib/private-gallery-object-key.ts`):
 `<keyPrefix>/g/<galleryId>/<preview|proof|zip>/<128-bit CSPRNG token>`. The token is not a
-counter, which is what makes the runtime credential's deliberate *absence* of `ListBucket`
+counter, which is what makes the runtime credential's deliberate _absence_ of `ListBucket`
 meaningful — sequential keys would make reading one object imply reading the gallery. A key
 carries nothing about the customer or the photograph (no name, no filename, no capture
 date, no gallery handle): it is not browser-facing, but it is visible to anyone who can
@@ -1200,9 +1201,9 @@ total — assigns one immutable key per entry, and returns a plan with the 30-da
 the administrator boundary commits it and moves the gallery to `preparing` **before** the
 CLI writes a byte, so the retention worker always has an enclosing preparation to reconcile.
 An object written without one would be invisible to cleanup and would survive until the
-275-day backstop. A bad entry refuses the *whole* manifest, since a partial plan would put
+275-day backstop. A bad entry refuses the _whole_ manifest, since a partial plan would put
 keys in the database for objects the CLI was never told to write. Sizes here are
-*declared*, not measured: the completion step re-checks the real object with a metadata
+_declared_, not measured: the completion step re-checks the real object with a metadata
 read, because a declaration is a claim and the bucket is the fact — checking only at
 completion would mean writing gigabytes before refusing, and checking only at planning
 would trust the client.
@@ -1218,7 +1219,7 @@ photographs missing, and the failure list is bounded so a bad run cannot flood a
 administrator's status. **An ETag is never accepted as a content hash** — §8c says so, and
 it is the one plausible shortcut that would be wrong, since a multipart ETag is a digest of
 part digests, so comparing it against a hash of the file fails for correct data and
-*sometimes passes*, which is worse than always failing. Which checksum algorithm a
+_sometimes passes_, which is worse than always failing. Which checksum algorithm a
 deployment uses stays the provisioning-time decision §8c defers: the comparison is
 algorithm-agnostic and refuses two differently-named digests rather than guessing. On
 success the outcome names the ZIP pointer swap and, when it supersedes one, how long the
@@ -1227,12 +1228,12 @@ predecessor must be retained — the longest a ZIP URL can live plus a clock-ske
 in-flight download or `Range` resume minted against the old immutable key.
 **Readiness is per gallery kind** (§8c), which the model could not express until now: a
 `PrivateGalleryKind` discriminant joins the gallery, and
-`src/lib/private-gallery-readiness.ts` decides whether the *verified* objects satisfy it —
+`src/lib/private-gallery-readiness.ts` decides whether the _verified_ objects satisfy it —
 evidence from the completion step, not what a plan intended. A **delivery** gallery is not
 ready without both a derivative and a verified ZIP that `activeZipObjectKey` actually
 names; publishing one without it hands a customer a gallery whose whole promise is missing,
 indistinguishable to them from one that had not finished loading. The kind is stored rather
-than inferred from `activeZipObjectKey`, because a delivery gallery *before* its ZIP is
+than inferred from `activeZipObjectKey`, because a delivery gallery _before_ its ZIP is
 verified and a proof gallery that will never have one look identical by that field, and
 guessing would publish the first as the second. **Proof readiness is refused, not guessed**:
 §8c gives it three conditions this story owns none of — watermarked derivatives, a frozen
@@ -1259,10 +1260,10 @@ canonical-request hashing, the string to sign, the four-step key derivation, the
 — is pinned against **AWS's own published worked example**, reproduced exactly from its
 documented inputs to its documented signature: a real known-answer test, not the
 implementation agreeing with itself. Three other documentation sources yielded no usable
-vector, and AWS's *second* example on the same page is deliberately not pinned because its
+vector, and AWS's _second_ example on the same page is deliberately not pinned because its
 published signature cannot be reproduced from its published canonical request — a vector
 that does not reproduce is not a vector, and the test file records why so nobody adds it
-back believing it was overlooked. What no vector can establish is whether *this* provider
+back believing it was overlooked. What no vector can establish is whether _this_ provider
 accepts the result: §8a's provisioning gate owns that ("a presigned `GET` minted with the
 verifier credential succeeds", plus `Range` on a large object). Verified against the
 specification, unverified against the provider — different claims, and only the first is
@@ -1290,7 +1291,7 @@ exist** (its own item 1, and AB#130). The administrator-authentication boundary 
 open is decided in [ADR-0015](docs/adr/0015-administrator-authentication-boundary.md),
 accepted 2026-09-02 — own reserved namespace, a `__Host-` session sharing nothing with the
 customer path, a persisted login rate limit, and a **generated** single-operator secret
-verified with `scrypt`, because §4 requires the boundary to be *stronger* than a 256-bit
+verified with `scrypt`, because §4 requires the boundary to be _stronger_ than a 256-bit
 customer capability and a human-chosen passphrase is not; a passkey is the recorded upgrade
 path, deferred for its dependency and its lost-device recovery converging back on a
 configuration secret. Implementation is **AB#145's**, and its first slice is built: ADR-0015
@@ -1313,7 +1314,7 @@ has content or the deployment that adds the first route is also the first one cr
 nothing reads it yet.
 **§2's session is built too**: `src/lib/private-gallery-admin-session.ts` carries the
 operator's session model, its `__Host-pg_admin_session` cookie contract, and the two checks
-every administrator route and mutation re-derives per request. It shares the *shape* of the
+every administrator route and mutation re-derives per request. It shares the _shape_ of the
 customer session and none of its state — a separate store contract over its own rows, a
 different cookie name, no `galleryId` and no `capabilityGeneration`, and no operator
 identity field at all, because this deployment has one operator and nobody to enumerate.
@@ -1335,7 +1336,7 @@ future-dated value rather than reading it as "very recent". A stored row with a 
 credential digest classifies as `invalid-session`, not `invalid-parameter`, because the
 reason reaches the operational log and a corrupt row must not point an operator at their own
 call site. **§3 is built too**: `src/lib/private-gallery-admin-login.ts` carries the login's request
-boundary and its two throttling layers, everything that must happen *before* a credential
+boundary and its two throttling layers, everything that must happen _before_ a credential
 is ever verified. The request boundary is reused rather than reinvented — a thin wrapper
 over the same `checkContactRequestHeaders` the contact and enquiry endpoints already pass
 through, so the administrator path cannot drift from a boundary reviewed twice. Layer 1 is
@@ -1373,11 +1374,11 @@ broken every login: §4's own parameters need `128·N·r` = exactly 33 554 432 b
 default `maxmem` is exactly that, with OpenSSL rejecting at `>=`, so **the ADR's parameters
 throw with the default** — `maxmem` is always passed explicitly, and the parameter ceilings
 exist so that derived value can never ask for a gigabyte from a typo. The generation digest
-is SHA-256 over the *encoded credential*, never the stored hash: it lives in the session
+is SHA-256 over the _encoded credential_, never the stored hash: it lives in the session
 table and every backup, and the scrypt hash is the offline-attack target.
 With §4 present the ordering is complete, so administration finally joins the
-`private-gallery-access.ts` facade: `attemptPrivateGalleryAdminLogin` (throttle, *then*
-resolve the credential, *then* verify, *then* mint — a route that verified first would be
+`private-gallery-access.ts` facade: `attemptPrivateGalleryAdminLogin` (throttle, _then_
+resolve the credential, _then_ verify, _then_ mint — a route that verified first would be
 offering unmetered CPU, and every individual piece would still pass its own tests) and
 `authorizePrivateGalleryAdminRequestSession`, which re-resolves the credential on every
 request so rotation is revocation. Both never throw, and every refusal — throttled, wrong
@@ -1387,7 +1388,7 @@ row now classifies as `malformed-record` rather than `invalid-session`, because 
 needed to tell "a browser left open" from "your table is corrupt" and was otherwise reduced
 to matching an error message. **The routes now exist too, so ADR-0015's boundary is complete.** The Proxy rewrites the
 configured administrator prefix onto its own internal segment (`private-gallery-admin`,
-deliberately *not* a subtree of the customer one — the isolation has to hold for the route
+deliberately _not_ a subtree of the customer one — the isolation has to hold for the route
 tree behind the URL, not only for the URL) and 404s a direct request to it, exactly as the
 customer namespace does. One address serves both states: with a session that currently
 authorizes it renders the signed-in surface, without one the sign-in form, so a stranger and
@@ -1426,7 +1427,7 @@ request that was never going to be authorized cannot spend a gallery's allowance
 **atomic** budget consume, which the store owns because a read-decide-write would race a
 concurrent mint; then, and only then, the signature. A route doing this itself could get
 the order wrong in a way no test of the individual pieces would catch. The object store's
-configuration is read *first*, so a deployment that has none (`off`, `memory`) refuses
+configuration is read _first_, so a deployment that has none (`off`, `memory`) refuses
 before charging a gallery for a URL nobody receives, and the response's `no-store` — plus
 `Content-Disposition: attachment` for the ZIP — is **signed** rather than left to upload
 metadata. `planPrivateGalleryMint` was split out of `authorizePrivateGalleryMint` for this,
@@ -1602,11 +1603,11 @@ sections, and the cross-gallery shared-media placement — reported `PASS`. A fo
 count confirmed no unrelated or malformed document remained: every non-`seed--`
 document in the dataset was either a Sanity-internal `system.*` record or one of the
 six expected image assets. AC5's audit now has a real, evidenced target — this Preview
-run, recorded on AB#84. `docs/sanity-seeding.md`'s *Production handoff* section is this run's
+run, recorded on AB#84. `docs/sanity-seeding.md`'s _Production handoff_ section is this run's
 distillation into the exact command, inputs, verification, and rollback path the later
 Production launch seed inherits. A codex-review-loop round on that handoff caught a real
-gap the run's own two verification layers left open: AC3 requires *representative
-repository adapter queries* against Content Lake, and neither the offline adapter test
+gap the run's own two verification layers left open: AC3 requires _representative
+repository adapter queries_ against Content Lake, and neither the offline adapter test
 (which fakes the store) nor the seed script's own `--yes` step (hand-written GROQ, not
 adapter code) actually is that. `src/lib/sanity-live-verification.test.ts`
 (`npm run verify:sanity-live`) closes it: a third, opt-in, non-`npm test` suite that
@@ -1633,7 +1634,7 @@ whole dataset, classifying every document as published, draft, or a release vers
 shape rather than a known-type allow-list (so an unexpected or obsolete document is
 listed, not silently omitted), listing every document and every image/file asset
 individually by id — a count alone cannot answer "is any of this actually approved
-launch content?" — with each asset's dimensions, and reporting only the *presence* of the
+launch content?" — with each asset's dimensions, and reporting only the _presence_ of the
 two fields it treats as private/internal (`archiveLocator`, `capturedAt`) — never a value,
 matching the same never-log-sensitive-values posture the rest of this project's Sanity
 boundary already holds. The asset-filename and private-field checks are scoped to their
@@ -1658,7 +1659,7 @@ provisioning the Resend account and completing this ownership/DPA/retention revi
 is AB#117's own prerequisite work, done before AB#18, not something AB#18's
 production provisioning produces.** AB#117's acceptance criteria are not weakened or
 deferred by this — AB#117 owns getting the account and running the review, in full;
-AB#18's own scope narrows to match, wiring the *already-reviewed* account's secrets
+AB#18's own scope narrows to match, wiring the _already-reviewed_ account's secrets
 and sending domain into Production and verifying delivery, not provisioning or
 reviewing the account itself. The account has not been provisioned yet — that is a
 real third-party signup only the site owner can perform, not something this
@@ -1689,6 +1690,7 @@ Features are implemented in small working slices. Example (gallery):
 ❌ DO NOT: build grid + lightbox + zoom + captions + EXIF + client galleries at once.
 
 ✅ DO:
+
 1. Thumbnail grid with mock data
 2. Fullscreen lightbox (open/close/navigate)
 3. Keyboard navigation and swipe
@@ -1820,25 +1822,25 @@ npm run admin:secret # owner-run: generate the private-gallery administrator cre
 
 This is the complete set — there is no other documentation to hunt for:
 
-| File | Audience | Update it when |
-| --- | --- | --- |
-| `README.md` | humans evaluating or cloning the project | scope, structure, setup, or MVP progress changes |
-| `AGENTS.md` | all AI agents (canonical) | project-level working rules or conventions change |
-| `CLAUDE.md` | Claude Code only | a Claude-specific skill or workflow changes — it imports this file, so put shared rules here |
-| `docs/adr/` | future maintainers | a hard-to-reverse technical decision is made (see below) |
-| `docs/architecture/` | anyone forming a mental model of the system | a system boundary, layer, external dependency, or the deploy flow changes — edit the `.d2` source and re-run `npm run diagrams`, never the `.svg` |
-| `docs/theme-contract.md` | whoever restyles a clone or builds a theme preset (AB#37) | a semantic design token is added, renamed, or revalued, the light/dark mechanism changes, or a surface moves in or out of the "stays explicit" list |
-| `docs/asset-inventory.md` | licensing audit | any third-party asset, font, or shipped dependency is added or removed |
-| `docs/contact-data-flow.md` | the site owner, a visitor who asks, and the AB#117 launch review | the contact form's fields, delivery path, processors, logs, or retention change |
-| `docs/private-gallery-data-flow.md` | the site owner, a customer who asks, and the AB#117 launch review | a private gallery's stored data, the access link or cookie, its processors, logs, or retention change |
-| `docs/sanity-setup.md` | the site owner and whoever provisions a clone's CMS | the Sanity connection settings, ownership/transfer story, perspective, schemas, media policy, or failure behavior change |
-| `docs/sanity-seeding.md` | the site owner and whoever seeds a clone's sample or first content | the seed script's fixture content, id/idempotency contract, write-token story, verification steps, or go-live cleanup checklist change |
-| `sanity/README.md` | whoever wires a clone's Studio to these schemas | a document type is added, or how the Studio consumes them changes |
-| `docs/deployment.md` | the site owner and whoever provisions a clone's hosting | the Preview environment, pipeline deployment stage, environment-variable split, runtime pins, or promotion/rollback mechanism change |
-| `docs/security-privacy-review.md` | the site owner and future launch reviews | the launch security/privacy review is rerun, a finding's disposition changes, or the security response headers change (also update ADR-0011) |
-| `docs/keyword-query-benchmark.md` | AB#55's taxonomy ADR and whoever runs the AB#65 spike | the keyword-query benchmark fixture, harness, or matrix changes, or an owner-run live measurement is completed and its numbers/recommendation are filled in |
-| `NOTICE`, `licenses/` | anyone receiving the product | a third-party component with an attribution requirement is added |
-| `.claude/skills/`, `.agents/skills/` | agents | a recurring workflow needs a skill; duplicate into both, no symlinks |
+| File                                 | Audience                                                           | Update it when                                                                                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `README.md`                          | humans evaluating or cloning the project                           | scope, structure, setup, or MVP progress changes                                                                                                            |
+| `AGENTS.md`                          | all AI agents (canonical)                                          | project-level working rules or conventions change                                                                                                           |
+| `CLAUDE.md`                          | Claude Code only                                                   | a Claude-specific skill or workflow changes — it imports this file, so put shared rules here                                                                |
+| `docs/adr/`                          | future maintainers                                                 | a hard-to-reverse technical decision is made (see below)                                                                                                    |
+| `docs/architecture/`                 | anyone forming a mental model of the system                        | a system boundary, layer, external dependency, or the deploy flow changes — edit the `.d2` source and re-run `npm run diagrams`, never the `.svg`           |
+| `docs/theme-contract.md`             | whoever restyles a clone or builds a theme preset (AB#37)          | a semantic design token is added, renamed, or revalued, the light/dark mechanism changes, or a surface moves in or out of the "stays explicit" list         |
+| `docs/asset-inventory.md`            | licensing audit                                                    | any third-party asset, font, or shipped dependency is added or removed                                                                                      |
+| `docs/contact-data-flow.md`          | the site owner, a visitor who asks, and the AB#117 launch review   | the contact form's fields, delivery path, processors, logs, or retention change                                                                             |
+| `docs/private-gallery-data-flow.md`  | the site owner, a customer who asks, and the AB#117 launch review  | a private gallery's stored data, the access link or cookie, its processors, logs, or retention change                                                       |
+| `docs/sanity-setup.md`               | the site owner and whoever provisions a clone's CMS                | the Sanity connection settings, ownership/transfer story, perspective, schemas, media policy, or failure behavior change                                    |
+| `docs/sanity-seeding.md`             | the site owner and whoever seeds a clone's sample or first content | the seed script's fixture content, id/idempotency contract, write-token story, verification steps, or go-live cleanup checklist change                      |
+| `sanity/README.md`                   | whoever wires a clone's Studio to these schemas                    | a document type is added, or how the Studio consumes them changes                                                                                           |
+| `docs/deployment.md`                 | the site owner and whoever provisions a clone's hosting            | the Preview environment, pipeline deployment stage, environment-variable split, runtime pins, or promotion/rollback mechanism change                        |
+| `docs/security-privacy-review.md`    | the site owner and future launch reviews                           | the launch security/privacy review is rerun, a finding's disposition changes, or the security response headers change (also update ADR-0011)                |
+| `docs/keyword-query-benchmark.md`    | AB#55's taxonomy ADR and whoever runs the AB#65 spike              | the keyword-query benchmark fixture, harness, or matrix changes, or an owner-run live measurement is completed and its numbers/recommendation are filled in |
+| `NOTICE`, `licenses/`                | anyone receiving the product                                       | a third-party component with an attribution requirement is added                                                                                            |
+| `.claude/skills/`, `.agents/skills/` | agents                                                             | a recurring workflow needs a skill; duplicate into both, no symlinks                                                                                        |
 
 Rules:
 
@@ -1849,8 +1851,8 @@ Rules:
   than no prose.
 - **Architecture diagrams are generated, never hand-edited.** `docs/architecture/*.d2`
   is the source; the `.svg` beside it is a build artifact that `npm run diagrams`
-  rewrites and `npm run diagrams:check` gates. Diagrams show *what* the boundaries are
-  and ADRs record *why* — a diagram never replaces a record, and anything drawn that is
+  rewrites and `npm run diagrams:check` gates. Diagrams show _what_ the boundaries are
+  and ADRs record _why_ — a diagram never replaces a record, and anything drawn that is
   not operating yet must say so on the diagram itself.
 - Record hard-to-reverse technical decisions as an ADR in `docs/adr/`: a dependency the
   UI is built around, a data model boundary, a hosting or CMS commitment, a product
