@@ -167,7 +167,8 @@ synthesized tap/double-tap, keyboard, and pointer-drag paths — including a dra
 starts over the hidden caption, proving the region's dropped `pointer-events` lets the
 gesture through — and the vertical pan-bound clamp (the axis that does not double as
 slide navigation); the one physical-device pinch/pan check (AC6) is documented as
-outstanding in ADR-0001 and AB#78 stays open until it is done. Zoom *animation and level
+outstanding in ADR-0001; **AB#78 is closed**, so nothing tracks that one check any more —
+it is a documented gap in ADR-0001, not a scheduled task. Zoom *animation and level
 tuning* stay a later slice.
 There is also
 a bounded adjacent-image preload window (`LIGHTBOX_PRELOAD_WINDOW`, `image-delivery.ts`,
@@ -263,13 +264,16 @@ bounded requested pathname and cursor presence — never its value — into proj
 request headers and overwrites any client-supplied values. The Proxy also owns
 trailing-slash normalization so the adapter can validate a cursor before a 308. App Router
 renders a not-found boundary with no params, and renders it before the page, so nothing
-in-tree can tell it. One site-wide limitation bounds that link and predates this work: on
-Next.js 16.2.11 the tested 404 responses carry their semantic UI only in the RSC payload,
-so no heading or link renders without JavaScript. ADR-0007 records the experiments already
-performed without claiming a framework root cause; AB#132 owns the minimal reproduction and
-version comparison. AB#117 bumped Next.js to 16.3.2 (`npm audit fix`, dependency-vulnerability
-remediation) and the Playwright 404/redirect suite still passes at that version, but that is
-not the same check as AB#132's own version-comparison reproduction, which has not been rerun.
+in-tree can tell it. One site-wide limitation bounds that link and predates this work: a
+404 response carries its semantic UI only in the RSC payload, so no heading or link renders
+without JavaScript.
+ADR-0007 records the experiments already performed without claiming a framework root cause.
+First seen on Next.js 16.2.11, and **still reproducing on 16.3.2**: a plain `curl` of an
+unknown path against a production build returns `<html id="__next_error__">` with no `<h1>`
+in the initial HTML (measured 2026-09-03). **AB#132, which owned the minimal reproduction
+and version comparison, is closed, so no open work item tracks a fix** — the gap lives in
+ADR-0007's Known limitation and in the `javaScriptEnabled: true` exception the 404 cases in
+`e2e/gallery-continuation.spec.ts` and `e2e/category-continuation.spec.ts` still carry.
 One authoritative order governs the source, the DOM, keyboard focus, and the
 lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
 ratios, never cropped) precisely so the visual reading order cannot contradict it; the
@@ -301,8 +305,8 @@ Between the two the `basics` query's bounded `staleShuffledOrderCount` aggregate
 adapter raise `ordering-stale` (re-raised at the `@/lib/gallery` seam as
 `GalleryOrderingStaleError`) — *after* the cursor/section validation, so a bad token still
 404s mid-rotation. The detail route renders an accessible "being reordered" notice
-(**HTTP 200 + `noindex`** — an App Router page render cannot set 503; named limitation,
-follow-up tracked with AB#132), and the `/api/gallery` continuation endpoint (a Route
+(**HTTP 200 + `noindex`** — an App Router page render cannot set 503; a named limitation
+with no open work item tracking it), and the `/api/gallery` continuation endpoint (a Route
 Handler, which can) returns a real **503 + `Retry-After`**. Recovery is automatic once the
 recompute's placement patches invalidate the `sanity:galleries` cache tag; the command's
 final check gates only its own exit code.
@@ -310,8 +314,8 @@ A gallery's listing card takes its explicit
 cover or the deterministic first public item in the active order
 (`selectCuratedGalleryCover`), a published
 gallery with no items renders an accessible empty state (the mock publishes one, so it is
-a state the site serves rather than one only a test has seen). Category listings still answer `?cursor=` with a 404, because none issues one;
-`?section=` stays an ignored unrecognized parameter until AB#115 wires it into a route. The continuation link is progressively enhanced in the browser to
+a state the site serves rather than one only a test has seen). Category listings still answer `?cursor=` with a 404, because none issues one.
+`?section=` is a recognized gallery parameter (AB#115, below). The continuation link is progressively enhanced in the browser to
 append one bounded slice in place, with loading, failure, retry, and completion states;
 the open lightbox grows from the same result and offers its own reachable retry without
 closing or losing the current item. Focus stays on the continuation control while it
@@ -344,9 +348,11 @@ is the same 404-class failure. The mock fixture extends the large archive with t
 150-placement sections spanning more than one 24-item page each, plus a third declared
 section with none, so both cross-page section continuation and the empty-section state are
 exercised, not just asserted. Controls, browser history, and the grid/lightbox wiring that
-consumes this query are deliberately out of scope here — AB#115's job, which inherits
-correct unknown/empty-section behaviour by construction rather than redefining it — and so
-is `route.ts`/the catch-all page ever reading `?section=` from a real request. AB#105's own
+consumes this query were deliberately out of AB#105's scope, as was the catch-all page
+ever reading `?section=` from a real request; **AB#115 has since delivered all of it**
+(`src/components/gallery-section-controls.tsx`, the catch-all page's own `sectionSlug`
+resolution, and `e2e/gallery-sections.spec.ts`), inheriting AB#105's unknown- and
+empty-section behaviour by construction rather than redefining it. AB#105's own
 review surfaced a real gap it did not close on its own: `source` received neither the
 requested cursor nor the page size, so nothing let a store-backed adapter answer a large
 section with a bounded keyset query instead of fetching the whole section on every
@@ -1000,20 +1006,21 @@ Pipelines gate through `testMatch: "**/*.spec.ts"` — no pipeline change.
 Not yet built:
 localized static routes and localized authored settings — the contact route is
 unprefixed-only for now — story-root listing continuation and progressive in-place append
-for category listings (both deferred by ADR-0013) — gallery section controls, URL wiring, and lightbox
-integration (AB#115; the section domain model and server-side query themselves are AB#105,
-above, whose bounded-query contract AB#134 has since supplied), a **true HTTP 503** for
+for category listings (both deferred by ADR-0013) — a **true HTTP 503** for
 the seeded gallery `ordering-stale` state *on the detail route* — the `/api/gallery`
 endpoint already returns a real 503, but PR2 serves the detail page as an accessible HTTP
 200 + `noindex` because an App Router page render cannot set an arbitrary status (a
-follow-up would route the gallery detail through a handler; tracked with AB#132) — and its
+follow-up would route the gallery detail through a handler; **no open work item tracks
+it** — AB#132 is closed) — and its
 `shuffledOrderGeneration` atomic-flip alternative to the brief recompute refusal window
 (a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
 and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
 build it), lightbox zoom tuning, and the dynamic-result enquiry entry point (AB#58/AB#71).
-Private client galleries are **partially built**: a link can now be opened and exchanged
-for a session, but only against a development fixture store — a real deployment still
-serves nothing. Their security,
+Private client galleries are **partially built**: a link can be opened and exchanged for a
+session, an authorized customer sees their gallery's frames, an operator can sign in to the
+administrator boundary, and the delivery path is composed end to end — but all of it only
+against a development fixture store. **A real deployment still serves nothing**, because
+neither private store has been provisioned. Their security,
 delivery, proof-selection, and retention boundary is
 [ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md)
 (AB#122, **Accepted**): a structural public/private isolation boundary, a
@@ -1468,8 +1475,8 @@ expensive-but-rare hierarchy move (moving the broad root rewrote 3541 media docs
 re-sync, ~45 s to revert) rather than paying a join on every visitor request. The
 GROQ-vs-JS keyset ordering agreed on every walk including the sub-second `capturedAt` pairs,
 so ADR-0012 §9's risk did not materialise. 3 of 4 hierarchy-move cells were measured live;
-`deep`×strategyB is modelled (its re-sync probe needed a fix, landed after the run). AB#65
-stays Active until this write-up is reviewed and merged.
+`deep`×strategyB is modelled (its re-sync probe needed a fix, landed after the run).
+**AB#65 is closed.**
 Tagged caching and webhook revalidation (AB#83) are built — see the large paragraph earlier
 in this file and `docs/cache-revalidation.md`. Its previously outstanding "Deployed
 verification gate" is now complete: on 2026-08-26 a revision-guarded Preview publish and
@@ -1479,8 +1486,7 @@ seven further `HIT` responses that all carried the one current value. The webhoo
 an older Preview deployment while the reads ran against the newer one, directly proving
 that invalidation was not confined to one warm process or deployment. A raw-perspective
 audit confirmed the original seed value was restored and no draft or test marker remained.
-AB#83 can close when this evidence is reviewed and merged; the item remains Active until
-then.
+**AB#83 is closed.**
 The deployment itself: AB#116 is **closed** — the Preview environment is fully provisioned
 and proven working by a real, verified, fully-automated pipeline run (build 144, `main`,
 2026-08-24). `DeployPreview` built, deployed to Preview, bound the deployment identity to
@@ -1580,9 +1586,8 @@ records rather than customer or seed content. A further evidence check also
 corrected the earlier claim that AB#84's 448-document seed run had landed in an
 unidentified dataset: PR #62 explicitly says its write-enabled CLI was not run against
 an external dataset, and no later owner run is durably recorded. The owner accepted the
-finding on 2026-08-25 and reopened AB#84 to **Active**; it remains there until the
-external owner-run target and verification are evidenced or its acceptance criteria are
-explicitly amended and accepted. That run happened the same day, against this same
+finding on 2026-08-25 and reopened AB#84, which has since **closed** on the evidence
+below. That run happened the same day, against this same
 Preview project and dataset: a temporary, Editor-role `SANITY_SEED_TOKEN`, minted by the
 owner for this run only and revoked immediately after, drove `npm run seed:sanity -- --yes`
 to write exactly 448 `seed--` documents and upload the 6 demo-photograph assets, and
@@ -1593,8 +1598,7 @@ sections, and the cross-gallery shared-media placement — reported `PASS`. A fo
 count confirmed no unrelated or malformed document remained: every non-`seed--`
 document in the dataset was either a Sanity-internal `system.*` record or one of the
 six expected image assets. AC5's audit now has a real, evidenced target — this Preview
-run, recorded on AB#84 — though AB#84 itself stays open until the owner reviews and
-accepts it; `docs/sanity-seeding.md`'s new *Production handoff* section is this run's
+run, recorded on AB#84. `docs/sanity-seeding.md`'s *Production handoff* section is this run's
 distillation into the exact command, inputs, verification, and rollback path the later
 Production launch seed inherits. A codex-review-loop round on that handoff caught a real
 gap the run's own two verification layers left open: AC3 requires *representative
