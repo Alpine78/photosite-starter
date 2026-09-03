@@ -376,9 +376,11 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   — done for both the mock and Sanity sources; on Sanity, rotation is a two-step
   administrator operation (edit the seed, then `npm run recompute:shuffled-order`) and the
   gallery serves an accessible "being reordered" state in between — HTTP 200 + `noindex` on
-  the detail page, a real 503 from the continuation endpoint. The `?section=` controls,
-  zoom animation/level tuning, and AB#78's one
-  physical-device pinch/pan check remain*
+  the detail page, a real 503 from the continuation endpoint. Named section controls are
+  URL-driven and keyboard-operable, restoring the selected section across reload, shared
+  link, and browser history, with the grid and lightbox reading the same filtered ordered
+  set (AB#115). Zoom animation and level tuning remain, as does one physical-device
+  pinch/pan check that ADR-0001 records as an outstanding gap*
 - [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
   handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
   for development, CI, and Preview), abuse controls, and operational events carrying no

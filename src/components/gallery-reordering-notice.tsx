@@ -20,7 +20,8 @@ type GalleryReorderingNoticeProps = {
  * the `<meta http-equiv="refresh">` retries client-side, but a crawler or an
  * HTTP cache cannot tell this apart from a normal page by status code alone. A
  * follow-up may route the gallery detail response through a handler for a real
- * 503 (tracked with AB#132's status-code limitation).
+ * 503. No open work item tracks that: AB#132, which owned the related
+ * initial-HTML 404 limitation, is closed.
  */
 export function GalleryReorderingNotice({
   labels,
