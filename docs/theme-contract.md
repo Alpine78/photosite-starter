@@ -118,23 +118,40 @@ for a preset, a clone, or a future in-page toggle. No toggle UI ships today.
 
 ## Overriding for a preset (AB#37) or a clone
 
-A preset is a `:root[data-theme="<name>"] { … }` block that redefines the
-primitives, plus whatever sets `data-theme` on `<html>`:
+A preset is selected by **`data-preset` on `<html>`**, and redefines the
+primitives in up to three blocks — mirroring the default's own light / OS-dark /
+pinned-dark structure:
 
 ```css
-:root[data-theme="studio-mono"] {
+:root[data-preset="editorial"] {
   color-scheme: light;
-  --background: #faf7f2;
-  --foreground: #1a1a1a;
-  --surface: #ffffff;
-  --accent: #7c5cff;          /* a real brand colour, not the ink inversion */
+  --background: #f7f4ef;
+  --foreground: #14100e;
+  --accent: #1d4ed8;          /* a real brand colour, not the ink inversion */
   --accent-foreground: #ffffff;
-  --focus: #7c5cff;
+  --focus: #1d4ed8;
+  --font-family-sans: ui-serif, Georgia, "Times New Roman", Times, serif;
   --radius-sm: 0;             /* square corners */
   --radius-md: 0;
   --radius-lg: 0;
 }
+
+@media (prefers-color-scheme: dark) {
+  :root[data-preset="editorial"]:not([data-theme="light"]) { /* dark values */ }
+}
+
+:root[data-preset="editorial"][data-theme="dark"] { /* the same dark values */ }
 ```
+
+**`data-preset`, not `data-theme` — corrected by AB#37.** This document
+previously described a preset as `:root[data-theme="<name>"]`. That does not
+work: `data-theme` already carries the *mode* pin (`light` / `dark`), and one
+attribute cannot hold both an identity and a mode. A preset selected that way is
+neither `light` nor `dark`, so the default palette's own dark block still
+matches underneath it, and the preset has no way to express a dark palette at
+all. Splitting identity from mode keeps them orthogonal — verified in
+`e2e/theme.spec.ts`, where the preset's dark palette and the `data-theme` pin
+are exercised together.
 
 Overridable: every palette primitive (`--background`, `--foreground`,
 `--surface`, `--surface-muted`, `--surface-hover`, `--border`,
@@ -146,6 +163,39 @@ Not overridable per component: there is no per-component colour hook, and there
 should never need to be one. A surface a preset cannot reach through these
 tokens is a **missing extension point** — AB#37 records it and this contract
 absorbs it, rather than the preset copying the component.
+
+### What AB#37 found
+
+The `editorial` preset in `globals.css` is an **internal validation asset**:
+nothing in the application selects it and no control ships that would. It exists
+to be deliberately unlike the default in every dimension this contract claims is
+reachable, so that a claim which was never true would fail rather than sit
+unread. Two things came out of building it.
+
+**1. The selection mechanism was wrong** — corrected above. Worth noting *how* it
+was wrong: the old form could express a light-only preset perfectly well, so the
+gap would not have surfaced until someone shipped a preset and then wanted a dark
+palette for it.
+
+**2. The derived text roles cannot be re-weighted, and that constrains a
+preset's palette.** `--body`, `--muted` and `--subtle` are fixed 80/70/60 %
+mixes of `--foreground` on `:root`; they are deliberately *not* in the
+overridable list, so a preset inherits those weights whatever its ink. The
+consequence is concrete rather than theoretical: this preset's first warm-paper
+palette (`#f7f4ef` ground, `#1f1a17` ink) cleared AA for `--body` and `--muted`
+and missed it for `--subtle` at **4.41:1**, and the preset could not fix that by
+loosening the weakest role. The ink was darkened to `#14100e` instead.
+
+That is a real constraint on preset authors — **the weakest derived role, not the
+body text, is what a palette has to be chosen against** — and it is left as a
+constraint rather than an extension point on purpose: making the percentages
+overridable would let a preset weaken text contrast as easily as strengthen it,
+and nothing has yet needed it. If a real preset does, this contract absorbs it
+then, with the AA gate extended to cover the new freedom.
+
+Both presets are held to AA by `src/lib/theme-contract.test.ts`, which parses
+this CSS and computes the contrast itself; adding a preset means adding its
+blocks to that test's palette list, and a preset that misses AA fails the build.
 
 ---
 

@@ -101,6 +101,22 @@ function over(fg: Rgb, bg: Rgb, alpha: number): Rgb {
 
 const lightRoot = customProperties(ruleBody(css, ":root {"));
 const pinnedDark = customProperties(ruleBody(css, ':root[data-theme="dark"] {'));
+
+/**
+ * The `editorial` preset (AB#37), selected by `data-preset` so identity and the
+ * `data-theme` mode pin stay orthogonal. Parsed the same way as the default so
+ * the contrast rule below applies to it unchanged — AC3 requires *both* presets
+ * to clear AA, and this is what makes that a gate rather than a claim.
+ */
+const presetLight = customProperties(
+  ruleBody(css, ':root[data-preset="editorial"] {'),
+);
+const presetPinnedDark = customProperties(
+  ruleBody(css, ':root[data-preset="editorial"][data-theme="dark"] {'),
+);
+const presetMediaDark = customProperties(
+  ruleBody(css, ':root[data-preset="editorial"]:not([data-theme="light"]) {'),
+);
 const preferenceDark = customProperties(
   ruleBody(css, ':root:not([data-theme="light"]) {'),
 );
@@ -144,6 +160,16 @@ function palettes(): { name: string; props: Map<string, string> }[] {
     {
       name: "dark",
       props: new Map([...lightRoot, ...pinnedDark]),
+    },
+    // A preset overrides primitives only, for the same reason: the derived text
+    // roles are `color-mix` over `--foreground` on `:root` and follow it.
+    {
+      name: "editorial light",
+      props: new Map([...lightRoot, ...presetLight]),
+    },
+    {
+      name: "editorial dark",
+      props: new Map([...lightRoot, ...presetLight, ...presetPinnedDark]),
     },
   ];
 }

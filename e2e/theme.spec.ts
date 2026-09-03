@@ -276,3 +276,113 @@ test.describe("theme contract", () => {
     expect(luminance(ring)).toBeGreaterThan(0.5);
   });
 });
+
+/**
+ * The second preset (AB#37), applied at runtime rather than through a shipped
+ * control: AC5 keeps it an internal validation asset, so nothing in the product
+ * selects it and this suite is the only thing that ever does.
+ *
+ * What these cases are for is not the preset's appearance. They check that each
+ * override point the contract *claims* is reachable actually is, in a real
+ * browser against the production build — including the radius scale, which is
+ * declared inside Tailwind's `@theme` rather than on `:root` and so is the one
+ * claim that could plausibly have been wrong.
+ */
+test.describe("theme contract: the editorial preset (AB#37)", () => {
+  async function applyPreset(page: Page): Promise<void> {
+    await page.evaluate(() =>
+      document.documentElement.setAttribute("data-preset", "editorial"),
+    );
+  }
+
+  function rootToken(page: Page, token: string): Promise<string> {
+    return page.evaluate(
+      (name) =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue(name)
+          .trim(),
+      token,
+    );
+  }
+
+  test("repaints the page ground and ink through the palette primitives", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.goto("/");
+    const before = await page.evaluate(
+      () => getComputedStyle(document.body).backgroundColor,
+    );
+
+    await applyPreset(page);
+    const after = await page.evaluate(
+      () => getComputedStyle(document.body).backgroundColor,
+    );
+
+    expect(after).not.toBe(before);
+    // The preset's warm paper, not the default white.
+    expect(after).toBe("rgb(247, 244, 239)");
+  });
+
+  test("reaches the radius scale, which lives in @theme rather than :root", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await applyPreset(page);
+    expect(await rootToken(page, "--radius-md")).toBe("0");
+  });
+
+  test("decouples accent and focus from the foreground ink", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.goto("/");
+    await applyPreset(page);
+
+    const accent = await rootToken(page, "--color-accent");
+    const focus = await rootToken(page, "--color-focus");
+    const foreground = await rootToken(page, "--color-foreground");
+
+    // The default is the ink/paper inversion; the preset must be able to break it.
+    expect(accent).not.toBe(foreground);
+    expect(focus).not.toBe(foreground);
+  });
+
+  test("swaps the type family without a component knowing", async ({ page }) => {
+    await page.goto("/");
+    const before = await page.evaluate(
+      () => getComputedStyle(document.body).fontFamily,
+    );
+    await applyPreset(page);
+    const after = await page.evaluate(
+      () => getComputedStyle(document.body).fontFamily,
+    );
+
+    expect(after).not.toBe(before);
+    expect(after).toContain("serif");
+  });
+
+  test("carries its own dark palette, which the mode pin still governs", async ({
+    page,
+  }) => {
+    // The point of selecting a preset with `data-preset` rather than
+    // `data-theme`: identity and mode stay orthogonal, so a preset can have a
+    // dark palette at all and the pin keeps working over it.
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/");
+    await applyPreset(page);
+    expect(await rootColorScheme(page)).toBe("dark");
+    const dark = await page.evaluate(
+      () => getComputedStyle(document.body).backgroundColor,
+    );
+
+    await page.evaluate(() =>
+      document.documentElement.setAttribute("data-theme", "light"),
+    );
+    const pinnedLight = await page.evaluate(
+      () => getComputedStyle(document.body).backgroundColor,
+    );
+
+    expect(dark).toBe("rgb(20, 17, 15)");
+    expect(pinnedLight).toBe("rgb(247, 244, 239)");
+  });
+});
+
