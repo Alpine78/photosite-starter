@@ -85,6 +85,97 @@
 }
 
 /*
+ * ---------------------------------------------------------------------------
+ * `editorial` — the second preset (AB#37). An **internal validation asset**,
+ * not a product theme: nothing in the application selects it, and no control
+ * ships that would. It exists to prove the override contract by being
+ * deliberately unlike the default in every dimension the contract claims is
+ * reachable — a warm paper ground instead of white, an accent and focus colour
+ * decoupled from `--foreground` instead of the ink/paper inversion, a serif
+ * family instead of the sans face, and square corners instead of the rounded
+ * scale.
+ *
+ * **It is selected with `data-preset`, not `data-theme`, and that is a change
+ * this story had to make before it could write a single value.** The contract
+ * previously described a preset as `:root[data-theme="<name>"]`, but
+ * `data-theme` already carries the *mode* pin (`light` / `dark`). One attribute
+ * cannot hold both an identity and a mode: a preset selected that way is
+ * neither `light` nor `dark`, so the default palette's own dark block still
+ * matches underneath it, and the preset has no way to express a dark palette of
+ * its own at all. Splitting identity (`data-preset`) from mode (`data-theme`)
+ * keeps the two orthogonal, and lets a preset mirror the default's own
+ * three-block structure exactly.
+ */
+
+:root[data-preset="editorial"] {
+  color-scheme: light;
+
+  /* `--foreground` is darker than the warm ground alone would suggest, and
+     deliberately so: `--subtle` is a fixed 60% mix of it on `:root`, which a
+     preset cannot re-weight, so the ink has to carry the weakest role over AA
+     rather than the role being tuned to the ink. See the missing extension
+     point recorded in docs/theme-contract.md. */
+  --background: #f7f4ef;
+  --foreground: #14100e;
+  --surface: #fffdf9;
+  --surface-muted: rgb(20 16 14 / 0.05);
+  --surface-hover: rgb(20 16 14 / 0.08);
+  --border: rgb(20 16 14 / 0.12);
+  --border-control: rgb(20 16 14 / 0.22);
+  --border-strong: rgb(20 16 14 / 0.45);
+  --danger: #a3231b;
+
+  /* Decoupled from --foreground, which the default deliberately is not. */
+  --accent: #1d4ed8;
+  --accent-foreground: #ffffff;
+  --focus: #1d4ed8;
+
+  --font-family-sans: ui-serif, Georgia, "Times New Roman", Times, serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* Square corners — the radius scale is an override point the contract claims
+     and this preset is what tests it. */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-preset="editorial"]:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #14110f;
+    --foreground: #f0e9e1;
+    --surface: #1a1614;
+    --surface-muted: rgb(240 233 225 / 0.05);
+    --surface-hover: rgb(240 233 225 / 0.1);
+    --border: rgb(240 233 225 / 0.15);
+    --border-control: rgb(240 233 225 / 0.25);
+    --border-strong: rgb(240 233 225 / 0.4);
+    --danger: #ff9a8f;
+    --accent: #9dbcff;
+    --accent-foreground: #14110f;
+    --focus: #9dbcff;
+  }
+}
+
+:root[data-preset="editorial"][data-theme="dark"] {
+  color-scheme: dark;
+  --background: #14110f;
+  --foreground: #f0e9e1;
+  --surface: #1a1614;
+  --surface-muted: rgb(240 233 225 / 0.05);
+  --surface-hover: rgb(240 233 225 / 0.1);
+  --border: rgb(240 233 225 / 0.15);
+  --border-control: rgb(240 233 225 / 0.25);
+  --border-strong: rgb(240 233 225 / 0.4);
+  --danger: #ff9a8f;
+  --accent: #9dbcff;
+  --accent-foreground: #14110f;
+  --focus: #9dbcff;
+}
+
+/*
  * Register the tokens as Tailwind theme values. `inline` makes the generated
  * utilities resolve the underlying custom property at use time, so `bg-surface`,
  * `text-muted`, `border-border-strong`, `outline-focus`, … all track the active

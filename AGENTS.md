@@ -147,9 +147,24 @@ pages, a semantic design-token layer (AB#36) — the brand-sensitive colours, te
 roles, borders, accent, focus indicator, type families, and corner scale defined once
 in `src/app/globals.css`, consumed by shared components through static Tailwind
 utilities, with explicit light/dark (`prefers-color-scheme` plus a `data-theme` pin,
-`color-scheme` set), a documented override contract for a future preset
-(`docs/theme-contract.md`, AB#37), and AA text/focus contrast enforced by
-`src/lib/theme-contract.test.ts` and `e2e/theme.spec.ts`; the shared generic media model, the public
+`color-scheme` set), a documented override contract (`docs/theme-contract.md`), and AA
+text/focus contrast enforced by `src/lib/theme-contract.test.ts` and `e2e/theme.spec.ts`.
+That contract has since been **proved against a second preset** (AB#37): `editorial` is an
+internal validation asset — deliberately unlike the default in ground, ink, accent, type
+family and corner scale, selected by nothing the product ships — that exists so a claim
+which was never true would fail rather than sit unread. Two did. The documented selector
+`:root[data-theme="<name>"]` could not work, because `data-theme` already carries the
+light/dark pin and one attribute cannot hold both an identity and a mode; presets are now
+selected by **`data-preset`**, which is what lets one carry a dark palette at all. And the
+derived text roles (`--body`/`--muted`/`--subtle`, fixed 80/70/60 % mixes of
+`--foreground`) are not re-weightable by a preset, so its **weakest** role — not its body
+text — is what a palette must be chosen against: the first warm-paper attempt cleared AA
+for body and muted and missed it for `--subtle` at 4.41:1, and the ink had to darken. That
+constraint is recorded rather than turned into an extension point, since making the
+percentages overridable would let a preset weaken contrast as easily as strengthen it. Both
+presets are now held to AA by the same parsing test, and the browser suite verifies every
+claimed override point — including the radius scale, which lives in Tailwind's `@theme`
+rather than on `:root` and was the one claim that could plausibly have been wrong; the shared generic media model, the public
 image rendition boundary, the shared bounded gallery
 result contract, the fullscreen lightbox behind a project-owned PhotoSwipe wrapper
 (open, close, navigate, trapped focus, focus return keyed by `itemId`, and the caption
