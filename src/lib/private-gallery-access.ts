@@ -59,6 +59,7 @@ import {
 } from "@/lib/private-gallery-admin-login";
 import {
   loadPrivateGalleryAdminCredential,
+  PRIVATE_GALLERY_ADMIN_SECRET_HASH_SETTING,
   PrivateGalleryAdminCredentialError,
   verifyPrivateGalleryAdminSecret,
 } from "@/lib/private-gallery-admin-credential";
@@ -730,6 +731,15 @@ export async function mintPrivateGalleryAssetUrl(
 
 export type { PrivateGalleryAdminSession } from "@/lib/private-gallery";
 export type { PrivateGalleryAdminSessionCookie } from "@/lib/private-gallery-admin-session";
+export {
+  extractPrivateGalleryAdminSessionCookie,
+  hashPrivateGalleryAdminSessionId,
+} from "@/lib/private-gallery-admin-session";
+export {
+  checkPrivateGalleryAdminLoginRequestHeaders,
+  createPrivateGalleryAdminLoginIpLimiter,
+} from "@/lib/private-gallery-admin-login";
+export { PRIVATE_GALLERY_ADMIN_MAX_SECRET_LENGTH } from "@/lib/private-gallery-admin-credential";
 
 /**
  * Why an administrator request was refused. **Operational log only.** Every one
@@ -986,6 +996,51 @@ export function requirePrivateGalleryAdminReauthentication(
     }
     return adminFailure("unexpected");
   }
+}
+
+/** The administrator dependency bundle a route needs, for this deployment. */
+export type PrivateGalleryAdminStores = {
+  readonly loginStore: PrivateGalleryAdminLoginStore;
+  readonly sessionStore: PrivateGalleryAdminSessionStore;
+  /**
+   * Where the credential is resolved from. `process.env` for a real deployment;
+   * for the development fixture, the fixture's own published credential — the
+   * memory store never reads `PRIVATE_GALLERY_ADMIN_SECRET_HASH`, exactly as it
+   * never reads the deployment's capability keyring.
+   */
+  readonly environment: Record<string, string | undefined>;
+};
+
+/**
+ * Resolves this deployment's administrator stores, with the same contract
+ * {@link getPrivateGalleryStores} has: a route checks
+ * `getDeploymentConfig().privateGallery.store` and answers `notFound()` while
+ * the feature is `off`, and `enabled` throws loudly until the Postgres adapter
+ * exists rather than half-serving an administration surface.
+ */
+export function getPrivateGalleryAdminStores(): PrivateGalleryAdminStores {
+  const { store } = getPrivateGalleryDeployment();
+
+  if (store === "memory") {
+    const memory = getPrivateGalleryMemoryStore();
+    return {
+      loginStore: memory.adminLoginStore,
+      sessionStore: memory.adminSessionStore,
+      environment: {
+        [PRIVATE_GALLERY_ADMIN_SECRET_HASH_SETTING]: memory.adminCredentialHash,
+      },
+    };
+  }
+
+  if (store === "enabled") {
+    throw new PrivateGalleryStoresUnavailableError(
+      'PRIVATE_GALLERY_STORE is "enabled", but no private-gallery store adapter is implemented yet. Use "memory" for development until the Postgres adapter lands.',
+    );
+  }
+
+  throw new PrivateGalleryStoresUnavailableError(
+    'PRIVATE_GALLERY_STORE is "off"; a route must answer notFound() before asking for stores.',
+  );
 }
 
 /** The `Set-Cookie` descriptor for administrator logout. */

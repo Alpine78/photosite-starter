@@ -243,9 +243,15 @@ WebAuthn.
    assigned the **implementation to AB#145**, which owns administration; ADR-0014's
    action item named AB#29 only because it predates that split. Items 2&ndash;5 below are
    therefore AB#145's, and item 6 belongs to whoever revisits the mechanism.
-2. [ ] **(AB#145)** Implement the boundary: the reserved admin segment with its response hygiene, the
+2. [x] **(AB#145)** Implement the boundary: the reserved admin segment with its response hygiene, the
    `__Host-` session over the private metadata store, the persisted login rate limit, and
-   re-authentication for irreversible operations.
+   re-authentication for irreversible operations. **Done** 2026-09-02, in five slices
+   (§1 namespace, §2 session, §3 throttle, §4 credential, then the routes). Two caveats
+   the record should carry: the session and login stores exist as **contracts** with a
+   development fixture behind them — the Postgres adapter is AB#29's unprovisioned work —
+   and the re-authentication gate is implemented and tested but has **no caller yet**,
+   because the irreversible operations it guards (delete, revoke) are administration
+   features that do not exist.
 3. [x] **(AB#145)** `.env.example` and `docs/deployment.md`: the admin route prefix and
    `PRIVATE_GALLERY_ADMIN_SECRET_HASH`, with the generation command and the explicit rule
    that a memorable passphrase is not an acceptable value. **Done** — the prefix landed

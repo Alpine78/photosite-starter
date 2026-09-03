@@ -58,6 +58,17 @@ import {
   type PrivateGalleryExchangeStore,
 } from "@/lib/private-gallery-exchange";
 import type { PrivateGallerySessionStore } from "@/lib/private-gallery-session";
+import type { PrivateGalleryAdminSession } from "@/lib/private-gallery";
+import {
+  encodePrivateGalleryAdminCredential,
+  PRIVATE_GALLERY_ADMIN_SALT_BYTES,
+} from "@/lib/private-gallery-admin-credential";
+import {
+  evaluatePrivateGalleryAdminLoginRate,
+  type PrivateGalleryAdminLoginRateCounter,
+  type PrivateGalleryAdminLoginStore,
+} from "@/lib/private-gallery-admin-login";
+import type { PrivateGalleryAdminSessionStore } from "@/lib/private-gallery-admin-session";
 import type { PrivateGalleryViewStore } from "@/lib/private-gallery-access";
 
 /**
@@ -71,6 +82,20 @@ export const MEMORY_GALLERY_CAPABILITY =
   Buffer.alloc(32, 0x2d).toString("base64url");
 
 const MEMORY_GALLERY_ID = "memory-fixture-gallery";
+
+/**
+ * The administrator secret this fixture accepts. Published, constant, and **not
+ * a secret** — the same status as {@link MEMORY_GALLERY_CAPABILITY} above, and
+ * safe for the same already-reviewed reason: `PRIVATE_GALLERY_STORE=memory` is
+ * refused outside a `development` deployment at build time.
+ *
+ * It is spelled out rather than generated so a developer can sign in without a
+ * provisioning step, and so the Playwright journey has something to type. Its
+ * hash is computed at first use rather than hardcoded, which keeps the two from
+ * ever drifting apart.
+ */
+export const MEMORY_ADMIN_SECRET =
+  "development-fixture-administrator-secret-not-for-any-real-deployment";
 
 /**
  * The fixture's photographs, as placements.
@@ -144,6 +169,18 @@ export type PrivateGalleryMemoryStore = {
   readonly keyring: PrivateGalleryCapabilityKeyring;
   /** The fixture gallery, for a route that wants to render its authorized state. */
   readonly gallery: PrivateGallery;
+  readonly adminSessionStore: PrivateGalleryAdminSessionStore;
+  readonly adminLoginStore: PrivateGalleryAdminLoginStore;
+  /**
+   * The encoded credential the fixture accepts, computed from
+   * {@link MEMORY_ADMIN_SECRET} at first use.
+   *
+   * The fixture **never reads `PRIVATE_GALLERY_ADMIN_SECRET_HASH`**, exactly as
+   * it never reads the deployment's capability keyring: a development store must
+   * not be able to authenticate against a real deployment's credential, and a
+   * developer must not have to provision one to open the administrator page.
+   */
+  readonly adminCredentialHash: string;
 };
 
 function ephemeralKeyring(): PrivateGalleryCapabilityKeyring {
@@ -153,6 +190,60 @@ function ephemeralKeyring(): PrivateGalleryCapabilityKeyring {
     activeKeyId: keyId,
     keyIds: Object.freeze([keyId]),
     getKey: (id) => (id === keyId ? Uint8Array.from(key) : undefined),
+  };
+}
+
+function buildAdminStores(): {
+  readonly adminSessionStore: PrivateGalleryAdminSessionStore;
+  readonly adminLoginStore: PrivateGalleryAdminLoginStore;
+} {
+  const sessions: PrivateGalleryAdminSession[] = [];
+  let counter: PrivateGalleryAdminLoginRateCounter | undefined;
+
+  return {
+    adminSessionStore: {
+      async create(session, activeSessionCap) {
+        sessions.push(session);
+        // The same evict-oldest invariant the contract states, in memory. A
+        // real adapter does this in one transaction; here there is one process
+        // and no concurrency to lose to.
+        const group = sessions
+          .filter(
+            (row) => row.credentialGeneration === session.credentialGeneration,
+          )
+          .sort(
+            (a, b) =>
+              a.createdAt.getTime() - b.createdAt.getTime() ||
+              (a.sessionIdHash < b.sessionIdHash ? -1 : 1),
+          );
+        for (const evicted of group.slice(
+          0,
+          Math.max(0, group.length - activeSessionCap),
+        )) {
+          sessions.splice(sessions.indexOf(evicted), 1);
+        }
+      },
+      async findByHash(sessionIdHash) {
+        return sessions.find((row) => row.sessionIdHash === sessionIdHash);
+      },
+      async deleteByHash(sessionIdHash) {
+        const index = sessions.findIndex(
+          (row) => row.sessionIdHash === sessionIdHash,
+        );
+        if (index >= 0) sessions.splice(index, 1);
+      },
+    },
+    adminLoginStore: {
+      async consumeLoginAttempt(now, config) {
+        const decision = evaluatePrivateGalleryAdminLoginRate(
+          counter,
+          now,
+          config,
+        );
+        counter = decision.next;
+        return decision;
+      },
+    },
   };
 }
 
@@ -270,7 +361,18 @@ function build(now: Date): PrivateGalleryMemoryStore {
     },
   };
 
-  return { exchangeStore, sessionStore, viewStore, keyring, gallery };
+  return {
+    exchangeStore,
+    sessionStore,
+    viewStore,
+    keyring,
+    gallery,
+    ...buildAdminStores(),
+    adminCredentialHash: encodePrivateGalleryAdminCredential({
+      secret: MEMORY_ADMIN_SECRET,
+      salt: randomBytes(PRIVATE_GALLERY_ADMIN_SALT_BYTES),
+    }),
+  };
 }
 
 /**

@@ -52,6 +52,11 @@ export const RESERVED_ROOT_SEGMENTS: readonly string[] = [
   // beside the private namespace rather than inside it, so the Proxy's
   // internal-path 404 never has to make an exception for it.
   "private-gallery-bootstrap.js",
+  // The Proxy's internal rewrite target for the administrator namespace
+  // (`request-path.ts`, ADR-0015 §1). Owns real routes, so nothing else may
+  // claim it — including `PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX` itself, which
+  // `deployment-config.ts` already refuses to set to a reserved segment.
+  "private-gallery-admin",
   "services",
 ];
 

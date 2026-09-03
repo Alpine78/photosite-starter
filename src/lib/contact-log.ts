@@ -38,6 +38,7 @@
 import { randomUUID } from "node:crypto";
 
 import type {
+  PrivateGalleryAdminFailure,
   PrivateGalleryExchangeFailure,
   PrivateGalleryViewFailure,
 } from "@/lib/private-gallery-access";
@@ -84,7 +85,8 @@ type SubmissionEventName =
   | "contact.submission"
   | "enquiry.submission"
   | "private-gallery.exchange"
-  | "private-gallery.view";
+  | "private-gallery.view"
+  | "private-gallery.admin";
 
 export type ContactEvent =
   | {
@@ -163,7 +165,8 @@ function writeSubmissionLine(
     | ContactErrorClass
     | EnquiryErrorClass
     | PrivateGalleryExchangeFailure["reason"]
-    | PrivateGalleryViewFailure["reason"],
+    | PrivateGalleryViewFailure["reason"]
+    | PrivateGalleryAdminFailure["reason"],
 ): void {
   const line = JSON.stringify({
     event: name,
@@ -208,6 +211,38 @@ export function logPrivateGalleryExchangeEvent(
     event.correlationId,
     event.state,
     event.errorClass,
+  );
+}
+
+/**
+ * Emits one administrator boundary event (AB#145, ADR-0015 §3).
+ *
+ * Carries a correlation id, a state, and a redacted class — never the submitted
+ * secret, never a session identifier, and never anything that would let a reader
+ * tell a throttled attempt from a wrong one beyond the class the facade already
+ * decided was worth recording.
+ */
+export type PrivateGalleryAdminEvent =
+  | { readonly correlationId: string; readonly state: "accepted" }
+  | {
+      readonly correlationId: string;
+      readonly state: "rejected";
+      /**
+       * The facade's own refusal reason, imported as a type so the two cannot
+       * drift — never a secret, never a session identifier, and never anything
+       * that would distinguish a refusal for the caller rather than the log.
+       */
+      readonly errorClass: PrivateGalleryAdminFailure["reason"];
+    };
+
+export function logPrivateGalleryAdminEvent(
+  event: PrivateGalleryAdminEvent,
+): void {
+  writeSubmissionLine(
+    "private-gallery.admin",
+    event.correlationId,
+    event.state,
+    event.state === "rejected" ? event.errorClass : undefined,
   );
 }
 
