@@ -548,8 +548,8 @@ delivers through a replaceable adapter that stores nothing, and a public-journey
 covers its validation, success, failure, and retry states; the gallery-item enquiry
 (AB#60) builds on it. Seeded random gallery ordering renders from both the mock fixture and
 Sanity (rotation is a two-step owner operation, with an accessible "being reordered" notice
-in between); story-root listing continuation and gallery section controls are still open;
-the CMS schemas and adapters are done and wired in. The deployment path exists in
+in between); gallery section controls are done, while story-root listing continuation is
+still open; the CMS schemas and adapters are done and wired in. The deployment path exists in
 the repository — a pinned runtime and region, a pipeline stage that deploys a release
 candidate only after every gate passes, and a check that refuses to publish a URL whose
 project/team ownership, access protection, and non-indexability were not verified — but
