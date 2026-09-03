@@ -116,6 +116,41 @@ export const test = base.extend<HarnessFixtures>({
     },
     { auto: true },
   ],
+
+  /**
+   * The same synthetic address for `request`, Playwright's API context.
+   *
+   * `context.setExtraHTTPHeaders` above reaches only browser-originated
+   * requests. An `APIRequestContext` is a separate client, so a spec that posts
+   * to an endpoint directly — the way the administrator, exchange, and enquiry
+   * journeys check a boundary without a page — arrived with **no** forwarded
+   * address at all, and `deriveClientKey` hashes an empty string. Every such
+   * call in the whole matrix therefore shared one throttle bucket.
+   *
+   * That was not theoretical: `private-gallery-admin.spec.ts` posts to the
+   * sign-in endpoint 9 times, twice over for the two projects, against an
+   * in-process limit of 20 per client. Eighteen of twenty, before CI's `retries:
+   * 1` adds any. The nineteenth would have failed on a throttle that has nothing
+   * to do with what the test asserts — and, being a rate limit, it would have
+   * cascaded into every later admin case in that run.
+   *
+   * Overriding the built-in fixture keeps the rule in one place rather than
+   * asking each spec to remember a header.
+   */
+  request: async ({ playwright, baseURL, clientAddress }, use) => {
+    const context = await playwright.request.newContext({
+      ...(baseURL === undefined ? {} : { baseURL }),
+      extraHTTPHeaders: { "x-forwarded-for": clientAddress },
+    });
+    // Playwright's fixture callback parameter is also named `use`; the rule
+    // reads it as React's hook because this fixture's inferred name is a bare
+    // noun. Nothing in this file is React, and the array-form fixtures above
+    // escape the same false positive only because their functions are
+    // anonymous.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    await use(context);
+    await context.dispose();
+  },
 });
 
 /** An unparseable request URL is not the application's origin. */

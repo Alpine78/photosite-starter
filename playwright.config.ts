@@ -62,8 +62,20 @@ export default defineConfig({
   // Two cores on a hosted agent, and the server under test shares them; four
   // locally, where the machine is bigger and iteration speed is the point.
   workers: isContinuousIntegration ? 2 : 4,
-  // One retry in CI surfaces flake as a "flaky" result instead of a red build,
-  // while still reporting it. Locally a failure should just fail, immediately.
+  /**
+   * One retry in CI surfaces flake as a "flaky" result instead of a red build,
+   * while still reporting it. Locally a failure should just fail, immediately.
+   *
+   * **Kept, deliberately, after AB#146**, and the distinction that story asks
+   * for is worth stating plainly. The contention flake it reported had a
+   * measured cause and a fix (see `expect` below); the suite now passes five
+   * consecutive local runs at the default worker count with no retries at all.
+   *
+   * Two residual failures occur only under deliberate CPU oversubscription and
+   * have not reproduced in the supported default run. They are recorded as
+   * stress observations, not known default-suite flakiness. The CI retry
+   * remains defence against variable hosted-agent contention.
+   */
   retries: isContinuousIntegration ? 1 : 0,
   // A `test.only` left in a commit would silently shrink the gate.
   forbidOnly: isContinuousIntegration,
@@ -74,7 +86,37 @@ export default defineConfig({
   // A hosted agent is slower than a laptop, and the first request to a freshly
   // started server pays for whatever it has not warmed up yet.
   timeout: isContinuousIntegration ? 60_000 : 30_000,
-  expect: { timeout: 5_000 },
+  /**
+   * Ten seconds, not five — a reasoned change, and the measurement behind it
+   * (AB#146).
+   *
+   * The suite failed intermittently under its own parallelism, a different test
+   * each run, every one passing alone. Reproduced deliberately by running it
+   * with four extra CPU consumers on a four-performance-core machine: **two of
+   * three runs failed, five distinct tests**, and every failure was an
+   * assertion waiting for a *client-side* effect — a click-to-load iframe, an
+   * appended grid slice, an `aria-expanded` flip, an outgoing request.
+   *
+   * The trace says where the time went, and it is not the server: for the most
+   * frequent failure the navigation took 270 ms and the click 17 ms, then the
+   * expectation burned 5 086 ms and gave up. Every script arrived `200`. What
+   * ran out was the browser's own main thread — the suite runs four workers, a
+   * `next start` server, and the runner on four performance cores, so
+   * time-to-interactive stretches well past a budget set for a DOM assertion.
+   *
+   * So five seconds was never a measurement, it was an assumption: that an
+   * expectation only has to outlast a render. For anything that waits on
+   * hydration it also has to outlast the suite's own contention.
+   *
+   * Deliberately **not** the two alternatives. Lowering `workers` would trade
+   * the iteration speed this config values for a machine-specific number that
+   * says nothing about why. Raising the per-test `timeout` would not have
+   * helped at all: these failures were `expect` budgets expiring, not tests
+   * overrunning. This value is also raised in CI as well as locally, because
+   * the cause is contention rather than a slow agent, and a hosted agent
+   * running two workers on two cores is contended in exactly the same way.
+   */
+  expect: { timeout: 10_000 },
 
   reporter: [
     ["list"],
