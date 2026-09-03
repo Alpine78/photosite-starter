@@ -140,7 +140,19 @@ minimal reproduction, comparison with a newer Next.js release, and then either a
 issue or a project mechanism that does not rely on this `notFound()` rendering path. That
 investigation is separate from gallery continuation.
 
-AB#132 owns that investigation. Until it lands, the continuation journey covers the link
+**2026-09-03: still reproduces on Next.js 16.3.2.** AB#117 bumped the framework as part of
+its dependency remediation, so the "comparison with a newer release" was worth performing
+directly. A plain `curl` of an unknown path against a production build — `next build` then
+`next start`, no browser and no JavaScript at any point — returns
+`<html id="__next_error__">` with no `<h1>` anywhere in the initially rendered HTML. One
+version step is not the full comparison this record asks for, and it establishes no root
+cause; what it does establish is that the limitation is not already fixed, so nothing here
+is retired.
+
+AB#132 owns that investigation and is `Active`. It was briefly closed and reopened on
+2026-09-03, because none of its own "Done when" conditions held: the semantic 404 HTML
+above, the removal of the continuation journeys' JavaScript-enabled exception, and an
+updated or retired limitation here. Until it lands, the continuation journey covers the link
 with JavaScript enabled and says why at the point it does. The link itself is server-rendered — a Server Component reading a
 request header, with no client code involved — so it needs no change when the framework
 behaviour does.

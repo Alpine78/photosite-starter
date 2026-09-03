@@ -167,8 +167,9 @@ synthesized tap/double-tap, keyboard, and pointer-drag paths — including a dra
 starts over the hidden caption, proving the region's dropped `pointer-events` lets the
 gesture through — and the vertical pan-bound clamp (the axis that does not double as
 slide navigation); the one physical-device pinch/pan check (AC6) is documented as
-outstanding in ADR-0001; **AB#78 is closed**, so nothing tracks that one check any more —
-it is a documented gap in ADR-0001, not a scheduled task. Zoom *animation and level
+outstanding in ADR-0001. AB#78 itself is closed; that one manual check is tracked
+separately by the open **AB#141**, whose acceptance criteria require a real touch device
+and the result recorded back into ADR-0001. Zoom *animation and level
 tuning* stay a later slice.
 There is also
 a bounded adjacent-image preload window (`LIGHTBOX_PRELOAD_WINDOW`, `image-delivery.ts`,
@@ -270,10 +271,12 @@ without JavaScript.
 ADR-0007 records the experiments already performed without claiming a framework root cause.
 First seen on Next.js 16.2.11, and **still reproducing on 16.3.2**: a plain `curl` of an
 unknown path against a production build returns `<html id="__next_error__">` with no `<h1>`
-in the initial HTML (measured 2026-09-03). **AB#132, which owned the minimal reproduction
-and version comparison, is closed, so no open work item tracks a fix** — the gap lives in
-ADR-0007's Known limitation and in the `javaScriptEnabled: true` exception the 404 cases in
-`e2e/gallery-continuation.spec.ts` and `e2e/category-continuation.spec.ts` still carry.
+in the initial HTML (measured 2026-09-03). **AB#132 owns this**, and was reopened to
+`Active` on 2026-09-03 because it had been closed while none of its own "Done when"
+conditions held: the semantic 404 HTML above, the removal of the `javaScriptEnabled: true`
+exception the 404 cases in `e2e/gallery-continuation.spec.ts` and
+`e2e/category-continuation.spec.ts` still carry, and an updated or retired Known limitation
+in ADR-0007.
 One authoritative order governs the source, the DOM, keyboard focus, and the
 lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
 ratios, never cropped) precisely so the visual reading order cannot contradict it; the
@@ -306,7 +309,8 @@ adapter raise `ordering-stale` (re-raised at the `@/lib/gallery` seam as
 `GalleryOrderingStaleError`) — *after* the cursor/section validation, so a bad token still
 404s mid-rotation. The detail route renders an accessible "being reordered" notice
 (**HTTP 200 + `noindex`** — an App Router page render cannot set 503; a named limitation
-with no open work item tracking it), and the `/api/gallery` continuation endpoint (a Route
+that no open work item tracks, and a different one from AB#132's 404 initial-HTML gap),
+and the `/api/gallery` continuation endpoint (a Route
 Handler, which can) returns a real **503 + `Retry-After`**. Recovery is automatic once the
 recompute's placement patches invalidate the `sanity:galleries` cache tag; the command's
 final check gates only its own exit code.
@@ -1011,7 +1015,7 @@ the seeded gallery `ordering-stale` state *on the detail route* — the `/api/ga
 endpoint already returns a real 503, but PR2 serves the detail page as an accessible HTTP
 200 + `noindex` because an App Router page render cannot set an arbitrary status (a
 follow-up would route the gallery detail through a handler; **no open work item tracks
-it** — AB#132 is closed) — and its
+it** — AB#132 owns the related but distinct 404 initial-HTML limitation) — and its
 `shuffledOrderGeneration` atomic-flip alternative to the brief recompute refusal window
 (a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
 and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
