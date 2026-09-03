@@ -110,6 +110,26 @@ export type BuiltInLabels = {
     /** A published gallery that genuinely holds nothing — a real state, not an error. */
     readonly noPhotographs: string;
   };
+  /**
+   * The administrator boundary (ADR-0015). Operator-facing rather than
+   * visitor-facing, and localized anyway: a clone's operator may not read
+   * English, and there is no reason for one surface to opt out of the contract
+   * every other one follows.
+   */
+  readonly privateGalleryAdmin: {
+    readonly title: string;
+    readonly signInHeading: string;
+    readonly secretLabel: string;
+    readonly signIn: string;
+    /** The one refusal every failed sign-in shows, whatever the cause. */
+    readonly signInRefused: string;
+    readonly signInUnavailable: string;
+    readonly javascriptRequired: string;
+    readonly signedInHeading: string;
+    /** Says what this surface can and cannot do yet, rather than implying more. */
+    readonly administrationPending: string;
+    readonly signOut: string;
+  };
   readonly contact: {
     /**
      * Subject of the email the site owner receives. It carries no
@@ -388,6 +408,20 @@ const englishLabels = {
       "Your photographs are not available for viewing here yet.",
     noPhotographs: "This gallery does not contain any photographs.",
   },
+  privateGalleryAdmin: {
+    title: "Administration",
+    signInHeading: "Sign in",
+    secretLabel: "Administrator secret",
+    signIn: "Sign in",
+    signInRefused: "That did not work. Check the secret and try again.",
+    signInUnavailable:
+      "Administration is not available on this deployment.",
+    javascriptRequired: "Signing in needs JavaScript.",
+    signedInHeading: "Signed in",
+    administrationPending:
+      "There is nothing to administer yet. Creating, publishing, and revoking private galleries need the private stores, which this deployment has not provisioned.",
+    signOut: "Sign out",
+  },
   contact: {
     emailSubject: "New contact message",
     enquirySubject: "Gallery enquiry",
@@ -525,6 +559,19 @@ const finnishLabels = {
     accessUntil: "Galleria on käytettävissä {date} asti.",
     deliveryPending: "Valokuvasi eivät ole vielä katseltavissa täällä.",
     noPhotographs: "Tässä galleriassa ei ole valokuvia.",
+  },
+  privateGalleryAdmin: {
+    title: "Hallinta",
+    signInHeading: "Kirjaudu sisään",
+    secretLabel: "Ylläpitäjän salaisuus",
+    signIn: "Kirjaudu sisään",
+    signInRefused: "Kirjautuminen ei onnistunut. Tarkista salaisuus ja yritä uudelleen.",
+    signInUnavailable: "Hallinta ei ole käytettävissä tässä ympäristössä.",
+    javascriptRequired: "Kirjautuminen tarvitsee JavaScriptin.",
+    signedInHeading: "Kirjautunut sisään",
+    administrationPending:
+      "Hallittavaa ei ole vielä. Yksityisgallerioiden luonti, julkaisu ja peruutus tarvitsevat yksityiset tietovarastot, joita tähän ympäristöön ei ole vielä pystytetty.",
+    signOut: "Kirjaudu ulos",
   },
   contact: {
     emailSubject: "Uusi yhteydenotto",

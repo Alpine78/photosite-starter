@@ -1374,8 +1374,28 @@ secret, unprovisioned, malformed credential, stale session — is one indistingu
 with the class kept for the operational log. Building it also refined §2: a corrupt session
 row now classifies as `malformed-record` rather than `invalid-session`, because the facade
 needed to tell "a browser left open" from "your table is corrupt" and was otherwise reduced
-to matching an error message. **The routes and the administrator UI are all that remain of
-AB#145's boundary work.**
+to matching an error message. **The routes now exist too, so ADR-0015's boundary is complete.** The Proxy rewrites the
+configured administrator prefix onto its own internal segment (`private-gallery-admin`,
+deliberately *not* a subtree of the customer one — the isolation has to hold for the route
+tree behind the URL, not only for the URL) and 404s a direct request to it, exactly as the
+customer namespace does. One address serves both states: with a session that currently
+authorizes it renders the signed-in surface, without one the sign-in form, so a stranger and
+an operator whose session ran out see the same page. Sign-in and sign-out both post JSON,
+because §3 fixes one content type for the login and every mutation — the cost is that
+administration needs JavaScript, the opposite of the trade the customer gallery makes and
+deliberately so. Sign-out deletes the session row as well as clearing the cookie, and
+authorizes before deleting so the endpoint cannot be pointed at a row named by an arbitrary
+identifier. The development fixture supplies its own published administrator secret and
+**never reads `PRIVATE_GALLERY_ADMIN_SECRET_HASH`**, the same rule its ephemeral keyring
+already follows. `e2e/private-gallery-admin.spec.ts` walks the journey against a production
+build — the accessible form, one refusal message for a wrong secret, sign-in surviving a
+navigation, sign-out ending the session, the `__Host-` cookie's real browser-stored
+attributes and its invisibility to script, the namespace hygiene, the internal segment's
+404, and the endpoint's own boundary including a request with no `Origin`.
+**What remains of AB#145 is the administration itself** — creating, publishing, notifying,
+revoking — which is blocked on the same unprovisioned private stores AB#29 is. The
+re-authentication gate for irreversible operations is built and tested but has no caller,
+because the operations it guards do not exist yet.
 `docs/private-gallery-data-flow.md`
 is the processing record behind any privacy notice, and `docs/deployment.md` now carries
 the whole operational runbook: provisioning and the live gate, the object-key layout the

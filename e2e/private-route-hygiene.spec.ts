@@ -141,8 +141,6 @@ test.describe("private route namespace response hygiene", () => {
 
 test.describe("administrator route namespace response hygiene", () => {
   for (const path of [
-    "/admin",
-    "/admin/login",
     "/admin/galleries/some-gallery-id",
     // A deep dotted path, for the same matcher reason the private cases above
     // cover one: an earlier form of the Proxy matcher excluded these.
@@ -161,6 +159,24 @@ test.describe("administrator route namespace response hygiene", () => {
       }
     });
   }
+
+  test("the namespace's own routes carry the same hygiene", async ({
+    request,
+  }) => {
+    // `/admin` serves the sign-in surface now, so this is no longer a 404 —
+    // but §1's headers apply to a route that answers as much as to one that
+    // does not. `e2e/private-gallery-admin.spec.ts` owns the journey itself.
+    const response = await request.get("/admin", { maxRedirects: 0 });
+    expect(response.status()).toBe(200);
+
+    const headers = response.headers();
+    for (const [key, value] of Object.entries(HYGIENE)) {
+      expect(headers[key]).toBe(value);
+    }
+    for (const key of SITE_WIDE_PRESENT) {
+      expect(headers[key] ?? "").not.toBe("");
+    }
+  });
 
   test("an admin path's trailing-slash 308 also carries the hygiene headers", async ({
     request,

@@ -418,6 +418,23 @@ verification. A deployment may raise the cost and never lower it; the parser enf
 floor. There is a ceiling too, so a mistyped `N` fails the command rather than exhausting
 memory inside a login.
 
+#### Signing in
+
+With `PRIVATE_GALLERY_ADMIN_SECRET_HASH` set, the operator signs in at
+`/<PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX>` — `/admin` by default. The same address serves
+both states: with a session that currently authorizes it renders the signed-in surface,
+and without one it renders the sign-in form. A stranger and an operator whose session ran
+out see exactly the same page.
+
+Signing in needs JavaScript. ADR-0015 §3 fixes `application/json` for the login and every
+mutation, so the form posts JSON rather than submitting a plain form — the opposite of the
+trade the customer gallery makes, and deliberately: a visitor did not choose their browser
+for this site, while the operator is one person using their own tools.
+
+**There is nothing to administer yet.** The surface says so rather than implying more.
+Creating, publishing, notifying, and revoking galleries are AB#145's remaining scope and
+need the private stores this runbook's provisioning section describes.
+
 #### Consider platform access control in front of the administrator namespace
 
 The administrator login will carry a **deployment-wide** persisted rate limit (ADR-0015

@@ -180,14 +180,15 @@ describe("administrator route response hygiene (ADR-0015 §1)", () => {
     expect(headersOf(adminResponse)).toMatchObject(HYGIENE);
   });
 
-  it("rewrites an admin path nowhere — the namespace owns no route yet", async () => {
-    // The customer namespace needs a rewrite to reconcile a configurable
-    // prefix with a fixed file-system route. Administration has no route to
-    // reach, so a pass-through is both correct and what keeps
-    // `Referrer-Policy` overriding the site-wide value.
+  it.each([
+    ["/admin", "/private-gallery-admin"],
+    ["/admin/login", "/private-gallery-admin/login"],
+  ])("rewrites %s onto its own internal segment", async (path, expected) => {
     const { proxy, request } = await loadProxy();
-    const response = proxy(request("/admin/login"));
-    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    const response = proxy(request(path));
+    expect(
+      new URL(response.headers.get("x-middleware-rewrite") ?? "").pathname,
+    ).toBe(expected);
     expect(headersOf(response)).toMatchObject(HYGIENE);
   });
 
@@ -197,8 +198,8 @@ describe("administrator route response hygiene (ADR-0015 §1)", () => {
       PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX: "studio",
     });
 
-    // The customer path is rewritten onto the internal segment; the
-    // administrator path is not rewritten at all. Both carry the hygiene.
+    // Each rewrites onto its **own** internal segment. ADR-0015 §1's isolation
+    // has to hold for the route tree behind the URL, not only for the URL.
     const customer = proxy(request("/clients/handle"));
     expect(
       new URL(customer.headers.get("x-middleware-rewrite") ?? "").pathname,
@@ -206,8 +207,38 @@ describe("administrator route response hygiene (ADR-0015 §1)", () => {
     expect(headersOf(customer)).toMatchObject(HYGIENE);
 
     const admin = proxy(request("/studio/login"));
-    expect(admin.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(
+      new URL(admin.headers.get("x-middleware-rewrite") ?? "").pathname,
+    ).toBe("/private-gallery-admin/login");
     expect(headersOf(admin)).toMatchObject(HYGIENE);
+  });
+
+  it("404s a direct request to the internal segment, and passes its own second pass", async () => {
+    const { proxy, request } = await loadProxy();
+
+    // A stranger guessing the internal shape gets nothing.
+    expect(proxy(request("/private-gallery-admin/login")).status).toBe(404);
+
+    // The Proxy's own second pass over the path it rewrote to is recognised by
+    // the request path the first pass carried.
+    const second = proxy(
+      request("/private-gallery-admin/login", {
+        [REQUEST_PATH_HEADER]: "/admin/login",
+      }),
+    );
+    expect(second.status).not.toBe(404);
+    expect(headersOf(second)).toMatchObject(HYGIENE);
+  });
+
+  it("refuses a second pass whose carried path names a different admin route", async () => {
+    const { proxy, request } = await loadProxy();
+    expect(
+      proxy(
+        request("/private-gallery-admin/login", {
+          [REQUEST_PATH_HEADER]: "/admin/somewhere-else",
+        }),
+      ).status,
+    ).toBe(404);
   });
 });
 

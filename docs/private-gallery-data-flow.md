@@ -100,9 +100,10 @@ decides what their notice says.
 ## The administrator session cookie
 
 A second cookie, entirely separate, for the site owner rather than a customer.
-The model and its contract are built (ADR-0015 §2); **no route sets this cookie
-yet**, because the login that mints it and the credential it proves are later
-slices. Nothing about a customer is stored in it or alongside it.
+It is set when the operator signs in at the administrator namespace, and cleared
+when they sign out — which also deletes the server's session row, because a
+cookie cleared alone would leave a live session any copy of the identifier could
+still present. Nothing about a customer is stored in it or alongside it.
 
 | Property | Value | Why |
 | --- | --- | --- |

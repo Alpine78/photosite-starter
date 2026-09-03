@@ -133,6 +133,36 @@ export function privateGalleryInternalPath(
   return `/${PRIVATE_GALLERY_INTERNAL_SEGMENT}${pathname.slice(prefix.length + 1)}`;
 }
 
+/**
+ * The application-internal root segment an administrator request is rewritten
+ * onto (ADR-0015 §1), for the reason {@link PRIVATE_GALLERY_INTERNAL_SEGMENT}
+ * gives: the public prefix is deployment-configured and a Next.js file-system
+ * route cannot be.
+ *
+ * A **different** segment from the customer namespace's, not a subtree of it.
+ * ADR-0015 §1 keeps the two from overlapping at all, and that has to hold for
+ * the internal shape as much as the public one — otherwise the isolation would
+ * be true of the URL a visitor sees and false of the route tree behind it.
+ */
+export const PRIVATE_GALLERY_ADMIN_INTERNAL_SEGMENT = "private-gallery-admin";
+
+export function isPrivateGalleryAdminInternalPath(pathname: string): boolean {
+  return (
+    pathname === `/${PRIVATE_GALLERY_ADMIN_INTERNAL_SEGMENT}` ||
+    pathname.startsWith(`/${PRIVATE_GALLERY_ADMIN_INTERNAL_SEGMENT}/`)
+  );
+}
+
+/** `/<adminPrefix>/rest` → `/private-gallery-admin/rest`. */
+export function privateGalleryAdminInternalPath(
+  pathname: string,
+  adminPrefix: string,
+): string {
+  return `/${PRIVATE_GALLERY_ADMIN_INTERNAL_SEGMENT}${pathname.slice(
+    adminPrefix.length + 1,
+  )}`;
+}
+
 const ROUTE_SEGMENT_PATTERN = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
 
 function matchesRouteSegment(value: string | undefined, expected: string): boolean {

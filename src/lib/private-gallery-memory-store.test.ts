@@ -5,11 +5,16 @@ import {
   createPrivateGalleryExchangeIpLimiter,
 } from "@/lib/private-gallery-access";
 import {
+  MEMORY_ADMIN_SECRET,
   MEMORY_GALLERY_CAPABILITY,
   MEMORY_GALLERY_HANDLE,
   getPrivateGalleryMemoryStore,
   resetPrivateGalleryMemoryStore,
 } from "@/lib/private-gallery-memory-store";
+import {
+  parsePrivateGalleryAdminCredential,
+  verifyPrivateGalleryAdminSecret,
+} from "@/lib/private-gallery-admin-credential";
 
 /**
  * The fixture store is exercised through the same facade a route uses, not
@@ -79,6 +84,31 @@ describe("the published fixture link", () => {
     expect(MEMORY_GALLERY_CAPABILITY).toBe(
       "LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0",
     );
+    // `e2e/private-gallery-admin.spec.ts` writes this one out for the same
+    // reason.
+    expect(MEMORY_ADMIN_SECRET).toBe(
+      "development-fixture-administrator-secret-not-for-any-real-deployment",
+    );
+  });
+
+  it("accepts its own published administrator secret and nothing else", () => {
+    const credential = parsePrivateGalleryAdminCredential(
+      getPrivateGalleryMemoryStore().adminCredentialHash,
+    );
+    expect(verifyPrivateGalleryAdminSecret(credential, MEMORY_ADMIN_SECRET)).toBe(
+      true,
+    );
+    expect(
+      verifyPrivateGalleryAdminSecret(credential, `${MEMORY_ADMIN_SECRET}x`),
+    ).toBe(false);
+  });
+
+  it("never reads the deployment's own administrator credential", () => {
+    // The same rule the ephemeral keyring follows: a development fixture must
+    // not be able to authenticate against a real deployment's configuration.
+    const source = getPrivateGalleryMemoryStore().adminCredentialHash;
+    expect(source).not.toBe(process.env.PRIVATE_GALLERY_ADMIN_SECRET_HASH);
+    expect(source.startsWith("scrypt$1$")).toBe(true);
   });
 });
 

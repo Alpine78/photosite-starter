@@ -17,8 +17,10 @@ import {
   isCarryableRequestPath,
   isPotentialStoryRequestPath,
   isPrivateAdminRequestPath,
+  isPrivateGalleryAdminInternalPath,
   isPrivateGalleryInternalPath,
   isPrivateRequestPath,
+  privateGalleryAdminInternalPath,
   privateGalleryInternalPath,
   readRequestPath,
 } from "@/lib/request-path";
@@ -155,13 +157,26 @@ export function proxy(request: NextRequest) {
     );
   }
 
+  // The administrator namespace's own second pass, told from a direct request
+  // exactly as the customer one is: by the request path the first pass carried,
+  // which is this rewrite's own source. Namespace hygiene, not authorization —
+  // a forged header reaches a login form that still demands the credential.
+  if (isPrivateGalleryAdminInternalPath(pathname)) {
+    const carried = readRequestPath(request.headers.get(REQUEST_PATH_HEADER));
+    const isOwnRewrite =
+      carried !== undefined &&
+      isPrivateAdminRequestPath(carried, adminRoutePrefix) &&
+      privateGalleryAdminInternalPath(carried, adminRoutePrefix) === pathname;
+    if (!isOwnRewrite) return new NextResponse(null, { status: 404 });
+
+    return withReservedNamespaceHygieneHeaders(
+      NextResponse.next({ request: { headers: requestHeaders } }),
+    );
+  }
+
   const privatePath = isPrivateRequestPath(pathname, privateRoutePrefix);
 
-  // The reserved administrator namespace (ADR-0015 §1). It owns no route yet —
-  // the boundary itself is a later slice — so every path here is a 404 today.
-  // That is exactly why the hygiene applies now: a namespace must behave
-  // privately *before* it has content, or the first deployment that adds a
-  // route is also the first one crawled.
+  // The reserved administrator namespace (ADR-0015 §1).
   //
   // `readPrivateGalleryDeployment` refuses a configuration where the two
   // prefixes are equal, so `privatePath` and `adminPath` are mutually exclusive.
@@ -262,13 +277,18 @@ export function proxy(request: NextRequest) {
     requestHeaders.delete(REQUEST_HAS_SECTION_HEADER);
   }
 
-  // No rewrite for the administrator namespace: it has no file-system route to
-  // reconcile a configurable prefix with yet. A pass-through is also what makes
-  // §6's `Referrer-Policy: no-referrer` stick, for the reason the private
-  // internal-path branch above documents.
+  // One rewrite reconciles the configured administrator prefix with its literal
+  // file-system route, the same way the customer namespace's does.
   if (adminPath) {
+    const adminTarget = request.nextUrl.clone();
+    adminTarget.pathname = privateGalleryAdminInternalPath(
+      pathname,
+      adminRoutePrefix,
+    );
     return withReservedNamespaceHygieneHeaders(
-      NextResponse.next({ request: { headers: requestHeaders } }),
+      NextResponse.rewrite(adminTarget, {
+        request: { headers: requestHeaders },
+      }),
     );
   }
 
