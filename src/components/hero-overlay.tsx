@@ -8,9 +8,24 @@ export type HeroOverlayAction = {
   readonly href: string;
 };
 
+export type HeroOverlayMeta = {
+  /** ISO 8601 — the effective event date (AB#150, ADR-0017), never `publishedAt`. */
+  readonly dateTime: string;
+  /** Already formatted in the page's locale (`formatDate`). */
+  readonly label: string;
+};
+
 type HeroOverlayProps = {
   media: ImageMedia;
   title: string;
+  /**
+   * Rendered above the title inside the overlay band: currently the page's
+   * effective event date (AB#150, ADR-0017) — the in-flow `<time>` treatment
+   * both content-page variants used to render in their own header, now moved
+   * onto the hero. AB#151 (author byline) is expected to extend this same
+   * meta line rather than add a second one.
+   */
+  meta?: HeroOverlayMeta;
   /** Rendered under the title inside the overlay band — a tagline (home) or a gallery's lead description (AB#149). Article heroes pass none, per that variant's own acceptance criteria. */
   description?: string;
   action?: HeroOverlayAction;
@@ -42,6 +57,7 @@ const DEFAULT_TITLE_CLASSNAME =
 export function HeroOverlay({
   media,
   title,
+  meta,
   description,
   action,
   titleClassName = DEFAULT_TITLE_CLASSNAME,
@@ -79,6 +95,14 @@ export function HeroOverlay({
         }}
       >
         <div className="mx-auto max-w-6xl">
+          {meta && (
+            <time
+              dateTime={meta.dateTime}
+              className="block text-sm text-white/80 drop-shadow-sm"
+            >
+              {meta.label}
+            </time>
+          )}
           <h1 className={titleClassName}>{title}</h1>
           {description && (
             <p className="mt-3 max-w-2xl text-lg text-white/90 drop-shadow-sm sm:text-xl">

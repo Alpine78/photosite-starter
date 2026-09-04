@@ -798,7 +798,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
         contentId: entry.contentId,
         title: entry.title,
         ...(entry.summary === undefined ? {} : { summary: entry.summary }),
-        publishedAt: entry.publishedAt,
+        eventDate: entry.eventDate,
         ...(entry.cover === undefined ? {} : { cover: entry.cover }),
         href: buildStoryPath(config, locale, entry.path),
       }))}

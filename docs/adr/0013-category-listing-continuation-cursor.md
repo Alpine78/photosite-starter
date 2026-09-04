@@ -227,3 +227,20 @@ AB#140 and matches AC7's "the story root is unaffected".
 - [x] A JavaScript-disabled `e2e/category-continuation.spec.ts` journey.
 - [ ] Story-root listing continuation — deferred, its own story.
 - [ ] Progressive in-place append for category listings — deferred.
+
+## Amendment (2026-09-04, AB#150, ADR-0017)
+
+The cursor's keyset sort field changes from the raw `publishedAt` this record describes to
+the **effective event date** — `eventDate ?? publishedAt`, resolved once at
+`content-page.ts#effectiveEventDate` — because an authored `eventDate` now replaces
+`publishedAt` as the public ordering key everywhere, category listings included.
+`CONTENT_LISTING_ORDERING` (decision 4's "named and versioned" ordering rule) changes from
+`published-desc-v1` to `event-date-desc-v1`; since it is already bound into the cursor's
+signed `queryScope` digest via `KeysetCursorScope.ordering`, a cursor issued before this
+change decodes as `wrong-scope` — never a silently valid position under the new order,
+following the same "the rule *is* the version, no new scope field" mechanism ADR-0009 §4
+established for a gallery reseed. Every other decision in this record — the keyset-over-
+`(key, contentId)` shape, the verbatim-string comparison discipline, the conservative
+visibility version, the shared HMAC secret, and the route/canonical/indexing behaviour —
+is unchanged; only the value the boundary's first field names is different. See
+[ADR-0017](0017-authored-event-date-ordering-key.md) decisions 2–4 for the full reasoning.

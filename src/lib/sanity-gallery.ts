@@ -404,7 +404,12 @@ export const GALLERY_LISTING_PROJECTION = `{
   "cover": cover->${PUBLIC_MEDIA_PROJECTION}
 }`;
 
-/** The GROQ order `content-listing.ts`'s `CONTENT_LISTING_ORDERING` names. */
+/**
+ * The GROQ order `content-listing.ts`'s `CONTENT_LISTING_ORDERING` names.
+ * Orders by `publishedAt`, which is also the effective event date until the
+ * schema carries `eventDate` (AB#150/ADR-0017 PR2 changes this to
+ * `order(coalesce(eventDate, publishedAt) desc, contentId asc)`).
+ */
 export const GALLERY_LISTING_ORDER = `order(publishedAt desc, contentId asc)`;
 
 export type RawGalleryListingDocument = {
@@ -450,7 +455,12 @@ export function projectGalleryListingRecord(
   return {
     contentId,
     title,
-    publishedAt,
+    // AB#150/ADR-0017: the effective event date (`eventDate ?? publishedAt`)
+    // is the record's ordering/display key. The schema does not carry
+    // `eventDate` yet (AB#150 PR2 adds it, the `coalesce()` GROQ, and the
+    // `endDate` gate), so the effective value is `publishedAt` until then —
+    // the same value an unauthored `eventDate` would resolve to.
+    eventDate: publishedAt,
     ...(summary === undefined ? {} : { summary }),
     ...(cover === undefined ? {} : { cover }),
   };
@@ -581,17 +591,20 @@ export async function readPublicGalleryListingRecordsInCategories(
 
   // See `sanity-article.ts#readPublicArticleListingRecordsInCategories`: a
   // category-listing continuation cursor (AB#140, ADR-0013) resumes strictly
-  // after a `(publishedAt, contentId)` boundary, `publishedAt` compared as the
-  // stored string exactly as `GALLERY_LISTING_ORDER` orders it.
+  // after an `(eventDate, contentId)` boundary — the effective event date
+  // (AB#150, ADR-0017), which until the schema carries `eventDate` (PR2) is
+  // simply `publishedAt`, compared as the stored string exactly as
+  // `GALLERY_LISTING_ORDER` orders it. PR2 changes the GROQ field to
+  // `coalesce(eventDate, publishedAt)` on both sides of this filter.
   const keysetFilter =
     query.after === undefined
       ? ""
-      : " && (publishedAt < $afterPublishedAt || (publishedAt == $afterPublishedAt && contentId > $afterContentId))";
+      : " && (publishedAt < $afterEventDate || (publishedAt == $afterEventDate && contentId > $afterContentId))";
   const keysetParams =
     query.after === undefined
       ? {}
       : {
-          afterPublishedAt: query.after.publishedAt,
+          afterEventDate: query.after.eventDate,
           afterContentId: query.after.contentId,
         };
 

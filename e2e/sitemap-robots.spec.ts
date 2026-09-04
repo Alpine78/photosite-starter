@@ -1,3 +1,4 @@
+import { applyMockEndDateGate } from "../src/lib/content";
 import { buildContentTree } from "../src/lib/content-tree";
 import { buildLocaleRouteConfig } from "../src/lib/locale-routes";
 import { mockContentTreeInputs } from "../src/lib/mock-content-tree";
@@ -47,13 +48,25 @@ function expectedLocaleRoutes() {
 
 async function expectedSitemapUrls(): Promise<Set<string>> {
   const localeRoutes = expectedLocaleRoutes();
+  // AB#150/ADR-0017: the running app gates a placement's effective
+  // `published` by `endDate` before the tree is built (`content.ts`'s mock
+  // adapter boundary) — `content-ended-gallery`/`content-ended-article` carry
+  // a permanently-past one, so applying the same gate here is what keeps this
+  // "expected" set in agreement with what the live sitemap actually serves,
+  // rather than the raw, ungated fixture input.
+  const now = new Date();
   const trees = new Map(
     localeRoutes.locales.flatMap((route) => {
       const language = new Intl.Locale(route.locale).language;
       const input = mockContentTreeInputs[language];
       return input === undefined
         ? []
-        : [[route.locale, buildContentTree(input)] as const];
+        : [
+            [
+              route.locale,
+              buildContentTree(applyMockEndDateGate(input, language, now)),
+            ] as const,
+          ];
     }),
   );
 

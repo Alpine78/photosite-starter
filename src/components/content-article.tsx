@@ -8,7 +8,10 @@ import {
   type LanguageLink,
 } from "@/components/language-switch";
 import { listContentHeadings } from "@/lib/content-headings";
-import type { ArticleContentPage } from "@/lib/content-page";
+import {
+  effectiveEventDate,
+  type ArticleContentPage,
+} from "@/lib/content-page";
 import { formatDate } from "@/lib/date-format";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 
@@ -66,6 +69,7 @@ export function ContentArticle({
   labels,
 }: ContentArticleProps) {
   const headings = listContentHeadings(page.body);
+  const eventDate = effectiveEventDate(page);
 
   return (
     <main>
@@ -78,11 +82,14 @@ export function ContentArticle({
           image). The title keeps this page's own non-hero scale
           (`titleClassName`) rather than the home hero's larger one — the
           type shouldn't change size just because a photograph moved behind
-          it. */}
+          it. AB#150/ADR-0017: the in-flow `<time>` this header used to render
+          moves onto the hero (`meta`) — never `publishedAt`, always the
+          effective event date. */}
       {page.cover && (
         <HeroOverlay
           media={page.cover}
           title={page.title}
+          meta={{ dateTime: eventDate, label: formatDate(eventDate, locale) }}
           titleClassName="text-3xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-4xl"
         />
       )}
@@ -92,12 +99,6 @@ export function ContentArticle({
         <article>
           {page.cover ? (
             <header className="mt-6">
-              <time
-                dateTime={page.publishedAt}
-                className="block text-sm text-subtle"
-              >
-                {formatDate(page.publishedAt, locale)}
-              </time>
               <LanguageSwitch
                 label={labels.contentTree.languages}
                 links={languages}
@@ -109,10 +110,10 @@ export function ContentArticle({
                 {page.title}
               </h1>
               <time
-                dateTime={page.publishedAt}
+                dateTime={eventDate}
                 className="mt-2 block text-sm text-subtle"
               >
-                {formatDate(page.publishedAt, locale)}
+                {formatDate(eventDate, locale)}
               </time>
               <LanguageSwitch
                 label={labels.contentTree.languages}

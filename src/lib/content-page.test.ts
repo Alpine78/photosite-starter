@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   asArticlePage,
   assertSemanticHeadingOrder,
+  effectiveEventDate,
   type ContentBlock,
   type ContentPage,
 } from "@/lib/content-page";
@@ -130,15 +131,23 @@ describe.each(languages)("mock content pages (%s)", (language) => {
     }
   });
 
-  it("shows a card and its detail page the same title, date, and lead", () => {
+  it("shows a card and its detail page the same title, lead, and effective event date", () => {
     // Composed from one record rather than restated, which is what a CMS
     // adapter's two projections of one document must also guarantee.
+    // `record.eventDate` (the card contract) is the already-resolved
+    // `eventDate ?? publishedAt`; the page's own raw fields (AB#150,
+    // ADR-0017) are compared against the pre-fallback authored record, which
+    // is where they actually live.
     for (const [contentId, page] of pages) {
       const record = records?.get(contentId);
+      const authoredRecord = authoredRecords?.get(contentId);
       expect(record).toBeDefined();
+      expect(authoredRecord).toBeDefined();
       expect(page.title).toBe(record?.title);
       expect(page.summary).toBe(record?.summary);
-      expect(page.publishedAt).toBe(record?.publishedAt);
+      expect(page.publishedAt).toBe(authoredRecord?.publishedAt);
+      expect(page.eventDate).toBe(authoredRecord?.eventDate);
+      expect(record?.eventDate).toBe(effectiveEventDate(page));
     }
   });
 

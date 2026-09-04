@@ -62,8 +62,18 @@ export const MAX_CONTENT_LISTING_PAGE_SIZE = 24;
  * so a stored continuation can be checked against the order it was cut from.
  * `orderContentListingRecords` is the in-memory expression of it; a query-based
  * adapter expresses the same rule in its own query language.
+ *
+ * `event-date-desc-v1` (AB#150, ADR-0017 decision 4): the sort key is the
+ * **effective event date** — `eventDate ?? publishedAt`, resolved by the
+ * adapter through `content-page.ts#effectiveEventDate` and carried on
+ * `ContentListingRecord.eventDate` — not `publishedAt`. This value rides in the
+ * ADR-0013 continuation cursor's HMAC-bound `KeysetCursorScope.ordering`, so
+ * bumping it from the previous `published-desc-v1` retires every cursor issued
+ * under the old key: a pre-migration token decodes as `wrong-scope`, never as a
+ * silently valid position under the new order. Same mechanism as ADR-0009 §4's
+ * gallery reseed.
  */
-export const CONTENT_LISTING_ORDERING = "published-desc-v1";
+export const CONTENT_LISTING_ORDERING = "event-date-desc-v1";
 
 /**
  * The listing fields an adapter supplies for one content page.
@@ -77,8 +87,17 @@ export type ContentListingRecord = {
   readonly title: string;
   /** Short lead shown on the card; omitted when the page has none. */
   readonly summary?: string;
-  /** ISO 8601 date. The listing order's primary key. */
-  readonly publishedAt: string;
+  /**
+   * ISO 8601 date. The listing order's primary key **and** the date the card
+   * displays: the page's *effective event date*, `eventDate ?? publishedAt`,
+   * already resolved by the adapter through
+   * `content-page.ts#effectiveEventDate` (AB#150, ADR-0017 decision 2). Always
+   * present — it is the fallback's output, not the optional authored field.
+   * `publishedAt` is deliberately not carried here: no listing consumer needs
+   * it any more, and a `publishedAt`-named field holding the effective date
+   * would reintroduce the ambiguity ADR-0017 removes.
+   */
+  readonly eventDate: string;
   readonly cover?: ImageMedia;
 };
 
@@ -104,18 +123,20 @@ export type CategoryListing = {
    * The opaque continuation token for the next page, present exactly when
    * `hasMoreContent` is true and `buildCategoryListing` was given an
    * `encodeCursor` (AB#140, ADR-0013). It names "continue strictly after the
-   * last item on this page" in `(publishedAt DESC, contentId ASC)` order. The
-   * story root issues none — it has no continuation contract.
+   * last item on this page" in `(eventDate DESC, contentId ASC)` order (AB#150,
+   * ADR-0017). The story root issues none — it has no continuation contract.
    */
   readonly nextCursor?: string;
 };
 
 /**
- * A keyset boundary: the `(publishedAt, contentId)` of the last item on a page,
+ * A keyset boundary: the `(eventDate, contentId)` of the last item on a page,
  * handed to `buildCategoryListing`'s `encodeCursor` to mint the next token.
+ * `eventDate` is the effective event date the record already carries (AB#150,
+ * ADR-0017), compared verbatim as a string.
  */
 export type ContentListingBoundary = {
-  readonly publishedAt: string;
+  readonly eventDate: string;
   readonly contentId: string;
 };
 
@@ -142,13 +163,14 @@ export type ContentListingQuery = {
   readonly limit: number;
   /**
    * A keyset continuation boundary (AB#140, ADR-0013). When set, the adapter
-   * returns only rows whose `(publishedAt, contentId)` sort key is strictly
+   * returns only rows whose `(eventDate, contentId)` sort key is strictly
    * after this one, still ordered and still capped at `limit`. A store
-   * expresses it as `publishedAt < $afterPublishedAt || (publishedAt ==
-   * $afterPublishedAt && contentId > $afterContentId)` — `publishedAt` is
-   * compared as the stored string, so the boundary carries it verbatim.
-   * Absent on a first page and always absent for the story root, which has no
-   * continuation contract.
+   * expresses it as `effectiveEventDate < $afterEventDate ||
+   * (effectiveEventDate == $afterEventDate && contentId > $afterContentId)`,
+   * where `effectiveEventDate` is `coalesce(eventDate, publishedAt)` (AB#150,
+   * ADR-0017) — compared as the stored string, so the boundary carries it
+   * verbatim. Absent on a first page and always absent for the story root,
+   * which has no continuation contract.
    */
   readonly after?: ContentListingBoundary;
 } & (
@@ -192,7 +214,7 @@ export type AdjacentContent = {
  * two rows that can result.
  *
  * Two rows, not a page: an adapter answers this with a keyset comparison
- * against the anchor's `(publishedAt, contentId)` in `ordering` and a limit of
+ * against the anchor's `(eventDate, contentId)` in `ordering` and a limit of
  * one in each direction. That is what keeps sibling navigation correct in an
  * archive of any size — a page deep in the sequence has neighbours just as a
  * recent one does, without the route ever reading the whole article set to find
@@ -466,7 +488,7 @@ export function buildContentListingQuery({
 
 /**
  * The in-memory expression of `ContentListingQuery.after`: keep only the
- * records whose `(publishedAt, contentId)` sort key is strictly after the
+ * records whose `(eventDate, contentId)` sort key is strictly after the
  * boundary, in `CONTENT_LISTING_ORDERING`. The mock adapter applies this before
  * it limits; a store expresses the same comparison in its own query language.
  */
@@ -474,19 +496,19 @@ export function selectContentListingAfterBoundary(
   records: readonly ContentListingRecord[],
   after: ContentListingBoundary,
 ): readonly ContentListingRecord[] {
-  if (Number.isNaN(Date.parse(after.publishedAt))) {
+  if (Number.isNaN(Date.parse(after.eventDate))) {
     throw new TypeError(
-      `content listing cursor boundary has an unparseable publishedAt: "${after.publishedAt}"`,
+      `content listing cursor boundary has an unparseable eventDate: "${after.eventDate}"`,
     );
   }
 
-  // The same comparison a store expresses as `publishedAt < $afterPublishedAt ||
-  // (publishedAt == $afterPublishedAt && contentId > $afterContentId)` — on the
-  // `publishedAt` string, not a parsed timestamp, so it agrees exactly with
-  // `compareEntries` and with the GROQ keyset filter.
+  // The same comparison a store expresses as `effectiveEventDate < $afterEventDate
+  // || (effectiveEventDate == $afterEventDate && contentId > $afterContentId)` —
+  // on the effective-event-date string, not a parsed timestamp, so it agrees
+  // exactly with `compareEntries` and with the GROQ keyset filter.
   return records.filter((record) => {
-    const publishedAt = toOrderingKey(record);
-    if (publishedAt !== after.publishedAt) return publishedAt < after.publishedAt;
+    const eventDate = toOrderingKey(record);
+    if (eventDate !== after.eventDate) return eventDate < after.eventDate;
     return record.contentId > after.contentId;
   });
 }
@@ -506,52 +528,55 @@ function assertPageSize(pageSize: number): void {
 /** An entry with its ordering key resolved, so sorting never re-reads a field. */
 type OrderedEntry<T> = {
   readonly value: T;
-  readonly publishedAt: string;
+  readonly eventDate: string;
   readonly contentId: string;
 };
 
 /**
- * The ordering key of one record: its `publishedAt` **verbatim**.
+ * The ordering key of one record: its effective event date
+ * (`ContentListingRecord.eventDate`, already `eventDate ?? publishedAt`)
+ * **verbatim** (AB#150, ADR-0017 decision 3).
  *
  * The comparison below sorts on this string, not on a parsed timestamp,
  * precisely so the in-memory order is byte-for-byte identical to a store's
- * `order(publishedAt desc, contentId asc)` and to the keyset continuation
- * filter's `publishedAt < $afterPublishedAt` string comparison
- * (`sanity-article.ts`, `sanity-gallery.ts`, ADR-0013). Parsing to a timestamp
- * here would let two representations of one instant (`2024-06-18` and
- * `2024-06-18T00:00:00.000Z`) compare equal in memory while the store treats
- * them as distinct, so a cursor cut between them could skip or repeat an item.
- * `publishedAt` values must therefore be stored in a form whose lexical order
- * is their chronological order — ISO 8601, same offset — which the schema's own
- * `Date.UTC` round-trip validation already enforces.
+ * `order(coalesce(eventDate, publishedAt) desc, contentId asc)` and to the
+ * keyset continuation filter's string comparison (`sanity-article.ts`,
+ * `sanity-gallery.ts`, ADR-0013). Parsing to a timestamp here would let two
+ * representations of one instant (`2024-06-18` and `2024-06-18T00:00:00.000Z`)
+ * compare equal in memory while the store treats them as distinct, so a cursor
+ * cut between them could skip or repeat an item. `eventDate` and `publishedAt`
+ * values must therefore each be stored in a form whose lexical order is their
+ * chronological order — ISO 8601, same offset — which the schema's own
+ * `Date.UTC` round-trip validation already enforces, and a deployment must not
+ * mix a date-only value of one with a datetime value of the other.
  *
  * `Date.parse` is still used, but only to reject an unorderable value as an
  * adapter defect. Every record passes through here, including the only one in a
  * single-entry listing.
  */
 function toOrderingKey(record: ContentListingRecord): string {
-  if (Number.isNaN(Date.parse(record.publishedAt))) {
+  if (Number.isNaN(Date.parse(record.eventDate))) {
     throw new TypeError(
-      `listing record for content "${record.contentId}" has an unparseable publishedAt: "${record.publishedAt}"`,
+      `listing record for content "${record.contentId}" has an unparseable eventDate: "${record.eventDate}"`,
     );
   }
-  return record.publishedAt;
+  return record.eventDate;
 }
 
 /**
- * Newest first (descending `publishedAt` string), then by immutable content
- * identifier ascending.
+ * Newest first (descending effective-event-date string), then by immutable
+ * content identifier ascending.
  *
- * The tie-breaker is not cosmetic: two pages published on the same date must
- * still order identically on every request, or a continuation page would repeat
- * or skip entries once one exists.
+ * The tie-breaker is not cosmetic: two pages with the same effective event date
+ * must still order identically on every request, or a continuation page would
+ * repeat or skip entries once one exists.
  */
 function compareEntries<T>(
   left: OrderedEntry<T>,
   right: OrderedEntry<T>,
 ): number {
-  if (left.publishedAt !== right.publishedAt) {
-    return left.publishedAt < right.publishedAt ? 1 : -1;
+  if (left.eventDate !== right.eventDate) {
+    return left.eventDate < right.eventDate ? 1 : -1;
   }
   return left.contentId < right.contentId
     ? -1
@@ -566,7 +591,7 @@ function order<T extends ContentListingRecord>(
   return records
     .map((value) => ({
       value,
-      publishedAt: toOrderingKey(value),
+      eventDate: toOrderingKey(value),
       contentId: value.contentId,
     }))
     .sort(compareEntries)
@@ -674,7 +699,7 @@ export function buildCategoryListing({
   const nextCursor =
     hasMoreContent && encodeCursor !== undefined && lastOnPage !== undefined
       ? encodeCursor({
-          publishedAt: lastOnPage.publishedAt,
+          eventDate: lastOnPage.eventDate,
           contentId: lastOnPage.contentId,
         })
       : undefined;

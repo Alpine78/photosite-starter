@@ -88,10 +88,10 @@ const sameDayInput: ContentTreeInput = {
 
 const sameDayTree = buildContentTree(sameDayInput);
 const sameDayRecords: readonly ContentListingRecord[] = [
-  { contentId: "b-page", title: "B", publishedAt: "2024-05-01" },
-  { contentId: "a-page", title: "A", publishedAt: "2024-05-01" },
-  { contentId: "older", title: "Older", publishedAt: "2023-01-01" },
-  { contentId: "newest", title: "Newest", publishedAt: "2025-02-02" },
+  { contentId: "b-page", title: "B", eventDate: "2024-05-01" },
+  { contentId: "a-page", title: "A", eventDate: "2024-05-01" },
+  { contentId: "older", title: "Older", eventDate: "2023-01-01" },
+  { contentId: "newest", title: "Newest", eventDate: "2025-02-02" },
 ];
 
 describe("listCategoryContentIds", () => {
@@ -143,6 +143,8 @@ describe("listCategoryContentIds", () => {
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
+      "content-ended-gallery",
+      "content-ended-article",
       ...FIELDNOTE_IDS,
     ]);
     expect(listCategoryContentIds(finnish, null)).toEqual([
@@ -177,17 +179,22 @@ describe("buildCategoryListing", () => {
   });
 
   it("lists recent routed content across the tree at the story root", () => {
-    // The story root is bounded to one page: the eleven newest routed pages,
-    // then the newest field notes fill the rest of the page (all dated Jan 2023).
+    // The story root is bounded to one page: the eleven newest routed pages
+    // by *effective event date* (AB#150, ADR-0017) — `content-reading-coastal-
+    // light` (eventDate 2025-03-15) and `content-polar-night-sessions`
+    // (eventDate 2024-01-15) sort by that authored date rather than their
+    // `publishedAt` — then the newest field notes fill the rest of the page
+    // (all dated Jan 2023). `content-ended-gallery`/`content-ended-article`
+    // (2019/2018) sort after all of these and never reach this bounded page.
     expect(listing(null).content.map((entry) => entry.contentId)).toEqual([
-      "content-selected-work",
-      "content-polar-night-sessions",
-      "content-choosing-a-telephoto-lens",
       "content-reading-coastal-light",
+      "content-selected-work",
+      "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
       "content-coastal-mornings",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
+      "content-polar-night-sessions",
       "content-awaiting-selection",
       "content-large-archive",
       "content-shuffled-showcase",
@@ -243,7 +250,7 @@ describe("buildCategoryListing", () => {
       variant: "gallery",
       title: "Coastal mornings",
       summary: expect.any(String),
-      publishedAt: "2024-06-18",
+      eventDate: "2024-06-18",
       cover: mockImages.coastalLandscape,
       path: ["landscape", "coastal", "coastal-mornings"],
     });
@@ -365,7 +372,7 @@ describe("buildCategoryListing", () => {
           {
             contentId: "content-polar-night-sessions",
             title: "Polar night sessions",
-            publishedAt: "2024-12-05",
+            eventDate: "2024-12-05",
           },
         ],
       }),
@@ -394,11 +401,11 @@ describe("buildCategoryListing", () => {
           {
             contentId: "content-coastal-mornings",
             title: "Coastal mornings",
-            publishedAt: "last summer",
+            eventDate: "last summer",
           },
         ],
       }),
-    ).toThrow(/unparseable publishedAt/);
+    ).toThrow(/unparseable eventDate/);
   });
 });
 
@@ -440,6 +447,8 @@ describe("buildContentListingQuery", () => {
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
+      "content-ended-gallery",
+      "content-ended-article",
       ...FIELDNOTE_IDS,
     ]);
   });
@@ -575,6 +584,7 @@ describe("buildAdjacentContentQuery", () => {
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
+      "content-ended-article",
       ...FIELDNOTE_IDS,
     ]);
   });
@@ -621,12 +631,15 @@ describe("buildAdjacentContentQuery", () => {
 
 describe("adjacent content", () => {
   it("links the newer page as previous and the older as next", () => {
-    // The neighbours cross canonical categories while retaining publication
-    // order: telephoto, coastal light, exposure, packing, then low light.
+    // The neighbours cross canonical categories while retaining the
+    // *effective event date* order (AB#150, ADR-0017): coastal light,
+    // telephoto, exposure, packing, then low light — `content-reading-coastal-
+    // light`'s authored `eventDate` (2025-03-15) moves it ahead of its own
+    // `publishedAt` (2024-08-02) order.
     expect(adjacent("content-understanding-exposure-triangle")).toEqual({
       previous: expect.objectContaining({
-        contentId: "content-reading-coastal-light",
-        path: ["landscape", "reading-coastal-light"],
+        contentId: "content-choosing-a-telephoto-lens",
+        path: ["gear", "choosing-a-telephoto-lens"],
       }),
       next: expect.objectContaining({
         contentId: "content-packing-for-a-photo-trip",
@@ -647,9 +660,12 @@ describe("adjacent content", () => {
   });
 
   it("gives the newest page only its older neighbour", () => {
-    expect(adjacent("content-choosing-a-telephoto-lens")).toEqual({
+    // `content-reading-coastal-light` is newest by effective event date
+    // (2025-03-15), even though its `publishedAt` (2024-08-02) is not the
+    // most recent (AB#150, ADR-0017).
+    expect(adjacent("content-reading-coastal-light")).toEqual({
       next: expect.objectContaining({
-        contentId: "content-reading-coastal-light",
+        contentId: "content-choosing-a-telephoto-lens",
       }),
     });
   });
@@ -703,9 +719,9 @@ describe("adjacent content", () => {
 describe("selectAdjacentRecords", () => {
   it("orders before it picks, so input order cannot change the answer", () => {
     const rows = [
-      { contentId: "c", title: "C", publishedAt: "2024-01-01" },
-      { contentId: "a", title: "A", publishedAt: "2024-03-01" },
-      { contentId: "b", title: "B", publishedAt: "2024-02-01" },
+      { contentId: "c", title: "C", eventDate: "2024-01-01" },
+      { contentId: "a", title: "A", eventDate: "2024-03-01" },
+      { contentId: "b", title: "B", eventDate: "2024-02-01" },
     ] satisfies ContentListingRecord[];
 
     expect(selectAdjacentRecords(rows, "b")).toEqual({
@@ -817,29 +833,29 @@ describe("category listing continuation (AB#140, ADR-0013)", () => {
 
   it("selectContentListingAfterBoundary keeps only records strictly after the key", () => {
     const records: ContentListingRecord[] = [
-      { contentId: "a", title: "A", publishedAt: "2024-03-03" },
-      { contentId: "b", title: "B", publishedAt: "2024-01-01" },
-      { contentId: "c", title: "C", publishedAt: "2024-01-01" },
-      { contentId: "d", title: "D", publishedAt: "2023-12-31" },
+      { contentId: "a", title: "A", eventDate: "2024-03-03" },
+      { contentId: "b", title: "B", eventDate: "2024-01-01" },
+      { contentId: "c", title: "C", eventDate: "2024-01-01" },
+      { contentId: "d", title: "D", eventDate: "2023-12-31" },
     ];
     // Boundary at (2024-01-01, "b"): "a" is newer (before), "b" is the boundary
     // itself, "c" ties on date but sorts after by id, "d" is older.
     expect(
       selectContentListingAfterBoundary(records, {
-        publishedAt: "2024-01-01",
+        eventDate: "2024-01-01",
         contentId: "b",
       }).map((r) => r.contentId),
     ).toEqual(["c", "d"]);
   });
 
-  it("orders and keyset-filters on the publishedAt string, matching a store's own comparison", () => {
+  it("orders and keyset-filters on the eventDate string, matching a store's own comparison", () => {
     // A date-only value and a same-day datetime are two strings, exactly as a
-    // GROQ `order(publishedAt desc)` and `publishedAt < $after` see them — so a
+    // GROQ `order(eventDate desc)` and `eventDate < $after` see them — so a
     // full walk over the mix still visits every item once, with no dup or skip.
     const records: ContentListingRecord[] = [
-      { contentId: "x", title: "X", publishedAt: "2024-06-18T12:00:00.000Z" },
-      { contentId: "y", title: "Y", publishedAt: "2024-06-18" },
-      { contentId: "z", title: "Z", publishedAt: "2024-06-17" },
+      { contentId: "x", title: "X", eventDate: "2024-06-18T12:00:00.000Z" },
+      { contentId: "y", title: "Y", eventDate: "2024-06-18" },
+      { contentId: "z", title: "Z", eventDate: "2024-06-17" },
     ];
     const ordered = orderContentListingRecords(records).map((r) => r.contentId);
     expect(ordered).toEqual(["x", "y", "z"]);
@@ -851,7 +867,7 @@ describe("category listing continuation (AB#140, ADR-0013)", () => {
       walked.push(head.contentId);
       remaining = [
         ...selectContentListingAfterBoundary(records, {
-          publishedAt: head.publishedAt,
+          eventDate: head.eventDate,
           contentId: head.contentId,
         }),
       ];
@@ -864,7 +880,7 @@ describe("category listing continuation (AB#140, ADR-0013)", () => {
       buildContentListingQuery({
         tree: english,
         categoryId: null,
-        after: { publishedAt: "2024-01-01", contentId: "x" },
+        after: { eventDate: "2024-01-01", contentId: "x" },
       }),
     ).toThrow(/story root/);
   });

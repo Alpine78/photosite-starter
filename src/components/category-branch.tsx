@@ -20,8 +20,11 @@ export type BranchContentCard = {
   readonly contentId: string;
   readonly title: string;
   readonly summary?: string;
-  /** ISO 8601 date. */
-  readonly publishedAt: string;
+  /**
+   * ISO 8601 date: the page's effective event date (`eventDate ?? publishedAt`,
+   * AB#150, ADR-0017) — never the raw `publishedAt`.
+   */
+  readonly eventDate: string;
   readonly cover?: ImageMedia;
   /** The one canonical detail route, whichever listing the card appears in. */
   readonly href: string;
@@ -174,10 +177,10 @@ export function CategoryBranch({
                       </p>
                     )}
                     <time
-                      dateTime={entry.publishedAt}
+                      dateTime={entry.eventDate}
                       className="mt-4 text-xs text-muted"
                     >
-                      {formatDate(entry.publishedAt, locale)}
+                      {formatDate(entry.eventDate, locale)}
                     </time>
                   </div>
                 </Link>

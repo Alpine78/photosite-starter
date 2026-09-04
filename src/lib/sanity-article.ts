@@ -142,7 +142,12 @@ export const ARTICLE_DETAIL_PROJECTION = `{
   body[]${CONTENT_BLOCK_PROJECTION}
 }`;
 
-/** The GROQ order `content-listing.ts`'s `CONTENT_LISTING_ORDERING` names. */
+/**
+ * The GROQ order `content-listing.ts`'s `CONTENT_LISTING_ORDERING` names.
+ * Orders by `publishedAt`, which is also the effective event date until the
+ * schema carries `eventDate` (AB#150/ADR-0017 PR2 changes this to
+ * `order(coalesce(eventDate, publishedAt) desc, contentId asc)`).
+ */
 export const ARTICLE_LISTING_ORDER = `order(publishedAt desc, contentId asc)`;
 
 /** Why a document could not become a published article projection. */
@@ -446,7 +451,12 @@ export function projectArticleListingRecord(
   return {
     contentId,
     title,
-    publishedAt,
+    // AB#150/ADR-0017: the effective event date (`eventDate ?? publishedAt`)
+    // is the record's ordering/display key. The schema does not carry
+    // `eventDate` yet (AB#150 PR2 adds it, the `coalesce()` GROQ, and the
+    // `endDate` gate), so the effective value is `publishedAt` until then —
+    // the same value an unauthored `eventDate` would resolve to.
+    eventDate: publishedAt,
     ...(summary === undefined ? {} : { summary }),
     ...(cover === undefined ? {} : { cover }),
   };
@@ -592,17 +602,20 @@ export async function readPublicArticleListingRecordsInCategories(
   const chunks = chunkContentIds(categoryDocumentIds, MAX_CONTENT_IDS_BYTES);
 
   // A category-listing continuation cursor (AB#140, ADR-0013) resumes strictly
-  // after a `(publishedAt, contentId)` boundary. `publishedAt` is compared as
-  // the stored string, exactly as `ARTICLE_LISTING_ORDER` orders it.
+  // after an `(eventDate, contentId)` boundary — the effective event date
+  // (AB#150, ADR-0017), which until the schema carries `eventDate` (PR2) is
+  // simply `publishedAt`, compared as the stored string exactly as
+  // `ARTICLE_LISTING_ORDER` orders it. PR2 changes the GROQ field to
+  // `coalesce(eventDate, publishedAt)` on both sides of this filter.
   const keysetFilter =
     query.after === undefined
       ? ""
-      : " && (publishedAt < $afterPublishedAt || (publishedAt == $afterPublishedAt && contentId > $afterContentId))";
+      : " && (publishedAt < $afterEventDate || (publishedAt == $afterEventDate && contentId > $afterContentId))";
   const keysetParams =
     query.after === undefined
       ? {}
       : {
-          afterPublishedAt: query.after.publishedAt,
+          afterEventDate: query.after.eventDate,
           afterContentId: query.after.contentId,
         };
 
@@ -779,6 +792,12 @@ type RawArticleAdjacentResult = {
  * Returns `{}` when the anchor document itself does not resolve in this
  * language: a defect elsewhere already surfaced the page this call is about,
  * so a vanished anchor is "no neighbours to report," not a second error.
+ *
+ * AB#150/ADR-0017: orders and compares the anchor's raw `publishedAt`, which
+ * is also its effective event date until the schema carries `eventDate`
+ * (PR2 changes every `publishedAt` reference here to
+ * `coalesce(eventDate, publishedAt)`, matching `ARTICLE_LISTING_ORDER` and the
+ * category-listing keyset filter).
  */
 export async function readPublicArticleAdjacentRecords(
   contentId: string,

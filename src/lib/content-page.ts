@@ -71,8 +71,30 @@ type ContentPageBase = {
   readonly title: string;
   /** Short lead introducing the page; omitted when it has none. */
   readonly summary?: string;
-  /** ISO 8601 date. */
+  /**
+   * ISO 8601 date. When the page went live *on this site* — technical
+   * bookkeeping only (AB#150, ADR-0017). It is still what Open Graph's
+   * `article:published_time` reports, but it drives no visible order and
+   * renders nowhere a visitor sees: `eventDate ?? publishedAt`, resolved
+   * through {@link effectiveEventDate}, is the ordering and display key.
+   */
   readonly publishedAt: string;
+  /**
+   * ISO 8601 date. When the real-world event or session this page documents
+   * actually happened, distinct from when it was published here (AB#150,
+   * ADR-0017). Optional: a page with none behaves exactly as before, ordered
+   * and dated by `publishedAt`. When set, it is the effective event date.
+   */
+  readonly eventDate?: string;
+  /**
+   * ISO 8601 date. Once the current time is at or past it, every public read
+   * treats the page as unpublished — absent from listings, the story-root
+   * overview and the sitemap, and a 404 at its own detail route — the same
+   * posture the tree's `published` flag gives (AB#150, ADR-0017 decision 5).
+   * A read-time gate, not a scheduled job; enforced once at the adapter
+   * boundary, never at a route.
+   */
+  readonly endDate?: string;
   readonly cover?: ImageMedia;
   /**
    * Free keywords. ADR-0003 decision 4 keeps them separate from categories:
@@ -105,6 +127,46 @@ export type GalleryContentPage = ContentPageBase & {
  * variant never fills.
  */
 export type ContentPage = ArticleContentPage | GalleryContentPage;
+
+/**
+ * The one place the `eventDate ?? publishedAt` fallback is expressed (AB#150,
+ * ADR-0017 decision 2). Every consumer — the mock and Sanity adapters, the
+ * listing and detail projections, the hero, the listing card, the sibling-nav
+ * label — reads this, never the raw fields, so the mock and Sanity paths (or
+ * two projections of one document) cannot silently disagree about which date
+ * orders and dates a page.
+ *
+ * The result is compared **verbatim as a string** wherever it orders content
+ * (ADR-0013 decision 1, ADR-0017 decision 3): `eventDate` and `publishedAt`
+ * must each be stored in a form whose lexical order is its chronological order
+ * (ISO 8601, one offset), and a deployment must not mix a date-only value of
+ * one with a datetime value of the other. This function never parses or
+ * reformats — it picks one string or the other.
+ */
+export function effectiveEventDate(
+  page: Pick<ContentPageBase, "publishedAt" | "eventDate">,
+): string {
+  return page.eventDate ?? page.publishedAt;
+}
+
+/**
+ * Whether `endDate` has been reached by `now` (AB#150, ADR-0017 decision 5).
+ * `undefined` — the ordinary case — is never ended. Unlike the ordering
+ * comparison above this is a real point-in-time check against the wall clock,
+ * so it parses; an unparseable authored value is an adapter defect and throws
+ * rather than silently keeping the page visible forever.
+ */
+export function isContentEnded(
+  endDate: string | undefined,
+  now: Date,
+): boolean {
+  if (endDate === undefined) return false;
+  const ends = Date.parse(endDate);
+  if (Number.isNaN(ends)) {
+    throw new TypeError(`content endDate is not a parseable ISO date: "${endDate}"`);
+  }
+  return now.getTime() >= ends;
+}
 
 /**
  * The page title owns the single `h1` (see `ContentBlock`'s own doc comment),

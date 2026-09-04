@@ -11,7 +11,10 @@ import {
   type LanguageLink,
 } from "@/components/language-switch";
 import { listContentHeadings } from "@/lib/content-headings";
-import type { GalleryContentPage } from "@/lib/content-page";
+import {
+  effectiveEventDate,
+  type GalleryContentPage,
+} from "@/lib/content-page";
 import { formatDate } from "@/lib/date-format";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
@@ -151,6 +154,7 @@ export function ContentGallery({
   // AC7: the hero belongs to the first, uncursored slice only — a
   // continuation never shows one, even for a gallery with an authored cover.
   const showHero = !isContinuation && page.cover !== undefined;
+  const eventDate = effectiveEventDate(page);
 
   return (
     <main>
@@ -158,11 +162,15 @@ export function ContentGallery({
           for the same reason the article hero is — a true edge-to-edge hero
           cannot live inside a width-constrained container. The gallery's
           lead description renders on the hero with the title (AC2); the
-          article variant's hero deliberately carries no description. */}
+          article variant's hero deliberately carries no description.
+          AB#150/ADR-0017: the in-flow `<time>` this header used to render
+          moves onto the hero (`meta`) — never `publishedAt`, always the
+          effective event date. */}
       {showHero && page.cover && (
         <HeroOverlay
           media={page.cover}
           title={page.title}
+          meta={{ dateTime: eventDate, label: formatDate(eventDate, locale) }}
           description={page.summary}
           titleClassName="text-3xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-4xl"
         />
@@ -194,15 +202,10 @@ export function ContentGallery({
               />
             </header>
           ) : showHero ? (
-            // Title and lead description already rendered on the hero above —
-            // only the date and language switch belong in flow here.
+            // Title, date, and lead description already rendered on the hero
+            // above (AB#150/ADR-0017 moved the date there too) — only the
+            // language switch belongs in flow here.
             <header className="mt-6">
-              <time
-                dateTime={page.publishedAt}
-                className="block text-sm text-subtle"
-              >
-                {formatDate(page.publishedAt, locale)}
-              </time>
               <LanguageSwitch
                 label={labels.contentTree.languages}
                 links={languages}
@@ -214,10 +217,10 @@ export function ContentGallery({
                 {page.title}
               </h1>
               <time
-                dateTime={page.publishedAt}
+                dateTime={eventDate}
                 className="mt-2 block text-sm text-subtle"
               >
-                {formatDate(page.publishedAt, locale)}
+                {formatDate(eventDate, locale)}
               </time>
               <LanguageSwitch
                 label={labels.contentTree.languages}
