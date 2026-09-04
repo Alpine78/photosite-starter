@@ -10,34 +10,13 @@
  */
 
 import "server-only";
-import { getImageProps } from "next/image";
 import type {
   CuratedGalleryResultItem,
   GalleryPage,
 } from "@/lib/gallery-result";
 import type { GallerySlice } from "@/lib/gallery-slice";
-import { getLightboxImageSizes } from "@/lib/image-delivery";
-import {
-  buildLightboxSlides,
-  type LightboxRendition,
-} from "@/lib/lightbox-slides";
-import type { ImageMedia } from "@/lib/media";
-
-/** The approved public derivative candidates the fullscreen viewer may use. */
-function resolveLightboxRendition(media: ImageMedia): LightboxRendition {
-  const { props } = getImageProps({
-    src: media.rendition.src,
-    alt: media.alt,
-    width: media.rendition.width,
-    height: media.rendition.height,
-    sizes: getLightboxImageSizes(media.rendition),
-  });
-
-  return {
-    src: props.src,
-    ...(props.srcSet === undefined ? {} : { srcset: props.srcSet }),
-  };
-}
+import { resolveLightboxRendition } from "@/lib/lightbox-rendition-server";
+import { buildLightboxSlides } from "@/lib/lightbox-slides";
 
 /** Projects one adapter result into the two ordered views the browser needs. */
 export function projectGallerySlice(

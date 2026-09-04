@@ -1,4 +1,7 @@
-import { MediaFigure } from "@/components/media-figure";
+import { ContentBodyFigure } from "@/components/content-body-figure";
+import { GalleryLightbox } from "@/components/gallery-lightbox";
+import { buildContentBodyLightboxSlides } from "@/lib/content-body-lightbox-server";
+import { indexContentBodyImages } from "@/lib/content-body-media";
 import { buildHeadingIds } from "@/lib/content-headings";
 import type { ContentBlock } from "@/lib/content-page";
 import type { BuiltInLabels } from "@/lib/deployment-config";
@@ -29,8 +32,13 @@ type ContentBodyProps = {
  * variants. Each block maps to one semantic HTML element or component, and the
  * page title owns the single `h1`, so an authored heading starts at level 2.
  *
- * A media block here is a content placement, never a gallery item: it does not
- * enter a gallery's grid, lightbox sequence, sections, or pagination.
+ * A media block here is a content placement, never a gallery item: on a gallery
+ * variant page it does not enter the curated grid, its sections, or its
+ * pagination, and its lightbox sequence is its own — a separate provider
+ * instance mounted here, ordered by the body's own image blocks and nothing
+ * else. An image placement opens that fullscreen viewer once its script has
+ * run (`ContentBodyFigure`); a video placement still renders nothing and never
+ * becomes a slide.
  *
  * Level-2 headings carry the ids the derived table of contents links to. Both
  * sides read them from `buildHeadingIds`, so the fragment a link writes and the
@@ -42,8 +50,10 @@ export function ContentBody({
   sizes = imageRenderProfiles.contentBody.sizes,
 }: ContentBodyProps) {
   const headingIds = buildHeadingIds(blocks);
+  const bodyImages = indexContentBodyImages(blocks);
+  const slides = buildContentBodyLightboxSlides(blocks);
 
-  return (
+  const body = (
     <div className="space-y-6">
       {blocks.map((block, index) => {
         switch (block.type) {
@@ -92,20 +102,28 @@ export function ContentBody({
               </blockquote>
             );
 
-          case "media":
+          case "media": {
             // A video placement is modelled but not yet playable anywhere on
             // the site, so it renders nothing rather than a control that leads
             // nowhere or a placeholder claiming a feature. Video delivery is a
             // roadmap item; the same omission is why a video cover falls back
             // to the deployment's default Open Graph image.
             if (block.media.type !== "image") return null;
+            const bodyImage = bodyImages.get(index);
+            // Unreachable: `bodyImages` is derived from these same blocks with
+            // the same image predicate. The guard keeps the type honest.
+            if (bodyImage === undefined) return null;
             return (
-              <MediaFigure
+              <ContentBodyFigure
                 key={block.key ?? index}
                 image={block.media}
                 sizes={sizes}
+                index={bodyImage.index}
+                itemId={bodyImage.itemId}
+                openLabel={labels.lightbox.openImage}
               />
             );
+          }
 
           case "list":
             if (block.ordered) {
@@ -148,5 +166,19 @@ export function ContentBody({
         }
       })}
     </div>
+  );
+
+  // No image placements: no viewer, no trigger context, nothing to hydrate.
+  if (slides.length === 0) return body;
+
+  // The body's own lightbox sequence. A gallery variant page also mounts a
+  // second, entirely separate `GalleryLightbox` for its curated grid; the two
+  // share no context and no slide list. No `enquiryBasePath` — a body
+  // photograph is not a curated placement (AB#60), so it shows no enquiry
+  // control — and no `continuation`, because a body sequence is bounded.
+  return (
+    <GalleryLightbox slides={slides} labels={labels.lightbox}>
+      {body}
+    </GalleryLightbox>
   );
 }

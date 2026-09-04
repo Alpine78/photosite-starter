@@ -11,6 +11,14 @@ type MediaFigureProps = {
 };
 
 /**
+ * The image's own presentation: full frame, native ratio, never cropped, and
+ * space reserved from the rendition's true dimensions while it loads. Shared
+ * with `ContentBodyFigure` so a body photograph looks the same whether or not
+ * its lightbox trigger has hydrated over it yet.
+ */
+export const MEDIA_FIGURE_IMAGE_CLASS = "h-auto w-full rounded-lg";
+
+/**
  * One placed photograph with whatever the image itself says about its origin.
  *
  * Shared by the body renderer and the page cover so a credit cannot survive in
@@ -39,7 +47,7 @@ export function MediaFigure({
         height={image.rendition.height}
         sizes={sizes}
         preload={preload}
-        className="h-auto w-full rounded-lg"
+        className={MEDIA_FIGURE_IMAGE_CLASS}
       />
       {(caption || credit) && (
         <figcaption className="mt-2 text-sm text-subtle">

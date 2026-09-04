@@ -214,6 +214,17 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
         type: "paragraph",
         text: "No single telephoto suits every photographer. Define your primary use case first, then evaluate lenses against those real-world demands rather than spec-sheet numbers. Placeholder copy.",
       },
+      {
+        // A second body image after the video block, so the body lightbox has
+        // an ordered sequence to navigate and the YouTube block between the two
+        // images is provably not a slide.
+        type: "media",
+        media: {
+          ...mockImages.forestStream,
+          caption:
+            "Second placeholder image and caption; replaced with real photography from the CMS.",
+        },
+      },
     ],
   },
   "content-understanding-exposure-triangle": {

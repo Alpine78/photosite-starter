@@ -177,6 +177,48 @@ decision 8 exists to prevent.
 and 9 are unaffected: the enquiry view is an action state layered on one gallery route,
 not a new route, a new content placement, or a change to slug/redirect rules.
 
+### 2026-09-04 — Content-body images open in their own lightbox sequence (AB#147)
+
+Decision 2 states that a body media block "does not enter the image grid, lightbox
+sequence, sections, or pagination" of a gallery variant's curated result. The phrase
+"lightbox sequence" was written about *that* sequence — the curated result the grid and
+its keyset pagination share — and a first reading took it to mean a body photograph is
+never in any lightbox at all. On the running site that left every article cover and every
+in-body photograph a static image with no way to see it full-frame, while a curated
+gallery item one section down opened the fullscreen viewer.
+
+AB#147 makes an **image** body placement open the same viewer (ADR-0001's PhotoSwipe
+wrapper, reused with no new dependency and no second contact surface with the library),
+in **its own sequence**: a separate provider instance, ordered by the body's own image
+blocks in authored source order and nothing else. Decision 2's separation is preserved
+exactly — a body photograph still never appears in the curated grid, its sections, or its
+pagination, and a curated item never appears in the body sequence. On a gallery variant
+page the two viewers are independent instances that share no slide list. A **video** body
+block still renders nothing and never becomes a slide.
+
+Details recorded so a later reader does not treat them as gaps:
+
+- **Slide identity is per occurrence.** A body block carries a stable store key only when
+  a CMS supplies one (Sanity's array-item `_key`); the mock omits it. When absent, the
+  ordinal among the body's image placements is used, derived identically from either
+  source (`src/lib/content-body-media.ts`). The same photograph placed twice gets two
+  identities, so focus returns to the figure the visitor actually opened.
+- **No enquiry control.** A body photograph is not a curated placement, so the body
+  viewer is mounted without `enquiryBasePath` and shows no "Enquire" control. The
+  `?enquire=` action state (2026-08-30 amendment) is unchanged and remains gallery-route
+  and curated-placement only; extending it to body media was explicitly out of scope.
+- **Enhancement after hydration.** The in-flow figure is server-rendered as a plain image
+  and becomes a lightbox trigger only once its script has run, so a scriptless visitor
+  keeps the plain image they had rather than a focusable control that does nothing.
+- **Cover deferred.** AC2 (the article cover opens the viewer) is **not** delivered here.
+  AB#149 turns the cover into a full-bleed overlaid hero, which changes what the cover
+  *is*; sequencing that decision first was the owner's call, so the cover stays a static
+  image until AB#149.
+
+**Sections affected:** decision 2's wording is clarified, not reversed. Decisions 3, 5,
+6, 7, 8, and 9 are unaffected — no new route, no new placement, no change to
+slug/redirect rules or to the curated result contract.
+
 ## Context
 
 The public site needs one navigable category tree for curated galleries and editorial
