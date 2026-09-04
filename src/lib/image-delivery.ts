@@ -112,6 +112,28 @@ export const imageRenderProfiles = {
 export const HERO_IMAGE_SIZES = "100vw";
 
 /**
+ * Vertical budget reserved for site chrome above a full-bleed hero, when
+ * computing how tall the hero's fold-safe overlay band may be
+ * (`min(image height, 100dvh - HERO_CHROME_RESERVE_PX)`, ADR-0016).
+ *
+ * This is a deliberately generous upper bound, not a measurement of the
+ * header's current rendered height (~61px today, from Tailwind's `py-4` plus
+ * one line of `text-lg` type — verified against `site-header.tsx`, not
+ * fixed). The header's height is intentionally fluid, not a pinned constant,
+ * so nothing here can reference its exact pixel size without either
+ * measuring it client-side (breaking the no-JavaScript guarantee ADR-0016
+ * rejects) or pinning the header to a fixed height (a change to a
+ * site-wide, shared component that no hero-only story asked for). Reserving
+ * more than the header could realistically need instead keeps the guarantee
+ * — the overlay always lands inside the visible viewport on load — true even
+ * for a clone with a larger type scale or a site name that wraps to two
+ * lines, at the cost of a band that is a little shorter than the
+ * theoretical maximum on today's site. Never lower this without re-checking
+ * the header's real rendered height at every configured breakpoint first.
+ */
+export const HERO_CHROME_RESERVE_PX = 96;
+
+/**
  * Widest CSS slot the lightbox will ever present an image in. The lightbox
  * enforces it as a zoom cap, so the hint below and the rendered slot agree.
  */

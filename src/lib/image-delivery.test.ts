@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getLightboxImageSizes,
   getLightboxZoomCap,
+  HERO_CHROME_RESERVE_PX,
   imageRenderProfiles,
   LIGHTBOX_MAX_CSS_WIDTH,
   LIGHTBOX_PRELOAD_WINDOW,
@@ -117,6 +118,21 @@ describe("lightbox preload window", () => {
     // that accidentally widened it into "most of the gallery" fails here
     // before it ever reaches a browser.
     expect(before + after).toBeLessThanOrEqual(5);
+  });
+});
+
+describe("hero chrome reserve", () => {
+  it("is a positive integer pixel budget (ADR-0016)", () => {
+    expect(Number.isInteger(HERO_CHROME_RESERVE_PX)).toBe(true);
+    expect(HERO_CHROME_RESERVE_PX).toBeGreaterThan(0);
+  });
+
+  it("comfortably exceeds the header's real rendered height so the fold-safety guarantee never under-reserves", () => {
+    // The header renders at roughly 61px today (py-4 padding plus one line
+    // of text-lg type — see site-header.tsx), so the budget must clear that
+    // with real margin for a taller clone (bigger type scale, a wrapped
+    // two-line site name) without needing to change.
+    expect(HERO_CHROME_RESERVE_PX).toBeGreaterThanOrEqual(90);
   });
 });
 
