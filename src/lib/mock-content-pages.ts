@@ -34,10 +34,7 @@
 import type { ContentBlock, ContentPage } from "@/lib/content-page";
 import type { ContentVariant } from "@/lib/content-tree";
 import { withLocalizedText } from "@/lib/media";
-import {
-  mockAuthoredContentRecords,
-  mockContentListingRecords,
-} from "@/lib/mock-content-listing";
+import { mockAuthoredContentRecords } from "@/lib/mock-content-listing";
 import { FIELDNOTE_NUMBERS, fieldnoteContentId } from "@/lib/mock-fieldnotes";
 import { mockImages } from "@/lib/mock-media";
 
@@ -73,6 +70,23 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-selected-work": {
     variant: "gallery",
     body: [],
+  },
+  // AB#150/ADR-0017 auto-hide fixtures. Both carry a permanently-past
+  // `endDate` (on their authored records), so every public read treats them
+  // as unpublished — their detail routes 404. A minimal body is enough for
+  // `compose` to resolve them.
+  "content-ended-gallery": {
+    variant: "gallery",
+    body: [],
+  },
+  "content-ended-article": {
+    variant: "article",
+    body: [
+      {
+        type: "paragraph",
+        text: "A time-limited announcement whose scheduled end date has passed. Placeholder content.",
+      },
+    ],
   },
   "content-coastal-mornings": {
     variant: "gallery",
@@ -516,32 +530,30 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
  * fields. A body naming a `contentId` the language has no record for is a
  * fixture defect, and saying so here is the cheapest place to find it.
  *
- * `cover` is composed separately from the rest (AB#149, ADR-0003's
- * 2026-09-04 amendment): a page's own hero is explicit-only, so it reads
- * `mockAuthoredContentRecords` — the pre-fallback record — never
- * `mockContentListingRecords`'s `cover`, which may carry the gallery's
- * deterministic first-item fallback the listing card is allowed to show but
- * a hero must not repeat by default. `title`/`summary`/`publishedAt` are
- * identical on both maps (the fallback only ever fills `cover`), so reading
- * them from either would do, and reading them from the listing record keeps
- * this function's shape close to what it replaced.
+ * `cover` is read from `mockAuthoredContentRecords` — the pre-fallback record
+ * — never `mockContentListingRecords`'s `cover`, which may carry the
+ * gallery's deterministic first-item fallback the listing card is allowed to
+ * show but a hero must not repeat by default (AB#149, ADR-0003's 2026-09-04
+ * amendment). The raw `publishedAt`/`eventDate`/`endDate` a `ContentPage`
+ * carries (AB#150, ADR-0017) live only on the authored record — the card
+ * contract's `mockContentListingRecords` exposes the already-resolved
+ * effective `eventDate` instead — so this function reads everything from the
+ * authored map rather than splitting the read across both.
  */
 function compose(
   language: string,
   pages: Readonly<Record<string, AuthoredPage>>,
 ): ReadonlyMap<string, ContentPage> {
-  const records = mockContentListingRecords[language];
   const authoredRecords = mockAuthoredContentRecords[language];
 
   return new Map(
     Object.entries(pages).map(([contentId, page]) => {
-      const record = records?.get(contentId);
+      const record = authoredRecords?.get(contentId);
       if (record === undefined) {
         throw new TypeError(
           `mock content page "${contentId}" has no ${language} listing record`,
         );
       }
-      const explicitCover = authoredRecords?.get(contentId)?.cover;
       return [
         contentId,
         {
@@ -549,7 +561,9 @@ function compose(
           title: record.title,
           ...(record.summary === undefined ? {} : { summary: record.summary }),
           publishedAt: record.publishedAt,
-          ...(explicitCover === undefined ? {} : { cover: explicitCover }),
+          ...(record.eventDate === undefined ? {} : { eventDate: record.eventDate }),
+          ...(record.endDate === undefined ? {} : { endDate: record.endDate }),
+          ...(record.cover === undefined ? {} : { cover: record.cover }),
           ...page,
         },
       ];

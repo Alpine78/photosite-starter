@@ -296,10 +296,10 @@ describe("getCategoryListing — sanity source splits by variant", () => {
 
   it("reads each variant's category-scoped listing query for a branch and merges the result", async () => {
     sanityArticle.readPublicArticleListingRecordsInCategories.mockResolvedValue([
-      { contentId: "content-article", title: "An article", publishedAt: "2024-01-01" },
+      { contentId: "content-article", title: "An article", eventDate: "2024-01-01" },
     ]);
     sanityGallery.readPublicGalleryListingRecordsInCategories.mockResolvedValue([
-      { contentId: "content-gallery", title: "A gallery", publishedAt: "2024-06-01" },
+      { contentId: "content-gallery", title: "A gallery", eventDate: "2024-06-01" },
     ]);
 
     const listing = await getCategoryListing("en-GB", "cat-a");
@@ -333,10 +333,10 @@ describe("getCategoryListing — sanity source splits by variant", () => {
 
   it("reads the routed-content listing query for the story root", async () => {
     sanityArticle.readPublicArticleListingRecords.mockResolvedValue([
-      { contentId: "content-article", title: "An article", publishedAt: "2024-01-01" },
+      { contentId: "content-article", title: "An article", eventDate: "2024-01-01" },
     ]);
     sanityGallery.readPublicGalleryListingRecords.mockResolvedValue([
-      { contentId: "content-gallery", title: "A gallery", publishedAt: "2024-06-01" },
+      { contentId: "content-gallery", title: "A gallery", eventDate: "2024-06-01" },
     ]);
 
     const listing = await getCategoryListing("en-GB", null);

@@ -8,21 +8,32 @@
  * ## How this cursor differs from the gallery's
  *
  * The gallery cursor's primary boundary key is a placement's numeric manual
- * `order`. A category branch listing is ordered by `(publishedAt DESC,
- * contentId ASC)` (ADR-0003 decision 8), and a store compares the authored
- * `publishedAt` *string* — date-only `2024-06-18` or a datetime — so the cursor
- * carries that string verbatim as its boundary key rather than a parsed
- * timestamp, which would not compare equal at a same-date tie.
+ * `order`. A category branch listing is ordered by `(eventDate DESC,
+ * contentId ASC)` (ADR-0003 decision 8, AB#150/ADR-0017), where `eventDate` is
+ * the page's *effective event date* — `eventDate ?? publishedAt`, a store's
+ * `coalesce(eventDate, publishedAt)`. A store compares that *string* — date-only
+ * `2024-06-18` or a datetime — so the cursor carries it verbatim as its
+ * boundary key rather than a parsed timestamp, which would not compare equal at
+ * a same-date tie.
+ *
+ * ## Ordering-rule version (AB#150, ADR-0017 decision 4)
+ *
+ * `CONTENT_LISTING_ORDERING` is `event-date-desc-v1`, up from the historical
+ * `published-desc-v1`. It rides in the HMAC-bound `KeysetCursorScope.ordering`,
+ * so a cursor minted before the switch to the effective event date decodes as
+ * `wrong-scope` — never a silently valid position under the new order. Same
+ * mechanism as ADR-0009 §4's gallery reseed.
  *
  * ## Visibility version
  *
- * `publishedAt` is authored, frozen nowhere, so a mid-walk edit to any in-scope
- * item's date — not only the boundary item's — can move it across an issued
- * boundary, and so can a category re-parent that reshapes the subtree. ADR-0013
- * therefore binds a conservative `visibilityVersion` into the scope (a cheap
- * `max(_updatedAt)` + `count` for a store, an in-memory digest for the mock);
- * any of those changes invalidates an in-flight cursor with `stale`, exactly as
- * the gallery cursor's own visibility version does for a reorder.
+ * The effective event date is authored, frozen nowhere, so a mid-walk edit to
+ * any in-scope item's `eventDate`/`publishedAt` — not only the boundary item's —
+ * can move it across an issued boundary, and so can a category re-parent that
+ * reshapes the subtree. ADR-0013 therefore binds a conservative
+ * `visibilityVersion` into the scope (a cheap `max(_updatedAt)` + `count` for a
+ * store, an in-memory digest for the mock); any of those changes invalidates an
+ * in-flight cursor with `stale`, exactly as the gallery cursor's own visibility
+ * version does for a reorder.
  */
 
 import "server-only";
@@ -71,8 +82,11 @@ export class ContentListingCursorConfigurationError extends Error {
 
 /** The boundary a decoded category-listing cursor names. */
 export type ContentListingCursorBoundary = {
-  /** The verbatim authored `publishedAt` of the last item on the previous page. */
-  readonly afterPublishedAt: string;
+  /**
+   * The verbatim effective event date (`eventDate ?? publishedAt`) of the last
+   * item on the previous page (AB#150, ADR-0017).
+   */
+  readonly afterEventDate: string;
   /** That item's immutable content identifier, the order's tie-breaker. */
   readonly afterContentId: string;
 };
@@ -125,19 +139,19 @@ function adaptCodec(inner: KeysetCursorCodec): ContentListingCursorCodec {
     encode: (scope, boundary) =>
       inner.encode(
         toKeysetScope(scope),
-        boundary.afterPublishedAt,
+        boundary.afterEventDate,
         boundary.afterContentId,
       ),
     decode: (cursor, scope) => {
       try {
         const decoded = inner.decode(cursor, toKeysetScope(scope));
         if (typeof decoded.afterKey !== "string") {
-          // A category-listing cursor's boundary key is the `publishedAt`
+          // A category-listing cursor's boundary key is the effective-event-date
           // string; a number here means a token from another cursor family.
           throw new ContentListingCursorError("malformed");
         }
         return {
-          afterPublishedAt: decoded.afterKey,
+          afterEventDate: decoded.afterKey,
           afterContentId: decoded.afterId,
         };
       } catch (error) {

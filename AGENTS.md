@@ -515,6 +515,51 @@ image measurably perturbed that unrelated test's network-request count on
 `desktop-chromium` specifically. The cover proving AB#149's own multi-page/continuation
 case lives on `content-shuffled-showcase` instead (34 placements, already long enough to
 continue), leaving the archive fixture exactly as AB#79 needs it.
+An authored `eventDate` now replaces `publishedAt` as the public ordering key everywhere
+the site orders content chronologically (AB#150, [ADR-0017](docs/adr/0017-authored-event-date-ordering-key.md),
+**PR1 of 2, Active**): category branch listing order, the story root's recent overview,
+article sibling navigation, and the ADR-0013 continuation cursor's keyset sort field all
+read the **effective event date** — `eventDate ?? publishedAt`, resolved once through
+`content-page.ts#effectiveEventDate` and carried on `ContentListingRecord.eventDate` (which
+replaces that record's own `publishedAt` field, since nothing downstream needs the raw
+value any more) — never the raw `publishedAt`, which stays on the model as unchanged
+technical "went live" bookkeeping and Open Graph's `article:published_time`, but drives no
+visible order or display. `CONTENT_LISTING_ORDERING` is now `event-date-desc-v1`; since
+that value is already bound into the ADR-0013 cursor's signed scope via
+`KeysetCursorScope.ordering`, a continuation cursor issued before this shipped decodes as
+`wrong-scope` rather than a silently valid position under the new order — the identical
+mechanism ADR-0009 §4 uses for a gallery reseed, with no new scope field. An optional
+`endDate` auto-hides a page once the current time reaches it, with the identical posture an
+unpublished page already has (absent from every listing and the sitemap, 404 at its own
+route): the gate is a read-time `now() >= endDate` check folded into a placement's
+*effective* `published` boolean at the adapter boundary — for the mock,
+`content.ts#applyMockEndDateGate` transforms the tree input before `buildContentTree` ever
+sees it, and `getContentPage`'s mock branch repeats the check as its own belt-and-suspenders
+gate — so routing, listing membership, sibling-nav candidacy, and `listPublicRoutePaths` all
+exclude an ended page with no `endDate`-aware code anywhere downstream. `endDate` is
+deliberately not a content-tree input field, to avoid the tree needing two independent
+"is this public" signals. For a Sanity deployment (PR2) the same gate lands in
+`sanity-article.ts`/`sanity-gallery.ts`'s placement and detail readers, which can only make
+an ended page invisible on the next tagged-cache refetch — ADR-0017 decision 6 accepts a
+staleness window bounded by `SANITY_PUBLIC_CACHE_TTL_SECONDS` (documented in
+`docs/cache-revalidation.md`) rather than adding a scheduled revalidation trigger, since
+`endDate` is an editorial control, not a legal or security embargo. The mock fixture layer
+carries both proving cases the story requires: `content-reading-coastal-light` (article) and
+`content-polar-night-sessions` (gallery) each author an `eventDate` that reorders them
+relative to their own `publishedAt`, and `content-ended-article`/`content-ended-gallery`
+each carry a permanently-past `endDate`, so the auto-hidden state is one the site actually
+serves. `HeroOverlay` gains an optional `meta` date slot — the in-flow `<time>` the article
+and gallery headers used to render moves onto the hero band, above the title, reading the
+effective date (AB#151's author byline is expected to share this same line rather than add
+a second one); a page with no cover keeps the date in its constrained in-flow header exactly
+as before. `e2e/content-event-date.spec.ts` proves an out-of-publish-order page's real
+listing position, a pre-migration-ordering cursor's 404, and an ended page's 404 route,
+absent listing, and absent sitemap entry, against a real production build.
+**PR2 — the `article`/`gallery` Sanity schema fields, the adapters' real `coalesce(eventDate,
+publishedAt)` projection and `endDate` gate, and a live-verification check — has not
+started**; until then a Sanity-backed deployment's effective event date is simply
+`publishedAt` (the same value an unauthored `eventDate` would resolve to) and its `endDate`
+field does not yet exist.
 The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it

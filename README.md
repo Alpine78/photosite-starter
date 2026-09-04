@@ -354,7 +354,13 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   continuation: a large branch pages through a keyset `?cursor=` (self-canonical,
   indexable, no JavaScript required) sharing the gallery cursor's signing secret
   ([ADR-0013](docs/adr/0013-category-listing-continuation-cursor.md)). Story-root listing
-  continuation and progressive append for category listings are deferred*
+  continuation and progressive append for category listings are deferred. An authored
+  `eventDate` (defaulting to `publishedAt` when unset) is now the ordering key behind
+  category listings, the story-root overview, article sibling navigation, and this same
+  cursor, so a photographer publishing out of chronological order still presents in
+  real-world order; an optional `endDate` auto-hides a page, read-time-gated, once it
+  passes ([ADR-0017](docs/adr/0017-authored-event-date-ordering-key.md), AB#150 — mock
+  path done, Sanity schema/adapter wiring pending)*
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))

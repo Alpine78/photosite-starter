@@ -1231,7 +1231,7 @@ describe("projectGalleryListingRecord", () => {
       contentId: "content-coastal-mornings",
       title: "Coastal mornings",
       summary: "First light along the shoreline.",
-      publishedAt: "2024-06-18",
+      eventDate: "2024-06-18",
     });
   });
 
@@ -1245,7 +1245,7 @@ describe("projectGalleryListingRecord", () => {
     expect(projectGalleryListingRecord(document, languages)).toEqual({
       contentId: "content-awaiting-selection",
       title: "Awaiting selection",
-      publishedAt: "2024-01-08",
+      eventDate: "2024-01-08",
     });
   });
 
@@ -1265,7 +1265,7 @@ describe("readPublicGalleryListingRecords", () => {
     const { client, requests } = fakeClient({});
 
     const records = await readPublicGalleryListingRecords(
-      { scope: "routed-content", contentIds: [], ordering: "published-desc-v1", limit: 25 },
+      { scope: "routed-content", contentIds: [], ordering: "event-date-desc-v1", limit: 25 },
       { language: "en", client },
     );
 
@@ -1280,7 +1280,7 @@ describe("readPublicGalleryListingRecords", () => {
       {
         scope: "routed-content",
         contentIds: ["content-a", "content-b"],
-        ordering: "published-desc-v1",
+        ordering: "event-date-desc-v1",
         limit: 5,
       },
       { language: "en", client, config },
@@ -1302,7 +1302,7 @@ describe("readPublicGalleryListingRecords", () => {
     const { client, requests } = fakeClient({ "gallery.listing": [] });
 
     await readPublicGalleryListingRecords(
-      { scope: "routed-content", contentIds, ordering: "published-desc-v1", limit: 25 },
+      { scope: "routed-content", contentIds, ordering: "event-date-desc-v1", limit: 25 },
       { language: "en", client, config },
     );
 
@@ -1340,7 +1340,7 @@ describe("readPublicGalleryListingRecords", () => {
     };
 
     const records = await readPublicGalleryListingRecords(
-      { scope: "routed-content", contentIds, ordering: "published-desc-v1", limit: 1 },
+      { scope: "routed-content", contentIds, ordering: "event-date-desc-v1", limit: 1 },
       { language: "en", client, config },
     );
 
@@ -1355,7 +1355,7 @@ describe("readPublicGalleryListingRecords", () => {
     const { client } = fakeClient({ "gallery.listing": [] });
 
     const error = await readPublicGalleryListingRecords(
-      { scope: "routed-content", contentIds: [hugeId], ordering: "published-desc-v1", limit: 25 },
+      { scope: "routed-content", contentIds: [hugeId], ordering: "event-date-desc-v1", limit: 25 },
       { language: "en", client, config },
     ).catch((caught: unknown) => caught);
 
@@ -1369,7 +1369,7 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
     const { client, requests } = fakeClient({});
 
     const records = await readPublicGalleryListingRecordsInCategories(
-      { scope: "category-subtree", categoryIds: [], ordering: "published-desc-v1", limit: 25 },
+      { scope: "category-subtree", categoryIds: [], ordering: "event-date-desc-v1", limit: 25 },
       { language: "en", client, config },
     );
 
@@ -1389,7 +1389,7 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
       {
         scope: "category-subtree",
         categoryIds: ["cat-formula", "cat-rally"],
-        ordering: "published-desc-v1",
+        ordering: "event-date-desc-v1",
         limit: 5,
       },
       { language: "en", client, config },
@@ -1428,9 +1428,9 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
       {
         scope: "category-subtree",
         categoryIds: ["cat-a"],
-        ordering: "published-desc-v1",
+        ordering: "event-date-desc-v1",
         limit: 5,
-        after: { publishedAt: "2024-06-18", contentId: "content-x" },
+        after: { eventDate: "2024-06-18", contentId: "content-x" },
       },
       { language: "en", client, config },
     );
@@ -1439,10 +1439,10 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
       (request) => request.tag === "gallery.listing.by-category",
     );
     expect(listingRequest?.query).toContain(
-      "publishedAt < $afterPublishedAt || (publishedAt == $afterPublishedAt && contentId > $afterContentId)",
+      "publishedAt < $afterEventDate || (publishedAt == $afterEventDate && contentId > $afterContentId)",
     );
     expect(listingRequest?.params).toMatchObject({
-      afterPublishedAt: "2024-06-18",
+      afterEventDate: "2024-06-18",
       afterContentId: "content-x",
     });
   });
@@ -1454,7 +1454,7 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
       {
         scope: "category-subtree",
         categoryIds: ["cat-unknown"],
-        ordering: "published-desc-v1",
+        ordering: "event-date-desc-v1",
         limit: 5,
       },
       { language: "en", client, config },

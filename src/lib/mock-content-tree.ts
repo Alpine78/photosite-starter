@@ -174,6 +174,26 @@ const englishContentTree: ContentTreeInput = {
       canonicalCategoryId: "cat-technique",
     },
     {
+      // AB#150/ADR-0017 auto-hide fixture: authored `published: true`, but its
+      // record's `endDate` (`mock-content-listing.ts`) has permanently passed,
+      // so `content.ts`'s mock tree build folds that into an *effective*
+      // `published: false` here — the adapter-boundary gate the ADR requires,
+      // never a route-level check.
+      contentId: "content-ended-gallery",
+      variant: "gallery",
+      slug: "ended-gallery",
+      published: true,
+      canonicalCategoryId: "cat-portfolio",
+    },
+    {
+      // The same auto-hide fixture, article variant.
+      contentId: "content-ended-article",
+      variant: "article",
+      slug: "ended-article",
+      published: true,
+      canonicalCategoryId: "cat-technique",
+    },
+    {
       // Draft content may stay unplaced until the author chooses its home.
       contentId: "content-unplaced-draft",
       variant: "article",

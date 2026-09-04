@@ -191,7 +191,7 @@ describe("projecting a listing record", () => {
       contentId: "content-reading-coastal-light",
       title: "Reading coastal light",
       summary: "How overcast mornings change what a shoreline shows.",
-      publishedAt: "2024-08-02",
+      eventDate: "2024-08-02",
     });
   });
 
@@ -223,8 +223,16 @@ describe("projecting a listing record", () => {
       projectArticleListingRecord(
         { ...document, publishedAt: "2024-08-02T14:30:00.000Z" },
         languages,
-      ).publishedAt,
+      ).eventDate,
     ).toBe("2024-08-02T14:30:00.000Z");
+  });
+
+  // AB#150/ADR-0017: the schema does not carry `eventDate` yet (PR2 adds it),
+  // so the record's effective ordering/display key is `publishedAt` verbatim.
+  it("projects the effective event date as publishedAt until the schema carries eventDate (PR2)", () => {
+    expect(projectArticleListingRecord(document, languages).eventDate).toBe(
+      document.publishedAt,
+    );
   });
 });
 
@@ -311,7 +319,7 @@ describe("reading listing records", () => {
     const { client, requests } = fakeClient({});
 
     const records = await readPublicArticleListingRecords(
-      { scope: "routed-content", contentIds: [], ordering: "published-desc-v1", limit: 25 },
+      { scope: "routed-content", contentIds: [], ordering: "event-date-desc-v1", limit: 25 },
       { language: "en", client },
     );
 
@@ -326,7 +334,7 @@ describe("reading listing records", () => {
       {
         scope: "routed-content",
         contentIds: ["content-a", "content-b"],
-        ordering: "published-desc-v1",
+        ordering: "event-date-desc-v1",
         limit: 5,
       },
       { language: "en", client, config },
@@ -350,7 +358,7 @@ describe("reading listing records", () => {
     const { client, requests } = fakeClient({ "article.listing": [] });
 
     await readPublicArticleListingRecords(
-      { scope: "routed-content", contentIds, ordering: "published-desc-v1", limit: 25 },
+      { scope: "routed-content", contentIds, ordering: "event-date-desc-v1", limit: 25 },
       { language: "en", client, config },
     );
 
@@ -397,7 +405,7 @@ describe("reading listing records", () => {
     };
 
     const records = await readPublicArticleListingRecords(
-      { scope: "routed-content", contentIds, ordering: "published-desc-v1", limit: 1 },
+      { scope: "routed-content", contentIds, ordering: "event-date-desc-v1", limit: 1 },
       { language: "en", client, config },
     );
 
@@ -412,7 +420,7 @@ describe("reading listing records by category subtree", () => {
     const { client, requests } = fakeClient({});
 
     const records = await readPublicArticleListingRecordsInCategories(
-      { scope: "category-subtree", categoryIds: [], ordering: "published-desc-v1", limit: 25 },
+      { scope: "category-subtree", categoryIds: [], ordering: "event-date-desc-v1", limit: 25 },
       { language: "en", client, config },
     );
 
@@ -432,7 +440,7 @@ describe("reading listing records by category subtree", () => {
       {
         scope: "category-subtree",
         categoryIds: ["cat-formula", "cat-rally"],
-        ordering: "published-desc-v1",
+        ordering: "event-date-desc-v1",
         limit: 5,
       },
       { language: "en", client, config },
@@ -471,7 +479,7 @@ describe("reading listing records by category subtree", () => {
       {
         scope: "category-subtree",
         categoryIds: ["cat-not-in-store"],
-        ordering: "published-desc-v1",
+        ordering: "event-date-desc-v1",
         limit: 5,
       },
       { language: "en", client, config },
@@ -493,9 +501,9 @@ describe("reading listing records by category subtree", () => {
       {
         scope: "category-subtree",
         categoryIds: ["cat-a"],
-        ordering: "published-desc-v1",
+        ordering: "event-date-desc-v1",
         limit: 5,
-        after: { publishedAt: "2024-06-18", contentId: "content-x" },
+        after: { eventDate: "2024-06-18", contentId: "content-x" },
       },
       { language: "en", client, config },
     );
@@ -504,10 +512,10 @@ describe("reading listing records by category subtree", () => {
       (request) => request.tag === "article.listing.by-category",
     );
     expect(listingRequest?.query).toContain(
-      "publishedAt < $afterPublishedAt || (publishedAt == $afterPublishedAt && contentId > $afterContentId)",
+      "publishedAt < $afterEventDate || (publishedAt == $afterEventDate && contentId > $afterContentId)",
     );
     expect(listingRequest?.params).toMatchObject({
-      afterPublishedAt: "2024-06-18",
+      afterEventDate: "2024-06-18",
       afterContentId: "content-x",
     });
   });
@@ -522,7 +530,7 @@ describe("reading listing records by category subtree", () => {
       {
         scope: "category-subtree",
         categoryIds: ["cat-a"],
-        ordering: "published-desc-v1",
+        ordering: "event-date-desc-v1",
         limit: 5,
       },
       { language: "en", client, config },
@@ -572,7 +580,7 @@ describe("reading listing records by category subtree", () => {
       {
         scope: "category-subtree",
         categoryIds,
-        ordering: "published-desc-v1",
+        ordering: "event-date-desc-v1",
         limit: 5,
       },
       { language: "en", client, config },
@@ -713,12 +721,12 @@ describe("reading adjacent (sibling) records", () => {
       previous: {
         contentId: "content-newer",
         title: "Newer",
-        publishedAt: "2024-06-01",
+        eventDate: "2024-06-01",
       },
       next: {
         contentId: "content-older",
         title: "Older",
-        publishedAt: "2024-01-01",
+        eventDate: "2024-01-01",
       },
     });
     expect(requests).toHaveLength(1);
@@ -748,7 +756,7 @@ describe("reading adjacent (sibling) records", () => {
       next: {
         contentId: "content-older",
         title: "Older",
-        publishedAt: "2024-01-01",
+        eventDate: "2024-01-01",
       },
     });
   });

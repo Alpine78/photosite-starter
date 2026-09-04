@@ -5,6 +5,8 @@ import {
   loadContentListingCursorCodec,
   type ContentListingCursorScopeInput,
 } from "@/lib/content-listing-cursor";
+import { CONTENT_LISTING_ORDERING } from "@/lib/content-listing";
+import { createHmacKeysetCursorCodec } from "@/lib/keyset-cursor";
 
 const SETTING = "GALLERY_CURSOR_SIGNING_KEY";
 const KEY = "a-valid-test-content-listing-cursor-signing-key";
@@ -18,21 +20,21 @@ const scope: ContentListingCursorScopeInput = {
   pageSize: 24,
 };
 
-const boundary = { afterPublishedAt: "2024-06-18", afterContentId: "content-x" };
+const boundary = { afterEventDate: "2024-06-18", afterContentId: "content-x" };
 
 describe("loadContentListingCursorCodec", () => {
-  it("round-trips a (publishedAt, contentId) boundary verbatim", () => {
+  it("round-trips an (eventDate, contentId) boundary verbatim", () => {
     const c = codec();
     expect(c.decode(c.encode(scope, boundary), scope)).toEqual(boundary);
   });
 
-  it("keeps a date-only publishedAt as its exact string (no timestamp round trip)", () => {
+  it("keeps a date-only eventDate as its exact string (no timestamp round trip)", () => {
     const c = codec();
     const decoded = c.decode(
-      c.encode(scope, { afterPublishedAt: "2024-02-29", afterContentId: "c" }),
+      c.encode(scope, { afterEventDate: "2024-02-29", afterContentId: "c" }),
       scope,
     );
-    expect(decoded.afterPublishedAt).toBe("2024-02-29");
+    expect(decoded.afterEventDate).toBe("2024-02-29");
   });
 
   it("rejects a token minted for another branch", () => {
@@ -75,5 +77,30 @@ describe("loadContentListingCursorCodec", () => {
       ContentListingCursorConfigurationError,
     );
     expect(() => loadContentListingCursorCodec({})).toThrow(SETTING);
+  });
+
+  // AB#150, ADR-0017 decision 4: a cursor minted under the pre-migration
+  // `published-desc-v1` ordering rule must decode as `wrong-scope` — never a
+  // silently valid position under the new effective-event-date order. The
+  // low-level `keyset-cursor.ts` codec mints exactly such a cursor directly,
+  // since `loadContentListingCursorCodec` itself only ever emits the current
+  // `CONTENT_LISTING_ORDERING` value.
+  it("rejects a pre-migration published-desc-v1 cursor as wrong-scope", () => {
+    expect(CONTENT_LISTING_ORDERING).toBe("event-date-desc-v1");
+
+    const legacyOrdering = "published-desc-v1";
+    const legacyCursor = createHmacKeysetCursorCodec(KEY).encode(
+      {
+        sourceId: "content-listing",
+        normalizedFilter: `${scope.locale} ${scope.categoryId}`,
+        ordering: legacyOrdering,
+        visibilityVersion: scope.visibilityVersion,
+        pageSize: scope.pageSize,
+      },
+      boundary.afterEventDate,
+      boundary.afterContentId,
+    );
+
+    expect(() => codec().decode(legacyCursor, scope)).toThrow(/wrong-scope/);
   });
 });

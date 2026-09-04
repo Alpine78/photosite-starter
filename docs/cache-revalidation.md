@@ -54,6 +54,24 @@ order changes, sections, bodies, renditions, and metadata. Next.js exposes no
 atomic multi-tag call; the handler expires the finite set synchronously before
 acknowledging the event, and returns 503 if any call fails.
 
+### Scheduled `endDate` is a bounded staleness window, not a webhook event
+
+An authored `endDate` (AB#150, [ADR-0017](adr/0017-authored-event-date-ordering-key.md)
+decision 6) auto-hides a page once the current time passes it — the same "treated as
+unpublished" state a publish/unpublish edit already produces above, but with no Sanity
+mutation to trigger a webhook: nothing edits the document at the moment its `endDate`
+arrives, only the clock does. The adapter re-applies the `now >= endDate` gate every time
+`sanity:articles` / `sanity:galleries` is actually refetched, so an ended page can go on
+serving a cache `HIT` for up to this table's own **one-hour** maximum lifetime after its
+`endDate` passes, until the next scheduled refetch (or an unrelated webhook that happens to
+expire the same tag) re-evaluates it. This is a deliberate, accepted bound rather than a
+gap: `endDate` is an editorial "stop showing this after about here" control, not an embargo
+with legal or security force, so a sub-hour staleness window sits well inside its intent.
+No scheduled trigger is added to tighten it — the reasoning, alternatives, and the
+read-time-gate mechanism itself are ADR-0017 decisions 5 and 6. Lowering
+`SANITY_PUBLIC_CACHE_TTL_SECONDS` (`src/lib/sanity-cache.ts`) lowers this window too, the
+same way it lowers every other tag's worst-case staleness.
+
 ## Webhook contract
 
 Configure one Sanity **document webhook per deployment environment**:

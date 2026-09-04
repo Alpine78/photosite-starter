@@ -48,7 +48,7 @@ import {
  * route that needs the classified error type imports it from
  * `content-listing-cursor.ts` directly.
  */
-import type { ContentPageSource } from "@/lib/content-page";
+import { isContentEnded, type ContentPageSource } from "@/lib/content-page";
 import {
   buildContentRedirects,
   type ContentRedirects,
@@ -57,11 +57,16 @@ import { dispatchContentSource } from "@/lib/content-source";
 import {
   buildContentTree,
   listCategorySubtreeIds,
+  type ContentPlacementInput,
   type ContentTree,
+  type ContentTreeInput,
 } from "@/lib/content-tree";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import type { LocaleRouteConfig, LocalizedContentTrees } from "@/lib/locale-routes";
-import { mockContentListingRecords } from "@/lib/mock-content-listing";
+import {
+  mockAuthoredContentRecords,
+  mockContentListingRecords,
+} from "@/lib/mock-content-listing";
 import { mockContentPages } from "@/lib/mock-content-pages";
 import {
   mockContentRedirectInputs,
@@ -104,14 +109,55 @@ type PublicContent = {
   readonly redirects: LocalizedContentRedirects;
 };
 
+/**
+ * Folds the `endDate` gate (AB#150, ADR-0017 decision 5) into each
+ * placement's effective `published` — the one thing this mock's "adapter"
+ * boundary must do before the tree ever sees the input, so routing, listing
+ * membership, sibling-nav candidacy, and `listPublicRoutePaths` all exclude an
+ * ended page with no downstream code aware of `endDate` at all. A page whose
+ * record carries no `endDate`, or whose `endDate` has not been reached, is
+ * unaffected.
+ *
+ * `now` is fixed once per call rather than read per placement, since a mock
+ * tree is built (and cached) once — see `buildMockPublicContent`'s own
+ * comment on why the gate is therefore only as fresh as that cache. Mock
+ * fixtures accordingly use a permanently-past `endDate` for the one gallery
+ * and one article that exercise this state, never one meant to expire during
+ * a running process.
+ *
+ * Exported so `e2e/sitemap-robots.spec.ts` can build the exact same gated
+ * tree the running app serves when it computes its own expected route set —
+ * that spec builds its "expected" list directly from `mockContentTreeInputs`,
+ * and would otherwise include a page this gate excludes.
+ */
+export function applyMockEndDateGate(
+  input: ContentTreeInput,
+  language: string,
+  now: Date,
+): ContentTreeInput {
+  const authored = mockAuthoredContentRecords[language];
+  return {
+    categories: input.categories,
+    placements: input.placements.map((placement): ContentPlacementInput => {
+      if (!placement.published) return placement;
+      const endDate = authored?.get(placement.contentId)?.endDate;
+      if (!isContentEnded(endDate, now)) return placement;
+      return { ...placement, published: false };
+    }),
+  };
+}
+
 function buildMockPublicContent(config: LocaleRouteConfig): PublicContent {
   const trees = new Map<string, ContentTree>();
   const redirects = new Map<string, ContentRedirects>();
+  const now = new Date();
 
   for (const route of config.locales) {
     const language = languageOf(route.locale);
-    const input = mockContentTreeInputs[language];
-    if (input === undefined) continue;
+    const authoredInput = mockContentTreeInputs[language];
+    if (authoredInput === undefined) continue;
+
+    const input = applyMockEndDateGate(authoredInput, language, now);
 
     // Validation failures throw here, at startup of the first request that
     // needs the tree, rather than producing a half-resolved public route space.
@@ -341,16 +387,17 @@ async function queryListingRecords(
  * The conservative `visibilityVersion` for one category branch's continuation
  * cursor (AB#140, ADR-0013).
  *
- * Two halves, so both hazards a keyset cursor over `(publishedAt, contentId)`
+ * Two halves, so both hazards a keyset cursor over `(eventDate, contentId)`
  * cannot otherwise survive are covered:
  *
  * - a digest of the in-scope subtree category id list — recomputed from the
  *   tree every request, so a category re-parent that reshapes membership
  *   changes it with no query; and
  * - a content-mutation signal: for the mock, a digest of every in-scope
- *   record's `(contentId, publishedAt)`, so editing any authored date changes
- *   it; for Sanity, the most recently updated in-scope document's `_updatedAt`,
- *   which a `publishedAt` edit always bumps (`sanity-content-tree.ts`).
+ *   record's `(contentId, eventDate)` — the already-resolved effective event
+ *   date (AB#150, ADR-0017) — so editing either authored date changes it; for
+ *   Sanity, the most recently updated in-scope document's `_updatedAt`, which
+ *   an edit to either always bumps (`sanity-content-tree.ts`).
  */
 async function computeCategoryListingVisibilityVersion(
   locale: string,
@@ -379,7 +426,7 @@ async function computeCategoryListingVisibilityVersion(
           const record = authored?.get(contentId);
           return record === undefined
             ? []
-            : [`${contentId} ${record.publishedAt}`];
+            : [`${contentId} ${record.eventDate}`];
         })
         .sort();
       return digest(JSON.stringify(pairs));
@@ -484,7 +531,19 @@ export const getContentPage: ContentPageSource = async (
       }
       return articlePage ?? galleryPage;
     },
-    mock: async () => mockContentPages[languageOf(locale)]?.get(contentId),
+    mock: async () => {
+      const page = mockContentPages[languageOf(locale)]?.get(contentId);
+      // Belt-and-suspenders repeat of the tree-build gate above (AB#150,
+      // ADR-0017 decision 5): the tree already keeps an ended page's
+      // placement out of routing, but this source is also reachable directly
+      // by contentId (a redirect or not-found existence check), so it applies
+      // the same `now >= endDate` check rather than trusting the caller
+      // always resolved through a gated placement first.
+      if (page !== undefined && isContentEnded(page.endDate, new Date())) {
+        return undefined;
+      }
+      return page;
+    },
   });
 };
 
@@ -612,7 +671,7 @@ export async function getCategoryListing(
     // Throws ContentListingCursorError on an unspendable token; the route 404s.
     const decoded = contentListingCursorCodec.decode(cursor, scope);
     after = {
-      publishedAt: decoded.afterPublishedAt,
+      eventDate: decoded.afterEventDate,
       contentId: decoded.afterContentId,
     };
   }
@@ -625,7 +684,7 @@ export async function getCategoryListing(
     records: await queryListingRecords(locale, tree, query),
     encodeCursor: (boundary) =>
       contentListingCursorCodec.encode(scope, {
-        afterPublishedAt: boundary.publishedAt,
+        afterEventDate: boundary.eventDate,
         afterContentId: boundary.contentId,
       }),
   });
