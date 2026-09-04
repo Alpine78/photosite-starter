@@ -359,8 +359,8 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   category listings, the story-root overview, article sibling navigation, and this same
   cursor, so a photographer publishing out of chronological order still presents in
   real-world order; an optional `endDate` auto-hides a page, read-time-gated, once it
-  passes ([ADR-0017](docs/adr/0017-authored-event-date-ordering-key.md), AB#150 — mock
-  path done, Sanity schema/adapter wiring pending)*
+  passes, for both the mock and Sanity paths
+  ([ADR-0017](docs/adr/0017-authored-event-date-ordering-key.md), AB#150)*
 - [ ] Locale-aware public routing — unprefixed Finnish default routes alongside English
   (`/en/…`), language switching, and `hreflang` metadata
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))

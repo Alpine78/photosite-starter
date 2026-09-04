@@ -157,8 +157,23 @@ export const articleType: SchemaTypeDefinition = {
       name: "publishedAt",
       title: "Published",
       type: "datetime",
-      description: "Primary key of the listing order (ADR-0003 decision 8).",
+      description:
+        "When this page went live here. Technical bookkeeping only (AB#150, ADR-0017) — it no longer orders listings or renders anywhere; set Event date below if the page should be ordered and dated by something else.",
       validation: (rule) => rule.required(),
+    },
+    {
+      name: "eventDate",
+      title: "Event date",
+      type: "datetime",
+      description:
+        "Optional. When the real-world event or session this page documents actually happened, if that differs from when it was published here — for example, publishing an earlier trip's gallery after a later one is already live. Left empty, the page is ordered and dated by Published above, exactly as before (AB#150, ADR-0017).",
+    },
+    {
+      name: "endDate",
+      title: "Scheduled end date",
+      type: "datetime",
+      description:
+        "Optional. Once this time passes, the page is automatically treated as unpublished everywhere — removed from listings and the sitemap, and its own address answers not found — without unpublishing it by hand. Leave empty for a page with no scheduled end (AB#150, ADR-0017).",
     },
     {
       name: "cover",
