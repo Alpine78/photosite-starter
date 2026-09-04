@@ -206,7 +206,13 @@ photographic or media treatments, not brand decisions a palette should reach:
 
 - **The home hero scrim** — the `from-black/80 via-black/40 to-transparent`
   gradient and its overlaid white title, tagline, and CTA. It has to stay
-  legible over *any* photograph regardless of the site palette.
+  legible over *any* photograph regardless of the site palette. The gradient
+  utility itself is unchanged by AB#148/ADR-0016: what changed is the size and
+  anchor of the box it paints into — a viewport-clamped band anchored to the
+  top of the hero (`min(image height, 100dvh - HERO_CHROME_RESERVE_PX)`)
+  rather than a box always as tall as the (uncapped) photograph — so the
+  darkest stop still sits directly behind the text regardless of how tall the
+  photograph itself renders.
 - **The YouTube embed backdrop** — the `bg-black` behind a loaded player, like a
   video letterbox.
 - **The PhotoSwipe lightbox** (`src/components/gallery-lightbox.css`) — an
@@ -233,5 +239,9 @@ photographic or media treatments, not brand decisions a palette should reach:
 - **Fidelity** (AC2). Dividers and resting control borders keep their existing
   dominant values; the few one-off weights fold into the nearest role and never
   get fainter (hover borders unify at `/0.4`). `text-foreground/65` folded into
-  `text-subtle` (`/60`), a 5% step. The hero, the YouTube backdrop, and the
-  lightbox are byte-for-byte unchanged.
+  `text-subtle` (`/60`), a 5% step. The YouTube backdrop and the lightbox are
+  byte-for-byte unchanged since AB#36. The hero's scrim *colour values* are
+  unchanged too, but its surrounding markup is not — AB#148/ADR-0016 resized
+  and re-anchored the box the gradient paints into (a fold-safety fix, outside
+  AB#36's own scope), so "byte-for-byte" no longer describes the hero as a
+  whole, only its colours.

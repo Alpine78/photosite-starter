@@ -428,6 +428,37 @@ plain image. The article **cover** is deliberately still a static image: AB#149 
 into a full-bleed overlaid hero, and that decision is sequenced first.
 A three-level nested table of contents (AB#21) and an inline mini-gallery body-block type
 (AB#24) remain later, unimplemented extensions of this same boundary.
+The home hero's overlaid site name, tagline, and call to action are now fold-safe
+(AB#148, [ADR-0016](docs/adr/0016-hero-fold-safe-overlay.md)): the photograph itself
+still renders full native size, uncapped and never cropped, exactly as the hero
+convention already required, but the overlay is no longer anchored to the image's own
+bottom edge — a mechanism that pushed it further off-screen as the window widened,
+independent of the window's height, since a wider full-native-width image is also a
+*taller* one. The overlay band is instead anchored to the top of the hero and clamped to
+`min(the image's own rendered height, 100dvh - HERO_CHROME_RESERVE_PX)`, a pure CSS
+`min()` expression computed server-side from the media's real intrinsic dimensions, with
+no client-side measurement and no JavaScript dependency for the guarantee to hold; the
+text stack stays bottom-aligned within that band via flex, and the reserve constant
+(`image-delivery.ts`, 96px) is a deliberately generous upper bound on the header's real
+rendered height (~61px today) rather than a pin on it, chosen over both a client-measured
+header height (would make fold-safety JavaScript-dependent) and giving the shared header
+component a fixed height (a larger change than a hero-only story asked for). A wireframe
+pass that instead capped the *image's* own height (72dvh, contained) was drawn and
+rejected first: it kept the overlay on screen too, but left visible page-surface margins
+beside the photograph on desktop, which the site owner explicitly rejected in favour of
+true full-bleed — so the photograph is genuinely edge to edge at every desktop target
+size, and instead runs some way past the fold (200–305px, measured, at the four AC1
+desktop sizes with the current demo asset), reached by scrolling rather than visible on
+load. `e2e/home-hero-fold-safety.spec.ts` proves this against a real production build at
+every AC1 target viewport plus a common mobile size, asserting laid-out bounding boxes
+rather than DOM presence — the regression it exists to catch is "in the DOM but not on
+screen" — and separately proves the band is sized with `dvh`, never a bare `vh`. What it
+cannot prove, because a headless browser has no collapsing toolbar to begin with, is the
+live transition as a real mobile browser's chrome collapses on scroll; that gap is
+recorded in the ADR rather than assumed closed, the same shape as ADR-0001's own
+outstanding pinch/pan check. This is one shared mechanism, not a hero-specific one:
+AB#149 (the content-page hero for the article and gallery variants) reuses it unchanged
+rather than inventing a second solution, per that story's own acceptance criteria.
 The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it

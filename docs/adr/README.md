@@ -56,6 +56,7 @@ Two conventions on top of the template:
 | [0013](0013-category-listing-continuation-cursor.md) | AB#140 | Category-listing continuation cursor contract (keyset over `(publishedAt, contentId)`, shared signing secret, self-canonical indexable pages) | Accepted |
 | [0014](0014-private-gallery-security-delivery-retention-boundary.md) | AB#122 | Private client gallery security, delivery, proof selection, and retention boundary (fragment-capability access + server session, structural public/private isolation, S3-compatible object store + PostgreSQL-family private store, worker-authoritative six-month retention) | Accepted |
 | [0015](0015-administrator-authentication-boundary.md) | AB#29 / AB#145 | Administrator authentication boundary for private client galleries (own reserved namespace, `__Host-` session sharing nothing with the customer path, persisted login rate limit, generated single-operator secret verified with scrypt; ADR-0014 §4's open mechanism) | Accepted |
+| [0016](0016-hero-fold-safe-overlay.md) | AB#148 | Fold-safe hero overlay: full-bleed native image, viewport-clamped band anchored to the top of the hero rather than the image's bottom edge (`min(image height, 100dvh - HERO_CHROME_RESERVE_PX)`); shared mechanism AB#149 (content-page hero) will reuse | Accepted |
 
 Expected further entries:
 

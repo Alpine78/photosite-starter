@@ -47,3 +47,5 @@ next-env.d.ts
 
 # AB#65 benchmark run artifacts (distilled numbers live in docs/keyword-query-benchmark.md)
 keyword-benchmark-results-*.json
+
+temp
