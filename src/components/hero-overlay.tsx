@@ -13,17 +13,24 @@ export type HeroOverlayMeta = {
   readonly dateTime: string;
   /** Already formatted in the page's locale (`formatDate`). */
   readonly label: string;
+  /**
+   * A fully translated, pre-composed byline line (AB#151), e.g. "By Jane
+   * Example" — rendered as plain text above the date, outside the `<time>`
+   * element, so the element's own text stays exactly the date it names.
+   * Article-only: the gallery and home heroes never set this.
+   */
+  readonly byline?: string;
 };
 
 type HeroOverlayProps = {
   media: ImageMedia;
   title: string;
   /**
-   * Rendered above the title inside the overlay band: currently the page's
-   * effective event date (AB#150, ADR-0017) — the in-flow `<time>` treatment
-   * both content-page variants used to render in their own header, now moved
-   * onto the hero. AB#151 (author byline) is expected to extend this same
-   * meta line rather than add a second one.
+   * Rendered above the title inside the overlay band: the page's effective
+   * event date (AB#150, ADR-0017) — the in-flow `<time>` treatment both
+   * content-page variants used to render in their own header, now moved onto
+   * the hero — optionally preceded by a byline (AB#151, article-only). One
+   * decided meta line, not two independently-shipped additions.
    */
   meta?: HeroOverlayMeta;
   /** Rendered under the title inside the overlay band — a tagline (home) or a gallery's lead description (AB#149). Article heroes pass none, per that variant's own acceptance criteria. */
@@ -96,12 +103,12 @@ export function HeroOverlay({
       >
         <div className="mx-auto max-w-6xl">
           {meta && (
-            <time
-              dateTime={meta.dateTime}
-              className="block text-sm text-white/80 drop-shadow-sm"
-            >
-              {meta.label}
-            </time>
+            <div className="text-sm text-white/80 drop-shadow-sm">
+              {meta.byline && <p>{meta.byline}</p>}
+              <time dateTime={meta.dateTime} className="block">
+                {meta.label}
+              </time>
+            </div>
           )}
           <h1 className={titleClassName}>{title}</h1>
           {description && (

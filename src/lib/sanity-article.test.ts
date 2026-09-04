@@ -346,6 +346,25 @@ describe("projecting the full page", () => {
     expect(error.rejection).toBe("incomplete-document");
     expect(error.contentId).toBe("content-reading-coastal-light");
   });
+
+  it("carries the raw author when authored (AB#151)", () => {
+    expect(
+      projectArticleContentPage({ ...document, author: "Alex Rivers" }, languages)
+        .author,
+    ).toBe("Alex Rivers");
+  });
+
+  it("omits author when none is authored — the route resolves the site-wide fallback, not this projection", () => {
+    expect(projectArticleContentPage(document, languages)).not.toHaveProperty(
+      "author",
+    );
+  });
+
+  it("treats a blank author as unauthored", () => {
+    expect(
+      projectArticleContentPage({ ...document, author: "   " }, languages),
+    ).not.toHaveProperty("author");
+  });
 });
 
 describe("reading placements", () => {

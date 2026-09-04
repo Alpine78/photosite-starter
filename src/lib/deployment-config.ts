@@ -312,6 +312,19 @@ export type BuiltInLabels = {
     /** Shown when `/api/enquiry` answers `404 item-unavailable`. */
     readonly unavailable: string;
   };
+  /**
+   * The article content-page variant only (AB#151) — a curated gallery has no
+   * per-page byline field.
+   */
+  readonly article: {
+    /**
+     * The hero (and, on a page with no cover, the constrained header) meta
+     * line naming who wrote the page. `{author}` is replaced with the
+     * effective author — the page's own, or the site's photographer name
+     * when none is authored — never left blank.
+     */
+    readonly byline: string;
+  };
 };
 
 export type DeploymentConfig = {
@@ -513,6 +526,9 @@ const englishLabels = {
       "A reference to the photograph you are asking about is sent with your message.",
     unavailable: "This photograph is not available for enquiries.",
   },
+  article: {
+    byline: "By {author}",
+  },
 } as const satisfies BuiltInLabels;
 
 const finnishLabels = {
@@ -664,6 +680,9 @@ const finnishLabels = {
     itemContextNotice:
       "Viestisi mukana lähetetään viittaus valokuvaan, josta kysyt.",
     unavailable: "Tästä valokuvasta ei voi tehdä tiedustelua.",
+  },
+  article: {
+    byline: "Kirjoittanut {author}",
   },
 } as const satisfies BuiltInLabels;
 
