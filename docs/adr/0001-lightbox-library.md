@@ -299,3 +299,31 @@ and AB#78 stays open until it is:
   real finger: a two-finger pinch to a chosen magnification, and a dragged pan, on physical
   glass. Before launch, perform that check on one real device and record device,
   OS/browser, the tap / pinch / pan / close behaviour observed, and the result.
+
+## What implementation found (AB#147 — content-body images)
+
+This ADR framed the wrapper as the gallery grid's single contact surface with the
+library. AB#147 gave a photograph placed in an article or gallery **body** the same
+fullscreen viewer, and the wrapper needed no change to do it: `GalleryLightbox`'s props
+were already result-shaped rather than gallery-shaped — `slides` plus label strings, with
+`enquiryBasePath` and `continuation` both optional — so a body sequence mounts it with
+neither. The zoom cap (ADR-0005), the preload window (ADR-0010), the caption/credit
+region and its `aria-describedby` association, the focus trap, and focus return all come
+along unchanged.
+
+- **A second mount, not a second contact surface.** `ContentBody` now renders its own
+  `GalleryLightbox` instance for the body's images. On a gallery variant page that is a
+  second, entirely separate instance beside the grid's — different `useId()` caption id,
+  its own slide list, its own PhotoSwipe object. Nothing outside `gallery-lightbox.tsx`
+  imports the library; replacing it is still a one-file change.
+- **No JavaScript.** `GalleryLightboxTrigger` is a server-rendered `<button>`, and the
+  grid accepts that a scriptless visitor gets a control that does nothing. A body figure
+  does not: `ContentBodyFigure` server-renders the plain image and swaps in the trigger
+  only after hydration (`useSyncExternalStore`, the pattern `SubmissionForm` already
+  uses), so the scriptless view is exactly the static image it was before.
+- **Per-occurrence slide identity** is derived in `src/lib/content-body-media.ts` — the
+  block's store key when a CMS supplies one, its image ordinal otherwise — so a
+  photograph placed twice in one body returns focus to the right figure.
+- **Video** body blocks still render nothing and are filtered out before slides are
+  built, so `buildLightboxSlides`' "reject media the viewer cannot present" throw is
+  never reached from this path.

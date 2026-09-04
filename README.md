@@ -335,7 +335,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   (ADR-0005 awaits owner approval)
 - [x] Blog / article content type (supports long story articles) — *articles are the
   `article` variant of the shared content page and live in the content tree; the
-  pre-launch `/blog` scaffold routes are gone*
+  pre-launch `/blog` scaffold routes are gone. A photograph placed in an article or
+  gallery body opens the fullscreen lightbox in its own sequence (AB#147), separate
+  from a gallery's curated grid; the article cover stays a static image pending AB#149*
 - [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
   — *category domain model, canonical placement contract, the server-rendered category
   branch routes with breadcrumbs, a bounded recent-content overview on the story root,

@@ -413,6 +413,19 @@ through the same `MediaFigure`/`ContentBody` boundary as an article's, so it car
 same public-rendition, native-dimension, no-crop, lazy-loading guarantees and stays
 separate from the gallery's own curated result set, grid, lightbox, sections, and
 pagination (decision 2) — a body photograph is a content placement, never a gallery item.
+An **image** body placement now opens the fullscreen lightbox (AB#147, ADR-0003
+2026-09-04 amendment): the same ADR-0001 PhotoSwipe wrapper, reused with no new
+dependency, mounted as a second, entirely separate `GalleryLightbox` instance whose
+sequence is the body's own image blocks in authored source order and nothing else — so
+on a gallery variant page the body viewer and the curated grid viewer share no slide
+list, and a video body block still renders nothing rather than a broken slide. Slide
+identity is per occurrence (`src/lib/content-body-media.ts`: a CMS block's stable key, or
+its image ordinal), so a photograph placed twice returns focus to the figure that opened
+it. The body viewer carries no `enquiryBasePath` — a body photograph is not a curated
+placement, so it shows no enquiry control — and the in-flow figure is enhanced into a
+trigger only after hydration (`ContentBodyFigure`), so a scriptless visitor keeps the
+plain image. The article **cover** is deliberately still a static image: AB#149 turns it
+into a full-bleed overlaid hero, and that decision is sequenced first.
 A three-level nested table of contents (AB#21) and an inline mini-gallery body-block type
 (AB#24) remain later, unimplemented extensions of this same boundary.
 The pre-tree `/portfolio` route was removed rather than
