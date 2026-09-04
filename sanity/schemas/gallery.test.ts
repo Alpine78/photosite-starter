@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { CATEGORY_TYPE_NAME } from "./category";
-import { defineSchemaTypes } from "./index";
 import {
   galleryType,
+  GALLERY_PLACEMENT_DOCUMENT_TYPE,
   GALLERY_TYPE_NAME,
   MAX_GALLERY_SECTIONS,
   MAX_ORDERING_SEED_LENGTH,
@@ -11,6 +11,8 @@ import {
   MAX_SECTION_LABEL_LENGTH,
   MAX_SECTION_SLUG_LENGTH,
 } from "./gallery";
+import { GALLERY_PLACEMENT_TYPE_NAME } from "./gallery-placement";
+import { defineSchemaTypes } from "./index";
 import {
   GALLERY_SECTION_INTRO_LIST_TYPE_NAME,
   GALLERY_SECTION_INTRO_PARAGRAPH_TYPE_NAME,
@@ -128,6 +130,12 @@ describe("the gallery document", () => {
 
   it("keeps a canonical media reference for its cover", () => {
     expect(fieldOf("cover").to).toEqual([{ type: MEDIA_TYPE_NAME }]);
+  });
+
+  it("restates gallery-placement.ts's own document type name", () => {
+    // Duplicated rather than imported, to avoid the two files importing each
+    // other — see GALLERY_PLACEMENT_DOCUMENT_TYPE's own doc comment.
+    expect(GALLERY_PLACEMENT_DOCUMENT_TYPE).toBe(GALLERY_PLACEMENT_TYPE_NAME);
   });
 
   it("requires a canonical category, matching article.ts", () => {
@@ -278,5 +286,49 @@ describe("sections", () => {
       { type: GALLERY_SECTION_INTRO_PARAGRAPH_TYPE_NAME },
       { type: GALLERY_SECTION_INTRO_LIST_TYPE_NAME },
     ]);
+  });
+});
+
+/**
+ * AB#149 AC4: an explicit cover that also happens to be the gallery's own
+ * first item in manual order is allowed, not refused — the same
+ * allowed-but-flagged shape ADR-0002 §2 already gives a repeated placement.
+ */
+describe("cover duplicating the grid's opening item (AB#149)", () => {
+  const galleryDocument = { _id: "gallery-doc-1" };
+
+  it("warns when the cover matches the gallery's own first item in manual order", async () => {
+    const { runWarnings } = inspect(fieldOf("cover").validation, {
+      answer: { mediaRef: "media-a" },
+    });
+    const result = await runWarnings({ _ref: "media-a" }, galleryDocument);
+    expect(result[0]).toEqual(expect.any(String));
+  });
+
+  it("does not warn when the cover differs from the gallery's first item", async () => {
+    const { runWarnings } = inspect(fieldOf("cover").validation, {
+      answer: { mediaRef: "media-a" },
+    });
+    expect(await runWarnings({ _ref: "media-b" }, galleryDocument)).toEqual([true]);
+  });
+
+  it("does not warn when no cover is authored", async () => {
+    const { runWarnings } = inspect(fieldOf("cover").validation, {
+      answer: { mediaRef: "media-a" },
+    });
+    expect(await runWarnings(undefined, galleryDocument)).toEqual([true]);
+  });
+
+  it("does not warn when the gallery has no visible placements yet", async () => {
+    const { runWarnings } = inspect(fieldOf("cover").validation, { answer: null });
+    expect(await runWarnings({ _ref: "media-a" }, galleryDocument)).toEqual([true]);
+  });
+
+  it("compares published identities, not raw draft-prefixed refs", async () => {
+    const { runWarnings } = inspect(fieldOf("cover").validation, {
+      answer: { mediaRef: "drafts.media-a" },
+    });
+    const result = await runWarnings({ _ref: "media-a" }, galleryDocument);
+    expect(result[0]).toEqual(expect.any(String));
   });
 });

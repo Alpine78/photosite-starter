@@ -337,7 +337,10 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   `article` variant of the shared content page and live in the content tree; the
   pre-launch `/blog` scaffold routes are gone. A photograph placed in an article or
   gallery body opens the fullscreen lightbox in its own sequence (AB#147), separate
-  from a gallery's curated grid; the article cover stays a static image pending AB#149*
+  from a gallery's curated grid. An article's or curated gallery's explicit cover now
+  renders as a full-bleed, fold-safe hero with the title (and, for a gallery, the lead
+  description) overlaid (AB#149) — no authored cover, no hero, and no page repeats a
+  gallery's own opening photograph by default*
 - [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
   — *category domain model, canonical placement contract, the server-rendered category
   branch routes with breadcrumbs, a bounded recent-content overview on the story root,

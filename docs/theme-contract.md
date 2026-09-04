@@ -204,15 +204,22 @@ blocks to that test's palette list, and a preset that misses AA fails the build.
 Three surfaces keep raw `black`/`white` values on purpose. They are deliberate
 photographic or media treatments, not brand decisions a palette should reach:
 
-- **The home hero scrim** — the `from-black/80 via-black/40 to-transparent`
-  gradient and its overlaid white title, tagline, and CTA. It has to stay
-  legible over *any* photograph regardless of the site palette. The gradient
-  utility itself is unchanged by AB#148/ADR-0016: what changed is the size and
-  anchor of the box it paints into — a viewport-clamped band anchored to the
-  top of the hero (`min(image height, 100dvh - HERO_CHROME_RESERVE_PX)`)
-  rather than a box always as tall as the (uncapped) photograph — so the
-  darkest stop still sits directly behind the text regardless of how tall the
-  photograph itself renders.
+- **The hero scrim** — the `from-black/80 via-black/40 to-transparent`
+  gradient and its overlaid white title (plus, where authored, a tagline or
+  lead description and a CTA). It has to stay legible over *any* photograph
+  regardless of the site palette. Originally the home hero's alone; AB#149
+  extended it to the article and gallery content-page heroes (a curated
+  gallery's own lead description renders on it too, per that story's AC2),
+  through one shared component (`src/components/hero-overlay.tsx`) rather than
+  a second colour surface — the same explicit-colour exception, applied at a
+  second and third call site, not a new one. The gradient utility itself is
+  unchanged by AB#148/ADR-0016: what changed is the size and anchor of the box
+  it paints into — a viewport-clamped band anchored to the top of the hero
+  (`min(image height, 100dvh - HERO_CHROME_RESERVE_PX)`) rather than a box
+  always as tall as the (uncapped) photograph — so the darkest stop still sits
+  directly behind the text regardless of how tall the photograph itself
+  renders. A content page with no authored cover renders no hero and no scrim
+  at all (AB#149 AC10), the same as it always could.
 - **The YouTube embed backdrop** — the `bg-black` behind a loaded player, like a
   video letterbox.
 - **The PhotoSwipe lightbox** (`src/components/gallery-lightbox.css`) — an

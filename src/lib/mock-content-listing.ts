@@ -91,11 +91,23 @@ const englishRecords: readonly ContentListingRecord[] = [
     publishedAt: "2024-01-05",
   },
   {
+    // The cover doubles as the AB#149 fixture proving a continuation slice
+    // never shows a hero, whatever the gallery's own cover: this is the one
+    // gallery both long enough to continue and carrying an authored cover
+    // (`content-large-archive` is deliberately left untouched — it is a
+    // load-bearing fixture for AB#79's own bounded-preload measurement, and
+    // an added full-bleed hero image was found to perturb its network-count
+    // assertion on desktop-chromium). Deliberately not the gallery's own
+    // first pinned lead (`mistyBirch` vs. `coastalLandscape`), so the first
+    // page also exercises the clean, non-duplicate hero case —
+    // `content-coastal-mornings` already covers the duplicate-but-explicit
+    // one.
     contentId: "content-shuffled-showcase",
     title: "Shuffled showcase",
     summary:
       "A gallery in seeded-random order, long enough to continue past its first page. Placeholder gallery content.",
     publishedAt: "2024-01-04",
+    cover: englishImages.mistyBirch,
   },
   {
     contentId: "content-choosing-a-telephoto-lens",
@@ -182,6 +194,7 @@ const finnishRecords: readonly ContentListingRecord[] = [
     summary:
       "Galleria satunnaistetussa järjestyksessä, joka jatkuu ensimmäisen sivunsa yli. Paikkamerkkisisältöä.",
     publishedAt: "2024-01-04",
+    cover: finnishImages.mistyBirch,
   },
   {
     contentId: "content-understanding-exposure-triangle",
@@ -236,6 +249,27 @@ function index(
 ): ReadonlyMap<string, ContentListingRecord> {
   return new Map(records.map((record) => [record.contentId, record]));
 }
+
+/**
+ * The same records, indexed *before* `withGalleryCovers` fills in a
+ * gallery's fallback cover.
+ *
+ * `mockContentListingRecords` below is correct for a card, and wrong for a
+ * page's own hero (AB#149, ADR-0003's 2026-09-04 amendment): the fallback is
+ * deliberately the gallery's own first grid item, so composing a detail
+ * page's `cover` field from the post-fallback record would open every
+ * gallery with no authored cover with a hero identical to the grid's first
+ * item — exactly the duplication AB#149 exists to prevent by default.
+ * `mock-content-pages.ts#compose` reads this map instead, mirroring
+ * `sanity-gallery.ts#projectGalleryContentPage`'s own explicit-only
+ * projection, which never had this fallback to begin with.
+ */
+export const mockAuthoredContentRecords: Readonly<
+  Record<string, ReadonlyMap<string, ContentListingRecord>>
+> = {
+  en: index(englishRecords),
+  fi: index(finnishRecords),
+};
 
 /** Authored listing records per language subtag. */
 export const mockContentListingRecords: Readonly<

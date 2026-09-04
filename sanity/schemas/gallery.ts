@@ -64,8 +64,10 @@ import { MEDIA_TYPE_NAME } from "./media";
 import type {
   SchemaFieldDefinition,
   SchemaTypeDefinition,
+  SchemaValidationContext,
   SchemaValidationResult,
 } from "./schema-types";
+import { publishedIdOf, validationClientOf } from "./validation";
 
 export const GALLERY_TYPE_NAME = "gallery";
 
@@ -103,6 +105,76 @@ type OrderingRule = (typeof ORDERING_RULES)[number];
  * seed the pagination boundary later rejects.
  */
 export const MAX_ORDERING_SEED_LENGTH = 256 - "seeded-random-v1:".length;
+
+/**
+ * Restates `gallery-placement.ts`'s `GALLERY_PLACEMENT_TYPE_NAME`. Importing
+ * it directly would make this file and that one import each other — this
+ * file already exports `GALLERY_TYPE_NAME`, which `gallery-placement.ts`
+ * imports — so the string is duplicated here and pinned equal by a test
+ * instead, the same shape as `MAX_SECTION_ID_LENGTH` above.
+ */
+export const GALLERY_PLACEMENT_DOCUMENT_TYPE = "galleryPlacement";
+
+// ---------------------------------------------------------------------------
+// Cover duplicating the grid's own opening item: allowed, but flagged
+// (AB#149, AC4) — non-blocking, mirroring gallery-placement.ts's own
+// repeated-media warning (ADR-0002 §2).
+// ---------------------------------------------------------------------------
+
+type RawFirstPlacementQueryResult = {
+  readonly mediaRef?: unknown;
+} | null;
+
+/**
+ * Warns when the explicit cover being authored is also the gallery's first
+ * visible placement in manual order — the exact duplication AB#149 makes the
+ * hero's explicit-only cover exist to avoid *by default*, but which an
+ * author may deliberately choose (ADR-0002 §2's precedent: allowed, flagged).
+ *
+ * Deliberately approximate, because this is a non-blocking hint rather than
+ * the read-time source of truth `selectCuratedGalleryCover`/
+ * `gallery-pagination.ts` remain: it orders by the placement's own `order`
+ * field and a placement's `visible` flag only, the same as a `manual`
+ * gallery's public read — it does not replicate a `seeded-random` gallery's
+ * pinned-then-shuffled tiered order (ADR-0009 §3), and it does not
+ * dereference into the placement's media for `publiclyRenderable`/
+ * `privateOnly` the way the public read's AND-composition does (ADR-0002
+ * §3). A `seeded-random` gallery, or one whose nominal first placement is not
+ * actually publicly renderable, may therefore go unflagged even when its
+ * true opening item does match — the cost of one Content Lake round trip
+ * rather than replicating the whole public ordering pipeline in a Studio
+ * validator for an advisory-only check.
+ */
+async function warnsAboutDuplicatingGridOpening(
+  value: { readonly _ref?: unknown } | undefined,
+  context: SchemaValidationContext,
+): Promise<SchemaValidationResult> {
+  const document = context.document;
+  if (document === undefined) return true;
+
+  const coverRef = typeof value?._ref === "string" ? value._ref : undefined;
+  if (coverRef === undefined) return true;
+
+  const documentId = document._id;
+  if (typeof documentId !== "string") return true;
+
+  const galleryRef = publishedIdOf(documentId);
+  const result = await validationClientOf(context).fetch<RawFirstPlacementQueryResult>(
+    `*[
+      _type == $type &&
+      gallery._ref == $galleryRef &&
+      visible != false
+    ] | order(order asc) [0]{ "mediaRef": media._ref }`,
+    { type: GALLERY_PLACEMENT_DOCUMENT_TYPE, galleryRef },
+  );
+
+  const firstMediaRef = typeof result?.mediaRef === "string" ? result.mediaRef : undefined;
+  if (firstMediaRef === undefined) return true;
+
+  return publishedIdOf(firstMediaRef) === publishedIdOf(coverRef)
+    ? "This cover is also the gallery's own first item in manual order. Allowed (ADR-0002 §2's precedent) — an authored hero may repeat the grid's opening photograph — but confirm it is intentional; this check approximates manual order and does not account for a seeded-random gallery's shuffled tier."
+    : true;
+}
 
 function nonBlank(value: string | undefined): SchemaValidationResult {
   return value !== undefined && value.trim().length > 0
@@ -285,7 +357,8 @@ export const galleryType: SchemaTypeDefinition = {
       type: "reference",
       to: [{ type: MEDIA_TYPE_NAME }],
       description:
-        "Optional explicit listing cover. Left empty, the public read falls back to the first visible placement (AB#114) — that fallback is not resolved here.",
+        "Optional. Explicit-only — never resolved here, and never falls back to a placement. Feeds two surfaces differently: the listing card falls back to the gallery's first visible item when this is empty (AB#114, resolved at read time); the page's own full-bleed hero (AB#149) has no such fallback and simply renders no hero when this is empty.",
+      validation: (rule) => rule.warning(warnsAboutDuplicatingGridOpening),
     },
     {
       name: "tags",

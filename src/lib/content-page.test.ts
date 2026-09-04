@@ -7,7 +7,10 @@ import {
   type ContentPage,
 } from "@/lib/content-page";
 import { buildContentTree, type ContentTree } from "@/lib/content-tree";
-import { mockContentListingRecords } from "@/lib/mock-content-listing";
+import {
+  mockAuthoredContentRecords,
+  mockContentListingRecords,
+} from "@/lib/mock-content-listing";
 import { mockContentPages } from "@/lib/mock-content-pages";
 import { mockContentTreeInputs } from "@/lib/mock-content-tree";
 
@@ -97,6 +100,7 @@ describe.each(languages)("mock content pages (%s)", (language) => {
   const tree = treeOf(language);
   const pages = mockContentPages[language];
   const records = mockContentListingRecords[language];
+  const authoredRecords = mockAuthoredContentRecords[language];
 
   const publishedPlacements = [...tree.placements.values()].filter(
     (placement) =>
@@ -126,7 +130,7 @@ describe.each(languages)("mock content pages (%s)", (language) => {
     }
   });
 
-  it("shows a card and its detail page the same title, date, and cover", () => {
+  it("shows a card and its detail page the same title, date, and lead", () => {
     // Composed from one record rather than restated, which is what a CMS
     // adapter's two projections of one document must also guarantee.
     for (const [contentId, page] of pages) {
@@ -135,7 +139,20 @@ describe.each(languages)("mock content pages (%s)", (language) => {
       expect(page.title).toBe(record?.title);
       expect(page.summary).toBe(record?.summary);
       expect(page.publishedAt).toBe(record?.publishedAt);
-      expect(page.cover).toBe(record?.cover);
+    }
+  });
+
+  it("gives a page's own hero the explicit cover only, never the listing card's fallback (AB#149)", () => {
+    // A card is allowed to fall back to a gallery's own first item
+    // (`withGalleryCovers`); a page's hero must not repeat that duplication
+    // by default (ADR-0003's 2026-09-04 amendment), so it reads the
+    // pre-fallback record instead. Every content id's explicit cover — set
+    // or absent — must therefore agree exactly with `page.cover`, and an
+    // article (which has no fallback concept) is unaffected either way.
+    for (const [contentId, page] of pages) {
+      const authored = authoredRecords?.get(contentId);
+      expect(authored).toBeDefined();
+      expect(page.cover).toBe(authored?.cover);
     }
   });
 

@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -218,6 +218,62 @@ Details recorded so a later reader does not treat them as gaps:
 **Sections affected:** decision 2's wording is clarified, not reversed. Decisions 3, 5,
 6, 7, 8, and 9 are unaffected — no new route, no new placement, no change to
 slug/redirect rules or to the curated result contract.
+
+### 2026-09-04 — A gallery may carry an authored full-bleed hero (AB#149)
+
+Decision 3 gives both content variants a `cover?: ImageMedia` field and, for the
+`gallery` variant specifically, states that it is deliberately **not** repeated at the
+head of the page: "A gallery's cover is what a listing card shows, and the deterministic
+fallback makes it the gallery's own first item — printing it above the grid would open
+every gallery with the same photograph twice." That reasoning was sound as written, but
+it was reasoning about the **fallback's** own choice, not about an authored one — the
+distinction this amendment makes precise.
+
+AB#148 (ADR-0016) built the mechanism this story reuses unchanged: a full-bleed, uncapped,
+never-cropped image with the overlaid title (and, for a gallery, its lead description)
+clamped into a viewport-safe band anchored to the top of the hero. AB#149 turns both
+content variants' detail routes into a call site for it, conditional on `page.cover`.
+
+**The decision that actually changes:** `page.cover` is now, for **both** variants, an
+**explicit-only** field — never resolved from a fallback. This was already true for the
+article variant (it has no fallback concept), and is now made the gallery variant's rule
+too: `selectCuratedGalleryCover`'s deterministic first-item fallback remains exactly
+where it always was — the **listing card's** own read path (AB#114) — and never reaches
+the page-level `GalleryContentPage.cover` a detail route renders. A gallery with no
+authored cover therefore has no page-level cover at all, and so renders no hero: the
+duplication decision 3's original text warned about was specifically the fallback
+repeating the grid's own first item, and dropping the fallback from this one read path is
+what removes it, without touching the card's separate, still-fallback-bearing behaviour
+at all. The Sanity schema and adapter (`sanity/schemas/gallery.ts`,
+`sanity-gallery.ts#projectGalleryContentPage`) already implemented this explicit-only
+projection from AB#113/AB#114 onward; the mock fixture layer had a latent gap — its
+detail-page composition (`mock-content-pages.ts#compose`) was, until this story,
+building `ContentPage.cover` from the same post-fallback record the listing card reads,
+which would have opened a gallery's hero with its own first grid item by default the
+moment any component started reading the field. Nothing rendered `page.cover` for a
+gallery before this story, so the gap was real but dormant; it is closed as part of this
+amendment, not left for a future story to discover once the field is finally read.
+
+**What is deliberately still allowed:** an author who explicitly picks a cover that also
+happens to be the gallery's first grid item has made that adjacency their own visible
+choice. This is not refused — decision 3's own no-repeat concern is about a default
+nobody chose, not about a photographer's editorial decision — and a non-blocking Studio
+warning on the `cover` field surfaces it, the same allowed-but-flagged shape ADR-0002 §2
+already gives a photograph repeated within one gallery.
+
+**What is unchanged:** the hero belongs to the first, uncursored slice only — a
+continuation page (decision 3's own "deliberately thinner" rule) never shows one, whether
+or not the gallery has an authored cover. The curated result set, its grid, lightbox
+sequence, section filter, cursor scope, and `hasNextPage` are all untouched: the hero is
+presentation over an existing field, not a change to the gallery's bounded query
+contract. An article's cover was always explicit-only and gains no new fallback
+semantics — only a new full-bleed presentation when one is authored.
+
+**Sections affected:** decision 3's gallery-cover paragraph is superseded by the text
+above; its lead/body/page-jump-navigation ordering is otherwise unchanged, and the hero
+simply precedes that ordering when authored. Decisions 2, 5, 6, 7, 8, and 9 are
+unaffected — no new route, no new placement, and no change to the curated result, cursor,
+or redirect contracts.
 
 ## Context
 
