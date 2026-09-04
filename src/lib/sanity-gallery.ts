@@ -34,7 +34,11 @@ import {
   type ContentListingRecord,
   type RoutedContentListingQuery,
 } from "@/lib/content-listing";
-import type { GalleryContentPage } from "@/lib/content-page";
+import {
+  effectiveEventDate,
+  isContentEnded,
+  type GalleryContentPage,
+} from "@/lib/content-page";
 import type { ContentPlacementInput } from "@/lib/content-tree";
 import {
   MAX_GALLERY_ORDERING_SEED_LENGTH,
@@ -97,6 +101,16 @@ const CONTENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const GALLERY_FILTER = `_type == "${GALLERY_DOCUMENT_TYPE}" && language == $language`;
 
+/**
+ * Excludes a gallery whose scheduled `endDate` has passed (AB#150, ADR-0017
+ * decision 5) — appended to every read except the placement read below, which
+ * must still see an ended document in order to report it as unpublished
+ * rather than simply missing. `$now` is bound once per read (the caller's
+ * request time), so every comparison within one read is evaluated against the
+ * same instant. Mirrors `sanity-article.ts#NOT_ENDED_FILTER` exactly.
+ */
+const NOT_ENDED_FILTER = `(!defined(endDate) || endDate > $now)`;
+
 /** How many items one bounded page of a Sanity-backed gallery holds. */
 export const GALLERY_PAGE_SIZE = 24;
 
@@ -110,6 +124,7 @@ export const GALLERY_PAGE_SIZE = 24;
 export const GALLERY_PLACEMENT_PROJECTION = `{
   contentId,
   slug,
+  endDate,
   "canonicalCategoryRef": canonicalCategory._ref,
   "secondaryCategoryRefs": secondaryCategories[]._ref
 }`;
@@ -119,6 +134,8 @@ export const GALLERY_DETAIL_PROJECTION = `{
   title,
   summary,
   publishedAt,
+  eventDate,
+  endDate,
   "cover": cover->${PUBLIC_MEDIA_PROJECTION},
   tags,
   body[]${CONTENT_BLOCK_PROJECTION}
@@ -166,6 +183,7 @@ export type RawGalleryPlacementDocument = {
   readonly slug?: unknown;
   readonly canonicalCategoryRef?: unknown;
   readonly secondaryCategoryRefs?: unknown;
+  readonly endDate?: unknown;
 };
 
 export type RawGalleryDetailDocument = {
@@ -173,6 +191,8 @@ export type RawGalleryDetailDocument = {
   readonly title?: unknown;
   readonly summary?: unknown;
   readonly publishedAt?: unknown;
+  readonly eventDate?: unknown;
+  readonly endDate?: unknown;
   readonly cover?: unknown;
   readonly tags?: unknown;
   readonly body?: unknown;
@@ -228,6 +248,24 @@ function readPublishedAt(value: unknown, contentId: string): string {
   return publishedAt;
 }
 
+/** Same optional-but-validated reading as `sanity-article.ts#readOptionalIsoDate`. */
+function readOptionalIsoDate(
+  value: unknown,
+  contentId: string,
+  field: "eventDate" | "endDate",
+): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  const parsed = readString(value);
+  if (parsed === undefined || !isValidIsoDate(parsed)) {
+    throw new SanityGalleryError(
+      "incomplete-document",
+      `the gallery's ${field} is set but is not a real ISO calendar date`,
+      contentId,
+    );
+  }
+  return parsed;
+}
+
 const UNRESOLVED_CATEGORY_PREFIX = "unresolved-ref:";
 
 function resolveCategoryId(
@@ -279,11 +317,14 @@ function readSecondaryCategoryReferences(
  * Projects one document into the placement `content-tree.ts` needs — page-
  * level metadata, unrelated to the gallery's own curated items. Pure and
  * exported so a fixture test can exercise it without a network, mirroring
- * `sanity-article.ts#projectArticlePlacementInput`.
+ * `sanity-article.ts#projectArticlePlacementInput` — including the `now`
+ * parameter that folds the `endDate` gate (AB#150, ADR-0017 decision 5) into
+ * this placement's effective `published`.
  */
 export function projectGalleryPlacementInput(
   document: RawGalleryPlacementDocument,
   categoryIdsByDocumentId: ReadonlyMap<string, string>,
+  now: Date = new Date(),
 ): ContentPlacementInput {
   const contentId = readContentId(document.contentId);
 
@@ -304,11 +345,13 @@ export function projectGalleryPlacementInput(
     resolveCategoryId(ref, categoryIdsByDocumentId),
   );
 
+  const endDate = readOptionalIsoDate(document.endDate, contentId, "endDate");
+
   return {
     contentId,
     variant: "gallery",
     slug,
-    published: true,
+    published: !isContentEnded(endDate, now),
     canonicalCategoryId,
     ...(secondaryCategoryIds.length > 0 ? { secondaryCategoryIds } : {}),
   };
@@ -385,8 +428,11 @@ export async function readPublicGalleryPlacements(
     tag: "gallery.placements",
   });
 
+  // One `now` for the whole batch (AB#150, ADR-0017 decision 5), so every
+  // gallery's `endDate` in this read is judged against the same instant.
+  const now = new Date();
   return readDocuments<RawGalleryPlacementDocument>(result).map((document) =>
-    projectGalleryPlacementInput(document, categoryIdsByDocumentId),
+    projectGalleryPlacementInput(document, categoryIdsByDocumentId, now),
   );
 }
 
@@ -401,22 +447,23 @@ export const GALLERY_LISTING_PROJECTION = `{
   title,
   summary,
   publishedAt,
+  eventDate,
   "cover": cover->${PUBLIC_MEDIA_PROJECTION}
 }`;
 
 /**
- * The GROQ order `content-listing.ts`'s `CONTENT_LISTING_ORDERING` names.
- * Orders by `publishedAt`, which is also the effective event date until the
- * schema carries `eventDate` (AB#150/ADR-0017 PR2 changes this to
- * `order(coalesce(eventDate, publishedAt) desc, contentId asc)`).
+ * The GROQ order `content-listing.ts`'s `CONTENT_LISTING_ORDERING` names: the
+ * effective event date (AB#150, ADR-0017), matching
+ * `sanity-article.ts#ARTICLE_LISTING_ORDER` exactly.
  */
-export const GALLERY_LISTING_ORDER = `order(publishedAt desc, contentId asc)`;
+export const GALLERY_LISTING_ORDER = `order(coalesce(eventDate, publishedAt) desc, contentId asc)`;
 
 export type RawGalleryListingDocument = {
   readonly contentId?: unknown;
   readonly title?: unknown;
   readonly summary?: unknown;
   readonly publishedAt?: unknown;
+  readonly eventDate?: unknown;
   readonly cover?: unknown;
 };
 
@@ -446,6 +493,7 @@ export function projectGalleryListingRecord(
   }
 
   const publishedAt = readPublishedAt(document.publishedAt, contentId);
+  const eventDate = readOptionalIsoDate(document.eventDate, contentId, "eventDate");
 
   const summary = readString(document.summary);
   const cover = isRecord(document.cover)
@@ -455,12 +503,10 @@ export function projectGalleryListingRecord(
   return {
     contentId,
     title,
-    // AB#150/ADR-0017: the effective event date (`eventDate ?? publishedAt`)
-    // is the record's ordering/display key. The schema does not carry
-    // `eventDate` yet (AB#150 PR2 adds it, the `coalesce()` GROQ, and the
-    // `endDate` gate), so the effective value is `publishedAt` until then —
-    // the same value an unauthored `eventDate` would resolve to.
-    eventDate: publishedAt,
+    // The record's ordering/display key is the effective event date (AB#150,
+    // ADR-0017): `eventDate ?? publishedAt`, the same fallback
+    // `content-page.ts#effectiveEventDate` expresses for every other consumer.
+    eventDate: effectiveEventDate({ publishedAt, eventDate }),
     ...(summary === undefined ? {} : { summary }),
     ...(cover === undefined ? {} : { cover }),
   };
@@ -539,12 +585,13 @@ export async function readPublicGalleryListingRecords(
   const languages = { language, fallbackLanguage: getFallbackLocale(), config };
 
   const chunks = chunkGalleryContentIds(query.contentIds, MAX_CONTENT_IDS_BYTES);
+  const now = new Date().toISOString();
 
   const chunkedRecords = await Promise.all(
     chunks.map(async (contentIds) => {
       const result = await client.query({
-        query: `*[${GALLERY_FILTER} && contentId in $contentIds] | ${GALLERY_LISTING_ORDER} [0...$limit]${GALLERY_LISTING_PROJECTION}`,
-        params: { language, contentIds, limit: query.limit },
+        query: `*[${GALLERY_FILTER} && contentId in $contentIds && ${NOT_ENDED_FILTER}] | ${GALLERY_LISTING_ORDER} [0...$limit]${GALLERY_LISTING_PROJECTION}`,
+        params: { language, contentIds, limit: query.limit, now },
         tag: "gallery.listing",
       });
 
@@ -588,18 +635,21 @@ export async function readPublicGalleryListingRecordsInCategories(
     categoryDocumentIds,
     MAX_CONTENT_IDS_BYTES,
   );
+  const now = new Date().toISOString();
 
   // See `sanity-article.ts#readPublicArticleListingRecordsInCategories`: a
   // category-listing continuation cursor (AB#140, ADR-0013) resumes strictly
   // after an `(eventDate, contentId)` boundary — the effective event date
-  // (AB#150, ADR-0017), which until the schema carries `eventDate` (PR2) is
-  // simply `publishedAt`, compared as the stored string exactly as
-  // `GALLERY_LISTING_ORDER` orders it. PR2 changes the GROQ field to
-  // `coalesce(eventDate, publishedAt)` on both sides of this filter.
+  // (AB#150, ADR-0017), compared as the `coalesce(eventDate, publishedAt)`
+  // string exactly as `GALLERY_LISTING_ORDER` orders it. `NOT_ENDED_FILTER` is
+  // required here, not merely defensive: this query is scoped by category
+  // reference rather than by an already-tree-gated contentId list, so an
+  // ended gallery's own reference to an in-scope category would otherwise
+  // still surface it — see the article adapter's identical note.
   const keysetFilter =
     query.after === undefined
       ? ""
-      : " && (publishedAt < $afterEventDate || (publishedAt == $afterEventDate && contentId > $afterContentId))";
+      : " && (coalesce(eventDate, publishedAt) < $afterEventDate || (coalesce(eventDate, publishedAt) == $afterEventDate && contentId > $afterContentId))";
   const keysetParams =
     query.after === undefined
       ? {}
@@ -611,8 +661,8 @@ export async function readPublicGalleryListingRecordsInCategories(
   const chunkedRecords = await Promise.all(
     chunks.map(async (categoryIds) => {
       const result = await client.query({
-        query: `*[${GALLERY_FILTER} && references($categoryIds)${keysetFilter}] | ${GALLERY_LISTING_ORDER} [0...$limit]${GALLERY_LISTING_PROJECTION}`,
-        params: { language, categoryIds, limit: query.limit, ...keysetParams },
+        query: `*[${GALLERY_FILTER} && references($categoryIds) && ${NOT_ENDED_FILTER}${keysetFilter}] | ${GALLERY_LISTING_ORDER} [0...$limit]${GALLERY_LISTING_PROJECTION}`,
+        params: { language, categoryIds, limit: query.limit, now, ...keysetParams },
         tag: "gallery.listing.by-category",
       });
 
@@ -669,6 +719,8 @@ export function projectGalleryContentPage(
   }
 
   const publishedAt = readPublishedAt(document.publishedAt, contentId);
+  const eventDate = readOptionalIsoDate(document.eventDate, contentId, "eventDate");
+  const endDate = readOptionalIsoDate(document.endDate, contentId, "endDate");
 
   const summary = readString(document.summary);
   const cover = isRecord(document.cover)
@@ -682,6 +734,8 @@ export function projectGalleryContentPage(
     variant: "gallery",
     title,
     publishedAt,
+    ...(eventDate === undefined ? {} : { eventDate }),
+    ...(endDate === undefined ? {} : { endDate }),
     ...(summary === undefined ? {} : { summary }),
     ...(cover === undefined ? {} : { cover }),
     ...(tags.length > 0 ? { tags } : {}),
@@ -709,9 +763,12 @@ export async function readPublicGalleryPage(
   const language = toLanguageSubtag(options.language);
   const config = options.config ?? getSanityConfig();
 
+  // Belt-and-suspenders half of ADR-0017 decision 5's endDate gate, mirroring
+  // `sanity-article.ts#readPublicArticlePage`.
+  const now = new Date().toISOString();
   const result = await client.query({
-    query: `*[${GALLERY_FILTER} && contentId == $contentId][0...2]${GALLERY_DETAIL_PROJECTION}`,
-    params: { language, contentId },
+    query: `*[${GALLERY_FILTER} && contentId == $contentId && ${NOT_ENDED_FILTER}][0...2]${GALLERY_DETAIL_PROJECTION}`,
+    params: { language, contentId, now },
     tag: "gallery.detail",
   });
 

@@ -244,7 +244,7 @@ cursor migration, and the mock implementation with its own fixtures and journey 
 PR2 wires the Sanity schemas and adapters onto that same contract. AB#150 stays `Active`
 until both are merged.
 
-PR1 (this record's own implementation):
+PR1 (merged, `feat: authored event date replaces publish date as ordering key (AB#150 PR1)`, #135):
 
 - [x] `eventDate?` / `endDate?` on `ContentPageBase`; `effectiveEventDate()` and
       `isContentEnded()` in `content-page.ts`.
@@ -275,14 +275,35 @@ PR1 (this record's own implementation):
       page 404s at its own route, is absent from its category listing, and is absent from
       the sitemap.
 
-PR2 (not started):
+PR2 (this branch):
 
-- [ ] `eventDate` / `endDate` `datetime` fields on the `article` and `gallery` Sanity
-      schemas, with Studio help text.
-- [ ] `sanity-article.ts` / `sanity-gallery.ts`: project both fields, compute the effective
-      event date at the projection boundary (replacing PR1's "effective value is
-      `publishedAt` until the schema carries `eventDate`" placeholder), change the GROQ
-      ordering/keyset fields to `coalesce(eventDate, publishedAt)`, and enforce the
-      `endDate` gate on the placement and detail readers.
-- [ ] A live-verification / adapter test proving the Sanity path's effective-date ordering
-      and `endDate` gate agree with the mock's.
+- [x] `eventDate` / `endDate` `datetime` fields on the `article` and `gallery` Sanity
+      schemas, with Studio help text stating the default-to-`publishedAt` and auto-hide
+      behaviour.
+- [x] `sanity-article.ts` / `sanity-gallery.ts`: both readers project `eventDate` and
+      resolve the effective value through `content-page.ts#effectiveEventDate` (listing
+      records) or return it raw (the detail page); `ARTICLE_LISTING_ORDER` /
+      `GALLERY_LISTING_ORDER` and both keyset filters now compare
+      `coalesce(eventDate, publishedAt)`, replacing PR1's "effective value is `publishedAt`
+      until the schema carries `eventDate`" placeholder.
+- [x] `endDate` gate: `projectArticlePlacementInput` / `projectGalleryPlacementInput` fold
+      `now >= endDate` into the placement's effective `published`, mirroring
+      `content.ts#applyMockEndDateGate` exactly. A shared `NOT_ENDED_FILTER` GROQ fragment
+      additionally excludes an ended document from every listing, detail, and adjacent read
+      — required, not merely defensive, for the category-subtree listing query specifically
+      (scoped by category reference rather than an already-gated contentId list, so an
+      ended document's own category reference would otherwise still surface it and trip
+      `content-listing.ts#buildCategoryListing`'s "every returned row belongs to this
+      branch" check).
+- [x] Unit tests against a fake transport for every new code path: the placement `endDate`
+      gate (published/unpublished/no-endDate/invalid-endDate), the listing record's
+      eventDate-overrides-publishedAt projection, the `NOT_ENDED_FILTER` + `$now` param on
+      every listing/detail/adjacent query, the detail page's raw `eventDate`/`endDate`
+      projection, and the adjacent-records query's `coalesce()` ordering with the filter
+      applied to the anchor and both candidate sides.
+- [ ] **Not done, and not achievable without one**: a live-dataset check proving the Sanity
+      path's behaviour against a real Content Lake project, the way `verify:sanity-live`
+      does for other adapters. Every claim above is verified against the schema and a fake
+      transport, matching this codebase's existing default posture for a new adapter path —
+      an owner-run live check, if wanted, is separate follow-up work (parallel to how
+      `verify:sanity-live` itself was added after its adapters, not with them).

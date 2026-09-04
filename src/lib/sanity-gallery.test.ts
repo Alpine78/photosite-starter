@@ -205,7 +205,7 @@ describe("gallery.ts's restated section catalog bounds", () => {
 });
 
 describe("projectGalleryPlacementInput", () => {
-  it("projects the gallery variant, always published", () => {
+  it("projects the gallery variant, published when there is no endDate to gate it", () => {
     const document: RawGalleryPlacementDocument = {
       contentId: "content-northern-coast",
       slug: "northern-coast",
@@ -231,6 +231,42 @@ describe("projectGalleryPlacementInput", () => {
       ),
     );
     expect(error.rejection).toBe("incomplete-document");
+  });
+
+  // AB#150/ADR-0017 decision 5, mirroring `sanity-article.test.ts`'s
+  // identical suite for `projectArticlePlacementInput`.
+  describe("the endDate gate", () => {
+    const document: RawGalleryPlacementDocument = {
+      contentId: "content-x",
+      slug: "x",
+      canonicalCategoryRef: null,
+    };
+
+    it("reports a document whose endDate has passed as unpublished, not absent", () => {
+      const placement = projectGalleryPlacementInput(
+        { ...document, endDate: "2020-01-01" },
+        new Map(),
+        new Date("2024-01-01"),
+      );
+      expect(placement.published).toBe(false);
+      expect(placement.contentId).toBe("content-x");
+    });
+
+    it("reports a document whose endDate has not yet arrived as published", () => {
+      const placement = projectGalleryPlacementInput(
+        { ...document, endDate: "2030-01-01" },
+        new Map(),
+        new Date("2024-01-01"),
+      );
+      expect(placement.published).toBe(true);
+    });
+
+    it("treats a document with no endDate as published, regardless of now", () => {
+      expect(
+        projectGalleryPlacementInput(document, new Map(), new Date("2099-01-01"))
+          .published,
+      ).toBe(true);
+    });
   });
 });
 
@@ -267,6 +303,21 @@ describe("projectGalleryContentPage", () => {
     );
     expect(error.rejection).toBe("incomplete-document");
   });
+
+  it("carries the raw eventDate and endDate when authored (AB#150, ADR-0017)", () => {
+    const page = projectGalleryContentPage(
+      detailOf({ eventDate: "2023-06-15", endDate: "2030-01-01" }),
+      languages,
+    );
+    expect(page.eventDate).toBe("2023-06-15");
+    expect(page.endDate).toBe("2030-01-01");
+  });
+
+  it("omits eventDate and endDate when neither is authored", () => {
+    const page = projectGalleryContentPage(detailOf(), languages);
+    expect(page).not.toHaveProperty("eventDate");
+    expect(page).not.toHaveProperty("endDate");
+  });
 });
 
 describe("readPublicGalleryPage", () => {
@@ -288,6 +339,15 @@ describe("readPublicGalleryPage", () => {
     );
     expect(error).toBeInstanceOf(SanityGalleryError);
     expect((error as SanityGalleryError).rejection).toBe("ambiguous-content-id");
+  });
+
+  it("excludes an ended gallery at the query and binds the request time (AB#150, ADR-0017)", async () => {
+    const { client, requests } = fakeClient({ "gallery.detail": [] });
+
+    await readPublicGalleryPage("content-x", { language: "en", client, config });
+
+    expect(requests[0].query).toContain("!defined(endDate) || endDate > $now");
+    expect(requests[0].params).toMatchObject({ now: expect.any(String) });
   });
 });
 
@@ -1258,6 +1318,18 @@ describe("projectGalleryListingRecord", () => {
     );
     expect(error.rejection).toBe("incomplete-document");
   });
+
+  it("projects the authored eventDate as the effective date, not publishedAt (AB#150, ADR-0017)", () => {
+    const document: RawGalleryListingDocument = {
+      contentId: "content-x",
+      title: "X",
+      publishedAt: "2024-12-05",
+      eventDate: "2024-01-15",
+    };
+    expect(projectGalleryListingRecord(document, languages).eventDate).toBe(
+      "2024-01-15",
+    );
+  });
 });
 
 describe("readPublicGalleryListingRecords", () => {
@@ -1292,6 +1364,18 @@ describe("readPublicGalleryListingRecords", () => {
       contentIds: ["content-a", "content-b"],
       limit: 5,
     });
+  });
+
+  it("excludes an ended gallery and binds the request time (AB#150, ADR-0017)", async () => {
+    const { client, requests } = fakeClient({ "gallery.listing": [] });
+
+    await readPublicGalleryListingRecords(
+      { scope: "routed-content", contentIds: ["content-a"], ordering: "event-date-desc-v1", limit: 5 },
+      { language: "en", client, config },
+    );
+
+    expect(requests[0].query).toContain("!defined(endDate) || endDate > $now");
+    expect(requests[0].params).toMatchObject({ now: expect.any(String) });
   });
 
   it("chunks a candidate list that would exceed the GET URL budget into more than one request", async () => {
@@ -1418,6 +1502,24 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
     });
   });
 
+  it("excludes an ended gallery and binds the request time (AB#150, ADR-0017)", async () => {
+    const { client, requests } = fakeClient({
+      "category.ids": [{ _id: "doc-a" }],
+      "gallery.listing.by-category": [],
+    });
+
+    await readPublicGalleryListingRecordsInCategories(
+      { scope: "category-subtree", categoryIds: ["cat-a"], ordering: "event-date-desc-v1", limit: 5 },
+      { language: "en", client, config },
+    );
+
+    const listingRequest = requests.find(
+      (request) => request.tag === "gallery.listing.by-category",
+    );
+    expect(listingRequest?.query).toContain("!defined(endDate) || endDate > $now");
+    expect(listingRequest?.params).toMatchObject({ now: expect.any(String) });
+  });
+
   it("adds a keyset boundary clause for a category continuation cursor (AB#140)", async () => {
     const { client, requests } = fakeClient({
       "category.ids": [{ _id: "doc-a" }],
@@ -1439,7 +1541,7 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
       (request) => request.tag === "gallery.listing.by-category",
     );
     expect(listingRequest?.query).toContain(
-      "publishedAt < $afterEventDate || (publishedAt == $afterEventDate && contentId > $afterContentId)",
+      "coalesce(eventDate, publishedAt) < $afterEventDate || (coalesce(eventDate, publishedAt) == $afterEventDate && contentId > $afterContentId)",
     );
     expect(listingRequest?.params).toMatchObject({
       afterEventDate: "2024-06-18",

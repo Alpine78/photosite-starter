@@ -32,16 +32,19 @@
  * them through `readCategoryDocumentIndex`, the same index `sanity-content-
  * tree.ts` builds for its own `parent` field.
  *
- * ## Published is not a field
+ * ## Published is not a field — except the scheduled `endDate` gate
  *
  * `sanity-client.ts` asks only for the published perspective, so a document
  * this adapter reads is already published in Sanity's own sense — the same
  * reasoning `sanity-content-tree.ts` gives for categories. `article.ts`
  * additionally requires `canonicalCategory` before Studio allows a publish, so
- * `projectArticlePlacementInput` always emits `published: true` with a
- * non-null canonical id; `content-tree.ts`'s `unplaced-published-content`
- * check remains the backstop for a document an API import wrote without
- * Studio validation.
+ * `projectArticlePlacementInput` always emits a non-null canonical id;
+ * `content-tree.ts`'s `unplaced-published-content` check remains the backstop
+ * for a document an API import wrote without Studio validation. The one
+ * exception is `published` itself: AB#150's optional `endDate` folds a
+ * read-time `now >= endDate` check into this placement's *effective*
+ * `published` (ADR-0017 decision 5), so a Sanity-published-but-scheduled-
+ * ended article is still placed, just reported as unpublished.
  */
 
 import "server-only";
@@ -54,7 +57,11 @@ import {
   type ContentListingRecord,
   type RoutedContentListingQuery,
 } from "@/lib/content-listing";
-import type { ArticleContentPage } from "@/lib/content-page";
+import {
+  effectiveEventDate,
+  isContentEnded,
+  type ArticleContentPage,
+} from "@/lib/content-page";
 import type { ContentPlacementInput } from "@/lib/content-tree";
 import {
   CONTENT_BLOCK_PROJECTION,
@@ -95,6 +102,7 @@ export const PROJECTED_ARTICLE_PLACEMENT_FIELDS = [
   "slug",
   "canonicalCategory",
   "secondaryCategories",
+  "endDate",
 ] as const;
 
 export const PROJECTED_ARTICLE_LISTING_FIELDS = [
@@ -102,6 +110,7 @@ export const PROJECTED_ARTICLE_LISTING_FIELDS = [
   "title",
   "summary",
   "publishedAt",
+  "eventDate",
   "cover",
 ] as const;
 
@@ -110,6 +119,8 @@ export const PROJECTED_ARTICLE_DETAIL_FIELDS = [
   "title",
   "summary",
   "publishedAt",
+  "eventDate",
+  "endDate",
   "cover",
   "tags",
   "body",
@@ -117,9 +128,20 @@ export const PROJECTED_ARTICLE_DETAIL_FIELDS = [
 
 export const ARTICLE_FILTER = `_type == "${ARTICLE_DOCUMENT_TYPE}" && language == $language`;
 
+/**
+ * Excludes an article whose scheduled `endDate` has passed (AB#150, ADR-0017
+ * decision 5) — appended to every read except the placement read below, which
+ * must still see an ended document in order to report it as unpublished
+ * rather than simply missing. `$now` is bound once per read (the caller's
+ * request time), so every comparison within one read is evaluated against the
+ * same instant.
+ */
+const NOT_ENDED_FILTER = `(!defined(endDate) || endDate > $now)`;
+
 export const ARTICLE_PLACEMENT_PROJECTION = `{
   contentId,
   slug,
+  endDate,
   "canonicalCategoryRef": canonicalCategory._ref,
   "secondaryCategoryRefs": secondaryCategories[]._ref
 }`;
@@ -129,6 +151,7 @@ export const ARTICLE_LISTING_PROJECTION = `{
   title,
   summary,
   publishedAt,
+  eventDate,
   "cover": cover->${PUBLIC_MEDIA_PROJECTION}
 }`;
 
@@ -137,18 +160,23 @@ export const ARTICLE_DETAIL_PROJECTION = `{
   title,
   summary,
   publishedAt,
+  eventDate,
+  endDate,
   "cover": cover->${PUBLIC_MEDIA_PROJECTION},
   tags,
   body[]${CONTENT_BLOCK_PROJECTION}
 }`;
 
 /**
- * The GROQ order `content-listing.ts`'s `CONTENT_LISTING_ORDERING` names.
- * Orders by `publishedAt`, which is also the effective event date until the
- * schema carries `eventDate` (AB#150/ADR-0017 PR2 changes this to
- * `order(coalesce(eventDate, publishedAt) desc, contentId asc)`).
+ * The GROQ order `content-listing.ts`'s `CONTENT_LISTING_ORDERING` names:
+ * the effective event date (AB#150, ADR-0017) — `coalesce(eventDate,
+ * publishedAt)` is GROQ's expression of the same `eventDate ?? publishedAt`
+ * fallback `content-page.ts#effectiveEventDate` computes in JS for a
+ * projected record. The two must never disagree, which holds as long as
+ * `eventDate` and `publishedAt` are both validated into the same ISO 8601
+ * form (`readPublishedAt`/`readOptionalIsoDate`).
  */
-export const ARTICLE_LISTING_ORDER = `order(publishedAt desc, contentId asc)`;
+export const ARTICLE_LISTING_ORDER = `order(coalesce(eventDate, publishedAt) desc, contentId asc)`;
 
 /** Why a document could not become a published article projection. */
 export type SanityArticleRejection =
@@ -187,6 +215,7 @@ export type RawArticlePlacementDocument = {
   readonly slug?: unknown;
   readonly canonicalCategoryRef?: unknown;
   readonly secondaryCategoryRefs?: unknown;
+  readonly endDate?: unknown;
 };
 
 export type RawArticleListingDocument = {
@@ -194,10 +223,12 @@ export type RawArticleListingDocument = {
   readonly title?: unknown;
   readonly summary?: unknown;
   readonly publishedAt?: unknown;
+  readonly eventDate?: unknown;
   readonly cover?: unknown;
 };
 
 export type RawArticleDetailDocument = RawArticleListingDocument & {
+  readonly endDate?: unknown;
   readonly tags?: unknown;
   readonly body?: unknown;
 };
@@ -270,6 +301,31 @@ function readPublishedAt(value: unknown, contentId: string): string {
 }
 
 /**
+ * Reads `eventDate`/`endDate` (AB#150, ADR-0017): both optional, but a value
+ * that is present must be a real ISO calendar date or datetime — the same
+ * `isValidIsoDate` discipline `readPublishedAt` enforces on the required
+ * field, so an authored `eventDate` compares byte-for-byte against
+ * `publishedAt` in `content-listing.ts`'s ordering and the ADR-0013 keyset,
+ * and an authored `endDate` parses cleanly for `isContentEnded`.
+ */
+function readOptionalIsoDate(
+  value: unknown,
+  contentId: string,
+  field: "eventDate" | "endDate",
+): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  const parsed = readString(value);
+  if (parsed === undefined || !isValidIsoDate(parsed)) {
+    throw new SanityArticleError(
+      "incomplete-document",
+      `the article's ${field} is set but is not a real ISO calendar date`,
+      contentId,
+    );
+  }
+  return parsed;
+}
+
+/**
  * Marks a Sanity document id that did not resolve through
  * `categoryIdsByDocumentId`. `categoryId`s are lowercase-hyphenated
  * (`CONTENT_ID`'s pattern has no colon), so this prefix can never collide
@@ -331,10 +387,21 @@ function readSecondaryCategoryReferences(
  * Projects one document into the placement `content-tree.ts` needs. Pure and
  * exported so a fixture test can exercise it without a network — the same
  * shape `sanity-content-tree.ts#projectPublicCategoryInput` takes.
+ *
+ * `now` folds the `endDate` gate (AB#150, ADR-0017 decision 5) into this
+ * placement's *effective* `published`, mirroring `content.ts`'s mock tree
+ * assembly exactly: an ended article is still placed and reported, just with
+ * `published: false`, so the content tree excludes it from routing, listing
+ * membership, sibling-nav candidacy, and `listPublicRoutePaths` with no
+ * `endDate`-aware code anywhere downstream. Defaults to `new Date()` so an
+ * existing caller that never had an `endDate` to worry about is unaffected;
+ * `readPublicArticlePlacements` resolves one `now` for its whole batch so
+ * every document in one read is judged against the same instant.
  */
 export function projectArticlePlacementInput(
   document: RawArticlePlacementDocument,
   categoryIdsByDocumentId: ReadonlyMap<string, string>,
+  now: Date = new Date(),
 ): ContentPlacementInput {
   const contentId = readContentId(document.contentId);
 
@@ -364,11 +431,13 @@ export function projectArticlePlacementInput(
     resolveCategoryId(ref, categoryIdsByDocumentId),
   );
 
+  const endDate = readOptionalIsoDate(document.endDate, contentId, "endDate");
+
   return {
     contentId,
     variant: "article",
     slug,
-    published: true,
+    published: !isContentEnded(endDate, now),
     canonicalCategoryId,
     ...(secondaryCategoryIds.length > 0 ? { secondaryCategoryIds } : {}),
   };
@@ -414,8 +483,11 @@ export async function readPublicArticlePlacements(
     tag: "article.placements",
   });
 
+  // One `now` for the whole batch (AB#150, ADR-0017 decision 5), so every
+  // article's `endDate` in this read is judged against the same instant.
+  const now = new Date();
   return readDocuments<RawArticlePlacementDocument>(result).map((document) =>
-    projectArticlePlacementInput(document, categoryIdsByDocumentId),
+    projectArticlePlacementInput(document, categoryIdsByDocumentId, now),
   );
 }
 
@@ -442,6 +514,7 @@ export function projectArticleListingRecord(
   }
 
   const publishedAt = readPublishedAt(document.publishedAt, contentId);
+  const eventDate = readOptionalIsoDate(document.eventDate, contentId, "eventDate");
 
   const summary = readString(document.summary);
   const cover = isRecord(document.cover)
@@ -451,12 +524,10 @@ export function projectArticleListingRecord(
   return {
     contentId,
     title,
-    // AB#150/ADR-0017: the effective event date (`eventDate ?? publishedAt`)
-    // is the record's ordering/display key. The schema does not carry
-    // `eventDate` yet (AB#150 PR2 adds it, the `coalesce()` GROQ, and the
-    // `endDate` gate), so the effective value is `publishedAt` until then —
-    // the same value an unauthored `eventDate` would resolve to.
-    eventDate: publishedAt,
+    // The record's ordering/display key is the effective event date (AB#150,
+    // ADR-0017): `eventDate ?? publishedAt`, the same fallback
+    // `content-page.ts#effectiveEventDate` expresses for every other consumer.
+    eventDate: effectiveEventDate({ publishedAt, eventDate }),
     ...(summary === undefined ? {} : { summary }),
     ...(cover === undefined ? {} : { cover }),
   };
@@ -516,12 +587,13 @@ export async function readPublicArticleListingRecords(
   const languages = { language, fallbackLanguage: getFallbackLocale(), config };
 
   const chunks = chunkContentIds(query.contentIds, MAX_CONTENT_IDS_BYTES);
+  const now = new Date().toISOString();
 
   const chunkedRecords = await Promise.all(
     chunks.map(async (contentIds) => {
       const result = await client.query({
-        query: `*[${ARTICLE_FILTER} && contentId in $contentIds] | ${ARTICLE_LISTING_ORDER} [0...$limit]${ARTICLE_LISTING_PROJECTION}`,
-        params: { language, contentIds, limit: query.limit },
+        query: `*[${ARTICLE_FILTER} && contentId in $contentIds && ${NOT_ENDED_FILTER}] | ${ARTICLE_LISTING_ORDER} [0...$limit]${ARTICLE_LISTING_PROJECTION}`,
+        params: { language, contentIds, limit: query.limit, now },
         tag: "article.listing",
       });
 
@@ -600,17 +672,16 @@ export async function readPublicArticleListingRecordsInCategories(
   if (categoryDocumentIds.length === 0) return [];
 
   const chunks = chunkContentIds(categoryDocumentIds, MAX_CONTENT_IDS_BYTES);
+  const now = new Date().toISOString();
 
   // A category-listing continuation cursor (AB#140, ADR-0013) resumes strictly
   // after an `(eventDate, contentId)` boundary — the effective event date
-  // (AB#150, ADR-0017), which until the schema carries `eventDate` (PR2) is
-  // simply `publishedAt`, compared as the stored string exactly as
-  // `ARTICLE_LISTING_ORDER` orders it. PR2 changes the GROQ field to
-  // `coalesce(eventDate, publishedAt)` on both sides of this filter.
+  // (AB#150, ADR-0017), compared as the `coalesce(eventDate, publishedAt)`
+  // string exactly as `ARTICLE_LISTING_ORDER` orders it.
   const keysetFilter =
     query.after === undefined
       ? ""
-      : " && (publishedAt < $afterEventDate || (publishedAt == $afterEventDate && contentId > $afterContentId))";
+      : " && (coalesce(eventDate, publishedAt) < $afterEventDate || (coalesce(eventDate, publishedAt) == $afterEventDate && contentId > $afterContentId))";
   const keysetParams =
     query.after === undefined
       ? {}
@@ -619,11 +690,21 @@ export async function readPublicArticleListingRecordsInCategories(
           afterContentId: query.after.contentId,
         };
 
+  // Unlike the routed-content read above, this query is scoped by category
+  // reference, not by an already-tree-gated contentId list — a category-
+  // subtree branch listing reads Sanity directly by category, so an ended
+  // article's own reference to an in-scope category would otherwise still
+  // surface it here even though the tree already treats it as unpublished.
+  // `NOT_ENDED_FILTER` closes that gap at the query itself, matching ADR-0017
+  // decision 5's "enforced at the adapter boundary, never left to a route to
+  // remember" — and keeps `content-listing.ts#buildCategoryListing`'s own
+  // "every returned row belongs to this branch" check from ever seeing a row
+  // the gated tree does not also list.
   const chunkedRecords = await Promise.all(
     chunks.map(async (categoryIds) => {
       const result = await client.query({
-        query: `*[${ARTICLE_FILTER} && references($categoryIds)${keysetFilter}] | ${ARTICLE_LISTING_ORDER} [0...$limit]${ARTICLE_LISTING_PROJECTION}`,
-        params: { language, categoryIds, limit: query.limit, ...keysetParams },
+        query: `*[${ARTICLE_FILTER} && references($categoryIds) && ${NOT_ENDED_FILTER}${keysetFilter}] | ${ARTICLE_LISTING_ORDER} [0...$limit]${ARTICLE_LISTING_PROJECTION}`,
+        params: { language, categoryIds, limit: query.limit, now, ...keysetParams },
         tag: "article.listing.by-category",
       });
 
@@ -681,6 +762,8 @@ export function projectArticleContentPage(
   }
 
   const publishedAt = readPublishedAt(document.publishedAt, contentId);
+  const eventDate = readOptionalIsoDate(document.eventDate, contentId, "eventDate");
+  const endDate = readOptionalIsoDate(document.endDate, contentId, "endDate");
 
   const summary = readString(document.summary);
   const cover = isRecord(document.cover)
@@ -707,6 +790,8 @@ export function projectArticleContentPage(
     variant: "article",
     title,
     publishedAt,
+    ...(eventDate === undefined ? {} : { eventDate }),
+    ...(endDate === undefined ? {} : { endDate }),
     ...(summary === undefined ? {} : { summary }),
     ...(cover === undefined ? {} : { cover }),
     ...(tags.length > 0 ? { tags } : {}),
@@ -738,9 +823,16 @@ export async function readPublicArticlePage(
   const language = toLanguageSubtag(options.language);
   const config = options.config ?? getSanityConfig();
 
+  // The belt-and-suspenders half of ADR-0017 decision 5's endDate gate: this
+  // read is reachable directly by contentId (an existence check from a
+  // redirect or not-found boundary), not only through an already-gated tree
+  // placement, so it repeats the check rather than trusting every caller
+  // resolved through the tree first — mirroring the mock's own
+  // `getContentPage` gate in `content.ts`.
+  const now = new Date().toISOString();
   const result = await client.query({
-    query: `*[${ARTICLE_FILTER} && contentId == $contentId][0...2]${ARTICLE_DETAIL_PROJECTION}`,
-    params: { language, contentId },
+    query: `*[${ARTICLE_FILTER} && contentId == $contentId && ${NOT_ENDED_FILTER}][0...2]${ARTICLE_DETAIL_PROJECTION}`,
+    params: { language, contentId, now },
     tag: "article.detail",
   });
 
@@ -793,11 +885,11 @@ type RawArticleAdjacentResult = {
  * language: a defect elsewhere already surfaced the page this call is about,
  * so a vanished anchor is "no neighbours to report," not a second error.
  *
- * AB#150/ADR-0017: orders and compares the anchor's raw `publishedAt`, which
- * is also its effective event date until the schema carries `eventDate`
- * (PR2 changes every `publishedAt` reference here to
- * `coalesce(eventDate, publishedAt)`, matching `ARTICLE_LISTING_ORDER` and the
- * category-listing keyset filter).
+ * AB#150/ADR-0017: orders and compares `coalesce(eventDate, publishedAt)` —
+ * the effective event date — matching `ARTICLE_LISTING_ORDER` and the
+ * category-listing keyset filter exactly, and excludes an ended `endDate`
+ * candidate on both sides (`NOT_ENDED_FILTER`) the same way every other read
+ * does, so a sibling link never points at a page that would itself 404.
  */
 export async function readPublicArticleAdjacentRecords(
   contentId: string,
@@ -807,13 +899,16 @@ export async function readPublicArticleAdjacentRecords(
   const language = toLanguageSubtag(options.language);
   const config = options.config ?? getSanityConfig();
   const languages = { language, fallbackLanguage: getFallbackLocale(), config };
+  const now = new Date().toISOString();
+  const anchorEventDate = "coalesce(^.eventDate, ^.publishedAt)";
+  const candidateEventDate = "coalesce(eventDate, publishedAt)";
 
   const result = await client.query({
-    query: `*[${ARTICLE_FILTER} && contentId == $contentId][0]{
-      "previous": *[${ARTICLE_FILTER} && (publishedAt > ^.publishedAt || (publishedAt == ^.publishedAt && contentId < ^.contentId))] | order(publishedAt asc, contentId desc) [0]${ARTICLE_LISTING_PROJECTION},
-      "next": *[${ARTICLE_FILTER} && (publishedAt < ^.publishedAt || (publishedAt == ^.publishedAt && contentId > ^.contentId))] | order(publishedAt desc, contentId asc) [0]${ARTICLE_LISTING_PROJECTION}
+    query: `*[${ARTICLE_FILTER} && contentId == $contentId && ${NOT_ENDED_FILTER}][0]{
+      "previous": *[${ARTICLE_FILTER} && ${NOT_ENDED_FILTER} && (${candidateEventDate} > ${anchorEventDate} || (${candidateEventDate} == ${anchorEventDate} && contentId < ^.contentId))] | order(${candidateEventDate} asc, contentId desc) [0]${ARTICLE_LISTING_PROJECTION},
+      "next": *[${ARTICLE_FILTER} && ${NOT_ENDED_FILTER} && (${candidateEventDate} < ${anchorEventDate} || (${candidateEventDate} == ${anchorEventDate} && contentId > ^.contentId))] | order(${candidateEventDate} desc, contentId asc) [0]${ARTICLE_LISTING_PROJECTION}
     }`,
-    params: { language, contentId },
+    params: { language, contentId, now },
     tag: "article.adjacent",
   });
 

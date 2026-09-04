@@ -176,6 +176,55 @@ describe("projecting a placement", () => {
     );
     expect(error.rejection).toBe("incomplete-document");
   });
+
+  // AB#150/ADR-0017 decision 5: the endDate gate is folded into this
+  // placement's *effective* published, at the adapter boundary — the mirror
+  // of `content.ts#applyMockEndDateGate` for the Sanity path.
+  describe("the endDate gate", () => {
+    const document: RawArticlePlacementDocument = {
+      contentId: "content-x",
+      slug: "x",
+      canonicalCategoryRef: null,
+    };
+
+    it("reports a document whose endDate has passed as unpublished, not absent", () => {
+      const placement = projectArticlePlacementInput(
+        { ...document, endDate: "2020-01-01" },
+        categoryIndex,
+        new Date("2024-01-01"),
+      );
+      expect(placement.published).toBe(false);
+      // Still placed, not simply missing: routing, listing, and
+      // `listPublicRoutePaths` all key off `published`, not presence.
+      expect(placement.contentId).toBe("content-x");
+    });
+
+    it("reports a document whose endDate has not yet arrived as published", () => {
+      const placement = projectArticlePlacementInput(
+        { ...document, endDate: "2030-01-01" },
+        categoryIndex,
+        new Date("2024-01-01"),
+      );
+      expect(placement.published).toBe(true);
+    });
+
+    it("treats a document with no endDate as published, regardless of now", () => {
+      expect(
+        projectArticlePlacementInput(document, categoryIndex, new Date("2099-01-01"))
+          .published,
+      ).toBe(true);
+    });
+
+    it("rejects an endDate that is not a real ISO calendar date", () => {
+      const error = rejectionOf(() =>
+        projectArticlePlacementInput(
+          { ...document, endDate: "not-a-date" },
+          categoryIndex,
+        ),
+      );
+      expect(error.rejection).toBe("incomplete-document");
+    });
+  });
 });
 
 describe("projecting a listing record", () => {
@@ -227,12 +276,32 @@ describe("projecting a listing record", () => {
     ).toBe("2024-08-02T14:30:00.000Z");
   });
 
-  // AB#150/ADR-0017: the schema does not carry `eventDate` yet (PR2 adds it),
-  // so the record's effective ordering/display key is `publishedAt` verbatim.
-  it("projects the effective event date as publishedAt until the schema carries eventDate (PR2)", () => {
+  // AB#150/ADR-0017: no authored eventDate falls back to publishedAt.
+  it("falls back to publishedAt when no eventDate is authored", () => {
     expect(projectArticleListingRecord(document, languages).eventDate).toBe(
       document.publishedAt,
     );
+  });
+
+  it("projects the authored eventDate as the effective date, not publishedAt", () => {
+    // A page published later than the real-world event it documents — the
+    // exact reorder case ADR-0017 exists for.
+    expect(
+      projectArticleListingRecord(
+        { ...document, eventDate: "2023-11-01" },
+        languages,
+      ).eventDate,
+    ).toBe("2023-11-01");
+  });
+
+  it("rejects an eventDate that is not a real ISO calendar date", () => {
+    const error = rejectionOf(() =>
+      projectArticleListingRecord(
+        { ...document, eventDate: "2026-02-31" },
+        languages,
+      ),
+    );
+    expect(error.rejection).toBe("incomplete-document");
   });
 });
 
@@ -311,6 +380,36 @@ describe("reading placements", () => {
       "category.index",
       "article.placements",
     ]);
+  });
+
+  it("asks for endDate, and reports a document whose endDate has passed as unpublished", async () => {
+    const { client, requests } = fakeClient({
+      "category.index": [],
+      "article.placements": [
+        {
+          contentId: "content-ended",
+          slug: "ended",
+          canonicalCategoryRef: null,
+          endDate: "2020-01-01",
+        },
+      ],
+    });
+
+    const placements = await readPublicArticlePlacements({ language: "en", client });
+
+    expect(placements).toEqual([
+      {
+        contentId: "content-ended",
+        variant: "article",
+        slug: "ended",
+        published: false,
+        canonicalCategoryId: null,
+      },
+    ]);
+    const placementsRequest = requests.find(
+      (request) => request.tag === "article.placements",
+    );
+    expect(placementsRequest?.query).toContain("endDate");
   });
 });
 
@@ -413,6 +512,18 @@ describe("reading listing records", () => {
     expect(records).toHaveLength(1);
     expect(records[0].contentId).toBe("content-newer");
   });
+
+  it("excludes an ended article and binds the request time (AB#150, ADR-0017)", async () => {
+    const { client, requests } = fakeClient({ "article.listing": [] });
+
+    await readPublicArticleListingRecords(
+      { scope: "routed-content", contentIds: ["content-a"], ordering: "event-date-desc-v1", limit: 5 },
+      { language: "en", client, config },
+    );
+
+    expect(requests[0].query).toContain("!defined(endDate) || endDate > $now");
+    expect(requests[0].params).toMatchObject({ now: expect.any(String) });
+  });
 });
 
 describe("reading listing records by category subtree", () => {
@@ -491,6 +602,28 @@ describe("reading listing records by category subtree", () => {
     ).toBe(false);
   });
 
+  it("excludes an ended article and binds the request time (AB#150, ADR-0017)", async () => {
+    // Required, not merely defensive: this query is scoped by category
+    // reference, so an ended article's own reference to an in-scope category
+    // would otherwise still surface it even though the tree already treats it
+    // as unpublished.
+    const { client, requests } = fakeClient({
+      "category.ids": [{ _id: "doc-a" }],
+      "article.listing.by-category": [],
+    });
+
+    await readPublicArticleListingRecordsInCategories(
+      { scope: "category-subtree", categoryIds: ["cat-a"], ordering: "event-date-desc-v1", limit: 5 },
+      { language: "en", client, config },
+    );
+
+    const listingRequest = requests.find(
+      (request) => request.tag === "article.listing.by-category",
+    );
+    expect(listingRequest?.query).toContain("!defined(endDate) || endDate > $now");
+    expect(listingRequest?.params).toMatchObject({ now: expect.any(String) });
+  });
+
   it("adds a keyset boundary clause and params for a category continuation cursor (AB#140)", async () => {
     const { client, requests } = fakeClient({
       "category.ids": [{ _id: "doc-a" }],
@@ -512,7 +645,7 @@ describe("reading listing records by category subtree", () => {
       (request) => request.tag === "article.listing.by-category",
     );
     expect(listingRequest?.query).toContain(
-      "publishedAt < $afterEventDate || (publishedAt == $afterEventDate && contentId > $afterContentId)",
+      "coalesce(eventDate, publishedAt) < $afterEventDate || (coalesce(eventDate, publishedAt) == $afterEventDate && contentId > $afterContentId)",
     );
     expect(listingRequest?.params).toMatchObject({
       afterEventDate: "2024-06-18",
@@ -692,6 +825,36 @@ describe("reading one article's page", () => {
 
     expect(page).toMatchObject({ contentId: "content-x", variant: "article" });
   });
+
+  it("projects the raw eventDate and endDate onto the page, and excludes an ended article at the query", async () => {
+    const { client, requests } = fakeClient({
+      "article.detail": [
+        {
+          contentId: "content-x",
+          title: "A page",
+          publishedAt: "2024-01-01",
+          eventDate: "2023-06-15",
+          endDate: "2030-01-01",
+          body: [{ _key: "b1", _type: "contentParagraphBlock", text: "Placeholder." }],
+        },
+      ],
+    });
+
+    const page = await readPublicArticlePage("content-x", {
+      language: "en",
+      client,
+      config,
+    });
+
+    expect(page).toMatchObject({
+      contentId: "content-x",
+      publishedAt: "2024-01-01",
+      eventDate: "2023-06-15",
+      endDate: "2030-01-01",
+    });
+    expect(requests[0].query).toContain("!defined(endDate) || endDate > $now");
+    expect(requests[0].params).toMatchObject({ now: expect.any(String) });
+  });
 });
 
 describe("reading adjacent (sibling) records", () => {
@@ -731,7 +894,30 @@ describe("reading adjacent (sibling) records", () => {
     });
     expect(requests).toHaveLength(1);
     expect(requests[0].tag).toBe("article.adjacent");
-    expect(requests[0].params).toEqual({ language: "en", contentId: "content-anchor" });
+    expect(requests[0].params).toEqual({
+      language: "en",
+      contentId: "content-anchor",
+      now: expect.any(String),
+    });
+  });
+
+  it("orders and compares by the effective event date, and excludes an ended candidate on both sides (AB#150, ADR-0017)", async () => {
+    const { client, requests } = fakeClient({
+      "article.adjacent": { previous: null, next: null },
+    });
+
+    await readPublicArticleAdjacentRecords("content-anchor", {
+      language: "en",
+      client,
+      config,
+    });
+
+    const query = requests[0].query;
+    expect(query).toContain("coalesce(^.eventDate, ^.publishedAt)");
+    // Both the previous and the next subquery apply the not-ended filter.
+    expect(
+      query.match(/!defined\(endDate\) \|\| endDate > \$now/g),
+    ).toHaveLength(3); // anchor + previous + next
   });
 
   it("omits a side with no neighbour in that direction", async () => {
