@@ -60,7 +60,7 @@ test.describe("home hero overlay stays inside the fold", () => {
       await page.setViewportSize(viewport);
       await page.goto("/", { waitUntil: "domcontentloaded" });
 
-      const hero = page.getByRole("main").locator("section").first();
+      const hero = page.locator("main > figure").first();
       const heading = page.getByRole("heading", { level: 1 });
       await expect(heading).toBeVisible();
 
@@ -125,7 +125,7 @@ test.describe("home hero overlay stays inside the fold", () => {
   }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
 
-    const hero = page.getByRole("main").locator("section").first();
+    const hero = page.locator("main > figure").first();
     const band = hero.locator("div").first();
     const inlineStyle = await band.getAttribute("style");
 
@@ -138,11 +138,7 @@ test.describe("home hero overlay stays inside the fold", () => {
   }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
 
-    const heroImage = page
-      .getByRole("main")
-      .locator("section")
-      .first()
-      .getByRole("img");
+    const heroImage = page.locator("main > figure").first().getByRole("img");
     await expect(heroImage).toBeVisible();
 
     const [naturalWidth, naturalHeight, attrWidth, attrHeight] =

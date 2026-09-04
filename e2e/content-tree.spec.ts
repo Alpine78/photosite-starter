@@ -505,7 +505,11 @@ test("a content page opens from its listing and states where it lives", async ({
     const body = page.getByRole("main");
     await expect(body.getByRole("heading", { level: 2 }).first()).toBeVisible();
     await expect(body.locator("p").first()).toHaveText(/\S/);
-    const coverFigure = body.locator("article > figure").first();
+    // The cover now renders as a full-bleed hero (AB#149) ahead of the
+    // reading column, not inside `<article>` — it is still the first
+    // `<figure>` in `<main>`, since a hero (when authored) always precedes
+    // the body's own placed figures in document order.
+    const coverFigure = body.locator("figure").first();
     await expect(coverFigure.locator("img")).toBeVisible();
 
     const coverCaption = await coverFigure.locator("figcaption").textContent();
@@ -597,8 +601,12 @@ test("a localized article keeps localized media and article metadata", async ({
     new RegExp(`^${PREFIXED_LOCALE.prefix}\\b`),
   );
 
+  // Not scoped to `article figure` any more: the cover (AB#149) renders as a
+  // full-bleed hero ahead of `<article>`, in the same document position a
+  // body figure inside it would follow — `main figure img` still walks
+  // cover-then-body-images in that same order.
   const imageAlts = await page
-    .locator("main article figure img")
+    .locator("main figure img")
     .evaluateAll((images) => images.map((image) => image.getAttribute("alt")));
   expect(imageAlts).toEqual(LOCALIZED_ARTICLE.imageAlts);
   await expect(page.locator("meta[property='og:image:alt']")).toHaveAttribute(

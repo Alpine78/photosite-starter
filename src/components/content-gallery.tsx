@@ -5,6 +5,7 @@ import { ContentPageJumpNav } from "@/components/content-page-jump-nav";
 import { GallerySectionControls } from "@/components/gallery-section-controls";
 import { GallerySectionIntro } from "@/components/gallery-section-intro";
 import { GalleryGrid } from "@/components/gallery-grid";
+import { HeroOverlay } from "@/components/hero-overlay";
 import {
   LanguageSwitch,
   type LanguageLink,
@@ -85,22 +86,33 @@ type ContentGalleryProps = {
 /**
  * One `gallery`-variant content page at its canonical detail route.
  *
- * The document order is ADR-0003 decision 3's: title, short lead, the
- * content-derived page-jump navigation when a long body exists, the optional
- * long body itself, section controls, the selected section's own heading and
- * introduction, then the image grid. The long body reuses `ContentBody`, the
- * same shared block renderer the article variant uses — a gallery body is
- * `ContentPage`'s own `body: readonly ContentBlock[]`, never an
- * article-specific type. The page-jump navigation always offers a link to the
- * grid (`#gallery`, an in-page anchor rather than a route) once a long body
- * exists, and additionally lists the body's level-2 headings when it has any,
- * reusing the same `listContentHeadings`/`ContentPageJumpNav` the article
- * variant's heading-only navigation is built from.
+ * The document order is ADR-0003 decision 3's: the full-bleed hero (when one
+ * is authored), title, short lead, the content-derived page-jump navigation
+ * when a long body exists, the optional long body itself, section controls,
+ * the selected section's own heading and introduction, then the image grid.
+ * The long body reuses `ContentBody`, the same shared block renderer the
+ * article variant uses — a gallery body is `ContentPage`'s own
+ * `body: readonly ContentBlock[]`, never an article-specific type. The
+ * page-jump navigation always offers a link to the grid (`#gallery`, an
+ * in-page anchor rather than a route) once a long body exists, and
+ * additionally lists the body's level-2 headings when it has any, reusing
+ * the same `listContentHeadings`/`ContentPageJumpNav` the article variant's
+ * heading-only navigation is built from.
  *
- * The cover is deliberately not repeated at the head of the page. A gallery's
- * cover is what a listing card shows, and the deterministic fallback makes it
- * the gallery's own first item — printing it above the grid would open every
- * gallery with the same photograph twice.
+ * The cover, when explicitly authored, is now a full-bleed hero at the head of
+ * the page (AB#149, ADR-0003's 2026-09-04 amendment, ADR-0016's mechanism):
+ * `page.cover` is projected explicit-only, with no fallback to the gallery's
+ * deterministic first item — `selectCuratedGalleryCover`'s own fallback stays
+ * the listing card's, and only the card's. A gallery with no authored cover
+ * therefore renders no hero at all, which is what keeps a page from opening
+ * with the same photograph twice by default: the duplication the pre-AB#149
+ * version of this comment warned about was specifically the *fallback's* own
+ * first-item choice repeating the grid's first item, not an authored one. An
+ * author who explicitly picks a cover that also happens to be first in the
+ * grid has made that adjacency their own visible choice — a Studio warning
+ * flags it, ADR-0002 §2's precedent, rather than refusing the publish. A
+ * continuation slice never shows a hero (ADR-0003 decision 3): the lead, the
+ * body, and now the hero are all first-page-only editorial framing.
  *
  * A published gallery with no public items renders its own accessible empty
  * state rather than a 404: the page exists, it is simply between selections, and
@@ -136,164 +148,197 @@ export function ContentGallery({
   labels,
 }: ContentGalleryProps) {
   const headings = listContentHeadings(page.body);
+  // AC7: the hero belongs to the first, uncursored slice only — a
+  // continuation never shows one, even for a gallery with an authored cover.
+  const showHero = !isContinuation && page.cover !== undefined;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-      <Breadcrumbs label={labels.navigation.breadcrumb} steps={breadcrumbs} />
+    <main>
+      {/* AB#149/ADR-0016: full-bleed, ahead of the max-w-6xl column below,
+          for the same reason the article hero is — a true edge-to-edge hero
+          cannot live inside a width-constrained container. The gallery's
+          lead description renders on the hero with the title (AC2); the
+          article variant's hero deliberately carries no description. */}
+      {showHero && page.cover && (
+        <HeroOverlay
+          media={page.cover}
+          title={page.title}
+          description={page.summary}
+          titleClassName="text-3xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-4xl"
+        />
+      )}
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <Breadcrumbs label={labels.navigation.breadcrumb} steps={breadcrumbs} />
 
-      <article>
-        {isContinuation ? (
-          // Compact and reduced, per decision 3: the heading still says which
-          // gallery this is, and adds that it is a later part of it, so the page
-          // has context and heading semantics without restating the editorial
-          // content the first page already carries. The lead, the date, and the
-          // tags belong to the gallery rather than to this slice of it.
-          //
-          // The language switch stays. Decision 7 gives it a defined behaviour
-          // here — it opens the target language's first page and drops the
-          // cursor — so removing it would take away working navigation the ADR
-          // specifies. That it leads to a first page rather than an equivalent
-          // slice is exactly why this page also names no `hreflang` alternates:
-          // the visible control can explain itself, a metadata pair cannot.
-          <header className="mt-6">
-            <h1 className="text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
-              {page.title} — {labels.gallery.continued}
-            </h1>
-            <LanguageSwitch
-              label={labels.contentTree.languages}
-              links={languages}
-            />
-          </header>
-        ) : (
-          <header className="mt-6">
-            <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-              {page.title}
-            </h1>
-            <time
-              dateTime={page.publishedAt}
-              className="mt-2 block text-sm text-subtle"
-            >
-              {formatDate(page.publishedAt, locale)}
-            </time>
-            <LanguageSwitch
-              label={labels.contentTree.languages}
-              links={languages}
-            />
-            {page.summary && (
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-body">
-                {page.summary}
-              </p>
-            )}
-          </header>
-        )}
-
-        {/*
-          Long-form body: ADR-0003 decision 3 places it, and the page-jump
-          navigation it derives, after the lead and before the section
-          controls, and drops both on a continuation slice along with the
-          rest of the editorial framing. A gallery with no long body renders
-          neither wrapper — `ContentPageJumpNav` renders nothing without a
-          leading link or headings, and the body itself is only mounted when
-          there is one. Nav and body share one `max-w-3xl` column — this
-          `<main>` is wider than an article's own, for the grid, so the
-          reading column has to be pinned here rather than inherited from it.
-        */}
-        {!isContinuation && page.body.length > 0 && (
-          <div className="max-w-3xl">
-            <ContentPageJumpNav
-              label={labels.contentTree.onThisPage}
-              headings={headings}
-              leadingLink={{ href: "#gallery", label: labels.gallery.jumpToImages }}
-            />
-            <div className="mt-10">
-              <ContentBody
-                blocks={page.body}
-                labels={labels}
-                sizes={imageRenderProfiles.galleryBody.sizes}
+        <article>
+          {isContinuation ? (
+            // Compact and reduced, per decision 3: the heading still says which
+            // gallery this is, and adds that it is a later part of it, so the page
+            // has context and heading semantics without restating the editorial
+            // content the first page already carries. The lead, the date, and the
+            // tags belong to the gallery rather than to this slice of it.
+            //
+            // The language switch stays. Decision 7 gives it a defined behaviour
+            // here — it opens the target language's first page and drops the
+            // cursor — so removing it would take away working navigation the ADR
+            // specifies. That it leads to a first page rather than an equivalent
+            // slice is exactly why this page also names no `hreflang` alternates:
+            // the visible control can explain itself, a metadata pair cannot.
+            <header className="mt-6">
+              <h1 className="text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">
+                {page.title} — {labels.gallery.continued}
+              </h1>
+              <LanguageSwitch
+                label={labels.contentTree.languages}
+                links={languages}
               />
-            </div>
-          </div>
-        )}
-
-        <section
-          id="gallery"
-          aria-label={`${page.title} ${labels.gallery.images}`}
-          className={`scroll-mt-24 ${isContinuation ? "mt-8" : "mt-12"}`}
-        >
-          {/*
-            Section controls and the selected section's own heading render on
-            every slice, including a continuation and the empty-section state
-            (ADR-0003 decision 3): a visitor mid-gallery, or looking at a
-            section with nothing in it yet, still needs a way to switch. The
-            controls render nothing on their own when the gallery declares no
-            sections; the heading and introduction render only when
-            `selectedSection` is set, which the server limits to a named
-            section's first, uncursored slice.
-          */}
-          <GallerySectionControls
-            sections={sections}
-            activeSlug={activeSection?.slug}
-            galleryPath={galleryPath}
-            labels={labels}
-          />
-          {selectedSection !== undefined && (
-            <GallerySectionIntro section={selectedSection} />
+            </header>
+          ) : showHero ? (
+            // Title and lead description already rendered on the hero above —
+            // only the date and language switch belong in flow here.
+            <header className="mt-6">
+              <time
+                dateTime={page.publishedAt}
+                className="block text-sm text-subtle"
+              >
+                {formatDate(page.publishedAt, locale)}
+              </time>
+              <LanguageSwitch
+                label={labels.contentTree.languages}
+                links={languages}
+              />
+            </header>
+          ) : (
+            <header className="mt-6">
+              <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+                {page.title}
+              </h1>
+              <time
+                dateTime={page.publishedAt}
+                className="mt-2 block text-sm text-subtle"
+              >
+                {formatDate(page.publishedAt, locale)}
+              </time>
+              <LanguageSwitch
+                label={labels.contentTree.languages}
+                links={languages}
+              />
+              {page.summary && (
+                <p className="mt-6 max-w-2xl text-lg leading-8 text-body">
+                  {page.summary}
+                </p>
+              )}
+            </header>
           )}
 
-          {slice.items.length > 0 ? (
-            <GalleryGrid
-              // Keyed by the slice this render starts from, so a client-side
-              // navigation that lands on a different slice of the *same*
-              // gallery remounts the grid instead of reusing it. The request
-              // cursor, not the first item, identifies the slice: adjacent
-              // pages may legally overlap. An in-place append does not change
-              // this server-owned prop, so the accumulated items survive.
-              key={initialSliceKey}
-              label={page.title}
-              initialSlice={slice}
+          {/*
+            Long-form body: ADR-0003 decision 3 places it, and the page-jump
+            navigation it derives, after the lead and before the section
+            controls, and drops both on a continuation slice along with the
+            rest of the editorial framing. A gallery with no long body renders
+            neither wrapper — `ContentPageJumpNav` renders nothing without a
+            leading link or headings, and the body itself is only mounted when
+            there is one. Nav and body share one `max-w-3xl` column — this
+            `<main>` is wider than an article's own, for the grid, so the
+            reading column has to be pinned here rather than inherited from it.
+          */}
+          {!isContinuation && page.body.length > 0 && (
+            <div className="max-w-3xl">
+              <ContentPageJumpNav
+                label={labels.contentTree.onThisPage}
+                headings={headings}
+                leadingLink={{ href: "#gallery", label: labels.gallery.jumpToImages }}
+              />
+              <div className="mt-10">
+                <ContentBody
+                  blocks={page.body}
+                  labels={labels}
+                  sizes={imageRenderProfiles.galleryBody.sizes}
+                />
+              </div>
+            </div>
+          )}
+
+          <section
+            id="gallery"
+            aria-label={`${page.title} ${labels.gallery.images}`}
+            className={`scroll-mt-24 ${isContinuation ? "mt-8" : "mt-12"}`}
+          >
+            {/*
+              Section controls and the selected section's own heading render on
+              every slice, including a continuation and the empty-section state
+              (ADR-0003 decision 3): a visitor mid-gallery, or looking at a
+              section with nothing in it yet, still needs a way to switch. The
+              controls render nothing on their own when the gallery declares no
+              sections; the heading and introduction render only when
+              `selectedSection` is set, which the server limits to a named
+              section's first, uncursored slice.
+            */}
+            <GallerySectionControls
+              sections={sections}
+              activeSlug={activeSection?.slug}
               galleryPath={galleryPath}
-              activeSection={activeSection?.slug}
               labels={labels}
             />
-          ) : (
-            <p className="mt-6 text-muted">{labels.gallery.empty}</p>
-          )}
+            {selectedSection !== undefined && (
+              <GallerySectionIntro section={selectedSection} />
+            )}
 
-          {/*
-            The continuation control belongs to the grid, which owns what is
-            loaded. This one only offers the way back, which is a property of
-            the address rather than of the items on it.
-          */}
-          {firstPageHref !== undefined && (
-            <p className="mt-6 flex justify-center">
-              <Link
-                href={firstPageHref}
-                className="text-sm text-muted underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                {labels.gallery.backToStart}
-              </Link>
-            </p>
-          )}
-        </section>
+            {slice.items.length > 0 ? (
+              <GalleryGrid
+                // Keyed by the slice this render starts from, so a client-side
+                // navigation that lands on a different slice of the *same*
+                // gallery remounts the grid instead of reusing it. The request
+                // cursor, not the first item, identifies the slice: adjacent
+                // pages may legally overlap. An in-place append does not change
+                // this server-owned prop, so the accumulated items survive.
+                key={initialSliceKey}
+                label={page.title}
+                initialSlice={slice}
+                galleryPath={galleryPath}
+                activeSection={activeSection?.slug}
+                labels={labels}
+              />
+            ) : (
+              <p className="mt-6 text-muted">{labels.gallery.empty}</p>
+            )}
 
-        {!isContinuation && page.tags && page.tags.length > 0 && (
-          <footer className="mt-12 border-t border-border pt-6">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted">
-              {labels.contentTree.tags}
-            </p>
-            <ul className="mt-2 flex flex-wrap gap-2">
-              {page.tags.map((tag) => (
-                <li
-                  key={tag}
-                  className="rounded-sm border border-border px-2.5 py-0.5 text-sm text-muted"
+            {/*
+              The continuation control belongs to the grid, which owns what is
+              loaded. This one only offers the way back, which is a property of
+              the address rather than of the items on it.
+            */}
+            {firstPageHref !== undefined && (
+              <p className="mt-6 flex justify-center">
+                <Link
+                  href={firstPageHref}
+                  className="text-sm text-muted underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 >
-                  {tag}
-                </li>
-              ))}
-            </ul>
-          </footer>
-        )}
-      </article>
+                  {labels.gallery.backToStart}
+                </Link>
+              </p>
+            )}
+          </section>
+
+          {!isContinuation && page.tags && page.tags.length > 0 && (
+            <footer className="mt-12 border-t border-border pt-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted">
+                {labels.contentTree.tags}
+              </p>
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {page.tags.map((tag) => (
+                  <li
+                    key={tag}
+                    className="rounded-sm border border-border px-2.5 py-0.5 text-sm text-muted"
+                  >
+                    {tag}
+                  </li>
+                ))}
+              </ul>
+            </footer>
+          )}
+        </article>
+      </div>
     </main>
   );
 }

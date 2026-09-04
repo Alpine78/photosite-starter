@@ -424,8 +424,8 @@ its image ordinal), so a photograph placed twice returns focus to the figure tha
 it. The body viewer carries no `enquiryBasePath` — a body photograph is not a curated
 placement, so it shows no enquiry control — and the in-flow figure is enhanced into a
 trigger only after hydration (`ContentBodyFigure`), so a scriptless visitor keeps the
-plain image. The article **cover** is deliberately still a static image: AB#149 turns it
-into a full-bleed overlaid hero, and that decision is sequenced first.
+plain image. The article **cover** has since become a full-bleed overlaid hero rather than
+a static image — AB#149, described below, alongside AB#148's own home hero.
 A three-level nested table of contents (AB#21) and an inline mini-gallery body-block type
 (AB#24) remain later, unimplemented extensions of this same boundary.
 The home hero's overlaid site name, tagline, and call to action are now fold-safe
@@ -457,8 +457,64 @@ cannot prove, because a headless browser has no collapsing toolbar to begin with
 live transition as a real mobile browser's chrome collapses on scroll; that gap is
 recorded in the ADR rather than assumed closed, the same shape as ADR-0001's own
 outstanding pinch/pan check. This is one shared mechanism, not a hero-specific one:
-AB#149 (the content-page hero for the article and gallery variants) reuses it unchanged
-rather than inventing a second solution, per that story's own acceptance criteria.
+AB#149 (the content-page hero for the article and gallery variants, below) reuses it
+unchanged rather than inventing a second solution, per that story's own acceptance
+criteria.
+An article's or curated gallery's own cover, when explicitly authored, now renders as
+that same full-bleed hero (AB#149, ADR-0003's 2026-09-04 amendment): the photograph and
+title (plus, for a gallery, the lead description, per its AC2) are extracted into one
+shared component (`src/components/hero-overlay.tsx`) three call sites now use — the
+home hero, and, via this story, both content-page variants — so a future change to the
+mechanism has one place to make it rather than three. `page.cover` is now explicit-only
+for **both** variants: the deterministic first-item fallback (`selectCuratedGalleryCover`)
+stays exactly where it always was, the listing card's own read path (AB#114), and never
+reaches the page a detail route renders. A gallery with no authored cover therefore
+renders no hero at all — the default — rather than a fallback-derived one duplicating
+the grid's own opening item, which was the whole reason `ContentGallery` had previously
+never rendered a cover at the head of the page. Closing that gap surfaced a real, if
+dormant, gap of its own: the mock fixture layer's detail-page composition
+(`mock-content-pages.ts#compose`) was, until this story, building `ContentPage.cover`
+from the *same* post-fallback record the listing card reads (`mockContentListingRecords`)
+— harmless only because nothing had ever read a gallery's `page.cover` before, so the
+first component to read it would have opened with the grid's own first item by default.
+`compose` now reads a second, pre-fallback map (`mockAuthoredContentRecords`) for
+`cover` specifically, mirroring the Sanity adapter's own explicit-only projection
+(`sanity-gallery.ts#projectGalleryContentPage`), which never had this gap. An author who
+explicitly picks a cover that also happens to be the gallery's first grid item has made
+that adjacency their own visible choice, not a default nobody chose: it is allowed, not
+refused, surfaced by a non-blocking Studio warning on the `cover` field
+(`gallery.ts#warnsAboutDuplicatingGridOpening`) — the same allowed-but-flagged shape
+ADR-0002 §2 already gives a photograph repeated within one gallery. That warning is a
+deliberately approximate, advisory check (documented in its own doc comment): it orders
+by a placement's `order` field and `visible` flag only, matching a `manual` gallery's
+public read, and does not replicate a `seeded-random` gallery's pinned-then-shuffled
+tiered order or dereference into a placement's media for `publiclyRenderable`/
+`privateOnly` — one Content Lake round trip for a non-blocking hint, not the whole public
+ordering pipeline restated in a Studio validator. The hero belongs to the first,
+uncursored slice only (ADR-0003 decision 3's already-thinner continuation shape): a
+continuation never shows one, whatever the gallery's cover, and the curated result set,
+grid, lightbox sequence, section filter, cursor scope, and `hasNextPage` are all
+untouched — the hero is presentation over an existing field, not a change to the bounded
+query contract. `HeroOverlay` also closed a real regression its own extraction would
+otherwise have caused: the pre-existing cover figure (`MediaFigure`, shared with body
+media) carried an image's caption/credit as an in-flow `<figcaption>`, and a full-bleed
+hero has no in-flow position directly under the image the way a body figure does — the
+component instead renders as a `<figure>` with a small corner-label `<figcaption>`
+overlaid on the photograph itself, so a credited photograph's attribution survives the
+move to a hero exactly as `MediaFigure`'s own doc comment requires ("a surface that
+quietly drops it is publishing uncredited work"). `e2e/content-hero.spec.ts` proves the
+mechanism against a real production build: the title (article) or title-plus-description
+(gallery) inside the fold and the photograph edge to edge at every AC1 target viewport;
+a page with no authored cover rendering the unchanged constrained title block, with no
+hero `<figure>` at all; a multi-page gallery's continuation carrying no hero even though
+its first page does; and the band's own `dvh`, never a bare `vh`. Building it surfaced
+one more finding worth recording: the large 400-placement archive fixture
+(`content-large-archive`) that AB#79's own bounded-preload measurement already depends on
+turned out to be the wrong gallery to also give an authored cover — a full-bleed hero
+image measurably perturbed that unrelated test's network-request count on
+`desktop-chromium` specifically. The cover proving AB#149's own multi-page/continuation
+case lives on `content-shuffled-showcase` instead (34 placements, already long enough to
+continue), leaving the archive fixture exactly as AB#79 needs it.
 The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
