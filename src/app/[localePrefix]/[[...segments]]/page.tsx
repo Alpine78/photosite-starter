@@ -19,6 +19,7 @@ import { ContentListingCursorError } from "@/lib/content-listing-cursor";
 import {
   asArticlePage,
   asGalleryPage,
+  effectiveArticleAuthor,
   type ContentPage,
 } from "@/lib/content-page";
 import {
@@ -44,6 +45,7 @@ import { buildGalleryHref } from "@/lib/gallery-slice";
 import { projectGallerySlice } from "@/lib/gallery-slice-server";
 import type { GallerySectionSummary } from "@/lib/gallery-sections";
 import { resolveLocalePrefixRequest } from "@/lib/locale-prefix-request";
+import { getSiteSettings } from "@/lib/site-settings";
 import {
   buildStoryPath,
   listPublishedLocaleVersions,
@@ -699,7 +701,14 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
     // Two bounded rows, not the article set: `getAdjacentContent` asks the
     // adapter for the neighbours either side of this page in the global
     // publication order the pre-migration article route already used.
-    const { previous, next } = await getAdjacentContent(locale, route.contentId);
+    // `getSiteSettings()` is already read once per request for the shared
+    // header/footer chrome (`SiteRoot`); React's `cache()` dedupes this call
+    // against that one rather than issuing a second read (AB#151).
+    const [{ previous, next }, settings] = await Promise.all([
+      getAdjacentContent(locale, route.contentId),
+      getSiteSettings(),
+    ]);
+    const authorName = effectiveArticleAuthor(article, settings);
 
     const articlePath = buildStoryPath(
       config,
@@ -724,6 +733,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
         <ContentArticle
           locale={locale}
           page={article}
+          authorName={authorName}
           breadcrumbs={buildBreadcrumbs(
             config,
             tree,

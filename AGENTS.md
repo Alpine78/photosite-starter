@@ -572,6 +572,34 @@ case, the `NOT_ENDED_FILTER`/`$now` param on every affected query, and the adjac
 `coalesce()` ordering) — what remains unverified, by design and matching this codebase's
 existing posture for a new adapter path, is a live Content Lake dataset, the way
 `verify:sanity-live` separately proves other adapters against one.
+A per-article author byline is in place (AB#151): `author?: string` on `ArticleContentPage`
+only — a curated gallery is credited to the site's photographer by construction, so
+`GalleryContentPage` carries no equivalent field — with the effective byline
+(`author ?? SiteSettings.photographerName`) resolved by one shared seam,
+`content-page.ts#effectiveArticleAuthor`, the same "authored override, sensible existing
+default" shape `effectiveEventDate` already gives AB#150's own field. The route (not the
+Sanity adapter, which has no business reading site settings) resolves it: the catch-all
+page reads `getSiteSettings()` alongside `getAdjacentContent()`, deduped against
+`SiteRoot`'s own read of the same singleton by React's `cache()` rather than issuing a
+second one. Display is coordinated with AB#150 into one meta line rather than two
+independently-shipped hero additions: `HeroOverlay`'s `meta` prop gains an optional
+`byline`, a fully pre-translated, pre-composed string (`labels.article.byline`, `{author}`
+replaced) rendered as a plain-text line above the `<time>` element, never inside it, so the
+date's own machine-readable value stays exactly what it names. A page with no cover shows
+the same byline in its existing constrained header, immediately above the date. The
+`article` Sanity schema gained a matching optional `author` string field, and
+`sanity-article.ts`'s detail projection carries it through unresolved (the raw override,
+never the fallback — resolving `SiteSettings` is the route's job) via the same
+`readString` blank-treated-as-absent rule every other optional text field already uses.
+The mock fixture layer proves both paths on the same footing AB#150's own fixtures do:
+`content-choosing-a-telephoto-lens` authors an explicit `"Alex Rivers"` override, and every
+other article relies on the fallback, so "no author authored" is the normal, zero-extra-
+effort state a single-photographer clone never has to think about. No structured-data
+(JSON-LD) `author` property is added to the `Article` entity `buildArticleJsonLd` (AB#86)
+already emits — a deliberate, separate decision this story's own scope excludes, left for
+a future story now that the field exists. ADR-0003 needed no amendment: decision 2 (the
+shared body-block set) and the rest of that record say nothing about a per-variant field
+like this one, so nothing it states changes.
 The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it

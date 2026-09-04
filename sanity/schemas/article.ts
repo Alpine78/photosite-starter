@@ -154,6 +154,13 @@ export const articleType: SchemaTypeDefinition = {
       description: "Shown on listing cards and at the head of the page.",
     },
     {
+      name: "author",
+      title: "Author",
+      type: "string",
+      description:
+        "Optional. Overrides the site's photographer name (Site Settings) on this one article's byline. Leave empty to show the site-wide name, exactly as before (AB#151) — a single-author site never needs to fill this in.",
+    },
+    {
       name: "publishedAt",
       title: "Published",
       type: "datetime",

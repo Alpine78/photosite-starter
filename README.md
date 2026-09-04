@@ -340,7 +340,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   from a gallery's curated grid. An article's or curated gallery's explicit cover now
   renders as a full-bleed, fold-safe hero with the title (and, for a gallery, the lead
   description) overlaid (AB#149) — no authored cover, no hero, and no page repeats a
-  gallery's own opening photograph by default*
+  gallery's own opening photograph by default. An article's optional per-article author
+  overrides the site's photographer name on the hero byline, one meta line shared with
+  the event date (AB#151); the gallery variant has no byline field*
 - [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
   — *category domain model, canonical placement contract, the server-rendered category
   branch routes with breadcrumbs, a bounded recent-content overview on the story root,

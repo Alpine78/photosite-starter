@@ -118,6 +118,7 @@ export const PROJECTED_ARTICLE_DETAIL_FIELDS = [
   "contentId",
   "title",
   "summary",
+  "author",
   "publishedAt",
   "eventDate",
   "endDate",
@@ -159,6 +160,7 @@ export const ARTICLE_DETAIL_PROJECTION = `{
   contentId,
   title,
   summary,
+  author,
   publishedAt,
   eventDate,
   endDate,
@@ -229,6 +231,8 @@ export type RawArticleListingDocument = {
 
 export type RawArticleDetailDocument = RawArticleListingDocument & {
   readonly endDate?: unknown;
+  /** Overrides `SiteSettings.photographerName` on this article's byline (AB#151). */
+  readonly author?: unknown;
   readonly tags?: unknown;
   readonly body?: unknown;
 };
@@ -764,6 +768,7 @@ export function projectArticleContentPage(
   const publishedAt = readPublishedAt(document.publishedAt, contentId);
   const eventDate = readOptionalIsoDate(document.eventDate, contentId, "eventDate");
   const endDate = readOptionalIsoDate(document.endDate, contentId, "endDate");
+  const author = readString(document.author);
 
   const summary = readString(document.summary);
   const cover = isRecord(document.cover)
@@ -792,6 +797,7 @@ export function projectArticleContentPage(
     publishedAt,
     ...(eventDate === undefined ? {} : { eventDate }),
     ...(endDate === undefined ? {} : { endDate }),
+    ...(author === undefined ? {} : { author }),
     ...(summary === undefined ? {} : { summary }),
     ...(cover === undefined ? {} : { cover }),
     ...(tags.length > 0 ? { tags } : {}),

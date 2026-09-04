@@ -41,6 +41,14 @@ import { mockImages } from "@/lib/mock-media";
 /** What a page adds to the record a card already carries. */
 type AuthoredPage = {
   readonly variant: ContentVariant;
+  /**
+   * Overrides the site-wide `photographerName` on this article's byline
+   * (AB#151). Article-only by convention — never set on a `variant: "gallery"`
+   * entry, matching `ArticleContentPage`'s own field; nothing here enforces
+   * that structurally, the same trust this fixture layer already places in
+   * itself for other per-variant fields.
+   */
+  readonly author?: string;
   readonly tags?: readonly string[];
   readonly body: readonly ContentBlock[];
 };
@@ -181,6 +189,10 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
   },
   "content-choosing-a-telephoto-lens": {
     variant: "article",
+    // AB#151 override-path fixture: a guest-contributor byline, distinct from
+    // the site-wide `photographerName` ("Jane Example") every other article
+    // falls back to.
+    author: "Alex Rivers",
     tags: ["lenses", "telephoto", "sports photography"],
     body: [
       {

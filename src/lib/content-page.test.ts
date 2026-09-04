@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   asArticlePage,
   assertSemanticHeadingOrder,
+  effectiveArticleAuthor,
   effectiveEventDate,
+  isContentEnded,
   type ContentBlock,
   type ContentPage,
 } from "@/lib/content-page";
@@ -35,6 +37,55 @@ const articlePage: ContentPage = {
   publishedAt: "2024-01-01",
   body: [],
 };
+
+describe("effectiveEventDate", () => {
+  it("falls back to publishedAt when no eventDate is authored", () => {
+    expect(
+      effectiveEventDate({ publishedAt: "2024-01-01", eventDate: undefined }),
+    ).toBe("2024-01-01");
+  });
+
+  it("prefers an authored eventDate over publishedAt", () => {
+    expect(
+      effectiveEventDate({ publishedAt: "2024-01-01", eventDate: "2023-06-15" }),
+    ).toBe("2023-06-15");
+  });
+});
+
+describe("isContentEnded", () => {
+  it("is never ended when no endDate is authored", () => {
+    expect(isContentEnded(undefined, new Date("2099-01-01"))).toBe(false);
+  });
+
+  it("is ended once now reaches or passes endDate", () => {
+    expect(isContentEnded("2024-01-01", new Date("2024-01-01"))).toBe(true);
+    expect(isContentEnded("2024-01-01", new Date("2024-06-01"))).toBe(true);
+  });
+
+  it("is not yet ended before endDate", () => {
+    expect(isContentEnded("2024-01-01", new Date("2023-06-01"))).toBe(false);
+  });
+
+  it("throws for an unparseable endDate", () => {
+    expect(() => isContentEnded("not-a-date", new Date())).toThrow(TypeError);
+  });
+});
+
+describe("effectiveArticleAuthor", () => {
+  const settings = { photographerName: "Jane Example" };
+
+  it("falls back to the site's photographer name when no author is authored", () => {
+    expect(effectiveArticleAuthor({ author: undefined }, settings)).toBe(
+      "Jane Example",
+    );
+  });
+
+  it("prefers the article's own author over the site-wide name", () => {
+    expect(
+      effectiveArticleAuthor({ author: "Alex Rivers" }, settings),
+    ).toBe("Alex Rivers");
+  });
+});
 
 describe("asArticlePage", () => {
   it("accepts only the requested article identity", () => {
@@ -163,6 +214,31 @@ describe.each(languages)("mock content pages (%s)", (language) => {
       expect(authored).toBeDefined();
       expect(page.cover).toBe(authored?.cover);
     }
+  });
+
+  it("authors an explicit byline override on one article, and none on a gallery (AB#151)", () => {
+    // Article-only: `GalleryContentPage` has no `author` field at all, so
+    // every gallery page in this fixture is unaffected either way.
+    for (const page of pages.values()) {
+      if (page.variant !== "gallery") continue;
+      expect(page).not.toHaveProperty("author");
+    }
+
+    const overridden = pages.get("content-choosing-a-telephoto-lens");
+    if (overridden !== undefined) {
+      // Present only in the language this fixture actually authors it in
+      // (English) — the Finnish tree does not place this article at all.
+      expect(overridden.variant).toBe("article");
+      expect(overridden).toMatchObject({ author: "Alex Rivers" });
+    }
+
+    // At least one published article in this language relies on the
+    // fallback, proving the "no author authored" path is the normal state,
+    // not a state only the override fixture happens to avoid.
+    const articlesWithNoAuthor = [...pages.values()].filter(
+      (page) => page.variant === "article" && !("author" in page),
+    );
+    expect(articlesWithNoAuthor.length).toBeGreaterThan(0);
   });
 
   it("starts every authored heading below the page's own h1, in semantic order", () => {

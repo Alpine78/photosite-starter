@@ -24,6 +24,15 @@ export type AdjacentPageLink = {
 type ContentArticleProps = {
   locale: string;
   page: ArticleContentPage;
+  /**
+   * The resolved byline name — `page.author ?? SiteSettings.photographerName`
+   * (AB#151), already computed by the route through
+   * `content-page.ts#effectiveArticleAuthor`. Always a real name: a
+   * single-author deployment shows the site's photographer on every article
+   * whether or not any page overrides it, so this is a required prop, not an
+   * optional one like `previous`/`next`.
+   */
+  authorName: string;
   /** Canonical ancestry, story root first, ending at this page. */
   breadcrumbs: readonly BreadcrumbStep[];
   languages: readonly LanguageLink[];
@@ -58,10 +67,16 @@ const focusRing =
  * constrained title block instead, unchanged. Tags are plain text: ADR-0003
  * keeps them separate from categories, and they own no public route until
  * the reserved keyword-query route exists.
+ *
+ * The byline (AB#151) is the route's already-resolved `author ??
+ * SiteSettings.photographerName` — this component never reads settings
+ * itself — joined with the effective event date into one meta line, shown on
+ * the hero when there is one and in the constrained header when there is not.
  */
 export function ContentArticle({
   locale,
   page,
+  authorName,
   breadcrumbs,
   languages,
   previous,
@@ -70,6 +85,10 @@ export function ContentArticle({
 }: ContentArticleProps) {
   const headings = listContentHeadings(page.body);
   const eventDate = effectiveEventDate(page);
+  // AB#151: one decided meta-line layout shared by the hero and the
+  // constrained (no-cover) header, rather than each of AB#150 and AB#151
+  // independently guessing how the byline and the date sit together.
+  const byline = labels.article.byline.replace("{author}", authorName);
 
   return (
     <main>
@@ -84,12 +103,13 @@ export function ContentArticle({
           type shouldn't change size just because a photograph moved behind
           it. AB#150/ADR-0017: the in-flow `<time>` this header used to render
           moves onto the hero (`meta`) — never `publishedAt`, always the
-          effective event date. */}
+          effective event date. AB#151: the byline joins it as one meta line
+          rather than a second, independent addition to the hero. */}
       {page.cover && (
         <HeroOverlay
           media={page.cover}
           title={page.title}
-          meta={{ dateTime: eventDate, label: formatDate(eventDate, locale) }}
+          meta={{ dateTime: eventDate, label: formatDate(eventDate, locale), byline }}
           titleClassName="text-3xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-4xl"
         />
       )}
@@ -109,9 +129,10 @@ export function ContentArticle({
               <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
                 {page.title}
               </h1>
+              <p className="mt-2 text-sm text-subtle">{byline}</p>
               <time
                 dateTime={eventDate}
-                className="mt-2 block text-sm text-subtle"
+                className="mt-1 block text-sm text-subtle"
               >
                 {formatDate(eventDate, locale)}
               </time>

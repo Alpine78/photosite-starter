@@ -21,6 +21,7 @@
 
 import type { ContentVariant } from "@/lib/content-tree";
 import type { ImageMedia, Media } from "@/lib/media";
+import type { SiteSettings } from "@/lib/site-settings";
 
 /**
  * The six body blocks ADR-0003 decision 2 gives both variants. The page title
@@ -111,6 +112,16 @@ type ContentPageBase = {
  */
 export type ArticleContentPage = ContentPageBase & {
   readonly variant: "article";
+  /**
+   * The article's own byline, overriding the site-wide photographer name for
+   * this one page (AB#151). Article-only — a curated gallery is credited to
+   * the site's photographer by construction (every photograph in it already
+   * is), so `GalleryContentPage` carries no equivalent field. Optional: a
+   * single-author deployment never authors this, and every article still
+   * shows a byline through {@link effectiveArticleAuthor}'s fallback to
+   * `SiteSettings.photographerName`.
+   */
+  readonly author?: string;
 };
 
 /**
@@ -166,6 +177,23 @@ export function isContentEnded(
     throw new TypeError(`content endDate is not a parseable ISO date: "${endDate}"`);
   }
   return now.getTime() >= ends;
+}
+
+/**
+ * The one place the `author ?? settings.photographerName` fallback is
+ * expressed (AB#151) — the same "authored override, sensible existing
+ * default" shape {@link effectiveEventDate} already gives `eventDate`. A
+ * caller resolves `SiteSettings` once (already required for the site's own
+ * header/footer chrome) and passes it here rather than this module reading
+ * settings itself, which would give a content-model boundary a dependency on
+ * the settings boundary. Article-only, matching `ArticleContentPage.author`:
+ * a gallery has no byline field and no caller of this function.
+ */
+export function effectiveArticleAuthor(
+  page: Pick<ArticleContentPage, "author">,
+  settings: Pick<SiteSettings, "photographerName">,
+): string {
+  return page.author ?? settings.photographerName;
 }
 
 /**
