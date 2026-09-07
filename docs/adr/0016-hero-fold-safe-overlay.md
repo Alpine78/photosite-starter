@@ -3,7 +3,10 @@
 **Status:** Accepted
 **Date:** 2026-09-04
 **Deciders:** Project owner (Ilkka Rytkönen)
-**Work item:** AB#148
+**Work item:** AB#148; overflow correction AB#155
+
+> The 2026-09-07 amendment below replaces the fixed-height and upward-overflow
+> clauses. The original decision and measurements are retained as history.
 
 ## Context
 
@@ -256,3 +259,56 @@ degrades in the safe direction if it's ever wrong.
   short (a business name and a one-line tagline, not a paragraph).
 - **A crop-based or focal-point-based alternative.** Considered and rejected above as
   out of scope for a fold-safety fix; would be its own product decision and its own ADR.
+
+
+## 2026-09-07 amendment — text-sized contrast surface (AB#155)
+
+**Evidence for the correction.** AB#155 reproduces an ordinary content hero at
+390px width with a pale 1600×900 cover, a long title and lead, and a date. The
+fixed-height, bottom-aligned stack rises above the image and its gradient, into the
+header. The regression test also fails on the original component: its first
+text line starts at y=4.375 while the image/surface start at y=61. The original Decision's claim that upward overflow remains “fully over the
+photograph” is false: the band starts at the photograph's top. This is not limited to
+an unusually long home site name. A gradient whose darkest stop is behind the last
+line also does not guarantee contrast for earlier lines.
+
+**Replacement.** `HeroOverlay` remains the one server-rendered mechanism for home,
+article and gallery. The image and text band share a CSS grid cell, both top-aligned.
+The existing `min(image height, 100dvh - HERO_CHROME_RESERVE_PX)` becomes the band's
+**minimum height**, with automatic height above that minimum when its text needs it.
+The image retains its true intrinsic dimensions, `h-auto w-full`, preload and
+viewport-width `sizes`. The caption stays a direct child of the figure, positioned at the image's
+computed bottom edge rather than the potentially taller figure's bottom.
+The figure's normal-flow height is the larger of the image and the band, so extra
+text extends the hero downward and moves the following content with it. No text is
+clipped, line-clamped, shrunk or allowed to overflow into the header. Long unbroken
+words may wrap within the reading column.
+
+The entire text stack, including date, optional byline and action, now sits on an
+80%-black surface with padding. This replaces the gradient; it deliberately changes
+the appearance to a uniform dark panel behind all text. Even over pure white, the
+surface is #333 and the weakest, 80%-white metadata is approximately #d6d6d6, clearing
+normal-text AA. The photograph stays full-frame at its native ratio, including when
+the panel extends below it; the text does not change the image's dimensions.
+
+**Revised guarantee.** Ordinary copy that fits the original band remains fold-safe.
+When the text needs more height than the image or available viewport, readability
+and complete text take precedence: the hero grows downward, and sufficiently long
+copy requires scrolling. There is no universal promise that arbitrary editorial
+text fits a single screen. This replaces the upward-overflow rationale in Decision,
+Trade-off Analysis and “What this ADR did not establish”; the no-crop and
+no-client-measurement decisions remain in force. The old measurement table records
+the previous layout, not pixel positions promised by this correction.
+
+**Verification.** `e2e/hero-text-overflow.spec.ts` renders the actual shared component
+(including `next/image`) with the production application's CSS and header, supplying
+synthetic long title/lead/date and optional byline at 390×844. Pure-white image
+responses exercise both 1600×900 and 1600×500 intrinsic ratios. Chromium and WebKit
+run with JavaScript disabled. Assertions compare each text box to its contrast
+surface and header, and check full-frame image geometry, untruncated text and the
+following content's position. This is component integration coverage, not a new
+CMS route fixture; the existing home/content hero journey suites still exercise the
+real routes, the desktop fold targets, no-cover states and continuation pages.
+
+The AB#149 extraction action item above has also been completed: all three callers
+already use `src/components/hero-overlay.tsx`.
