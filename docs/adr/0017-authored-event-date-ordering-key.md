@@ -143,6 +143,14 @@ future requirement for a hard cutoff (licensed imagery that legally must come do
 precise time, say) is a separate decision with its own ADR. `docs/cache-revalidation.md`
 records this window.
 
+Implementation correction (2026-09-07, AB#154): the Sanity listing, detail, and
+article-adjacent queries evaluate `dateTime(endDate) > dateTime(now())` at the
+origin, before row limits. Sending a fresh `$now` parameter on each request made
+the transport URL—and therefore Next's cache key—different every millisecond.
+Using [GROQ's operation-stable clock](https://www.sanity.io/docs/specifications/groq-functions#now)
+restores cache reuse without rounding the clock or adding a staleness window.
+The existing TTL, tags, invalidation, and placement projection gate are unchanged.
+
 ### 7. `GalleryOrdering` is a different axis and is untouched
 
 `GalleryOrdering` (`{kind:"manual"}` | `{kind:"seeded-random", seed}`, ADR-0009) orders
@@ -297,7 +305,7 @@ PR2 (this branch):
       branch" check).
 - [x] Unit tests against a fake transport for every new code path: the placement `endDate`
       gate (published/unpublished/no-endDate/invalid-endDate), the listing record's
-      eventDate-overrides-publishedAt projection, the `NOT_ENDED_FILTER` + `$now` param on
+      eventDate-overrides-publishedAt projection, the `NOT_ENDED_FILTER` on
       every listing/detail/adjacent query, the detail page's raw `eventDate`/`endDate`
       projection, and the adjacent-records query's `coalesce()` ordering with the filter
       applied to the anchor and both candidate sides.

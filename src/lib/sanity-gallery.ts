@@ -105,11 +105,13 @@ export const GALLERY_FILTER = `_type == "${GALLERY_DOCUMENT_TYPE}" && language =
  * Excludes a gallery whose scheduled `endDate` has passed (AB#150, ADR-0017
  * decision 5) — appended to every read except the placement read below, which
  * must still see an ended document in order to report it as unpublished
- * rather than simply missing. `$now` is bound once per read (the caller's
- * request time), so every comparison within one read is evaluated against the
- * same instant. Mirrors `sanity-article.ts#NOT_ENDED_FILTER` exactly.
+ * rather than simply missing. Sanity evaluates `now()` once per operation at
+ * the origin. Keeping time out of the URL lets ordinary requests reuse Next's
+ * tagged one-hour cache entry (AB#154); expiry still precedes every row limit.
+ * Compare dateTime values so timestamp precision and offsets cannot alter expiry.
+ * https://www.sanity.io/docs/specifications/groq-functions#now
  */
-const NOT_ENDED_FILTER = `(!defined(endDate) || endDate > $now)`;
+const NOT_ENDED_FILTER = `(!defined(endDate) || dateTime(endDate) > dateTime(now()))`;
 
 /** How many items one bounded page of a Sanity-backed gallery holds. */
 export const GALLERY_PAGE_SIZE = 24;
@@ -585,13 +587,12 @@ export async function readPublicGalleryListingRecords(
   const languages = { language, fallbackLanguage: getFallbackLocale(), config };
 
   const chunks = chunkGalleryContentIds(query.contentIds, MAX_CONTENT_IDS_BYTES);
-  const now = new Date().toISOString();
 
   const chunkedRecords = await Promise.all(
     chunks.map(async (contentIds) => {
       const result = await client.query({
         query: `*[${GALLERY_FILTER} && contentId in $contentIds && ${NOT_ENDED_FILTER}] | ${GALLERY_LISTING_ORDER} [0...$limit]${GALLERY_LISTING_PROJECTION}`,
-        params: { language, contentIds, limit: query.limit, now },
+        params: { language, contentIds, limit: query.limit },
         tag: "gallery.listing",
       });
 
@@ -635,7 +636,6 @@ export async function readPublicGalleryListingRecordsInCategories(
     categoryDocumentIds,
     MAX_CONTENT_IDS_BYTES,
   );
-  const now = new Date().toISOString();
 
   // See `sanity-article.ts#readPublicArticleListingRecordsInCategories`: a
   // category-listing continuation cursor (AB#140, ADR-0013) resumes strictly
@@ -662,7 +662,7 @@ export async function readPublicGalleryListingRecordsInCategories(
     chunks.map(async (categoryIds) => {
       const result = await client.query({
         query: `*[${GALLERY_FILTER} && references($categoryIds) && ${NOT_ENDED_FILTER}${keysetFilter}] | ${GALLERY_LISTING_ORDER} [0...$limit]${GALLERY_LISTING_PROJECTION}`,
-        params: { language, categoryIds, limit: query.limit, now, ...keysetParams },
+        params: { language, categoryIds, limit: query.limit, ...keysetParams },
         tag: "gallery.listing.by-category",
       });
 
@@ -765,10 +765,9 @@ export async function readPublicGalleryPage(
 
   // Belt-and-suspenders half of ADR-0017 decision 5's endDate gate, mirroring
   // `sanity-article.ts#readPublicArticlePage`.
-  const now = new Date().toISOString();
   const result = await client.query({
     query: `*[${GALLERY_FILTER} && contentId == $contentId && ${NOT_ENDED_FILTER}][0...2]${GALLERY_DETAIL_PROJECTION}`,
-    params: { language, contentId, now },
+    params: { language, contentId },
     tag: "gallery.detail",
   });
 

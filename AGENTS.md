@@ -568,10 +568,14 @@ cache `HIT` for up to `SANITY_PUBLIC_CACHE_TTL_SECONDS` after its `endDate` pass
 than adding a scheduled revalidation trigger, since `endDate` is an editorial control, not
 a legal or security embargo. Every new code path is covered against a fake transport
 (the placement gate's four states, the listing record's eventDate-overrides-publishedAt
-case, the `NOT_ENDED_FILTER`/`$now` param on every affected query, and the adjacent-query's
+case, the `NOT_ENDED_FILTER` on every affected query, and the adjacent-query's
 `coalesce()` ordering) — what remains unverified, by design and matching this codebase's
 existing posture for a new adapter path, is a live Content Lake dataset, the way
 `verify:sanity-live` separately proves other adapters against one.
+AB#154 keeps the expiry clock inside GROQ (`dateTime(now())`) instead of a per-request
+`$now` URL parameter, so equivalent reads reuse Next's tagged cache entry. The transport
+regression exercises the installed Next cache-key implementation for listing, detail,
+and sibling reads; the one-hour TTL and invalidation map are unchanged.
 A per-article author byline is in place (AB#151): `author?: string` on `ArticleContentPage`
 only — a curated gallery is credited to the site's photographer by construction, so
 `GalleryContentPage` carries no equivalent field — with the effective byline

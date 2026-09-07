@@ -133,11 +133,13 @@ export const ARTICLE_FILTER = `_type == "${ARTICLE_DOCUMENT_TYPE}" && language =
  * Excludes an article whose scheduled `endDate` has passed (AB#150, ADR-0017
  * decision 5) — appended to every read except the placement read below, which
  * must still see an ended document in order to report it as unpublished
- * rather than simply missing. `$now` is bound once per read (the caller's
- * request time), so every comparison within one read is evaluated against the
- * same instant.
+ * rather than simply missing. Sanity evaluates `now()` once per operation at
+ * the origin. Keeping time out of the URL lets ordinary requests reuse Next's
+ * tagged one-hour cache entry (AB#154); expiry still precedes every row limit.
+ * Compare dateTime values so timestamp precision and offsets cannot alter expiry.
+ * https://www.sanity.io/docs/specifications/groq-functions#now
  */
-const NOT_ENDED_FILTER = `(!defined(endDate) || endDate > $now)`;
+const NOT_ENDED_FILTER = `(!defined(endDate) || dateTime(endDate) > dateTime(now()))`;
 
 export const ARTICLE_PLACEMENT_PROJECTION = `{
   contentId,
@@ -591,13 +593,12 @@ export async function readPublicArticleListingRecords(
   const languages = { language, fallbackLanguage: getFallbackLocale(), config };
 
   const chunks = chunkContentIds(query.contentIds, MAX_CONTENT_IDS_BYTES);
-  const now = new Date().toISOString();
 
   const chunkedRecords = await Promise.all(
     chunks.map(async (contentIds) => {
       const result = await client.query({
         query: `*[${ARTICLE_FILTER} && contentId in $contentIds && ${NOT_ENDED_FILTER}] | ${ARTICLE_LISTING_ORDER} [0...$limit]${ARTICLE_LISTING_PROJECTION}`,
-        params: { language, contentIds, limit: query.limit, now },
+        params: { language, contentIds, limit: query.limit },
         tag: "article.listing",
       });
 
@@ -676,7 +677,6 @@ export async function readPublicArticleListingRecordsInCategories(
   if (categoryDocumentIds.length === 0) return [];
 
   const chunks = chunkContentIds(categoryDocumentIds, MAX_CONTENT_IDS_BYTES);
-  const now = new Date().toISOString();
 
   // A category-listing continuation cursor (AB#140, ADR-0013) resumes strictly
   // after an `(eventDate, contentId)` boundary — the effective event date
@@ -708,7 +708,7 @@ export async function readPublicArticleListingRecordsInCategories(
     chunks.map(async (categoryIds) => {
       const result = await client.query({
         query: `*[${ARTICLE_FILTER} && references($categoryIds) && ${NOT_ENDED_FILTER}${keysetFilter}] | ${ARTICLE_LISTING_ORDER} [0...$limit]${ARTICLE_LISTING_PROJECTION}`,
-        params: { language, categoryIds, limit: query.limit, now, ...keysetParams },
+        params: { language, categoryIds, limit: query.limit, ...keysetParams },
         tag: "article.listing.by-category",
       });
 
@@ -835,10 +835,9 @@ export async function readPublicArticlePage(
   // placement, so it repeats the check rather than trusting every caller
   // resolved through the tree first — mirroring the mock's own
   // `getContentPage` gate in `content.ts`.
-  const now = new Date().toISOString();
   const result = await client.query({
     query: `*[${ARTICLE_FILTER} && contentId == $contentId && ${NOT_ENDED_FILTER}][0...2]${ARTICLE_DETAIL_PROJECTION}`,
-    params: { language, contentId, now },
+    params: { language, contentId },
     tag: "article.detail",
   });
 
@@ -905,7 +904,6 @@ export async function readPublicArticleAdjacentRecords(
   const language = toLanguageSubtag(options.language);
   const config = options.config ?? getSanityConfig();
   const languages = { language, fallbackLanguage: getFallbackLocale(), config };
-  const now = new Date().toISOString();
   const anchorEventDate = "coalesce(^.eventDate, ^.publishedAt)";
   const candidateEventDate = "coalesce(eventDate, publishedAt)";
 
@@ -914,7 +912,7 @@ export async function readPublicArticleAdjacentRecords(
       "previous": *[${ARTICLE_FILTER} && ${NOT_ENDED_FILTER} && (${candidateEventDate} > ${anchorEventDate} || (${candidateEventDate} == ${anchorEventDate} && contentId < ^.contentId))] | order(${candidateEventDate} asc, contentId desc) [0]${ARTICLE_LISTING_PROJECTION},
       "next": *[${ARTICLE_FILTER} && ${NOT_ENDED_FILTER} && (${candidateEventDate} < ${anchorEventDate} || (${candidateEventDate} == ${anchorEventDate} && contentId > ^.contentId))] | order(${candidateEventDate} desc, contentId asc) [0]${ARTICLE_LISTING_PROJECTION}
     }`,
-    params: { language, contentId, now },
+    params: { language, contentId },
     tag: "article.adjacent",
   });
 
