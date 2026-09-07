@@ -70,7 +70,12 @@ for (const mode of ["disabled JavaScript", "blocked hydration"] as const) {
       await expect(input).toBeDisabled();
       await expect(page.getByRole("button", { name: labels.signIn })).toBeDisabled();
       if (mode === "disabled JavaScript") {
-        await expect(page.getByText(labels.javascriptRequired)).toBeVisible();
+        // Playwright's text selector skips noscript content even when scripts
+        // are disabled. Locate the rendered paragraph directly, then assert
+        // both its visibility and its localized message.
+        const notice = page.locator("noscript > p");
+        await expect(notice).toBeVisible();
+        await expect(notice).toHaveText(labels.javascriptRequired);
       }
 
       // Browser automation seeds a canary even though a visitor cannot type
