@@ -526,10 +526,11 @@ export function GalleryLightbox({
       // un-zoomed state rather than carrying the previous slide's over.
       syncZoomedState();
 
+      const pswp = lightbox.pswp;
+
       // Reaching the end of what is loaded is the only thing that asks for
       // more. Nothing is fetched ahead of the visitor, so browsing a
       // four-hundred-item gallery never quietly pulls the whole of it.
-      const pswp = lightbox.pswp;
       if (
         !pswp ||
         continuationRef.current === undefined ||
@@ -546,6 +547,48 @@ export function GalleryLightbox({
     // Covers the button, the `z` key, a double-tap, and a pinch with one
     // handler; the `zoomedIn` cache keeps this per-frame event cheap.
     lightbox.on("zoomPanUpdate", syncZoomedState);
+
+    // A slide whose own preload failed and is later revisited: the library's
+    // own recovery (content.js `activate()`, on finding a slide in its error
+    // state) refetches correctly but then never attaches what it fetched. An
+    // "already attached" flag (`content.isAttached`) from the first, failed
+    // attempt is never reset on error, so the later successful load's own
+    // append is a silent no-op — confirmed against a real network trace and
+    // the library's own source (still true in 5.4.4, its latest release):
+    // the request succeeds, the photograph is simply never shown.
+    //
+    // Gated on `isAttached` already being `true`, not merely on the element
+    // being unattached, because those two conditions mean different things.
+    // An ordinary first load also reaches `loadComplete` with nothing
+    // attached yet whenever the opening transition is still running (the
+    // library's own `appendHeavy` defers attaching until it ends) — there,
+    // `isAttached` itself is still `false`: attaching is pending, not
+    // attempted-and-lost. `isAttached` true with nothing on screen is
+    // specific to the stale-flag bug this exists for; treating "nothing on
+    // screen" alone as the signal fights the opening transition instead.
+    //
+    // Deferred a tick, because this event fires from inside that same append
+    // attempt's call stack — rebuilding the slide synchronously here would
+    // tear down the content object the library's own code is still
+    // executing on. By the time the deferred check runs, that attempt has
+    // already finished (and failed), so re-reading `content.element` sees
+    // its real result rather than racing it. Rebuilding the slide's content
+    // from scratch — the same call this file already uses to bring in an
+    // appended slide, above — sidesteps the stale flag entirely rather than
+    // working around it in place.
+    lightbox.on("loadComplete", ({ content, slide, isError }) => {
+      if (isError || !slide.isActive || !content.isAttached) return;
+      queueMicrotask(() => {
+        if (
+          lightbox.pswp?.currSlide !== slide ||
+          slide.content !== content ||
+          content.element?.parentNode
+        ) {
+          return;
+        }
+        lightbox.pswp.refreshSlideContent(slide.index);
+      });
+    });
 
     lightbox.on("destroy", () => {
       captionElement = null;
