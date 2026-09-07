@@ -72,6 +72,17 @@ read-time-gate mechanism itself are ADR-0017 decisions 5 and 6. Lowering
 `SANITY_PUBLIC_CACHE_TTL_SECONDS` (`src/lib/sanity-cache.ts`) lowers this window too, the
 same way it lowers every other tag's worst-case staleness.
 
+AB#154 keeps the expiry comparison in GROQ as
+`!defined(endDate) || dateTime(endDate) > dateTime(now())`, before ordering and row
+limits. [Sanity's `now()`](https://www.sanity.io/docs/specifications/groq-functions#now)
+is stable within each origin query. No request-clock parameter enters the URL, so
+identical listing, detail, and sibling reads reuse the same Next Data Cache key.
+The origin evaluates expiry again on a cache miss or revalidation; the one-hour TTL,
+cache tags, and webhook invalidation remain unchanged. The client uses `api.sanity.io`,
+so Sanity's separate API CDN rule for `now()` does not add another cache layer.
+`sanity-cache-identity.test.ts` exercises the real adapters and HTTP serialization
+against the installed Next cache-key implementation, with an injected transport.
+
 ## Webhook contract
 
 Configure one Sanity **document webhook per deployment environment**:

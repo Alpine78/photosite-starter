@@ -532,7 +532,7 @@ describe("reading listing records", () => {
     expect(records[0].contentId).toBe("content-newer");
   });
 
-  it("excludes an ended article and binds the request time (AB#150, ADR-0017)", async () => {
+  it("excludes an ended article and uses the origin query time (AB#150, ADR-0017)", async () => {
     const { client, requests } = fakeClient({ "article.listing": [] });
 
     await readPublicArticleListingRecords(
@@ -540,8 +540,8 @@ describe("reading listing records", () => {
       { language: "en", client, config },
     );
 
-    expect(requests[0].query).toContain("!defined(endDate) || endDate > $now");
-    expect(requests[0].params).toMatchObject({ now: expect.any(String) });
+    expect(requests[0].query).toContain("!defined(endDate) || dateTime(endDate) > dateTime(now())");
+    expect(requests[0].params).not.toHaveProperty("now");
   });
 });
 
@@ -621,7 +621,7 @@ describe("reading listing records by category subtree", () => {
     ).toBe(false);
   });
 
-  it("excludes an ended article and binds the request time (AB#150, ADR-0017)", async () => {
+  it("excludes an ended article and uses the origin query time (AB#150, ADR-0017)", async () => {
     // Required, not merely defensive: this query is scoped by category
     // reference, so an ended article's own reference to an in-scope category
     // would otherwise still surface it even though the tree already treats it
@@ -639,8 +639,8 @@ describe("reading listing records by category subtree", () => {
     const listingRequest = requests.find(
       (request) => request.tag === "article.listing.by-category",
     );
-    expect(listingRequest?.query).toContain("!defined(endDate) || endDate > $now");
-    expect(listingRequest?.params).toMatchObject({ now: expect.any(String) });
+    expect(listingRequest?.query).toContain("!defined(endDate) || dateTime(endDate) > dateTime(now())");
+    expect(listingRequest?.params).not.toHaveProperty("now");
   });
 
   it("adds a keyset boundary clause and params for a category continuation cursor (AB#140)", async () => {
@@ -871,8 +871,8 @@ describe("reading one article's page", () => {
       eventDate: "2023-06-15",
       endDate: "2030-01-01",
     });
-    expect(requests[0].query).toContain("!defined(endDate) || endDate > $now");
-    expect(requests[0].params).toMatchObject({ now: expect.any(String) });
+    expect(requests[0].query).toContain("!defined(endDate) || dateTime(endDate) > dateTime(now())");
+    expect(requests[0].params).not.toHaveProperty("now");
   });
 });
 
@@ -916,7 +916,6 @@ describe("reading adjacent (sibling) records", () => {
     expect(requests[0].params).toEqual({
       language: "en",
       contentId: "content-anchor",
-      now: expect.any(String),
     });
   });
 
@@ -935,7 +934,7 @@ describe("reading adjacent (sibling) records", () => {
     expect(query).toContain("coalesce(^.eventDate, ^.publishedAt)");
     // Both the previous and the next subquery apply the not-ended filter.
     expect(
-      query.match(/!defined\(endDate\) \|\| endDate > \$now/g),
+      query.match(/!defined\(endDate\) \|\| dateTime\(endDate\) > dateTime\(now\(\)\)/g),
     ).toHaveLength(3); // anchor + previous + next
   });
 

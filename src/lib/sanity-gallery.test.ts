@@ -341,13 +341,13 @@ describe("readPublicGalleryPage", () => {
     expect((error as SanityGalleryError).rejection).toBe("ambiguous-content-id");
   });
 
-  it("excludes an ended gallery at the query and binds the request time (AB#150, ADR-0017)", async () => {
+  it("excludes an ended gallery at the query and uses the origin query time (AB#150, ADR-0017)", async () => {
     const { client, requests } = fakeClient({ "gallery.detail": [] });
 
     await readPublicGalleryPage("content-x", { language: "en", client, config });
 
-    expect(requests[0].query).toContain("!defined(endDate) || endDate > $now");
-    expect(requests[0].params).toMatchObject({ now: expect.any(String) });
+    expect(requests[0].query).toContain("!defined(endDate) || dateTime(endDate) > dateTime(now())");
+    expect(requests[0].params).not.toHaveProperty("now");
   });
 });
 
@@ -1366,7 +1366,7 @@ describe("readPublicGalleryListingRecords", () => {
     });
   });
 
-  it("excludes an ended gallery and binds the request time (AB#150, ADR-0017)", async () => {
+  it("excludes an ended gallery and uses the origin query time (AB#150, ADR-0017)", async () => {
     const { client, requests } = fakeClient({ "gallery.listing": [] });
 
     await readPublicGalleryListingRecords(
@@ -1374,8 +1374,8 @@ describe("readPublicGalleryListingRecords", () => {
       { language: "en", client, config },
     );
 
-    expect(requests[0].query).toContain("!defined(endDate) || endDate > $now");
-    expect(requests[0].params).toMatchObject({ now: expect.any(String) });
+    expect(requests[0].query).toContain("!defined(endDate) || dateTime(endDate) > dateTime(now())");
+    expect(requests[0].params).not.toHaveProperty("now");
   });
 
   it("chunks a candidate list that would exceed the GET URL budget into more than one request", async () => {
@@ -1502,7 +1502,7 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
     });
   });
 
-  it("excludes an ended gallery and binds the request time (AB#150, ADR-0017)", async () => {
+  it("excludes an ended gallery and uses the origin query time (AB#150, ADR-0017)", async () => {
     const { client, requests } = fakeClient({
       "category.ids": [{ _id: "doc-a" }],
       "gallery.listing.by-category": [],
@@ -1516,8 +1516,8 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
     const listingRequest = requests.find(
       (request) => request.tag === "gallery.listing.by-category",
     );
-    expect(listingRequest?.query).toContain("!defined(endDate) || endDate > $now");
-    expect(listingRequest?.params).toMatchObject({ now: expect.any(String) });
+    expect(listingRequest?.query).toContain("!defined(endDate) || dateTime(endDate) > dateTime(now())");
+    expect(listingRequest?.params).not.toHaveProperty("now");
   });
 
   it("adds a keyset boundary clause for a category continuation cursor (AB#140)", async () => {
