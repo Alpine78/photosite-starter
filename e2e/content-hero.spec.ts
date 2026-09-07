@@ -191,7 +191,7 @@ test("the hero band is sized with dvh, not vh, on a content page too", async ({
 }) => {
   await page.goto(ARTICLE_WITH_HERO, { waitUntil: "domcontentloaded" });
 
-  const band = page.locator("main > figure").first().locator("div").first();
+  const band = page.locator("main > figure").first().locator(":scope > div[style]");
   const inlineStyle = await band.getAttribute("style");
 
   expect(inlineStyle).toContain("dvh");

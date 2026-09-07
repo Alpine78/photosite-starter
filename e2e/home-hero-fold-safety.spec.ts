@@ -126,7 +126,7 @@ test.describe("home hero overlay stays inside the fold", () => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
 
     const hero = page.locator("main > figure").first();
-    const band = hero.locator("div").first();
+    const band = hero.locator(":scope > div[style]");
     const inlineStyle = await band.getAttribute("style");
 
     expect(inlineStyle).toContain("dvh");

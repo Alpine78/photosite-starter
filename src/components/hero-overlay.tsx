@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import Image from "next/image";
 import Link from "next/link";
 import type { ImageMedia } from "@/lib/media";
@@ -51,11 +52,12 @@ const DEFAULT_TITLE_CLASSNAME =
 /**
  * Shared full-bleed hero mechanism (ADR-0016, extracted for AB#149 per that
  * ADR's own action item): the photograph renders at its true native size,
- * uncapped and never cropped; the overlaid text sits in a band clamped to
+ * uncapped and never cropped; the overlaid text sits in a band whose minimum is
  * `min(the image's own rendered height, the viewport height below the
  * header)` and anchored to the top of the hero rather than the image's
- * bottom edge, so the title always lands inside the visible viewport on
- * load regardless of how tall the photograph renders at a given width.
+ * bottom edge. The grid lets a taller text stack grow the figure downward,
+ * never above the photograph or over following content (AB#155). The entire
+ * stack has its own contrast surface; very long copy may require scrolling.
  *
  * One mechanism, three call sites (the home hero, and — via AB#149 — the
  * article and gallery content-page heroes): duplicating this markup a
@@ -70,9 +72,10 @@ export function HeroOverlay({
   titleClassName = DEFAULT_TITLE_CLASSNAME,
 }: HeroOverlayProps) {
   const { caption, credit } = media;
+  const imageHeight = `calc(100vw * ${media.rendition.height} / ${media.rendition.width})`;
 
   return (
-    <figure className="relative">
+    <figure className="relative grid">
       <Image
         src={media.rendition.src}
         alt={media.alt}
@@ -80,7 +83,7 @@ export function HeroOverlay({
         height={media.rendition.height}
         preload
         sizes={HERO_IMAGE_SIZES}
-        className="h-auto w-full"
+        className="col-start-1 row-start-1 h-auto w-full self-start"
       />
       {/* Attribution, same rule `MediaFigure` enforces everywhere else an
           image is placed: a credit is someone else's name, and a surface
@@ -89,41 +92,46 @@ export function HeroOverlay({
           full-bleed hero has no in-flow position directly under the image
           the way a body figure does. */}
       {(caption || credit) && (
-        <figcaption className="absolute bottom-2 right-2 max-w-[70%] rounded bg-black/50 px-2 py-1 text-right text-xs text-white/90 sm:bottom-3 sm:right-4">
+        <figcaption
+          className="absolute right-2 -mt-2 max-w-[70%] -translate-y-full rounded bg-black/50 px-2 py-1 text-right text-xs text-white/90 sm:right-4 sm:-mt-3"
+          style={{ top: imageHeight }}
+        >
           {caption}
           {caption && credit && " — "}
           {credit}
         </figcaption>
       )}
       <div
-        className="absolute inset-x-0 top-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pb-8 sm:px-6 sm:pb-14 lg:pb-20"
+        className="relative col-start-1 row-start-1 flex min-w-0 flex-col justify-end self-start"
         style={{
-          height: `min(calc(100vw * ${media.rendition.height} / ${media.rendition.width}), calc(100dvh - ${HERO_CHROME_RESERVE_PX}px))`,
+          minHeight: `min(${imageHeight}, calc(100dvh - ${HERO_CHROME_RESERVE_PX}px))`,
         }}
       >
-        <div className="mx-auto max-w-6xl">
-          {meta && (
-            <div className="text-sm text-white/80 drop-shadow-sm">
-              {meta.byline && <p>{meta.byline}</p>}
-              <time dateTime={meta.dateTime} className="block">
-                {meta.label}
-              </time>
-            </div>
-          )}
-          <h1 className={titleClassName}>{title}</h1>
-          {description && (
-            <p className="mt-3 max-w-2xl text-lg text-white/90 drop-shadow-sm sm:text-xl">
-              {description}
-            </p>
-          )}
-          {action && (
-            <Link
-              href={action.href}
-              className="mt-6 inline-flex items-center rounded-full bg-white px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:mt-8 sm:text-base"
-            >
-              {action.label}
-            </Link>
-          )}
+        <div className="bg-black/80 px-4 py-8 sm:px-6 sm:pb-14 lg:pb-20">
+          <div className="mx-auto max-w-6xl [overflow-wrap:anywhere]">
+            {meta && (
+              <div className="text-sm text-white/80 drop-shadow-sm">
+                {meta.byline && <p>{meta.byline}</p>}
+                <time dateTime={meta.dateTime} className="block">
+                  {meta.label}
+                </time>
+              </div>
+            )}
+            <h1 className={titleClassName}>{title}</h1>
+            {description && (
+              <p className="mt-3 max-w-2xl text-lg text-white/90 drop-shadow-sm sm:text-xl">
+                {description}
+              </p>
+            )}
+            {action && (
+              <Link
+                href={action.href}
+                className="mt-6 inline-flex items-center rounded-full bg-white px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-white/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:mt-8 sm:text-base"
+              >
+                {action.label}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </figure>
