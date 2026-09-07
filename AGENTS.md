@@ -484,7 +484,10 @@ explicitly picks a cover that also happens to be the gallery's first grid item h
 that adjacency their own visible choice, not a default nobody chose: it is allowed, not
 refused, surfaced by a non-blocking Studio warning on the `cover` field
 (`gallery.ts#warnsAboutDuplicatingGridOpening`) — the same allowed-but-flagged shape
-ADR-0002 §2 already gives a photograph repeated within one gallery. That warning is a
+ADR-0002 §2 already gives a photograph repeated within one gallery. AB#156 corrects both
+checks to register through `custom(check).warning()`; the placement's required media
+reference remains a separate blocking rule. Shared test builders preserve Sanity's
+immutable rule chains and severity semantics. That warning is a
 deliberately approximate, advisory check (documented in its own doc comment): it orders
 by a placement's `order` field and `visible` flag only, matching a `manual` gallery's
 public read, and does not replicate a `seeded-random` gallery's pinned-then-shuffled
@@ -829,7 +832,7 @@ what ADR-0002 leaves to be decided for a gallery specifically: every `placementI
 public and site-wide unique with an immutable media/gallery binding, except that the same
 occurrence may legitimately share one `placementId` across a gallery's own language
 versions; repeating a photograph within one gallery is allowed but flagged with Sanity's
-non-blocking `rule.warning(...)` rather than refused (ADR-0002 §2, closing that ADR's own
+non-blocking `rule.custom(check).warning()` rather than refused (ADR-0002 §2, closing that ADR's own
 deferred action item); and a section's slug is immutable once published, restating
 `gallery-sections.ts#assertGallerySectionsSlugStable`. A section's optional intro reuses
 the same restricted paragraph/list/emphasis/link model `gallery-sections.ts` already

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { inspectValidationRules } from "./validation-test-helper";
 import { defineSchemaTypes } from "./index";
 import { GALLERY_TYPE_NAME } from "./gallery";
 import {
@@ -13,46 +14,14 @@ import type {
   SchemaValidation,
   SchemaValidationClient,
   SchemaValidationContext,
-  SchemaValidationResult,
-  SchemaValidationRule,
 } from "./schema-types";
-
-type CustomCheck = (
-  value: unknown,
-  context: SchemaValidationContext,
-) => SchemaValidationResult | Promise<SchemaValidationResult>;
 
 function inspect(
   validation: SchemaValidation | undefined,
   dataset: { answer?: unknown } = {},
 ) {
-  const checks: CustomCheck[] = [];
-  const warnings: CustomCheck[] = [];
   const queries: { query: string; params?: Readonly<Record<string, unknown>> }[] = [];
-  let required = false;
-
-  const rule: SchemaValidationRule = {
-    required() {
-      required = true;
-      return rule;
-    },
-    min() {
-      return rule;
-    },
-    max() {
-      return rule;
-    },
-    custom(check) {
-      checks.push(check as CustomCheck);
-      return rule;
-    },
-    warning(check) {
-      warnings.push(check as CustomCheck);
-      return rule;
-    },
-  };
-
-  validation?.(rule);
+  const { required, checks, warnings } = inspectValidationRules(validation);
 
   const client: SchemaValidationClient = {
     async fetch(query, params) {
@@ -348,6 +317,15 @@ describe("placementId", () => {
 });
 
 describe("repeated media within one gallery", () => {
+  it("keeps missing media a blocking error, separate from the duplicate warning", () => {
+    const { rules } = inspectValidationRules(fieldOf("media").validation);
+    expect(rules.map(({ required, level, checks }) => ({ required, level, checks: checks.length })))
+      .toEqual([
+        { required: true, level: "error", checks: 0 },
+        { required: false, level: "warning", checks: 1 },
+      ]);
+  });
+
   it("warns, without blocking, when a photograph repeats (ADR-0002 §2)", async () => {
     const { runWarnings } = inspect(fieldOf("media").validation, {
       answer: {

@@ -374,7 +374,7 @@ export const galleryType: SchemaTypeDefinition = {
       to: [{ type: MEDIA_TYPE_NAME }],
       description:
         "Optional. Explicit-only — never resolved here, and never falls back to a placement. Feeds two surfaces differently: the listing card falls back to the gallery's first visible item when this is empty (AB#114, resolved at read time); the page's own full-bleed hero (AB#149) has no such fallback and simply renders no hero when this is empty.",
-      validation: (rule) => rule.warning(warnsAboutDuplicatingGridOpening),
+      validation: (rule) => rule.custom(warnsAboutDuplicatingGridOpening).warning(),
     },
     {
       name: "tags",

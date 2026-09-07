@@ -64,19 +64,15 @@ export type SchemaValidationRule = {
    * A non-blocking severity: the editor sees the message but Publish still
    * succeeds. Used where an author may have a legitimate reason to keep a
    * flagged state (ADR-0002 §2's "repeating a photograph in one gallery is
-   * allowed, but the CMS surfaces a warning") — `custom` alone can only block.
+   * allowed, but the CMS surfaces a warning"). Register checks with `custom`;
+   * `warning` only changes the severity/message of that rule.
    */
-  warning<TValue>(
-    check: (
-      value: TValue | undefined,
-      context: SchemaValidationContext,
-    ) => SchemaValidationResult | Promise<SchemaValidationResult>,
-  ): SchemaValidationRule;
+  warning(message?: string): SchemaValidationRule;
 };
 
 export type SchemaValidation = (
   rule: SchemaValidationRule,
-) => SchemaValidationRule;
+) => SchemaValidationRule | SchemaValidationRule[];
 
 export type SchemaListOption = {
   readonly title: string;

@@ -431,7 +431,10 @@ const fields: readonly SchemaFieldDefinition[] = [
     title: "Media",
     type: "reference",
     to: [{ type: MEDIA_TYPE_NAME }],
-    validation: (rule) => rule.required().warning(warnsAboutRepeatedMediaInGallery),
+    validation: (rule) => [
+      rule.required(),
+      rule.custom(warnsAboutRepeatedMediaInGallery).warning(),
+    ],
   },
   {
     name: "altOverride",
