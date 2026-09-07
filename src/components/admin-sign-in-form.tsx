@@ -1,6 +1,8 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
+
+const subscribeToNothing = () => () => {};
 
 /**
  * The administrator sign-in form (ADR-0015 §3).
@@ -36,6 +38,11 @@ export function AdminSignInForm({
   readonly javascriptRequiredText: string;
 }) {
   const secretId = useId();
+  const hydrated = useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
   const [secret, setSecret] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "refused">("idle");
 
@@ -65,7 +72,10 @@ export function AdminSignInForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
+    // Native submission carries no secret: the input has no name, and stays
+    // disabled until hydration. Even a forced native submit uses POST to the
+    // JSON-only endpoint, which refuses the form content type.
+    <form method="post" action={action} onSubmit={submit} className="flex flex-col gap-4">
       <h2 className="text-lg font-medium text-strong">{headingText}</h2>
 
       <noscript>
@@ -78,8 +88,8 @@ export function AdminSignInForm({
         </label>
         <input
           id={secretId}
-          name="secret"
           type="password"
+          disabled={!hydrated}
           autoComplete="current-password"
           required
           value={secret}
@@ -97,7 +107,7 @@ export function AdminSignInForm({
 
       <button
         type="submit"
-        disabled={state === "sending"}
+        disabled={!hydrated || state === "sending"}
         className="rounded-md border border-border-strong px-4 py-2 text-strong"
       >
         {submitLabel}
