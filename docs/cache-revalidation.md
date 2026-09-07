@@ -299,7 +299,9 @@ AB#136 closes that gap: `PREVIEW_STABLE_ALIAS` is one bare `*.vercel.app` host t
 pipeline repoints at each verified deployment (as a transaction, with a revision gate
 (AB#144), a `createdAt` monotonic guard, an alias-host re-verification of access
 protection and `noindex`, and an ownership-aware restore on failure — `docs/deployment.md`,
-ADR-0004 §3 2026-08-31 amendment). The Preview Sanity webhook is configured once with
+ADR-0004 §3 2026-08-31 amendment). Vercel omits its automatic `X-Robots-Tag: noindex` for
+an assigned alias, so `next.config.ts` supplies it for this host and the re-verification
+confirms it (ADR-0004 §3 2026-09-06 amendment). The Preview Sanity webhook is configured once with
 `https://<PREVIEW_STABLE_ALIAS>/api/revalidate` and its URL is edited only on a deliberate
 alias-name rotation. The revision gate resolves `main`'s tip live, immediately before the
 assignment, and does not initiate a repoint to a candidate already known to be

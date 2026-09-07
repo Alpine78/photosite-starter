@@ -279,12 +279,18 @@ const DNS_LABEL_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
  *
  * The alias is deliberately constrained to a bare `*.vercel.app` host and
  * nothing else. Only a non-production `*.vercel.app` host is *guaranteed* to
- * inherit the project's Standard Protection and Vercel's `X-Robots-Tag:
- * noindex` (Vercel Standard Protection "protects all domains except production
- * domains", on every plan). A custom apex or registered domain carries no such
- * guarantee, and a fixed, unprotected copy of the site at a stable address is
- * exactly what `docs/deployment.md` warns against — so this refuses one rather
- * than assign it.
+ * inherit the project's Standard Protection (Vercel Standard Protection
+ * "protects all domains except production domains", on every plan). A custom
+ * apex or registered domain carries no such guarantee, and a fixed,
+ * unprotected copy of the site at a stable address is exactly what
+ * `docs/deployment.md` warns against — so this refuses one rather than assign
+ * it.
+ *
+ * The alias does **not** inherit Vercel's automatic `X-Robots-Tag: noindex` —
+ * Vercel omits that for any assigned domain/alias (AB#136, 2026-09-06;
+ * `vercel.com/docs/headers/response-headers`). `next.config.ts` supplies it for
+ * this host instead (`src/lib/preview-noindex-alias.ts`), and the alias-host
+ * re-verification below still checks for it.
  *
  * Returns the normalized (trimmed, lowercased) host. Errors name the setting
  * and never echo a secret. The Vercel `alias set` contract also requires a
@@ -324,7 +330,7 @@ export function parsePreviewAliasHost(value: string): string {
   const host = trimmed.toLowerCase();
   if (!host.endsWith(DEPLOYMENT_HOST_SUFFIX)) {
     throw new Error(
-      `${setting} must be a "${DEPLOYMENT_HOST_SUFFIX}" host so it inherits Standard Protection and noindex; a custom domain is refused (received "${trimmed}")`,
+      `${setting} must be a "${DEPLOYMENT_HOST_SUFFIX}" host so it inherits Standard Protection; a custom domain is refused (received "${trimmed}")`,
     );
   }
   if (host.length > MAX_DNS_HOSTNAME_LENGTH) {

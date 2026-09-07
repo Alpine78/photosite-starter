@@ -424,7 +424,7 @@ describe("stable Preview alias host", () => {
     ).toThrow(/bare hostname/);
   });
 
-  it("refuses a custom domain so the alias always inherits protection and noindex", () => {
+  it("refuses a custom domain so the alias always inherits Standard Protection", () => {
     expect(() => parsePreviewAliasHost("preview.acme.photography")).toThrow(
       /custom domain is refused/,
     );

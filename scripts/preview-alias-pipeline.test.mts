@@ -38,4 +38,21 @@ describe("Preview alias repoint pipeline wiring", () => {
     // "only repoint a verified deployment" condition.
     expect(PIPELINE).toMatch(/previewDeploymentVerified'\], 'true'/);
   });
+
+  it("passes PREVIEW_STABLE_ALIAS into the release-candidate build step (AB#136)", () => {
+    // `next.config.ts` bakes the alias-host `X-Robots-Tag: noindex` rule at
+    // build time (`src/lib/preview-noindex-alias.ts`), and `vercel pull` does
+    // not write this variable-group value. Without this wiring the Preview
+    // build fails closed by design (VERCEL_ENV=preview with no alias throws),
+    // so this test documents the requirement and catches a reformat that drops
+    // it. Loose on formatting, strict on the fact.
+    const buildStep = PIPELINE.match(
+      /vercel build --target=preview[\s\S]{0,600}?PREVIEW_STABLE_ALIAS: \$\(PREVIEW_STABLE_ALIAS\)/,
+    );
+
+    expect(
+      buildStep,
+      "azure-pipelines.yml's `vercel build --target=preview` step must pass PREVIEW_STABLE_ALIAS in its env: block (AB#136). If the step was reformatted, update this test — the wiring is the point.",
+    ).not.toBeNull();
+  });
 });
