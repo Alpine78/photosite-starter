@@ -129,8 +129,13 @@ Every `placementId` is public and site-wide unique with an immutable media/galle
 trip per document, including the rule this repository adds for what ADR-0002's MVP text
 left open: the same occurrence in two language versions of one gallery shares one
 `placementId`, and only when it keeps naming the same photograph and section. Repeating a
-photograph within one gallery is allowed but flagged with `rule.warning(...)` — Sanity's
-non-blocking severity — rather than refused (ADR-0002 §2). A placement's own `visible` flag
+photograph within one gallery is allowed but flagged with `rule.custom(check).warning()` —
+Sanity's non-blocking severity — rather than refused (ADR-0002 §2). The required media
+reference stays a separate blocking rule in the validation array. The gallery cover's
+duplicate-opening hint uses the same custom-warning registration; it approximates the
+first visible placement in manual order, without reproducing shuffled ordering or public
+media eligibility. Local rule types and test builders enforce this API distinction (AB#156).
+A placement's own `visible` flag
 is purely subtractive; whether the referenced photograph is itself publicly renderable is a
 separate question the read-side adapter answers by excluding such a placement entirely,
 never by rejecting the whole gallery (ADR-0002 §3's AND-composition) — and, since AB#114's

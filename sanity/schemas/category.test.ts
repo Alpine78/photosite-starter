@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { inspectValidationRules } from "./validation-test-helper";
 import { categoryType, CATEGORY_TYPE_NAME } from "./category";
 import {
   CATEGORY_VALIDATION_QUERY,
@@ -16,20 +17,11 @@ import type {
   SchemaValidation,
   SchemaValidationClient,
   SchemaValidationContext,
-  SchemaValidationResult,
-  SchemaValidationRule,
 } from "./schema-types";
 
 /**
- * Duplicated from `media.test.ts` rather than shared: each schema test file
- * stays readable on its own, and the harness is small enough that keeping two
- * copies costs less than the coupling a shared module would add between two
- * otherwise independent document types.
+ * Dataset answers remain local; the rule builder follows shared Sanity semantics.
  */
-type CustomCheck = (
-  value: unknown,
-  context: SchemaValidationContext,
-) => SchemaValidationResult | Promise<SchemaValidationResult>;
 
 type RecordedQuery = {
   query: string;
@@ -40,35 +32,9 @@ function inspect(
   validation: SchemaValidation | undefined,
   dataset: { answer?: unknown } = {},
 ) {
-  const checks: CustomCheck[] = [];
   const queries: RecordedQuery[] = [];
   const clientSettings: { perspective: string; useCdn?: boolean }[] = [];
-  let required = false;
-  let min: number | undefined;
-
-  const rule: SchemaValidationRule = {
-    required() {
-      required = true;
-      return rule;
-    },
-    min(value) {
-      min = value;
-      return rule;
-    },
-    max() {
-      return rule;
-    },
-    custom(check) {
-      checks.push(check as CustomCheck);
-      return rule;
-    },
-    warning(check) {
-      checks.push(check as CustomCheck);
-      return rule;
-    },
-  };
-
-  validation?.(rule);
+  const { required, min, checks } = inspectValidationRules(validation);
 
   const contextFor = (
     document?: Record<string, unknown>,

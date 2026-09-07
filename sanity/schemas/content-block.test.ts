@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { inspectValidationRules } from "./validation-test-helper";
 import {
   CONTENT_BLOCK_KINDS,
   CONTENT_BLOCK_OBJECT_TYPES,
@@ -14,48 +15,14 @@ import type {
   SchemaTypeDefinition,
   SchemaValidation,
   SchemaValidationClient,
-  SchemaValidationContext,
-  SchemaValidationResult,
-  SchemaValidationRule,
 } from "./schema-types";
 
 /**
- * Duplicated from `media.test.ts` rather than shared — see `category.test.ts`'s
- * comment on the same choice.
+ * Dataset answers remain local; the rule builder follows shared Sanity semantics.
  */
-type CustomCheck = (
-  value: unknown,
-  context: SchemaValidationContext,
-) => SchemaValidationResult | Promise<SchemaValidationResult>;
 
 function inspect(validation: SchemaValidation | undefined) {
-  const checks: CustomCheck[] = [];
-  let required = false;
-  let min: number | undefined;
-
-  const rule: SchemaValidationRule = {
-    required() {
-      required = true;
-      return rule;
-    },
-    min(value) {
-      min = value;
-      return rule;
-    },
-    max() {
-      return rule;
-    },
-    custom(check) {
-      checks.push(check as CustomCheck);
-      return rule;
-    },
-    warning(check) {
-      checks.push(check as CustomCheck);
-      return rule;
-    },
-  };
-
-  validation?.(rule);
+  const { required, min, checks } = inspectValidationRules(validation);
 
   const client: SchemaValidationClient = {
     async fetch() {

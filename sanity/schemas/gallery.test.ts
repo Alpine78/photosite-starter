@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { inspectValidationRules } from "./validation-test-helper";
 import { CATEGORY_TYPE_NAME } from "./category";
 import {
   galleryType,
@@ -23,48 +24,14 @@ import type {
   SchemaValidation,
   SchemaValidationClient,
   SchemaValidationContext,
-  SchemaValidationResult,
-  SchemaValidationRule,
 } from "./schema-types";
-
-type CustomCheck = (
-  value: unknown,
-  context: SchemaValidationContext,
-) => SchemaValidationResult | Promise<SchemaValidationResult>;
 
 function inspect(
   validation: SchemaValidation | undefined,
   dataset: { answer?: unknown } = {},
 ) {
-  const checks: CustomCheck[] = [];
-  const warnings: CustomCheck[] = [];
   const queries: { query: string; params?: Readonly<Record<string, unknown>> }[] = [];
-  let required = false;
-  let max: number | undefined;
-
-  const rule: SchemaValidationRule = {
-    required() {
-      required = true;
-      return rule;
-    },
-    min() {
-      return rule;
-    },
-    max(value) {
-      max = value;
-      return rule;
-    },
-    custom(check) {
-      checks.push(check as CustomCheck);
-      return rule;
-    },
-    warning(check) {
-      warnings.push(check as CustomCheck);
-      return rule;
-    },
-  };
-
-  validation?.(rule);
+  const { required, max, checks, warnings } = inspectValidationRules(validation);
 
   const client: SchemaValidationClient = {
     async fetch(query, params) {
@@ -298,9 +265,11 @@ describe("cover duplicating the grid's opening item (AB#149)", () => {
   const galleryDocument = { _id: "gallery-doc-1" };
 
   it("warns when the cover matches the gallery's own first item in manual order", async () => {
-    const { runWarnings } = inspect(fieldOf("cover").validation, {
+    const { run, runWarnings, required } = inspect(fieldOf("cover").validation, {
       answer: { mediaRef: "media-a" },
     });
+    expect(required).toBe(false);
+    expect(await run({ _ref: "media-a" }, galleryDocument)).toEqual([]);
     const result = await runWarnings({ _ref: "media-a" }, galleryDocument);
     expect(result[0]).toEqual(expect.any(String));
   });

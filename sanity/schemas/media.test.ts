@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { inspectValidationRules } from "./validation-test-helper";
 import { defineSchemaTypes } from "./index";
 import { localizedTextType } from "./localized-text";
 import {
@@ -15,8 +16,6 @@ import type {
   SchemaValidation,
   SchemaValidationClient,
   SchemaValidationContext,
-  SchemaValidationResult,
-  SchemaValidationRule,
 } from "./schema-types";
 
 /**
@@ -27,10 +26,6 @@ import type {
  * this file — including the asynchronous ones, which are the rules that
  * actually stop a camera master or a duplicated identity from being published.
  */
-type CustomCheck = (
-  value: unknown,
-  context: SchemaValidationContext,
-) => SchemaValidationResult | Promise<SchemaValidationResult>;
 
 type RecordedQuery = {
   query: string;
@@ -41,37 +36,9 @@ function inspect(
   validation: SchemaValidation | undefined,
   dataset: { answer?: unknown } = {},
 ) {
-  const checks: CustomCheck[] = [];
   const queries: RecordedQuery[] = [];
   const clientSettings: { perspective: string; useCdn?: boolean }[] = [];
-  let required = false;
-  let min: number | undefined;
-  let max: number | undefined;
-
-  const rule: SchemaValidationRule = {
-    required() {
-      required = true;
-      return rule;
-    },
-    min(value) {
-      min = value;
-      return rule;
-    },
-    max(value) {
-      max = value;
-      return rule;
-    },
-    custom(check) {
-      checks.push(check as CustomCheck);
-      return rule;
-    },
-    warning(check) {
-      checks.push(check as CustomCheck);
-      return rule;
-    },
-  };
-
-  validation?.(rule);
+  const { required, min, max, checks } = inspectValidationRules(validation);
 
   const contextFor = (
     document?: Record<string, unknown>,
