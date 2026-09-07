@@ -1600,7 +1600,11 @@ authorizes it renders the signed-in surface, without one the sign-in form, so a 
 an operator whose session ran out see the same page. Sign-in and sign-out both post JSON,
 because §3 fixes one content type for the login and every mutation — the cost is that
 administration needs JavaScript, the opposite of the trade the customer gallery makes and
-deliberately so. Sign-out deletes the session row as well as clearing the cookie, and
+deliberately so. AB#153 disables the secret field and submit button until hydration,
+omits the field's HTML submission name, and gives native submission an explicit POST
+target at the JSON-only login endpoint. Disabled JavaScript, blocked/delayed hydration,
+and a forced native submission are covered with a synthetic URL-leak canary.
+Sign-out deletes the session row as well as clearing the cookie, and
 authorizes before deleting so the endpoint cannot be pointed at a row named by an arbitrary
 identifier. The development fixture supplies its own published administrator secret and
 **never reads `PRIVATE_GALLERY_ADMIN_SECRET_HASH`**, the same rule its ephemeral keyring

@@ -50,6 +50,94 @@ const labels = getBuiltInLabels(
   appUnderTestEnvironment.SITE_LOCALE as string,
 ).privateGalleryAdmin;
 
+const URL_CANARY = "SYNTHETIC-ADMIN-URL-CANARY";
+
+for (const mode of ["disabled JavaScript", "blocked hydration"] as const) {
+  test.describe(mode, () => {
+    test.use({ javaScriptEnabled: mode !== "disabled JavaScript" });
+
+    test("locks sign-in and keeps a forced native submission secret-free", async ({ page }) => {
+      const urls: string[] = [];
+      page.on("request", (request) => urls.push(request.url()));
+      page.on("framenavigated", (frame) => urls.push(frame.url()));
+      if (mode === "blocked hydration") {
+        await page.route("**/*", (route) =>
+          route.request().resourceType() === "script" ? route.abort() : route.continue(),
+        );
+      }
+      await page.goto(ADMIN_PATH);
+      const input = page.getByLabel(labels.secretLabel);
+      await expect(input).toBeDisabled();
+      await expect(page.getByRole("button", { name: labels.signIn })).toBeDisabled();
+      if (mode === "disabled JavaScript") {
+        // Playwright's text selector skips noscript content even when scripts
+        // are disabled. Locate the rendered paragraph directly, then assert
+        // both its visibility and its localized message.
+        const notice = page.locator("noscript > p");
+        await expect(notice).toBeVisible();
+        await expect(notice).toHaveText(labels.javascriptRequired);
+      }
+
+      // Browser automation seeds a canary even though a visitor cannot type
+      // into the disabled field. Force the native path without React handlers;
+      // also enable the input to prove that omission of its name protects it.
+      const responsePromise = page.waitForResponse((response) =>
+        new URL(response.url()).pathname === LOGIN_PATH,
+      );
+      await input.evaluate((element: HTMLInputElement, canary) => {
+        element.value = canary;
+        element.disabled = false;
+        element.form!.submit();
+      }, URL_CANARY);
+      const response = await responsePromise;
+      expect(response.request().method()).toBe("POST");
+      expect(response.request().postData() ?? "").not.toContain(URL_CANARY);
+      expect(response.status()).toBe(401);
+      await expect(page).toHaveURL(`${HARNESS_BASE_URL}${LOGIN_PATH}`);
+      expect(urls.every((url) => !url.includes(URL_CANARY))).toBe(true);
+      expect((await page.context().cookies()).some((cookie) => cookie.name === COOKIE_NAME)).toBe(false);
+    });
+  });
+}
+
+test("delayed hydration unlocks sign-in and sends the secret only as JSON", async ({ page }) => {
+  const urls: string[] = [];
+  page.on("request", (request) => urls.push(request.url()));
+  page.on("framenavigated", (frame) => urls.push(frame.url()));
+  let releaseScripts!: () => void;
+  const scriptsReleased = new Promise<void>((resolve) => { releaseScripts = resolve; });
+  await page.route("**/*", async (route) => {
+    if (route.request().resourceType() === "script") await scriptsReleased;
+    await route.continue();
+  });
+  try {
+    await page.goto(ADMIN_PATH, { waitUntil: "commit" });
+    const input = page.getByLabel(labels.secretLabel);
+    const button = page.getByRole("button", { name: labels.signIn });
+    await expect(input).toBeDisabled();
+    await expect(button).toBeDisabled();
+    releaseScripts();
+    await expect(input).toBeEnabled();
+    await expect(button).toBeEnabled();
+    await input.fill(URL_CANARY);
+    const requestPromise = page.waitForRequest((request) =>
+      new URL(request.url()).pathname === LOGIN_PATH,
+    );
+    await input.press("Enter");
+    const request = await requestPromise;
+    expect(request.method()).toBe("POST");
+    expect(request.headers()["content-type"]).toBe("application/json");
+    expect(request.headers().origin).toBe(HARNESS_BASE_URL);
+    expect(request.postDataJSON()).toEqual({ secret: URL_CANARY });
+    await expect(page.getByRole("alert").filter({ hasText: labels.signInRefused })).toBeVisible();
+    await expect(input).toHaveValue("");
+    await expect(page).toHaveURL(`${HARNESS_BASE_URL}${ADMIN_PATH}`);
+    expect(urls.every((url) => !url.includes(URL_CANARY))).toBe(true);
+  } finally {
+    releaseScripts();
+  }
+});
+
 test.describe("administrator sign-in", () => {
   test("offers an accessible sign-in form to a visitor with no session", async ({
     page,

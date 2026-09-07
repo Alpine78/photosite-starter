@@ -34,7 +34,8 @@
     "photoswipe": "5.4.4",
     "react": "19.2.1",
     "react-dom": "19.2.1",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "vercel": "^59.11.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",

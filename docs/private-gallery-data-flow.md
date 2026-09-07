@@ -127,6 +127,14 @@ record of anyone: there is one operator, no user table, no email address, and no
 account to enumerate. Nothing about a login attempt — successful or not — is
 stored beyond that counter.
 
+The sign-in form keeps its secret field and submit button disabled until
+hydration (AB#153); without JavaScript they remain disabled. The field has no
+HTML submission name. An unexpected native submission therefore carries no
+secret and explicitly POSTs to the login endpoint, which refuses non-JSON
+content. Once hydrated, the form sends the secret only in the same-origin JSON
+POST body. Browser regressions cover disabled JavaScript, blocked and delayed
+hydration, and forced native submission with a synthetic canary.
+
 Two properties are worth stating plainly, because they are what a reader of this
 record would otherwise have to take on trust:
 
