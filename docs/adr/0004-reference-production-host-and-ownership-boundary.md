@@ -374,6 +374,61 @@ domain") and the Capability Matrix's "Preview and `noindex`" row, both now read 
 this dedicated, verified, machine-only alias. §3's promotion and rollback bullets, §4, and
 §5 are unchanged.
 
+#### Amendment 2026-09-06 (AB#136) — the alias's `noindex` is application-supplied
+
+**Status of the record: still Accepted.** This amendment corrects one factual clause of
+the 2026-08-31 amendment above; nothing else changes.
+
+**What the AC5 live exercise found.** The first pipeline run of the "exercise against
+Preview" (2026-09-06, build `20260906.1`) reached the repoint step and its alias-host
+re-verification **failed**: the alias host `photosite-starter-preview.vercel.app` answered
+the unauthenticated request with the SSO challenge (Standard Protection is inherited) but
+carried **no `X-Robots-Tag` header at all**. The repoint transaction reconciled correctly
+— it removed its own just-made assignment and left no partial state — and the run failed
+without shipping anything.
+
+**The clause that was wrong.** The 2026-08-31 amendment states the `*.vercel.app` alias
+"inherits Vercel Authentication **and `X-Robots-Tag: noindex`**". The `and X-Robots-Tag:
+noindex` half was an unverified inference: its Evidence line cited only the
+deployment-protection docs, which describe the *protection* scope and say nothing about
+the automatic-`noindex` scope. Vercel's response-headers documentation
+(`vercel.com/docs/headers/response-headers`) and its KB guide "Are Vercel Preview
+Deployments indexed by search engines?" (both checked 2026-09-06) state that Vercel adds
+the header to a Preview deployment's **generated** URL and **omits it once a domain or
+alias is assigned** to a non-production deployment. An assigned `*.vercel.app` alias is
+such a host: it inherits Standard Protection but not the automatic header.
+
+**The fix.** The application emits `X-Robots-Tag: noindex` itself, for requests whose
+`Host` is `PREVIEW_STABLE_ALIAS`, and only when `VERCEL_ENV === "preview"` (never a
+`--prod` build, a plain `next build`, or `next dev`). It is a `next.config.ts` `headers()`
+rule gated by `src/lib/preview-noindex-alias.ts`. Two properties are deliberate:
+
+- **Host-scoped, not build-scoped.** Vercel already covers the generated URL, so the
+  application adds the header on the one surface Vercel does not — the assigned alias.
+  Scoping the rule to the alias host also means the generated URL's response is unchanged,
+  so the pipeline's existing exact-match `X-Robots-Tag: noindex` check on it cannot
+  regress. Whether a broad rule would have produced a duplicated `noindex, noindex` value
+  on the generated URL (Vercel's platform header plus the framework's) is **recorded here
+  as a possible risk, not as verified Vercel behaviour** — Vercel does not document the
+  interaction, and this design does not depend on the answer.
+- **Build-time input.** A `headers()` rule is a static response header baked into the
+  build output, so `PREVIEW_STABLE_ALIAS` is now also passed into the `vercel build`
+  step (it is an Azure DevOps variable-group value that `vercel pull` does not write) —
+  the same build-time-input shape the Sanity project id and dataset already have. A
+  Preview build with no usable alias fails closed.
+
+**Both checks are retained.** The alias host is still verified for the SSO challenge *and*
+for the exact `X-Robots-Tag: noindex`; protection alone is not accepted, per §3's "neither
+replaces the other".
+
+**Evidence:** `vercel.com/docs/headers/response-headers` and
+`vercel.com/kb/guide/are-vercel-preview-deployment-indexed-by-search-engines` (both
+checked 2026-09-06); Next.js `next.config` `headers()` `has` host matching and
+per-key override semantics (`nextjs.org/docs/app/api-reference/config/next-config-js/headers`);
+the 2026-09-06 pipeline run. The Capability Matrix's "Preview and `noindex`" row —
+"automatic `X-Robots-Tag`" — now reads: automatic on a generated Preview URL, and
+**application-supplied on the assigned integration alias**.
+
 ### 4. Cache and revalidation
 
 - Production Sanity reads use the explicit published perspective and Next.js cache tags.

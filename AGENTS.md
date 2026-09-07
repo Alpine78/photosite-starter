@@ -958,8 +958,13 @@ target (or removes a first assignment) only while the alias still points at what
 assigned. Concurrent `DeployPreview` runs are serialized by a stage-level exclusive lock
 (`lockBehavior: sequential` + an Exclusive lock check on the variable group) — execution,
 not commit order, which is why the revision gate exists. The alias is constrained to
-`*.vercel.app` because only that inherits Standard Protection + `noindex`; a custom domain
-is refused. `PREVIEW_STABLE_ALIAS` is required once the deploy stage is enabled.
+`*.vercel.app` because only that inherits Standard Protection; a custom domain is refused.
+Vercel omits its automatic `X-Robots-Tag: noindex` for an assigned alias (AC5's first live
+run proved it, 2026-09-06), so `next.config.ts` supplies it for requests whose Host is
+`PREVIEW_STABLE_ALIAS` — gated to `VERCEL_ENV === "preview"`, host-scoped so the generated
+URL is untouched (`src/lib/preview-noindex-alias.ts`, ADR-0004 §3 2026-09-06 amendment) —
+which makes `PREVIEW_STABLE_ALIAS` also a build-time input on the `vercel build` step.
+`PREVIEW_STABLE_ALIAS` is required once the deploy stage is enabled.
 `npm run verify:preview-alias` is the read-only check for handoff/rollback. The revision
 gate never initiates an assignment for a candidate already known to be superseded; the
 residual is that the alias may remain on its last verified `main` target after `main`

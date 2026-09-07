@@ -112,8 +112,11 @@ authoritative for the exact clicks. What this project needs from it:
    pipeline will repoint at each verified Preview deployment so a webhook configured once
    keeps working across ordinary redeploys. It must be a `*.vercel.app` host, not a custom
    domain: Standard Protection "protects all domains except production domains" on every
-   plan, so a `*.vercel.app` alias inherits Vercel Authentication and `X-Robots-Tag:
-   noindex`, while a custom domain's protection posture is not guaranteed. This alias is
+   plan, so a `*.vercel.app` alias inherits Vercel Authentication, while a custom domain's
+   protection posture is not guaranteed. (Vercel omits its automatic `X-Robots-Tag:
+   noindex` for any assigned domain or alias; `next.config.ts` supplies it for this host —
+   see [The stable Preview integration alias](#the-stable-preview-integration-alias).)
+   This alias is
    **not** the human review URL — reviewers still open the generated, per-deployment URL
    from the run summary — and it must never be added to the project as a Production
    domain. The pipeline creates the alias on its first run; there is nothing to register
@@ -202,7 +205,7 @@ the deployment stage rather than the quality gates.
 | `VERCEL_PROJECT_ID`               | no     | Project expected to own every deployment the pipeline handles.        |
 | `VERCEL_TOKEN`                    | yes    | Team-scoped deployment/API credential, rotated or revoked at handoff. |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | yes    | Lets the verification probe — and the alias probe — read the protected deployment. |
-| `PREVIEW_STABLE_ALIAS`            | no     | Bare `*.vercel.app` host the pipeline repoints at each verified Preview deployment so a webhook configured once keeps working (AB#136). Required once `PREVIEW_DEPLOYMENT_ENABLED=true`. |
+| `PREVIEW_STABLE_ALIAS`            | no     | Bare `*.vercel.app` host the pipeline repoints at each verified Preview deployment so a webhook configured once keeps working (AB#136). Required once `PREVIEW_DEPLOYMENT_ENABLED=true`. Also passed into the `vercel build` step: `next.config.ts` bakes this host's `X-Robots-Tag: noindex` rule at build time. |
 | `SANITY_BUILD_READ_TOKEN`         | yes    | Read-only Preview credential used only while a private dataset is prerendered; omit for a public dataset. |
 
 The GitHub service connection that supplies this repository to Azure Pipelines is also
@@ -799,9 +802,23 @@ A **private-repo clone** must give the `DeployPreview` job an explicit
 `ls-remote` fails and — correctly — the repoint fails closed.
 
 **Why `*.vercel.app` only.** Standard Protection "protects all domains except production
-domains" on every plan, so a `*.vercel.app` alias inherits Vercel Authentication and
-`noindex`. The tooling refuses any other host: a fixed, unprotected copy of the site at a
-stable address is exactly what step 7 warns against.
+domains" on every plan, so a `*.vercel.app` alias inherits Vercel Authentication. The
+tooling refuses any other host: a fixed, unprotected copy of the site at a stable address
+is exactly what step 7 warns against.
+
+**The alias's `noindex` is application-supplied (AB#136, 2026-09-06).** Vercel adds
+`X-Robots-Tag: noindex` to a Preview deployment's *generated* URL but **omits it for an
+assigned domain or alias** (`vercel.com/docs/headers/response-headers`), so the alias
+inherits Standard Protection but not that header — the AC5 exercise's first run proved it.
+`next.config.ts` adds the header itself for requests whose `Host` is `PREVIEW_STABLE_ALIAS`,
+gated to `VERCEL_ENV === "preview"` (`src/lib/preview-noindex-alias.ts`). Because it is a
+static response header baked at build time, `PREVIEW_STABLE_ALIAS` is now **also a
+build-time input**: the `DeployPreview` stage passes it into the `vercel build` step (it
+is a variable-group value, so `vercel pull` does not write it), on the same footing as the
+Sanity ids `next.config.ts` reads at build for the image-optimizer allow-list. A Preview
+build with `VERCEL_ENV=preview` and no usable `PREVIEW_STABLE_ALIAS` fails closed. The
+alias-host re-verification on every repoint still checks the SSO challenge *and* the exact
+`noindex`; a `--prod` build never emits the rule.
 
 **Rollback** (repoint the alias to a known-good earlier deployment by hand):
 

@@ -29,6 +29,12 @@ const FIXTURE_DEPLOYMENT = {
   SANITY_API_VERSION: "",
   SANITY_READ_TOKEN: "",
   NEXT_PUBLIC_SANITY_READ_TOKEN: "",
+  // Not a Vercel Preview build, stated rather than inherited from the shell —
+  // otherwise `VERCEL_ENV=preview` in a developer's environment would make the
+  // AB#136 alias-noindex rule throw for a missing `PREVIEW_STABLE_ALIAS` and
+  // every assertion in this file fail to load.
+  VERCEL_ENV: "",
+  PREVIEW_STABLE_ALIAS: "",
 } as const;
 
 const PUBLIC_SANITY_DEPLOYMENT = {
@@ -56,6 +62,7 @@ async function configuredWith(
 async function getConfigResponse(
   pathname: string,
   environment: Readonly<Record<string, string>> = FIXTURE_DEPLOYMENT,
+  origin = "https://example.com",
 ) {
   Object.assign(globalThis, { AsyncLocalStorage });
   const nextConfig = await configuredWith(environment);
@@ -64,7 +71,7 @@ async function getConfigResponse(
   );
 
   return unstable_getResponseFromNextConfig({
-    url: `https://example.com${pathname}`,
+    url: `${origin}${pathname}`,
     nextConfig,
   });
 }
@@ -508,5 +515,94 @@ describe("the private routes' image policy (ADR-0011 action item 4)", () => {
         PRIVATE_GALLERY_S3_ENDPOINT: "https://objects.example; script-src *",
       }),
     ).rejects.toThrow(/bare https:\/\/ origin/);
+  });
+});
+
+describe("the Preview integration alias's noindex header (AB#136)", () => {
+  const ALIAS = "photosite-starter-preview.vercel.app";
+  const PREVIEW_BUILD = {
+    VERCEL_ENV: "preview",
+    PREVIEW_STABLE_ALIAS: ALIAS,
+  } as const;
+
+  // The rule as `headers()` actually returns it — asserted directly so the test
+  // does not depend on whether the Next.js testing helper evaluates a `has`
+  // host condition.
+  const aliasNoindexRules = async (
+    environment: Readonly<Record<string, string>>,
+  ) => {
+    const config = await configuredWith({ ...FIXTURE_DEPLOYMENT, ...environment });
+    const rules = (await config.headers?.()) ?? [];
+    return rules.filter((rule) =>
+      rule.headers.some(
+        (header) => header.key.toLowerCase() === "x-robots-tag",
+      ),
+    );
+  };
+
+  it("adds a host-scoped X-Robots-Tag: noindex rule on a Preview build", async () => {
+    const rules = await aliasNoindexRules(PREVIEW_BUILD);
+
+    expect(rules).toHaveLength(1);
+    expect(rules[0]).toMatchObject({
+      source: "/:path*",
+      has: [{ type: "host", value: "photosite-starter-preview\\.vercel\\.app" }],
+      headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+    });
+  });
+
+  it.each([
+    ["VERCEL_ENV is unset", { VERCEL_ENV: "", PREVIEW_STABLE_ALIAS: ALIAS }],
+    [
+      "the build is Production",
+      { VERCEL_ENV: "production", PREVIEW_STABLE_ALIAS: ALIAS },
+    ],
+  ])("adds no such rule when %s", async (_case, environment) => {
+    expect(await aliasNoindexRules(environment)).toEqual([]);
+  });
+
+  it("fails the build on a Preview build with no usable alias", async () => {
+    await expect(
+      configuredWith({ ...FIXTURE_DEPLOYMENT, VERCEL_ENV: "preview" }),
+    ).rejects.toThrow(/PREVIEW_STABLE_ALIAS/);
+    await expect(
+      configuredWith({
+        ...FIXTURE_DEPLOYMENT,
+        VERCEL_ENV: "preview",
+        PREVIEW_STABLE_ALIAS: "https://photosite-starter-preview.vercel.app/",
+      }),
+    ).rejects.toThrow(/PREVIEW_STABLE_ALIAS/);
+  });
+
+  it("marks a request to the alias host non-indexable, security headers intact", async () => {
+    const response = await getConfigResponse("/", PREVIEW_BUILD, `https://${ALIAS}`);
+
+    expect(response.headers.get("x-robots-tag")).toBe("noindex");
+    // The site-wide rule still applies: this rule only adds a header.
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("referrer-policy")).toBe(
+      "strict-origin-when-cross-origin",
+    );
+    expect(response.headers.get("content-security-policy")).toContain(
+      "default-src 'self'",
+    );
+  });
+
+  it("leaves a generated deployment URL untouched, so its own check cannot regress", async () => {
+    const response = await getConfigResponse(
+      "/",
+      PREVIEW_BUILD,
+      "https://photosite-starter-abc123def456.vercel.app",
+    );
+
+    // Vercel adds its own noindex to the generated URL; next.config must not,
+    // or the pipeline's exact-match check could see "noindex, noindex".
+    expect(response.headers.get("x-robots-tag")).toBeNull();
+  });
+
+  it("adds nothing on any other host", async () => {
+    const response = await getConfigResponse("/", PREVIEW_BUILD);
+
+    expect(response.headers.get("x-robots-tag")).toBeNull();
   });
 });

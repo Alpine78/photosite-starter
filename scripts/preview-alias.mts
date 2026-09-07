@@ -30,7 +30,9 @@
  *    cannot be resolved the check fails closed rather than proceeding.
  *  - **Post-repoint verification.** After assignment the alias host itself is
  *    checked for the same SSO challenge and exact `X-Robots-Tag: noindex` a
- *    generated Preview URL must carry (`verify-preview-deployment.mts`).
+ *    generated Preview URL must carry (`verify-preview-deployment.mts`). Vercel
+ *    omits its automatic `noindex` for an assigned alias, so `next.config.ts`
+ *    supplies it for this host (AB#136); this check confirms it is present.
  *  - **Ownership-aware restore.** If that verification fails, the alias is put
  *    back to its previous target (or removed if it had none) — but only while
  *    it still points at the deployment this run assigned. If a newer run has

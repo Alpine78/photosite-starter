@@ -4,6 +4,10 @@ import {
   YOUTUBE_NOCOOKIE_ORIGIN,
 } from "@/lib/embed-origins";
 import { readPrivateObjectStoreOrigin } from "@/lib/private-object-store-origin";
+import {
+  previewNoindexAliasHostPattern,
+  readPreviewNoindexAliasHost,
+} from "@/lib/preview-noindex-alias";
 
 const ONE_YEAR_SECONDS = 31_536_000;
 
@@ -316,6 +320,15 @@ function securityHeaders(
 const sanitySettings = sanityBuildSettings(process.env);
 const privateObjectStoreOrigin = readPrivateObjectStoreOrigin(process.env);
 
+/**
+ * The stable Preview integration alias, when this is a Vercel Preview build
+ * (`VERCEL_ENV === "preview"`) — otherwise `undefined`, so nothing is added to
+ * a `--prod` build, a plain `next build`, or `next dev` (AB#136). See
+ * `src/lib/preview-noindex-alias.ts` for why the application, not the platform,
+ * marks this one host non-indexable.
+ */
+const previewNoindexAliasHost = readPreviewNoindexAliasHost(process.env);
+
 const nextConfig: NextConfig = {
   // Proxy owns trailing-slash normalization so a gallery cursor can be
   // validated before a permanent redirect is emitted. Without this flag,
@@ -354,6 +367,33 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: securityHeaders(sanitySettings),
       },
+      // AB#136 (ADR-0004 §3, 2026-09-06 amendment): Vercel adds
+      // `X-Robots-Tag: noindex` to a Preview deployment's *generated* URL but
+      // omits it for an assigned domain/alias, so the stable Preview
+      // integration alias (`PREVIEW_STABLE_ALIAS`) inherits Standard Protection
+      // but not the header. The application supplies it — but only for requests
+      // whose Host is that alias, so the generated URL (which Vercel already
+      // covers) is untouched and the pipeline's exact-match `X-Robots-Tag:
+      // noindex` check on it cannot regress on a possible `noindex, noindex`
+      // join. `X-Robots-Tag` has no other `headers()` entry, so this only adds a
+      // header — the site-wide security headers above still apply (Next.js
+      // combines matching rules, overriding only per key). Emitted only when
+      // `VERCEL_ENV === "preview"`, so it can never reach a Production build.
+      // `scripts/preview-verification.mts` verifies the alias host carries it.
+      ...(previewNoindexAliasHost === undefined
+        ? []
+        : [
+            {
+              source: "/:path*",
+              has: [
+                {
+                  type: "host" as const,
+                  value: previewNoindexAliasHostPattern(previewNoindexAliasHost),
+                },
+              ],
+              headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+            },
+          ]),
       // ADR-0011 action item 4 / ADR-0014 §6: the private routes, and only they,
       // may load images from the private object store. `img-src` is widened by
       // exactly that origin and nothing else is — in particular no `connect-src`
