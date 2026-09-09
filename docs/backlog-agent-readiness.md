@@ -1,6 +1,6 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-09-05  
+**Last reviewed:** 2026-09-09  
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
 
@@ -17,7 +17,6 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 
 | Work item | Current state | Required owner action or decision | Unblocks |
 | --- | --- | --- | --- |
-| AB#136 — Stable protected Preview alias | Active | Choose an unused machine-only `*.vercel.app` host and set it as `PREVIEW_STABLE_ALIAS` in Azure DevOps variable group `photosite-starter-vercel-preview`; or set `PREVIEW_DEPLOYMENT_ENABLED=false` until Preview is wanted. | A healthy Preview pipeline and durable Sanity webhook URL. |
 | AB#132 — Semantic 404 HTML | Active | Decide whether the Proxy may read enough content state to rewrite a request to an unmatched route, trading its current O(1) boundary for initial semantic 404 HTML; otherwise retain the documented JavaScript-dependent limitation. | A bounded implementation decision for all matched-route 404s. |
 | AB#141 — Physical-device lightbox check | New | Run the specified tap, double-tap, pinch, pan, and close checks on a real touch device and record device/browser/results in ADR-0001. | The remaining manual lightbox verification. |
 | AB#19 — Legacy URL redirects | Active | Review the attached Joomla URL inventory and choose a canonical target or justified 410 for every important source URL. | A machine-checkable deployment mapping and its production-build tests. |
@@ -28,14 +27,14 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 ## Dependency order
 
 ```text
-AB#136 ──> stable Preview and webhook verification
-
 AB#19 + AB#137 ──> AB#117 ──> AB#18 ──> AB#118
 
 AB#54 ──> AB#55 ──> AB#58 ──> AB#71   (AB#65 spike closed 2026-08-27)
 ```
 
 AB#150 and AB#151 both closed (merged 2026-09-04); their chain is done.
+AB#136 closed (merged 2026-09-08, PR #141); its owner-run AC5 "exercise against Preview"
+completed 2026-09-07–09 with evidence recorded on the work item.
 
 ## Post-MVP private-gallery branch
 
@@ -67,7 +66,7 @@ PR #138 (merged 2026-09-04), closing the last isolated implementation story on t
 Every remaining open item needs an owner decision, credential, physical device, infra
 step, or evidence run before dependent implementation work exists:
 
-- The **Owner action or decision** table above (AB#136, AB#132, AB#141, AB#19, then the
+- The **Owner action or decision** table above (AB#132, AB#141, AB#19, then the
   AB#137 → AB#117 → AB#18 launch chain).
 - The **private-gallery branch** (AB#29, AB#145, AB#130) is blocked on the
   owner-provisioned object and metadata stores.
