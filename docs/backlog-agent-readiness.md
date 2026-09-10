@@ -1,6 +1,6 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-09-09  
+**Last reviewed:** 2026-09-10  
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
 
@@ -23,6 +23,7 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 | AB#137 — Production Sanity dataset | Active | Approve launch content, use the customer-owned Production Sanity project, provide a temporary write credential for the operator run, approve audit evidence, then revoke the credential. | AB#117. |
 | AB#117 — Production security and privacy review | Active | Review and accept the production evidence after AB#137, including any residual risks. | AB#18. |
 | AB#18 — Production promotion | New | Perform owner-controlled domain, DNS, production secret, rollback, and smoke-test actions only after predecessors pass. | AB#118 handoff and rollback exercise. |
+| AB#144 — Preview alias revision gate | Active | Confirm whether the acceptance criteria are met and the item can close. Its implementation merged as PR #99 (`0c4e42c`, 2026-08-31), but its final criterion — updating or removing the AB#136 known-limitation notes — depended on AB#136, which only closed 2026-09-10. Verify those notes, then close or state what remains. | Nothing else; it is a bookkeeping decision on already-merged work. |
 
 ## Dependency order
 
@@ -33,8 +34,18 @@ AB#54 ──> AB#55 ──> AB#58 ──> AB#71   (AB#65 spike closed 2026-08-27
 ```
 
 AB#150 and AB#151 both closed (merged 2026-09-04); their chain is done.
-AB#136 closed (merged 2026-09-08, PR #141); its owner-run AC5 "exercise against Preview"
-completed 2026-09-07–09 with evidence recorded on the work item.
+AB#136 closed on the board 2026-09-10: its fix merged as PR #141 (2026-09-07), and its
+owner-run AC5 "exercise against Preview" completed 2026-09-07–09, with the evidence
+recorded on the work item by PR #146.
+
+A batch of five bugs closed 2026-09-10, all merged to `main` beforehand: AB#152
+(lightbox preload retry, PR #140), AB#153 (admin sign-in secret in the URL before
+hydration, PR #142), AB#154 (Sanity cache reuse under scheduled expiry, PR #143),
+AB#155 (mobile content-hero overflow, PR #144), and AB#156 (Sanity custom warning
+registration, PR #145). None of those PR bodies carried a `Fixes AB#<id>` line, so
+nothing closed automatically and each item sat in `Active` or `Resolved` for up to
+three days after its fix shipped — the failure mode `AGENTS.md` warns about. Carry the
+closing line in the PR body, or close the item explicitly after the merge.
 
 ## Post-MVP private-gallery branch
 
@@ -73,29 +84,44 @@ step, or evidence run before dependent implementation work exists:
 - **AB#60** is functionally complete through PR3 and AB#123; it stays open only for a
   dynamic-result entry point (AB#58/AB#71, not built) or an acceptance-criteria
   amendment — an owner call, not implementation.
-- **AB#21** (article table of contents) and **AB#24** (inline mini-galleries in the
-  article body), both children of AB#91, are the nearest future implementation slices —
-  each a bounded extension of the existing content-body-block boundary — but both are
-  still titled *(rough)* and need grooming (scope, acceptance criteria) before
-  delegation.
+- **AB#24** (inline mini-galleries in the article body), a child of AB#91, is the
+  nearest future implementation slice — a bounded extension of the existing
+  content-body-block and lightbox boundary — but it is still titled *(rough)* and has
+  no acceptance criteria, so it needs grooming before delegation.
+- **AB#21** (article table of contents) is *not* interchangeable with AB#24 as a
+  grooming target: it calls for a three-level nested table of contents, while
+  `ContentBlock` models an authored heading as `level: 2 | 3`
+  (`src/lib/content-page.ts`) because the page title owns the `h1`. Raising that cap is
+  a body-model decision the story's own description already flags, and it has to be
+  made before AB#21 has an implementable scope at all.
 - **AB#54 → AB#55** and **AB#95** are owner-run evidence and product-discovery work.
 
-**Fastest path to the next implementation slice:** groom AB#21 or AB#24 to
-implementation-ready, or resolve AB#132 — a bounded, self-contained decision with a
-defined implementation task on the other side of it.
+**Fastest path to the next implementation slice:** resolve AB#132 — a bounded,
+self-contained decision with a defined implementation task on the other side of it — or
+groom AB#24 to implementation-ready. AB#21 is a longer path than either, because the
+heading-level decision has to be settled first.
 
 ## Handoff checklist for another machine or agent
 
-- Pull the repository and read this file plus the current `AGENTS.md`. The GitHub remote
-  is `github` (`Alpine78/photosite-starter`); the `origin` remote points at a dead Azure
-  DevOps Git URL and should not be used for fetch or push.
+- Pull the repository and read this file plus the current `AGENTS.md`. `origin` is the
+  GitHub remote (`git@github.com:Alpine78/photosite-starter.git`) and is the only remote
+  configured; an earlier revision of this checklist described `origin` as a dead Azure
+  DevOps URL and named a separate `github` remote, which is no longer the case.
 - Check `git status` before editing; do not overwrite or reset another worker's
-  uncommitted changes. On 2026-09-05 the primary worktree was clean at `main` (`abafc62`).
-- Reading the board from the primary Windows machine currently needs the PAT + REST path
-  (`az devops login` fails to authenticate there; `az boards` works on macOS). A
-  `Work Items (Read & write)` PAT with an `Authorization: Basic base64(":<PAT>")` header
-  against `https://dev.azure.com/ilkkarytkonen/photosite-starter/_apis/wit/...` is the
-  working method, and the same `PATCH` route performs the required state transitions.
+  uncommitted changes. On 2026-09-10 the primary worktree was clean at `main` (`b060e17`).
+- How the board is reached depends on the machine. From the WSL/Linux checkout,
+  `az boards` works directly against the configured defaults (`az devops configure
+  --list` shows organization `ilkkarytkonen` and project `photosite-starter`), for both
+  reads and `--state` transitions; no PAT header was needed on 2026-09-10. From the
+  primary Windows machine it currently needs the PAT + REST path (`az devops login`
+  fails to authenticate there). A `Work Items (Read & write)` PAT with an
+  `Authorization: Basic base64(":<PAT>")` header against
+  `https://dev.azure.com/ilkkarytkonen/photosite-starter/_apis/wit/...` is the working
+  method there, and the same `PATCH` route performs the required state transitions.
+  Note that `az boards` prints a "no Azure DevOps remote was found" warning ahead of its
+  output because `origin` is GitHub; the configured defaults still supply the context,
+  so the warning is expected rather than a failure — but it does corrupt `--output json`
+  for a naive parser, since the warning precedes the JSON document.
 - Read the current Azure Boards item, including description, acceptance criteria,
   discussion, and relations, before changing or reviewing it.
 - Move an implementation item to `Active` before the first file change; close it only
