@@ -988,7 +988,10 @@ advances if the current-tip run has not itself succeeded. That target is stale r
 to the tip but remains verified and protected. A declined older run emits the
 `superseded` warning. The tip is resolved through
 the checkout's `origin`; a private-repo clone must enable `persistCredentials`. The live
-AC5 exercise is owner-run; ADR-0004 §3
+AC5 "exercise against Preview" was owner-run and completed 2026-09-07–09 (first
+assignment, ordinary redeploy with the webhook surviving, signed delivery, rollback and
+roll-forward, alias-name rotation, bypass-secret rotation, and the handoff dry-run) —
+evidence recorded on AB#136. ADR-0004 §3
 has a 2026-08-31 amendment for the "generated URL, not a custom preview domain" clause.
 The provisioning runbook, the Preview/Production environment split, and the recorded
 promotion and rollback commands are `docs/deployment.md`.
