@@ -89,6 +89,21 @@ describe("projecting each block kind", () => {
     });
   });
 
+  it("maps a level-4 heading", () => {
+    const block: RawContentBlock = {
+      _key: "a2b",
+      _type: CONTENT_BLOCK_OBJECT_TYPES.heading,
+      level: 4,
+      text: "Reading the KP index",
+    };
+    expect(projectContentBlock(block, 0, options)).toEqual({
+      type: "heading",
+      level: 4,
+      text: "Reading the KP index",
+      key: "a2b",
+    });
+  });
+
   it("maps a list", () => {
     const block: RawContentBlock = {
       _key: "a3",
@@ -173,7 +188,7 @@ describe("projecting each block kind", () => {
 describe("malformed blocks", () => {
   it.each([
     ["a paragraph with no text", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph }],
-    ["a heading with an invalid level", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 4, text: "x" }],
+    ["a heading with an invalid level", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 5, text: "x" }],
     ["a list with no items", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.list, ordered: false, items: [] }],
     ["a quote with no text", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.blockquote }],
     ["a media block with no resolved reference", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.media }],
@@ -242,6 +257,24 @@ describe("reading a whole body", () => {
       { _key: "b2", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 3, text: "Subsection" },
     ];
     expect(() => readContentBlocks(body, options)).not.toThrow();
+  });
+
+  it("accepts descending one level at a time down to level 4 (AB#21)", () => {
+    const body: readonly RawContentBlock[] = [
+      { _key: "b1", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 2, text: "Section" },
+      { _key: "b2", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 3, text: "Subsection" },
+      { _key: "b3", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 4, text: "Detail" },
+    ];
+    expect(() => readContentBlocks(body, options)).not.toThrow();
+  });
+
+  it("rejects a level-2-to-level-4 skip (AB#21) — an API import bypasses Studio's own guard", () => {
+    const body: readonly RawContentBlock[] = [
+      { _key: "b1", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 2, text: "Section" },
+      { _key: "b2", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 4, text: "Too deep" },
+    ];
+    const error = rejectionOf(() => readContentBlocks(body, options));
+    expect(error.rejection).toBe("non-semantic-heading-order");
   });
 });
 

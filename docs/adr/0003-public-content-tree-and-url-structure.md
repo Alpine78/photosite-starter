@@ -13,6 +13,39 @@ when implementation produces evidence the original text did not have, and each p
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
 
+### 2026-09-12 — Three-level heading model and nested table of contents (AB#21)
+
+Decision 2 originally permits a heading block only at level 2 or 3. It now permits
+level 4 too, on both variants — gallery and article bodies deliberately share one
+`ContentBlock` set, so there is no variant-specific heading or table-of-contents model.
+The semantic-order rule generalizes with it: the first authored heading must still be
+level 2, and every following heading may stay at the level before it, descend by one
+level, or return to any shallower level, but never skip a level going deeper (level 2
+straight to level 4, say). A non-heading block never resets this — only the heading
+immediately before it decides what a heading may do next. Sanity enforces the rule with
+a blocking Studio validation, and the project-owned read boundary classifies a
+violation an API import produced, exactly as the original two-level rule already did.
+
+Decision 3's page-jump navigation changes from a flat list of level-2 entries to a real
+nested list that follows the heading hierarchy: a level-3 entry nests inside the
+level-2 entry before it, and a level-4 entry inside the level-3 entry before it. The
+gallery variant's leading link to `#gallery` is unaffected — it remains the first entry
+in the list, ahead of the whole heading tree, exactly as before. The article variant's
+table of contents gains the same nesting.
+
+Every fragment id a level-2 heading already produces is guaranteed unchanged: the id
+algorithm reserves the complete legacy level-2 id set, in the same order and with the
+same collision behavior as before this amendment, before it ever assigns an id to a
+level-3 or level-4 heading. Adding, removing, or rewording a deeper heading can
+therefore never rename a published level-2 anchor — a required property, since a
+level-2 fragment may already be linked to from outside this site.
+
+**Sections affected:** decision 2's heading-level enumeration and semantic-order rule
+are extended by this amendment; decision 3's page-jump navigation paragraphs are
+extended from a flat level-2 list to a nested three-level list. Decisions 1, 4, 5, 6, 7,
+8, and 9 are unchanged: no variant, category, placement, locale, slug, cursor, or
+legacy-redirect behavior is affected.
+
 ### 2026-09-12 — Inline mini-galleries join the shared body-block set (AB#24)
 
 Decision 2 originally permits exactly six body-block types. It now permits a seventh:

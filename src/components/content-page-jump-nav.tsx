@@ -1,10 +1,14 @@
 import Link from "next/link";
-import type { ContentHeading } from "@/lib/content-headings";
+import {
+  nestContentHeadings,
+  type ContentHeading,
+  type ContentHeadingNode,
+} from "@/lib/content-headings";
 
 type ContentPageJumpNavProps = {
   /** Accessible name of the nav landmark, and its own visible heading. */
   label: string;
-  /** The body's level-2 headings, already carrying their anchor ids. */
+  /** The body's headings (levels 2-4), already carrying their anchor ids. */
   headings: readonly ContentHeading[];
   /**
    * An additional link rendered before the heading list. The gallery variant
@@ -14,8 +18,34 @@ type ContentPageJumpNavProps = {
   leadingLink?: { readonly href: string; readonly label: string };
 };
 
-const focusRing =
-  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+const linkClassName =
+  "text-muted underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+
+/**
+ * One heading entry and, when it has any, the nested `<ol>` of its own
+ * children — recursion rather than one hand-unrolled level per depth, though
+ * `nestContentHeadings` never produces more than AB#21's three levels.
+ */
+function ContentHeadingEntry({ node }: { node: ContentHeadingNode }) {
+  return (
+    <li>
+      <Link href={`#${node.id}`} className={linkClassName}>
+        {node.text}
+      </Link>
+      {node.children.length > 0 && <ContentHeadingList nodes={node.children} />}
+    </li>
+  );
+}
+
+function ContentHeadingList({ nodes }: { nodes: readonly ContentHeadingNode[] }) {
+  return (
+    <ol className="mt-1 space-y-1 pl-4">
+      {nodes.map((node) => (
+        <ContentHeadingEntry key={node.id} node={node} />
+      ))}
+    </ol>
+  );
+}
 
 /**
  * The page-jump navigation ADR-0003 decision 3 derives from a body's
@@ -24,7 +54,11 @@ const focusRing =
  * two independent renderings of the same rule.
  *
  * Renders nothing when there is nothing to jump to: no headings and no
- * leading link.
+ * leading link. `headings` is nested by `nestContentHeadings` into a real
+ * `<ol>` hierarchy (AB#21): a level-3 heading's `<li>` sits inside the
+ * preceding level-2 entry's own nested `<ol>`, and likewise for level 4 under
+ * level 3. The gallery's leading link to `#gallery`, when present, stays the
+ * first entry in the top-level list, ahead of the whole heading tree.
  */
 export function ContentPageJumpNav({
   label,
@@ -32,6 +66,8 @@ export function ContentPageJumpNav({
   leadingLink,
 }: ContentPageJumpNavProps) {
   if (headings.length === 0 && leadingLink === undefined) return null;
+
+  const tree = nestContentHeadings(headings);
 
   return (
     <nav
@@ -44,23 +80,13 @@ export function ContentPageJumpNav({
       <ol className="mt-2 space-y-1 text-sm">
         {leadingLink && (
           <li>
-            <Link
-              href={leadingLink.href}
-              className={`text-muted underline underline-offset-4 hover:text-foreground ${focusRing}`}
-            >
+            <Link href={leadingLink.href} className={linkClassName}>
               {leadingLink.label}
             </Link>
           </li>
         )}
-        {headings.map((heading) => (
-          <li key={heading.id}>
-            <Link
-              href={`#${heading.id}`}
-              className={`text-muted underline underline-offset-4 hover:text-foreground ${focusRing}`}
-            >
-              {heading.text}
-            </Link>
-          </li>
+        {tree.map((node) => (
+          <ContentHeadingEntry key={node.id} node={node} />
         ))}
       </ol>
     </nav>

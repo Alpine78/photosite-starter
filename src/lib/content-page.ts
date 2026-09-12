@@ -44,7 +44,7 @@ export type ContentBlock =
       key?: string;
     }
   | { type: "paragraph"; text: string; key?: string }
-  | { type: "heading"; level: 2 | 3; text: string; key?: string }
+  | { type: "heading"; level: 2 | 3 | 4; text: string; key?: string }
   | { type: "blockquote"; text: string; attribution?: string; key?: string }
   | {
       type: "media";
@@ -205,23 +205,32 @@ export function effectiveArticleAuthor(
 
 /**
  * The page title owns the single `h1` (see `ContentBlock`'s own doc comment),
- * so a body's first heading has to be level 2 — a level-3 heading appearing
- * before any level-2 heading would skip a level, breaking the semantic
- * hierarchy AB#106 requires. Fails fast, matching this project's other
- * structural `assert*` boundaries (`assertGallerySections`,
- * `assertPlacements`), rather than collecting every issue.
+ * so a body's first heading has to be level 2. Beyond that, a heading may stay
+ * at the level before it, descend one level deeper, or return to any
+ * shallower level — but never skip a level going deeper, e.g. level 2
+ * straight to level 4 (AB#21, generalizing AB#106's original two-level rule).
+ * A non-heading block never resets this: only the *previous heading*, not
+ * position in the body, decides what a heading may do next. Fails fast,
+ * matching this project's other structural `assert*` boundaries
+ * (`assertGallerySections`, `assertPlacements`), rather than collecting every
+ * issue.
  */
 export function assertSemanticHeadingOrder(blocks: readonly ContentBlock[]): void {
-  let sawLevel2 = false;
+  let previousLevel: number | undefined;
   for (const block of blocks) {
     if (block.type !== "heading") continue;
-    if (block.level === 2) {
-      sawLevel2 = true;
-    } else if (!sawLevel2) {
+    if (previousLevel === undefined) {
+      if (block.level !== 2) {
+        throw new TypeError(
+          "The body's first heading must be level 2 — the page title owns h1, so nothing may appear above it",
+        );
+      }
+    } else if (block.level > previousLevel + 1) {
       throw new TypeError(
-        "A level-3 heading appears before any level-2 heading — the page title owns h1, so the body's first heading must be level 2",
+        `A heading skips from level ${previousLevel} to level ${block.level} — a heading may only stay level, descend one level, or return to any shallower level`,
       );
     }
+    previousLevel = block.level;
   }
 }
 

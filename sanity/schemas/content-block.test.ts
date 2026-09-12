@@ -95,13 +95,14 @@ describe("the shared block types", () => {
 });
 
 describe("the heading block", () => {
-  it("only accepts level 2 or 3", async () => {
+  it("only accepts level 2, 3, or 4", async () => {
     const { required, run } = inspect(fieldOf(typeOf(CONTENT_BLOCK_OBJECT_TYPES.heading), "level").validation);
 
     expect(required).toBe(true);
     expect(await run(2)).toEqual([true]);
     expect(await run(3)).toEqual([true]);
-    for (const rejected of [1, 4, "2", undefined]) {
+    expect(await run(4)).toEqual([true]);
+    for (const rejected of [1, 5, "2", undefined]) {
       expect((await run(rejected))[0]).toEqual(expect.any(String));
     }
   });
@@ -197,8 +198,8 @@ describe("defineContentBodyField", () => {
     ]);
   });
 
-  describe("semantic heading order (AB#106)", () => {
-    const heading = (level: 2 | 3) => ({
+  describe("semantic heading order (AB#106, generalized to levels 2-4 by AB#21)", () => {
+    const heading = (level: 2 | 3 | 4) => ({
       _type: CONTENT_BLOCK_OBJECT_TYPES.heading,
       level,
     });
@@ -224,12 +225,33 @@ describe("defineContentBodyField", () => {
     it("does not misreport a heading an editor has not yet assigned a level to", async () => {
       // A newly added heading block has `level === undefined` until the
       // editor picks one — the field's own `required()` rule already
-      // reports that. This check must not additionally claim "a level-3
-      // heading appears before any level-2 heading" for a block that has no
-      // level at all yet.
+      // reports that. This check must not additionally claim "the body's
+      // first heading must be level 2" for a block that has no level at all
+      // yet.
       const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
       const unleveled = { _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: undefined };
       expect(await run([unleveled])).toEqual([true]);
+    });
+
+    it("does not let an unleveled heading reset what a skip would be", async () => {
+      // An editor mid-way through adding a heading must not accidentally
+      // make a real violation disappear: level 2, an unleveled block, then
+      // level 4 is still a skip from level 2.
+      const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
+      const unleveled = { _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: undefined };
+      const [result] = await run([heading(2), unleveled, heading(4)]);
+      expect(result).toEqual(expect.any(String));
+    });
+
+    it("accepts descending one level at a time down to level 4", async () => {
+      const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
+      expect(await run([heading(2), heading(3), heading(4)])).toEqual([true]);
+    });
+
+    it("rejects skipping from level 2 straight to level 4", async () => {
+      const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
+      const [result] = await run([heading(2), heading(4)]);
+      expect(result).toEqual(expect.any(String));
     });
 
     it("still applies when the caller supplies its own extra validation", async () => {
@@ -258,7 +280,7 @@ describe("defineContentBodyField", () => {
       // would disagree about the same authored content.
       const cases: ReadonlyArray<{
         readonly name: string;
-        readonly levels: readonly (2 | 3)[];
+        readonly levels: readonly (2 | 3 | 4)[];
       }> = [
         { name: "no headings", levels: [] },
         { name: "a single level-2 heading", levels: [2] },
@@ -267,6 +289,17 @@ describe("defineContentBodyField", () => {
         { name: "level 3 first", levels: [3] },
         { name: "level 3 first, level 2 later", levels: [3, 2] },
         { name: "level 2, level 3, level 2, level 3", levels: [2, 3, 2, 3] },
+        { name: "level 4 first", levels: [4] },
+        { name: "level 2, level 3, level 4", levels: [2, 3, 4] },
+        { name: "level 2, level 4 (a skip)", levels: [2, 4] },
+        {
+          name: "level 2, level 3, level 4, level 2, level 3, level 4",
+          levels: [2, 3, 4, 2, 3, 4],
+        },
+        {
+          name: "level 2, level 3, level 4, level 2, level 4 (a skip after returning shallower)",
+          levels: [2, 3, 4, 2, 4],
+        },
       ];
 
       it.each(cases)("$name", async ({ levels }) => {

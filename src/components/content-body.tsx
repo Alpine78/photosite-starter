@@ -43,9 +43,9 @@ type ContentBodyProps = {
  * run (`ContentBodyFigure`); a video placement still renders nothing and never
  * becomes a slide.
  *
- * Level-2 headings carry the ids the derived table of contents links to. Both
- * sides read them from `buildHeadingIds`, so the fragment a link writes and the
- * anchor a heading renders cannot drift apart.
+ * Every heading (h2, h3, h4) carries the id the derived table of contents
+ * links to. Both sides read them from `buildHeadingIds`, so the fragment a
+ * link writes and the anchor a heading renders cannot drift apart.
  */
 export function ContentBody({
   blocks,
@@ -79,28 +79,42 @@ export function ContentBody({
               </p>
             );
 
-          case "heading":
+          case "heading": {
+            // Every level is a jump target (AB#21), so every level keeps
+            // clear of a future sticky header rather than landing under it.
+            const id = headingIds.get(index);
             if (block.level === 2) {
               return (
                 <h2
                   key={block.key ?? index}
-                  id={headingIds.get(index)}
-                  // Anchored headings are jump targets, so they keep clear of a
-                  // future sticky header rather than landing under it.
+                  id={id}
                   className="mt-10 scroll-mt-24 text-2xl font-semibold tracking-tight first:mt-0"
                 >
                   {block.text}
                 </h2>
               );
             }
+            if (block.level === 3) {
+              return (
+                <h3
+                  key={block.key ?? index}
+                  id={id}
+                  className="mt-6 scroll-mt-24 text-xl font-medium tracking-tight"
+                >
+                  {block.text}
+                </h3>
+              );
+            }
             return (
-              <h3
+              <h4
                 key={block.key ?? index}
-                className="mt-6 text-xl font-medium tracking-tight"
+                id={id}
+                className="mt-4 scroll-mt-24 text-lg font-medium tracking-tight"
               >
                 {block.text}
-              </h3>
+              </h4>
             );
+          }
 
           case "blockquote":
             return (
