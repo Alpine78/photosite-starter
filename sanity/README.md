@@ -89,7 +89,7 @@ locale, matching the still-unlocalized `/services` route, so nothing here descri
 capability the site does not yet read.
 
 Both an article's body and a gallery's optional body share one set of block object types —
-`sanity/schemas/content-block.ts` — covering the six kinds ADR-0003 decision 2 names:
+`sanity/schemas/content-block.ts` — covering the seven kinds ADR-0003 decision 2 and its AB#24 amendment name:
 paragraph, heading, list, quote, media placement, and a click-to-load YouTube embed. They
 are named `content<Kind>Block` rather than the bare discriminant, because Sanity type
 names share one namespace and `media.ts` already claims `media` for the shared photograph
@@ -97,6 +97,13 @@ document. `defineContentBodyField` builds a body field restricted to a given all
 these kinds — every kind by default; a gallery's body allows every kind too, but unlike an
 article's it is optional (ADR-0003 decision 3: a gallery's body is separate editorial
 content, not the page itself).
+
+The `contentGalleryBlock` mini-gallery adds an optional title (maximum 120 characters)
+and an `images` array of 1–12 objects, each holding its own stable `_key` and a `media`
+reference. Repeated photographs are allowed as distinct occurrences. The reader preserves
+these identities and rejects unresolved, private, or otherwise undeliverable references;
+this block neither owns nor changes a curated gallery placement. See the
+[AB#24 amendment](../docs/adr/0003-public-content-tree-and-url-structure.md).
 
 ## Galleries
 
@@ -145,7 +152,7 @@ authored field on each placement document, not array position — splitting plac
 documents left nothing for a position to be, a real authoring-experience cost (no more
 drag-to-reorder) accepted for the bounded-query property. A section's optional `intro`
 reuses the shared paragraph/list rich-text model in `gallery-section-intro.ts` — its own
-dedicated object types, not the six-kind `content-block.ts` set, since an intro needs
+dedicated object types, not the seven-kind `content-block.ts` set, since an intro needs
 inline emphasis and links that the shared body blocks' plain-string paragraphs and lists do
 not carry. `orderingRule`/`orderingSeed` let a gallery declare a seeded-random ordering
 (AB#129, [ADR-0009](../docs/adr/0009-seeded-random-gallery-ordering.md)); each

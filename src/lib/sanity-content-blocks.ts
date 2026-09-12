@@ -20,6 +20,10 @@
  */
 
 import "server-only";
+import {
+  MAX_MINI_GALLERY_ITEMS,
+  MAX_MINI_GALLERY_TITLE_LENGTH,
+} from "@/lib/content-mini-gallery";
 
 import { assertSemanticHeadingOrder, type ContentBlock } from "@/lib/content-page";
 import type { SanityConfig } from "@/lib/sanity-config";
@@ -41,6 +45,7 @@ export const CONTENT_BLOCK_OBJECT_TYPES = {
   blockquote: "contentQuoteBlock",
   media: "contentMediaBlock",
   youtube: "contentYoutubeBlock",
+  "mini-gallery": "contentGalleryBlock",
 } as const;
 
 /** Restated from the schema's `YOUTUBE_VIDEO_ID_PATTERN`; pinned by the test. */
@@ -49,7 +54,7 @@ export const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 /**
  * One flat projection over every block kind. GROQ tolerates asking for a field
  * a given `_type` does not declare — it simply comes back `null` — so one
- * projection covers all six kinds instead of a per-type union query. Embedded
+ * projection covers all seven kinds instead of a per-type union query. Embedded
  * by any adapter whose body field uses `defineContentBodyField`.
  */
 export const CONTENT_BLOCK_PROJECTION = `{
@@ -62,14 +67,15 @@ export const CONTENT_BLOCK_PROJECTION = `{
   attribution,
   videoId,
   title,
-  "media": media->${PUBLIC_MEDIA_PROJECTION}
+  "media": media->${PUBLIC_MEDIA_PROJECTION},
+  "images": images[0...${MAX_MINI_GALLERY_ITEMS + 1}]{_key, "media": media->${PUBLIC_MEDIA_PROJECTION}}
 }`;
 
 /** Why a body could not become a validated `ContentBlock[]`. */
 export type SanityContentBlockRejection =
   /** A block's own required fields are missing or malformed. */
   | "malformed-block"
-  /** A block's `_type` names none of the six shared kinds. */
+  /** A block's `_type` names none of the seven shared kinds. */
   | "unsupported-block-type"
   /** The body did not evaluate to a list of block objects. */
   | "malformed-result"
@@ -102,6 +108,7 @@ export type RawContentBlock = {
   readonly videoId?: unknown;
   readonly title?: unknown;
   readonly media?: unknown;
+  readonly images?: unknown;
 };
 
 export type ContentBlockProjectionOptions = {
@@ -189,6 +196,46 @@ export function projectContentBlock(
         options,
       );
       return { type: "media", media, key };
+    }
+
+    case CONTENT_BLOCK_OBJECT_TYPES["mini-gallery"]: {
+      if (
+        !Array.isArray(raw.images) ||
+        raw.images.length === 0 ||
+        raw.images.length > MAX_MINI_GALLERY_ITEMS
+      ) {
+        reject("a mini-gallery needs between 1 and 12 images");
+      }
+      const title = readString(raw.title);
+      if (
+        raw.title != null &&
+        (title === undefined || title.length > MAX_MINI_GALLERY_TITLE_LENGTH)
+      ) {
+        reject("a mini-gallery title must be non-blank and at most 120 characters");
+      }
+      const seen = new Set<string>();
+      const items = raw.images.map((entry) => {
+        if (!isRecord(entry) || !isRecord(entry.media)) {
+          reject("a mini-gallery image has no resolved media reference");
+        }
+        const itemKey = readString(entry._key);
+        if (itemKey === undefined || seen.has(itemKey)) {
+          reject("mini-gallery images need unique stable keys");
+        }
+        seen.add(itemKey);
+        // The same fail-closed public derivative boundary as loose body images.
+        const media = projectPublicMedia(
+          entry.media as RawPublicMediaDocument,
+          options,
+        );
+        return { key: itemKey, media };
+      });
+      return {
+        type: "mini-gallery",
+        key,
+        items,
+        ...(title === undefined ? {} : { title }),
+      };
     }
 
     case CONTENT_BLOCK_OBJECT_TYPES.youtube: {

@@ -381,7 +381,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   and the in-place append — the same link enhanced to bring the next slice into the
   page, with the lightbox continuing past the items it was opened from — and an
   optional lead and long-form body sharing the article variant's own block set and
-  content-derived page-jump navigation (AB#106), and click/tap/keyboard zoom with
+  content-derived page-jump navigation (AB#106), inline mini-galleries on both variants
+  (AB#24: 1–12 uncropped images, up to two columns, a distinct accessible list name and
+  independent viewer per block, plain images without JavaScript, no pagination), and click/tap/keyboard zoom with
   bounded pan, a state-announcing zoom control, and a caption that steps aside while
   zoomed (AB#78), and an optional per-gallery seeded-random ordering rule — a
   deterministic shuffle with pinned leads, materialized once rather than rolled per

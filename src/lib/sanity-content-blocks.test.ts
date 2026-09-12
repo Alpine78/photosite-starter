@@ -244,3 +244,46 @@ describe("reading a whole body", () => {
     expect(() => readContentBlocks(body, options)).not.toThrow();
   });
 });
+
+describe("mini-gallery projection", () => {
+  const entry = (key: string) => ({ _key: key, media: mediaDocument });
+  const block = (images: unknown) => ({ _key: "set", _type: CONTENT_BLOCK_OBJECT_TYPES["mini-gallery"], images });
+
+  it("preserves repeated media as distinct occurrences and projects only public fields", () => {
+    const result = projectContentBlock({ ...block([
+      { ...entry("first"), archiveLocator: "private-entry", media: { ...mediaDocument, archiveLocator: "private-medium" } },
+      entry("second"),
+    ]), title: "Details" }, 0, options);
+    expect(result.type).toBe("mini-gallery");
+    if (result.type !== "mini-gallery") throw new Error("wrong block");
+    expect(result.items.map(i => i.key)).toEqual(["first", "second"]);
+    expect(result.items[0].media.mediaId).toBe(result.items[1].media.mediaId);
+    expect(JSON.stringify(result)).not.toMatch(/archiveLocator|private-entry|private-medium|asset|_key/);
+  });
+
+  it("accepts the maximum and refuses an overfull block before media projection", () => {
+    expect(projectContentBlock(block(Array.from({ length: 12 }, (_, i) => entry(String(i)))), 0, options).type).toBe("mini-gallery");
+    expect(rejectionOf(() => projectContentBlock(block(Array(13).fill(null)), 0, options)).rejection).toBe("malformed-block");
+  });
+
+  it.each([undefined, null, {}, [], [null], [{ _key: "x", media: null }], [entry("x"), entry("x")], [{ media: mediaDocument }]])(
+    "refuses malformed lists or occurrence identities: %j", images => {
+      expect(rejectionOf(() => projectContentBlock(block(images), 0, options)).rejection).toBe("malformed-block");
+    },
+  );
+
+  it.each(["", " ", 42, "x".repeat(121)])("refuses malformed titles: %j", title => {
+    expect(rejectionOf(() => projectContentBlock({ ...block([entry("a")]), title }, 0, options)).rejection).toBe("malformed-block");
+  });
+
+  it.each([
+    { publiclyRenderable: false }, { privateOnly: true }, { mediaType: "video" }, { asset: null },
+  ])("refuses media outside the public derivative boundary: %j", change => {
+    expect(() => projectContentBlock(block([{ _key: "a", media: { ...mediaDocument, ...change } }]), 0, options)).toThrow();
+  });
+});
+
+it("bounds reference expansion at the maximum plus one overflow witness", async () => {
+  const { CONTENT_BLOCK_PROJECTION } = await import("./sanity-content-blocks");
+  expect(CONTENT_BLOCK_PROJECTION).toContain('"images": images[0...13]{_key, "media": media->');
+});

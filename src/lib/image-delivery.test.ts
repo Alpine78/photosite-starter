@@ -17,6 +17,12 @@ describe("bounded image render profiles", () => {
         sizes:
           "(min-width: 1152px) 358px, (min-width: 1024px) calc(33.333vw - 26.667px), (min-width: 640px) calc(50vw - 32px), calc(100vw - 32px)",
       },
+      contentMiniGallery: {
+        sizes: "(min-width: 768px) 348px, (min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
+      },
+      galleryMiniGallery: {
+        sizes: "(min-width: 816px) 372px, (min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
+      },
       serviceGrid: {
         sizes:
           "(min-width: 1152px) 352px, (min-width: 1024px) calc(33.333vw - 32px), (min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
