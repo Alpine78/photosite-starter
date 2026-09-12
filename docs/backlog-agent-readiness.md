@@ -82,10 +82,37 @@ is not MVP work.
 
 ## First agent-ready implementation candidate
 
-**None currently groomed and unblocked.** AB#151 — the previous candidate — shipped in
-PR #138 (merged 2026-09-04), closing the last isolated implementation story on the board.
-Every remaining open item needs an owner decision, credential, physical device, infra
-step, or evidence run before dependent implementation work exists:
+**AB#24 — inline mini-galleries within the article body.** Groomed 2026-09-12: the
+*(rough)* marker is gone from its title, its description carries the scope and the
+inherited boundary, and it has acceptance criteria AC1–AC9. Every prerequisite is closed
+(AB#106, AB#67, AB#15, AB#147), so an agent can start with the implementation defaults
+below, without another owner decision, credential, device, or external evidence run.
+The item remains `New`: grooming does not start implementation. It is a bounded extension of the existing
+content-body-block and lightbox boundary — a seventh `ContentBlock` kind with its own
+lightbox sequence, no pagination, and an ADR-0003 amendment in the same PR.
+
+The implementation defaults are a two-column cap, at most 12 images per block, and an
+optional block title. The owner may revise them during review. Untitled lists get a
+localized name containing their ordinal within the body; repeated titles and collisions
+with fallback names must also be disambiguated. Focus returns to the thumbnail for the
+occurrence displayed when the viewer closes, matching the existing wrapper, including
+after navigation and when a photograph appears more than once.
+
+No pagination is a simplicity decision for a small, bounded array. ADR-0003's sitemap
+rule does not prohibit cursor continuations, and pagination would not inherently couple
+the block to the curated result. The seventh-block ADR amendment belongs in the future
+implementation PR.
+
+Verify nested providers against a production build before building the rest. This is an
+integration check, not an established PhotoSwipe nesting defect: the wrapper passes an
+explicit slide list, and installed PhotoSwipe 5.4.4 mounts its dialog under `document.body`
+by default and guards against concurrent open viewers. Exercise opening, navigating,
+closing, and reopening each sequence, including focus return. Loose body images before
+and after a mini-gallery must remain one body-wide sequence; one provider per contiguous
+run is not an equivalent fallback because it could split that sequence.
+
+Everything else on the board still needs an owner decision, credential, physical device,
+infra step, or evidence run before dependent implementation work exists:
 
 - The **Owner action or decision** table above (AB#141, AB#19, then the
   AB#137 → AB#117 → AB#18 launch chain).
@@ -97,22 +124,17 @@ step, or evidence run before dependent implementation work exists:
 - **AB#60** is functionally complete through PR3 and AB#123; it stays open only for a
   dynamic-result entry point (AB#58/AB#71, not built) or an acceptance-criteria
   amendment — an owner call, not implementation.
-- **AB#24** (inline mini-galleries in the article body), a child of AB#91, is the
-  nearest future implementation slice — a bounded extension of the existing
-  content-body-block and lightbox boundary — but it is still titled *(rough)* and has
-  no acceptance criteria, so it needs grooming before delegation.
-- **AB#21** (article table of contents) is *not* interchangeable with AB#24 as a
-  grooming target: it calls for a three-level nested table of contents, while
+- **AB#21** (article table of contents) cannot be groomed the way AB#24 just was until
+  one decision is made: it calls for a three-level nested table of contents, while
   `ContentBlock` models an authored heading as `level: 2 | 3`
   (`src/lib/content-page.ts`) because the page title owns the `h1`. Raising that cap is
   a body-model decision the story's own description already flags, and it has to be
   made before AB#21 has an implementable scope at all.
 - **AB#54 → AB#55** and **AB#95** are owner-run evidence and product-discovery work.
 
-**Fastest path to the next implementation slice:** groom AB#24 to implementation-ready.
-AB#132 no longer offers a locally-resolvable path — its decision is made and it now waits
-on an upstream Next.js fix, not on this project. AB#21 is a longer path than AB#24,
-because the heading-level decision has to be settled first.
+**Fastest path to the next implementation slice:** delegate AB#24 — it is groomed,
+unblocked, and needs nothing from the owner to start. The next grooming target after it
+is AB#21, once the heading-level decision above is settled.
 
 ## Handoff checklist for another machine or agent
 
