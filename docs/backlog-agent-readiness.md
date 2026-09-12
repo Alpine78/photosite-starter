@@ -1,6 +1,6 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-09-10  
+**Last reviewed:** 2026-09-12  
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
 
@@ -17,7 +17,6 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 
 | Work item | Current state | Required owner action or decision | Unblocks |
 | --- | --- | --- | --- |
-| AB#132 — Semantic 404 HTML | Active | Decide whether the Proxy may read enough content state to rewrite a request to an unmatched route, trading its current O(1) boundary for initial semantic 404 HTML; otherwise retain the documented JavaScript-dependent limitation. | A bounded implementation decision for all matched-route 404s. |
 | AB#141 — Physical-device lightbox check | New | Run the specified tap, double-tap, pinch, pan, and close checks on a real touch device and record device/browser/results in ADR-0001. | The remaining manual lightbox verification. |
 | AB#19 — Legacy URL redirects | Active | Review the attached Joomla URL inventory and choose a canonical target or justified 410 for every important source URL. | A machine-checkable deployment mapping and its production-build tests. |
 | AB#137 — Production Sanity dataset | Active | Approve launch content, use the customer-owned Production Sanity project, provide a temporary write credential for the operator run, approve audit evidence, then revoke the credential. | AB#117. |
@@ -37,6 +36,17 @@ AB#150 and AB#151 both closed (merged 2026-09-04); their chain is done.
 AB#136 closed on the board 2026-09-10: its fix merged as PR #141 (2026-09-07), and its
 owner-run AC5 "exercise against Preview" completed 2026-09-07–09, with the evidence
 recorded on the work item by PR #146.
+
+AB#132's owner decision is now made (2026-09-11, PR #151, recorded in ADR-0007): retain
+the Proxy's O(1) boundary rather than let it read content state to trade for initial
+semantic 404 HTML. It is no longer awaiting an owner call — the underlying defect turned
+out to be a known, already-tracked upstream Next.js bug
+([vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228), open since
+February 2024), and this item now stays `Active` and blocked on an upstream fix landing
+(a first attempt, `#88491`, was closed unmerged 2026-09-04; a second, `#98455`, opened
+2026-09-09 and is still open) rather than on anything this project's owner or an agent
+here can move. Re-check before AB#18's production promotion if the upstream issue is
+still open by then.
 
 A batch of five bugs closed 2026-09-10, all merged to `main` beforehand: AB#152
 (lightbox preload retry, PR #140), AB#153 (admin sign-in secret in the URL before
@@ -77,8 +87,11 @@ PR #138 (merged 2026-09-04), closing the last isolated implementation story on t
 Every remaining open item needs an owner decision, credential, physical device, infra
 step, or evidence run before dependent implementation work exists:
 
-- The **Owner action or decision** table above (AB#132, AB#141, AB#19, then the
+- The **Owner action or decision** table above (AB#141, AB#19, then the
   AB#137 → AB#117 → AB#18 launch chain).
+- **AB#132** is decided and blocked externally, not awaiting an owner call — see the
+  dependency-order section above. Nothing to delegate here until the upstream Next.js
+  fix (`vercel/next.js#98455`, currently open) lands.
 - The **private-gallery branch** (AB#29, AB#145, AB#130) is blocked on the
   owner-provisioned object and metadata stores.
 - **AB#60** is functionally complete through PR3 and AB#123; it stays open only for a
@@ -96,10 +109,10 @@ step, or evidence run before dependent implementation work exists:
   made before AB#21 has an implementable scope at all.
 - **AB#54 → AB#55** and **AB#95** are owner-run evidence and product-discovery work.
 
-**Fastest path to the next implementation slice:** resolve AB#132 — a bounded,
-self-contained decision with a defined implementation task on the other side of it — or
-groom AB#24 to implementation-ready. AB#21 is a longer path than either, because the
-heading-level decision has to be settled first.
+**Fastest path to the next implementation slice:** groom AB#24 to implementation-ready.
+AB#132 no longer offers a locally-resolvable path — its decision is made and it now waits
+on an upstream Next.js fix, not on this project. AB#21 is a longer path than AB#24,
+because the heading-level decision has to be settled first.
 
 ## Handoff checklist for another machine or agent
 
