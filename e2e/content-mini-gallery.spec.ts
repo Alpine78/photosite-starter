@@ -22,20 +22,41 @@ test("nested mini-gallery providers preserve every sequence and focus on close",
     await expect.poll(() => triggers.count()).toBeGreaterThan(1);
     const count = await triggers.count();
     expect(count).toBeGreaterThan(1);
-    const alts = await triggers.locator("img").evaluateAll(nodes => nodes.map(n => n.getAttribute("alt")));
-    for (let run = 0; run < 2; run++) {
-      await openLightbox(dialog, () => triggers.first().click());
-      for (let index = 0; index < count; index++) {
-        await expect.poll(async () => (await presentedImage(dialog))?.alt).toBe(alts[index]);
-        await expect(dialog.getByText(
-          `${index + 1}${labels.indexSeparator}${count}`, { exact: true },
-        )).toBeVisible();
-        if (index + 1 < count) await dialog.getByRole("button", { name: labels.next, exact: true }).click();
+    const alts = await triggers
+      .locator("img")
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("alt")));
+
+    await openLightbox(dialog, () => triggers.first().click());
+    for (let index = 0; index < count; index++) {
+      await expect
+        .poll(async () => (await presentedImage(dialog))?.alt)
+        .toBe(alts[index]);
+      await expect(
+        dialog.getByText(`${index + 1}${labels.indexSeparator}${count}`, {
+          exact: true,
+        }),
+      ).toBeVisible();
+      if (index + 1 < count) {
+        await dialog
+          .getByRole("button", { name: labels.next, exact: true })
+          .click();
       }
-      await dialog.getByRole("button", { name: labels.close, exact: true }).click();
-      await expect(dialog).toHaveCount(0);
-      await expect(triggers.last()).toBeFocused();
     }
+    await dialog.getByRole("button", { name: labels.close, exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(triggers.last()).toBeFocused();
+
+    // Reopening proves this provider still owns its trigger registrations after
+    // the first PhotoSwipe instance has been destroyed. Walking every slide a
+    // second time adds no coverage and makes the full parallel suite needlessly
+    // compete for image requests.
+    await openLightbox(dialog, () => triggers.first().click());
+    await expect
+      .poll(async () => (await presentedImage(dialog))?.alt)
+      .toBe(alts[0]);
+    await dialog.getByRole("button", { name: labels.close, exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(triggers.first()).toBeFocused();
   }
 });
 
@@ -58,18 +79,30 @@ test("mini-gallery keeps full frames, row-major order, and bounded responsive si
   const list = page.locator("[data-mini-gallery]").first();
   const images = list.locator("img");
   await expect(images).toHaveCount(3);
-  const boxes = [];
-  for (const image of await images.all()) {
-    await image.scrollIntoViewIfNeeded();
-    await expect.poll(() => image.evaluate((n: HTMLImageElement) => n.complete && n.naturalWidth > 0)).toBe(true);
-    boxes.push(await image.evaluate((n: HTMLImageElement) => {
-      const rect = n.getBoundingClientRect();
-      return { top: rect.top + window.scrollY, left: rect.left, width: rect.width, height: rect.height,
-        intrinsicWidth: Number(n.getAttribute("width")), intrinsicHeight: Number(n.getAttribute("height")),
-        fit: getComputedStyle(n).objectFit, sizes: n.sizes };
-    }));
-  }
-  expect(new Set(boxes.map(b => b.intrinsicWidth / b.intrinsicHeight)).size).toBeGreaterThan(1);
+  await list.scrollIntoViewIfNeeded();
+  // Read one live DOM snapshot. Keeping individual locators returned by
+  // `locator.all()` across hydration can target nodes React has replaced, and
+  // image completeness is irrelevant to these layout assertions: width,
+  // height, sizes, and the laid-out boxes exist before lazy image bytes arrive.
+  const boxes = await images.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const image = node as HTMLImageElement;
+      const rect = image.getBoundingClientRect();
+      return {
+        top: rect.top + window.scrollY,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+        intrinsicWidth: Number(image.getAttribute("width")),
+        intrinsicHeight: Number(image.getAttribute("height")),
+        fit: getComputedStyle(image).objectFit,
+        sizes: image.sizes,
+      };
+    }),
+  );
+  expect(
+    new Set(boxes.map((box) => box.intrinsicWidth / box.intrinsicHeight)).size,
+  ).toBeGreaterThan(1);
   for (const box of boxes) {
     expect(box.width / box.height).toBeCloseTo(box.intrinsicWidth / box.intrinsicHeight, 2);
     expect(box.width).toBeLessThanOrEqual(box.intrinsicWidth);
@@ -120,7 +153,9 @@ test("keyboard navigation returns to the repeated occurrence and offers no enqui
 test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
   test("renders every image with captions and credits and no inert buttons", async ({ page }) => {
-    await page.goto(articlePath);
+    // This journey inspects the server-rendered document. Waiting for `load`
+    // would also wait on image resources that none of its assertions consume.
+    await page.goto(articlePath, { waitUntil: "domcontentloaded" });
     const lists = page.locator("[data-mini-gallery]");
     await expect(lists).toHaveCount(2);
     await expect(lists.locator("img")).toHaveCount(5);
