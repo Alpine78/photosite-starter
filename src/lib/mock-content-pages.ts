@@ -36,7 +36,7 @@ import type { ContentVariant } from "@/lib/content-tree";
 import { withLocalizedText } from "@/lib/media";
 import { mockAuthoredContentRecords } from "@/lib/mock-content-listing";
 import { FIELDNOTE_NUMBERS, fieldnoteContentId } from "@/lib/mock-fieldnotes";
-import { mockImages } from "@/lib/mock-media";
+import { getMockImages, mockImages } from "@/lib/mock-media";
 
 /** What a page adds to the record a card already carries. */
 type AuthoredPage = {
@@ -100,6 +100,15 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
     variant: "gallery",
     tags: ["coastal", "morning light"],
     body: [
+      { type: "media", media: mockImages.coastalLandscape },
+      { type: "mini-gallery", items: [
+        { media: mockImages.forestStream }, { media: mockImages.mistyBirch },
+        { media: mockImages.forestStream },
+      ] },
+      { type: "mini-gallery", items: [
+        { media: mockImages.openMarsh }, { media: mockImages.lakesideReeds },
+      ] },
+
       {
         type: "paragraph",
         text: "This series began as a habit rather than a plan: a handful of early starts turned into a standing appointment with the tide. Placeholder copy; replaced with real content from the CMS.",
@@ -566,6 +575,25 @@ function compose(
           `mock content page "${contentId}" has no ${language} listing record`,
         );
       }
+      const images = getMockImages(language);
+      const miniItems = [
+        { media: { ...images.forestStream, caption: language === "fi" ? "Esimerkkikuvateksti" : "Example caption", credit: "Placeholder credit" } },
+        { media: { ...images.openMarsh, alt: "" } },
+        { media: images.forestStream },
+      ];
+      const body: readonly ContentBlock[] = contentId === "content-reading-coastal-light"
+        ? [...page.body,
+          { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems },
+          { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems.slice(0, 2) },
+        ]
+        : language === "fi" && contentId === "content-coastal-mornings"
+          ? [
+            { type: "media", media: images.coastalLandscape },
+            { type: "mini-gallery", items: miniItems },
+            { type: "mini-gallery", items: miniItems.slice(0, 2) },
+            ...page.body,
+          ]
+          : page.body;
       return [
         contentId,
         {
@@ -577,6 +605,7 @@ function compose(
           ...(record.endDate === undefined ? {} : { endDate: record.endDate }),
           ...(record.cover === undefined ? {} : { cover: record.cover }),
           ...page,
+          body,
         },
       ];
     }),

@@ -286,6 +286,7 @@ export type BuiltInLabels = {
     /** Accessible name of the control that opens the item enquiry form (AB#60). */
     readonly enquire: string;
   };
+  readonly miniGallery: { readonly label: string };
   readonly media: {
     readonly video: string;
     readonly youtubePrivacyNotice: string;
@@ -513,6 +514,7 @@ const englishLabels = {
     loadError: "The image cannot be loaded",
     enquire: "Enquire about this photograph",
   },
+  miniGallery: { label: "Mini-gallery" },
   media: {
     video: "Video",
     youtubePrivacyNotice:
@@ -668,6 +670,7 @@ const finnishLabels = {
     loadError: "Kuvaa ei voi ladata",
     enquire: "Kysy tästä valokuvasta",
   },
+  miniGallery: { label: "Minigalleria" },
   media: {
     video: "Video",
     youtubePrivacyNotice:

@@ -33,7 +33,7 @@ import type {
   SchemaValidationResult,
 } from "./schema-types";
 
-/** The six block kinds ADR-0003 decision 2 names, in the order it lists them. */
+/** The seven block kinds ADR-0003 decision 2 names, in the order it lists them. */
 export const CONTENT_BLOCK_KINDS = [
   "paragraph",
   "heading",
@@ -41,6 +41,7 @@ export const CONTENT_BLOCK_KINDS = [
   "blockquote",
   "media",
   "youtube",
+  "mini-gallery",
 ] as const;
 
 export type ContentBlockKind = (typeof CONTENT_BLOCK_KINDS)[number];
@@ -59,6 +60,7 @@ export const CONTENT_BLOCK_OBJECT_TYPES: Readonly<
   blockquote: "contentQuoteBlock",
   media: "contentMediaBlock",
   youtube: "contentYoutubeBlock",
+  "mini-gallery": "contentGalleryBlock",
 };
 
 /**
@@ -67,6 +69,10 @@ export const CONTENT_BLOCK_OBJECT_TYPES: Readonly<
  * privacy-first embed cannot silently repair.
  */
 export const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+
+/** Restated by the public reader; tests pin both bounds. */
+export const MAX_MINI_GALLERY_ITEMS = 12;
+export const MAX_MINI_GALLERY_TITLE_LENGTH = 120;
 
 function nonBlank(value: string | undefined): SchemaValidationResult {
   return value !== undefined && value.trim().length > 0
@@ -231,6 +237,44 @@ const contentYoutubeBlockType: SchemaTypeDefinition = {
   preview: { select: { title: "title", subtitle: "videoId" } },
 };
 
+const contentGalleryBlockType: SchemaTypeDefinition = {
+  name: CONTENT_BLOCK_OBJECT_TYPES["mini-gallery"],
+  title: "Mini-gallery",
+  type: "object",
+  description:
+    "A small ordered set within the body, with its own viewer and no pagination.",
+  fields: [
+    {
+      name: "title",
+      title: "Title",
+      type: "string",
+      description: "Optional short title above the photographs.",
+      validation: (rule) => rule.max(MAX_MINI_GALLERY_TITLE_LENGTH).custom<string>(
+        (value) => value === undefined || value.trim().length > 0
+          ? true
+          : "Leave the title unset or enter non-empty text",
+      ),
+    },
+    {
+      name: "images",
+      title: "Images",
+      type: "array",
+      of: [{
+        type: "object",
+        fields: [{
+          name: "media",
+          title: "Image",
+          type: "reference",
+          to: [{ type: MEDIA_TYPE_NAME }],
+          validation: (rule) => rule.required(),
+        }],
+      }],
+      validation: (rule) => rule.required().min(1).max(MAX_MINI_GALLERY_ITEMS),
+    },
+  ],
+  preview: { select: { title: "title", media: "images.0.media.image" } },
+};
+
 /** Every block object type, in one list a Studio's `schema.types` can spread in. */
 export const contentBlockTypes: readonly SchemaTypeDefinition[] = [
   contentParagraphBlockType,
@@ -239,6 +283,7 @@ export const contentBlockTypes: readonly SchemaTypeDefinition[] = [
   contentQuoteBlockType,
   contentMediaBlockType,
   contentYoutubeBlockType,
+  contentGalleryBlockType,
 ];
 
 type RawHeadingItem = { readonly _type?: unknown; readonly level?: unknown };

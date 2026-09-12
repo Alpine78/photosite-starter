@@ -426,8 +426,16 @@ placement, so it shows no enquiry control — and the in-flow figure is enhanced
 trigger only after hydration (`ContentBodyFigure`), so a scriptless visitor keeps the
 plain image. The article **cover** has since become a full-bleed overlaid hero rather than
 a static image — AB#149, described below, alongside AB#148's own home hero.
-A three-level nested table of contents (AB#21) and an inline mini-gallery body-block type
-(AB#24) remain later, unimplemented extensions of this same boundary.
+Inline mini-galleries (AB#24) are the seventh shared body-block kind: 1–12 public images,
+an optional title, a one/two-column uncropped row-major list, and a separate lightbox
+sequence per block. They enter neither the curated result nor the body's loose-image
+sequence. Localized ordinal fallback names and collision disambiguation keep lists
+identifiable, while per-occurrence slide keys restore focus to the image displayed at
+close. Studio and the public reader enforce the bound; the reader projects only public
+media and rejects invalid entries. No pagination, enquiry control, or video delivery is
+added. `e2e/content-mini-gallery.spec.ts` covers nested-provider integration and the
+public journey. The ADR-0003 amendment records the boundary.
+A three-level nested table of contents (AB#21) remains a later extension.
 The home hero's overlaid site name, tagline, and call to action are now fold-safe
 (AB#148, [ADR-0016](docs/adr/0016-hero-fold-safe-overlay.md)): the photograph itself
 still renders full native size, uncapped and never cropped, exactly as the hero

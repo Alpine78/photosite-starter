@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -12,6 +12,43 @@ This broad record remains accepted as a whole. A scoped clause is amended in pla
 when implementation produces evidence the original text did not have, and each partial
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
+
+### 2026-09-12 — Inline mini-galleries join the shared body-block set (AB#24)
+
+Decision 2 originally permits exactly six body-block types. It now permits a seventh:
+**mini-gallery**, a small authored array of media placements within the narrative, offered
+on both article and gallery variants. Each block contains 1–12 public images, optionally
+named by a plain-text title of at most 120 characters. Studio blocks publication outside
+the count bound; the reader independently rejects malformed, empty, overfull, unresolved,
+or non-public image data. The query reads at most 13 entries so it can reject overflow
+without expanding an unbounded array of media references.
+
+A mini-gallery is a content placement. Each has its own ordered lightbox sequence and
+enters neither the curated result nor the body's loose-image sequence. Loose images on
+both sides of a mini-gallery remain one body-wide sequence. Each thumbnail retains its
+full frame and native ratio in a top-aligned, row-major grid of one or two columns. The
+list has a distinct accessible name: the optional title, or a localized ordinal fallback,
+with ordinal disambiguation for collisions. Per-occurrence keys distinguish repeated
+photographs; closing returns focus to the occurrence displayed at close, matching the
+existing wrapper. Plain images, captions, and credits remain available without scripts;
+lightbox controls appear after hydration. Mini-gallery viewers have no enquiry control.
+Video is not delivered: the Sanity public-media reader rejects it, and the rendering
+helper defensively excludes video entries from slides and thumbnails.
+
+The bounded set renders whole, with no cursor or continuation endpoint. This is a
+simplicity decision, not a sitemap restriction: decision 8 already permits indexable
+continuations outside the sitemap. A larger collection belongs in the curated grid.
+
+Before adding the CMS implementation, a production-build integration test passed in
+Chromium and WebKit with two mini-gallery providers nested inside the body provider and
+a separate curated viewer. It opened, navigated, closed, and reopened each sequence,
+checking focus return and isolation. The existing PhotoSwipe wrapper needs no change and
+no new dependency. Splitting the body provider into contiguous runs is not an equivalent
+fallback because it could change the body's sequence.
+
+**Sections affected:** decision 2 and option E's six-kind enumeration are extended by this
+amendment. The AB#147 loose-image sequence remains intact. Decisions 3, 5, 6, 7, 8, and 9
+are unchanged: no route, metadata, sitemap, section, cursor, or curated-result change.
 
 ### 2026-08-10 — Pre-launch scaffold routes are removed, not redirected (AB#124)
 

@@ -24,7 +24,7 @@ import type { ImageMedia, Media } from "@/lib/media";
 import type { SiteSettings } from "@/lib/site-settings";
 
 /**
- * The six body blocks ADR-0003 decision 2 gives both variants. The page title
+ * The seven body blocks ADR-0003 decision 2 gives both variants. The page title
  * owns the single `h1`, so an authored heading starts at level 2.
  *
  * `key` is a stable per-block identity, distinct from the position a block
@@ -36,6 +36,13 @@ import type { SiteSettings } from "@/lib/site-settings";
  * to the wrong block.
  */
 export type ContentBlock =
+  | {
+      type: "mini-gallery";
+      title?: string;
+      /** Occurrence identity belongs to this placement, not the shared medium. */
+      items: readonly { key?: string; media: Media }[];
+      key?: string;
+    }
   | { type: "paragraph"; text: string; key?: string }
   | { type: "heading"; level: 2 | 3; text: string; key?: string }
   | { type: "blockquote"; text: string; attribution?: string; key?: string }

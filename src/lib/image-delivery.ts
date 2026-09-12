@@ -58,6 +58,22 @@ export const imageRenderProfiles = {
       "(min-width: 1024px) calc(33.333vw - 26.667px), (min-width: 640px) calc(50vw - 32px), calc(100vw - 32px)",
     ),
   },
+  /** Two columns with a 24px gap inside the article's 720px reading column. */
+  contentMiniGallery: {
+    sizes: boundedImageSizes(
+      768,
+      348,
+      "(min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
+    ),
+  },
+  /** Same grid inside the gallery body's 768px reading column. */
+  galleryMiniGallery: {
+    sizes: boundedImageSizes(
+      816,
+      372,
+      "(min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
+    ),
+  },
   serviceGrid: {
     sizes: boundedImageSizes(
       1152,

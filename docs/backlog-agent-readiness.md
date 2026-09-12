@@ -80,14 +80,16 @@ is not MVP work.
 | AB#55 — Keyword taxonomy ADR | Blocked on AB#54 evidence | AB#65 spike closed 2026-08-27 (recommends strategy B — ancestor closure materialized on the medium; see `docs/keyword-query-benchmark.md`). Still needs AB#54's Lightroom evidence, then decide the taxonomy, ingest, privacy, hierarchy, and article-tag boundary before implementation. |
 | AB#95 — Sales / checkout / fulfilment ADR | Product discovery | Decide first sales use case and product/provider/privacy boundary. Do not implement checkout, cart, payments, or fulfilment in this item. |
 
-## First agent-ready implementation candidate
+## Current implementation slice
 
 **AB#24 — inline mini-galleries within the article body.** Groomed 2026-09-12: the
 *(rough)* marker is gone from its title, its description carries the scope and the
 inherited boundary, and it has acceptance criteria AC1–AC9. Every prerequisite is closed
 (AB#106, AB#67, AB#15, AB#147), so an agent can start with the implementation defaults
 below, without another owner decision, credential, device, or external evidence run.
-The item remains `New`: grooming does not start implementation. It is a bounded extension of the existing
+The item moved to `Active` on 2026-09-12 after grooming PR #153 merged; implementation
+is on `feature/24-inline-mini-galleries` and remains subject to review and merge.
+It is a bounded extension of the existing
 content-body-block and lightbox boundary — a seventh `ContentBlock` kind with its own
 lightbox sequence, no pagination, and an ADR-0003 amendment in the same PR.
 
@@ -132,9 +134,8 @@ infra step, or evidence run before dependent implementation work exists:
   made before AB#21 has an implementable scope at all.
 - **AB#54 → AB#55** and **AB#95** are owner-run evidence and product-discovery work.
 
-**Fastest path to the next implementation slice:** delegate AB#24 — it is groomed,
-unblocked, and needs nothing from the owner to start. The next grooming target after it
-is AB#21, once the heading-level decision above is settled.
+**Next step:** review and merge AB#24 once its implementation and checks are complete.
+The next grooming target is AB#21, once the heading-level decision above is settled.
 
 ## Handoff checklist for another machine or agent
 

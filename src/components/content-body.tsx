@@ -1,3 +1,5 @@
+import { miniGalleryNames } from "@/lib/content-mini-gallery";
+import { ContentMiniGallery } from "@/components/content-mini-gallery";
 import { ContentBodyFigure } from "@/components/content-body-figure";
 import { GalleryLightbox } from "@/components/gallery-lightbox";
 import { buildContentBodyLightboxSlides } from "@/lib/content-body-lightbox-server";
@@ -25,6 +27,7 @@ type ContentBodyProps = {
    * every caller. Defaults to `contentBody`, tuned for the article's `<main>`.
    */
   sizes?: string;
+  miniGallerySizes?: string;
 };
 
 /**
@@ -48,7 +51,9 @@ export function ContentBody({
   blocks,
   labels,
   sizes = imageRenderProfiles.contentBody.sizes,
+  miniGallerySizes = imageRenderProfiles.contentMiniGallery.sizes,
 }: ContentBodyProps) {
+  const galleryNames = miniGalleryNames(blocks, labels.miniGallery.label);
   const headingIds = buildHeadingIds(blocks);
   const bodyImages = indexContentBodyImages(blocks);
   const slides = buildContentBodyLightboxSlides(blocks);
@@ -57,6 +62,16 @@ export function ContentBody({
     <div className="space-y-6">
       {blocks.map((block, index) => {
         switch (block.type) {
+          case "mini-gallery":
+            return (
+              <ContentMiniGallery
+                key={block.key ?? index}
+                block={block}
+                labels={labels}
+                name={galleryNames.get(index)!}
+                sizes={miniGallerySizes}
+              />
+            );
           case "paragraph":
             return (
               <p key={block.key ?? index} className="leading-7 text-body">

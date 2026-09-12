@@ -107,7 +107,7 @@ const GALLERY = galleryWithBodyImage();
 /** The body's own lightbox triggers, in source order — every hydrated body
  * figure carries the DOM-visible half of its occurrence identity. */
 function bodyTriggers(page: Page) {
-  return page.getByRole("main").locator("article [data-item-id]");
+  return page.getByRole("main").locator("article [data-item-id]:not([data-mini-gallery] [data-item-id])");
 }
 
 test("an article body photograph opens the viewer, walks its own images, and returns focus where it ended", async ({
@@ -255,7 +255,7 @@ test("on a gallery variant page the body viewer and the curated grid are separat
   await page.goto(GALLERY.path, { waitUntil: "load" });
 
   const main = page.getByRole("main");
-  const allTriggers = main.locator("[data-item-id]");
+  const allTriggers = main.locator("[data-item-id]:not([data-mini-gallery] [data-item-id])");
   const dialog = page.getByRole("dialog");
 
   // The body's images come before the grid in the document, so the first
@@ -328,7 +328,7 @@ test.describe("without JavaScript", () => {
     // …but no body photograph has been wrapped in a control that would do
     // nothing without a script to answer it. (The click-to-load video block is
     // a button by design; it is not an image trigger.)
-    await expect(main.locator("article [data-item-id]")).toHaveCount(0);
+    await expect(main.locator("article [data-item-id]:not([data-mini-gallery] [data-item-id])")).toHaveCount(0);
     await expect(main.locator("article button img")).toHaveCount(0);
   });
 });

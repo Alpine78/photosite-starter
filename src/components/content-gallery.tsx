@@ -257,6 +257,7 @@ export function ContentGallery({
                   blocks={page.body}
                   labels={labels}
                   sizes={imageRenderProfiles.galleryBody.sizes}
+                  miniGallerySizes={imageRenderProfiles.galleryMiniGallery.sizes}
                 />
               </div>
             </div>

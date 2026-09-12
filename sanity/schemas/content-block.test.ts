@@ -60,6 +60,7 @@ describe("the shared block types", () => {
       "blockquote",
       "media",
       "youtube",
+      "mini-gallery",
     ]);
     expect(contentBlockTypes.map((type) => type.name).sort()).toEqual(
       Object.values(CONTENT_BLOCK_OBJECT_TYPES).sort(),
@@ -292,4 +293,18 @@ describe("defineContentBodyField", () => {
       });
     });
   });
+});
+
+it("bounds the mini-gallery's image array with blocking Studio validation", async () => {
+  const { MAX_MINI_GALLERY_ITEMS, MAX_MINI_GALLERY_TITLE_LENGTH } = await import("../../src/lib/content-mini-gallery");
+  const schema = await import("./content-block");
+  expect(schema.MAX_MINI_GALLERY_ITEMS).toBe(MAX_MINI_GALLERY_ITEMS);
+  expect(schema.MAX_MINI_GALLERY_TITLE_LENGTH).toBe(MAX_MINI_GALLERY_TITLE_LENGTH);
+  const block = typeOf(CONTENT_BLOCK_OBJECT_TYPES["mini-gallery"]);
+  const validation = inspectValidationRules(fieldOf(block, "images").validation);
+  expect(validation.required).toBe(true);
+  expect(validation.min).toBe(1);
+  expect(validation.max).toBe(MAX_MINI_GALLERY_ITEMS);
+  expect(validation.warnings).toHaveLength(0);
+  expect(inspectValidationRules(fieldOf(block, "title").validation).max).toBe(MAX_MINI_GALLERY_TITLE_LENGTH);
 });
