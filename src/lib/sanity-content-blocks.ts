@@ -79,7 +79,7 @@ export type SanityContentBlockRejection =
   | "unsupported-block-type"
   /** The body did not evaluate to a list of block objects. */
   | "malformed-result"
-  /** A level-3 heading appears before any level-2 heading (AB#106). */
+  /** A heading skips a level, or the body's first heading isn't level 2 (AB#106, AB#21). */
   | "non-semantic-heading-order";
 
 export class SanityContentBlockError extends Error {
@@ -153,8 +153,8 @@ export function projectContentBlock(
     case CONTENT_BLOCK_OBJECT_TYPES.heading: {
       const text = readString(raw.text);
       if (text === undefined) reject("a heading needs non-empty text");
-      if (raw.level !== 2 && raw.level !== 3) {
-        reject("a heading needs level 2 or 3");
+      if (raw.level !== 2 && raw.level !== 3 && raw.level !== 4) {
+        reject("a heading needs level 2, 3, or 4");
       }
       return { type: "heading", level: raw.level, text, key };
     }

@@ -212,7 +212,7 @@ export type BuiltInLabels = {
      * no tree depth and own no route of their own.
      */
     readonly tags: string;
-    /** Names the table of contents derived from a body's level-2 headings. */
+    /** Names the table of contents derived from a body's headings (levels 2-4). */
     readonly onThisPage: string;
     /** Accessible name of the language switch. */
     readonly languages: string;

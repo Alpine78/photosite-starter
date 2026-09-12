@@ -98,9 +98,9 @@ type ContentGalleryProps = {
  * `body: readonly ContentBlock[]`, never an article-specific type. The
  * page-jump navigation always offers a link to the grid (`#gallery`, an
  * in-page anchor rather than a route) once a long body exists, and
- * additionally lists the body's level-2 headings when it has any, reusing
- * the same `listContentHeadings`/`ContentPageJumpNav` the article variant's
- * heading-only navigation is built from.
+ * additionally lists the body's headings (levels 2-4, nested by depth) when
+ * it has any, reusing the same `listContentHeadings`/`ContentPageJumpNav` the
+ * article variant's heading-only navigation is built from.
  *
  * The cover, when explicitly authored, is now a full-bleed hero at the head of
  * the page (AB#149, ADR-0003's 2026-09-04 amendment, ADR-0016's mechanism):

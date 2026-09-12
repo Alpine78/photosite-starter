@@ -55,9 +55,9 @@ const focusRing =
  * was found. Sibling navigation preserves the pre-migration global article
  * sequence while each link still uses its page's canonical category path.
  *
- * The table of contents is derived from the body's level-2 headings, as
- * ADR-0003 decision 3 requires: no authoring toggle, and nothing rendered for a
- * body that has no headings to skip between.
+ * The table of contents is derived from the body's headings (levels 2-4,
+ * nested by depth), as ADR-0003 decision 3 requires: no authoring toggle, and
+ * nothing rendered for a body that has no headings to skip between.
  *
  * The cover, when authored, is now a full-bleed hero at the head of the page
  * with the title overlaid (AB#149, ADR-0016's mechanism — the same one the

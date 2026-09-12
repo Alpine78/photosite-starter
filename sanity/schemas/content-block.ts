@@ -125,12 +125,15 @@ const contentHeadingBlockType: SchemaTypeDefinition = {
         list: [
           { title: "Heading 2", value: 2 },
           { title: "Heading 3", value: 3 },
+          { title: "Heading 4", value: 4 },
         ],
         layout: "radio",
       },
       validation: (rule) =>
         rule.required().custom<number>((value) =>
-          value === 2 || value === 3 ? true : "Choose heading level 2 or 3",
+          value === 2 || value === 3 || value === 4
+            ? true
+            : "Choose heading level 2, 3, or 4",
         ),
     },
     {
@@ -290,8 +293,10 @@ type RawHeadingItem = { readonly _type?: unknown; readonly level?: unknown };
 
 /**
  * The page title owns the single h1 (see `contentHeadingBlockType`'s own
- * description), so a body's first heading has to be level 2 — a level-3
- * heading appearing before any level-2 heading would skip a level. Restates
+ * description), so a body's first heading has to be level 2. Beyond that, a
+ * heading may stay level, descend one level deeper, or return to any
+ * shallower level, but never skip a level going deeper (AB#21, generalizing
+ * the original two-level rule). Restates
  * `content-page.ts#assertSemanticHeadingOrder` as a Studio-facing message
  * rather than a thrown error: schemas import nothing from `src/` (ADR-0006),
  * so the two sides are pinned equal by a test instead. The field-level
@@ -303,20 +308,25 @@ function validatesSemanticHeadingOrder(
   value: readonly RawHeadingItem[] | undefined,
 ): SchemaValidationResult {
   if (value === undefined) return true;
-  let sawLevel2 = false;
+  let previousLevel: number | undefined;
   for (const item of value) {
     if (item._type !== CONTENT_BLOCK_OBJECT_TYPES.heading) continue;
-    if (item.level === 2) {
-      sawLevel2 = true;
-    } else if (item.level === 3 && !sawLevel2) {
-      // Deliberately `=== 3`, not "anything that isn't 2": a heading block
-      // an editor has just added and not yet assigned a level to has
-      // `level === undefined`, which the field's own `required()` rule
-      // already reports. Treating that transient, mid-edit state as "a
-      // level-3 heading out of order" would show a second, misleading
-      // message for a block that has no heading level at all yet.
-      return "A level-3 heading appears before any level-2 heading. The page title owns h1, so the body's first heading must be level 2.";
+    // Deliberately `=== 2 || 3 || 4`, not "anything that isn't the expected
+    // next level": a heading block an editor has just added and not yet
+    // assigned a level to has `level === undefined`, which the field's own
+    // `required()` rule already reports. Treating that transient, mid-edit
+    // state as an order violation would show a second, misleading message
+    // for a block that has no heading level at all yet — and it must not
+    // reset `previousLevel` either, the same way a non-heading block doesn't.
+    if (item.level !== 2 && item.level !== 3 && item.level !== 4) continue;
+    if (previousLevel === undefined) {
+      if (item.level !== 2) {
+        return "The body's first heading must be level 2. The page title owns h1, so nothing may appear above it.";
+      }
+    } else if (item.level > previousLevel + 1) {
+      return `A heading skips from level ${previousLevel} to level ${item.level}. A heading may only stay level, descend one level, or return to any shallower level.`;
     }
+    previousLevel = item.level;
   }
   return true;
 }
