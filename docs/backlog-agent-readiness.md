@@ -80,38 +80,38 @@ is not MVP work.
 | AB#55 — Keyword taxonomy ADR | Blocked on AB#54 evidence | AB#65 spike closed 2026-08-27 (recommends strategy B — ancestor closure materialized on the medium; see `docs/keyword-query-benchmark.md`). Still needs AB#54's Lightroom evidence, then decide the taxonomy, ingest, privacy, hierarchy, and article-tag boundary before implementation. |
 | AB#95 — Sales / checkout / fulfilment ADR | Product discovery | Decide first sales use case and product/provider/privacy boundary. Do not implement checkout, cart, payments, or fulfilment in this item. |
 
-## Current implementation slice
+## First agent-ready implementation candidate
 
-**AB#24 — inline mini-galleries within the article body.** Groomed 2026-09-12: the
-*(rough)* marker is gone from its title, its description carries the scope and the
-inherited boundary, and it has acceptance criteria AC1–AC9. Every prerequisite is closed
-(AB#106, AB#67, AB#15, AB#147), so an agent can start with the implementation defaults
-below, without another owner decision, credential, device, or external evidence run.
-The item moved to `Active` on 2026-09-12 after grooming PR #153 merged; implementation
-is on `feature/24-inline-mini-galleries` and remains subject to review and merge.
-It is a bounded extension of the existing
-content-body-block and lightbox boundary — a seventh `ContentBlock` kind with its own
-lightbox sequence, no pagination, and an ADR-0003 amendment in the same PR.
+**AB#21 — three-level table of contents for long-form content.** Groomed 2026-09-12:
+the *(rough)* marker is gone, the owner confirmed that three levels means body headings
+`h2`, `h3`, and `h4`, and the work item now carries its scope and acceptance criteria
+AC1–AC9. Its predecessor AB#106 is closed. The item deliberately remains `New`: it is
+delegatable without another owner decision, credential, device, or external evidence
+run, but implementation has not started.
 
-The implementation defaults are a two-column cap, at most 12 images per block, and an
-optional block title. The owner may revise them during review. Untitled lists get a
-localized name containing their ordinal within the body; repeated titles and collisions
-with fallback names must also be disambiguated. Focus returns to the thumbnail for the
-occurrence displayed when the viewer closes, matching the existing wrapper, including
-after navigation and when a photograph appears more than once.
+This is one extension of the shared content-body seam, not a second table-of-contents
+system. Article and gallery bodies already share `ContentBlock`, `buildHeadingIds`,
+`listContentHeadings`, `ContentPageJumpNav`, and `ContentBody`. The implementation widens
+their heading level to `2 | 3 | 4`, makes the existing semantic-order check reject any
+skipped descent, and renders the derived entries as a real nested ordered list. The
+gallery's existing leading link to `#gallery` stays before that heading tree, and a
+cursor continuation still omits the editorial body and navigation.
 
-No pagination is a simplicity decision for a small, bounded array. ADR-0003's sitemap
-rule does not prohibit cursor continuations, and pagination would not inherently couple
-the block to the curated result. The seventh-block ADR amendment belongs in the future
-implementation PR.
+The compatibility rule is explicit because fragments are public addresses: every
+existing level-2 heading must keep the id the legacy level-2-only algorithm gives it.
+Reserve that complete id set first, then assign collision-free ids to deeper headings;
+adding, removing, or rewording an `h3` or `h4` must not rename an `h2` target. All three
+levels render anchors from the same projection the navigation consumes.
 
-Verify nested providers against a production build before building the rest. This is an
-integration check, not an established PhotoSwipe nesting defect: the wrapper passes an
-explicit slide list, and installed PhotoSwipe 5.4.4 mounts its dialog under `document.body`
-by default and guards against concurrent open viewers. Exercise opening, navigating,
-closing, and reopening each sequence, including focus return. Loose body images before
-and after a mini-gallery must remain one body-wide sequence; one provider per contiguous
-run is not an equivalent fallback because it could split that sequence.
+ADR-0003 needs a dated amendment in the implementation PR: decision 2's shared heading
+model and decision 3's derived public fragment navigation both change. A separate ADR is
+not needed because the accepted boundary remains in place. Sticky positioning,
+scroll-spy, active-section state, collapse controls, a CMS toggle, a content-length
+heuristic, and AB#20's reading-position behavior stay out of scope.
+
+AB#24 shipped in PR #154 and closed on 2026-09-12. Inline mini-galleries are now the
+seventh shared body block, bounded to 12 images, uncropped, unpaginated, and isolated into
+their own lightbox sequences.
 
 Everything else on the board still needs an owner decision, credential, physical device,
 infra step, or evidence run before dependent implementation work exists:
@@ -126,16 +126,10 @@ infra step, or evidence run before dependent implementation work exists:
 - **AB#60** is functionally complete through PR3 and AB#123; it stays open only for a
   dynamic-result entry point (AB#58/AB#71, not built) or an acceptance-criteria
   amendment — an owner call, not implementation.
-- **AB#21** (article table of contents) cannot be groomed the way AB#24 just was until
-  one decision is made: it calls for a three-level nested table of contents, while
-  `ContentBlock` models an authored heading as `level: 2 | 3`
-  (`src/lib/content-page.ts`) because the page title owns the `h1`. Raising that cap is
-  a body-model decision the story's own description already flags, and it has to be
-  made before AB#21 has an implementable scope at all.
 - **AB#54 → AB#55** and **AB#95** are owner-run evidence and product-discovery work.
 
-**Next step:** review and merge AB#24 once its implementation and checks are complete.
-The next grooming target is AB#21, once the heading-level decision above is settled.
+**Next step:** implement AB#21. Move it to `Active` before the first file change, preserve
+the level-2 fragment contract, and include the ADR-0003 amendment in the same PR.
 
 ## Handoff checklist for another machine or agent
 
