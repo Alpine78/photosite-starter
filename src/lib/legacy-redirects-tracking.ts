@@ -11,10 +11,11 @@
  * Test-only data: nothing in `src/proxy.ts` or the runtime request path
  * imports this file. A clone with no Joomla migration empties all three
  * lists below to `[]` — the same way it empties `legacy-redirects-data.ts`'s
- * `RETIRED_TAG_PATHS` and `legacy-redirects-inventory.json`'s `records` —
- * rather than deleting this file, which would break the test that imports
- * it (`legacy-redirects-data.test.ts`, itself emptied the same way; see its
- * own comment).
+ * `RETIRED_TAG_PATHS`, `STRUCTURAL_REDIRECT_ENTRIES`, and
+ * `legacy-redirects-inventory.json`'s `records` — rather than deleting this
+ * file, which would break the test that imports it
+ * (`legacy-redirects-data.test.ts`, itself emptied the same way; see its own
+ * comment).
  *
  * This bookkeeping tracks per-*pathname* completeness only. A separate,
  * already-closed sub-decision of AB#19 is the numeric gallery lightbox
@@ -45,10 +46,14 @@ export const ALREADY_LIVE_LEGACY_PATHS: readonly string[] = [
  * "a redirect is owed to a URL somebody can actually be holding" principle
  * does not cover a system's own error-page URL. Falls through to the site's
  * ordinary not-found handling, the same as any URL the crawl never saw.
+ * `/fi/404` is the same page under Joomla's redundant Finnish-prefix
+ * duplicate — not a second decision, the identical case under a different
+ * spelling.
  */
 export const EXCLUDED_LEGACY_PATHS: readonly string[] = [
   "/404",
   "/en/404",
+  "/fi/404",
 ];
 
 /**
@@ -58,10 +63,15 @@ export const EXCLUDED_LEGACY_PATHS: readonly string[] = [
  * their new paths depend on migrated locale identity and canonical category
  * placement," and no route reads real migrated content yet
  * (`SITE_CONTENT_SOURCE=mock`). Covers every gallery (`valokuvat/*`,
- * `en/photos/*`), article (`blogi/*`), service (`valokuvaus/*`,
- * `haakuvaus/*`), their `/fi`-prefixed locale-alias duplicates, and the
- * following, each verified against its real crawled title before being left
- * here rather than guessed at:
+ * `en/photos/*`), article (`blogi/*`), individual service
+ * (`valokuvaus/<slug>`, `haakuvaus/*`), their `/fi`-prefixed locale-alias
+ * duplicates, and the following, each verified against its real crawled
+ * title before being left here rather than guessed at. The bare
+ * `/valokuvaus` listing root and its `/fi/valokuvaus` duplicate are the one
+ * exception: unlike an individual service, that page has no migrated-content
+ * identity of its own to wait for — it is decided in
+ * `legacy-redirects-data.ts`'s `STRUCTURAL_REDIRECT_ENTRIES` against this
+ * site's own generic `/services` listing instead.
  *
  * - `component/komento/profile[/138]`, `en/component/komento/profile` — NOT
  *   a defunct system route: "Komento" is Komento Gallery, a real Joomla
@@ -85,6 +95,16 @@ export const EXCLUDED_LEGACY_PATHS: readonly string[] = [
  *   indexed") — that was about the template's dead route, not the
  *   production Joomla site's real one at the same path. Reconciling that is
  *   left for whoever resolves this row, once a real target exists.
+ * - `/en/`, the English locale-root alias — investigated and deliberately
+ *   left pending rather than decided, unlike its Finnish counterpart: measured
+ *   against a production build under this deployment's real locale
+ *   configuration, the bare `/en` a direct redirect would target answers
+ *   `404` (no English home page exists yet), and neither `/` nor
+ *   `/en/stories` is an allowed substitute under ADR-0003 decision 9's
+ *   "never use a blanket home, locale-root, story-root, or cross-language
+ *   redirect" rule. See `legacy-redirects-data.ts`'s
+ *   `STRUCTURAL_REDIRECT_ENTRIES` comment for the full record; revisit once a
+ *   real English home page exists.
  * - The two Monza F1 2008 gallery timeout records (`valokuvat/matkailu/f1/
  *   italia-monza-f1-2008` and its `/fi` alias) — per the site owner's own
  *   comment on AB#19, the gallery is real and intentionally large; its first
@@ -188,8 +208,6 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/en/wedding/half-day",
   "/en/wedding/portraits",
   "/en/wedding/whole-day",
-  "/fi/",
-  "/fi/404",
   "/fi/blogi",
   "/fi/blogi/canon-powershot-sx610-hs",
   "/fi/haakuvaus",
@@ -253,7 +271,6 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/fi/valokuvat/sekalaiset/vat-portfolio/kaupallinen",
   "/fi/valokuvat/sekalaiset/vat-portfolio/miljoo",
   "/fi/valokuvat/sekalaiset/vat-portfolio/studio",
-  "/fi/valokuvaus",
   "/fi/valokuvaus/asuntokuvaus",
   "/fi/valokuvaus/hautajaiskuvaus",
   "/fi/valokuvaus/juhlakuvaus",
@@ -324,7 +341,6 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/valokuvat/sekalaiset/vat-portfolio/kaupallinen",
   "/valokuvat/sekalaiset/vat-portfolio/miljoo",
   "/valokuvat/sekalaiset/vat-portfolio/studio",
-  "/valokuvaus",
   "/valokuvaus/asuntokuvaus",
   "/valokuvaus/hautajaiskuvaus",
   "/valokuvaus/juhlakuvaus",

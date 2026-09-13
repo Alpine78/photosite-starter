@@ -2,21 +2,25 @@
  * First-site deployment data for AB#19: the legacy-URL rows this pass can
  * decide without guessing at a not-yet-migrated content target.
  *
- * A clone with no Joomla migration empties {@link RETIRED_TAG_PATHS} to `[]`
- * — the same way a clone edits `mock-content-tree.ts`'s own fixture content
- * to be its own, rather than deleting that file — leaving
- * {@link LEGACY_REDIRECTS} an empty map with zero edits needed anywhere else,
- * `src/proxy.ts`'s import included: `buildLegacyRedirects([])` is a valid,
- * fully exercised input (see `legacy-redirects.ts`'s own tests), not a
- * special case. Deleting this file instead would break that import and every
- * test that reads {@link LEGACY_REDIRECTS} or {@link RETIRED_TAG_PATHS}, so
- * emptying it in place is the supported path. Its companions
- * (`legacy-redirects-tracking.ts`, `legacy-redirects-inventory.json`, and
- * `legacy-redirects-data.test.ts`) empty the same way — see each file's own
- * comment. The reusable engine (`legacy-redirects.ts`) stays either way;
- * only this row data is first-site-specific.
+ * A clone with no Joomla migration empties {@link RETIRED_TAG_PATHS} and
+ * {@link STRUCTURAL_REDIRECT_ENTRIES} to `[]` — the same way a clone edits
+ * `mock-content-tree.ts`'s own fixture content to be its own, rather than
+ * deleting that file — leaving {@link LEGACY_REDIRECTS} an empty map with
+ * zero edits needed anywhere else, `src/proxy.ts`'s import included:
+ * `buildLegacyRedirects([])` is a valid, fully exercised input (see
+ * `legacy-redirects.ts`'s own tests), not a special case. Deleting this file
+ * instead would break that import and every test that reads
+ * {@link LEGACY_REDIRECTS} or {@link RETIRED_TAG_PATHS}, so emptying it in
+ * place is the supported path. Its companions (`legacy-redirects-tracking.ts`,
+ * `legacy-redirects-inventory.json`, and `legacy-redirects-data.test.ts`)
+ * empty the same way — see each file's own comment. The reusable engine
+ * (`legacy-redirects.ts`) stays either way; only this row data is
+ * first-site-specific.
  *
- * Every entry here is a Joomla tag/keyword-browsing page
+ * Two kinds of decided row live here, kept in separate lists because their
+ * evidence and validation differ:
+ *
+ * {@link RETIRED_TAG_PATHS} is every Joomla tag/keyword-browsing page
  * (`/component/tags/tag/<slug>` and `/en/component/tags/tag/<slug>`),
  * verified against the crawl inventory (`legacy-redirects-inventory.json`,
  * `ilkansivu-legacy-url-inventory-2026-07-30.json`, 2026-07-30): every one
@@ -36,6 +40,47 @@
  * system route) and `sivustokartta/*` (real content reached through a
  * Joomla-minted alias, not a generic sitemap page). Both stay `pending` in
  * `legacy-redirects-tracking.ts`, not here.
+ *
+ * {@link STRUCTURAL_REDIRECT_ENTRIES} is the first `redirect`-kind data this
+ * file carries (2026-09-13): a small set of sources whose canonical target
+ * does not depend on any not-yet-migrated content, decided instead of left
+ * `pending`. `/fi/` is the Joomla-era Finnish locale-root alias the crawl
+ * recorded as a real directory-style URL; it gets its own direct row —
+ * rather than relying on this application's generic trailing-slash or
+ * redundant-prefix normalization to reach the same destination — for the
+ * same reason `isCanonicalLegacyPath`'s own comment gives a bare locale root
+ * as its worked example: the legacy registry is checked before those generic
+ * mechanisms specifically so a slash-bearing legacy source resolves in one
+ * hop rather than depending on how the dynamic catch-all route matches a
+ * trailing slash. Its target is `/`, not a second `/fi`-prefixed hop: the
+ * crawled Finnish locale root and this site's own Finnish (default,
+ * unprefixed) home page are the same page under two spellings, the same
+ * "alias resolves directly to the final target" shape already used for the
+ * Komento and sivustokartta aliases in `legacy-redirects-tracking.ts`, not
+ * the "blanket locale-root redirect" ADR-0003 decision 9 forbids for
+ * unrelated content with no real equivalent.
+ *
+ * `/en/`, the parallel English locale-root alias, was investigated and
+ * deliberately left in `PENDING_LEGACY_PATHS` instead: measured against a
+ * production build with this deployment's real locale configuration
+ * (`SITE_LOCALE=fi`, `SITE_LOCALE_ROUTES=fi||tarinat,en|en|stories`), the
+ * bare `/en` this row would target answers `404` — no English home page
+ * exists yet ("Not yet built: localized static routes", `AGENTS.md`'s
+ * feature-status section) — and neither `/` (a cross-language redirect) nor
+ * `/en/stories` (a story-root redirect) is an allowed substitute under
+ * ADR-0003 decision 9's explicit "never use a blanket home, locale-root,
+ * story-root, or cross-language redirect" rule. Revisit once a real English
+ * home page exists. `/valokuvaus`
+ * and `/fi/valokuvaus` (the bare Joomla services-category root, and its
+ * redundant-prefixed duplicate) redirect to this site's own generic
+ * `/services` listing — an owner-confirmed equivalence (2026-09-13), not an
+ * inference from the source string, since both are top-level listing pages
+ * for the same photography-services offering rather than migrated content
+ * with its own slug. Each `/fi/`-prefixed source resolves directly to the
+ * final target per ADR-0003 decision 9's "aliases resolve directly to the
+ * final target, never through another legacy URL" — `/fi/valokuvaus` targets
+ * `/services` itself, not `/valokuvaus`, so it never chains through that
+ * other decided row.
  *
  * {@link LEGACY_REDIRECTS} is built once, at module load, and `src/proxy.ts`
  * imports it directly — unlike every other value that file reads
@@ -257,9 +302,44 @@ export const RETIRED_TAG_PATHS: readonly string[] = [
   "/en/component/tags/tag/wrc2-en",
 ];
 
-export const LEGACY_REDIRECTS: LegacyRedirects = buildSafely(
-  RETIRED_TAG_PATHS.map((source) => ({
+/**
+ * Every source and target here is verified against the crawl inventory and
+ * this application's own real routes — never a guessed migrated-content
+ * path. `legacy-redirects-data.test.ts` resolves each row and checks its
+ * outcome; `e2e/legacy-redirects.spec.ts` proves the redirect against a real
+ * production build.
+ */
+export const STRUCTURAL_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
+  {
+    source: "/fi/",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/services",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/services",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+];
+
+export const LEGACY_REDIRECTS: LegacyRedirects = buildSafely([
+  ...RETIRED_TAG_PATHS.map((source) => ({
     source,
     outcome: { kind: "gone" as const, reason: GONE_REASON },
   })),
-);
+  ...STRUCTURAL_REDIRECT_ENTRIES,
+]);
