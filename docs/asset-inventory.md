@@ -15,6 +15,14 @@ SVGs in `docs/architecture/`. Counts were not recounted.
 **Amended:** 2026-08-24 — the vendored `architecture` and `security-review` skills were
 adapted to the repository's own ADR, security, privacy, CMS, media, and deployment
 boundaries; their upstream licenses and attribution remain in place.
+**Re-verified 2026-09-13 (AB#43):** a fresh audit pass against the current dependency
+tree and `public/`/`src/app/` assets. Two new production dependencies since the original
+audit — `@sanity/webhook` (MIT, AB#83's webhook signature verification) and the `vercel`
+CLI (Apache-2.0, deployment tooling) — were checked against a real production build's
+`.next/static/chunks/` and confirmed absent from it, the same verification method this
+document already prescribes; neither crosses the redistribution line, so the shipped
+table below is unchanged by their addition. One real gap was found and fixed: see
+"Default scaffold favicon" below.
 
 ## Distribution model assumed by this audit
 
@@ -172,6 +180,23 @@ diff upstream.md local.md
 
 This project does not accept external contributions — see `README.md`. This keeps future
 relicensing (AB#42) unencumbered without the overhead of a CLA.
+
+## Default scaffold favicon (AB#43, found and fixed 2026-09-13)
+
+`src/app/favicon.ico` was still `create-next-app`'s own scaffold default: Vercel's
+triangle wordmark (verified by extracting and viewing the icon's embedded 256×256
+frame, not assumed from the filename). This is Vercel's own brand mark, not this
+project's, and had never been noticed, replaced, or recorded in this audit — every
+clone was shipping another company's logo as its own site's favicon by default, which
+this project's own "keep it generic" hard rule (`AGENTS.md`) does not permit for any
+identity, including one this project did not choose.
+
+Replaced with a plain, brand-free concentric-circle lens glyph (project-authored SVG,
+rendered to the four sizes the original `.ico` carried: 16/32/48/256px). It is a
+placeholder, not a finished brand mark — recorded here, not silently fixed, so a
+clone knows to replace it with the photographer's own icon, exactly like the demo
+photographs above. No license or attribution applies; it is original work under the
+project's MIT license, same as `src/`.
 
 ## Original gallery boundary fixtures (AB#157)
 
