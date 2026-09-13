@@ -1,3 +1,4 @@
+import { effectiveGalleryPresentation } from "@/lib/gallery-presentation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -657,6 +658,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
         resolution.section,
       );
       const sectionKey = activeSection?.slug ?? "all";
+      const presentation = effectiveGalleryPresentation(page, await getSiteSettings());
 
       return (
         <ContentGallery
@@ -669,6 +671,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
               : `cursor:${resolution.cursor}:${sectionKey}`
           }
           galleryPath={storyPath}
+          presentation={presentation}
           sections={result.sections}
           {...(activeSection === undefined ? {} : { activeSection })}
           {...(result.selectedSection === undefined

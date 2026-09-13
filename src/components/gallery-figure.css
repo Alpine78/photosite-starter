@@ -1,0 +1,61 @@
+.gallery-figure { position: relative; margin: 0; container-type: inline-size; }
+/* A low row still reserves room for every displayed line of its caption.
+   In multi-column masonry the band widths and <=4:1 ratio already exceed this. */
+.gallery-figure--bounded { min-height: 3.5rem; }
+.gallery-caption-slot { height: 3.5rem; }
+.gallery-caption--bounded {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.5rem min(0.75rem, 5%);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  pointer-events: none;
+}
+.gallery-caption-text {
+  display: -webkit-box;
+  max-height: 2.5rem;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+/* Photographic exception: white on 72% black. See docs/theme-contract.md's
+   "Four surfaces" table for the measured contrast (~9.2:1 even over white) —
+   the single source for that figure, so it is not restated as a second,
+   independently-rounded number here. */
+.gallery-caption--overlay { color: #fff; background: rgb(0 0 0 / 0.72); }
+/* A justified row can pair an extreme portrait with a panorama, squeezing the
+   portrait to only a few pixels wide. `-webkit-line-clamp` assumes at least
+   one character fits per line; measured in both engines, when it does not, the
+   clamp fails to cap the box at all and the caption's real text paints far
+   past the figure — not the two-line strip the clamp promises. Below this
+   width there is no sane way to paint even one legible character, so the
+   resting caption is dropped rather than left to overflow: the full text
+   stays reachable through the same scriptless popover trigger every caption
+   already has (`gallery-figure.tsx`'s `captionPopoverId`), which this
+   container query never touches. 3rem is the smallest width this file treats
+   as enough to attempt legible text at all. */
+@container (max-width: 3rem) {
+  .gallery-caption--bounded,
+  .gallery-caption-slot {
+    display: none;
+  }
+}
+/* The scriptless full caption is a native, dismissible top-layer popover.
+   It is focused only after activation; tabindex=-1 adds no sequential stop. */
+.gallery-caption-popover {
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 4rem);
+  margin: auto;
+  padding: 1.5rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.gallery-figure:has(:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}

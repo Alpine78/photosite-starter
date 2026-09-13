@@ -1,3 +1,4 @@
+import { galleryPresentationFields } from "./gallery-presentation";
 /**
  * The public gallery document: the `gallery` variant of `content-page.ts`'s
  * shared content page (ADR-0003 decision 1), and the Studio-facing half of
@@ -300,6 +301,7 @@ export const galleryType: SchemaTypeDefinition = {
     rule.custom<Readonly<Record<string, unknown>>>((value, context) =>
       validateGalleryPublication(value, context, GALLERY_TYPE_NAME)),
   fields: [
+    ...galleryPresentationFields(true),
     {
       name: "contentId",
       title: "Content ID",

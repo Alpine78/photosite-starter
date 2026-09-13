@@ -1,3 +1,4 @@
+import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
 /**
  * The public content page itself: one gallery or article, as the route layer
  * and its renderers see it.
@@ -135,7 +136,7 @@ export type ArticleContentPage = ContentPageBase & {
  * A curated photographic series. Its ordered result set is the shared gallery
  * contract's (AB#66) and is deliberately not a field here; AB#104 renders it.
  */
-export type GalleryContentPage = ContentPageBase & {
+export type GalleryContentPage = ContentPageBase & GalleryPresentationFields & {
   readonly variant: "gallery";
 };
 

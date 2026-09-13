@@ -172,3 +172,13 @@ diff upstream.md local.md
 
 This project does not accept external contributions — see `README.md`. This keeps future
 relicensing (AB#42) unencumbered without the overhead of a CLA.
+
+## Original gallery boundary fixtures (AB#157)
+
+`public/gallery/layout-panorama.*.webp` (2048×256) and
+`public/gallery/layout-portrait.*.webp` (256×2048) are project-authored geometric
+gradients with a thin frame, generated for aspect-ratio boundary verification.
+They contain no third-party imagery, watermark, signature, branding, or URL.
+They follow this repository's license and commercial-use terms; no additional
+attribution or third-party license applies. Each filename includes its content
+hash, and `src/lib/mock-gallery-boundaries.ts` records its true dimensions.

@@ -1,3 +1,4 @@
+import { galleryPresentationFields } from "./gallery-presentation";
 /** Global brand, contact, and static-navigation content for one deployment. */
 
 import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
@@ -179,6 +180,7 @@ export function defineSiteSettingsType(
   }
 
   const fields: SchemaTypeDefinition["fields"] = [
+    ...galleryPresentationFields(false),
     { name: "siteName", title: "Site name", type: "string", validation: (rule) => rule.required().custom(nonBlank) },
     { name: "photographerName", title: "Photographer name", type: "string", validation: (rule) => rule.required().custom(nonBlank) },
     {

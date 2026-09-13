@@ -201,7 +201,7 @@ blocks to that test's palette list, and a preset that misses AA fails the build.
 
 ## What stays explicit (and why)
 
-Three surfaces keep raw `black`/`white` values on purpose. They are deliberate
+Four surfaces keep raw `black`/`white` values on purpose. They are deliberate
 photographic or media treatments, not brand decisions a palette should reach:
 
 - **The hero text surface** — `bg-black/80` and white title, metadata,
@@ -215,6 +215,13 @@ photographic or media treatments, not brand decisions a palette should reach:
   lets long text extend the figure downward without cropping the image or
   truncating text. Very long copy can require scrolling. A content page with
   no authored cover renders no hero or text surface (AB#149 AC10).
+- **Gallery overlay captions** (`src/components/gallery-figure.css`, AB#157)
+  use white text on a uniform 72%-black surface. Even over pure white the
+  resulting background is #474747 (approximately 9.2:1 against white).
+  The surface covers every displayed line. Full text is available through the
+  image button: in the lightbox, or a native caption popover without script.
+  A missing caption renders no surface. This is a deliberate
+  photographic treatment, independent of the selected brand palette.
 - **The YouTube embed backdrop** — the `bg-black` behind a loaded player, like a
   video letterbox.
 - **The PhotoSwipe lightbox** (`src/components/gallery-lightbox.css`) — an
