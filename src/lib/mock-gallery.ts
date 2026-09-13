@@ -1,3 +1,7 @@
+import {
+  getGalleryBoundaryImages,
+  type GalleryBoundaryImages,
+} from "@/lib/mock-gallery-boundaries";
 /**
  * Curated gallery mock used until the CMS adapter lands.
  *
@@ -56,7 +60,7 @@ const MOCK_GALLERY_PAGE_SIZE = 24;
 
 type MockPlacementInput = {
   readonly placementId: string;
-  readonly image: keyof MockImages;
+  readonly image: keyof MockImages | keyof GalleryBoundaryImages;
   /**
    * Placement caption per language subtag. A language with no entry shows the
    * media's own caption, which is the normal partly-translated state.
@@ -328,6 +332,41 @@ const shuffledShowcasePlacements: readonly MockPlacementInput[] = Array.from(
   },
 );
 
+/**
+ * The two masonry galleries (AB#157): one per caption placement, each longer than
+ * one 24-item page so an append has something already on screen to disturb.
+ * Shapes are the fixture's three ratios in a sequence that does not repeat with
+ * the column count, and the captions cycle through a short one, a long one that
+ * runs well past two lines, none, and an unbroken string that has to wrap
+ * anywhere rather than overflow its box.
+ */
+const MASONRY_GALLERY_SIZE = 30;
+
+const masonryCaptionCycle: readonly (Readonly<Record<string, string>> | undefined)[] = [
+  { en: "Quiet coast", fi: "Hiljainen rannikko" },
+  {
+    en: "A long caption that runs well past two lines at every column width, so the clamp and its reveal both have real text to work with.",
+    fi: "Pitkä kuvateksti, joka jatkuu selvästi yli kahden rivin jokaisella sarakeleveydellä, jotta rajaus ja sen paljastus pääsevät kokeilemaan todellista sisältöä.",
+  },
+  undefined,
+  { en: "Morning mist", fi: "Aamusumu" },
+  {
+    en: "Unbroken_identifier_without_any_spaces_that_must_wrap_anywhere_rather_than_overflow",
+    fi: "Katkeamaton_tunniste_ilman_välilyöntejä_jonka_täytyy_rivittyä_eikä_valua_laatikon_yli",
+  },
+];
+
+function masonryPlacements(prefix: string): readonly MockPlacementInput[] {
+  return Array.from({ length: MASONRY_GALLERY_SIZE }, (_unused, index) => {
+    const caption = masonryCaptionCycle[index % masonryCaptionCycle.length];
+    return {
+      placementId: `${prefix}-${String(index + 1).padStart(3, "0")}`,
+      image: index === 1 ? "panorama" : index === 2 ? "portrait" : archiveImageCycle[(index * 5 + (index % 4)) % archiveImageCycle.length],
+      ...(caption === undefined ? {} : { caption }),
+    };
+  });
+}
+
 const authoredGalleries: Readonly<Record<string, MockGalleryInput>> = {
   "content-selected-work": { placements: selectedWorkPlacements },
   "content-coastal-mornings": { placements: coastalMorningsPlacements },
@@ -342,6 +381,17 @@ const authoredGalleries: Readonly<Record<string, MockGalleryInput>> = {
     orderingRule: "seeded-random",
     orderingSeed: SHUFFLED_SHOWCASE_SEED,
   },
+  "content-masonry-below": { placements: masonryPlacements("masonry-below") },
+  "content-masonry-overlay": { placements: masonryPlacements("masonry-overlay") },
+  "content-grid-overlay": { placements: masonryPlacements("grid-overlay") },
+  "content-justified-below": { placements: masonryPlacements("justified-below") },
+  "content-justified-overlay": {
+    placements: masonryPlacements("justified-overlay").map((item) => ({ ...item, sectionId: "frames" })),
+    orderingRule: "seeded-random", orderingSeed: "layout-example-v1",
+    sections: [{ sectionId: "frames", slug: "frames", label: { en: "Frames", fi: "Kuvat" } }],
+  },
+  "content-layout-single": { placements: [{ placementId: "layout-single-1", image: "portrait" }] },
+  "content-layout-pair": { placements: [{ placementId: "layout-pair-1", image: "portrait", caption: { en: "A narrow portrait frame", fi: "Kapea pystykuva" } }, { placementId: "layout-pair-2", image: "panorama", caption: { en: "A very wide frame", fi: "Erittäin leveä kuva" } }] },
 };
 
 /** Stable identity of the gallery this deployment features as its portfolio. */
@@ -384,7 +434,7 @@ function buildPlacements(
   inputs: readonly MockPlacementInput[],
   ordering: GalleryOrdering,
 ): readonly CuratedGalleryPlacement[] {
-  const images = getMockImages(language);
+  const images = { ...getMockImages(language), ...getGalleryBoundaryImages(language) };
   const seed = ordering.kind === "seeded-random" ? ordering.seed : undefined;
 
   return inputs.map((input, index) => {

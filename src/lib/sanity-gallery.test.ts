@@ -278,6 +278,16 @@ describe("projectGalleryContentPage", () => {
     ...overrides,
   });
 
+  it("validates authored presentation overrides without injecting defaults", () => {
+    expect(projectGalleryContentPage(detailOf(), languages)).not.toHaveProperty("galleryLayout");
+    expect(projectGalleryContentPage(detailOf({ galleryLayout: "justified", galleryCaptionPlacement: "overlay" }), languages))
+      .toMatchObject({ galleryLayout: "justified", galleryCaptionPlacement: "overlay" });
+    for (const value of ["unknown", 12, {}, false]) {
+      expect(() => projectGalleryContentPage(detailOf({ galleryLayout: value }), languages)).toThrow(SanityGalleryError);
+      expect(() => projectGalleryContentPage(detailOf({ galleryCaptionPlacement: value }), languages)).toThrow(SanityGalleryError);
+    }
+  });
+
   it("allows an empty body, unlike an article", () => {
     const page = projectGalleryContentPage(detailOf(), languages);
     expect(page.variant).toBe("gallery");

@@ -35,6 +35,19 @@ function boundedImageSizes(
   return `(min-width: ${terminalViewportWidth}px) ${terminalCssWidth}px, ${fluidSizes}`;
 }
 
+
+/**
+ * A safe upper bound on the width of `.gallery-masonry`/`.gallery-justified`'s
+ * bounded, rem-container-queried content at *any* viewport and *any* root
+ * font-size: that container can never exceed the viewport itself minus its
+ * smallest reachable padding, so this alone — no per-column-count or
+ * per-band conditional branch — stays correct however far a visitor's root
+ * font-size pushes the container's own column count or width down. See
+ * `imageRenderProfiles.galleryMasonry`'s own doc comment for why a
+ * conditional branch (in `px` or `rem`) was tried and measured wrong.
+ */
+const boundedRemContainerSizes = "calc(100vw - 32px)";
+
 /** Three-column card grid inside the bounded 1152px content container. */
 const contentCardGridSizes = boundedImageSizes(
   1152,
@@ -57,6 +70,51 @@ export const imageRenderProfiles = {
       358,
       "(min-width: 1024px) calc(33.333vw - 26.667px), (min-width: 640px) calc(50vw - 32px), calc(100vw - 32px)",
     ),
+  },
+  /**
+   * The order-preserving masonry (AB#157). Its column count follows its own
+   * rem container-query thresholds (`MASONRY_BANDS`: two columns from 34rem,
+   * three from 56rem, capped at 69rem) rather than the grid's fixed viewport
+   * breakpoints — but a `sizes` media condition's `rem` is resolved against
+   * the browser's *default* root font-size, never a page's own overridden
+   * one (a CSS Values-and-Units / Media Queries rule: relative units inside
+   * a media feature use the initial value, to avoid a circular dependency on
+   * the very cascade a media query could otherwise influence). So `rem` here
+   * would have bought nothing — confirmed in a real browser (an independent
+   * Codex review of AB#157, twice): the masonry container-query breakpoints
+   * genuinely shift with a visitor's root font-size, but no unit written into
+   * `sizes` can see that shift, in *either* px or rem.
+   *
+   * The fix is not a unit change but a bound: assume the layout could always
+   * have collapsed to a single column. A per-column-count branch was tried
+   * and measured wrong — the container-query boundary is fragile enough
+   * (sub-pixel/scrollbar slop) that at exactly the viewport a "two columns
+   * is now safe" branch would start at (200% zoom, this codebase's own
+   * established enlarged-text size and WCAG's own bound), the real layout
+   * still measured full-width, single-column. Assuming single-column always
+   * is simpler and cannot be wrong the same way: a column is always at most
+   * the full container, so requesting a wider image than the *default*-zoom
+   * column actually needs is the deliberate, safe direction — AGENTS.md
+   * ranks image quality over bandwidth, and a masonry thumbnail is a
+   * moderate download either way. `e2e/gallery-layouts.spec.ts`'s
+   * enlarged-text case proves this bound against real measured boxes across
+   * a viewport x root-font-size matrix, with the root font-size forced
+   * before the page's first parse (a live style mutation after load does not
+   * retroactively reselect a source, which is what let an earlier version of
+   * that same test pass while silently not exercising this at all).
+   */
+  galleryMasonry: {
+    sizes: boundedRemContainerSizes,
+  },
+  /**
+   * A panorama may take the whole bounded container; never assume a grid
+   * column. Shares `galleryMasonry`'s exact bound: `.gallery-justified`
+   * carries the identical `max-inline-size: 69rem` cap, and its real width
+   * can grow well past a fixed 16px-root pixel ceiling once a visitor's root
+   * font-size is larger.
+   */
+  galleryJustified: {
+    sizes: boundedRemContainerSizes,
   },
   /** Two columns with a 24px gap inside the article's 720px reading column. */
   contentMiniGallery: {

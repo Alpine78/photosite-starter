@@ -1,3 +1,4 @@
+import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
 /**
  * Authored bodies for the mock content tree, until the CMS adapter lands.
  *
@@ -39,7 +40,7 @@ import { FIELDNOTE_NUMBERS, fieldnoteContentId } from "@/lib/mock-fieldnotes";
 import { getMockImages, mockImages } from "@/lib/mock-media";
 
 /** What a page adds to the record a card already carries. */
-type AuthoredPage = {
+type AuthoredPage = GalleryPresentationFields & {
   readonly variant: ContentVariant;
   /**
    * Overrides the site-wide `photographerName` on this article's byline
@@ -207,6 +208,13 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
     variant: "gallery",
     body: [],
   },
+  "content-masonry-below": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "below", body: [] },
+  "content-masonry-overlay": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "overlay", body: [] },
+  "content-grid-overlay": { variant: "gallery", galleryLayout: "grid", galleryCaptionPlacement: "overlay", body: [] },
+  "content-justified-below": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
+  "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
+  "content-layout-single": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
+  "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-reading-coastal-light": {
     variant: "article",
     tags: ["light", "coastal", "landscape"],
@@ -522,6 +530,13 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
     variant: "gallery",
     body: [],
   },
+  "content-masonry-below": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "below", body: [] },
+  "content-masonry-overlay": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "overlay", body: [] },
+  "content-grid-overlay": { variant: "gallery", galleryLayout: "grid", galleryCaptionPlacement: "overlay", body: [] },
+  "content-justified-below": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
+  "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
+  "content-layout-single": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
+  "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-reading-coastal-light": {
     variant: "article",
     tags: ["valo", "rannikko", "maisemakuvaus"],

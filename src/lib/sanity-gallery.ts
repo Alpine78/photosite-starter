@@ -1,3 +1,4 @@
+import { readGalleryPresentationFields } from "@/lib/gallery-presentation";
 /**
  * The public gallery adapter (AB#113): Sanity `gallery` documents in, two
  * things out — the `ContentPlacementInput` `content-tree.ts` needs to place
@@ -132,6 +133,8 @@ export const GALLERY_PLACEMENT_PROJECTION = `{
 }`;
 
 export const GALLERY_DETAIL_PROJECTION = `{
+  galleryLayout,
+  galleryCaptionPlacement,
   contentId,
   title,
   summary,
@@ -189,6 +192,8 @@ export type RawGalleryPlacementDocument = {
 };
 
 export type RawGalleryDetailDocument = {
+  readonly galleryLayout?: unknown;
+  readonly galleryCaptionPlacement?: unknown;
   readonly contentId?: unknown;
   readonly title?: unknown;
   readonly summary?: unknown;
@@ -732,6 +737,9 @@ export function projectGalleryContentPage(
   return {
     contentId,
     variant: "gallery",
+    ...readGalleryPresentationFields(document, (detail) => {
+      throw new SanityGalleryError("incomplete-document", detail, contentId);
+    }),
     title,
     publishedAt,
     ...(eventDate === undefined ? {} : { eventDate }),

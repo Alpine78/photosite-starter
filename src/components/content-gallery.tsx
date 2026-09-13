@@ -22,6 +22,7 @@ import type {
   GallerySection,
   GallerySectionSummary,
 } from "@/lib/gallery-sections";
+import type { GalleryPresentation } from "@/lib/gallery-presentation";
 import type { GallerySlice } from "@/lib/gallery-slice";
 
 type ContentGalleryProps = {
@@ -72,6 +73,8 @@ type ContentGalleryProps = {
    * have no way back to the first three, because a cursor only points forward.
    */
   firstPageHref?: string;
+  /** How the grid lays its items out and where their captions sit (AB#157). */
+  presentation: GalleryPresentation;
   /**
    * Whether this render is a later slice rather than the gallery's first page.
    *
@@ -145,6 +148,7 @@ export function ContentGallery({
   activeSection,
   selectedSection,
   firstPageHref,
+  presentation,
   isContinuation = false,
   breadcrumbs,
   languages,
@@ -301,6 +305,7 @@ export function ContentGallery({
                 initialSlice={slice}
                 galleryPath={galleryPath}
                 activeSection={activeSection?.slug}
+                presentation={presentation}
                 labels={labels}
               />
             ) : (

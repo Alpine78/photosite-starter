@@ -195,3 +195,17 @@ one particular page — belongs to the container that places it, never to the ph
 [ADR-0002](../docs/adr/0002-media-identity-and-placement-boundary.md) explains why, and
 [ADR-0008](../docs/adr/0008-localized-authored-text.md) explains why authored sentences
 are language-keyed arrays rather than fields named after this deployment's languages.
+
+## Gallery presentation (AB#157)
+
+`siteSettings` and each per-language `gallery` document expose optional
+`galleryLayout` (`grid`, `masonry`, `justified`) and `galleryCaptionPlacement`
+(`below`, `overlay`). Both are independently clearable dropdowns. No initial value
+creates a gallery override: empty means inherit that field from site settings;
+empty site settings mean `grid` and `below`. Existing documents need no migration.
+Unknown stored enum values are rejected as malformed content by their adapter,
+not converted to CSS or silently replaced. Both content sources use
+`effectiveGalleryPresentation` after projection. Presentation never enters a
+placement, cursor, section filter, or lightbox ordering rule.
+
+See [gallery presentation](../docs/gallery-presentation.md) for public behaviour.

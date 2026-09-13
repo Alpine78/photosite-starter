@@ -1,12 +1,14 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   GalleryLightbox,
-  GalleryLightboxTrigger,
 } from "@/components/gallery-lightbox";
+import { GalleryFigure } from "@/components/gallery-figure";
+import { GalleryJustifiedList } from "@/components/gallery-justified-list";
+import { GalleryMasonryList } from "@/components/gallery-masonry-list";
 import type { BuiltInLabels } from "@/lib/deployment-config";
+import type { GalleryPresentation } from "@/lib/gallery-presentation";
 import {
   appendGallerySlice,
   galleryContinuationHref,
@@ -40,6 +42,8 @@ type GalleryGridProps = {
    * out-of-section item.
    */
   activeSection?: string;
+  /** Resolved layout and caption placement (AB#157). */
+  presentation: GalleryPresentation;
   labels: BuiltInLabels;
 };
 
@@ -73,18 +77,15 @@ type ContinuationOutcome = {
  * One gallery's items as a grid of full-frame thumbnails, each opening the
  * fullscreen lightbox at its own position, and the control that loads more.
  *
- * The layout is row-major: one, two, or three equal columns filled left to
- * right in DOM order. That is the whole reason it is a grid rather than the CSS
- * multi-column masonry this replaced — multi-column fills a column at a time, so
- * the top row of a three-column masonry reads as items one, three, and five
- * while the lightbox, the keyboard, and the source all count one, two, three.
- * One authoritative order means the eye has to agree with them too.
+ * Grid (the default) and justified read left-to-right in rows. Masonry reads
+ * by increasing top edge, ties within one CSS pixel left-to-right; its exact
+ * placement rule lives in `gallery-masonry.ts`. All three keep DOM, keyboard,
+ * and viewer order identical. Balanced CSS columns remain unsuitable because
+ * they would redistribute earlier photographs on append.
  *
- * The cost is a ragged bottom edge where a portrait and a landscape frame share
- * a row, and that is the right trade: every image keeps its native aspect ratio
- * and full frame — `h-auto w-full` over the rendition's true dimensions, no
- * `object-cover` and no fixed-ratio cell — because a cropped preview
- * misrepresents the photograph and can make a strong image go unseen.
+ * At a fixed width, grid and masonry preserve every existing image box on
+ * append. Justified can change only its final unclosed row. Resize and section
+ * changes may lay out the entire list again. See `docs/gallery-presentation.md`.
  *
  * ## Continuing
  *
@@ -109,6 +110,7 @@ export function GalleryGrid({
   initialSlice,
   galleryPath,
   activeSection,
+  presentation,
   labels,
 }: GalleryGridProps) {
   const [slice, setSlice] = useState(initialSlice);
@@ -387,43 +389,29 @@ export function GalleryGrid({
             },
           })}
     >
-      <ul
-        aria-label={label}
-        className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3"
-      >
-        {slice.items.map((item, index) => {
-          const { media } = item;
-
-          return (
+      {presentation.layout === "masonry" ? (
+        <GalleryMasonryList
+          label={label}
+          items={slice.items}
+          captionPlacement={presentation.captionPlacement}
+          labels={labels}
+        />
+      ) : presentation.layout === "justified" ? (
+        <GalleryJustifiedList label={label} items={slice.items}
+          captionPlacement={presentation.captionPlacement} labels={labels} />
+      ) : (
+        <ul
+          aria-label={label}
+          className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {slice.items.map((item, index) => (
             <li key={item.itemId}>
-              <figure className="rounded-sm bg-surface-muted">
-                <GalleryLightboxTrigger
-                  itemId={item.itemId}
-                  index={index}
-                  label={
-                    media.alt.length > 0 ? undefined : labels.lightbox.openImage
-                  }
-                >
-                  <Image
-                    src={media.rendition.src}
-                    alt={media.alt}
-                    width={media.rendition.width}
-                    height={media.rendition.height}
-                    loading="lazy"
-                    sizes={imageRenderProfiles.galleryGrid.sizes}
-                    className="h-auto w-full"
-                  />
-                </GalleryLightboxTrigger>
-                {media.caption && (
-                  <figcaption className="px-3 py-2 text-sm text-subtle">
-                    {media.caption}
-                  </figcaption>
-                )}
-              </figure>
+              <GalleryFigure item={item} index={index} captionPlacement={presentation.captionPlacement}
+                sizes={imageRenderProfiles.galleryGrid.sizes} labels={labels} />
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      )}
 
       <div className="mt-10 flex flex-col items-center gap-3">
         {/*

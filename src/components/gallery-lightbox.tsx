@@ -703,12 +703,15 @@ export function GalleryLightboxTrigger({
   itemId,
   index,
   label,
+  captionPopoverId,
   children,
 }: {
   readonly itemId: string;
   readonly index: number;
   /** Only for an image with no alt text of its own; the alt names it otherwise. */
   readonly label?: string;
+  /** Native caption fallback for a scriptless curated image trigger (AB#157). */
+  readonly captionPopoverId?: string;
   readonly children: ReactNode;
 }) {
   const { open, registerTrigger } = useGalleryLightbox();
@@ -725,7 +728,17 @@ export function GalleryLightboxTrigger({
     <button
       type="button"
       ref={trackNode}
-      onClick={() => open(index)}
+      popoverTarget={captionPopoverId}
+      onClick={(event) => {
+        // Hydration enhances the native caption action into the existing viewer.
+        // No viewer ordering or navigation behaviour changes.
+        event.preventDefault();
+        if (captionPopoverId) {
+          const caption = document.getElementById(captionPopoverId);
+          if (caption?.matches(":popover-open")) caption.hidePopover();
+        }
+        open(index);
+      }}
       aria-haspopup="dialog"
       aria-label={label}
       // The result identity, carried in the DOM rather than only in the closure
