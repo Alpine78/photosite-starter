@@ -13,6 +13,7 @@ import {
   type RawContentBlock,
 } from "@/lib/sanity-content-blocks";
 import type { SanityConfig } from "@/lib/sanity-config";
+import { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS } from "@/lib/content-table";
 
 const config: SanityConfig = {
   projectId: "zp7mbokg",
@@ -182,6 +183,122 @@ describe("projecting each block kind", () => {
       title: "Telephoto lens field test",
       key: "a7",
     });
+  });
+});
+
+describe("a table block", () => {
+  const table = (fields: Record<string, unknown>) =>
+    ({
+      _key: "k",
+      _type: CONTENT_BLOCK_OBJECT_TYPES.table,
+      headers: ["Lens", "Weight"],
+      rows: [{ cells: ["Model A", "1480 g"] }],
+      ...fields,
+    }) as RawContentBlock;
+
+  it("projects headers, rows, and an authored caption", () => {
+    expect(
+      projectContentBlock(table({ caption: "Specifications" }), 0, options),
+    ).toEqual({
+      type: "table",
+      headers: ["Lens", "Weight"],
+      rows: [["Model A", "1480 g"]],
+      caption: "Specifications",
+      key: "k",
+    });
+  });
+
+  it("omits an absent caption rather than carrying an empty one", () => {
+    const block = projectContentBlock(table({}), 0, options);
+    expect(block).not.toHaveProperty("caption");
+    // The flat projection returns null for a field this _type does not set,
+    // so an explicit null has to read as "no caption", not as a defect.
+    expect(projectContentBlock(table({ caption: null }), 0, options)).toEqual(
+      block,
+    );
+  });
+
+  it("keeps an empty cell, which is authored content rather than a defect", () => {
+    const block = projectContentBlock(
+      table({ rows: [{ cells: ["Model C", ""] }] }),
+      0,
+      options,
+    );
+    expect(block).toMatchObject({ rows: [["Model C", ""]] });
+  });
+
+  it("accepts a row whose cells are all empty", () => {
+    expect(
+      projectContentBlock(table({ rows: [{ cells: ["", ""] }] }), 0, options),
+    ).toMatchObject({ rows: [["", ""]] });
+  });
+
+  it("accepts both ends of the column and row bounds", () => {
+    const widest = Array.from({ length: MAX_TABLE_COLUMNS }, (_, i) => `H${i}`);
+    expect(
+      projectContentBlock(
+        table({ headers: widest, rows: [{ cells: widest.map(() => "x") }] }),
+        0,
+        options,
+      ),
+    ).toMatchObject({ headers: widest });
+
+    const tallest = Array.from({ length: MAX_TABLE_ROWS }, (_, i) => ({
+      cells: [`row ${i}`, "x"],
+    }));
+    expect(
+      projectContentBlock(table({ rows: tallest }), 0, options),
+    ).toMatchObject({ rows: tallest.map((row) => row.cells) });
+
+    // One column, one row: the narrowest table the bounds allow.
+    expect(
+      projectContentBlock(
+        table({ headers: ["Only"], rows: [{ cells: ["x"] }] }),
+        0,
+        options,
+      ),
+    ).toMatchObject({ headers: ["Only"], rows: [["x"]] });
+  });
+
+  it.each([
+    ["no headers at all", { headers: undefined }],
+    ["an empty header list", { headers: [] }],
+    ["headers that are not an array", { headers: "Lens" }],
+    [
+      "more headers than the column bound",
+      {
+        headers: Array.from({ length: MAX_TABLE_COLUMNS + 1 }, (_, i) => `H${i}`),
+        rows: [
+          { cells: Array.from({ length: MAX_TABLE_COLUMNS + 1 }, () => "x") },
+        ],
+      },
+    ],
+    ["a blank header", { headers: ["Lens", "  "] }],
+    ["a non-string header", { headers: ["Lens", 7] }],
+    ["no rows at all", { rows: undefined }],
+    ["an empty row list", { rows: [] }],
+    ["rows that are not an array", { rows: { cells: ["x", "y"] } }],
+    [
+      "more rows than the row bound",
+      {
+        rows: Array.from({ length: MAX_TABLE_ROWS + 1 }, () => ({
+          cells: ["a", "b"],
+        })),
+      },
+    ],
+    ["a row that is not an object", { rows: [["Model A", "1480 g"]] }],
+    ["a row with no cells", { rows: [{}] }],
+    ["a row whose cells are not an array", { rows: [{ cells: "Model A" }] }],
+    ["a short row", { rows: [{ cells: ["Model A"] }] }],
+    ["a long row", { rows: [{ cells: ["Model A", "1480 g", "extra"] }] }],
+    ["a non-string cell", { rows: [{ cells: ["Model A", 1480] }] }],
+    ["a blank caption", { caption: "   " }],
+  ])("rejects %s", (_case, fields) => {
+    const error = rejectionOf(() =>
+      projectContentBlock(table(fields), 3, options),
+    );
+    expect(error.rejection).toBe("malformed-block");
+    expect(error.message).toContain("position 3");
   });
 });
 

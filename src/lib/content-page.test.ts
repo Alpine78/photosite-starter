@@ -9,6 +9,7 @@ import {
   type ContentBlock,
   type ContentPage,
 } from "@/lib/content-page";
+import { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS } from "@/lib/content-table";
 import { buildContentTree, type ContentTree } from "@/lib/content-tree";
 import {
   mockAuthoredContentRecords,
@@ -300,6 +301,48 @@ describe.each(languages)("mock content pages (%s)", (language) => {
       }
       expect(() => assertSemanticHeadingOrder(page.body)).not.toThrow();
     }
+  });
+
+  it("keeps every authored table rectangular and inside its bounds", () => {
+    // The Sanity path has the read boundary to reject a ragged table; this
+    // fixture layer is hand-authored TypeScript, where the row/header
+    // relationship is not something the type system can state. So it is
+    // checked here, the same way the heading order above is — a short row
+    // would otherwise render every later cell under the wrong header.
+    const tables = [...pages.values()].flatMap((page) =>
+      page.body.filter((block) => block.type === "table"),
+    );
+    expect(tables.length).toBeGreaterThan(0);
+
+    for (const table of tables) {
+      expect(table.headers.length).toBeGreaterThanOrEqual(1);
+      expect(table.headers.length).toBeLessThanOrEqual(MAX_TABLE_COLUMNS);
+      expect(table.headers.every((header) => header.trim().length > 0)).toBe(true);
+      expect(table.rows.length).toBeGreaterThanOrEqual(1);
+      expect(table.rows.length).toBeLessThanOrEqual(MAX_TABLE_ROWS);
+      for (const row of table.rows) {
+        expect(row).toHaveLength(table.headers.length);
+      }
+      if (table.caption !== undefined) {
+        expect(table.caption.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("authors a table on both content variants, with and without a caption", () => {
+    const withTable = [...pages.values()].filter((page) =>
+      page.body.some((block) => block.type === "table"),
+    );
+    expect(withTable.some((page) => page.variant === "article")).toBe(true);
+    expect(withTable.some((page) => page.variant === "gallery")).toBe(true);
+
+    const tables = withTable.flatMap((page) =>
+      page.body.filter((block) => block.type === "table"),
+    );
+    // Both naming paths for the scroll region are fixture-covered: a caption
+    // names it, and a captionless table falls back to the built-in label.
+    expect(tables.some((table) => table.caption !== undefined)).toBe(true);
+    expect(tables.some((table) => table.caption === undefined)).toBe(true);
   });
 
   it("lets a gallery author a long-form body alongside its curated result", () => {

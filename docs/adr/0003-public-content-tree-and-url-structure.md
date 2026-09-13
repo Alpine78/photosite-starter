@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -12,6 +12,40 @@ This broad record remains accepted as a whole. A scoped clause is amended in pla
 when implementation produces evidence the original text did not have, and each partial
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
+
+### 2026-09-13 — A data table joins the shared body-block set (AB#22)
+
+Decision 2, as already extended to seven kinds by the AB#24 amendment below, now permits
+an **eighth: table**, a small comparison table offered on both article and gallery
+variants. It carries 1–8 column headers, 1–20 data rows, and an optional caption. Every
+header is non-empty; every row carries exactly one cell per header. A *cell* may be
+empty — a gap in a comparison table is authored content — but a row may never be short,
+because a ragged row would silently shift every later cell under the wrong header. Header
+and cell content is plain text, matching the paragraph and list kinds: no inline
+formatting, links, or nested blocks, so a table cannot become a second body model.
+
+Rendering is deliberately render-only for this iteration: no sorting, filtering, or column
+resizing. The block emits a real `<table>` — `<caption>` when authored, `<th scope="col">`
+headers, `<td>` cells — inside its own horizontally scrollable region, so a table wider
+than the page scrolls within itself rather than making the whole page scroll sideways.
+That region is a named, focusable element rather than a script-enhanced one: it carries
+`tabindex="0"` unconditionally and is named by the caption, or by a localized built-in
+label when there is none. The accepted cost is one tab stop on a table narrow enough not
+to need scrolling; the benefit is that the keyboard path works with no JavaScript, which a
+production-build test verifies in both Chromium and WebKit with scripting disabled.
+
+The rectangularity rule is enforced twice, as every other block's invariants are. The
+Studio validates it on the table object itself rather than on its rows field, because a
+field-level rule is handed only its own value and so cannot compare rows against headers;
+the reader independently rejects a malformed table — bad bounds, a blank header, a ragged
+row, a non-text cell, or a blank caption — rather than repairing or dropping it. The query
+reads one more row and column than the bounds allow so overflow arrives as overflow and is
+refused, instead of arriving silently truncated to exactly the limit and passing.
+
+**Sections affected:** decision 2's kind enumeration is extended again by this amendment,
+on top of the AB#24 amendment below. Decisions 1, 3, 4, 5, 6, 7, 8, and 9 are unchanged: a
+table is not a media placement, enters no curated result, lightbox sequence, or section,
+and changes no route, metadata, sitemap, cursor, or legacy-redirect behavior.
 
 ### 2026-09-12 — Three-level heading model and nested table of contents (AB#21)
 

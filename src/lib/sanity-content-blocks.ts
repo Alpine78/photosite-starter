@@ -24,6 +24,7 @@ import {
   MAX_MINI_GALLERY_ITEMS,
   MAX_MINI_GALLERY_TITLE_LENGTH,
 } from "@/lib/content-mini-gallery";
+import { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS } from "@/lib/content-table";
 
 import { assertSemanticHeadingOrder, type ContentBlock } from "@/lib/content-page";
 import type { SanityConfig } from "@/lib/sanity-config";
@@ -46,6 +47,7 @@ export const CONTENT_BLOCK_OBJECT_TYPES = {
   media: "contentMediaBlock",
   youtube: "contentYoutubeBlock",
   "mini-gallery": "contentGalleryBlock",
+  table: "contentTableBlock",
 } as const;
 
 /** Restated from the schema's `YOUTUBE_VIDEO_ID_PATTERN`; pinned by the test. */
@@ -54,8 +56,12 @@ export const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 /**
  * One flat projection over every block kind. GROQ tolerates asking for a field
  * a given `_type` does not declare — it simply comes back `null` — so one
- * projection covers all seven kinds instead of a per-type union query. Embedded
+ * projection covers all eight kinds instead of a per-type union query. Embedded
  * by any adapter whose body field uses `defineContentBodyField`.
+ *
+ * The bounded slices ask for one more than the maximum on purpose: an oversized
+ * array has to arrive oversized for the projector below to reject it, rather
+ * than arriving silently truncated to exactly the limit and passing.
  */
 export const CONTENT_BLOCK_PROJECTION = `{
   _key,
@@ -67,6 +73,9 @@ export const CONTENT_BLOCK_PROJECTION = `{
   attribution,
   videoId,
   title,
+  caption,
+  "headers": headers[0...${MAX_TABLE_COLUMNS + 1}],
+  "rows": rows[0...${MAX_TABLE_ROWS + 1}]{"cells": cells[0...${MAX_TABLE_COLUMNS + 1}]},
   "media": media->${PUBLIC_MEDIA_PROJECTION},
   "images": images[0...${MAX_MINI_GALLERY_ITEMS + 1}]{_key, "media": media->${PUBLIC_MEDIA_PROJECTION}}
 }`;
@@ -75,7 +84,7 @@ export const CONTENT_BLOCK_PROJECTION = `{
 export type SanityContentBlockRejection =
   /** A block's own required fields are missing or malformed. */
   | "malformed-block"
-  /** A block's `_type` names none of the seven shared kinds. */
+  /** A block's `_type` names none of the eight shared kinds. */
   | "unsupported-block-type"
   /** The body did not evaluate to a list of block objects. */
   | "malformed-result"
@@ -107,6 +116,9 @@ export type RawContentBlock = {
   readonly attribution?: unknown;
   readonly videoId?: unknown;
   readonly title?: unknown;
+  readonly caption?: unknown;
+  readonly headers?: unknown;
+  readonly rows?: unknown;
   readonly media?: unknown;
   readonly images?: unknown;
 };
@@ -235,6 +247,62 @@ export function projectContentBlock(
         key,
         items,
         ...(title === undefined ? {} : { title }),
+      };
+    }
+
+    case CONTENT_BLOCK_OBJECT_TYPES.table: {
+      // Headers first: their count is the contract every row is measured
+      // against, so nothing below can be checked until it is known good.
+      if (
+        !Array.isArray(raw.headers) ||
+        raw.headers.length === 0 ||
+        raw.headers.length > MAX_TABLE_COLUMNS
+      ) {
+        reject(`a table needs between 1 and ${MAX_TABLE_COLUMNS} column headers`);
+      }
+      const headers = raw.headers.map((header) => {
+        const text = readString(header);
+        if (text === undefined) reject("a table column header cannot be empty");
+        return text;
+      });
+
+      if (
+        !Array.isArray(raw.rows) ||
+        raw.rows.length === 0 ||
+        raw.rows.length > MAX_TABLE_ROWS
+      ) {
+        reject(`a table needs between 1 and ${MAX_TABLE_ROWS} rows`);
+      }
+      const rows = raw.rows.map((row) => {
+        if (!isRecord(row) || !Array.isArray(row.cells)) {
+          reject("a table row needs its cells");
+        }
+        if (row.cells.length !== headers.length) {
+          reject(
+            `a table row has ${row.cells.length} cell(s) but the table has ${headers.length} column(s)`,
+          );
+        }
+        // Deliberately a bare string check rather than `readString`: that
+        // helper trims and reports an empty string as absent, which is exactly
+        // what a legitimately blank cell looks like. A gap in a comparison
+        // table is content, not a defect.
+        if (!row.cells.every((cell) => typeof cell === "string")) {
+          reject("a table cell must be text");
+        }
+        return row.cells as readonly string[];
+      });
+
+      const caption = readString(raw.caption);
+      if (raw.caption != null && caption === undefined) {
+        reject("a table caption must be non-empty when present");
+      }
+
+      return {
+        type: "table",
+        headers,
+        rows,
+        key,
+        ...(caption === undefined ? {} : { caption }),
       };
     }
 

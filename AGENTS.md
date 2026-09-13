@@ -435,7 +435,20 @@ close. Studio and the public reader enforce the bound; the reader projects only 
 media and rejects invalid entries. No pagination, enquiry control, or video delivery is
 added. `e2e/content-mini-gallery.spec.ts` covers nested-provider integration and the
 public journey. The ADR-0003 amendment records the boundary.
-A three-level nested table of contents (AB#21) remains a later extension.
+A data table (AB#22) is the eighth: 1–8 non-empty column headers, 1–20 rows carrying
+exactly one cell each per header, and an optional caption, all plain text. An empty
+*cell* is authored content; a short *row* is a defect, because it would shift every
+later cell under the wrong header. It renders as a real `<table>` (`<caption>`,
+`<th scope="col">`, `<td>`) inside its own horizontally scrollable region, so a wide
+table never makes the page scroll sideways. That region is unconditionally focusable and
+named by the caption — or by a localized built-in label without one — so the keyboard
+path needs no JavaScript, which `e2e/content-table.spec.ts` proves with scripting
+disabled in both engines. Rectangularity is enforced on the Studio object itself, since a
+field-level rule cannot see a sibling field, and again independently at the read
+boundary; the query reads one row and column past the bound so overflow arrives as
+overflow rather than silently truncated. Render-only: no sorting, filtering, or column
+resizing. The ADR-0003 2026-09-13 amendment records the boundary.
+A three-level nested table of contents (AB#21) shipped in PR #156.
 The home hero's overlaid site name, tagline, and call to action are now fold-safe
 (AB#148, [ADR-0016](docs/adr/0016-hero-fold-safe-overlay.md)): the photograph itself
 still renders full native size, uncapped and never cropped, exactly as the hero
