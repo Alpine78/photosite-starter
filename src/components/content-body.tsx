@@ -182,6 +182,65 @@ export function ContentBody({
               </ul>
             );
 
+          case "table":
+            return (
+              // The scroll container is the accessible element, not the table:
+              // a wide comparison table has to be reachable by keyboard alone,
+              // and a scrollable box is only keyboard-scrollable once it can
+              // hold focus. `tabIndex` is unconditional rather than applied by
+              // script once the table actually overflows, so the keyboard path
+              // survives with JavaScript off — the cost is one tab stop on a
+              // table narrow enough not to need it.
+              //
+              // Named with `aria-label` rather than `aria-labelledby` pointing
+              // at the caption: the name is the same either way, and this needs
+              // no generated id, so two tables sharing a caption cannot collide
+              // with each other or with a heading's own anchor namespace.
+              // `<caption>` still names the table itself natively.
+              <div
+                key={block.key ?? index}
+                role="region"
+                aria-label={block.caption ?? labels.table.label}
+                tabIndex={0}
+                className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                <table className="w-full border-collapse text-left text-sm">
+                  {block.caption !== undefined && (
+                    <caption className="mb-2 text-left text-sm text-muted">
+                      {block.caption}
+                    </caption>
+                  )}
+                  <thead>
+                    <tr>
+                      {block.headers.map((header, column) => (
+                        <th
+                          key={column}
+                          scope="col"
+                          className="border-b border-border-strong px-3 py-2 font-semibold whitespace-nowrap text-foreground"
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((row, rowIndex) => (
+                      <tr key={rowIndex}>
+                        {row.map((cell, column) => (
+                          <td
+                            key={column}
+                            className="border-b border-border-control px-3 py-2 align-top text-body"
+                          >
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+
           case "youtube":
             return (
               <YoutubeEmbed

@@ -97,7 +97,7 @@ const GALLERY_SECTION_INTRO_PARAGRAPH_TYPE_NAME = "gallerySectionIntroParagraphB
 const GALLERY_SECTION_INTRO_LIST_ITEM_TYPE_NAME = "gallerySectionIntroListItem";
 const GALLERY_SECTION_INTRO_LIST_TYPE_NAME = "gallerySectionIntroListBlock";
 
-type ContentBlockKind = "paragraph" | "heading" | "list" | "blockquote" | "media" | "youtube" | "mini-gallery";
+type ContentBlockKind = "paragraph" | "heading" | "list" | "blockquote" | "media" | "youtube" | "mini-gallery" | "table";
 
 /** Restates `content-block.ts`'s `CONTENT_BLOCK_OBJECT_TYPES`. */
 const CONTENT_BLOCK_OBJECT_TYPES: Readonly<Record<ContentBlockKind, string>> = {
@@ -108,6 +108,7 @@ const CONTENT_BLOCK_OBJECT_TYPES: Readonly<Record<ContentBlockKind, string>> = {
   media: "contentMediaBlock",
   youtube: "contentYoutubeBlock",
   "mini-gallery": "contentGalleryBlock",
+  table: "contentTableBlock",
 };
 
 /** Restates `media.ts`'s exported public-delivery policy constants. */

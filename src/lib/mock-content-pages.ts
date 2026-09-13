@@ -175,6 +175,19 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
         type: "paragraph",
         text: "Most failed sessions end early because of cold hands, not clouds. Placeholder copy.",
       },
+      // AB#22: the gallery-side table, proving the block is shared by both
+      // content variants rather than article-only. Deliberately narrow and
+      // caption-less, so the fixture layer also covers the fallback that names
+      // the scroll region from the built-in labels instead of a caption.
+      {
+        type: "table",
+        headers: ["Session", "Start", "Cloud cover"],
+        rows: [
+          ["Blue hour", "10:40", "Broken"],
+          ["Civil twilight", "11:25", "Overcast"],
+          ["Aurora watch", "21:00", "Clear"],
+        ],
+      },
     ],
   },
   "content-awaiting-selection": {
@@ -269,6 +282,30 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
           "Weather sealing rating",
           "Teleconverter compatibility",
           "Image stabilisation effectiveness in stops",
+        ],
+      },
+      // AB#22: the article-side data table. Eight columns — the maximum — so
+      // the fixture exercises the overflow path the block's own scroll region
+      // exists for, and one deliberately empty cell, because a gap in a
+      // comparison table is authored content rather than a defect.
+      {
+        type: "table",
+        caption: "Placeholder specifications; replaced with real data from the CMS.",
+        headers: [
+          "Lens",
+          "Focal length",
+          "Max aperture",
+          "Weight",
+          "Min focus",
+          "Stabilisation",
+          "Sealing",
+          "Teleconverter",
+        ],
+        rows: [
+          ["Model A", "70–200 mm", "f/2.8", "1480 g", "0.96 m", "5.5 stops", "Yes", "1.4× / 2×"],
+          ["Model B", "100–400 mm", "f/4.5–5.6", "1395 g", "0.98 m", "5.0 stops", "Yes", "1.4×"],
+          ["Model C", "300 mm", "f/4", "755 g", "1.40 m", "4.0 stops", "Yes", ""],
+          ["Model D", "150–600 mm", "f/5–6.3", "2100 g", "2.20 m", "4.5 stops", "No", "1.4× / 2×"],
         ],
       },
       { type: "heading", level: 4, text: "Weather sealing in the field" },
@@ -506,6 +543,18 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
         type: "paragraph",
         text: "Useimmat epäonnistuneet kuvausretket päättyvät kylmien käsien, ei pilvien, takia. Paikkamerkkisisältöä.",
       },
+      // AB#22: the Finnish gallery-side table, caption-less like its English
+      // counterpart, so the built-in-label fallback is covered in both
+      // locales rather than only the harness's own.
+      {
+        type: "table",
+        headers: ["Kuvausikkuna", "Alkaa", "Pilvisyys"],
+        rows: [
+          ["Sinihetki", "10.40", "Puolipilvistä"],
+          ["Siviilihämärä", "11.25", "Pilvistä"],
+          ["Revontulivahti", "21.00", "Selkeää"],
+        ],
+      },
     ],
   },
   "content-awaiting-selection": {
@@ -594,6 +643,20 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
           "Valitse valotusaika liikkeen mukaan",
           "Nosta herkkyyttä, kunnes valotus on oikea",
           "Tarkista kohina täydellä suurennoksella",
+        ],
+      },
+      // AB#22: the Finnish article-side table. Headers and caption are
+      // authored in the page's own language for the same reason its alt text
+      // and captions are — a table is read, not just displayed.
+      {
+        type: "table",
+        caption: "Paikkamerkkiarvoja; korvataan CMS:n oikeilla tiedoilla.",
+        headers: ["Tilanne", "Aukko", "Valotusaika", "Herkkyys"],
+        rows: [
+          ["Muotokuva ulkona", "f/2.0", "1/250 s", "ISO 200"],
+          ["Maisema jalustalta", "f/11", "1/15 s", "ISO 100"],
+          ["Urheilu sisällä", "f/2.8", "1/800 s", "ISO 3200"],
+          ["Yökuvaus", "f/4.0", "20 s", "ISO 1600"],
         ],
       },
     ],

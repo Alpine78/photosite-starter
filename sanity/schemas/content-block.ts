@@ -1,7 +1,7 @@
 /**
  * The shared rich-content body blocks ADR-0003 decision 2 gives both public
- * content variants: paragraph, heading, blockquote, media placement, list, and
- * a privacy-first YouTube embed.
+ * content variants: paragraph, heading, blockquote, media placement, list, a
+ * privacy-first YouTube embed, a mini-gallery, and a data table.
  *
  * Deliberately not named after either variant. `article.ts` is the first
  * consumer, `defineContentBodyField({ name: "body" })` with every block type
@@ -33,7 +33,7 @@ import type {
   SchemaValidationResult,
 } from "./schema-types";
 
-/** The seven block kinds ADR-0003 decision 2 names, in the order it lists them. */
+/** The eight block kinds ADR-0003 decision 2 names, in the order it lists them. */
 export const CONTENT_BLOCK_KINDS = [
   "paragraph",
   "heading",
@@ -42,6 +42,7 @@ export const CONTENT_BLOCK_KINDS = [
   "media",
   "youtube",
   "mini-gallery",
+  "table",
 ] as const;
 
 export type ContentBlockKind = (typeof CONTENT_BLOCK_KINDS)[number];
@@ -61,6 +62,7 @@ export const CONTENT_BLOCK_OBJECT_TYPES: Readonly<
   media: "contentMediaBlock",
   youtube: "contentYoutubeBlock",
   "mini-gallery": "contentGalleryBlock",
+  table: "contentTableBlock",
 };
 
 /**
@@ -73,6 +75,10 @@ export const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 /** Restated by the public reader; tests pin both bounds. */
 export const MAX_MINI_GALLERY_ITEMS = 12;
 export const MAX_MINI_GALLERY_TITLE_LENGTH = 120;
+
+/** Restated from `src/lib/content-table.ts`; a test pins both copies. */
+export const MAX_TABLE_COLUMNS = 8;
+export const MAX_TABLE_ROWS = 20;
 
 function nonBlank(value: string | undefined): SchemaValidationResult {
   return value !== undefined && value.trim().length > 0
@@ -278,6 +284,110 @@ const contentGalleryBlockType: SchemaTypeDefinition = {
   preview: { select: { title: "title", media: "images.0.media.image" } },
 };
 
+/**
+ * A local copy, the same way `article-validation.ts`, `category-validation.ts`,
+ * and `gallery-validation.ts` each keep their own: these schemas import nothing
+ * from `src/` (ADR-0006) and share no helper module of their own.
+ */
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+type RawTableRow = { readonly cells?: unknown };
+
+/**
+ * A table must be rectangular: every row carries exactly one cell per column
+ * header. Checked on the object itself rather than on the `rows` field,
+ * because a field-level rule is only handed its own value — `schema-types.ts`'s
+ * `SchemaValidationContext` deliberately declares no `parent` — while the
+ * object's own validator receives the whole `{caption, headers, rows}` value
+ * and so can compare the two fields without widening a shared declaration.
+ *
+ * Deliberately silent about states another rule already reports: a missing or
+ * non-array `headers`/`rows` is the field's own `required()`/`min()` business,
+ * and an editor halfway through adding a row should see that one message, not
+ * a second one blaming the row's width. It must also never throw — a
+ * validator that dies mid-edit blocks Publish with no usable message at all.
+ */
+function validatesTableIsRectangular(
+  value: unknown,
+): SchemaValidationResult {
+  if (!isRecord(value)) return true;
+  const { headers, rows } = value as {
+    readonly headers?: unknown;
+    readonly rows?: unknown;
+  };
+  if (!Array.isArray(headers) || headers.length === 0) return true;
+  if (!Array.isArray(rows)) return true;
+
+  for (const [index, row] of rows.entries()) {
+    if (!isRecord(row)) continue;
+    const { cells } = row as RawTableRow;
+    if (!Array.isArray(cells)) continue;
+    if (cells.length !== headers.length) {
+      return `Row ${index + 1} has ${cells.length} cell(s) but there are ${headers.length} column header(s). Every row needs one cell per column; leave a cell empty rather than dropping it.`;
+    }
+  }
+  return true;
+}
+
+const contentTableBlockType: SchemaTypeDefinition = {
+  name: CONTENT_BLOCK_OBJECT_TYPES.table,
+  title: "Data table",
+  type: "object",
+  description:
+    "A small comparison table. Plain text only, rendered as authored — no sorting, filtering, or column resizing.",
+  fields: [
+    {
+      name: "caption",
+      title: "Caption",
+      type: "string",
+      description:
+        "Optional. Also names the table's scrollable region for screen readers and keyboard users.",
+      validation: (rule) =>
+        rule.custom<string>((value) =>
+          value === undefined || value.trim().length > 0
+            ? true
+            : "Leave the caption unset or enter non-empty text",
+        ),
+    },
+    {
+      name: "headers",
+      title: "Column headers",
+      type: "array",
+      of: [{ type: "string" }],
+      description:
+        "One per column. Every row below needs exactly this many cells.",
+      validation: (rule) =>
+        rule.required().min(1).max(MAX_TABLE_COLUMNS).custom(nonBlankItems),
+    },
+    {
+      name: "rows",
+      title: "Rows",
+      type: "array",
+      of: [
+        {
+          type: "object",
+          fields: [
+            {
+              name: "cells",
+              title: "Cells",
+              type: "array",
+              of: [{ type: "string" }],
+              description:
+                "One per column header, in order. A cell may be left empty.",
+              validation: (rule) => rule.required().min(1).max(MAX_TABLE_COLUMNS),
+            },
+          ],
+        },
+      ],
+      validation: (rule) => rule.required().min(1).max(MAX_TABLE_ROWS),
+    },
+  ],
+  validation: (rule) => rule.custom(validatesTableIsRectangular),
+  preview: { select: { title: "caption", subtitle: "headers.0" } },
+};
+
 /** Every block object type, in one list a Studio's `schema.types` can spread in. */
 export const contentBlockTypes: readonly SchemaTypeDefinition[] = [
   contentParagraphBlockType,
@@ -287,6 +397,7 @@ export const contentBlockTypes: readonly SchemaTypeDefinition[] = [
   contentMediaBlockType,
   contentYoutubeBlockType,
   contentGalleryBlockType,
+  contentTableBlockType,
 ];
 
 type RawHeadingItem = { readonly _type?: unknown; readonly level?: unknown };

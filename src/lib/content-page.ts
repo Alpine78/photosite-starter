@@ -25,7 +25,7 @@ import type { ImageMedia, Media } from "@/lib/media";
 import type { SiteSettings } from "@/lib/site-settings";
 
 /**
- * The seven body blocks ADR-0003 decision 2 gives both variants. The page title
+ * The eight body blocks ADR-0003 decision 2 gives both variants. The page title
  * owns the single `h1`, so an authored heading starts at level 2.
  *
  * `key` is a stable per-block identity, distinct from the position a block
@@ -53,6 +53,30 @@ export type ContentBlock =
       key?: string;
     }
   | { type: "list"; ordered: boolean; items: string[]; key?: string }
+  | {
+      /**
+       * A small comparison table (AB#22). Plain text throughout, matching
+       * `paragraph` and `list`: a cell carries no inline formatting, link, or
+       * nested block, so nothing here can smuggle in a second body model.
+       *
+       * The shape is rectangular by contract — `rows[n].length ===
+       * headers.length` for every row — and the adapter boundary is what
+       * enforces it (`sanity-content-blocks.ts`), the same place every other
+       * block's own invariants are checked. A renderer may therefore trust it.
+       */
+      type: "table";
+      /** 1..`MAX_TABLE_COLUMNS` column headers, each non-empty. */
+      headers: readonly string[];
+      /**
+       * 1..`MAX_TABLE_ROWS` data rows. A *cell* may be empty — a comparison
+       * table legitimately has gaps — but a row may not be short: a ragged row
+       * would silently shift every cell after it under the wrong header.
+       */
+      rows: readonly (readonly string[])[];
+      /** Optional; non-empty when authored. Renders as the `<caption>`. */
+      caption?: string;
+      key?: string;
+    }
   | {
       type: "youtube";
       videoId: string;

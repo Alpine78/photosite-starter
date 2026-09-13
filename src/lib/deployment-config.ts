@@ -287,6 +287,12 @@ export type BuiltInLabels = {
     readonly enquire: string;
   };
   readonly miniGallery: { readonly label: string };
+  /**
+   * Names a body table's own scrollable region (AB#22) when the author wrote
+   * no caption. A caption, when present, names the region instead — this is
+   * the fallback, so a wide table is never an unnamed keyboard stop.
+   */
+  readonly table: { readonly label: string };
   readonly media: {
     readonly video: string;
     readonly youtubePrivacyNotice: string;
@@ -515,6 +521,7 @@ const englishLabels = {
     enquire: "Enquire about this photograph",
   },
   miniGallery: { label: "Mini-gallery" },
+  table: { label: "Table" },
   media: {
     video: "Video",
     youtubePrivacyNotice:
@@ -671,6 +678,7 @@ const finnishLabels = {
     enquire: "Kysy tästä valokuvasta",
   },
   miniGallery: { label: "Minigalleria" },
+  table: { label: "Taulukko" },
   media: {
     video: "Video",
     youtubePrivacyNotice:
