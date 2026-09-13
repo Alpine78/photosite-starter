@@ -1914,6 +1914,98 @@ flow as authoritative D2 source with committed SVG renditions, rendered by an
 exactly-pinned engine and gated by `npm run diagrams:check` so a stale picture fails CI
 rather than misleading a reader. Anything not operating yet is drawn as such.
 
+The curated gallery's grid is now one of three selectable layouts (AB#157): the existing
+row-major `grid`, a new order-preserving `masonry`, and a new prefix-stable `justified`
+row layout — each independently pairable with a `below` or `overlay` caption placement, all
+six combinations offered. Both settings are authored site-wide (`SiteSettings`) and
+optionally overridden per gallery, each field clearable on its own; an absent value falls
+back to `grid`/`below`, so an existing deployment renders unchanged. One seam,
+`effectiveGalleryPresentation` (`src/lib/gallery-presentation.ts`), composes the two levels
+for both the mock fixture layer and the Sanity adapters, so they cannot disagree; an unknown
+stored value is rejected as malformed content (`readGalleryPresentationFields`) rather than
+silently downgraded to a default or passed through as an unrecognized CSS class, and the
+rejection path itself does not trust a non-throwing `reject` callback to have actually
+stopped execution — an invalid value is never cast and returned regardless. The Sanity
+schema (`sanity/schemas/gallery-presentation.ts`) contributes the same two optional fields
+to both `siteSettings` and `gallery` through one shared field builder
+(`galleryPresentationFields(inherit)`); its own validation lists are necessarily a second,
+independent literal copy of the two allowed-value sets (Studio schemas import nothing from
+`src/`), so a test drives the Studio validator itself against `GALLERY_LAYOUTS`/
+`GALLERY_CAPTION_PLACEMENTS` to catch the two ever silently drifting apart.
+
+`masonry` (`src/lib/gallery-masonry.ts`) has no rows, so "row-major" does not by itself
+define an order in it, and this is exactly the property the CSS multi-column masonry
+`GalleryGrid`'s own history already rejected once (a column-major reading order the
+lightbox, keyboard, and source do not share) — reintroducing masonry therefore had to name
+and prove a real order, not merely avoid regressing to that one. Its progression rule:
+items read by ascending top edge, and items whose top edges land within one CSS pixel of
+each other read left to right — matching DOM order, keyboard order, and the lightbox
+sequence exactly, at every column count. The server places every item without knowing the
+visitor's viewport: each item's top edge is a sum of column-width multiples and `rem`
+multiples, so dividing through by the column width makes it linear in `ρ = rem⁄columnWidth`,
+and each column-count band (`MASONRY_BANDS`: two columns from a 34rem container, three from
+56rem, capped at 69rem) bounds `ρ` to one closed interval — a linear inequality holding at
+both ends of an interval holds throughout it, so checking the rule at the two endpoints
+proves it for every root font-size that band can render at. Plain shortest-column placement
+does not survive appending past that same guarantee (a column the rule would refuse to grow
+into stalls forever once one item skips it), so a candidate column's start is instead raised
+to the chord through the pointwise maximum of its own bottom and the rule's floor at both
+interval ends — every column stays reachable, at the cost of a little whitespace where a
+band's own width range left a column's relative height ambiguous. Placement depends only on
+the items already placed, so `placeMasonry` accepts a previous call's own result as an
+optional `resume` argument and places only what is new — proven equal to a full
+recomputation by property test — which is what keeps `GalleryMasonryList` doing work
+proportional to an appended slice rather than to the whole list loaded so far on every
+continuation. `justified` (`src/lib/gallery-justified.ts`) is the simpler, already-familiar
+shape: greedy rows closed as soon as they would fill the band's width at a fixed maximum
+height, prefix-stable by construction (a closed row's boundary never depends on what comes
+after it), with the identical `resume`-and-reuse contract for its own append case.
+
+Both new layouts, and `grid`'s new `overlay` caption option, share one figure component
+(`GalleryFigure`, `src/components/gallery-figure.tsx`) rather than three independent
+caption implementations. A caption always renders `below` regardless of the authored
+placement once an image is too low (over `GALLERY_CAPTION_OVERLAY_MAX_RATIO`, 4:1) to hold
+two readable lines over itself — one predicate, `resolvesToBelowCaption`, decides this for
+both `GalleryFigure`'s own render and `GalleryMasonryList`'s reserved-height math, so the two
+cannot drift apart. Every bounded caption also carries a same-origin, scriptless, native
+`popover`-backed full-text fallback, reachable by activating the image trigger; hydration's
+own `preventDefault()` routes an activated trigger to the lightbox instead once JavaScript
+is running, so the popover is specifically the pre-hydration/no-script path, proven as such
+(`e2e/gallery-layouts.spec.ts`, with `javaScriptEnabled: false`). A justified row can still
+squeeze an extreme-ratio image (a tall portrait beside a panorama) to only a few rendered
+pixels wide — measured in both engines, `-webkit-line-clamp` does not merely fail to
+truncate gracefully at that width, it stops capping the caption box at all, painting real
+text far past the figure — so `GalleryFigure` is its own CSS container
+(`container-type: inline-size`) and drops the resting caption below a 3rem figure width
+entirely, keeping the same popover as the only, still fully reachable, access path.
+
+Neither new layout's `sizes` hint can track a visitor's own enlarged root font-size, a
+platform limitation rather than an oversight: a `sizes` media condition's length —
+`px` or `rem` alike — resolves against the browser's *default* root font-size, never a
+page's own CSS-overridden one (media queries resolve relative units against the initial
+value specifically to avoid depending on the very cascade they could influence), even
+though `MASONRY_BANDS`'/`JUSTIFIED_BANDS`' real container queries do shift with it. A
+per-column-count `sizes` branch was tried and measured wrong twice — soft at a 200% (32px)
+root the first time, and wrong again at the exact viewport its own revised "two columns is
+now safe" branch was meant to start from, because a container-query boundary carries
+sub-pixel/scrollbar slop no hand computation can predict. Both profiles now request
+`calc(100vw - 32px)` unconditionally: a column can never be wider than its own container,
+so this is always a safe upper bound, whatever the real column count turns out to be,
+proven across a viewport × root-font-size matrix in both engines
+(`e2e/gallery-layouts.spec.ts`) rather than asserted from arithmetic alone. The two
+synthetic extreme-ratio boundary photographs this exercises (a panorama and a portrait,
+`src/lib/mock-gallery-boundaries.ts`) are sized at the largest resolution their ratio can
+hold under this project's own 2048px public-derivative ceiling (2048×256 and 256×2048) —
+their original 128px-short-edge versions were small enough for `next/image`'s optimizer
+(which itself never upscales, confirmed against a real request) to leave the *browser's*
+own `w-full` CSS stretching them visibly soft once measured.
+
+`docs/gallery-presentation.md` is the full account: the placement rule, the responsive-
+sizing bound above, the caption-access mechanism, and the inheritance model. No ADR was
+needed — the one order contract `GalleryGrid`'s own history already required (DOM, keyboard,
+and lightbox order agreeing) is preserved exactly, not renegotiated, so this is a
+presentation choice over an existing contract rather than a change to it.
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
