@@ -379,16 +379,62 @@ does is additive/idempotent-replace only. For everything else, use Sanity's
 own tooling, which already exists and is documented by Sanity, not invented
 here:
 
-- **`sanity dataset export <dataset>`** — a full dataset export, including
+- **`sanity datasets export <dataset> <local-archive>`** — a full dataset export, including
   assets, to a local archive. Run this before a destructive operation you are
   not fully certain about, seeded content or not.
-- **`sanity dataset import <file> <dataset>`** — restores from that archive.
+- **`sanity datasets import <file> <dataset>`** — imports that archive. A
+  replacement import does not by itself remove unrelated documents added
+  after the export; compare the restored dataset with the baseline before
+  calling rollback complete.
 - Sanity's own document history (available on paid plans) can recover an
   individual document's prior state without a full dataset restore.
 
-See Sanity's own CLI documentation for exact flags and current behavior —
-this project does not restate a vendor command reference that would drift out
-of date.
+See Sanity's [export guide](https://www.sanity.io/docs/content-lake/exporting-data)
+and [CLI reference](https://www.sanity.io/docs/cli-reference/cli-datasets) for
+current flags and behavior.
+
+## Migrating approved content from an existing site (AB#137)
+
+`npm run seed:sanity` writes the fixed demo fixture described above. It is
+not an importer for an existing site's articles, galleries, or images. A
+source migration needs an owner-reviewed manifest of **individual public
+items**, keyed by stable source identity. A published flag in an old CMS is
+only a candidate signal: a source may also contain private galleries,
+abandoned assets, and content that the new site's body blocks cannot yet
+represent. Keep source exports, image trees, review sheets, and tokens outside
+Git; a clone must inherit none of them.
+
+Before any Production write, record for each chosen item its source identity,
+new canonical route, media and derivative choice, and explicit launch decision
+with approver and date in an owner-controlled private manifest. An unmatched
+image, unresolved rights or privacy classification, or unsupported body markup
+keeps that item **out** of the import until resolved. Do not copy raw CMS HTML,
+camera masters, archive paths, private proofs, or sales assets into a public
+Sanity dataset. Record a non-secret manifest digest and the owner's approval
+on AB#137; retain the manifest itself privately. This gives AB#117 a stable
+record without putting customer content in the public repository or Board.
+
+First run `npm run audit:sanity` with a Viewer credential to see all
+Production states, including drafts, releases, and assets. An anonymous
+published-content query cannot establish that the dataset is empty. If it is
+nonempty, take and verify a recoverable export **before** changing it, for
+example with the current Sanity CLI's `sanity datasets export <dataset>
+<secure-local-archive> --project-id <project-id>` command. Keep that archive
+outside Git and document its location, retention, and restore operator in the
+private handoff record. Dry-run the approved mapping locally. If a live
+Preview rehearsal is needed, audit and back up its existing content first;
+never overwrite Preview fixtures just to test an import. The import
+implementation must match the approved manifest; the demo seeder must not be
+used as a shortcut.
+
+After the Production write, run `npm run audit:sanity` and
+`npm run verify:sanity-adapters` against that dataset, including a real
+multi-page gallery witness. Compare every published document and asset with
+the approved manifest, inspect drafts/releases and public derivative metadata,
+then revoke the temporary Editor credential. Record the outcome, runtime read
+access, retry and rollback steps, owner/operator, and evidence for AB#117 on
+AB#137. This section prepares the operation; it does not claim that AB#137's
+live acceptance criteria have been met.
 
 ## Production handoff
 
@@ -399,6 +445,11 @@ actions the launch story needs, distilled from a real write-enabled run this
 story performed against the customer-owned Preview project and dataset.
 Seeding the reference *Production* dataset itself stays out of scope here —
 it is that later story's own work, not this one's.
+
+**The command below writes demo fixtures.** Use it in Production only if the
+owner explicitly approves those exact fixtures as launch content. For a
+migration of real content, follow the approval and audit boundary above and
+use a separate implementation built for the approved manifest.
 
 ### Command
 
@@ -536,7 +587,7 @@ shapes:
 
 - **Before writing**, take a full export:
   ```bash
-  SANITY_AUTH_TOKEN=$SANITY_SEED_TOKEN npx sanity dataset export <dataset> <local-path> -p <project-id>
+  SANITY_AUTH_TOKEN=$SANITY_SEED_TOKEN npx sanity datasets export <dataset> <local-path> --project-id <project-id>
   ```
   (`SANITY_AUTH_TOKEN` is the Sanity CLI's own non-interactive auth
   variable — a separate name from this script's `SANITY_SEED_TOKEN`, even
