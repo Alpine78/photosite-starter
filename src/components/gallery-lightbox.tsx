@@ -168,7 +168,7 @@ export function GalleryLightbox({
    * Puts newly loaded slides into the viewer that is already open.
    *
    * PhotoSwipe reads its length from `dataSource`, so appending to it and
-   * refreshing the new last slide is what makes the extra items reachable — and
+   * refreshing the changed boundary neighbours makes the extra items reachable — and
    * what updates the counter — without closing and reopening. A closed viewer
    * needs none of this: the next open reads the whole list.
    */
@@ -182,11 +182,21 @@ export function GalleryLightbox({
 
     // Identity, not length: an append never rewrites what came before, so the
     // slides already in the viewer are the ones already in `dataSource`.
-    const added = slides.slice(dataSource.length);
+    const firstAddedIndex = dataSource.length;
+    const added = slides.slice(firstAddedIndex);
     for (const slide of added) {
       dataSource.push(toSlideData(slide, triggersRef.current));
     }
-    pswp.refreshSlideContent(dataSource.length - 1);
+    // The viewer keeps the current slide's neighbours mounted. At the old
+    // end, its next holder still contains the looped first photograph; at
+    // index zero, its previous holder still contains the old last one.
+    // Refresh both changed boundaries after an append, keeping the active
+    // slide intact. Refreshing only the new last item leaves the first newly
+    // loaded item displaying the old looped image and returning focus to it.
+    pswp.refreshSlideContent(firstAddedIndex);
+    if (dataSource.length - 1 !== firstAddedIndex) {
+      pswp.refreshSlideContent(dataSource.length - 1);
+    }
   }, [slides]);
 
   // Depends on the label strings rather than on the object holding them: a new

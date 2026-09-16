@@ -448,3 +448,58 @@ describe("AB#129 live integration: the seeded-random gallery", () => {
     expect(await walkOnce()).toEqual(await walkOnce());
   });
 });
+
+// AB#161: a read-only published-data audit catches collisions that Studio's
+// advisory validation cannot prevent when independent writes race. This is
+// deliberately outside request handling; each network page is still bounded.
+describe("AB#161 live verification: end-gallery occurrence identities", () => {
+  it("keeps article occurrences unique per language and consistently bound across translations", async () => {
+    type Row = {
+      _id: string; _type: string; placementId: string; mediaRef: string;
+      contentId: string; language: string; endGalleryId: string | null;
+    };
+    const seen = new Map<string, Row[]>();
+    let afterId = "";
+    for (;;) {
+      const raw = await client.query({
+        query: `*[_type in ["galleryPlacement", "articleEndGalleryPlacement"] && _id > $afterId]
+          | order(_id asc) [0...500]{
+            _id, _type, placementId, "mediaRef": media._ref,
+            "contentId": coalesce(article->contentId, gallery->contentId),
+            "language": coalesce(article->language, gallery->language),
+            "endGalleryId": article->endGalleryId
+          }`,
+        params: { afterId },
+        tag: "verification.article-end-gallery-identities",
+      });
+      if (!Array.isArray(raw)) throw new Error("invalid identity audit response");
+      const rows = raw as readonly Row[];
+      expect(rows.length).toBeLessThanOrEqual(500);
+      for (const row of rows) {
+        expect(row._id > afterId).toBe(true);
+        afterId = row._id;
+        seen.set(row.placementId, [...(seen.get(row.placementId) ?? []), row]);
+      }
+      if (rows.length < 500) break;
+    }
+    for (const [placementId, group] of seen) {
+      if (!group.some((row) => row._type === "articleEndGalleryPlacement")) continue;
+      expect(placementId).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      expect(placementId.length).toBeLessThanOrEqual(256);
+      const first = group[0];
+      expect(first.endGalleryId).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      expect(new Set(group.map((row) => row.language)).size).toBe(group.length);
+      for (const row of group) {
+        expect(row._type).toBe("articleEndGalleryPlacement");
+        expect(row.contentId).toEqual(expect.any(String));
+        expect(row.contentId.length).toBeGreaterThan(0);
+        expect(row.mediaRef).toEqual(expect.any(String));
+        expect(row.mediaRef.length).toBeGreaterThan(0);
+        expect(row.contentId).toBe(first.contentId);
+        expect(row.endGalleryId).toBe(first.endGalleryId);
+        expect(row.mediaRef).toBe(first.mediaRef);
+        expect(typeof row.language).toBe("string");
+      }
+    }
+  });
+});

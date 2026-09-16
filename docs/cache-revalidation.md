@@ -23,7 +23,7 @@ the one-hour hard bound even if no operator intervenes.
 | `sanity:settings` | global settings and settings-driven chrome |
 | `sanity:home` | home content and its settings/media dependencies |
 | `sanity:services` | service listing and detail inputs |
-| `sanity:articles` | article listings, placements, bodies, and neighbours |
+| `sanity:articles` | article listings, placements, bodies, end-gallery windows, and neighbours |
 | `sanity:categories` | localized tree, ancestry, routes, and branch listings |
 | `sanity:galleries` | gallery metadata, sections, placements, order, filters, and cursor inputs |
 | `sanity:media` | shared public media projections |
@@ -31,7 +31,7 @@ the one-hour hard bound even if no operator intervenes.
 | `sanity:sitemap` | current and future sitemap inputs (AB#85) |
 
 `siteSettings`, `homePage`, `service`, `article`, `category`, `gallery`,
-`galleryPlacement`, and `media` form the closed document-type map. A known
+`galleryPlacement`, `articleEndGalleryPlacement`, and `media` form the closed document-type map. A known
 change expires only the bounded family set that can embed it. Media invalidates
 every content family that can reuse the rendition; category changes invalidate
 both content variants and route/metadata inputs; gallery and placement changes

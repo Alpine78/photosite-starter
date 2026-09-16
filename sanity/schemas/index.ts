@@ -14,6 +14,7 @@
  */
 
 import { articleType } from "./article";
+import { articleEndGalleryPlacementType } from "./article-end-gallery-placement";
 import { categoryType } from "./category";
 import { contentBlockTypes } from "./content-block";
 import { galleryType } from "./gallery";
@@ -51,6 +52,7 @@ export function defineSchemaTypes(
     ...contentBlockTypes,
     ...gallerySectionIntroTypes,
     articleType,
+    articleEndGalleryPlacementType,
     galleryType,
     galleryPlacementType,
     serviceType,

@@ -42,6 +42,7 @@ import { getMockImages, mockImages } from "@/lib/mock-media";
 /** What a page adds to the record a card already carries. */
 type AuthoredPage = GalleryPresentationFields & {
   readonly variant: ContentVariant;
+  readonly endGalleryId?: string;
   /**
    * Overrides the site-wide `photographerName` on this article's byline
    * (AB#151). Article-only by convention — never set on a `variant: "gallery"`
@@ -230,6 +231,7 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-reading-coastal-light": {
     variant: "article",
+    endGalleryId: "coastal-light-end-gallery",
     tags: ["light", "coastal", "landscape"],
     body: [
       {
@@ -588,6 +590,7 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-reading-coastal-light": {
     variant: "article",
+    endGalleryId: "coastal-light-end-gallery",
     tags: ["valo", "rannikko", "maisemakuvaus"],
     body: [
       {
@@ -725,6 +728,7 @@ function compose(
       ];
       const body: readonly ContentBlock[] = contentId === "content-reading-coastal-light"
         ? [...page.body,
+          { type: "media", media: images.forestStream },
           { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems },
           { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems.slice(0, 2) },
         ]

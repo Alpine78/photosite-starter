@@ -51,6 +51,8 @@ const QUERY_CACHE_TAGS: Readonly<
     T.sitemap,
   ],
   "article.detail": [T.articles, T.categories, T.media, T.metadata, T.sitemap],
+  "article.end-gallery.basics": [T.articles, T.media, T.metadata],
+  "article.end-gallery.window": [T.articles, T.media, T.metadata],
   "article.placements": [T.articles, T.categories, T.metadata, T.sitemap],
   "article.adjacent": [T.articles, T.categories, T.media, T.metadata, T.sitemap],
   "category.index": [T.categories, T.articles, T.galleries, T.metadata, T.sitemap],
@@ -112,6 +114,7 @@ const DOCUMENT_INVALIDATION_TAGS: Readonly<
   category: [T.categories, T.articles, T.galleries, T.metadata, T.sitemap],
   gallery: [T.galleries, T.categories, T.metadata, T.sitemap],
   galleryPlacement: [T.galleries, T.metadata, T.sitemap],
+  articleEndGalleryPlacement: [T.articles, T.media, T.metadata],
   media: [
     T.media,
     T.home,

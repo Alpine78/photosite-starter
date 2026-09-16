@@ -145,6 +145,13 @@ type ContentPageBase = {
 export type ArticleContentPage = ContentPageBase & {
   readonly variant: "article";
   /**
+   * Stable identity of this article's optional, separately paginated result
+   * after the body (AB#161). Its placements are read through
+   * `article-end-gallery.ts`; they never enter `body`, so loose images and
+   * mini-galleries retain their own viewer sequences.
+   */
+  readonly endGalleryId?: string;
+  /**
    * The article's own byline, overriding the site-wide photographer name for
    * this one page (AB#151). Article-only — a curated gallery is credited to
    * the site's photographer by construction (every photograph in it already

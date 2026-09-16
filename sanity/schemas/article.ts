@@ -62,9 +62,11 @@ import { LANGUAGE_SUBTAG } from "./localized-text";
 import { LOCALIZED_SLUG_PATTERN } from "./localized-slug";
 import { MEDIA_TYPE_NAME } from "./media";
 import type {
+  SchemaValidationContext,
   SchemaTypeDefinition,
   SchemaValidationResult,
 } from "./schema-types";
+import { publishedIdOf, validationClientOf } from "./validation";
 
 export const ARTICLE_TYPE_NAME = "article";
 
@@ -74,11 +76,64 @@ export const ARTICLE_TYPE_NAME = "article";
  * rename, a URL change, or a translation.
  */
 const CONTENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const END_GALLERY_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const MAX_ARTICLE_END_GALLERY_ID_LENGTH = 128;
 
 function nonBlank(value: string | undefined): SchemaValidationResult {
   return value !== undefined && value.trim().length > 0
     ? true
     : "Enter a non-empty value";
+}
+
+async function validateEndGalleryIdentity(
+  value: string | undefined,
+  context: SchemaValidationContext,
+): Promise<SchemaValidationResult> {
+  if (value !== undefined && (
+    !END_GALLERY_ID.test(value) ||
+    value.length > MAX_ARTICLE_END_GALLERY_ID_LENGTH
+  )) {
+    return `Use at most ${MAX_ARTICLE_END_GALLERY_ID_LENGTH} lowercase letters, digits, and single hyphens.`;
+  }
+  const document = context.document;
+  const documentId =
+    typeof document?._id === "string" ? document._id : undefined;
+  const contentId =
+    typeof document?.contentId === "string" ? document.contentId : undefined;
+  if (documentId === undefined || contentId === undefined) return true;
+  const published = publishedIdOf(documentId);
+  const result = await validationClientOf(context, "published").fetch<{
+    readonly published: { readonly endGalleryId?: string | null } | null;
+    readonly siblings: readonly {
+      readonly _id: string;
+      readonly endGalleryId?: string | null;
+    }[];
+  }>(
+    `{
+      "published": *[_id == $published][0]{endGalleryId},
+      "siblings": *[
+        _type == $type && contentId == $contentId &&
+        !sanity::versionOf($published)
+      ]{_id, endGalleryId}
+    }`,
+    { type: ARTICLE_TYPE_NAME, contentId, published },
+  );
+  const existing = result.published?.endGalleryId;
+  if (typeof existing === "string" && existing !== value) {
+    return `End-gallery id "${existing}" is already published and cannot be changed.`;
+  }
+  // A translation may omit the optional result (AB#161 AC1). Consistency
+  // applies to declared gallery identities, not to translation completeness.
+  if (value === undefined) return true;
+  const conflict = result.siblings.find(
+    (sibling) =>
+      sibling._id !== documentId &&
+      typeof sibling.endGalleryId === "string" &&
+      sibling.endGalleryId !== value,
+  );
+  return conflict === undefined
+    ? true
+    : "Language versions that declare an end gallery must use the same end-gallery id.";
 }
 
 /**
@@ -159,6 +214,14 @@ export const articleType: SchemaTypeDefinition = {
       type: "string",
       description:
         "Optional. Overrides the site's photographer name (Site Settings) on this one article's byline. Leave empty to show the site-wide name, exactly as before (AB#151) — a single-author site never needs to fill this in.",
+    },
+    {
+      name: "endGalleryId",
+      title: "End-gallery ID",
+      type: "string",
+      description:
+        "Optional stable identity for a large ordered gallery rendered after the article body (AB#161). Leave empty when the article has none; never rename it after publication.",
+      validation: (rule) => rule.custom(validateEndGalleryIdentity),
     },
     {
       name: "publishedAt",

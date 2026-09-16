@@ -19,7 +19,7 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 | Work item | Current state | Required owner action or decision | Unblocks |
 | --- | --- | --- | --- |
 | AB#141 — Physical-device lightbox check | New | Run the specified tap, double-tap, pinch, pan, and close checks on a real touch device and record device/browser/results in ADR-0001. | The remaining manual lightbox verification. |
-| AB#161 — Large gallery at the end of an article | New | No further product decision: all 48 source-gallery occurrences must migrate complete. Implement the bounded article-end gallery and its scoped ADR-0003 amendment. | The affected AB#137 article imports. |
+| AB#161 — Large gallery at the end of an article | Active | No further product decision: all 48 source-gallery occurrences must migrate complete. Implement the bounded article-end gallery and its scoped ADR-0003 amendment. | The affected AB#137 article imports. |
 | AB#137 — Production Sanity dataset | Active | Select and approve public launch content from the source inventory, resolve image and body-block exceptions, verify a recoverable baseline, then run and audit the Production migration with a temporary write credential as described in [the migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137). | AB#117. |
 | AB#117 — Production security and privacy review | Active | Review and accept the production evidence after AB#137, including any residual risks. | AB#18. |
 | AB#18 — Production promotion | New | Perform owner-controlled domain, DNS, production secret, rollback, and smoke-test actions only after predecessors pass. | AB#118 handoff and rollback exercise. |
@@ -93,7 +93,7 @@ public dataset exist. A local, ignored source inventory and image reconciliation
 have begun, but no public launch manifest has been approved, no Production
 content has been written, and AB#137's live acceptance criteria remain open.
 The selected source content also exposed one implementation prerequisite,
-now recorded as **AB#161** (`New`, created 2026-09-15):
+now recorded as **AB#161** (`Active`, created 2026-09-15):
 an `article` must be able to carry a large gallery at the end of its body,
 on the same page and in one continuous image order. The current 1–12-image
 mini-gallery cannot represent that case, and reclassifying an editorial

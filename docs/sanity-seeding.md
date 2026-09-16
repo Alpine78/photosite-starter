@@ -930,3 +930,30 @@ exercises the env-file resolution and target-completeness checks
 `sanity-live-verification.test.ts` itself now uses. Neither reaches a
 network; only `npm run verify:sanity-live` and an actual `npm run
 audit:sanity` invocation do.
+
+
+### Article end galleries (AB#161)
+
+An article can declare one optional `endGalleryId` (1–128 lowercase letters,
+digits and single hyphens). Keep that identity stable after publication and use
+the same value for translations that declare an end gallery; a translation may
+omit the optional gallery. Place each photograph in a separate
+`articleEndGalleryPlacement` document referencing the article and public media,
+with a stable `placementId`, a non-negative integer `order`, and `visible`.
+Equal order values are resolved by placement ID. Matching translated occurrences
+share placement IDs and media; different occurrences have different IDs.
+
+The public adapter reads 24 images plus one lookahead per request. It never
+loads the complete gallery for an article render. The gallery appears after the
+body; loose images and mini-galleries keep their own positions and viewers.
+Continuation URLs require the existing `GALLERY_CURSOR_SIGNING_KEY`. They are
+`noindex` and canonicalize to the article's first page.
+
+Studio validation is advisory against concurrent writes. After an import, run
+`npm run verify:sanity-live` with the explicitly selected verification environment
+as described above: its AB#161 published-occurrence audit checks article/gallery
+ID collisions and translation bindings in bounded 500-document reads. The other
+checks in that command still require the documented seed fixtures. An audit with
+no end-gallery documents proves no migrated gallery; verify the imported articles
+and every cursor slice against the approved source manifest before launch.
+No production import is performed by this feature change.

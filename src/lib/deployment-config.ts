@@ -331,6 +331,10 @@ export type BuiltInLabels = {
      * when none is authored — never left blank.
      */
     readonly byline: string;
+    /** Heading for the optional large result after the article body (AB#161). */
+    readonly endGallery: string;
+    /** Link from an end-gallery continuation to the complete article. */
+    readonly backToArticle: string;
   };
 };
 
@@ -537,6 +541,8 @@ const englishLabels = {
   },
   article: {
     byline: "By {author}",
+    endGallery: "Gallery",
+    backToArticle: "Back to the article",
   },
 } as const satisfies BuiltInLabels;
 
@@ -694,6 +700,8 @@ const finnishLabels = {
   },
   article: {
     byline: "Kirjoittanut {author}",
+    endGallery: "Galleria",
+    backToArticle: "Takaisin artikkeliin",
   },
 } as const satisfies BuiltInLabels;
 

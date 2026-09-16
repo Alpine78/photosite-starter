@@ -1175,11 +1175,8 @@ describe("resolveLocalePrefixRequest", () => {
         "/tarinat/tekniikka/valotuskolmio-kaytannossa?cursor=utm-style-noise",
       ],
     ])(
-      "ignores a cursor on a content page reached through %s",
+      "carries a valid article end-gallery cursor through %s",
       async (_case, prefix, segments, location) => {
-        // A content page owns no continuation contract, so `cursor` is an
-        // unrecognized parameter there: ADR-0003 decision 8 reads what it knows
-        // and ignores the rest rather than turning a real page into a 404.
         await expect(
           resolveLocalePrefixRequest({
             config,
@@ -1189,12 +1186,14 @@ describe("resolveLocalePrefixRequest", () => {
             segments: segments as string[],
             searchParams: { cursor: "utm-style-noise" },
             defaultLocaleRouteExists: missing(),
+            articleEndGalleryCursorNamesASlice: async () => true,
           }),
         ).resolves.toEqual(
           location === undefined
             ? {
                 kind: "story",
                 locale: "fi",
+                cursor: "utm-style-noise",
                 route: {
                   kind: "content",
                   contentId: "content-understanding-exposure-triangle",
@@ -1206,7 +1205,7 @@ describe("resolveLocalePrefixRequest", () => {
       },
     );
 
-    it("ignores a cursor on a retired content path, which redirects as usual", async () => {
+    it("validates and carries an article cursor on a retired content path", async () => {
       await expect(
         resolveLocalePrefixRequest({
           config,
@@ -1216,12 +1215,38 @@ describe("resolveLocalePrefixRequest", () => {
           segments: ["stories", "technique", "low-light-without-a-tripod"],
           searchParams: { cursor: "utm-style-noise" },
           defaultLocaleRouteExists: missing(),
+          articleEndGalleryCursorNamesASlice: async () => true,
         }),
       ).resolves.toEqual({
         kind: "redirect",
         location:
           "/en/stories/technique/shooting-in-low-light?cursor=utm-style-noise",
       });
+    });
+
+    it.each(["stray", ["one", "two"]])("ignores a plain article cursor before normalization: %j", async (cursor) => {
+      const result = await resolveLocalePrefixRequest({
+        config, trees, redirects, prefix: "tarinat",
+        segments: ["Tekniikka", "Valotuskolmio-Kaytannossa"],
+        searchParams: { cursor }, defaultLocaleRouteExists: missing(),
+        articleEndGalleryCursorNamesASlice: async () => "ignore" as const,
+      });
+      expect(result.kind).toBe("redirect");
+    });
+
+    it("404s an invalid article cursor before a path-normalizing redirect", async () => {
+      await expect(
+        resolveLocalePrefixRequest({
+          config,
+          trees,
+          redirects,
+          prefix: "fi",
+          segments: ["tarinat", "tekniikka", "valotuskolmio-kaytannossa"],
+          searchParams: { cursor: "tampered" },
+          defaultLocaleRouteExists: missing(),
+          articleEndGalleryCursorNamesASlice: async () => false,
+        }),
+      ).resolves.toEqual({ kind: "not-found" });
     });
   });
 

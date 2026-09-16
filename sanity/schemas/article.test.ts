@@ -27,6 +27,7 @@ function inspect(
   dataset: { answer?: unknown } = {},
 ) {
   const queries: RecordedQuery[] = [];
+  const perspectives: string[] = [];
   const { required, min, checks } = inspectValidationRules(validation);
 
   const client: SchemaValidationClient = {
@@ -34,7 +35,8 @@ function inspect(
       queries.push({ query, params });
       return dataset.answer as never;
     },
-    withConfig() {
+    withConfig(config) {
+      perspectives.push(config.perspective);
       return client;
     },
   };
@@ -49,7 +51,7 @@ function inspect(
   const run = async (value: unknown, document?: Record<string, unknown>) =>
     Promise.all(checks.map((check) => check(value, contextFor(document))));
 
-  return { required, min, run, queries };
+  return { required, min, run, queries, perspectives };
 }
 
 function fieldOf(name: string): SchemaFieldDefinition {
@@ -257,4 +259,26 @@ describe("the document-level publication guard", () => {
 
     expect(message).toContain("URL-change workflow");
   });
+});
+
+it("keeps an optional end-gallery identity stable after publication", async () => {
+  const document = { _id: "drafts.article", contentId: "story" };
+  const unpublished = inspect(fieldOf("endGalleryId").validation, { answer: { published: null, siblings: [] } });
+  await expect(unpublished.run(undefined, document)).resolves.toEqual([true]);
+  const published = inspect(fieldOf("endGalleryId").validation, { answer: { published: { endGalleryId: "ending" }, siblings: [] } });
+  await expect(published.run("ending", document)).resolves.toEqual([true]);
+  await expect(published.run(undefined, document)).resolves.toEqual([expect.any(String)]);
+  await expect(published.run("different", document)).resolves.toEqual([expect.any(String)]);
+});
+
+
+it("compares declared end galleries against published siblings and permits an untranslated result", async () => {
+  const document = { _id: "drafts.article-fi", contentId: "story", language: "fi" };
+  const check = inspect(fieldOf("endGalleryId").validation, {
+    answer: { published: null, siblings: [{ _id: "article-en", endGalleryId: "ending" }] },
+  });
+  await expect(check.run(undefined, document)).resolves.toEqual([true]);
+  await expect(check.run("ending", document)).resolves.toEqual([true]);
+  await expect(check.run("different", document)).resolves.toEqual([expect.any(String)]);
+  expect(check.perspectives).toEqual(["published", "published", "published"]);
 });
