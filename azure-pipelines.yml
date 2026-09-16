@@ -29,8 +29,17 @@ stages:
     jobs:
       - job: Verify
         displayName: "Lint, test, build, journeys"
-        pool:
-          vmImage: "ubuntu-latest"
+        # Self-hosted (docs/deployment.md § "The Verify stage runs on a self-hosted
+        # agent"): this stage reaches no external service and handles no deployment
+        # secret, which is what makes it safe to run on a persistent shared agent even
+        # though it also runs on every pull request — unlike DeployPreview below, which
+        # stays Microsoft-hosted specifically because sharing this agent with a
+        # PR-triggered job would expose its Vercel/Sanity credentials to whatever a PR's
+        # dependencies left behind on the machine. Requires an agent registered in the
+        # organization's "Default" pool with Playwright's OS-level browser dependencies
+        # already installed on the host (see the "Install Playwright browsers" step
+        # below for why the pipeline itself no longer installs them with --with-deps).
+        pool: "Default"
         steps:
           - task: UseNode@1
             inputs:
@@ -77,10 +86,16 @@ stages:
               SITE_DEFAULT_SOCIAL_IMAGE_WIDTH: "1536"
               SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT: "1024"
 
-          # Only the browsers the configured project matrix uses. --with-deps installs
-          # the system libraries a hosted Ubuntu agent lacks.
+          # Only the browsers the configured project matrix uses. No --with-deps: a
+          # Microsoft-hosted vmImage lacked the system libraries and needed it, but this
+          # self-hosted agent's OS dependencies are provisioned once, out of band, by
+          # the machine's owner (docs/deployment.md § "The Verify stage runs on a
+          # self-hosted agent") — Playwright's own --with-deps always re-invokes
+          # `sudo sh -c "apt-get ..."`, which cannot run non-interactively without
+          # granting effectively full root, so a persistent agent installs its OS
+          # packages once instead of asking for that on every run.
           - script: |
-              npx playwright install --with-deps chromium webkit
+              npx playwright install chromium webkit
             displayName: "Install Playwright browsers"
 
           # Runs its own production build through the Playwright webServer, with the
@@ -155,6 +170,16 @@ stages:
     jobs:
       - job: DeployPreview
         displayName: "Build, deploy, and verify the Preview deployment"
+        # Deliberately still Microsoft-hosted, unlike Verify below (docs/deployment.md §
+        # "The Verify stage runs on a self-hosted agent"): Verify also runs on every pull
+        # request, so a persistent self-hosted agent shared with this stage would let
+        # PR-triggered code (e.g. a compromised dependency pulled in by `npm ci`) leave
+        # something behind that a later DeployPreview run — same persistent machine —
+        # picks up alongside the real Vercel/Sanity credentials in this job's
+        # environment. Keeping this stage off the shared agent removes that path
+        # entirely; while the Microsoft-hosted quota is exhausted this just means the
+        # stage fails the same way it already was until the quota resets, exactly as it
+        # did before this pool existed, with no new spend either way.
         pool:
           vmImage: "ubuntu-latest"
         steps:
