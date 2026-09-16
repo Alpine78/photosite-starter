@@ -488,7 +488,9 @@ export class SanityContentPageError extends Error {
  * current Studio validation can produce for an ordinary publish but which an
  * API write bypassing it still could.
  */
-export const getContentPage: ContentPageSource = async (
+// Share one detail snapshot across metadata, normalization and Server Components.
+// React cache is request-scoped; it adds no persistent cache to Route Handlers.
+export const getContentPage: ContentPageSource = cache(async (
   locale,
   contentId,
   variant,
@@ -545,7 +547,7 @@ export const getContentPage: ContentPageSource = async (
       return page;
     },
   });
-};
+});
 
 /**
  * Runs one bounded neighbour query against the mock's in-memory rows.

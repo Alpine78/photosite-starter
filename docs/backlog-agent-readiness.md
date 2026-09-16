@@ -1,6 +1,7 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-09-10  
+**Last reviewed:** 2026-09-15
+
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
 
@@ -17,10 +18,9 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 
 | Work item | Current state | Required owner action or decision | Unblocks |
 | --- | --- | --- | --- |
-| AB#132 — Semantic 404 HTML | Active | Decide whether the Proxy may read enough content state to rewrite a request to an unmatched route, trading its current O(1) boundary for initial semantic 404 HTML; otherwise retain the documented JavaScript-dependent limitation. | A bounded implementation decision for all matched-route 404s. |
 | AB#141 — Physical-device lightbox check | New | Run the specified tap, double-tap, pinch, pan, and close checks on a real touch device and record device/browser/results in ADR-0001. | The remaining manual lightbox verification. |
-| AB#19 — Legacy URL redirects | Active | Review the attached Joomla URL inventory and choose a canonical target or justified 410 for every important source URL. | A machine-checkable deployment mapping and its production-build tests. |
-| AB#137 — Production Sanity dataset | Active | Approve launch content, use the customer-owned Production Sanity project, provide a temporary write credential for the operator run, approve audit evidence, then revoke the credential. | AB#117. |
+| AB#161 — Large gallery at the end of an article | Active | No further product decision: all 48 source-gallery occurrences must migrate complete. Implement the bounded article-end gallery and its scoped ADR-0003 amendment. | The affected AB#137 article imports. |
+| AB#137 — Production Sanity dataset | Active | Select and approve public launch content from the source inventory, resolve image and body-block exceptions, verify a recoverable baseline, then run and audit the Production migration with a temporary write credential as described in [the migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137). | AB#117. |
 | AB#117 — Production security and privacy review | Active | Review and accept the production evidence after AB#137, including any residual risks. | AB#18. |
 | AB#18 — Production promotion | New | Perform owner-controlled domain, DNS, production secret, rollback, and smoke-test actions only after predecessors pass. | AB#118 handoff and rollback exercise. |
 | AB#144 — Preview alias revision gate | Active | Confirm whether the acceptance criteria are met and the item can close. Its implementation merged as PR #99 (`0c4e42c`, 2026-08-31), but its final criterion — updating or removing the AB#136 known-limitation notes — depended on AB#136, which only closed 2026-09-10. Verify those notes, then close or state what remains. | Nothing else; it is a bookkeeping decision on already-merged work. |
@@ -28,7 +28,7 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 ## Dependency order
 
 ```text
-AB#19 + AB#137 ──> AB#117 ──> AB#18 ──> AB#118
+AB#161 ──> AB#137 ──> AB#117 ──> AB#18 ──> AB#118   (AB#19 closed 2026-09-13)
 
 AB#54 ──> AB#55 ──> AB#58 ──> AB#71   (AB#65 spike closed 2026-08-27)
 ```
@@ -37,6 +37,17 @@ AB#150 and AB#151 both closed (merged 2026-09-04); their chain is done.
 AB#136 closed on the board 2026-09-10: its fix merged as PR #141 (2026-09-07), and its
 owner-run AC5 "exercise against Preview" completed 2026-09-07–09, with the evidence
 recorded on the work item by PR #146.
+
+AB#132's owner decision is now made (2026-09-11, PR #151, recorded in ADR-0007): retain
+the Proxy's O(1) boundary rather than let it read content state to trade for initial
+semantic 404 HTML. It is no longer awaiting an owner call — the underlying defect turned
+out to be a known, already-tracked upstream Next.js bug
+([vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228), open since
+February 2024), and this item now stays `Active` and blocked on an upstream fix landing
+(a first attempt, `#88491`, was closed unmerged 2026-09-04; a second, `#98455`, opened
+2026-09-09 and is still open) rather than on anything this project's owner or an agent
+here can move. Re-check before AB#18's production promotion if the upstream issue is
+still open by then.
 
 A batch of five bugs closed 2026-09-10, all merged to `main` beforehand: AB#152
 (lightbox preload retry, PR #140), AB#153 (admin sign-in secret in the URL before
@@ -70,36 +81,50 @@ is not MVP work.
 | AB#55 — Keyword taxonomy ADR | Blocked on AB#54 evidence | AB#65 spike closed 2026-08-27 (recommends strategy B — ancestor closure materialized on the medium; see `docs/keyword-query-benchmark.md`). Still needs AB#54's Lightroom evidence, then decide the taxonomy, ingest, privacy, hierarchy, and article-tag boundary before implementation. |
 | AB#95 — Sales / checkout / fulfilment ADR | Product discovery | Decide first sales use case and product/provider/privacy boundary. Do not implement checkout, cart, payments, or fulfilment in this item. |
 
-## First agent-ready implementation candidate
+## Current launch preparation
 
-**None currently groomed and unblocked.** AB#151 — the previous candidate — shipped in
-PR #138 (merged 2026-09-04), closing the last isolated implementation story on the board.
-Every remaining open item needs an owner decision, credential, physical device, infra
-step, or evidence run before dependent implementation work exists:
+AB#19, AB#21, and AB#22 are `Closed` on Azure Boards as checked 2026-09-14.
+The former AB#21 implementation recommendation was stale; its
+three-level heading work has shipped. AB#22's shared table block also shipped.
 
-- The **Owner action or decision** table above (AB#132, AB#141, AB#19, then the
+The immediate launch path is AB#137, already `Active`. Its existing Preview
+verification tooling is ready, and the customer-owned Production project and
+public dataset exist. A local, ignored source inventory and image reconciliation
+have begun, but no public launch manifest has been approved, no Production
+content has been written, and AB#137's live acceptance criteria remain open.
+The selected source content also exposed one implementation prerequisite,
+now recorded as **AB#161** (`Active`, created 2026-09-15):
+an `article` must be able to carry a large gallery at the end of its body,
+on the same page and in one continuous image order. The current 1–12-image
+mini-gallery cannot represent that case, and reclassifying an editorial
+article as a gallery would change its primary content identity. AB#161 is a
+predecessor of AB#137 and requires a scoped ADR-0003 amendment before those
+articles can be migrated; AB#137 remains `Active`.
+The [migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137)
+sets the approval, baseline, private-content exclusion, audit, and revocation
+sequence. The source inventory is private and is not part of this repository.
+
+AB#24 shipped in PR #154 and closed on 2026-09-12. Inline mini-galleries are now
+the seventh shared body block, bounded to 12 images, uncropped, unpaginated,
+and isolated into their own lightbox sequences.
+
+Other work still needs an owner decision, credential, physical device,
+infrastructure, or an evidence run before dependent implementation can proceed:
+
+- The **Owner action or decision** table above (AB#141, then the
   AB#137 → AB#117 → AB#18 launch chain).
-- The **private-gallery branch** (AB#29, AB#145, AB#130) is blocked on the
-  owner-provisioned object and metadata stores.
-- **AB#60** is functionally complete through PR3 and AB#123; it stays open only for a
-  dynamic-result entry point (AB#58/AB#71, not built) or an acceptance-criteria
-  amendment — an owner call, not implementation.
-- **AB#24** (inline mini-galleries in the article body), a child of AB#91, is the
-  nearest future implementation slice — a bounded extension of the existing
-  content-body-block and lightbox boundary — but it is still titled *(rough)* and has
-  no acceptance criteria, so it needs grooming before delegation.
-- **AB#21** (article table of contents) is *not* interchangeable with AB#24 as a
-  grooming target: it calls for a three-level nested table of contents, while
-  `ContentBlock` models an authored heading as `level: 2 | 3`
-  (`src/lib/content-page.ts`) because the page title owns the `h1`. Raising that cap is
-  a body-model decision the story's own description already flags, and it has to be
-  made before AB#21 has an implementable scope at all.
-- **AB#54 → AB#55** and **AB#95** are owner-run evidence and product-discovery work.
+- **AB#132** is decided and blocked externally; re-check the upstream Next.js
+  fix before Production promotion.
+- The **private-gallery branch** (AB#29, AB#145, AB#130) needs its own
+  private stores and is separate from the Joomla source inventory.
+- **AB#60** needs a dynamic-result entry point or an owner amendment to its
+  acceptance criteria.
+- **AB#54 → AB#55** and **AB#95** need owner-run evidence or product decisions.
 
-**Fastest path to the next implementation slice:** resolve AB#132 — a bounded,
-self-contained decision with a defined implementation task on the other side of it — or
-groom AB#24 to implementation-ready. AB#21 is a longer path than either, because the
-heading-level decision has to be settled first.
+**Next step:** implement AB#161's article-end large-gallery prerequisite,
+complete the private AB#137 launch-content manifest and its owner approval,
+then perform the Production run. Keep AB#137 `Active` until the full audit,
+credential revocation, and handoff evidence are done. Then proceed to AB#117.
 
 ## Handoff checklist for another machine or agent
 

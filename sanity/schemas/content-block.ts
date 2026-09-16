@@ -1,7 +1,7 @@
 /**
  * The shared rich-content body blocks ADR-0003 decision 2 gives both public
- * content variants: paragraph, heading, blockquote, media placement, list, and
- * a privacy-first YouTube embed.
+ * content variants: paragraph, heading, blockquote, media placement, list, a
+ * privacy-first YouTube embed, a mini-gallery, and a data table.
  *
  * Deliberately not named after either variant. `article.ts` is the first
  * consumer, `defineContentBodyField({ name: "body" })` with every block type
@@ -33,7 +33,7 @@ import type {
   SchemaValidationResult,
 } from "./schema-types";
 
-/** The six block kinds ADR-0003 decision 2 names, in the order it lists them. */
+/** The eight block kinds ADR-0003 decision 2 names, in the order it lists them. */
 export const CONTENT_BLOCK_KINDS = [
   "paragraph",
   "heading",
@@ -41,6 +41,8 @@ export const CONTENT_BLOCK_KINDS = [
   "blockquote",
   "media",
   "youtube",
+  "mini-gallery",
+  "table",
 ] as const;
 
 export type ContentBlockKind = (typeof CONTENT_BLOCK_KINDS)[number];
@@ -59,6 +61,8 @@ export const CONTENT_BLOCK_OBJECT_TYPES: Readonly<
   blockquote: "contentQuoteBlock",
   media: "contentMediaBlock",
   youtube: "contentYoutubeBlock",
+  "mini-gallery": "contentGalleryBlock",
+  table: "contentTableBlock",
 };
 
 /**
@@ -67,6 +71,14 @@ export const CONTENT_BLOCK_OBJECT_TYPES: Readonly<
  * privacy-first embed cannot silently repair.
  */
 export const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+
+/** Restated by the public reader; tests pin both bounds. */
+export const MAX_MINI_GALLERY_ITEMS = 12;
+export const MAX_MINI_GALLERY_TITLE_LENGTH = 120;
+
+/** Restated from `src/lib/content-table.ts`; a test pins both copies. */
+export const MAX_TABLE_COLUMNS = 8;
+export const MAX_TABLE_ROWS = 20;
 
 function nonBlank(value: string | undefined): SchemaValidationResult {
   return value !== undefined && value.trim().length > 0
@@ -119,12 +131,15 @@ const contentHeadingBlockType: SchemaTypeDefinition = {
         list: [
           { title: "Heading 2", value: 2 },
           { title: "Heading 3", value: 3 },
+          { title: "Heading 4", value: 4 },
         ],
         layout: "radio",
       },
       validation: (rule) =>
         rule.required().custom<number>((value) =>
-          value === 2 || value === 3 ? true : "Choose heading level 2 or 3",
+          value === 2 || value === 3 || value === 4
+            ? true
+            : "Choose heading level 2, 3, or 4",
         ),
     },
     {
@@ -231,6 +246,148 @@ const contentYoutubeBlockType: SchemaTypeDefinition = {
   preview: { select: { title: "title", subtitle: "videoId" } },
 };
 
+const contentGalleryBlockType: SchemaTypeDefinition = {
+  name: CONTENT_BLOCK_OBJECT_TYPES["mini-gallery"],
+  title: "Mini-gallery",
+  type: "object",
+  description:
+    "A small ordered set within the body, with its own viewer and no pagination.",
+  fields: [
+    {
+      name: "title",
+      title: "Title",
+      type: "string",
+      description: "Optional short title above the photographs.",
+      validation: (rule) => rule.max(MAX_MINI_GALLERY_TITLE_LENGTH).custom<string>(
+        (value) => value === undefined || value.trim().length > 0
+          ? true
+          : "Leave the title unset or enter non-empty text",
+      ),
+    },
+    {
+      name: "images",
+      title: "Images",
+      type: "array",
+      of: [{
+        type: "object",
+        fields: [{
+          name: "media",
+          title: "Image",
+          type: "reference",
+          to: [{ type: MEDIA_TYPE_NAME }],
+          validation: (rule) => rule.required(),
+        }],
+      }],
+      validation: (rule) => rule.required().min(1).max(MAX_MINI_GALLERY_ITEMS),
+    },
+  ],
+  preview: { select: { title: "title", media: "images.0.media.image" } },
+};
+
+/**
+ * A local copy, the same way `article-validation.ts`, `category-validation.ts`,
+ * and `gallery-validation.ts` each keep their own: these schemas import nothing
+ * from `src/` (ADR-0006) and share no helper module of their own.
+ */
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+type RawTableRow = { readonly cells?: unknown };
+
+/**
+ * A table must be rectangular: every row carries exactly one cell per column
+ * header. Checked on the object itself rather than on the `rows` field,
+ * because a field-level rule is only handed its own value — `schema-types.ts`'s
+ * `SchemaValidationContext` deliberately declares no `parent` — while the
+ * object's own validator receives the whole `{caption, headers, rows}` value
+ * and so can compare the two fields without widening a shared declaration.
+ *
+ * Deliberately silent about states another rule already reports: a missing or
+ * non-array `headers`/`rows` is the field's own `required()`/`min()` business,
+ * and an editor halfway through adding a row should see that one message, not
+ * a second one blaming the row's width. It must also never throw — a
+ * validator that dies mid-edit blocks Publish with no usable message at all.
+ */
+function validatesTableIsRectangular(
+  value: unknown,
+): SchemaValidationResult {
+  if (!isRecord(value)) return true;
+  const { headers, rows } = value as {
+    readonly headers?: unknown;
+    readonly rows?: unknown;
+  };
+  if (!Array.isArray(headers) || headers.length === 0) return true;
+  if (!Array.isArray(rows)) return true;
+
+  for (const [index, row] of rows.entries()) {
+    if (!isRecord(row)) continue;
+    const { cells } = row as RawTableRow;
+    if (!Array.isArray(cells)) continue;
+    if (cells.length !== headers.length) {
+      return `Row ${index + 1} has ${cells.length} cell(s) but there are ${headers.length} column header(s). Every row needs one cell per column; leave a cell empty rather than dropping it.`;
+    }
+  }
+  return true;
+}
+
+const contentTableBlockType: SchemaTypeDefinition = {
+  name: CONTENT_BLOCK_OBJECT_TYPES.table,
+  title: "Data table",
+  type: "object",
+  description:
+    "A small comparison table. Plain text only, rendered as authored — no sorting, filtering, or column resizing.",
+  fields: [
+    {
+      name: "caption",
+      title: "Caption",
+      type: "string",
+      description:
+        "Optional. Also names the table's scrollable region for screen readers and keyboard users.",
+      validation: (rule) =>
+        rule.custom<string>((value) =>
+          value === undefined || value.trim().length > 0
+            ? true
+            : "Leave the caption unset or enter non-empty text",
+        ),
+    },
+    {
+      name: "headers",
+      title: "Column headers",
+      type: "array",
+      of: [{ type: "string" }],
+      description:
+        "One per column. Every row below needs exactly this many cells.",
+      validation: (rule) =>
+        rule.required().min(1).max(MAX_TABLE_COLUMNS).custom(nonBlankItems),
+    },
+    {
+      name: "rows",
+      title: "Rows",
+      type: "array",
+      of: [
+        {
+          type: "object",
+          fields: [
+            {
+              name: "cells",
+              title: "Cells",
+              type: "array",
+              of: [{ type: "string" }],
+              description:
+                "One per column header, in order. A cell may be left empty.",
+              validation: (rule) => rule.required().min(1).max(MAX_TABLE_COLUMNS),
+            },
+          ],
+        },
+      ],
+      validation: (rule) => rule.required().min(1).max(MAX_TABLE_ROWS),
+    },
+  ],
+  validation: (rule) => rule.custom(validatesTableIsRectangular),
+  preview: { select: { title: "caption", subtitle: "headers.0" } },
+};
+
 /** Every block object type, in one list a Studio's `schema.types` can spread in. */
 export const contentBlockTypes: readonly SchemaTypeDefinition[] = [
   contentParagraphBlockType,
@@ -239,14 +396,18 @@ export const contentBlockTypes: readonly SchemaTypeDefinition[] = [
   contentQuoteBlockType,
   contentMediaBlockType,
   contentYoutubeBlockType,
+  contentGalleryBlockType,
+  contentTableBlockType,
 ];
 
 type RawHeadingItem = { readonly _type?: unknown; readonly level?: unknown };
 
 /**
  * The page title owns the single h1 (see `contentHeadingBlockType`'s own
- * description), so a body's first heading has to be level 2 — a level-3
- * heading appearing before any level-2 heading would skip a level. Restates
+ * description), so a body's first heading has to be level 2. Beyond that, a
+ * heading may stay level, descend one level deeper, or return to any
+ * shallower level, but never skip a level going deeper (AB#21, generalizing
+ * the original two-level rule). Restates
  * `content-page.ts#assertSemanticHeadingOrder` as a Studio-facing message
  * rather than a thrown error: schemas import nothing from `src/` (ADR-0006),
  * so the two sides are pinned equal by a test instead. The field-level
@@ -258,20 +419,25 @@ function validatesSemanticHeadingOrder(
   value: readonly RawHeadingItem[] | undefined,
 ): SchemaValidationResult {
   if (value === undefined) return true;
-  let sawLevel2 = false;
+  let previousLevel: number | undefined;
   for (const item of value) {
     if (item._type !== CONTENT_BLOCK_OBJECT_TYPES.heading) continue;
-    if (item.level === 2) {
-      sawLevel2 = true;
-    } else if (item.level === 3 && !sawLevel2) {
-      // Deliberately `=== 3`, not "anything that isn't 2": a heading block
-      // an editor has just added and not yet assigned a level to has
-      // `level === undefined`, which the field's own `required()` rule
-      // already reports. Treating that transient, mid-edit state as "a
-      // level-3 heading out of order" would show a second, misleading
-      // message for a block that has no heading level at all yet.
-      return "A level-3 heading appears before any level-2 heading. The page title owns h1, so the body's first heading must be level 2.";
+    // Deliberately `=== 2 || 3 || 4`, not "anything that isn't the expected
+    // next level": a heading block an editor has just added and not yet
+    // assigned a level to has `level === undefined`, which the field's own
+    // `required()` rule already reports. Treating that transient, mid-edit
+    // state as an order violation would show a second, misleading message
+    // for a block that has no heading level at all yet — and it must not
+    // reset `previousLevel` either, the same way a non-heading block doesn't.
+    if (item.level !== 2 && item.level !== 3 && item.level !== 4) continue;
+    if (previousLevel === undefined) {
+      if (item.level !== 2) {
+        return "The body's first heading must be level 2. The page title owns h1, so nothing may appear above it.";
+      }
+    } else if (item.level > previousLevel + 1) {
+      return `A heading skips from level ${previousLevel} to level ${item.level}. A heading may only stay level, descend one level, or return to any shallower level.`;
     }
+    previousLevel = item.level;
   }
   return true;
 }

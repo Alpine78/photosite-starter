@@ -148,6 +148,26 @@ const englishRecords: readonly AuthoredContentRecord[] = [
     cover: englishImages.mistyBirch,
   },
   {
+    // Dated old enough to stay off the story root's one bounded page (AB#157).
+    contentId: "content-masonry-below",
+    title: "Masonry, captions below",
+    summary: "An order-preserving masonry with captions under each photograph. Placeholder gallery content.",
+    publishedAt: "2017-01-02",
+    cover: englishImages.forestStream,
+  },
+  {
+    contentId: "content-masonry-overlay",
+    title: "Masonry, captions over the photograph",
+    summary: "An order-preserving masonry with captions over each photograph. Placeholder gallery content.",
+    publishedAt: "2017-01-01",
+    cover: englishImages.lakesideReeds,
+  },
+  { contentId: "content-grid-overlay", title: "grid overlay", summary: "Example gallery presentation.", publishedAt: "2016-01-01" },
+  { contentId: "content-justified-below", title: "justified below", summary: "Example gallery presentation.", publishedAt: "2016-01-01" },
+  { contentId: "content-justified-overlay", title: "justified overlay", summary: "Example gallery presentation.", publishedAt: "2016-01-01" },
+  { contentId: "content-layout-single", title: "layout single", summary: "Example gallery presentation.", publishedAt: "2016-01-01" },
+  { contentId: "content-layout-pair", title: "layout pair", summary: "Example gallery presentation.", publishedAt: "2016-01-01" },
+  {
     contentId: "content-choosing-a-telephoto-lens",
     title: "Choosing a telephoto lens: what the specs don't tell you",
     summary:
@@ -260,6 +280,25 @@ const finnishRecords: readonly AuthoredContentRecord[] = [
     publishedAt: "2024-01-04",
     cover: finnishImages.mistyBirch,
   },
+  {
+    contentId: "content-masonry-below",
+    title: "Masonry, kuvatekstit alla",
+    summary: "Järjestyksen säilyttävä masonry, kuvatekstit kuvien alla. Paikkamerkkisisältöä.",
+    publishedAt: "2017-01-02",
+    cover: finnishImages.forestStream,
+  },
+  {
+    contentId: "content-masonry-overlay",
+    title: "Masonry, kuvatekstit kuvien päällä",
+    summary: "Järjestyksen säilyttävä masonry, kuvatekstit kuvien päällä. Paikkamerkkisisältöä.",
+    publishedAt: "2017-01-01",
+    cover: finnishImages.lakesideReeds,
+  },
+  { contentId: "content-grid-overlay", title: "grid overlay", summary: "Esimerkkigallerian esitystapa.", publishedAt: "2016-01-01" },
+  { contentId: "content-justified-below", title: "justified below", summary: "Esimerkkigallerian esitystapa.", publishedAt: "2016-01-01" },
+  { contentId: "content-justified-overlay", title: "justified overlay", summary: "Esimerkkigallerian esitystapa.", publishedAt: "2016-01-01" },
+  { contentId: "content-layout-single", title: "layout single", summary: "Esimerkkigallerian esitystapa.", publishedAt: "2016-01-01" },
+  { contentId: "content-layout-pair", title: "layout pair", summary: "Esimerkkigallerian esitystapa.", publishedAt: "2016-01-01" },
   {
     contentId: "content-understanding-exposure-triangle",
     title: "Valotuskolmio käytännössä",

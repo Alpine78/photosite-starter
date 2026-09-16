@@ -212,7 +212,7 @@ export type BuiltInLabels = {
      * no tree depth and own no route of their own.
      */
     readonly tags: string;
-    /** Names the table of contents derived from a body's level-2 headings. */
+    /** Names the table of contents derived from a body's headings (levels 2-4). */
     readonly onThisPage: string;
     /** Accessible name of the language switch. */
     readonly languages: string;
@@ -286,6 +286,13 @@ export type BuiltInLabels = {
     /** Accessible name of the control that opens the item enquiry form (AB#60). */
     readonly enquire: string;
   };
+  readonly miniGallery: { readonly label: string };
+  /**
+   * Names a body table's own scrollable region (AB#22) when the author wrote
+   * no caption. A caption, when present, names the region instead — this is
+   * the fallback, so a wide table is never an unnamed keyboard stop.
+   */
+  readonly table: { readonly label: string };
   readonly media: {
     readonly video: string;
     readonly youtubePrivacyNotice: string;
@@ -324,6 +331,10 @@ export type BuiltInLabels = {
      * when none is authored — never left blank.
      */
     readonly byline: string;
+    /** Heading for the optional large result after the article body (AB#161). */
+    readonly endGallery: string;
+    /** Link from an end-gallery continuation to the complete article. */
+    readonly backToArticle: string;
   };
 };
 
@@ -513,6 +524,8 @@ const englishLabels = {
     loadError: "The image cannot be loaded",
     enquire: "Enquire about this photograph",
   },
+  miniGallery: { label: "Mini-gallery" },
+  table: { label: "Table" },
   media: {
     video: "Video",
     youtubePrivacyNotice:
@@ -528,6 +541,8 @@ const englishLabels = {
   },
   article: {
     byline: "By {author}",
+    endGallery: "Gallery",
+    backToArticle: "Back to the article",
   },
 } as const satisfies BuiltInLabels;
 
@@ -668,6 +683,8 @@ const finnishLabels = {
     loadError: "Kuvaa ei voi ladata",
     enquire: "Kysy tästä valokuvasta",
   },
+  miniGallery: { label: "Minigalleria" },
+  table: { label: "Taulukko" },
   media: {
     video: "Video",
     youtubePrivacyNotice:
@@ -683,6 +700,8 @@ const finnishLabels = {
   },
   article: {
     byline: "Kirjoittanut {author}",
+    endGallery: "Galleria",
+    backToArticle: "Takaisin artikkeliin",
   },
 } as const satisfies BuiltInLabels;
 

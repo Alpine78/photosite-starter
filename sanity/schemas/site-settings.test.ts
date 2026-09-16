@@ -47,6 +47,8 @@ describe("the site settings and home schemas", () => {
 
   it("covers the existing project-owned settings and home contracts", () => {
     expect(fieldNames(siteSettingsType)).toEqual([
+      "galleryLayout",
+      "galleryCaptionPlacement",
       "siteName",
       "photographerName",
       "tagline",

@@ -9,6 +9,7 @@ import {
   type ContentBlock,
   type ContentPage,
 } from "@/lib/content-page";
+import { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS } from "@/lib/content-table";
 import { buildContentTree, type ContentTree } from "@/lib/content-tree";
 import {
   mockAuthoredContentRecords,
@@ -101,7 +102,7 @@ describe("asArticlePage", () => {
 });
 
 describe("assertSemanticHeadingOrder", () => {
-  const heading = (level: 2 | 3, text = "Heading"): ContentBlock => ({
+  const heading = (level: 2 | 3 | 4, text = "Heading"): ContentBlock => ({
     type: "heading",
     level,
     text,
@@ -132,6 +133,56 @@ describe("assertSemanticHeadingOrder", () => {
     expect(() => assertSemanticHeadingOrder([paragraph(), heading(3)])).toThrow(
       TypeError,
     );
+  });
+
+  it("rejects level 4 as the body's first heading", () => {
+    expect(() => assertSemanticHeadingOrder([heading(4)])).toThrow(TypeError);
+  });
+
+  it("accepts descending one level at a time down to level 4", () => {
+    expect(() =>
+      assertSemanticHeadingOrder([heading(2), heading(3), heading(4)]),
+    ).not.toThrow();
+  });
+
+  it("rejects skipping from level 2 straight to level 4 (AC2's own example)", () => {
+    expect(() => assertSemanticHeadingOrder([heading(2), heading(4)])).toThrow(
+      TypeError,
+    );
+  });
+
+  it("accepts returning to level 2 after level 4, and repeating level 4 under a new level 3", () => {
+    expect(() =>
+      assertSemanticHeadingOrder([
+        heading(2),
+        heading(3),
+        heading(4),
+        heading(2),
+        heading(3),
+        heading(4),
+      ]),
+    ).not.toThrow();
+  });
+
+  it("rejects skipping to level 4 after returning to level 2, even though level 4 was already reached once", () => {
+    // Proves the rule checks the *immediately preceding* heading, not the
+    // deepest level ever seen in the document: re-reaching level 2 must
+    // reset what "descend by one" means next.
+    expect(() =>
+      assertSemanticHeadingOrder([
+        heading(2),
+        heading(3),
+        heading(4),
+        heading(2),
+        heading(4),
+      ]),
+    ).toThrow(TypeError);
+  });
+
+  it("does not let a non-heading block reset what a skip would be", () => {
+    expect(() =>
+      assertSemanticHeadingOrder([heading(2), paragraph(), heading(4)]),
+    ).toThrow(TypeError);
   });
 });
 
@@ -252,6 +303,48 @@ describe.each(languages)("mock content pages (%s)", (language) => {
     }
   });
 
+  it("keeps every authored table rectangular and inside its bounds", () => {
+    // The Sanity path has the read boundary to reject a ragged table; this
+    // fixture layer is hand-authored TypeScript, where the row/header
+    // relationship is not something the type system can state. So it is
+    // checked here, the same way the heading order above is — a short row
+    // would otherwise render every later cell under the wrong header.
+    const tables = [...pages.values()].flatMap((page) =>
+      page.body.filter((block) => block.type === "table"),
+    );
+    expect(tables.length).toBeGreaterThan(0);
+
+    for (const table of tables) {
+      expect(table.headers.length).toBeGreaterThanOrEqual(1);
+      expect(table.headers.length).toBeLessThanOrEqual(MAX_TABLE_COLUMNS);
+      expect(table.headers.every((header) => header.trim().length > 0)).toBe(true);
+      expect(table.rows.length).toBeGreaterThanOrEqual(1);
+      expect(table.rows.length).toBeLessThanOrEqual(MAX_TABLE_ROWS);
+      for (const row of table.rows) {
+        expect(row).toHaveLength(table.headers.length);
+      }
+      if (table.caption !== undefined) {
+        expect(table.caption.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("authors a table on both content variants, with and without a caption", () => {
+    const withTable = [...pages.values()].filter((page) =>
+      page.body.some((block) => block.type === "table"),
+    );
+    expect(withTable.some((page) => page.variant === "article")).toBe(true);
+    expect(withTable.some((page) => page.variant === "gallery")).toBe(true);
+
+    const tables = withTable.flatMap((page) =>
+      page.body.filter((block) => block.type === "table"),
+    );
+    // Both naming paths for the scroll region are fixture-covered: a caption
+    // names it, and a captionless table falls back to the built-in label.
+    expect(tables.some((table) => table.caption !== undefined)).toBe(true);
+    expect(tables.some((table) => table.caption === undefined)).toBe(true);
+  });
+
   it("lets a gallery author a long-form body alongside its curated result", () => {
     const galleries = publishedPlacements.filter(
       (placement) => placement.variant === "gallery",
@@ -261,18 +354,20 @@ describe.each(languages)("mock content pages (%s)", (language) => {
 
     // A gallery's curated result set is the separate AB#67 contract, never a
     // field here. Its body is optional supporting context (ADR-0003 decision
-    // 3): this fixture authors one for the gallery AB#106 exercises and,
-    // separately, a short one on the large multi-page archive (AB#106
+    // 3): this fixture authors one for the gallery AB#106 exercises,
+    // separately a short one on the large multi-page archive (AB#106
     // decision 3's first-page-only rule needs a gallery that both spans a
     // continuation and carries a body to prove the omission is a rule, not
-    // an accident of having nothing to omit) — through the same shared block
-    // set an article uses — and leaves every other gallery's body empty,
-    // proving absence is a normal, unstubbed state rather than a defect, and
-    // that neither authored body drifted onto (or got duplicated across) an
-    // unrelated gallery.
+    // an accident of having nothing to omit), and separately again the
+    // three-level fixture AB#21 needs (see `content-headings.ts`'s AC7) —
+    // through the same shared block set an article uses — and leaves every
+    // other gallery's body empty, proving absence is a normal, unstubbed
+    // state rather than a defect, and that neither authored body drifted
+    // onto (or got duplicated across) an unrelated gallery.
     const AUTHORED_GALLERY_BODY_IDS: ReadonlySet<string> = new Set([
       "content-coastal-mornings",
       "content-large-archive",
+      "content-polar-night-sessions",
     ]);
 
     for (const placement of galleries) {

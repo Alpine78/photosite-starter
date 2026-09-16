@@ -51,6 +51,41 @@ function fieldOf(type: SchemaTypeDefinition, name: string) {
   return field;
 }
 
+/**
+ * Runs every custom check a rule registered and collapses the answers to the
+ * first refusal, or `true` when all of them passed. `min`/`max`/`required` are
+ * recorded by the builder rather than run as callbacks, so they are asserted
+ * separately from this — see the table's own bounds test.
+ */
+async function runChecks(
+  checks: readonly ((
+    value: never,
+    context: { getClient: () => SchemaValidationClient },
+  ) => unknown)[],
+  value: unknown,
+) {
+  const client: SchemaValidationClient = {
+    async fetch() {
+      return undefined as never;
+    },
+    withConfig() {
+      return client;
+    },
+  };
+  for (const check of checks) {
+    const result = await check(value as never, { getClient: () => client });
+    if (result !== true) return result;
+  }
+  return true;
+}
+
+/** The inline object type each `rows` array member uses. */
+function rowObject(): SchemaTypeDefinition {
+  const member = fieldOf(typeOf(CONTENT_BLOCK_OBJECT_TYPES.table), "rows").of?.[0];
+  if (member?.fields === undefined) throw new Error("the rows array declares no object member");
+  return { name: "tableRow", title: "Row", type: "object", fields: member.fields };
+}
+
 describe("the shared block types", () => {
   it("names every ADR-0003 decision 2 block kind", () => {
     expect(CONTENT_BLOCK_KINDS).toEqual([
@@ -60,6 +95,8 @@ describe("the shared block types", () => {
       "blockquote",
       "media",
       "youtube",
+      "mini-gallery",
+      "table",
     ]);
     expect(contentBlockTypes.map((type) => type.name).sort()).toEqual(
       Object.values(CONTENT_BLOCK_OBJECT_TYPES).sort(),
@@ -94,13 +131,14 @@ describe("the shared block types", () => {
 });
 
 describe("the heading block", () => {
-  it("only accepts level 2 or 3", async () => {
+  it("only accepts level 2, 3, or 4", async () => {
     const { required, run } = inspect(fieldOf(typeOf(CONTENT_BLOCK_OBJECT_TYPES.heading), "level").validation);
 
     expect(required).toBe(true);
     expect(await run(2)).toEqual([true]);
     expect(await run(3)).toEqual([true]);
-    for (const rejected of [1, 4, "2", undefined]) {
+    expect(await run(4)).toEqual([true]);
+    for (const rejected of [1, 5, "2", undefined]) {
       expect((await run(rejected))[0]).toEqual(expect.any(String));
     }
   });
@@ -196,8 +234,8 @@ describe("defineContentBodyField", () => {
     ]);
   });
 
-  describe("semantic heading order (AB#106)", () => {
-    const heading = (level: 2 | 3) => ({
+  describe("semantic heading order (AB#106, generalized to levels 2-4 by AB#21)", () => {
+    const heading = (level: 2 | 3 | 4) => ({
       _type: CONTENT_BLOCK_OBJECT_TYPES.heading,
       level,
     });
@@ -223,12 +261,33 @@ describe("defineContentBodyField", () => {
     it("does not misreport a heading an editor has not yet assigned a level to", async () => {
       // A newly added heading block has `level === undefined` until the
       // editor picks one — the field's own `required()` rule already
-      // reports that. This check must not additionally claim "a level-3
-      // heading appears before any level-2 heading" for a block that has no
-      // level at all yet.
+      // reports that. This check must not additionally claim "the body's
+      // first heading must be level 2" for a block that has no level at all
+      // yet.
       const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
       const unleveled = { _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: undefined };
       expect(await run([unleveled])).toEqual([true]);
+    });
+
+    it("does not let an unleveled heading reset what a skip would be", async () => {
+      // An editor mid-way through adding a heading must not accidentally
+      // make a real violation disappear: level 2, an unleveled block, then
+      // level 4 is still a skip from level 2.
+      const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
+      const unleveled = { _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: undefined };
+      const [result] = await run([heading(2), unleveled, heading(4)]);
+      expect(result).toEqual(expect.any(String));
+    });
+
+    it("accepts descending one level at a time down to level 4", async () => {
+      const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
+      expect(await run([heading(2), heading(3), heading(4)])).toEqual([true]);
+    });
+
+    it("rejects skipping from level 2 straight to level 4", async () => {
+      const { run } = inspect(defineContentBodyField({ name: "body", title: "Body" }).validation);
+      const [result] = await run([heading(2), heading(4)]);
+      expect(result).toEqual(expect.any(String));
     });
 
     it("still applies when the caller supplies its own extra validation", async () => {
@@ -257,7 +316,7 @@ describe("defineContentBodyField", () => {
       // would disagree about the same authored content.
       const cases: ReadonlyArray<{
         readonly name: string;
-        readonly levels: readonly (2 | 3)[];
+        readonly levels: readonly (2 | 3 | 4)[];
       }> = [
         { name: "no headings", levels: [] },
         { name: "a single level-2 heading", levels: [2] },
@@ -266,6 +325,17 @@ describe("defineContentBodyField", () => {
         { name: "level 3 first", levels: [3] },
         { name: "level 3 first, level 2 later", levels: [3, 2] },
         { name: "level 2, level 3, level 2, level 3", levels: [2, 3, 2, 3] },
+        { name: "level 4 first", levels: [4] },
+        { name: "level 2, level 3, level 4", levels: [2, 3, 4] },
+        { name: "level 2, level 4 (a skip)", levels: [2, 4] },
+        {
+          name: "level 2, level 3, level 4, level 2, level 3, level 4",
+          levels: [2, 3, 4, 2, 3, 4],
+        },
+        {
+          name: "level 2, level 3, level 4, level 2, level 4 (a skip after returning shallower)",
+          levels: [2, 3, 4, 2, 4],
+        },
       ];
 
       it.each(cases)("$name", async ({ levels }) => {
@@ -292,4 +362,117 @@ describe("defineContentBodyField", () => {
       });
     });
   });
+});
+
+describe("the data table block (AB#22)", () => {
+  const block = () => typeOf(CONTENT_BLOCK_OBJECT_TYPES.table);
+
+  it("pins its bounds to the ones the public reader enforces", async () => {
+    const { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS } = await import(
+      "../../src/lib/content-table"
+    );
+    const schema = await import("./content-block");
+    expect(schema.MAX_TABLE_COLUMNS).toBe(MAX_TABLE_COLUMNS);
+    expect(schema.MAX_TABLE_ROWS).toBe(MAX_TABLE_ROWS);
+  });
+
+  it("bounds headers and rows with blocking Studio validation", async () => {
+    const { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS } = await import(
+      "../../src/lib/content-table"
+    );
+    // `min`/`max`/`required` are recorded by the rule builder rather than run
+    // as callbacks, so they have to be asserted here: executing the custom
+    // checks below would never exercise them.
+    const headers = inspectValidationRules(
+      fieldOf(block(), "headers").validation,
+    );
+    expect(headers.required).toBe(true);
+    expect(headers.min).toBe(1);
+    expect(headers.max).toBe(MAX_TABLE_COLUMNS);
+    expect(headers.warnings).toHaveLength(0);
+
+    const rows = inspectValidationRules(fieldOf(block(), "rows").validation);
+    expect(rows.required).toBe(true);
+    expect(rows.min).toBe(1);
+    expect(rows.max).toBe(MAX_TABLE_ROWS);
+    expect(rows.warnings).toHaveLength(0);
+
+    const cells = inspectValidationRules(
+      fieldOf(rowObject(), "cells").validation,
+    );
+    expect(cells.required).toBe(true);
+    expect(cells.min).toBe(1);
+    expect(cells.max).toBe(MAX_TABLE_COLUMNS);
+  });
+
+  it("rejects a blank column header", async () => {
+    const { checks } = inspectValidationRules(
+      fieldOf(block(), "headers").validation,
+    );
+    expect(await runChecks(checks, ["Lens", "Weight"])).toBe(true);
+    expect(await runChecks(checks, ["Lens", "  "])).not.toBe(true);
+  });
+
+  it("leaves the caption optional but rejects a blank one", async () => {
+    const { required, checks } = inspectValidationRules(
+      fieldOf(block(), "caption").validation,
+    );
+    expect(required).toBe(false);
+    expect(await runChecks(checks, undefined)).toBe(true);
+    expect(await runChecks(checks, "Specifications")).toBe(true);
+    expect(await runChecks(checks, "   ")).not.toBe(true);
+  });
+
+  describe("the object's own rectangularity rule", () => {
+    const run = (value: unknown) =>
+      runChecks(inspectValidationRules(block().validation).checks, value);
+
+    it("accepts a rectangular table, including all-empty cells", async () => {
+      expect(
+        await run({ headers: ["A", "B"], rows: [{ cells: ["1", "2"] }] }),
+      ).toBe(true);
+      expect(
+        await run({ headers: ["A", "B"], rows: [{ cells: ["", ""] }] }),
+      ).toBe(true);
+    });
+
+    it("rejects a row that is short or long, naming the row", async () => {
+      const short = await run({
+        headers: ["A", "B"],
+        rows: [{ cells: ["1", "2"] }, { cells: ["1"] }],
+      });
+      expect(short).not.toBe(true);
+      expect(String(short)).toContain("Row 2");
+      expect(
+        await run({ headers: ["A", "B"], rows: [{ cells: ["1", "2", "3"] }] }),
+      ).not.toBe(true);
+    });
+
+    it("stays silent on states the field rules already report", async () => {
+      // Mid-edit: an editor who has added a header but not yet a row should
+      // see that field's own `required` message, not a width complaint — and
+      // the rule must not throw on any of these shapes.
+      expect(await run(undefined)).toBe(true);
+      expect(await run({})).toBe(true);
+      expect(await run({ headers: [], rows: [{ cells: ["1"] }] })).toBe(true);
+      expect(await run({ headers: ["A"], rows: undefined })).toBe(true);
+      expect(await run({ headers: ["A"], rows: [undefined] })).toBe(true);
+      expect(await run({ headers: ["A"], rows: [{}] })).toBe(true);
+      expect(await run({ headers: "A", rows: [{ cells: ["1"] }] })).toBe(true);
+    });
+  });
+});
+
+it("bounds the mini-gallery's image array with blocking Studio validation", async () => {
+  const { MAX_MINI_GALLERY_ITEMS, MAX_MINI_GALLERY_TITLE_LENGTH } = await import("../../src/lib/content-mini-gallery");
+  const schema = await import("./content-block");
+  expect(schema.MAX_MINI_GALLERY_ITEMS).toBe(MAX_MINI_GALLERY_ITEMS);
+  expect(schema.MAX_MINI_GALLERY_TITLE_LENGTH).toBe(MAX_MINI_GALLERY_TITLE_LENGTH);
+  const block = typeOf(CONTENT_BLOCK_OBJECT_TYPES["mini-gallery"]);
+  const validation = inspectValidationRules(fieldOf(block, "images").validation);
+  expect(validation.required).toBe(true);
+  expect(validation.min).toBe(1);
+  expect(validation.max).toBe(MAX_MINI_GALLERY_ITEMS);
+  expect(validation.warnings).toHaveLength(0);
+  expect(inspectValidationRules(fieldOf(block, "title").validation).max).toBe(MAX_MINI_GALLERY_TITLE_LENGTH);
 });

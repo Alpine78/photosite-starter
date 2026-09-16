@@ -1,3 +1,4 @@
+import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
 import { cache } from "react";
 
 import { dispatchContentSource } from "@/lib/content-source";
@@ -73,7 +74,7 @@ export type DefaultSeo = {
   description: string;
 };
 
-export type SiteSettings = {
+export type SiteSettings = GalleryPresentationFields & {
   siteName: string;
   photographerName: string;
   /** Short tagline shown e.g. in the home page hero */

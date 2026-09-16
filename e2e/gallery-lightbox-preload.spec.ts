@@ -152,6 +152,34 @@ async function presentedImageNaturalWidth(dialog: Locator): Promise<number> {
   return (await presentedImage(dialog))?.naturalWidth ?? 0;
 }
 
+/**
+ * The assertion measures which optimizer requests a lightbox action starts,
+ * so wait only until that monotonic set has stopped changing. `networkidle`
+ * also waits for unrelated page traffic and can consume Playwright's 30-second
+ * default timeout before its failure is caught, leaving too little of the
+ * test's own 60-second CI budget for the navigation assertions.
+ */
+async function waitForTrackedRequestsToSettle(
+  touchedIdentities: ReadonlySet<string>,
+): Promise<void> {
+  let previousSize = touchedIdentities.size;
+  let stableSince = Date.now();
+
+  await expect
+    .poll(
+      () => {
+        const currentSize = touchedIdentities.size;
+        if (currentSize !== previousSize) {
+          previousSize = currentSize;
+          stableSince = Date.now();
+        }
+        return Date.now() - stableSince;
+      },
+      { timeout: 5_000, intervals: [100, 150, 250] },
+    )
+    .toBeGreaterThanOrEqual(300);
+}
+
 let GALLERY_PATH: string;
 let GALLERY_PAGE_SIZE: number;
 
@@ -188,7 +216,7 @@ test("opening a large gallery loads only the bounded adjacent window, not the wh
   await expect
     .poll(() => presentedImageNaturalWidth(dialog), { timeout: 10_000 })
     .toBeGreaterThan(0);
-  await page.waitForLoadState("networkidle").catch(() => {});
+  await waitForTrackedRequestsToSettle(touchedIdentities);
 
   expect(
     apiGalleryRequests,
@@ -230,7 +258,7 @@ test("navigating forward loads a small, bounded number of additional photographs
   await expect
     .poll(() => presentedImageNaturalWidth(dialog), { timeout: 10_000 })
     .toBeGreaterThan(0);
-  await page.waitForLoadState("networkidle").catch(() => {});
+  await waitForTrackedRequestsToSettle(touchedIdentities);
 
   const perStepDeltas: number[] = [];
   for (let step = 0; step < NAVIGATION_STEPS; step += 1) {
@@ -241,7 +269,7 @@ test("navigating forward loads a small, bounded number of additional photographs
     await expect
       .poll(() => presentedImageAlt(dialog), { timeout: 10_000 })
       .not.toBe(previousAlt);
-    await page.waitForLoadState("networkidle").catch(() => {});
+    await waitForTrackedRequestsToSettle(touchedIdentities);
 
     let delta = 0;
     for (const identity of touchedIdentities) {

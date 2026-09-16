@@ -89,7 +89,7 @@ locale, matching the still-unlocalized `/services` route, so nothing here descri
 capability the site does not yet read.
 
 Both an article's body and a gallery's optional body share one set of block object types —
-`sanity/schemas/content-block.ts` — covering the six kinds ADR-0003 decision 2 names:
+`sanity/schemas/content-block.ts` — covering the seven kinds ADR-0003 decision 2 and its AB#24 amendment name:
 paragraph, heading, list, quote, media placement, and a click-to-load YouTube embed. They
 are named `content<Kind>Block` rather than the bare discriminant, because Sanity type
 names share one namespace and `media.ts` already claims `media` for the shared photograph
@@ -97,6 +97,13 @@ document. `defineContentBodyField` builds a body field restricted to a given all
 these kinds — every kind by default; a gallery's body allows every kind too, but unlike an
 article's it is optional (ADR-0003 decision 3: a gallery's body is separate editorial
 content, not the page itself).
+
+The `contentGalleryBlock` mini-gallery adds an optional title (maximum 120 characters)
+and an `images` array of 1–12 objects, each holding its own stable `_key` and a `media`
+reference. Repeated photographs are allowed as distinct occurrences. The reader preserves
+these identities and rejects unresolved, private, or otherwise undeliverable references;
+this block neither owns nor changes a curated gallery placement. See the
+[AB#24 amendment](../docs/adr/0003-public-content-tree-and-url-structure.md).
 
 ## Galleries
 
@@ -145,7 +152,7 @@ authored field on each placement document, not array position — splitting plac
 documents left nothing for a position to be, a real authoring-experience cost (no more
 drag-to-reorder) accepted for the bounded-query property. A section's optional `intro`
 reuses the shared paragraph/list rich-text model in `gallery-section-intro.ts` — its own
-dedicated object types, not the six-kind `content-block.ts` set, since an intro needs
+dedicated object types, not the seven-kind `content-block.ts` set, since an intro needs
 inline emphasis and links that the shared body blocks' plain-string paragraphs and lists do
 not carry. `orderingRule`/`orderingSeed` let a gallery declare a seeded-random ordering
 (AB#129, [ADR-0009](../docs/adr/0009-seeded-random-gallery-ordering.md)); each
@@ -188,3 +195,17 @@ one particular page — belongs to the container that places it, never to the ph
 [ADR-0002](../docs/adr/0002-media-identity-and-placement-boundary.md) explains why, and
 [ADR-0008](../docs/adr/0008-localized-authored-text.md) explains why authored sentences
 are language-keyed arrays rather than fields named after this deployment's languages.
+
+## Gallery presentation (AB#157)
+
+`siteSettings` and each per-language `gallery` document expose optional
+`galleryLayout` (`grid`, `masonry`, `justified`) and `galleryCaptionPlacement`
+(`below`, `overlay`). Both are independently clearable dropdowns. No initial value
+creates a gallery override: empty means inherit that field from site settings;
+empty site settings mean `grid` and `below`. Existing documents need no migration.
+Unknown stored enum values are rejected as malformed content by their adapter,
+not converted to CSS or silently replaced. Both content sources use
+`effectiveGalleryPresentation` after projection. Presentation never enters a
+placement, cursor, section filter, or lightbox ordering rule.
+
+See [gallery presentation](../docs/gallery-presentation.md) for public behaviour.

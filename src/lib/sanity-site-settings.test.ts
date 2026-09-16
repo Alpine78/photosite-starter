@@ -100,6 +100,16 @@ function fakeClient(answer: unknown): {
   };
 }
 
+it("projects optional presentation defaults and rejects malformed stored enums", () => {
+  expect(project(documentOf())).not.toHaveProperty("galleryLayout");
+  expect(project(documentOf({ galleryLayout: "masonry", galleryCaptionPlacement: "overlay" })))
+    .toMatchObject({ galleryLayout: "masonry", galleryCaptionPlacement: "overlay" });
+  for (const value of ["unknown", 12, {}, false]) {
+    expect(() => project(documentOf({ galleryLayout: value }))).toThrow(SanitySiteSettingsError);
+    expect(() => project(documentOf({ galleryCaptionPlacement: value }))).toThrow(SanitySiteSettingsError);
+  }
+});
+
 describe("identity and format patterns", () => {
   it("stay equal to the Studio schema's own copies", () => {
     expect(CONTENT_ID.source).toBe(SCHEMA_CONTENT_ID.source);

@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -12,6 +12,174 @@ This broad record remains accepted as a whole. A scoped clause is amended in pla
 when implementation produces evidence the original text did not have, and each partial
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
+
+### 2026-09-15 — An article may own one bounded end-gallery result (AB#161)
+
+Decision 1 originally says that an article owns an editorial sequence and does not
+implicitly acquire a gallery result from media in that sequence. That separation remains:
+a loose body image and every inline mini-gallery are content placements with their own
+viewer sequences. An article may now also **explicitly own one optional end-gallery
+result**, identified independently of the body and rendered after the last body block.
+The same medium may be placed in both places when the author intends that repetition;
+independence belongs to each occurrence, its order, and its viewer sequence rather than
+to a media-id deduplication rule.
+
+The end gallery is supporting content of the article, never a second public content page.
+Its placements carry explicit manual order and a stable occurrence identity. It has no
+sections, seeded-random order, sorting, filtering, or gallery-item enquiry action. The
+first bounded slice appears on the parameter-free article page after the body and before
+the article's tags and adjacent-article navigation. Later slices retain one continuous
+visual and lightbox order but remain isolated from the body's loose-image viewer and from
+each inline mini-gallery viewer.
+
+Decision 8's opaque continuation contract is extended to this explicit article result.
+Its token is authenticated and scoped to the article identity, the end-gallery identity,
+the full configured route locale, the manual-order rule, visibility version, and page
+size. The token remains a keyset boundary, not an offset: ordinary edits after the
+boundary do not retire it, while removal, hiding, or reordering of the boundary placement
+makes it stale. A malformed, repeated, tampered, stale, cross-article,
+cross-end-gallery, or cross-locale token returns the same accessible 404 class as an
+invalid curated-gallery cursor. A valid token on a non-canonical spelling is validated
+before one direct permanent redirect, and the redirect preserves the exact token. The
+Proxy continues to carry only bounded path and cursor-presence metadata, never the token.
+
+An article continuation link is a real `?cursor=<opaque-token>` link and therefore opens
+one bounded later slice without JavaScript. Script may progressively enhance that link by
+appending the slice in place; nothing prefetches or automatically walks the result. A
+server-rendered continuation is deliberately thin: a compact visible `h1` identifying
+the article and continuation, the language switch (which drops the cursor), the slice,
+and a link to the parameter-free article. It does not repeat the cover, lead, page-jump
+navigation, body, body viewers, tags, adjacent navigation, or Article structured data.
+
+The parameter-free article URL remains the article's sole canonical and indexable URL and
+the only one placed in the sitemap. Every valid article continuation is `noindex`, points
+its canonical metadata to that parameter-free URL, and names no language alternates:
+another locale has the article identity, not an equivalent transient slice. This differs
+deliberately from an unfiltered standalone-gallery continuation, which decision 8 treats
+as its own indexable sequential view of a photographic result. Unknown parameters remain
+ignored as before. Only articles declaring an end gallery recognize `cursor`;
+articles without one continue to ignore incidental cursor parameters, including
+repeated values, before canonical normalization and in their first-page metadata.
+
+The store represents the result with separately queryable placement records rather than
+an embedded array. A public read orders by the compound `(order, placementId)` key and
+requests only the current boundary plus at most `pageSize + 1` following candidates; the
+second key is part of both the query and cursor, not an over-fetch heuristic for tied
+order values. Provider responses are untrusted and must project only versioned public
+derivatives and their true intrinsic dimensions. Studio validation protects the stable
+cross-language occurrence contract, while live verification is the authoritative audit
+for site-wide placement-id collisions that concurrent Content Lake edits could otherwise
+race.
+
+**Sections affected:** decision 1 gains the one explicit article end-gallery result while
+preserving the body/result separation; decision 3 gains the article order and reduced
+continuation layout above; decision 8 gains article cursor recognition and the
+article-specific canonical/indexing policy. Decisions 4–7 and 9 are unchanged. The
+bounded inline mini-gallery amendment below is unchanged and remains capped at 12 images.
+
+### 2026-09-13 — A data table joins the shared body-block set (AB#22)
+
+Decision 2, as already extended to seven kinds by the AB#24 amendment below, now permits
+an **eighth: table**, a small comparison table offered on both article and gallery
+variants. It carries 1–8 column headers, 1–20 data rows, and an optional caption. Every
+header is non-empty; every row carries exactly one cell per header. A *cell* may be
+empty — a gap in a comparison table is authored content — but a row may never be short,
+because a ragged row would silently shift every later cell under the wrong header. Header
+and cell content is plain text, matching the paragraph and list kinds: no inline
+formatting, links, or nested blocks, so a table cannot become a second body model.
+
+Rendering is deliberately render-only for this iteration: no sorting, filtering, or column
+resizing. The block emits a real `<table>` — `<caption>` when authored, `<th scope="col">`
+headers, `<td>` cells — inside its own horizontally scrollable region, so a table wider
+than the page scrolls within itself rather than making the whole page scroll sideways.
+That region is a named, focusable element rather than a script-enhanced one: it carries
+`tabindex="0"` unconditionally and is named by the caption, or by a localized built-in
+label when there is none. The accepted cost is one tab stop on a table narrow enough not
+to need scrolling; the benefit is that the keyboard path works with no JavaScript, which a
+production-build test verifies in both Chromium and WebKit with scripting disabled.
+
+The rectangularity rule is enforced twice, as every other block's invariants are. The
+Studio validates it on the table object itself rather than on its rows field, because a
+field-level rule is handed only its own value and so cannot compare rows against headers;
+the reader independently rejects a malformed table — bad bounds, a blank header, a ragged
+row, a non-text cell, or a blank caption — rather than repairing or dropping it. The query
+reads one more row and column than the bounds allow so overflow arrives as overflow and is
+refused, instead of arriving silently truncated to exactly the limit and passing.
+
+**Sections affected:** decision 2's kind enumeration is extended again by this amendment,
+on top of the AB#24 amendment below. Decisions 1, 3, 4, 5, 6, 7, 8, and 9 are unchanged: a
+table is not a media placement, enters no curated result, lightbox sequence, or section,
+and changes no route, metadata, sitemap, cursor, or legacy-redirect behavior.
+
+### 2026-09-12 — Three-level heading model and nested table of contents (AB#21)
+
+Decision 2 originally permits a heading block only at level 2 or 3. It now permits
+level 4 too, on both variants — gallery and article bodies deliberately share one
+`ContentBlock` set, so there is no variant-specific heading or table-of-contents model.
+The semantic-order rule generalizes with it: the first authored heading must still be
+level 2, and every following heading may stay at the level before it, descend by one
+level, or return to any shallower level, but never skip a level going deeper (level 2
+straight to level 4, say). A non-heading block never resets this — only the heading
+immediately before it decides what a heading may do next. Sanity enforces the rule with
+a blocking Studio validation, and the project-owned read boundary classifies a
+violation an API import produced, exactly as the original two-level rule already did.
+
+Decision 3's page-jump navigation changes from a flat list of level-2 entries to a real
+nested list that follows the heading hierarchy: a level-3 entry nests inside the
+level-2 entry before it, and a level-4 entry inside the level-3 entry before it. The
+gallery variant's leading link to `#gallery` is unaffected — it remains the first entry
+in the list, ahead of the whole heading tree, exactly as before. The article variant's
+table of contents gains the same nesting.
+
+Every fragment id a level-2 heading already produces is guaranteed unchanged: the id
+algorithm reserves the complete legacy level-2 id set, in the same order and with the
+same collision behavior as before this amendment, before it ever assigns an id to a
+level-3 or level-4 heading. Adding, removing, or rewording a deeper heading can
+therefore never rename a published level-2 anchor — a required property, since a
+level-2 fragment may already be linked to from outside this site.
+
+**Sections affected:** decision 2's heading-level enumeration and semantic-order rule
+are extended by this amendment; decision 3's page-jump navigation paragraphs are
+extended from a flat level-2 list to a nested three-level list. Decisions 1, 4, 5, 6, 7,
+8, and 9 are unchanged: no variant, category, placement, locale, slug, cursor, or
+legacy-redirect behavior is affected.
+
+### 2026-09-12 — Inline mini-galleries join the shared body-block set (AB#24)
+
+Decision 2 originally permits exactly six body-block types. It now permits a seventh:
+**mini-gallery**, a small authored array of media placements within the narrative, offered
+on both article and gallery variants. Each block contains 1–12 public images, optionally
+named by a plain-text title of at most 120 characters. Studio blocks publication outside
+the count bound; the reader independently rejects malformed, empty, overfull, unresolved,
+or non-public image data. The query reads at most 13 entries so it can reject overflow
+without expanding an unbounded array of media references.
+
+A mini-gallery is a content placement. Each has its own ordered lightbox sequence and
+enters neither the curated result nor the body's loose-image sequence. Loose images on
+both sides of a mini-gallery remain one body-wide sequence. Each thumbnail retains its
+full frame and native ratio in a top-aligned, row-major grid of one or two columns. The
+list has a distinct accessible name: the optional title, or a localized ordinal fallback,
+with ordinal disambiguation for collisions. Per-occurrence keys distinguish repeated
+photographs; closing returns focus to the occurrence displayed at close, matching the
+existing wrapper. Plain images, captions, and credits remain available without scripts;
+lightbox controls appear after hydration. Mini-gallery viewers have no enquiry control.
+Video is not delivered: the Sanity public-media reader rejects it, and the rendering
+helper defensively excludes video entries from slides and thumbnails.
+
+The bounded set renders whole, with no cursor or continuation endpoint. This is a
+simplicity decision, not a sitemap restriction: decision 8 already permits indexable
+continuations outside the sitemap. A larger collection belongs in the curated grid.
+
+Before adding the CMS implementation, a production-build integration test passed in
+Chromium and WebKit with two mini-gallery providers nested inside the body provider and
+a separate curated viewer. It opened, navigated, closed, and reopened each sequence,
+checking focus return and isolation. The existing PhotoSwipe wrapper needs no change and
+no new dependency. Splitting the body provider into contiguous runs is not an equivalent
+fallback because it could change the body's sequence.
+
+**Sections affected:** decision 2 and option E's six-kind enumeration are extended by this
+amendment. The AB#147 loose-image sequence remains intact. Decisions 3, 5, 6, 7, 8, and 9
+are unchanged: no route, metadata, sitemap, section, cursor, or curated-result change.
 
 ### 2026-08-10 — Pre-launch scaffold routes are removed, not redirected (AB#124)
 

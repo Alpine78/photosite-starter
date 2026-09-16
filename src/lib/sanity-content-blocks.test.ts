@@ -13,6 +13,7 @@ import {
   type RawContentBlock,
 } from "@/lib/sanity-content-blocks";
 import type { SanityConfig } from "@/lib/sanity-config";
+import { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS } from "@/lib/content-table";
 
 const config: SanityConfig = {
   projectId: "zp7mbokg",
@@ -86,6 +87,21 @@ describe("projecting each block kind", () => {
       level: 2,
       text: "Waiting for the cloud to even out",
       key: "a2",
+    });
+  });
+
+  it("maps a level-4 heading", () => {
+    const block: RawContentBlock = {
+      _key: "a2b",
+      _type: CONTENT_BLOCK_OBJECT_TYPES.heading,
+      level: 4,
+      text: "Reading the KP index",
+    };
+    expect(projectContentBlock(block, 0, options)).toEqual({
+      type: "heading",
+      level: 4,
+      text: "Reading the KP index",
+      key: "a2b",
     });
   });
 
@@ -170,10 +186,126 @@ describe("projecting each block kind", () => {
   });
 });
 
+describe("a table block", () => {
+  const table = (fields: Record<string, unknown>) =>
+    ({
+      _key: "k",
+      _type: CONTENT_BLOCK_OBJECT_TYPES.table,
+      headers: ["Lens", "Weight"],
+      rows: [{ cells: ["Model A", "1480 g"] }],
+      ...fields,
+    }) as RawContentBlock;
+
+  it("projects headers, rows, and an authored caption", () => {
+    expect(
+      projectContentBlock(table({ caption: "Specifications" }), 0, options),
+    ).toEqual({
+      type: "table",
+      headers: ["Lens", "Weight"],
+      rows: [["Model A", "1480 g"]],
+      caption: "Specifications",
+      key: "k",
+    });
+  });
+
+  it("omits an absent caption rather than carrying an empty one", () => {
+    const block = projectContentBlock(table({}), 0, options);
+    expect(block).not.toHaveProperty("caption");
+    // The flat projection returns null for a field this _type does not set,
+    // so an explicit null has to read as "no caption", not as a defect.
+    expect(projectContentBlock(table({ caption: null }), 0, options)).toEqual(
+      block,
+    );
+  });
+
+  it("keeps an empty cell, which is authored content rather than a defect", () => {
+    const block = projectContentBlock(
+      table({ rows: [{ cells: ["Model C", ""] }] }),
+      0,
+      options,
+    );
+    expect(block).toMatchObject({ rows: [["Model C", ""]] });
+  });
+
+  it("accepts a row whose cells are all empty", () => {
+    expect(
+      projectContentBlock(table({ rows: [{ cells: ["", ""] }] }), 0, options),
+    ).toMatchObject({ rows: [["", ""]] });
+  });
+
+  it("accepts both ends of the column and row bounds", () => {
+    const widest = Array.from({ length: MAX_TABLE_COLUMNS }, (_, i) => `H${i}`);
+    expect(
+      projectContentBlock(
+        table({ headers: widest, rows: [{ cells: widest.map(() => "x") }] }),
+        0,
+        options,
+      ),
+    ).toMatchObject({ headers: widest });
+
+    const tallest = Array.from({ length: MAX_TABLE_ROWS }, (_, i) => ({
+      cells: [`row ${i}`, "x"],
+    }));
+    expect(
+      projectContentBlock(table({ rows: tallest }), 0, options),
+    ).toMatchObject({ rows: tallest.map((row) => row.cells) });
+
+    // One column, one row: the narrowest table the bounds allow.
+    expect(
+      projectContentBlock(
+        table({ headers: ["Only"], rows: [{ cells: ["x"] }] }),
+        0,
+        options,
+      ),
+    ).toMatchObject({ headers: ["Only"], rows: [["x"]] });
+  });
+
+  it.each([
+    ["no headers at all", { headers: undefined }],
+    ["an empty header list", { headers: [] }],
+    ["headers that are not an array", { headers: "Lens" }],
+    [
+      "more headers than the column bound",
+      {
+        headers: Array.from({ length: MAX_TABLE_COLUMNS + 1 }, (_, i) => `H${i}`),
+        rows: [
+          { cells: Array.from({ length: MAX_TABLE_COLUMNS + 1 }, () => "x") },
+        ],
+      },
+    ],
+    ["a blank header", { headers: ["Lens", "  "] }],
+    ["a non-string header", { headers: ["Lens", 7] }],
+    ["no rows at all", { rows: undefined }],
+    ["an empty row list", { rows: [] }],
+    ["rows that are not an array", { rows: { cells: ["x", "y"] } }],
+    [
+      "more rows than the row bound",
+      {
+        rows: Array.from({ length: MAX_TABLE_ROWS + 1 }, () => ({
+          cells: ["a", "b"],
+        })),
+      },
+    ],
+    ["a row that is not an object", { rows: [["Model A", "1480 g"]] }],
+    ["a row with no cells", { rows: [{}] }],
+    ["a row whose cells are not an array", { rows: [{ cells: "Model A" }] }],
+    ["a short row", { rows: [{ cells: ["Model A"] }] }],
+    ["a long row", { rows: [{ cells: ["Model A", "1480 g", "extra"] }] }],
+    ["a non-string cell", { rows: [{ cells: ["Model A", 1480] }] }],
+    ["a blank caption", { caption: "   " }],
+  ])("rejects %s", (_case, fields) => {
+    const error = rejectionOf(() =>
+      projectContentBlock(table(fields), 3, options),
+    );
+    expect(error.rejection).toBe("malformed-block");
+    expect(error.message).toContain("position 3");
+  });
+});
+
 describe("malformed blocks", () => {
   it.each([
     ["a paragraph with no text", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph }],
-    ["a heading with an invalid level", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 4, text: "x" }],
+    ["a heading with an invalid level", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 5, text: "x" }],
     ["a list with no items", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.list, ordered: false, items: [] }],
     ["a quote with no text", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.blockquote }],
     ["a media block with no resolved reference", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.media }],
@@ -243,4 +375,65 @@ describe("reading a whole body", () => {
     ];
     expect(() => readContentBlocks(body, options)).not.toThrow();
   });
+
+  it("accepts descending one level at a time down to level 4 (AB#21)", () => {
+    const body: readonly RawContentBlock[] = [
+      { _key: "b1", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 2, text: "Section" },
+      { _key: "b2", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 3, text: "Subsection" },
+      { _key: "b3", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 4, text: "Detail" },
+    ];
+    expect(() => readContentBlocks(body, options)).not.toThrow();
+  });
+
+  it("rejects a level-2-to-level-4 skip (AB#21) — an API import bypasses Studio's own guard", () => {
+    const body: readonly RawContentBlock[] = [
+      { _key: "b1", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 2, text: "Section" },
+      { _key: "b2", _type: CONTENT_BLOCK_OBJECT_TYPES.heading, level: 4, text: "Too deep" },
+    ];
+    const error = rejectionOf(() => readContentBlocks(body, options));
+    expect(error.rejection).toBe("non-semantic-heading-order");
+  });
+});
+
+describe("mini-gallery projection", () => {
+  const entry = (key: string) => ({ _key: key, media: mediaDocument });
+  const block = (images: unknown) => ({ _key: "set", _type: CONTENT_BLOCK_OBJECT_TYPES["mini-gallery"], images });
+
+  it("preserves repeated media as distinct occurrences and projects only public fields", () => {
+    const result = projectContentBlock({ ...block([
+      { ...entry("first"), archiveLocator: "private-entry", media: { ...mediaDocument, archiveLocator: "private-medium" } },
+      entry("second"),
+    ]), title: "Details" }, 0, options);
+    expect(result.type).toBe("mini-gallery");
+    if (result.type !== "mini-gallery") throw new Error("wrong block");
+    expect(result.items.map(i => i.key)).toEqual(["first", "second"]);
+    expect(result.items[0].media.mediaId).toBe(result.items[1].media.mediaId);
+    expect(JSON.stringify(result)).not.toMatch(/archiveLocator|private-entry|private-medium|asset|_key/);
+  });
+
+  it("accepts the maximum and refuses an overfull block before media projection", () => {
+    expect(projectContentBlock(block(Array.from({ length: 12 }, (_, i) => entry(String(i)))), 0, options).type).toBe("mini-gallery");
+    expect(rejectionOf(() => projectContentBlock(block(Array(13).fill(null)), 0, options)).rejection).toBe("malformed-block");
+  });
+
+  it.each([undefined, null, {}, [], [null], [{ _key: "x", media: null }], [entry("x"), entry("x")], [{ media: mediaDocument }]])(
+    "refuses malformed lists or occurrence identities: %j", images => {
+      expect(rejectionOf(() => projectContentBlock(block(images), 0, options)).rejection).toBe("malformed-block");
+    },
+  );
+
+  it.each(["", " ", 42, "x".repeat(121)])("refuses malformed titles: %j", title => {
+    expect(rejectionOf(() => projectContentBlock({ ...block([entry("a")]), title }, 0, options)).rejection).toBe("malformed-block");
+  });
+
+  it.each([
+    { publiclyRenderable: false }, { privateOnly: true }, { mediaType: "video" }, { asset: null },
+  ])("refuses media outside the public derivative boundary: %j", change => {
+    expect(() => projectContentBlock(block([{ _key: "a", media: { ...mediaDocument, ...change } }]), 0, options)).toThrow();
+  });
+});
+
+it("bounds reference expansion at the maximum plus one overflow witness", async () => {
+  const { CONTENT_BLOCK_PROJECTION } = await import("./sanity-content-blocks");
+  expect(CONTENT_BLOCK_PROJECTION).toContain('"images": images[0...13]{_key, "media": media->');
 });

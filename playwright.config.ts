@@ -79,9 +79,23 @@ export default defineConfig({
   retries: isContinuousIntegration ? 1 : 0,
   // A `test.only` left in a commit would silently shrink the gate.
   forbidOnly: isContinuousIntegration,
-  // Bounds a hung pipeline job. Unset locally, where a debugging session is
-  // allowed to take as long as it takes.
-  globalTimeout: isContinuousIntegration ? 15 * 60 * 1000 : undefined,
+  /**
+   * Bounds a hung pipeline job. Unset locally, where a debugging session is
+   * allowed to take as long as it takes.
+   *
+   * **Raised from 15 to 30 minutes** after the suite's own growth (AB#157 alone
+   * added ~90 tests across two engines) outran the old bound: build #329
+   * (2026-09-13, CI, 2 workers) hit the 15-minute wall with only 441 of 582
+   * tests resolved — the 15 reported failures were every one the same symptom,
+   * `page.goto` timing out at the same wall-clock instant across unrelated
+   * spec files, and 141 tests never started at all. That is the global
+   * timeout tearing the run down mid-flight, not 15 independent bugs: none of
+   * the 414 that did complete failed. Extrapolating that throughput
+   * (441 tests / 15 min) put the full suite at roughly 20 minutes; 30 minutes
+   * keeps a real hang bounded while leaving headroom for day-to-day hosted-agent
+   * variance instead of chasing the measurement to the minute.
+   */
+  globalTimeout: isContinuousIntegration ? 30 * 60 * 1000 : undefined,
 
   // A hosted agent is slower than a laptop, and the first request to a freshly
   // started server pays for whatever it has not warmed up yet.

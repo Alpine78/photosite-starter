@@ -7,7 +7,10 @@ import {
   EXCLUDED_LEGACY_PATHS,
   PENDING_LEGACY_PATHS,
 } from "../src/lib/legacy-redirects-tracking";
-import { RETIRED_TAG_PATHS } from "../src/lib/legacy-redirects-data";
+import {
+  RETIRED_TAG_PATHS,
+  STRUCTURAL_REDIRECT_ENTRIES,
+} from "../src/lib/legacy-redirects-data";
 import { buildLocaleRouteConfig } from "../src/lib/locale-routes";
 import { expect, test } from "./support/fixtures";
 import {
@@ -30,9 +33,18 @@ import {
  * yet), an excluded row, and a legacy-shaped path the crawl never saw all
  * still get the site's ordinary not-found behavior.
  *
- * No `redirect` row exists yet (every decided row this pass is `gone`), so
- * there is no 301 journey here — that gap is deliberate, not an oversight;
- * see `legacy-redirects-tracking.ts` for what remains open.
+ * `STRUCTURAL_REDIRECT_ENTRIES` (added 2026-09-13) is this registry's first
+ * `redirect`-kind data, so the 301 journey below is no longer a deliberate
+ * gap: each row's target is proven to answer 200 in the harness's own
+ * locale configuration, not just that `resolveLegacyRedirect` names the
+ * right string. The harness deliberately runs an inverted locale
+ * configuration from production's real first-site deployment (English
+ * default and unprefixed, Finnish prefixed — see `harness-environment.ts`),
+ * so this journey proves the redirect *mechanism* generically; the
+ * same-language, non-blanket justification for each specific row is
+ * recorded against the real production locale configuration in
+ * `legacy-redirects-data.ts`'s own comment instead, since only that
+ * deployment's actual locale assignment makes the justification meaningful.
  */
 
 /**
@@ -187,6 +199,99 @@ test("a decided legacy path's trailing-slash variant still resolves to the same 
   // The generic trailing-slash normalization redirect, then the terminal
   // 410 — never a redirect landing on another redirect.
   expect(navigationStatuses).toEqual([308, 410]);
+});
+
+test("a decided structural redirect answers 301 and lands directly on its declared target, never through another legacy row", async ({
+  page,
+}) => {
+  test.skip(
+    STRUCTURAL_REDIRECT_ENTRIES.length === 0,
+    "no decided structural redirect rows in this clone's data",
+  );
+
+  for (const entry of STRUCTURAL_REDIRECT_ENTRIES) {
+    if (entry.outcome.kind !== "redirect") continue;
+    const target = entry.outcome.target;
+
+    // A fresh page per row, so each row's own response listener cannot see
+    // another row's navigation.
+    const rowPage = await page.context().newPage();
+    const navigationStatuses: number[] = [];
+    rowPage.on("response", (response) => {
+      if (response.request().isNavigationRequest()) {
+        navigationStatuses.push(response.status());
+      }
+    });
+
+    const response = await rowPage.goto(entry.source, {
+      waitUntil: "domcontentloaded",
+    });
+
+    expect(response?.status(), entry.source).toBe(200);
+    expect(new URL(rowPage.url()).pathname, entry.source).toBe(target);
+    // One redirect hop straight to the target — never a second 301 landing
+    // on another decided row (ADR-0003 decision 9: "aliases resolve
+    // directly to the final target, never through another legacy URL").
+    expect(navigationStatuses, entry.source).toEqual([301, 200]);
+
+    await rowPage.close();
+  }
+});
+
+test("a decided structural redirect's query string rides through unexamined", async ({
+  page,
+}) => {
+  const entry = STRUCTURAL_REDIRECT_ENTRIES.find(
+    (candidate) => candidate.outcome.kind === "redirect",
+  );
+  test.skip(
+    entry === undefined,
+    "no decided structural redirect rows in this clone's data",
+  );
+  if (entry === undefined || entry.outcome.kind !== "redirect") return;
+
+  await page.goto(`${entry.source}?start=20`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  const landedUrl = new URL(page.url());
+  expect(landedUrl.pathname).toBe(entry.outcome.target);
+  expect(landedUrl.searchParams.get("start")).toBe("20");
+});
+
+test("a decided structural redirect's trailing-slash variant still resolves to the same target in one extra hop, not a chain", async ({
+  page,
+}) => {
+  // "/valokuvaus" itself carries no trailing slash, so its slash-bearing
+  // variant is not itself a registry row and must fall through the generic
+  // trailing-slash normalization first — the same shape already proven for
+  // a decided `gone` row above, now proven for a decided `redirect` row.
+  const entry = STRUCTURAL_REDIRECT_ENTRIES.find(
+    (candidate) =>
+      candidate.outcome.kind === "redirect" && !candidate.source.endsWith("/"),
+  );
+  test.skip(
+    entry === undefined,
+    "no decided structural redirect row without a trailing slash in this clone's data",
+  );
+  if (entry === undefined || entry.outcome.kind !== "redirect") return;
+
+  const navigationStatuses: number[] = [];
+  page.on("response", (response) => {
+    if (response.request().isNavigationRequest()) {
+      navigationStatuses.push(response.status());
+    }
+  });
+
+  const response = await page.goto(`${entry.source}/`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  expect(response?.status()).toBe(200);
+  expect(new URL(page.url()).pathname).toBe(entry.outcome.target);
+  // The generic trailing-slash normalization redirect, then this row's own
+  // decided 301 — never a redirect landing on another redirect's source.
+  expect(navigationStatuses).toEqual([308, 301, 200]);
 });
 
 test("a pending legacy path has no decided outcome yet and answers the ordinary 404", async ({

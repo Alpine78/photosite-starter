@@ -1,3 +1,5 @@
+import { miniGalleryNames } from "@/lib/content-mini-gallery";
+import { ContentMiniGallery } from "@/components/content-mini-gallery";
 import { ContentBodyFigure } from "@/components/content-body-figure";
 import { GalleryLightbox } from "@/components/gallery-lightbox";
 import { buildContentBodyLightboxSlides } from "@/lib/content-body-lightbox-server";
@@ -25,6 +27,7 @@ type ContentBodyProps = {
    * every caller. Defaults to `contentBody`, tuned for the article's `<main>`.
    */
   sizes?: string;
+  miniGallerySizes?: string;
 };
 
 /**
@@ -40,15 +43,17 @@ type ContentBodyProps = {
  * run (`ContentBodyFigure`); a video placement still renders nothing and never
  * becomes a slide.
  *
- * Level-2 headings carry the ids the derived table of contents links to. Both
- * sides read them from `buildHeadingIds`, so the fragment a link writes and the
- * anchor a heading renders cannot drift apart.
+ * Every heading (h2, h3, h4) carries the id the derived table of contents
+ * links to. Both sides read them from `buildHeadingIds`, so the fragment a
+ * link writes and the anchor a heading renders cannot drift apart.
  */
 export function ContentBody({
   blocks,
   labels,
   sizes = imageRenderProfiles.contentBody.sizes,
+  miniGallerySizes = imageRenderProfiles.contentMiniGallery.sizes,
 }: ContentBodyProps) {
+  const galleryNames = miniGalleryNames(blocks, labels.miniGallery.label);
   const headingIds = buildHeadingIds(blocks);
   const bodyImages = indexContentBodyImages(blocks);
   const slides = buildContentBodyLightboxSlides(blocks);
@@ -57,6 +62,16 @@ export function ContentBody({
     <div className="space-y-6">
       {blocks.map((block, index) => {
         switch (block.type) {
+          case "mini-gallery":
+            return (
+              <ContentMiniGallery
+                key={block.key ?? index}
+                block={block}
+                labels={labels}
+                name={galleryNames.get(index)!}
+                sizes={miniGallerySizes}
+              />
+            );
           case "paragraph":
             return (
               <p key={block.key ?? index} className="leading-7 text-body">
@@ -64,28 +79,42 @@ export function ContentBody({
               </p>
             );
 
-          case "heading":
+          case "heading": {
+            // Every level is a jump target (AB#21), so every level keeps
+            // clear of a future sticky header rather than landing under it.
+            const id = headingIds.get(index);
             if (block.level === 2) {
               return (
                 <h2
                   key={block.key ?? index}
-                  id={headingIds.get(index)}
-                  // Anchored headings are jump targets, so they keep clear of a
-                  // future sticky header rather than landing under it.
+                  id={id}
                   className="mt-10 scroll-mt-24 text-2xl font-semibold tracking-tight first:mt-0"
                 >
                   {block.text}
                 </h2>
               );
             }
+            if (block.level === 3) {
+              return (
+                <h3
+                  key={block.key ?? index}
+                  id={id}
+                  className="mt-6 scroll-mt-24 text-xl font-medium tracking-tight"
+                >
+                  {block.text}
+                </h3>
+              );
+            }
             return (
-              <h3
+              <h4
                 key={block.key ?? index}
-                className="mt-6 text-xl font-medium tracking-tight"
+                id={id}
+                className="mt-4 scroll-mt-24 text-lg font-medium tracking-tight"
               >
                 {block.text}
-              </h3>
+              </h4>
             );
+          }
 
           case "blockquote":
             return (
@@ -151,6 +180,65 @@ export function ContentBody({
                   </li>
                 ))}
               </ul>
+            );
+
+          case "table":
+            return (
+              // The scroll container is the accessible element, not the table:
+              // a wide comparison table has to be reachable by keyboard alone,
+              // and a scrollable box is only keyboard-scrollable once it can
+              // hold focus. `tabIndex` is unconditional rather than applied by
+              // script once the table actually overflows, so the keyboard path
+              // survives with JavaScript off — the cost is one tab stop on a
+              // table narrow enough not to need it.
+              //
+              // Named with `aria-label` rather than `aria-labelledby` pointing
+              // at the caption: the name is the same either way, and this needs
+              // no generated id, so two tables sharing a caption cannot collide
+              // with each other or with a heading's own anchor namespace.
+              // `<caption>` still names the table itself natively.
+              <div
+                key={block.key ?? index}
+                role="region"
+                aria-label={block.caption ?? labels.table.label}
+                tabIndex={0}
+                className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                <table className="w-full border-collapse text-left text-sm">
+                  {block.caption !== undefined && (
+                    <caption className="mb-2 text-left text-sm text-muted">
+                      {block.caption}
+                    </caption>
+                  )}
+                  <thead>
+                    <tr>
+                      {block.headers.map((header, column) => (
+                        <th
+                          key={column}
+                          scope="col"
+                          className="border-b border-border-strong px-3 py-2 font-semibold whitespace-nowrap text-foreground"
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((row, rowIndex) => (
+                      <tr key={rowIndex}>
+                        {row.map((cell, column) => (
+                          <td
+                            key={column}
+                            className="border-b border-border-control px-3 py-2 align-top text-body"
+                          >
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             );
 
           case "youtube":

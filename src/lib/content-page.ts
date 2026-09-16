@@ -1,3 +1,4 @@
+import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
 /**
  * The public content page itself: one gallery or article, as the route layer
  * and its renderers see it.
@@ -24,7 +25,7 @@ import type { ImageMedia, Media } from "@/lib/media";
 import type { SiteSettings } from "@/lib/site-settings";
 
 /**
- * The six body blocks ADR-0003 decision 2 gives both variants. The page title
+ * The eight body blocks ADR-0003 decision 2 gives both variants. The page title
  * owns the single `h1`, so an authored heading starts at level 2.
  *
  * `key` is a stable per-block identity, distinct from the position a block
@@ -36,8 +37,15 @@ import type { SiteSettings } from "@/lib/site-settings";
  * to the wrong block.
  */
 export type ContentBlock =
+  | {
+      type: "mini-gallery";
+      title?: string;
+      /** Occurrence identity belongs to this placement, not the shared medium. */
+      items: readonly { key?: string; media: Media }[];
+      key?: string;
+    }
   | { type: "paragraph"; text: string; key?: string }
-  | { type: "heading"; level: 2 | 3; text: string; key?: string }
+  | { type: "heading"; level: 2 | 3 | 4; text: string; key?: string }
   | { type: "blockquote"; text: string; attribution?: string; key?: string }
   | {
       type: "media";
@@ -45,6 +53,30 @@ export type ContentBlock =
       key?: string;
     }
   | { type: "list"; ordered: boolean; items: string[]; key?: string }
+  | {
+      /**
+       * A small comparison table (AB#22). Plain text throughout, matching
+       * `paragraph` and `list`: a cell carries no inline formatting, link, or
+       * nested block, so nothing here can smuggle in a second body model.
+       *
+       * The shape is rectangular by contract — `rows[n].length ===
+       * headers.length` for every row — and the adapter boundary is what
+       * enforces it (`sanity-content-blocks.ts`), the same place every other
+       * block's own invariants are checked. A renderer may therefore trust it.
+       */
+      type: "table";
+      /** 1..`MAX_TABLE_COLUMNS` column headers, each non-empty. */
+      headers: readonly string[];
+      /**
+       * 1..`MAX_TABLE_ROWS` data rows. A *cell* may be empty — a comparison
+       * table legitimately has gaps — but a row may not be short: a ragged row
+       * would silently shift every cell after it under the wrong header.
+       */
+      rows: readonly (readonly string[])[];
+      /** Optional; non-empty when authored. Renders as the `<caption>`. */
+      caption?: string;
+      key?: string;
+    }
   | {
       type: "youtube";
       videoId: string;
@@ -113,6 +145,13 @@ type ContentPageBase = {
 export type ArticleContentPage = ContentPageBase & {
   readonly variant: "article";
   /**
+   * Stable identity of this article's optional, separately paginated result
+   * after the body (AB#161). Its placements are read through
+   * `article-end-gallery.ts`; they never enter `body`, so loose images and
+   * mini-galleries retain their own viewer sequences.
+   */
+  readonly endGalleryId?: string;
+  /**
    * The article's own byline, overriding the site-wide photographer name for
    * this one page (AB#151). Article-only — a curated gallery is credited to
    * the site's photographer by construction (every photograph in it already
@@ -128,7 +167,7 @@ export type ArticleContentPage = ContentPageBase & {
  * A curated photographic series. Its ordered result set is the shared gallery
  * contract's (AB#66) and is deliberately not a field here; AB#104 renders it.
  */
-export type GalleryContentPage = ContentPageBase & {
+export type GalleryContentPage = ContentPageBase & GalleryPresentationFields & {
   readonly variant: "gallery";
 };
 
@@ -198,23 +237,32 @@ export function effectiveArticleAuthor(
 
 /**
  * The page title owns the single `h1` (see `ContentBlock`'s own doc comment),
- * so a body's first heading has to be level 2 — a level-3 heading appearing
- * before any level-2 heading would skip a level, breaking the semantic
- * hierarchy AB#106 requires. Fails fast, matching this project's other
- * structural `assert*` boundaries (`assertGallerySections`,
- * `assertPlacements`), rather than collecting every issue.
+ * so a body's first heading has to be level 2. Beyond that, a heading may stay
+ * at the level before it, descend one level deeper, or return to any
+ * shallower level — but never skip a level going deeper, e.g. level 2
+ * straight to level 4 (AB#21, generalizing AB#106's original two-level rule).
+ * A non-heading block never resets this: only the *previous heading*, not
+ * position in the body, decides what a heading may do next. Fails fast,
+ * matching this project's other structural `assert*` boundaries
+ * (`assertGallerySections`, `assertPlacements`), rather than collecting every
+ * issue.
  */
 export function assertSemanticHeadingOrder(blocks: readonly ContentBlock[]): void {
-  let sawLevel2 = false;
+  let previousLevel: number | undefined;
   for (const block of blocks) {
     if (block.type !== "heading") continue;
-    if (block.level === 2) {
-      sawLevel2 = true;
-    } else if (!sawLevel2) {
+    if (previousLevel === undefined) {
+      if (block.level !== 2) {
+        throw new TypeError(
+          "The body's first heading must be level 2 — the page title owns h1, so nothing may appear above it",
+        );
+      }
+    } else if (block.level > previousLevel + 1) {
       throw new TypeError(
-        "A level-3 heading appears before any level-2 heading — the page title owns h1, so the body's first heading must be level 2",
+        `A heading skips from level ${previousLevel} to level ${block.level} — a heading may only stay level, descend one level, or return to any shallower level`,
       );
     }
+    previousLevel = block.level;
   }
 }
 

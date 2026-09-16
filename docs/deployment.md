@@ -954,6 +954,69 @@ its canonical home is one indexing accident away from competing with it.
 **Verify** runs on every push and pull request to `main`: lint, the browser-free test
 suite, the production build, and the Playwright journey suites.
 
+### The Verify stage runs on a self-hosted agent
+
+`Verify` runs in the organization's `Default` pool, a self-hosted agent, not a
+Microsoft-hosted `vmImage`. The free Microsoft-hosted tier for a private Azure DevOps
+project is one parallel job capped at 1,800 minutes/month; this pipeline's own journey
+suite exhausted that quota (2026-09-16), and an additional Microsoft-hosted parallel job
+is a recurring $40/month while an additional self-hosted one is $15/month — the
+organization already had one self-hosted parallel job free and unused. `Verify` reaches
+no external service and handles no deployment secret, so moving it is a plain cost
+decision — it also runs on every pull request, which is exactly what makes it *unsafe*
+to share with a stage that does handle a secret (see below).
+
+`DeployPreview` was briefly moved to the same self-hosted agent on 2026-09-16 to avoid
+the $40/month Microsoft-hosted cost entirely, then moved back the same day once an
+independent Codex review caught what that shared: `Verify` also runs pull-request code
+on that same persistent machine, and a persistent agent doesn't reset between jobs the
+way a Microsoft-hosted one does — so a compromised dependency pulled in by a PR's own
+`npm ci` could leave something behind (a modified `PATH` entry, a wrapped binary) that a
+later `DeployPreview` run on the same machine picks up alongside the real
+`photosite-starter-vercel-preview` Vercel token, automation bypass secret, and Sanity
+build read token in that job's environment. That is a materially different risk from
+"a credential touches a personal machine" — it is "PR-triggered code gets a path to a
+deployment credential" — so `DeployPreview` **stays on `vmImage: "ubuntu-latest"`**.
+Concretely this means `DeployPreview` keeps failing on the exhausted quota exactly as it
+already was, until the quota resets (~2 weeks from 2026-09-16) or an extra
+Microsoft-hosted parallel job is purchased — the same state as before this pool existed,
+not a new cost or a new failure.
+
+Registering the agent (owner-run, on the machine that will build):
+
+1. Azure DevOps → user settings → **Personal access tokens** → create one scoped to
+   **Agent Pools (Read & manage)** only, with a short expiry. This token is typed once
+   into the agent's own setup prompt and is not this project's `az devops` credential.
+2. Download the Linux x64 agent package from the organization's **Organization
+   settings → Agent pools → Default → New agent** page (the download link is
+   version-pinned per organization; there is no stable public URL to hardcode here).
+3. Extract it into its own directory and run interactively:
+   ```bash
+   ./config.sh --url https://dev.azure.com/ilkkarytkonen --auth pat \
+     --pool Default --agentName <machine-name>
+   ```
+   Enter the PAT from step 1 when prompted; accept the default work folder.
+4. Run it as a persistent service so a queued build does not wait on the machine being
+   awake with a terminal open: `sudo ./svc.sh install && sudo ./svc.sh start`.
+5. `UseNode@1` installs the pinned Node major itself, but Playwright's browser OS
+   dependencies are the operator's own one-time step, not the pipeline's: run
+   `sudo npx playwright install-deps chromium webkit` once on the agent host. Playwright's
+   own `--with-deps` flag always re-invokes `sudo sh -c "apt-get ..."` internally, which
+   cannot succeed non-interactively (`sudo: A terminal is required to authenticate`)
+   without granting effectively unrestricted passwordless root — sudoers cannot scope a
+   `sh -c` invocation any narrower than that, since the script body is arbitrary. A
+   persistent self-hosted agent doesn't need to reinstall the same OS packages on every
+   run the way a fresh Microsoft-hosted `ubuntu-latest` image would anyway, so the
+   pipeline step omits `--with-deps` (just `npx playwright install chromium webkit`) and
+   this one-time manual step replaces it — re-run it after a Playwright version bump
+   changes which system libraries a browser needs.
+
+The tradeoff this accepts: `Verify` only runs while the registered machine is powered on
+and the agent service is running. A queued run waits rather than failing, but a
+photographer relying on this template for real CI should weigh that against the $40/month
+Microsoft-hosted alternative once the free self-hosted allotment is not enough (e.g. a
+second concurrent pipeline).
+
 **Preview release candidate** runs only when all four of these hold:
 
 - every gate above passed;

@@ -22,6 +22,7 @@ import type {
   GallerySection,
   GallerySectionSummary,
 } from "@/lib/gallery-sections";
+import type { GalleryPresentation } from "@/lib/gallery-presentation";
 import type { GallerySlice } from "@/lib/gallery-slice";
 
 type ContentGalleryProps = {
@@ -72,6 +73,8 @@ type ContentGalleryProps = {
    * have no way back to the first three, because a cursor only points forward.
    */
   firstPageHref?: string;
+  /** How the grid lays its items out and where their captions sit (AB#157). */
+  presentation: GalleryPresentation;
   /**
    * Whether this render is a later slice rather than the gallery's first page.
    *
@@ -98,9 +101,9 @@ type ContentGalleryProps = {
  * `body: readonly ContentBlock[]`, never an article-specific type. The
  * page-jump navigation always offers a link to the grid (`#gallery`, an
  * in-page anchor rather than a route) once a long body exists, and
- * additionally lists the body's level-2 headings when it has any, reusing
- * the same `listContentHeadings`/`ContentPageJumpNav` the article variant's
- * heading-only navigation is built from.
+ * additionally lists the body's headings (levels 2-4, nested by depth) when
+ * it has any, reusing the same `listContentHeadings`/`ContentPageJumpNav` the
+ * article variant's heading-only navigation is built from.
  *
  * The cover, when explicitly authored, is now a full-bleed hero at the head of
  * the page (AB#149, ADR-0003's 2026-09-04 amendment, ADR-0016's mechanism):
@@ -145,6 +148,7 @@ export function ContentGallery({
   activeSection,
   selectedSection,
   firstPageHref,
+  presentation,
   isContinuation = false,
   breadcrumbs,
   languages,
@@ -257,6 +261,7 @@ export function ContentGallery({
                   blocks={page.body}
                   labels={labels}
                   sizes={imageRenderProfiles.galleryBody.sizes}
+                  miniGallerySizes={imageRenderProfiles.galleryMiniGallery.sizes}
                 />
               </div>
             </div>
@@ -300,6 +305,7 @@ export function ContentGallery({
                 initialSlice={slice}
                 galleryPath={galleryPath}
                 activeSection={activeSection?.slug}
+                presentation={presentation}
                 labels={labels}
               />
             ) : (

@@ -157,6 +157,51 @@ with JavaScript enabled and says why at the point it does. The link itself is se
 request header, with no client code involved — so it needs no change when the framework
 behaviour does.
 
+**2026-09-03, later the same day: root cause isolated.** The defect is specifically
+`notFound()` called from a **matched route**, not 404s in general: a genuinely unmatched
+URL renders its `not-found.tsx` correctly, with a real `<h1>` in the initial HTML. This
+site's optional catch-all (`[localePrefix]/[[...segments]]`) matches every unknown public
+path, so no request here ever reaches Next's working unmatched-URL branch — every 404 on
+the site goes through the broken one. Reproduced in a minimal four-file app outside this
+codebase (no proxy, no route groups, no config), which rules this in as a framework
+behavior rather than an application defect. A verified workaround exists — a Proxy rewrite
+onto a path matching no route makes Next take its working branch — but it requires the
+Proxy to know a request will be refused before the route decides, which is exactly what
+this ADR's O(1), content/adapter-read-free boundary forbids. That trade is a decision for
+the site owner, not something to make inside an investigation.
+
+**2026-09-11: this is a known, already-tracked upstream Next.js defect, not a
+photosite-starter-specific one.** Before doing anything further, the investigation
+checked for an existing report rather than assuming none existed:
+[vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228), open since
+February 2024, describes the identical matched-route-vs-unmatched-URL split, and was
+already reconfirmed against Next.js 16.3.1 and 16.3.3 by other reporters days before this
+check. A first proposed fix, `#88491`, was rebased and reworked once already (2026-08-27)
+after the code it patched was restructured, but its author closed it unmerged on
+2026-09-04 — not merely stalled, abandoned. A follow-up attempt, `#98455`
+("Fixes #62228"), opened 2026-09-09 by a different contributor, cites #88491 by name and
+takes a similar approach against the current code structure; still open and receiving
+updates as of this check, it is the current live fix candidate, but neither has landed.
+A fresh, independent minimal reproduction — the same four files quoted above,
+against `next@16.3.5` (current stable), `react`/`react-dom@19.3.0`, Node `24.20.0` —
+confirmed the defect still reproduces and was added to that thread as a comment, with two
+diagnostic details not previously called out there: the response's own `<html>` tag has
+its author-set attributes replaced by `id="__next_error__"` in the broken case, and the
+broken response's RSC flight payload carries an error digest
+(`NEXT_HTTP_ERROR_FALLBACK;404`) that the working response's payload does not — even
+though both payloads correctly serialize the same rendered not-found tree. This does not
+change any of the "Done when" conditions above; it establishes that the fix, if it comes,
+will come from upstream.
+
+**Owner decision, 2026-09-11: retain this ADR's O(1) Proxy boundary; do not implement a
+pre-route content check to work around this.** The verified workaround above is a lead
+with a named cost, not yet shown to be the only path, and trading away this boundary for
+one story is not a decision to make inside that story. AB#132 stays `Active`, the
+continuation journeys keep their `javaScriptEnabled: true` exception, and this limitation
+stays open — tracked upstream rather than solved locally — until either the upstream fix
+lands or the trade-off above is revisited on its own terms, which should happen no later
+than before AB#18's production promotion if the upstream issue is still open by then.
+
 ## Action items
 
 - [x] `src/proxy.ts` with the bounded copy, the unconditional overwrite, and a narrow matcher
@@ -166,6 +211,9 @@ behaviour does.
       return-link resolution through canonical normalization, cursor-aware trailing-slash
       behavior, and a journey proving spoofed headers cannot choose the target
 - [x] A work item for the non-semantic initial 404 document: **AB#132**, which carries the
-      ruled-out experiments above. Start with a minimal reproduction, check a newer
-      release, and open an upstream issue if it still holds. Retiring the limitation below
-      also retires the JavaScript-enabled exception in the continuation journey.
+      ruled-out experiments and the root-cause isolation above. A minimal reproduction
+      confirmed this is a known, still-open upstream Next.js defect
+      ([vercel/next.js#62228](https://github.com/vercel/next.js/issues/62228)) rather than
+      an application-specific one; the owner decision above tracks it there instead of
+      working around it locally. Retiring the limitation below also retires the
+      JavaScript-enabled exception in the continuation journey.

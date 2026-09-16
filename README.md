@@ -374,14 +374,16 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
   and optional long-form body content — *shared bounded result contract, the canonical
   gallery route inside the content tree with breadcrumbs, metadata, and a deterministic
-  cover, the row-major grid that reads in the gallery's own order at one, two, and three
+  cover, the default row-major grid that reads in the gallery's own order at one, two, and three
   columns, the fullscreen lightbox (open, close, navigate, caption and credit)
   ([ADR-0001](docs/adr/0001-lightbox-library.md)), and server-rendered cursor
   continuation — a real `href` that pages through a large gallery with no JavaScript —
   and the in-place append — the same link enhanced to bring the next slice into the
   page, with the lightbox continuing past the items it was opened from — and an
   optional lead and long-form body sharing the article variant's own block set and
-  content-derived page-jump navigation (AB#106), and click/tap/keyboard zoom with
+  content-derived page-jump navigation (AB#106), inline mini-galleries on both variants
+  (AB#24: 1–12 uncropped images, up to two columns, a distinct accessible list name and
+  independent viewer per block, plain images without JavaScript, no pagination), and click/tap/keyboard zoom with
   bounded pan, a state-announcing zoom control, and a caption that steps aside while
   zoomed (AB#78), and an optional per-gallery seeded-random ordering rule — a
   deterministic shuffle with pinned leads, materialized once rather than rolled per
@@ -570,3 +572,13 @@ project/team ownership, access protection, and non-indexability were not verifie
 the existing customer-owned Vercel project is still being provisioned, so the stage has
 never run. Keyword-driven dynamic galleries remain
 post-MVP. See the MVP scope checklist above.
+
+### Gallery presentation (AB#157)
+
+- [x] Site-wide `grid`, `masonry`, or `justified` layout and `below` or `overlay`
+  captions, independently overridable per gallery; all six combinations.
+- [x] Native image ratios, scriptless first/continuation pages, and stable appends;
+  masonry follows the same image order as the keyboard and lightbox.
+
+See [gallery presentation](docs/gallery-presentation.md) for the placement rule,
+responsive behaviour, caption access, inheritance, and measured verification.

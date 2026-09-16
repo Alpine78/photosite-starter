@@ -49,6 +49,7 @@
  * duplicate per language document.
  */
 
+import { ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME } from "./article-end-gallery-placement";
 import { GALLERY_TYPE_NAME } from "./gallery";
 import { MEDIA_TYPE_NAME } from "./media";
 import type {
@@ -199,7 +200,7 @@ async function validateGalleryPlacementPublication(
         "mediaRef": media._ref
       },
       "conflicting": *[
-        _type == $type &&
+        _type in [$type, "${ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME}"] &&
         placementId == $placementId &&
         !sanity::versionOf($published)
       ]{

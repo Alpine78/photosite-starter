@@ -1,3 +1,4 @@
+import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
 /**
  * Authored bodies for the mock content tree, until the CMS adapter lands.
  *
@@ -36,11 +37,12 @@ import type { ContentVariant } from "@/lib/content-tree";
 import { withLocalizedText } from "@/lib/media";
 import { mockAuthoredContentRecords } from "@/lib/mock-content-listing";
 import { FIELDNOTE_NUMBERS, fieldnoteContentId } from "@/lib/mock-fieldnotes";
-import { mockImages } from "@/lib/mock-media";
+import { getMockImages, mockImages } from "@/lib/mock-media";
 
 /** What a page adds to the record a card already carries. */
-type AuthoredPage = {
+type AuthoredPage = GalleryPresentationFields & {
   readonly variant: ContentVariant;
+  readonly endGalleryId?: string;
   /**
    * Overrides the site-wide `photographerName` on this article's byline
    * (AB#151). Article-only by convention — never set on a `variant: "gallery"`
@@ -100,6 +102,15 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
     variant: "gallery",
     tags: ["coastal", "morning light"],
     body: [
+      { type: "media", media: mockImages.coastalLandscape },
+      { type: "mini-gallery", items: [
+        { media: mockImages.forestStream }, { media: mockImages.mistyBirch },
+        { media: mockImages.forestStream },
+      ] },
+      { type: "mini-gallery", items: [
+        { media: mockImages.openMarsh }, { media: mockImages.lakesideReeds },
+      ] },
+
       {
         type: "paragraph",
         text: "This series began as a habit rather than a plan: a handful of early starts turned into a standing appointment with the tide. Placeholder copy; replaced with real content from the CMS.",
@@ -133,9 +144,52 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
       },
     ],
   },
+  // AB#21: the gallery-side fixture authoring all three body heading levels
+  // (content-choosing-a-telephoto-lens is the article-side one), alongside
+  // `content-hero.spec.ts`'s existing use of this gallery to prove the
+  // no-authored-cover state — this body change does not touch its cover
+  // field.
   "content-polar-night-sessions": {
     variant: "gallery",
-    body: [],
+    body: [
+      {
+        type: "paragraph",
+        text: "Winter darkness above the Arctic Circle leaves a narrow window each day where the sky still holds some colour. Placeholder copy; replaced with real content from the CMS.",
+      },
+      { type: "heading", level: 2, text: "Planning around the light" },
+      {
+        type: "paragraph",
+        text: "The blue hour on either side of the short polar day is the most reliable window for a session; midday sun barely clears the horizon here. Placeholder copy.",
+      },
+      { type: "heading", level: 3, text: "Checking the aurora forecast" },
+      {
+        type: "paragraph",
+        text: "A clear forecast is necessary but not sufficient — cloud low on the horizon can still block a display a wider index would otherwise predict. Placeholder copy.",
+      },
+      { type: "heading", level: 4, text: "Reading the KP index" },
+      {
+        type: "paragraph",
+        text: "A KP index of three or higher is a reasonable minimum at this latitude, though a strong display can appear at lower values too. Placeholder copy.",
+      },
+      { type: "heading", level: 2, text: "Staying warm enough to wait" },
+      {
+        type: "paragraph",
+        text: "Most failed sessions end early because of cold hands, not clouds. Placeholder copy.",
+      },
+      // AB#22: the gallery-side table, proving the block is shared by both
+      // content variants rather than article-only. Deliberately narrow and
+      // caption-less, so the fixture layer also covers the fallback that names
+      // the scroll region from the built-in labels instead of a caption.
+      {
+        type: "table",
+        headers: ["Session", "Start", "Cloud cover"],
+        rows: [
+          ["Blue hour", "10:40", "Broken"],
+          ["Civil twilight", "11:25", "Overcast"],
+          ["Aurora watch", "21:00", "Clear"],
+        ],
+      },
+    ],
   },
   "content-awaiting-selection": {
     variant: "gallery",
@@ -168,8 +222,16 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
     variant: "gallery",
     body: [],
   },
+  "content-masonry-below": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "below", body: [] },
+  "content-masonry-overlay": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "overlay", body: [] },
+  "content-grid-overlay": { variant: "gallery", galleryLayout: "grid", galleryCaptionPlacement: "overlay", body: [] },
+  "content-justified-below": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
+  "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
+  "content-layout-single": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
+  "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-reading-coastal-light": {
     variant: "article",
+    endGalleryId: "coastal-light-end-gallery",
     tags: ["light", "coastal", "landscape"],
     body: [
       {
@@ -209,6 +271,10 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
         text: "The best telephoto is the one you can hand-hold reliably — weight and balance matter as much as optics.",
       },
       { type: "heading", level: 2, text: "Key specifications to evaluate" },
+      // AB#21: a level-3 and level-4 heading nested under this level-2
+      // section, so the fixture layer exercises the full three-level body
+      // heading model rather than only level 2.
+      { type: "heading", level: 3, text: "Build and handling" },
       {
         type: "list",
         ordered: false,
@@ -219,6 +285,35 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
           "Teleconverter compatibility",
           "Image stabilisation effectiveness in stops",
         ],
+      },
+      // AB#22: the article-side data table. Eight columns — the maximum — so
+      // the fixture exercises the overflow path the block's own scroll region
+      // exists for, and one deliberately empty cell, because a gap in a
+      // comparison table is authored content rather than a defect.
+      {
+        type: "table",
+        caption: "Placeholder specifications; replaced with real data from the CMS.",
+        headers: [
+          "Lens",
+          "Focal length",
+          "Max aperture",
+          "Weight",
+          "Min focus",
+          "Stabilisation",
+          "Sealing",
+          "Teleconverter",
+        ],
+        rows: [
+          ["Model A", "70–200 mm", "f/2.8", "1480 g", "0.96 m", "5.5 stops", "Yes", "1.4× / 2×"],
+          ["Model B", "100–400 mm", "f/4.5–5.6", "1395 g", "0.98 m", "5.0 stops", "Yes", "1.4×"],
+          ["Model C", "300 mm", "f/4", "755 g", "1.40 m", "4.0 stops", "Yes", ""],
+          ["Model D", "150–600 mm", "f/5–6.3", "2100 g", "2.20 m", "4.5 stops", "No", "1.4× / 2×"],
+        ],
+      },
+      { type: "heading", level: 4, text: "Weather sealing in the field" },
+      {
+        type: "paragraph",
+        text: "A weather-sealed lens still needs a matched body to be fully protected — check the manufacturer's own compatibility notes rather than assuming any sealed lens plus any sealed body adds up to a sealed system. Placeholder copy.",
       },
       {
         type: "media",
@@ -425,7 +520,44 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
   },
   "content-polar-night-sessions": {
     variant: "gallery",
-    body: [],
+    body: [
+      {
+        type: "paragraph",
+        text: "Napapiirin pohjoispuolinen talvipimeys jättää joka päivä kapean hetken, jolloin taivaalla on yhä hieman väriä. Paikkamerkkisisältöä; korvataan CMS:n oikealla sisällöllä.",
+      },
+      { type: "heading", level: 2, text: "Valon mukaan suunnittelu" },
+      {
+        type: "paragraph",
+        text: "Sinihetki lyhyen napapäivän molemmin puolin on kuvausajankohdista luotettavin; keskipäivän aurinko tuskin nousee horisontin yläpuolelle täällä. Paikkamerkkisisältöä.",
+      },
+      { type: "heading", level: 3, text: "Revontuliennusteen tarkistaminen" },
+      {
+        type: "paragraph",
+        text: "Kirkas ennuste on välttämätön mutta ei riittävä — matala pilvi horisontissa voi yhä estää näkymän, jonka laajempi indeksi muuten ennustaisi. Paikkamerkkisisältöä.",
+      },
+      { type: "heading", level: 4, text: "KP-indeksin lukeminen" },
+      {
+        type: "paragraph",
+        text: "KP-indeksi kolme tai enemmän on kohtuullinen vähimmäisarvo tällä leveysasteella, vaikka voimakas näytös voi ilmestyä pienemmilläkin arvoilla. Paikkamerkkisisältöä.",
+      },
+      { type: "heading", level: 2, text: "Riittävän lämpimänä odottaessa" },
+      {
+        type: "paragraph",
+        text: "Useimmat epäonnistuneet kuvausretket päättyvät kylmien käsien, ei pilvien, takia. Paikkamerkkisisältöä.",
+      },
+      // AB#22: the Finnish gallery-side table, caption-less like its English
+      // counterpart, so the built-in-label fallback is covered in both
+      // locales rather than only the harness's own.
+      {
+        type: "table",
+        headers: ["Kuvausikkuna", "Alkaa", "Pilvisyys"],
+        rows: [
+          ["Sinihetki", "10.40", "Puolipilvistä"],
+          ["Siviilihämärä", "11.25", "Pilvistä"],
+          ["Revontulivahti", "21.00", "Selkeää"],
+        ],
+      },
+    ],
   },
   "content-awaiting-selection": {
     variant: "gallery",
@@ -449,8 +581,16 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
     variant: "gallery",
     body: [],
   },
+  "content-masonry-below": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "below", body: [] },
+  "content-masonry-overlay": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "overlay", body: [] },
+  "content-grid-overlay": { variant: "gallery", galleryLayout: "grid", galleryCaptionPlacement: "overlay", body: [] },
+  "content-justified-below": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
+  "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
+  "content-layout-single": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
+  "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-reading-coastal-light": {
     variant: "article",
+    endGalleryId: "coastal-light-end-gallery",
     tags: ["valo", "rannikko", "maisemakuvaus"],
     body: [
       {
@@ -506,6 +646,20 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
           "Valitse valotusaika liikkeen mukaan",
           "Nosta herkkyyttä, kunnes valotus on oikea",
           "Tarkista kohina täydellä suurennoksella",
+        ],
+      },
+      // AB#22: the Finnish article-side table. Headers and caption are
+      // authored in the page's own language for the same reason its alt text
+      // and captions are — a table is read, not just displayed.
+      {
+        type: "table",
+        caption: "Paikkamerkkiarvoja; korvataan CMS:n oikeilla tiedoilla.",
+        headers: ["Tilanne", "Aukko", "Valotusaika", "Herkkyys"],
+        rows: [
+          ["Muotokuva ulkona", "f/2.0", "1/250 s", "ISO 200"],
+          ["Maisema jalustalta", "f/11", "1/15 s", "ISO 100"],
+          ["Urheilu sisällä", "f/2.8", "1/800 s", "ISO 3200"],
+          ["Yökuvaus", "f/4.0", "20 s", "ISO 1600"],
         ],
       },
     ],
@@ -566,6 +720,26 @@ function compose(
           `mock content page "${contentId}" has no ${language} listing record`,
         );
       }
+      const images = getMockImages(language);
+      const miniItems = [
+        { media: { ...images.forestStream, caption: language === "fi" ? "Esimerkkikuvateksti" : "Example caption", credit: "Placeholder credit" } },
+        { media: { ...images.openMarsh, alt: "" } },
+        { media: images.forestStream },
+      ];
+      const body: readonly ContentBlock[] = contentId === "content-reading-coastal-light"
+        ? [...page.body,
+          { type: "media", media: images.forestStream },
+          { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems },
+          { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems.slice(0, 2) },
+        ]
+        : language === "fi" && contentId === "content-coastal-mornings"
+          ? [
+            { type: "media", media: images.coastalLandscape },
+            { type: "mini-gallery", items: miniItems },
+            { type: "mini-gallery", items: miniItems.slice(0, 2) },
+            ...page.body,
+          ]
+          : page.body;
       return [
         contentId,
         {
@@ -577,6 +751,7 @@ function compose(
           ...(record.endDate === undefined ? {} : { endDate: record.endDate }),
           ...(record.cover === undefined ? {} : { cover: record.cover }),
           ...page,
+          body,
         },
       ];
     }),

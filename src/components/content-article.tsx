@@ -3,6 +3,7 @@ import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
 import { ContentBody } from "@/components/content-body";
 import { ContentPageJumpNav } from "@/components/content-page-jump-nav";
 import { HeroOverlay } from "@/components/hero-overlay";
+import { ArticleEndGallery } from "@/components/article-end-gallery";
 import {
   LanguageSwitch,
   type LanguageLink,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/content-page";
 import { formatDate } from "@/lib/date-format";
 import type { BuiltInLabels } from "@/lib/deployment-config";
+import type { GallerySlice } from "@/lib/gallery-slice";
 
 /** One neighbour in the global article sequence, at its canonical path. */
 export type AdjacentPageLink = {
@@ -41,6 +43,11 @@ type ContentArticleProps = {
   /** The older article in the global publication sequence, if there is one. */
   next?: AdjacentPageLink;
   labels: BuiltInLabels;
+  endGallery?: {
+    readonly slice: GallerySlice;
+    readonly articlePath: string;
+    readonly initialSliceKey: string;
+  };
 };
 
 const focusRing =
@@ -55,9 +62,9 @@ const focusRing =
  * was found. Sibling navigation preserves the pre-migration global article
  * sequence while each link still uses its page's canonical category path.
  *
- * The table of contents is derived from the body's level-2 headings, as
- * ADR-0003 decision 3 requires: no authoring toggle, and nothing rendered for a
- * body that has no headings to skip between.
+ * The table of contents is derived from the body's headings (levels 2-4,
+ * nested by depth), as ADR-0003 decision 3 requires: no authoring toggle, and
+ * nothing rendered for a body that has no headings to skip between.
  *
  * The cover, when authored, is now a full-bleed hero at the head of the page
  * with the title overlaid (AB#149, ADR-0016's mechanism — the same one the
@@ -82,6 +89,7 @@ export function ContentArticle({
   previous,
   next,
   labels,
+  endGallery,
 }: ContentArticleProps) {
   const headings = listContentHeadings(page.body);
   const eventDate = effectiveEventDate(page);
@@ -113,53 +121,65 @@ export function ContentArticle({
           titleClassName="text-3xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-4xl"
         />
       )}
-      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-        <Breadcrumbs label={labels.navigation.breadcrumb} steps={breadcrumbs} />
-
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <div className="mx-auto max-w-3xl">
+          <Breadcrumbs label={labels.navigation.breadcrumb} steps={breadcrumbs} />
+        </div>
         <article>
-          {page.cover ? (
-            <header className="mt-6">
-              <LanguageSwitch
-                label={labels.contentTree.languages}
-                links={languages}
-              />
-            </header>
-          ) : (
-            <header className="mt-6">
-              <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-                {page.title}
-              </h1>
-              <p className="mt-2 text-sm text-subtle">{byline}</p>
-              <time
-                dateTime={eventDate}
-                className="mt-1 block text-sm text-subtle"
-              >
-                {formatDate(eventDate, locale)}
-              </time>
-              <LanguageSwitch
-                label={labels.contentTree.languages}
-                links={languages}
-              />
-            </header>
-          )}
+          <div className="mx-auto max-w-3xl">
+            {page.cover ? (
+              <header className="mt-6">
+                <LanguageSwitch
+                  label={labels.contentTree.languages}
+                  links={languages}
+                />
+              </header>
+            ) : (
+              <header className="mt-6">
+                <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+                  {page.title}
+                </h1>
+                <p className="mt-2 text-sm text-subtle">{byline}</p>
+                <time
+                  dateTime={eventDate}
+                  className="mt-1 block text-sm text-subtle"
+                >
+                  {formatDate(eventDate, locale)}
+                </time>
+                <LanguageSwitch
+                  label={labels.contentTree.languages}
+                  links={languages}
+                />
+              </header>
+            )}
 
-          {page.summary && (
-            <p className="mt-8 text-lg leading-8 text-body">
-              {page.summary}
-            </p>
-          )}
+            {page.summary && (
+              <p className="mt-8 text-lg leading-8 text-body">
+                {page.summary}
+              </p>
+            )}
 
-          <ContentPageJumpNav
-            label={labels.contentTree.onThisPage}
-            headings={headings}
-          />
+            <ContentPageJumpNav
+              label={labels.contentTree.onThisPage}
+              headings={headings}
+            />
 
-          <div className="mt-10">
-            <ContentBody blocks={page.body} labels={labels} />
+            <div className="mt-10">
+              <ContentBody blocks={page.body} labels={labels} />
+            </div>
           </div>
+          {endGallery !== undefined && (
+            <ArticleEndGallery
+              articlePath={endGallery.articlePath}
+              articleTitle={page.title}
+              slice={endGallery.slice}
+              initialSliceKey={endGallery.initialSliceKey}
+              labels={labels}
+            />
+          )}
 
           {page.tags && page.tags.length > 0 && (
-            <footer className="mt-12 border-t border-border pt-6">
+            <footer className="mx-auto mt-12 max-w-3xl border-t border-border pt-6">
               <p className="text-xs font-medium uppercase tracking-wider text-muted">
                 {labels.contentTree.tags}
               </p>
@@ -180,7 +200,7 @@ export function ContentArticle({
         {(previous || next) && (
           <nav
             aria-label={labels.navigation.adjacentContent}
-            className="mt-10 grid grid-cols-2 gap-4 border-t border-border pt-8"
+            className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-4 border-t border-border pt-8"
           >
             <div>
               {previous && (

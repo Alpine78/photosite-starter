@@ -61,7 +61,7 @@ export const runtime = "nodejs";
  * source for both the `extraFields` whitelist and its test. `resolveEnquiryTarget`
  * is the closed per-kind validator for their *values*.
  */
-export const ENQUIRY_CONTEXT_FIELDS = [
+const ENQUIRY_CONTEXT_FIELDS = [
   "kind",
   "locale",
   "contentId",

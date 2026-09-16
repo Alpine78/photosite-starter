@@ -20,6 +20,11 @@
  */
 
 import "server-only";
+import {
+  MAX_MINI_GALLERY_ITEMS,
+  MAX_MINI_GALLERY_TITLE_LENGTH,
+} from "@/lib/content-mini-gallery";
+import { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS } from "@/lib/content-table";
 
 import { assertSemanticHeadingOrder, type ContentBlock } from "@/lib/content-page";
 import type { SanityConfig } from "@/lib/sanity-config";
@@ -41,6 +46,8 @@ export const CONTENT_BLOCK_OBJECT_TYPES = {
   blockquote: "contentQuoteBlock",
   media: "contentMediaBlock",
   youtube: "contentYoutubeBlock",
+  "mini-gallery": "contentGalleryBlock",
+  table: "contentTableBlock",
 } as const;
 
 /** Restated from the schema's `YOUTUBE_VIDEO_ID_PATTERN`; pinned by the test. */
@@ -49,8 +56,12 @@ export const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 /**
  * One flat projection over every block kind. GROQ tolerates asking for a field
  * a given `_type` does not declare — it simply comes back `null` — so one
- * projection covers all six kinds instead of a per-type union query. Embedded
+ * projection covers all eight kinds instead of a per-type union query. Embedded
  * by any adapter whose body field uses `defineContentBodyField`.
+ *
+ * The bounded slices ask for one more than the maximum on purpose: an oversized
+ * array has to arrive oversized for the projector below to reject it, rather
+ * than arriving silently truncated to exactly the limit and passing.
  */
 export const CONTENT_BLOCK_PROJECTION = `{
   _key,
@@ -62,18 +73,22 @@ export const CONTENT_BLOCK_PROJECTION = `{
   attribution,
   videoId,
   title,
-  "media": media->${PUBLIC_MEDIA_PROJECTION}
+  caption,
+  "headers": headers[0...${MAX_TABLE_COLUMNS + 1}],
+  "rows": rows[0...${MAX_TABLE_ROWS + 1}]{"cells": cells[0...${MAX_TABLE_COLUMNS + 1}]},
+  "media": media->${PUBLIC_MEDIA_PROJECTION},
+  "images": images[0...${MAX_MINI_GALLERY_ITEMS + 1}]{_key, "media": media->${PUBLIC_MEDIA_PROJECTION}}
 }`;
 
 /** Why a body could not become a validated `ContentBlock[]`. */
 export type SanityContentBlockRejection =
   /** A block's own required fields are missing or malformed. */
   | "malformed-block"
-  /** A block's `_type` names none of the six shared kinds. */
+  /** A block's `_type` names none of the eight shared kinds. */
   | "unsupported-block-type"
   /** The body did not evaluate to a list of block objects. */
   | "malformed-result"
-  /** A level-3 heading appears before any level-2 heading (AB#106). */
+  /** A heading skips a level, or the body's first heading isn't level 2 (AB#106, AB#21). */
   | "non-semantic-heading-order";
 
 export class SanityContentBlockError extends Error {
@@ -101,7 +116,11 @@ export type RawContentBlock = {
   readonly attribution?: unknown;
   readonly videoId?: unknown;
   readonly title?: unknown;
+  readonly caption?: unknown;
+  readonly headers?: unknown;
+  readonly rows?: unknown;
   readonly media?: unknown;
+  readonly images?: unknown;
 };
 
 export type ContentBlockProjectionOptions = {
@@ -146,8 +165,8 @@ export function projectContentBlock(
     case CONTENT_BLOCK_OBJECT_TYPES.heading: {
       const text = readString(raw.text);
       if (text === undefined) reject("a heading needs non-empty text");
-      if (raw.level !== 2 && raw.level !== 3) {
-        reject("a heading needs level 2 or 3");
+      if (raw.level !== 2 && raw.level !== 3 && raw.level !== 4) {
+        reject("a heading needs level 2, 3, or 4");
       }
       return { type: "heading", level: raw.level, text, key };
     }
@@ -189,6 +208,102 @@ export function projectContentBlock(
         options,
       );
       return { type: "media", media, key };
+    }
+
+    case CONTENT_BLOCK_OBJECT_TYPES["mini-gallery"]: {
+      if (
+        !Array.isArray(raw.images) ||
+        raw.images.length === 0 ||
+        raw.images.length > MAX_MINI_GALLERY_ITEMS
+      ) {
+        reject("a mini-gallery needs between 1 and 12 images");
+      }
+      const title = readString(raw.title);
+      if (
+        raw.title != null &&
+        (title === undefined || title.length > MAX_MINI_GALLERY_TITLE_LENGTH)
+      ) {
+        reject("a mini-gallery title must be non-blank and at most 120 characters");
+      }
+      const seen = new Set<string>();
+      const items = raw.images.map((entry) => {
+        if (!isRecord(entry) || !isRecord(entry.media)) {
+          reject("a mini-gallery image has no resolved media reference");
+        }
+        const itemKey = readString(entry._key);
+        if (itemKey === undefined || seen.has(itemKey)) {
+          reject("mini-gallery images need unique stable keys");
+        }
+        seen.add(itemKey);
+        // The same fail-closed public derivative boundary as loose body images.
+        const media = projectPublicMedia(
+          entry.media as RawPublicMediaDocument,
+          options,
+        );
+        return { key: itemKey, media };
+      });
+      return {
+        type: "mini-gallery",
+        key,
+        items,
+        ...(title === undefined ? {} : { title }),
+      };
+    }
+
+    case CONTENT_BLOCK_OBJECT_TYPES.table: {
+      // Headers first: their count is the contract every row is measured
+      // against, so nothing below can be checked until it is known good.
+      if (
+        !Array.isArray(raw.headers) ||
+        raw.headers.length === 0 ||
+        raw.headers.length > MAX_TABLE_COLUMNS
+      ) {
+        reject(`a table needs between 1 and ${MAX_TABLE_COLUMNS} column headers`);
+      }
+      const headers = raw.headers.map((header) => {
+        const text = readString(header);
+        if (text === undefined) reject("a table column header cannot be empty");
+        return text;
+      });
+
+      if (
+        !Array.isArray(raw.rows) ||
+        raw.rows.length === 0 ||
+        raw.rows.length > MAX_TABLE_ROWS
+      ) {
+        reject(`a table needs between 1 and ${MAX_TABLE_ROWS} rows`);
+      }
+      const rows = raw.rows.map((row) => {
+        if (!isRecord(row) || !Array.isArray(row.cells)) {
+          reject("a table row needs its cells");
+        }
+        if (row.cells.length !== headers.length) {
+          reject(
+            `a table row has ${row.cells.length} cell(s) but the table has ${headers.length} column(s)`,
+          );
+        }
+        // Deliberately a bare string check rather than `readString`: that
+        // helper trims and reports an empty string as absent, which is exactly
+        // what a legitimately blank cell looks like. A gap in a comparison
+        // table is content, not a defect.
+        if (!row.cells.every((cell) => typeof cell === "string")) {
+          reject("a table cell must be text");
+        }
+        return row.cells as readonly string[];
+      });
+
+      const caption = readString(raw.caption);
+      if (raw.caption != null && caption === undefined) {
+        reject("a table caption must be non-empty when present");
+      }
+
+      return {
+        type: "table",
+        headers,
+        rows,
+        key,
+        ...(caption === undefined ? {} : { caption }),
+      };
     }
 
     case CONTENT_BLOCK_OBJECT_TYPES.youtube: {

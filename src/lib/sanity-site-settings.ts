@@ -1,3 +1,4 @@
+import { readGalleryPresentationFields } from "@/lib/gallery-presentation";
 /** Published Sanity site settings projected into the project's own contract. */
 
 import "server-only";
@@ -23,6 +24,8 @@ export const PROJECTED_SITE_SETTINGS_FIELDS = [
   "tagline",
   "servicesIntro",
   "featuredGalleryId",
+  "galleryLayout",
+  "galleryCaptionPlacement",
   "navigation",
   "contact",
   "socialLinks",
@@ -37,6 +40,8 @@ export const SITE_SETTINGS_PROJECTION = `{
   tagline[]{language, value},
   servicesIntro[]{language, value},
   featuredGalleryId,
+  galleryLayout,
+  galleryCaptionPlacement,
   navigation[]{label[]{language, value}, target, href},
   contact{
     email,
@@ -237,6 +242,7 @@ export function projectSiteSettings(
   );
 
   return {
+    ...readGalleryPresentationFields(document, rejectIncomplete),
     siteName: readRequiredString(document.siteName, "siteName", rejectIncomplete),
     photographerName: readRequiredString(
       document.photographerName,

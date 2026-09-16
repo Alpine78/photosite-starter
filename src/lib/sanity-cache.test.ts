@@ -14,6 +14,8 @@ describe("published Sanity query cache policy", () => {
     ["home-page", "home"],
     ["service.list", "services"],
     ["article.detail", "articles"],
+    ["article.end-gallery.basics", "articles"],
+    ["article.end-gallery.window", "articles"],
     ["article.adjacent", "articles"],
     ["category.tree", "categories"],
     ["category.ids", "categories"],
@@ -73,6 +75,12 @@ describe("document invalidation map", () => {
     expect(getSanityDocumentInvalidationTags(["galleryPlacement"])).toContain(
       SANITY_PUBLIC_CACHE_TAGS.galleries,
     );
+  });
+
+  it("invalidates article results after an end-gallery placement change", () => {
+    expect(
+      getSanityDocumentInvalidationTags(["articleEndGalleryPlacement"]),
+    ).toEqual(expect.arrayContaining(["sanity:articles", "sanity:media"]));
   });
 
   it("de-duplicates a before/after type set and keeps bounded order", () => {
