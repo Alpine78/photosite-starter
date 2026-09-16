@@ -29,8 +29,16 @@ stages:
     jobs:
       - job: Verify
         displayName: "Lint, test, build, journeys"
-        pool:
-          vmImage: "ubuntu-latest"
+        # Self-hosted (docs/deployment.md § "The Verify stage runs on a self-hosted
+        # agent"): this stage reaches no external service and handles no deployment
+        # secret, which is what makes it safe to run on a persistent shared agent even
+        # though it also runs on every pull request — unlike DeployPreview below, which
+        # stays Microsoft-hosted specifically because sharing this agent with a
+        # PR-triggered job would expose its Vercel/Sanity credentials to whatever a PR's
+        # dependencies left behind on the machine. Requires an agent registered in the
+        # organization's "Default" pool with passwordless sudo for Playwright's
+        # --with-deps step.
+        pool: "Default"
         steps:
           - task: UseNode@1
             inputs:
@@ -155,6 +163,16 @@ stages:
     jobs:
       - job: DeployPreview
         displayName: "Build, deploy, and verify the Preview deployment"
+        # Deliberately still Microsoft-hosted, unlike Verify below (docs/deployment.md §
+        # "The Verify stage runs on a self-hosted agent"): Verify also runs on every pull
+        # request, so a persistent self-hosted agent shared with this stage would let
+        # PR-triggered code (e.g. a compromised dependency pulled in by `npm ci`) leave
+        # something behind that a later DeployPreview run — same persistent machine —
+        # picks up alongside the real Vercel/Sanity credentials in this job's
+        # environment. Keeping this stage off the shared agent removes that path
+        # entirely; while the Microsoft-hosted quota is exhausted this just means the
+        # stage fails the same way it already was until the quota resets, exactly as it
+        # did before this pool existed, with no new spend either way.
         pool:
           vmImage: "ubuntu-latest"
         steps:
