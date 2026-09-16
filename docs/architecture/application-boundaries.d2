@@ -40,7 +40,7 @@ routes: "src/app — App Router" {
     class: built
   }
 
-  api: "Route handlers\napi/contact, api/enquiry — same-origin JSON,\nclosed field whitelist, shared abuse + delivery path\napi/gallery — one bounded slice" {
+  api: "Route handlers\napi/contact, api/enquiry — same-origin JSON,\nclosed field whitelist, shared abuse + delivery path\napi/gallery, api/article-gallery — one bounded slice" {
     class: built
   }
 
@@ -74,11 +74,11 @@ lib: "src/lib — domain contracts, data-access seams, and fixtures" {
     class: built
   }
 
-  domain: "Domain and result contracts\ncontent-tree, content-page, media,\nimage-delivery, gallery-result, gallery-slice,\ngallery-pagination, keyset-cursor" {
+  domain: "Domain and result contracts\ncontent-tree, content-page, media,\nimage-delivery, gallery-result, gallery-slice,\ngallery-pagination, article-end-gallery-pagination, keyset-cursor" {
     class: built
   }
 
-  seams: "Data-access seams\ncontent.ts, gallery.ts,\ncontact-delivery.ts\nSwapping the store changes only these" {
+  seams: "Data-access seams\ncontent.ts, gallery.ts, article-end-gallery.ts,\ncontact-delivery.ts\nSwapping the store changes only these" {
     class: built
   }
 

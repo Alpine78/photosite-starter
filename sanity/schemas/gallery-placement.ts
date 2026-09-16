@@ -199,7 +199,7 @@ async function validateGalleryPlacementPublication(
         "mediaRef": media._ref
       },
       "conflicting": *[
-        _type == $type &&
+        _type in [$type, "articleEndGalleryPlacement"] &&
         placementId == $placementId &&
         !sanity::versionOf($published)
       ]{

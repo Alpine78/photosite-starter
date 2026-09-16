@@ -33,19 +33,14 @@ type GalleryGridProps = {
    * reaches the browser.
    */
   galleryPath: string;
-  /**
-   * The active named section's slug, or `undefined` for the unfiltered `All`
-   * view. Threaded into both the continuation endpoint and the rebuilt link
-   * so an append fetched from inside a named section always asks for that
-   * section's next slice — this, together with the cursor's own scope
-   * binding, is what keeps AB#72 continuation from ever appending an
-   * out-of-section item.
-   */
-  activeSection?: string;
   /** Resolved layout and caption placement (AB#157). */
   presentation: GalleryPresentation;
   labels: BuiltInLabels;
-};
+} & (
+  // Only curated results accept a named section or offer placement enquiries.
+  | { continuationKind?: "curated-gallery"; activeSection?: string }
+  | { continuationKind: "article-end-gallery"; activeSection?: never }
+);
 
 type ContinuationState = "idle" | "loading" | "failed";
 
@@ -110,6 +105,7 @@ export function GalleryGrid({
   initialSlice,
   galleryPath,
   activeSection,
+  continuationKind = "curated-gallery",
   presentation,
   labels,
 }: GalleryGridProps) {
@@ -277,7 +273,16 @@ export function GalleryGrid({
     setState("loading");
 
     try {
-      const next = await fetchGallerySlice(galleryPath, cursor, activeSection);
+      const endpoint =
+        continuationKind === "article-end-gallery"
+          ? "/api/article-gallery"
+          : "/api/gallery";
+      const next = await fetchGallerySlice(
+        galleryPath,
+        cursor,
+        activeSection,
+        endpoint,
+      );
       // Appending is what de-duplicates: a cursor names a boundary rather than
       // a set, so an overlapping slice is a legal answer and must not put the
       // same item on screen twice.
@@ -307,7 +312,7 @@ export function GalleryGrid({
     } finally {
       inFlightRef.current = false;
     }
-  }, [galleryPath, activeSection]);
+  }, [galleryPath, activeSection, continuationKind]);
 
   /** The lightbox needs to know whether it grew or reached a clean end. */
   const continueForLightbox = useCallback(
@@ -378,7 +383,7 @@ export function GalleryGrid({
     <GalleryLightbox
       slides={slice.slides}
       labels={labels.lightbox}
-      enquiryBasePath={galleryPath}
+      {...(continuationKind === "curated-gallery" ? { enquiryBasePath: galleryPath } : {})}
       {...(nextCursor === null
         ? {}
         : {

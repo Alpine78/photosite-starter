@@ -100,6 +100,13 @@ type CategoryListingCursorNamesASlice = (
   cursor: string,
 ) => boolean | Promise<boolean>;
 
+/** Whether a token names a real slice of one article's explicit end gallery. */
+type ArticleEndGalleryCursorNamesASlice = (
+  locale: string,
+  contentId: string,
+  cursor: string,
+) => boolean | Promise<boolean>;
+
 /**
  * Whether a gallery-local section slug names a real, declared section of one
  * gallery.
@@ -200,8 +207,8 @@ function resolveHistoricalStoryTarget(
  * What a `cursor` parameter means at this route.
  *
  * `cursor` is the continuation contract's parameter, and ADR-0003 decision 8
- * gives it a meaning at exactly two kinds of address: a category listing and a
- * gallery.
+ * gives it a meaning at a category listing, a curated gallery, and (AB#161)
+ * an article that explicitly owns an end gallery.
  *
  * - A **gallery** issues one, so it `carry`s the token to the adapter. Only
  *   the adapter holds the signing key, so only it can tell a slice boundary from
@@ -211,10 +218,8 @@ function resolveHistoricalStoryTarget(
  *   contract — so a cursor there is malformed, stale, or tampered with, and
  *   decision 8 answers that with a 404 rather than a page that quietly ignores
  *   it (`reject`).
- * - An **article** has no continuation contract at all, which makes `cursor` an
- *   ordinary unrecognized parameter: decision 8 reads the parameters it knows
- *   and ignores the rest, so a campaign or referral link never turns a real page
- *   into a 404.
+ * - An **article** now carries a candidate token to its end-gallery adapter.
+ *   The adapter rejects it when the article declares no such result.
  *
  * `section` is a different parameter with its own disposition — see
  * {@link sectionDisposition} — because ADR-0003 gives it no "recognized but
@@ -222,10 +227,10 @@ function resolveHistoricalStoryTarget(
  * listing: it is either a gallery's own filter or it is nowhere meaningful at
  * all.
  */
-function cursorDisposition(route: StoryRoute): "carry" | "reject" | "ignore" {
+function cursorDisposition(route: StoryRoute): "carry" | "reject" {
   if (route.kind === "category") return "carry";
   if (route.kind === "story-root") return "reject";
-  return route.variant === "gallery" ? "carry" : "ignore";
+  return "carry";
 }
 
 /**
@@ -383,19 +388,19 @@ async function refusesCursor(
     normalizing,
     galleryNamesASlice,
     categoryNamesASlice,
+    articleEndGalleryNamesASlice,
   }: {
     readonly normalizing: boolean;
     readonly galleryNamesASlice: GalleryCursorNamesASlice | undefined;
     readonly categoryNamesASlice: CategoryListingCursorNamesASlice | undefined;
+    readonly articleEndGalleryNamesASlice:
+      | ArticleEndGalleryCursorNamesASlice
+      | undefined;
   },
 ): Promise<boolean> {
   if (cursor === undefined) return false;
 
   const disposition = cursorDisposition(route);
-  // An article's `cursor` is an ordinary unrecognized parameter, so it neither
-  // blocks a redirect nor rides along as anything but query text. A story-root
-  // cursor is `reject` — no continuation contract there.
-  if (disposition === "ignore") return false;
   if (disposition === "reject") return true;
 
   // A gallery or a category branch continues from one bookmark. Repeating the
@@ -414,7 +419,14 @@ async function refusesCursor(
     if (galleryNamesASlice === undefined) return true;
     return !(await galleryNamesASlice(locale, route.contentId, cursor, section));
   }
-  // Unreachable: `cursorDisposition` only returns "carry" for the two above.
+  if (route.kind === "content" && route.variant === "article") {
+    if (articleEndGalleryNamesASlice === undefined) return true;
+    return !(await articleEndGalleryNamesASlice(
+      locale,
+      route.contentId,
+      cursor,
+    ));
+  }
   return true;
 }
 
@@ -451,6 +463,7 @@ export async function resolveLocalePrefixRequest({
   defaultLocaleRouteExists,
   galleryCursorNamesASlice,
   categoryListingCursorNamesASlice,
+  articleEndGalleryCursorNamesASlice,
   gallerySectionExists,
   pathHasTrailingSlash = false,
 }: {
@@ -476,6 +489,8 @@ export async function resolveLocalePrefixRequest({
    * than redirected on trust.
    */
   readonly categoryListingCursorNamesASlice?: CategoryListingCursorNamesASlice;
+  /** Article end-gallery counterpart, used only before path normalization. */
+  readonly articleEndGalleryCursorNamesASlice?: ArticleEndGalleryCursorNamesASlice;
   /**
    * Consulted only when a named section arrives at a path that needs
    * normalizing, to choose between redirecting with it and refusing it. Absent,
@@ -560,6 +575,8 @@ export async function resolveLocalePrefixRequest({
             normalizing: true,
             galleryNamesASlice: galleryCursorNamesASlice,
             categoryNamesASlice: categoryListingCursorNamesASlice,
+            articleEndGalleryNamesASlice:
+              articleEndGalleryCursorNamesASlice,
           },
         )) ||
         (await refusesSection(defaultRoute.locale, story, searchParams.section, {
@@ -599,6 +616,8 @@ export async function resolveLocalePrefixRequest({
             normalizing: true,
             galleryNamesASlice: galleryCursorNamesASlice,
             categoryNamesASlice: categoryListingCursorNamesASlice,
+            articleEndGalleryNamesASlice:
+              articleEndGalleryCursorNamesASlice,
           },
         )) ||
         (await refusesSection(
@@ -664,10 +683,12 @@ export async function resolveLocalePrefixRequest({
         searchParams.cursor,
         section,
         {
-            normalizing: true,
-            galleryNamesASlice: galleryCursorNamesASlice,
-            categoryNamesASlice: categoryListingCursorNamesASlice,
-          },
+          normalizing: true,
+          galleryNamesASlice: galleryCursorNamesASlice,
+          categoryNamesASlice: categoryListingCursorNamesASlice,
+          articleEndGalleryNamesASlice:
+            articleEndGalleryCursorNamesASlice,
+        },
       )) ||
       (await refusesSection(
         localeRoute.locale,
@@ -710,6 +731,7 @@ export async function resolveLocalePrefixRequest({
       normalizing,
       galleryNamesASlice: galleryCursorNamesASlice,
       categoryNamesASlice: categoryListingCursorNamesASlice,
+      articleEndGalleryNamesASlice: articleEndGalleryCursorNamesASlice,
     })) ||
     (await refusesSection(localeRoute.locale, route, rawSection, {
       normalizing,

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
 import { CategoryBranch } from "@/components/category-branch";
 import { ContentArticle } from "@/components/content-article";
+import { ArticleEndGalleryContinuation } from "@/components/article-end-gallery";
 import { ContentGallery } from "@/components/content-gallery";
 import { GalleryItemEnquiry } from "@/components/gallery-item-enquiry";
 import { JsonLd } from "@/components/json-ld";
@@ -18,9 +19,13 @@ import {
 } from "@/lib/content";
 import { ContentListingCursorError } from "@/lib/content-listing-cursor";
 import {
+  getArticleEndGalleryPage,
+} from "@/lib/article-end-gallery";
+import {
   asArticlePage,
   asGalleryPage,
   effectiveArticleAuthor,
+  type ArticleContentPage,
   type ContentPage,
 } from "@/lib/content-page";
 import {
@@ -109,6 +114,7 @@ async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
       defaultLocaleRouteExists,
       galleryCursorNamesASlice,
       categoryListingCursorNamesASlice,
+      articleEndGalleryCursorNamesASlice,
       gallerySectionExists,
       pathHasTrailingSlash:
         requestPath !== undefined &&
@@ -224,6 +230,39 @@ async function categoryListingCursorNamesASlice(
   return (
     (await resolveCategoryListing(locale, categoryId, cursor)) !== undefined
   );
+}
+
+async function resolveArticleEndGallery(
+  locale: string,
+  page: ArticleContentPage,
+  cursor?: string,
+) {
+  if (page.endGalleryId === undefined) return undefined;
+  try {
+    return await getArticleEndGalleryPage(
+      locale,
+      page.contentId,
+      page.endGalleryId,
+      cursor,
+    );
+  } catch (error) {
+    if (error instanceof GalleryCursorError) return undefined;
+    throw error;
+  }
+}
+
+/** Validate a token before any canonical path normalization redirect. */
+async function articleEndGalleryCursorNamesASlice(
+  locale: string,
+  contentId: string,
+  cursor: string,
+): Promise<boolean> {
+  const page = asArticlePage(
+    contentId,
+    await getContentPage(locale, contentId, "article"),
+  );
+  return page !== undefined &&
+    (await resolveArticleEndGallery(locale, page, cursor)) !== undefined;
 }
 
 /**
@@ -440,6 +479,15 @@ export async function generateMetadata(
   const page = await resolveContentPage(locale, route);
   if (route.kind === "content" && page === undefined) return {};
 
+  const articleEndGallery = page?.variant === "article"
+    ? await resolveArticleEndGallery(locale, page, resolution.cursor)
+    : undefined;
+  if (page?.variant === "article" &&
+      (page.endGalleryId !== undefined || resolution.cursor !== undefined) &&
+      articleEndGallery === undefined) {
+    return {};
+  }
+
   // The `?enquire=` view (ADR-0003 §8, 2026-08-30): a successful `200` form, so
   // `noindex, follow` with its canonical pointing at the parameter-free gallery
   // and no `hreflang` alternates — not the `follow: false` a failure state gets.
@@ -507,6 +555,16 @@ export async function generateMetadata(
     }
 
     return getPageMetadata({ path, title, locale, localeVersions });
+  }
+
+  if (page.variant === "article" && resolution.cursor !== undefined) {
+    return getPageMetadata({
+      path,
+      title: page.title,
+      publishedTime: page.publishedAt,
+      locale,
+      noindex: true,
+    });
   }
 
   const activeSection =
@@ -701,6 +759,36 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
 
     const article = page;
 
+    const articlePath = buildStoryPath(
+      config,
+      locale,
+      getStoryRoutePath(tree, route),
+    );
+    const endGallery =
+      article.endGalleryId === undefined
+        ? undefined
+        : await resolveArticleEndGallery(
+            locale,
+            article,
+            resolution.cursor,
+          );
+    if (resolution.cursor !== undefined) {
+      if (endGallery === undefined) notFound();
+      return (
+        <ArticleEndGalleryContinuation
+          articlePath={articlePath}
+          articleTitle={article.title}
+          slice={projectGallerySlice(endGallery)}
+          initialSliceKey={`cursor:${resolution.cursor}`}
+          languages={languages}
+          labels={labels}
+        />
+      );
+    }
+    if (article.endGalleryId !== undefined && endGallery === undefined) {
+      notFound();
+    }
+
     // Two bounded rows, not the article set: `getAdjacentContent` asks the
     // adapter for the neighbours either side of this page in the global
     // publication order the pre-migration article route already used.
@@ -712,12 +800,6 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
       getSiteSettings(),
     ]);
     const authorName = effectiveArticleAuthor(article, settings);
-
-    const articlePath = buildStoryPath(
-      config,
-      locale,
-      getStoryRoutePath(tree, route),
-    );
 
     return (
       <>
@@ -763,6 +845,15 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
                 },
               })}
           labels={labels}
+          {...(endGallery === undefined
+            ? {}
+            : {
+                endGallery: {
+                  slice: projectGallerySlice(endGallery),
+                  articlePath,
+                  initialSliceKey: `first:${articlePath}`,
+                },
+              })}
         />
       </>
     );

@@ -575,9 +575,9 @@ test("a content page opens from its listing and states where it lives", async ({
   });
 
   await test.step("an unrecognized parameter leaves the page alone", async () => {
-    // A content page owns no continuation contract, so `cursor` is just another
-    // parameter arriving from a campaign or messaging app.
-    const response = await page.goto(`${ARTICLE_ROUTE}?cursor=not-a-real-token`, {
+    // Campaign parameters remain unrecognized. AB#161 gives `cursor` its
+    // own article end-gallery contract, covered by article-end-gallery.spec.ts.
+    const response = await page.goto(`${ARTICLE_ROUTE}?utm_source=example`, {
       waitUntil: "domcontentloaded",
     });
 
@@ -604,9 +604,10 @@ test("a localized article keeps localized media and article metadata", async ({
   // Not scoped to `article figure` any more: the cover (AB#149) renders as a
   // full-bleed hero ahead of `<article>`, in the same document position a
   // body figure inside it would follow — `main figure img` still walks
-  // cover-then-body-images in that same order.
+  // cover-then-body-images in that same order. Independent mini-gallery and
+  // end-gallery results are excluded from this loose-image assertion.
   const imageAlts = await page
-    .locator("main figure img")
+    .locator('main figure img:not([data-mini-gallery] img):not([aria-labelledby="article-end-gallery"] img)')
     .evaluateAll((images) => images.map((image) => image.getAttribute("alt")));
   expect(imageAlts).toEqual(LOCALIZED_ARTICLE.imageAlts);
   await expect(page.locator("meta[property='og:image:alt']")).toHaveAttribute(

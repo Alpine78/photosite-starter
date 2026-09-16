@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -12,6 +12,69 @@ This broad record remains accepted as a whole. A scoped clause is amended in pla
 when implementation produces evidence the original text did not have, and each partial
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
+
+### 2026-09-15 — An article may own one bounded end-gallery result (AB#161)
+
+Decision 1 originally says that an article owns an editorial sequence and does not
+implicitly acquire a gallery result from media in that sequence. That separation remains:
+a loose body image and every inline mini-gallery are content placements with their own
+viewer sequences. An article may now also **explicitly own one optional end-gallery
+result**, identified independently of the body and rendered after the last body block.
+The same medium may be placed in both places when the author intends that repetition;
+independence belongs to each occurrence, its order, and its viewer sequence rather than
+to a media-id deduplication rule.
+
+The end gallery is supporting content of the article, never a second public content page.
+Its placements carry explicit manual order and a stable occurrence identity. It has no
+sections, seeded-random order, sorting, filtering, or gallery-item enquiry action. The
+first bounded slice appears on the parameter-free article page after the body and before
+the article's tags and adjacent-article navigation. Later slices retain one continuous
+visual and lightbox order but remain isolated from the body's loose-image viewer and from
+each inline mini-gallery viewer.
+
+Decision 8's opaque continuation contract is extended to this explicit article result.
+Its token is authenticated and scoped to the article identity, the end-gallery identity,
+the full configured route locale, the manual-order rule, visibility version, and page
+size. The token remains a keyset boundary, not an offset: ordinary edits after the
+boundary do not retire it, while removal, hiding, or reordering of the boundary placement
+makes it stale. A malformed, repeated, tampered, stale, cross-article,
+cross-end-gallery, or cross-locale token returns the same accessible 404 class as an
+invalid curated-gallery cursor. A valid token on a non-canonical spelling is validated
+before one direct permanent redirect, and the redirect preserves the exact token. The
+Proxy continues to carry only bounded path and cursor-presence metadata, never the token.
+
+An article continuation link is a real `?cursor=<opaque-token>` link and therefore opens
+one bounded later slice without JavaScript. Script may progressively enhance that link by
+appending the slice in place; nothing prefetches or automatically walks the result. A
+server-rendered continuation is deliberately thin: a compact visible `h1` identifying
+the article and continuation, the language switch (which drops the cursor), the slice,
+and a link to the parameter-free article. It does not repeat the cover, lead, page-jump
+navigation, body, body viewers, tags, adjacent navigation, or Article structured data.
+
+The parameter-free article URL remains the article's sole canonical and indexable URL and
+the only one placed in the sitemap. Every valid article continuation is `noindex`, points
+its canonical metadata to that parameter-free URL, and names no language alternates:
+another locale has the article identity, not an equivalent transient slice. This differs
+deliberately from an unfiltered standalone-gallery continuation, which decision 8 treats
+as its own indexable sequential view of a photographic result. Unknown parameters remain
+ignored as before, but `cursor` is now a recognized article-result parameter and is
+therefore validated rather than ignored.
+
+The store represents the result with separately queryable placement records rather than
+an embedded array. A public read orders by the compound `(order, placementId)` key and
+requests only the current boundary plus at most `pageSize + 1` following candidates; the
+second key is part of both the query and cursor, not an over-fetch heuristic for tied
+order values. Provider responses are untrusted and must project only versioned public
+derivatives and their true intrinsic dimensions. Studio validation protects the stable
+cross-language occurrence contract, while live verification is the authoritative audit
+for site-wide placement-id collisions that concurrent Content Lake edits could otherwise
+race.
+
+**Sections affected:** decision 1 gains the one explicit article end-gallery result while
+preserving the body/result separation; decision 3 gains the article order and reduced
+continuation layout above; decision 8 gains article cursor recognition and the
+article-specific canonical/indexing policy. Decisions 4–7 and 9 are unchanged. The
+bounded inline mini-gallery amendment below is unchanged and remains capped at 12 images.
 
 ### 2026-09-13 — A data table joins the shared body-block set (AB#22)
 

@@ -76,10 +76,11 @@ export function gallerySliceEndpoint(
   galleryPath: string,
   cursor: string,
   section?: string,
+  endpoint: "/api/gallery" | "/api/article-gallery" = "/api/gallery",
 ): string {
   const params = new URLSearchParams({ path: galleryPath, cursor });
   if (section !== undefined) params.set("section", section);
-  return `/api/gallery?${params.toString()}`;
+  return `${endpoint}?${params.toString()}`;
 }
 
 function isGallerySlice(value: unknown): value is GallerySlice {
@@ -135,8 +136,9 @@ export async function fetchGallerySlice(
   galleryPath: string,
   cursor: string,
   section?: string,
+  endpoint: "/api/gallery" | "/api/article-gallery" = "/api/gallery",
 ): Promise<GallerySlice> {
-  const response = await fetch(gallerySliceEndpoint(galleryPath, cursor, section), {
+  const response = await fetch(gallerySliceEndpoint(galleryPath, cursor, section, endpoint), {
     headers: { accept: "application/json" },
     // The response is `no-store` and the token is single-purpose; asking the
     // HTTP cache for it would only risk replaying a stale slice.

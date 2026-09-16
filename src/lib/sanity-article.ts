@@ -119,6 +119,7 @@ export const PROJECTED_ARTICLE_DETAIL_FIELDS = [
   "title",
   "summary",
   "author",
+  "endGalleryId",
   "publishedAt",
   "eventDate",
   "endDate",
@@ -163,6 +164,7 @@ export const ARTICLE_DETAIL_PROJECTION = `{
   title,
   summary,
   author,
+  endGalleryId,
   publishedAt,
   eventDate,
   endDate,
@@ -235,6 +237,7 @@ export type RawArticleDetailDocument = RawArticleListingDocument & {
   readonly endDate?: unknown;
   /** Overrides `SiteSettings.photographerName` on this article's byline (AB#151). */
   readonly author?: unknown;
+  readonly endGalleryId?: unknown;
   readonly tags?: unknown;
   readonly body?: unknown;
 };
@@ -769,6 +772,13 @@ export function projectArticleContentPage(
   const eventDate = readOptionalIsoDate(document.eventDate, contentId, "eventDate");
   const endDate = readOptionalIsoDate(document.endDate, contentId, "endDate");
   const author = readString(document.author);
+  const endGalleryId = document.endGalleryId == null ? undefined : document.endGalleryId;
+  if (endGalleryId !== undefined && (
+    typeof endGalleryId !== "string" || endGalleryId.length > 128 ||
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(endGalleryId)
+  )) {
+    throw new SanityArticleError("incomplete-document", "invalid end-gallery identity", contentId);
+  }
 
   const summary = readString(document.summary);
   const cover = isRecord(document.cover)
@@ -798,6 +808,7 @@ export function projectArticleContentPage(
     ...(eventDate === undefined ? {} : { eventDate }),
     ...(endDate === undefined ? {} : { endDate }),
     ...(author === undefined ? {} : { author }),
+    ...(endGalleryId === undefined ? {} : { endGalleryId }),
     ...(summary === undefined ? {} : { summary }),
     ...(cover === undefined ? {} : { cover }),
     ...(tags.length > 0 ? { tags } : {}),
