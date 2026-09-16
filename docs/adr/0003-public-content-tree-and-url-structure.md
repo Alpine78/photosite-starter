@@ -57,8 +57,9 @@ its canonical metadata to that parameter-free URL, and names no language alterna
 another locale has the article identity, not an equivalent transient slice. This differs
 deliberately from an unfiltered standalone-gallery continuation, which decision 8 treats
 as its own indexable sequential view of a photographic result. Unknown parameters remain
-ignored as before, but `cursor` is now a recognized article-result parameter and is
-therefore validated rather than ignored.
+ignored as before. Only articles declaring an end gallery recognize `cursor`;
+articles without one continue to ignore incidental cursor parameters, including
+repeated values, before canonical normalization and in their first-page metadata.
 
 The store represents the result with separately queryable placement records rather than
 an embedded array. A public read orders by the compound `(order, placementId)` key and

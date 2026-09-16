@@ -256,11 +256,12 @@ async function articleEndGalleryCursorNamesASlice(
   locale: string,
   contentId: string,
   cursor: string,
-): Promise<boolean> {
+): Promise<boolean | "ignore"> {
   const page = asArticlePage(
     contentId,
     await getContentPage(locale, contentId, "article"),
   );
+  if (page?.endGalleryId === undefined && page !== undefined) return "ignore";
   return page !== undefined &&
     (await resolveArticleEndGallery(locale, page, cursor)) !== undefined;
 }
@@ -483,7 +484,7 @@ export async function generateMetadata(
     ? await resolveArticleEndGallery(locale, page, resolution.cursor)
     : undefined;
   if (page?.variant === "article" &&
-      (page.endGalleryId !== undefined || resolution.cursor !== undefined) &&
+      page.endGalleryId !== undefined &&
       articleEndGallery === undefined) {
     return {};
   }
@@ -557,7 +558,9 @@ export async function generateMetadata(
     return getPageMetadata({ path, title, locale, localeVersions });
   }
 
-  if (page.variant === "article" && resolution.cursor !== undefined) {
+  if (page.variant === "article" && page.endGalleryId !== undefined && resolution.cursor !== undefined) {
+    // Supporting article slices are noindex and canonicalize to their owner
+    // (ADR-0003, AB#161 amendment), unlike standalone gallery/category slices.
     return getPageMetadata({
       path,
       title: page.title,
@@ -764,15 +767,8 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
       locale,
       getStoryRoutePath(tree, route),
     );
-    const endGallery =
-      article.endGalleryId === undefined
-        ? undefined
-        : await resolveArticleEndGallery(
-            locale,
-            article,
-            resolution.cursor,
-          );
-    if (resolution.cursor !== undefined) {
+    if (article.endGalleryId !== undefined && resolution.cursor !== undefined) {
+      const endGallery = await resolveArticleEndGallery(locale, article, resolution.cursor);
       if (endGallery === undefined) notFound();
       return (
         <ArticleEndGalleryContinuation
@@ -785,20 +781,18 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
         />
       );
     }
-    if (article.endGalleryId !== undefined && endGallery === undefined) {
-      notFound();
-    }
-
     // Two bounded rows, not the article set: `getAdjacentContent` asks the
     // adapter for the neighbours either side of this page in the global
     // publication order the pre-migration article route already used.
     // `getSiteSettings()` is already read once per request for the shared
     // header/footer chrome (`SiteRoot`); React's `cache()` dedupes this call
     // against that one rather than issuing a second read (AB#151).
-    const [{ previous, next }, settings] = await Promise.all([
+    const [{ previous, next }, settings, endGallery] = await Promise.all([
       getAdjacentContent(locale, route.contentId),
       getSiteSettings(),
+      resolveArticleEndGallery(locale, article),
     ]);
+    if (article.endGalleryId !== undefined && endGallery === undefined) notFound();
     const authorName = effectiveArticleAuthor(article, settings);
 
     return (

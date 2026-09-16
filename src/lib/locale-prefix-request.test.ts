@@ -1224,6 +1224,16 @@ describe("resolveLocalePrefixRequest", () => {
       });
     });
 
+    it.each(["stray", ["one", "two"]])("ignores a plain article cursor before normalization: %j", async (cursor) => {
+      const result = await resolveLocalePrefixRequest({
+        config, trees, redirects, prefix: "tarinat",
+        segments: ["Tekniikka", "Valotuskolmio-Kaytannossa"],
+        searchParams: { cursor }, defaultLocaleRouteExists: missing(),
+        articleEndGalleryCursorNamesASlice: async () => "ignore" as const,
+      });
+      expect(result.kind).toBe("redirect");
+    });
+
     it("404s an invalid article cursor before a path-normalizing redirect", async () => {
       await expect(
         resolveLocalePrefixRequest({

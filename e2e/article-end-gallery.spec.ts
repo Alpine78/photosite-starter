@@ -1,5 +1,6 @@
 import { test, expect } from "./support/fixtures";
 import { buildContentTree, getCanonicalContentPath } from "../src/lib/content-tree";
+import { mockContentPages } from "../src/lib/mock-content-pages";
 import { mockContentTreeInputs } from "../src/lib/mock-content-tree";
 import { getBuiltInLabels } from "../src/lib/deployment-config";
 import { appUnderTestEnvironment, DEFAULT_STORY_NAMESPACE } from "./support/harness-environment";
@@ -89,4 +90,22 @@ test("the open end-gallery viewer retries a failed continuation without losing i
   await expect(dialog.getByText(`25${labels.lightbox.indexSeparator}30`, { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(triggers.nth(24)).toBeFocused();
+});
+
+
+test("articles without an end gallery ignore incidental and repeated cursor values", async ({ page, request }) => {
+  const language = new Intl.Locale(locale).language;
+  const entry = [...mockContentPages[language]].find(([id, article]) =>
+    article.variant === "article" && article.endGalleryId === undefined && getCanonicalContentPath(tree, id) !== null);
+  if (!entry) throw new Error("needs a plain article fixture");
+  const plainPath = `/${DEFAULT_STORY_NAMESPACE}/${getCanonicalContentPath(tree, entry[0])!.join("/")}`;
+  for (const suffix of ["?cursor=incidental", "?cursor=one&cursor=two"]) {
+    const response = await page.goto(`${plainPath}${suffix}`);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`${plainPath}$`));
+    const normalized = await request.get(`${plainPath.toUpperCase()}${suffix}`, { maxRedirects: 0 });
+    expect(normalized.status()).toBe(308);
+    expect(normalized.headers().location).toContain(plainPath);
+  }
 });

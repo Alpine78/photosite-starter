@@ -4,14 +4,16 @@
  * window and exposes no provider document identifiers.
  */
 
+import { cache } from "react";
+
 import { dispatchContentSource } from "@/lib/content-source";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import { galleryCursorCodec } from "@/lib/gallery-cursor";
 import type { CuratedGalleryResultItem, GalleryPage } from "@/lib/gallery-result";
 export { GalleryCursorError } from "@/lib/gallery-pagination";
 
-/** Read one slice through the configured mock or Sanity source. */
-export async function getArticleEndGalleryPage(
+/** Share one bounded slice across metadata and page rendering per RSC request. */
+export const getArticleEndGalleryPage = cache(async function getArticleEndGalleryPage(
   locale: string,
   contentId: string,
   endGalleryId: string,
@@ -42,4 +44,4 @@ export async function getArticleEndGalleryPage(
       return getMockArticleEndGalleryPage(options);
     },
   });
-}
+});

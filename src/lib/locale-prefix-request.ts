@@ -100,12 +100,12 @@ type CategoryListingCursorNamesASlice = (
   cursor: string,
 ) => boolean | Promise<boolean>;
 
-/** Whether a token names a real slice of one article's explicit end gallery. */
+/** Validate an opted-in end gallery, or ignore cursor for a plain article. */
 type ArticleEndGalleryCursorNamesASlice = (
   locale: string,
   contentId: string,
   cursor: string,
-) => boolean | Promise<boolean>;
+) => boolean | "ignore" | Promise<boolean | "ignore">;
 
 /**
  * Whether a gallery-local section slug names a real, declared section of one
@@ -218,8 +218,8 @@ function resolveHistoricalStoryTarget(
  *   contract — so a cursor there is malformed, stale, or tampered with, and
  *   decision 8 answers that with a 404 rather than a page that quietly ignores
  *   it (`reject`).
- * - An **article** now carries a candidate token to its end-gallery adapter.
- *   The adapter rejects it when the article declares no such result.
+ * - An **article** carries a candidate token only when it declares an end
+ *   gallery. The injected validator returns "ignore" for a plain article.
  *
  * `section` is a different parameter with its own disposition — see
  * {@link sectionDisposition} — because ADR-0003 gives it no "recognized but
@@ -399,6 +399,16 @@ async function refusesCursor(
   },
 ): Promise<boolean> {
   if (cursor === undefined) return false;
+
+  if (route.kind === "content" && route.variant === "article" && articleEndGalleryNamesASlice !== undefined) {
+    // Only articles declaring an end gallery recognize cursor. Check opt-in
+    // before multiplicity, including before any normalization redirect.
+    const result = await articleEndGalleryNamesASlice(locale, route.contentId,
+      typeof cursor === "string" ? cursor : "");
+    if (result === "ignore") return false;
+    if (!result || typeof cursor !== "string") return true;
+    return false;
+  }
 
   const disposition = cursorDisposition(route);
   if (disposition === "reject") return true;
@@ -748,8 +758,12 @@ export async function resolveLocalePrefixRequest({
     );
   }
 
+  const ignoresArticleCursor = route.kind === "content" && route.variant === "article" &&
+    articleEndGalleryCursorNamesASlice !== undefined && searchParams.cursor !== undefined &&
+    await articleEndGalleryCursorNamesASlice(localeRoute.locale, route.contentId,
+      typeof searchParams.cursor === "string" ? searchParams.cursor : "") === "ignore";
   const cursor =
-    cursorDisposition(route) === "carry" &&
+    !ignoresArticleCursor && cursorDisposition(route) === "carry" &&
     typeof searchParams.cursor === "string"
       ? searchParams.cursor
       : undefined;
