@@ -36,8 +36,9 @@ stages:
         # stays Microsoft-hosted specifically because sharing this agent with a
         # PR-triggered job would expose its Vercel/Sanity credentials to whatever a PR's
         # dependencies left behind on the machine. Requires an agent registered in the
-        # organization's "Default" pool with passwordless sudo for Playwright's
-        # --with-deps step.
+        # organization's "Default" pool with Playwright's OS-level browser dependencies
+        # already installed on the host (see the "Install Playwright browsers" step
+        # below for why the pipeline itself no longer installs them with --with-deps).
         pool: "Default"
         steps:
           - task: UseNode@1
@@ -85,10 +86,16 @@ stages:
               SITE_DEFAULT_SOCIAL_IMAGE_WIDTH: "1536"
               SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT: "1024"
 
-          # Only the browsers the configured project matrix uses. --with-deps installs
-          # the system libraries a hosted Ubuntu agent lacks.
+          # Only the browsers the configured project matrix uses. No --with-deps: a
+          # Microsoft-hosted vmImage lacked the system libraries and needed it, but this
+          # self-hosted agent's OS dependencies are provisioned once, out of band, by
+          # the machine's owner (docs/deployment.md § "The Verify stage runs on a
+          # self-hosted agent") — Playwright's own --with-deps always re-invokes
+          # `sudo sh -c "apt-get ..."`, which cannot run non-interactively without
+          # granting effectively full root, so a persistent agent installs its OS
+          # packages once instead of asking for that on every run.
           - script: |
-              npx playwright install --with-deps chromium webkit
+              npx playwright install chromium webkit
             displayName: "Install Playwright browsers"
 
           # Runs its own production build through the Playwright webServer, with the

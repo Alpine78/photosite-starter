@@ -998,11 +998,18 @@ Registering the agent (owner-run, on the machine that will build):
    Enter the PAT from step 1 when prompted; accept the default work folder.
 4. Run it as a persistent service so a queued build does not wait on the machine being
    awake with a terminal open: `sudo ./svc.sh install && sudo ./svc.sh start`.
-5. The agent needs the same toolchain the pipeline steps assume: `UseNode@1` installs the
-   pinned Node major itself, but `npx playwright install --with-deps` shells out to `apt`
-   for system libraries, so the agent's service account needs passwordless `sudo` (or the
-   packages pre-installed) on a Debian/Ubuntu machine — the same constraint a
-   Microsoft-hosted `ubuntu-latest` image satisfied for free.
+5. `UseNode@1` installs the pinned Node major itself, but Playwright's browser OS
+   dependencies are the operator's own one-time step, not the pipeline's: run
+   `sudo npx playwright install-deps chromium webkit` once on the agent host. Playwright's
+   own `--with-deps` flag always re-invokes `sudo sh -c "apt-get ..."` internally, which
+   cannot succeed non-interactively (`sudo: A terminal is required to authenticate`)
+   without granting effectively unrestricted passwordless root — sudoers cannot scope a
+   `sh -c` invocation any narrower than that, since the script body is arbitrary. A
+   persistent self-hosted agent doesn't need to reinstall the same OS packages on every
+   run the way a fresh Microsoft-hosted `ubuntu-latest` image would anyway, so the
+   pipeline step omits `--with-deps` (just `npx playwright install chromium webkit`) and
+   this one-time manual step replaces it — re-run it after a Playwright version bump
+   changes which system libraries a browser needs.
 
 The tradeoff this accepts: `Verify` only runs while the registered machine is powered on
 and the agent service is running. A queued run waits rather than failing, but a
