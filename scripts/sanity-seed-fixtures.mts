@@ -69,6 +69,13 @@
 
 import { createHmac } from "node:crypto";
 
+
+import {
+  collectKeyViolations,
+  isRealCalendarDateTime,
+  referencedId,
+} from "./sanity-document-checks.mts";
+
 const ARTICLE_TYPE_NAME = "article";
 const CATEGORY_TYPE_NAME = "category";
 const GALLERY_TYPE_NAME = "gallery";
@@ -1299,52 +1306,6 @@ export function orderSeedDocumentsForDeletion<
 // silently breaking one of these rules.
 // ---------------------------------------------------------------------------
 
-type ReferenceLike = { readonly _ref?: unknown };
-
-function referencedId(value: unknown): string | undefined {
-  if (typeof value !== "object" || value === null) return undefined;
-  const ref = (value as ReferenceLike)._ref;
-  return typeof ref === "string" ? ref : undefined;
-}
-
-function isKeyedArray(value: unknown): value is readonly Readonly<Record<string, unknown>>[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "object" && item !== null);
-}
-
-/**
- * Every `_key` in every array-of-objects field, anywhere in one document's
- * field tree, is present, non-empty, and unique among its own array siblings.
- * `value` may be an array (checked directly, then each item's own fields are
- * walked) or a plain object (not itself checked — only a `_type: "document"`
- * or nested object's *fields* are walked for further arrays).
- */
-function collectKeyViolations(path: string, value: unknown, violations: string[]): void {
-  if (isKeyedArray(value)) {
-    const seen = new Set<string>();
-    for (const item of value) {
-      const key = item._key;
-      if (typeof key !== "string" || key.length === 0) {
-        violations.push(`${path}: array item is missing a non-empty _key`);
-      } else if (seen.has(key)) {
-        violations.push(`${path}: duplicate _key "${key}"`);
-      } else {
-        seen.add(key);
-      }
-      for (const [field, fieldValue] of Object.entries(item)) {
-        if (field === "_key") continue;
-        collectKeyViolations(`${path}.${String(key)}.${field}`, fieldValue, violations);
-      }
-    }
-    return;
-  }
-
-  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-    for (const [field, fieldValue] of Object.entries(value)) {
-      collectKeyViolations(`${path}.${field}`, fieldValue, violations);
-    }
-  }
-}
-
 /** No level-3 heading appears before the first level-2 heading in one body. */
 function hasHeadingOrderViolation(body: unknown): boolean {
   if (!Array.isArray(body)) return false;
@@ -1380,13 +1341,6 @@ function blankLanguageIn(entries: unknown): string | undefined {
     }
   }
   return undefined;
-}
-
-/** Restates `sanity-config.ts`'s `parseApiVersion`-style calendar round trip for a datetime field. */
-function isRealCalendarDateTime(value: unknown): boolean {
-  if (typeof value !== "string") return false;
-  const parsed = new Date(value);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
 }
 
 /** Restates `content-tree.ts`'s `MAX_CATEGORY_DEPTH`. */

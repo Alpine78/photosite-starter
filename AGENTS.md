@@ -2044,6 +2044,174 @@ multi-slice article, the no-JavaScript continuation, progressive append and retr
 lightbox sequence and focus, and a malformed continuation. Production migration and live
 dataset verification are separate, already-open follow-up work (AB#137).
 
+AB#137's legacy-content importer is **half built**: the offline conversion and approval
+layer exists, the write half does not. `npm run convert:joomla`
+(`scripts/convert-joomla-content.mts`, over the pure `joomla-html-conversion.mts`,
+`joomla-import-manifest.mts`, and `joomla-import-plan.mts`) reads an exported
+newline-delimited JSON article set and the owner's approval manifest, converts each
+legacy body into the shared `ContentBlock` set, and reports exactly what would and would
+not migrate — performing **no write of any kind**: no network request, no Sanity
+credential, no dataset change, and a plan that is marked non-writable by construction.
+The conversion is an allow-list over both elements *and* attributes, parsed with `parse5`
+(a devDependency for this tooling only, recorded in `docs/asset-inventory.md`) because
+hand-rolled or regex handling would make "unsupported" mean whatever the pattern happened
+to miss. Every construct is explicitly convertible, explicitly **lossy** (converted, with
+the loss recorded), or a **refusal** that blocks its article — there is no silent fourth
+category, since a converter that quietly dropped what it did not understand would publish
+articles whose surviving words look correct. Presentation, Word residue, and dropped
+anchor ids are lossy — as is a paragraph boundary inside a quote or list item, flattened
+into a space, since a *single* `<p>` wrapping one (a common WYSIWYG pattern,
+`<blockquote><p>…</p></blockquote>`) is exactly representable and carries no finding at all
+(an earlier draft refused it outright — a real over-restriction, not a loss, found and
+fixed in Codex review round 8); a Joomla `{loadposition}`/`{loadmodule}`/`{contentpoll}`
+marker, a non-YouTube embed, style-hidden content, a behavioural attribute, a heading
+outside levels 2–4 or out of semantic order, a nested list, a headerless/ragged/merged-cell
+table, a `<th>` outside a table's first row, an image with no approved identity or
+alternative text, a YouTube video with no accessible title, a gallery disagreeing with its
+approved count, a second oversized gallery in one article, a photograph the owner's own
+persisted identity map claims is shared between two locators whose verified bytes actually
+differ, and a body that converted to nothing are all refusals. There are **two modes**
+because of a real ordering problem: every worksheet row starts ineligible, and what makes
+one eligible is knowing what its conversion would lose, so an approval-gated tool alone
+could never produce the findings needed to grant the approval it demands — `--review`
+converts everything selected, `--plan` is strictly approval-gated to one phase (the
+owner's "Lever B"). An owner's acknowledgement of a lossy finding is bound to
+**two separate digests**, not one — the **source record's** SHA-256 (title,
+summary, author, tags, and body, not the body alone, so an edited title with an
+unchanged body still invalidates a stale approval) and, since the source text
+alone cannot see a changed photograph, alt text, gallery order, or video title,
+a second digest of the **resolved conversion output**
+(`resolvedConversionDigest`) — printed as `resolvedDigest` in `findings.json`
+for the owner to copy into the manifest, and recomputed from the plan's own
+`conversion` result rather than trusted from a caller-supplied value, so the
+check cannot drift from what is actually being planned — *and* the conversion
+policy version, so editing the article, the resolution file, or a conversion
+rule all independently invalidate a stale approval rather than silently
+carrying over. A loose body image with no language-specific approved alt text
+is refused rather than falling back to the raw Joomla `<img alt>` attribute,
+which would otherwise let unreviewed source text back in through the one path
+that still had it. A malformed approval record is an error, never a deferral,
+so it cannot quietly disappear from the launch; an identity or route collision
+is an error even across phases; and naming a phase no approved row matches is
+an error rather than a clean run over nothing. An approved gallery folder is
+verified by its **owner-approved ordered file inventory** — filename and
+content SHA-256 per entry, never a file count alone, since a same-count
+substitution would otherwise pass silently — reading every approved file's
+bytes without uploading or transmitting them, and a duplicate filename in that
+inventory is itself a refusal rather than a silent collapse into a smaller
+unique set. A loose body image gets the same treatment (`images` carries a
+`{locator, sha256}` pair, not a bare locator string), so neither path can
+resolve on trust alone; without `--image-root`, or on a missing or mismatched
+file, an image or gallery simply does not resolve. Alt text is language-keyed
+per locator, not a bare string, since a translated article pair commonly
+shares one gallery folder — this migration's own "Chamonix 2006" fi/en pair
+does — and a single string would otherwise attribute one language's words to
+the other's article. Four identities stay apart — photograph identity
+(persisted **two-part** in `photograph-identities.json` — `byLocator` plus
+`byContentHash` — across runs and phases; ADR-0002 §1 requires identity to
+survive a rename, and `byLocator` alone cannot, since a renamed file has no
+entry under its new path, so `byContentHash` correlates a new locator's
+verified bytes with an identity already known under a different one, used only
+as a lookup and never as the identity's own derivation — `mintPhotographIdentity()`
+mints an **opaque CSPRNG token with no relationship to any locator at all**,
+never a hash of the filename/path the way an earlier draft did, which was
+itself a real ADR-0002 §1 violation (found and fixed in Codex review round 9,
+not merely a stopgap for the reprocessed-photograph case): a locator-derived
+id is not a genuine mint, it is whatever the source tree's naming happened to
+be at that moment. A genuinely reprocessed photograph (different bytes, same
+work) is exactly the case a hash cannot correlate and still needs the owner to
+carry over by hand), placement identity per *occurrence* (deliberately
+language-free: an fi/en translation pair sharing one gallery sequence shares
+one placement id per occurrence, the same cross-language sharing
+`galleryPlacement` already has, so a live audit can recognize it — though each
+language still gets its own placement *document*), the private source locator,
+and the derivative/asset reference the write step resolves — so one photograph
+used twice is one identity and two placements. Three conflicts fail the whole
+run before the rest of the report is written (only a private, mode-0600
+`conflicts.json` is), so none can be silently inherited by a later run: the
+owner's own persisted map claiming two *currently referenced* locators share
+an identity whose verified bytes actually differ (round 8); the *same* file's
+`byLocator` and `byContentHash` entries naming two *different* identities — an
+earlier draft preferred `byLocator` whenever both existed, silently
+overwriting `byContentHash` with it, so the same photograph could get a
+different id depending on which locator was processed first (round 10, the
+disagreement the two-index design exists to prevent in the first place); and
+the same photograph appearing twice in one gallery with two different approved
+alt texts for one language — an authoring ambiguity a naive `Object.fromEntries`
+collapse used to silently resolve by keeping whichever occurrence was listed
+last (round 9). Every conflict's full detail — private locators, hashes, alt
+text — stays in that one report file; the console prints counts only, never
+raw conflict detail (an earlier draft printed the full detail to stderr,
+found and fixed in round 10, since this project's own runbook is explicit
+that console output is counts and digests only). Every verified content hash
+also feeds `resolvedConversionDigest`, so a file swapped in place with its
+recorded hash updated to match — same locator, same identity, different
+pixels — still invalidates a stale approval even though nothing else about the
+resolved output moved. A structural attribute (`src`, `href`, `alt`,
+`colspan`/`rowspan`, `start`/`type`) is accepted only on the element that
+actually consumes it, not globally, so `href` on a `<p>` or `src` on an `<a>`
+refuses rather than silently vanishing; a manifest ISO-instant field accepts
+any real ISO-8601 spelling — `Z` with no fractional seconds, a numeric
+offset — rather than only `Date.prototype.toISOString()`'s own canonical one,
+which had been silently rejecting ordinary exported timestamps; content hidden
+by `opacity:0`, `visibility:collapse`, or `font-size:0` refuses the same way
+`display:none`/`visibility:hidden` already did, closing a real path for
+abandoned or private legacy content to be silently republished (a bounded,
+pattern-based check, not a CSS parser — a compound technique like
+`position:absolute;left:-9999px` is a named, deliberately unclosed gap); and
+every `--<option>` name is validated, so a typo (`--phaze` for `--phase`)
+fails the command instead of silently keeping the default phase, which decides
+which approved rows a `--plan` write covers. An approved row's `published_at`/
+`event_date` are **canonicalized**, not carried into the planned document
+verbatim: `isRealCalendarDateTime` accepts a wider range of real ISO spellings
+(an offset, no fractional seconds) than `src/lib/sanity-article.ts`'s own
+already-shipped reader does (UTC `Z`, exactly three fractional digits) —
+found in Codex review round 11 as a plan that would have validated cleanly
+and then been rejected by that production adapter after the write, throwing
+on every future render of the migrated page — so `canonicalCalendarDateTime`
+resolves the accepted value (correctly applying any numeric offset via native
+`Date` parsing, not hand-rolled arithmetic) to the exact shape that reader
+requires before it ever reaches a document. `<br>` and `<hr>` now go through
+the same attribute allow-list as every other element — they were the two
+elements it never ran on at all, so a dropped anchor id or a behavioural
+attribute on either vanished with no finding (round 11). And a malformed
+`--plan` manifest's own row errors — which can name a private route, content
+id, or source id — get the same private-report treatment the round-10
+conflicts already have: a mode-0600 `manifest-errors.json`, count only on
+stderr (round 11). `isRealCalendarDateTime` itself was found still wrong in
+round 12: it folded a fractional second into the *same* `Date.UTC(...)` call
+used to validate the calendar date, so a value whose fraction rounded up to a
+full second (`.9999`) correctly carried into the next second — and the
+comparison then wrongly rejected the *written* second as not matching. Fixed
+by validating hour/minute/second as plain bounded-range checks, entirely
+independent of the fractional part, and reserving the `Date.UTC` round trip
+for what it actually needs to catch — an impossible year/month/day — which a
+fractional-second carry can no longer perturb. Two more private-detail console
+leaks were found the same way round 10/11's were and closed the same way,
+round 12: an approved manifest row with no matching article in the source
+export (the oldest of the three, present since this tool's first slice) into
+`missing-from-export.json`, and — checked *before* conversion starts, so
+nothing downstream ever reads a bad value — a malformed entry in the persisted
+`photograph-identities.json` into `malformed-identities.json`, which used to
+flow through conversion unchecked and only surface as an uncaught exception
+deep inside `buildImportPlan`'s own `migratedId` call. Migrated documents use a
+`migrated--` id namespace deliberately
+disjoint from the demo seeder's `seed--`, because `npm run seed:sanity --
+--delete-all` deletes every `seed--` document and would otherwise be able to
+destroy real launch content; a test pins the two apart. A derived end-gallery or
+placement id is checked against the Studio schema's own 128/256-character bounds
+before an article is accepted, since an API import bypasses Studio validation
+entirely. The genuinely generic document-set checks moved to
+`scripts/sanity-document-checks.mts`, shared with `validateSeedFixtures`, whose
+demo-fixture *coverage* assertions stayed where they are because they say nothing
+about launch content. **Unbuilt:** derivative generation (downscaling camera
+originals to the 2048px public ceiling — note `uploadSeedImageAsset` validates
+dimensions only *after* uploading, so it cannot be the pre-upload gate), asset
+upload, category-reference resolution against the target dataset, the Sanity
+write, and every owner-run part of AB#137 — the manifest approval, the baseline
+export, the temporary credential, the Production run, the audit, and the
+revocation and handoff evidence.
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
@@ -2135,6 +2303,7 @@ npm run diagrams  # regenerate docs/architecture/*.svg from their .d2 sources
 npm run diagrams:check # CI gate: sources compile and committed SVGs are current
 npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
 npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy benchmark (owner-run for the live matrix)
+npm run convert:joomla -- --source <articles.ndjson> --out <dir> # owner-run: convert legacy content, report only, never writes
 npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
 ```
 
