@@ -2019,6 +2019,31 @@ needed — the one order contract `GalleryGrid`'s own history already required (
 and lightbox order agreeing) is preserved exactly, not renegotiated, so this is a
 presentation choice over an existing contract rather than a change to it.
 
+An article may now own one optional bounded end-gallery result (AB#161, ADR-0003's
+2026-09-15 amendment): a large gallery placed after the article's own body without
+splitting it into inline mini-galleries or moving it to a second public content page. The
+first 24 items render with the article; every later slice is reachable through a real
+`?cursor=` link with no JavaScript, and script progressively enhances that same link into
+an in-place append with retry and completion states — the identical shared continuation
+and lightbox mechanics a curated gallery already has (`article-end-gallery-pagination.ts`,
+`article-end-gallery-request.ts`), scoped to the article identity, the end-gallery
+identity, and the full route locale, so a cross-article or cross-locale token 404s the
+same way a mismatched curated-gallery cursor does. The end-gallery viewer is its own
+sequence, isolated from the body's loose-image viewer and from every inline mini-gallery
+(AB#24) on the same page. Sanity stores each item as its own `articleEndGalleryPlacement`
+document — mirroring `galleryPlacement`'s one-document-per-item shape rather than an
+embedded array — with a validated occurrence identity stable across an article's
+per-language documents, read through `sanity-article-end-gallery.ts`'s bounded
+compound-key `(order, placementId)` query. The parameter-free article stays the sole
+canonical and indexable URL and the only one in the sitemap; a continuation is `noindex`,
+canonicalizes back to it, and names no `hreflang` alternates, since another locale carries
+the article's own identity, not an equivalent transient slice. An article with no end
+gallery keeps ignoring incidental or repeated `cursor` parameters exactly as before.
+Mock and Sanity-backed tests, plus `e2e/article-end-gallery.spec.ts`, cover a
+multi-slice article, the no-JavaScript continuation, progressive append and retry,
+lightbox sequence and focus, and a malformed continuation. Production migration and live
+dataset verification are separate, already-open follow-up work (AB#137).
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a

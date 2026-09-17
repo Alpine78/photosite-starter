@@ -343,7 +343,19 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   contrast surface without cropping the image or truncating copy (AB#155). No authored
   cover, no hero, and no page repeats a gallery's own opening photograph by default. An article's optional per-article author
   overrides the site's photographer name on the hero byline, one meta line shared with
-  the event date (AB#151); the gallery variant has no byline field*
+  the event date (AB#151); the gallery variant has no byline field. An article may now also
+  own one optional bounded end-gallery result, rendered after the body and isolated from the
+  body's own loose-image and mini-gallery viewers (AB#161,
+  [ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md)'s 2026-09-15
+  amendment): the first slice renders with the article, a real `?cursor=` link serves
+  every later slice without JavaScript, and script progressively enhances that link into
+  an in-place append with retry and completion states — the same shared continuation and
+  lightbox mechanics a curated gallery already has, scoped to the article, end-gallery
+  identity, and locale. The parameter-free article stays the sole canonical and indexable
+  URL; a continuation is `noindex` and names no `hreflang` alternates. Sanity stores each
+  placement as its own document with a validated cross-language occurrence identity, read
+  through a bounded compound-key query, mirroring the curated gallery's own
+  `galleryPlacement` shape*
 - [ ] Hierarchical public content tree with category routes, breadcrumbs, and accessible navigation
   — *category domain model, canonical placement contract, the server-rendered category
   branch routes with breadcrumbs, a bounded recent-content overview on the story root,

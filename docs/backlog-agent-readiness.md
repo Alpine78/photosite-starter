@@ -1,6 +1,6 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-09-15
+**Last reviewed:** 2026-09-16
 
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
@@ -19,8 +19,7 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 | Work item | Current state | Required owner action or decision | Unblocks |
 | --- | --- | --- | --- |
 | AB#141 — Physical-device lightbox check | New | Run the specified tap, double-tap, pinch, pan, and close checks on a real touch device and record device/browser/results in ADR-0001. | The remaining manual lightbox verification. |
-| AB#161 — Large gallery at the end of an article | Active | No further product decision: all 48 source-gallery occurrences must migrate complete. Implement the bounded article-end gallery and its scoped ADR-0003 amendment. | The affected AB#137 article imports. |
-| AB#137 — Production Sanity dataset | Active | Select and approve public launch content from the source inventory, resolve image and body-block exceptions, verify a recoverable baseline, then run and audit the Production migration with a temporary write credential as described in [the migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137). | AB#117. |
+| AB#137 — Production Sanity dataset | Active | Select and approve public launch content from the source inventory, resolve image and body-block exceptions, verify a recoverable baseline, then run and audit the Production migration with a temporary write credential as described in [the migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137). Its AB#161 prerequisite is closed, so the 48 source-gallery article imports it was blocking are unblocked. | AB#117. |
 | AB#117 — Production security and privacy review | Active | Review and accept the production evidence after AB#137, including any residual risks. | AB#18. |
 | AB#18 — Production promotion | New | Perform owner-controlled domain, DNS, production secret, rollback, and smoke-test actions only after predecessors pass. | AB#118 handoff and rollback exercise. |
 | AB#144 — Preview alias revision gate | Active | Confirm whether the acceptance criteria are met and the item can close. Its implementation merged as PR #99 (`0c4e42c`, 2026-08-31), but its final criterion — updating or removing the AB#136 known-limitation notes — depended on AB#136, which only closed 2026-09-10. Verify those notes, then close or state what remains. | Nothing else; it is a bookkeeping decision on already-merged work. |
@@ -28,7 +27,7 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 ## Dependency order
 
 ```text
-AB#161 ──> AB#137 ──> AB#117 ──> AB#18 ──> AB#118   (AB#19 closed 2026-09-13)
+AB#137 ──> AB#117 ──> AB#18 ──> AB#118   (AB#19 closed 2026-09-13, AB#161 closed 2026-09-16)
 
 AB#54 ──> AB#55 ──> AB#58 ──> AB#71   (AB#65 spike closed 2026-08-27)
 ```
@@ -93,13 +92,15 @@ public dataset exist. A local, ignored source inventory and image reconciliation
 have begun, but no public launch manifest has been approved, no Production
 content has been written, and AB#137's live acceptance criteria remain open.
 The selected source content also exposed one implementation prerequisite,
-now recorded as **AB#161** (`Active`, created 2026-09-15):
-an `article` must be able to carry a large gallery at the end of its body,
-on the same page and in one continuous image order. The current 1–12-image
-mini-gallery cannot represent that case, and reclassifying an editorial
-article as a gallery would change its primary content identity. AB#161 is a
-predecessor of AB#137 and requires a scoped ADR-0003 amendment before those
-articles can be migrated; AB#137 remains `Active`.
+recorded as **AB#161**: an `article` must be able to carry a large gallery at
+the end of its body, on the same page and in one continuous image order. The
+current 1–12-image mini-gallery cannot represent that case, and reclassifying
+an editorial article as a gallery would change its primary content identity.
+**AB#161 closed 2026-09-16** (PR #164, merged `f0247a1`) with the scoped
+ADR-0003 amendment and the bounded article end-gallery result described in
+`AGENTS.md`'s feature-status section, so the 48 source-gallery article imports
+it was blocking are unblocked; AB#137 remains `Active` and is now the sole
+predecessor on the launch chain.
 The [migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137)
 sets the approval, baseline, private-content exclusion, audit, and revocation
 sequence. The source inventory is private and is not part of this repository.
@@ -121,10 +122,10 @@ infrastructure, or an evidence run before dependent implementation can proceed:
   acceptance criteria.
 - **AB#54 → AB#55** and **AB#95** need owner-run evidence or product decisions.
 
-**Next step:** implement AB#161's article-end large-gallery prerequisite,
-complete the private AB#137 launch-content manifest and its owner approval,
-then perform the Production run. Keep AB#137 `Active` until the full audit,
-credential revocation, and handoff evidence are done. Then proceed to AB#117.
+**Next step:** complete the private AB#137 launch-content manifest and its
+owner approval, then perform the Production run. Keep AB#137 `Active` until
+the full audit, credential revocation, and handoff evidence are done. Then
+proceed to AB#117.
 
 ## Handoff checklist for another machine or agent
 
