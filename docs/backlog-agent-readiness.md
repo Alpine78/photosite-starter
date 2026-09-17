@@ -19,7 +19,7 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 | Work item | Current state | Required owner action or decision | Unblocks |
 | --- | --- | --- | --- |
 | AB#141 — Physical-device lightbox check | New | Run the specified tap, double-tap, pinch, pan, and close checks on a real touch device and record device/browser/results in ADR-0001. | The remaining manual lightbox verification. |
-| AB#137 — Production Sanity dataset | Active | Select and approve public launch content from the source inventory, resolve image and body-block exceptions, verify a recoverable baseline, then run and audit the Production migration with a temporary write credential as described in [the migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137). Its AB#161 prerequisite is closed, so the 48 source-gallery article imports it was blocking are unblocked. | AB#117. |
+| AB#137 — Production Sanity dataset | Active | Run `npm run convert:joomla` in review mode over the selected inventory to produce the conversion findings, resolve the exception rows and supply alternative text, approve the launch manifest, verify a recoverable baseline, then run and audit the Production migration with a temporary write credential as described in [the migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137). Its AB#161 prerequisite is closed, so the 48 source-gallery article imports it was blocking are unblocked. | AB#117. |
 | AB#117 — Production security and privacy review | Active | Review and accept the production evidence after AB#137, including any residual risks. | AB#18. |
 | AB#18 — Production promotion | New | Perform owner-controlled domain, DNS, production secret, rollback, and smoke-test actions only after predecessors pass. | AB#118 handoff and rollback exercise. |
 | AB#144 — Preview alias revision gate | Active | Confirm whether the acceptance criteria are met and the item can close. Its implementation merged as PR #99 (`0c4e42c`, 2026-08-31), but its final criterion — updating or removing the AB#136 known-limitation notes — depended on AB#136, which only closed 2026-09-10. Verify those notes, then close or state what remains. | Nothing else; it is a bookkeeping decision on already-merged work. |
@@ -122,10 +122,16 @@ infrastructure, or an evidence run before dependent implementation can proceed:
   acceptance criteria.
 - **AB#54 → AB#55** and **AB#95** need owner-run evidence or product decisions.
 
-**Next step:** complete the private AB#137 launch-content manifest and its
-owner approval, then perform the Production run. Keep AB#137 `Active` until
-the full audit, credential revocation, and handoff evidence are done. Then
-proceed to AB#117.
+**Next step:** the importer's conversion half now exists
+(`npm run convert:joomla`, `scripts/joomla-*.mts`): it converts an exported
+article set into the shared content blocks, gates on the owner's approval
+manifest, and reports every refusal and lossy transformation, while writing
+nothing anywhere. What remains is owner-run or unbuilt — the review pass over
+the real inventory, the exception-row resolutions and alternative text it will
+call for, the manifest approval, the write half of the importer (derivative
+generation, asset upload, reference resolution, the Sanity write), and then the
+Production run, audit, credential revocation, and handoff evidence. Keep AB#137
+`Active` until all of that is done. Then proceed to AB#117.
 
 ## Handoff checklist for another machine or agent
 

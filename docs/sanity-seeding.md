@@ -427,6 +427,269 @@ never overwrite Preview fixtures just to test an import. The import
 implementation must match the approved manifest; the demo seeder must not be
 used as a shortcut.
 
+### The conversion step: `npm run convert:joomla`
+
+The first half of that separate implementation exists. It converts an exported
+set of legacy articles into this project's shared content blocks and reports
+exactly what would and would not migrate. **It performs no write of any kind** —
+no network request, no Sanity credential, no dataset change — and the plan it
+produces is marked non-writable by construction. The write step is still
+unbuilt.
+
+```bash
+# Review pass: convert everything the manifest selects, whatever its eligibility.
+npm run convert:joomla -- \
+  --source <articles.ndjson> \
+  --resolution <resolution.json> \
+  --image-root <image-tree> \
+  --out <report-dir>
+
+# Plan pass: strictly approval-gated, one phase.
+npm run convert:joomla -- \
+  --source <articles.ndjson> \
+  --resolution <resolution.json> \
+  --image-root <image-tree> \
+  --manifest <approved-manifest.csv> \
+  --categories "<categoryId> <categoryId> …" \
+  --phase launch \
+  --out <report-dir> --plan
+```
+
+Every option name is validated: `--source`, `--out`, `--manifest`, `--resolution`,
+`--image-root`, `--phase`, `--categories`, `--plan`, and `--review` are the
+only ones recognized. A typo (`--phaze` instead of `--phase`) fails the
+command rather than being silently absorbed while the phase quietly stays at
+its default — phase decides which approved rows a `--plan` write covers, so a
+silently wrong one is not a cosmetic mistake (found in Codex review round 10).
+
+There are two modes because of a real ordering problem. Every row in the
+selection worksheet starts out not yet eligible for import, and what makes a row
+eligible is knowing what its conversion would lose or refuse. An approval-gated
+tool alone could never produce the findings needed to grant the approval it
+demands. `--review` (the default) therefore converts every selected article and
+reports; `--plan` builds the import plan from fully approved rows only.
+
+**Inputs.** `--source` is a newline-delimited JSON export, one line per article
+per language: `joomlaId`, `language`, `title`, `body` (the raw source HTML),
+and optionally `summary`, `author`, `tags`. This is a deliberately small
+contract rather than a general Joomla SQL or archive reader — produce it once
+from the backup. `--resolution` is a JSON file mapping each body image `src` to
+its **approved locator and content hash** (`{"locator": "…", "sha256": "…"}` —
+a bare locator string was the original shape, but nothing then verified a
+loose image's bytes the way a gallery file's already were, so an in-place
+substitution here was invisible everywhere, including the resolved-output
+digest below), each locator to its **language-keyed** alternative text
+(`{"fi": "…", "en": "…"}`, never a bare string — a translated article pair
+commonly shares one gallery folder, so a single string per locator would
+attribute one language's alt text to the other language's article), each
+gallery folder to its owner-approved **ordered file inventory**
+(`galleryFiles`: each entry a `filename` and the file's SHA-256, not merely a
+count — a file count alone cannot tell a substituted photograph from the
+approved one, only that the folder holds the right number of *something*, and
+a repeated filename in that inventory is itself refused rather than silently
+collapsed), and a YouTube video id to its accessible title (`youtubeTitles`).
+`--image-root` is the local image tree; the tool reads every approved image's
+and gallery file's bytes to verify its content hash, though nothing is
+uploaded or transmitted anywhere. Without `--image-root`, or when a file is
+missing or its bytes do not match, an image or gallery simply does not
+resolve — refused the same way an unapproved reference is, never resolved on
+trust alone.
+
+**The manifest.** A semicolon-delimited file with these columns:
+
+| Column | Meaning |
+| --- | --- |
+| `joomla_id`, `language` | Source identity. One row per article per language. |
+| `content_id` | Shared across a page's languages; with `language` it is the article's whole identity. |
+| `slug`, `canonical_category`, `secondary_categories` | The new canonical route and placement. |
+| `phase` | Which write this row belongs to (the owner's "Lever B" phased manifest). |
+| `published_at`, `event_date` | ISO instants (any real spelling — a numeric offset, no fractional seconds — is accepted and then canonicalized to the exact UTC-`.000Z` shape `src/lib/sanity-article.ts`'s own reader requires, so the planned document is never something the production adapter would reject); `event_date` is the public ordering key (ADR-0017). |
+| `source_digest` | SHA-256 over the whole imported record — title, summary, author, tags, and body, not the body alone — this approval was given against. |
+| `resolved_digest` | SHA-256 over the *resolved conversion output* — the actual photograph identities, verified content hashes, gallery order, alt text, and video titles — printed as `resolvedDigest` in `findings.json` for the owner to copy in. |
+| `conversion_policy` | The conversion policy version the approval was reviewed under. |
+| `acknowledged_findings` | Lossy finding codes the owner has accepted for this article. |
+| `public_launch_decision`, `eligible_for_import` | `INCLUDE`/`LATER`/`EXCLUDE`, and `YES`/`NO`. |
+| `approved_by`, `approved_at` | Who approved it and when. |
+
+A row that is `LATER`, `EXCLUDE`, not yet eligible, or approved for another
+phase is **deferred** and reported with its reason. A row that *claims* approval
+while missing the approver, the date, the digest, or the phase is an **error**,
+because a malformed approval record must not read as a deferral and quietly
+disappear from the launch. An identity or route collision is an error even
+across phases, since a later phase colliding with this one would otherwise only
+surface at write time. Naming a phase no approved row matches is an error too,
+rather than a clean run over nothing.
+
+**Why the digest covers the whole record, not just the body.** An approval that
+digested only the HTML body would let an edited title or author slip through
+unreviewed while the body stayed byte-identical — the digest exists to answer
+"is this still the thing that was approved," and a title is part of that thing.
+
+**Why there are two digests, not one.** `source_digest` covers what the owner
+supplied in the source export. It cannot see a change to `resolution.json` —
+a different photograph substituted for the same `src`, an edited alt text, a
+reordered gallery, or a changed YouTube title — since none of that touches
+the source article text at all. `resolved_digest` closes that gap: it covers
+the actual resolved output (`resolvedConversionDigest` in
+`joomla-html-conversion.mts`), so an edit to the resolution file after
+approval is caught the same way an edit to the article itself is, even though
+neither `source_digest` nor the conversion policy would have moved.
+
+**Why the digest and the policy version travel with the approval.** A conversion
+can lose a link's destination while keeping its words — "download the programme"
+still reads correctly while doing nothing. The owner may accept that, but the
+acceptance has to name what was accepted. Re-editing the source article, or
+changing a conversion rule, invalidates the acknowledgement rather than letting
+it silently carry over to content nobody re-reviewed.
+
+**What the conversion refuses.** Anything with no equivalent in the shared block
+set: an unknown element, a Joomla `{loadposition}`/`{loadmodule}`/`{contentpoll}`
+marker, a non-YouTube embed, script or style, content hidden by a style rule
+(`display:none`/`visibility:hidden` plus `opacity:0`, `visibility:collapse`,
+and `font-size:0` in any of their common spellings — a merely small or
+translucent value, like `opacity:0.5`, is untouched. This is a bounded,
+pattern-based check for the known common techniques, not a CSS parser; a
+compound technique such as `position:absolute;left:-9999px` still passes as
+ordinary presentation, a named and deliberately unclosed gap), an
+attribute that could carry behaviour — checked **per element**, not once
+globally: `src`, `href`, `alt`, `colspan`/`rowspan`, and `start`/`type` are
+structural only on the specific element that actually reads them (an `<img>`,
+an `<a>`, a table cell, an `<ol>`), so `href` on a `<p>` or `src` on an `<a>`
+is refused rather than silently accepted the way a flat, tag-independent
+allow-list once let it through — `<br>` and `<hr>` go through the same
+allow-list too, since they had been the two elements this check never ran on
+at all, letting a dropped anchor id or a behavioural attribute vanish with no
+finding — a heading outside levels 2–4 or out of
+semantic order, a nested list, a headerless or ragged or merged-cell table, a
+`<th>` outside a table's first row (a second header row, or a row header — the
+shared table block has one header row only), an image with no approved identity
+or no alternative text, a YouTube video with no accessible title, a gallery
+whose folder disagrees with the approved count, a second oversized gallery in
+one article (an article owns at most one end gallery), a photograph the owner's
+own persisted identity map claims is shared between two locators whose verified
+bytes actually differ (an unresolvable ambiguity about which file is canonical
+— it fails the whole run rather than picking one by processing order), the same
+photograph appearing twice in one gallery with two different approved alt texts
+for the same language (alt text is authored once, on the shared media
+document — a disagreement is an authoring ambiguity, not something to silently
+resolve by keeping whichever occurrence was listed last), and a body that
+converted to nothing. Presentation — classes, inline styles, Word
+residue — is dropped and *recorded*, because the new site owns its own design.
+A single `<p>` wrapping a quote or list item's text is flattened without a
+finding (it is exactly representable); more than one is flattened too, with the
+paragraph boundary itself recorded as lossy, since a quote or item is one flat
+string. Nothing is ever dropped silently.
+
+**The plan is never writable from here.** Two things cannot be known offline:
+which Sanity asset a photograph's derivative becomes, and which document id a
+category identity resolves to in the target dataset. Both are emitted as
+explicit pending markers rather than guessed, so a plan carrying a placeholder
+can never be mistaken for one ready to write.
+
+**Identity.** `photograph-identities.json` in the report directory is
+**two-part**: `byLocator` maps each source locator to the stable photograph
+identity minted for it, and `byContentHash` maps each verified content hash to
+that same identity. **Keep the whole file and pass it back on the next run**
+(`photographIdentities` in the resolution file, same two-part shape):
+ADR-0002 §1 requires a photograph's identity to survive a filename change, a
+re-upload, and a re-run, and `byLocator` alone cannot do that — a renamed or
+moved file simply has no entry under its *new* path, so a locator-only map
+would mint it a second, different identity. `byContentHash` closes that gap as
+a **lookup correlation only, never as the identity's own derivation**: if a new
+locator's verified bytes match a hash already known under any other locator,
+the existing identity is reused instead of a fresh one being minted. A
+genuinely reprocessed photograph (different bytes for what is still the same
+work) is exactly the case a hash *cannot* correlate, and still needs the
+owner to carry the identity over by hand, as ADR-0002 already expects.
+
+**`mediaId` itself is minted opaquely — a random token, never derived from the
+locator.** An earlier draft of this tool hashed the source locator (a private
+path that embeds the original filename) directly into the returned identity,
+which is exactly the derivation ADR-0002 §1 forbids: not "not derived from a
+content hash," but not derived from the filename, a CDN URL, or a provider
+asset id either. A locator-derived id is not a genuine mint, it is whatever
+the source tree's naming happened to be at the moment the tool first saw a
+file. `mintPhotographIdentity()` now takes no locator at all and returns a
+fresh CSPRNG token; the persisted `byLocator`/`byContentHash` maps are the
+*only* mechanism carrying an identity forward, exactly as the paragraph above
+already required of them.
+
+Because minting is now genuinely non-deterministic, an owner who does not
+carry `photograph-identities.json` forward between runs will see a *new*,
+different set of ids on every run over the same photographs — this was always
+the documented workflow ("keep it and pass it back"), but it is no longer
+possible to skip by accident and still get a stable-looking result: a fresh
+mint every time is now visibly fresh, not silently derived from a path that
+happened not to change.
+
+**Three conflicts are detected, and any one fails the whole run before the
+rest of the report is written** — no `findings.json`, no
+`photograph-identities.json`, only a private `conflicts.json` naming what
+disagreed — so neither an ambiguous choice nor a silently-collapsed value can
+be inherited by a later run:
+
+- An **identity conflict**: the owner's own persisted `byLocator` map claims
+  two *currently referenced* locators are the same photograph, but their
+  verified bytes actually differ. One identity must resolve to exactly one
+  physical asset; the tool cannot know which of the two is canonical, and
+  picking "whichever was processed last" would make the plan silently
+  order-dependent.
+- A **persisted-index disagreement**: the *same* file's `byLocator` and
+  `byContentHash` entries name two *different* identities — a hand-edited or
+  merged `photograph-identities.json` gone inconsistent. An earlier draft
+  preferred `byLocator` whenever both existed, which silently overwrote
+  `byContentHash` with it; the same photograph could then end up with a
+  different id depending on which locator happened to be processed first,
+  exactly what the two-index design exists to prevent (found in Codex review
+  round 10). This is caught before either index is trusted, not resolved by
+  an arbitrary preference order.
+- An **alt-text conflict**: the same photograph (by content hash) appears
+  twice in one gallery with two different owner-approved alt texts for the
+  same language. Alt text is authored once, on the shared media document
+  (ADR-0008) — two disagreeing values for one photograph is an authoring
+  ambiguity the tool refuses to silently resolve by keeping whichever
+  occurrence happened to be listed last.
+
+Every verified content hash also travels into `resolvedConversionDigest`
+(`joomla-html-conversion.mts`), so a file swapped in place — same locator,
+same identity, different pixels, with its recorded hash updated to match —
+still invalidates a stale approval even though nothing else about the
+resolved output changed. One photograph used twice is one identity and two
+placements, never two photographs.
+An end-gallery occurrence's `placementId` is itself language-free: an fi/en
+translation pair of the same article shares the same occurrence id for the
+same photograph sequence, exactly as `galleryPlacement`'s own cross-language
+sharing already works, so a live audit can recognize the same occurrence
+across both languages.
+
+Migrated documents live in their own `migrated--` id namespace, deliberately not
+the demo seeder's `seed--`. That is a safety property: `npm run seed:sanity --
+--delete-all` deletes every `seed--` document, so real launch content written
+under that prefix would be destroyable by the demo seeder's own cleanup command.
+
+**The report directory is private migration material.** Findings carry bounded
+source excerpts, dropped link targets, and converted bodies. Keep it out of Git
+and out of shared evidence; what belongs on the work item is the counts and the
+digests the command prints. This is enforced for the identity and alt-text
+conflicts too: their full detail — private source locators, content hashes,
+localized alt text — goes only into a mode-0600 `conflicts.json` in the report
+directory, never to the console; an earlier draft printed the full detail to
+stderr, which this repository's own terminal or CI logs could then retain
+(found in Codex review round 10). A malformed `--plan` manifest's own row
+errors get the same treatment — a route or a content id a colliding row names
+is exactly the kind of private, pre-launch detail this rule exists for — into
+a mode-0600 `manifest-errors.json`, with only the error count on stderr (found
+leaking the same way in Codex review round 11). Two more private-detail cases
+get the identical treatment: an approved manifest row with no matching article
+in the source export (`missing-from-export.json` — the older of the three
+console-leak instances, present since this tool's first slice, closed in round
+12), and a malformed entry in the persisted `photograph-identities.json`
+(`malformed-identities.json`). The malformed-identity check runs *before*
+conversion starts at all: without it, a bad persisted value would flow all the
+way through and only surface as an uncaught exception deep inside
+`buildImportPlan`'s own `migratedId` call — a crash instead of the diagnosable
+private report every other failure mode here produces (round 12).
+
 After the Production write, run `npm run audit:sanity` and
 `npm run verify:sanity-adapters` against that dataset, including a real
 multi-page gallery witness. Compare every published document and asset with
