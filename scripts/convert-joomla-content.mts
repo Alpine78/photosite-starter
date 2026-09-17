@@ -811,6 +811,9 @@ async function main(): Promise<void> {
     });
     await writePrivateFile(path.join(options.out, "import-plan.json"), `${JSON.stringify(plan, null, 2)}\n`);
     console.log(`Plan: ${plan.documents.length} document(s), ${plan.assetRequirements.length} asset requirement(s), ${plan.blocked.length} blocked, ${plan.errors.length} error(s)`);
+    console.log(
+      `Plan digest: ${plan.documentsDigest} — record this after reviewing the plan and pass it to write:joomla as --approved-digest to confirm this exact plan.`,
+    );
     console.log("This plan is NOT writable:");
     for (const reason of plan.notWritableBecause) console.log(`  - ${reason}`);
     // The diagnostic artifact is still written above — an operator needs it to

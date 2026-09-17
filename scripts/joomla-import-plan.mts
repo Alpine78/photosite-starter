@@ -38,7 +38,7 @@
  *   be checked.
  */
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 import {
   collectDuplicateIds,
@@ -58,7 +58,13 @@ import {
   type ApprovedArticle,
 } from "./joomla-import-manifest.mts";
 
-export const IMPORT_PLAN_VERSION = "joomla-import-plan-v1";
+/**
+ * Bumped to v2 when `AssetRequirement` gained `contentHash` (AB#137 write-half
+ * planning, Codex plan-review round 1, finding 2): the plan's own format changed, so a
+ * version-equality check would be meaningless against a constant that never moved — a
+ * stale v1 plan, genuinely missing every hash, would otherwise satisfy it.
+ */
+export const IMPORT_PLAN_VERSION = "joomla-import-plan-v2";
 
 /**
  * Restated from `sanity/schemas/article.ts` and `sanity/schemas/gallery-
@@ -112,6 +118,17 @@ export type AssetRequirement = {
   readonly mediaId: string;
   /** Path inside the owner's private source tree. Private material — reports only. */
   readonly sourceLocator: string;
+  /**
+   * SHA-256 of the exact bytes this photograph's approval was bound to
+   * (`resolvedConversionDigest` already folds this into the approval check at plan-build
+   * time — see that function's own doc comment). The write step, which may run
+   * arbitrarily later against a separately-minted credential, re-hashes the file at
+   * `sourceLocator` immediately before uploading and refuses on any mismatch — otherwise
+   * a file changed in that window (an accidental overwrite, a re-export) would be
+   * uploaded unreviewed, reintroducing exactly the "approval not bound to actual pixels"
+   * gap round 7 closed, just moved one step later in the pipeline.
+   */
+  readonly contentHash: string;
 };
 
 export type CategoryRequirement = {
@@ -140,6 +157,14 @@ export type ImportPlan = {
   readonly manifestDigest: string;
   readonly sourceExportDigest: string;
   readonly documents: readonly PlannedDocument[];
+  /**
+   * SHA-256 over `documents` (see `writablePlanDigest`'s own doc comment) — printed for
+   * the owner to record and later supply to `write:joomla` as `--approved-digest`,
+   * mirroring the manifest's own `resolved_digest` column: a value the write step
+   * recomputes and compares, never trusts from inside the (possibly tampered) file
+   * itself, since a hand-edited plan could just as easily hand-edit this field to match.
+   */
+  readonly documentsDigest: string;
   readonly assetRequirements: readonly AssetRequirement[];
   readonly categoryRequirements: readonly CategoryRequirement[];
   /** The map to persist: every photograph identity known after this run. */
@@ -267,6 +292,63 @@ function resolveBlockMedia(
     return { ...block, rows: keyed(block.rows as readonly Record<string, unknown>[], "row") };
   }
   return block;
+}
+
+/**
+ * SHA-256 over exactly what a write would publish — the documents (title, body, route,
+ * dates, every other field) *and* the content hash each photograph is about to be
+ * uploaded under — not just the source or resolved-conversion digests the manifest
+ * already binds an approval to.
+ *
+ * Those two digests (`source_digest`, `resolved_digest`) bind an approval to what the
+ * *conversion* produced at plan-build time; neither one is checked again once
+ * `import-plan.json` is written to disk. A plan is a JSON file that can be hand-edited
+ * or corrupted afterward with no trace — this digest is what a separate write run
+ * (`write:joomla`, which has no access to the manifest, the source export, or the
+ * resolution file, and so cannot re-derive either existing digest) can instead compare
+ * against an owner-recorded value to confirm it is writing the *exact* plan that was
+ * reviewed, mirroring the manifest's own "print a digest, the owner copies it forward,
+ * a later step recomputes and compares" shape (found reviewing this plan's own write
+ * half, Codex round 5, finding "Verify the write plan against the approved payload").
+ *
+ * `assetRequirements` is included too — a first version of this digest hashed only
+ * `documents`, but the pixels a write actually publishes are authorized by
+ * `assetRequirements[].contentHash`, not by anything `documents` itself carries (a
+ * `media` document's own `image.asset` field is still a pending marker at digest time,
+ * naming no bytes at all). Swapping a photograph's `sourceLocator` and `contentHash` to
+ * point at a different, unreviewed local image would otherwise leave this digest
+ * completely unchanged, and `write:joomla` would upload the substituted bytes under the
+ * original, approved `mediaId` with the operator's own `--approved-digest` still
+ * matching (found in Codex review round 6). Only `mediaId` and `contentHash` are
+ * included, sorted by `mediaId` for order-independence — `sourceLocator` is a private
+ * filesystem path that must never enter a digest an operator copies into a shell
+ * command or a Board comment.
+ *
+ * `errors` and `blocked` are bound in too — the write step separately refuses to run
+ * against a plan carrying either, but that check reads the *loaded* file's own
+ * `errors`/`blocked` fields fresh, and this digest existed to prove the loaded file
+ * matches what was reviewed. Without them here, an operator who reviewed and recorded
+ * the digest of a plan that still had open errors or blocked articles — a routine step
+ * before either is resolved, since `convert:joomla --plan` prints this digest
+ * unconditionally — would see the same `--approved-digest` still validate after someone
+ * quietly emptied those two arrays by hand, defeating exactly the protection this
+ * mechanism exists to give (found in Codex review round 7).
+ */
+export function writablePlanDigest(
+  documents: readonly PlannedDocument[],
+  assetRequirements: readonly AssetRequirement[],
+  errors: readonly string[],
+  blocked: readonly { readonly sourceId: string; readonly language: string; readonly reasons: readonly string[] }[],
+): string {
+  const canonical = JSON.stringify({
+    documents,
+    assetRequirements: [...assetRequirements]
+      .map((requirement) => ({ mediaId: requirement.mediaId, contentHash: requirement.contentHash }))
+      .sort((left, right) => left.mediaId.localeCompare(right.mediaId)),
+    errors: [...errors].sort(),
+    blocked: [...blocked].sort((left, right) => `${left.sourceId}:${left.language}`.localeCompare(`${right.sourceId}:${right.language}`)),
+  });
+  return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
 
 /**
@@ -445,12 +527,46 @@ export function buildImportPlan(input: {
   }
   errors.push(...altTextConflicts);
 
+  // --- content hash, accumulated the same way alt text is (AB#137 write-half
+  // planning, Codex plan-review round 1) ---------------------------------------
+  // A shared identity's bytes must agree across every article that references
+  // it — two different verified hashes for one mediaId is exactly the
+  // "reprocessed photograph masquerading as the same identity" case
+  // `convert-joomla-content.mts`'s own `identityFor` already refuses at
+  // resolution time, so this should be unreachable in practice; it is still
+  // checked here, independently, rather than trusted, the same posture every
+  // other conflict class in this feature takes.
+  const contentHashByMediaId = new Map<string, string>();
+  const contentHashConflicts: string[] = [];
+  for (const article of acceptedArticles) {
+    for (const entry of article.conversion.resolvedImageContentHashes) {
+      const existing = contentHashByMediaId.get(entry.mediaId);
+      if (existing !== undefined && existing !== entry.contentHash) {
+        contentHashConflicts.push(
+          `photograph "${entry.mediaId}" resolved to two different content hashes: "${existing}" vs "${entry.contentHash}"`,
+        );
+      } else {
+        contentHashByMediaId.set(entry.mediaId, entry.contentHash);
+      }
+    }
+  }
+  errors.push(...contentHashConflicts);
+
   // --- photograph documents, one per identity actually used ------------------
   const assetRequirements: AssetRequirement[] = [];
   for (const mediaId of [...usedPhotographs].sort()) {
     const locator = input.sourceLocators[mediaId];
     if (locator === undefined) {
       errors.push(`photograph "${mediaId}" is referenced but has no source locator.`);
+      continue;
+    }
+    const contentHash = contentHashByMediaId.get(mediaId);
+    if (contentHash === undefined) {
+      // The write step re-verifies a photograph's bytes against this hash
+      // immediately before uploading (see `AssetRequirement.contentHash`'s own
+      // doc comment) — a photograph with none to record here must not silently
+      // skip that check downstream.
+      errors.push(`photograph "${mediaId}" has no recorded content hash, though it is referenced.`);
       continue;
     }
     const altEntries = [...(altTextByMediaId.get(mediaId) ?? new Map<string, string>())]
@@ -470,7 +586,7 @@ export function buildImportPlan(input: {
       continue;
     }
     identities[locator] = mediaId;
-    assetRequirements.push({ mediaId, sourceLocator: locator });
+    assetRequirements.push({ mediaId, sourceLocator: locator, contentHash });
     documents.push({
       _id: mediaDocumentIdOf(mediaId),
       _type: MEDIA_TYPE_NAME,
@@ -511,6 +627,7 @@ export function buildImportPlan(input: {
     manifestDigest: input.manifestDigest,
     sourceExportDigest: input.sourceExportDigest,
     documents,
+    documentsDigest: writablePlanDigest(documents, assetRequirements, errors, blocked),
     assetRequirements,
     categoryRequirements: [...requiredCategories].sort().map((categoryId) => ({ categoryId })),
     photographIdentities: identities,

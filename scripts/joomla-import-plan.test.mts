@@ -19,6 +19,7 @@ import {
   PENDING_ASSET_PREFIX,
   PENDING_CATEGORY_PREFIX,
   validateMigrationDocuments,
+  writablePlanDigest,
   type PlannedArticleInput,
   type PlannedDocument,
 } from "./joomla-import-plan.mts";
@@ -26,6 +27,11 @@ import { isSeedDocumentId, SEED_ID_PREFIX } from "./sanity-seed-fixtures.mts";
 
 const DIGEST = "b".repeat(64);
 const RESOLVED_DIGEST = "c".repeat(64);
+
+/** A deterministic, synthetic content hash for a test fixture's mediaId. */
+function hashFor(mediaId: string): string {
+  return createHash("sha256").update(mediaId, "utf8").digest("hex");
+}
 
 function approval(overrides: Partial<ApprovedArticle> = {}): ApprovedArticle {
   return {
@@ -128,7 +134,7 @@ describe("photograph identity", () => {
             blocks: [{ _type: "contentMediaBlock", media: "photo-existing" }],
             findings: [],
             resolvedImageAltText: [{ mediaId: "photo-existing", language: "fi", value: "Alt" }],
-            resolvedImageContentHashes: [],
+            resolvedImageContentHashes: [{ mediaId: "photo-existing", contentHash: hashFor("photo-existing") }],
             convertible: true,
           },
         }),
@@ -149,7 +155,7 @@ describe("photograph identity", () => {
             blocks: [{ _type: "contentParagraphBlock", text: "Teksti." }],
             findings: [],
             resolvedImageAltText: [{ mediaId: "photo-same", language: "fi", value: "Alt" }],
-            resolvedImageContentHashes: [],
+            resolvedImageContentHashes: [{ mediaId: "photo-same", contentHash: hashFor("photo-same") }],
             convertible: true,
             endGallery: { sourcePath: "stories/large", mediaIds: repeated },
           },
@@ -182,7 +188,10 @@ describe("round-3 review finding: cross-language end-gallery occurrence identity
         { mediaId: "photo-a", language: "fi", value: "Alt a" },
         { mediaId: "photo-b", language: "fi", value: "Alt b" },
       ],
-      resolvedImageContentHashes: [],
+      resolvedImageContentHashes: [
+        { mediaId: "photo-a", contentHash: hashFor("photo-a") },
+        { mediaId: "photo-b", contentHash: hashFor("photo-b") },
+      ],
       convertible: true,
       endGallery: { sourcePath: "stories/x", mediaIds },
     });
@@ -195,7 +204,13 @@ describe("round-3 review finding: cross-language end-gallery occurrence identity
           { mediaId: "photo-a", language: "en", value: "Alt a en" },
           { mediaId: "photo-b", language: "en", value: "Alt b en" },
         ],
-        resolvedImageContentHashes: [],
+        // Same photographs as the fi version — must resolve to the same
+        // hashes, since one identity is one set of bytes regardless of which
+        // article's language version references it.
+        resolvedImageContentHashes: [
+          { mediaId: "photo-a", contentHash: hashFor("photo-a") },
+          { mediaId: "photo-b", contentHash: hashFor("photo-b") },
+        ],
       },
     });
 
@@ -276,7 +291,7 @@ describe("round-3 review finding: a blocked article's metadata never reaches a s
         blocks: [{ _type: "contentMediaBlock", media: "photo-shared" }],
         findings: [],
         resolvedImageAltText: [{ mediaId: "photo-shared", language: "fi", value: "Hyväksytty teksti" }],
-        resolvedImageContentHashes: [],
+        resolvedImageContentHashes: [{ mediaId: "photo-shared", contentHash: hashFor("photo-shared") }],
         convertible: true,
       },
     });
@@ -311,7 +326,7 @@ describe("the plan is never writable from here", () => {
             blocks: [{ _type: "contentMediaBlock", media: "photo-1" }],
             findings: [],
             resolvedImageAltText: [{ mediaId: "photo-1", language: "fi", value: "Alt" }],
-            resolvedImageContentHashes: [],
+            resolvedImageContentHashes: [{ mediaId: "photo-1", contentHash: hashFor("photo-1") }],
             convertible: true,
           },
         }),
@@ -325,7 +340,9 @@ describe("the plan is never writable from here", () => {
     expect(result.writable).toBe(false);
     expect(result.notWritableBecause.join(" ")).toContain("not uploaded");
     expect(result.notWritableBecause.join(" ")).toContain("converts and reports only");
-    expect(result.assetRequirements).toEqual([{ mediaId: "photo-1", sourceLocator: "stories/a/one.jpg" }]);
+    expect(result.assetRequirements).toEqual([
+      { mediaId: "photo-1", sourceLocator: "stories/a/one.jpg", contentHash: hashFor("photo-1") },
+    ]);
     expect(result.categoryRequirements).toEqual([{ categoryId: "blogi" }]);
   });
 
@@ -338,6 +355,90 @@ describe("the plan is never writable from here", () => {
       manifestDigest: "m".repeat(64),
       sourceExportDigest: "s".repeat(64),
     });
+  });
+
+  it("carries a documentsDigest matching writablePlanDigest(documents, assetRequirements, errors, blocked), so a write step can recompute and compare it independently", () => {
+    const result = plan();
+    expect(result.documentsDigest).toBe(
+      writablePlanDigest(result.documents, result.assetRequirements, result.errors, result.blocked),
+    );
+    expect(result.documentsDigest).toMatch(/^[0-9a-f]{64}$/u);
+  });
+});
+
+describe("writablePlanDigest", () => {
+  function digest(
+    documents: readonly PlannedDocument[],
+    assetRequirements: { readonly mediaId: string; readonly sourceLocator: string; readonly contentHash: string }[] = [],
+    errors: readonly string[] = [],
+    blocked: readonly { readonly sourceId: string; readonly language: string; readonly reasons: readonly string[] }[] = [],
+  ): string {
+    return writablePlanDigest(documents, assetRequirements, errors, blocked);
+  }
+
+  it("changes when a document's content changes", () => {
+    const a = digest([{ _id: "x", _type: "article", title: "A" }]);
+    const b = digest([{ _id: "x", _type: "article", title: "B" }]);
+    expect(a).not.toBe(b);
+  });
+
+  it("is deterministic for the same documents and asset requirements", () => {
+    const documents: readonly PlannedDocument[] = [{ _id: "x", _type: "article", title: "A" }];
+    const assetRequirements = [{ mediaId: "photo-1", sourceLocator: "a.jpg", contentHash: "a".repeat(64) }];
+    expect(digest(documents, assetRequirements)).toBe(digest(documents, assetRequirements));
+  });
+
+  it("changes when an asset's contentHash changes, even though documents did not (Codex round 6)", () => {
+    // Exactly the substitution round 6 flagged: a media document's own `image.asset`
+    // field is still a pending marker at digest time, so swapping which real bytes a
+    // mediaId resolves to must be visible in the digest even without touching `documents`.
+    const documents: readonly PlannedDocument[] = [{ _id: "x", _type: "article", title: "A" }];
+    const a = digest(documents, [{ mediaId: "photo-1", sourceLocator: "a.jpg", contentHash: "a".repeat(64) }]);
+    const b = digest(documents, [{ mediaId: "photo-1", sourceLocator: "a.jpg", contentHash: "b".repeat(64) }]);
+    expect(a).not.toBe(b);
+  });
+
+  it("is independent of asset requirement order", () => {
+    const documents: readonly PlannedDocument[] = [];
+    const a = digest(documents, [
+      { mediaId: "photo-1", sourceLocator: "a.jpg", contentHash: "a".repeat(64) },
+      { mediaId: "photo-2", sourceLocator: "b.jpg", contentHash: "b".repeat(64) },
+    ]);
+    const b = digest(documents, [
+      { mediaId: "photo-2", sourceLocator: "b.jpg", contentHash: "b".repeat(64) },
+      { mediaId: "photo-1", sourceLocator: "a.jpg", contentHash: "a".repeat(64) },
+    ]);
+    expect(a).toBe(b);
+  });
+
+  it("does not change when only sourceLocator changes but contentHash stays the same", () => {
+    // sourceLocator is a private filesystem path, deliberately excluded from the digest
+    // (see the function's own doc comment) — a locator can move without invalidating an
+    // approval as long as the verified bytes it points at are unchanged.
+    const documents: readonly PlannedDocument[] = [];
+    const a = digest(documents, [{ mediaId: "photo-1", sourceLocator: "a.jpg", contentHash: "a".repeat(64) }]);
+    const b = digest(documents, [{ mediaId: "photo-1", sourceLocator: "renamed/a.jpg", contentHash: "a".repeat(64) }]);
+    expect(a).toBe(b);
+  });
+
+  it("changes when errors or blocked articles are cleared, even though documents and assets did not (Codex round 7)", () => {
+    // The write step separately refuses a plan whose *loaded* errors/blocked are
+    // non-empty, but that check alone cannot detect that they used to be non-empty when
+    // the operator recorded this digest — a routine state, since convert:joomla --plan
+    // prints the digest unconditionally, before an operator has resolved anything.
+    const documents: readonly PlannedDocument[] = [{ _id: "x", _type: "article", title: "A" }];
+    const dirty = digest(documents, [], ["some validation error"], []);
+    const dirtyBlocked = digest(documents, [], [], [{ sourceId: "1", language: "fi", reasons: ["x"] }]);
+    const clean = digest(documents, [], [], []);
+    expect(dirty).not.toBe(clean);
+    expect(dirtyBlocked).not.toBe(clean);
+  });
+
+  it("is independent of errors/blocked order", () => {
+    const documents: readonly PlannedDocument[] = [];
+    const a = digest(documents, [], ["e1", "e2"], []);
+    const b = digest(documents, [], ["e2", "e1"], []);
+    expect(a).toBe(b);
   });
 });
 
@@ -370,7 +471,7 @@ describe("round-4 review finding: derived id length limits", () => {
             blocks: [{ _type: "contentParagraphBlock", text: "Teksti." }],
             findings: [],
             resolvedImageAltText: [{ mediaId: "photo-a", language: "fi", value: "Alt" }],
-            resolvedImageContentHashes: [],
+            resolvedImageContentHashes: [{ mediaId: "photo-a", contentHash: hashFor("photo-a") }],
             convertible: true,
             endGallery: { sourcePath: "stories/x", mediaIds: ["photo-a"] },
           },
@@ -390,7 +491,7 @@ describe("round-4 review finding: derived id length limits", () => {
             blocks: [{ _type: "contentParagraphBlock", text: "Teksti." }],
             findings: [],
             resolvedImageAltText: [{ mediaId: "photo-a", language: "fi", value: "Alt" }],
-            resolvedImageContentHashes: [],
+            resolvedImageContentHashes: [{ mediaId: "photo-a", contentHash: hashFor("photo-a") }],
             convertible: true,
             endGallery: { sourcePath: "stories/x", mediaIds: ["photo-a"] },
           },
@@ -583,13 +684,17 @@ describe("end to end: manifest text and source body into a document plan", () =>
   function convert(): ReturnType<typeof convertJoomlaBody> {
     return convertJoomlaBody(body, {
       language: "fi",
-      resolveImage: (src) => (src.endsWith("kuva1.jpg") ? { mediaId: "photo-body-1", alt: "Kamera" } : undefined),
+      resolveImage: (src) =>
+        src.endsWith("kuva1.jpg")
+          ? { mediaId: "photo-body-1", alt: "Kamera", contentHash: hashFor("photo-body-1") }
+          : undefined,
       resolveGallery: (path) =>
         path === "stories/blogi/Pentax_645Z"
           ? {
               kind: "end",
               mediaIds: galleryMediaIds,
               altTextByMediaId: Object.fromEntries(galleryMediaIds.map((id) => [id, `Alt ${id}`])),
+              contentHashByMediaId: Object.fromEntries(galleryMediaIds.map((id) => [id, hashFor(id)])),
             }
           : undefined,
     });
