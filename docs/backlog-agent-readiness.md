@@ -122,16 +122,22 @@ infrastructure, or an evidence run before dependent implementation can proceed:
   acceptance criteria.
 - **AB#54 → AB#55** and **AB#95** need owner-run evidence or product decisions.
 
-**Next step:** the importer's conversion half now exists
-(`npm run convert:joomla`, `scripts/joomla-*.mts`): it converts an exported
+**Next step:** the whole importer now exists — the conversion half
+(`npm run convert:joomla`, `scripts/joomla-*.mts`), which converts an exported
 article set into the shared content blocks, gates on the owner's approval
-manifest, and reports every refusal and lossy transformation, while writing
-nothing anywhere. What remains is owner-run or unbuilt — the review pass over
+manifest, and reports every refusal and lossy transformation while writing
+nothing anywhere; and the write half (`npm run write:joomla`,
+`scripts/write-joomla-content.mts`, `scripts/joomla-image-derivative.mts`),
+which turns an approved plan into real Sanity documents — dry-run by default,
+never trusting the plan file blindly, generating and uploading each
+photograph's public derivative, resolving category references against the
+target dataset, and running a target-dataset collision preflight before
+writing anything. What remains is entirely owner-run — the review pass over
 the real inventory, the exception-row resolutions and alternative text it will
-call for, the manifest approval, the write half of the importer (derivative
-generation, asset upload, reference resolution, the Sanity write), and then the
-Production run, audit, credential revocation, and handoff evidence. Keep AB#137
-`Active` until all of that is done. Then proceed to AB#117.
+call for, the manifest approval, minting the temporary `SANITY_MIGRATION_TOKEN`,
+running the write against the real Production dataset, and then the audit,
+credential revocation, and handoff evidence. Keep AB#137 `Active` until all of
+that is done. Then proceed to AB#117.
 
 ## Handoff checklist for another machine or agent
 

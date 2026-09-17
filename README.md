@@ -467,13 +467,17 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   seeded-random) — into a real project over the plain HTTP API, distinguishable from real
   content by public, root-level `seed--` ids and removable by the documented verified
   cleanup before go-live.
-  Migrating an *existing* site's real content is separate work, and its offline half is
-  built: `npm run convert:joomla` converts an exported legacy article set into the shared
-  content blocks and reports what would and would not migrate, gated on an owner-approved
-  manifest. It writes nothing — no network request, no credential, no dataset change — and
-  every construct it meets is explicitly converted, explicitly recorded as lossy, or
-  refused, so nothing is ever dropped in silence. The write half (image derivatives, asset
-  upload, the Sanity write) and the owner-run Production migration itself are not built.
+  Migrating an *existing* site's real content is separate work, and the importer itself is
+  now fully built: `npm run convert:joomla` converts an exported legacy article set into
+  the shared content blocks and reports what would and would not migrate, gated on an
+  owner-approved manifest, writing nothing itself — no network request, no credential, no
+  dataset change — and every construct it meets is explicitly converted, explicitly
+  recorded as lossy, or refused, so nothing is ever dropped in silence. `npm run
+  write:joomla` turns an approved plan into real Sanity documents — dry-run by default,
+  generating and uploading each photograph's public derivative, resolving category
+  references against the target dataset, and checking for identity collisions before
+  writing anything. Only the owner-run Production migration itself (the manifest approval,
+  the temporary write credential, the real Production run, and its audit) is not done.
   Every route-facing seam (`site-settings.ts`, `home-content.ts`, `services.ts`, `content.ts`,
   `gallery.ts`) is now wired: `SITE_CONTENT_SOURCE=mock` keeps reading fixtures, and `sanity`
   reads every one of these adapters, never a mixed mock/Sanity page. Closing that wiring

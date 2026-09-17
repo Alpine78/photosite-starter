@@ -433,8 +433,9 @@ The first half of that separate implementation exists. It converts an exported
 set of legacy articles into this project's shared content blocks and reports
 exactly what would and would not migrate. **It performs no write of any kind** —
 no network request, no Sanity credential, no dataset change — and the plan it
-produces is marked non-writable by construction. The write step is still
-unbuilt.
+produces is marked non-writable by construction. The write step
+(`npm run write:joomla`) that turns this plan into real Sanity documents is
+described further down, after the conversion step's own contract.
 
 ```bash
 # Review pass: convert everything the manifest selects, whatever its eligibility.
@@ -689,6 +690,292 @@ conversion starts at all: without it, a bad persisted value would flow all the
 way through and only surface as an uncaught exception deep inside
 `buildImportPlan`'s own `migratedId` call — a crash instead of the diagnosable
 private report every other failure mode here produces (round 12).
+
+### The write step: `npm run write:joomla`
+
+Takes the plan `convert:joomla --plan` produced and turns it into real Sanity
+documents: generates each photograph's public web-delivery derivative,
+uploads it, resolves each category reference against the target dataset's
+real document ids, substitutes both kinds of pending marker in place, and
+writes. **Dry-run by default, exactly like `npm run seed:sanity`**: without
+`--yes`, this command makes no network request at all, not even a read —
+every step is local filesystem and CPU only, so an operator can validate a
+plan's photographs are readable and decodable before ever minting a
+write-scoped credential.
+
+```bash
+# Dry run: verifies every photograph locally, reports counts, touches no network.
+# <plan-digest> is the "Plan digest: …" line convert:joomla --plan printed —
+# copy it forward after reviewing the plan, the same way a manifest's own
+# resolved_digest column is copied forward from a conversion's own output.
+npm run write:joomla -- \
+  --plan <report-dir>/import-plan.json \
+  --image-root <image-tree> \
+  --out <write-report-dir> \
+  --approved-digest <plan-digest>
+
+# Real write, against a temporary write-scoped credential.
+SANITY_MIGRATION_TOKEN=<temporary-editor-token> npm run write:joomla -- \
+  --plan <report-dir>/import-plan.json \
+  --image-root <image-tree> \
+  --out <write-report-dir> \
+  --approved-digest <plan-digest> \
+  --project <project-id> --dataset <dataset> --api-version <api-version> \
+  --yes
+```
+
+**`--approved-digest` confirms this is the exact plan that was reviewed.**
+`import-plan.json`'s `manifestDigest`/`sourceExportDigest` (and the
+conversion's own `resolvedDigest`) bind the owner's manifest approval to what
+`convert:joomla` produced — but neither is checked again once the plan file
+is written to disk, and this write step has no access to the manifest, the
+source export, or the resolution file to re-derive them; it only ever reads
+`import-plan.json` itself. A hand edit or a file-system corruption after the
+plan was produced would otherwise change what gets published with nothing to
+catch it, even though every image byte is separately re-hashed. `--approved-
+digest` closes that gap: `convert:joomla --plan` prints a `documentsDigest` —
+a SHA-256 over exactly the documents it is about to write, **and** every
+asset requirement's `mediaId`/`contentHash` pair — and the write step
+recomputes the identical digest from the plan file it loaded and refuses
+unless the two match. Asset requirements are bound in deliberately: a
+`media` document's own `image.asset` field is still a pending marker at
+digest time, naming no bytes at all, so a digest over `documents` alone would
+leave a hand-edited swap of a photograph's `sourceLocator` and `contentHash`
+— pointing the same, approved `mediaId` at different, unreviewed pixels —
+completely invisible to the comparison (found in Codex review round 6). A
+photograph's `sourceLocator` itself is deliberately excluded — a private
+filesystem path must never enter a digest an operator copies into a shell
+command or a Board comment — so moving a file without changing its bytes
+does not invalidate the digest, only changing what it verifies against does.
+The comparison is always against the value the operator supplies on the
+command line, never against the `documentsDigest` field stored inside the
+plan file itself, since a hand-edited plan could update that field to match
+its own tampered content just as easily as the documents it describes. The
+plan's own `errors` and `blocked` arrays are bound into the digest too: the
+write step separately refuses a plan whose *loaded* file still carries either,
+but `convert:joomla --plan` prints this digest unconditionally, before either
+is necessarily resolved, so an operator could plausibly record the digest of
+a plan that still had open issues. Without `errors`/`blocked` in the digest,
+quietly emptying those two arrays by hand later would leave the recorded
+digest matching a plan that was never actually clean when it was reviewed
+(Codex round 7, finding "Bind blocker state into the approved plan digest").
+
+**A separate credential from the demo seeder's.** `SANITY_MIGRATION_TOKEN` is
+read from the environment only — never accepted as a flag, so it never lands
+in shell history or a process listing — and is distinct from
+`SANITY_SEED_TOKEN`: reusing the demo fixture's own token would let this tool
+and `npm run seed:sanity` share one credential and its blast radius. Mint an
+Editor-role token for this run only and revoke it immediately after, the same
+discipline the Production handoff section below already uses.
+
+**Never trusts the plan file blindly.** A plan may be read long after it was
+produced, against a separately-minted credential, possibly after the source
+files it names have moved or changed. Before touching the filesystem or the
+network, the write step re-validates the plan's own shape — every
+`assetRequirements`/`categoryRequirements` entry, an exact correspondence
+between those requirements and the actual pending references in the plan's
+documents, and every document's `_type` **and its exact field set** against an
+allow-list matching precisely what `buildImportPlan` itself emits for that
+type — and re-runs every document invariant `validateMigrationDocuments`
+already checks at plan-build time, rather than trusting the file's own claim
+about how it was produced. The field allow-list exists because Sanity's mutate
+API has no schema of its own to reject an extra field with: a corrupted or
+hand-edited plan carrying one (a private `archiveLocator` slipped onto an
+`article`, say) would otherwise be written into a public dataset verbatim and
+become directly queryable there. The check is not only top-level: every
+nested structure this tool itself ever produces — a `body` block of every
+kind the converter emits (paragraph, heading, quote, list, YouTube, media,
+mini-gallery, table, including a mini-gallery's own `images` array and a
+table's own `rows` array), a reference object, and a localized-text entry —
+is checked against the exact field set that structure's own emission code
+carries, since an injected field nested two or three levels deep would
+otherwise slip past a check scoped only to a document's own top level. A
+reference's *position* is checked too, not only its shape: a category
+placeholder must actually be a pending *category* marker (never a pending
+asset marker misplaced into `canonicalCategory`), a media document's own
+`image.asset` must reference *its own* mediaId specifically (never a
+different photograph's placeholder), and any reference that should already
+be resolved by plan-build time (a body block's media, an end-gallery
+placement's `article`/`media`) is refused if it is still a pending marker of
+either kind — a set-membership check alone cannot tell a reference used in
+its correct position from one swapped into the wrong field. The required
+fields `validateMigrationDocuments` itself does not check — an article's
+`title` and `language`, a placement's `visible` — are checked for presence
+and type here too, since a malformed value would otherwise reach
+`createOrReplace` and only surface later as a broken page in production.
+
+**Every photograph is re-verified immediately before it is uploaded.** The
+plan's `resolved_digest` binds an approval to the photograph bytes it was
+reviewed against at plan-build time (see above); that guarantee does not, by
+itself, reach the write step, which can run arbitrarily later. Each
+`assetRequirements` entry therefore also carries the exact content hash its
+approval was bound to, and the write step re-hashes the file at that locator
+immediately before generating its derivative — the same buffer feeds both the
+hash check and the derivative generator, so there is no re-read window
+between "verified" and "used." A mismatch refuses the whole run rather than
+uploading a file that changed since approval, whatever caused the change.
+
+**The derivative.** Resized so its longest edge never exceeds this project's
+own 2048px public-delivery ceiling, `fit: "inside"` so it is never cropped,
+never upscaled if already smaller. EXIF orientation is applied before
+resizing so a sideways-tagged source publishes upright; EXIF/GPS metadata
+does not survive into the derivative. An AVIF, JPEG, PNG, or WebP source
+re-encodes to the same format at an explicit, stated quality — never Sharp's
+own version-dependent default, which would otherwise be an unstated
+publication policy. An animated or multi-page source (an animated GIF, a
+multi-page TIFF) is **refused, not silently flattened to one frame** — this
+tool publishes a single static derivative, and a universal fallback would
+discard visual meaning the photographer never chose to give up. A static,
+otherwise-unsupported source (a single-frame GIF/TIFF/etc.) still converts to
+JPEG, with an explicit white background rather than whatever a transparent
+source would otherwise composite onto by default.
+
+**Target-dataset collision preflight.** An API write bypasses every Studio
+uniqueness and route-validation rule a customer's own Studio would otherwise
+enforce, so before uploading anything the write step checks, raw
+perspective, whether the target dataset already has a document — under a
+**different** `_id` than this plan intends — claiming a `mediaId`, an article
+`(contentId, language)` pair, an article's `(language, category, slug)`
+route, or an end-gallery `placementId` this plan is about to write. A hit
+under this plan's own `_id` is treated as an earlier run of the same plan
+(`migrated--` is a disjoint, single-writer namespace) and left to
+`createOrReplace`'s ordinary idempotency; any other hit refuses the whole run
+— two documents claiming one public identity is exactly the state the site's
+own read adapters refuse to serve. That single-writer namespace assumption is
+itself checked, not simply trusted: every planned `_id` is also queried
+directly, and a hit whose `_type` or identity field does not actually match
+what this plan intends refuses the run — every other check above is scoped to
+one identity field (`mediaId`, `contentId`+`language`, `placementId`) and
+queries by that field, so none of them would ever see a *different kind* of
+document already occupying one of this plan's own deterministic ids, even
+though `createOrReplace` addresses purely by `_id` and would silently destroy
+it regardless (Codex round 8, finding "Reject incompatible documents
+occupying planned IDs"). Re-running this command after a
+migrated document has been hand-edited in Studio will overwrite that edit:
+`createOrReplace` idempotency means safe to re-run, not safe from a manual
+fix landing in between. The `contentId` and route checks span **both**
+articles and curated galleries, and the route check also spans public child
+categories — `content-placement-validation.ts`'s own `makeContentIdentityValidator`
+and `findProspectiveLocalSlugCollision` establish these as one shared
+namespace, so a preflight scoped to articles alone could miss a real
+collision with a gallery or a category (found reviewing this tool's own
+plan-review round). A category reference is also checked for the requested
+article language's own published label and slug, not merely that the category
+document exists — `validateProspectivePlacement`'s own rule — since a category
+that exists but is not yet localized in that language is, for that language,
+indistinguishable from not existing at all. That check reads the actual
+label and slug *values*, not only which languages have an entry at all: a
+present-but-blank label or a slug not matching `content-tree.ts`'s own
+`SLUG_PATTERN` would satisfy a presence-only check and still take the whole
+public tree down the moment any route reads it, well after this migration
+had already written content depending on it (Codex round 8, finding
+"Validate localized category values, not just language keys"). An end-gallery placement's
+`placementId` is checked against a curated gallery's own `galleryPlacement`
+documents too, since that identity is site-wide (ADR-0002 §1); a match there is
+always foreign. A match against another `articleEndGalleryPlacement`, though,
+is not automatically a collision: the schema's own validator explicitly allows
+two documents to share one `placementId` when they are the same occurrence's
+sibling-language versions (same article `contentId`, same `endGalleryId`, same
+`media`, different `article`), which matters across the documented phased
+workflow specifically — a translation pair's two languages can land in
+different phases, so the earlier phase's placement is never one of *this*
+plan's own document ids even though it is entirely legitimate. The preflight
+dereferences the existing placement's own article to decide this, the same way
+the Studio validator does.
+
+**A published article's URL is frozen, and its category branch's local slug
+namespace is checked in full, not only its direct children.**
+`article-validation.ts`'s own `changesPublishedUrlFields` freezes an
+article's `language`, `slug`, and canonical category once published — an API
+write bypasses that Studio guard entirely, so the preflight fetches every
+planned article's currently-published state by its own `_id` and refuses the
+run if rerunning this plan would change any of the three, since that would
+silently retire the existing URL with no redirect (Codex round 7, finding
+"Preserve published routes when rerunning an article"). Separately, migrating
+content into a category can make a previously dormant branch public for the
+first time — and, once public, that branch's whole ancestry can collide with
+a sibling category or existing content anywhere along it, not only among the
+direct children of the category this plan targets, which an earlier version
+of this check covered (Codex round 7, finding "Check collisions for newly
+public category ancestors"). Both checks reuse
+`content-placement-validation.ts`'s own pure functions — restated in
+`write-joomla-content.mts` rather than imported, since that file's own
+`./validation` import has no file extension, which Sanity Studio's bundler
+resolves but plain Node's ESM loader does not (`node
+scripts/write-joomla-content.mts` crashed with `ERR_MODULE_NOT_FOUND` on a
+real subprocess run even though `tsc` and Vitest's own resolver both
+tolerated it — the same class of "passes under a transpiler, fails for real"
+trap `docs/sanity-seeding.md`'s own history already has one instance of, from
+AB#116's parameter-property crash). Restating means the exact algorithm the
+Studio publish guard runs, not an approximation of it, so a future change to
+either copy needs to update both.
+
+**The write-scoped credential refuses a `NEXT_PUBLIC_` mirror, and a
+reference object is checked for `_type`, not only a well-formed `_ref`.**
+Before reading `SANITY_MIGRATION_TOKEN`, the write step first checks for
+`NEXT_PUBLIC_SANITY_MIGRATION_TOKEN` and refuses to run if it is set,
+matching the same pattern this project's security-review skill and
+`src/lib/sanity-config.ts`'s own read-token parsing already establish
+elsewhere: a `NEXT_PUBLIC_`-prefixed variable is compiled into the browser
+bundle by Next.js, so a write-scoped credential must never answer to that
+name even as an accidental leftover copy (Codex round 9, finding "Reject a
+public copy of the migration token"). Separately, `checkReferenceShape` — the
+contract check every `canonicalCategory`, `secondaryCategories`, `gallery`,
+`article`, `endGallery`, and `media` reference in a planned document passes
+through — used to accept any object carrying a syntactically valid `_ref`
+string, regardless of its `_type`. A reference missing `_type` entirely, or
+carrying the wrong one, would have passed this check and then dereferenced as
+`null` at read time in production, since Sanity does not validate a
+reference's declared type against the document it points to. The check now
+also requires `_type === "reference"` before accepting the object (Codex
+round 9, finding "Require actual Sanity reference objects").
+
+**Media fields an editor owns are merged, not overwritten, across phases.** A
+photograph reused across phased writes gets a separate plan each time, and
+that plan's own `media` document only ever carries the fields this tool
+itself authors — `mediaId`, `mediaType`, `alt` (only the language(s) *this*
+phase's accepted articles contributed), `publiclyRenderable`, and `image` — it
+cannot see a `caption`, `credit`, `capturedAt`, or `enquiryEligible` an editor
+added by hand, or an earlier phase's other-language `alt` entries. Before
+uploading anything, the write step fetches each planned media document's
+currently-published fields and merges them: `alt` is merged by language (a
+language this phase does not itself contribute is carried over unchanged, and
+a language both sides already provide but genuinely *disagree* on refuses the
+whole run rather than silently picking a side — the same posture every other
+conflict class in this tool already takes); `caption`/`credit`/`capturedAt`/
+`enquiryEligible`/`archiveLocator` are fields this tool has no opinion on at
+all, so an existing value is always carried over unchanged rather than
+deleted; and `publiclyRenderable` follows a "false wins" rule — an editor who
+has already turned this off to keep a published photograph out of every
+public page stays hidden regardless of this plan's own unconditional `true`,
+since only an editor should reverse that choice. Conflicts are reported
+privately in `media-field-conflicts.json`.
+
+**Write ordering.** Sanity's mutate API requires a strong reference's target
+to already exist in an *earlier* transaction — the same constraint the demo
+seeder's own write above is ordered around. The write step therefore batches
+every `media` document first, to completion, before batching everything else
+(articles, end-gallery placements) — never the plan's own raw document
+order, which interleaves an article with its media references and would
+break the moment a real migration's document count crosses one mutation
+batch.
+
+**Every private report is mode-0600 in a mode-0700 directory**, matching the
+conversion step's own convention exactly: `plan-validation-errors.json`,
+`asset-verification-failures.json`, `unresolved-categories.json`,
+`target-collisions.json`, `media-field-conflicts.json`, and `upload-failures.json`
+each carry whatever private detail (a source locator, a content hash, a route,
+a document id) explains the failure; the console prints only counts. Assets
+already uploaded in a run that later fails are **not** rolled back — Sanity has no
+delete-on-failure transaction for this — the same accepted posture the demo
+seeder's own upload step already has; `createOrReplace`'s idempotency makes a
+full re-run safe regardless.
+
+**Post-write verification.** Ends with a chunked, byte-budgeted readback
+query confirming every written document's `_id` round-trips, printed as
+PASS/FAIL — the same "representative queries pass" pattern the demo seeder's
+own live verification already establishes, scaled to a migration's real
+document count rather than one dataset's fixed 474.
 
 After the Production write, run `npm run audit:sanity` and
 `npm run verify:sanity-adapters` against that dataset, including a real

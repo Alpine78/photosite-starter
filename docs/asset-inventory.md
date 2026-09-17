@@ -6,7 +6,9 @@ item so the Free Core / Premium boundary (AB#42) can be decided on facts.
 
 **Audited:** 2026-07-31 · **Against dependency tree:** current `package-lock.json`
 **Amended:** 2026-09-17 — `parse5` added as a development dependency for AB#137's
-owner-run migration tooling; see the npm dependency section.  
+owner-run migration tooling; see the npm dependency section.
+**Amended:** 2026-09-17 — `sharp` added as a development dependency for AB#137's
+owner-run migration write tooling; see the npm dependency section.  
 **Amended:** 2026-08-06 — PhotoSwipe added (AB#15). Package counts below are from the
 original audit and were not recounted.
 **Amended:** 2026-08-10 — `server-only` added (AB#39); see the npm dependency section.
@@ -137,6 +139,20 @@ mixed content; hand-rolled or regex handling would make "unsupported" mean whate
 pattern happened to miss. parse5 is the WHATWG-spec reference parser and is what
 `jsdom` and Angular use for the same reason. Both licences are permissive and would only
 require their notices if the distribution model changed to shipping the dependency tree.
+
+`sharp` (Apache-2.0) was added in AB#137 and is not reflected in the counts below. It is a
+development dependency used only by the owner-run Joomla migration write tool
+(`npm run write:joomla`, `scripts/write-joomla-content.mts`,
+`scripts/joomla-image-derivative.mts`): nothing under `src/` imports it, it is not in the
+production dependency tree, and its bytes never reach a browser — it was already present
+as a transitive optional dependency of `next` (for the framework's own image optimizer),
+and is now also a direct devDependency. The stated need is generating the one public
+web-delivery derivative a migrated photograph may publish: resized to this project's own
+2048px public-delivery ceiling, never cropped, never upscaled (`AGENTS.md`'s hard rules),
+with EXIF orientation applied and EXIF/GPS metadata stripped before upload. `sharp` is a
+thin binding over `libvips`, the same image-processing library this project's own
+production `next/image` optimizer already uses at runtime, so this migration tool needs
+no second image library and no new runtime dependency.
 
 `server-only` (MIT, published by the React team) was added in AB#39 and is not reflected
 in the counts below. It is a marker package: inside a React Server Component build it

@@ -2204,12 +2204,118 @@ before an article is accepted, since an API import bypasses Studio validation
 entirely. The genuinely generic document-set checks moved to
 `scripts/sanity-document-checks.mts`, shared with `validateSeedFixtures`, whose
 demo-fixture *coverage* assertions stayed where they are because they say nothing
-about launch content. **Unbuilt:** derivative generation (downscaling camera
-originals to the 2048px public ceiling — note `uploadSeedImageAsset` validates
-dimensions only *after* uploading, so it cannot be the pre-upload gate), asset
-upload, category-reference resolution against the target dataset, the Sanity
-write, and every owner-run part of AB#137 — the manifest approval, the baseline
-export, the temporary credential, the Production run, the audit, and the
+about launch content. **The write half is now built too**
+(`npm run write:joomla`, `scripts/write-joomla-content.mts`,
+`scripts/joomla-image-derivative.mts`): it turns an approved, non-writable
+`ImportPlan` into real Sanity documents. Dry-run by default, matching the demo
+seeder's own guarantee exactly — without `--yes` it makes no network request at
+all, not even a read, since every step through local asset verification is
+filesystem and CPU only. It never trusts the plan file blindly: the plan's own
+shape is re-validated (every requirement's fields, and an exact correspondence
+between the requirements arrays and the actual pending references the plan's
+documents carry — a stray requirement or an unresolved reference is refused
+before either the filesystem or the network is touched), `IMPORT_PLAN_VERSION`
+bumped to `-v2` so a stale pre-hash plan cannot silently satisfy a
+version-equality check that never itself changed, and `validateMigrationDocuments`
+re-run regardless of how the file claims to have been produced. `AssetRequirement`
+gained a `contentHash` field, threaded from the same `resolvedImageContentHashes`
+the conversion half already collects: the approval-binding-to-actual-pixels
+guarantee round 7 established holds at plan-build time, but the write step can
+run arbitrarily later against a separately-minted credential, so each photograph
+is re-hashed from the exact same read that feeds its derivative generator
+immediately before upload, and a mismatch refuses the run rather than trusting
+whatever bytes are now at the locator. The derivative itself
+(`joomla-image-derivative.mts`, over `sharp`, a devDependency for this tool only)
+resizes to `MAX_PUBLIC_DELIVERY_DIMENSION` with `fit: "inside"` (never crops,
+never upscales), applies EXIF orientation before resizing and strips EXIF/GPS
+on output, and re-encodes at an explicit, stated quality per format rather than
+an implicit library default — AVIF specifically needed its own detection branch,
+since Sharp reports an AVIF buffer as `{format: "heif", mediaType: "image/avif"}`,
+never `format: "avif"` (verified directly against the pinned 0.35.4, not
+assumed — a plain `format` lookup would have silently misclassified every real
+AVIF source into the fallback path). An animated or multi-page source is
+refused outright rather than silently flattened to one frame, since a universal
+fallback would discard visual meaning the photographer never chose to lose; a
+static otherwise-unsupported source still converts to JPEG, with an explicit
+white background for a transparent source rather than whatever a library
+default would composite. Category references resolve against the target
+dataset's real document ids (published perspective — an article must bind to a
+*live* category, not a draft-only one); before any upload, a target-dataset
+collision preflight (raw perspective, chunked to `sanity-read-http.mts`'s own
+11 KiB GET budget) checks every `mediaId`, article `(contentId, language)`
+pair, `(language, category, slug)` route, and end-gallery `placementId` this
+plan is about to write against what the dataset already holds, refusing the
+whole run if any is already claimed under a *different* `_id` than this plan
+intends — an API write bypasses every Studio uniqueness rule a customer's own
+Studio would otherwise enforce. Placeholder substitution is reference-aware —
+it rewrites only a matched reference object's own `_ref` string in place,
+never replacing the whole `{_type: "reference", ...}` object (an earlier draft
+of this tool would have nested a `_ref` string inside what must stay a
+reference object) — followed by an independent defensive scan for any
+surviving pending marker before a single mutation is sent. Sanity's mutate API
+requires a strong reference's target to exist in an *earlier* transaction —
+the same constraint `docs/sanity-seeding.md` already documents for the demo
+seeder's own write — so documents are batched in two ordered waves, every
+`media` document first to completion, then everything else, rather than the
+plan's own raw emission order, which interleaves an article with its media
+references and would break the moment a real migration's document count
+crosses one mutation batch. Every private report (a verification failure, an
+unresolved category, a collision, an upload failure) is mode-0600 in a
+mode-0700 directory, console limited to counts, matching the conversion half's
+own established convention exactly. `SANITY_MIGRATION_TOKEN` is read from the
+environment only, never a flag, and is a separate credential from the demo
+seeder's `SANITY_SEED_TOKEN`. This design was reviewed once against Codex
+before implementation (the mandatory one-round plan check): the wave-ordering
+requirement, the reference-aware substitution fix, the AVIF metadata
+detection gap, the collision preflight, the path-traversal/symlink
+containment check on every source locator, the query/id chunking, and the
+explicit encoder policy were all findings from that single round, verified
+against real code or measured behavior before being accepted, not taken on
+trust. Once implemented, the write half went through 8 further rounds of the
+same independent Codex review, this time against the finished, self-reviewed
+diff rather than a plan — every finding verified against real code (often by
+running the actual code path, not just reading it) before being accepted and
+fixed, each fix covered by its own regression test, with the project's gates
+green after every round. In order: a memory-accumulation bug in the asset
+verification loop, where a long-lived array was retaining full derivative
+buffers rather than a lightweight summary per iteration; the media
+field-allow-list contract and nested content-block shape validation, matching
+exactly the eight block kinds the converter emits; the required-field and
+position-aware reference checks, and the collision preflight's scope widened
+from articles alone to the shared article/gallery/category identity space
+`content-placement-validation.ts` actually governs; the approved-plan digest
+widened twice — first to bind `assetRequirements` (`mediaId` + `contentHash`,
+so approving a plan also approves exactly which photograph bytes it points
+at), then to bind `errors`/`blocked` (so a plan whose blocker state changed
+cannot silently satisfy a stale approval); a published article's URL frozen
+against a rerun (`language`/`slug`/`canonicalCategory`), and the local-slug
+collision check widened from a category's direct children to its whole
+ancestry, since migrating content can make a previously dormant branch public
+for the first time — both restating `content-placement-validation.ts`'s own
+pure functions locally rather than importing them, after direct `node`
+execution (not `tsc` or Vitest, which both tolerated it) surfaced that file's
+own extension-less internal import crashing a real subprocess — the same
+class of "passes under a transpiler, fails for real" trap as AB#116's earlier
+parameter-property crash; a direct `_id`-occupancy check ahead of the
+identity-scoped collision checks (so a document of the *wrong type* already
+occupying one of this plan's deterministic ids is caught, not just a same-type
+identity collision), and category reference resolution widened from checking
+that a language *key* is present to validating the actual label and slug
+*values* against `content-tree.ts`'s own rules, since a present-but-invalid
+value would otherwise take the whole public tree down the first time any
+route read it, well after the migration had written content depending on it;
+and, closing the loop, `checkReferenceShape` requiring an actual
+`_type: "reference"` rather than accepting any object with a valid-looking
+`_ref` (Sanity dereferences a wrong or missing `_type` as `null`, silently,
+not as an error), and `SANITY_MIGRATION_TOKEN` refusing to read if a
+`NEXT_PUBLIC_SANITY_MIGRATION_TOKEN` mirror is also set, matching the same
+established pattern the security-review skill and `src/lib/sanity-config.ts`'s
+own read-token parsing already enforce elsewhere. `docs/sanity-seeding.md`
+carries the full per-round account. A 10th round was attempted and blocked
+outright by Codex's own usage limit before producing a review — not a
+finding, and not retried in a hot loop. **Still unbuilt: every owner-run part
+of AB#137** — the manifest approval, the baseline export, the temporary
+credential, the Production run itself, the post-write audit, and the
 revocation and handoff evidence.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
@@ -2304,6 +2410,7 @@ npm run diagrams:check # CI gate: sources compile and committed SVGs are current
 npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
 npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy benchmark (owner-run for the live matrix)
 npm run convert:joomla -- --source <articles.ndjson> --out <dir> # owner-run: convert legacy content, report only, never writes
+npm run write:joomla -- --plan <import-plan.json> --image-root <dir> --out <dir> --approved-digest <hash> # owner-run: write an approved import plan to Sanity, dry-run by default
 npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
 ```
 
