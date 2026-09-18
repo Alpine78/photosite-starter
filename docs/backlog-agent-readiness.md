@@ -1,6 +1,6 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-09-18 (AB#162 row only; other rows retain their earlier review)
+**Last reviewed:** 2026-09-18
 
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
@@ -19,11 +19,9 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 | Work item | Current state | Required owner action or decision | Unblocks |
 | --- | --- | --- | --- |
 | AB#141 — Physical-device lightbox check | New | Run the specified tap, double-tap, pinch, pan, and close checks on a real touch device and record device/browser/results in ADR-0001. | The remaining manual lightbox verification. |
-| AB#162 — Article poll voting | Active | Review/merge the completed poll-voting branch; provision the runtime voting token with its real permissions and verify the atomic mutation on the deployment dataset. Historical poll import support is part of the branch; its actual run and regenerated manifest approval belong with AB#137. | Poll launch and the AB#137 historical-results import. |
-| AB#137 — Production Sanity dataset | Active | Run `npm run convert:joomla` in review mode over the selected inventory to produce the conversion findings, resolve the exception rows and supply alternative text, approve the launch manifest, verify a recoverable baseline, then run and audit the Production migration with a temporary write credential as described in [the migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137). Its AB#161 prerequisite is closed, so the 48 source-gallery article imports it was blocking are unblocked. | AB#117. |
+| AB#137 — Production Sanity dataset | Active | Provision the `SANITY_POLL_VOTE_TOKEN` runtime credential (ADR-0018 §7 — verify whether this project's Sanity plan supports a document-type-scoped role before assuming one) and verify the atomic vote mutation against the real dataset. Run `npm run convert:joomla` in review mode over the selected inventory to produce the conversion findings, resolve the exception rows and supply alternative text (including the 9 articles AB#23 unblocked and the 20 articles' historical poll import AB#162 unblocked), approve the launch manifest, verify a recoverable baseline, then run and audit the Production migration with a temporary write credential as described in [the migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137). Its AB#161 prerequisite is closed, so the 48 source-gallery article imports it was blocking are unblocked. | AB#117. |
 | AB#117 — Production security and privacy review | Active | Review and accept the production evidence after AB#137, including any residual risks. | AB#18. |
 | AB#18 — Production promotion | New | Perform owner-controlled domain, DNS, production secret, rollback, and smoke-test actions only after predecessors pass. | AB#118 handoff and rollback exercise. |
-| AB#144 — Preview alias revision gate | Active | Confirm whether the acceptance criteria are met and the item can close. Its implementation merged as PR #99 (`0c4e42c`, 2026-08-31), but its final criterion — updating or removing the AB#136 known-limitation notes — depended on AB#136, which only closed 2026-09-10. Verify those notes, then close or state what remains. | Nothing else; it is a bookkeeping decision on already-merged work. |
 
 ## Dependency order
 
@@ -86,6 +84,16 @@ is not MVP work.
 AB#19, AB#21, and AB#22 are `Closed` on Azure Boards as checked 2026-09-14.
 The former AB#21 implementation recommendation was stale; its
 three-level heading work has shipped. AB#22's shared table block also shipped.
+
+**AB#23** (before/after image-comparison content block) and **AB#162** (article
+poll voting, ADR-0018) both closed 2026-09-18, PRs #170 and #169. AB#23 was
+the migration blocker recorded for 9 AB#137 exception-row articles (347, 351,
+366, 368, 370, 457, 459, 461, 467); AB#162 unblocks the 20 exception-row
+articles carrying a legacy `{CONTENTPOLL}` marker, whose historical vote data
+was recorded on AB#26's own comment for exactly this import. Neither closure
+by itself advances AB#137 — the actual review-mode conversion run, exception
+resolution, and manifest approval remain entirely open — but AB#137's own row
+above is updated to reflect that both dependencies it was waiting on are gone.
 
 The immediate launch path is AB#137, already `Active`. Its existing Preview
 verification tooling is ready, and the customer-owned Production project and
