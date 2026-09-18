@@ -224,6 +224,51 @@ describe("round-8 review finding: a single <p> wrapper inside a quote or list it
   });
 });
 
+describe("a lone <div> wrapper inside a quote or list item is accepted, the same as a lone <p> (article 371's real shape)", () => {
+  it("flattens a lone div inside a blockquote", () => {
+    const result = convert("<blockquote><div>Quoted prose.</div></blockquote>");
+    expect(result.convertible).toBe(true);
+    expect(result.blocks).toEqual([{ _type: "contentQuoteBlock", text: "Quoted prose." }]);
+    expect(result.findings).toEqual([]);
+  });
+
+  it("flattens a lone div inside a list item", () => {
+    const result = convert("<ul><li><div>List item.</div></li></ul>");
+    expect(result.convertible).toBe(true);
+    expect(result.blocks).toEqual([{ _type: "contentListBlock", ordered: false, items: ["List item."] }]);
+    expect(result.findings).toEqual([]);
+  });
+
+  it("joins a div and a paragraph in a quote with a space and records the flattened boundary", () => {
+    const result = convert("<blockquote><div>First.</div><p>Second.</p></blockquote>");
+    expect(result.blocks).toEqual([{ _type: "contentQuoteBlock", text: "First. Second." }]);
+    expect(codes(result, "lossy")).toContain("paragraph-boundary-flattened");
+  });
+
+  it("still refuses genuinely unrepresentable content nested inside the div", () => {
+    const result = convert('<blockquote><div>Text <img src="known-1.jpg"></div></blockquote>');
+    expect(result.convertible).toBe(false);
+    expect(codes(result, "refusal")).toContain("block-inside-quote-or-item");
+    expect(result.blocks).toEqual([]);
+  });
+
+  it("does not leak a stray top-level paragraph block from the flattened div", () => {
+    const result = convert("<blockquote><div>Sitaatti.</div></blockquote><p>Tavallinen kappale.</p>");
+    expect(result.blocks).toEqual([
+      { _type: "contentQuoteBlock", text: "Sitaatti." },
+      { _type: "contentParagraphBlock", text: "Tavallinen kappale." },
+    ]);
+  });
+
+  it("still concatenates adjacent top-level divs with a space outside any quote (round 5 behaviour unchanged)", () => {
+    const result = convert("<div>First</div><div>Second</div>");
+    expect(result.blocks).toEqual([
+      { _type: "contentParagraphBlock", text: "First" },
+      { _type: "contentParagraphBlock", text: "Second" },
+    ]);
+  });
+});
+
 describe("round-7 review finding: <colgroup>/<col> attributes go through the allow-list too", () => {
   it("records a dropped column width as lossy, rather than silently discarding it", () => {
     const result = convert('<table><colgroup><col style="width: 50%"></colgroup><tr><th>A</th></tr><tr><td>B</td></tr></table>');
