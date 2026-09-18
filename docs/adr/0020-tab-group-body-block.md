@@ -147,7 +147,29 @@ guess is worse than a refusal a human resolves once.
   flow; shipping converter support alone does not accept or import article
   370.
 - The unrelated `<h6>`-in-`<caption>` conversion gap article 370 also exposed
-  stays open, tracked separately from this decision.
+  is closed (2026-09-18, same day, a separate follow-up fix): a table
+  caption whose *entire* content is one heading element now flattens to
+  plain caption text with a `caption-heading-flattened` lossy note instead
+  of refusing on the heading's level — the caption is not part of the body's
+  heading outline, so the level carries nothing worth preserving. Scoped
+  narrowly, matching this decision's own posture: a heading alongside other
+  caption text, or more than one heading, still refuses exactly as before.
+- Verifying the fix above against the real, full article — not the isolated
+  tab-widget extract this decision's own measurement used — surfaced a
+  second, genuinely different, unrelated defect the isolated extract could
+  not have shown: parse5 (the same standards-based parser a real browser
+  uses) reports **no closing tag at all** for the article's own
+  `<div class="tab-content">` — confirmed via its source-location info,
+  whose recorded end offset is the exact byte length of the article body,
+  i.e. implicitly closed only at end-of-input. The whole remainder of the
+  article's content is therefore, per real HTML5 parsing rules, nested
+  *inside* the tab-content container, which is why the tab-group recognizer
+  correctly refuses it (`tab-group-unsupported-shape`, "holds something
+  other than a tab-pane") rather than silently absorbing unrelated content
+  into the tab group or guessing where the missing tag belongs. This is a
+  genuine defect in the source content itself, not a gap in this decision's
+  recognizer, and is not something a converter should paper over by
+  inferring a missing tag's position — see Action Items.
 
 ## Action Items
 
@@ -157,7 +179,16 @@ guess is worse than a refusal a human resolves once.
   reachable by keyboard, the hydrated `tablist`/`tab`/`tabpanel` roles, click
   switching, and arrow-key navigation with wrapping and no focus trap.
 - Confirm the decision's acceptance during PR review.
-- Resolve the real `<h6>`-inside-`<table><caption>` conversion gap separately;
-  it blocks article 370's own migration but is not this decision's to fix.
+- The `<h6>`-inside-`<table><caption>` conversion gap is closed (see
+  Consequences).
+- The article's own missing `</div>` for `tab-content` is an **owner
+  decision, not a code fix**: either correct the exported source HTML before
+  the real migration run (the least ambiguous option, since it fixes the
+  defect at its origin), or extend `prepare-selected-source.mts`'s existing
+  surgical-normalization precedent (it already corrected 9 other tables and
+  removed stray navigation markers) to insert the one missing closing tag —
+  a decision to make deliberately, with the corrected body re-approved
+  through the same source-digest mechanism every other edit already goes
+  through, not something this converter should infer silently.
 - Prepare the private resolution and manifest row for article 370 before it
   enters AB#137's launch manifest.

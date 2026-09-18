@@ -2417,6 +2417,34 @@ left the remaining 4 (`data-toggle="tab"`, a real Bootstrap tab widget with
 no equivalent on the new site) refusing exactly as before, still a content
 decision for the owner.
 
+A table caption whose *entire* content is one heading element now flattens
+to plain caption text (`joomla-conversion-v6`) instead of refusing on the
+heading's level: `<caption><h6>…</h6></caption>` — the real shape article
+370's own tables use — notes a new lossy `caption-heading-flattened` finding
+and keeps the words, since a caption is not part of the body's heading
+outline and the level carries nothing worth preserving. `soleHeadingChild`
+scopes this narrowly: a heading alongside other caption text, or more than
+one heading, still falls through to the ordinary walk and still refuses
+exactly as before (`heading-level-unsupported`/`heading-order`). This closed
+4 of the archive's `heading-level-unsupported` refusals, all in article
+370 — but verifying it against that article's real, full body (rather than
+the isolated tab-widget extract ADR-0020's own measurement used) surfaced a
+second, unrelated defect: parse5 reports **no closing tag at all** for the
+article's own `<div class="tab-content">` — its source-location info's
+recorded end offset is the exact byte length of the article body, i.e.
+implicitly closed only at end of input. The rest of the article is
+therefore, per real HTML5 parsing rules, nested *inside* the tab-content
+container, and the tab-group recognizer (AB#163) correctly refuses this
+shape (`tab-group-unsupported-shape`) rather than absorbing unrelated
+content into the tab group or guessing where the missing tag belongs. This
+is a genuine defect in the source content itself, not a converter gap:
+[ADR-0020](docs/adr/0020-tab-group-body-block.md) records it as an owner
+decision — correct the exported HTML before the real migration run, or
+extend `prepare-selected-source.mts`'s existing precedent (it already
+corrected 9 other tables) to insert the one missing tag, with the corrected
+body re-approved through the existing source-digest mechanism either way.
+Article 370 therefore still does not convert as a whole.
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a

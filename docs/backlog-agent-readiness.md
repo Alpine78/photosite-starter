@@ -1,6 +1,6 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-09-18
+**Last reviewed:** 2026-09-18 (later same day)
 
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
@@ -95,6 +95,43 @@ was recorded on AB#26's own comment for exactly this import. Neither closure
 by itself advances AB#137 — the actual review-mode conversion run, exception
 resolution, and manifest approval remain entirely open — but AB#137's own row
 above is updated to reflect that both dependencies it was waiting on are gone.
+
+Later the same day, AB#137's own review-mode pass over the real 102-article
+selection surfaced three further, purely technical converter gaps — none a
+content decision, all closed without touching the manifest or any owner
+review: **PR #174** (figcaption → placement caption, `<figure>` recognition,
+closed 470 of 474 `unsupported-element` refusals; known-inert anchor `rel`
+values now drop as lossy instead of refusing, closing 8 of 12
+`behavioural-attribute` refusals) and **AB#163 / PR #173** (the eleventh
+shared body block, `tab-group`, [ADR-0020](adr/0020-tab-group-body-block.md)
+— recognizes the one Bootstrap `nav-tabs`/`tab-content` widget the archive
+carries, article 370's burst-test tabs, closing the archive's last 4
+`behavioural-attribute` refusals). Building the tab-group recognizer surfaced
+a real, different, unrelated gap ADR-0020 recorded as an open action item
+rather than fixed there — a `<h6>` nested inside a table's own `<caption>` —
+and a same-day follow-up closed it: a caption whose entire content is one
+heading now flattens to plain text with a `caption-heading-flattened` lossy
+note, since a caption is not part of the body's heading outline. **Article
+370 itself still does not convert.** Verifying that fix against the real,
+full article (not the isolated tab-widget extract ADR-0020's own measurement
+used) surfaced a second, genuinely different defect no code change should
+paper over: parse5 reports **no closing tag at all** for the article's own
+`<div class="tab-content">` — confirmed by its source-location info, whose
+recorded end offset is the article body's exact byte length. The rest of the
+article is therefore, per real HTML5 parsing rules, nested *inside* the tab
+widget, which is exactly why the recognizer correctly refuses it
+(`tab-group-unsupported-shape`) instead of guessing where the missing tag
+belongs. This is a genuine source-content defect, recorded as an ADR-0020
+action item: either correct the exported HTML before the real migration run,
+or extend `prepare-selected-source.mts`'s existing precedent (it already
+corrected 9 other tables) to insert the one missing tag — an owner decision
+either way, since the corrected body needs its own re-approval through the
+existing source-digest mechanism. That defect, and every remaining
+`heading-level-unsupported`/`heading-order`/`gallery-unresolved`/
+`comparison-unresolved` finding, needs either a further converter fix (if
+technical) or the owner's own review (if a genuine content decision); neither
+AB#163 nor the figcaption/`rel` fixes attempted to tell those apart beyond
+what they each closed.
 
 The immediate launch path is AB#137, already `Active`. Its existing Preview
 verification tooling is ready, and the customer-owned Production project and
