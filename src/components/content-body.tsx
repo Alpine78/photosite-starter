@@ -1,3 +1,4 @@
+import { PollBlock } from "@/components/poll-block";
 import { miniGalleryNames } from "@/lib/content-mini-gallery";
 import { ContentMiniGallery } from "@/components/content-mini-gallery";
 import { ContentBodyFigure } from "@/components/content-body-figure";
@@ -62,6 +63,8 @@ export function ContentBody({
     <div className="space-y-6">
       {blocks.map((block, index) => {
         switch (block.type) {
+          case "poll":
+            return <PollBlock key={block.key ?? index} poll={block} labels={labels.poll} />;
           case "mini-gallery":
             return (
               <ContentMiniGallery

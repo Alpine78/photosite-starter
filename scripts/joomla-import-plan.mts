@@ -38,6 +38,7 @@
  *   be checked.
  */
 
+import { validateHistoricalPollDocuments } from "./joomla-polls.mts";
 import { createHash, randomBytes } from "node:crypto";
 
 import {
@@ -59,12 +60,13 @@ import {
 } from "./joomla-import-manifest.mts";
 
 /**
- * Bumped to v2 when `AssetRequirement` gained `contentHash` (AB#137 write-half
+ * Bumped to v3 for AB#162 historical poll/tally documents. Previously bumped
+ * to v2 when `AssetRequirement` gained `contentHash` (AB#137 write-half
  * planning, Codex plan-review round 1, finding 2): the plan's own format changed, so a
  * version-equality check would be meaningless against a constant that never moved — a
  * stale v1 plan, genuinely missing every hash, would otherwise satisfy it.
  */
-export const IMPORT_PLAN_VERSION = "joomla-import-plan-v2";
+export const IMPORT_PLAN_VERSION = "joomla-import-plan-v3";
 
 /**
  * Restated from `sanity/schemas/article.ts` and `sanity/schemas/gallery-
@@ -445,6 +447,11 @@ export function buildImportPlan(input: {
     requiredCategories.add(approval.canonicalCategory);
     for (const category of approval.secondaryCategories) requiredCategories.add(category);
 
+    for (const pollDocument of conversion.pollDocuments ?? []) {
+      const existing = documents.find((d) => d._id === pollDocument._id);
+      if (!existing) documents.push(pollDocument);
+      else if (JSON.stringify(existing) !== JSON.stringify(pollDocument)) errors.push("Conflicting historical poll documents across articles");
+    }
     const body = conversion.blocks.map((block) => resolveBlockMedia(block, mediaDocumentIdOf, usedPhotographs));
     const articleDocumentId = migratedId("article", approval.contentId, approval.language);
 
@@ -645,7 +652,7 @@ export function buildImportPlan(input: {
  * `sanity-document-checks.mts` instead.
  */
 export function validateMigrationDocuments(documents: readonly PlannedDocument[]): readonly string[] {
-  const violations: string[] = [];
+  const violations: string[] = validateHistoricalPollDocuments(documents);
   const byId = new Map(documents.map((document) => [document._id, document]));
 
   for (const duplicate of collectDuplicateIds(documents)) {
@@ -666,7 +673,7 @@ export function validateMigrationDocuments(documents: readonly PlannedDocument[]
   const endGalleryIds = new Map<string, string>();
 
   for (const document of documents) {
-    if (!document._id.startsWith(MIGRATED_ID_PREFIX) || document._id.includes(".")) {
+    if ((!document._id.startsWith(MIGRATED_ID_PREFIX) && document._type !== "pollTally") || document._id.includes(".")) {
       violations.push(
         `${document._id}: id is not a public root-level id under the "${MIGRATED_ID_PREFIX}" namespace`,
       );

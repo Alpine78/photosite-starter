@@ -1,3 +1,4 @@
+import { mockPolls } from "@/lib/mock-polls";
 import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
 /**
  * Authored bodies for the mock content tree, until the CMS adapter lands.
@@ -257,6 +258,8 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
     author: "Alex Rivers",
     tags: ["lenses", "telephoto", "sports photography"],
     body: [
+      ...mockPolls.map((poll) => ({ type: "poll" as const, ...poll, key: poll.pollId })),
+
       {
         type: "paragraph",
         text: "A telephoto lens purchase is one of the most significant investments a photographer makes. The headline specs — focal length range and maximum aperture — are easy to compare, but they rarely tell you how a lens actually behaves in the field. Placeholder copy; replaced with real content from the CMS.",

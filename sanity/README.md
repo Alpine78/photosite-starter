@@ -209,3 +209,14 @@ not converted to CSS or silently replaced. Both content sources use
 placement, cursor, section filter, or lightbox ordering rule.
 
 See [gallery presentation](../docs/gallery-presentation.md) for public behaviour.
+
+## Article polls (AB#162)
+
+`poll` is an authored document with a language, question, 2–10 stable option IDs
+and labels, and an authored closing instant. `contentPollBlock` references it
+inside the shared body model. Poll/option IDs are bounded at 64 characters and
+question/label at 500. `pollTally` and `pollVoteReceipt` have no Studio schemas:
+publishing an edit to `poll` writes a different document from its live tally.
+They are still accessible to dataset API readers. Runtime writes use a distinct
+credential; see [ADR-0018](../docs/adr/0018-article-poll-voting-storage-and-dedup.md)
+and [Sanity setup](../docs/sanity-setup.md).

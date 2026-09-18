@@ -286,6 +286,12 @@ export type BuiltInLabels = {
     /** Accessible name of the control that opens the item enquiry form (AB#60). */
     readonly enquire: string;
   };
+  readonly poll: {
+    readonly submit: string; readonly submitting: string; readonly retry: string;
+    readonly closed: string; readonly voted: string; readonly results: string;
+    readonly total: string; readonly noVotes: string; readonly error: string;
+    readonly javascript: string; readonly privacy: string; readonly select: string;
+  };
   readonly miniGallery: { readonly label: string };
   /**
    * Names a body table's own scrollable region (AB#22) when the author wrote
@@ -524,6 +530,12 @@ const englishLabels = {
     loadError: "The image cannot be loaded",
     enquire: "Enquire about this photograph",
   },
+  poll: {
+    submit: "Vote", submitting: "Recording vote…", retry: "Try again",
+    closed: "Voting has closed.", voted: "Your vote has been recorded.", results: "Results",
+    total: "Total votes: {count}", noVotes: "No votes have been recorded.", error: "The poll could not be updated. Please try again.",
+    javascript: "JavaScript is needed to vote.", privacy: "Voting uses a cookie for this poll to remember your vote.", select: "Choose an option.",
+  },
   miniGallery: { label: "Mini-gallery" },
   table: { label: "Table" },
   media: {
@@ -682,6 +694,12 @@ const finnishLabels = {
     indexSeparator: " / ",
     loadError: "Kuvaa ei voi ladata",
     enquire: "Kysy tästä valokuvasta",
+  },
+  poll: {
+    submit: "Äänestä", submitting: "Tallennetaan ääntä…", retry: "Yritä uudelleen",
+    closed: "Äänestys on päättynyt.", voted: "Äänesi on tallennettu.", results: "Tulokset",
+    total: "Ääniä yhteensä: {count}", noVotes: "Ääniä ei ole annettu.", error: "Kyselyä ei voitu päivittää. Yritä uudelleen.",
+    javascript: "Äänestäminen tarvitsee JavaScriptin.", privacy: "Äänestäminen käyttää tämän kyselyn evästettä äänen muistamiseen.", select: "Valitse vaihtoehto.",
   },
   miniGallery: { label: "Minigalleria" },
   table: { label: "Taulukko" },

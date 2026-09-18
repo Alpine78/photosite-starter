@@ -27,13 +27,18 @@
  */
 
 import { MEDIA_TYPE_NAME } from "./media";
+import { POLL_TYPE_NAME } from "./poll";
 import type {
   SchemaFieldDefinition,
   SchemaTypeDefinition,
   SchemaValidationResult,
 } from "./schema-types";
 
-/** The eight block kinds ADR-0003 decision 2 names, in the order it lists them. */
+/**
+ * The eight block kinds ADR-0003 decision 2 names, in the order it lists
+ * them, plus `poll` — a ninth kind, added by ADR-0018 (AB#162), referencing a
+ * `poll` document exactly the way `media` references a `media` document.
+ */
 export const CONTENT_BLOCK_KINDS = [
   "paragraph",
   "heading",
@@ -43,6 +48,7 @@ export const CONTENT_BLOCK_KINDS = [
   "youtube",
   "mini-gallery",
   "table",
+  "poll",
 ] as const;
 
 export type ContentBlockKind = (typeof CONTENT_BLOCK_KINDS)[number];
@@ -63,6 +69,7 @@ export const CONTENT_BLOCK_OBJECT_TYPES: Readonly<
   youtube: "contentYoutubeBlock",
   "mini-gallery": "contentGalleryBlock",
   table: "contentTableBlock",
+  poll: "contentPollBlock",
 };
 
 /**
@@ -388,6 +395,29 @@ const contentTableBlockType: SchemaTypeDefinition = {
   preview: { select: { title: "caption", subtitle: "headers.0" } },
 };
 
+/**
+ * A placement, not an embed: this block carries no poll content of its own
+ * (ADR-0018 §1) — question, options, and close date all live on the
+ * referenced `poll` document, so an editor authors a poll once and can, in
+ * principle, place it more than once without a copy to keep in sync.
+ */
+const contentPollBlockType: SchemaTypeDefinition = {
+  name: CONTENT_BLOCK_OBJECT_TYPES.poll,
+  title: "Poll",
+  type: "object",
+  description: "A vote on the referenced poll's question, open until its close date (ADR-0018).",
+  fields: [
+    {
+      name: "poll",
+      title: "Poll",
+      type: "reference",
+      to: [{ type: POLL_TYPE_NAME }],
+      validation: (rule) => rule.required(),
+    },
+  ],
+  preview: { select: { title: "poll.question", subtitle: "poll.pollId" } },
+};
+
 /** Every block object type, in one list a Studio's `schema.types` can spread in. */
 export const contentBlockTypes: readonly SchemaTypeDefinition[] = [
   contentParagraphBlockType,
@@ -398,6 +428,7 @@ export const contentBlockTypes: readonly SchemaTypeDefinition[] = [
   contentYoutubeBlockType,
   contentGalleryBlockType,
   contentTableBlockType,
+  contentPollBlockType,
 ];
 
 type RawHeadingItem = { readonly _type?: unknown; readonly level?: unknown };

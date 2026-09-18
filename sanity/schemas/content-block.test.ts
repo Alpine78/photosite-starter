@@ -10,6 +10,7 @@ import {
 } from "./content-block";
 import { defineSchemaTypes } from "./index";
 import { MEDIA_TYPE_NAME } from "./media";
+import { POLL_TYPE_NAME } from "./poll";
 import { assertSemanticHeadingOrder, type ContentBlock } from "../../src/lib/content-page";
 import type {
   SchemaTypeDefinition,
@@ -87,7 +88,7 @@ function rowObject(): SchemaTypeDefinition {
 }
 
 describe("the shared block types", () => {
-  it("names every ADR-0003 decision 2 block kind", () => {
+  it("names every ADR-0003 decision 2 block kind, plus ADR-0018's poll", () => {
     expect(CONTENT_BLOCK_KINDS).toEqual([
       "paragraph",
       "heading",
@@ -97,6 +98,7 @@ describe("the shared block types", () => {
       "youtube",
       "mini-gallery",
       "table",
+      "poll",
     ]);
     expect(contentBlockTypes.map((type) => type.name).sort()).toEqual(
       Object.values(CONTENT_BLOCK_OBJECT_TYPES).sort(),
@@ -207,6 +209,17 @@ describe("the media block", () => {
     ).toBe(true);
     expect(fieldOf(typeOf(CONTENT_BLOCK_OBJECT_TYPES.media), "media").to).toEqual([
       { type: MEDIA_TYPE_NAME },
+    ]);
+  });
+});
+
+describe("the poll block", () => {
+  it("requires a poll reference", () => {
+    expect(
+      inspect(fieldOf(typeOf(CONTENT_BLOCK_OBJECT_TYPES.poll), "poll").validation).required,
+    ).toBe(true);
+    expect(fieldOf(typeOf(CONTENT_BLOCK_OBJECT_TYPES.poll), "poll").to).toEqual([
+      { type: POLL_TYPE_NAME },
     ]);
   });
 });

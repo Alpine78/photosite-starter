@@ -629,3 +629,60 @@ Still open, not applied by this review:
    Vercel's broad commercial-usage wording that this review's own reading
    of the public terms does not settle — obtain Vercel Support's
    confirmation before AB#18 promotes production, not after.
+
+
+## Scoped implementation review — AB#162, 2026-09-18
+
+This reviews article poll voting and its historical-import extension. It does
+not re-open or certify the live infrastructure checks of AB#117 above.
+Authoritative scope: AB#162 description/acceptance criteria and its AB#26
+relation; decisions: ADR-0018 and its completion amendment.
+
+### Findings corrected in this branch
+
+| Severity | Location and failure path | Correction and regression evidence |
+| --- | --- | --- |
+| High | `poll-vote-access.ts` / `poll-vote-sanity.ts`: separate receipt and increment requests could leave a receipt without a count; `inc` of a missing bucket also failed the first vote | One transaction contains plain receipt create, lazy tally creation, selected-bucket initialization and atomic increment. Adapter tests assert its wire contract, conflict path and simulated concurrent dedup. |
+| High | First-vote identity minted in POST: losing its response lost the browser token, so a retry could increment again | Preparation establishes a stable poll cookie before any write; unprepared POST writes nothing. Browser tests abort a real successful POST response, then retry without another POST or count. |
+| Medium | `poll-identity.ts`: a raw token embedded in a public receipt ID disclosed it and long IDs exceeded Sanity's limit; a shared cookie linked different polls | Bounded SHA-256 receipt IDs and independent per-poll tokens. Identity and wire tests cover canonical tokens, bounds and absence of raw token/choice/time in records. |
+| Medium | Poll eligibility / CMS projection trusted malformed dates and option data | Runtime shape, date, identity, count and uniqueness checks fail closed. Tests cover impossible dates, duplicate published identities/options and invalid counts. Studio additionally prevents changing/removing published option IDs. |
+| Medium | A React submitting-state check alone left a second submission possible before a render | The shared hydration guard now uses a synchronous in-flight ref. Browser regression submits the same form twice before painting and observes one POST; contact/enquiry journeys remain covered. |
+| Medium | Legacy markers had no resolved poll/tally import path | The private TSV resolver checks actual totals, emits closed pairs in source order, binds counts into approval digests, and validates writer dependencies and closed-pair allow-lists. Synthetic migration tests cover tampering, language and total mismatch/overflow. The owner's actual source was parsed offline: 22 polls, 110 option rows, all totals consistent. |
+
+No unresolved finding was identified in the reviewed code. Request tests also
+cover the closed two-field POST allow-list, origin/content-type/body bounds,
+quoted/duplicate cookies, ordinary GET without cookie creation, and redacted
+provider failures. Provider modules retain server-only and ESLint boundaries.
+No dependency or browser-policy relaxation was introduced.
+
+### Residual limits and checks
+
+[Poll processing record](poll-data-flow.md) records pseudonymous public-dataset
+receipts, no automatic receipt cleanup, cookie duration/necessity, local-only
+throttling, cookie clearing and simultaneous first-time preparations in separate
+tabs. The close-date check precedes the transaction; an editor changing the poll
+between that read and the write is not locked out by a cross-document revision
+guard. Historical imports carry an explicitly closed sentinel, never an invented
+source closing date.
+
+Fixture tests do not certify an actual Sanity credential or execute a live
+migration. Before launch, the owner must provision/check the runtime credential,
+verify provider transaction/conflict behavior, review regenerated conversion
+approvals/plans and audit the imported pairs. Mobile WebKit tests assert the real
+Secure wire attribute but adapt cookies for the plain-HTTP loopback test origin;
+an actual HTTPS deployment remains the live cookie check. The test adaptation
+does not change application cookie attributes.
+
+
+### Validation of the completed branch
+
+- Full Vitest run: 153 files, 3,748 passing tests.
+- Production-build Playwright run: 588 passed, 28 conditional skips, two
+  failures from the existing video test's ambiguous button selector after a
+  poll button was added. The selector now names the localized YouTube control;
+  both Chromium/WebKit cases passed on their focused production-build rerun.
+  The aggregate verified set is 590 passing cases and 28 conditional skips.
+- All 12 poll cases passed in the full run. Narrow-viewport screenshot inspected.
+- Production build, TypeScript, diagram rendition check and diff whitespace
+  check passed. ESLint reports zero errors and one existing unrelated
+  `presetMediaDark` warning in `theme-contract.test.ts:117`.

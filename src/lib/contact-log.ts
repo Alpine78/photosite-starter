@@ -45,6 +45,7 @@ import type {
 import type { ContactDeliveryErrorClass } from "@/lib/contact-delivery";
 import type { ContactRejectionReason } from "@/lib/contact-request";
 import type { EnquiryResolutionRejection } from "@/lib/enquiry-media";
+import type { PollVoteErrorClass } from "@/lib/poll-vote";
 
 /**
  * Every value `errorClass` may take on a contact event, as a type rather than
@@ -78,7 +79,10 @@ export type SubmissionState =
   | "accepted"
   | "delivered"
   | "rejected"
-  | "delivery-failed";
+  | "delivery-failed"
+  | "recorded"
+  | "already-voted"
+  | "failed";
 
 /** The closed set of event names the submission-log family emits. */
 type SubmissionEventName =
@@ -86,7 +90,8 @@ type SubmissionEventName =
   | "enquiry.submission"
   | "private-gallery.exchange"
   | "private-gallery.view"
-  | "private-gallery.admin";
+  | "private-gallery.admin"
+  | "poll.vote";
 
 export type ContactEvent =
   | {
@@ -142,6 +147,18 @@ export type PrivateGalleryViewEvent = {
   readonly errorClass: PrivateGalleryViewFailure["reason"];
 };
 
+/**
+ * One poll-vote event (AB#162, ADR-0018). `pollId`/`optionId` never appear —
+ * they are not the class the schema names, and this module's own rule is
+ * three fields, nothing else. `already-voted` is its own state rather than a
+ * rejection: it is Sanity's own 409 telling a retried or duplicate request
+ * apart from a genuine failure, and the browser's response is identical to
+ * `recorded` either way (ADR-0018 §4).
+ */
+export type PollVoteEvent =
+  | { readonly correlationId: string; readonly state: "recorded" | "already-voted"; readonly errorClass?: never }
+  | { readonly correlationId: string; readonly state: "rejected" | "failed"; readonly errorClass: PollVoteErrorClass };
+
 export function createCorrelationId(): string {
   return randomUUID();
 }
@@ -166,7 +183,8 @@ function writeSubmissionLine(
     | EnquiryErrorClass
     | PrivateGalleryExchangeFailure["reason"]
     | PrivateGalleryViewFailure["reason"]
-    | PrivateGalleryAdminFailure["reason"],
+    | PrivateGalleryAdminFailure["reason"]
+    | PollVoteErrorClass,
 ): void {
   const line = JSON.stringify({
     event: name,
@@ -175,7 +193,7 @@ function writeSubmissionLine(
     ...(errorClass === undefined ? {} : { errorClass }),
   });
 
-  if (state === "delivery-failed" || state === "rejected") {
+  if (state === "delivery-failed" || state === "rejected" || state === "failed") {
     console.error(line);
   } else {
     console.info(line);
@@ -252,6 +270,16 @@ export function logPrivateGalleryViewEvent(
 ): void {
   writeSubmissionLine(
     "private-gallery.view",
+    event.correlationId,
+    event.state,
+    event.errorClass,
+  );
+}
+
+/** Emits one poll-vote event (AB#162, ADR-0018). */
+export function logPollVoteEvent(event: PollVoteEvent): void {
+  writeSubmissionLine(
+    "poll.vote",
     event.correlationId,
     event.state,
     event.errorClass,

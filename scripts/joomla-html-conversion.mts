@@ -42,6 +42,7 @@
  * Sanity object; no field carries markup.
  */
 
+import type { ResolvedHistoricalPoll, HistoricalPollDocument } from "./joomla-polls.mts";
 import { createHash } from "node:crypto";
 
 import { parseFragment } from "parse5";
@@ -52,7 +53,7 @@ import { parseFragment } from "parse5";
  * value (see `joomla-import-manifest.mts`), so a rule change invalidates a
  * stale approval instead of silently inheriting it.
  */
-export const CONVERSION_POLICY_VERSION = "joomla-conversion-v1";
+export const CONVERSION_POLICY_VERSION = "joomla-conversion-v2";
 
 // ---------------------------------------------------------------------------
 // Sanity content-block shapes
@@ -74,6 +75,7 @@ export const CONTENT_BLOCK_OBJECT_TYPES = {
   youtube: "contentYoutubeBlock",
   "mini-gallery": "contentGalleryBlock",
   table: "contentTableBlock",
+  poll: "contentPollBlock",
 } as const;
 
 export const MAX_MINI_GALLERY_ITEMS = 12;
@@ -201,6 +203,7 @@ export type ConversionContext = {
    * one per video id; without it the article is refused rather than given an
    * invented label.
    */
+  readonly resolvePoll?: (legacyId: string) => ResolvedHistoricalPoll | undefined;
   readonly resolveYoutubeTitle?: (videoId: string) => string | undefined;
 };
 
@@ -218,6 +221,7 @@ export type ResolvedImageContentHash = {
 };
 
 export type ConversionResult = {
+  readonly pollDocuments?: readonly HistoricalPollDocument[];
   readonly blocks: readonly SanityBlock[];
   readonly findings: readonly ConversionFinding[];
   /** Alt text for every photograph this body actually referenced, for the shared media document. */
@@ -452,6 +456,7 @@ class BodyConverter {
    */
   private flatTextCaptureDepth = 0;
 
+  private readonly pollDocuments = new Map<string, HistoricalPollDocument>();
   private readonly context: ConversionContext;
 
   // An explicit field, not a parameter property: Node's native type stripping
@@ -579,6 +584,16 @@ class BodyConverter {
       if (segment.kind === "text") {
         this.appendInline(segment.text);
         continue;
+      }
+      if (segment.kind === "unknown-marker" && segment.name === "contentpoll") {
+        const id = /^\{contentpoll(?:\s+id\s*=\s*|\s+)([1-9]\d{0,8})\s*\}$/iu.exec(segment.source)?.[1];
+        const resolved = id === undefined ? undefined : this.context.resolvePoll?.(id);
+        if (resolved && (resolved.poll.language === this.context.language || resolved.poll.language === "und")) {
+          this.push({ _type: CONTENT_BLOCK_OBJECT_TYPES.poll, poll: { _type: "reference", _ref: resolved.poll._id } });
+          this.pollDocuments.set(resolved.poll._id, resolved.poll);
+          this.pollDocuments.set(resolved.tally._id, resolved.tally);
+          continue;
+        }
       }
       if (segment.kind === "unknown-marker") {
         this.refuse(
@@ -1256,6 +1271,7 @@ class BodyConverter {
     const convertible = !this.findings.some((finding) => finding.severity === "refusal");
     return {
       blocks: this.blocks,
+      ...(this.pollDocuments.size === 0 ? {} : { pollDocuments: [...this.pollDocuments.values()] }),
       findings: this.findings,
       resolvedImageAltText: this.resolvedImageAltText,
       resolvedImageContentHashes: this.resolvedImageContentHashes,
@@ -1365,6 +1381,7 @@ export function extractYoutubeVideoId(src: string): string | undefined {
 export function resolvedConversionDigest(result: ConversionResult): string {
   const canonical = JSON.stringify({
     blocks: result.blocks,
+    ...(result.pollDocuments === undefined ? {} : { pollDocuments: [...result.pollDocuments].sort((a, b) => a._id.localeCompare(b._id)) }),
     endGallery: result.endGallery ?? null,
     // Order-independent: two runs resolving the same images in a different
     // Map iteration order must not spuriously invalidate an approval.

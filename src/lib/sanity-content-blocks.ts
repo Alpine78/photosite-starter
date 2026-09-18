@@ -1,3 +1,4 @@
+import { isPollDefinition } from "@/lib/poll";
 /**
  * The shared rich-content body block adapter: Sanity block objects in,
  * `content-page.ts`'s `ContentBlock` union out.
@@ -48,10 +49,15 @@ export const CONTENT_BLOCK_OBJECT_TYPES = {
   youtube: "contentYoutubeBlock",
   "mini-gallery": "contentGalleryBlock",
   table: "contentTableBlock",
+  poll: "contentPollBlock",
 } as const;
 
 /** Restated from the schema's `YOUTUBE_VIDEO_ID_PATTERN`; pinned by the test. */
 export const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+
+/** Restated from `sanity/schemas/poll.ts`'s bounds of the same names; pinned by the test. */
+export const MIN_POLL_OPTIONS = 2;
+export const MAX_POLL_OPTIONS = 10;
 
 /**
  * One flat projection over every block kind. GROQ tolerates asking for a field
@@ -77,7 +83,8 @@ export const CONTENT_BLOCK_PROJECTION = `{
   "headers": headers[0...${MAX_TABLE_COLUMNS + 1}],
   "rows": rows[0...${MAX_TABLE_ROWS + 1}]{"cells": cells[0...${MAX_TABLE_COLUMNS + 1}]},
   "media": media->${PUBLIC_MEDIA_PROJECTION},
-  "images": images[0...${MAX_MINI_GALLERY_ITEMS + 1}]{_key, "media": media->${PUBLIC_MEDIA_PROJECTION}}
+  "images": images[0...${MAX_MINI_GALLERY_ITEMS + 1}]{_key, "media": media->${PUBLIC_MEDIA_PROJECTION}},
+  "poll": poll->{pollId, question, closeDate, "options": options[0...${MAX_POLL_OPTIONS + 1}]{optionId, label}}
 }`;
 
 /** Why a body could not become a validated `ContentBlock[]`. */
@@ -121,6 +128,7 @@ export type RawContentBlock = {
   readonly rows?: unknown;
   readonly media?: unknown;
   readonly images?: unknown;
+  readonly poll?: unknown;
 };
 
 export type ContentBlockProjectionOptions = {
@@ -316,6 +324,20 @@ export function projectContentBlock(
         reject("a YouTube block needs an accessible title");
       }
       return { type: "youtube", videoId, title, key };
+    }
+
+    case CONTENT_BLOCK_OBJECT_TYPES.poll: {
+      // The block carries no poll content of its own (ADR-0018 §1) — everything
+      // comes from the dereferenced `poll` document, so an unresolved reference
+      // (a draft-only or deleted poll) looks exactly like a missing field here.
+      if (!isRecord(raw.poll)) {
+        reject("a poll block needs its referenced poll to resolve");
+      }
+      if (!isPollDefinition(raw.poll)) reject("a poll needs valid identities, text, unique options, and a valid closeDate");
+      const { pollId, question, closeDate } = raw.poll;
+      const options = raw.poll.options.map(({ optionId, label }) => ({ optionId, label }));
+
+      return { type: "poll", pollId, question, closeDate, options, key };
     }
 
     default:
