@@ -35,6 +35,8 @@ type CategoryBranchProps = {
   title: string;
   /** Generic orientation copy shown only on the story root. */
   introduction?: string;
+  /** Fixed explanatory copy carried by an explicit legacy fallback redirect. */
+  legacyFallbackNotice?: string;
   /** Omitted on the story root, which would be a one-step trail to itself. */
   breadcrumbs?: readonly BreadcrumbStep[];
   languages: readonly LanguageLink[];
@@ -77,6 +79,7 @@ export function CategoryBranch({
   locale,
   title,
   introduction,
+  legacyFallbackNotice,
   breadcrumbs,
   languages,
   childCategories,
@@ -112,6 +115,15 @@ export function CategoryBranch({
           )
         )}
       </header>
+
+      {legacyFallbackNotice && (
+        <p
+          role="status"
+          className="mt-4 max-w-2xl rounded border border-border-control px-4 py-3 text-body"
+        >
+          {legacyFallbackNotice}
+        </p>
+      )}
 
       <LanguageSwitch
         label={labels.contentTree.languages}

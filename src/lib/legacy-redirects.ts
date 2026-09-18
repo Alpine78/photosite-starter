@@ -1,11 +1,12 @@
 /**
  * The deployment's legacy-URL redirect and retirement registry (AB#19).
  *
- * ADR-0003 decision 9: a legacy Joomla page maps directly to its exact
- * same-language canonical target, or — when no genuine same-visitor-intent
- * replacement exists — a justified `410 Gone`. Never a blanket redirect to a
- * locale root, story root, category, or home page, and never a redirect
- * through another legacy URL (no chains).
+ * ADR-0003 decision 9: every verified legacy Joomla content or category page
+ * maps directly to its same-language canonical replacement when published,
+ * otherwise to the explicit nearest-category, ancestor, or home fallback
+ * selected for that source. Joomla system routes still need a same-intent
+ * replacement or a justified `410 Gone`. There is never a blanket runtime
+ * redirect and never a redirect through another legacy URL (no chains).
  *
  * `content-redirects.ts` owns the content-tree's own move/rename history and
  * already names this module's job as a separate registry: legacy paths use a
@@ -41,11 +42,27 @@ import type { LocaleRoute, LocaleRouteConfig } from "@/lib/locale-routes";
  */
 export type LegacyReservedQueryHandling = "preserve" | "strip";
 
+/**
+ * A fixed, non-sensitive notice carried only by an explicit legacy-content
+ * fallback row. It tells the target page why the visitor arrived there without
+ * placing an old pathname or any authored content in a query string.
+ */
+export const LEGACY_FALLBACK_NOTICE_PARAM = "legacy-notice";
+export const LEGACY_FALLBACK_NOTICE_VALUE = "content-unavailable";
+export type LegacyFallbackNotice = typeof LEGACY_FALLBACK_NOTICE_VALUE;
+
+/** A query value is recognized only once and only at the fixed value. */
+export function isLegacyFallbackNotice(value: unknown): boolean {
+  return value === LEGACY_FALLBACK_NOTICE_VALUE;
+}
+
 export type LegacyRedirectOutcome =
   | {
       readonly kind: "redirect";
       readonly target: string;
       readonly reservedQueryParams: LegacyReservedQueryHandling;
+      /** Present only for decision 9's category-ancestry/home fallback rows. */
+      readonly fallbackNotice?: LegacyFallbackNotice;
     }
   | { readonly kind: "gone"; readonly reason: string };
 
@@ -261,6 +278,17 @@ export function resolveLegacyRedirect(
  */
 const RESERVED_QUERY_PARAMS = new Set(["cursor", "section"]);
 
+function decodedQueryName(pair: string): string {
+  const rawName = pair.split("=", 1)[0];
+  try {
+    return decodeURIComponent(rawName.replace(/\+/g, " "));
+  } catch {
+    // An unparseable escape is not a valid spelling of any application-owned
+    // parameter, so preserve it byte-for-byte rather than guessing at it.
+    return rawName;
+  }
+}
+
 /**
  * The query string a legacy `redirect` outcome's destination carries,
  * derived from the request's own — never copied unchanged.
@@ -281,6 +309,11 @@ const RESERVED_QUERY_PARAMS = new Set(["cursor", "section"]);
  * always passes through unchanged regardless of this choice, matching how a
  * legacy URL's target and an arbitrary campaign or referral parameter
  * already coexist elsewhere in this application.
+ *
+ * A category-ancestry fallback optionally appends its one fixed
+ * `legacy-notice=content-unavailable` value. Any same-named value in the
+ * incoming request is removed first, so an attacker cannot suppress or alter
+ * the fixed, non-sensitive target-page message by adding a duplicate.
  *
  * "Unchanged" means byte-for-byte, not merely present with the same name and
  * value: this operates on the raw `key=value` segments rather than round
@@ -308,29 +341,22 @@ const RESERVED_QUERY_PARAMS = new Set(["cursor", "section"]);
 export function legacyRedirectDestinationSearch(
   originalSearch: string,
   reservedQueryParams: LegacyReservedQueryHandling,
+  fallbackNotice?: LegacyFallbackNotice,
 ): string {
   const search = originalSearch.startsWith("?")
     ? originalSearch.slice(1)
     : originalSearch;
-  if (reservedQueryParams === "preserve" || search === "") {
-    return search;
-  }
-
-  const kept = search.split("&").filter((pair) => {
+  const kept = search === "" ? [] : search.split("&").filter((pair) => {
     if (pair === "") return false;
-    const rawName = pair.split("=", 1)[0];
-    let name: string;
-    try {
-      name = decodeURIComponent(rawName.replace(/\+/g, " "));
-    } catch {
-      // An unparseable escape is not a valid encoding of "cursor" or
-      // "section" either, so it is kept exactly as sent rather than guessed
-      // at or dropped.
-      name = rawName;
+    const name = decodedQueryName(pair);
+    if (fallbackNotice !== undefined && name === LEGACY_FALLBACK_NOTICE_PARAM) {
+      return false;
     }
-    return !RESERVED_QUERY_PARAMS.has(name);
+    return reservedQueryParams === "preserve" || !RESERVED_QUERY_PARAMS.has(name);
   });
-
+  if (fallbackNotice !== undefined) {
+    kept.push(`${LEGACY_FALLBACK_NOTICE_PARAM}=${fallbackNotice}`);
+  }
   return kept.join("&");
 }
 

@@ -555,7 +555,14 @@ export async function generateMetadata(
       });
     }
 
-    return getPageMetadata({ path, title, locale, localeVersions });
+    return getPageMetadata({
+      path,
+      title,
+      locale,
+      ...(resolution.legacyFallbackNotice
+        ? { noindex: true }
+        : { localeVersions }),
+    });
   }
 
   if (page.variant === "article" && page.endGalleryId !== undefined && resolution.cursor !== undefined) {
@@ -880,6 +887,9 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
       title={branchTitle(tree, route, labels.pages.stories)}
       {...(isStoryRoot && !isContinuation
         ? { introduction: labels.contentTree.storyRootIntroduction }
+        : {})}
+      {...(resolution.legacyFallbackNotice
+        ? { legacyFallbackNotice: labels.contentTree.legacyFallbackNotice }
         : {})}
       breadcrumbs={
         route.kind === "category"
