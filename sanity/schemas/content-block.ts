@@ -1,8 +1,8 @@
 /**
  * The shared rich-content body blocks ADR-0003 decision 2 gives both public
  * content variants: paragraph, heading, blockquote, media placement, list, a
- * privacy-first YouTube embed, a mini-gallery, a data table, a poll, and an
- * image comparison.
+ * privacy-first YouTube embed, a mini-gallery, a data table, a poll, an
+ * image comparison, and a tab group.
  *
  * Deliberately not named after either variant. `article.ts` is the first
  * consumer, `defineContentBodyField({ name: "body" })` with every block type
@@ -36,8 +36,9 @@ import type {
 } from "./schema-types";
 
 /**
- * The shared block kinds, extended by polls (ADR-0018) and two-image
- * comparisons (ADR-0019, AB#23). Both variants use the same authoring set.
+ * The shared block kinds, extended by polls (ADR-0018), two-image
+ * comparisons (ADR-0019, AB#23), and tab groups (ADR-0020, AB#163). Both
+ * variants use the same authoring set.
  */
 export const CONTENT_BLOCK_KINDS = [
   "paragraph",
@@ -50,6 +51,7 @@ export const CONTENT_BLOCK_KINDS = [
   "table",
   "poll",
   "image-comparison",
+  "tab-group",
 ] as const;
 
 export type ContentBlockKind = (typeof CONTENT_BLOCK_KINDS)[number];
@@ -72,6 +74,7 @@ export const CONTENT_BLOCK_OBJECT_TYPES: Readonly<
   table: "contentTableBlock",
   poll: "contentPollBlock",
   "image-comparison": "contentImageComparisonBlock",
+  "tab-group": "contentTabGroupBlock",
 };
 
 /**
@@ -88,6 +91,11 @@ export const MAX_MINI_GALLERY_TITLE_LENGTH = 120;
 /** Restated from `src/lib/content-table.ts`; a test pins both copies. */
 export const MAX_TABLE_COLUMNS = 8;
 export const MAX_TABLE_ROWS = 20;
+
+/** Restated from `src/lib/content-tab-group.ts`; a test pins both copies. */
+export const MIN_TAB_GROUP_TABS = 2;
+export const MAX_TAB_GROUP_TABS = 8;
+export const MAX_TAB_LABEL_LENGTH = 80;
 
 function nonBlank(value: string | undefined): SchemaValidationResult {
   return value !== undefined && value.trim().length > 0
@@ -435,6 +443,58 @@ const contentTableBlockType: SchemaTypeDefinition = {
 };
 
 /**
+ * A bounded set of named tabs, each holding one data table (AB#163,
+ * ADR-0020) — scoped to exactly the shape the legacy Bootstrap
+ * `nav-tabs`/`tab-content` pattern that motivated it actually carried. A tab
+ * is not a generic rich sub-body: its `table` field reuses
+ * `contentTableBlockType` by name rather than restating headers/rows/caption
+ * a second time, so a tab's own table gets the same rectangularity check for
+ * free and the two can never drift apart.
+ */
+function nonBlankTabLabel(value: string | undefined): SchemaValidationResult {
+  return value !== undefined && value.trim().length > 0 && value.length <= MAX_TAB_LABEL_LENGTH
+    ? true
+    : `Enter a non-empty label of at most ${MAX_TAB_LABEL_LENGTH} characters`;
+}
+
+const contentTabGroupBlockType: SchemaTypeDefinition = {
+  name: CONTENT_BLOCK_OBJECT_TYPES["tab-group"],
+  title: "Tab group",
+  type: "object",
+  description:
+    "A bounded set of named tabs, each holding one data table. Every tab's table renders, stacked and labelled, without JavaScript.",
+  fields: [
+    {
+      name: "tabs",
+      title: "Tabs",
+      type: "array",
+      of: [
+        {
+          type: "object",
+          fields: [
+            {
+              name: "label",
+              title: "Label",
+              type: "string",
+              description: "The tab control's visible and accessible name.",
+              validation: (rule) => rule.required().custom(nonBlankTabLabel),
+            },
+            {
+              name: "table",
+              title: "Table",
+              type: CONTENT_BLOCK_OBJECT_TYPES.table,
+              validation: (rule) => rule.required(),
+            },
+          ],
+        },
+      ],
+      validation: (rule) => rule.required().min(MIN_TAB_GROUP_TABS).max(MAX_TAB_GROUP_TABS),
+    },
+  ],
+  preview: { select: { title: "tabs.0.label" } },
+};
+
+/**
  * A placement, not an embed: this block carries no poll content of its own
  * (ADR-0018 §1) — question, options, and close date all live on the
  * referenced `poll` document, so an editor authors a poll once and can, in
@@ -469,6 +529,7 @@ export const contentBlockTypes: readonly SchemaTypeDefinition[] = [
   contentTableBlockType,
   contentPollBlockType,
   contentImageComparisonBlockType,
+  contentTabGroupBlockType,
 ];
 
 type RawHeadingItem = { readonly _type?: unknown; readonly level?: unknown };

@@ -200,6 +200,35 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
           ["Aurora watch", "21:00", "Clear"],
         ],
       },
+      // AB#163: the gallery-side tab group, one data table per tab — the same
+      // scoped shape the Joomla migration's own Bootstrap tab widget carried.
+      {
+        type: "tab-group",
+        tabs: [
+          {
+            key: "december",
+            label: "December",
+            table: {
+              headers: ["Session", "Start", "Cloud cover"],
+              rows: [
+                ["Blue hour", "10:50", "Clear"],
+                ["Aurora watch", "20:30", "Broken"],
+              ],
+            },
+          },
+          {
+            key: "january",
+            label: "January",
+            table: {
+              headers: ["Session", "Start", "Cloud cover"],
+              rows: [
+                ["Blue hour", "10:35", "Overcast"],
+                ["Aurora watch", "21:15", "Clear"],
+              ],
+            },
+          },
+        ],
+      },
     ],
   },
   "content-awaiting-selection": {
@@ -322,6 +351,35 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
           ["Model B", "100–400 mm", "f/4.5–5.6", "1395 g", "0.98 m", "5.0 stops", "Yes", "1.4×"],
           ["Model C", "300 mm", "f/4", "755 g", "1.40 m", "4.0 stops", "Yes", ""],
           ["Model D", "150–600 mm", "f/5–6.3", "2100 g", "2.20 m", "4.5 stops", "No", "1.4× / 2×"],
+        ],
+      },
+      // AB#163: the article-side tab group, one data table per tab — the same
+      // scoped shape the Joomla migration's own Bootstrap tab widget carried.
+      {
+        type: "tab-group",
+        tabs: [
+          {
+            key: "burst-raw",
+            label: "RAW burst",
+            table: {
+              headers: ["Card", "Buffer clear", "Frames"],
+              rows: [
+                ["Card A", "16.7 s", "28"],
+                ["Card B", "37.0 s", "25"],
+              ],
+            },
+          },
+          {
+            key: "burst-jpeg",
+            label: "JPEG burst",
+            table: {
+              headers: ["Card", "Buffer clear", "Frames"],
+              rows: [
+                ["Card A", "5.2 s", "85"],
+                ["Card B", "6.1 s", "80"],
+              ],
+            },
+          },
         ],
       },
       { type: "heading", level: 4, text: "Weather sealing in the field" },
@@ -572,6 +630,35 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
           ["Revontulivahti", "21.00", "Selkeää"],
         ],
       },
+      // AB#163: the Finnish gallery-side tab group, the same scoped shape the
+      // Joomla migration's own Bootstrap tab widget carried.
+      {
+        type: "tab-group",
+        tabs: [
+          {
+            key: "joulukuu",
+            label: "Joulukuu",
+            table: {
+              headers: ["Kuvausikkuna", "Alkaa", "Pilvisyys"],
+              rows: [
+                ["Sinihetki", "10.50", "Selkeää"],
+                ["Revontulivahti", "20.30", "Puolipilvistä"],
+              ],
+            },
+          },
+          {
+            key: "tammikuu",
+            label: "Tammikuu",
+            table: {
+              headers: ["Kuvausikkuna", "Alkaa", "Pilvisyys"],
+              rows: [
+                ["Sinihetki", "10.35", "Pilvistä"],
+                ["Revontulivahti", "21.15", "Selkeää"],
+              ],
+            },
+          },
+        ],
+      },
     ],
   },
   "content-awaiting-selection": {
@@ -676,6 +763,35 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
           ["Maisema jalustalta", "f/11", "1/15 s", "ISO 100"],
           ["Urheilu sisällä", "f/2.8", "1/800 s", "ISO 3200"],
           ["Yökuvaus", "f/4.0", "20 s", "ISO 1600"],
+        ],
+      },
+      // AB#163: the Finnish article-side tab group, the same scoped shape the
+      // Joomla migration's own Bootstrap tab widget carried.
+      {
+        type: "tab-group",
+        tabs: [
+          {
+            key: "raw-sarja",
+            label: "RAW-sarjakuvaus",
+            table: {
+              headers: ["Kortti", "Puskurin tyhjennys", "Kuvia"],
+              rows: [
+                ["Kortti A", "16,7 s", "28"],
+                ["Kortti B", "37,0 s", "25"],
+              ],
+            },
+          },
+          {
+            key: "jpeg-sarja",
+            label: "JPEG-sarjakuvaus",
+            table: {
+              headers: ["Kortti", "Puskurin tyhjennys", "Kuvia"],
+              rows: [
+                ["Kortti A", "5,2 s", "85"],
+                ["Kortti B", "6,1 s", "80"],
+              ],
+            },
+          },
         ],
       },
     ],

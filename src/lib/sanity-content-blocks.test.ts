@@ -406,6 +406,56 @@ describe("a table block", () => {
   });
 });
 
+describe("a tab-group block (AB#163, ADR-0020)", () => {
+  const tableField = (fields: Record<string, unknown> = {}) => ({
+    _type: CONTENT_BLOCK_OBJECT_TYPES.table,
+    headers: ["Paikka"],
+    rows: [{ cells: ["1"] }],
+    ...fields,
+  });
+  const tabGroup = (tabs: readonly Record<string, unknown>[]) =>
+    ({
+      _key: "k",
+      _type: CONTENT_BLOCK_OBJECT_TYPES["tab-group"],
+      tabs,
+    }) as RawContentBlock;
+  const twoTabs = [
+    { _key: "t1", label: "Testi 1", table: tableField() },
+    { _key: "t2", label: "Testi 2", table: tableField({ headers: ["Paikka2"], rows: [{ cells: ["2"] }] }) },
+  ];
+
+  it("projects an ordered list of labelled tabs, each carrying its own table", () => {
+    expect(projectContentBlock(tabGroup(twoTabs), 0, options)).toEqual({
+      type: "tab-group",
+      key: "k",
+      tabs: [
+        { key: "t1", label: "Testi 1", table: { headers: ["Paikka"], rows: [["1"]] } },
+        { key: "t2", label: "Testi 2", table: { headers: ["Paikka2"], rows: [["2"]] } },
+      ],
+    });
+  });
+
+  it("projects a tab's own table caption", () => {
+    const result = projectContentBlock(
+      tabGroup([{ _key: "t1", label: "Testi", table: tableField({ caption: "Malli" }) }, twoTabs[1]]),
+      0,
+      options,
+    ) as Extract<ReturnType<typeof projectContentBlock>, { type: "tab-group" }>;
+    expect(result.tabs[0]?.table.caption).toBe("Malli");
+  });
+
+  it.each([
+    ["fewer than two tabs", [twoTabs[0]]],
+    ["a tab missing its own stable key", [{ label: "Testi", table: tableField() }, twoTabs[1]]],
+    ["two tabs sharing one key", [twoTabs[0], { ...twoTabs[1], _key: "t1" }]],
+    ["a blank tab label", [{ _key: "t1", label: "   ", table: tableField() }, twoTabs[1]]],
+    ["a tab with no table", [{ _key: "t1", label: "Testi" }, twoTabs[1]]],
+    ["a tab whose table has no headers", [{ _key: "t1", label: "Testi", table: tableField({ headers: [] }) }, twoTabs[1]]],
+  ])("rejects %s", (_case, tabs) => {
+    expect(rejectionOf(() => projectContentBlock(tabGroup(tabs), 0, options)).rejection).toBe("malformed-block");
+  });
+});
+
 describe("malformed blocks", () => {
   it.each([
     ["a paragraph with no text", { _key: "k", _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph }],

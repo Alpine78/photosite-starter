@@ -60,6 +60,7 @@ Two conventions on top of the template:
 | [0017](0017-authored-event-date-ordering-key.md) | AB#150 | Authored `eventDate` replaces `publishedAt` as the public ordering key (category listings, story-root overview, sibling nav, sitemap, ADR-0013's cursor); optional `endDate` auto-hides a page via a read-time gate folded into effective `published`, with a cache-TTL-bounded staleness window | Accepted |
 | [0018](0018-article-poll-voting-storage-and-dedup.md) | AB#162 | Article polls: ninth shared body block, authored close date, separate operational tally/receipt, plain receipt create and atomic increment in one transaction, independent per-poll cookies, plan-dependent runtime credential scope, and closed historical-results import | Accepted |
 | [0019](0019-before-after-image-comparison.md) | AB#23 | Before/after comparison block shared by article/gallery bodies, native range reveal, full-image fallback, and approval-bound Joomla conversion | Proposed |
+| [0020](0020-tab-group-body-block.md) | AB#163 | Tab-group block: bounded named tabs each holding one table, WAI-ARIA Tabs pattern with no-JavaScript stacked fallback, and a strict sibling-paired Joomla `nav-tabs`/`tab-content` recognizer | Proposed |
 
 Expected further entries:
 

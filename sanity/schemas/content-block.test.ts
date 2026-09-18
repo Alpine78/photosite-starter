@@ -87,8 +87,15 @@ function rowObject(): SchemaTypeDefinition {
   return { name: "tableRow", title: "Row", type: "object", fields: member.fields };
 }
 
+/** The inline object type each tab-group `tabs` array member uses. */
+function tabItemObject(): SchemaTypeDefinition {
+  const member = fieldOf(typeOf(CONTENT_BLOCK_OBJECT_TYPES["tab-group"]), "tabs").of?.[0];
+  if (member?.fields === undefined) throw new Error("the tabs array declares no object member");
+  return { name: "tabItem", title: "Tab", type: "object", fields: member.fields };
+}
+
 describe("the shared block types", () => {
-  it("names every ADR-0003 decision 2 block kind, plus ADR-0018's poll", () => {
+  it("names every ADR-0003 decision 2 block kind, plus ADR-0018's poll, ADR-0019's comparison, and ADR-0020's tab group", () => {
     expect(CONTENT_BLOCK_KINDS).toEqual([
       "paragraph",
       "heading",
@@ -100,6 +107,7 @@ describe("the shared block types", () => {
       "table",
       "poll",
       "image-comparison",
+      "tab-group",
     ]);
     expect(contentBlockTypes.map((type) => type.name).sort()).toEqual(
       Object.values(CONTENT_BLOCK_OBJECT_TYPES).sort(),
@@ -474,6 +482,43 @@ describe("the data table block (AB#22)", () => {
       expect(await run({ headers: ["A"], rows: [{}] })).toBe(true);
       expect(await run({ headers: "A", rows: [{ cells: ["1"] }] })).toBe(true);
     });
+  });
+});
+
+describe("the tab-group block (AB#163, ADR-0020)", () => {
+  const block = () => typeOf(CONTENT_BLOCK_OBJECT_TYPES["tab-group"]);
+
+  it("pins its bounds to `content-tab-group.ts`", async () => {
+    const { MIN_TAB_GROUP_TABS, MAX_TAB_GROUP_TABS, MAX_TAB_LABEL_LENGTH } = await import(
+      "../../src/lib/content-tab-group"
+    );
+    const schema = await import("./content-block");
+    expect(schema.MIN_TAB_GROUP_TABS).toBe(MIN_TAB_GROUP_TABS);
+    expect(schema.MAX_TAB_GROUP_TABS).toBe(MAX_TAB_GROUP_TABS);
+    expect(schema.MAX_TAB_LABEL_LENGTH).toBe(MAX_TAB_LABEL_LENGTH);
+  });
+
+  it("bounds the tabs array with blocking Studio validation", async () => {
+    const { MIN_TAB_GROUP_TABS, MAX_TAB_GROUP_TABS } = await import("../../src/lib/content-tab-group");
+    const tabs = inspectValidationRules(fieldOf(block(), "tabs").validation);
+    expect(tabs.required).toBe(true);
+    expect(tabs.min).toBe(MIN_TAB_GROUP_TABS);
+    expect(tabs.max).toBe(MAX_TAB_GROUP_TABS);
+    expect(tabs.warnings).toHaveLength(0);
+  });
+
+  it("requires a non-blank, bounded label on every tab", async () => {
+    const { checks, required } = inspectValidationRules(fieldOf(tabItemObject(), "label").validation);
+    expect(required).toBe(true);
+    expect(await runChecks(checks, "Testi 1")).toBe(true);
+    expect(await runChecks(checks, "   ")).not.toBe(true);
+    expect(await runChecks(checks, "x".repeat(81))).not.toBe(true);
+  });
+
+  it("requires a tab's table and reuses the standalone table block's own type", () => {
+    const tableField = fieldOf(tabItemObject(), "table");
+    expect(inspectValidationRules(tableField.validation).required).toBe(true);
+    expect(tableField.type).toBe(CONTENT_BLOCK_OBJECT_TYPES.table);
   });
 });
 

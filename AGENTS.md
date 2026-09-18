@@ -2339,6 +2339,44 @@ hydration/submission guard. `convert:joomla --poll-results` carries closed
 historical pairs into the approved plan (conversion policy v2, plan v3).
 Actual token provisioning and production migration remain owner-run checks.
 
+A tab group (AB#163, [ADR-0020](docs/adr/0020-tab-group-body-block.md)) adds
+the eleventh shared body-block kind: a bounded, ordered list of 2–8 named
+tabs, each holding exactly one data table (the existing AB#22 table block's
+own shape and bounds, reused by name in the Sanity schema so the two share
+one rectangularity validator) — a tab is not a generic rich sub-body, scoped
+narrowly to the one real legacy shape that motivated it. `ContentTabGroup`
+follows the WAI-ARIA Tabs pattern once hydrated — `tablist`/`tab`/`tabpanel`
+roles, a roving `tabIndex`, automatic activation with wrapping arrow-key
+navigation, the inactive panel hidden via native `hidden` (which correctly
+drops it from the accessibility tree, not merely from view) — and renders no
+tab control at all without JavaScript, every tab's table stacked and labelled
+instead, matching `ContentImageComparison`'s own no-controls-without-JS
+posture (ADR-0019). The Joomla converter recognizes the pairing at the
+sibling level — a `<ul class="nav-tabs">` immediately followed by its
+`<div class="tab-content">`, the one shape the AB#137 legacy archive actually
+carries (article 370's Bootstrap burst-test tabs) — through a new
+`visitSiblings` walk that replaces the previous flat per-node loop with no
+behavioural change for any body lacking the pattern (the full pre-existing
+suite passes unchanged). Recognition is strict: an unexpected trigger
+attribute, a pane holding anything but exactly one table, an unmatched
+fragment, or a tab count outside the schema's own bound all refuse rather
+than guess, while a pane's own specific refusal (an unresolved image, for
+instance) still surfaces as itself rather than a generic shape complaint.
+`convertPaneToSingleTable` mirrors `captureFlatText`'s save/restore technique
+for isolating the sub-walk, extended to also catch an oversized `{gallery}`
+marker inside a pane that would otherwise be silently discarded with no
+finding. Conversion policy advances to `joomla-conversion-v5`. Measured
+against the real 102-article selection, this closes the archive's last 4
+`behavioural-attribute` refusals and converts article 370 end to end —
+verified against the real, unmodified source, aside from one unrelated,
+separately-tracked gap the same article also exposed: a `<h6>` nested inside
+a table's own `<caption>`, refusing independently of this decision. Full
+browser verification (`e2e/content-tab-group.spec.ts`) covers the no-JS
+stacked fallback with keyboard-reachable table regions, the hydrated tablist
+roles, click switching, and arrow-key navigation with wrapping and no focus
+trap, in both engines. AB#137's own review-mode findings, exception
+resolution, and manifest approval remain entirely open.
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
@@ -2546,3 +2584,13 @@ and accessibility checked, documentation updated, PR approved.
 
 Build the simple, fast, visually high-quality photographer site first. Extend to client
 galleries, proof selection, and other advanced features only after that.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
