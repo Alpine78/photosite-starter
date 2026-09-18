@@ -311,6 +311,87 @@ describe("validatePlanContract", () => {
     expect(issues.join(" ")).toContain("rows[0]");
   });
 
+  it("rejects a private field smuggled inside a tab group's own nested table rows (AB#163)", () => {
+    const { issues, plan } = validatePlanContract(
+      goodPlan({
+        documents: [
+          {
+            _id: "migrated--article-a-fi",
+            _type: "article",
+            contentId: "a",
+            language: "fi",
+            canonicalCategory: { _type: "reference", _ref: `${PENDING_CATEGORY_PREFIX}blogi` },
+            body: [
+              {
+                _key: "block-0001",
+                _type: "contentTabGroupBlock",
+                tabs: [
+                  {
+                    _key: "tab-0001",
+                    label: "Testi 1",
+                    table: {
+                      _type: "contentTableBlock",
+                      headers: ["A"],
+                      rows: [{ _key: "row-0001", cells: ["1"], archiveLocator: "/private" }],
+                    },
+                  },
+                  {
+                    _key: "tab-0002",
+                    label: "Testi 2",
+                    table: { _type: "contentTableBlock", headers: ["B"], rows: [{ _key: "row-0002", cells: ["2"] }] },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        assetRequirements: [],
+        categoryRequirements: [],
+      }),
+    );
+    expect(plan).toBeUndefined();
+    expect(issues.join(" ")).toContain("tabs[0].table.rows[0]");
+  });
+
+  it("rejects a private field smuggled directly onto a tab item (AB#163)", () => {
+    const { issues, plan } = validatePlanContract(
+      goodPlan({
+        documents: [
+          {
+            _id: "migrated--article-a-fi",
+            _type: "article",
+            contentId: "a",
+            language: "fi",
+            canonicalCategory: { _type: "reference", _ref: `${PENDING_CATEGORY_PREFIX}blogi` },
+            body: [
+              {
+                _key: "block-0001",
+                _type: "contentTabGroupBlock",
+                tabs: [
+                  {
+                    _key: "tab-0001",
+                    label: "Testi 1",
+                    table: { _type: "contentTableBlock", headers: ["A"], rows: [{ _key: "row-0001", cells: ["1"] }] },
+                    archiveLocator: "/private",
+                  },
+                  {
+                    _key: "tab-0002",
+                    label: "Testi 2",
+                    table: { _type: "contentTableBlock", headers: ["B"], rows: [{ _key: "row-0002", cells: ["2"] }] },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        assetRequirements: [],
+        categoryRequirements: [],
+      }),
+    );
+    expect(plan).toBeUndefined();
+    expect(issues.join(" ")).toContain("tabs[0]");
+  });
+
   it("rejects a private field smuggled inside a canonicalCategory reference object", () => {
     const { issues, plan } = validatePlanContract(
       goodPlan({

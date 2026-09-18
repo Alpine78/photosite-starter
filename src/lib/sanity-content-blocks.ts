@@ -31,6 +31,7 @@ import {
   MAX_MINI_GALLERY_TITLE_LENGTH,
 } from "@/lib/content-mini-gallery";
 import { MAX_TABLE_COLUMNS, MAX_TABLE_ROWS } from "@/lib/content-table";
+import { MIN_TAB_GROUP_TABS, MAX_TAB_GROUP_TABS, MAX_TAB_LABEL_LENGTH } from "@/lib/content-tab-group";
 
 import { assertSemanticHeadingOrder, type ContentBlock } from "@/lib/content-page";
 import type { SanityConfig } from "@/lib/sanity-config";
@@ -56,6 +57,7 @@ export const CONTENT_BLOCK_OBJECT_TYPES = {
   table: "contentTableBlock",
   poll: "contentPollBlock",
   "image-comparison": "contentImageComparisonBlock",
+  "tab-group": "contentTabGroupBlock",
 } as const;
 
 /** Restated from the schema's `YOUTUBE_VIDEO_ID_PATTERN`; pinned by the test. */
@@ -94,7 +96,16 @@ export const CONTENT_BLOCK_PROJECTION = `{
   "second": second->${PUBLIC_MEDIA_PROJECTION},
   "media": media->${PUBLIC_MEDIA_PROJECTION},
   "images": images[0...${MAX_MINI_GALLERY_ITEMS + 1}]{_key, "media": media->${PUBLIC_MEDIA_PROJECTION}},
-  "poll": poll->{pollId, question, closeDate, "options": options[0...${MAX_POLL_OPTIONS + 1}]{optionId, label}}
+  "poll": poll->{pollId, question, closeDate, "options": options[0...${MAX_POLL_OPTIONS + 1}]{optionId, label}},
+  "tabs": tabs[0...${MAX_TAB_GROUP_TABS + 1}]{
+    _key,
+    label,
+    "table": table{
+      caption,
+      "headers": headers[0...${MAX_TABLE_COLUMNS + 1}],
+      "rows": rows[0...${MAX_TABLE_ROWS + 1}]{"cells": cells[0...${MAX_TABLE_COLUMNS + 1}]}
+    }
+  }
 }`;
 
 /** Why a body could not become a validated `ContentBlock[]`. */
@@ -143,6 +154,7 @@ export type RawContentBlock = {
   readonly second?: unknown;
   readonly firstLabel?: unknown;
   readonly secondLabel?: unknown;
+  readonly tabs?: unknown;
 };
 
 export type ContentBlockProjectionOptions = {
@@ -150,6 +162,72 @@ export type ContentBlockProjectionOptions = {
   readonly fallbackLanguage: string;
   readonly config: SanityConfig;
 };
+
+type RawTableFields = {
+  readonly headers?: unknown;
+  readonly rows?: unknown;
+  readonly caption?: unknown;
+};
+
+/**
+ * The table block's own field validation, factored out so a tab-group's
+ * per-tab table (AB#163) shares it exactly rather than restating it: the two
+ * can never drift on what counts as a valid table. `reject` is the caller's
+ * own bound rejection, so a tab's table failure still names the whole body
+ * block's position, not a table-shaped position of its own.
+ */
+function projectTableFields(
+  raw: RawTableFields,
+  reject: (detail: string) => never,
+): { readonly headers: readonly string[]; readonly rows: readonly (readonly string[])[]; readonly caption?: string } {
+  // Headers first: their count is the contract every row is measured
+  // against, so nothing below can be checked until it is known good.
+  if (
+    !Array.isArray(raw.headers) ||
+    raw.headers.length === 0 ||
+    raw.headers.length > MAX_TABLE_COLUMNS
+  ) {
+    reject(`a table needs between 1 and ${MAX_TABLE_COLUMNS} column headers`);
+  }
+  const headers = raw.headers.map((header) => {
+    const text = readString(header);
+    if (text === undefined) reject("a table column header cannot be empty");
+    return text;
+  });
+
+  if (
+    !Array.isArray(raw.rows) ||
+    raw.rows.length === 0 ||
+    raw.rows.length > MAX_TABLE_ROWS
+  ) {
+    reject(`a table needs between 1 and ${MAX_TABLE_ROWS} rows`);
+  }
+  const rows = raw.rows.map((row) => {
+    if (!isRecord(row) || !Array.isArray(row.cells)) {
+      reject("a table row needs its cells");
+    }
+    if (row.cells.length !== headers.length) {
+      reject(
+        `a table row has ${row.cells.length} cell(s) but the table has ${headers.length} column(s)`,
+      );
+    }
+    // Deliberately a bare string check rather than `readString`: that
+    // helper trims and reports an empty string as absent, which is exactly
+    // what a legitimately blank cell looks like. A gap in a comparison
+    // table is content, not a defect.
+    if (!row.cells.every((cell) => typeof cell === "string")) {
+      reject("a table cell must be text");
+    }
+    return row.cells as readonly string[];
+  });
+
+  const caption = readString(raw.caption);
+  if (raw.caption != null && caption === undefined) {
+    reject("a table caption must be non-empty when present");
+  }
+
+  return { headers, rows, ...(caption === undefined ? {} : { caption }) };
+}
 
 /**
  * Projects one block. Pure and exported so a fixture test can exercise every
@@ -298,52 +376,7 @@ export function projectContentBlock(
     }
 
     case CONTENT_BLOCK_OBJECT_TYPES.table: {
-      // Headers first: their count is the contract every row is measured
-      // against, so nothing below can be checked until it is known good.
-      if (
-        !Array.isArray(raw.headers) ||
-        raw.headers.length === 0 ||
-        raw.headers.length > MAX_TABLE_COLUMNS
-      ) {
-        reject(`a table needs between 1 and ${MAX_TABLE_COLUMNS} column headers`);
-      }
-      const headers = raw.headers.map((header) => {
-        const text = readString(header);
-        if (text === undefined) reject("a table column header cannot be empty");
-        return text;
-      });
-
-      if (
-        !Array.isArray(raw.rows) ||
-        raw.rows.length === 0 ||
-        raw.rows.length > MAX_TABLE_ROWS
-      ) {
-        reject(`a table needs between 1 and ${MAX_TABLE_ROWS} rows`);
-      }
-      const rows = raw.rows.map((row) => {
-        if (!isRecord(row) || !Array.isArray(row.cells)) {
-          reject("a table row needs its cells");
-        }
-        if (row.cells.length !== headers.length) {
-          reject(
-            `a table row has ${row.cells.length} cell(s) but the table has ${headers.length} column(s)`,
-          );
-        }
-        // Deliberately a bare string check rather than `readString`: that
-        // helper trims and reports an empty string as absent, which is exactly
-        // what a legitimately blank cell looks like. A gap in a comparison
-        // table is content, not a defect.
-        if (!row.cells.every((cell) => typeof cell === "string")) {
-          reject("a table cell must be text");
-        }
-        return row.cells as readonly string[];
-      });
-
-      const caption = readString(raw.caption);
-      if (raw.caption != null && caption === undefined) {
-        reject("a table caption must be non-empty when present");
-      }
-
+      const { headers, rows, caption } = projectTableFields(raw, reject);
       return {
         type: "table",
         headers,
@@ -351,6 +384,33 @@ export function projectContentBlock(
         key,
         ...(caption === undefined ? {} : { caption }),
       };
+    }
+
+    case CONTENT_BLOCK_OBJECT_TYPES["tab-group"]: {
+      if (
+        !Array.isArray(raw.tabs) ||
+        raw.tabs.length < MIN_TAB_GROUP_TABS ||
+        raw.tabs.length > MAX_TAB_GROUP_TABS
+      ) {
+        reject(`a tab group needs between ${MIN_TAB_GROUP_TABS} and ${MAX_TAB_GROUP_TABS} tabs`);
+      }
+      const seenTabKeys = new Set<string>();
+      const tabs = raw.tabs.map((entry) => {
+        if (!isRecord(entry)) reject("a tab needs its label and table");
+        const tabKey = readString(entry._key);
+        if (tabKey === undefined || seenTabKeys.has(tabKey)) {
+          reject("tabs need unique stable keys");
+        }
+        seenTabKeys.add(tabKey);
+        const label = readString(entry.label);
+        if (label === undefined || label.length > MAX_TAB_LABEL_LENGTH) {
+          reject(`a tab label must be non-blank and at most ${MAX_TAB_LABEL_LENGTH} characters`);
+        }
+        if (!isRecord(entry.table)) reject("a tab needs its table");
+        const { headers, rows, caption } = projectTableFields(entry.table, reject);
+        return { key: tabKey, label, table: { headers, rows, ...(caption === undefined ? {} : { caption }) } };
+      });
+      return { type: "tab-group", tabs, key };
     }
 
     case CONTENT_BLOCK_OBJECT_TYPES.youtube: {

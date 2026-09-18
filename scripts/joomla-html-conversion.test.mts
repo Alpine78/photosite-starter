@@ -14,8 +14,11 @@ import {
   extractYoutubeVideoId,
   LOSSY_CODES,
   MAX_MINI_GALLERY_ITEMS,
+  MAX_TAB_GROUP_TABS,
+  MAX_TAB_LABEL_LENGTH,
   MAX_TABLE_COLUMNS,
   MAX_TABLE_ROWS,
+  MIN_TAB_GROUP_TABS,
   normalizeText,
   REFUSAL_CODES,
   resolvedConversionDigest,
@@ -27,8 +30,11 @@ import {
 import {
   CONTENT_BLOCK_OBJECT_TYPES as SCHEMA_OBJECT_TYPES,
   MAX_MINI_GALLERY_ITEMS as SCHEMA_MAX_MINI_GALLERY_ITEMS,
+  MAX_TAB_GROUP_TABS as SCHEMA_MAX_TAB_GROUP_TABS,
+  MAX_TAB_LABEL_LENGTH as SCHEMA_MAX_TAB_LABEL_LENGTH,
   MAX_TABLE_COLUMNS as SCHEMA_MAX_TABLE_COLUMNS,
   MAX_TABLE_ROWS as SCHEMA_MAX_TABLE_ROWS,
+  MIN_TAB_GROUP_TABS as SCHEMA_MIN_TAB_GROUP_TABS,
   YOUTUBE_VIDEO_ID_PATTERN as SCHEMA_YOUTUBE_PATTERN,
 } from "../sanity/schemas/content-block";
 
@@ -277,6 +283,9 @@ describe("schema constants stay pinned to the Studio schema", () => {
     expect(MAX_MINI_GALLERY_ITEMS).toBe(SCHEMA_MAX_MINI_GALLERY_ITEMS);
     expect(MAX_TABLE_COLUMNS).toBe(SCHEMA_MAX_TABLE_COLUMNS);
     expect(MAX_TABLE_ROWS).toBe(SCHEMA_MAX_TABLE_ROWS);
+    expect(MIN_TAB_GROUP_TABS).toBe(SCHEMA_MIN_TAB_GROUP_TABS);
+    expect(MAX_TAB_GROUP_TABS).toBe(SCHEMA_MAX_TAB_GROUP_TABS);
+    expect(MAX_TAB_LABEL_LENGTH).toBe(SCHEMA_MAX_TAB_LABEL_LENGTH);
     expect(YOUTUBE_VIDEO_ID_PATTERN.source).toBe(SCHEMA_YOUTUBE_PATTERN.source);
   });
 
@@ -579,6 +588,122 @@ describe("tables", () => {
 
     const long = `<table><tr><th>h</th></tr>${"<tr><td>c</td></tr>".repeat(MAX_TABLE_ROWS + 1)}</table>`;
     expect(codes(convert(long), "refusal")).toContain("table-too-long");
+  });
+});
+
+describe("tab groups (AB#163)", () => {
+  // The one real legacy shape (article 370's Bootstrap burst-test tabs):
+  // <ul class="nav nav-tabs"> triggers immediately followed by a matching
+  // <div class="tab-content"> of panes, each holding exactly one table.
+  const twoTabs =
+    '<ul class="nav nav-tabs"><li class="active"><a data-toggle="tab" href="#t1">Testi 1</a></li>' +
+    '<li><a data-toggle="tab" href="#t2">Testi 2</a></li></ul>' +
+    '<div class="tab-content">' +
+    '<div class="tab-pane fade active in" id="t1"><table><tr><th>A</th></tr><tr><td>1</td></tr></table></div>' +
+    '<div class="tab-pane fade" id="t2"><table><tr><th>B</th></tr><tr><td>2</td></tr></table></div>' +
+    "</div>";
+
+  it("converts the paired nav-tabs/tab-content shape to one tab-group block", () => {
+    const result = convert(twoTabs);
+    expect(result.convertible).toBe(true);
+    expect(result.blocks).toEqual([
+      {
+        _type: "contentTabGroupBlock",
+        tabs: [
+          { label: "Testi 1", table: { _type: "contentTableBlock", headers: ["A"], rows: [{ cells: ["1"] }] } },
+          { label: "Testi 2", table: { _type: "contentTableBlock", headers: ["B"], rows: [{ cells: ["2"] }] } },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps surrounding prose intact around the consumed pair", () => {
+    const result = convert(`<p>Ennen</p>${twoTabs}<p>Jälkeen</p>`);
+    expect(result.blocks.map((block) => block._type)).toEqual([
+      "contentParagraphBlock",
+      "contentTabGroupBlock",
+      "contentParagraphBlock",
+    ]);
+  });
+
+  it("refuses a nav-tabs list with no adjacent tab-content", () => {
+    const result = convert('<ul class="nav nav-tabs"><li><a data-toggle="tab" href="#t1">A</a></li></ul><p>Muuta</p>');
+    expect(codes(result, "refusal")).toContain("tab-group-unsupported-shape");
+  });
+
+  it("refuses non-blank text between the nav list and its tab-content", () => {
+    const broken = twoTabs.replace('</ul><div class="tab-content">', "</ul>irtoteksti<div class=\"tab-content\">");
+    expect(codes(convert(broken), "refusal")).toContain("tab-group-unsupported-shape");
+  });
+
+  it("refuses a trigger carrying an attribute beyond data-toggle and href", () => {
+    const withExtra = twoTabs.replace('data-toggle="tab" href="#t1"', 'data-toggle="tab" href="#t1" class="x"');
+    expect(codes(convert(withExtra), "refusal")).toContain("tab-group-unsupported-shape");
+  });
+
+  it("refuses a trigger whose href is not a fragment", () => {
+    const badHref = twoTabs.replace('href="#t1"', 'href="/elsewhere"');
+    expect(codes(convert(badHref), "refusal")).toContain("tab-group-unsupported-shape");
+  });
+
+  it("refuses a pane holding more than one table", () => {
+    const twoTables = twoTabs.replace(
+      '<div class="tab-pane fade active in" id="t1"><table><tr><th>A</th></tr><tr><td>1</td></tr></table></div>',
+      '<div class="tab-pane fade active in" id="t1"><table><tr><th>A</th></tr><tr><td>1</td></tr></table><table><tr><th>C</th></tr><tr><td>3</td></tr></table></div>',
+    );
+    expect(codes(convert(twoTables), "refusal")).toContain("tab-group-unsupported-shape");
+  });
+
+  it("refuses a pane holding something other than a table", () => {
+    const withParagraph = twoTabs.replace(
+      '<div class="tab-pane fade active in" id="t1"><table><tr><th>A</th></tr><tr><td>1</td></tr></table></div>',
+      '<div class="tab-pane fade active in" id="t1"><p>Teksti</p></div>',
+    );
+    expect(codes(convert(withParagraph), "refusal")).toContain("tab-group-unsupported-shape");
+  });
+
+  it("still surfaces a pane's own specific refusal rather than a generic shape refusal", () => {
+    const withUnresolvedImage = twoTabs.replace(
+      '<div class="tab-pane fade active in" id="t1"><table><tr><th>A</th></tr><tr><td>1</td></tr></table></div>',
+      '<div class="tab-pane fade active in" id="t1"><img src="images/Logo.png"></div>',
+    );
+    const result = convert(withUnresolvedImage);
+    expect(codes(result, "refusal")).toContain("image-unresolved");
+    expect(codes(result, "refusal")).not.toContain("tab-group-unsupported-shape");
+  });
+
+  it("refuses a trigger fragment with no matching pane", () => {
+    const brokenLink = twoTabs.replace('href="#t2"', 'href="#missing"');
+    expect(codes(convert(brokenLink), "refusal")).toContain("tab-group-unsupported-shape");
+  });
+
+  it("refuses an unreferenced extra pane", () => {
+    const withExtraPane = twoTabs.replace(
+      '<div class="tab-content">',
+      '<div class="tab-content"><div class="tab-pane" id="t3"><table><tr><th>C</th></tr><tr><td>3</td></tr></table></div>',
+    );
+    expect(codes(convert(withExtraPane), "refusal")).toContain("tab-group-unsupported-shape");
+  });
+
+  it("refuses fewer than two tabs", () => {
+    const oneTab =
+      '<ul class="nav nav-tabs"><li><a data-toggle="tab" href="#t1">Testi 1</a></li></ul>' +
+      '<div class="tab-content"><div class="tab-pane" id="t1"><table><tr><th>A</th></tr><tr><td>1</td></tr></table></div></div>';
+    expect(codes(convert(oneTab), "refusal")).toContain("tab-group-unsupported-shape");
+  });
+
+  it("refuses a tab group nested inside a blockquote, the same as a bare table", () => {
+    const result = convert(`<blockquote>Sitaatti ${twoTabs} loppu</blockquote>`);
+    expect(result.convertible).toBe(false);
+    expect(codes(result, "refusal")).toContain("block-inside-quote-or-item");
+    expect(result.blocks).toEqual([]);
+  });
+
+  it("flattens inline markup in a trigger label to plain text", () => {
+    const withEmphasis = twoTabs.replace(">Testi 1<", "><em>Testi 1</em><");
+    const result = convert(withEmphasis);
+    expect(result.blocks).toMatchObject([{ tabs: [{ label: "Testi 1" }, { label: "Testi 2" }] }]);
+    expect(codes(result, "lossy")).toContain("emphasis-dropped");
   });
 });
 

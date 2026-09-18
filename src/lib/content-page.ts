@@ -111,6 +111,28 @@ export type ContentBlock =
       /** ISO instant. The poll is closed once `now() >= closeDate`. */
       closeDate: string;
       key?: string;
+    }
+  | {
+      /**
+       * A bounded set of named tabs, each holding one data table (AB#163,
+       * ADR-0020). Deliberately scoped to the one shape the legacy Bootstrap
+       * `nav-tabs`/`tab-content` pattern actually carried, not a generic
+       * rich sub-body: a tab is not a nested content-block list.
+       */
+      type: "tab-group";
+      /** 2..`MAX_TAB_GROUP_TABS` tabs, in authored order. */
+      tabs: readonly {
+        key?: string;
+        /** Non-empty, bounded; the WAI-ARIA `tab` control's visible and accessible name. */
+        label: string;
+        /** The tab's own table content — the same shape and bounds as the `table` block. */
+        table: {
+          headers: readonly string[];
+          rows: readonly (readonly string[])[];
+          caption?: string;
+        };
+      }[];
+      key?: string;
     };
 
 /**

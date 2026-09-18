@@ -302,6 +302,8 @@ export type BuiltInLabels = {
    * the fallback, so a wide table is never an unnamed keyboard stop.
    */
   readonly table: { readonly label: string };
+  /** Names the tablist container of a tab-group block (AB#163). Each tab's own visible label is authored, not this. */
+  readonly tabGroup: { readonly label: string };
   readonly media: {
     readonly video: string;
     readonly youtubePrivacyNotice: string;
@@ -544,6 +546,7 @@ const englishLabels = {
   imageComparison: { label: "Image comparison", position: "Comparison position", showComplete: "Show both complete images", unavailable: "The comparison could not load. Complete images are shown below." },
   miniGallery: { label: "Mini-gallery" },
   table: { label: "Table" },
+  tabGroup: { label: "Tabs" },
   media: {
     video: "Video",
     youtubePrivacyNotice:
@@ -712,6 +715,7 @@ const finnishLabels = {
   imageComparison: { label: "Kuvavertailu", position: "Vertailun jakokohta", showComplete: "Näytä molemmat kuvat kokonaisina", unavailable: "Vertailua ei voitu ladata. Kuvat näytetään alla kokonaisina." },
   miniGallery: { label: "Minigalleria" },
   table: { label: "Taulukko" },
+  tabGroup: { label: "Välilehdet" },
   media: {
     video: "Video",
     youtubePrivacyNotice:

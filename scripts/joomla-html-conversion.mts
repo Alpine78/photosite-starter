@@ -78,11 +78,16 @@ export const CONTENT_BLOCK_OBJECT_TYPES = {
   table: "contentTableBlock",
   poll: "contentPollBlock",
   "image-comparison": "contentImageComparisonBlock",
+  "tab-group": "contentTabGroupBlock",
 } as const;
 
 export const MAX_MINI_GALLERY_ITEMS = 12;
 export const MAX_TABLE_COLUMNS = 8;
 export const MAX_TABLE_ROWS = 20;
+/** Restated from `sanity/schemas/content-block.ts`'s tab-group bounds. */
+export const MIN_TAB_GROUP_TABS = 2;
+export const MAX_TAB_GROUP_TABS = 8;
+export const MAX_TAB_LABEL_LENGTH = 80;
 export const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
 /** A bounded excerpt of offending source, so a report is diagnosable without carrying a whole body. */
@@ -138,6 +143,7 @@ export const REFUSAL_CODES = [
   "table-ragged",
   "table-merged-cells",
   "table-header-outside-first-row",
+  "tab-group-unsupported-shape",
   "empty-body",
 ] as const;
 
@@ -570,7 +576,7 @@ class BodyConverter {
   // --- walking -------------------------------------------------------------
 
   convert(nodes: readonly Node[]): void {
-    for (const node of nodes) this.visit(node);
+    this.visitSiblings(nodes);
     this.flushParagraph();
   }
 
@@ -839,7 +845,38 @@ class BodyConverter {
   }
 
   private convertChildren(node: Node): void {
-    for (const child of childrenOf(node)) this.visit(child);
+    this.visitSiblings(childrenOf(node));
+  }
+
+  /**
+   * Walks a sibling list with one lookahead: a Bootstrap tab-navigation list
+   * (`class="nav-tabs"`) immediately followed by its tab-content container
+   * (`class="tab-content"`, only blank text may separate the two) is
+   * recognized and consumed as one tab-group block, rather than visited node
+   * by node (AB#163) — the pairing exists between two siblings, so a
+   * single-node dispatch can never see it. Anything else falls through to
+   * the ordinary per-node walk unchanged.
+   */
+  private visitSiblings(nodes: readonly Node[]): void {
+    for (let index = 0; index < nodes.length; index += 1) {
+      const node = nodes[index];
+      if (isElement(node) && hasClassToken(node, "nav-tabs")) {
+        const pairedIndex = nextPairableElementIndex(nodes, index + 1);
+        const paired = pairedIndex === undefined ? undefined : nodes[pairedIndex];
+        if (pairedIndex !== undefined && paired !== undefined && isElement(paired) && hasClassToken(paired, "tab-content")) {
+          this.visitTabGroup(node, paired);
+          index = pairedIndex;
+          continue;
+        }
+        this.refuse(
+          "tab-group-unsupported-shape",
+          "A Bootstrap tab-navigation list (class nav-tabs) has no adjacent tab-content container immediately after it.",
+          excerpt(describeElement(node)),
+        );
+        continue;
+      }
+      this.visit(node);
+    }
   }
 
   /**
@@ -1293,6 +1330,187 @@ class BodyConverter {
     });
   }
 
+  /**
+   * `navList` is a `<ul class="nav-tabs">` of `<li><a data-toggle="tab"
+   * href="#fragment">Label</a></li>` triggers; `contentContainer` is the
+   * paired `<div class="tab-content">` of `<div class="tab-pane"
+   * id="fragment">` panes, each holding exactly one table (AB#163,
+   * ADR-0020) — the one real legacy shape found in the source archive, and
+   * the only one this recognizer accepts. Consumed entirely by this method:
+   * neither a trigger's `data-toggle`/`href` nor a pane's `id`/`class` pass
+   * through the ordinary attribute allow-list, since this recognizer owns
+   * their meaning completely. Any other attribute, or any content this exact
+   * shape does not describe, refuses rather than guessing at a generic
+   * rich sub-body.
+   */
+  private visitTabGroup(navList: Node, contentContainer: Node): void {
+    const findingsBefore = this.findings.length;
+    this.checkAttributes(navList, false);
+    this.checkAttributes(contentContainer, false);
+    if (this.findings.slice(findingsBefore).some((finding) => finding.severity === "refusal")) return;
+
+    const shapeRefuse = (message: string, fragment?: string): void => {
+      this.refuse("tab-group-unsupported-shape", message, fragment);
+    };
+
+    const triggers: { fragment: string; label: string }[] = [];
+    for (const child of childrenOf(navList)) {
+      if (isText(child)) {
+        if (normalizeText(child.value ?? "").length > 0) {
+          shapeRefuse("A tab-navigation list holds text outside an <li>.", excerpt(textOf(navList)));
+          return;
+        }
+        continue;
+      }
+      if (!isElement(child)) continue;
+      if ((child.tagName ?? "").toLowerCase() !== "li") {
+        shapeRefuse(
+          `A tab-navigation list holds a <${child.tagName ?? child.nodeName}>; only <li> is supported.`,
+          excerpt(describeElement(child)),
+        );
+        return;
+      }
+      this.checkAttributes(child, false);
+      const liElementChildren = childrenOf(child).filter(isElement);
+      const liHasNonBlankText = childrenOf(child).some(
+        (grandchild) => isText(grandchild) && normalizeText(grandchild.value ?? "").length > 0,
+      );
+      const trigger = liElementChildren[0];
+      if (
+        liHasNonBlankText ||
+        liElementChildren.length !== 1 ||
+        trigger === undefined ||
+        (trigger.tagName ?? "").toLowerCase() !== "a"
+      ) {
+        shapeRefuse("A tab-navigation item must hold exactly one <a> trigger and nothing else.", excerpt(describeElement(child)));
+        return;
+      }
+      const triggerAttrs = attributesOf(trigger);
+      const toggle = attributeValue(trigger, "data-toggle");
+      const href = attributeValue(trigger, "href");
+      if (triggerAttrs.length !== 2 || toggle !== "tab" || href === undefined || !href.startsWith("#") || href.length <= 1) {
+        shapeRefuse(
+          'A tab trigger must carry exactly data-toggle="tab" and href="#<fragment>", nothing else.',
+          excerpt(describeElement(trigger)),
+        );
+        return;
+      }
+      const captured = this.captureFlatText(trigger);
+      if (captured.emittedBlocks || captured.text.length === 0) {
+        shapeRefuse("A tab trigger's label must be non-blank plain text.", excerpt(textOf(trigger)));
+        return;
+      }
+      if (captured.text.length > MAX_TAB_LABEL_LENGTH) {
+        shapeRefuse(
+          `A tab label is ${captured.text.length} characters, past the bound of ${MAX_TAB_LABEL_LENGTH}.`,
+          excerpt(captured.text),
+        );
+        return;
+      }
+      triggers.push({ fragment: href.slice(1), label: captured.text });
+    }
+
+    if (triggers.length < MIN_TAB_GROUP_TABS || triggers.length > MAX_TAB_GROUP_TABS) {
+      shapeRefuse(
+        `A tab group needs between ${MIN_TAB_GROUP_TABS} and ${MAX_TAB_GROUP_TABS} tabs; found ${triggers.length}.`,
+        excerpt(describeElement(navList)),
+      );
+      return;
+    }
+
+    const panesByFragment = new Map<string, Node>();
+    for (const child of childrenOf(contentContainer)) {
+      if (isText(child)) {
+        if (normalizeText(child.value ?? "").length > 0) {
+          shapeRefuse("A tab-content container holds text outside a pane.", excerpt(textOf(contentContainer)));
+          return;
+        }
+        continue;
+      }
+      if (!isElement(child) || !hasClassToken(child, "tab-pane")) {
+        shapeRefuse(
+          "A tab-content container holds something other than a tab-pane.",
+          excerpt(isElement(child) ? describeElement(child) : textOf(child)),
+        );
+        return;
+      }
+      const fragment = attributeValue(child, "id");
+      const paneAttrNames = attributesOf(child).map((attribute) => attribute.name.toLowerCase());
+      if (fragment === undefined || paneAttrNames.some((name) => name !== "id" && name !== "class")) {
+        shapeRefuse("A tab pane needs its id and carries no attribute besides id and class.", excerpt(describeElement(child)));
+        return;
+      }
+      if (panesByFragment.has(fragment)) {
+        shapeRefuse(`Two tab panes share the id "${fragment}".`, excerpt(fragment));
+        return;
+      }
+      panesByFragment.set(fragment, child);
+    }
+
+    if (panesByFragment.size !== triggers.length) {
+      shapeRefuse("A tab-content container holds a pane no trigger points at.", excerpt(describeElement(contentContainer)));
+      return;
+    }
+
+    const tabs: { label: string; table: SanityBlock }[] = [];
+    for (const trigger of triggers) {
+      const pane = panesByFragment.get(trigger.fragment);
+      if (pane === undefined) {
+        shapeRefuse(`No tab pane matches the trigger fragment "#${trigger.fragment}".`, excerpt(trigger.fragment));
+        return;
+      }
+      const table = this.convertPaneToSingleTable(pane);
+      if (table === undefined) return; // a specific reason is already recorded
+      tabs.push({ label: trigger.label, table });
+    }
+
+    this.push({
+      _type: CONTENT_BLOCK_OBJECT_TYPES["tab-group"],
+      tabs: tabs.map((tab) => ({ label: tab.label, table: tab.table })),
+    });
+  }
+
+  /**
+   * Walks one tab pane in an isolated sub-scope and returns its table block
+   * only if it converted to *exactly* one table and nothing else — mirrors
+   * `captureFlatText`'s own save/restore technique (`blocks` is `readonly`,
+   * so length bookkeeping stands in for reassignment), extended to also
+   * detect an oversized `{gallery}` marker inside the pane: that marker
+   * mutates `this.endGallery` without ever pushing a block, which this
+   * method's own restore would otherwise discard with no finding at all —
+   * the same silent-loss shape `captureFlatText`'s `emittedBlocks` check
+   * already guards against for a quote or list item.
+   */
+  private convertPaneToSingleTable(pane: Node): SanityBlock | undefined {
+    const blockCountBefore = this.blocks.length;
+    const outerInline = this.inline.text;
+    const endGalleryBefore = this.endGallery;
+    const endGalleryBlockIndexBefore = this.endGalleryBlockIndex;
+    const findingsBefore = this.findings.length;
+    this.inline.text = "";
+    this.convertChildren(pane);
+    this.flushParagraph();
+    const produced = this.blocks.slice(blockCountBefore);
+    const galleryMarkerFound = this.endGallery !== endGalleryBefore;
+    this.blocks.length = blockCountBefore;
+    this.inline.text = outerInline;
+    this.endGallery = endGalleryBefore;
+    this.endGalleryBlockIndex = endGalleryBlockIndexBefore;
+
+    const introducedRefusal = this.findings.slice(findingsBefore).some((finding) => finding.severity === "refusal");
+    if (introducedRefusal) return undefined;
+
+    if (galleryMarkerFound || produced.length !== 1 || produced[0]?._type !== CONTENT_BLOCK_OBJECT_TYPES.table) {
+      this.refuse(
+        "tab-group-unsupported-shape",
+        "A tab pane must hold exactly one table and nothing else.",
+        excerpt(describeElement(pane)),
+      );
+      return undefined;
+    }
+    return produced[0];
+  }
+
   finish(): ConversionResult {
     this.flushParagraph();
 
@@ -1387,6 +1605,30 @@ function collectTableRows(node: Node): readonly (readonly Node[])[] {
 
 function findCaptionElement(node: Node): Node | undefined {
   return childrenOf(node).find((child) => (child.tagName ?? "").toLowerCase() === "caption");
+}
+
+/** Whether `class` carries the exact given token, matching how a browser's `classList` would. */
+function hasClassToken(node: Node, token: string): boolean {
+  const value = attributeValue(node, "class");
+  return value !== undefined && value.trim().split(/\s+/u).includes(token);
+}
+
+/**
+ * The next element from `start`, skipping only blank text nodes — real,
+ * non-blank text between two candidates breaks a sibling pairing rather than
+ * being silently stepped over, the same way `visitFigure`'s own shape check
+ * treats stray text as disqualifying rather than ignorable.
+ */
+function nextPairableElementIndex(nodes: readonly Node[], start: number): number | undefined {
+  for (let index = start; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    if (isText(node)) {
+      if (normalizeText(node.value ?? "").length > 0) return undefined;
+      continue;
+    }
+    if (isElement(node)) return index;
+  }
+  return undefined;
 }
 
 /**

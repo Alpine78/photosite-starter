@@ -44,6 +44,7 @@
  */
 
 import { MAX_COMPARISON_LABEL_LENGTH, MAX_COMPARISON_TITLE_LENGTH } from "./joomla-comparisons.mts";
+import { MAX_TAB_LABEL_LENGTH } from "./joomla-html-conversion.mts";
 
 import { readFile, mkdir, chmod, writeFile, realpath } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -231,6 +232,9 @@ const LOCALIZED_TEXT_FIELDS = new Set(["_key", "_type", "language", "value"]);
 const IMAGE_FIELDS = new Set(["_type", "asset"]);
 const GALLERY_IMAGE_ITEM_FIELDS = new Set(["_key", "media"]);
 const TABLE_ROW_FIELDS = new Set(["_key", "cells"]);
+const TAB_ITEM_FIELDS = new Set(["_key", "label", "table"]);
+/** A tab's own nested table carries no `_key` of its own — it is a plain field value, not an array item. */
+const TAB_TABLE_FIELDS = new Set(["_type", "caption", "headers", "rows"]);
 
 /** Every content-block `_type` this converter emits, and exactly the fields each one carries. */
 const BLOCK_FIELD_SCHEMAS: Readonly<Record<string, ReadonlySet<string>>> = {
@@ -244,6 +248,7 @@ const BLOCK_FIELD_SCHEMAS: Readonly<Record<string, ReadonlySet<string>>> = {
   contentImageComparisonBlock: new Set(["_key", "_type", "title", "first", "second", "firstLabel", "secondLabel"]),
   contentPollBlock: new Set(["_key", "_type", "poll"]),
   contentTableBlock: new Set(["_key", "_type", "caption", "headers", "rows"]),
+  contentTabGroupBlock: new Set(["_key", "_type", "tabs"]),
 };
 
 function checkFieldSet(value: Record<string, unknown>, allowed: ReadonlySet<string>, path: string, issues: string[]): void {
@@ -334,14 +339,43 @@ function checkBlockShape(block: unknown, path: string, issues: string[]): void {
     });
   }
   if (block._type === "contentTableBlock" && Array.isArray(block.rows)) {
-    block.rows.forEach((row: unknown, index: number) => {
-      if (!isPlainObject(row)) {
-        issues.push(`${path}.rows[${index}] is not an object`);
+    checkTableRows(block.rows, path, issues);
+  }
+  if (block._type === "contentTabGroupBlock" && Array.isArray(block.tabs)) {
+    block.tabs.forEach((tab: unknown, index: number) => {
+      if (!isPlainObject(tab)) {
+        issues.push(`${path}.tabs[${index}] is not an object`);
         return;
       }
-      checkFieldSet(row, TABLE_ROW_FIELDS, `${path}.rows[${index}]`, issues);
+      checkFieldSet(tab, TAB_ITEM_FIELDS, `${path}.tabs[${index}]`, issues);
+      if (typeof tab.label !== "string" || !tab.label.trim() || tab.label.length > MAX_TAB_LABEL_LENGTH) {
+        issues.push(`${path}.tabs[${index}].label must be bounded non-blank text`);
+      }
+      const table = tab.table;
+      if (!isPlainObject(table)) {
+        issues.push(`${path}.tabs[${index}].table is not an object`);
+        return;
+      }
+      checkFieldSet(table, TAB_TABLE_FIELDS, `${path}.tabs[${index}].table`, issues);
+      if (table._type !== "contentTableBlock") {
+        issues.push(`${path}.tabs[${index}].table._type must be "contentTableBlock"`);
+      }
+      if (Array.isArray(table.rows)) {
+        checkTableRows(table.rows, `${path}.tabs[${index}].table`, issues);
+      }
     });
   }
+}
+
+/** Shared by a standalone table block and a tab's own nested table — both carry the same row shape. */
+function checkTableRows(rows: readonly unknown[], path: string, issues: string[]): void {
+  rows.forEach((row: unknown, index: number) => {
+    if (!isPlainObject(row)) {
+      issues.push(`${path}.rows[${index}] is not an object`);
+      return;
+    }
+    checkFieldSet(row, TABLE_ROW_FIELDS, `${path}.rows[${index}]`, issues);
+  });
 }
 
 /**

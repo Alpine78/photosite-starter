@@ -1,4 +1,5 @@
 import { ContentImageComparison } from "@/components/content-image-comparison";
+import { ContentTabGroup } from "@/components/content-tab-group";
 import { PollBlock } from "@/components/poll-block";
 import { miniGalleryNames } from "@/lib/content-mini-gallery";
 import { ContentMiniGallery } from "@/components/content-mini-gallery";
@@ -263,6 +264,16 @@ export function ContentBody({
                 title={block.title}
                 labels={labels.media}
                 watchLabel={labels.actions.watchOnYouTube}
+              />
+            );
+
+          case "tab-group":
+            return (
+              <ContentTabGroup
+                key={block.key ?? index}
+                block={block}
+                labels={labels.tabGroup}
+                tableLabel={labels.table.label}
               />
             );
         }
