@@ -2445,6 +2445,49 @@ corrected 9 other tables) to insert the one missing tag, with the corrected
 body re-approved through the existing source-digest mechanism either way.
 Article 370 therefore still does not convert as a whole.
 
+A systematic pass over every remaining refusal category the real 102-article
+selection carries (`joomla-conversion-v7`) closed one more genuine technical
+gap and confirmed the rest are either already-solved false signals or
+structurally owner-gated content decisions, not converter bugs. `--poll-results`
+was simply missing from the ad hoc verification command used to measure the
+figcaption/`rel`/tab-group/caption-heading fixes above: passing it resolves
+every one of the archive's 27 `{CONTENTPOLL}` markers the same way AB#162's
+own import already does, so `unknown-plugin-marker` was never a real
+remaining gap. `image-unresolved`, `gallery-unresolved`, and
+`comparison-unresolved` are structurally gated by design, confirmed by
+reading `resolveImage`'s own implementation: resolution requires an
+owner-approved `--resolution` JSON regardless of `--image-root`, so no local
+audit can resolve them — they need the real approval work AB#137's own row
+already names. The fix: a lone `<div>` wrapping only text inside a
+`<blockquote>` or list item — `<blockquote><div>text</div></blockquote>`,
+article 371's real shape — now flattens the same way a lone `<p>` already
+does (round 8), generalizing that fix from `<p>` specifically to every
+`TRANSPARENT_ELEMENTS` tag when `flatTextCaptureDepth > 0`, since the
+underlying cause (`flushParagraph()` pushing an illegal block mid-capture)
+was never `<p>`-specific. Adjacent top-level `<div>`s outside any quote keep
+round 5's own behaviour (two separate paragraphs) unchanged. Closes the
+archive's one `block-inside-quote-or-item` refusal. The remaining categories
+— `heading-level-unsupported` (32, spread across 26 articles, no single
+mechanical shape; several `<h6>` occurrences of one exact repeated tagline
+turned out to be Joomla template-generated category-title markup —
+`<h6 class="heading-style-6…"><span class="item_title_part_…">…` word-split
+spans, a known template output pattern, not hand-authored prose — which is
+itself an owner content call: whether that fragment belongs in the migrated
+body at all), `heading-order` (48), `empty-heading` (19, confirmed genuinely
+empty: `normalizeText` already collapses a bare `&nbsp;` to nothing, so this
+is real WYSIWYG cruft, not a detection gap), the "flaticon" navigation-style
+list found in articles 325/394 (`<ul class="flaticon"><li><a>…</a></li><p>…</p>`,
+likely site-chrome content rather than body prose), and the `<dl>` term/definition
+pair in article 370 (a real, evidenced case for a possible future
+list-shaped mapping, but only 2 occurrences in the one article already
+blocked by its own missing `</div>`) — are all genuine content or scope
+decisions, not technical gaps, and stay open for the owner. For the four
+`youtube-title-missing` videos, real accessible titles were looked up
+against YouTube's own public oEmbed API (verified, not invented, author
+confirmed as this project's own photographer) for the owner's approval —
+one of the four ("Mobile menu bug") does not read as show-worthy content and
+is flagged rather than assumed includable.
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a

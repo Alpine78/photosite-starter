@@ -54,7 +54,7 @@ import { parseFragment } from "parse5";
  * value (see `joomla-import-manifest.mts`), so a rule change invalidates a
  * stale approval instead of silently inheriting it.
  */
-export const CONVERSION_POLICY_VERSION = "joomla-conversion-v6";
+export const CONVERSION_POLICY_VERSION = "joomla-conversion-v7";
 
 // ---------------------------------------------------------------------------
 // Sanity content-block shapes
@@ -869,13 +869,30 @@ class BodyConverter {
     }
 
     if (TRANSPARENT_ELEMENTS.has(tag)) {
+      this.checkAttributes(node, false);
+      if (this.flatTextCaptureDepth > 0) {
+        // The same WYSIWYG pattern `<p>` already gets, generalized to every
+        // transparent wrapper: a quote or list item is one flat string, so a
+        // `<div>` (or `<section>`, …) used as a mere paragraph-like grouping
+        // inside one — `<blockquote><div>text</div></blockquote>` is the real
+        // legacy shape this closes — joins the buffer instead of becoming its
+        // own illegal block. `flushParagraph()` would push exactly that block,
+        // which is what made this refuse before (`captureFlatText`'s own
+        // `emittedBlocks` check catching the spurious push). The boundary
+        // itself is still recorded once, the same as `<p>`'s.
+        if (this.inline.text.length > 0 && !/\s$/u.test(this.inline.text)) {
+          this.appendInline(" ");
+          this.note("paragraph-boundary-flattened", "Joined a paragraph break inside a quote or list item into one line.");
+        }
+        this.convertChildren(node);
+        return;
+      }
       // A block-level wrapper's own boundary has to flush the paragraph
       // buffer on both sides: two adjacent `<div>`s with no paragraph tag
       // between them (ordinary, common Joomla layout markup) were otherwise
       // walked into one continuous inline buffer, silently concatenating
       // "First" and "Second" into "FirstSecond" with no space and no finding
       // (found in Codex review round 5).
-      this.checkAttributes(node, false);
       this.flushParagraph();
       this.convertChildren(node);
       this.flushParagraph();
