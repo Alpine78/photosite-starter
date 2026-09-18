@@ -202,6 +202,11 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
       },
       // AB#163: the gallery-side tab group, one data table per tab — the same
       // scoped shape the Joomla migration's own Bootstrap tab widget carried.
+      // Each tab's table is captioned deliberately: the standalone AB#22
+      // table just above is this page's own fixture for the *fallback*
+      // built-in-label case, and a same-page caption-less table here would
+      // collide with it under the shared "Table" name (found by the CI
+      // journey `content-table.spec.ts` itself, run against a real build).
       {
         type: "tab-group",
         tabs: [
@@ -209,6 +214,7 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
             key: "december",
             label: "December",
             table: {
+              caption: "December sessions",
               headers: ["Session", "Start", "Cloud cover"],
               rows: [
                 ["Blue hour", "10:50", "Clear"],
@@ -220,6 +226,7 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
             key: "january",
             label: "January",
             table: {
+              caption: "January sessions",
               headers: ["Session", "Start", "Cloud cover"],
               rows: [
                 ["Blue hour", "10:35", "Overcast"],
@@ -631,7 +638,9 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
         ],
       },
       // AB#163: the Finnish gallery-side tab group, the same scoped shape the
-      // Joomla migration's own Bootstrap tab widget carried.
+      // Joomla migration's own Bootstrap tab widget carried. Captioned for
+      // the same reason the English copy is: this page's own AB#22 fixture
+      // already owns the caption-less fallback-label case.
       {
         type: "tab-group",
         tabs: [
@@ -639,6 +648,7 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
             key: "joulukuu",
             label: "Joulukuu",
             table: {
+              caption: "Joulukuun kuvausikkunat",
               headers: ["Kuvausikkuna", "Alkaa", "Pilvisyys"],
               rows: [
                 ["Sinihetki", "10.50", "Selkeää"],
@@ -650,6 +660,7 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
             key: "tammikuu",
             label: "Tammikuu",
             table: {
+              caption: "Tammikuun kuvausikkunat",
               headers: ["Kuvausikkuna", "Alkaa", "Pilvisyys"],
               rows: [
                 ["Sinihetki", "10.35", "Pilvistä"],

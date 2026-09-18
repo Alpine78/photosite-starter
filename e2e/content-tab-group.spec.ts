@@ -58,13 +58,13 @@ test.describe("no JavaScript", () => {
 
   test("each tab's table region is reachable by keyboard alone", async ({ page }) => {
     await page.goto(galleryPath);
-    // This gallery's body also carries AB#22's own caption-less standalone
-    // table ahead of the tab group, sharing the same fallback name — so the
-    // tab group's own two regions are the second and third, not the first two.
-    const regions = page.getByRole("region", { name: labels.table.label });
-    await expect(regions).toHaveCount(3);
-    const first = regions.nth(1);
-    const second = regions.nth(2);
+    // Each tab's table is named by its own caption here — this gallery's
+    // body also carries AB#22's own caption-less standalone table, so a
+    // same-name fallback would be ambiguous between the two fixtures.
+    const first = page.getByRole("region", { name: "December sessions" });
+    const second = page.getByRole("region", { name: "January sessions" });
+    await expect(first).toBeVisible();
+    await expect(second).toBeVisible();
 
     let focusedCount = 0;
     for (let press = 0; press < 60 && focusedCount < 2; press += 1) {
