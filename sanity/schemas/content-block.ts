@@ -1,7 +1,8 @@
 /**
  * The shared rich-content body blocks ADR-0003 decision 2 gives both public
  * content variants: paragraph, heading, blockquote, media placement, list, a
- * privacy-first YouTube embed, a mini-gallery, and a data table.
+ * privacy-first YouTube embed, a mini-gallery, a data table, a poll, and an
+ * image comparison.
  *
  * Deliberately not named after either variant. `article.ts` is the first
  * consumer, `defineContentBodyField({ name: "body" })` with every block type
@@ -35,9 +36,8 @@ import type {
 } from "./schema-types";
 
 /**
- * The eight block kinds ADR-0003 decision 2 names, in the order it lists
- * them, plus `poll` — a ninth kind, added by ADR-0018 (AB#162), referencing a
- * `poll` document exactly the way `media` references a `media` document.
+ * The shared block kinds, extended by polls (ADR-0018) and two-image
+ * comparisons (ADR-0019, AB#23). Both variants use the same authoring set.
  */
 export const CONTENT_BLOCK_KINDS = [
   "paragraph",
@@ -49,6 +49,7 @@ export const CONTENT_BLOCK_KINDS = [
   "mini-gallery",
   "table",
   "poll",
+  "image-comparison",
 ] as const;
 
 export type ContentBlockKind = (typeof CONTENT_BLOCK_KINDS)[number];
@@ -70,6 +71,7 @@ export const CONTENT_BLOCK_OBJECT_TYPES: Readonly<
   "mini-gallery": "contentGalleryBlock",
   table: "contentTableBlock",
   poll: "contentPollBlock",
+  "image-comparison": "contentImageComparisonBlock",
 };
 
 /**
@@ -220,6 +222,43 @@ const contentMediaBlockType: SchemaTypeDefinition = {
     },
   ],
   preview: { select: { title: "media.mediaId", media: "media.image" } },
+};
+
+/** Restated by the public adapter and converter; tests pin these bounds. */
+export const MAX_COMPARISON_LABEL_LENGTH = 200;
+export const MAX_COMPARISON_TITLE_LENGTH = 120;
+
+const contentImageComparisonBlockType: SchemaTypeDefinition = {
+  name: CONTENT_BLOCK_OBJECT_TYPES["image-comparison"],
+  title: "Image comparison",
+  type: "object",
+  description: "Two full-frame public images. Use matching aspect ratios for the interactive reveal; incompatible ratios remain complete images. Separate from all lightbox sequences.",
+  fields: [
+    {
+      name: "title",
+      title: "Title",
+      type: "string",
+      validation: (rule) => rule.max(MAX_COMPARISON_TITLE_LENGTH).custom<string>(
+        (value) => value === undefined || value.trim().length > 0
+          ? true : "Enter a non-empty title or leave it unset",
+      ),
+    },
+    ...["first", "second"].map((name): SchemaFieldDefinition => ({
+      name,
+      title: name === "first" ? "First image" : "Second image",
+      type: "reference",
+      to: [{ type: MEDIA_TYPE_NAME }],
+      validation: (rule) => rule.required(),
+    })),
+    ...["firstLabel", "secondLabel"].map((name): SchemaFieldDefinition => ({
+      name,
+      title: name === "firstLabel" ? "First image label" : "Second image label",
+      type: "string",
+      description: "Names this side of the comparison; does not replace the image's descriptive alt text.",
+      validation: (rule) => rule.required().max(MAX_COMPARISON_LABEL_LENGTH).custom(nonBlank),
+    })),
+  ],
+  preview: { select: { title: "title", subtitle: "firstLabel", media: "first.image" } },
 };
 
 const contentYoutubeBlockType: SchemaTypeDefinition = {
@@ -429,6 +468,7 @@ export const contentBlockTypes: readonly SchemaTypeDefinition[] = [
   contentGalleryBlockType,
   contentTableBlockType,
   contentPollBlockType,
+  contentImageComparisonBlockType,
 ];
 
 type RawHeadingItem = { readonly _type?: unknown; readonly level?: unknown };

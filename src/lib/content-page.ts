@@ -25,9 +25,9 @@ import type { ImageMedia, Media } from "@/lib/media";
 import type { SiteSettings } from "@/lib/site-settings";
 
 /**
- * The eight body blocks ADR-0003 decision 2 gives both variants, plus a ninth
- * — `poll` — added by ADR-0018 (AB#162). The page title owns the single `h1`,
- * so an authored heading starts at level 2.
+ * The eight body blocks ADR-0003 decision 2 gives both variants, plus `poll`
+ * (ADR-0018) and `image-comparison` (ADR-0019, AB#23). The page title owns
+ * the single `h1`, so an authored heading starts at level 2.
  *
  * `key` is a stable per-block identity, distinct from the position a block
  * happens to render at. A CMS-backed body carries the store's own stable key
@@ -38,6 +38,16 @@ import type { SiteSettings } from "@/lib/site-settings";
  * to the wrong block.
  */
 export type ContentBlock =
+  | {
+      /** Two public image placements; isolated from every lightbox sequence (ADR-0019). */
+      type: "image-comparison";
+      first: ImageMedia;
+      second: ImageMedia;
+      firstLabel: string;
+      secondLabel: string;
+      title?: string;
+      key?: string;
+    }
   | {
       type: "mini-gallery";
       title?: string;

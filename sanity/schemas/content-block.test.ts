@@ -99,6 +99,7 @@ describe("the shared block types", () => {
       "mini-gallery",
       "table",
       "poll",
+      "image-comparison",
     ]);
     expect(contentBlockTypes.map((type) => type.name).sort()).toEqual(
       Object.values(CONTENT_BLOCK_OBJECT_TYPES).sort(),
@@ -488,4 +489,19 @@ it("bounds the mini-gallery's image array with blocking Studio validation", asyn
   expect(validation.max).toBe(MAX_MINI_GALLERY_ITEMS);
   expect(validation.warnings).toHaveLength(0);
   expect(inspectValidationRules(fieldOf(block, "title").validation).max).toBe(MAX_MINI_GALLERY_TITLE_LENGTH);
+});
+
+it("requires comparison image references and bounded nonblank side labels in Studio", async () => {
+  const block = typeOf(CONTENT_BLOCK_OBJECT_TYPES["image-comparison"]);
+  for (const name of ["first", "second"]) {
+    const field = fieldOf(block, name);
+    expect(inspect(field.validation).required).toBe(true);
+    expect(field.to).toEqual([{ type: "media" }]);
+  }
+  for (const name of ["firstLabel", "secondLabel"]) {
+    const validation = inspectValidationRules(fieldOf(block, name).validation);
+    expect(validation.required).toBe(true);
+    expect(validation.max).toBe(200);
+  }
+  expect(inspectValidationRules(fieldOf(block, "title").validation).max).toBe(120);
 });

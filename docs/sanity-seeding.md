@@ -1548,7 +1548,7 @@ Repeated references use one document pair. Poll/tally contents, including counts
 are included in the article's `resolved_digest` approval binding and the final
 plan digest.
 
-The current conversion policy is **joomla-conversion-v2** and import plan format
+The current conversion policy is **joomla-conversion-v3** and import plan format
 **joomla-import-plan-v3**. Regenerate review reports and approvals before planning;
 old approvals/plans are intentionally rejected. Pass the same `--poll-results`
 input to the subsequent `--plan` run. The existing approval-gated writer validates
@@ -1560,3 +1560,53 @@ owner-controlled baseline, approval, credential, audit and revocation workflow.
 Live reader voting uses a **different runtime credential**, never the migration
 credential; provisioning and a real-provider conflict/atomicity check are covered
 by [Sanity setup](sanity-setup.md) and [ADR-0018](adr/0018-article-poll-voting-storage-and-dedup.md).
+
+
+## Joomla comparison modules (AB#23)
+
+The converter recognizes `{loadmodule mod_aikon_awesome_compare,<module title>}`.
+Use the exact source module title as the key in the private resolution file's
+`comparisonModules`. The source module stores `img1`/`img2`, with separate
+`alt1`/`alt2` and `title1`/`title2` text. Review these rather than blindly copying
+legacy presentation settings or its jQuery implementation. Supply descriptive
+image alt text through the existing language-keyed `altText` map, and approve
+side labels separately:
+
+```json
+{
+  "comparisonModules": {
+    "Synthetic exposure comparison": {
+      "img1": "stories/example/original.jpg",
+      "img2": "stories/example/adjusted.jpg",
+      "labels": {
+        "fi": { "first": "Alkuperäinen", "second": "Säädetty" },
+        "en": { "first": "Original", "second": "Adjusted" }
+      },
+      "title": { "fi": "Valotusvertailu", "en": "Exposure comparison" }
+    }
+  }
+}
+```
+
+Both `img1` and `img2` must also have the usual `images` entries with an approved
+locator and SHA-256, and `altText` entries for the article's language. Pass the
+same `--resolution` and `--image-root` to review and plan runs. The converter
+verifies bytes before resolving either photograph; it invents no identities,
+side labels, or descriptive text. Labels are nonblank and at most 200 characters;
+optional titles are nonblank when set and at most 120. Missing module resolution,
+wrong-language labels, unresolved images, and missing descriptive alt text refuse
+the article. Other module types remain unknown-marker refusals.
+
+Both placements remain at the marker's authored body position. Their labels,
+media identities, and verified content hashes are bound into the conversion
+approval. The plan contains both media references and asset requirements; the
+writer rejects malformed references and extra/private block fields. Its existing
+final plan digest covers the two images and their hashes.
+
+The authoritative AB#23 discussion inventories **12 comparisons in 9 articles**.
+Keep their private module inventory out of the template and CI fixtures. The
+unlabeled source pair needs owner-authored labels before approval. Regenerate
+review reports and manifest approvals under **joomla-conversion-v3**; do not reuse
+v1/v2 conversion approvals. The plan format remains **joomla-import-plan-v3**.
+These articles enter the launch manifest only after their complete converted
+bodies have been reviewed; adding converter support does not itself approve them.

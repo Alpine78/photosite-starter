@@ -606,9 +606,10 @@ test("a localized article keeps localized media and article metadata", async ({
   // full-bleed hero ahead of `<article>`, in the same document position a
   // body figure inside it would follow — `main figure img` still walks
   // cover-then-body-images in that same order. Independent mini-gallery and
-  // end-gallery results are excluded from this loose-image assertion.
+  // end-gallery results and comparison images are excluded from this
+  // loose-image assertion; their own block journeys verify localization.
   const imageAlts = await page
-    .locator('main figure img:not([data-mini-gallery] img):not([aria-labelledby="article-end-gallery"] img)')
+    .locator('main figure img:not([data-mini-gallery] img):not([aria-labelledby="article-end-gallery"] img):not([data-comparison-view] img)')
     .evaluateAll((images) => images.map((image) => image.getAttribute("alt")));
   expect(imageAlts).toEqual(LOCALIZED_ARTICLE.imageAlts);
   await expect(page.locator("meta[property='og:image:alt']")).toHaveAttribute(

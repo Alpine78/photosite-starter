@@ -333,6 +333,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - [x] Shared generic media model (photo and video capable)
 - [x] Implementation of the proposed public image rendition boundary
   (ADR-0005 awaits owner approval)
+- [x] Before/after image comparison in article and gallery bodies, with native
+  keyboard/touch reveal, complete-image fallback, Sanity support, and
+  approval-bound Joomla module conversion (AB#23)
 - [x] Article poll voting with an authored close date, fresh counts/percentages,
   poll-specific anonymous dedup, and closed historical poll import support
   (AB#162; voting requires JavaScript, results do not)

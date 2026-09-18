@@ -278,6 +278,17 @@ function resolveBlockMedia(
   // `contentMediaBlockType` nor the mini-gallery's `images[].media` declares an
   // alt field (confirmed against sanity/schemas/content-block.ts). Alt text
   // lives solely on the shared media document, language-keyed (ADR-0008).
+  if (block._type === "contentImageComparisonBlock") {
+    const result: Record<string, unknown> = { ...block };
+    for (const name of ["first", "second"] as const) {
+      const mediaId = block[name];
+      if (typeof mediaId === "string") {
+        used.add(mediaId);
+        result[name] = { _type: "reference", _ref: mediaDocumentIdOf(mediaId) };
+      }
+    }
+    return result as SanityBlock;
+  }
   if (typeof block.media === "string") {
     used.add(block.media);
     return { ...block, media: { _type: "reference", _ref: mediaDocumentIdOf(block.media) } };
@@ -761,7 +772,9 @@ export function validateMigrationDocuments(documents: readonly PlannedDocument[]
       // Every body media reference resolves to a media document in this set.
       for (const block of Array.isArray(document.body) ? document.body : []) {
         for (const reference of collectBlockMediaReferences(block)) {
-          if (byId.get(reference)?._type !== MEDIA_TYPE_NAME) {
+          const medium = byId.get(reference);
+          if ((block as SanityBlock)._type === "contentImageComparisonBlock" && (medium?.mediaType !== "image" || medium.publiclyRenderable !== true)) violations.push(`article ${key}: a comparison side must resolve to a public image`);
+          if (medium?._type !== MEDIA_TYPE_NAME) {
             violations.push(`article ${key}: a body block references "${reference}", which is not a media document`);
           }
         }
@@ -848,8 +861,14 @@ export function validateMigrationDocuments(documents: readonly PlannedDocument[]
 
 function collectBlockMediaReferences(block: unknown): readonly string[] {
   if (typeof block !== "object" || block === null) return [];
-  const record = block as { readonly media?: unknown; readonly images?: unknown };
+  const record = block as { readonly _type?: unknown; readonly media?: unknown; readonly images?: unknown; readonly first?: unknown; readonly second?: unknown };
   const references: string[] = [];
+  if (record._type === "contentImageComparisonBlock") {
+    for (const side of [record.first, record.second]) {
+      const ref = referencedId(side);
+      if (ref !== undefined) references.push(ref);
+    }
+  }
   const direct = referencedId(record.media);
   if (direct !== undefined) references.push(direct);
   if (Array.isArray(record.images)) {

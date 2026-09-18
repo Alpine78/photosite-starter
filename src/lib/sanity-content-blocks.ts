@@ -22,6 +22,11 @@ import { isPollDefinition } from "@/lib/poll";
 
 import "server-only";
 import {
+  MAX_COMPARISON_LABEL_LENGTH,
+  MAX_COMPARISON_TITLE_LENGTH,
+  isComparisonText,
+} from "@/lib/content-image-comparison";
+import {
   MAX_MINI_GALLERY_ITEMS,
   MAX_MINI_GALLERY_TITLE_LENGTH,
 } from "@/lib/content-mini-gallery";
@@ -50,6 +55,7 @@ export const CONTENT_BLOCK_OBJECT_TYPES = {
   "mini-gallery": "contentGalleryBlock",
   table: "contentTableBlock",
   poll: "contentPollBlock",
+  "image-comparison": "contentImageComparisonBlock",
 } as const;
 
 /** Restated from the schema's `YOUTUBE_VIDEO_ID_PATTERN`; pinned by the test. */
@@ -62,7 +68,7 @@ export const MAX_POLL_OPTIONS = 10;
 /**
  * One flat projection over every block kind. GROQ tolerates asking for a field
  * a given `_type` does not declare — it simply comes back `null` — so one
- * projection covers all eight kinds instead of a per-type union query. Embedded
+ * projection covers the shared kinds instead of a per-type union query. Embedded
  * by any adapter whose body field uses `defineContentBodyField`.
  *
  * The bounded slices ask for one more than the maximum on purpose: an oversized
@@ -82,6 +88,10 @@ export const CONTENT_BLOCK_PROJECTION = `{
   caption,
   "headers": headers[0...${MAX_TABLE_COLUMNS + 1}],
   "rows": rows[0...${MAX_TABLE_ROWS + 1}]{"cells": cells[0...${MAX_TABLE_COLUMNS + 1}]},
+  firstLabel,
+  secondLabel,
+  "first": first->${PUBLIC_MEDIA_PROJECTION},
+  "second": second->${PUBLIC_MEDIA_PROJECTION},
   "media": media->${PUBLIC_MEDIA_PROJECTION},
   "images": images[0...${MAX_MINI_GALLERY_ITEMS + 1}]{_key, "media": media->${PUBLIC_MEDIA_PROJECTION}},
   "poll": poll->{pollId, question, closeDate, "options": options[0...${MAX_POLL_OPTIONS + 1}]{optionId, label}}
@@ -91,7 +101,7 @@ export const CONTENT_BLOCK_PROJECTION = `{
 export type SanityContentBlockRejection =
   /** A block's own required fields are missing or malformed. */
   | "malformed-block"
-  /** A block's `_type` names none of the eight shared kinds. */
+  /** A block's `_type` names none of the shared kinds. */
   | "unsupported-block-type"
   /** The body did not evaluate to a list of block objects. */
   | "malformed-result"
@@ -129,6 +139,10 @@ export type RawContentBlock = {
   readonly media?: unknown;
   readonly images?: unknown;
   readonly poll?: unknown;
+  readonly first?: unknown;
+  readonly second?: unknown;
+  readonly firstLabel?: unknown;
+  readonly secondLabel?: unknown;
 };
 
 export type ContentBlockProjectionOptions = {
@@ -164,6 +178,31 @@ export function projectContentBlock(
   if (key === undefined) reject("a block needs its stable _key");
 
   switch (raw._type) {
+    case CONTENT_BLOCK_OBJECT_TYPES["image-comparison"]: {
+      if (!isRecord(raw.first) || !isRecord(raw.second)) {
+        reject("a comparison needs two resolved public images");
+      }
+      const first = projectPublicMedia(raw.first as RawPublicMediaDocument, options);
+      const second = projectPublicMedia(raw.second as RawPublicMediaDocument, options);
+      if (
+        !isComparisonText(raw.firstLabel, MAX_COMPARISON_LABEL_LENGTH) ||
+        !isComparisonText(raw.secondLabel, MAX_COMPARISON_LABEL_LENGTH)
+      ) {
+        reject("a comparison needs bounded non-blank side labels");
+      }
+      if (raw.title != null && !isComparisonText(raw.title, MAX_COMPARISON_TITLE_LENGTH)) {
+        reject("a comparison title must be bounded and non-blank");
+      }
+      return {
+        type: "image-comparison",
+        first,
+        second,
+        firstLabel: raw.firstLabel,
+        secondLabel: raw.secondLabel,
+        ...(raw.title == null ? {} : { title: raw.title as string }),
+        key,
+      };
+    }
     case CONTENT_BLOCK_OBJECT_TYPES.paragraph: {
       const text = readString(raw.text);
       if (text === undefined) reject("a paragraph needs non-empty text");

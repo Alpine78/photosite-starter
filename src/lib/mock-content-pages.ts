@@ -76,6 +76,15 @@ const fieldnotePages: Readonly<Record<string, AuthoredPage>> = Object.fromEntrie
   ]),
 );
 
+function comparisonFixtures(language: string): readonly ContentBlock[] {
+  const images = getMockImages(language);
+  const fi = language === "fi";
+  return [
+    { type: "image-comparison", key: "comparison-compatible", title: fi ? "Valon vertailu" : "Comparing light", first: { ...images.lakesideReeds, caption: fi ? "Ensimmäinen esimerkkikuva." : "First example image." }, second: { ...images.lichenStones, credit: "Placeholder credit" }, firstLabel: fi ? "Ensimmäinen näkymä" : "First view", secondLabel: fi ? "Toinen näkymä" : "Second view" },
+    { type: "image-comparison", key: "comparison-incompatible", title: fi ? "Erilaiset kuvasuhteet" : "Different image ratios", first: images.coastalLandscape, second: images.forestStream, firstLabel: fi ? "Vaakakuva" : "Landscape", secondLabel: fi ? "Pystykuva" : "Portrait" },
+  ];
+}
+
 const englishPages: Readonly<Record<string, AuthoredPage>> = {
   ...fieldnotePages,
   "content-selected-work": {
@@ -103,6 +112,7 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
     variant: "gallery",
     tags: ["coastal", "morning light"],
     body: [
+      ...comparisonFixtures("en"),
       { type: "media", media: mockImages.coastalLandscape },
       { type: "mini-gallery", items: [
         { media: mockImages.forestStream }, { media: mockImages.mistyBirch },
@@ -235,6 +245,7 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
     endGalleryId: "coastal-light-end-gallery",
     tags: ["light", "coastal", "landscape"],
     body: [
+      ...comparisonFixtures("en"),
       {
         type: "paragraph",
         text: "An overcast morning is not a compromise on the coast. Flat light removes the contrast that hides texture in wet rock, and the shoreline shows a great deal more of itself than it does an hour after sunrise. Placeholder copy; replaced with real content from the CMS.",
@@ -488,6 +499,7 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
     variant: "gallery",
     tags: ["rannikko", "aamuvalo"],
     body: [
+      ...comparisonFixtures("fi"),
       {
         type: "paragraph",
         text: "Tästä sarjasta tuli tapa ennemmin kuin suunnitelma: muutamasta aikaisesta aamusta kasvoi vakituinen tapaaminen vuoroveden kanssa. Paikkamerkkiteksti; korvataan CMS:n sisällöllä.",
@@ -596,6 +608,7 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
     endGalleryId: "coastal-light-end-gallery",
     tags: ["valo", "rannikko", "maisemakuvaus"],
     body: [
+      ...comparisonFixtures("fi"),
       {
         type: "paragraph",
         text: "Pilvinen aamu ei ole rannikolla kompromissi. Tasainen valo tuo märän kiven pinnan ja veden pienet sävyerot näkyviin ilman kovia varjoja. Paikkamerkkiteksti; korvataan CMS:n sisällöllä.",

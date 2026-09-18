@@ -13,6 +13,16 @@ when implementation produces evidence the original text did not have, and each p
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
 
+### 2026-09-18 — Shared before/after image comparison block (AB#23)
+
+Decision 2's original six-kind body set, subsequently extended by mini-galleries,
+tables, and polls, gains a tenth kind: `image-comparison`. Both article and gallery
+bodies may author two public image placements with their own side labels. A
+comparison joins no loose-body, mini-gallery, curated, or end-gallery viewer.
+[ADR-0019](0019-before-after-image-comparison.md) records the native range-control
+choice, owner-approved temporary reveal occlusion, complete-image fallback,
+media contract, and approval-bound Joomla conversion.
+
 ### 2026-09-15 — An article may own one bounded end-gallery result (AB#161)
 
 Decision 1 originally says that an article owns an editorial sequence and does not

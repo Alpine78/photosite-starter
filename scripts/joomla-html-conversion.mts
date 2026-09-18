@@ -45,6 +45,7 @@
 import type { ResolvedHistoricalPoll, HistoricalPollDocument } from "./joomla-polls.mts";
 import { createHash } from "node:crypto";
 
+import { MAX_COMPARISON_LABEL_LENGTH, MAX_COMPARISON_TITLE_LENGTH, type ResolvedComparison } from "./joomla-comparisons.mts";
 import { parseFragment } from "parse5";
 
 /**
@@ -53,7 +54,7 @@ import { parseFragment } from "parse5";
  * value (see `joomla-import-manifest.mts`), so a rule change invalidates a
  * stale approval instead of silently inheriting it.
  */
-export const CONVERSION_POLICY_VERSION = "joomla-conversion-v2";
+export const CONVERSION_POLICY_VERSION = "joomla-conversion-v3";
 
 // ---------------------------------------------------------------------------
 // Sanity content-block shapes
@@ -76,6 +77,7 @@ export const CONTENT_BLOCK_OBJECT_TYPES = {
   "mini-gallery": "contentGalleryBlock",
   table: "contentTableBlock",
   poll: "contentPollBlock",
+  "image-comparison": "contentImageComparisonBlock",
 } as const;
 
 export const MAX_MINI_GALLERY_ITEMS = 12;
@@ -119,6 +121,7 @@ export const REFUSAL_CODES = [
   "non-youtube-embed",
   "youtube-title-missing",
   "unknown-plugin-marker",
+  "comparison-unresolved",
   "image-unresolved",
   "image-missing-alt",
   "gallery-unresolved",
@@ -203,6 +206,7 @@ export type ConversionContext = {
    * one per video id; without it the article is refused rather than given an
    * invented label.
    */
+  readonly resolveComparison?: (moduleTitle: string) => ResolvedComparison | undefined;
   readonly resolvePoll?: (legacyId: string) => ResolvedHistoricalPoll | undefined;
   readonly resolveYoutubeTitle?: (videoId: string) => string | undefined;
 };
@@ -585,6 +589,13 @@ class BodyConverter {
         this.appendInline(segment.text);
         continue;
       }
+      if (segment.kind === "unknown-marker" && segment.name === "loadmodule") {
+        const moduleTitle = /^\{loadmodule\s+mod_aikon_awesome_compare\s*,\s*([^}]{1,500})\}$/iu.exec(segment.source)?.[1]?.trim();
+        if (moduleTitle !== undefined) {
+          this.visitComparison(moduleTitle, segment.source);
+          continue;
+        }
+      }
       if (segment.kind === "unknown-marker" && segment.name === "contentpoll") {
         const id = /^\{contentpoll(?:\s+id\s*=\s*|\s+)([1-9]\d{0,8})\s*\}$/iu.exec(segment.source)?.[1];
         const resolved = id === undefined ? undefined : this.context.resolvePoll?.(id);
@@ -607,6 +618,42 @@ class BodyConverter {
       }
       this.visitGalleryMarker(segment.path, segment.source);
     }
+  }
+
+  private visitComparison(moduleTitle: string, source: string): void {
+    const pair = this.context.resolveComparison?.(moduleTitle);
+    const boundedText = (value: unknown, maximum: number): value is string => typeof value === "string" && value.trim().length > 0 && value.length <= maximum;
+    if (
+      !pair || !pair.first || !pair.second ||
+      !boundedText(pair.first.label, MAX_COMPARISON_LABEL_LENGTH) ||
+      !boundedText(pair.second.label, MAX_COMPARISON_LABEL_LENGTH) ||
+      !boundedText(pair.first.src, 2048) || !boundedText(pair.second.src, 2048) ||
+      (pair.title !== undefined && !boundedText(pair.title, MAX_COMPARISON_TITLE_LENGTH))
+    ) {
+      this.refuse("comparison-unresolved", "The comparison module needs an approved image pair and bounded labels in this article's language.", excerpt(source));
+      return;
+    }
+    const sides = [pair.first, pair.second].map((side) => this.context.resolveImage(side.src));
+    if (sides.some((side) => side === undefined)) {
+      this.refuse("image-unresolved", "A comparison image has no approved photograph identity or verified bytes.", excerpt(source));
+      return;
+    }
+    if (sides.some((side) => !side?.alt?.trim())) {
+      this.refuse("image-missing-alt", "Both comparison images need approved descriptive alternative text.", excerpt(source));
+      return;
+    }
+    for (const side of sides) {
+      this.resolvedImageAltText.push({ mediaId: side!.mediaId, language: this.context.language, value: side!.alt!.trim() });
+      if (side!.contentHash !== undefined) this.resolvedImageContentHashes.push({ mediaId: side!.mediaId, contentHash: side!.contentHash });
+    }
+    this.push({
+      _type: CONTENT_BLOCK_OBJECT_TYPES["image-comparison"],
+      first: sides[0]!.mediaId,
+      second: sides[1]!.mediaId,
+      firstLabel: pair.first.label,
+      secondLabel: pair.second.label,
+      ...(pair.title === undefined ? {} : { title: pair.title }),
+    });
   }
 
   private visitGalleryMarker(path: string, source: string): void {

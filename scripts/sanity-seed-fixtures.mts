@@ -113,7 +113,8 @@ type ContentBlockKind =
   | "youtube"
   | "mini-gallery"
   | "table"
-  | "poll";
+  | "poll"
+  | "image-comparison";
 
 /** Restates `content-block.ts`'s `CONTENT_BLOCK_OBJECT_TYPES`. */
 const CONTENT_BLOCK_OBJECT_TYPES: Readonly<Record<ContentBlockKind, string>> = {
@@ -126,6 +127,7 @@ const CONTENT_BLOCK_OBJECT_TYPES: Readonly<Record<ContentBlockKind, string>> = {
   "mini-gallery": "contentGalleryBlock",
   table: "contentTableBlock",
   poll: "contentPollBlock",
+  "image-comparison": "contentImageComparisonBlock",
 };
 
 /** Restates `media.ts`'s exported public-delivery policy constants. */

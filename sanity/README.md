@@ -89,8 +89,9 @@ locale, matching the still-unlocalized `/services` route, so nothing here descri
 capability the site does not yet read.
 
 Both an article's body and a gallery's optional body share one set of block object types —
-`sanity/schemas/content-block.ts` — covering the seven kinds ADR-0003 decision 2 and its AB#24 amendment name:
-paragraph, heading, list, quote, media placement, and a click-to-load YouTube embed. They
+`sanity/schemas/content-block.ts` — covering the ten shared body kinds:
+paragraph, heading, list, quote, media placement, a click-to-load YouTube embed,
+mini-gallery, table, poll, and image comparison. They
 are named `content<Kind>Block` rather than the bare discriminant, because Sanity type
 names share one namespace and `media.ts` already claims `media` for the shared photograph
 document. `defineContentBodyField` builds a body field restricted to a given allow-list of
@@ -220,3 +221,17 @@ publishing an edit to `poll` writes a different document from its live tally.
 They are still accessible to dataset API readers. Runtime writes use a distinct
 credential; see [ADR-0018](../docs/adr/0018-article-poll-voting-storage-and-dedup.md)
 and [Sanity setup](../docs/sanity-setup.md).
+
+## Image comparisons (AB#23)
+
+`contentImageComparisonBlock` is available in both article and gallery bodies.
+Author `first` and `second` media references, `firstLabel` and `secondLabel`
+(required nonblank strings, maximum 200 characters), and optionally `title`
+(nonblank when set, maximum 120 characters). Labels name the comparison sides;
+they do not replace the media documents' descriptive alt text. Use public image
+media with matching native aspect ratios, normally equal-size pairs. The reader
+validates both images through the existing public-media boundary and refuses
+unresolved or nonpublic references. The reveal becomes interactive after both
+images load; different ratios remain full images without an overlay. Captions
+and credits survive in both views. Neither image enters another lightbox's slides.
+See [ADR-0019](../docs/adr/0019-before-after-image-comparison.md).
