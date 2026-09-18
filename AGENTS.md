@@ -2339,6 +2339,31 @@ hydration/submission guard. `convert:joomla --poll-results` carries closed
 historical pairs into the approved plan (conversion policy v2, plan v3).
 Actual token provisioning and production migration remain owner-run checks.
 
+A body media placement can now carry one optional, bounded plain-text caption
+(AB#137, ADR-0003's 2026-09-18 amendment): `contentMediaBlock.caption`, owned
+by that placement and overriding the referenced photograph's default caption
+only in that body, so the same media document can carry contextual legacy
+`<figcaption>` text differently in two different articles without turning the
+shared media record into a list of editorial contexts. It renders in the
+in-flow figure and that figure's own body-image lightbox sequence; it stays
+outside curated grids, gallery pagination, media delivery, and image
+identity. The converter now reads it from the one real legacy markup shape
+the source archive uses — `<figure><img>…<figcaption>…</figcaption></figure>`
+— through a dedicated `visitFigure`, no longer the generic transparent-wrapper
+walk `<figure>` used to fall through to, which left every `<figcaption>`
+landing on the final `unsupported-element` refusal with no way to recover the
+words. Measured against the real 102-article selection: this closed 470 of
+474 `unsupported-element` refusals outright (`joomla-conversion-v4`); the
+remaining single case is a real, different shape — a `<figure>` carrying loose
+text beside its image with no `<figcaption>` wrapper at all — refused rather
+than guessed at, the same posture a second non-blank caption on one figure or
+any other unexpected figure content gets. Raw HTML, links, and inline
+formatting inside a caption are flattened to plain text through the same
+`captureFlatText` machinery `visitTable`'s own caption already uses, and a
+figure nested inside a quote or list item is refused the same way a bare
+image already was. `scripts/write-joomla-content.mts` accepts the field at
+the write boundary with the same bound the schema enforces.
+
 A tab group (AB#163, [ADR-0020](docs/adr/0020-tab-group-body-block.md)) adds
 the eleventh shared body-block kind: a bounded, ordered list of 2–8 named
 tabs, each holding exactly one data table (the existing AB#22 table block's

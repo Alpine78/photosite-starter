@@ -243,7 +243,7 @@ const BLOCK_FIELD_SCHEMAS: Readonly<Record<string, ReadonlySet<string>>> = {
   contentQuoteBlock: new Set(["_key", "_type", "text"]),
   contentListBlock: new Set(["_key", "_type", "ordered", "items"]),
   contentYoutubeBlock: new Set(["_key", "_type", "videoId", "title"]),
-  contentMediaBlock: new Set(["_key", "_type", "media"]),
+  contentMediaBlock: new Set(["_key", "_type", "media", "caption"]),
   contentGalleryBlock: new Set(["_key", "_type", "title", "images"]),
   contentImageComparisonBlock: new Set(["_key", "_type", "title", "first", "second", "firstLabel", "secondLabel"]),
   contentPollBlock: new Set(["_key", "_type", "poll"]),
@@ -327,7 +327,12 @@ function checkBlockShape(block: unknown, path: string, issues: string[]): void {
     if (block.title !== undefined && (typeof block.title !== "string" || !block.title.trim() || block.title.length > MAX_COMPARISON_TITLE_LENGTH)) issues.push(`${path}.title must be bounded non-blank text`);
   }
   if (block._type === "contentPollBlock") checkReferenceShape(block.poll, `${path}.poll`, issues, expectResolvedRef);
-  if (block._type === "contentMediaBlock") checkReferenceShape(block.media, `${path}.media`, issues, expectResolvedRef);
+  if (block._type === "contentMediaBlock") {
+    checkReferenceShape(block.media, `${path}.media`, issues, expectResolvedRef);
+    if (block.caption !== undefined && (typeof block.caption !== "string" || !block.caption.trim() || block.caption.length > 500)) {
+      issues.push(`${path}.caption must be bounded non-blank text`);
+    }
+  }
   if (block._type === "contentGalleryBlock" && Array.isArray(block.images)) {
     block.images.forEach((image: unknown, index: number) => {
       if (!isPlainObject(image)) {

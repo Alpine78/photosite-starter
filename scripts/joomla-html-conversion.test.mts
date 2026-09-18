@@ -465,6 +465,97 @@ describe("images", () => {
   });
 });
 
+describe("figures", () => {
+  it("carries a <figcaption> onto the media block as a placement-specific caption", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"><figcaption>Kuvaaja itse</figcaption></figure>');
+    expect(result.convertible).toBe(true);
+    expect(result.blocks).toEqual([
+      { _type: "contentMediaBlock", media: "media-known-1-jpg", caption: "Kuvaaja itse" },
+    ]);
+  });
+
+  it("emits a plain media block, with no caption field, when the figure carries none", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"></figure>');
+    expect(result.blocks).toEqual([{ _type: "contentMediaBlock", media: "media-known-1-jpg" }]);
+  });
+
+  it("emits a plain media block when the only <figcaption> is blank", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"><figcaption> </figcaption></figure>');
+    expect(result.convertible).toBe(true);
+    expect(result.blocks).toEqual([{ _type: "contentMediaBlock", media: "media-known-1-jpg" }]);
+  });
+
+  it("flattens inline markup inside a caption to plain text and records the loss", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"><figcaption>Malli <em>X</em></figcaption></figure>');
+    expect(result.blocks).toEqual([
+      { _type: "contentMediaBlock", media: "media-known-1-jpg", caption: "Malli X" },
+    ]);
+    expect(codes(result, "lossy")).toContain("emphasis-dropped");
+  });
+
+  it("drops a presentational attribute on the caption itself", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"><figcaption class="c">Teksti</figcaption></figure>');
+    expect(codes(result, "lossy")).toContain("presentation-dropped");
+    expect(result.blocks).toEqual([
+      { _type: "contentMediaBlock", media: "media-known-1-jpg", caption: "Teksti" },
+    ]);
+  });
+
+  it("tolerates a second, blank <figcaption> — the real legacy shape found in the source archive", () => {
+    const result = convert(
+      '<figure><img src="known-1.jpg" alt="Alt"><figcaption>Ensimmäinen</figcaption><figcaption></figcaption></figure>',
+    );
+    expect(result.convertible).toBe(true);
+    expect(result.blocks).toEqual([
+      { _type: "contentMediaBlock", media: "media-known-1-jpg", caption: "Ensimmäinen" },
+    ]);
+  });
+
+  it("refuses two non-blank captions on the same figure rather than picking one", () => {
+    const result = convert(
+      '<figure><img src="known-1.jpg" alt="Alt"><figcaption>A</figcaption><figcaption>B</figcaption></figure>',
+    );
+    expect(result.convertible).toBe(false);
+    expect(codes(result, "refusal")).toContain("figure-unsupported-shape");
+  });
+
+  it("refuses a figure holding more than one image", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"><img src="known-1.jpg" alt="Alt"></figure>');
+    expect(codes(result, "refusal")).toContain("figure-unsupported-shape");
+  });
+
+  it("refuses a figure carrying loose text alongside its image, rather than guessing it is a caption", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt">Irtoteksti</figure>');
+    expect(codes(result, "refusal")).toContain("figure-unsupported-shape");
+  });
+
+  it("refuses a figure with no image at all", () => {
+    const result = convert("<figure><figcaption>Ei kuvaa</figcaption></figure>");
+    expect(codes(result, "refusal")).toContain("figure-unsupported-shape");
+  });
+
+  it("still refuses an unresolved photograph inside a figure", () => {
+    const result = convert('<figure><img src="images/Logo.png"><figcaption>Teksti</figcaption></figure>');
+    expect(codes(result, "refusal")).toContain("image-unresolved");
+  });
+
+  it("refuses a caption past the shared length bound instead of truncating it", () => {
+    const result = convert(
+      `<figure><img src="known-1.jpg" alt="Alt"><figcaption>${"x".repeat(501)}</figcaption></figure>`,
+    );
+    expect(codes(result, "refusal")).toContain("figure-unsupported-shape");
+  });
+
+  it("refuses a figure nested inside a blockquote, the same as a bare image", () => {
+    const result = convert(
+      '<blockquote>Sitaatti <figure><img src="known-1.jpg" alt="Alt"><figcaption>C</figcaption></figure> loppu</blockquote>',
+    );
+    expect(result.convertible).toBe(false);
+    expect(codes(result, "refusal")).toContain("block-inside-quote-or-item");
+    expect(result.blocks).toEqual([]);
+  });
+});
+
 describe("embeds", () => {
   it("converts a YouTube frame when an accessible title exists", () => {
     const result = convert('<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>');
