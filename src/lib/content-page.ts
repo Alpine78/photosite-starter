@@ -61,6 +61,8 @@ export type ContentBlock =
   | {
       type: "media";
       media: Media;
+      /** Optional placement-specific caption; it overrides the media default in this body only. */
+      caption?: string;
       key?: string;
     }
   | { type: "list"; ordered: boolean; items: string[]; key?: string }

@@ -8,6 +8,8 @@ import type { ImageMedia } from "@/lib/media";
 
 type ContentBodyFigureProps = {
   image: ImageMedia;
+  /** Placement-specific text overrides the media default for this body only. */
+  caption?: string;
   /** Browser source-size hint for the in-flow figure — the body's own column. */
   sizes: string;
   /** This figure's position in the body's image sequence, i.e. its slide. */
@@ -39,6 +41,7 @@ const subscribeToNothing = () => () => {};
  */
 export function ContentBodyFigure({
   image,
+  caption: captionOverride,
   sizes,
   index,
   itemId,
@@ -50,7 +53,8 @@ export function ContentBodyFigure({
     () => false,
   );
 
-  const { caption, credit } = image;
+  const { credit } = image;
+  const caption = captionOverride ?? image.caption;
 
   const picture = (
     <Image

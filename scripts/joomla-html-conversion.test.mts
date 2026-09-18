@@ -424,6 +424,33 @@ describe("links and emphasis", () => {
     const result = convert('<p>Katso <a href="#alaosa">alaosa</a>.</p>');
     expect(codes(result, "lossy")).toContain("link-destination-dropped");
   });
+
+  it("drops a known-inert rel value as lossy rather than refusing it", () => {
+    const result = convert('<p><a href="/x" rel="alternate">linkki</a></p>');
+    expect(result.convertible).toBe(true);
+    expect(codes(result, "lossy")).toEqual(["link-relationship-dropped", "link-destination-dropped"]);
+  });
+
+  it("accepts several known-inert rel tokens together", () => {
+    const result = convert('<p><a href="/x" rel="nofollow tag">linkki</a></p>');
+    expect(codes(result, "refusal")).toEqual([]);
+    expect(codes(result, "lossy")).toContain("link-relationship-dropped");
+  });
+
+  it("still refuses a rel value with real browser behaviour", () => {
+    const result = convert('<p><a href="/x" rel="noopener">linkki</a></p>');
+    expect(codes(result, "refusal")).toContain("behavioural-attribute");
+  });
+
+  it("still refuses an unrecognized rel value rather than guessing it is safe", () => {
+    const result = convert('<p><a href="/x" rel="custom-widget">linkki</a></p>');
+    expect(codes(result, "refusal")).toContain("behavioural-attribute");
+  });
+
+  it("still refuses a rel mixing a safe token with an unsafe one", () => {
+    const result = convert('<p><a href="/x" rel="nofollow noopener">linkki</a></p>');
+    expect(codes(result, "refusal")).toContain("behavioural-attribute");
+  });
 });
 
 describe("headings", () => {
@@ -462,6 +489,97 @@ describe("images", () => {
       resolveImage: () => ({ mediaId: "m1" }),
     });
     expect(codes(result, "refusal")).toContain("image-missing-alt");
+  });
+});
+
+describe("figures", () => {
+  it("carries a <figcaption> onto the media block as a placement-specific caption", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"><figcaption>Kuvaaja itse</figcaption></figure>');
+    expect(result.convertible).toBe(true);
+    expect(result.blocks).toEqual([
+      { _type: "contentMediaBlock", media: "media-known-1-jpg", caption: "Kuvaaja itse" },
+    ]);
+  });
+
+  it("emits a plain media block, with no caption field, when the figure carries none", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"></figure>');
+    expect(result.blocks).toEqual([{ _type: "contentMediaBlock", media: "media-known-1-jpg" }]);
+  });
+
+  it("emits a plain media block when the only <figcaption> is blank", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"><figcaption> </figcaption></figure>');
+    expect(result.convertible).toBe(true);
+    expect(result.blocks).toEqual([{ _type: "contentMediaBlock", media: "media-known-1-jpg" }]);
+  });
+
+  it("flattens inline markup inside a caption to plain text and records the loss", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"><figcaption>Malli <em>X</em></figcaption></figure>');
+    expect(result.blocks).toEqual([
+      { _type: "contentMediaBlock", media: "media-known-1-jpg", caption: "Malli X" },
+    ]);
+    expect(codes(result, "lossy")).toContain("emphasis-dropped");
+  });
+
+  it("drops a presentational attribute on the caption itself", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"><figcaption class="c">Teksti</figcaption></figure>');
+    expect(codes(result, "lossy")).toContain("presentation-dropped");
+    expect(result.blocks).toEqual([
+      { _type: "contentMediaBlock", media: "media-known-1-jpg", caption: "Teksti" },
+    ]);
+  });
+
+  it("tolerates a second, blank <figcaption> — the real legacy shape found in the source archive", () => {
+    const result = convert(
+      '<figure><img src="known-1.jpg" alt="Alt"><figcaption>Ensimmäinen</figcaption><figcaption></figcaption></figure>',
+    );
+    expect(result.convertible).toBe(true);
+    expect(result.blocks).toEqual([
+      { _type: "contentMediaBlock", media: "media-known-1-jpg", caption: "Ensimmäinen" },
+    ]);
+  });
+
+  it("refuses two non-blank captions on the same figure rather than picking one", () => {
+    const result = convert(
+      '<figure><img src="known-1.jpg" alt="Alt"><figcaption>A</figcaption><figcaption>B</figcaption></figure>',
+    );
+    expect(result.convertible).toBe(false);
+    expect(codes(result, "refusal")).toContain("figure-unsupported-shape");
+  });
+
+  it("refuses a figure holding more than one image", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt"><img src="known-1.jpg" alt="Alt"></figure>');
+    expect(codes(result, "refusal")).toContain("figure-unsupported-shape");
+  });
+
+  it("refuses a figure carrying loose text alongside its image, rather than guessing it is a caption", () => {
+    const result = convert('<figure><img src="known-1.jpg" alt="Alt">Irtoteksti</figure>');
+    expect(codes(result, "refusal")).toContain("figure-unsupported-shape");
+  });
+
+  it("refuses a figure with no image at all", () => {
+    const result = convert("<figure><figcaption>Ei kuvaa</figcaption></figure>");
+    expect(codes(result, "refusal")).toContain("figure-unsupported-shape");
+  });
+
+  it("still refuses an unresolved photograph inside a figure", () => {
+    const result = convert('<figure><img src="images/Logo.png"><figcaption>Teksti</figcaption></figure>');
+    expect(codes(result, "refusal")).toContain("image-unresolved");
+  });
+
+  it("refuses a caption past the shared length bound instead of truncating it", () => {
+    const result = convert(
+      `<figure><img src="known-1.jpg" alt="Alt"><figcaption>${"x".repeat(501)}</figcaption></figure>`,
+    );
+    expect(codes(result, "refusal")).toContain("figure-unsupported-shape");
+  });
+
+  it("refuses a figure nested inside a blockquote, the same as a bare image", () => {
+    const result = convert(
+      '<blockquote>Sitaatti <figure><img src="known-1.jpg" alt="Alt"><figcaption>C</figcaption></figure> loppu</blockquote>',
+    );
+    expect(result.convertible).toBe(false);
+    expect(codes(result, "refusal")).toContain("block-inside-quote-or-item");
+    expect(result.blocks).toEqual([]);
   });
 });
 

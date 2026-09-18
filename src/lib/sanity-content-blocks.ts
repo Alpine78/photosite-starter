@@ -332,7 +332,11 @@ export function projectContentBlock(
         raw.media as RawPublicMediaDocument,
         options,
       );
-      return { type: "media", media, key };
+      const caption = readString(raw.caption);
+      if (raw.caption != null && (caption === undefined || caption.length > 500)) {
+        reject("a media caption must be non-blank and at most 500 characters");
+      }
+      return { type: "media", media, key, ...(caption === undefined ? {} : { caption }) };
     }
 
     case CONTENT_BLOCK_OBJECT_TYPES["mini-gallery"]: {

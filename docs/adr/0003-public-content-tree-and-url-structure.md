@@ -2114,3 +2114,19 @@ not a separate body model, and enters neither curated nor inline media sequences
 Server-rendered counts remain available without JavaScript; voting requires it.
 [ADR-0018](0018-article-poll-voting-storage-and-dedup.md) governs the separate
 live tally, atomic receipt/counter mutation, authored close date and cookie.
+
+## Amendment 2026-09-18 — placement-specific body-media captions (AB#137)
+
+Decision 2's media placement can now carry one optional, bounded plain-text
+caption. It is owned by that body placement and overrides the referenced media's
+default caption only there. This preserves contextual legacy `figcaption` text
+when the same photograph occurs in more than one article without turning the
+shared media record into a list of editorial contexts.
+
+The caption renders in the in-flow figure and its separate body-image lightbox
+sequence. It stays outside curated grids, gallery pagination, media delivery,
+and image identity. Raw HTML, links, or inline formatting are not carried over.
+Blank or overlong captions are rejected at the Sanity adapter and import-plan
+boundaries. The owner approved this scoped model extension while reviewing the
+AB#137 legacy-conversion evidence; individual caption text, alt text, media
+rights, and import eligibility remain separately approval-gated.

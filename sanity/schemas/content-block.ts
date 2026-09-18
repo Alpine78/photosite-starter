@@ -228,6 +228,13 @@ const contentMediaBlockType: SchemaTypeDefinition = {
       to: [{ type: MEDIA_TYPE_NAME }],
       validation: (rule) => rule.required(),
     },
+    {
+      name: "caption",
+      title: "Caption",
+      type: "text",
+      description: "Optional for this placement. It overrides the media's default caption only in this body.",
+      validation: (rule) => rule.max(500).custom(nonBlank),
+    },
   ],
   preview: { select: { title: "media.mediaId", media: "media.image" } },
 };

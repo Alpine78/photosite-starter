@@ -178,6 +178,30 @@ describe("projecting each block kind", () => {
     });
   });
 
+  it("keeps a bounded placement caption separate from the shared media record", () => {
+    const projected = projectContentBlock(
+      {
+        _key: "a6-caption",
+        _type: CONTENT_BLOCK_OBJECT_TYPES.media,
+        media: mediaDocument,
+        caption: "Kuvapaikan oma kuvateksti",
+      },
+      0,
+      options,
+    );
+    expect(projected).toEqual({
+      type: "media",
+      media: expect.objectContaining({ mediaId: "coastal-landscape" }),
+      caption: "Kuvapaikan oma kuvateksti",
+      key: "a6-caption",
+    });
+    expect(rejectionOf(() => projectContentBlock({
+      _type: CONTENT_BLOCK_OBJECT_TYPES.media,
+      media: mediaDocument,
+      caption: " ",
+    }, 0, options)).rejection).toBe("malformed-block");
+  });
+
   it("maps a click-to-load YouTube block", () => {
     const block: RawContentBlock = {
       _key: "a7",

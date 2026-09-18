@@ -32,7 +32,7 @@ export function buildContentBodyLightboxSlides(
     images.map((image) => ({
       itemId: image.itemId,
       mediaId: image.media.mediaId,
-      media: image.media,
+      media: image.caption === undefined ? image.media : { ...image.media, caption: image.caption },
     })),
     resolveLightboxRendition,
   );

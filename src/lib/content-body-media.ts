@@ -30,6 +30,8 @@ export type ContentBodyImage = {
   /** Position in the body's image sequence — the lightbox slide index. */
   readonly index: number;
   readonly media: ImageMedia;
+  /** Placement-specific caption, if the body overrides the media default. */
+  readonly caption?: string;
 };
 
 /** Whether a block is an image placement the lightbox can present. */
@@ -62,6 +64,7 @@ export function indexContentBodyImages(
       itemId: block.key ?? `${OCCURRENCE_ID_PREFIX}-${index}`,
       index,
       media: block.media,
+      ...(block.caption === undefined ? {} : { caption: block.caption }),
     });
   });
 

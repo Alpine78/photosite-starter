@@ -161,6 +161,7 @@ export function ContentBody({
               <ContentBodyFigure
                 key={block.key ?? index}
                 image={block.media}
+                caption={block.caption}
                 sizes={sizes}
                 index={bodyImage.index}
                 itemId={bodyImage.itemId}

@@ -54,7 +54,7 @@ import { parseFragment } from "parse5";
  * value (see `joomla-import-manifest.mts`), so a rule change invalidates a
  * stale approval instead of silently inheriting it.
  */
-export const CONVERSION_POLICY_VERSION = "joomla-conversion-v3";
+export const CONVERSION_POLICY_VERSION = "joomla-conversion-v5";
 
 // ---------------------------------------------------------------------------
 // Sanity content-block shapes
@@ -88,6 +88,8 @@ export const MAX_TABLE_ROWS = 20;
 export const MIN_TAB_GROUP_TABS = 2;
 export const MAX_TAB_GROUP_TABS = 8;
 export const MAX_TAB_LABEL_LENGTH = 80;
+/** Restated from `sanity/schemas/content-block.ts`'s `contentMediaBlock.caption` bound. */
+export const MAX_MEDIA_CAPTION_LENGTH = 500;
 export const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
 /** A bounded excerpt of offending source, so a report is diagnosable without carrying a whole body. */
@@ -129,6 +131,7 @@ export const REFUSAL_CODES = [
   "comparison-unresolved",
   "image-unresolved",
   "image-missing-alt",
+  "figure-unsupported-shape",
   "gallery-unresolved",
   "gallery-empty",
   "gallery-inventory-mismatch",
@@ -149,6 +152,7 @@ export const REFUSAL_CODES = [
 
 export const LOSSY_CODES = [
   "link-destination-dropped",
+  "link-relationship-dropped",
   "emphasis-dropped",
   "presentation-dropped",
   "anchor-id-dropped",
@@ -256,9 +260,14 @@ export type ConversionResult = {
 // Element and attribute policy
 // ---------------------------------------------------------------------------
 
-/** Walked through: their children are converted in place, the element itself vanishes. */
+/**
+ * Walked through: their children are converted in place, the element itself
+ * vanishes. `figure` is deliberately not here — it gets its own `visitFigure`,
+ * since an image's `<figcaption>` needs to be read alongside it rather than
+ * dropped into the ordinary child walk.
+ */
 const TRANSPARENT_ELEMENTS = new Set([
-  "div", "section", "article", "main", "header", "footer", "aside", "center", "font", "tbody", "thead", "tfoot", "figure",
+  "div", "section", "article", "main", "header", "footer", "aside", "center", "font", "tbody", "thead", "tfoot",
 ]);
 
 const INLINE_ELEMENTS = new Set([
@@ -322,6 +331,25 @@ const STRUCTURAL_ATTRIBUTES_BY_ELEMENT: Readonly<Record<string, ReadonlySet<stri
  */
 const HIDING_STYLE =
   /(?:^|[;\s])(?:display\s*:\s*none|visibility\s*:\s*(?:hidden|collapse)|opacity\s*:\s*0*\.?0+%?(?=\s|;|$)|font-size\s*:\s*0(?:px|em|rem|%|pt)?(?=\s|;|$))/i;
+
+/**
+ * `rel` values on an `<a>` confirmed (against MDN's rel-attribute reference)
+ * to carry no browser behaviour of their own — a pure document-relationship
+ * annotation, unlike `noopener`/`noreferrer`/`opener`, which change window or
+ * referrer behaviour and still refuse as `behavioural-attribute`. A link's
+ * own destination is always dropped as `link-destination-dropped` regardless
+ * (the `<a>` becomes plain prose), so even a real `rel` value would be moot
+ * here — this allow-list is scoped to the ones with no meaning at all, not a
+ * bet on that fact holding.
+ */
+const SAFE_ANCHOR_REL_VALUES = new Set([
+  "alternate", "author", "bookmark", "help", "license", "next", "nofollow", "prev", "search", "tag",
+]);
+
+function isSafeAnchorRel(value: string): boolean {
+  const tokens = value.trim().split(/\s+/u).filter((token) => token.length > 0);
+  return tokens.length > 0 && tokens.every((token) => SAFE_ANCHOR_REL_VALUES.has(token.toLowerCase()));
+}
 
 // ---------------------------------------------------------------------------
 // parse5 node shapes (structural subset — parse5 exposes these as unions)
@@ -540,6 +568,17 @@ class BodyConverter {
           `Dropped the anchor id "${attribute.value}" from ${node.tagName}. Any inbound link to that fragment will no longer resolve.`,
           excerpt(attribute.value),
         );
+        continue;
+      }
+
+      if (tag === "a" && name === "rel" && isSafeAnchorRel(attribute.value)) {
+        if (reportPresentation) {
+          this.note(
+            "link-relationship-dropped",
+            `Dropped the rel="${attribute.value}" relationship annotation from ${node.tagName}. It carries no browser behaviour and the link's own destination is already dropped separately.`,
+            excerpt(attribute.value),
+          );
+        }
         continue;
       }
 
@@ -771,6 +810,11 @@ class BodyConverter {
       return;
     }
 
+    if (tag === "figure") {
+      this.visitFigure(node);
+      return;
+    }
+
     if (/^h[1-6]$/u.test(tag)) {
       this.checkAttributes(node);
       this.visitHeading(node, Number.parseInt(tag.slice(1), 10));
@@ -952,7 +996,7 @@ class BodyConverter {
     this.convertChildren(node);
   }
 
-  private visitImage(node: Node): void {
+  private visitImage(node: Node, caption?: string): void {
     const src = attributeValue(node, "src");
     if (src === undefined || src.trim().length === 0) {
       this.refuse("image-unresolved", "An image carries no source reference.", excerpt(describeElement(node)));
@@ -980,7 +1024,97 @@ class BodyConverter {
     if (resolved.contentHash !== undefined) {
       this.resolvedImageContentHashes.push({ mediaId: resolved.mediaId, contentHash: resolved.contentHash });
     }
-    this.push({ _type: CONTENT_BLOCK_OBJECT_TYPES.media, media: resolved.mediaId });
+    this.push({
+      _type: CONTENT_BLOCK_OBJECT_TYPES.media,
+      media: resolved.mediaId,
+      ...(caption === undefined ? {} : { caption }),
+    });
+  }
+
+  /**
+   * `<figure><img>…<figcaption>…</figcaption></figure>` is the one shape a
+   * legacy body actually uses to attach placement-specific caption text to a
+   * loose photograph (see `sanity/schemas/content-block.ts`'s
+   * `contentMediaBlock.caption`, ADR-0003's 2026-09-18 amendment). Anything
+   * else inside a `<figure>` — more than one image, stray text, an unmatched
+   * second non-blank caption — is refused rather than guessed at, the same
+   * posture `visitTable`'s own caption handling already takes.
+   */
+  private visitFigure(node: Node): void {
+    const findingsBefore = this.findings.length;
+    this.checkAttributes(node, false);
+
+    let imageNode: Node | undefined;
+    const captionElements: Node[] = [];
+    let hasUnexpectedContent = false;
+
+    for (const child of childrenOf(node)) {
+      if (isText(child)) {
+        if (normalizeText(child.value ?? "").length > 0) hasUnexpectedContent = true;
+        continue;
+      }
+      if (!isElement(child)) continue;
+      const tag = (child.tagName ?? "").toLowerCase();
+      if (tag === "img") {
+        if (imageNode === undefined) {
+          imageNode = child;
+          this.checkAttributes(child);
+        } else {
+          hasUnexpectedContent = true;
+        }
+        continue;
+      }
+      if (tag === "figcaption") {
+        captionElements.push(child);
+        this.checkAttributes(child);
+        continue;
+      }
+      hasUnexpectedContent = true;
+    }
+
+    if (imageNode === undefined || hasUnexpectedContent) {
+      this.refuse(
+        "figure-unsupported-shape",
+        "A <figure> must contain exactly one <img>, at most one non-blank <figcaption>, and nothing else.",
+        excerpt(describeElement(node)),
+      );
+      return;
+    }
+    if (this.findings.slice(findingsBefore).some((finding) => finding.severity === "refusal")) return;
+
+    const captionTexts: string[] = [];
+    for (const captionElement of captionElements) {
+      const captured = this.captureFlatText(captionElement);
+      if (captured.emittedBlocks) {
+        this.refuse(
+          "block-inside-quote-or-item",
+          "A figure caption contains an image, table, list, or gallery. A caption holds plain text only.",
+          excerpt(textOf(captionElement)),
+        );
+        return;
+      }
+      if (captured.text.length > 0) captionTexts.push(captured.text);
+    }
+    if (captionTexts.length > 1) {
+      this.refuse(
+        "figure-unsupported-shape",
+        "A <figure> has more than one non-blank <figcaption>. Only one caption per photograph placement is supported.",
+        excerpt(describeElement(node)),
+      );
+      return;
+    }
+    const caption = captionTexts[0];
+    if (caption !== undefined && caption.length > MAX_MEDIA_CAPTION_LENGTH) {
+      this.refuse(
+        "figure-unsupported-shape",
+        `A figure caption is ${caption.length} characters, past the bound of ${MAX_MEDIA_CAPTION_LENGTH}.`,
+        excerpt(caption),
+      );
+      return;
+    }
+
+    this.flushParagraph();
+    this.visitImage(imageNode, caption);
   }
 
   private visitHeading(node: Node, level: number): void {
