@@ -54,7 +54,7 @@ import { parseFragment } from "parse5";
  * value (see `joomla-import-manifest.mts`), so a rule change invalidates a
  * stale approval instead of silently inheriting it.
  */
-export const CONVERSION_POLICY_VERSION = "joomla-conversion-v4";
+export const CONVERSION_POLICY_VERSION = "joomla-conversion-v5";
 
 // ---------------------------------------------------------------------------
 // Sanity content-block shapes
@@ -152,6 +152,7 @@ export const REFUSAL_CODES = [
 
 export const LOSSY_CODES = [
   "link-destination-dropped",
+  "link-relationship-dropped",
   "emphasis-dropped",
   "presentation-dropped",
   "anchor-id-dropped",
@@ -330,6 +331,25 @@ const STRUCTURAL_ATTRIBUTES_BY_ELEMENT: Readonly<Record<string, ReadonlySet<stri
  */
 const HIDING_STYLE =
   /(?:^|[;\s])(?:display\s*:\s*none|visibility\s*:\s*(?:hidden|collapse)|opacity\s*:\s*0*\.?0+%?(?=\s|;|$)|font-size\s*:\s*0(?:px|em|rem|%|pt)?(?=\s|;|$))/i;
+
+/**
+ * `rel` values on an `<a>` confirmed (against MDN's rel-attribute reference)
+ * to carry no browser behaviour of their own — a pure document-relationship
+ * annotation, unlike `noopener`/`noreferrer`/`opener`, which change window or
+ * referrer behaviour and still refuse as `behavioural-attribute`. A link's
+ * own destination is always dropped as `link-destination-dropped` regardless
+ * (the `<a>` becomes plain prose), so even a real `rel` value would be moot
+ * here — this allow-list is scoped to the ones with no meaning at all, not a
+ * bet on that fact holding.
+ */
+const SAFE_ANCHOR_REL_VALUES = new Set([
+  "alternate", "author", "bookmark", "help", "license", "next", "nofollow", "prev", "search", "tag",
+]);
+
+function isSafeAnchorRel(value: string): boolean {
+  const tokens = value.trim().split(/\s+/u).filter((token) => token.length > 0);
+  return tokens.length > 0 && tokens.every((token) => SAFE_ANCHOR_REL_VALUES.has(token.toLowerCase()));
+}
 
 // ---------------------------------------------------------------------------
 // parse5 node shapes (structural subset — parse5 exposes these as unions)
@@ -548,6 +568,17 @@ class BodyConverter {
           `Dropped the anchor id "${attribute.value}" from ${node.tagName}. Any inbound link to that fragment will no longer resolve.`,
           excerpt(attribute.value),
         );
+        continue;
+      }
+
+      if (tag === "a" && name === "rel" && isSafeAnchorRel(attribute.value)) {
+        if (reportPresentation) {
+          this.note(
+            "link-relationship-dropped",
+            `Dropped the rel="${attribute.value}" relationship annotation from ${node.tagName}. It carries no browser behaviour and the link's own destination is already dropped separately.`,
+            excerpt(attribute.value),
+          );
+        }
         continue;
       }
 

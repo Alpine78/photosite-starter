@@ -2402,6 +2402,21 @@ roles, click switching, and arrow-key navigation with wrapping and no focus
 trap, in both engines. AB#137's own review-mode findings, exception
 resolution, and manifest approval remain entirely open.
 
+The converter also stopped hard-refusing an anchor's known-inert `rel` value
+(`joomla-conversion-v5`): `alternate`, `nofollow`, `tag`, and the rest of
+MDN's confirmed no-behaviour set on `<a>` now drop as a new lossy
+`link-relationship-dropped` finding, the same posture as any other
+presentational attribute, rather than the generic `behavioural-attribute`
+refusal every unrecognized attribute gets. A `rel` value with real browser
+effect (`noopener`, `noreferrer`, `opener`) or anything unrecognized still
+refuses, and a mix of a safe and an unsafe token still refuses the whole
+attribute. Measured against the real 102-article selection, this resolved 8
+of the archive's 12 `behavioural-attribute` refusals — all eight were
+`rel="alternate"`, the only `rel` value the selection actually contains — and
+left the remaining 4 (`data-toggle="tab"`, a real Bootstrap tab widget with
+no equivalent on the new site) refusing exactly as before, still a content
+decision for the owner.
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a

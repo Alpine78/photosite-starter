@@ -424,6 +424,33 @@ describe("links and emphasis", () => {
     const result = convert('<p>Katso <a href="#alaosa">alaosa</a>.</p>');
     expect(codes(result, "lossy")).toContain("link-destination-dropped");
   });
+
+  it("drops a known-inert rel value as lossy rather than refusing it", () => {
+    const result = convert('<p><a href="/x" rel="alternate">linkki</a></p>');
+    expect(result.convertible).toBe(true);
+    expect(codes(result, "lossy")).toEqual(["link-relationship-dropped", "link-destination-dropped"]);
+  });
+
+  it("accepts several known-inert rel tokens together", () => {
+    const result = convert('<p><a href="/x" rel="nofollow tag">linkki</a></p>');
+    expect(codes(result, "refusal")).toEqual([]);
+    expect(codes(result, "lossy")).toContain("link-relationship-dropped");
+  });
+
+  it("still refuses a rel value with real browser behaviour", () => {
+    const result = convert('<p><a href="/x" rel="noopener">linkki</a></p>');
+    expect(codes(result, "refusal")).toContain("behavioural-attribute");
+  });
+
+  it("still refuses an unrecognized rel value rather than guessing it is safe", () => {
+    const result = convert('<p><a href="/x" rel="custom-widget">linkki</a></p>');
+    expect(codes(result, "refusal")).toContain("behavioural-attribute");
+  });
+
+  it("still refuses a rel mixing a safe token with an unsafe one", () => {
+    const result = convert('<p><a href="/x" rel="nofollow noopener">linkki</a></p>');
+    expect(codes(result, "refusal")).toContain("behavioural-attribute");
+  });
 });
 
 describe("headings", () => {
