@@ -2,61 +2,104 @@
 
 **Status:** Proposed
 **Date:** 2026-09-18
-**Deciders:** Pending owner decision
+**Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#23
 
 ## Context
 
-AB#23 is currently titled "Before/after image comparison slider in articles
-(rough)". Its description explicitly requires refinement and a library evaluation
-before implementation; it has no acceptance criteria as of 2026-09-18.
+AB#23 began as a rough article-slider story with no acceptance criteria. Its
+scope was refined on 2026-09-18 following the owner's confirmation: deliver the
+comparison block, Sanity authoring/projection, and Joomla conversion together;
+allow the block in both article and gallery bodies; allow temporary,
+visitor-controlled image occlusion; and keep incompatible aspect ratios as
+complete images without an overlay. The owner normally authors equal-size pairs.
+These requirements are now recorded in Azure Boards.
 
-The authoritative discussion records twelve legacy comparison-module instances
-across nine articles. The subsequent correction changes the original comment's
-article count from eight to nine. Those articles must retain their comparisons
-before entering AB#137's launch manifest. The inventory includes comparisons
-between exposure settings, cameras, and charts, so labels must be authored per
-side rather than fixed to "before" and "after". One pair has no authored labels.
+The authoritative discussion inventories twelve legacy comparisons across nine
+articles (the second comment corrects the first comment's eight-article count).
+They include exposure, camera, aperture, and chart comparisons. Side labels must
+therefore be authored, rather than fixed to "before" and "after". One legacy pair
+has no labels. Those articles wait for an equivalent block before entering
+AB#137's launch manifest; they must never migrate with their comparisons stripped.
 
-The current application has nine shared `ContentBlock` kinds. Body images already
-pass through `projectPublicMedia`, carry public derivatives and true intrinsic
-dimensions, and render with bounded responsive `sizes`. Loose body images,
-mini-galleries, and curated/end galleries have separate lightbox sequences.
-A comparison must preserve those boundaries.
-
-This proposal is the start of refinement, not an accepted implementation contract.
-No library has been installed and no application or migration behavior is changed.
+The public media boundary already provides versioned derivatives, true intrinsic
+dimensions, localized descriptive alt text, and bounded responsive delivery.
+Body images, mini-galleries, curated galleries, and article end galleries each
+have their own viewer sequences. A comparison must preserve those boundaries.
 
 ## Decision
 
-Propose a tenth shared body-block kind for exactly two image placements, reusing
-the existing public image contract. Each side would carry its own placement label;
-labels would not overwrite a shared media document's descriptive alt text.
-Stable block identity, optional title, and label bounds require definition during
-refinement. The first requested consumer is the article body; availability in
-gallery bodies remains a scope decision.
+### Shared content and public media contract
 
-Recommend a small project-owned component using a native `input type="range"`
-unless browser verification demonstrates a concrete reason to prefer a library.
-Server rendering would show both complete, labeled images, with captions and
-credits retained. Interactive controls would appear only after hydration.
+Add `image-comparison`, the tenth shared `ContentBlock` kind. It has exactly two
+`ImageMedia` placements (`first`, `second`), required `firstLabel`/`secondLabel`
+(nonblank, maximum 200 characters each), optional `title` (nonblank when authored,
+maximum 120 characters), and the usual stable block `key`.
 
-An enhanced reveal would change which of two aligned images is visible, without
-changing either image's ratio, requesting cropped derivatives, or enlarging one
-image beyond its source resolution. This introduces an explicit question under
-the repository's "full frame" rule: confirm that temporary, visitor-controlled
-occlusion is permitted for this comparison feature. A complete-image view must
-remain available. For incompatible ratios, propose retaining the complete-image
-presentation rather than stretching or cropping to invent alignment. This policy
-needs owner confirmation before implementation.
+Studio stores two media references in `contentImageComparisonBlock`. The public
+adapter dereferences and validates each through `projectPublicMedia`; unresolved,
+nonpublic, malformed, and video media fail closed. The block never introduces a
+raw URL, archive locator, HTML fragment, or provider-shaped public DTO. Labels
+belong to the comparison placement; descriptive alt text remains on shared media.
+Comparison images join no lightbox sequence and offer no enquiry control.
+
+### Native interaction and complete-image fallback
+
+Use a project-owned component with native `input type="range"`, bounded 0–100,
+step 1, initially 50. The visible control sits below the images; its position also
+moves the decorative divider in the image. The control's accessible name and
+complete-image toggle are localized, and `aria-valuetext` names both sides with
+their visible proportions. The browser owns mouse/touch and keyboard interaction.
+There is no custom gesture recognizer and no animation.
+
+Server output shows both complete images and their labels, captions, and credits.
+The interactive reveal appears only after hydration and both successful image
+loads. Native aspect ratios must match exactly, checked by integer cross-product;
+different derivative resolutions with the same ratio are allowed. The overlay
+width is capped by the smaller derivative's intrinsic width. Each image retains
+its true dimensions, native ratio, and the caller's bounded body `sizes` profile.
+The second image's reveal mask changes visibility without changing its dimensions
+or requesting a crop. This is the owner's scoped exception to the full-frame rule.
+
+A pressed-state toggle returns to two complete images and can restore the reveal;
+it preserves the selected divider position and retains focus. Incompatible ratios
+remain complete images in source order, stacked vertically, with no inactive
+controls. An image error returns to the same complete-image layout with a localized
+status; it never hides the other successful image. No controls appear without
+JavaScript. Hydration may reduce the two-image fallback's height once both images
+are ready; this progressive-enhancement layout change is a deliberate trade-off.
+
+### Joomla conversion and approvals
+
+The private source confirms `{loadmodule mod_aikon_awesome_compare,<module title>}`
+and the module's `img1`/`img2`, `alt1`/`alt2`, and `title1`/`title2` parameters.
+The converter recognizes only that module type, resolves the exact module title
+through owner-approved `comparisonModules` in the existing resolution file, and
+emits a comparison at the marker's authored position. Other module types retain
+the existing unknown-marker refusal.
+
+The resolution provides `img1`/`img2`, language-keyed `labels.first`/`labels.second`,
+and an optional language-keyed title. Both images still require the existing
+approved `images` locator/hash entries, verified real file bytes, and descriptive
+`altText` for the article's language. No label or alt text is invented or silently
+borrowed from a different language. The unlabeled legacy pair needs owner-authored
+labels before it can convert.
+
+Both identities and content hashes enter the resolved-conversion approval digest,
+and both references produce media documents and asset requirements. Writer field
+allow-lists validate the block's two references, bounded labels/title, and reject
+extra fields. Migration validation requires both references to resolve to public
+image documents. The final writable-plan digest covers the resulting documents
+and asset requirements. The conversion policy advances to `joomla-conversion-v3`,
+retiring stale conversion approvals. Plan format remains `joomla-import-plan-v3`.
 
 ## Options Considered
 
-| Option | Verified documentation | Remaining project work |
+| Option | Documentation checked | Outcome |
 | --- | --- | --- |
-| Native range control and project-owned reveal | The HTML standard defines a numeric range control with minimum, maximum, and step constraints. | Implement presentation; verify keyboard, touch, focus, accessible naming/value, image failures, and hydration. |
-| `react-compare-slider` | The project's README documents custom React items, intrinsic sizing, keyboard increments, divider position callbacks, touch-specific handle dragging, and reduced-motion behavior. | Verify a pinned release with the project's React version, full-frame image rendering, server fallback, captions/credits, and accessibility in the actual page. |
-| `img-comparison-slider` | The project's README documents custom elements and Shadow DOM requirements, two image slots, keyboard control, and handle-only dragging. | Verify a pinned release, React integration, server fallback, semantic control/value exposure, and image sizing in the actual page. |
+| Native range control and project-owned reveal | The HTML standard defines a numeric range control with minimum, maximum, and step constraints. | Selected: browser interaction plus a small local layout meets this bounded feature without a dependency. |
+| `react-compare-slider` | Its README documents custom React items, intrinsic sizing, keyboard increments, divider callbacks, and touch-specific handle dragging. | A credible alternative if future interaction needs justify it; still requires public-media, fallback, and attribution integration. |
+| `img-comparison-slider` | Its README documents custom elements, Shadow DOM requirements, image slots, keyboard control, and handle-only dragging. | Introduces element registration and integration work without a demonstrated need in this slice. |
 
 Sources checked on 2026-09-18:
 
@@ -64,58 +107,42 @@ Sources checked on 2026-09-18:
 - [React Compare Slider documentation](https://github.com/nerdyman/react-compare-slider).
 - [Image Comparison Slider documentation](https://github.com/sneas/img-comparison-slider/blob/master/packages/img-comparison-slider/README.md).
 
-Library accessibility statements above describe their documentation; they are
-not measurements or an accessibility approval. Bundle size, maintenance quality,
-release compatibility, and browser results have not been measured.
+Library accessibility claims describe their documentation, not project measurements.
+No third-party comparison library was installed or benchmarked.
 
 ## Trade-off Analysis
 
-A native control would avoid a dependency and use an existing browser control,
-but the project would own reveal layout and its verification. This is a
-recommendation, not evidence that a prototype already works.
+A native control avoids a dependency and a second interaction model to maintain.
+The project owns the reveal presentation and verifies it in real browsers. The
+control below the image is visually separate from its divider, rather than a
+custom draggable handle laid over the photograph. Native touch behavior also
+avoids taking over vertical page scrolling on the image itself.
 
-A React library offers packaged interaction with custom image components. It
-still needs the project's public-delivery, no-crop, fallback, and attribution
-integration. A custom-element library also introduces registration and
-Shadow DOM integration to assess. Neither option removes the need for
-application-level verification.
-
-Two-image fallback is useful on its own when scripts are unavailable or the pair
-cannot be aligned without distortion. It must keep authored side labels distinct
-from alt text and image attribution.
+Stacked complete images preserve meaningful reading and attribution when scripts
+are unavailable, images cannot align, or a request fails. Explicit media validation
+and refusal of incomplete migration resolution cost more than a permissive embed,
+but preserve the existing public-media and approval boundaries.
 
 ## Consequences
 
-- The content contract, Studio schema, public projection, renderer, localized UI
-  labels, and mock fixtures would change together once the scope is defined.
-- Comparison images must not accidentally enter another viewer's slide sequence.
-- No new external origin, cookie, or runtime write credential is needed by the
-  proposed presentation.
-- Selecting a third-party dependency would require a pinned version and the
-  repository's asset/license inventory updates before it ships.
-- The nine affected legacy articles remain blocked from the launch manifest until
-  an equivalent block ships and their approved conversions preserve it.
-- Joomla converter support in this story is pending a scope answer. No production
-  import or live CMS write is authorized by this proposal.
+- Articles and gallery bodies share one comparison schema and renderer.
+- Image labels, descriptive alt text, captions, and credits remain distinct.
+- No new dependency, external origin, cookie, credential, or response-policy
+  relaxation is introduced.
+- Private legacy module configuration remains outside the shipped template;
+  fixture images and source markers in tests are generic and synthetic.
+- Production import still follows AB#137's owner-reviewed manifest and writer flow.
+  Shipping converter support alone does not accept or import the nine articles.
 
 ## Action Items
 
-1. Define AB#23's acceptance criteria and settle article/gallery availability,
-   incompatible image ratios, controlled reveal under the full-frame rule, and
-   whether Joomla conversion ships in this story.
-2. Define the block fields and validate both images through the existing public
-   projection. Decide how an unlabeled legacy pair receives owner-authored labels.
-3. Prototype the preferred interaction; verify mouse, keyboard, touch, accessible
-   naming/value, endpoint positions, focus visibility, reduced motion, and image
-   failures in Chromium and WebKit.
-4. Verify both complete images, their labels, captions, and credits with JavaScript
-   disabled. Confirm native ratios and bounded image requests.
-5. If migration is in scope, inspect the actual exported marker syntax and module
-   resolution contract before implementing conversion. Use synthetic fixtures;
-   never copy private article names, file locators, or archive images into demo
-   content. Unknown modules and unresolved image pairs must remain refusals.
-6. Ensure migration approval digests and writer validation cover both placements
-   and their image requirements when conversion support is added.
-7. Record browser evidence, settle the dependency choice, and update this proposal's
-   status only when project authority establishes acceptance.
-
+- Validate the implementation with unit tests, the production build, lint, and
+  public browser journeys; record final results in the PR.
+- Public browser coverage includes both locales and content variants, native
+  keyboard and pointer/touch input, complete-image toggle, incompatible ratios,
+  image failure, scriptless presentation, native ratios, and viewer isolation.
+- Prepare the private resolution for the twelve legacy comparisons, author the
+  missing side labels and any missing descriptive alt text, then regenerate review
+  reports and approvals with conversion policy v3 before launch import.
+- Confirm the decision's acceptance during PR review; no real-device screen-reader
+  verification or production CMS import is claimed by fixture browser results.

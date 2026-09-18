@@ -43,6 +43,8 @@
  * explicit that console output is counts and digests only.
  */
 
+import { MAX_COMPARISON_LABEL_LENGTH, MAX_COMPARISON_TITLE_LENGTH } from "./joomla-comparisons.mts";
+
 import { readFile, mkdir, chmod, writeFile, realpath } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -239,6 +241,7 @@ const BLOCK_FIELD_SCHEMAS: Readonly<Record<string, ReadonlySet<string>>> = {
   contentYoutubeBlock: new Set(["_key", "_type", "videoId", "title"]),
   contentMediaBlock: new Set(["_key", "_type", "media"]),
   contentGalleryBlock: new Set(["_key", "_type", "title", "images"]),
+  contentImageComparisonBlock: new Set(["_key", "_type", "title", "first", "second", "firstLabel", "secondLabel"]),
   contentPollBlock: new Set(["_key", "_type", "poll"]),
   contentTableBlock: new Set(["_key", "_type", "caption", "headers", "rows"]),
 };
@@ -309,6 +312,15 @@ function checkBlockShape(block: unknown, path: string, issues: string[]): void {
     return;
   }
   checkFieldSet(block, schema, path, issues);
+  if (block._type === "contentImageComparisonBlock") {
+    for (const side of ["first", "second"] as const) {
+      if (block[side] === undefined) issues.push(`${path}.${side} is required`);
+      checkReferenceShape(block[side], `${path}.${side}`, issues, expectResolvedRef);
+      const label = block[`${side}Label`];
+      if (typeof label !== "string" || !label.trim() || label.length > MAX_COMPARISON_LABEL_LENGTH) issues.push(`${path}.${side}Label must be bounded non-blank text`);
+    }
+    if (block.title !== undefined && (typeof block.title !== "string" || !block.title.trim() || block.title.length > MAX_COMPARISON_TITLE_LENGTH)) issues.push(`${path}.title must be bounded non-blank text`);
+  }
   if (block._type === "contentPollBlock") checkReferenceShape(block.poll, `${path}.poll`, issues, expectResolvedRef);
   if (block._type === "contentMediaBlock") checkReferenceShape(block.media, `${path}.media`, issues, expectResolvedRef);
   if (block._type === "contentGalleryBlock" && Array.isArray(block.images)) {

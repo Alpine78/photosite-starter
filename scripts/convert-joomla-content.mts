@@ -34,6 +34,8 @@
  * and digests.
  */
 
+import { resolveLegacyComparison } from "./joomla-comparisons.mts";
+
 import { readdir, readFile, writeFile, mkdir, chmod } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -186,6 +188,8 @@ export type ApprovedLooseImage = {
 };
 
 type ResolutionFile = {
+  /** Legacy comparison module title -> approved img1/img2 and localized labels/title. */
+  readonly comparisonModules?: Readonly<Record<string, unknown>>;
   /**
    * Source `src` (as written in the body) → its approved locator and content
    * hash. A gallery's file inventory has carried a hash since round 4; a loose
@@ -695,6 +699,7 @@ async function main(): Promise<void> {
       // per video id in the resolution file. Without an entry, the article is
       // refused rather than given an invented label.
       resolvePoll: (id) => legacyPolls.get(id),
+      resolveComparison: (moduleTitle) => resolveLegacyComparison(resolution.comparisonModules?.[moduleTitle], language),
       resolveYoutubeTitle: (videoId) => resolution.youtubeTitles?.[videoId],
     });
     finalConversions.push({

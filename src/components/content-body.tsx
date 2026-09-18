@@ -1,3 +1,4 @@
+import { ContentImageComparison } from "@/components/content-image-comparison";
 import { PollBlock } from "@/components/poll-block";
 import { miniGalleryNames } from "@/lib/content-mini-gallery";
 import { ContentMiniGallery } from "@/components/content-mini-gallery";
@@ -63,6 +64,16 @@ export function ContentBody({
     <div className="space-y-6">
       {blocks.map((block, index) => {
         switch (block.type) {
+          case "image-comparison":
+            return (
+              <ContentImageComparison
+                key={`${block.key ?? index}:${block.first.rendition.version}:${block.second.rendition.version}`}
+                block={block}
+                labels={labels.imageComparison}
+                name={block.title ?? `${labels.imageComparison.label} ${index + 1}`}
+                sizes={sizes}
+              />
+            );
           case "poll":
             return <PollBlock key={block.key ?? index} poll={block} labels={labels.poll} />;
           case "mini-gallery":

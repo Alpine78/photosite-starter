@@ -32,6 +32,11 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   fixed-aspect crop cells, no `<Image fill>` cover. Use layouts that respect each image's
   native ratio (masonry, or `object-contain`). A cropped preview misrepresents the work
   and can make a strong image go unseen.
+  **ADR-0019's image comparison is a scoped exception:** a visitor-controlled
+  reveal may temporarily occlude part of either complete, native-ratio image.
+  It never crops a derivative or stretches an image, offers a complete-image view,
+  and shows both full frames without an overlay when ratios differ or JavaScript
+  is unavailable.
 - **Hero convention.** Heroes display at the image's _native_ ratio — whatever it is
   (16:9, 3:2, 4:5, …) — via `h-auto w-full` plus the asset's real `width`/`height`; the
   code imposes no aspect ratio and never crops. The "full-width banner" look comes from
@@ -426,6 +431,13 @@ placement, so it shows no enquiry control — and the in-flow figure is enhanced
 trigger only after hydration (`ContentBodyFigure`), so a scriptless visitor keeps the
 plain image. The article **cover** has since become a full-bleed overlaid hero rather than
 a static image — AB#149, described below, alongside AB#148's own home hero.
+Before/after image comparisons (AB#23, ADR-0019) are the tenth shared body-block
+kind, available in both article and gallery bodies: two public images and authored
+side labels, native range interaction after hydration and successful image loads,
+a complete-image toggle, and stacked full-frame fallback for incompatible ratios,
+image failures, and visitors without JavaScript. They join no viewer sequence.
+Sanity schema/projection and approval-bound Joomla comparison-module conversion
+ship together; conversion policy v3 retires earlier conversion approvals.
 Inline mini-galleries (AB#24) are the seventh shared body-block kind: 1–12 public images,
 an optional title, a one/two-column uncropped row-major list, and a separate lightbox
 sequence per block. They enter neither the curated result nor the body's loose-image

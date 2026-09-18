@@ -541,3 +541,24 @@ it("bounds reference expansion at the maximum plus one overflow witness", async 
   const { CONTENT_BLOCK_PROJECTION } = await import("./sanity-content-blocks");
   expect(CONTENT_BLOCK_PROJECTION).toContain('"images": images[0...13]{_key, "media": media->');
 });
+
+describe("image comparison public projection", () => {
+  const block = { _key: "compare", _type: CONTENT_BLOCK_OBJECT_TYPES["image-comparison"], first: mediaDocument, second: { ...mediaDocument, mediaId: "other" }, firstLabel: "Original", secondLabel: "Edited" };
+  it("keeps identity and labels while dropping provider and private fields from both images", () => {
+    const result = projectContentBlock({ ...block, first: { ...block.first, archiveLocator: "private-first" }, second: { ...block.second, archiveLocator: "private-second" } }, 0, options);
+    expect(result).toMatchObject({ type: "image-comparison", key: "compare", firstLabel: "Original", secondLabel: "Edited", first: { mediaId: mediaDocument.mediaId }, second: { mediaId: "other" } });
+    expect(JSON.stringify(result)).not.toContain("archiveLocator");
+  });
+  it.each(["first", "second"] as const)("fails closed for an unresolved or nonpublic %s side", (side) => {
+    expect(() => projectContentBlock({ ...block, [side]: null }, 0, options)).toThrow();
+    expect(() => projectContentBlock({ ...block, [side]: { ...mediaDocument, publiclyRenderable: false } }, 0, options)).toThrow();
+    expect(() => projectContentBlock({ ...block, [side]: { ...mediaDocument, mediaType: "video" } }, 0, options)).toThrow();
+  });
+  it.each(["firstLabel", "secondLabel"] as const)("rejects missing, blank, nontext and oversized %s", (field) => {
+    for (const value of [undefined, " ", 5, "x".repeat(201)]) expect(() => projectContentBlock({ ...block, [field]: value }, 0, options)).toThrow();
+  });
+  it("rejects invalid optional titles", () => {
+    for (const title of [" ", 7, "x".repeat(121)]) expect(() => projectContentBlock({ ...block, title }, 0, options)).toThrow();
+    expect(projectContentBlock({ ...block, title: "Example" }, 0, options)).toMatchObject({ title: "Example" });
+  });
+});

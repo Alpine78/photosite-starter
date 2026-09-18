@@ -292,6 +292,7 @@ export type BuiltInLabels = {
     readonly total: string; readonly noVotes: string; readonly error: string;
     readonly javascript: string; readonly privacy: string; readonly select: string;
   };
+  readonly imageComparison: { readonly label: string; readonly position: string; readonly showComplete: string; readonly unavailable: string };
   readonly miniGallery: { readonly label: string };
   /**
    * Names a body table's own scrollable region (AB#22) when the author wrote
@@ -536,6 +537,7 @@ const englishLabels = {
     total: "Total votes: {count}", noVotes: "No votes have been recorded.", error: "The poll could not be updated. Please try again.",
     javascript: "JavaScript is needed to vote.", privacy: "Voting uses a cookie for this poll to remember your vote.", select: "Choose an option.",
   },
+  imageComparison: { label: "Image comparison", position: "Comparison position", showComplete: "Show both complete images", unavailable: "The comparison could not load. Complete images are shown below." },
   miniGallery: { label: "Mini-gallery" },
   table: { label: "Table" },
   media: {
@@ -701,6 +703,7 @@ const finnishLabels = {
     total: "Ääniä yhteensä: {count}", noVotes: "Ääniä ei ole annettu.", error: "Kyselyä ei voitu päivittää. Yritä uudelleen.",
     javascript: "Äänestäminen tarvitsee JavaScriptin.", privacy: "Äänestäminen käyttää tämän kyselyn evästettä äänen muistamiseen.", select: "Valitse vaihtoehto.",
   },
+  imageComparison: { label: "Kuvavertailu", position: "Vertailun jakokohta", showComplete: "Näytä molemmat kuvat kokonaisina", unavailable: "Vertailua ei voitu ladata. Kuvat näytetään alla kokonaisina." },
   miniGallery: { label: "Minigalleria" },
   table: { label: "Taulukko" },
   media: {
