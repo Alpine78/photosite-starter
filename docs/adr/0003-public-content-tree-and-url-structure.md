@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -12,6 +12,48 @@ This broad record remains accepted as a whole. A scoped clause is amended in pla
 when implementation produces evidence the original text did not have, and each partial
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
+
+### 2026-09-18 — Legacy content falls back through its category ancestry (AB#19)
+
+Decision 9 originally required a retired Joomla content page without a genuine successor
+to return `410 Gone` and prohibited a redirect to a category or home page. The owner has
+changed that policy for the first site's **verified legacy content and category routes**:
+a visitor should retain a useful same-language browsing path even when the individual
+article or gallery was not migrated.
+
+AB#19 now resolves each verified legacy content or category pathname to one direct,
+permanent target, in this order:
+
+1. its same-language current canonical content or category route, when that exact
+   replacement is published;
+2. the nearest published current category corresponding to the source route's canonical
+   category; then each published ancestor in turn; and
+3. the same-language public home page when no corresponding published category remains.
+
+The mapping is flattened: a legacy pathname redirects directly to the selected final
+target and never first to a category that itself redirects. It remains an explicit,
+machine-checked AB#19 row; this is not runtime guessing for an arbitrary unknown URL.
+The mapping preserves language and retains decision 9's explicit per-row query and
+fragment handling. A terminal home fallback cannot be activated until that locale's public
+home page exists and passes the target-availability check.
+
+Every category-ancestry or home fallback row appends the single controlled query value
+`legacy-notice=content-unavailable`. The target renders a localized, application-owned
+status message explaining that the requested page is unavailable and that the visitor has
+been sent to the closest available content. It never displays the source URL, source title,
+or other request data. The notice response is `noindex` and canonicalizes to the
+parameter-free target, so the explanatory state neither becomes a public content URL nor
+creates a language alternate. A manually supplied valid value may show the same harmless,
+fixed message; malformed or repeated values show nothing. No cookie, tracking, or
+third-party request is introduced.
+
+Joomla component, tag, search, feed, error, and other system routes are outside this
+content fallback. They still need a same-intent replacement or a justified `410 Gone`.
+Unknown URLs remain ordinary not-found responses.
+
+**Sections affected:** decision 9, its rationale, consequences, and action item 7. The
+canonical content-tree contract, content-managed redirect history, and the rule that
+unknown current-site category and content paths return 404 are unchanged.
 
 ### 2026-09-18 — Shared before/after image comparison block (AB#23)
 
@@ -986,17 +1028,18 @@ Legacy routes follow these target rules:
 - a Joomla component, tag, search, feed, or other system route receives a redirect only
   when a public replacement has the same visitor intent; otherwise AB#19 records a
   justified `410 Gone`;
-- intentionally retired legacy content receives an exact successor only when the
-  editorial relationship is genuine; otherwise the migration mapping uses `410 Gone`;
-  and
+- a verified legacy content or category route whose exact same-language replacement is
+  unavailable maps directly to the nearest published corresponding category, then its
+  published ancestors, and finally the same-language public home page; this fallback is
+  an explicit, flattened AB#19 row, never a runtime redirect for an arbitrary URL; and
 - query strings, fragments, and numeric gallery lightbox states are never stripped or
   translated automatically. AB#19 records an explicit behavior when a stable equivalent
   section, gallery, or media target exists.
 
-There is no blanket redirect to a locale root, story root, category, or home page.
-Redirects never change language. A missing English replacement is a content-migration
-gap to resolve before cutover, not permission to redirect the old English URL to
-Finnish.
+There is no blanket redirect: every verified legacy source receives its own direct row.
+Redirects never change language. A missing English replacement falls back only through
+the English category ancestry and then the English public home page, once that page exists;
+it never redirects to Finnish.
 
 The mapping is revisited when:
 
@@ -1852,8 +1895,9 @@ proves impractical, `noindex` continuations are the fallback, not indexed churn.
 Exact legacy targets cannot be authored safely from source strings alone because their
 new paths depend on migrated locale identity and canonical category placement. Defining
 target classes here while keeping the row-level mapping in AB#19 separates a reusable
-route policy from first-site deployment data. A justified `410 Gone` is more honest than
-a broad redirect when a Joomla system view or retired page has no genuine replacement.
+route policy from first-site deployment data. A justified `410 Gone` remains the correct
+answer for a Joomla system view with no same-intent replacement; verified legacy content
+instead follows the explicit same-language category-ancestry fallback in decision 9.
 
 ## Consequences
 
@@ -1962,10 +2006,10 @@ a broad redirect when a Joomla system view or retired page has no genuine replac
 - Invalid section and cursor state returns an accessible non-indexable 404 instead of
   guessing, redirecting, or exposing a successful cache entry.
 - An unknown category path or content slug 404s rather than redirecting to an ancestor.
-- Legacy redirects always preserve language and point directly to an exact canonical
-  replacement.
-- Retired Joomla views without a genuine replacement use a justified `410 Gone` rather
-  than a blanket redirect.
+- Legacy redirects always preserve language and point directly to their exact selected
+  canonical target: the corresponding content or category when published, otherwise the
+  nearest published corresponding category, its ancestors, or the same-language home page.
+- Joomla system views without a same-intent replacement use a justified `410 Gone`.
 - The template's own pre-launch routes were never deployed or indexed and are removed
   rather than redirected; only AB#19's verified production inventory earns redirects.
 - AB#19 owns exact deployment-specific rows and must explicitly handle meaningful query,
@@ -2022,7 +2066,9 @@ The decision is accepted. Remaining implementation belongs to the stories named 
 6. [ ] Build the category listing route with the continuation contract and ordering rule
        decided here.
 7. [ ] Record the deployment-specific legacy mapping in AB#19 against the target classes
-       in decision 9, including the old site root.
+       in decision 9, including each verified content route's explicit same-language
+       category-ancestry or home fallback and the old site root. Do not activate a
+       terminal fallback until that locale's public home route exists.
 8. [x] Remove the pre-launch `/blog` and `/blog/<slug>` routes in AB#124. They were never
        deployed or indexed, so they answer 404 rather than entering the compatibility
        redirect registry; only AB#19's verified production inventory earns redirects.

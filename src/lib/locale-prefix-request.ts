@@ -4,6 +4,10 @@ import {
 } from "@/lib/content-redirects";
 import { resolveStoryRoute, type StoryRoute } from "@/lib/content-routes";
 import { RESERVED_ALL_SECTION_SLUG } from "@/lib/gallery-sections";
+import {
+  LEGACY_FALLBACK_NOTICE_PARAM,
+  isLegacyFallbackNotice,
+} from "@/lib/legacy-redirects";
 import { isPublicIdentity } from "@/lib/public-identity";
 import {
   buildStoryPath,
@@ -57,6 +61,12 @@ export type LocalePrefixRequestResolution =
        * value is ever set.
        */
       readonly enquire?: string;
+      /**
+       * A fixed notice added only by an explicit legacy category-ancestry or
+       * home fallback. The target renders generic application-owned copy; no
+       * legacy pathname or source content reaches the browser through it.
+       */
+      readonly legacyFallbackNotice?: true;
     }
   | { readonly kind: "not-found" };
 
@@ -124,6 +134,12 @@ type GallerySectionExists = (
 ) => boolean | Promise<boolean>;
 
 const NOT_FOUND = { kind: "not-found" } as const;
+
+function hasLegacyFallbackNotice(
+  searchParams: LocalePrefixSearchParams,
+): boolean {
+  return isLegacyFallbackNotice(searchParams[LEGACY_FALLBACK_NOTICE_PARAM]);
+}
 
 /**
  * A path segment in the public route contract, in any casing. A path is
@@ -775,5 +791,8 @@ export async function resolveLocalePrefixRequest({
     ...(cursor === undefined ? {} : { cursor }),
     ...(section === undefined ? {} : { section }),
     ...(enquire.kind === "enquire" ? { enquire: enquire.itemId } : {}),
+    ...(hasLegacyFallbackNotice(searchParams)
+      ? { legacyFallbackNotice: true }
+      : {}),
   };
 }

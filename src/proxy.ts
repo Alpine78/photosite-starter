@@ -206,6 +206,7 @@ export function proxy(request: NextRequest) {
       destination.search = legacyRedirectDestinationSearch(
         request.nextUrl.search,
         legacyOutcome.reservedQueryParams,
+        legacyOutcome.fallbackNotice,
       );
       return NextResponse.redirect(destination, 301);
     }

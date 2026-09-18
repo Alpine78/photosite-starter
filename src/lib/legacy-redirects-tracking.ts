@@ -57,11 +57,10 @@ export const EXCLUDED_LEGACY_PATHS: readonly string[] = [
 ];
 
 /**
- * Every legacy path with real, live (HTTP 200) content and no current-site
- * target this pass can assign without guessing — ADR-0003 decision 9: "Exact
- * legacy targets cannot be authored safely from source strings alone because
- * their new paths depend on migrated locale identity and canonical category
- * placement," and no route reads real migrated content yet
+ * Every legacy path with real, live (HTTP 200) content whose direct target or
+ * explicit category-ancestry fallback is not yet recorded. ADR-0003 decision
+ * 9 requires a reviewed source-category association and a published
+ * same-language target; no route reads real migrated content yet
  * (`SITE_CONTENT_SOURCE=mock`). Covers every gallery (`valokuvat/*`,
  * `en/photos/*`), article (`blogi/*`), individual service
  * (`valokuvaus/<slug>`, `haakuvaus/*`), their `/fi`-prefixed locale-alias

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildLegacyGoneHtml,
   buildLegacyRedirects,
+  isLegacyFallbackNotice,
   legacyRedirectDestinationSearch,
   LegacyRedirectValidationError,
   resolveLegacyGoneLanguage,
@@ -323,6 +324,22 @@ describe("resolveLegacyGoneLanguage", () => {
 });
 
 describe("legacyRedirectDestinationSearch", () => {
+  it("recognizes only the one fixed fallback-notice value", () => {
+    expect(isLegacyFallbackNotice("content-unavailable")).toBe(true);
+    expect(isLegacyFallbackNotice(["content-unavailable"])).toBe(false);
+    expect(isLegacyFallbackNotice("anything-else")).toBe(false);
+  });
+
+  it("adds one controlled notice and discards a caller-supplied impersonation of it", () => {
+    expect(
+      legacyRedirectDestinationSearch(
+        "?legacy-notice=anything&utm_source=newsletter",
+        "preserve",
+        "content-unavailable",
+      ),
+    ).toBe("utm_source=newsletter&legacy-notice=content-unavailable");
+  });
+
   it('"strip" drops the reserved cursor and section parameters this application interprets', () => {
     expect(legacyRedirectDestinationSearch("?cursor=old-token", "strip")).toBe(
       "",

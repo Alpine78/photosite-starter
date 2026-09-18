@@ -1,6 +1,6 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-09-18 (AB#162 row only; other rows retain their earlier review)
+**Last reviewed:** 2026-09-18 (AB#19 redirect policy and AB#162 row; other rows retain their earlier review)
 
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
@@ -28,7 +28,7 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 ## Dependency order
 
 ```text
-AB#137 ──> AB#117 ──> AB#18 ──> AB#118   (AB#19 closed 2026-09-13, AB#161 closed 2026-09-16)
+AB#19 ──> AB#137 ──> AB#117 ──> AB#18 ──> AB#118   (AB#19 reopened 2026-09-18; AB#161 closed 2026-09-16)
 
 AB#54 ──> AB#55 ──> AB#58 ──> AB#71   (AB#65 spike closed 2026-08-27)
 ```
@@ -83,9 +83,10 @@ is not MVP work.
 
 ## Current launch preparation
 
-AB#19, AB#21, and AB#22 are `Closed` on Azure Boards as checked 2026-09-14.
-The former AB#21 implementation recommendation was stale; its
-three-level heading work has shipped. AB#22's shared table block also shipped.
+AB#19 is `Active` on Azure Boards as of 2026-09-18: the owner changed its
+legacy-content retirement policy from `410 Gone` to a reviewed same-language
+category-ancestry fallback. AB#21 and AB#22 remain `Closed`; AB#21's three-level
+heading work and AB#22's shared table block have shipped.
 
 The immediate launch path is AB#137, already `Active`. Its existing Preview
 verification tooling is ready, and the customer-owned Production project and

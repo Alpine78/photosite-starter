@@ -49,6 +49,38 @@ function headersOf(response: { headers: Headers }) {
   return Object.fromEntries(response.headers.entries());
 }
 
+describe("legacy category-ancestry fallback notice (AB#19)", () => {
+  it("adds its one fixed notice value without accepting a caller-supplied replacement", async () => {
+    vi.doMock("@/lib/legacy-redirects", async () => {
+      const actual = await vi.importActual<typeof import("@/lib/legacy-redirects")>(
+        "@/lib/legacy-redirects",
+      );
+      return {
+        ...actual,
+        resolveLegacyRedirect: (_entries: unknown, pathname: string) =>
+          pathname === "/retired-page"
+            ? {
+                kind: "redirect" as const,
+                target: "/stories",
+                reservedQueryParams: "preserve" as const,
+                fallbackNotice: "content-unavailable" as const,
+              }
+            : undefined,
+      };
+    });
+    const { proxy, request } = await loadProxy();
+
+    const response = proxy(
+      request("/retired-page?legacy-notice=forged&utm_source=newsletter"),
+    );
+
+    expect(response.status).toBe(301);
+    expect(response.headers.get("location")).toBe(
+      "https://proxy.test/stories?utm_source=newsletter&legacy-notice=content-unavailable",
+    );
+  });
+});
+
 describe("private route response hygiene (ADR-0014 §6)", () => {
   it.each(["/private", "/private/some-gallery-handle", "/private/a/b/c"])(
     "stamps no-store / noindex / no-referrer on a pass-through response for %s",

@@ -233,6 +233,8 @@ export type BuiltInLabels = {
     readonly showMoreContent: string;
     /** Names the link back to a branch listing's first page from a continuation. */
     readonly backToStart: string;
+    /** Explains an explicit legacy-content fallback without exposing its source URL. */
+    readonly legacyFallbackNotice: string;
   };
   readonly gallery: {
     readonly images: string;
@@ -502,6 +504,8 @@ const englishLabels = {
     continued: "continued",
     showMoreContent: "Show more",
     backToStart: "Back to the start",
+    legacyFallbackNotice:
+      "The page you requested is no longer available. You have been redirected to the closest available content.",
   },
   gallery: {
     images: "images",
@@ -667,6 +671,8 @@ const finnishLabels = {
     continued: "jatkuu",
     showMoreContent: "Näytä lisää",
     backToStart: "Takaisin alkuun",
+    legacyFallbackNotice:
+      "Hakemaasi sivua ei ole enää saatavilla. Sinut ohjattiin lähimpään saatavilla olevaan sisältöön.",
   },
   gallery: {
     images: "kuvaa",

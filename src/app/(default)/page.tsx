@@ -2,10 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { HeroOverlay } from "@/components/hero-overlay";
 import { JsonLd } from "@/components/json-ld";
-import { getDeploymentConfig } from "@/lib/deployment-config";
+import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
 import { getSiteSettings } from "@/lib/site-settings";
 import { getHomeContent } from "@/lib/home-content";
 import { getPageMetadata } from "@/lib/page-metadata";
+import {
+  LEGACY_FALLBACK_NOTICE_PARAM,
+  isLegacyFallbackNotice,
+} from "@/lib/legacy-redirects";
 import {
   buildOrganizationJsonLd,
   buildWebSiteJsonLd,
@@ -15,19 +19,37 @@ import {
  * The unprefixed default-locale site root keeps the SiteSettings site name as
  * setting one of its own, and shares its hero as the page's social image.
  */
-export async function generateMetadata(): Promise<Metadata> {
-  const { hero } = await getHomeContent();
+type HomePageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-  return getPageMetadata({ path: "/", image: hero.media });
+export async function generateMetadata({ searchParams }: HomePageProps): Promise<Metadata> {
+  const { hero } = await getHomeContent();
+  const params = await searchParams;
+
+  return getPageMetadata({
+    path: "/",
+    image: hero.media,
+    ...(isLegacyFallbackNotice(params[LEGACY_FALLBACK_NOTICE_PARAM])
+      ? { noindex: true }
+      : {}),
+  });
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }: HomePageProps) {
   const [settings, home] = await Promise.all([
     getSiteSettings(),
     getHomeContent(),
   ]);
   const { hero, intro, sections } = home;
   const deployment = getDeploymentConfig();
+  const params = await searchParams;
+  const legacyFallbackNotice = isLegacyFallbackNotice(
+    params[LEGACY_FALLBACK_NOTICE_PARAM],
+  )
+    ? getBuiltInLabels(deployment.localeRoutes.defaultLocale).contentTree
+        .legacyFallbackNotice
+    : undefined;
 
   return (
     <main>
@@ -52,6 +74,17 @@ export default async function Home() {
           description={settings.tagline}
           action={hero.action}
         />
+      )}
+
+      {legacyFallbackNotice && (
+        <div className="mx-auto max-w-3xl px-4 pt-8 sm:px-6">
+          <p
+            role="status"
+            className="rounded border border-border-control px-4 py-3 text-body"
+          >
+            {legacyFallbackNotice}
+          </p>
+        </div>
       )}
 
       {/* Intro */}

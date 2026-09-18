@@ -101,6 +101,36 @@ describe("resolveLocalePrefixRequest", () => {
     ).resolves.toEqual({ kind: "redirect", location: "/tarinat/maisemat" });
   });
 
+  it("carries only the fixed legacy fallback notice onto a current category route", async () => {
+    await expect(
+      resolveLocalePrefixRequest({
+        config,
+        trees,
+        redirects,
+        prefix: "tarinat",
+        segments: ["maisemat"],
+        searchParams: { "legacy-notice": "content-unavailable" },
+        defaultLocaleRouteExists: missing(),
+      }),
+    ).resolves.toMatchObject({
+      kind: "story",
+      locale: "fi",
+      legacyFallbackNotice: true,
+    });
+
+    await expect(
+      resolveLocalePrefixRequest({
+        config,
+        trees,
+        redirects,
+        prefix: "tarinat",
+        segments: ["maisemat"],
+        searchParams: { "legacy-notice": ["content-unavailable"] },
+        defaultLocaleRouteExists: missing(),
+      }),
+    ).resolves.not.toMatchObject({ legacyFallbackNotice: true });
+  });
+
   it("returns not-found when the unprefixed target does not exist", async () => {
     await expect(
       resolveLocalePrefixRequest({
