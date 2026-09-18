@@ -54,7 +54,7 @@ import { parseFragment } from "parse5";
  * value (see `joomla-import-manifest.mts`), so a rule change invalidates a
  * stale approval instead of silently inheriting it.
  */
-export const CONVERSION_POLICY_VERSION = "joomla-conversion-v5";
+export const CONVERSION_POLICY_VERSION = "joomla-conversion-v6";
 
 // ---------------------------------------------------------------------------
 // Sanity content-block shapes
@@ -160,6 +160,7 @@ export const LOSSY_CODES = [
   "end-gallery-relocated",
   "ordered-list-start-dropped",
   "paragraph-boundary-flattened",
+  "caption-heading-flattened",
 ] as const;
 
 export type RefusalCode = (typeof REFUSAL_CODES)[number];
@@ -1445,7 +1446,20 @@ class BodyConverter {
     const captionElement = findCaptionElement(node);
     let caption: string | undefined;
     if (captionElement !== undefined) {
-      const captured = this.captureFlatText(captionElement);
+      const headingOnly = soleHeadingChild(captionElement);
+      if (headingOnly !== undefined) {
+        const headingFindingsBefore = this.findings.length;
+        this.checkAttributes(headingOnly);
+        if (this.findings.slice(headingFindingsBefore).some((finding) => finding.severity === "refusal")) {
+          return;
+        }
+        this.note(
+          "caption-heading-flattened",
+          `A table caption is wrapped in <${headingOnly.tagName}>. A caption is not part of the body's heading outline, so its level is dropped; the words remain.`,
+          excerpt(textOf(headingOnly)),
+        );
+      }
+      const captured = this.captureFlatText(headingOnly ?? captionElement);
       if (captured.emittedBlocks) {
         this.refuse(
           "block-inside-quote-or-item",
@@ -1739,6 +1753,33 @@ function collectTableRows(node: Node): readonly (readonly Node[])[] {
 
 function findCaptionElement(node: Node): Node | undefined {
   return childrenOf(node).find((child) => (child.tagName ?? "").toLowerCase() === "caption");
+}
+
+/**
+ * The one heading element `node` wraps, when that heading is the caption's
+ * *entire* content (only blank text may surround it) — the real legacy shape
+ * a WYSIWYG editor produced (`<caption><h6>…</h6></caption>`), found in
+ * article 370's own tables. A caption is not part of the body's heading
+ * outline, so this heading's level carries no meaning to preserve; anything
+ * else (a heading alongside real text, more than one heading, or a heading
+ * that is not the caption's sole content) returns `undefined` and falls
+ * through to the ordinary flattening walk, which still refuses a genuine
+ * `heading-level-unsupported`/`heading-order` violation exactly as before.
+ */
+function soleHeadingChild(node: Node): Node | undefined {
+  let heading: Node | undefined;
+  for (const child of childrenOf(node)) {
+    if (isText(child)) {
+      if (normalizeText(child.value ?? "").length > 0) return undefined;
+      continue;
+    }
+    if (!isElement(child)) continue;
+    if (!/^h[1-6]$/u.test((child.tagName ?? "").toLowerCase()) || heading !== undefined) {
+      return undefined;
+    }
+    heading = child;
+  }
+  return heading;
 }
 
 /** Whether `class` carries the exact given token, matching how a browser's `classList` would. */

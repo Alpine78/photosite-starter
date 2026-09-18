@@ -707,6 +707,67 @@ describe("tables", () => {
     const long = `<table><tr><th>h</th></tr>${"<tr><td>c</td></tr>".repeat(MAX_TABLE_ROWS + 1)}</table>`;
     expect(codes(convert(long), "refusal")).toContain("table-too-long");
   });
+
+  describe("a caption wrapped in a heading (article 370's real shape)", () => {
+    const withHeadingCaption = (heading: string) =>
+      `<table><caption><${heading}>Malli</${heading}></caption><tr><th>A</th></tr><tr><td>1</td></tr></table>`;
+
+    it("flattens the heading to plain caption text and notes the dropped level", () => {
+      const result = convert(withHeadingCaption("h6"));
+      expect(result.convertible).toBe(true);
+      expect(result.blocks[0]).toEqual({
+        _type: "contentTableBlock",
+        caption: "Malli",
+        headers: ["A"],
+        rows: [{ cells: ["1"] }],
+      });
+      expect(codes(result, "lossy")).toContain("caption-heading-flattened");
+    });
+
+    it("does the same regardless of which heading level wraps it", () => {
+      for (const level of [1, 2, 3, 4, 5, 6]) {
+        const result = convert(withHeadingCaption(`h${level}`));
+        expect(result.blocks[0]).toMatchObject({ caption: "Malli" });
+      }
+    });
+
+    it("still refuses a heading accompanied by other caption text", () => {
+      const result = convert(
+        "<table><caption>Katso <h6>Malli</h6></caption><tr><th>A</th></tr><tr><td>1</td></tr></table>",
+      );
+      expect(codes(result, "refusal")).toContain("heading-level-unsupported");
+    });
+
+    it("still refuses a caption with more than one heading", () => {
+      const result = convert(
+        "<table><caption><h6>Yksi</h6><h6>Kaksi</h6></caption><tr><th>A</th></tr><tr><td>1</td></tr></table>",
+      );
+      expect(codes(result, "refusal")).toContain("heading-level-unsupported");
+    });
+
+    it("flattens even an otherwise-valid heading level, rather than pushing a real heading block", () => {
+      // A bare h2 wrapping the whole caption is the same shape and is
+      // flattened the same way — it does not become a real heading block.
+      const result = convert(withHeadingCaption("h2"));
+      expect(result.blocks).toHaveLength(1);
+      expect(result.blocks[0]).toMatchObject({ _type: "contentTableBlock" });
+    });
+
+    it("drops a presentational attribute on the wrapping heading", () => {
+      const result = convert(
+        '<table><caption><h6 class="x">Malli</h6></caption><tr><th>A</th></tr><tr><td>1</td></tr></table>',
+      );
+      expect(codes(result, "lossy")).toContain("presentation-dropped");
+      expect(result.blocks[0]).toMatchObject({ caption: "Malli" });
+    });
+
+    it("still refuses a behavioural attribute on the wrapping heading", () => {
+      const result = convert(
+        '<table><caption><h6 onclick="x()">Malli</h6></caption><tr><th>A</th></tr><tr><td>1</td></tr></table>',
+      );
+      expect(codes(result, "refusal")).toContain("behavioural-attribute");
+    });
+  });
 });
 
 describe("tab groups (AB#163)", () => {
