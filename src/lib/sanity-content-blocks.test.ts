@@ -4,8 +4,11 @@ import {
   CONTENT_BLOCK_OBJECT_TYPES as SCHEMA_BLOCK_TYPES,
   YOUTUBE_VIDEO_ID_PATTERN as SCHEMA_YOUTUBE_PATTERN,
 } from "../../sanity/schemas/content-block";
+import { MIN_POLL_OPTIONS as SCHEMA_MIN_POLL_OPTIONS, MAX_POLL_OPTIONS as SCHEMA_MAX_POLL_OPTIONS } from "../../sanity/schemas/poll";
 import {
   CONTENT_BLOCK_OBJECT_TYPES,
+  MIN_POLL_OPTIONS,
+  MAX_POLL_OPTIONS,
   projectContentBlock,
   readContentBlocks,
   SanityContentBlockError,
@@ -58,6 +61,11 @@ describe("the domain-to-Sanity type map", () => {
 
   it("pins the restated YouTube video id pattern to the schema's", () => {
     expect(ADAPTER_YOUTUBE_PATTERN.source).toBe(SCHEMA_YOUTUBE_PATTERN.source);
+  });
+
+  it("pins the restated poll option bounds to the schema's", () => {
+    expect(MIN_POLL_OPTIONS).toBe(SCHEMA_MIN_POLL_OPTIONS);
+    expect(MAX_POLL_OPTIONS).toBe(SCHEMA_MAX_POLL_OPTIONS);
   });
 });
 
@@ -183,6 +191,102 @@ describe("projecting each block kind", () => {
       title: "Telephoto lens field test",
       key: "a7",
     });
+  });
+
+  it("maps a poll block from its dereferenced poll", () => {
+    const block: RawContentBlock = {
+      _key: "a8",
+      _type: CONTENT_BLOCK_OBJECT_TYPES.poll,
+      poll: {
+        pollId: "camera-preference",
+        question: "Which do you prefer?",
+        closeDate: "2099-01-01T00:00:00.000Z",
+        options: [
+          { optionId: "mirrorless", label: "Mirrorless" },
+          { optionId: "dslr", label: "DSLR" },
+        ],
+      },
+    };
+    expect(projectContentBlock(block, 0, options)).toEqual({
+      type: "poll",
+      pollId: "camera-preference",
+      question: "Which do you prefer?",
+      closeDate: "2099-01-01T00:00:00.000Z",
+      options: [
+        { optionId: "mirrorless", label: "Mirrorless" },
+        { optionId: "dslr", label: "DSLR" },
+      ],
+      key: "a8",
+    });
+  });
+});
+
+describe("a poll block's rejections", () => {
+  const poll = (fields: Record<string, unknown> | null) =>
+    ({
+      _key: "k",
+      _type: CONTENT_BLOCK_OBJECT_TYPES.poll,
+      poll:
+        fields === null
+          ? null
+          : {
+              pollId: "camera-preference",
+              question: "Which do you prefer?",
+              closeDate: "2099-01-01T00:00:00.000Z",
+              options: [
+                { optionId: "mirrorless", label: "Mirrorless" },
+                { optionId: "dslr", label: "DSLR" },
+              ],
+              ...fields,
+            },
+    }) as RawContentBlock;
+
+  it("rejects an unresolved poll reference", () => {
+    expect(rejectionOf(() => projectContentBlock(poll(null), 0, options)).rejection).toBe("malformed-block");
+  });
+
+  it("rejects a missing pollId", () => {
+    expect(rejectionOf(() => projectContentBlock(poll({ pollId: null }), 0, options)).rejection).toBe("malformed-block");
+  });
+
+  it("rejects a missing question", () => {
+    expect(rejectionOf(() => projectContentBlock(poll({ question: null }), 0, options)).rejection).toBe("malformed-block");
+  });
+
+  it("rejects a missing or unparseable closeDate", () => {
+    expect(rejectionOf(() => projectContentBlock(poll({ closeDate: null }), 0, options)).rejection).toBe("malformed-block");
+    expect(rejectionOf(() => projectContentBlock(poll({ closeDate: "not-a-date" }), 0, options)).rejection).toBe("malformed-block");
+  });
+
+  it("rejects fewer than the minimum number of options", () => {
+    expect(rejectionOf(() => projectContentBlock(poll({ options: [{ optionId: "only-one", label: "Only" }] }), 0, options)).rejection).toBe(
+      "malformed-block",
+    );
+  });
+
+  it("rejects more than the maximum number of options", () => {
+    const tooMany = Array.from({ length: MAX_POLL_OPTIONS + 1 }, (_, i) => ({ optionId: `option-${i}`, label: `Option ${i}` }));
+    expect(rejectionOf(() => projectContentBlock(poll({ options: tooMany }), 0, options)).rejection).toBe("malformed-block");
+  });
+
+  it("accepts exactly the minimum and maximum option counts", () => {
+    const min = Array.from({ length: MIN_POLL_OPTIONS }, (_, i) => ({ optionId: `option-${i}`, label: `Option ${i}` }));
+    const max = Array.from({ length: MAX_POLL_OPTIONS }, (_, i) => ({ optionId: `option-${i}`, label: `Option ${i}` }));
+    expect(() => projectContentBlock(poll({ options: min }), 0, options)).not.toThrow();
+    expect(() => projectContentBlock(poll({ options: max }), 0, options)).not.toThrow();
+  });
+
+  it("rejects an option missing its optionId or label", () => {
+    expect(
+      rejectionOf(() =>
+        projectContentBlock(poll({ options: [{ optionId: null, label: "Mirrorless" }, { optionId: "dslr", label: "DSLR" }] }), 0, options),
+      ).rejection,
+    ).toBe("malformed-block");
+    expect(
+      rejectionOf(() =>
+        projectContentBlock(poll({ options: [{ optionId: "mirrorless", label: null }, { optionId: "dslr", label: "DSLR" }] }), 0, options),
+      ).rejection,
+    ).toBe("malformed-block");
   });
 });
 

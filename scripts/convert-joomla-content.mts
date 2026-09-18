@@ -38,6 +38,7 @@ import { readdir, readFile, writeFile, mkdir, chmod } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 
+import { parseLegacyPollResults } from "./joomla-polls.mts";
 import { convertJoomlaBody, CONVERSION_POLICY_VERSION, resolvedConversionDigest, type ConversionResult, type ResolvedGallery } from "./joomla-html-conversion.mts";
 import {
   IDENTITY_PATTERN,
@@ -318,6 +319,7 @@ type Options = {
   readonly out: string;
   readonly manifest?: string;
   readonly resolution?: string;
+  readonly pollResults?: string;
   readonly imageRoot?: string;
   readonly phase: string;
   readonly mode: "review" | "plan";
@@ -332,7 +334,7 @@ type Options = {
  * decides which approved rows a `--plan` write belongs to, a silently wrong
  * phase is not a cosmetic mistake (found in Codex review round 10).
  */
-const KNOWN_OPTIONS = new Set(["source", "out", "manifest", "resolution", "image-root", "phase", "categories"]);
+const KNOWN_OPTIONS = new Set(["source", "out", "manifest", "resolution", "poll-results", "image-root", "phase", "categories"]);
 
 function parseArguments(argv: readonly string[]): Options {
   const values = new Map<string, string>();
@@ -365,6 +367,7 @@ function parseArguments(argv: readonly string[]): Options {
   return {
     source,
     out,
+    ...(values.has("poll-results") ? { pollResults: values.get("poll-results")! } : {}),
     ...(values.get("manifest") === undefined ? {} : { manifest: values.get("manifest") as string }),
     ...(values.get("resolution") === undefined ? {} : { resolution: values.get("resolution") as string }),
     ...(values.get("image-root") === undefined ? {} : { imageRoot: values.get("image-root") as string }),
@@ -383,6 +386,7 @@ async function main(): Promise<void> {
   if (sourceErrors.length > 0) fail(`the source export has ${sourceErrors.length} bad line(s): ${sourceErrors[0]}`);
   if (articles.length === 0) fail("the source export holds no articles");
 
+  const legacyPolls = options.pollResults === undefined ? new Map() : parseLegacyPollResults(await readFile(options.pollResults, "utf8"));
   const resolution: ResolutionFile =
     options.resolution === undefined
       ? {}
@@ -690,6 +694,7 @@ async function main(): Promise<void> {
       // A source `<iframe>` carries no accessible name; the owner supplies one
       // per video id in the resolution file. Without an entry, the article is
       // refused rather than given an invented label.
+      resolvePoll: (id) => legacyPolls.get(id),
       resolveYoutubeTitle: (videoId) => resolution.youtubeTitles?.[videoId],
     });
     finalConversions.push({
@@ -746,6 +751,7 @@ async function main(): Promise<void> {
     resolvedDigest: resolvedConversionDigest(entry.result),
     convertible: entry.result.convertible,
     blocks: entry.result.blocks,
+    pollDocuments: entry.result.pollDocuments ?? [],
     endGallery: entry.result.endGallery,
     // Included so an owner reviewing a shared gallery across an fi/en pair
     // can see that each language actually got its own alt text, not one

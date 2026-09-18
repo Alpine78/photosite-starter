@@ -5,9 +5,9 @@ import {
   useId,
   useRef,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { useSubmissionGuard } from "@/components/use-submission-guard";
 import {
   CONTACT_FIELD_MAX_LENGTHS,
   CONTACT_FIELD_NAMES,
@@ -119,9 +119,6 @@ function contextBody(context: SubmissionContext): Record<string, string> {
     : {};
 }
 
-/** Never notifies: whether the client is running is not a value that changes. */
-const subscribeToNothing = () => () => {};
-
 const fieldClasses =
   "w-full rounded-md border border-border-control bg-background px-3 py-2 text-base " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
@@ -148,11 +145,8 @@ export function SubmissionForm({
    * that window; the `method` and `action` below make even an unexpected native
    * submit a POST to the endpoint, which answers 415 and leaks nothing.
    */
-  const hydrated = useSyncExternalStore(
-    subscribeToNothing,
-    () => true,
-    () => false,
-  );
+  const submissionGuard = useSubmissionGuard();
+  const { hydrated } = submissionGuard;
 
   const summaryRef = useRef<HTMLDivElement>(null);
   const outcomeRef = useRef<HTMLDivElement>(null);
@@ -223,6 +217,12 @@ export function SubmissionForm({
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!submissionGuard.tryStart()) return;
+    try { await submit(event); } finally { submissionGuard.finish(); }
+  }
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (status.kind === "submitting") return;
 

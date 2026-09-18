@@ -111,6 +111,39 @@ The read token is server-only, and three things keep it out of the browser:
 
 The token never appears in a URL, is never logged, and is never returned to a caller.
 
+### `SANITY_POLL_VOTE_TOKEN` (AB#162, ADR-0018)
+
+A separate, **write-scoped** credential the article poll-voting feature's `/api/poll-vote`
+route uses to record a vote — the first write path an anonymous visitor's own request can
+reach, unlike the read token above or the owner-run `SANITY_SEED_TOKEN`/`SANITY_MIGRATION_TOKEN`
+(`docs/sanity-seeding.md`). It never authorizes a read: the route reads a poll's own
+question/options/close date through the ordinary read token, and this token is asked to
+create or patch only two document types (`pollTally`, `pollVoteReceipt`) and nothing else.
+
+**Scope it as narrowly as Sanity's role/permission model allows at token-creation time —
+but verify what that actually is before assuming it.** Ideally: create and update, never
+delete, and never a write role broad enough to modify `poll`, `article`, `media`, or any
+other document type. The ordinary read connection separately reads published polls
+and receipt existence; runtime write-token access remains narrowly scoped. Document-type-scoped custom roles are the mechanism that would grant
+exactly that, and they are a **Growth-plan-and-above Sanity feature** (verified against
+Sanity's own role documentation, 2026-09-18) — **not available on the Free plan.** This
+project's own Sanity plan tier is not recorded anywhere in this repository. If it turns
+out to be Free, the only tokens available are dataset-wide (Viewer/Editor/Administrator),
+and `SANITY_POLL_VOTE_TOKEN` must in practice be a full **Editor** token — the same power
+as `SANITY_MIGRATION_TOKEN`, except long-lived and reachable from a public, anonymous,
+unauthenticated request rather than owner-run and temporary. [ADR-0018](adr/0018-article-poll-voting-storage-and-dedup.md#7-a-new-write-credential-honestly-scoped)
+records this correction in full, including why the application code's own hardcoded
+mutation shape — not the credential's permissions — is the real safety boundary if a
+scoped role isn't available, and why that code path is kept the *only* one allowed to
+reach this credential (`eslint.config.mjs`'s `no-restricted-imports`, ADR-0018 §8).
+**Record which kind of token was actually minted here once provisioning happens** — this
+paragraph states the risk, not a settled fact about what exists.
+
+Reading `SANITY_POLL_VOTE_TOKEN` follows the identical refusal the read token above
+already applies: a value mirrored under `NEXT_PUBLIC_SANITY_POLL_VOTE_TOKEN` fails the
+request rather than being silently accepted, because its presence means the write
+credential is already on its way to every visitor.
+
 ## Content schemas
 
 The document types this site reads live in [`sanity/`](../sanity/README.md) as plain
@@ -394,3 +427,15 @@ revalidation boundary.
 - **The POST query form.** Reads use GET, bounded at Sanity's documented 11 KB. A query
   that outgrows it fails loudly rather than being truncated; the API's POST form would be
   implemented then, not speculatively now.
+
+
+Poll runtime reads (snapshot, results and receipt existence) are intentionally
+fresh. Poll/option identities are at most 64 characters, text at most 500,
+options at most 10, and tally buckets are nonnegative safe integers. The vote
+transaction initializes the selected bucket and creates its receipt in the same
+atomic mutation request. Receipt IDs hash the poll/token pair; raw cookies,
+option choices and vote timestamps are not stored in the receipt. Neither
+operational document has a Studio schema, but both remain API-readable in a
+public dataset. Follow the current amendment in ADR-0018 and the
+[poll processing record](poll-data-flow.md), rather than assuming Studio
+invisibility protects them.

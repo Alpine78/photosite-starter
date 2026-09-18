@@ -1,4 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
+import { getBuiltInLabels } from "../src/lib/deployment-config";
 import { buildContentRedirects } from "../src/lib/content-redirects";
 import {
   buildAdjacentContentQuery,
@@ -661,10 +662,11 @@ test("a block-rich article stays private until video opt-in", async ({
   expect(noteId).toBeTruthy();
   await expect(page.locator(`#${noteId}`)).toHaveText(/\S/);
 
-  // The video opt-in control, told apart from the body-image lightbox triggers
-  // that now also live in this article (AB#147): those carry `data-item-id`,
-  // this one does not.
-  await article.locator("button:not([data-item-id])").click();
+  // This article also contains image triggers and a poll submit control.
+  await article.getByRole("button", {
+    name: getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE).actions.watchOnYouTube,
+    exact: true,
+  }).click();
   await expect(article.locator("iframe")).toHaveAttribute(
     "src",
     new RegExp(`/embed/${BLOCK_RICH_ARTICLE.videoId}\\?autoplay=1$`),

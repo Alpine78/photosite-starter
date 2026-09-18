@@ -2048,3 +2048,13 @@ The decision is accepted. Remaining implementation belongs to the stories named 
   preserves the provider-neutral application boundary.
 - **Sitemap file structure is the SEO story's.** This ADR decides which URLs qualify for a
   sitemap, not whether there is one file per locale or an index.
+
+## Amendment 2026-09-18 — shared poll body block (AB#162)
+
+Decision 2's original six body kinds and the later mini-gallery/table additions
+are preserved above. A ninth kind, `contentPollBlock`, now references an authored
+`poll` document at its source position. It is shared by article/gallery bodies,
+not a separate body model, and enters neither curated nor inline media sequences.
+Server-rendered counts remain available without JavaScript; voting requires it.
+[ADR-0018](0018-article-poll-voting-storage-and-dedup.md) governs the separate
+live tally, atomic receipt/counter mutation, authored close date and cookie.

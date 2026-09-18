@@ -2318,6 +2318,15 @@ of AB#137** — the manifest approval, the baseline export, the temporary
 credential, the Production run itself, the post-write audit, and the
 revocation and handoff evidence.
 
+Article polls (AB#162, ADR-0018) add the ninth shared body kind. The runtime
+poll facade reads fresh results and performs one atomic receipt/tally mutation;
+the independent per-poll cookie is established only on a vote action, before
+POST, so a lost first response can be retried without a second count. Results
+are server-rendered; voting needs JavaScript and shares the message form's
+hydration/submission guard. `convert:joomla --poll-results` carries closed
+historical pairs into the approved plan (conversion policy v2, plan v3).
+Actual token provisioning and production migration remain owner-run checks.
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
@@ -2479,6 +2488,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `docs/asset-inventory.md`            | licensing audit                                                    | any third-party asset, font, or shipped dependency is added or removed                                                                                      |
 | `docs/contact-data-flow.md`          | the site owner, a visitor who asks, and the AB#117 launch review   | the contact form's fields, delivery path, processors, logs, or retention change                                                                             |
 | `docs/private-gallery-data-flow.md`  | the site owner, a customer who asks, and the AB#117 launch review  | a private gallery's stored data, the access link or cookie, its processors, logs, or retention change                                                       |
+| `docs/poll-data-flow.md`             | the site owner, a visitor who asks, and the AB#117 launch review   | a poll's stored data, the poll-specific voting cookie, the write credential, logs, or retention change                                                              |
 | `docs/sanity-setup.md`               | the site owner and whoever provisions a clone's CMS                | the Sanity connection settings, ownership/transfer story, perspective, schemas, media policy, or failure behavior change                                    |
 | `docs/sanity-seeding.md`             | the site owner and whoever seeds a clone's sample or first content | the seed script's fixture content, id/idempotency contract, write-token story, verification steps, or go-live cleanup checklist change                      |
 | `sanity/README.md`                   | whoever wires a clone's Studio to these schemas                    | a document type is added, or how the Studio consumes them changes                                                                                           |

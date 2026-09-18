@@ -25,8 +25,9 @@ import type { ImageMedia, Media } from "@/lib/media";
 import type { SiteSettings } from "@/lib/site-settings";
 
 /**
- * The eight body blocks ADR-0003 decision 2 gives both variants. The page title
- * owns the single `h1`, so an authored heading starts at level 2.
+ * The eight body blocks ADR-0003 decision 2 gives both variants, plus a ninth
+ * — `poll` — added by ADR-0018 (AB#162). The page title owns the single `h1`,
+ * so an authored heading starts at level 2.
  *
  * `key` is a stable per-block identity, distinct from the position a block
  * happens to render at. A CMS-backed body carries the store's own stable key
@@ -82,6 +83,23 @@ export type ContentBlock =
       videoId: string;
       /** Accessible title used for the button label and link text. */
       title: string;
+      key?: string;
+    }
+  | {
+      /**
+       * A vote on a Studio-authored poll, open until `closeDate` (AB#162,
+       * ADR-0018). This carries only the poll's static shape — question,
+       * options, and when it closes — never a live vote count: the tally
+       * lives in a separate, Studio-invisible document the vote endpoint
+       * alone reads and writes (ADR-0018 §2), read through the poll facade, not baked into this block the way an article's own content is.
+       */
+      type: "poll";
+      /** Site-wide identity, distinct from this block's own `key` — the same poll may in principle be placed more than once. */
+      pollId: string;
+      question: string;
+      options: readonly { optionId: string; label: string }[];
+      /** ISO instant. The poll is closed once `now() >= closeDate`. */
+      closeDate: string;
       key?: string;
     };
 

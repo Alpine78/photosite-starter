@@ -40,7 +40,7 @@ routes: "src/app — App Router" {
     class: built
   }
 
-  api: "Route handlers\napi/contact, api/enquiry — same-origin JSON,\nclosed field whitelist, shared abuse + delivery path\napi/gallery, api/article-gallery — one bounded slice" {
+  api: "Route handlers\napi/contact, api/enquiry — same-origin JSON,\nclosed field whitelist, shared abuse + delivery path\napi/gallery, api/article-gallery — one bounded slice\napi/poll-vote — fresh results, protected preparation,\nsame-origin bounded JSON voting" {
     class: built
   }
 
@@ -57,11 +57,11 @@ components: "src/components" {
   class: built
   grid-columns: 2
 
-  server-components: "Server components\nBreadcrumbs, listings, gallery grid,\nmedia figures, site navigation" {
+  server-components: "Server components\nBreadcrumbs, listings, gallery grid,\nmedia figures, site navigation, public poll results" {
     class: built
   }
 
-  client-components: "Client components\nLightbox (+ item-enquiry link), submission form\n(contact / gallery enquiry), in-place gallery append" {
+  client-components: "Client components\nLightbox (+ item-enquiry link), submission form\n(contact / gallery enquiry), poll voting, in-place gallery append" {
     class: built
   }
 }
@@ -78,7 +78,7 @@ lib: "src/lib — domain contracts, data-access seams, and fixtures" {
     class: built
   }
 
-  seams: "Data-access seams\ncontent.ts, gallery.ts, article-end-gallery.ts,\ncontact-delivery.ts\nSwapping the store changes only these" {
+  seams: "Data-access seams\ncontent.ts, gallery.ts, article-end-gallery.ts,\ncontact-delivery.ts, poll-vote-access.ts\nSwapping the store changes only these" {
     class: built
   }
 
@@ -112,6 +112,10 @@ restricted: "Server-only modules" {
   }
 
   continuation-cursors: "gallery-cursor.ts / content-listing-cursor.ts\nShared GALLERY_CURSOR_SIGNING_KEY,\nresolved lazily (gallery and category-branch\ncontinuation, ADR-0013)" {
+    class: built
+  }
+
+  poll-vote: "poll-vote-access.ts -> poll-vote-sanity.ts (ADR-0018)\nFresh, validated public poll reads; separate runtime write token;\none atomic receipt-create + tally-increment transaction.\nRoutes/components cannot import the raw Sanity writes." {
     class: built
   }
 
@@ -156,5 +160,5 @@ lib -> restricted: "The only crossing there is.\nESLint refuses these imports fr
   style.bold: true
 }
 
-restricted -> external: "Published reads, and private-gallery\nobject-store + Postgres access (planned)" {class: pending-flow}
+restricted -> external: "Published reads, and private-gallery\nobject-store + Postgres access (planned);\natomic public poll writes through the separate voting token" {class: pending-flow}
 lib -> external: "Delivers one enquiry.\nNo form content is stored anywhere."

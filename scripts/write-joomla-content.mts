@@ -239,6 +239,7 @@ const BLOCK_FIELD_SCHEMAS: Readonly<Record<string, ReadonlySet<string>>> = {
   contentYoutubeBlock: new Set(["_key", "_type", "videoId", "title"]),
   contentMediaBlock: new Set(["_key", "_type", "media"]),
   contentGalleryBlock: new Set(["_key", "_type", "title", "images"]),
+  contentPollBlock: new Set(["_key", "_type", "poll"]),
   contentTableBlock: new Set(["_key", "_type", "caption", "headers", "rows"]),
 };
 
@@ -308,6 +309,7 @@ function checkBlockShape(block: unknown, path: string, issues: string[]): void {
     return;
   }
   checkFieldSet(block, schema, path, issues);
+  if (block._type === "contentPollBlock") checkReferenceShape(block.poll, `${path}.poll`, issues, expectResolvedRef);
   if (block._type === "contentMediaBlock") checkReferenceShape(block.media, `${path}.media`, issues, expectResolvedRef);
   if (block._type === "contentGalleryBlock" && Array.isArray(block.images)) {
     block.images.forEach((image: unknown, index: number) => {
@@ -355,6 +357,12 @@ function checkRequiredFieldTypes(document: Record<string, unknown>, path: string
 }
 
 function checkNestedDocumentShapes(document: Record<string, unknown>, path: string, issues: string[]): void {
+  if (document._type === "poll" && Array.isArray(document.options)) {
+    for (const option of document.options) {
+      if (!isPlainObject(option)) { issues.push(`${path}.options contains a malformed option`); continue; }
+      checkFieldSet(option, new Set(["_key", "optionId", "label"]), `${path}.options`, issues);
+    }
+  }
   if (document._type === MEDIA_TYPE_NAME) {
     if (isPlainObject(document.image)) {
       checkFieldSet(document.image, IMAGE_FIELDS, `${path}.image`, issues);
@@ -425,6 +433,8 @@ export function validatePlanContract(raw: unknown): { readonly issues: readonly 
   // additionally allows, since anything this tool adds later (the cross-phase media
   // field merge, substitution) runs after this check, on documents already known good.
   const FIELD_ALLOW_LISTS: Readonly<Record<string, ReadonlySet<string>>> = {
+    poll: new Set(["_id", "_type", "pollId", "language", "question", "options", "closeDate"]),
+    pollTally: new Set(["_id", "_type", "pollId", "counts"]),
     [MEDIA_TYPE_NAME]: new Set(["_id", "_type", "mediaId", "mediaType", "alt", "publiclyRenderable", "image"]),
     [ARTICLE_TYPE_NAME]: new Set([
       "_id",
@@ -984,7 +994,7 @@ export async function runCollisionPreflight(
   const documentByPlannedId = new Map(documents.map((document) => [document._id, document]));
   for (const idsChunk of chunkIdsByByteBudget([...plannedIds])) {
     const rows = await runQuery({
-      query: `*[_id in $ids]{_id, _type, mediaId, contentId, language, placementId}`,
+      query: `*[_id in $ids]{_id, _type, mediaId, contentId, language, placementId, pollId, closeDate}`,
       params: { ids: idsChunk },
     });
     for (const row of rows) {
@@ -998,12 +1008,24 @@ export async function runCollisionPreflight(
         continue;
       }
       const identityMismatch =
+        ((planned._type === "poll" || planned._type === "pollTally") && row.pollId !== planned.pollId) ||
+        (planned._type === "poll" && row.closeDate !== planned.closeDate) ||
         (planned._type === MEDIA_TYPE_NAME && row.mediaId !== planned.mediaId) ||
         (planned._type === ARTICLE_TYPE_NAME && (row.contentId !== planned.contentId || row.language !== planned.language)) ||
         (planned._type === ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME && row.placementId !== planned.placementId);
       if (identityMismatch) {
         collisions.push(`a document already exists at "${row._id}" with a different identity than this plan intends — refusing to overwrite it`);
       }
+    }
+  }
+
+  // A legacy poll identity must never alias a separately-authored/draft poll.
+  const plannedPolls = documents.filter((d) => d._type === "poll");
+  for (const ids of chunkIdsByByteBudget(plannedPolls.map((d) => String(d.pollId)))) {
+    const rows = await runQuery({ query: `*[_type == "poll" && pollId in $ids]{_id, pollId}`, params: { ids } });
+    for (const row of rows) {
+      const planned = plannedPolls.find((d) => d.pollId === row.pollId);
+      if (planned && (publishedIdOf(String(row._id)) !== planned._id || String(row._id).startsWith("drafts."))) collisions.push("Historical poll identity conflicts with an existing poll or draft");
     }
   }
 
@@ -1394,8 +1416,9 @@ export async function mergeExistingMediaFields(
 
 export function splitIntoWaves(documents: readonly PlannedDocument[]): readonly (readonly PlannedDocument[])[] {
   const media = documents.filter((document) => document._type === MEDIA_TYPE_NAME);
-  const rest = documents.filter((document) => document._type !== MEDIA_TYPE_NAME);
-  return [media, rest];
+  const polls = documents.filter((document) => document._type === "poll" || document._type === "pollTally");
+  const rest = documents.filter((document) => document._type !== MEDIA_TYPE_NAME && document._type !== "poll" && document._type !== "pollTally");
+  return polls.length === 0 ? [media, rest] : [media, polls, rest];
 }
 
 export async function verifyWrittenDocuments(

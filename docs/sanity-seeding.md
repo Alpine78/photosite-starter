@@ -1507,3 +1507,56 @@ checks in that command still require the documented seed fixtures. An audit with
 no end-gallery documents proves no migrated gallery; verify the imported articles
 and every cursor slice against the approved source manifest before launch.
 No production import is performed by this feature change.
+
+### Historical article polls (AB#162)
+
+The poll-voting branch adds an optional input to the existing conversion step:
+
+```bash
+npm run convert:joomla -- --review \
+  --source <original-articles.ndjson> --out <private-report-directory> \
+  --poll-results <legacy-poll-results.tsv>
+```
+
+Use the **original** source body, including `{CONTENTPOLL id=N}` markers. A
+previously stripped body cannot establish where the author placed its poll.
+The TSV header is exactly:
+
+```text
+poll_id	question	total_votes	language	option_title	option_votes
+```
+
+Every option occupies one row; each poll's question, total and language repeat.
+Row order supplies stable `option-1`, `option-2`, … IDs. No source questions or
+counts are embedded in the generic repository. The converter validates totals,
+2–10 options, bounded plain text and safe nonnegative integers. Source `*`
+language becomes `und`; other languages normalize to their language subtag.
+A language mismatch refuses the placement rather than silently translating it.
+Unknown markers without a matching TSV record remain refusals.
+
+The reference source is the owner's gitignored
+`joomla-backup/migration-audit/poll-data/legacy-poll-results.tsv`. An offline
+parser check on 2026-09-18 found **22 polls, 110 option rows, matching totals**.
+This validates the exported input, not an import into the Production dataset.
+
+Review the converted blocks and `pollDocuments` in the private report. Each
+referenced poll gets a `migrated--poll--N` document and its separately addressed
+`pollTally-migrated-poll-N`, populated with the actual historical counts. The
+closing instant `1970-01-01T00:00:00Z` is a sentinel meaning **already closed on
+import**, not a source closing date. No runtime vote can enter these polls.
+Repeated references use one document pair. Poll/tally contents, including counts,
+are included in the article's `resolved_digest` approval binding and the final
+plan digest.
+
+The current conversion policy is **joomla-conversion-v2** and import plan format
+**joomla-import-plan-v3**. Regenerate review reports and approvals before planning;
+old approvals/plans are intentionally rejected. Pass the same `--poll-results`
+input to the subsequent `--plan` run. The existing approval-gated writer validates
+matched historical pairs and their closed state, rejects identity collisions or
+an existing draft, and writes a poll/tally wave before article references. It
+never imports a live tally. Actual Production writes still follow AB#137's
+owner-controlled baseline, approval, credential, audit and revocation workflow.
+
+Live reader voting uses a **different runtime credential**, never the migration
+credential; provisioning and a real-provider conflict/atomicity check are covered
+by [Sanity setup](sanity-setup.md) and [ADR-0018](adr/0018-article-poll-voting-storage-and-dedup.md).

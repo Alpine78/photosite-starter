@@ -333,6 +333,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - [x] Shared generic media model (photo and video capable)
 - [x] Implementation of the proposed public image rendition boundary
   (ADR-0005 awaits owner approval)
+- [x] Article poll voting with an authored close date, fresh counts/percentages,
+  poll-specific anonymous dedup, and closed historical poll import support
+  (AB#162; voting requires JavaScript, results do not)
 - [x] Blog / article content type (supports long story articles) — *articles are the
   `article` variant of the shared content page and live in the content tree; the
   pre-launch `/blog` scaffold routes are gone. A photograph placed in an article or

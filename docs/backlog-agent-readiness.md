@@ -1,6 +1,6 @@
 # Backlog: decision and agent-readiness map
 
-**Last reviewed:** 2026-09-16
+**Last reviewed:** 2026-09-18 (AB#162 row only; other rows retain their earlier review)
 
 **Authoritative source:** Azure Boards. This document is an operational map only: the
 work item supplies current scope, acceptance criteria, discussion, relations, and state.
@@ -19,6 +19,7 @@ work item supplies current scope, acceptance criteria, discussion, relations, an
 | Work item | Current state | Required owner action or decision | Unblocks |
 | --- | --- | --- | --- |
 | AB#141 — Physical-device lightbox check | New | Run the specified tap, double-tap, pinch, pan, and close checks on a real touch device and record device/browser/results in ADR-0001. | The remaining manual lightbox verification. |
+| AB#162 — Article poll voting | Active | Review/merge the completed poll-voting branch; provision the runtime voting token with its real permissions and verify the atomic mutation on the deployment dataset. Historical poll import support is part of the branch; its actual run and regenerated manifest approval belong with AB#137. | Poll launch and the AB#137 historical-results import. |
 | AB#137 — Production Sanity dataset | Active | Run `npm run convert:joomla` in review mode over the selected inventory to produce the conversion findings, resolve the exception rows and supply alternative text, approve the launch manifest, verify a recoverable baseline, then run and audit the Production migration with a temporary write credential as described in [the migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137). Its AB#161 prerequisite is closed, so the 48 source-gallery article imports it was blocking are unblocked. | AB#117. |
 | AB#117 — Production security and privacy review | Active | Review and accept the production evidence after AB#137, including any residual risks. | AB#18. |
 | AB#18 — Production promotion | New | Perform owner-controlled domain, DNS, production secret, rollback, and smoke-test actions only after predecessors pass. | AB#118 handoff and rollback exercise. |

@@ -24,6 +24,7 @@ import { homePageType } from "./home-page";
 import { localizedSlugType } from "./localized-slug";
 import { localizedTextType } from "./localized-text";
 import { defineMediaType, type MediaSchemaOptions } from "./media";
+import { pollType } from "./poll";
 import { serviceType } from "./service";
 import {
   defineSiteSettingsType,
@@ -56,5 +57,6 @@ export function defineSchemaTypes(
     galleryType,
     galleryPlacementType,
     serviceType,
+    pollType,
   ];
 }

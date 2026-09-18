@@ -86,6 +86,11 @@ const eslintConfig = defineConfig([
               message:
                 "Reach private client galleries through `@/lib/private-gallery-access`. The private-store credentials, domain model, capability crypto, customer and administrator session models, bearer primitives, exchange, delivery authorization, URL signing, item projection, object keys, upload preparation, retention rules, and development fixture store stay behind that facade, which owns the ordering a route must not reassemble — including the capability comparison and the administrator credential check (ADR-0014 §2, §3; ADR-0015 §2).",
             },
+            {
+              group: ["@/lib/poll-vote-sanity"],
+              message:
+                "Reach article poll voting through `@/lib/poll-vote-access`. The write-scoped Sanity credential and the raw receipt-create/tally-increment writes stay behind that facade, which owns the ordering a route must not reassemble — every free check before the one atomic write pair (ADR-0018 §8).",
+            },
           ],
         },
       ],
