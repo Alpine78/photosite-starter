@@ -83,7 +83,7 @@ language. A category is one document describing every published language; an art
 the opposite — one document *per* language, because ADR-0003 decision 7 lets a page's
 languages be authored and published independently. `language` plus the immutable
 `contentId` together identify one version, and a standard publish is blocked until
-`canonicalCategory` is set (ADR-0003 decision 5), while a draft may stay unplaced. A
+exactly one of `canonicalAtStoryRoot` and `canonicalCategory` is set (ADR-0003 decision 5), while a draft may stay unplaced. A
 service carries no language field at all: `src/lib/services.ts#getServices` takes no
 locale, matching the still-unlocalized `/services` route, so nothing here describes a
 capability the site does not yet read.
@@ -112,8 +112,8 @@ this block neither owns nor changes a curated gallery placement. See the
 `article.ts` — not like `category.ts` — it is one document *per* language: a gallery's
 placement overrides (`altOverride`/`captionOverride`) and section labels are plain,
 un-keyed text, matching `GalleryContentPage`'s own per-language `title`/`summary`/`body`.
-`contentId` plus `language` together identify one version, `canonicalCategory` is required
-to publish, and `language`/`slug`/`canonicalCategory` freeze once published — all shared
+`contentId` plus `language` together identify one version, an explicit story-root or
+category placement is required to publish, and `language`/`slug`/canonical placement freeze once published — all shared
 with `article.ts` through `content-placement-validation.ts`, which both documents' Studio
 guards call so a `contentId` cannot be claimed by both an article and a gallery, and a
 local slug namespace collision is caught regardless of which of the two types causes it.

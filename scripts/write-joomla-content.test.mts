@@ -125,6 +125,25 @@ function goodPlan(overrides: Partial<Record<string, unknown>> = {}): Record<stri
 }
 
 describe("validatePlanContract", () => {
+  it("accepts an article canonically placed at the story root without a category reference", () => {
+    const documents: readonly PlannedDocument[] = [
+      {
+        _id: "migrated--article-portfolio-fi",
+        _type: "article",
+        contentId: "portfolio",
+        language: "fi",
+        title: "Portfolio",
+        canonicalAtStoryRoot: true,
+      },
+    ];
+    const result = validatePlanContract(
+      goodPlan({ documents, assetRequirements: [], categoryRequirements: [] }),
+    );
+
+    expect(result.issues).toEqual([]);
+    expect(result.plan).toBeDefined();
+  });
+
   it("accepts a well-formed plan", () => {
     const { issues, plan } = validatePlanContract(goodPlan());
     expect(issues).toEqual([]);
@@ -1393,16 +1412,17 @@ describe("mergeExistingMediaFields", () => {
 // ---------------------------------------------------------------------------
 
 describe("splitIntoWaves", () => {
-  it("puts every media document in the first wave, everything else after, in order", () => {
+  it("writes media before containers and containers before placements", () => {
     const documents: readonly PlannedDocument[] = [
       { _id: "a1", _type: "article" },
       { _id: "m1", _type: "media" },
       { _id: "p1", _type: "articleEndGalleryPlacement" },
       { _id: "m2", _type: "media" },
     ];
-    const [media, rest] = splitIntoWaves(documents);
+    const [media, rest, placements] = splitIntoWaves(documents);
     expect(media?.map((document) => document._id)).toEqual(["m1", "m2"]);
-    expect(rest?.map((document) => document._id)).toEqual(["a1", "p1"]);
+    expect(rest?.map((document) => document._id)).toEqual(["a1"]);
+    expect(placements?.map((document) => document._id)).toEqual(["p1"]);
   });
 
   it("never drops or duplicates a document across waves", () => {

@@ -38,6 +38,7 @@
  *   be checked.
  */
 
+import { validateCuratedGalleryDocuments } from "./joomla-curated-gallery.mts";
 import { validateHistoricalPollDocuments } from "./joomla-polls.mts";
 import { createHash, randomBytes } from "node:crypto";
 
@@ -60,13 +61,17 @@ import {
 } from "./joomla-import-manifest.mts";
 
 /**
- * Bumped to v3 for AB#162 historical poll/tally documents. Previously bumped
+ * Bumped to v5 for curated gallery and galleryPlacement documents.
+ * Bumped to v4 when an article gained the explicit `canonicalAtStoryRoot`
+ * alternative to `canonicalCategory` (ADR-0003's 2026-09-19 amendment). A v3
+ * writer would treat the missing category reference as malformed or unplaced.
+ * Previously bumped to v3 for AB#162 historical poll/tally documents, and
  * to v2 when `AssetRequirement` gained `contentHash` (AB#137 write-half
  * planning, Codex plan-review round 1, finding 2): the plan's own format changed, so a
  * version-equality check would be meaningless against a constant that never moved — a
  * stale v1 plan, genuinely missing every hash, would otherwise satisfy it.
  */
-export const IMPORT_PLAN_VERSION = "joomla-import-plan-v3";
+export const IMPORT_PLAN_VERSION = "joomla-import-plan-v5";
 
 /**
  * Restated from `sanity/schemas/article.ts` and `sanity/schemas/gallery-
@@ -409,7 +414,7 @@ export function buildImportPlan(input: {
       }),
     ];
 
-    if (!knownCategories.has(approval.canonicalCategory)) {
+    if (approval.canonicalCategory !== null && !knownCategories.has(approval.canonicalCategory)) {
       blockers.push(`canonical category "${approval.canonicalCategory}" is not in the target content tree`);
     }
     for (const category of approval.secondaryCategories) {
@@ -455,7 +460,7 @@ export function buildImportPlan(input: {
     }
 
     acceptedArticles.push(article);
-    requiredCategories.add(approval.canonicalCategory);
+    if (approval.canonicalCategory !== null) requiredCategories.add(approval.canonicalCategory);
     for (const category of approval.secondaryCategories) requiredCategories.add(category);
 
     for (const pollDocument of conversion.pollDocuments ?? []) {
@@ -483,7 +488,16 @@ export function buildImportPlan(input: {
       publishedAt: approval.publishedAt,
       ...(approval.eventDate === undefined ? {} : { eventDate: approval.eventDate }),
       ...(article.tags === undefined || article.tags.length === 0 ? {} : { tags: [...article.tags] }),
-      canonicalCategory: { _type: "reference", _ref: `${PENDING_CATEGORY_PREFIX}${approval.canonicalCategory}` },
+      ...(approval.canonicalAtStoryRoot
+        ? { canonicalAtStoryRoot: true }
+        : approval.canonicalCategory === null
+          ? {}
+          : {
+              canonicalCategory: {
+                _type: "reference",
+                _ref: `${PENDING_CATEGORY_PREFIX}${approval.canonicalCategory}`,
+              },
+            }),
       ...(approval.secondaryCategories.length === 0
         ? {}
         : {
@@ -663,7 +677,7 @@ export function buildImportPlan(input: {
  * `sanity-document-checks.mts` instead.
  */
 export function validateMigrationDocuments(documents: readonly PlannedDocument[]): readonly string[] {
-  const violations: string[] = validateHistoricalPollDocuments(documents);
+  const violations: string[] = [...validateHistoricalPollDocuments(documents), ...validateCuratedGalleryDocuments(documents)];
   const byId = new Map(documents.map((document) => [document._id, document]));
 
   for (const duplicate of collectDuplicateIds(documents)) {
@@ -726,7 +740,7 @@ export function validateMigrationDocuments(documents: readonly PlannedDocument[]
       }
     }
 
-    if (document._type === ARTICLE_TYPE_NAME) {
+    if (document._type === ARTICLE_TYPE_NAME || document._type === "gallery") {
       const contentId = document.contentId;
       const language = document.language;
       const key = `${String(contentId)}:${String(language)}`;
@@ -741,7 +755,7 @@ export function validateMigrationDocuments(documents: readonly PlannedDocument[]
       if (document.eventDate !== undefined && !isRealCalendarDateTime(document.eventDate)) {
         violations.push(`article ${key}: eventDate "${String(document.eventDate)}" is not a real ISO instant`);
       }
-      if (!Array.isArray(document.body) || document.body.length === 0) {
+      if (document._type === ARTICLE_TYPE_NAME && (!Array.isArray(document.body) || document.body.length === 0)) {
         violations.push(`article ${key}: body is required and must hold at least one block`);
       }
       // `article.slug` is a plain string field (sanity/schemas/article.ts), read
@@ -749,13 +763,14 @@ export function validateMigrationDocuments(documents: readonly PlannedDocument[]
       // round 1: the plan originally emitted the wrong shape here.
       const slug = document.slug;
       const canonical = referencedId(document.canonicalCategory);
+      const canonicalAtStoryRoot = document.canonicalAtStoryRoot === true;
       if (typeof slug !== "string" || !IDENTITY_PATTERN.test(slug)) {
         violations.push(`article ${key}: slug "${String(slug)}" is not a valid slug`);
       }
-      if (canonical === undefined) {
-        violations.push(`article ${key}: canonicalCategory does not resolve to a reference`);
+      if (canonicalAtStoryRoot === (canonical !== undefined)) {
+        violations.push(`article ${key}: exactly one canonical story-root or category placement is required`);
       } else {
-        const route = `${String(language)}:${canonical}:${String(slug)}`;
+        const route = `${String(language)}:${canonicalAtStoryRoot ? "@story-root" : canonical}:${String(slug)}`;
         if (routes.has(route)) violations.push(`article ${key}: two articles claim the route ${route}`);
         routes.add(route);
       }

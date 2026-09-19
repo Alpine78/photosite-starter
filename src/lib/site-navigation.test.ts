@@ -435,3 +435,10 @@ describe("the featured gallery", () => {
     ).toEqual([{ label: "Stories", href: "/tarinat" }]);
   });
 });
+
+it('links the story root with only root-placed content', () => {
+  const tree = buildContentTree({categories:[],placements:[{contentId:'portfolio',variant:'gallery',slug:'portfolio',published:true,canonicalAtStoryRoot:true,canonicalCategoryId:null,secondaryCategoryIds:[]}]});
+  const items = buildSiteNavigation({config,locale:'fi',tree,staticLinks:[],storyLabel:'Tarinat'});
+  expect(items.map(item=>item.href)).toContain('/tarinat');
+  expect(resolveStaticNavigationLinks({links:[{label:'Tarinat',href:'/tarinat'}],config,locale:'fi',tree})).toEqual([{label:'Tarinat',href:'/tarinat'}]);
+});

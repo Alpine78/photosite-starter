@@ -56,6 +56,7 @@ import {
 import {
   makeContentIdentityValidator,
   rejectsSecondaryCategoryOverlap,
+  validatesCanonicalCategoryChoice,
 } from "./content-placement-validation";
 import { validateGalleryPublication } from "./gallery-validation";
 import { defineGallerySectionIntroField } from "./gallery-section-intro";
@@ -385,13 +386,21 @@ export const galleryType: SchemaTypeDefinition = {
       of: [{ type: "string" }],
     },
     {
+      name: "canonicalAtStoryRoot",
+      title: "Place at story root",
+      type: "boolean",
+      description:
+        "Makes this page a direct child of the localized story namespace. Leave off when a category owns the canonical route.",
+      initialValue: false,
+    },
+    {
       name: "canonicalCategory",
       title: "Canonical category",
       type: "reference",
       to: [{ type: CATEGORY_TYPE_NAME }],
       description:
-        "The one category that owns this page's public detail route and breadcrumb. Required to publish; a draft may stay unplaced.",
-      validation: (rule) => rule.required(),
+        "The category that owns this page's public detail route and breadcrumb. Leave empty only when Place at story root is selected.",
+      validation: (rule) => rule.custom(validatesCanonicalCategoryChoice),
     },
     {
       name: "secondaryCategories",

@@ -1578,3 +1578,14 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
     ).toBe(false);
   });
 });
+
+
+describe("legacy story-root flag projection", () => {
+  it.each([null, undefined, false])("accepts an unset or false flag (%s)", flag => {
+    const input = { contentId: "legacy-page", slug: "legacy-page", canonicalAtStoryRoot: flag, canonicalCategoryRef: "category-doc", secondaryCategoryRefs: [] };
+    expect(projectGalleryPlacementInput(input, new Map([["category-doc", "category-id"]]))).toMatchObject({canonicalCategoryId: "category-id", published: true});
+  });
+  it("rejects a malformed non-null flag", () => {
+    expect(() => projectGalleryPlacementInput({contentId: "legacy-page", slug: "legacy-page", canonicalAtStoryRoot: "true", canonicalCategoryRef: null}, new Map())).toThrow();
+  });
+});

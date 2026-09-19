@@ -9,6 +9,7 @@ import {
   MANIFEST_COLUMNS,
   normalizeLanguage,
   reviewImportManifest,
+  STORY_ROOT_CANONICAL_PLACEMENT,
   type ApprovedArticle,
 } from "./joomla-import-manifest.mts";
 
@@ -56,6 +57,18 @@ describe("approval gating", () => {
       approvedBy: "Ilkka Rytkönen",
     });
     expect(result.digest).toMatch(/^[0-9a-f]{64}$/u);
+  });
+
+  it("represents a story-root canonical route with an explicit reserved token", () => {
+    const result = review([
+      row({ canonical_category: STORY_ROOT_CANONICAL_PLACEMENT }),
+    ]);
+
+    expect(result.errors).toEqual([]);
+    expect(result.approved[0]).toMatchObject({
+      canonicalAtStoryRoot: true,
+      canonicalCategory: null,
+    });
   });
 
   it("defers a selected row that is not yet eligible, rather than failing", () => {
@@ -194,6 +207,7 @@ describe("assessApprovedConversion", () => {
     language: "fi",
     contentId: "pentax-645z",
     slug: "pentax-645z",
+    canonicalAtStoryRoot: false,
     canonicalCategory: "blogi",
     secondaryCategories: [],
     phase: "launch",

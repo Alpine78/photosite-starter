@@ -502,7 +502,7 @@ trust alone.
 | --- | --- |
 | `joomla_id`, `language` | Source identity. One row per article per language. |
 | `content_id` | Shared across a page's languages; with `language` it is the article's whole identity. |
-| `slug`, `canonical_category`, `secondary_categories` | The new canonical route and placement. |
+| `slug`, `canonical_category`, `secondary_categories` | The new canonical route and placement. `canonical_category` is a category identity, or the reserved token `@story-root` for a page directly beneath the localized story namespace; an empty value is never a placement. |
 | `phase` | Which write this row belongs to (the owner's "Lever B" phased manifest). |
 | `published_at`, `event_date` | ISO instants (any real spelling — a numeric offset, no fractional seconds — is accepted and then canonicalized to the exact UTC-`.000Z` shape `src/lib/sanity-article.ts`'s own reader requires, so the planned document is never something the production adapter would reject); `event_date` is the public ordering key (ADR-0017). |
 | `source_digest` | SHA-256 over the whole imported record — title, summary, author, tags, and body, not the body alone — this approval was given against. |
@@ -1549,7 +1549,8 @@ are included in the article's `resolved_digest` approval binding and the final
 plan digest.
 
 The current conversion policy is **joomla-conversion-v3** and import plan format
-**joomla-import-plan-v3**. Regenerate review reports and approvals before planning;
+**joomla-import-plan-v5**. Version 5 adds curated galleries; version 4 added the explicit story-root canonical
+placement alternative. Regenerate review reports and approvals before planning;
 old approvals/plans are intentionally rejected. Pass the same `--poll-results`
 input to the subsequent `--plan` run. The existing approval-gated writer validates
 matched historical pairs and their closed state, rejects identity collisions or
@@ -1607,6 +1608,63 @@ The authoritative AB#23 discussion inventories **12 comparisons in 9 articles**.
 Keep their private module inventory out of the template and CI fixtures. The
 unlabeled source pair needs owner-authored labels before approval. Regenerate
 review reports and manifest approvals under **joomla-conversion-v3**; do not reuse
-v1/v2 conversion approvals. The plan format remains **joomla-import-plan-v3**.
+v1/v2 conversion approvals. The current plan format is **joomla-import-plan-v5**;
+the later story-root and curated-gallery changes advanced it without changing this block.
 These articles enter the launch manifest only after their complete converted
 bodies have been reviewed; adding converter support does not itself approve them.
+
+
+## Curated Joomla galleries (AB#137)
+
+`node scripts/joomla-curated-gallery-plan.mts INPUT.json OUTPUT.json [OWNER-APPROVAL.json]`
+prepares curated `gallery`, `galleryPlacement`, and shared `media` documents for
+`write:joomla`. This is separate from the HTML converter: BA Gallery markers must
+be resolved into the complete ordered placements before this tool is called.
+Never treat a marker removed from a body as proof that its photographs migrated.
+
+The private input holds `documents`, `assetRequirements` (media identity, contained
+source locator and exact source-byte `contentHash`), `categoryRequirements`
+(stable category identities), and `sourceEvidenceDigest` (SHA-256 of the retained
+source/binding evidence). This evidence digest is an owner-supplied recorded
+assertion; this tool does not read or authenticate the evidence file. The owner
+must verify it against the retained evidence before approval. The review digest
+hashes the parsed input's JSON serialization: object key order is significant,
+while input-file indentation is not. Reordering keys requires fresh approval;
+array order always remains significant. Documents use the existing schema fields and pending
+asset/category reference conventions. Categories must already exist in the target;
+this command does not create them. Gallery covers may be independent of the grid.
+Named sections support `sectionId`, `slug` and `label`; rich section introductions
+and seeded-random ordering remain outside this importer slice and are rejected.
+
+Without an approval file the tool writes a review plan and reports a nonzero exit
+status. Its sole approval error is expected for a structurally valid review.
+The printed **review digest** binds the complete input, including source hashes,
+placements, captions, routes and source-evidence digest. After the owner reviews
+that exact set, the separately authored approval file must contain:
+
+```json
+{
+  "reviewDigest": "<the exact 64-character review digest>",
+  "approvedBy": "<owner>",
+  "approvedAt": "<real ISO timestamp with timezone>",
+  "approvedForImport": true
+}
+```
+
+Approval covers editorial content, public-image rights and privacy. An absent,
+stale or malformed approval keeps the generated plan blocked. Supplying approval
+does not clear structural failures. Re-run with that file to obtain the final
+**write-plan digest** used by the existing `write:joomla --approved-digest` gate.
+Those are different digests: the latter also binds the final plan's error state.
+The normal baseline, temporary credential, dry run, explicit `--yes`, audit and
+revocation workflow still applies. Neither this command nor its review output
+uploads anything. Private input, approval and plans do not belong in Git.
+
+The writer's v5 contract validates public-image covers, section membership,
+manual placement order and bilingual occurrence identity. Repeated uses of a
+photograph keep distinct placement IDs. It checks the target's category languages,
+shared article/gallery content identity and routes, plus existing placement
+ownership before writing. Transactions run in dependency waves: media, historical
+polls when present, content containers, then placements. The final placement wave
+also applies to article end galleries, so splitting a large import into batches
+cannot send a placement before its parent document exists.

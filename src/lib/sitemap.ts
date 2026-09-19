@@ -19,7 +19,7 @@
  * content tree is authored per locale, so it is walked once per configured
  * locale that actually publishes a tree — a configured locale may publish
  * none yet, and that locale's story routes 404 rather than existing, so
- * nothing is emitted for it. A tree that publishes no public category at all
+ * nothing is emitted for it. A tree with neither public categories nor root-placed pages
  * gets the same treatment: `resolveStoryRoute` 404s that state too.
  *
  * A tree-canonical placement's underlying detail record could in principle
@@ -38,7 +38,7 @@
  */
 
 import { getContentTrees } from "@/lib/content";
-import { listPublicRoutePaths } from "@/lib/content-tree";
+import { hasPublicStoryRoot, listPublicRoutePaths } from "@/lib/content-tree";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
   buildStoryPath,
@@ -84,11 +84,8 @@ export function buildSitemapPaths(
     const tree = data.trees.get(route.locale);
     if (tree === undefined) continue;
 
-    // A story root with no public category resolves to nothing:
-    // `resolveStoryRoute` 404s a locale that publishes a tree with nothing in
-    // it yet, the same normal, non-error authoring state a locale absent from
-    // `trees` altogether is.
-    if (tree.publicCategoryIds.size > 0) {
+    // Use the same public-root condition as routing and navigation.
+    if (hasPublicStoryRoot(tree)) {
       paths.push(buildStoryPath(data.localeRoutes, route.locale));
     }
     for (const routePath of listPublicRoutePaths(tree)) {

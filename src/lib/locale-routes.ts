@@ -7,8 +7,8 @@
  * other configured locale lives beneath its own prefix, and each locale reads
  * its content tree beneath its own story namespace:
  *
- * - default locale: `/tarinat/<category-path>/<content-slug>`
- * - prefixed locale: `/en/stories/<category-path>/<content-slug>`
+ * - default locale: `/tarinat/[<category-path>/]<content-slug>`
+ * - prefixed locale: `/en/stories/[<category-path>/]<content-slug>`
  *
  * Supported locales, the default locale, prefixes, and namespaces are
  * deployment-owned route configuration, never editable CMS content, so this

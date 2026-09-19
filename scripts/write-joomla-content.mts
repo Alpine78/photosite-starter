@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { CURATED_GALLERY_FIELDS, CURATED_PLACEMENT_FIELDS, validateCuratedGalleryDocuments } from "./joomla-curated-gallery.mts";
 /**
  * AB#137's owner-run write command: turns an already-approved, non-writable
  * `ImportPlan` (produced by `npm run convert:joomla -- --plan`) into real Sanity
@@ -391,7 +392,7 @@ function checkTableRows(rows: readonly unknown[], path: string, issues: string[]
  * non-empty-array requirement) is already covered there and not repeated here.
  */
 function checkRequiredFieldTypes(document: Record<string, unknown>, path: string, issues: string[]): void {
-  if (document._type === ARTICLE_TYPE_NAME) {
+  if (document._type === ARTICLE_TYPE_NAME || document._type === "gallery") {
     if (typeof document.title !== "string" || document.title.trim().length === 0) {
       issues.push(`${path}.title is required and must be a non-empty string`);
     }
@@ -435,8 +436,16 @@ function checkNestedDocumentShapes(document: Record<string, unknown>, path: stri
       });
     }
   }
-  if (document._type === ARTICLE_TYPE_NAME) {
-    checkReferenceShape(document.canonicalCategory, `${path}.canonicalCategory`, issues, expectPendingCategoryRef);
+  if (document._type === ARTICLE_TYPE_NAME || document._type === "gallery") {
+    if (document.canonicalCategory !== undefined) {
+      checkReferenceShape(document.canonicalCategory, `${path}.canonicalCategory`, issues, expectPendingCategoryRef);
+    }
+    if (
+      document.canonicalAtStoryRoot !== undefined &&
+      typeof document.canonicalAtStoryRoot !== "boolean"
+    ) {
+      issues.push(`${path}.canonicalAtStoryRoot is not a boolean`);
+    }
     if (Array.isArray(document.secondaryCategories)) {
       document.secondaryCategories.forEach((entry: unknown, index: number) =>
         checkReferenceShape(entry, `${path}.secondaryCategories[${index}]`, issues, expectPendingCategoryRef),
@@ -448,6 +457,13 @@ function checkNestedDocumentShapes(document: Record<string, unknown>, path: stri
   }
   if (document._type === ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME) {
     checkReferenceShape(document.article, `${path}.article`, issues, expectResolvedRef);
+    checkReferenceShape(document.media, `${path}.media`, issues, expectResolvedRef);
+  }
+  if (document._type === "gallery") {
+    if (document.cover !== undefined) checkReferenceShape(document.cover, `${path}.cover`, issues, expectResolvedRef);
+  }
+  if (document._type === "galleryPlacement") {
+    checkReferenceShape(document.gallery, `${path}.gallery`, issues, expectResolvedRef);
     checkReferenceShape(document.media, `${path}.media`, issues, expectResolvedRef);
   }
   checkRequiredFieldTypes(document, path, issues);
@@ -484,6 +500,8 @@ export function validatePlanContract(raw: unknown): { readonly issues: readonly 
   // additionally allows, since anything this tool adds later (the cross-phase media
   // field merge, substitution) runs after this check, on documents already known good.
   const FIELD_ALLOW_LISTS: Readonly<Record<string, ReadonlySet<string>>> = {
+    gallery: CURATED_GALLERY_FIELDS,
+    galleryPlacement: CURATED_PLACEMENT_FIELDS,
     poll: new Set(["_id", "_type", "pollId", "language", "question", "options", "closeDate"]),
     pollTally: new Set(["_id", "_type", "pollId", "counts"]),
     [MEDIA_TYPE_NAME]: new Set(["_id", "_type", "mediaId", "mediaType", "alt", "publiclyRenderable", "image"]),
@@ -500,6 +518,7 @@ export function validatePlanContract(raw: unknown): { readonly issues: readonly 
       "publishedAt",
       "eventDate",
       "tags",
+      "canonicalAtStoryRoot",
       "canonicalCategory",
       "secondaryCategories",
       "body",
@@ -532,6 +551,7 @@ export function validatePlanContract(raw: unknown): { readonly issues: readonly 
   if (issues.length > 0) return { issues, plan: undefined };
 
   const documents = raw.documents as readonly PlannedDocument[];
+  issues.push(...validateCuratedGalleryDocuments(documents));
   const rawAssetRequirements = raw.assetRequirements as readonly unknown[];
   const rawCategoryRequirements = raw.categoryRequirements as readonly unknown[];
 
@@ -741,7 +761,7 @@ export function collectRequiredCategoryLanguages(
     result.set(categoryId, set);
   };
   for (const document of documents) {
-    if (document._type !== ARTICLE_TYPE_NAME || typeof document.language !== "string") continue;
+    if ((document._type !== ARTICLE_TYPE_NAME && document._type !== "gallery") || typeof document.language !== "string") continue;
     const refs = [document.canonicalCategory, ...(Array.isArray(document.secondaryCategories) ? document.secondaryCategories : [])];
     for (const ref of refs) {
       if (isReferenceObject(ref) && ref._ref.startsWith(PENDING_CATEGORY_PREFIX)) {
@@ -860,6 +880,7 @@ type ProspectiveCategoryNode = {
 type ProspectivePlacement = {
   readonly contentId: string;
   readonly slug: string;
+  readonly canonicalAtStoryRoot?: boolean;
   readonly canonicalCategoryId: string | null;
   readonly secondaryCategoryIds: readonly string[];
 };
@@ -869,6 +890,7 @@ type ProspectivePlacementFields = {
   readonly contentId: string;
   readonly language: string;
   readonly slug: string;
+  readonly canonicalAtStoryRoot?: boolean;
   readonly canonicalCategoryId: string | null;
   readonly secondaryCategoryIds: readonly string[];
 };
@@ -876,6 +898,7 @@ type ProspectivePlacementFields = {
 type PublishedPlacementSnapshot = {
   readonly language: string;
   readonly slug: string;
+  readonly canonicalAtStoryRoot?: boolean;
   readonly canonicalCategoryId: string | null;
 };
 
@@ -973,8 +996,8 @@ function findProspectiveLocalSlugCollision(
     claims.push({ kind: "category", id: node.categoryId, slug: node.slugInLanguage, key: `${node.parentId ?? ""} ${node.slugInLanguage}` });
   }
   for (const placement of placements) {
-    if (placement.canonicalCategoryId === null) continue;
-    claims.push({ kind: "content", id: placement.contentId, slug: placement.slug, key: `${placement.canonicalCategoryId} ${placement.slug}` });
+    if (!placement.canonicalAtStoryRoot && placement.canonicalCategoryId === null) continue;
+    claims.push({ kind: "content", id: placement.contentId, slug: placement.slug, key: `${placement.canonicalAtStoryRoot ? "" : placement.canonicalCategoryId} ${placement.slug}` });
   }
 
   const toCheck: { readonly kind: "category" | "content"; readonly id: string }[] = [{ kind: "content", id: current.contentId }];
@@ -997,7 +1020,7 @@ function findProspectiveLocalSlugCollision(
 }
 
 function changesPublishedUrlFields(published: PublishedPlacementSnapshot, current: PublishedPlacementSnapshot): boolean {
-  return published.language !== current.language || published.slug !== current.slug || published.canonicalCategoryId !== current.canonicalCategoryId;
+  return published.language !== current.language || published.slug !== current.slug || published.canonicalAtStoryRoot !== current.canonicalAtStoryRoot || published.canonicalCategoryId !== current.canonicalCategoryId;
 }
 
 // ---------------------------------------------------------------------------
@@ -1062,8 +1085,8 @@ export async function runCollisionPreflight(
         ((planned._type === "poll" || planned._type === "pollTally") && row.pollId !== planned.pollId) ||
         (planned._type === "poll" && row.closeDate !== planned.closeDate) ||
         (planned._type === MEDIA_TYPE_NAME && row.mediaId !== planned.mediaId) ||
-        (planned._type === ARTICLE_TYPE_NAME && (row.contentId !== planned.contentId || row.language !== planned.language)) ||
-        (planned._type === ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME && row.placementId !== planned.placementId);
+        ((planned._type === ARTICLE_TYPE_NAME || planned._type === "gallery") && (row.contentId !== planned.contentId || row.language !== planned.language)) ||
+        ((planned._type === ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME || planned._type === GALLERY_PLACEMENT_TYPE_NAME) && row.placementId !== planned.placementId);
       if (identityMismatch) {
         collisions.push(`a document already exists at "${row._id}" with a different identity than this plan intends — refusing to overwrite it`);
       }
@@ -1092,16 +1115,8 @@ export async function runCollisionPreflight(
     }
   }
 
-  // contentId — site-wide across BOTH articles and galleries
-  // (`content-tree.ts`'s `duplicate-content-id` check, restated for Studio by
-  // `makeContentIdentityValidator`'s `siblingTypes`): a same-language collision is a
-  // duplicate; a different-language collision where the existing document's `_type`
-  // is not `article` is a variant mismatch (a `contentId`'s variant cannot change
-  // between its own language versions). This plan never writes a `gallery` document,
-  // so *any* existing gallery sharing one of our contentIds is always foreign — the
-  // original article-only query (Codex round 1, finding "Include galleries in
-  // content identity checks") could see neither case.
-  const articles = documents.filter((document) => document._type === ARTICLE_TYPE_NAME);
+  // Shared content identity and variant across articles and curated galleries.
+  const articles = documents.filter((document) => document._type === ARTICLE_TYPE_NAME || document._type === "gallery");
   const contentKeys = new Set(articles.map((document) => `${String(document.contentId)}:${String(document.language)}`));
   const contentIds = [...new Set(articles.map((document) => String(document.contentId)))];
   for (const idsChunk of chunkIdsByByteBudget(contentIds)) {
@@ -1118,16 +1133,15 @@ export async function runCollisionPreflight(
       ) {
         continue;
       }
+      const expectedVariant = articles.find(document => document.contentId === row.contentId)?._type;
+      if (row._type !== expectedVariant) {
+        collisions.push(`contentId "${row.contentId}" is already used by a ${row._type} — variant cannot change between languages`);
+        continue;
+      }
       if (contentKeys.has(`${row.contentId}:${row.language}`)) {
         if (!plannedIds.has(publishedIdOf(row._id))) {
           collisions.push(`an article document already exists at "${row._id}" claiming contentId "${row.contentId}" and language "${row.language}"`);
         }
-      } else if (row._type !== ARTICLE_TYPE_NAME) {
-        // The query's own `contentId in $ids` filter already guarantees `row.contentId`
-        // is one of ours — reaching this branch means it's the wrong variant.
-        collisions.push(
-          `contentId "${row.contentId}" is already used by a ${row._type} at "${row._id}" in language "${row.language}" — this migration writes it as ${ARTICLE_TYPE_NAME}, and a contentId's variant cannot change between language versions`,
-        );
       }
     }
   }
@@ -1142,14 +1156,18 @@ export async function runCollisionPreflight(
     articles
       .map((document) => {
         const categoryDocId = articleCanonicalCategoryDocId(document, categoryDocIdByCategoryId);
-        return categoryDocId === undefined ? undefined : `${String(document.language)}:${categoryDocId}:${String(document.slug)}`;
+        return document.canonicalAtStoryRoot === true
+          ? `${String(document.language)}:@story-root:${String(document.slug)}`
+          : categoryDocId === undefined
+            ? undefined
+            : `${String(document.language)}:${categoryDocId}:${String(document.slug)}`;
       })
       .filter((route): route is string => route !== undefined),
   );
   const slugs = [...new Set(articles.map((document) => String(document.slug)))];
   for (const idsChunk of chunkIdsByByteBudget(slugs)) {
     const rows = await runQuery({
-      query: `*[_type in ["article", "gallery"] && slug in $slugs]{_id, language, slug, "categoryRef": canonicalCategory._ref}`,
+      query: `*[_type in ["article", "gallery"] && slug in $slugs]{_id, language, slug, canonicalAtStoryRoot, "categoryRef": canonicalCategory._ref}`,
       params: { slugs: idsChunk },
     });
     for (const row of rows) {
@@ -1157,11 +1175,11 @@ export async function runCollisionPreflight(
         typeof row._id !== "string" ||
         typeof row.language !== "string" ||
         typeof row.slug !== "string" ||
-        typeof row.categoryRef !== "string"
+        (row.canonicalAtStoryRoot !== true && typeof row.categoryRef !== "string")
       ) {
         continue;
       }
-      const route = `${row.language}:${row.categoryRef}:${row.slug}`;
+      const route = `${row.language}:${row.canonicalAtStoryRoot === true ? "@story-root" : row.categoryRef}:${row.slug}`;
       if (!plannedRoutes.has(route)) continue;
       if (!plannedIds.has(publishedIdOf(row._id))) {
         collisions.push(`a document already exists at "${row._id}" claiming the route "${route}"`);
@@ -1218,16 +1236,28 @@ export async function runCollisionPreflight(
     }
   }
 
-  const placementIds = [...ownEndGalleryOccurrences.keys()];
+  const ownCuratedOccurrences = new Map<string, { contentId: string; mediaRef: string; sectionId: unknown; languages: Set<unknown> }>();
+  for (const document of documents) {
+    if (document._type !== GALLERY_PLACEMENT_TYPE_NAME) continue;
+    const gallery = isReferenceObject(document.gallery) ? articlesById.get(document.gallery._ref) : undefined;
+    if (gallery && typeof document.placementId === "string" && isReferenceObject(document.media)) {
+      const languages = ownCuratedOccurrences.get(document.placementId)?.languages ?? new Set<unknown>();
+      languages.add(gallery.language);
+      ownCuratedOccurrences.set(document.placementId, { contentId: String(gallery.contentId), mediaRef: document.media._ref, sectionId: document.sectionId ?? null, languages });
+    }
+  }
+  const placementIds = [...ownEndGalleryOccurrences.keys(), ...ownCuratedOccurrences.keys()];
   for (const idsChunk of chunkIdsByByteBudget(placementIds)) {
     const rows = await runQuery({
-      query: `*[_type in ["${ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME}", "${GALLERY_PLACEMENT_TYPE_NAME}"] && placementId in $ids]{_id, _type, placementId, "mediaRef": media._ref, "containerContentId": article->contentId, "endGalleryId": article->endGalleryId}`,
+      query: `*[_type in ["${ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME}", "${GALLERY_PLACEMENT_TYPE_NAME}"] && placementId in $ids]{_id, _type, placementId, "mediaRef": media._ref, "containerContentId": article->contentId, "endGalleryId": article->endGalleryId, "galleryContentId": gallery->contentId, "galleryLanguage": gallery->language, sectionId}`,
       params: { ids: idsChunk },
     });
     for (const row of rows) {
       if (typeof row._id !== "string") continue;
       if (row._type === GALLERY_PLACEMENT_TYPE_NAME) {
-        // Always foreign — this plan never writes that type.
+        const own = typeof row.placementId === "string" ? ownCuratedOccurrences.get(row.placementId) : undefined;
+        if (own && row.galleryContentId === own.contentId && row.mediaRef === own.mediaRef && (row.sectionId ?? null) === own.sectionId &&
+            (plannedIds.has(publishedIdOf(row._id)) || typeof row.galleryLanguage === "string" && !own.languages.has(row.galleryLanguage))) continue;
         collisions.push(`a ${String(row._type)} document already exists at "${row._id}" claiming placementId "${String(row.placementId)}"`);
         continue;
       }
@@ -1244,6 +1274,21 @@ export async function runCollisionPreflight(
     }
   }
 
+  // Replacing a gallery must not leave target-only occurrences attached.
+  const curatedIds = articles.filter(document => document._type === "gallery").map(document => document._id);
+  for (const idsChunk of chunkIdsByByteBudget(curatedIds)) {
+    const rows = await runQuery({
+      query: '*[_type == "galleryPlacement" && gallery._ref in $ids]{_id, "galleryRef": gallery._ref}',
+      params: { ids: idsChunk },
+    });
+    for (const row of rows) {
+      const planned = documents.find(document => document._id === row._id && document._type === GALLERY_PLACEMENT_TYPE_NAME);
+      if (!planned || !isReferenceObject(planned.gallery) || planned.gallery._ref !== row.galleryRef) {
+        collisions.push(`gallery already contains unplanned placement "${String(row._id)}" — refusing to leave extra occurrences attached`);
+      }
+    }
+  }
+
   // A published article's language, slug, and canonical category are frozen once
   // published (`article-validation.ts`'s own `changesPublishedUrlFields`, restated
   // here since this API write bypasses that Studio guard entirely): rerunning a
@@ -1253,13 +1298,27 @@ export async function runCollisionPreflight(
   const articleIds = articles.map((document) => document._id);
   for (const idsChunk of chunkIdsByByteBudget(articleIds)) {
     const rows = await runQuery({
-      query: `*[_id in $ids]{_id, language, slug, "canonicalCategoryId": canonicalCategory->categoryId}`,
+      query: `*[_id in $ids]{_id, language, slug, canonicalAtStoryRoot, orderingRule, orderingSeed, sections, "canonicalCategoryId": canonicalCategory->categoryId}`,
       params: { ids: idsChunk },
     });
     for (const row of rows) {
       if (typeof row._id !== "string" || typeof row.language !== "string" || typeof row.slug !== "string") continue;
       const planned = articles.find((document) => document._id === row._id);
       if (planned === undefined) continue;
+      if (planned._type === "gallery" && (row.orderingRule !== "manual" || row.orderingSeed != null)) {
+        collisions.push(`gallery "${row._id}" already has incompatible ordering — refusing to replace it`);
+      }
+      if (planned._type === "gallery") {
+        const nextSections = Array.isArray(planned.sections) ? planned.sections : [];
+        const oldSections = Array.isArray(row.sections) ? row.sections : [];
+        for (const section of oldSections) {
+          if (!section || typeof section !== "object" ||
+              !nextSections.some(next => next && typeof next === "object" &&
+                next.sectionId === section.sectionId && next.slug === section.slug)) {
+            collisions.push(`gallery "${row._id}" would remove or rename a published section — refusing to retire section URLs`);
+          }
+        }
+      }
       const plannedCategoryId = isReferenceObject(planned.canonicalCategory) && planned.canonicalCategory._ref.startsWith(PENDING_CATEGORY_PREFIX)
         ? planned.canonicalCategory._ref.slice(PENDING_CATEGORY_PREFIX.length)
         : null;
@@ -1268,12 +1327,13 @@ export async function runCollisionPreflight(
         contentId: String(planned.contentId),
         language: typeof planned.language === "string" ? planned.language : "",
         slug: typeof planned.slug === "string" ? planned.slug : "",
+        canonicalAtStoryRoot: planned.canonicalAtStoryRoot === true,
         canonicalCategoryId: plannedCategoryId,
         secondaryCategoryIds: [],
       };
       if (
         changesPublishedUrlFields(
-          { language: row.language, slug: row.slug, canonicalCategoryId: typeof row.canonicalCategoryId === "string" ? row.canonicalCategoryId : null },
+          { language: row.language, slug: row.slug, canonicalAtStoryRoot: row.canonicalAtStoryRoot === true, canonicalCategoryId: typeof row.canonicalCategoryId === "string" ? row.canonicalCategoryId : null },
           current,
         )
       ) {
@@ -1302,7 +1362,7 @@ export async function runCollisionPreflight(
     const categories = parseProspectiveCategories(categoryRows, language);
 
     const existingRows = await runQuery({
-      query: `*[_type in ["article", "gallery"] && language == $language]{contentId, slug, "canonicalCategoryId": canonicalCategory->categoryId, "secondaryCategoryIds": secondaryCategories[]->categoryId}`,
+      query: `*[_type in ["article", "gallery"] && language == $language]{contentId, slug, canonicalAtStoryRoot, "canonicalCategoryId": canonicalCategory->categoryId, "secondaryCategoryIds": secondaryCategories[]->categoryId}`,
       params: { language },
     });
     const existingPlacements: ProspectivePlacement[] = existingRows
@@ -1310,6 +1370,7 @@ export async function runCollisionPreflight(
       .map((row) => ({
         contentId: row.contentId as string,
         slug: row.slug as string,
+        canonicalAtStoryRoot: row.canonicalAtStoryRoot === true,
         canonicalCategoryId: typeof row.canonicalCategoryId === "string" ? row.canonicalCategoryId : null,
         secondaryCategoryIds: Array.isArray(row.secondaryCategoryIds) ? row.secondaryCategoryIds.filter((id): id is string => typeof id === "string") : [],
       }));
@@ -1318,6 +1379,7 @@ export async function runCollisionPreflight(
     const plannedPlacements: ProspectivePlacement[] = plannedInLanguage.map((document) => ({
       contentId: String(document.contentId),
       slug: String(document.slug),
+      canonicalAtStoryRoot: document.canonicalAtStoryRoot === true,
       canonicalCategoryId: isReferenceObject(document.canonicalCategory) && document.canonicalCategory._ref.startsWith(PENDING_CATEGORY_PREFIX)
         ? document.canonicalCategory._ref.slice(PENDING_CATEGORY_PREFIX.length)
         : null,
@@ -1468,8 +1530,9 @@ export async function mergeExistingMediaFields(
 export function splitIntoWaves(documents: readonly PlannedDocument[]): readonly (readonly PlannedDocument[])[] {
   const media = documents.filter((document) => document._type === MEDIA_TYPE_NAME);
   const polls = documents.filter((document) => document._type === "poll" || document._type === "pollTally");
-  const rest = documents.filter((document) => document._type !== MEDIA_TYPE_NAME && document._type !== "poll" && document._type !== "pollTally");
-  return polls.length === 0 ? [media, rest] : [media, polls, rest];
+  const placements = documents.filter((document) => document._type === GALLERY_PLACEMENT_TYPE_NAME || document._type === ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME);
+  const rest = documents.filter((document) => document._type !== MEDIA_TYPE_NAME && document._type !== "poll" && document._type !== "pollTally" && document._type !== GALLERY_PLACEMENT_TYPE_NAME && document._type !== ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME);
+  return [media, ...(polls.length ? [polls] : []), rest, ...(placements.length ? [placements] : [])];
 }
 
 export async function verifyWrittenDocuments(

@@ -105,10 +105,12 @@ describe("the gallery document", () => {
     expect(GALLERY_PLACEMENT_DOCUMENT_TYPE).toBe(GALLERY_PLACEMENT_TYPE_NAME);
   });
 
-  it("requires a canonical category, matching article.ts", () => {
+  it("offers the same explicit story-root or category placement as article.ts", async () => {
     expect(fieldOf("canonicalCategory").to).toEqual([{ type: CATEGORY_TYPE_NAME }]);
-    const { required } = inspect(fieldOf("canonicalCategory").validation);
-    expect(required).toBe(true);
+    const { required, run } = inspect(fieldOf("canonicalCategory").validation);
+    expect(required).toBe(false);
+    expect(fieldOf("canonicalAtStoryRoot").type).toBe("boolean");
+    expect((await run(undefined, { canonicalAtStoryRoot: true }))[0]).toBe(true);
   });
 
   it("has an optional body, unlike article.ts's required one", () => {
