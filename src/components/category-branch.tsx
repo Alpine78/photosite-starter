@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
+import { CategoryDescription } from "@/components/category-description";
 import {
   LanguageSwitch,
   type LanguageLink,
@@ -9,6 +10,7 @@ import { formatDate } from "@/lib/date-format";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import type { ImageMedia } from "@/lib/media";
+import type { CategoryDescriptionBlock } from "@/lib/category-description";
 
 export type BranchCategoryLink = {
   readonly categoryId: string;
@@ -35,6 +37,8 @@ type CategoryBranchProps = {
   title: string;
   /** Generic orientation copy shown only on the story root. */
   introduction?: string;
+  /** Localized editorial copy shown below a category's sole h1. */
+  description?: readonly CategoryDescriptionBlock[];
   /** Fixed explanatory copy carried by an explicit legacy fallback redirect. */
   legacyFallbackNotice?: string;
   /** Omitted on the story root, which would be a one-step trail to itself. */
@@ -47,8 +51,9 @@ type CategoryBranchProps = {
   /**
    * This is a `?cursor=` continuation slice, not the branch's first page
    * (AB#140, ADR-0003 decision 8). The heading is marked "continued" and no
-   * editorial framing (the story-root introduction) is repeated; child-category
-   * links stay, being navigation rather than republished content.
+   * editorial framing (the story-root introduction or category description) is
+   * repeated; child-category links stay, being navigation rather than
+   * republished content.
    */
   isContinuation?: boolean;
   /** The branch's own parameter-free path, for the "back to the start" link. */
@@ -79,6 +84,7 @@ export function CategoryBranch({
   locale,
   title,
   introduction,
+  description,
   legacyFallbackNotice,
   breadcrumbs,
   languages,
@@ -110,8 +116,12 @@ export function CategoryBranch({
             {labels.contentTree.backToStart}
           </Link>
         ) : (
-          introduction && (
-            <p className="mt-4 max-w-2xl text-muted">{introduction}</p>
+          description !== undefined ? (
+            <CategoryDescription blocks={description} />
+          ) : (
+            introduction && (
+              <p className="mt-4 max-w-2xl text-muted">{introduction}</p>
+            )
           )
         )}
       </header>

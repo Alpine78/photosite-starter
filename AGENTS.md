@@ -719,11 +719,14 @@ and nothing at all when the content source is the fixtures.
 The category schema and adapter sit beside it: the public content tree's node
 (`sanity/schemas/category.ts`) and the server-only adapter (`src/lib/sanity-content-tree.ts`)
 that projects it into `content-tree.ts`'s own `ContentCategoryInput`. One document is one
-category in every published language — `label` and `slug` are language-keyed arrays, the
-same shape ADR-0008 gives media's `alt` and `caption`, because a category has no
+category in every published language — `label`, `slug`, and an optional bounded landing-page
+description are language-keyed arrays, the same shape ADR-0008 gives media's `alt` and
+`caption`, because a category has no
 per-language publication lifecycle to preserve the way a gallery or article will; a
 category missing an entry in the requested language is simply absent from that language's
-tree rather than a defect. `categoryId` is checked in the Studio the same way `mediaId`
+tree rather than a defect. A missing description renders nothing in that language; the
+initial category landing places it below the sole `h1`, while cursor continuation pages
+omit it. `categoryId` is checked in the Studio the same way `mediaId`
 is — syntax, dataset-wide uniqueness with the same `raw`-perspective query, and
 immutability after first publish. Its document-level validation reads the published tree,
 overlays the document being edited, and blocks self-parenting, indirect cycles, orphaned

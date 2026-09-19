@@ -102,6 +102,161 @@ describe("projecting one document", () => {
     });
   });
 
+  it("maps only the requested language's bounded description", () => {
+    const document = docOf({
+      _id: "doc-weddings",
+      categoryId: "cat-weddings",
+      slug: [
+        { language: "fi", value: "haakuvat" },
+        { language: "en", value: "weddings" },
+      ],
+      label: [
+        { language: "fi", value: "Hääkuvat" },
+        { language: "en", value: "Weddings" },
+      ],
+      description: [
+        {
+          language: "fi",
+          blocks: [
+            {
+              _key: "intro",
+              _type: "categoryDescriptionParagraph",
+              spans: [
+                { text: "Hääkuvagalleriat. " },
+                {
+                  text: "Palvelut",
+                  marks: ["emphasis"],
+                  href: "/palvelut",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          language: "en",
+          blocks: [
+            {
+              _type: "categoryDescriptionList",
+              ordered: false,
+              items: [
+                {
+                  _key: "album",
+                  spans: [{ text: "Wedding albums" }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(projectPublicCategoryInput(document, "fi", new Map())).toMatchObject({
+      description: [
+        {
+          type: "paragraph",
+          key: "intro",
+          spans: [
+            { text: "Hääkuvagalleriat. " },
+            {
+              text: "Palvelut",
+              marks: ["emphasis"],
+              href: "/palvelut",
+            },
+          ],
+        },
+      ],
+    });
+    expect(projectPublicCategoryInput(document, "en", new Map())).toMatchObject({
+      description: [
+        {
+          type: "list",
+          ordered: false,
+          items: [{ key: "album", spans: [{ text: "Wedding albums" }] }],
+        },
+      ],
+    });
+  });
+
+  it("rejects malformed descriptions instead of publishing a repaired one", () => {
+    const document = docOf({
+      _id: "doc-weddings",
+      categoryId: "cat-weddings",
+      description: [
+        {
+          language: "en",
+          blocks: [
+            {
+              _type: "categoryDescriptionParagraph",
+              spans: [{ text: "Unsafe link", href: "javascript:alert(1)" }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(() => projectPublicCategoryInput(document, "en", new Map())).toThrow(
+      SanityContentTreeError,
+    );
+  });
+
+  it("accepts Sanity's explicit nulls for absent span marks and links", () => {
+    const document = docOf({
+      _id: "doc-weddings",
+      categoryId: "cat-weddings",
+      description: [
+        {
+          language: "en",
+          blocks: [
+            {
+              _type: "categoryDescriptionParagraph",
+              spans: [{ text: "Plain text", marks: null, href: null }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(projectPublicCategoryInput(document, "en", new Map())).toMatchObject({
+      description: [
+        {
+          type: "paragraph",
+          spans: [{ text: "Plain text" }],
+        },
+      ],
+    });
+  });
+
+  it("accepts Sanity's explicit null for an absent optional description", () => {
+    const document = docOf({
+      _id: "doc-weddings",
+      categoryId: "cat-weddings",
+      description: null,
+    });
+
+    const projected = projectPublicCategoryInput(document, "en", new Map());
+    expect(projected).toMatchObject({
+      categoryId: "cat-weddings",
+      slug: "weddings",
+      label: "weddings",
+    });
+    expect(projected).not.toHaveProperty("description");
+  });
+
+  it("rejects duplicate category-description languages even when another locale is read", () => {
+    const document = docOf({
+      _id: "doc-weddings",
+      categoryId: "cat-weddings",
+      description: [
+        { language: "fi", blocks: [{ _type: "categoryDescriptionParagraph", spans: [{ text: "One" }] }] },
+        { language: "fi", blocks: [{ _type: "categoryDescriptionParagraph", spans: [{ text: "Two" }] }] },
+      ],
+    });
+
+    expect(() => projectPublicCategoryInput(document, "en", new Map())).toThrow(
+      SanityContentTreeError,
+    );
+  });
+
   it("resolves no parent reference to a top-level category", () => {
     const document = docOf({ _id: "doc-portfolio", categoryId: "cat-portfolio" });
 

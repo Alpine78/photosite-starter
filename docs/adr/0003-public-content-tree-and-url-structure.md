@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18, 2026-09-19 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -12,6 +12,35 @@ This broad record remains accepted as a whole. A scoped clause is amended in pla
 when implementation produces evidence the original text did not have, and each partial
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
+
+### 2026-09-19 — Categories may carry a localized landing-page description (AB#137)
+
+The original category model carries a label, slug, parent, and sibling order, but no
+authored explanation of what a category contains. The Joomla migration evidence includes
+category landings whose short introductory copy gives useful context before their child
+categories and gallery or article cards, including a link to a related service page. The
+label alone cannot preserve that information.
+
+Each category may therefore carry **one optional description per language**. A description
+contains 1–6 bounded paragraph or ordered/unordered-list blocks. Paragraphs and list items
+contain 1–20 nonblank text spans of at most 300 characters; a span may be emphasized and
+may link only to a root-relative internal path or an absolute `http(s)` URL. Headings,
+media, embeds, raw HTML, and arbitrary block types are excluded. The category label remains
+the page's only `h1`.
+
+The parameter-free category landing renders its localized description immediately below that
+`h1`, before child-category navigation and the aggregated content listing. A missing
+description in the requested language renders nothing and does not fall back to another
+language. A `?cursor=` continuation does not repeat the description. Descriptions do not
+change category identity, hierarchy, locale publication, canonical URL, metadata, sitemap,
+redirect history, listing order, or placement rules.
+
+The Studio schema and the server-side provider projection independently enforce the same
+shape and bounds; malformed imported or API-written data is rejected rather than repaired
+or partially published.
+
+**Sections affected:** decision 4 gains the optional localized editorial field and decision
+8 gains its initial-page-only rendering position. Decisions 1–3 and 5–9 are unchanged.
 
 ### 2026-09-18 — Legacy content falls back through its category ancestry (AB#19)
 

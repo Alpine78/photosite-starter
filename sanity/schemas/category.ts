@@ -47,6 +47,7 @@
  */
 
 import { validateCategoryPublication } from "./category-validation";
+import { defineCategoryDescriptionField } from "./category-description";
 import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
 import { LOCALIZED_SLUG_TYPE_NAME } from "./localized-slug";
 import type {
@@ -179,6 +180,7 @@ export const categoryType: SchemaTypeDefinition = {
         "This category's name in each published language, shown in navigation and breadcrumbs. Free to edit at any time — it never changes the URL.",
       validation: (rule) => uniqueLanguages(rule.required().min(1)),
     },
+    defineCategoryDescriptionField(),
     {
       name: "order",
       title: "Order",
