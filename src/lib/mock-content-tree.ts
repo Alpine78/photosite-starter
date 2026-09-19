@@ -49,7 +49,19 @@ const englishContentTree: ContentTreeInput = {
     // Top level. The showcase category comes first: it holds the curated
     // selection the site chrome points at, and later showcase galleries join it
     // rather than earning another root of their own.
-    { categoryId: "cat-portfolio", parentId: null, slug: "portfolio", label: "Portfolio", order: 0 },
+    {
+      categoryId: "cat-portfolio",
+      parentId: null,
+      slug: "portfolio",
+      label: "Portfolio",
+      description: [
+        {
+          type: "paragraph",
+          spans: [{ text: "A selection of recent photography projects." }],
+        },
+      ],
+      order: 0,
+    },
     { categoryId: "cat-landscape", parentId: null, slug: "landscape", label: "Landscape", order: 1 },
     { categoryId: "cat-travel", parentId: null, slug: "travel", label: "Travel", order: 2 },
     // Public only through a secondary listing, which is something to show.
@@ -59,7 +71,19 @@ const englishContentTree: ContentTreeInput = {
     // The subjects the articles were already filed under before they moved into
     // this tree. Galleries and articles share one tree, so they are ordinary
     // categories rather than a separate article taxonomy.
-    { categoryId: "cat-gear", parentId: null, slug: "gear", label: "Gear", order: 5 },
+    {
+      categoryId: "cat-gear",
+      parentId: null,
+      slug: "gear",
+      label: "Gear",
+      description: [
+        {
+          type: "paragraph",
+          spans: [{ text: "Camera equipment notes and field observations." }],
+        },
+      ],
+      order: 5,
+    },
     // A child of Gear filled with enough short notes that Gear's aggregated
     // branch listing runs past its first page — the fixture the category
     // listing continuation (AB#140, ADR-0013) is exercised against. English
@@ -238,7 +262,19 @@ const englishContentTree: ContentTreeInput = {
 
 const finnishContentTree: ContentTreeInput = {
   categories: [
-    { categoryId: "cat-portfolio", parentId: null, slug: "portfolio", label: "Portfolio", order: 0 },
+    {
+      categoryId: "cat-portfolio",
+      parentId: null,
+      slug: "portfolio",
+      label: "Portfolio",
+      description: [
+        {
+          type: "paragraph",
+          spans: [{ text: "Valikoima viimeisimpiä kuvausprojekteja." }],
+        },
+      ],
+      order: 0,
+    },
     { categoryId: "cat-landscape", parentId: null, slug: "maisemat", label: "Maisemat", order: 1 },
     { categoryId: "cat-travel", parentId: null, slug: "matkat", label: "Matkat", order: 2 },
     { categoryId: "cat-events", parentId: null, slug: "tapahtumat", label: "Tapahtumat", order: 3 },

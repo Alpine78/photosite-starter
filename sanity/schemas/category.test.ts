@@ -3,11 +3,27 @@ import { describe, expect, it } from "vitest";
 import { inspectValidationRules } from "./validation-test-helper";
 import { categoryType, CATEGORY_TYPE_NAME } from "./category";
 import {
+  CATEGORY_DESCRIPTION_INLINE_SPAN_TYPE_NAME,
+  CATEGORY_DESCRIPTION_LIST_TYPE_NAME,
+  CATEGORY_DESCRIPTION_PARAGRAPH_TYPE_NAME,
+  CATEGORY_DESCRIPTION_TYPE_NAME,
+  MAX_CATEGORY_DESCRIPTION_BLOCKS as schemaMaxCategoryDescriptionBlocks,
+  MAX_CATEGORY_DESCRIPTION_LIST_ITEMS as schemaMaxCategoryDescriptionListItems,
+  MAX_CATEGORY_DESCRIPTION_SPANS as schemaMaxCategoryDescriptionSpans,
+  MAX_CATEGORY_DESCRIPTION_SPAN_TEXT_LENGTH as schemaMaxCategoryDescriptionSpanTextLength,
+} from "./category-description";
+import {
   CATEGORY_VALIDATION_QUERY,
   STUDIO_MAX_CATEGORY_DEPTH,
   validateProspectiveCategoryTree,
 } from "./category-validation";
 import { MAX_CATEGORY_DEPTH } from "../../src/lib/content-tree";
+import {
+  MAX_CATEGORY_DESCRIPTION_BLOCKS,
+  MAX_CATEGORY_DESCRIPTION_LIST_ITEMS,
+  MAX_CATEGORY_DESCRIPTION_SPANS,
+  MAX_CATEGORY_DESCRIPTION_SPAN_TEXT_LENGTH,
+} from "../../src/lib/category-description";
 import { defineSchemaTypes } from "./index";
 import { localizedSlugType } from "./localized-slug";
 import { localizedTextType } from "./localized-text";
@@ -118,6 +134,61 @@ describe("the category document", () => {
     // Sanity schemas cannot import application code, so the Studio-facing
     // value is restated and this boundary test prevents silent drift.
     expect(STUDIO_MAX_CATEGORY_DEPTH).toBe(MAX_CATEGORY_DEPTH);
+  });
+
+  it("registers the optional localized description types and field", () => {
+    const types = defineSchemaTypes({
+      datasetVisibility: "public",
+      storyRootPaths: ["/stories"],
+    });
+
+    expect(fieldNames(categoryType)).toContain("description");
+    expect(types.map((type) => type.name)).toEqual(
+      expect.arrayContaining([
+        CATEGORY_DESCRIPTION_TYPE_NAME,
+        CATEGORY_DESCRIPTION_PARAGRAPH_TYPE_NAME,
+        CATEGORY_DESCRIPTION_LIST_TYPE_NAME,
+      ]),
+    );
+  });
+
+  it("keeps the Studio description limits pinned to the public reader", () => {
+    expect(schemaMaxCategoryDescriptionBlocks).toBe(
+      MAX_CATEGORY_DESCRIPTION_BLOCKS,
+    );
+    expect(schemaMaxCategoryDescriptionSpans).toBe(
+      MAX_CATEGORY_DESCRIPTION_SPANS,
+    );
+    expect(schemaMaxCategoryDescriptionListItems).toBe(
+      MAX_CATEGORY_DESCRIPTION_LIST_ITEMS,
+    );
+    expect(schemaMaxCategoryDescriptionSpanTextLength).toBe(
+      MAX_CATEGORY_DESCRIPTION_SPAN_TEXT_LENGTH,
+    );
+  });
+
+  it("prevents Studio from publishing a duplicate emphasis mark", () => {
+    const types = defineSchemaTypes({
+      datasetVisibility: "public",
+      storyRootPaths: ["/stories"],
+    });
+    const inlineSpan = types.find(
+      (type) => type.name === CATEGORY_DESCRIPTION_INLINE_SPAN_TYPE_NAME,
+    );
+    if (inlineSpan === undefined) throw new Error("category description span type is missing");
+
+    expect(inspectValidationRules(fieldOf(inlineSpan, "marks").validation).max).toBe(1);
+  });
+
+  it("allows each description language only once", async () => {
+    const { run } = inspect(fieldOf(categoryType, "description").validation);
+
+    expect(await run([{ language: "fi" }, { language: "en" }])).toEqual([
+      true,
+    ]);
+    expect(
+      (await run([{ language: "fi" }, { language: "fi" }]))[0],
+    ).toContain("fi");
   });
 
   it("is registered with the object types it uses", () => {

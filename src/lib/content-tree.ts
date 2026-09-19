@@ -17,6 +17,8 @@
  * orphan, cycle, or slug collision would publish a path the author never chose.
  */
 
+import type { CategoryDescriptionBlock } from "@/lib/category-description";
+
 /** Authored category levels beneath the implicit, routeless site root. */
 export const MAX_CATEGORY_DEPTH = 5;
 
@@ -44,6 +46,8 @@ export type ContentCategoryInput = {
   readonly slug: string;
   /** Editable display label; keeps its authored casing. */
   readonly label: string;
+  /** Optional locale-specific editorial copy below the category's sole h1. */
+  readonly description?: readonly CategoryDescriptionBlock[];
   /** Explicit author-defined sibling order. */
   readonly order: number;
 };

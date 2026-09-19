@@ -25,6 +25,7 @@ test.use({ javaScriptEnabled: false });
 const STORY_ROOT = `/${DEFAULT_STORY_NAMESPACE}`;
 const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE);
 const treeLabels = labels.contentTree;
+const BRANCH_DESCRIPTION = "Camera equipment notes and field observations.";
 
 /**
  * `cat-gear` in the default-locale mock tree: it holds one authored article and
@@ -62,6 +63,8 @@ test("walks a large category branch page by page with no duplicates or gaps", as
 }) => {
   // The project fixture already fails a test that reaches a third-party origin.
   await page.goto(BRANCH_PATH, { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByText(BRANCH_DESCRIPTION)).toBeVisible();
 
   const seen: string[] = [];
   let hop = 0;
@@ -115,6 +118,10 @@ test("a continuation page is compact, self-canonical, and links back to the firs
     await expect(page.getByText(treeLabels.storyRootIntroduction)).toHaveCount(
       0,
     );
+  });
+
+  await test.step("it does not repeat the category description", async () => {
+    await expect(page.getByText(BRANCH_DESCRIPTION)).toHaveCount(0);
   });
 
   await test.step("it is self-canonical at its own cursor URL", async () => {

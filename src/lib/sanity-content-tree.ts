@@ -28,8 +28,8 @@
  *
  * ## One document, every language
  *
- * `category.ts`'s module comment explains why `label` and `slug` are
- * language-keyed arrays on one document rather than one document per
+ * `category.ts`'s module comment explains why `label`, `slug`, and an optional
+ * description are language-keyed arrays on one document rather than one document per
  * language: a category has no per-language publication lifecycle to
  * preserve, unlike a gallery or article. A category missing a slug or a label
  * in the requested language is treated as not yet published in that
@@ -62,6 +62,12 @@ import {
   type ContentTree,
 } from "@/lib/content-tree";
 import {
+  assertCategoryDescriptionBlocks,
+  type CategoryDescriptionBlock,
+  type CategoryDescriptionInlineMark,
+  type CategoryDescriptionInlineSpan,
+} from "@/lib/category-description";
+import {
   MAX_CONTENT_IDS_BYTES,
   chunkContentIds,
   isRecord,
@@ -85,6 +91,7 @@ export const PROJECTED_CATEGORY_FIELDS = [
   "parent",
   "slug",
   "label",
+  "description",
   "order",
 ] as const;
 
@@ -101,6 +108,16 @@ export const CATEGORY_PROJECTION = `{
   "parentRef": parent._ref,
   slug[]{language, value},
   label[]{language, value},
+  description[]{
+    language,
+    blocks[]{
+      _key,
+      _type,
+      spans[]{text, marks, href},
+      ordered,
+      items[]{_key, spans[]{text, marks, href}}
+    }
+  },
   order
 }`;
 
@@ -132,6 +149,7 @@ export type RawPublicCategoryDocument = {
   readonly parentRef?: unknown;
   readonly slug?: unknown;
   readonly label?: unknown;
+  readonly description?: unknown;
   readonly order?: unknown;
 };
 
@@ -201,6 +219,150 @@ function readCategoryLocalizedValues(
   return values;
 }
 
+function readDescriptionSpans(
+  value: unknown,
+): readonly CategoryDescriptionInlineSpan[] {
+  if (!Array.isArray(value)) {
+    throw new SanityContentTreeError(
+      "malformed-result",
+      "a category description block has no spans",
+    );
+  }
+  return value.map((entry) => {
+    if (!isRecord(entry) || typeof entry.text !== "string") {
+      throw new SanityContentTreeError(
+        "malformed-result",
+        "a category description span is malformed",
+      );
+    }
+    const marks = entry.marks;
+    if (
+      marks != null &&
+      (!Array.isArray(marks) ||
+        !marks.every((mark) => typeof mark === "string"))
+    ) {
+      throw new SanityContentTreeError(
+        "malformed-result",
+        "a category description span has malformed marks",
+      );
+    }
+    const href = entry.href;
+    if (href != null && typeof href !== "string") {
+      throw new SanityContentTreeError(
+        "malformed-result",
+        "a category description span has a malformed link",
+      );
+    }
+    return {
+      text: entry.text,
+      ...(marks == null
+        ? {}
+        : { marks: marks as readonly CategoryDescriptionInlineMark[] }),
+      ...(href == null ? {} : { href }),
+    };
+  });
+}
+
+function projectCategoryDescriptionBlocks(
+  value: unknown,
+): readonly CategoryDescriptionBlock[] {
+  if (!Array.isArray(value)) {
+    throw new SanityContentTreeError(
+      "malformed-result",
+      "a category description is not a block list",
+    );
+  }
+  const blocks = value.map((entry) => {
+    if (!isRecord(entry) || typeof entry._type !== "string") {
+      throw new SanityContentTreeError(
+        "malformed-result",
+        "a category description block is malformed",
+      );
+    }
+    const key = typeof entry._key === "string" ? entry._key : undefined;
+    if (entry._type === "categoryDescriptionParagraph") {
+      return {
+        type: "paragraph" as const,
+        spans: readDescriptionSpans(entry.spans),
+        ...(key === undefined ? {} : { key }),
+      };
+    }
+    if (entry._type === "categoryDescriptionList") {
+      if (typeof entry.ordered !== "boolean" || !Array.isArray(entry.items)) {
+        throw new SanityContentTreeError(
+          "malformed-result",
+          "a category description list is malformed",
+        );
+      }
+      return {
+        type: "list" as const,
+        ordered: entry.ordered,
+        items: entry.items.map((item) => {
+          if (!isRecord(item)) {
+            throw new SanityContentTreeError(
+              "malformed-result",
+              "a category description list item is malformed",
+            );
+          }
+          const itemKey = typeof item._key === "string" ? item._key : undefined;
+          return {
+            spans: readDescriptionSpans(item.spans),
+            ...(itemKey === undefined ? {} : { key: itemKey }),
+          };
+        }),
+        ...(key === undefined ? {} : { key }),
+      };
+    }
+    throw new SanityContentTreeError(
+      "malformed-result",
+      `a category description has an unknown block type: ${entry._type}`,
+    );
+  });
+  try {
+    assertCategoryDescriptionBlocks(blocks);
+  } catch (error) {
+    throw new SanityContentTreeError("malformed-result", (error as Error).message);
+  }
+  return blocks;
+}
+
+function readDescriptionForLanguage(
+  value: unknown,
+  language: string,
+): readonly CategoryDescriptionBlock[] | undefined {
+  if (value == null) return undefined;
+  if (!Array.isArray(value)) {
+    throw new SanityContentTreeError(
+      "malformed-result",
+      "a category description value is not a language-keyed list",
+    );
+  }
+  const seenLanguages = new Set<string>();
+  let selected: readonly CategoryDescriptionBlock[] | undefined;
+  for (const entry of value) {
+    if (
+      !isRecord(entry) ||
+      typeof entry.language !== "string" ||
+      !LANGUAGE_SUBTAG.test(entry.language)
+    ) {
+      throw new SanityContentTreeError(
+        "malformed-result",
+        "a category description language entry is malformed",
+      );
+    }
+    if (seenLanguages.has(entry.language)) {
+      throw new SanityContentTreeError(
+        "malformed-result",
+        `a category has more than one description for language "${entry.language}"`,
+      );
+    }
+    seenLanguages.add(entry.language);
+    if (entry.language !== language) continue;
+    selected = projectCategoryDescriptionBlocks(entry.blocks);
+  }
+  return selected;
+}
+
 /**
  * Every fetched document's own id, mapped to its `categoryId` — used to
  * resolve `parentRef` locally. Only documents with a usable identity take
@@ -263,12 +425,17 @@ export function projectPublicCategoryInput(
   const parentId = parentRef === null
     ? null
     : (categoryIdsById.get(parentRef) ?? parentRef);
+  const description = readDescriptionForLanguage(
+    document.description,
+    resolvedLanguage,
+  );
 
   return {
     categoryId,
     parentId,
     slug,
     label,
+    ...(description === undefined ? {} : { description }),
     // `content-tree.ts` owns the finite-number diagnostic. Preserve actual
     // numbers and map every other JSON type to its rejected representation;
     // coercion would turn null, false, or an empty string into an authored 0.

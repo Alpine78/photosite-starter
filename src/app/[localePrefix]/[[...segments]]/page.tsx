@@ -862,6 +862,10 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
 
   const isStoryRoot = route.kind === "story-root";
   const categoryId = route.kind === "category" ? route.categoryId : null;
+  const categoryDescription =
+    route.kind === "category"
+      ? tree.categories.get(route.categoryId)?.description
+      : undefined;
 
   // A category continuation only exists for a real category branch; the story
   // root has no continuation contract, so it never carries a cursor.
@@ -887,6 +891,9 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
       title={branchTitle(tree, route, labels.pages.stories)}
       {...(isStoryRoot && !isContinuation
         ? { introduction: labels.contentTree.storyRootIntroduction }
+        : {})}
+      {...(!isContinuation && categoryDescription !== undefined
+        ? { description: categoryDescription }
         : {})}
       {...(resolution.legacyFallbackNotice
         ? { legacyFallbackNotice: labels.contentTree.legacyFallbackNotice }

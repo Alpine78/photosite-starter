@@ -189,13 +189,19 @@ unique across the dataset and for not having changed since the last publish, and
 category id is checked the same way. They use the Studio's own client and need no extra
 configuration.
 
-**Categories describe the tree, never its content.** A category document carries a stable
-`categoryId`, an optional reference to its parent, a sibling order, and a language-keyed
-label and path segment — the same fields [`content-tree.ts`](../src/lib/content-tree.ts)'s
-`ContentCategoryInput` needs, and nothing else. It never lists the galleries or articles
-placed in it: ADR-0003 decision 5 makes canonical and secondary category placement a
-property of the content being placed, so that reference lives on the gallery or article
-document once AB#113 and AB#81 add it, not on the category. Before a standard Publish,
+**Categories describe the tree, never its content placement.** A category document carries
+a stable `categoryId`, an optional reference to its parent, a sibling order, and a
+language-keyed label and path segment. It may also carry one optional landing-page
+description per language. The description is deliberately bounded to paragraphs and
+ordered or unordered lists with emphasis and safe links; it cannot add headings, media,
+embeds, or raw HTML. The public adapter validates the same limits as the Studio and does
+not fall back to another language. The initial category page renders the description
+below its sole `h1`; cursor continuation pages omit it.
+
+A category never lists the galleries or articles placed in it: ADR-0003 decision 5 makes
+canonical and secondary category placement a property of the content being placed, so
+that reference lives on the gallery or article document once AB#113 and AB#81 add it, not
+on the category. Before a standard Publish,
 document-level validation reads the published category set, overlays the document being
 edited, and rejects self-parenting, indirect cycles, orphaned parents, excessive depth,
 and sibling-slug collisions. `content-tree.ts` repeats those checks as
