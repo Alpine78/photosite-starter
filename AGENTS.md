@@ -437,7 +437,8 @@ side labels, native range interaction after hydration and successful image loads
 a complete-image toggle, and stacked full-frame fallback for incompatible ratios,
 image failures, and visitors without JavaScript. They join no viewer sequence.
 Sanity schema/projection and approval-bound Joomla comparison-module conversion
-ship together; conversion policy v3 retires earlier conversion approvals.
+shipped together; their original conversion policy v3 retired earlier approvals.
+The current importer versions are recorded in the AB#137 status below.
 Inline mini-galleries (AB#24) are the seventh shared body-block kind: 1–12 public images,
 an optional title, a one/two-column uncropped row-major list, and a separate lightbox
 sequence per block. They enter neither the curated result nor the body's loose-image
@@ -2333,13 +2334,29 @@ of AB#137** — the manifest approval, the baseline export, the temporary
 credential, the Production run itself, the post-write audit, and the
 revocation and handoff evidence.
 
+**AB#137 importer preparation update (2026-09-20):** the current conversion
+policy is `joomla-conversion-v8` and the plan format is `joomla-import-plan-v5`.
+Explicit `canonicalAtStoryRoot` placement (`@story-root` in the article manifest)
+allows a page directly below its localized story namespace; category and page
+slugs share that namespace. Plan v4 introduced this placement and v5 added
+owner-approved curated galleries, named sections and ordered placements, written
+after their containers. Approved media captions and credits and article covers
+are supported; reruns refuse to erase editor-owned gallery presentation fields
+or section introductions. Conversion v8 refuses unresolved BA Gallery markers,
+including markers split across inline markup, line breaks or block boundaries.
+Body poll references must resolve within the plan in the page language or `und`.
+These are preparation capabilities, not evidence of a Production import or final
+manifest approval. AB#137 remains Active; the owner-run operations above are
+still outstanding. See `docs/sanity-seeding.md` for the current operator contract.
+
 Article polls (AB#162, ADR-0018) add the ninth shared body kind. The runtime
 poll facade reads fresh results and performs one atomic receipt/tally mutation;
 the independent per-poll cookie is established only on a vote action, before
 POST, so a lost first response can be retried without a second count. Results
 are server-rendered; voting needs JavaScript and shares the message form's
 hydration/submission guard. `convert:joomla --poll-results` carries closed
-historical pairs into the approved plan (conversion policy v2, plan v3).
+historical pairs into the approved plan (originally conversion policy v2, plan v3;
+the current versions are recorded in the AB#137 update above).
 Actual token provisioning and production migration remain owner-run checks.
 
 A body media placement can now carry one optional, bounded plain-text caption
