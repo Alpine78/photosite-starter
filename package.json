@@ -23,6 +23,7 @@
     "seed:sanity": "node scripts/seed-sanity-content.mts",
     "convert:joomla": "node scripts/convert-joomla-content.mts",
     "write:joomla": "node scripts/write-joomla-content.mts",
+    "write:services": "node scripts/write-sanity-services.mts",
     "admin:secret": "node scripts/generate-admin-secret.mts",
     "recompute:shuffled-order": "node scripts/recompute-shuffled-order.mts",
     "audit:sanity": "node scripts/audit-sanity-content.mts",

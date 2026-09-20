@@ -691,6 +691,33 @@ way through and only surface as an uncaught exception deep inside
 `buildImportPlan`'s own `migratedId` call — a crash instead of the diagnosable
 private report every other failure mode here produces (round 12).
 
+### Writing an approved localized service plan
+
+`npm run write:services` writes a reviewed JSON plan containing only `service`
+documents. It is separate from the Joomla article/gallery writer because a service has
+no category placement, media upload, or body conversion. A dry run validates every
+field, deterministic document id, language-local parent, sibling slug, and parent graph,
+then prints the digest that binds the later write to those exact documents. It makes no
+network request and needs no credential:
+
+```bash
+npm run write:services -- --plan <service-write-plan.json>
+```
+
+The real write requires the printed digest and a temporary Editor-role migration token.
+It checks the target dataset before writing, refuses drafts and differing documents under
+the planned ids, writes parents before children with `createIfNotExists`, and reads every
+document back afterward. It never replaces an existing document; an identical prior write
+is accepted as an idempotent rerun.
+
+```bash
+SANITY_MIGRATION_TOKEN=<temporary-editor-token> npm run write:services -- \
+  --plan <service-write-plan.json> \
+  --approved-digest <dry-run-digest> \
+  --project <project-id> --dataset <dataset> --api-version <api-version> \
+  --yes
+```
+
 ### The write step: `npm run write:joomla`
 
 Takes the plan `convert:joomla --plan` produced and turns it into real Sanity

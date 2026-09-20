@@ -185,6 +185,23 @@ describe("runSeedMutationBatches", () => {
     expect((bodies[2] as { mutations: unknown[] }).mutations).toHaveLength(1);
   });
 
+  it("passes createIfNotExists through without changing the mutation shape", async () => {
+    let body: { mutations: unknown[] } | undefined;
+    const fetchImplementation = vi.fn(async (_url: string, init: RequestInit) => {
+      body = JSON.parse(init.body as string) as { mutations: unknown[] };
+      return jsonResponse({ results: [] });
+    });
+    const document = { _id: "migrated--service--weddings--fi", _type: "service" };
+
+    await runSeedMutationBatches(
+      connection,
+      [{ createIfNotExists: document }],
+      { fetchImplementation: fetchImplementation as unknown as typeof fetch },
+    );
+
+    expect(body?.mutations).toEqual([{ createIfNotExists: document }]);
+  });
+
   it("uses the documented default batch size when none is given", async () => {
     const fetchImplementation = vi.fn(async () => jsonResponse({ results: [] }));
     const summary = await runSeedMutationBatches(connection, mutationsOf(MUTATION_BATCH_SIZE + 1), {

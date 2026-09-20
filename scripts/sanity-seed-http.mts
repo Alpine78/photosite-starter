@@ -68,6 +68,7 @@ export const MUTATION_BATCH_SIZE = 100;
 
 export type SeedMutation =
   | { readonly createOrReplace: Readonly<Record<string, unknown>> & { readonly _id: string } }
+  | { readonly createIfNotExists: Readonly<Record<string, unknown>> & { readonly _id: string } }
   | { readonly delete: { readonly id: string } };
 
 /**
