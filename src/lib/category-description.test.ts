@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertCategoryDescriptionBlocks,
+  MAX_CATEGORY_DESCRIPTION_BLOCKS,
   type CategoryDescriptionBlock,
 } from "@/lib/category-description";
 
@@ -11,6 +12,10 @@ const paragraph = (text = "A short introduction"): CategoryDescriptionBlock => (
 });
 
 describe("category descriptions", () => {
+  it("preserves a seven-paragraph introduction while keeping a finite block limit", () => {
+    expect(() => assertCategoryDescriptionBlocks(Array.from({ length: 7 }, () => paragraph()))).not.toThrow();
+    expect(() => assertCategoryDescriptionBlocks(Array.from({ length: MAX_CATEGORY_DESCRIPTION_BLOCKS + 1 }, () => paragraph()))).toThrow();
+  });
   it("accepts paragraphs and lists with safe links and emphasis", () => {
     expect(() =>
       assertCategoryDescriptionBlocks([

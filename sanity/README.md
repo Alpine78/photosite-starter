@@ -235,3 +235,11 @@ unresolved or nonpublic references. The reveal becomes interactive after both
 images load; different ratios remain full images without an overlay. Captions
 and credits survive in both views. Neither image enters another lightbox's slides.
 See [ADR-0019](../docs/adr/0019-before-after-image-comparison.md).
+
+## Category descriptions
+
+Each locale may provide up to eight paragraph or list blocks in a category
+introduction, with inline emphasis and safe links. The Studio schema and public
+reader enforce the same limit. This accommodates longer existing introductions
+without truncating their text; the category label supplies the page's only H1.
+Headings, quotation blocks and arbitrary HTML are not part of this restricted model.

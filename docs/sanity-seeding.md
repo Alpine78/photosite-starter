@@ -930,25 +930,28 @@ reference's declared type against the document it points to. The check now
 also requires `_type === "reference"` before accepting the object (Codex
 round 9, finding "Require actual Sanity reference objects").
 
-**Media fields an editor owns are merged, not overwritten, across phases.** A
-photograph reused across phased writes gets a separate plan each time, and
-that plan's own `media` document only ever carries the fields this tool
-itself authors — `mediaId`, `mediaType`, `alt` (only the language(s) *this*
-phase's accepted articles contributed), `publiclyRenderable`, and `image` — it
-cannot see a `caption`, `credit`, `capturedAt`, or `enquiryEligible` an editor
-added by hand, or an earlier phase's other-language `alt` entries. Before
-uploading anything, the write step fetches each planned media document's
-currently-published fields and merges them: `alt` is merged by language (a
-language this phase does not itself contribute is carried over unchanged, and
-a language both sides already provide but genuinely *disagree* on refuses the
-whole run rather than silently picking a side — the same posture every other
-conflict class in this tool already takes); `caption`/`credit`/`capturedAt`/
-`enquiryEligible`/`archiveLocator` are fields this tool has no opinion on at
-all, so an existing value is always carried over unchanged rather than
-deleted; and `publiclyRenderable` follows a "false wins" rule — an editor who
-has already turned this off to keep a published photograph out of every
-public page stays hidden regardless of this plan's own unconditional `true`,
-since only an editor should reverse that choice. Conflicts are reported
+Article plans may also carry an explicit `cover` reference. The cover must resolve
+to a public image document in the same plan, with its own verified asset requirement;
+an unknown reference, a video or a hidden image is rejected. This preserves the
+source cover without adding it to the article body or gallery sequence.
+
+**Media fields are merged, not overwritten, across phases.** An approved plan
+may supply localized `caption` entries and a plain-text `credit` in addition to
+`mediaId`, `mediaType`, `alt`, `publiclyRenderable`, and `image`. Caption entries
+use the existing `localizedText` shape, unique language subtags, and non-blank
+text; unknown nested fields and malformed credits are rejected. These fields
+are part of the document digest and must be included in the owner's approval.
+
+Before uploading anything, the writer fetches each planned media document's
+published fields. Alt text and authored captions merge by language: other
+languages are preserved, identical values agree, and differing values in the
+same language stop the run. An authored credit must also agree with an existing
+credit. A malformed stored caption stops a caption merge rather than silently
+losing text. When a plan omits caption or credit, the existing value is preserved
+unchanged. `capturedAt`, `enquiryEligible`, and `archiveLocator` remain carried
+fields only; this change does not allow plans to introduce them.
+`publiclyRenderable` follows a "false wins" rule, so a previously hidden
+photograph stays hidden. Conflicts are reported
 privately in `media-field-conflicts.json`.
 
 **Write ordering.** Sanity's mutate API requires a strong reference's target
@@ -1548,7 +1551,7 @@ Repeated references use one document pair. Poll/tally contents, including counts
 are included in the article's `resolved_digest` approval binding and the final
 plan digest.
 
-The current conversion policy is **joomla-conversion-v3** and import plan format
+The current conversion policy is **joomla-conversion-v7** and import plan format
 **joomla-import-plan-v5**. Version 5 adds curated galleries; version 4 added the explicit story-root canonical
 placement alternative. Regenerate review reports and approvals before planning;
 old approvals/plans are intentionally rejected. Pass the same `--poll-results`
@@ -1607,8 +1610,8 @@ final plan digest covers the two images and their hashes.
 The authoritative AB#23 discussion inventories **12 comparisons in 9 articles**.
 Keep their private module inventory out of the template and CI fixtures. The
 unlabeled source pair needs owner-authored labels before approval. Regenerate
-review reports and manifest approvals under **joomla-conversion-v3**; do not reuse
-v1/v2 conversion approvals. The current plan format is **joomla-import-plan-v5**;
+review reports and manifest approvals under **joomla-conversion-v7**; do not reuse
+approvals from earlier conversion policies. The current plan format is **joomla-import-plan-v5**;
 the later story-root and curated-gallery changes advanced it without changing this block.
 These articles enter the launch manifest only after their complete converted
 bodies have been reviewed; adding converter support does not itself approve them.
@@ -1668,3 +1671,9 @@ ownership before writing. Transactions run in dependency waves: media, historica
 polls when present, content containers, then placements. The final placement wave
 also applies to article end galleries, so splitting a large import into batches
 cannot send a placement before its parent document exists.
+
+On a rerun, preflight also refuses to replace a gallery carrying an editor-authored
+`galleryLayout`, `galleryCaptionPlacement` or section `intro`. These fields are
+outside this importer's allowed input, so replacing the document would erase them.
+Resolve such a conflict with the owner before retrying; do not clear authored
+fields just to make the import pass. The refusal occurs before any asset upload.

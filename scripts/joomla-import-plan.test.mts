@@ -594,6 +594,21 @@ describe("validateMigrationDocuments", () => {
     expect(validateMigrationDocuments([good, media])).toEqual([]);
   });
 
+  it("accepts an article cover referencing a public image in the plan", () => {
+    expect(validateMigrationDocuments([{ ...good, cover: { _type: "reference", _ref: media._id } }, media])).toEqual([]);
+  });
+
+  it.each([
+    { _type: "reference", _ref: "missing-media" },
+    { _type: "reference", _ref: good._id },
+  ])("rejects a cover which does not identify plan media: %j", cover => {
+    expect(validateMigrationDocuments([{ ...good, cover }, media]).join(" ")).toContain("cover must resolve to a public image");
+  });
+
+  it.each([{ mediaType: "video" }, { publiclyRenderable: false }])("rejects a non-public-image cover: %j", fields => {
+    expect(validateMigrationDocuments([{ ...good, cover: { _type: "reference", _ref: media._id } }, { ...media, ...fields }]).join(" ")).toContain("cover must resolve to a public image");
+  });
+
   it("rejects a media document missing mediaType or alt text — restating the Studio's own required fields", () => {
     const noType = { ...media, mediaType: undefined };
     expect(validateMigrationDocuments([good, noType]).join(" ")).toContain('mediaType must be "image" or "video"');

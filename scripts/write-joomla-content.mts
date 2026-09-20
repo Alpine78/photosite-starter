@@ -435,8 +435,17 @@ function checkNestedDocumentShapes(document: Record<string, unknown>, path: stri
         checkFieldSet(entry, LOCALIZED_TEXT_FIELDS, `${path}.alt[${index}]`, issues);
       });
     }
+    if (document.caption !== undefined) {
+      checkCaption(document.caption, `${path}.caption`, issues);
+    }
+    if (document.credit !== undefined && (typeof document.credit !== "string" || !document.credit.trim())) {
+      issues.push(`${path}.credit must be non-blank text`);
+    }
   }
   if (document._type === ARTICLE_TYPE_NAME || document._type === "gallery") {
+    if (document.cover !== undefined) {
+      checkReferenceShape(document.cover, `${path}.cover`, issues, expectResolvedRef);
+    }
     if (document.canonicalCategory !== undefined) {
       checkReferenceShape(document.canonicalCategory, `${path}.canonicalCategory`, issues, expectPendingCategoryRef);
     }
@@ -459,14 +468,32 @@ function checkNestedDocumentShapes(document: Record<string, unknown>, path: stri
     checkReferenceShape(document.article, `${path}.article`, issues, expectResolvedRef);
     checkReferenceShape(document.media, `${path}.media`, issues, expectResolvedRef);
   }
-  if (document._type === "gallery") {
-    if (document.cover !== undefined) checkReferenceShape(document.cover, `${path}.cover`, issues, expectResolvedRef);
-  }
   if (document._type === "galleryPlacement") {
     checkReferenceShape(document.gallery, `${path}.gallery`, issues, expectResolvedRef);
     checkReferenceShape(document.media, `${path}.media`, issues, expectResolvedRef);
   }
   checkRequiredFieldTypes(document, path, issues);
+}
+
+function checkCaption(value: unknown, path: string, issues: string[]): void {
+  if (!Array.isArray(value)) {
+    issues.push(`${path} must be an array of localized text`);
+    return;
+  }
+  const languages = new Set<string>();
+  value.forEach((entry: unknown, index: number) => {
+    if (!isPlainObject(entry)) {
+      issues.push(`${path}[${index}] must be a localized text object`);
+      return;
+    }
+    checkFieldSet(entry, LOCALIZED_TEXT_FIELDS, `${path}[${index}]`, issues);
+    if (entry._type !== "localizedText" || typeof entry.language !== "string" ||
+        !/^[a-z]{2,3}$/.test(entry.language) || typeof entry.value !== "string" || !entry.value.trim()) {
+      issues.push(`${path}[${index}] must contain localizedText, a language subtag and non-blank text`);
+    } else if (languages.has(entry.language)) {
+      issues.push(`${path} contains duplicate language ${entry.language}`);
+    } else languages.add(entry.language);
+  });
 }
 
 export function validatePlanContract(raw: unknown): { readonly issues: readonly string[]; readonly plan: ImportPlan | undefined } {
@@ -504,7 +531,7 @@ export function validatePlanContract(raw: unknown): { readonly issues: readonly 
     galleryPlacement: CURATED_PLACEMENT_FIELDS,
     poll: new Set(["_id", "_type", "pollId", "language", "question", "options", "closeDate"]),
     pollTally: new Set(["_id", "_type", "pollId", "counts"]),
-    [MEDIA_TYPE_NAME]: new Set(["_id", "_type", "mediaId", "mediaType", "alt", "publiclyRenderable", "image"]),
+    [MEDIA_TYPE_NAME]: new Set(["_id", "_type", "mediaId", "mediaType", "alt", "caption", "credit", "publiclyRenderable", "image"]),
     [ARTICLE_TYPE_NAME]: new Set([
       "_id",
       "_type",
@@ -513,6 +540,7 @@ export function validatePlanContract(raw: unknown): { readonly issues: readonly 
       "title",
       "slug",
       "summary",
+      "cover",
       "author",
       "endGalleryId",
       "publishedAt",
@@ -1298,7 +1326,7 @@ export async function runCollisionPreflight(
   const articleIds = articles.map((document) => document._id);
   for (const idsChunk of chunkIdsByByteBudget(articleIds)) {
     const rows = await runQuery({
-      query: `*[_id in $ids]{_id, language, slug, canonicalAtStoryRoot, orderingRule, orderingSeed, sections, "canonicalCategoryId": canonicalCategory->categoryId}`,
+      query: `*[_id in $ids]{_id, language, slug, canonicalAtStoryRoot, orderingRule, orderingSeed, sections, galleryLayout, galleryCaptionPlacement, "canonicalCategoryId": canonicalCategory->categoryId}`,
       params: { ids: idsChunk },
     });
     for (const row of rows) {
@@ -1309,9 +1337,19 @@ export async function runCollisionPreflight(
         collisions.push(`gallery "${row._id}" already has incompatible ordering — refusing to replace it`);
       }
       if (planned._type === "gallery") {
+        // These editor-owned fields cannot be represented by this importer's
+        // allow-list. createOrReplace would erase them even on an exact rerun.
+        for (const field of ["galleryLayout", "galleryCaptionPlacement"] as const) {
+          if (row[field] != null) {
+            collisions.push(`gallery "${row._id}" has an editor-owned ${field} — refusing to erase it`);
+          }
+        }
         const nextSections = Array.isArray(planned.sections) ? planned.sections : [];
         const oldSections = Array.isArray(row.sections) ? row.sections : [];
         for (const section of oldSections) {
+          if (isPlainObject(section) && section.intro != null) {
+            collisions.push(`gallery "${row._id}" has an editor-owned section intro — refusing to erase it`);
+          }
           if (!section || typeof section !== "object" ||
               !nextSections.some(next => next && typeof next === "object" &&
                 next.sectionId === section.sectionId && next.slug === section.slug)) {
@@ -1418,9 +1456,9 @@ export async function runCollisionPreflight(
 // the approved-manifest workflow as one phase per plan (`--phase launch`/`--phase
 // later`/…): a photograph reused across phases gets a *separate* plan each time, and
 // `buildImportPlan`'s own `media` document only ever carries the fields this tool
-// itself authors (`mediaId`, `mediaType`, `alt`, `publiclyRenderable`, `image`) — it
-// has no visibility into a `caption`, `credit`, `capturedAt`, or `enquiryEligible` an
-// editor added by hand after an earlier phase's write, or an `archiveLocator` a private
+// itself authors. Plans can now also carry approved captions and credits, but
+// cannot assume they cover every editor-owned field or language from an earlier
+// phase, including capture dates, enquiry eligibility, or an `archiveLocator` a private
 // dataset carries. Writing that document with a plain `createOrReplace` would silently
 // delete all of it, since the mutate API replaces the whole document rather than
 // patching it. Worse, an editor's explicit `publiclyRenderable: false` — deliberately
@@ -1441,7 +1479,7 @@ function readAltEntries(value: unknown): readonly LocalizedAltEntry[] {
   return entries;
 }
 
-/** Fields this tool never authors — an editor's own value, once present, is always carried over unchanged. */
+/** Existing fields retained when a plan does not contribute editorial text. */
 const CARRIED_MEDIA_FIELDS = ["caption", "credit", "capturedAt", "enquiryEligible", "archiveLocator"] as const;
 
 export type MediaFieldMergeResult = {
@@ -1459,9 +1497,9 @@ export type MediaFieldMergeResult = {
  *   sides already provide but genuinely *disagree* on is an authoring conflict this
  *   tool refuses to silently resolve, the same posture every other conflict class in
  *   this feature already takes, rather than guessing which phase is "right."
- * - `caption`/`credit`/`capturedAt`/`enquiryEligible`/`archiveLocator` are fields this
- *   tool has no opinion on at all — an existing value, once present, is carried over
- *   unchanged rather than deleted.
+ * - Authored captions merge by language and credits must agree with an existing
+ *   credit. Conflicts stop the run before uploads. Omitted fields are preserved,
+ *   as are capture date, enquiry eligibility and archive locator.
  * - `publiclyRenderable` is the one field where "false wins": an existing document
  *   already hidden (`false`) stays hidden regardless of this plan's own value, since
  *   only an editor should reverse that choice.
@@ -1511,6 +1549,25 @@ export async function mergeExistingMediaFields(
     const carried: Record<string, unknown> = {};
     for (const field of CARRIED_MEDIA_FIELDS) {
       if (existing[field] !== undefined) carried[field] = existing[field];
+    }
+    if (document.caption !== undefined) {
+      checkCaption(document.caption, `media ${document._id}.caption`, issues);
+      if (existing.caption != null) checkCaption(existing.caption, `published media ${document._id}.caption`, issues);
+      const captions = new Map(readAltEntries(document.caption).map(entry => [entry.language, entry.value]));
+      for (const entry of readAltEntries(existing.caption)) {
+        const planned = captions.get(entry.language);
+        if (planned !== undefined && planned !== entry.value) {
+          issues.push(`media "${document._id}" has a conflicting published "${entry.language}" caption — resolve manually before writing`);
+        } else captions.set(entry.language, entry.value);
+      }
+      carried.caption = [...captions].sort(([a], [b]) => a.localeCompare(b)).map(([language, value]) => ({
+        _key: `caption-${language}`, _type: "localizedText", language, value,
+      }));
+    }
+    if (document.credit !== undefined) {
+      if (existing.credit != null && existing.credit !== document.credit) {
+        issues.push(`media "${document._id}" has a conflicting published credit — resolve manually before writing`);
+      } else carried.credit = document.credit;
     }
     const publiclyRenderable = existing.publiclyRenderable === false ? false : document.publiclyRenderable;
 

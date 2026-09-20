@@ -36,7 +36,7 @@ export type CategoryDescriptionBlock =
   | CategoryDescriptionParagraph
   | CategoryDescriptionList;
 
-export const MAX_CATEGORY_DESCRIPTION_BLOCKS = 6;
+export const MAX_CATEGORY_DESCRIPTION_BLOCKS = 8;
 export const MAX_CATEGORY_DESCRIPTION_SPANS = 20;
 export const MAX_CATEGORY_DESCRIPTION_LIST_ITEMS = 20;
 export const MAX_CATEGORY_DESCRIPTION_SPAN_TEXT_LENGTH = 300;

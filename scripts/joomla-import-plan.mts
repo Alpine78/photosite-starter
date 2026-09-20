@@ -749,6 +749,14 @@ export function validateMigrationDocuments(documents: readonly PlannedDocument[]
       }
       identities.add(key);
 
+      if (document.cover !== undefined) {
+        const coverId = referencedId(document.cover);
+        const cover = coverId === undefined ? undefined : byId.get(coverId);
+        if (cover?._type !== MEDIA_TYPE_NAME || cover.mediaType !== "image" || cover.publiclyRenderable !== true) {
+          violations.push(`article ${key}: cover must resolve to a public image in this plan`);
+        }
+      }
+
       if (!isRealCalendarDateTime(document.publishedAt)) {
         violations.push(`article ${key}: publishedAt "${String(document.publishedAt)}" is not a real ISO instant`);
       }

@@ -125,6 +125,33 @@ function goodPlan(overrides: Partial<Record<string, unknown>> = {}): Record<stri
 }
 
 describe("validatePlanContract", () => {
+  it("accepts an article cover reference and rejects private fields inside it", () => {
+    const documents = goodDocuments().map(d => d._type === "article" ? { ...d, cover: { _type: "reference", _ref: "migrated--media-photo-1" } } : d);
+    expect(validatePlanContract(goodPlan({ documents })).issues).toEqual([]);
+    const unsafe = documents.map(d => d._type === "article" ? { ...d, cover: { _type: "reference", _ref: "migrated--media-photo-1", archiveLocator: "private" } } : d);
+    expect(validatePlanContract(goodPlan({ documents: unsafe })).plan).toBeUndefined();
+  });
+  it("accepts approved localized captions and credit on new media", () => {
+    const documents = goodDocuments().map(d => d._type === "media" ? {
+      ...d, caption: [{ _key: "fi", _type: "localizedText", language: "fi", value: "Kuvateksti" }], credit: "Photographer",
+    } : d);
+    expect(validatePlanContract(goodPlan({ documents })).issues).toEqual([]);
+  });
+
+  it.each([
+    { caption: "text" },
+    { caption: [{ _type: "localizedText", language: "fi", value: " " }] },
+    { caption: [{ _type: "localizedText", language: "fi", value: "Text", archiveLocator: "private" }] },
+    { caption: [{ _type: "wrong", language: "fi", value: "Text" }] },
+    { caption: [{ _type: "localizedText", language: "fi-FI", value: "Text" }] },
+    { caption: [null] },
+    { caption: [1, 2].map(i => ({ _type: "localizedText", language: "fi", value: String(i) })) },
+    { credit: { value: "Photographer" } },
+    { credit: " " },
+  ])("rejects malformed media editorial fields: %j", fields => {
+    const documents = goodDocuments().map(d => d._type === "media" ? { ...d, ...fields } : d);
+    expect(validatePlanContract(goodPlan({ documents })).plan).toBeUndefined();
+  });
   it("accepts an article canonically placed at the story root without a category reference", () => {
     const documents: readonly PlannedDocument[] = [
       {
@@ -1302,6 +1329,40 @@ describe("runCollisionPreflight", () => {
 // ---------------------------------------------------------------------------
 
 describe("mergeExistingMediaFields", () => {
+  it("merges captions across languages and retains an agreed credit", async () => {
+    const existing = { _id: "migrated--media-photo-1", caption: [{ _type: "localizedText", language: "en", value: "Existing" }], credit: "Photographer" };
+    const fetchImplementation = (async () => jsonResponse({ result: [existing] })) as unknown as typeof fetch;
+    const planned = { ...mediaDocument([{ language: "fi", value: "Alt" }]),
+      caption: [{ _type: "localizedText", language: "fi", value: "Uusi" }], credit: "Photographer" };
+    const result = await mergeExistingMediaFields(fakeConnection(), [planned], { fetchImplementation });
+    expect(result.issues).toEqual([]);
+    expect(result.documents[0]?.caption).toEqual([
+      { _key: "caption-en", _type: "localizedText", language: "en", value: "Existing" },
+      { _key: "caption-fi", _type: "localizedText", language: "fi", value: "Uusi" },
+    ]);
+    expect(result.documents[0]?.credit).toBe("Photographer");
+  });
+
+  it.each([
+    { caption: [{ _type: "localizedText", language: "fi", value: "Different" }] },
+    { caption: "malformed stored value" },
+    { credit: "Someone else" },
+  ])("refuses conflicting or malformed existing editorial fields: %j", async fields => {
+    const fetchImplementation = (async () => jsonResponse({ result: [{ _id: "migrated--media-photo-1", ...fields }] })) as unknown as typeof fetch;
+    const planned = { ...mediaDocument([{ language: "fi", value: "Alt" }]),
+      caption: [{ _type: "localizedText", language: "fi", value: "Approved" }], credit: "Photographer" };
+    const result = await mergeExistingMediaFields(fakeConnection(), [planned], { fetchImplementation });
+    expect(result.issues.length).toBeGreaterThan(0);
+  });
+
+  it("preserves new editorial text when there is no published version", async () => {
+    const fetchImplementation = (async () => jsonResponse({ result: [] })) as unknown as typeof fetch;
+    const planned = { ...mediaDocument([{ language: "fi", value: "Alt" }]),
+      caption: [{ _type: "localizedText", language: "fi", value: "Approved" }], credit: "Photographer" };
+    const result = await mergeExistingMediaFields(fakeConnection(), [planned], { fetchImplementation });
+    expect(result.issues).toEqual([]);
+    expect(result.documents).toEqual([planned]);
+  });
   function mediaDocument(alt: readonly { readonly language: string; readonly value: string }[]): PlannedDocument {
     return {
       _id: "migrated--media-photo-1",

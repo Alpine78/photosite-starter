@@ -171,6 +171,23 @@ it('requires the reviewed cover to remain public',()=>{
 
 describe('existing curated gallery contents', () => {
  it.each([
+  {galleryLayout:'masonry'},
+  {galleryCaptionPlacement:'overlay'},
+  {sections:[{sectionId:'one',slug:'first',intro:[{_type:'sectionIntroParagraph',spans:[{text:'Keep this introduction'}]}]}]},
+ ])('refuses erasing editor-owned gallery fields on rerun: %j', async fields => {
+  const result = await runCollisionPreflight(connection,documents(),new Map([['travel','real-travel']]),mockRows(q => {
+   if (!q.includes('orderingRule, orderingSeed, sections')) return [];
+   expect(q).toContain('galleryLayout');
+   expect(q).toContain('galleryCaptionPlacement');
+   return [{_id:'migrated--gallery-trip-fi',language:'fi',slug:'trip',canonicalCategoryId:'travel',orderingRule:'manual',...fields}];
+  }));
+  expect(result.collisions.join(' ')).toContain('editor-owned');
+ });
+ it('allows absent presentation overrides and section introductions', async () => {
+  const result = await runCollisionPreflight(connection,documents(),new Map([['travel','real-travel']]),mockRows(q => q.includes('orderingRule, orderingSeed, sections') ? [{_id:'migrated--gallery-trip-fi',language:'fi',slug:'trip',canonicalCategoryId:'travel',orderingRule:'manual',galleryLayout:null,galleryCaptionPlacement:null,sections:[{sectionId:'one',slug:'first',intro:null}]}] : []));
+  expect(result.collisions).toEqual([]);
+ });
+ it.each([
   [{sectionId:'one',slug:'renamed'}],
   [{sectionId:'removed',slug:'gone'}],
  ])('refuses retiring published section URLs (%j)', async section => {
