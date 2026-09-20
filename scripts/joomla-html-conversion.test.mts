@@ -175,7 +175,7 @@ describe("round-9 review finding: a structural attribute is only accepted on the
   it("still accepts every legitimately consumed structural attribute", () => {
     const img = convert('<p><img src="known-1.jpg"></p>');
     expect(img.convertible).toBe(true);
-    const a = convert('<p>Katso <a href="/x">linkki</a>.</p>');
+    const a = convert('<p>Katso <a href="https://example.org/x">linkki</a>.</p>');
     expect(a.convertible).toBe(true);
     const ol = convert('<ol start="5" type="1"><li>a</li></ol>');
     expect(ol.convertible).toBe(true);
@@ -454,32 +454,74 @@ describe("attribute policy", () => {
 });
 
 describe("links and emphasis", () => {
-  it("keeps a link's words and reports its lost destination separately from emphasis", () => {
-    const result = convert('<p>Lataa <a href="/files/ohjelma.pdf">ohjelma</a> ja <strong>huomaa</strong>.</p>');
+  it("preserves external links and records emphasis separately", () => {
+    const result = convert('<p>Lataa <a href="https://example.org/program.pdf">ohjelma</a> ja <strong>huomaa</strong>.</p>');
     expect(result.convertible).toBe(true);
-    expect(result.blocks[0]).toMatchObject({ text: "Lataa ohjelma ja huomaa." });
-    const lossy = result.findings.filter((finding) => finding.severity === "lossy");
-    expect(lossy.map((finding) => finding.code)).toEqual(["link-destination-dropped", "emphasis-dropped"]);
-    // The destination has to appear in the finding: that is what an owner
-    // reviews, and what a re-link would restore.
-    expect(lossy[0]?.message).toContain("/files/ohjelma.pdf");
+    expect(result.blocks[0]).toMatchObject({ spans: [
+      {text: "Lataa "}, {text: "ohjelma", href: "https://example.org/program.pdf"}, {text: " ja huomaa."},
+    ] });
+    expect(result.blocks[0]).not.toHaveProperty("text");
+    expect(codes(result, "lossy")).toEqual(["emphasis-dropped"]);
   });
 
-  it("reports an in-page anchor as a lost destination too — every id is dropped, so its target is always gone", () => {
-    const result = convert('<p>Katso <a href="#alaosa">alaosa</a>.</p>');
-    expect(codes(result, "lossy")).toContain("link-destination-dropped");
-  });
-
-  it("drops a known-inert rel value as lossy rather than refusing it", () => {
-    const result = convert('<p><a href="/x" rel="alternate">linkki</a></p>');
+  it("requires an explicit mapping for legacy paths and fragments", () => {
+    for (const href of ["", "/old/path", "blogi/42", "#old-anchor"]) {
+      const result = convert(`<p>Katso <a href="${href}">kohde</a>.</p>`);
+      expect(result.convertible).toBe(false);
+      expect(codes(result, "refusal")).toContain("link-unresolved");
+    }
+    const result = convert('<p>Katso <a href="#old-anchor">kuvat</a>.</p>', {
+      resolveLink: href => href === "#old-anchor" ? "#gallery" : undefined,
+    });
     expect(result.convertible).toBe(true);
-    expect(codes(result, "lossy")).toEqual(["link-relationship-dropped", "link-destination-dropped"]);
+    expect(result.blocks[0]).toMatchObject({spans: [{text: "Katso "}, {text: "kuvat", href: "#gallery"}, {text: "."}]});
   });
 
-  it("accepts several known-inert rel tokens together", () => {
-    const result = convert('<p><a href="/x" rel="nofollow tag">linkki</a></p>');
-    expect(codes(result, "refusal")).toEqual([]);
-    expect(codes(result, "lossy")).toContain("link-relationship-dropped");
+  it("drops only known-inert rel tokens while preserving the destination", () => {
+    for (const rel of ["alternate", "nofollow tag"]) {
+      const result = convert(`<p><a href="https://example.org/x" rel="${rel}">linkki</a></p>`);
+      expect(result.convertible).toBe(true);
+      expect(codes(result, "lossy")).toEqual(["link-relationship-dropped"]);
+      expect(result.blocks[0]).toMatchObject({spans: [{text: "linkki", href: "https://example.org/x"}]});
+    }
+  });
+
+  it("preserves list links, spacing and entities without contaminating neighbouring paragraphs", () => {
+    const result = convert('<p>Before</p><ul><li>  Read <a href="https://example.org/?a=1&amp;b=2">the <strong>guide</strong></a> now. </li><li>Plain item</li></ul><p>After</p>');
+    expect(result.convertible).toBe(true);
+    expect(result.blocks).toMatchObject([
+      {text: "Before"},
+      {ordered: false, richItems: [
+        {spans: [{text: "Read "}, {text: "the guide", href: "https://example.org/?a=1&b=2"}, {text: " now."}]},
+        {spans: [{text: "Plain item"}]},
+      ]},
+      {text: "After"},
+    ]);
+  });
+
+  it("refuses unsafe resolved links and links outside paragraphs or list items", () => {
+    const unsafe = convert('<p><a href="old">link</a></p>', {resolveLink: () => "javascript:alert(1)"});
+    expect(codes(unsafe, "refusal")).toContain("link-unresolved");
+    for (const wrapper of ["h2", "blockquote"]) {
+      const result = convert(`<${wrapper}><a href="https://example.org">link</a></${wrapper}>`);
+      expect(codes(result, "refusal")).toContain("link-unresolved");
+    }
+    const table = convert('<table><tr><th>A</th></tr><tr><td><a href="https://example.org">link</a></td></tr></table>');
+    expect(codes(table, "refusal")).toContain("link-unresolved");
+  });
+
+  it("refuses a link wrapping media or an empty label", () => {
+    for (const inner of ['<img src="known-1.jpg">', '{gallery}stories/large{/gallery}', '   ']) {
+      expect(codes(convert(`<p><a href="https://example.org">${inner}</a></p>`), "refusal")).toContain("link-unresolved");
+    }
+  });
+
+  it("bounds text runs and binds the preserved href into the conversion digest", () => {
+    const html = '<p>' + '<a href="https://example.org">link</a> '.repeat(101) + '</p>';
+    expect(convert(html).convertible).toBe(false);
+    const a = convert('<p><a href="old">link</a></p>', {resolveLink: () => "/new-a"});
+    const b = convert('<p><a href="old">link</a></p>', {resolveLink: () => "/new-b"});
+    expect(resolvedConversionDigest(a)).not.toEqual(resolvedConversionDigest(b));
   });
 
   it("still refuses a rel value with real browser behaviour", () => {

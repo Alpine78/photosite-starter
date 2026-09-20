@@ -1,3 +1,4 @@
+import { ContentInline } from "@/components/content-inline";
 import { ContentImageComparison } from "@/components/content-image-comparison";
 import { ContentTabGroup } from "@/components/content-tab-group";
 import { PollBlock } from "@/components/poll-block";
@@ -90,7 +91,7 @@ export function ContentBody({
           case "paragraph":
             return (
               <p key={block.key ?? index} className="leading-7 text-body">
-                {block.text}
+                {block.spans ? <ContentInline spans={block.spans} /> : block.text}
               </p>
             );
 
@@ -179,7 +180,7 @@ export function ContentBody({
                 >
                   {block.items.map((item, i) => (
                     <li key={i} className="leading-7">
-                      {item}
+                      {block.itemSpans ? <ContentInline spans={block.itemSpans[i]} /> : item}
                     </li>
                   ))}
                 </ol>
@@ -192,7 +193,7 @@ export function ContentBody({
               >
                 {block.items.map((item, i) => (
                   <li key={i} className="leading-7">
-                    {item}
+                    {block.itemSpans ? <ContentInline spans={block.itemSpans[i]} /> : item}
                   </li>
                 ))}
               </ul>

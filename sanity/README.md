@@ -243,3 +243,18 @@ introduction, with inline emphasis and safe links. The Studio schema and public
 reader enforce the same limit. This accommodates longer existing introductions
 without truncating their text; the category label supplies the page's only H1.
 Headings, quotation blocks and arbitrary HTML are not part of this restricted model.
+
+## Links in article and gallery text
+
+A body paragraph offers **Text** for plain text or **Linked text** for text runs
+with optional links. Fill one of these fields. A list likewise uses **Items** or
+**Linked list items**, with one span array per item. Include the spaces around a
+link in the text runs. Existing plain-text documents continue to work unchanged.
+
+Linked text supports HTTP(S) URLs without credentials, paths beginning with `/`,
+and heading/gallery fragments beginning with `#`. It does not support HTML,
+new-tab behavior, or executable URLs. The bounds are 100 runs and 10,000 characters
+per paragraph/item, 100 rich list items and 2,048 characters per URL. The public
+reader and migration writer enforce these rules as well as Studio. Paragraph and
+list links work without JavaScript. Category descriptions retain their separate,
+restricted introduction model.

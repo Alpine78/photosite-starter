@@ -1,3 +1,4 @@
+import type { ContentInlineSpan } from "./content-inline";
 import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
 /**
  * The public content page itself: one gallery or article, as the route layer
@@ -55,7 +56,7 @@ export type ContentBlock =
       items: readonly { key?: string; media: Media }[];
       key?: string;
     }
-  | { type: "paragraph"; text: string; key?: string }
+  | { type: "paragraph"; text: string; spans?: readonly ContentInlineSpan[]; key?: string }
   | { type: "heading"; level: 2 | 3 | 4; text: string; key?: string }
   | { type: "blockquote"; text: string; attribution?: string; key?: string }
   | {
@@ -65,11 +66,11 @@ export type ContentBlock =
       caption?: string;
       key?: string;
     }
-  | { type: "list"; ordered: boolean; items: string[]; key?: string }
+  | { type: "list"; ordered: boolean; items: string[]; itemSpans?: readonly (readonly ContentInlineSpan[])[]; key?: string }
   | {
       /**
-       * A small comparison table (AB#22). Plain text throughout, matching
-       * `paragraph` and `list`: a cell carries no inline formatting, link, or
+       * A small comparison table (AB#22). A cell remains plain text even
+       * when surrounding paragraphs contain links: no inline formatting, link, or
        * nested block, so nothing here can smuggle in a second body model.
        *
        * The shape is rectangular by contract — `rows[n].length ===

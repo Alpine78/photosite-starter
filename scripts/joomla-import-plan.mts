@@ -61,6 +61,7 @@ import {
 } from "./joomla-import-manifest.mts";
 
 /**
+ * Bumped to v6 for paragraph spans and rich list items.
  * Bumped to v5 for curated gallery and galleryPlacement documents.
  * Bumped to v4 when an article gained the explicit `canonicalAtStoryRoot`
  * alternative to `canonicalCategory` (ADR-0003's 2026-09-19 amendment). A v3
@@ -71,7 +72,7 @@ import {
  * version-equality check would be meaningless against a constant that never moved — a
  * stale v1 plan, genuinely missing every hash, would otherwise satisfy it.
  */
-export const IMPORT_PLAN_VERSION = "joomla-import-plan-v5";
+export const IMPORT_PLAN_VERSION = "joomla-import-plan-v6";
 
 /**
  * Restated from `sanity/schemas/article.ts` and `sanity/schemas/gallery-

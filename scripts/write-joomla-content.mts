@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readContentInlineSpans, readContentRichItems } from "../src/lib/content-inline.ts";
 import { CURATED_GALLERY_FIELDS, CURATED_PLACEMENT_FIELDS, validateCuratedGalleryDocuments } from "./joomla-curated-gallery.mts";
 /**
  * AB#137's owner-run write command: turns an already-approved, non-writable
@@ -239,10 +240,10 @@ const TAB_TABLE_FIELDS = new Set(["_type", "caption", "headers", "rows"]);
 
 /** Every content-block `_type` this converter emits, and exactly the fields each one carries. */
 const BLOCK_FIELD_SCHEMAS: Readonly<Record<string, ReadonlySet<string>>> = {
-  contentParagraphBlock: new Set(["_key", "_type", "text"]),
+  contentParagraphBlock: new Set(["_key", "_type", "text", "spans"]),
   contentHeadingBlock: new Set(["_key", "_type", "level", "text"]),
   contentQuoteBlock: new Set(["_key", "_type", "text"]),
-  contentListBlock: new Set(["_key", "_type", "ordered", "items"]),
+  contentListBlock: new Set(["_key", "_type", "ordered", "items", "richItems"]),
   contentYoutubeBlock: new Set(["_key", "_type", "videoId", "title"]),
   contentMediaBlock: new Set(["_key", "_type", "media", "caption"]),
   contentGalleryBlock: new Set(["_key", "_type", "title", "images"]),
@@ -318,6 +319,21 @@ function checkBlockShape(block: unknown, path: string, issues: string[]): void {
     return;
   }
   checkFieldSet(block, schema, path, issues);
+  if (block._type === "contentParagraphBlock" || block._type === "contentListBlock") {
+    const paragraph = block._type === "contentParagraphBlock";
+    const rich = paragraph ? block.spans : block.richItems;
+    const plain = paragraph ? block.text : block.items;
+    if (rich !== undefined) {
+      if (plain !== undefined) issues.push(`${path} cannot mix plain and linked text`);
+      try {
+        if (paragraph) readContentInlineSpans(rich);
+        else readContentRichItems(rich);
+      } catch {
+        issues.push(`${path} has invalid inline text or links`);
+      }
+    }
+  }
+
   if (block._type === "contentImageComparisonBlock") {
     for (const side of ["first", "second"] as const) {
       if (block[side] === undefined) issues.push(`${path}.${side} is required`);

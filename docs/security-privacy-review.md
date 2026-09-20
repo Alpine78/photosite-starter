@@ -686,3 +686,19 @@ does not change application cookie attributes.
 - Production build, TypeScript, diagram rendition check and diff whitespace
   check passed. ESLint reports zero errors and one existing unrelated
   `presetMediaDark` warning in `theme-contract.test.ts:117`.
+
+
+### 2026-09-20 scoped check — migrated paragraph/list links (AB#137)
+
+Reviewed the new inline text boundary in Studio, conversion, the import writer,
+Sanity projection and `ContentInline`. The writer rejects extra nested fields and
+unsafe/oversized destinations; the reader projects only text and href and fails
+closed on conflicting plain/rich representations. Text remains React-escaped,
+with no HTML injection, embed, browser-policy relaxation or new dependency.
+Native anchors use same-tab navigation and `noreferrer`. Regression tests cover
+executable URLs, protocol-relative/backslash/control-character evasions,
+credentials, bounds and unresolved source links. Chromium and mobile WebKit tests
+exercise paragraph/list links with and without JavaScript and assert that external
+references make no request during rendering. No finding remains in this scoped
+code check. This does not constitute a live Sanity, destination-availability or
+production-launch review; those checks and AB#137's final approval remain open.

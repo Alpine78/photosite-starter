@@ -311,6 +311,26 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
         type: "paragraph",
         text: "A telephoto lens purchase is one of the most significant investments a photographer makes. The headline specs — focal length range and maximum aperture — are easy to compare, but they rarely tell you how a lens actually behaves in the field. Placeholder copy; replaced with real content from the CMS.",
       },
+      {
+        type: "paragraph",
+        text: "Read the checklist below, or visit the example reference.",
+        spans: [
+          {text: "Read the "},
+          {text: "checklist below", href: "#section-key-specifications-to-evaluate"},
+          {text: ", or visit the "},
+          {text: "example reference", href: "https://example.org/reference"},
+          {text: "."},
+        ],
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: ["Review the specifications.", "Keep your own notes."],
+        itemSpans: [
+          [{text: "Review the "}, {text: "specifications", href: "#section-key-specifications-to-evaluate"}, {text: "."}],
+          [{text: "Keep your own notes."}],
+        ],
+      },
       { type: "heading", level: 2, text: "Autofocus: speed vs. accuracy" },
       {
         type: "paragraph",

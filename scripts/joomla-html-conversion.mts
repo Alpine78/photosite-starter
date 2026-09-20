@@ -1,3 +1,4 @@
+import { isContentInlineHref, readContentInlineSpans, type ContentInlineSpan } from "../src/lib/content-inline.ts";
 /**
  * AB#137's Joomla body converter: one legacy article's HTML (plus Joomla's own
  * `{...}` plugin markers) into the Sanity content-block objects
@@ -54,7 +55,7 @@ import { parseFragment } from "parse5";
  * value (see `joomla-import-manifest.mts`), so a rule change invalidates a
  * stale approval instead of silently inheriting it.
  */
-export const CONVERSION_POLICY_VERSION = "joomla-conversion-v8";
+export const CONVERSION_POLICY_VERSION = "joomla-conversion-v9";
 
 // ---------------------------------------------------------------------------
 // Sanity content-block shapes
@@ -118,6 +119,7 @@ export type ConversionFinding = {
 };
 
 export const REFUSAL_CODES = [
+  "link-unresolved",
   "unsupported-element",
   "script-or-style",
   "hidden-content",
@@ -151,6 +153,7 @@ export const REFUSAL_CODES = [
 ] as const;
 
 export const LOSSY_CODES = [
+  // Historical v8 reports can contain this; v9 refuses unresolved links.
   "link-destination-dropped",
   "link-relationship-dropped",
   "emphasis-dropped",
@@ -207,6 +210,8 @@ export type ResolvedGallery = {
 export type ConversionContext = {
   /** The article's own language subtag. Attributes each resolved image's alt text to it. */
   readonly language: string;
+  /** Explicit mapping for legacy internal routes and fragment targets. */
+  readonly resolveLink?: (href: string) => string | undefined;
   /** `undefined` means "no approved identity for this source reference" → refusal. */
   readonly resolveImage: (src: string) => ResolvedImage | undefined;
   /** `undefined` means the gallery path is not in the approved decision sheet → refusal. */
@@ -337,11 +342,9 @@ const HIDING_STYLE =
  * `rel` values on an `<a>` confirmed (against MDN's rel-attribute reference)
  * to carry no browser behaviour of their own — a pure document-relationship
  * annotation, unlike `noopener`/`noreferrer`/`opener`, which change window or
- * referrer behaviour and still refuse as `behavioural-attribute`. A link's
- * own destination is always dropped as `link-destination-dropped` regardless
- * (the `<a>` becomes plain prose), so even a real `rel` value would be moot
- * here — this allow-list is scoped to the ones with no meaning at all, not a
- * bet on that fact holding.
+ * referrer behaviour and still refuse as `behavioural-attribute`. Destinations
+ * survive in v9; only these inert relationship annotations are recorded as
+ * dropped. The public renderer owns same-tab navigation and noreferrer.
  */
 const SAFE_ANCHOR_REL_VALUES = new Set([
   "alternate", "author", "bookmark", "help", "license", "next", "nofollow", "prev", "search", "tag",
@@ -487,6 +490,9 @@ class BodyConverter {
   private readonly blocks: SanityBlock[] = [];
   private readonly findings: ConversionFinding[] = [];
   private readonly inline: InlineRun = { text: "" };
+  private inlineSpans: ContentInlineSpan[] = [];
+  private activeHref: string | undefined;
+  private preserveCapturedLinks = false;
   private headingLevel: number | undefined;
   private endGallery: { sourcePath: string; mediaIds: readonly string[] } | undefined;
   private readonly resolvedImageAltText: ResolvedImageAltText[] = [];
@@ -530,13 +536,22 @@ class BodyConverter {
 
   private appendInline(text: string): void {
     this.inline.text += text;
+    const last = this.inlineSpans.at(-1);
+    if (last && last.href === this.activeHref) this.inlineSpans[this.inlineSpans.length - 1] = {...last, text: last.text + text};
+    else this.inlineSpans.push({text, ...(this.activeHref === undefined ? {} : {href: this.activeHref})});
   }
 
   private flushParagraph(): void {
     const text = normalizeText(this.inline.text);
+    const spans = normalizeInlineRuns(this.inlineSpans);
     this.inline.text = "";
+    this.inlineSpans = [];
     if (text.length === 0) return;
-    this.blocks.push({ _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph, text });
+    if (spans.some(s => s.href !== undefined)) {
+      try { readContentInlineSpans(spans); }
+      catch { this.refuse("link-unresolved", "Linked paragraph exceeds supported bounds."); }
+      this.blocks.push({ _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph, spans: storedSpans(spans) });
+    } else this.blocks.push({ _type: CONTENT_BLOCK_OBJECT_TYPES.paragraph, text });
   }
 
   private push(block: SanityBlock): void {
@@ -588,7 +603,7 @@ class BodyConverter {
         if (reportPresentation) {
           this.note(
             "link-relationship-dropped",
-            `Dropped the rel="${attribute.value}" relationship annotation from ${node.tagName}. It carries no browser behaviour and the link's own destination is already dropped separately.`,
+            `Dropped the rel="${attribute.value}" relationship annotation from ${node.tagName}. It carries no browser behaviour and is not retained in the new link model.`,
             excerpt(attribute.value),
           );
         }
@@ -978,8 +993,10 @@ class BodyConverter {
    * a list item — silent corruption of exactly the kind this module exists to
    * prevent. So any emitted block is undone and refused instead.
    */
-  private captureFlatText(node: Node): { readonly text: string; readonly emittedBlocks: boolean } {
+  private captureFlatText(node: Node, preserveLinks = false): { readonly text: string; readonly emittedBlocks: boolean; readonly spans?: ContentInlineSpan[] } {
     const outerInline = this.inline.text;
+    const outerSpans = this.inlineSpans;
+    this.inlineSpans = [];
     const blockCountBefore = this.blocks.length;
     // An oversized `{gallery}` marker mutates `this.endGallery` without ever
     // pushing a block (found in Codex review round 2): a gallery marker inside
@@ -989,13 +1006,18 @@ class BodyConverter {
     const endGalleryBefore = this.endGallery;
     const endGalleryBlockIndexBefore = this.endGalleryBlockIndex;
     this.inline.text = "";
+    const outerPreserve = this.preserveCapturedLinks;
+    this.preserveCapturedLinks = preserveLinks;
     this.flatTextCaptureDepth += 1;
     try {
       this.convertChildren(node);
     } finally {
       this.flatTextCaptureDepth -= 1;
+      this.preserveCapturedLinks = outerPreserve;
     }
     const text = normalizeText(this.inline.text);
+    const spans = normalizeInlineRuns(this.inlineSpans);
+    this.inlineSpans = outerSpans;
     this.inline.text = outerInline;
     const emittedBlocks = this.blocks.length > blockCountBefore || this.endGallery !== endGalleryBefore;
     if (emittedBlocks) {
@@ -1003,7 +1025,7 @@ class BodyConverter {
       this.endGallery = endGalleryBefore;
       this.endGalleryBlockIndex = endGalleryBlockIndexBefore;
     }
-    return { text, emittedBlocks };
+    return { text, emittedBlocks, spans };
   }
 
   private visitInlineElement(node: Node, tag: string): void {
@@ -1011,23 +1033,25 @@ class BodyConverter {
 
     if (tag === "a") {
       const href = attributeValue(node, "href");
-      const label = normalizeText(textOf(node));
-      if (href !== undefined && href.trim().length > 0) {
-        // The shared paragraph/list model carries plain strings with no inline
-        // structure, so a link's *destination* cannot survive. Its words do —
-        // which is exactly why this has to be reported: "download the
-        // programme" still reads correctly while doing nothing.
-        //
-        // A `#fragment` link is not exempt: every `id` attribute is dropped
-        // (`anchor-id-dropped`, above), unconditionally, so an in-page anchor's
-        // target is always gone after conversion too — found in Codex review
-        // round 3, which is right that the earlier carve-out assumed a target
-        // could survive when nothing in this converter ever lets one.
-        this.note(
-          "link-destination-dropped",
-          `The link target "${href.trim()}" was dropped; its text "${label}" remains as plain prose.`,
-          excerpt(`${label} → ${href.trim()}`),
-        );
+      if (href !== undefined && !href.trim()) this.refuse("link-unresolved", "A link needs a non-empty destination.");
+      if (href?.trim()) {
+        if (this.flatTextCaptureDepth > 0 && !this.preserveCapturedLinks) {
+          this.refuse("link-unresolved", "Links in headings, quotes, captions or table cells need an explicit content decision.", excerpt(href));
+        } else {
+          const target = this.context.resolveLink?.(href) ?? (/^https?:\/\//.test(href) ? href : undefined);
+          if (!isContentInlineHref(target)) {
+            this.refuse("link-unresolved", "A legacy link needs a safe, explicitly resolved target.", excerpt(href));
+          } else {
+            const previousHref = this.activeHref;
+            const blockCount = this.blocks.length;
+            const endGalleryBefore = this.endGallery;
+            this.activeHref = target;
+            this.convertChildren(node);
+            this.activeHref = previousHref;
+            if (this.blocks.length !== blockCount || this.endGallery !== endGalleryBefore || !normalizeText(textOf(node))) this.refuse("link-unresolved", "A link may contain only inline text.", excerpt(href));
+            return;
+          }
+        }
       }
       this.convertChildren(node);
       return;
@@ -1252,6 +1276,7 @@ class BodyConverter {
     }
 
     const items: string[] = [];
+    const richItems: ContentInlineSpan[][] = [];
     let sawNonWhitespaceText = false;
     for (const child of childrenOf(node)) {
       if (isText(child)) {
@@ -1276,7 +1301,7 @@ class BodyConverter {
         return;
       }
       this.checkAttributes(child);
-      const { text, emittedBlocks } = this.captureFlatText(child);
+      const { text, emittedBlocks, spans } = this.captureFlatText(child, true);
       if (emittedBlocks) {
         this.refuse(
           "block-inside-quote-or-item",
@@ -1290,6 +1315,7 @@ class BodyConverter {
         return;
       }
       items.push(text);
+      richItems.push(spans ?? [{text}]);
     }
     if (items.length === 0) {
       this.refuse("empty-list", "A list holds no items.", excerpt(describeElement(node)));
@@ -1303,7 +1329,11 @@ class BodyConverter {
       );
       return;
     }
-    this.push({ _type: CONTENT_BLOCK_OBJECT_TYPES.list, ordered, items });
+    if (richItems.some(spans => spans.some(s => s.href !== undefined))) {
+      for (const spans of richItems) { try { readContentInlineSpans(spans); } catch { this.refuse("link-unresolved", "Linked list item exceeds supported bounds."); } }
+      if (richItems.length > 100) this.refuse("link-unresolved", "Linked list exceeds 100 items.");
+      this.push({ _type: CONTENT_BLOCK_OBJECT_TYPES.list, ordered, richItems: richItems.map((spans, i) => ({_type: "contentRichListItem", _key: `item-${i}`, spans: storedSpans(spans)})) });
+    } else this.push({ _type: CONTENT_BLOCK_OBJECT_TYPES.list, ordered, items });
   }
 
   private visitEmbed(node: Node, tag: string): void {
@@ -1674,6 +1704,8 @@ class BodyConverter {
   private convertPaneToSingleTable(pane: Node): SanityBlock | undefined {
     const blockCountBefore = this.blocks.length;
     const outerInline = this.inline.text;
+    const outerSpans = this.inlineSpans;
+    this.inlineSpans = [];
     const endGalleryBefore = this.endGallery;
     const endGalleryBlockIndexBefore = this.endGalleryBlockIndex;
     const findingsBefore = this.findings.length;
@@ -1684,6 +1716,7 @@ class BodyConverter {
     const galleryMarkerFound = this.endGallery !== endGalleryBefore;
     this.blocks.length = blockCountBefore;
     this.inline.text = outerInline;
+    this.inlineSpans = outerSpans;
     this.endGallery = endGalleryBefore;
     this.endGalleryBlockIndex = endGalleryBlockIndexBefore;
 
@@ -1932,4 +1965,21 @@ export function convertJoomlaBody(html: string, context: ConversionContext): Con
   const converter = new BodyConverter(context);
   converter.convert(childrenOf(fragment));
   return converter.finish();
+}
+
+function storedSpans(spans: readonly ContentInlineSpan[]) {
+  return spans.map((span, i) => ({_type: "contentInlineSpan", _key: `span-${i}`, ...span}));
+}
+function normalizeInlineRuns(runs: readonly ContentInlineSpan[]): ContentInlineSpan[] {
+  const result: ContentInlineSpan[] = [];
+  for (const run of runs) {
+    let text = run.text.replace(/\s+/gu, " ");
+    if (!result.length || result.at(-1)!.text.endsWith(" ")) text = text.replace(/^ +/, "");
+    if (text) result.push({...run, text});
+  }
+  if (result.length) {
+    const last = result.at(-1)!;
+    result[result.length - 1] = {...last, text: last.text.trimEnd()};
+  }
+  return result.filter(run => run.text.length > 0);
 }

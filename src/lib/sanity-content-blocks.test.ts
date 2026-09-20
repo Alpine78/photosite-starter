@@ -636,3 +636,19 @@ describe("image comparison public projection", () => {
     expect(projectContentBlock({ ...block, title: "Example" }, 0, options)).toMatchObject({ title: "Example" });
   });
 });
+
+describe("inline link projection", () => {
+  const spans = [{_type: "contentInlineSpan", text: "See "}, {_type: "contentInlineSpan", text: "the guide", href: "/stories/guide"}];
+  it("derives plain text alongside safe spans for existing consumers", () => {
+    expect(projectContentBlock({_type: "contentParagraphBlock", _key: "p", spans}, 0, options)).toEqual({type: "paragraph", key: "p", text: "See the guide", spans: [{text: "See "}, {text: "the guide", href: "/stories/guide"}]});
+    expect(projectContentBlock({_key: "l", _type: "contentListBlock", ordered: true, richItems: [{_type: "contentRichListItem", spans}]}, 0, options)).toMatchObject({type: "list", ordered: true, items: ["See the guide"], itemSpans: [[{text: "See "}, {text: "the guide", href: "/stories/guide"}]]});
+  });
+  it("fails closed on conflicting representations or unsafe links", () => {
+    for (const block of [
+      {_type: "contentParagraphBlock", text: "different", spans},
+      {_type: "contentParagraphBlock", spans: [{text: "click", href: "javascript:alert(1)"}]},
+      {_key: "l", _type: "contentListBlock", ordered: false, items: ["different"], richItems: [{spans}]},
+      {_key: "l", _type: "contentListBlock", ordered: false, richItems: [{spans: []}]},
+    ]) expect(() => projectContentBlock({_key: "b", ...block}, 0, options)).toThrow(SanityContentBlockError);
+  });
+});

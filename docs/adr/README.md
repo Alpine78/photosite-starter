@@ -71,3 +71,6 @@ Expected further entries:
 | AB#42 | Free Core vs. Premium product boundary |
 
 Add a row here when an ADR lands.
+
+ADR-0003 also records the 2026-09-20 amendment preserving bounded inline links in
+article/gallery paragraphs and lists during Joomla migration (AB#137).

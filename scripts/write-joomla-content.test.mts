@@ -125,6 +125,22 @@ function goodPlan(overrides: Partial<Record<string, unknown>> = {}): Record<stri
 }
 
 describe("validatePlanContract", () => {
+  it("validates linked body text recursively before any write", () => {
+    const spans = [{_type: "contentInlineSpan", _key: "s1", text: "Guide", href: "/stories/guide"}];
+    const check = (body: unknown[]) => validatePlanContract(goodPlan({documents: goodDocuments().map(d => d._type === "article" ? {...d, body} : d)}));
+    expect(check([
+      {_type: "contentParagraphBlock", _key: "p", spans},
+      {_type: "contentListBlock", _key: "l", ordered: false, richItems: [{_type: "contentRichListItem", _key: "i", spans}]},
+    ]).issues).toEqual([]);
+    for (const block of [
+      {_type: "contentParagraphBlock", spans, text: "Conflicting"},
+      {_type: "contentParagraphBlock", spans: [{text: "Unsafe", href: "javascript:alert(1)"}]},
+      {_type: "contentParagraphBlock", spans: [{text: "Text", archiveLocator: "private"}]},
+      {_type: "contentListBlock", ordered: false, richItems: [{spans, privateField: "secret"}]},
+      {_type: "contentListBlock", ordered: false, richItems: [{spans}], items: ["Conflicting"]},
+    ]) expect(check([{_key: "b", ...block}]).plan).toBeUndefined();
+  });
+
   it("accepts an article cover reference and rejects private fields inside it", () => {
     const documents = goodDocuments().map(d => d._type === "article" ? { ...d, cover: { _type: "reference", _ref: "migrated--media-photo-1" } } : d);
     expect(validatePlanContract(goodPlan({ documents })).issues).toEqual([]);

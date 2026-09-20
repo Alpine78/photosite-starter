@@ -1145,3 +1145,31 @@ describe("parseSourceArticles", () => {
     ).toContain("tags must be an array of strings");
   });
 });
+
+describe("CLI inline-link resolution", () => {
+  it("scopes legacy mappings by article identity and includes targets in the resolved digest", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "joomla-cli-links-"));
+    try {
+      const source = path.join(root, "source.ndjson");
+      const resolution = path.join(root, "resolution.json");
+      const out = path.join(root, "out");
+      await writeFileNode(source, ["42", "43"].map(joomlaId => JSON.stringify({
+        joomlaId, language: "en", title: "Guide", body: '<p>See <a href="old/guide">the guide</a>.</p>',
+      })).join("\n"));
+      async function convert(target: string) {
+        await writeFileNode(resolution, JSON.stringify({links: {"42": {"old/guide": target}}}));
+        await run("node", [path.join(import.meta.dirname, "convert-joomla-content.mts"), "--source", source, "--resolution", resolution, "--image-root", root, "--out", out]);
+        return JSON.parse(await readFileNode(path.join(out, "findings.json"), "utf8")) as {joomlaId: string; convertible: boolean; blocks: unknown[]; resolvedDigest: string; findings: {code: string}[]}[];
+      }
+      const first = await convert("/stories/new-guide");
+      expect(first[0].convertible).toBe(true);
+      expect(first[0].blocks[0]).toMatchObject({spans: [{text: "See "}, {text: "the guide", href: "/stories/new-guide"}, {text: "."}]});
+      expect(first[1].convertible).toBe(false);
+      expect(first[1].findings.map(f => f.code)).toContain("link-unresolved");
+      const second = await convert("/stories/renamed-guide");
+      expect(second[0].resolvedDigest).not.toBe(first[0].resolvedDigest);
+    } finally {
+      await rm(root, {recursive: true, force: true});
+    }
+  });
+});

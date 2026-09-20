@@ -2187,3 +2187,35 @@ Blank or overlong captions are rejected at the Sanity adapter and import-plan
 boundaries. The owner approved this scoped model extension while reviewing the
 AB#137 legacy-conversion evidence; individual caption text, alt text, media
 rights, and import eligibility remain separately approval-gated.
+
+### 2026-09-20 amendment — preserve paragraph and list links (AB#137)
+
+The Joomla migration review found text links whose labels survived conversion but
+whose destinations did not. Losing a reference or a link to a service is not an
+acceptable migration result. Paragraphs and list items therefore support bounded
+inline text runs with an optional link destination. This extends decision 2's
+existing blocks; it does not add a new block kind or allow raw HTML.
+
+In Sanity a paragraph has either its existing `text` or `spans`, and a list has
+either its existing string `items` or `richItems` containing spans. The two forms
+are mutually exclusive. Existing documents need no rewrite. The public adapter
+projects rich text into both plain text (for existing text consumers) and the
+explicit link runs used by the body renderer. Studio, the migration writer and
+the reader validate the same bounds: at most 100 spans and 10,000 characters per
+paragraph/item, 100 rich list items, and 2,048 characters per destination.
+
+Destinations may be HTTP(S) URLs without credentials, root-relative paths, or
+simple fragment identifiers. Executable schemes, protocol-relative URLs,
+backslashes and control-character evasions are refused. Rendering uses escaped
+text and native anchors in the same tab with `rel="noreferrer"`; no third-party
+request is made until the visitor follows a link. There is no prefetch, embed,
+new dependency or additional service boundary.
+
+The converter preserves safe external destinations. Legacy internal paths and
+fragments require an explicit source-to-target mapping; it cannot infer that an
+old Joomla path or heading anchor remains valid. Links in headings, quotes,
+caption text or table cells still require an editorial decision and cause a
+refusal rather than silent loss. Conversion policy v9 and import-plan v6 retire
+prior conversion approvals/plans. The new destination is included in the
+conversion and document digests. The final owner approval and production-write
+gates remain in force.

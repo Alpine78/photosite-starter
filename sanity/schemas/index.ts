@@ -17,7 +17,7 @@ import { articleType } from "./article";
 import { articleEndGalleryPlacementType } from "./article-end-gallery-placement";
 import { categoryType } from "./category";
 import { categoryDescriptionTypes } from "./category-description";
-import { contentBlockTypes } from "./content-block";
+import { contentBlockTypes, contentInlineTypes } from "./content-block";
 import { galleryType } from "./gallery";
 import { galleryPlacementType } from "./gallery-placement";
 import { gallerySectionIntroTypes } from "./gallery-section-intro";
@@ -53,6 +53,7 @@ export function defineSchemaTypes(
     defineSiteSettingsType(options),
     homePageType,
     ...contentBlockTypes,
+    ...contentInlineTypes,
     ...gallerySectionIntroTypes,
     articleType,
     articleEndGalleryPlacementType,

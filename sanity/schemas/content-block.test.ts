@@ -5,6 +5,7 @@ import {
   CONTENT_BLOCK_KINDS,
   CONTENT_BLOCK_OBJECT_TYPES,
   contentBlockTypes,
+  validateInlineChoice,
   defineContentBodyField,
   YOUTUBE_VIDEO_ID_PATTERN,
 } from "./content-block";
@@ -169,7 +170,7 @@ describe("the list block", () => {
     expect(ordered.required).toBe(true);
 
     const { required, min } = inspect(fieldOf(typeOf(CONTENT_BLOCK_OBJECT_TYPES.list), "items").validation);
-    expect(required).toBe(true);
+    expect(required).toBe(false);
     expect(min).toBe(1);
   });
 
@@ -549,4 +550,20 @@ it("requires comparison image references and bounded nonblank side labels in Stu
     expect(validation.max).toBe(200);
   }
   expect(inspectValidationRules(fieldOf(block, "title").validation).max).toBe(120);
+});
+
+
+describe("plain/rich text authoring", () => {
+  it("requires exactly one representation for paragraphs and lists", () => {
+    for (const [kind, plain, rich] of [
+      ["paragraph", {text: "Text"}, {spans: [{text: "Link", href: "/stories"}]}],
+      ["list", {items: ["Text"]}, {richItems: [{spans: [{text: "Link", href: "/stories"}]}]}],
+    ] as const) {
+      expect(validateInlineChoice(plain, kind)).toBe(true);
+      expect(validateInlineChoice(rich, kind)).toBe(true);
+      expect(validateInlineChoice({...plain, ...rich}, kind)).not.toBe(true);
+      expect(validateInlineChoice({}, kind)).not.toBe(true);
+    }
+    expect(validateInlineChoice({spans: [{text: "Link", href: "javascript:alert(1)"}]}, "paragraph")).not.toBe(true);
+  });
 });

@@ -1551,8 +1551,8 @@ Repeated references use one document pair. Poll/tally contents, including counts
 are included in the article's `resolved_digest` approval binding and the final
 plan digest.
 
-The current conversion policy is **joomla-conversion-v8** and import plan format
-**joomla-import-plan-v5**. Version 5 adds curated galleries; version 4 added the explicit story-root canonical
+The current conversion policy is **joomla-conversion-v9** and import plan format
+**joomla-import-plan-v6**. Version 6 preserves bounded paragraph/list links; version 5 added curated galleries; version 4 added the explicit story-root canonical
 placement alternative. Regenerate review reports and approvals before planning;
 old approvals/plans are intentionally rejected. Pass the same `--poll-results`
 input to the subsequent `--plan` run. The existing approval-gated writer validates
@@ -1613,8 +1613,8 @@ final plan digest covers the two images and their hashes.
 The authoritative AB#23 discussion inventories **12 comparisons in 9 articles**.
 Keep their private module inventory out of the template and CI fixtures. The
 unlabeled source pair needs owner-authored labels before approval. Regenerate
-review reports and manifest approvals under **joomla-conversion-v8**; do not reuse
-approvals from earlier conversion policies. The current plan format is **joomla-import-plan-v5**;
+review reports and manifest approvals under **joomla-conversion-v9**; do not reuse
+approvals from earlier conversion policies. The current plan format is **joomla-import-plan-v6**;
 the later story-root and curated-gallery changes advanced it without changing this block.
 These articles enter the launch manifest only after their complete converted
 bodies have been reviewed; adding converter support does not itself approve them.
@@ -1700,3 +1700,37 @@ fields just to make the import pass. The refusal occurs before any asset upload.
 The existing ordering rule and seed must also match the plan exactly: a rerun is
 not a seed-rotation operation. Use the established recompute workflow for a later
 editorial rotation rather than silently changing it during a migration retry.
+
+
+### Text links in the migration (conversion v9 / plan v6)
+
+Safe external HTTP(S) links survive in `contentInlineSpan` runs in paragraphs and
+list items. No HTML is stored. A paragraph writes `spans` instead of `text`; a list
+writes `richItems` instead of string `items`. The writer rejects conflicting
+representations, unsafe URLs, oversized text and unknown nested fields. Existing
+plain text still uses its original representation.
+
+Legacy relative paths and fragment links are never assumed to be valid new
+routes. The resolution JSON can supply article-scoped mappings, for example:
+
+```json
+{
+  "links": {
+    "42": {
+      "blog/old-guide": "/stories/guides/new-guide",
+      "#old-gallery": "#article-end-gallery"
+    }
+  }
+}
+```
+
+The outer key is the source Joomla article ID; the inner key is its exact decoded
+`href`. Verify every mapped target against the candidate route tree or rendered
+anchor. Unresolved/unsafe links produce `link-unresolved` and block conversion.
+Links in headings, quotes, table cells and captions are also refused: those
+fields remain plain text and need an explicit editorial transformation. Link
+labels must contain visible text. Existing inactive presentation/relationship
+attributes remain reviewable lossy findings. Conversion v9 supersedes v8, whose
+paragraph/list conversion reported dropped destinations. Regenerate the
+conversion reports, resolved digests and final manifest; do not reuse an earlier
+approval. Plan v6 retires v5 writer input so the new nested fields are validated.
