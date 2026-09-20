@@ -870,11 +870,12 @@ function legacyRedirectRootSegments(): ReadonlySet<string> {
 }
 
 /**
- * Reads the deployment's locale routing: one `locale|prefix|namespace` entry
+ * Reads the deployment's locale routing: one
+ * `locale|prefix|story-namespace|service-namespace` entry
  * per supported locale, separated by commas. The default locale leaves the
  * prefix field empty, because its routes carry no prefix:
  *
- *     fi||tarinat,en|en|stories
+ *     fi||tarinat|palvelut,en|en|stories|services
  *
  * Every rule the entries must satisfy — one unprefixed default, unique
  * prefixes, no collision with a root route or localized static route — is the
@@ -941,16 +942,17 @@ function parseLocaleRoutes(
     .filter((entry) => entry.length > 0)
     .map((entry) => {
       const fields = entry.split("|").map((field) => field.trim());
-      if (fields.length !== 3) {
+      if (fields.length !== 3 && fields.length !== 4) {
         throw new Error(
-          `[deployment-config] Invalid ${settingName}: expected comma-separated "locale|prefix|namespace" entries, received "${entry}"`,
+          `[deployment-config] Invalid ${settingName}: expected comma-separated "locale|prefix|story-namespace[|service-namespace]" entries, received "${entry}"`,
         );
       }
-      const [locale, prefix, storyNamespace] = fields;
+      const [locale, prefix, storyNamespace, serviceNamespace] = fields;
       return {
         locale,
         prefix: prefix.length === 0 ? null : prefix,
         storyNamespace,
+        ...(serviceNamespace === undefined ? {} : { serviceNamespace }),
       };
     });
 

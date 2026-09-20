@@ -167,13 +167,13 @@ function summarize(documents: ReturnType<typeof buildSeedFixtures>["documents"])
 //
 // The mutate API is `createOrReplace` against this script's own `seed--`
 // ids — it does not, and cannot, know that a *different*-id document already
-// claims the same `mediaId`/`categoryId`/`contentId`/service `slug` (or is
+// claims the same `mediaId`/`categoryId`/`contentId`/service `(serviceId, language)` (or is
 // the dataset's other siteSettings/homePage singleton). Every one of those
 // fields is exactly the kind of site-wide public identity this codebase's
 // own read adapters refuse to guess between when two documents claim one
 // (see e.g. `sanity-media.ts`'s duplicate-mediaId handling) — and this
 // fixture's own identity values ("landscapes", "featured",
-// "coastal-landscape", "portrait-sessions", …) are ordinary, plausible names
+// "coastal-landscape", "portrait-sessions:en", …) are ordinary, plausible names
 // a dataset that already has some real content could easily already be
 // using. So every one of those fields is checked against the target
 // dataset, for every seeded type, before any asset is uploaded or any
@@ -205,7 +205,7 @@ async function preflightIdentityCollisions(
   const {
     mediaIds,
     categoryIds,
-    serviceSlugs,
+    serviceIds,
     contentIds,
     placementIds,
     expectedIdByIdentity,
@@ -217,7 +217,7 @@ async function preflightIdentityCollisions(
       "singletons": *[_type in [$settingsType, $homeType]]{_id, _type},
       "media": *[_type == $mediaType && mediaId in $mediaIds]{_id, "identity": mediaId, "kind": "media"},
       "categories": *[_type == $categoryType && categoryId in $categoryIds]{_id, "identity": categoryId, "kind": "category"},
-      "services": *[_type == $serviceType && slug in $serviceSlugs]{_id, "identity": slug, "kind": "service"},
+      "services": *[_type == $serviceType && serviceId in $serviceIds]{_id, "identity": serviceId + ":" + language, "kind": "service"},
       "content": *[_type in [$articleType, $galleryType] && contentId in $contentIds]{_id, _type, contentId, language, "identity": contentId + ":" + language, "kind": "content"}
     }`,
     params: {
@@ -228,7 +228,7 @@ async function preflightIdentityCollisions(
       categoryType: CATEGORY_TYPE_NAME,
       categoryIds,
       serviceType: SERVICE_TYPE_NAME,
-      serviceSlugs,
+      serviceIds,
       articleType: ARTICLE_TYPE_NAME,
       galleryType: "gallery",
       contentIds,

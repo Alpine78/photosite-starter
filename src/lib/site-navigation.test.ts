@@ -100,6 +100,38 @@ describe("buildSiteNavigation", () => {
     ]);
   });
 
+  it("resolves the legacy scaffold services entry in the locale's configured namespace", () => {
+    const localized = buildLocaleRouteConfig({
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", serviceNamespace: "palvelut" },
+        { locale: "en", prefix: "en", storyNamespace: "stories", serviceNamespace: "services" },
+      ],
+      reservedRootSegments: ["contact", "services"],
+      reservedLocaleRouteSegments: ["services"],
+    });
+
+    expect(hrefs(build({ config: localized }))).toContain("/palvelut");
+    expect(
+      hrefs(build({ config: localized, locale: "en", storyLabel: "Stories" })),
+    ).toContain("/en/services");
+  });
+
+  it("keeps locale-owned navigation inside a non-default route space", () => {
+    const localized = buildLocaleRouteConfig({
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", serviceNamespace: "palvelut" },
+        { locale: "en", prefix: "en", storyNamespace: "stories", serviceNamespace: "services" },
+      ],
+      reservedRootSegments: ["contact", "services"],
+      reservedLocaleRouteSegments: ["services"],
+    });
+
+    expect(hrefs(build({ config: localized, locale: "en", storyLabel: "Stories" }))).toEqual([
+      "/en/services",
+      "/en/stories",
+    ]);
+  });
+
   it("replaces a configured story link with the tree-driven section", () => {
     const section = findByHref(build(), "/tarinat");
 

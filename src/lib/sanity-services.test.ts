@@ -34,6 +34,8 @@ function documentOf(
   overrides: Partial<RawPublicServiceDocument> = {},
 ): RawPublicServiceDocument {
   return {
+    serviceId: "portrait-sessions",
+    language: "en",
     slug: "portrait-sessions",
     name: "Portrait sessions",
     shortDescription: "Relaxed, natural portraits.",
@@ -88,6 +90,8 @@ describe("the query contract", () => {
 describe("projecting one document", () => {
   it("maps a service with no cover, price, or pricing", () => {
     expect(projectPublicService(documentOf(), { ...languages, config })).toEqual({
+      serviceId: "portrait-sessions",
+      language: "en",
       slug: "portrait-sessions",
       name: "Portrait sessions",
       shortDescription: "Relaxed, natural portraits.",
@@ -163,7 +167,10 @@ describe("reading the catalog", () => {
   });
 
   it("projects every document the store returns", async () => {
-    const { client } = fakeClient([documentOf(), documentOf({ slug: "weddings", name: "Weddings" })]);
+    const { client } = fakeClient([
+      documentOf(),
+      documentOf({ serviceId: "weddings", slug: "weddings", name: "Weddings" }),
+    ]);
 
     const services = await readPublicServices({ language: "en", client, config });
 
@@ -182,6 +189,17 @@ describe("reading the catalog", () => {
     await expect(
       readPublicServices({ language: "en", client, config }),
     ).rejects.toMatchObject({ rejection: "ambiguous-slug" });
+  });
+
+  it("refuses a listing where two documents in one language claim one service id", async () => {
+    const { client } = fakeClient([
+      documentOf(),
+      documentOf({ slug: "portrait-packages" }),
+    ]);
+
+    await expect(
+      readPublicServices({ language: "en", client, config }),
+    ).rejects.toMatchObject({ rejection: "ambiguous-service-id" });
   });
 });
 

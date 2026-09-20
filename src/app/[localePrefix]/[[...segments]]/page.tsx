@@ -8,6 +8,7 @@ import { ArticleEndGalleryContinuation } from "@/components/article-end-gallery"
 import { ContentGallery } from "@/components/content-gallery";
 import { GalleryItemEnquiry } from "@/components/gallery-item-enquiry";
 import { JsonLd } from "@/components/json-ld";
+import { ServiceDetail, ServiceListing } from "@/components/service-pages";
 import type { BreadcrumbStep } from "@/components/breadcrumbs";
 import type { LanguageLink } from "@/components/language-switch";
 import {
@@ -54,6 +55,7 @@ import { resolveLocalePrefixRequest } from "@/lib/locale-prefix-request";
 import { getSiteSettings } from "@/lib/site-settings";
 import {
   buildStoryPath,
+  buildServicePath,
   listPublishedLocaleVersions,
   resolveLanguageSwitch,
   type LocaleRouteConfig,
@@ -63,6 +65,14 @@ import {
 import { getPageMetadata } from "@/lib/page-metadata";
 import { defaultLocaleRouteExists } from "@/lib/public-routes";
 import { buildArticleJsonLd } from "@/lib/structured-data";
+import { buildServiceJsonLd } from "@/lib/structured-data";
+import {
+  getServiceLocaleVersions,
+  getServiceListingLocaleVersions,
+  getServiceRoute,
+  getServiceRoutes,
+  getServicesIntro,
+} from "@/lib/services";
 import { REQUEST_PATH_HEADER, readRequestPath } from "@/lib/request-path";
 
 /**
@@ -90,6 +100,121 @@ type LocalePrefixPageProps = {
 };
 
 type ResolvedRequest = Awaited<ReturnType<typeof resolveRequest>>;
+
+type DefaultServiceRequest = {
+  readonly locale: string;
+  readonly segments: readonly string[];
+  readonly config: LocaleRouteConfig;
+};
+
+/**
+ * The existing catch-all owns unprefixed paths not claimed by a static route.
+ * A configured default service namespace therefore arrives as `localePrefix`;
+ * resolve it before handing other paths to the story resolver. This preserves
+ * a deployment-configured namespace without adding a second ambiguous root
+ * dynamic route.
+ */
+async function resolveDefaultServiceRequest(
+  params: LocalePrefixPageProps["params"],
+): Promise<DefaultServiceRequest | undefined> {
+  const { localePrefix, segments = [] } = await params;
+  const { localeRoutes } = getDeploymentConfig();
+  const route = localeRoutes.locales.find((candidate) => candidate.isDefault);
+  if (route === undefined) throw new Error("the locale configuration has no default route");
+  if (localePrefix.toLowerCase() !== route.serviceNamespace) return undefined;
+  if (localePrefix !== route.serviceNamespace) {
+    permanentRedirect(buildServicePath(localeRoutes, route.locale, segments));
+  }
+  return { locale: route.locale, segments, config: localeRoutes };
+}
+
+async function serviceLanguageLinks(
+  serviceId: string,
+  locale: string,
+): Promise<readonly LanguageLink[]> {
+  return (await getServiceLocaleVersions(serviceId)).flatMap((version) =>
+    version.locale === locale
+      ? []
+      : [{ locale: version.locale, label: languageName(version.locale), href: version.path }],
+  );
+}
+
+async function serviceListingLanguageLinks(
+  locale: string,
+): Promise<readonly LanguageLink[]> {
+  return (await getServiceListingLocaleVersions()).flatMap((version) =>
+    version.locale === locale
+      ? []
+      : [{ locale: version.locale, label: languageName(version.locale), href: version.path }],
+  );
+}
+
+async function serviceMetadata(
+  request: DefaultServiceRequest,
+): Promise<Metadata> {
+  const labels = getBuiltInLabels(request.locale);
+  const path = buildServicePath(request.config, request.locale, request.segments);
+  if (request.segments.length === 0) {
+    return getPageMetadata({
+      path,
+      title: labels.pages.services,
+      description: await getServicesIntro(),
+      locale: request.locale,
+      localeVersions: await getServiceListingLocaleVersions(),
+    });
+  }
+  const route = await getServiceRoute(request.segments, request.locale);
+  if (route === undefined) return {};
+  return getPageMetadata({
+    path,
+    title: route.service.name,
+    description: route.service.shortDescription,
+    image: route.service.coverMedia,
+    locale: request.locale,
+    localeVersions: await getServiceLocaleVersions(route.service.serviceId),
+  });
+}
+
+async function renderDefaultService(request: DefaultServiceRequest) {
+  const labels = getBuiltInLabels(request.locale);
+  const serviceRootPath = buildServicePath(request.config, request.locale);
+  const routes = await getServiceRoutes(request.locale);
+  if (request.segments.length === 0) {
+    return (
+      <ServiceListing
+        title={labels.pages.services}
+        intro={await getServicesIntro()}
+        serviceRootPath={serviceRootPath}
+        routes={routes}
+        languages={await serviceListingLanguageLinks(request.locale)}
+        languageLabel={labels.contentTree.languages}
+      />
+    );
+  }
+  const route = await getServiceRoute(request.segments, request.locale);
+  if (route === undefined) notFound();
+  const servicePath = buildServicePath(request.config, request.locale, route.path);
+  return (
+    <>
+      <JsonLd
+        data={buildServiceJsonLd({
+          service: route.service,
+          deployment: getDeploymentConfig(),
+          canonicalPath: servicePath,
+        })}
+      />
+      <ServiceDetail
+        service={route.service}
+        serviceSegments={route.path}
+        serviceRootPath={serviceRootPath}
+        routes={routes}
+        languages={await serviceLanguageLinks(route.service.serviceId, request.locale)}
+        labels={labels}
+        contactHref="/contact"
+      />
+    </>
+  );
+}
 
 async function resolveRequest({ params, searchParams }: LocalePrefixPageProps) {
   const [{ localePrefix, segments = [] }, resolvedSearchParams, requestHeaders] =
@@ -468,6 +593,8 @@ function buildBreadcrumbs(
 export async function generateMetadata(
   props: LocalePrefixPageProps,
 ): Promise<Metadata> {
+  const defaultService = await resolveDefaultServiceRequest(props.params);
+  if (defaultService !== undefined) return serviceMetadata(defaultService);
   const { config, trees, resolution } = await resolveRequest(props);
   // A redirect or an unknown path claims no canonical URL of its own and keeps
   // the site-level defaults.
@@ -613,6 +740,8 @@ export async function generateMetadata(
 }
 
 export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
+  const defaultService = await resolveDefaultServiceRequest(props.params);
+  if (defaultService !== undefined) return renderDefaultService(defaultService);
   const { config, trees, resolution } = await resolveRequest(props);
 
   if (resolution.kind === "redirect") {

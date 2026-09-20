@@ -3,10 +3,9 @@
  * validated `src/lib/services.ts#Service` out — the same boundary shape
  * `sanity-media.ts` established for a photograph, applied to a service entry.
  *
- * Services carry no locale of their own (`service.ts`'s module comment
- * explains why), so `language` here exists only to resolve a referenced
- * cover photograph's alt text and caption — the same two fields any other
- * media placement needs a language for.
+ * A query selects exactly one authored language version. The same language
+ * reaches a referenced cover photograph so its alt text and caption remain
+ * inside the service route's locale space.
  *
  * The projection is an allow-list, embedding `PUBLIC_MEDIA_PROJECTION` for the
  * optional cover exactly as `sanity-home-content.ts` does for the hero: one
@@ -35,6 +34,9 @@ export const SERVICE_DOCUMENT_TYPE = "service";
 
 /** Fields the query reads. Exists as data so a test can check it against the schema. */
 export const PROJECTED_SERVICE_FIELDS = [
+  "serviceId",
+  "language",
+  "parentServiceId",
   "slug",
   "name",
   "shortDescription",
@@ -54,6 +56,9 @@ export const PUBLIC_SERVICE_FILTER = `_type == "${SERVICE_DOCUMENT_TYPE}"`;
 export const PUBLIC_SERVICE_ORDER = `order(order asc, slug asc)`;
 
 export const PUBLIC_SERVICE_PROJECTION = `{
+  serviceId,
+  language,
+  parentServiceId,
   slug,
   name,
   shortDescription,
@@ -70,6 +75,8 @@ export type SanityServiceRejection =
   | "incomplete-document"
   /** Two published documents claim one slug. */
   | "ambiguous-slug"
+  /** Two documents in one language claim the same stable service identity. */
+  | "ambiguous-service-id"
   /** The store answered with something that is not a list of documents. */
   | "malformed-result";
 
@@ -106,6 +113,9 @@ type RawPricingPackage = {
  * after it has been checked.
  */
 export type RawPublicServiceDocument = {
+  readonly serviceId?: unknown;
+  readonly language?: unknown;
+  readonly parentServiceId?: unknown;
   readonly slug?: unknown;
   readonly name?: unknown;
   readonly shortDescription?: unknown;
@@ -181,6 +191,28 @@ export function projectPublicService(
   document: RawPublicServiceDocument,
   options: PublicServiceLanguage & { readonly config: SanityConfig },
 ): Service {
+  const serviceId = readString(document.serviceId);
+  if (serviceId === undefined || !SERVICE_SLUG.test(serviceId)) {
+    throw new SanityServiceError(
+      "incomplete-document",
+      "a service document has no stable service id",
+    );
+  }
+  const language = readString(document.language);
+  if (language === undefined || !/^[a-z]{2,3}$/.test(language)) {
+    throw new SanityServiceError(
+      "incomplete-document",
+      "a service document has no usable language",
+      serviceId,
+    );
+  }
+  if (language !== options.language) {
+    throw new SanityServiceError(
+      "incomplete-document",
+      "a service document was returned for the wrong language",
+      serviceId,
+    );
+  }
   const slug = readString(document.slug);
   if (slug === undefined || !SERVICE_SLUG.test(slug)) {
     throw new SanityServiceError(
@@ -227,8 +259,19 @@ export function projectPublicService(
     : undefined;
   const startingPrice = readString(document.startingPrice);
   const pricing = readPricing(document.pricing, slug);
+  const parentServiceId = readString(document.parentServiceId);
+  if (parentServiceId !== undefined && !SERVICE_SLUG.test(parentServiceId)) {
+    throw new SanityServiceError(
+      "incomplete-document",
+      "a service parent id has no usable shape",
+      slug,
+    );
+  }
 
   return {
+    serviceId,
+    language,
+    ...(parentServiceId === undefined ? {} : { parentServiceId }),
     slug,
     name,
     shortDescription,
@@ -300,7 +343,8 @@ export async function readPublicServices(
   const { client, config, languages } = resolveRead(options);
 
   const result = await client.query({
-    query: `*[${PUBLIC_SERVICE_FILTER}] | ${PUBLIC_SERVICE_ORDER}${PUBLIC_SERVICE_PROJECTION}`,
+    query: `*[${PUBLIC_SERVICE_FILTER} && language == $language] | ${PUBLIC_SERVICE_ORDER}${PUBLIC_SERVICE_PROJECTION}`,
+    params: { language: options.language },
     tag: "service.list",
   });
 
@@ -309,6 +353,7 @@ export async function readPublicServices(
   );
 
   const slugs = new Set<string>();
+  const serviceIds = new Set<string>();
   for (const service of services) {
     if (slugs.has(service.slug)) {
       throw new SanityServiceError(
@@ -318,6 +363,14 @@ export async function readPublicServices(
       );
     }
     slugs.add(service.slug);
+    if (serviceIds.has(service.serviceId)) {
+      throw new SanityServiceError(
+        "ambiguous-service-id",
+        "two published documents claim one service id in the same language",
+        service.slug,
+      );
+    }
+    serviceIds.add(service.serviceId);
   }
 
   return services;
@@ -335,8 +388,8 @@ export async function readPublicServiceBySlug(
   const { client, config, languages } = resolveRead(options);
 
   const result = await client.query({
-    query: `*[${PUBLIC_SERVICE_FILTER} && slug == $slug][0...2]${PUBLIC_SERVICE_PROJECTION}`,
-    params: { slug },
+    query: `*[${PUBLIC_SERVICE_FILTER} && language == $language && slug == $slug][0...2]${PUBLIC_SERVICE_PROJECTION}`,
+    params: { slug, language: options.language },
     tag: "service.detail",
   });
 

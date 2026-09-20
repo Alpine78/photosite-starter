@@ -7,14 +7,30 @@ import {
   RESERVED_ROOT_SEGMENTS,
   defaultLocaleRouteExists,
 } from "@/lib/public-routes";
+import { buildLocaleRouteConfig } from "@/lib/locale-routes";
 import { getServices } from "@/lib/services";
 
 // This suite exercises the mock content source only; `getServices`/`getService`
 // now consult `getDeploymentConfig().contentSource` before returning the
 // fixture array, so a real deployment environment is no longer optional here.
-vi.mock("@/lib/deployment-config", () => ({
-  getDeploymentConfig: () => ({ contentSource: "mock" }),
+const deploymentConfig = vi.hoisted(() => ({
+  contentSource: "mock" as const,
+  locale: "fi",
+  localeRoutes: undefined as unknown as ReturnType<typeof buildLocaleRouteConfig>,
 }));
+
+vi.mock("@/lib/deployment-config", () => ({
+  getDeploymentConfig: () => deploymentConfig,
+}));
+
+deploymentConfig.localeRoutes = buildLocaleRouteConfig({
+  locales: [
+    { locale: "fi", prefix: null, storyNamespace: "tarinat", serviceNamespace: "palvelut" },
+    { locale: "en", prefix: "en", storyNamespace: "stories", serviceNamespace: "services" },
+  ],
+  reservedRootSegments: ["services", "contact"],
+  reservedLocaleRouteSegments: ["services", "contact"],
+});
 
 /**
  * Literal root segments the App Router serves. Route groups contribute no URL
@@ -73,7 +89,7 @@ describe("defaultLocaleRouteExists", () => {
   });
 
   it("resolves the static listing routes", async () => {
-    await expect(defaultLocaleRouteExists("/services")).resolves.toBe(true);
+    await expect(defaultLocaleRouteExists("/palvelut")).resolves.toBe(true);
     await expect(defaultLocaleRouteExists("/contact")).resolves.toBe(true);
   });
 
@@ -81,7 +97,7 @@ describe("defaultLocaleRouteExists", () => {
     const [service] = await getServices();
 
     await expect(
-      defaultLocaleRouteExists(`/services/${service.slug}`),
+      defaultLocaleRouteExists(`/palvelut/${service.slug}`),
     ).resolves.toBe(true);
   });
 
@@ -89,7 +105,7 @@ describe("defaultLocaleRouteExists", () => {
     // An unknown slug is a 404 in the default locale, so a redundantly
     // prefixed request to it must not be redirected onto that 404.
     await expect(
-      defaultLocaleRouteExists("/services/no-such-service"),
+      defaultLocaleRouteExists("/palvelut/no-such-service"),
     ).resolves.toBe(false);
   });
 
@@ -98,7 +114,7 @@ describe("defaultLocaleRouteExists", () => {
     await expect(defaultLocaleRouteExists("/contact/extra")).resolves.toBe(
       false,
     );
-    await expect(defaultLocaleRouteExists("/services/one/two")).resolves.toBe(
+    await expect(defaultLocaleRouteExists("/palvelut/one/two")).resolves.toBe(
       false,
     );
   });

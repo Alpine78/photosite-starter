@@ -301,6 +301,7 @@ describe("buildLegacyGoneHtml", () => {
       locale: "sv",
       prefix: "sv",
       storyNamespace: "stories",
+      serviceNamespace: "services",
       basePath: "/sv",
       isDefault: false,
     });

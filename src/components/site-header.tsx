@@ -9,6 +9,8 @@ import type { SiteNavigationItem } from "@/lib/site-navigation";
 
 type SiteHeaderProps = {
   siteName: string;
+  /** Omitted where this locale has no public home route yet. */
+  homeHref?: string;
   /** Composed by `buildSiteNavigation`, never a hand-written link list. */
   navigation: readonly SiteNavigationItem[];
   labels: BuiltInLabels["navigation"];
@@ -35,7 +37,7 @@ const COMPACT_PANEL_ID = "mobile-nav";
  * inside it rather than past the bottom of the window, and nothing about it
  * traps focus or locks the page behind it.
  */
-export function SiteHeader({ siteName, navigation, labels }: SiteHeaderProps) {
+export function SiteHeader({ siteName, homeHref, navigation, labels }: SiteHeaderProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -101,12 +103,16 @@ export function SiteHeader({ siteName, navigation, labels }: SiteHeaderProps) {
     // the header and swallows taps on the menu button and the open menu panel.
     <header className="relative z-10 border-b border-border">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-        <Link
-          href="/"
-          className="text-lg font-semibold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          {siteName}
-        </Link>
+        {homeHref === undefined ? (
+          <span className="text-lg font-semibold tracking-tight">{siteName}</span>
+        ) : (
+          <Link
+            href={homeHref}
+            className="text-lg font-semibold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            {siteName}
+          </Link>
+        )}
 
         <SiteNavigation
           items={navigation}

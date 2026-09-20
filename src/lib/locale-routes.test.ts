@@ -4,6 +4,7 @@ import { buildContentTree, type ContentTreeInput } from "@/lib/content-tree";
 import {
   buildLocaleRouteConfig,
   buildLocalePath,
+  buildServicePath,
   buildStoryPath,
   getLocaleRoute,
   listPublishedLocaleVersions,
@@ -149,6 +150,20 @@ describe("buildLocaleRouteConfig", () => {
     expect(buildStoryPath(single, "fi", ["maisemat"])).toBe("/tarinat/maisemat");
   });
 
+  it("builds each locale's configured service path", () => {
+    const localized = buildLocaleRouteConfig({
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", serviceNamespace: "palvelut" },
+        { locale: "en", prefix: "en", storyNamespace: "stories", serviceNamespace: "services" },
+      ],
+      reservedRootSegments: [],
+      reservedLocaleRouteSegments: [],
+    });
+
+    expect(buildServicePath(localized, "fi", ["haakuvaus"])).toBe("/palvelut/haakuvaus");
+    expect(buildServicePath(localized, "en", ["wedding-photography"])).toBe("/en/services/wedding-photography");
+  });
+
   it.each([
     {
       name: "no configured locale",
@@ -278,7 +293,7 @@ describe("buildLocaleRouteConfig", () => {
         reservedLocaleRouteSegments: ["services"],
       }),
     ).toThrow(
-      'story namespace "services" for locale "en" collides with a localized static route',
+      'story namespace "services" for locale "en" collides with its service namespace',
     );
   });
 

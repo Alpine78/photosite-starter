@@ -6,7 +6,7 @@ import {
   getDefaultLocaleLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
-import { buildStoryPath } from "@/lib/locale-routes";
+import { buildServicePath, buildStoryPath } from "@/lib/locale-routes";
 import type { StaticNavigationLink } from "@/lib/site-navigation";
 
 /**
@@ -80,7 +80,7 @@ export type SiteSettings = GalleryPresentationFields & {
   /** Short tagline shown e.g. in the home page hero */
   tagline: string;
   /**
-   * Short intro shown above the `/services` listing. Absent when a
+   * Short intro shown above the configured services listing. Absent when a
    * deployment has not authored one; the page omits the paragraph and
    * `getPageMetadata` falls back to `defaultSeo.description` rather than
    * inventing one.
@@ -129,6 +129,10 @@ function buildMockSiteSettings(): SiteSettings {
   // the configured namespace rather than written out, so a deployment that
   // routes its stories elsewhere does not leave a dead link in the chrome.
   const storyRoot = buildStoryPath(localeRoutes, localeRoutes.defaultLocale);
+  const serviceRoot = buildServicePath(
+    localeRoutes,
+    localeRoutes.defaultLocale,
+  );
 
   return {
     siteName: "Studio Example",
@@ -149,7 +153,7 @@ function buildMockSiteSettings(): SiteSettings {
     // that drops the entry still gets the section — at the end of the menu.
     navigation: [
       { label: labels.pages.home, href: "/" },
-      { label: labels.pages.services, href: "/services" },
+      { label: labels.pages.services, href: serviceRoot },
       { label: labels.pages.portfolio, featured: true },
       { label: labels.pages.stories, href: storyRoot },
       { label: labels.pages.contact, href: "/contact" },
@@ -186,7 +190,7 @@ function buildMockSiteSettings(): SiteSettings {
       },
     ],
     footerLinks: [
-      { label: labels.pages.services, href: "/services" },
+      { label: labels.pages.services, href: serviceRoot },
       { label: labels.pages.portfolio, featured: true },
       { label: labels.pages.stories, href: storyRoot },
       { label: labels.pages.contact, href: "/contact" },

@@ -8,7 +8,7 @@
  *   - Article detail route ...... Article  (the `article` content variant only)
  *
  * Nothing else emits structured data: not a gallery detail, a category branch,
- * the story root, the `/services` listing, `/contact`, or any `?cursor=` /
+ * the story root, a service listing, `/contact`, or any `?cursor=` /
  * `?section=` continuation. Adding a type is a refinement decision, recorded
  * here, not a code decision made in passing.
  *
@@ -142,6 +142,8 @@ export function buildOrganizationJsonLd({
 export type ServiceJsonLdInput = {
   readonly service: Service;
   readonly deployment: DeploymentConfig;
+  /** Canonical route resolved from the localized service tree. */
+  readonly canonicalPath: string;
 };
 
 /**
@@ -153,6 +155,7 @@ export type ServiceJsonLdInput = {
 export function buildServiceJsonLd({
   service,
   deployment,
+  canonicalPath,
 }: ServiceJsonLdInput): JsonLdObject {
   const image = coverAssetUrl(
     service.coverMedia?.type === "image" ? service.coverMedia : undefined,
@@ -163,10 +166,7 @@ export function buildServiceJsonLd({
     "@type": "Service",
     name: service.name,
     description: service.shortDescription,
-    url: canonicalRouteUrl(
-      `/services/${service.slug}`,
-      deployment.canonicalBaseUrl,
-    ),
+    url: canonicalRouteUrl(canonicalPath, deployment.canonicalBaseUrl),
     ...(image === undefined ? {} : { image }),
   };
 }

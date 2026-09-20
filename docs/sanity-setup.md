@@ -246,7 +246,8 @@ schema: {
   types: defineSchemaTypes({
     datasetVisibility: "private",
     // One entry per SITE_LOCALE_ROUTES locale. This example matches a
-    // bilingual deployment of SITE_LOCALE_ROUTES=fi||tarinat,en|en|stories.
+    // bilingual deployment of
+    // SITE_LOCALE_ROUTES=fi||tarinat|palvelut,en|en|stories|services.
     storyRootPaths: ["/tarinat", "/en/stories"],
   }),
 }

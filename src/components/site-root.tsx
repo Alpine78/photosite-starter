@@ -18,9 +18,10 @@ type SiteRootProps = Readonly<{
 }>;
 
 /**
- * Default-locale document shell with the deployment-wide site chrome.
- * Localized route spaces add their own chrome only once localized settings and
- * labels exist; until then they use `DocumentRoot` directly for honest 404s.
+ * Locale-aware document shell with deployment-wide site chrome. Site settings
+ * remain deployment-wide, but navigation resolves every service and story
+ * destination in the locale being rendered and omits static routes that do
+ * not have a same-language public page yet.
  *
  * The menu and the footer links are composed here, on the server, from the
  * configured static links and this locale's category tree — the tree is read as
@@ -37,11 +38,14 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
   const labels = getBuiltInLabels(locale);
   const config = getDeploymentConfig().localeRoutes;
   const tree = trees.get(locale);
+  const route = config.byLocale.get(locale);
+  if (route === undefined) throw new Error(`site root locale "${locale}" is not configured`);
 
   return (
     <DocumentRoot locale={locale}>
       <SiteHeader
         siteName={settings.siteName}
+        {...(route.isDefault ? { homeHref: "/" } : {})}
         navigation={buildSiteNavigation({
           staticLinks: settings.navigation,
           config,
@@ -68,6 +72,7 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
             : { featuredContentId: settings.featuredGalleryId }),
         })}
         copyrightHolder={settings.copyrightHolder}
+        labels={labels}
       />
     </DocumentRoot>
   );

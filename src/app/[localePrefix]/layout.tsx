@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { DocumentRoot } from "@/components/document-root";
 import { SiteRoot } from "@/components/site-root";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import { resolveRouteShell, type RouteShell } from "@/lib/locale-routes";
@@ -30,23 +29,15 @@ export async function generateMetadata({
 /**
  * Document shell for the dynamic prefix segment.
  *
- * The unprefixed space gets the same site chrome as every other default-locale
- * page — its header and footer links are exactly the routes that space owns. A
- * prefixed locale gets the bare document instead: SiteSettings navigation and
- * footer content are authored once and point at unprefixed static routes, so
- * rendering them inside `/en` would lead a visitor out of the language they
- * chose. Pages there carry their own breadcrumbs and language switch until
- * localized settings and localized static routes land.
+ * Every configured route space gets the same shell. `SiteRoot` resolves the
+ * service and story entries in that locale and suppresses static routes that
+ * have no same-language destination, so the shell does not send a visitor out
+ * of their chosen language.
  */
 export default async function LocaleRootLayout({
   children,
   params,
 }: LocaleRootLayoutProps) {
-  const { locale, isDefaultSpace } = await getRouteShell(params);
-
-  return isDefaultSpace ? (
-    <SiteRoot locale={locale}>{children}</SiteRoot>
-  ) : (
-    <DocumentRoot locale={locale}>{children}</DocumentRoot>
-  );
+  const { locale } = await getRouteShell(params);
+  return <SiteRoot locale={locale}>{children}</SiteRoot>;
 }

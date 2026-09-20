@@ -199,7 +199,7 @@ unused, and the report alone is often all you need.
    the script checks the target dataset for a document that already claims
    one of this fixture's own public identities under a *different* id: the
    `siteSettings`/`homePage` singletons, every `mediaId`, every `categoryId`,
-   every service `slug`, and every article/gallery `(contentId, language)`
+   every service `(serviceId, language)`, and every article/gallery `(contentId, language)`
    pair, plus all 426 `placementId` values. Placement identities are checked
    in bounded chunks so no GET crosses Sanity's URL-size limit. This fixture's
    own identity values ("landscapes", "featured", "coastal-landscape", …) are
