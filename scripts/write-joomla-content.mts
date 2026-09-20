@@ -1333,7 +1333,8 @@ export async function runCollisionPreflight(
       if (typeof row._id !== "string" || typeof row.language !== "string" || typeof row.slug !== "string") continue;
       const planned = articles.find((document) => document._id === row._id);
       if (planned === undefined) continue;
-      if (planned._type === "gallery" && (row.orderingRule !== "manual" || row.orderingSeed != null)) {
+      if (planned._type === "gallery" && (row.orderingRule !== planned.orderingRule ||
+          (row.orderingSeed ?? undefined) !== planned.orderingSeed)) {
         collisions.push(`gallery "${row._id}" already has incompatible ordering — refusing to replace it`);
       }
       if (planned._type === "gallery") {

@@ -1,8 +1,14 @@
 /** Curated-gallery invariants at the owner-run migration boundary (AB#137).
- * The write API bypasses Studio validation. Only manual, visible placements and
- * plain named sections are supported here; no hidden rows or shuffle state.
+ * The write API bypasses Studio validation. Supports visible, unpinned placements
+ * with manual or fully materialized seeded ordering, and plain named sections.
  */
 import { isRealCalendarDateTime, referencedId } from './sanity-document-checks.mts';
+import { computeShuffledOrder } from '../src/lib/gallery-shuffle.ts';
+
+// Pinned by tests to the runtime/Studio ceiling; keep the owner-run Node CLI alias-free.
+export const MAX_IMPORT_ORDERING_SEED_LENGTH = 256 - 'seeded-random-v1:'.length;
+const validSeed = (v: unknown): v is string => typeof v === 'string' &&
+  v.trim().length > 0 && v === v.trim() && v.length <= MAX_IMPORT_ORDERING_SEED_LENGTH;
 
 type Document = Readonly<Record<string, unknown>> & { readonly _id: string; readonly _type: string };
 const identity = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -10,11 +16,11 @@ const language = /^[a-z]{2,3}$/;
 export const CURATED_GALLERY_FIELDS = new Set([
   '_id', '_type', 'contentId', 'language', 'title', 'slug', 'summary', 'publishedAt',
   'eventDate', 'endDate', 'tags', 'canonicalAtStoryRoot', 'canonicalCategory',
-  'secondaryCategories', 'body', 'cover', 'orderingRule', 'sections',
+  'secondaryCategories', 'body', 'cover', 'orderingRule', 'orderingSeed', 'sections',
 ]);
 export const CURATED_PLACEMENT_FIELDS = new Set([
   '_id', '_type', 'placementId', 'gallery', 'media', 'order', 'sectionId',
-  'visible', 'pinned', 'altOverride', 'captionOverride',
+  'visible', 'pinned', 'altOverride', 'captionOverride', 'shuffledOrder', 'shuffledOrderSeed',
 ]);
 const sectionFields = new Set(['_key', '_type', 'sectionId', 'slug', 'label']);
 const object = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -46,7 +52,11 @@ export function validateCuratedGalleryDocuments(documents: readonly Document[]):
     for (const field of ['eventDate', 'endDate']) {
       if (d[field] !== undefined && !isRealCalendarDateTime(d[field])) fail(`${field} must be a real ISO instant`);
     }
-    if (d.orderingRule !== 'manual') fail('only manual ordering is supported by the importer');
+    if (d.orderingRule === 'seeded-random') {
+      if (!validSeed(d.orderingSeed)) fail('seeded-random requires a bounded, nonblank orderingSeed without surrounding whitespace');
+    } else if (d.orderingRule === 'manual') {
+      if (d.orderingSeed !== undefined) fail('manual ordering must not carry orderingSeed');
+    } else fail('orderingRule must be manual or seeded-random');
     if (d.body !== undefined && !Array.isArray(d.body)) fail('body must be an array');
     if (d.secondaryCategories !== undefined && !Array.isArray(d.secondaryCategories)) fail('secondaryCategories must be an array of references');
     const canonical = referencedId(d.canonicalCategory);
@@ -88,7 +98,16 @@ export function validateCuratedGalleryDocuments(documents: readonly Document[]):
     if (gallery?._type !== 'gallery') fail('gallery must resolve to a gallery document');
     if (mid === undefined || byId.get(mid)?._type !== 'media' || byId.get(mid)?.mediaType !== 'image' || byId.get(mid)?.publiclyRenderable !== true) fail('media must resolve to a public image');
     if (d.visible !== true) fail('only visible placements may be imported');
-    if (d.pinned !== undefined && d.pinned !== false) fail('pinned is unsupported for manual migration');
+    if (d.pinned !== undefined && d.pinned !== false) fail('pinned placements are unsupported by the importer');
+    if (gallery?.orderingRule === 'seeded-random') {
+      if (d.shuffledOrderSeed !== gallery.orderingSeed) fail('shuffledOrderSeed must match its gallery seed');
+      if (validSeed(gallery.orderingSeed) && nonBlank(d.placementId) &&
+          d.shuffledOrder !== computeShuffledOrder(gallery.orderingSeed, d.placementId)) {
+        fail('shuffledOrder must match the materialized key for its gallery seed and placementId');
+      }
+    } else if (d.shuffledOrder !== undefined || d.shuffledOrderSeed !== undefined) {
+      fail('manual placements must not carry shuffle fields');
+    }
     if (d.sectionId !== undefined && (typeof d.sectionId !== 'string' || !gallerySections.get(gid ?? '')?.has(d.sectionId))) fail('sectionId is not declared by its gallery');
     for (const field of ['altOverride', 'captionOverride']) if (d[field] !== undefined && typeof d[field] !== 'string') fail(`${field} must be a string`);
     const seen = orders.get(gid ?? '') ?? new Set<number>();

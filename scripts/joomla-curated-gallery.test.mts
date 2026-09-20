@@ -1,6 +1,9 @@
 import { buildCuratedGalleryPlan } from './joomla-curated-gallery-plan.mts';
 import { describe, it, expect } from 'vitest';
-import { validateCuratedGalleryDocuments } from './joomla-curated-gallery.mts';
+import { validateCuratedGalleryDocuments, MAX_IMPORT_ORDERING_SEED_LENGTH } from './joomla-curated-gallery.mts';
+import { computeShuffledOrder } from '../src/lib/gallery-shuffle';
+import { MAX_GALLERY_ORDERING_SEED_LENGTH } from '../src/lib/gallery-pagination';
+import { MAX_ORDERING_SEED_LENGTH } from '../sanity/schemas/gallery';
 import { IMPORT_PLAN_VERSION, validateMigrationDocuments, type PlannedDocument } from './joomla-import-plan.mts';
 import { validatePlanContract, collectRequiredCategoryLanguages, splitIntoWaves, runCollisionPreflight } from './write-joomla-content.mts';
 import { parseSeedConnection } from './sanity-seed-http.mts';
@@ -17,6 +20,42 @@ function documents(): PlannedDocument[] {
 function plan(ds=documents()) {
   return {version:IMPORT_PLAN_VERSION,documents:ds,assetRequirements:[{mediaId:'photo',sourceLocator:'photo.jpg',contentHash:'a'.repeat(64)}],categoryRequirements:[{categoryId:'travel'}],errors:[],blocked:[]};
 }
+function shuffledDocuments(): PlannedDocument[] {
+  const ds=documents(),seed='synthetic-gallery-v1';
+  ds[1]={...ds[1]!,orderingRule:'seeded-random',orderingSeed:seed};
+  ds[2]={...ds[2]!,shuffledOrderSeed:seed,shuffledOrder:computeShuffledOrder(seed,'occurrence-one')};
+  return ds;
+}
+describe('seeded gallery import',()=>{
+  it('uses the runtime and Studio seed limit',()=>{
+    expect(MAX_IMPORT_ORDERING_SEED_LENGTH).toBe(MAX_GALLERY_ORDERING_SEED_LENGTH);
+    expect(MAX_IMPORT_ORDERING_SEED_LENGTH).toBe(MAX_ORDERING_SEED_LENGTH);
+  });
+  it('accepts a seeded locale alongside its manually ordered translation',()=>{
+    const ds=shuffledDocuments();
+    expect(validateMigrationDocuments(ds)).toEqual([]);
+    expect(validatePlanContract(plan(ds)).issues).toEqual([]);
+  });
+  it.each([undefined,null,'',' ',' seed','seed ','x'.repeat(241),42])('refuses an invalid seed %j',seed=>{
+    const ds=shuffledDocuments();ds[1]={...ds[1]!,orderingSeed:seed};
+    expect(validatePlanContract(plan(ds)).issues.join(' ')).toContain('orderingSeed');
+  });
+  it.each([
+    {shuffledOrder:undefined},{shuffledOrder:'a'.repeat(64)},
+    {shuffledOrderSeed:'old-seed'},{shuffledOrderSeed:undefined},
+    {placementId:'another-occurrence'},
+  ])('refuses stale, missing or identity-mismatched keys %#',patch=>{
+    const ds=shuffledDocuments();ds[2]={...ds[2]!,...patch};
+    expect(validatePlanContract(plan(ds)).issues.join(' ')).toMatch(/shuffledOrder/);
+  });
+  it('refuses shuffle state in manual galleries and pinned migration rows',()=>{
+    for(const patch of [{shuffledOrder:'a'.repeat(64)},{shuffledOrderSeed:'seed'},{pinned:true}]){
+      const ds=documents();ds[2]={...ds[2]!,...patch};expect(validateMigrationDocuments(ds).length).toBeGreaterThan(0);
+    }
+    const ds=documents();ds[1]={...ds[1]!,orderingSeed:'seed'};
+    expect(validateMigrationDocuments(ds).join(' ')).toContain('manual ordering');
+  });
+});
 describe('curated gallery migration',()=>{
   it('accepts matching bilingual occurrences and an empty gallery body',()=>{
     expect(validateCuratedGalleryDocuments(documents())).toEqual([]);
@@ -72,6 +111,14 @@ function mockRows(choose:(query:string)=>unknown[]) {
  }) as typeof fetch};
 }
 describe('gallery collision preflight',()=>{
+ it('allows an exact seeded rerun without silently reseeding or changing rule',async()=>{
+  const ds=shuffledDocuments();
+  for(const patch of [{},{orderingSeed:'rotated-seed'},{orderingRule:'manual',orderingSeed:null}]){
+    const result=await runCollisionPreflight(connection,ds,new Map([['travel','real-travel']]),mockRows(q=>q.includes('orderingRule, orderingSeed, sections')?[{_id:'migrated--gallery-trip-fi',language:'fi',slug:'trip',canonicalCategoryId:'travel',orderingRule:'seeded-random',orderingSeed:'synthetic-gallery-v1',...patch}]:[]));
+    if(Object.keys(patch).length)expect(result.collisions.join(' ')).toContain('incompatible ordering');
+    else expect(result.collisions).toEqual([]);
+  }
+ });
  it('rejects an article claiming the gallery identity in a different language',async()=>{
   const result=await runCollisionPreflight(connection,documents(),new Map([['travel','real-travel']]),mockRows(q=>q.includes('contentId in $ids')?[{_id:'existing',_type:'article',contentId:'trip',language:'de'}]:[]));
   expect(result.collisions.join(' ')).toContain('variant cannot change');
@@ -136,11 +183,11 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
-it('plans approved bilingual galleries and dry-runs the real writer with no credential', async()=>{
+it.each([documents,shuffledDocuments])('plans bilingual ordering and dry-runs the real writer with no credential %#', async(makeDocuments)=>{
  const dir=await mkdtemp(path.join(tmpdir(),'photosite-curated-cli-'));
  try {
   const image=await sharp({create:{width:240,height:160,channels:3,background:'#445566'}}).jpeg().toBuffer();
-  const input={documents:documents(),assetRequirements:[{mediaId:'photo',sourceLocator:'photo.jpg',contentHash:createHash('sha256').update(image).digest('hex')}],categoryRequirements:[{categoryId:'travel'}],sourceEvidenceDigest:'c'.repeat(64)};
+  const input={documents:makeDocuments(),assetRequirements:[{mediaId:'photo',sourceLocator:'photo.jpg',contentHash:createHash('sha256').update(image).digest('hex')}],categoryRequirements:[{categoryId:'travel'}],sourceEvidenceDigest:'c'.repeat(64)};
   const review=buildCuratedGalleryPlan(input);
   await writeFile(path.join(dir,'photo.jpg'),image);
   await writeFile(path.join(dir,'input.json'),JSON.stringify(input));

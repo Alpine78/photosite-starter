@@ -1649,7 +1649,8 @@ array order always remains significant. Documents use the existing schema fields
 asset/category reference conventions. Categories must already exist in the target;
 this command does not create them. Gallery covers may be independent of the grid.
 Named sections support `sectionId`, `slug` and `label`; rich section introductions
-and seeded-random ordering remain outside this importer slice and are rejected.
+remain outside this importer slice and are rejected. Both manual and materialized
+seeded-random ordering are supported as described below.
 
 Without an approval file the tool writes a review plan and reports a nonzero exit
 status. Its sole approval error is expected for a structurally valid review.
@@ -1676,7 +1677,14 @@ revocation workflow still applies. Neither this command nor its review output
 uploads anything. Private input, approval and plans do not belong in Git.
 
 The writer's v5 contract validates public-image covers, section membership,
-manual placement order and bilingual occurrence identity. Repeated uses of a
+manual or materialized seeded-random order and bilingual occurrence identity. A
+seeded gallery carries a bounded `orderingSeed`; every unpinned placement must carry
+that exact `shuffledOrderSeed` and the `shuffledOrder` returned by
+`computeShuffledOrder(seed, placementId)`. Generate these with the existing
+`src/lib/gallery-shuffle.ts` helper while preparing the private plan. Both the plan
+builder and writer reject missing, stale or mismatched keys. Manual galleries must
+not carry shuffle fields. Pinned placements remain unsupported by this importer.
+Translated galleries may choose different ordering rules. Repeated uses of a
 photograph keep distinct placement IDs. It checks the target's category languages,
 shared article/gallery content identity and routes, plus existing placement
 ownership before writing. Transactions run in dependency waves: media, historical
@@ -1689,3 +1697,6 @@ On a rerun, preflight also refuses to replace a gallery carrying an editor-autho
 outside this importer's allowed input, so replacing the document would erase them.
 Resolve such a conflict with the owner before retrying; do not clear authored
 fields just to make the import pass. The refusal occurs before any asset upload.
+The existing ordering rule and seed must also match the plan exactly: a rerun is
+not a seed-rotation operation. Use the established recompute workflow for a later
+editorial rotation rather than silently changing it during a migration retry.

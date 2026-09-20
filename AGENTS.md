@@ -2340,7 +2340,10 @@ Explicit `canonicalAtStoryRoot` placement (`@story-root` in the article manifest
 allows a page directly below its localized story namespace; category and page
 slugs share that namespace. Plan v4 introduced this placement and v5 added
 owner-approved curated galleries, named sections and ordered placements, written
-after their containers. Approved media captions and credits and article covers
+after their containers. Seeded-random imports verify each unpinned placement's materialized
+key against its gallery seed and occurrence identity; manual imports reject
+shuffle fields, and reruns refuse to change an existing rule or seed. Pinned imports
+remain unsupported. Approved media captions and credits and article covers
 are supported; reruns refuse to erase editor-owned gallery presentation fields
 or section introductions. Conversion v8 refuses unresolved BA Gallery markers,
 including markers split across inline markup, line breaks or block boundaries.
