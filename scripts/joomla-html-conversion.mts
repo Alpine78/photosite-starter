@@ -54,7 +54,7 @@ import { parseFragment } from "parse5";
  * value (see `joomla-import-manifest.mts`), so a rule change invalidates a
  * stale approval instead of silently inheriting it.
  */
-export const CONVERSION_POLICY_VERSION = "joomla-conversion-v7";
+export const CONVERSION_POLICY_VERSION = "joomla-conversion-v8";
 
 // ---------------------------------------------------------------------------
 // Sanity content-block shapes
@@ -409,6 +409,8 @@ const PAIRED_GALLERY_MARKER = /\{gallery\}([^{}]*)\{\/gallery\}/giu;
 const INLINE_GALLERY_MARKER = /\{gallery\s+([^{}]+)\}/giu;
 /** Any other `{word …}` marker — `loadposition`, `loadmodule`, `contentpoll`, … */
 const ANY_MARKER = /\{\/?([a-z][a-z0-9_-]*)\b[^{}]*\}/giu;
+/** BA Gallery uses database IDs, not the folder inventory of `{gallery}`. */
+const BA_GALLERY_MARKER = /\[\s*gallery\b[^\[\]]*\]/giu;
 
 type MarkerSegment =
   | { readonly kind: "text"; readonly text: string }
@@ -448,6 +450,16 @@ export function splitPluginMarkers(text: string): readonly MarkerSegment[] {
       end,
       segment: { kind: "unknown-marker", name: (match[1] ?? "").toLowerCase(), source: match[0] },
     });
+  }
+
+  // Do not let an unresolved external gallery masquerade as ordinary prose.
+  // Its category filter, access rules and ordering need a separate binding;
+  // the existing folder-gallery resolver cannot establish those properties.
+  for (const match of text.matchAll(BA_GALLERY_MARKER)) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    if (matches.some((existing) => start < existing.end && existing.start < end)) continue;
+    matches.push({ start, end, segment: { kind: "unknown-marker", name: "ba-gallery", source: match[0] } });
   }
 
   matches.sort((left, right) => left.start - right.start);
@@ -616,6 +628,16 @@ class BodyConverter {
   // --- walking -------------------------------------------------------------
 
   convert(nodes: readonly Node[]): void {
+    // Inline markup can split a plugin marker across text nodes. Scan the
+    // decoded text once before walking, including text-only containers such
+    // as table cells. This only adds refusals; it never approves flattened HTML.
+    for (const match of nodes.map(markerDetectionText).join("").matchAll(BA_GALLERY_MARKER)) {
+      this.refuse(
+        "unknown-plugin-marker",
+        `The BA Gallery marker ${match[0]} needs an explicit reviewed binding of its complete images, category filter, access rules and ordering. It cannot be imported as plain text.`,
+        excerpt(match[0]),
+      );
+    }
     this.visitSiblings(nodes);
     this.flushParagraph();
   }
@@ -653,6 +675,9 @@ class BodyConverter {
         }
       }
       if (segment.kind === "unknown-marker") {
+        // Already refused by the whole-fragment scan; omit an intact marker
+        // from the diagnostic body without reporting the occurrence twice.
+        if (segment.name === "ba-gallery") continue;
         this.refuse(
           "unknown-plugin-marker",
           segment.name === "gallery"
@@ -1718,6 +1743,23 @@ class BodyConverter {
 /** Collapses whitespace the way HTML rendering does. Entities are already decoded by parse5. */
 export function normalizeText(value: string): string {
   return value.replace(/ /gu, " ").replace(/\s+/gu, " ").trim();
+}
+
+const MARKER_DETECTION_SEPARATORS = new Set([
+  "br", "hr", "p", "div", "li", "ul", "ol", "dl", "dt", "dd", "table", "caption", "thead", "tbody", "tfoot",
+  "tr", "td", "th", "blockquote", "pre", "figure", "figcaption", "section", "article", "h1", "h2", "h3", "h4", "h5", "h6",
+]);
+
+/**
+ * Detection-only text of a subtree: inline markup joins with nothing (so
+ * `[gal<b>lery</b>` stays whole), while line breaks and block boundaries
+ * become a newline, so a marker split across them is still seen as one.
+ * Never used for content — `textOf` keeps its label/cell semantics.
+ */
+function markerDetectionText(node: Node): string {
+  if (isText(node)) return node.value ?? "";
+  const inner = childrenOf(node).map(markerDetectionText).join("");
+  return MARKER_DETECTION_SEPARATORS.has((node.tagName ?? "").toLowerCase()) ? `\n${inner}\n` : inner;
 }
 
 /** Ordered text of a subtree, for a label or a cell — never for deciding what converts. */

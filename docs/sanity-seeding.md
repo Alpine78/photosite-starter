@@ -1551,12 +1551,15 @@ Repeated references use one document pair. Poll/tally contents, including counts
 are included in the article's `resolved_digest` approval binding and the final
 plan digest.
 
-The current conversion policy is **joomla-conversion-v7** and import plan format
+The current conversion policy is **joomla-conversion-v8** and import plan format
 **joomla-import-plan-v5**. Version 5 adds curated galleries; version 4 added the explicit story-root canonical
 placement alternative. Regenerate review reports and approvals before planning;
 old approvals/plans are intentionally rejected. Pass the same `--poll-results`
 input to the subsequent `--plan` run. The existing approval-gated writer validates
-matched historical pairs and their closed state, rejects identity collisions or
+matched historical pairs and their closed state. Every body poll reference must
+resolve to a poll in the same plan, using the page's language or `und`; a missing
+poll, a reference to another document type or a different language is rejected.
+The writer rejects identity collisions or
 an existing draft, and writes a poll/tally wave before article references. It
 never imports a live tally. Actual Production writes still follow AB#137's
 owner-controlled baseline, approval, credential, audit and revocation workflow.
@@ -1610,7 +1613,7 @@ final plan digest covers the two images and their hashes.
 The authoritative AB#23 discussion inventories **12 comparisons in 9 articles**.
 Keep their private module inventory out of the template and CI fixtures. The
 unlabeled source pair needs owner-authored labels before approval. Regenerate
-review reports and manifest approvals under **joomla-conversion-v7**; do not reuse
+review reports and manifest approvals under **joomla-conversion-v8**; do not reuse
 approvals from earlier conversion policies. The current plan format is **joomla-import-plan-v5**;
 the later story-root and curated-gallery changes advanced it without changing this block.
 These articles enter the launch manifest only after their complete converted
@@ -1624,6 +1627,15 @@ prepares curated `gallery`, `galleryPlacement`, and shared `media` documents for
 `write:joomla`. This is separate from the HTML converter: BA Gallery markers must
 be resolved into the complete ordered placements before this tool is called.
 Never treat a marker removed from a body as proof that its photographs migrated.
+The HTML converter explicitly refuses unresolved `[gallery ID=…]` and
+`[gallery ID=… category ID=…]` BA Gallery markers with `unknown-plugin-marker`.
+This check also catches markers split by inline markup, line breaks or block
+boundaries, and markers in text-only containers such as headings, lists and
+table cells. Ambiguous marker-like text is refused for explicit review.
+They are database-backed galleries, not folder-based `{gallery}` inventories.
+Review the full source gallery, category filter, access rules and ordering before
+replacing a marker with an approved binding. Conversion policy v8 invalidates
+earlier approvals that could have mistaken these markers for ordinary text.
 
 The private input holds `documents`, `assetRequirements` (media identity, contained
 source locator and exact source-byte `contentHash`), `categoryRequirements`

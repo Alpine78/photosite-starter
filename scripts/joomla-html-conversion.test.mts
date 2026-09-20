@@ -932,6 +932,47 @@ describe("tab groups (AB#163)", () => {
 });
 
 describe("Joomla plugin markers", () => {
+  it.each([
+    "<p>[gallery <span>ID=7</span>]</p>",
+    "<p>[gallery<br>ID=7]</p>",
+    "<p>[gallery<br/>ID=7</p>]",
+    "<div><p>[gallery</p><p>ID=7]</p></div>",
+    "<ul><li>[gallery</li><li>ID=7]</li></ul>",
+    "<table><tbody><tr><td>[gallery</td><td>ID=7]</td></tr></tbody></table>",
+    "<p>[gal<strong>lery</strong> ID=7]</p>",
+    "[gal<span>lery ID=7]</span>",
+    "[gallery <em>ID</em>=7]",
+    "<h2>[gallery ID=7]</h2>",
+    "<ul><li>[gallery <em>ID=7</em>]</li></ul>",
+    "<blockquote>[gallery <span>ID=7</span>]</blockquote>",
+    "<table><tbody><tr><td>[gallery <span>ID=7</span>]</td></tr></tbody></table>",
+  ])("refuses BA Gallery markers across inline markup and text-only containers: %s", html => {
+    const result = convert(html);
+    expect(result.convertible).toBe(false);
+    expect(result.findings.filter(finding => finding.code === "unknown-plugin-marker" && finding.message.includes("BA Gallery"))).toHaveLength(1);
+  });
+
+  it.each(["[gallery ID=7]", "[gallery ID=7 category ID=42]", "[GALLERY ID=7]", "[gallery ID=invalid]"])("refuses an unbound BA Gallery marker instead of importing it as prose: %s", marker => {
+    const result = convert(`<p>Before ${marker} after.</p>`);
+    expect(result.convertible).toBe(false);
+    expect(result.findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: "refusal", code: "unknown-plugin-marker", message: expect.stringContaining("BA Gallery") }),
+    ]));
+    expect(JSON.stringify(result.blocks)).not.toContain(marker);
+  });
+
+  it("keeps BA Gallery markers distinct from approved folder galleries in source order", () => {
+    expect(splitPluginMarkers("A [gallery ID=7] {gallery}stories/small{/gallery} B")).toEqual([
+      { kind: "text", text: "A " },
+      { kind: "unknown-marker", name: "ba-gallery", source: "[gallery ID=7]" },
+      { kind: "text", text: " " },
+      { kind: "gallery", path: "stories/small", source: "{gallery}stories/small{/gallery}" },
+      { kind: "text", text: " B" },
+    ]);
+    expect(convert("[gallery ID=7] {gallery}stories/small{/gallery}").convertible).toBe(false);
+    expect(convert("<p>[An ordinary bracketed note]</p>").convertible).toBe(true);
+  });
+
   it("splits markers out of surrounding prose in order", () => {
     expect(splitPluginMarkers("ennen {gallery}stories/x{/gallery} jälkeen")).toEqual([
       { kind: "text", text: "ennen " },

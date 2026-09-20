@@ -794,6 +794,15 @@ export function validateMigrationDocuments(documents: readonly PlannedDocument[]
 
       // Every body media reference resolves to a media document in this set.
       for (const block of Array.isArray(document.body) ? document.body : []) {
+        if (block?._type === "contentPollBlock") {
+          const pollId = referencedId(block.poll);
+          const poll = pollId === undefined ? undefined : byId.get(pollId);
+          if (poll?._type !== "poll") {
+            violations.push(`article ${key}: a poll block must resolve to a historical poll in this plan`);
+          } else if (poll.language !== language && poll.language !== "und") {
+            violations.push(`article ${key}: a poll block must use the article language or und`);
+          }
+        }
         for (const reference of collectBlockMediaReferences(block)) {
           const medium = byId.get(reference);
           if ((block as SanityBlock)._type === "contentImageComparisonBlock" && (medium?.mediaType !== "image" || medium.publiclyRenderable !== true)) violations.push(`article ${key}: a comparison side must resolve to a public image`);
