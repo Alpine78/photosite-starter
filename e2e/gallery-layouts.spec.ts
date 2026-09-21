@@ -67,7 +67,6 @@ for (const fixture of cases) {
         const before = await boxes(main);
         const listBefore = await galleryItems(main).first().evaluate((item) => item.parentElement!.getBoundingClientRect().toJSON());
         release();
-        await page.waitForLoadState("load");
         // Prove the page has hydrated rather than merely receiving its scripts.
         const dialog = page.getByRole("dialog");
         await openLightbox(dialog, () => main.locator("[data-item-id]").first().click());
@@ -91,7 +90,7 @@ for (const fixture of cases) {
           const url = path(fixture.id);
           for (const width of [320, 390, 800, 1280]) {
             await page.setViewportSize({ width, height: 900 });
-            await page.goto(url, { waitUntil: "load" });
+            await page.goto(url, { waitUntil: "domcontentloaded" });
             const main = page.getByRole("main");
             await expect(galleryItems(main)).toHaveCount(24);
             const before = await boxes(main);
@@ -322,7 +321,7 @@ test.describe("responsive image source at an enlarged root font size", () => {
         await page.unrouteAll();
         await forceRootFontSize(page, url, 32);
         await page.setViewportSize({ width, height: 900 });
-        await page.goto(url, { waitUntil: "load" });
+        await page.goto(url, { waitUntil: "domcontentloaded" });
 
         const actualRoot = await page.evaluate(
           () => getComputedStyle(document.documentElement).fontSize,
