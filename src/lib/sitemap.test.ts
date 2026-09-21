@@ -213,3 +213,10 @@ describe("buildSitemapPaths", () => {
     ).toThrow(SitemapPathCollisionError);
   });
 });
+
+it('includes the story root with only root-placed content', () => {
+  const tree = buildContentTree({categories:[],placements:[{contentId:'portfolio',variant:'gallery',slug:'portfolio',published:true,canonicalAtStoryRoot:true,canonicalCategoryId:null,secondaryCategoryIds:[]}]});
+  const paths = buildSitemapPaths({localeRoutes, trees:new Map([['fi',tree]]), serviceRoutes:new Map()});
+  expect(paths).toContain('/tarinat');
+  expect(paths).toContain('/tarinat/portfolio');
+});

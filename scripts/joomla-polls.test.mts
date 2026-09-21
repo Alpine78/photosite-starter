@@ -34,7 +34,7 @@ describe("historical poll import", () => {
     const sourceDigest = "a".repeat(64);
     const plan = buildImportPlan({ phase: "launch", manifestDigest: "b".repeat(64), sourceExportDigest: "c".repeat(64), knownCategoryIds: ["blog"], sourceLocators: {}, articles: [{
       title: "Synthetic article", sourceDigest, conversion,
-      approval: { sourceId: "1", language: "fi", contentId: "synthetic", slug: "synthetic", canonicalCategory: "blog", secondaryCategories: [], phase: "launch", publishedAt: "2020-01-01T00:00:00Z", sourceDigest, resolvedDigest: resolvedConversionDigest(conversion), conversionPolicy: CONVERSION_POLICY_VERSION, acknowledgedFindings: [], approvedBy: "test", approvedAt: "2026-09-18" },
+      approval: { sourceId: "1", language: "fi", contentId: "synthetic", slug: "synthetic", canonicalAtStoryRoot: false, canonicalCategory: "blog", secondaryCategories: [], phase: "launch", publishedAt: "2020-01-01T00:00:00Z", sourceDigest, resolvedDigest: resolvedConversionDigest(conversion), conversionPolicy: CONVERSION_POLICY_VERSION, acknowledgedFindings: [], approvedBy: "test", approvedAt: "2026-09-18" },
     }] });
     expect(plan.errors).toEqual([]); expect(plan.blocked).toEqual([]);
     expect(plan.documents).toHaveLength(3);

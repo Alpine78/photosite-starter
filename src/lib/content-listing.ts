@@ -260,7 +260,7 @@ export function buildAdjacentContentQuery(
   if (
     anchor === undefined ||
     !anchor.published ||
-    anchor.canonicalCategoryId === null ||
+    (!anchor.canonicalAtStoryRoot && anchor.canonicalCategoryId === null) ||
     !isRoutedContentVariant(anchor.variant)
   ) {
     return null;
@@ -270,7 +270,7 @@ export function buildAdjacentContentQuery(
     .filter(
       (placement) =>
         placement.published &&
-        placement.canonicalCategoryId !== null &&
+        (placement.canonicalAtStoryRoot || placement.canonicalCategoryId !== null) &&
         placement.variant === anchor.variant &&
         isRoutedContentVariant(placement.variant),
     )
@@ -395,7 +395,7 @@ export function listCategoryContentIds(
       .filter(
         (placement) =>
           placement.published &&
-          placement.canonicalCategoryId !== null &&
+          (placement.canonicalAtStoryRoot || placement.canonicalCategoryId !== null) &&
           isRoutedContentVariant(placement.variant),
       )
       .map((placement) => placement.contentId);

@@ -59,6 +59,8 @@ export type ContentPlacementInput = {
   readonly slug: string;
   /** Unpublished content may stay unplaced while it is being authored. */
   readonly published: boolean;
+  /** Explicitly places the canonical page directly beneath the story namespace. */
+  readonly canonicalAtStoryRoot?: boolean;
   readonly canonicalCategoryId: string | null;
   /** Listing-only placements. They own no detail route and no slug. */
   readonly secondaryCategoryIds?: readonly string[];
@@ -79,6 +81,7 @@ export type ContentCategory = ContentCategoryInput & {
 };
 
 export type ContentPlacement = ContentPlacementInput & {
+  readonly canonicalAtStoryRoot: boolean;
   readonly secondaryCategoryIds: readonly string[];
 };
 
@@ -112,6 +115,7 @@ export type ContentTreeIssueCode =
   | "duplicate-content-id"
   | "invalid-content-slug"
   | "unplaced-published-content"
+  | "multiple-canonical-placements"
   | "missing-canonical-category"
   | "missing-secondary-category"
   | "canonical-category-in-secondary"
@@ -365,11 +369,17 @@ function validatePlacements(
       );
     }
 
-    if (placement.canonicalCategoryId === null) {
-      if (placement.published) {
+    const canonicalAtStoryRoot = placement.canonicalAtStoryRoot === true;
+    if (canonicalAtStoryRoot && placement.canonicalCategoryId !== null) {
+      fail(
+        "multiple-canonical-placements",
+        "content cannot be canonically placed at both the story root and a category",
+      );
+    } else if (placement.canonicalCategoryId === null) {
+      if (placement.published && !canonicalAtStoryRoot) {
         fail(
           "unplaced-published-content",
-          "published content requires one canonical category placement",
+          "published content requires one canonical placement at the story root or in a category",
         );
       }
     } else if (!categories.has(placement.canonicalCategoryId)) {
@@ -420,6 +430,7 @@ function validatePlacements(
     if (valid) {
       resolved.set(placement.contentId, {
         ...placement,
+        canonicalAtStoryRoot,
         secondaryCategoryIds: [...secondary],
       });
     }
@@ -460,10 +471,11 @@ function validateLocalSlugNamespace(
   }
 
   for (const placement of placements.values()) {
-    if (!placement.published || placement.canonicalCategoryId === null) continue;
+    if (!placement.published) continue;
+    if (!placement.canonicalAtStoryRoot && placement.canonicalCategoryId === null) continue;
     claims.push({
       id: placement.contentId,
-      parentId: placement.canonicalCategoryId,
+      parentId: placement.canonicalAtStoryRoot ? null : placement.canonicalCategoryId,
       slug: placement.slug,
       kind: "content",
     });
@@ -626,9 +638,11 @@ export function getCanonicalContentPath(
   contentId: string,
 ): readonly string[] | null {
   const placement = tree.placements.get(contentId);
-  if (!placement?.published || placement.canonicalCategoryId === null) {
+  if (!placement?.published) {
     return null;
   }
+  if (placement.canonicalAtStoryRoot) return [placement.slug];
+  if (placement.canonicalCategoryId === null) return null;
   const categoryPath = getCategoryPath(tree, placement.canonicalCategoryId);
   if (categoryPath.length === 0) return null;
   return [...categoryPath, placement.slug];
@@ -923,4 +937,13 @@ export function getCategoryDependants(
       (placement) => placement.contentId,
     ),
   };
+}
+
+/** A locale's story namespace exists when it has public categories or root pages. */
+export function hasPublicStoryRoot(tree: ContentTree | undefined): boolean {
+  return tree !== undefined && (
+    getPublicChildCategories(tree, null).length > 0 ||
+    [...tree.placements.values()].some(placement =>
+      placement.published && placement.canonicalAtStoryRoot === true)
+  );
 }

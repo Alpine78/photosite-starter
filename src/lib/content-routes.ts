@@ -21,10 +21,12 @@ import {
   getCategoryAncestry,
   getCategoryPath,
   getPublicChildCategories,
+  hasPublicStoryRoot,
   type ContentCategory,
   type ContentTree,
   type ContentVariant,
 } from "@/lib/content-tree";
+
 import {
   buildStoryPath,
   type ContentLocation,
@@ -33,6 +35,17 @@ import {
   type LocalizedContentTrees,
 } from "@/lib/locale-routes";
 
+function getStoryRootContentBySlug(
+  tree: ContentTree,
+  slug: string,
+) {
+  return [...tree.placements.values()].find(
+    (placement) =>
+      placement.published &&
+      placement.canonicalAtStoryRoot &&
+      placement.slug === slug,
+  );
+}
 /** A public category as a link target: its label and its canonical path. */
 export type CategoryLink = {
   readonly categoryId: string;
@@ -106,7 +119,8 @@ export function isRoutedContentVariant(variant: ContentVariant): boolean {
  * routes, and no guessing is involved: the tree's local slug namespace
  * guarantees at most one of them can claim a slug beneath one parent, so trying
  * the category first and the page second reaches the same answer whichever it
- * is. A secondary placement owns no detail route and is never matched —
+ * is, including an explicitly story-root-placed page when there is no parent
+ * category. A secondary placement owns no detail route and is never matched —
  * ADR-0003 decision 5 gives a page exactly one address.
  *
  * The story root resolves only while the tree has something to show, because
@@ -117,9 +131,7 @@ export function resolveStoryRoute(
   segments: readonly string[],
 ): StoryRoute | null {
   if (segments.length === 0) {
-    return getPublicChildCategories(tree, null).length === 0
-      ? null
-      : { kind: "story-root" };
+    return hasPublicStoryRoot(tree) ? { kind: "story-root" } : null;
   }
 
   let parentId: string | null = null;
@@ -132,12 +144,11 @@ export function resolveStoryRoute(
     ).find((category) => category.slug === segment);
 
     if (match === undefined) {
-      // A canonical placement is always a category, so no page is reachable
-      // directly beneath the story root, and only the final segment can name
-      // one. Anything else is an unknown path.
-      if (parentId === null || index !== segments.length - 1) return null;
+      if (index !== segments.length - 1) return null;
 
-      const placement = getCanonicalContentBySlug(tree, parentId, segment);
+      const placement = parentId === null
+        ? getStoryRootContentBySlug(tree, segment)
+        : getCanonicalContentBySlug(tree, parentId, segment);
       return placement === undefined ||
         !ROUTED_CONTENT_VARIANTS.has(placement.variant)
         ? null
@@ -290,7 +301,7 @@ export function listStoryRootVersions(
   return config.locales.flatMap((route) => {
     const tree = trees.get(route.locale);
     if (tree === undefined) return [];
-    if (getPublicChildCategories(tree, null).length === 0) return [];
+    if (!hasPublicStoryRoot(tree)) return [];
     return [{ locale: route.locale, path: buildStoryPath(config, route.locale) }];
   });
 }

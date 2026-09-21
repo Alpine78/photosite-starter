@@ -307,5 +307,27 @@ export async function validateCategoryPublication(
     CATEGORY_VALIDATION_QUERY,
     { type: categoryType },
   );
-  return validateProspectiveCategoryTree(published, current);
+  const treeResult = validateProspectiveCategoryTree(published, current);
+  if (treeResult !== true) return treeResult;
+  // Top-level categories share the story namespace with root-placed pages.
+  // This guard is required on the category side too: content validation alone
+  // cannot protect a page that was already published before this category.
+  if (current.parent != null) return true;
+  const raw = currentRawCategory(current);
+  if (typeof raw === "string") return raw;
+  const category = parseCategory(raw);
+  if (typeof category === "string") return category;
+  const claims = await validationClientOf(context, "published").fetch<unknown>(
+    '*[_type in ["article", "gallery"] && canonicalAtStoryRoot == true]{language, slug}',
+  );
+  if (!Array.isArray(claims) || !claims.every(claim =>
+    isRecord(claim) && typeof claim.language === "string" && typeof claim.slug === "string")) {
+    return "The content store returned malformed story-root placement claims during publication validation.";
+  }
+  for (const claim of claims) {
+    if (category.label.has(claim.language) && category.slug.get(claim.language) === claim.slug) {
+      return `Category "${category.categoryId}" conflicts with a story-root page at the ${claim.language} path segment "${claim.slug}".`;
+    }
+  }
+  return true;
 }

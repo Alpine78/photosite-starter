@@ -72,6 +72,7 @@ export type ProspectivePlacementFields = {
   readonly contentId: string;
   readonly language: string;
   readonly slug: string;
+  readonly canonicalAtStoryRoot?: boolean;
   /** Published `categoryId`-space identity; `null` means not yet placed. */
   readonly canonicalCategoryId: string | null;
   readonly secondaryCategoryIds: readonly string[];
@@ -84,6 +85,7 @@ export type ProspectivePlacementFields = {
 export type PublishedPlacementSnapshot = {
   readonly language: string;
   readonly slug: string;
+  readonly canonicalAtStoryRoot?: boolean;
   readonly canonicalCategoryId: string | null;
 };
 
@@ -100,6 +102,7 @@ export function changesPublishedUrlFields(
   return (
     published.language !== current.language ||
     published.slug !== current.slug ||
+    published.canonicalAtStoryRoot !== current.canonicalAtStoryRoot ||
     published.canonicalCategoryId !== current.canonicalCategoryId
   );
 }
@@ -124,6 +127,7 @@ export type ProspectiveCategoryNode = {
 export type ProspectivePlacement = {
   readonly contentId: string;
   readonly slug: string;
+  readonly canonicalAtStoryRoot?: boolean;
   readonly canonicalCategoryId: string | null;
   readonly secondaryCategoryIds: readonly string[];
 };
@@ -304,12 +308,12 @@ export function findProspectiveLocalSlugCollision(
   }
 
   for (const placement of placements) {
-    if (placement.canonicalCategoryId === null) continue;
+    if (!placement.canonicalAtStoryRoot && placement.canonicalCategoryId === null) continue;
     claims.push({
       kind: "content",
       id: placement.contentId,
       slug: placement.slug,
-      key: `${placement.canonicalCategoryId} ${placement.slug}`,
+      key: `${placement.canonicalAtStoryRoot ? "" : placement.canonicalCategoryId} ${placement.slug}`,
     });
   }
 
@@ -369,11 +373,16 @@ export function validateProspectivePlacement(
   categories: ReadonlyMap<string, ProspectiveCategoryNode>,
   siblings: readonly ProspectivePlacement[],
 ): SchemaValidationResult {
-  if (current.canonicalCategoryId === null) return true;
+  if (current.canonicalAtStoryRoot && current.canonicalCategoryId !== null) {
+    return "Choose either the story root or a canonical category, not both.";
+  }
+  if (!current.canonicalAtStoryRoot && current.canonicalCategoryId === null) return true;
 
-  const canonicalNode = categories.get(current.canonicalCategoryId);
-  if (canonicalNode?.slugInLanguage === undefined) {
-    return `The canonical category has no published "${current.language}" version yet. Publish the category in this language first, or choose a different one.`;
+  if (current.canonicalCategoryId !== null) {
+    const canonicalNode = categories.get(current.canonicalCategoryId);
+    if (canonicalNode?.slugInLanguage === undefined) {
+      return `The canonical category has no published "${current.language}" version yet. Publish the category in this language first, or choose a different one.`;
+    }
   }
 
   for (const secondaryCategoryId of current.secondaryCategoryIds) {
@@ -387,6 +396,7 @@ export function validateProspectivePlacement(
     {
       contentId: current.contentId,
       slug: current.slug,
+      canonicalAtStoryRoot: current.canonicalAtStoryRoot,
       canonicalCategoryId: current.canonicalCategoryId,
       secondaryCategoryIds: current.secondaryCategoryIds,
     },
@@ -437,6 +447,22 @@ export function rejectsSecondaryCategoryOverlap(
       return "Secondary categories must not repeat the same category.";
     }
     seen.add(id);
+  }
+  return true;
+}
+
+/** Studio field guard for the exclusive story-root/category canonical choice. */
+export function validatesCanonicalCategoryChoice(
+  value: RawReference | undefined,
+  context: SchemaValidationContext,
+): SchemaValidationResult {
+  const atStoryRoot = context.document?.canonicalAtStoryRoot === true;
+  const hasCategory = readReference(value) !== undefined;
+  if (atStoryRoot && hasCategory) {
+    return "Remove the canonical category while Place at story root is selected.";
+  }
+  if (!atStoryRoot && !hasCategory) {
+    return "Choose a canonical category or select Place at story root.";
   }
   return true;
 }

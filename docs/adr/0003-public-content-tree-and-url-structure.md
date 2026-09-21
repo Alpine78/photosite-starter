@@ -13,6 +13,34 @@ when implementation produces evidence the original text did not have, and each p
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
 
+### 2026-09-19 — A page may be canonically placed at the story root (AB#137)
+
+Decision 5 originally required every published gallery or article to have exactly one
+canonical **category**. The Joomla migration review found two small portfolio landing
+pages whose approved public addresses are clearer directly beneath the localized story
+namespace: `/tarinat/haaportfolio`, `/en/stories/wedding-portfolio`, and the corresponding
+`portfolio` paths. Creating an otherwise unnecessary `yleinen` / `common` category solely
+to satisfy the data model would expose an implementation detail in those URLs.
+
+A published page now has exactly one explicit canonical placement: either one public
+category **or the story root**. The story-root choice is stored explicitly and is distinct
+from an unplaced draft; absence of both placements still cannot publish. A page at the
+story root has the canonical path `<story-namespace>/<content-slug>` and a breadcrumb with
+no category step. It may still have secondary category placements for listings.
+
+Story-root pages and public top-level categories share the same local slug namespace, just
+as category-owned pages and their child categories already do. The domain, Studio publish
+guard, and migration preflight reject a collision rather than selecting one route owner.
+Changing between a category and the story root is a canonical URL move and retains the
+existing redirect-history requirement. The story-root recent-content overview may include
+these pages through their real canonical route; this exception no longer creates the
+duplicate root placement that the 2026-08-10 amendment rejected for category-owned pages.
+
+**Sections affected:** decision 5 replaces “one canonical category placement” with one
+canonical placement whose location is either a category or the story root; decisions 6–8
+gain the corresponding root-detail route, breadcrumb, collision, and listing behavior.
+Decisions 1–4 and 9 are unchanged.
+
 ### 2026-09-19 — Categories may carry a localized landing-page description (AB#137)
 
 The original category model carries a label, slug, parent, and sibling order, but no

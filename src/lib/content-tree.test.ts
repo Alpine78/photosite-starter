@@ -423,6 +423,67 @@ describe("canonical and secondary placement", () => {
     );
   });
 
+  it("routes an explicitly story-root-placed page directly beneath the namespace", () => {
+    const tree = buildContentTree({
+      categories: [],
+      placements: [
+        {
+          contentId: "content-portfolio",
+          variant: "article",
+          slug: "portfolio",
+          published: true,
+          canonicalAtStoryRoot: true,
+          canonicalCategoryId: null,
+        },
+      ],
+    });
+
+    expect(getCanonicalContentPath(tree, "content-portfolio")).toEqual([
+      "portfolio",
+    ]);
+  });
+
+  it("rejects simultaneous story-root and category canonical placements", () => {
+    const input = withPlacements(mockContentTreeInput, (placement) =>
+      placement.contentId === "content-reading-coastal-light"
+        ? { ...placement, canonicalAtStoryRoot: true }
+        : placement,
+    );
+
+    expect(codesOf(input)).toContain(
+      "content-reading-coastal-light:multiple-canonical-placements",
+    );
+  });
+
+  it("shares the root slug namespace with public top-level categories", () => {
+    const input: ContentTreeInput = {
+      categories: [
+        {
+          categoryId: "cat-portfolio",
+          parentId: null,
+          slug: "portfolio",
+          label: "Portfolio",
+          order: 0,
+        },
+      ],
+      placements: [
+        {
+          contentId: "content-root-portfolio",
+          variant: "article",
+          slug: "portfolio",
+          published: true,
+          canonicalAtStoryRoot: true,
+          canonicalCategoryId: null,
+          secondaryCategoryIds: ["cat-portfolio"],
+        },
+      ],
+    };
+
+    expect(codesOf(input)).toContain(
+      "content-root-portfolio:local-slug-collision",
+    );
+  });
+
   it("rejects a canonical category that also appears as secondary", () => {
     const input = withPlacements(mockContentTreeInput, (placement) =>
       placement.contentId === "content-coastal-mornings"

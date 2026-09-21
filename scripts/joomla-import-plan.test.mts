@@ -39,6 +39,7 @@ function approval(overrides: Partial<ApprovedArticle> = {}): ApprovedArticle {
     language: "fi",
     contentId: "pentax-645z",
     slug: "pentax-645z",
+    canonicalAtStoryRoot: false,
     canonicalCategory: "blogi",
     secondaryCategories: [],
     phase: "launch",
@@ -108,6 +109,29 @@ describe("id namespace", () => {
   it("produces public root-level, dot-free ids and rejects an invalid segment", () => {
     expect(migratedId("media", "photo-abc")).not.toContain(".");
     expect(() => migratedId("media", "Not Valid")).toThrow(TypeError);
+  });
+});
+
+describe("canonical story-root placement", () => {
+  it("emits the explicit Sanity flag without inventing a category requirement", () => {
+    const result = plan({
+      articles: [
+        article({
+          approval: approval({
+            canonicalAtStoryRoot: true,
+            canonicalCategory: null,
+          }),
+        }),
+      ],
+    });
+    const articleDocument = result.documents.find(
+      (document) => document._type === "article",
+    );
+
+    expect(articleDocument?.canonicalAtStoryRoot).toBe(true);
+    expect(articleDocument?.canonicalCategory).toBeUndefined();
+    expect(result.categoryRequirements).toEqual([]);
+    expect(result.errors).toEqual([]);
   });
 });
 

@@ -14,7 +14,7 @@ const conversion = () => convertJoomlaBody(source, context);
 function plan() {
   const result = conversion();
   const sourceDigest = "c".repeat(64);
-  return buildImportPlan({ phase: "launch", manifestDigest: "d".repeat(64), sourceExportDigest: "e".repeat(64), knownCategoryIds: ["blog"], sourceLocators: { "first-image": "first.jpg", "second-image": "second.jpg" }, articles: [{ title: "Synthetic article", sourceDigest, conversion: result, approval: { sourceId: "1", language: "fi", contentId: "synthetic", slug: "synthetic", canonicalCategory: "blog", secondaryCategories: [], phase: "launch", publishedAt: "2020-01-01T00:00:00Z", sourceDigest, resolvedDigest: resolvedConversionDigest(result), conversionPolicy: CONVERSION_POLICY_VERSION, acknowledgedFindings: [], approvedBy: "test", approvedAt: "2026-09-18" } }] });
+  return buildImportPlan({ phase: "launch", manifestDigest: "d".repeat(64), sourceExportDigest: "e".repeat(64), knownCategoryIds: ["blog"], sourceLocators: { "first-image": "first.jpg", "second-image": "second.jpg" }, articles: [{ title: "Synthetic article", sourceDigest, conversion: result, approval: { sourceId: "1", language: "fi", contentId: "synthetic", slug: "synthetic", canonicalAtStoryRoot: false, canonicalCategory: "blog", secondaryCategories: [], phase: "launch", publishedAt: "2020-01-01T00:00:00Z", sourceDigest, resolvedDigest: resolvedConversionDigest(result), conversionPolicy: CONVERSION_POLICY_VERSION, acknowledgedFindings: [], approvedBy: "test", approvedAt: "2026-09-18" } }] });
 }
 
 describe("legacy comparison conversion", () => {

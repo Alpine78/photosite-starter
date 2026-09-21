@@ -46,7 +46,7 @@ type RecordedQuery = {
 
 function inspect(
   validation: SchemaValidation | undefined,
-  dataset: { answer?: unknown } = {},
+  dataset: { answer?: unknown; rootClaims?: unknown } = {},
 ) {
   const queries: RecordedQuery[] = [];
   const clientSettings: { perspective: string; useCdn?: boolean }[] = [];
@@ -62,7 +62,7 @@ function inspect(
   const client: SchemaValidationClient = {
     async fetch(query, params) {
       queries.push({ query, params });
-      return dataset.answer as never;
+      return (query.includes("canonicalAtStoryRoot == true") ? dataset.rootClaims ?? [] : dataset.answer) as never;
     },
     withConfig(settings) {
       clientSettings.push(settings);
@@ -547,5 +547,35 @@ describe("sibling order", () => {
     expect(inspect(fieldOf(categoryType, "order").validation).required).toBe(
       true,
     );
+  });
+});
+
+describe("category publication against existing story-root pages", () => {
+  it("blocks a category taking an existing story-root page path", async () => {
+    const current = editedCategory({ id: "portfolio" });
+    const { run } = inspect(categoryType.validation, {
+      answer: [], rootClaims: [{ language: "en", slug: "portfolio" }],
+    });
+    expect(String(await run(current, current))).toContain("conflicts with a story-root page");
+  });
+  it("allows the same slug in a different language", async () => {
+    const current = editedCategory({ id: "portfolio" });
+    const { run } = inspect(categoryType.validation, {
+      answer: [], rootClaims: [{ language: "de", slug: "portfolio" }],
+    });
+    expect(await run(current, current)).toEqual([true]);
+  });
+  it("allows the same slug below another category", async () => {
+    const current = editedCategory({ id: "portfolio", parentRef: "parent" });
+    const { run } = inspect(categoryType.validation, {
+      answer: [publishedCategory({ id: "parent" })],
+      rootClaims: [{ language: "en", slug: "portfolio" }],
+    });
+    expect(await run(current, current)).toEqual([true]);
+  });
+  it("fails closed on malformed content claims", async () => {
+    const current = editedCategory({ id: "portfolio" });
+    const { run } = inspect(categoryType.validation, { answer: [], rootClaims: [{}] });
+    expect(String(await run(current, current))).toContain("malformed story-root");
   });
 });

@@ -100,6 +100,7 @@ export const ARTICLE_DOCUMENT_TYPE = "article";
 export const PROJECTED_ARTICLE_PLACEMENT_FIELDS = [
   "contentId",
   "slug",
+  "canonicalAtStoryRoot",
   "canonicalCategory",
   "secondaryCategories",
   "endDate",
@@ -146,6 +147,7 @@ export const ARTICLE_PLACEMENT_PROJECTION = `{
   contentId,
   slug,
   endDate,
+  canonicalAtStoryRoot,
   "canonicalCategoryRef": canonicalCategory._ref,
   "secondaryCategoryRefs": secondaryCategories[]._ref
 }`;
@@ -219,6 +221,7 @@ const CONTENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export type RawArticlePlacementDocument = {
   readonly contentId?: unknown;
   readonly slug?: unknown;
+  readonly canonicalAtStoryRoot?: unknown;
   readonly canonicalCategoryRef?: unknown;
   readonly secondaryCategoryRefs?: unknown;
   readonly endDate?: unknown;
@@ -431,6 +434,16 @@ export function projectArticlePlacementInput(
     canonicalRef === null
       ? null
       : resolveCategoryId(canonicalRef, categoryIdsByDocumentId);
+  if (
+    document.canonicalAtStoryRoot != null &&
+    typeof document.canonicalAtStoryRoot !== "boolean"
+  ) {
+    throw new SanityArticleError(
+      "malformed-result",
+      "the article has a malformed story-root placement flag",
+      contentId,
+    );
+  }
 
   const secondaryRefs = readSecondaryCategoryReferences(
     document.secondaryCategoryRefs,
@@ -447,6 +460,7 @@ export function projectArticlePlacementInput(
     variant: "article",
     slug,
     published: !isContentEnded(endDate, now),
+    ...(document.canonicalAtStoryRoot === true ? { canonicalAtStoryRoot: true } : {}),
     canonicalCategoryId,
     ...(secondaryCategoryIds.length > 0 ? { secondaryCategoryIds } : {}),
   };
