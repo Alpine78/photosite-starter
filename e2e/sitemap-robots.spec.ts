@@ -34,11 +34,13 @@ function expectedLocaleRoutes() {
         locale: appUnderTestEnvironment.SITE_LOCALE,
         prefix: null,
         storyNamespace: DEFAULT_STORY_NAMESPACE,
+        serviceNamespace: "services",
       },
       {
         locale: PREFIXED_LOCALE.prefix,
         prefix: PREFIXED_LOCALE.prefix,
         storyNamespace: PREFIXED_LOCALE.storyNamespace,
+        serviceNamespace: PREFIXED_LOCALE.serviceNamespace,
       },
     ],
     reservedRootSegments: ["services"],
