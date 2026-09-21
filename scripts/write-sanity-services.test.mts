@@ -104,7 +104,9 @@ describe("service write plan validation", () => {
           },
     );
 
-    const normalized = readBack.map(normalizeServiceReadback);
+    const normalized = readBack.map(
+      normalizeServiceReadback,
+    ) as ServiceWriteDocument[];
     expect(validateServiceDocuments(normalized).issues).toEqual([]);
     expect(serviceDocumentsDigest(validateServiceDocuments(normalized).documents)).toBe(
       serviceDocumentsDigest(documents),
