@@ -140,6 +140,31 @@ export function serviceDocumentsDigest(
     .digest("hex");
 }
 
+/**
+ * GROQ projects an absent field as `null`, whereas a service write plan omits
+ * optional fields entirely. Normalize that transport representation before
+ * the same strict validator and preflight comparison check a read-back document
+ * against the plan. A literal non-null value remains untouched and is
+ * consequently subject to the ordinary identity checks.
+ */
+export function normalizeServiceReadback(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  const normalized = { ...value };
+  let changed = false;
+  for (const field of [
+    "parentServiceId",
+    "coverMedia",
+    "startingPrice",
+    "pricing",
+  ] as const) {
+    if (normalized[field] === null) {
+      delete normalized[field];
+      changed = true;
+    }
+  }
+  return changed ? normalized : value;
+}
+
 function validateRouteGraph(
   documents: readonly ServiceWriteDocument[],
 ): readonly string[] {
@@ -466,7 +491,10 @@ async function preflight(
     params: { ids, languages },
   });
   if (!Array.isArray(result)) return ["Sanity preflight returned a malformed result"];
-  return serviceDatasetIssues(result as readonly ExistingDocument[], documents);
+  return serviceDatasetIssues(
+    result.map(normalizeServiceReadback) as readonly ExistingDocument[],
+    documents,
+  );
 }
 
 async function verifyWritten(
@@ -481,7 +509,7 @@ async function verifyWritten(
     params: { ids: documents.map((document) => document._id) },
   });
   if (!Array.isArray(result)) return false;
-  const validated = validateServiceDocuments(result);
+  const validated = validateServiceDocuments(result.map(normalizeServiceReadback));
   return (
     validated.issues.length === 0 &&
     serviceDocumentsDigest(validated.documents) ===
