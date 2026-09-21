@@ -6,6 +6,7 @@ import {
   serviceDatasetIssues,
   serviceDocumentsDigest,
   serviceWriteWaves,
+  normalizeServiceReadback,
   validateServiceDocuments,
   validateServiceWritePlan,
   type ServiceWriteDocument,
@@ -83,6 +84,32 @@ describe("service write plan validation", () => {
     ]);
     expect(reordered).toBe(first);
     expect(changed).not.toBe(first);
+  });
+
+  it("normalizes GROQ null optional fields before validating a read-back", () => {
+    const readBack = documents.map((document) =>
+      document.parentServiceId === undefined
+        ? {
+            ...document,
+            parentServiceId: null,
+            coverMedia: null,
+            startingPrice: null,
+            pricing: null,
+          }
+        : {
+            ...document,
+            coverMedia: null,
+            startingPrice: null,
+            pricing: null,
+          },
+    );
+
+    const normalized = readBack.map(normalizeServiceReadback);
+    expect(validateServiceDocuments(normalized).issues).toEqual([]);
+    expect(serviceDocumentsDigest(validateServiceDocuments(normalized).documents)).toBe(
+      serviceDocumentsDigest(documents),
+    );
+    expect(serviceDatasetIssues(normalized, documents)).toEqual([]);
   });
 
   it("writes parents before their children", () => {
