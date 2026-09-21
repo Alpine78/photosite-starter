@@ -58,6 +58,7 @@ import {
   buildServicePath,
   listPublishedLocaleVersions,
   resolveLanguageSwitch,
+  resolveServiceRoute,
   type LocaleRouteConfig,
   type LocaleVersion,
   type LocalizedContentTrees,
@@ -101,31 +102,35 @@ type LocalePrefixPageProps = {
 
 type ResolvedRequest = Awaited<ReturnType<typeof resolveRequest>>;
 
-type DefaultServiceRequest = {
+type ServiceRequest = {
   readonly locale: string;
   readonly segments: readonly string[];
   readonly config: LocaleRouteConfig;
 };
 
 /**
- * The existing catch-all owns unprefixed paths not claimed by a static route.
- * A configured default service namespace therefore arrives as `localePrefix`;
- * resolve it before handing other paths to the story resolver. This preserves
- * a deployment-configured namespace without adding a second ambiguous root
- * dynamic route.
+ * The existing catch-all owns both the unprefixed route space and every
+ * locale-prefixed route space. Resolve a configured service namespace here,
+ * before handing other paths to the story resolver. Keeping both service and
+ * story dispatch in this one route avoids a structurally broader
+ * `[localePrefix]/[serviceNamespace]` route stealing category and content
+ * paths from the story tree.
  */
-async function resolveDefaultServiceRequest(
+async function resolveServiceRequest(
   params: LocalePrefixPageProps["params"],
-): Promise<DefaultServiceRequest | undefined> {
+): Promise<ServiceRequest | undefined> {
   const { localePrefix, segments = [] } = await params;
   const { localeRoutes } = getDeploymentConfig();
-  const route = localeRoutes.locales.find((candidate) => candidate.isDefault);
-  if (route === undefined) throw new Error("the locale configuration has no default route");
-  if (localePrefix.toLowerCase() !== route.serviceNamespace) return undefined;
-  if (localePrefix !== route.serviceNamespace) {
-    permanentRedirect(buildServicePath(localeRoutes, route.locale, segments));
+  const resolved = resolveServiceRoute(localeRoutes, localePrefix, segments);
+  if (resolved === undefined) return undefined;
+  if (resolved.canonicalPath !== undefined) {
+    permanentRedirect(resolved.canonicalPath);
   }
-  return { locale: route.locale, segments, config: localeRoutes };
+  return {
+    locale: resolved.locale,
+    segments: resolved.segments,
+    config: localeRoutes,
+  };
 }
 
 async function serviceLanguageLinks(
@@ -150,7 +155,7 @@ async function serviceListingLanguageLinks(
 }
 
 async function serviceMetadata(
-  request: DefaultServiceRequest,
+  request: ServiceRequest,
 ): Promise<Metadata> {
   const labels = getBuiltInLabels(request.locale);
   const path = buildServicePath(request.config, request.locale, request.segments);
@@ -175,7 +180,7 @@ async function serviceMetadata(
   });
 }
 
-async function renderDefaultService(request: DefaultServiceRequest) {
+async function renderService(request: ServiceRequest) {
   const labels = getBuiltInLabels(request.locale);
   const serviceRootPath = buildServicePath(request.config, request.locale);
   const routes = await getServiceRoutes(request.locale);
@@ -593,8 +598,8 @@ function buildBreadcrumbs(
 export async function generateMetadata(
   props: LocalePrefixPageProps,
 ): Promise<Metadata> {
-  const defaultService = await resolveDefaultServiceRequest(props.params);
-  if (defaultService !== undefined) return serviceMetadata(defaultService);
+  const service = await resolveServiceRequest(props.params);
+  if (service !== undefined) return serviceMetadata(service);
   const { config, trees, resolution } = await resolveRequest(props);
   // A redirect or an unknown path claims no canonical URL of its own and keeps
   // the site-level defaults.
@@ -740,8 +745,8 @@ export async function generateMetadata(
 }
 
 export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
-  const defaultService = await resolveDefaultServiceRequest(props.params);
-  if (defaultService !== undefined) return renderDefaultService(defaultService);
+  const service = await resolveServiceRequest(props.params);
+  if (service !== undefined) return renderService(service);
   const { config, trees, resolution } = await resolveRequest(props);
 
   if (resolution.kind === "redirect") {

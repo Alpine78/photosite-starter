@@ -11,6 +11,7 @@ import {
   resolveLanguageSwitch,
   resolvePrefixedRoute,
   resolveRouteShell,
+  resolveServiceRoute,
   type ContentLocation,
   type LocalizedContentTrees,
 } from "@/lib/locale-routes";
@@ -416,6 +417,73 @@ describe("resolvePrefixedRoute", () => {
     expect(resolvePrefixedRoute(lookalikeConfig, "\u212A", ["berattelser"])).toEqual({
       kind: "not-a-locale",
     });
+  });
+});
+
+describe("resolveServiceRoute", () => {
+  const localized = buildLocaleRouteConfig({
+    locales: [
+      {
+        locale: "fi",
+        prefix: null,
+        storyNamespace: "tarinat",
+        serviceNamespace: "palvelut",
+      },
+      {
+        locale: "en",
+        prefix: "en",
+        storyNamespace: "stories",
+        serviceNamespace: "services",
+      },
+    ],
+    reservedRootSegments: [],
+    reservedLocaleRouteSegments: [],
+  });
+
+  it("resolves default and prefixed service namespaces in the shared catch-all", () => {
+    expect(
+      resolveServiceRoute(localized, "palvelut", ["haakuvaus"]),
+    ).toEqual({ locale: "fi", segments: ["haakuvaus"] });
+    expect(
+      resolveServiceRoute(localized, "en", [
+        "services",
+        "wedding-photography",
+        "portraits",
+      ]),
+    ).toEqual({
+      locale: "en",
+      segments: ["wedding-photography", "portraits"],
+    });
+  });
+
+  it("leaves default and prefixed story paths to the story resolver", () => {
+    expect(
+      resolveServiceRoute(localized, "tarinat", ["haakuvat"]),
+    ).toBeUndefined();
+    expect(
+      resolveServiceRoute(localized, "en", ["stories", "weddings"]),
+    ).toBeUndefined();
+  });
+
+  it("normalizes service namespace and locale-prefix casing in one redirect", () => {
+    expect(resolveServiceRoute(localized, "PALVELUT", ["haakuvaus"])).toEqual({
+      locale: "fi",
+      segments: ["haakuvaus"],
+      canonicalPath: "/palvelut/haakuvaus",
+    });
+    expect(
+      resolveServiceRoute(localized, "EN", ["SERVICES", "wedding-photography"]),
+    ).toEqual({
+      locale: "en",
+      segments: ["wedding-photography"],
+      canonicalPath: "/en/services/wedding-photography",
+    });
+  });
+
+  it("leaves the redundant default prefix to exact whole-path normalization", () => {
+    expect(
+      resolveServiceRoute(localized, "fi", ["palvelut", "haakuvaus"]),
+    ).toBeUndefined();
   });
 });
 
