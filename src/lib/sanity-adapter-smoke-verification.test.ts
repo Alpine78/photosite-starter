@@ -209,8 +209,8 @@ beforeAll(() => {
   cursorCodec = createHmacGalleryCursorCodec(randomBytes(32).toString("hex"));
 });
 
-describe("AB#137 adapter smoke: settings, home, services (default locale)", () => {
-  it("reads all three without throwing", async () => {
+describe("AB#137 adapter smoke: settings and home (default locale)", () => {
+  it("reads both without throwing", async () => {
     const settings = await readSanitySiteSettings({
       language: defaultLocale.language,
       locale: defaultLocale.locale,
@@ -232,6 +232,11 @@ describe("AB#137 adapter smoke: settings, home, services (default locale)", () =
       expect(home.hero.media.rendition.height).toBeGreaterThan(0);
     }
 
+  });
+});
+
+describe("AB#137 adapter smoke: services (default locale)", () => {
+  it("reads and validates every published service without requiring settings or home", async () => {
     const services = await readPublicServices({
       language: defaultLocale.language,
       client,
