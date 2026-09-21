@@ -461,6 +461,7 @@ function buildCategoryDocuments(): readonly SeedDocument[] {
 // ---------------------------------------------------------------------------
 
 type ServiceFixture = {
+  readonly serviceId: string;
   readonly slug: string;
   readonly name: string;
   readonly shortDescription: string;
@@ -473,6 +474,7 @@ type ServiceFixture = {
 
 export const SERVICE_FIXTURES: readonly ServiceFixture[] = [
   {
+    serviceId: "portrait-sessions",
     slug: "portrait-sessions",
     name: "Portrait sessions",
     shortDescription: "One-on-one outdoor portrait sessions, tailored to the light and the season.",
@@ -489,6 +491,7 @@ export const SERVICE_FIXTURES: readonly ServiceFixture[] = [
     order: 0,
   },
   {
+    serviceId: "wedding-coverage",
     slug: "wedding-coverage",
     name: "Wedding coverage",
     shortDescription: "Full-day documentary coverage, from morning preparations to the last dance.",
@@ -505,6 +508,7 @@ export const SERVICE_FIXTURES: readonly ServiceFixture[] = [
     order: 1,
   },
   {
+    serviceId: "print-sales",
     slug: "print-sales",
     name: "Fine art prints",
     shortDescription: "Archival prints of select landscape work, made to order.",
@@ -525,8 +529,10 @@ export const SERVICE_FIXTURES: readonly ServiceFixture[] = [
 
 function buildServiceDocuments(): readonly SeedDocument[] {
   return SERVICE_FIXTURES.map((fixture) => ({
-    _id: seedId("service", fixture.slug),
+    _id: seedId("service", fixture.serviceId, "en"),
     _type: SERVICE_TYPE_NAME,
+    serviceId: fixture.serviceId,
+    language: "en",
     slug: fixture.slug,
     name: fixture.name,
     shortDescription: fixture.shortDescription,
@@ -1152,7 +1158,8 @@ export function isSeedDocumentId(id: string): boolean {
 export type SeedIdentities = {
   readonly mediaIds: readonly string[];
   readonly categoryIds: readonly string[];
-  readonly serviceSlugs: readonly string[];
+  /** Stable service ids, queried with their language as one identity. */
+  readonly serviceIds: readonly string[];
   readonly contentIds: readonly string[];
   /**
    * Every placement's `placementId`, unchunked. There are as many of these
@@ -1182,7 +1189,7 @@ export type SeedIdentities = {
 
 /**
  * Every site-wide public identity this fixture set claims — `mediaId`,
- * `categoryId`, service `slug`, article/gallery `(contentId, language)`, and
+ * `categoryId`, service `(serviceId, language)`, article/gallery `(contentId, language)`, and
  * `placementId` — used by the CLI's preflight to detect a collision with a
  * differently-id'd document already claiming one of them. `placementIds` is
  * returned unchunked and large (426 entries): see its own field comment on
@@ -1194,7 +1201,7 @@ export type SeedIdentities = {
 export function collectSeedIdentities(documents: readonly SeedDocument[]): SeedIdentities {
   const mediaIds: string[] = [];
   const categoryIds: string[] = [];
-  const serviceSlugs: string[] = [];
+  const serviceIds: string[] = [];
   const contentIds: string[] = [];
   const placementIds: string[] = [];
   const expectedIdByIdentity = new Map<string, string>();
@@ -1210,9 +1217,10 @@ export function collectSeedIdentities(documents: readonly SeedDocument[]): SeedI
       categoryIds.push(categoryId);
       expectedIdByIdentity.set(`category:${categoryId}`, doc._id);
     } else if (doc._type === SERVICE_TYPE_NAME) {
-      const slug = doc.slug as string;
-      serviceSlugs.push(slug);
-      expectedIdByIdentity.set(`service:${slug}`, doc._id);
+      const serviceId = doc.serviceId as string;
+      const language = doc.language as string;
+      serviceIds.push(serviceId);
+      expectedIdByIdentity.set(`service:${serviceId}:${language}`, doc._id);
     } else if (doc._type === ARTICLE_TYPE_NAME || doc._type === GALLERY_TYPE_NAME) {
       const contentId = doc.contentId as string;
       const language = doc.language as string;
@@ -1229,7 +1237,7 @@ export function collectSeedIdentities(documents: readonly SeedDocument[]): SeedI
   return {
     mediaIds,
     categoryIds,
-    serviceSlugs,
+    serviceIds,
     contentIds,
     placementIds,
     expectedIdByIdentity,
@@ -1367,7 +1375,7 @@ export function validateSeedFixtures(documents: readonly SeedDocument[]): readon
   // --- id namespace, per-document-type uniqueness -------------------------
   const mediaIds = new Set<string>();
   const categoryIds = new Set<string>();
-  const serviceSlugs = new Set<string>();
+  const serviceIdentities = new Set<string>(); // `${serviceId}:${language}`
   const placementIds = new Set<string>();
   const contentIdentities = new Set<string>(); // `${type}:${contentId}:${language}`
   const contentIdVariant = new Map<string, string>(); // contentId -> variant type
@@ -1390,9 +1398,23 @@ export function validateSeedFixtures(documents: readonly SeedDocument[]): readon
     }
 
     if (doc._type === SERVICE_TYPE_NAME) {
+      const serviceId = doc.serviceId as string;
+      const language = doc.language as string;
       const slug = doc.slug as string;
-      if (serviceSlugs.has(slug)) violations.push(`service ${slug}: duplicate slug`);
-      serviceSlugs.add(slug);
+      if (!SEED_ID_PATTERN.test(serviceId)) {
+        violations.push(`service ${doc._id}: invalid serviceId`);
+      }
+      if (!LANGUAGE_SUBTAG.test(language)) {
+        violations.push(`service ${serviceId}: invalid language`);
+      }
+      const identity = `${serviceId}:${language}`;
+      if (serviceIdentities.has(identity)) {
+        violations.push(`service ${identity}: duplicate service identity`);
+      }
+      serviceIdentities.add(identity);
+      if (!SEED_ID_PATTERN.test(slug)) {
+        violations.push(`service ${identity}: invalid slug`);
+      }
     }
 
     if (doc._type === GALLERY_PLACEMENT_TYPE_NAME) {

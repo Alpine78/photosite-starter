@@ -1,7 +1,10 @@
 import type { Locator, Page } from "@playwright/test";
 import { getServices, type Service } from "../src/lib/services";
 import { expect, test } from "./support/fixtures";
-import { DEFAULT_STORY_NAMESPACE } from "./support/harness-environment";
+import {
+  DEFAULT_STORY_NAMESPACE,
+  PREFIXED_LOCALE,
+} from "./support/harness-environment";
 import {
   expectImageDelivered,
   openHeaderNavigation,
@@ -27,6 +30,8 @@ import {
 
 const SERVICES_PATH = "/services";
 const STORY_ROOT = `/${DEFAULT_STORY_NAMESPACE}`;
+const PREFIXED_SERVICES_PATH = `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.serviceNamespace}`;
+const PREFIXED_STORY_ROOT = `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.storyNamespace}`;
 
 /** A slug the adapter cannot answer, in the shape a real one has. */
 const UNKNOWN_SERVICE_PATH = `${SERVICES_PATH}/no-such-service`;
@@ -263,6 +268,41 @@ test("a slug no service answers to is a 404", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
   await expect(page.getByRole("banner")).toBeVisible();
   await expect(page.getByRole("contentinfo")).toBeVisible();
+});
+
+test("a prefixed locale keeps its service and story namespaces separate", async ({
+  page,
+}) => {
+  const services = await getServices(PREFIXED_LOCALE.prefix);
+  const service = services[0];
+  expect(service).toBeDefined();
+
+  const listingResponse = await page.goto(PREFIXED_SERVICES_PATH, {
+    waitUntil: "domcontentloaded",
+  });
+  expect(listingResponse?.status()).toBe(200);
+  await expect(serviceCards(page)).toHaveCount(services.length);
+  await expect(
+    page.getByRole("main").locator(
+      `a[href="${PREFIXED_SERVICES_PATH}/${service.slug}"]`,
+    ),
+  ).toHaveCount(1);
+
+  const detailResponse = await page.goto(
+    `${PREFIXED_SERVICES_PATH}/${service.slug}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  expect(detailResponse?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(service.name);
+
+  // Both namespaces enter the same catch-all. A service route must therefore
+  // leave the sibling story namespace for the story resolver instead of
+  // treating its second segment as a generic service namespace.
+  const storyResponse = await page.goto(PREFIXED_STORY_ROOT, {
+    waitUntil: "domcontentloaded",
+  });
+  expect(storyResponse?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
 });
 
 test("the chrome carries a visitor between the services and story sections", async ({

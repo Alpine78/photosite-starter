@@ -107,6 +107,8 @@ const settings: SiteSettings = {
 };
 
 const service: Service = {
+  serviceId: "wedding-photography",
+  language: "en",
   slug: "weddings",
   name: "Weddings",
   shortDescription: "Full-day storytelling coverage.",
@@ -257,7 +259,11 @@ describe("buildOrganizationJsonLd", () => {
 
 describe("buildServiceJsonLd", () => {
   it("carries name, description, an origin-absolute url, and the cover image", () => {
-    const jsonLd = buildServiceJsonLd({ service, deployment });
+    const jsonLd = buildServiceJsonLd({
+      service,
+      deployment,
+      canonicalPath: "/services/weddings",
+    });
     expect(jsonLd).toEqual({
       "@context": "https://schema.org",
       "@type": "Service",
@@ -275,6 +281,7 @@ describe("buildServiceJsonLd", () => {
     const jsonLd = buildServiceJsonLd({
       service: { ...service, coverMedia: cdnCover },
       deployment,
+      canonicalPath: "/services/weddings",
     });
     expect(jsonLd.image).toBe(
       "https://cdn.sanity.io/images/p/d/abcdef012345-1200x800.webp",
@@ -285,6 +292,7 @@ describe("buildServiceJsonLd", () => {
     const jsonLd = buildServiceJsonLd({
       service: { ...service, coverMedia: undefined },
       deployment,
+      canonicalPath: "/services/weddings",
     });
     expect(jsonLd).not.toHaveProperty("image");
     expect(jsonLd).not.toHaveProperty("offers");

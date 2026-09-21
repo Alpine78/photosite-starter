@@ -2,7 +2,7 @@ import { applyMockEndDateGate } from "../src/lib/content";
 import { buildContentTree } from "../src/lib/content-tree";
 import { buildLocaleRouteConfig } from "../src/lib/locale-routes";
 import { mockContentTreeInputs } from "../src/lib/mock-content-tree";
-import { getServices } from "../src/lib/services";
+import { getServiceRoutes } from "../src/lib/services";
 import { buildSitemapPaths } from "../src/lib/sitemap";
 import { expect, test } from "./support/fixtures";
 import {
@@ -34,11 +34,13 @@ function expectedLocaleRoutes() {
         locale: appUnderTestEnvironment.SITE_LOCALE,
         prefix: null,
         storyNamespace: DEFAULT_STORY_NAMESPACE,
+        serviceNamespace: "services",
       },
       {
         locale: PREFIXED_LOCALE.prefix,
         prefix: PREFIXED_LOCALE.prefix,
         storyNamespace: PREFIXED_LOCALE.storyNamespace,
+        serviceNamespace: PREFIXED_LOCALE.serviceNamespace,
       },
     ],
     reservedRootSegments: ["services"],
@@ -70,8 +72,15 @@ async function expectedSitemapUrls(): Promise<Set<string>> {
     }),
   );
 
-  const services = await getServices();
-  const paths = buildSitemapPaths({ localeRoutes, trees, services });
+  const serviceRoutes = new Map(
+    await Promise.all(
+      localeRoutes.locales.map(async (route) => [
+        route.locale,
+        await getServiceRoutes(route.locale),
+      ] as const),
+    ),
+  );
+  const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes });
 
   return new Set(
     paths.map(

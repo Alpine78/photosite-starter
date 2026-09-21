@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getService, getServices, getServicesIntro } from "@/lib/services";
+import { buildLocaleRouteConfig } from "@/lib/locale-routes";
+import {
+  getService,
+  getServiceLocaleVersions,
+  getServiceListingLocaleVersions,
+  getServices,
+  getServicesIntro,
+} from "@/lib/services";
 
 /**
  * `services.ts` is a route-facing seam: it dispatches between the mock
@@ -12,6 +19,7 @@ import { getService, getServices, getServicesIntro } from "@/lib/services";
 const deploymentConfig = vi.hoisted(() => ({
   contentSource: "mock" as "mock" | "sanity",
   locale: "fi-FI",
+  localeRoutes: undefined as unknown as ReturnType<typeof buildLocaleRouteConfig>,
 }));
 
 vi.mock("@/lib/deployment-config", () => ({
@@ -30,6 +38,15 @@ const siteSettingsModule = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/site-settings", () => siteSettingsModule);
+
+deploymentConfig.localeRoutes = buildLocaleRouteConfig({
+  locales: [
+    { locale: "fi-FI", prefix: null, storyNamespace: "tarinat", serviceNamespace: "palvelut" },
+    { locale: "en-GB", prefix: "en", storyNamespace: "stories", serviceNamespace: "services" },
+  ],
+  reservedRootSegments: ["services"],
+  reservedLocaleRouteSegments: ["services"],
+});
 
 beforeEach(() => {
   deploymentConfig.contentSource = "mock";
@@ -74,6 +91,31 @@ describe("getServices", () => {
     );
 
     await expect(getServices()).rejects.toThrow("classified sanity failure");
+  });
+
+  it("normalizes a BCP 47 route locale to the document language subtag", async () => {
+    deploymentConfig.contentSource = "sanity";
+    sanityServices.readPublicServices.mockResolvedValue([]);
+
+    await getServices("en-GB");
+
+    expect(sanityServices.readPublicServices).toHaveBeenCalledWith({ language: "en" });
+  });
+});
+
+describe("getServiceListingLocaleVersions", () => {
+  it("names only locale spaces whose catalog is published", async () => {
+    await expect(getServiceListingLocaleVersions()).resolves.toEqual([
+      { locale: "fi-FI", path: "/palvelut" },
+      { locale: "en-GB", path: "/en/services" },
+    ]);
+  });
+
+  it("uses each locale namespace for the same stable service identity", async () => {
+    await expect(getServiceLocaleVersions("weddings")).resolves.toEqual([
+      { locale: "fi-FI", path: "/palvelut/weddings" },
+      { locale: "en-GB", path: "/en/services/weddings" },
+    ]);
   });
 });
 

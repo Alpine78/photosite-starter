@@ -19,6 +19,12 @@ import { getDeploymentConfig } from "@/lib/deployment-config";
 import type { Media } from "@/lib/media";
 import { mockImages } from "@/lib/mock-media";
 import { getSiteSettings } from "@/lib/site-settings";
+import {
+  buildServiceRoutes,
+  findServiceRoute,
+  type ResolvedService,
+} from "@/lib/service-routes";
+import { buildServicePath, type LocaleVersion } from "@/lib/locale-routes";
 
 export type ServicePricePackage = {
   /** Package name, e.g. "Half day", "Full day". */
@@ -30,7 +36,13 @@ export type ServicePricePackage = {
 };
 
 export type Service = {
-  /** URL segment under /services/<slug>. */
+  /** Stable identity shared by every localized version of this service. */
+  serviceId: string;
+  /** ISO language subtag owning this published version. */
+  language: string;
+  /** Optional stable identity of the service's parent. */
+  parentServiceId?: string;
+  /** One path segment below the service's locale-specific namespace. */
   slug: string;
   name: string;
   /** One- to two-line summary shown on the listing card. */
@@ -50,6 +62,8 @@ export type Service = {
 
 const mockServices: Service[] = [
   {
+    serviceId: "portrait-sessions",
+    language: "en",
     slug: "portrait-sessions",
     name: "Portrait sessions",
     shortDescription:
@@ -74,6 +88,8 @@ const mockServices: Service[] = [
     ],
   },
   {
+    serviceId: "weddings",
+    language: "en",
     slug: "weddings",
     name: "Weddings",
     shortDescription:
@@ -98,6 +114,8 @@ const mockServices: Service[] = [
     ],
   },
   {
+    serviceId: "events",
+    language: "en",
     // Intentionally has no cover media: the card must render cleanly without one.
     slug: "events",
     name: "Events",
@@ -117,6 +135,8 @@ const mockServices: Service[] = [
     ],
   },
   {
+    serviceId: "commercial",
+    language: "en",
     // Intentionally has no pricing: the card and detail page must omit price gracefully.
     slug: "commercial",
     name: "Commercial & brand",
@@ -130,25 +150,34 @@ const mockServices: Service[] = [
   },
 ];
 
-/**
- * Services carry no locale of their own (see the module comment), so the
- * language passed to the Sanity adapter exists only to resolve a referenced
- * cover photograph's alt text and caption — the deployment's own default
- * locale, matching the still-unlocalized `/services` route.
- */
 function defaultLanguage(): string {
   return new Intl.Locale(getDeploymentConfig().locale).language;
 }
 
-export async function getServices(): Promise<Service[]> {
+/** The service document contract stores an ISO language subtag, not a BCP 47 locale. */
+function toServiceLanguage(localeOrLanguage: string): string {
+  return new Intl.Locale(localeOrLanguage).language;
+}
+
+/**
+ * The generic fixture supplies the same scaffold catalog in every configured
+ * language. Production reads one authored document set per language from
+ * Sanity; the fixture deliberately has no photographer-specific translations.
+ */
+function mockServicesForLanguage(language: string): Service[] {
+  return mockServices.map((service) => ({ ...service, language }));
+}
+
+export async function getServices(language = defaultLanguage()): Promise<Service[]> {
+  const serviceLanguage = toServiceLanguage(language);
   const { contentSource } = getDeploymentConfig();
   return dispatchContentSource(contentSource, {
     // See dispatchContentSource's own doc comment for why this import is dynamic.
     sanity: async () => {
       const { readPublicServices } = await import("@/lib/sanity-services");
-      return [...(await readPublicServices({ language: defaultLanguage() }))];
+      return [...(await readPublicServices({ language: serviceLanguage }))];
     },
-    mock: async () => mockServices,
+    mock: async () => mockServicesForLanguage(serviceLanguage),
   });
 }
 
@@ -162,13 +191,79 @@ export async function getServicesIntro(): Promise<string | undefined> {
   return (await getSiteSettings()).servicesIntro;
 }
 
-export async function getService(slug: string): Promise<Service | undefined> {
+export async function getService(
+  slug: string,
+  language = defaultLanguage(),
+): Promise<Service | undefined> {
+  const serviceLanguage = toServiceLanguage(language);
   const { contentSource } = getDeploymentConfig();
   return dispatchContentSource(contentSource, {
     sanity: async () => {
       const { readPublicServiceBySlug } = await import("@/lib/sanity-services");
-      return readPublicServiceBySlug(slug, { language: defaultLanguage() });
+      return readPublicServiceBySlug(slug, { language: serviceLanguage });
     },
-    mock: async () => mockServices.find((service) => service.slug === slug),
+    mock: async () =>
+      mockServicesForLanguage(serviceLanguage).find((service) => service.slug === slug),
   });
+}
+
+/** One locale's catalog with its canonical nested paths resolved. */
+export async function getServiceRoutes(
+  language = defaultLanguage(),
+): Promise<readonly ResolvedService[]> {
+  const serviceLanguage = toServiceLanguage(language);
+  return buildServiceRoutes(
+    await getServices(serviceLanguage),
+    serviceLanguage,
+  );
+}
+
+/** One exact nested service path in its locale, or no published service. */
+export async function getServiceRoute(
+  segments: readonly string[],
+  language = defaultLanguage(),
+): Promise<ResolvedService | undefined> {
+  return findServiceRoute(await getServiceRoutes(language), segments);
+}
+
+/**
+ * Every published locale version of a service identity. A service that has
+ * not been authored in another locale simply has no link or `hreflang` there;
+ * this method never substitutes a different-language document.
+ */
+export async function getServiceLocaleVersions(
+  serviceId: string,
+): Promise<readonly LocaleVersion[]> {
+  const { localeRoutes } = getDeploymentConfig();
+  const routesByLocale = await Promise.all(
+    localeRoutes.locales.map(async (localeRoute) => ({
+      locale: localeRoute.locale,
+      routes: await getServiceRoutes(localeRoute.locale),
+    })),
+  );
+
+  return routesByLocale.flatMap(({ locale, routes }) => {
+    const route = routes.find((candidate) => candidate.service.serviceId === serviceId);
+    return route === undefined
+      ? []
+      : [{ locale, path: buildServicePath(localeRoutes, locale, route.path) }];
+  });
+}
+
+/** Every locale whose public service listing has at least one service. */
+export async function getServiceListingLocaleVersions(): Promise<
+  readonly LocaleVersion[]
+> {
+  const { localeRoutes } = getDeploymentConfig();
+  const routesByLocale = await Promise.all(
+    localeRoutes.locales.map(async (localeRoute) => ({
+      locale: localeRoute.locale,
+      routes: await getServiceRoutes(localeRoute.locale),
+    })),
+  );
+  return routesByLocale.flatMap(({ locale, routes }) =>
+    routes.length === 0
+      ? []
+      : [{ locale, path: buildServicePath(localeRoutes, locale) }],
+  );
 }

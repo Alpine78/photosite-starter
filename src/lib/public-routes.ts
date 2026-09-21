@@ -25,7 +25,8 @@
  * redirect. The site chrome now reaches that gallery by its content identity.
  */
 
-import { getService } from "@/lib/services";
+import { getDeploymentConfig } from "@/lib/deployment-config";
+import { getService, getServiceRoute } from "@/lib/services";
 
 /**
  * Root path segments owned by application routes, public assets, and metadata
@@ -76,9 +77,23 @@ export const RESERVED_LOCALE_ROUTE_SEGMENTS: readonly string[] = ["services"];
 export async function defaultLocaleRouteExists(path: string): Promise<boolean> {
   const segments = path.split("/").filter((segment) => segment.length > 0);
   if (segments.length === 0) return true;
-  if (segments.length > 2) return false;
 
   const [first, second] = segments;
+  const { localeRoutes } = getDeploymentConfig();
+  const defaultRoute = localeRoutes.locales.find((route) => route.isDefault);
+  if (defaultRoute === undefined) {
+    throw new Error("the locale configuration has no default route");
+  }
+
+  if (first === defaultRoute.serviceNamespace) {
+    const serviceSegments = segments.slice(1);
+    return (
+      serviceSegments.length === 0 ||
+      (await getServiceRoute(serviceSegments, defaultRoute.locale)) !== undefined
+    );
+  }
+
+  if (segments.length > 2) return false;
 
   switch (first) {
     case "services":

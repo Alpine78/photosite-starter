@@ -327,6 +327,19 @@ describe("buildSeedFixtures", () => {
 });
 
 describe("validateSeedFixtures", () => {
+  it("catches two localized services claiming one stable identity", () => {
+    const { documents } = buildSeedFixtures();
+    const [first, second] = documents.filter((doc) => doc._type === SERVICE_TYPE_NAME);
+    const tampered = documents.map((doc) =>
+      doc._id === second._id
+        ? { ...doc, serviceId: first.serviceId, language: first.language }
+        : doc,
+    );
+
+    const violations = validateSeedFixtures(tampered);
+    expect(violations.some((message) => message.includes("duplicate service identity"))).toBe(true);
+  });
+
   it("catches a duplicate mediaId", () => {
     const { documents } = buildSeedFixtures();
     const mediaDocs = documents.filter((doc) => doc._type === MEDIA_TYPE_NAME);
@@ -413,7 +426,7 @@ describe("validateSeedFixtures", () => {
 });
 
 describe("collectSeedIdentities", () => {
-  it("collects every mediaId/categoryId/service slug/(contentId, language) with its expected _id", () => {
+  it("collects every mediaId/categoryId/service identity/(contentId, language) with its expected _id", () => {
     const { documents } = buildSeedFixtures();
     const identities = collectSeedIdentities(documents);
 
@@ -423,9 +436,9 @@ describe("collectSeedIdentities", () => {
     expect(identities.categoryIds).toContain("tidal-pools");
     expect(identities.expectedIdByIdentity.get("category:tidal-pools")).toBe(seedId("category", "tidal-pools"));
 
-    expect(identities.serviceSlugs).toContain("portrait-sessions");
-    expect(identities.expectedIdByIdentity.get("service:portrait-sessions")).toBe(
-      seedId("service", "portrait-sessions"),
+    expect(identities.serviceIds).toContain("portrait-sessions");
+    expect(identities.expectedIdByIdentity.get("service:portrait-sessions:en")).toBe(
+      seedId("service", "portrait-sessions", "en"),
     );
 
     expect(identities.contentIds).toContain("coastal-light");

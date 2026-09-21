@@ -51,7 +51,11 @@ import {
   MAX_CATEGORY_DEPTH,
   type ContentTree,
 } from "@/lib/content-tree";
-import { buildStoryPath, type LocaleRouteConfig } from "@/lib/locale-routes";
+import {
+  buildServicePath,
+  buildStoryPath,
+  type LocaleRouteConfig,
+} from "@/lib/locale-routes";
 
 /**
  * Category levels the menu itself exposes. Levels beneath it are reached from
@@ -241,7 +245,36 @@ function resolveLinkTarget(
   },
 ): { readonly href: string; readonly key: string } | undefined {
   if (link.featured === undefined) {
-    return { href: normalizePath(link.href), key: normalizePath(link.href) };
+    const href = normalizePath(link.href);
+    const defaultRoute = config.byLocale.get(config.defaultLocale);
+    const route = config.byLocale.get(locale);
+    if (defaultRoute === undefined || route === undefined) {
+      throw new Error(`navigation locale "${locale}" is not configured`);
+    }
+
+    // Settings were first authored in the default route space. The service
+    // and story entries name application-owned route spaces, rather than
+    // literal destinations: resolve both into the locale being rendered. This
+    // supports existing `/services` settings as well as a default locale that
+    // has already chosen `/palvelut` or another service namespace.
+    if (
+      href === "/services" ||
+      href === buildServicePath(config, defaultRoute.locale)
+    ) {
+      const localized = buildServicePath(config, locale);
+      return { href: localized, key: localized };
+    }
+    if (href === buildStoryPath(config, defaultRoute.locale)) {
+      const localized = buildStoryPath(config, locale);
+      return { href: localized, key: localized };
+    }
+
+    // Home and contact have no localized public routes yet. A non-default
+    // shell therefore omits them rather than sending a visitor to another
+    // language space. When either route gains its own localized contract, it
+    // belongs beside the two mappings above.
+    if (!route.isDefault) return undefined;
+    return { href, key: href };
   }
   if (featuredContentId === undefined) return undefined;
 

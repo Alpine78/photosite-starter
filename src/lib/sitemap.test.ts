@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildContentTree, type ContentTree } from "@/lib/content-tree";
 import { buildLocaleRouteConfig } from "@/lib/locale-routes";
+import { buildServiceRoutes } from "@/lib/service-routes";
 import { mockContentTreeInputs } from "@/lib/mock-content-tree";
 import {
   buildSitemapPaths,
@@ -10,10 +11,10 @@ import {
 
 const localeRoutes = buildLocaleRouteConfig({
   locales: [
-    { locale: "fi", prefix: null, storyNamespace: "tarinat" },
-    { locale: "en", prefix: "en", storyNamespace: "stories" },
+    { locale: "fi", prefix: null, storyNamespace: "tarinat", serviceNamespace: "palvelut" },
+    { locale: "en", prefix: "en", storyNamespace: "stories", serviceNamespace: "services" },
     // Configured, but not yet published: exercises the "absent tree" guard.
-    { locale: "sv", prefix: "sv", storyNamespace: "berattelser" },
+    { locale: "sv", prefix: "sv", storyNamespace: "berattelser", serviceNamespace: "tjanster" },
   ],
   reservedRootSegments: ["services"],
   reservedLocaleRouteSegments: ["services"],
@@ -26,26 +27,76 @@ const trees = new Map<string, ContentTree>([
   ["en", english],
 ]);
 
-const services = [{ slug: "portraits" }, { slug: "weddings" }];
+const services = buildServiceRoutes(
+  [
+    {
+      serviceId: "portraits",
+      language: "fi",
+      slug: "muotokuvat",
+      name: "Muotokuvat",
+      shortDescription: "Kuvaus.",
+      description: ["Kuvaus."],
+    },
+    {
+      serviceId: "weddings",
+      language: "fi",
+      slug: "haakuvaus",
+      name: "Hääkuvaus",
+      shortDescription: "Kuvaus.",
+      description: ["Kuvaus."],
+    },
+  ],
+  "fi",
+);
+const englishServices = buildServiceRoutes(
+  [
+    {
+      serviceId: "weddings",
+      language: "en",
+      slug: "wedding-photography",
+      name: "Wedding photography",
+      shortDescription: "Photography.",
+      description: ["Photography."],
+    },
+    {
+      serviceId: "portraits",
+      language: "en",
+      parentServiceId: "weddings",
+      slug: "portraits",
+      name: "Portraits",
+      shortDescription: "Photography.",
+      description: ["Photography."],
+    },
+  ],
+  "en",
+);
+const serviceRoutes = new Map([
+  ["fi", services],
+  ["en", englishServices],
+]);
 
 describe("buildSitemapPaths", () => {
   it("includes the static pages exactly once", () => {
-    const paths = buildSitemapPaths({ localeRoutes, trees, services: [] });
+    const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes: new Map() });
 
     expect(paths).toContain("/");
     expect(paths).toContain("/contact");
-    expect(paths).toContain("/services");
+    expect(paths).not.toContain("/services");
   });
 
   it("includes every service detail path", () => {
-    const paths = buildSitemapPaths({ localeRoutes, trees, services });
+    const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes });
 
-    expect(paths).toContain("/services/portraits");
-    expect(paths).toContain("/services/weddings");
+    expect(paths).toContain("/palvelut");
+    expect(paths).toContain("/palvelut/muotokuvat");
+    expect(paths).toContain("/palvelut/haakuvaus");
+    expect(paths).toContain("/en/services");
+    expect(paths).toContain("/en/services/wedding-photography");
+    expect(paths).toContain("/en/services/wedding-photography/portraits");
   });
 
   it("includes the story root and every public category/content path, per locale", () => {
-    const paths = buildSitemapPaths({ localeRoutes, trees, services: [] });
+    const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes: new Map() });
 
     expect(paths).toContain("/tarinat");
     expect(paths).toContain("/en/stories");
@@ -54,7 +105,7 @@ describe("buildSitemapPaths", () => {
   });
 
   it("omits a configured locale that publishes no content tree yet", () => {
-    const paths = buildSitemapPaths({ localeRoutes, trees, services: [] });
+    const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes: new Map() });
 
     expect(paths.some((path) => path.startsWith("/sv"))).toBe(false);
   });
@@ -80,7 +131,7 @@ describe("buildSitemapPaths", () => {
     const paths = buildSitemapPaths({
       localeRoutes: config,
       trees: withEmptyLocale,
-      services: [],
+      serviceRoutes: new Map(),
     });
 
     // resolveStoryRoute 404s this exact state, so no /sv path may appear.
@@ -88,7 +139,7 @@ describe("buildSitemapPaths", () => {
   });
 
   it("omits an unpublished, unplaced draft", () => {
-    const paths = buildSitemapPaths({ localeRoutes, trees, services: [] });
+    const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes: new Map() });
 
     expect(
       paths.some((path) => path.endsWith("/unplaced-draft")),
@@ -96,14 +147,14 @@ describe("buildSitemapPaths", () => {
   });
 
   it("omits a private, empty category branch", () => {
-    const paths = buildSitemapPaths({ localeRoutes, trees, services: [] });
+    const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes: new Map() });
 
     expect(paths.some((path) => path.includes("/archive"))).toBe(false);
     expect(paths.some((path) => path.includes("/arkisto"))).toBe(false);
   });
 
   it("lists a secondary-only category once, but never as an extra content route", () => {
-    const paths = buildSitemapPaths({ localeRoutes, trees, services: [] });
+    const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes: new Map() });
 
     // cat-events is public only through content-coastal-mornings's secondary
     // placement; it owns a category listing path but not a duplicate content
@@ -119,7 +170,7 @@ describe("buildSitemapPaths", () => {
   });
 
   it("never contains a cursor or section query string", () => {
-    const paths = buildSitemapPaths({ localeRoutes, trees, services: [] });
+    const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes: new Map() });
 
     for (const path of paths) {
       expect(path).not.toContain("?cursor=");
@@ -135,7 +186,7 @@ describe("buildSitemapPaths", () => {
     // (`deployment-config.ts`), so no locale prefix or story namespace can be
     // it. This is regression documentation of an isolation that holds by
     // construction, for every possible configured prefix.
-    const paths = buildSitemapPaths({ localeRoutes, trees, services });
+    const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes });
 
     for (const prefix of ["private", "clients", "kundgalleri"]) {
       expect(paths).not.toContain(`/${prefix}`);
@@ -144,8 +195,8 @@ describe("buildSitemapPaths", () => {
   });
 
   it("returns a deterministically sorted, duplicate-free list", () => {
-    const first = buildSitemapPaths({ localeRoutes, trees, services });
-    const second = buildSitemapPaths({ localeRoutes, trees, services });
+    const first = buildSitemapPaths({ localeRoutes, trees, serviceRoutes });
+    const second = buildSitemapPaths({ localeRoutes, trees, serviceRoutes });
 
     expect(first).toEqual(second);
     expect(new Set(first).size).toBe(first.length);
@@ -153,10 +204,12 @@ describe("buildSitemapPaths", () => {
   });
 
   it("throws when two inputs generate the same path", () => {
-    const duplicated = [{ slug: "weddings" }, { slug: "weddings" }];
+    const duplicated = new Map([
+      ["fi", [services[0], services[0]]],
+    ]);
 
     expect(() =>
-      buildSitemapPaths({ localeRoutes, trees, services: duplicated }),
+      buildSitemapPaths({ localeRoutes, trees, serviceRoutes: duplicated }),
     ).toThrow(SitemapPathCollisionError);
   });
 });

@@ -5,6 +5,8 @@ import { imageRenderProfiles } from "@/lib/image-delivery";
 
 type ServiceCardProps = {
   service: Service;
+  /** The route layer resolves this from the service's locale and ancestry. */
+  href: string;
 };
 
 /**
@@ -17,12 +19,12 @@ type ServiceCardProps = {
  * shown at its native aspect ratio (h-auto w-full, no fixed-height crop cell),
  * so card heights vary by design — images are never cropped.
  */
-export function ServiceCard({ service }: ServiceCardProps) {
-  const { slug, name, shortDescription, coverMedia, startingPrice } = service;
+export function ServiceCard({ service, href }: ServiceCardProps) {
+  const { name, shortDescription, coverMedia, startingPrice } = service;
 
   return (
     <Link
-      href={`/services/${slug}`}
+      href={href}
       className="group flex h-full flex-col overflow-hidden rounded-lg border border-border transition-colors hover:border-border-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       {coverMedia?.type === "image" && (

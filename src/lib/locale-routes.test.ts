@@ -4,12 +4,14 @@ import { buildContentTree, type ContentTreeInput } from "@/lib/content-tree";
 import {
   buildLocaleRouteConfig,
   buildLocalePath,
+  buildServicePath,
   buildStoryPath,
   getLocaleRoute,
   listPublishedLocaleVersions,
   resolveLanguageSwitch,
   resolvePrefixedRoute,
   resolveRouteShell,
+  resolveServiceRoute,
   type ContentLocation,
   type LocalizedContentTrees,
 } from "@/lib/locale-routes";
@@ -149,6 +151,20 @@ describe("buildLocaleRouteConfig", () => {
     expect(buildStoryPath(single, "fi", ["maisemat"])).toBe("/tarinat/maisemat");
   });
 
+  it("builds each locale's configured service path", () => {
+    const localized = buildLocaleRouteConfig({
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", serviceNamespace: "palvelut" },
+        { locale: "en", prefix: "en", storyNamespace: "stories", serviceNamespace: "services" },
+      ],
+      reservedRootSegments: [],
+      reservedLocaleRouteSegments: [],
+    });
+
+    expect(buildServicePath(localized, "fi", ["haakuvaus"])).toBe("/palvelut/haakuvaus");
+    expect(buildServicePath(localized, "en", ["wedding-photography"])).toBe("/en/services/wedding-photography");
+  });
+
   it.each([
     {
       name: "no configured locale",
@@ -278,7 +294,7 @@ describe("buildLocaleRouteConfig", () => {
         reservedLocaleRouteSegments: ["services"],
       }),
     ).toThrow(
-      'story namespace "services" for locale "en" collides with a localized static route',
+      'story namespace "services" for locale "en" collides with its service namespace',
     );
   });
 
@@ -401,6 +417,73 @@ describe("resolvePrefixedRoute", () => {
     expect(resolvePrefixedRoute(lookalikeConfig, "\u212A", ["berattelser"])).toEqual({
       kind: "not-a-locale",
     });
+  });
+});
+
+describe("resolveServiceRoute", () => {
+  const localized = buildLocaleRouteConfig({
+    locales: [
+      {
+        locale: "fi",
+        prefix: null,
+        storyNamespace: "tarinat",
+        serviceNamespace: "palvelut",
+      },
+      {
+        locale: "en",
+        prefix: "en",
+        storyNamespace: "stories",
+        serviceNamespace: "services",
+      },
+    ],
+    reservedRootSegments: [],
+    reservedLocaleRouteSegments: [],
+  });
+
+  it("resolves default and prefixed service namespaces in the shared catch-all", () => {
+    expect(
+      resolveServiceRoute(localized, "palvelut", ["haakuvaus"]),
+    ).toEqual({ locale: "fi", segments: ["haakuvaus"] });
+    expect(
+      resolveServiceRoute(localized, "en", [
+        "services",
+        "wedding-photography",
+        "portraits",
+      ]),
+    ).toEqual({
+      locale: "en",
+      segments: ["wedding-photography", "portraits"],
+    });
+  });
+
+  it("leaves default and prefixed story paths to the story resolver", () => {
+    expect(
+      resolveServiceRoute(localized, "tarinat", ["haakuvat"]),
+    ).toBeUndefined();
+    expect(
+      resolveServiceRoute(localized, "en", ["stories", "weddings"]),
+    ).toBeUndefined();
+  });
+
+  it("normalizes service namespace and locale-prefix casing in one redirect", () => {
+    expect(resolveServiceRoute(localized, "PALVELUT", ["haakuvaus"])).toEqual({
+      locale: "fi",
+      segments: ["haakuvaus"],
+      canonicalPath: "/palvelut/haakuvaus",
+    });
+    expect(
+      resolveServiceRoute(localized, "EN", ["SERVICES", "wedding-photography"]),
+    ).toEqual({
+      locale: "en",
+      segments: ["wedding-photography"],
+      canonicalPath: "/en/services/wedding-photography",
+    });
+  });
+
+  it("leaves the redundant default prefix to exact whole-path normalization", () => {
+    expect(
+      resolveServiceRoute(localized, "fi", ["palvelut", "haakuvaus"]),
+    ).toBeUndefined();
   });
 });
 

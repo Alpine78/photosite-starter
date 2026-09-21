@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getDefaultLocaleLabels } from "@/lib/deployment-config";
+import type { BuiltInLabels } from "@/lib/deployment-config";
 import type { ResolvedNavigationLink } from "@/lib/site-navigation";
 import type { ContactInfo, SocialLink } from "@/lib/site-settings";
 
@@ -9,6 +9,7 @@ type SiteFooterProps = {
   /** Already resolved against this locale's tree; see `site-navigation.ts`. */
   footerLinks: readonly ResolvedNavigationLink[];
   copyrightHolder: string;
+  labels: Pick<BuiltInLabels, "footer" | "navigation">;
 };
 
 const linkClasses =
@@ -29,9 +30,9 @@ export function SiteFooter({
   socialLinks,
   footerLinks,
   copyrightHolder,
+  labels,
 }: SiteFooterProps) {
   const year = new Date().getFullYear();
-  const labels = getDefaultLocaleLabels();
 
   return (
     <footer className="border-t border-border">

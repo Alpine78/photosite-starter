@@ -39,7 +39,7 @@ export default defineConfig({
       datasetVisibility: "private",
       // The generated story root in every configured locale's route space,
       // one entry per SITE_LOCALE_ROUTES locale. This example matches
-      // SITE_LOCALE_ROUTES=fi||tarinat,en|en|stories.
+      // SITE_LOCALE_ROUTES=fi||tarinat|palvelut,en|en|stories|services.
       storyRootPaths: ["/tarinat", "/en/stories"],
     }),
   },
@@ -83,10 +83,11 @@ language. A category is one document describing every published language; an art
 the opposite — one document *per* language, because ADR-0003 decision 7 lets a page's
 languages be authored and published independently. `language` plus the immutable
 `contentId` together identify one version, and a standard publish is blocked until
-`canonicalCategory` is set (ADR-0003 decision 5), while a draft may stay unplaced. A
-service carries no language field at all: `src/lib/services.ts#getServices` takes no
-locale, matching the still-unlocalized `/services` route, so nothing here describes a
-capability the site does not yet read.
+exactly one of `canonicalAtStoryRoot` and `canonicalCategory` is set (ADR-0003 decision
+5), while a draft may stay unplaced. A
+service has one language document per published route space, joined to peers by a stable
+`serviceId`: `src/lib/services.ts#getServices` takes the route language, so a missing
+translation is absent rather than displayed through another language's route.
 
 Both an article's body and a gallery's optional body share one set of block object types —
 `sanity/schemas/content-block.ts` — covering the ten shared body kinds:

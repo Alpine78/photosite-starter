@@ -69,7 +69,7 @@ or invalid.
 | Setting | Purpose |
 | --- | --- |
 | `SITE_LOCALE` | BCP 47 default locale with a concrete language subtag, for the document language and date formatting |
-| `SITE_LOCALE_ROUTES` | Public route space per supported locale: `locale\|prefix\|namespace` entries |
+| `SITE_LOCALE_ROUTES` | Public route space per supported locale: `locale\|prefix\|story-namespace[\|service-namespace]` entries |
 | `SITE_CANONICAL_BASE_URL` | Public origin every canonical and Open Graph URL is built from |
 | `SITE_DEFAULT_SOCIAL_IMAGE` | Versioned public derivative used as the default social preview |
 | `SITE_DEFAULT_SOCIAL_IMAGE_VERSION` | Byte version of that image; required only for a remote URL |
@@ -95,7 +95,7 @@ image's real rendition dimensions instead.
 as comma-separated `locale|prefix|namespace` entries. The default locale leaves
 the prefix empty because its routes carry none, and must be the locale named by
 `SITE_LOCALE`. A single-locale English clone reads `en-GB||stories`; the
-bilingual first production deployment reads `fi||tarinat,en|en|stories`. That
+bilingual first production deployment reads `fi||tarinat|palvelut,en|en|stories|services`. That
 assigns the unprefixed route space and `/tarinat/…` namespace to Finnish, and
 the `/en` route space and `/en/stories/…` namespace to English. Every configured
 prefix is reserved against the root routes the application already owns, and

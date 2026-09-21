@@ -86,17 +86,43 @@ describe("the slug", () => {
   it("refuses a slug another published-or-draft service already claims", async () => {
     const { run } = inspect(fieldOf("slug").validation, { answer: true });
 
-    expect((await run("portrait-sessions", { _id: "abc" }))[0]).toContain(
+    expect((await run("portrait-sessions", { _id: "abc", language: "en" }))[0]).toContain(
       "already uses",
     );
   });
 
-  it("does not require immutability once published, unlike media or category identity", async () => {
-    // Services have no redirect-history story: `service.ts`'s module comment
-    // explains this is a deliberate, narrower check than media.ts/category.ts.
+  it("allows a renamed path segment; stable serviceId owns localization links", async () => {
     const { run } = inspect(fieldOf("slug").validation, { answer: false });
 
     expect(await run("renamed-sessions", { _id: "abc" })).toEqual([true]);
+  });
+});
+
+describe("the stable service identity", () => {
+  it("is required and rejects another document in the same language", async () => {
+    const { required, run } = inspect(fieldOf("serviceId").validation, {
+      answer: { taken: true, publishedServiceId: null },
+    });
+    expect(required).toBe(true);
+    expect((await run("wedding-photography", { _id: "abc", language: "en" }))[0]).toContain(
+      "already uses",
+    );
+  });
+
+  it("cannot change after publication", async () => {
+    const { run } = inspect(fieldOf("serviceId").validation, {
+      answer: { taken: false, publishedServiceId: "weddings" },
+    });
+    expect((await run("wedding-photography", { _id: "abc", language: "en" }))[0]).toContain(
+      "published as",
+    );
+  });
+
+  it("rejects a service as its own parent", async () => {
+    const { run } = inspect(fieldOf("parentServiceId").validation);
+    expect(await run("weddings", { serviceId: "weddings" })).toEqual([
+      "A service cannot be its own parent.",
+    ]);
   });
 });
 

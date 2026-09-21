@@ -41,6 +41,12 @@ export type LocaleRouteInput = {
   readonly prefix: string | null;
   /** Human-facing namespace of the content tree, e.g. `tarinat`, `stories`. */
   readonly storyNamespace: string;
+  /**
+   * Static service namespace in this locale, e.g. `palvelut` or `services`.
+   * Omitted only by older callers; it preserves their existing `/services`
+   * contract until the deployment opts into a localized segment.
+   */
+  readonly serviceNamespace?: string;
 };
 
 export type LocaleRouteConfigInput = {
@@ -65,6 +71,7 @@ export type LocaleRoute = {
   readonly locale: string;
   readonly prefix: string | null;
   readonly storyNamespace: string;
+  readonly serviceNamespace: string;
   /** `""` for the default locale, `"/en"` for a prefixed one. */
   readonly basePath: string;
   readonly isDefault: boolean;
@@ -152,6 +159,17 @@ export function buildLocaleRouteConfig({
         `invalid story namespace "${entry.storyNamespace}" for locale "${locale}": expected lowercase segments with hyphens between words`,
       );
     }
+    const serviceNamespace = entry.serviceNamespace ?? "services";
+    if (!SEGMENT_PATTERN.test(serviceNamespace)) {
+      fail(
+        `invalid service namespace "${serviceNamespace}" for locale "${locale}": expected lowercase segments with hyphens between words`,
+      );
+    }
+    if (entry.storyNamespace === serviceNamespace) {
+      fail(
+        `story namespace "${entry.storyNamespace}" for locale "${locale}" collides with its service namespace`,
+      );
+    }
     if (reservedInsideLocale.has(entry.storyNamespace)) {
       fail(
         `story namespace "${entry.storyNamespace}" for locale "${locale}" collides with a localized static route`,
@@ -182,6 +200,7 @@ export function buildLocaleRouteConfig({
       locale,
       prefix: entry.prefix,
       storyNamespace: entry.storyNamespace,
+      serviceNamespace,
       basePath: entry.prefix === null ? "" : `/${entry.prefix}`,
       isDefault: entry.prefix === null,
     };
@@ -207,6 +226,18 @@ export function buildLocaleRouteConfig({
       `story namespace "${defaultRoute.storyNamespace}" of default locale "${defaultRoute.locale}" collides with a root route the application already owns`,
     );
   }
+  // `/services` is the pre-existing default route during AB#164's migration.
+  // It remains reserved to all *other* route owners, while the default
+  // service namespace may continue to own it until a deployment selects a
+  // localized replacement such as `/palvelut`.
+  if (
+    reservedAtRoot.has(defaultRoute.serviceNamespace) &&
+    defaultRoute.serviceNamespace !== "services"
+  ) {
+    fail(
+      `service namespace "${defaultRoute.serviceNamespace}" of default locale "${defaultRoute.locale}" collides with a root route the application already owns`,
+    );
+  }
 
   const redundantDefaultPrefix = defaultLanguage;
 
@@ -214,6 +245,11 @@ export function buildLocaleRouteConfig({
     if (route.prefix === defaultRoute.storyNamespace) {
       fail(
         `locale prefix "${route.prefix}" collides with the default locale's story namespace`,
+      );
+    }
+    if (route.prefix === defaultRoute.serviceNamespace) {
+      fail(
+        `locale prefix "${route.prefix}" collides with the default locale's service namespace`,
       );
     }
     if (route.prefix === redundantDefaultPrefix) {
@@ -231,6 +267,11 @@ export function buildLocaleRouteConfig({
   if (redundantDefaultPrefix === defaultRoute.storyNamespace) {
     fail(
       `redundant default-locale prefix "${redundantDefaultPrefix}" collides with the default locale's story namespace`,
+    );
+  }
+  if (redundantDefaultPrefix === defaultRoute.serviceNamespace) {
+    fail(
+      `redundant default-locale prefix "${redundantDefaultPrefix}" collides with the default locale's service namespace`,
     );
   }
 
@@ -305,6 +346,16 @@ export function buildStoryPath(
   return joinPath(route.basePath, [route.storyNamespace, ...segments]);
 }
 
+/** A path beneath one locale's configured static service namespace. */
+export function buildServicePath(
+  config: LocaleRouteConfig,
+  locale: string,
+  segments: readonly string[] = [],
+): string {
+  const route = requireLocaleRoute(config, locale);
+  return joinPath(route.basePath, [route.serviceNamespace, ...segments]);
+}
+
 // ---------------------------------------------------------------------------
 // Incoming route resolution
 // ---------------------------------------------------------------------------
@@ -364,6 +415,91 @@ export function resolvePrefixedRoute(
   }
 
   return { kind: "not-a-locale" };
+}
+
+export type ServiceRouteResolution = {
+  readonly locale: string;
+  /** Canonical service segments below this locale's service namespace. */
+  readonly segments: readonly string[];
+  /** Present when the incoming locale prefix or namespace needs normalizing. */
+  readonly canonicalPath?: string;
+};
+
+function normalizedRouteSegment(segment: string): string | undefined {
+  return /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/.test(segment)
+    ? segment.toLowerCase()
+    : undefined;
+}
+
+/**
+ * Resolves a service request entering the shared locale catch-all.
+ *
+ * The default locale arrives with its service namespace as `prefix`, while a
+ * prefixed locale arrives with that namespace as the first remaining segment.
+ * A story namespace returns `undefined`, leaving the existing story resolver
+ * to own it. This distinction must happen in one route: a separate generic
+ * `[localePrefix]/[serviceNamespace]` route would also match every nested
+ * story path before its configured namespace could be checked.
+ *
+ * The redundant default-locale prefix deliberately returns `undefined` too.
+ * The whole-path resolver already verifies that its unprefixed target exists
+ * before redirecting `/fi/...`, including service paths.
+ */
+export function resolveServiceRoute(
+  config: LocaleRouteConfig,
+  prefix: string,
+  segments: readonly string[] = [],
+): ServiceRouteResolution | undefined {
+  const defaultRoute = config.byLocale.get(config.defaultLocale);
+  if (defaultRoute === undefined) {
+    throw new TypeError("the locale configuration has no default route");
+  }
+
+  if (normalizedRouteSegment(prefix) === defaultRoute.serviceNamespace) {
+    return {
+      locale: defaultRoute.locale,
+      segments,
+      ...(prefix === defaultRoute.serviceNamespace
+        ? {}
+        : {
+            canonicalPath: buildServicePath(
+              config,
+              defaultRoute.locale,
+              segments,
+            ),
+          }),
+    };
+  }
+
+  const prefixed = resolvePrefixedRoute(config, prefix, segments);
+  if (prefixed.kind !== "localized") return undefined;
+  const route = config.byLocale.get(prefixed.locale);
+  if (route === undefined) {
+    throw new TypeError("a resolved locale route was not configured");
+  }
+  const [namespace, ...serviceSegments] = prefixed.segments;
+  if (
+    namespace === undefined ||
+    normalizedRouteSegment(namespace) !== route.serviceNamespace
+  ) {
+    return undefined;
+  }
+
+  const needsNormalization =
+    !prefixed.prefixIsCanonical || namespace !== route.serviceNamespace;
+  return {
+    locale: route.locale,
+    segments: serviceSegments,
+    ...(needsNormalization
+      ? {
+          canonicalPath: buildServicePath(
+            config,
+            route.locale,
+            serviceSegments,
+          ),
+        }
+      : {}),
+  };
 }
 
 export type RouteShell = {

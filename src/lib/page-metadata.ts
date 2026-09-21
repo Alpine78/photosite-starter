@@ -34,7 +34,7 @@ export type MetadataContext = {
 
 export type PageMetadataInput = {
   /**
-   * Canonical route path, e.g. `/` or `/services/weddings`.
+   * Canonical route path, e.g. `/` or `/palvelut/haakuvaus`.
    *
    * A *filtered* view of a listing passes the unfiltered path, so alternate
    * filters of one result set do not claim separate canonical URLs. A *cursor

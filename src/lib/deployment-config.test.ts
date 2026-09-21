@@ -326,7 +326,9 @@ describe("loadDeploymentConfig", () => {
         ...validEnvironment,
         SITE_LOCALE_ROUTES: "en-GB|stories",
       }),
-    ).toThrow('expected comma-separated "locale|prefix|namespace" entries');
+    ).toThrow(
+      'expected comma-separated "locale|prefix|story-namespace[|service-namespace]" entries',
+    );
   });
 
   // The reservation is checked against this application's own root routes, so
@@ -350,7 +352,7 @@ describe("loadDeploymentConfig", () => {
         SITE_LOCALE_ROUTES: "fi||tarinat,en|en|services",
       }),
     ).toThrow(
-      'Invalid SITE_LOCALE_ROUTES: story namespace "services" for locale "en" collides with a localized static route',
+      'Invalid SITE_LOCALE_ROUTES: story namespace "services" for locale "en" collides with its service namespace',
     );
   });
 

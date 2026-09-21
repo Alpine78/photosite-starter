@@ -14,13 +14,14 @@
  * calls; like `content.ts`'s own accessors, it is exercised through the
  * production build rather than unit-tested directly.
  *
- * Only unprefixed static pages exist today (home, contact, services): no
- * configured locale has its own localized versions of them yet. The public
- * content tree is authored per locale, so it is walked once per configured
- * locale that actually publishes a tree — a configured locale may publish
- * none yet, and that locale's story routes 404 rather than existing, so
- * nothing is emitted for it. A tree that publishes no public category at all
- * gets the same treatment: `resolveStoryRoute` 404s that state too.
+ * Home and contact still exist only in the unprefixed default-locale space.
+ * Services are different: each configured locale contributes its own service
+ * namespace and only its published service documents. The public content tree
+ * is likewise authored per locale, so it is walked once per configured locale
+ * that actually publishes a tree — a configured locale may publish none yet,
+ * and that locale's story routes 404 rather than existing, so nothing is
+ * emitted for it. A tree with no public category gets the same treatment:
+ * `resolveStoryRoute` 404s that state too.
  *
  * A tree-canonical placement's underlying detail record could in principle
  * still be missing (`resolveGalleryPage`'s documented "a content-tree record
@@ -41,14 +42,16 @@ import { getContentTrees } from "@/lib/content";
 import { listPublicRoutePaths } from "@/lib/content-tree";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
+  buildServicePath,
   buildStoryPath,
   type LocaleRouteConfig,
   type LocalizedContentTrees,
 } from "@/lib/locale-routes";
-import { getServices, type Service } from "@/lib/services";
+import { getServiceRoutes } from "@/lib/services";
+import type { ResolvedService } from "@/lib/service-routes";
 
 /** Static pages that exist only in the unprefixed default-locale route space. */
-const STATIC_PATHS: readonly string[] = ["/", "/contact", "/services"];
+const STATIC_PATHS: readonly string[] = ["/", "/contact"];
 
 export class SitemapPathCollisionError extends Error {
   constructor(path: string) {
@@ -60,7 +63,8 @@ export class SitemapPathCollisionError extends Error {
 export type SitemapSourceData = {
   readonly localeRoutes: LocaleRouteConfig;
   readonly trees: LocalizedContentTrees;
-  readonly services: readonly Pick<Service, "slug">[];
+  /** Resolved, same-language service paths by configured locale. */
+  readonly serviceRoutes: ReadonlyMap<string, readonly ResolvedService[]>;
 };
 
 /**
@@ -76,11 +80,18 @@ export function buildSitemapPaths(
   data: SitemapSourceData,
 ): readonly string[] {
   const paths: string[] = [...STATIC_PATHS];
-  for (const service of data.services) {
-    paths.push(`/services/${service.slug}`);
-  }
 
   for (const route of data.localeRoutes.locales) {
+    const services = data.serviceRoutes.get(route.locale) ?? [];
+    if (services.length > 0) {
+      paths.push(buildServicePath(data.localeRoutes, route.locale));
+      for (const service of services) {
+        paths.push(
+          buildServicePath(data.localeRoutes, route.locale, service.path),
+        );
+      }
+    }
+
     const tree = data.trees.get(route.locale);
     if (tree === undefined) continue;
 
@@ -109,10 +120,19 @@ export function buildSitemapPaths(
 
 export async function loadSitemapPaths(): Promise<readonly string[]> {
   const { localeRoutes } = getDeploymentConfig();
-  const [trees, services] = await Promise.all([
+  const [trees, serviceEntries] = await Promise.all([
     getContentTrees(),
-    getServices(),
+    Promise.all(
+      localeRoutes.locales.map(async (route) => [
+        route.locale,
+        await getServiceRoutes(route.locale),
+      ] as const),
+    ),
   ]);
 
-  return buildSitemapPaths({ localeRoutes, trees, services });
+  return buildSitemapPaths({
+    localeRoutes,
+    trees,
+    serviceRoutes: new Map(serviceEntries),
+  });
 }
