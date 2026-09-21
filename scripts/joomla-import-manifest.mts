@@ -69,6 +69,8 @@ const DELIMITER = ";";
 
 /** Matches this project's own identity rule for a public, root-level, dot-free id segment. */
 export const IDENTITY_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/** Explicit manifest token for a canonical route directly beneath the story namespace. */
+export const STORY_ROOT_CANONICAL_PLACEMENT = "@story-root";
 const LANGUAGE_PATTERN = /^[a-z]{2,3}$/;
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
 
@@ -79,7 +81,8 @@ export type ApprovedArticle = {
   /** Shared across a page's languages; with `language` it is the article's whole identity. */
   readonly contentId: string;
   readonly slug: string;
-  readonly canonicalCategory: string;
+  readonly canonicalAtStoryRoot: boolean;
+  readonly canonicalCategory: string | null;
   readonly secondaryCategories: readonly string[];
   readonly phase: string;
   readonly publishedAt: string;
@@ -254,7 +257,9 @@ export function reviewImportManifest(
     const conversionPolicy = cell("conversion_policy");
     const contentId = cell("content_id");
     const slug = cell("slug");
-    const canonicalCategory = cell("canonical_category");
+    const canonicalCategoryCell = cell("canonical_category");
+    const canonicalAtStoryRoot = canonicalCategoryCell === STORY_ROOT_CANONICAL_PLACEMENT;
+    const canonicalCategory = canonicalAtStoryRoot ? null : canonicalCategoryCell;
     const publishedAt = cell("published_at");
     const eventDate = cell("event_date");
 
@@ -267,8 +272,10 @@ export function reviewImportManifest(
     if (conversionPolicy.length === 0) rowErrors.push("no conversion_policy recorded");
     if (!IDENTITY_PATTERN.test(contentId)) rowErrors.push(`content_id "${contentId}" is not a valid identity`);
     if (!IDENTITY_PATTERN.test(slug)) rowErrors.push(`slug "${slug}" is not a valid slug`);
-    if (!IDENTITY_PATTERN.test(canonicalCategory)) {
-      rowErrors.push(`canonical_category "${canonicalCategory}" is not a valid category identity`);
+    if (!canonicalAtStoryRoot && !IDENTITY_PATTERN.test(canonicalCategoryCell)) {
+      rowErrors.push(
+        `canonical_category "${canonicalCategoryCell}" is not a valid category identity or ${STORY_ROOT_CANONICAL_PLACEMENT}`,
+      );
     }
     if (!isRealCalendarDateTime(publishedAt)) {
       rowErrors.push(`published_at "${publishedAt}" is not a real ISO instant`);
@@ -284,7 +291,7 @@ export function reviewImportManifest(
     const seenSecondaryCategories = new Set<string>();
     for (const category of secondaryCategories) {
       if (!IDENTITY_PATTERN.test(category)) rowErrors.push(`secondary category "${category}" is not a valid identity`);
-      if (category === canonicalCategory) {
+      if (canonicalCategory !== null && category === canonicalCategory) {
         rowErrors.push(`"${category}" is both the canonical and a secondary category`);
       }
       // `sanity/schemas/article.ts` rejects a repeated secondary category at
@@ -311,11 +318,12 @@ export function reviewImportManifest(
     }
     seenIdentities.set(identityKey, sourceId);
 
-    const routeKey = `${language}:${canonicalCategory}:${slug}`;
+    const routeOwnerLabel = canonicalAtStoryRoot ? STORY_ROOT_CANONICAL_PLACEMENT : canonicalCategory;
+    const routeKey = `${language}:${routeOwnerLabel}:${slug}`;
     const routeOwner = seenRoutes.get(routeKey);
     if (routeOwner !== undefined) {
       errors.push(
-        `${where}: the route ${canonicalCategory}/${slug} in ${language} is already claimed by source ${routeOwner}.`,
+        `${where}: the route ${routeOwnerLabel}/${slug} in ${language} is already claimed by source ${routeOwner}.`,
       );
       continue;
     }
@@ -350,6 +358,7 @@ export function reviewImportManifest(
       language,
       contentId,
       slug,
+      canonicalAtStoryRoot,
       canonicalCategory,
       secondaryCategories,
       phase,

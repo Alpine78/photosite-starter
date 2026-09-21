@@ -22,8 +22,9 @@
  * of the two (`sanity/schemas/README` at AB#113 time adds the other, for
  * galleries). `content-tree.ts` remains the authoritative backstop; this
  * schema only keeps a standard Studio publish from creating the state that
- * backstop exists to catch: `canonicalCategory` is required, so the ordinary
- * editor cannot publish an article with no canonical placement (Sanity's own
+ * backstop exists to catch: document validation requires exactly one of
+ * `canonicalAtStoryRoot` and `canonicalCategory`, so the ordinary editor
+ * cannot publish an article with no canonical placement (Sanity's own
  * validation model blocks *publishing*, not saving a draft, which is exactly
  * ADR-0003 decision 5's "draft content may remain unplaced while it is being
  * authored"). `tags` are free keywords, unrelated to categories and consuming
@@ -57,6 +58,7 @@ import { CATEGORY_TYPE_NAME } from "./category";
 import {
   makeContentIdentityValidator,
   rejectsSecondaryCategoryOverlap,
+  validatesCanonicalCategoryChoice,
 } from "./content-placement-validation";
 import { LANGUAGE_SUBTAG } from "./localized-text";
 import { LOCALIZED_SLUG_PATTERN } from "./localized-slug";
@@ -262,13 +264,21 @@ export const articleType: SchemaTypeDefinition = {
         "Free keywords, separate from categories: they consume no tree depth and own no public route (ADR-0003 decision 4).",
     },
     {
+      name: "canonicalAtStoryRoot",
+      title: "Place at story root",
+      type: "boolean",
+      description:
+        "Makes this page a direct child of the localized story namespace. Leave off when a category owns the canonical route.",
+      initialValue: false,
+    },
+    {
       name: "canonicalCategory",
       title: "Canonical category",
       type: "reference",
       to: [{ type: CATEGORY_TYPE_NAME }],
       description:
-        "The one category that owns this page's public detail route and breadcrumb (ADR-0003 decision 5). Required to publish; a draft may stay unplaced.",
-      validation: (rule) => rule.required(),
+        "The category that owns this page's public detail route and breadcrumb. Leave empty only when Place at story root is selected.",
+      validation: (rule) => rule.custom(validatesCanonicalCategoryChoice),
     },
     {
       name: "secondaryCategories",

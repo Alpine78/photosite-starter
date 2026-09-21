@@ -20,7 +20,7 @@
  * is likewise authored per locale, so it is walked once per configured locale
  * that actually publishes a tree — a configured locale may publish none yet,
  * and that locale's story routes 404 rather than existing, so nothing is
- * emitted for it. A tree with no public category gets the same treatment:
+ * emitted for it. A tree with neither public categories nor story-root content gets the same treatment:
  * `resolveStoryRoute` 404s that state too.
  *
  * A tree-canonical placement's underlying detail record could in principle
@@ -39,7 +39,7 @@
  */
 
 import { getContentTrees } from "@/lib/content";
-import { listPublicRoutePaths } from "@/lib/content-tree";
+import { hasPublicStoryRoot, listPublicRoutePaths } from "@/lib/content-tree";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
   buildServicePath,
@@ -99,7 +99,7 @@ export function buildSitemapPaths(
     // `resolveStoryRoute` 404s a locale that publishes a tree with nothing in
     // it yet, the same normal, non-error authoring state a locale absent from
     // `trees` altogether is.
-    if (tree.publicCategoryIds.size > 0) {
+    if (hasPublicStoryRoot(tree)) {
       paths.push(buildStoryPath(data.localeRoutes, route.locale));
     }
     for (const routePath of listPublicRoutePaths(tree)) {

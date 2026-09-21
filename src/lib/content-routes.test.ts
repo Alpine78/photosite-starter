@@ -43,6 +43,20 @@ const unpublished: ContentTree = buildContentTree({
   placements: [],
 });
 
+const rootContent: ContentTree = buildContentTree({
+  categories: [],
+  placements: [
+    {
+      contentId: "content-portfolio",
+      variant: "article",
+      slug: "portfolio",
+      published: true,
+      canonicalAtStoryRoot: true,
+      canonicalCategoryId: null,
+    },
+  ],
+});
+
 describe("resolveStoryRoute", () => {
   it("resolves the namespace itself as the content-tree root", () => {
     expect(resolveStoryRoute(english, [])).toEqual({ kind: "story-root" });
@@ -132,10 +146,13 @@ describe("resolveStoryRoute", () => {
     expect(resolveStoryRoute(english, ["travel", "unplaced-draft"])).toBeNull();
   });
 
-  it("does not resolve a content slug at the story root", () => {
-    // A canonical placement is always a category, so no page sits directly
-    // beneath the namespace.
-    expect(resolveStoryRoute(english, ["coastal-mornings"])).toBeNull();
+  it("resolves explicitly story-root-placed content", () => {
+    expect(resolveStoryRoute(rootContent, ["portfolio"])).toEqual({
+      kind: "content",
+      contentId: "content-portfolio",
+      variant: "article",
+    });
+    expect(resolveStoryRoute(rootContent, [])).toEqual({ kind: "story-root" });
   });
 
   it("does not resolve a path continuing past a content page", () => {

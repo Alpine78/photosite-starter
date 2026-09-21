@@ -48,6 +48,7 @@ import { getPublicContentRoute } from "@/lib/content-routes";
 import {
   getCategoryPath,
   getPublicChildCategories,
+  hasPublicStoryRoot,
   MAX_CATEGORY_DEPTH,
   type ContentTree,
 } from "@/lib/content-tree";
@@ -141,15 +142,6 @@ function normalizePath(path: string): string {
 /** Whether a configured link points into the route space the tree owns. */
 function isInsideStoryNamespace(href: string, storyRoot: string): boolean {
   return href === storyRoot || href.startsWith(`${storyRoot}/`);
-}
-
-/**
- * Whether this locale's story root resolves at all. ADR-0003 rejects an empty
- * public destination, so a locale with no public top-level category has no story
- * root — and no link in the site chrome may point at one.
- */
-function publishesStoryRoot(tree: ContentTree | undefined): boolean {
-  return tree !== undefined && getPublicChildCategories(tree, null).length > 0;
 }
 
 function toCategoryItems({
@@ -314,7 +306,7 @@ export function resolveStaticNavigationLinks({
   readonly featuredContentId?: string;
 }): readonly ResolvedNavigationLink[] {
   const storyRoot = buildStoryPath(config, locale);
-  const hasStories = publishesStoryRoot(tree);
+  const hasStories = hasPublicStoryRoot(tree);
 
   return links.flatMap((link) => {
     const target = resolveLinkTarget(link, {
@@ -334,7 +326,7 @@ export function resolveStaticNavigationLinks({
  * The whole menu for one locale's route space.
  *
  * The content section appears only while this locale actually publishes
- * something: no tree, or a tree with no public top-level category, means the
+ * something: no tree, or neither public categories nor root pages, means the
  * story root itself does not resolve, and an entry pointing at it would be a
  * permanent 404 in the site chrome. A configured link into that namespace is
  * dropped either way, so a deployment cannot restore the dead link by authoring
@@ -394,7 +386,7 @@ export function buildSiteNavigation({
       ? []
       : buildCategoryNavigation({ tree, config, locale, maxCategoryDepth });
 
-  if (categories.length > 0) {
+  if (hasPublicStoryRoot(tree)) {
     const section: SiteNavigationItem = {
       key: storyRoot,
       label: authoredStoryLabel ?? storyLabel,

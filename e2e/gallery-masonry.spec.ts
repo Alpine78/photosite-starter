@@ -341,7 +341,7 @@ for (const { contentId, captionPlacement } of MASONRY_GALLERIES) {
           page,
         }) => {
           await page.setViewportSize({ width, height: 900 });
-          await page.goto(path, { waitUntil: "load" });
+          await page.goto(path, { waitUntil: "domcontentloaded" });
           const main = page.getByRole("main");
           await expect(galleryItems(main)).toHaveCount(expectedIds.length);
 
@@ -379,7 +379,6 @@ for (const { contentId, captionPlacement } of MASONRY_GALLERIES) {
         browserName,
       }) => {
         const main = await openAtWidth(page, path, 1280);
-        await page.waitForLoadState("load");
         const triggers = main.locator("[data-item-id]");
         const focusedItemId = () =>
           page.evaluate(() => document.activeElement?.getAttribute("data-item-id") ?? null);

@@ -169,13 +169,17 @@ describe("the slug field", () => {
   });
 });
 
-describe("canonical category placement", () => {
-  it("is required, so a standard publish cannot leave an article unplaced", () => {
-    // ADR-0003 decision 5: draft content may stay unplaced while authored.
-    // Sanity's validation model blocks *publishing*, not saving a draft, so
-    // `required()` alone is the Studio-side half of that rule.
-    expect(inspect(fieldOf("canonicalCategory").validation).required).toBe(true);
+describe("canonical placement", () => {
+  it("requires exactly a category or the explicit story-root choice", async () => {
+    const { required, run } = inspect(fieldOf("canonicalCategory").validation);
+    expect(required).toBe(false);
     expect(fieldOf("canonicalCategory").to).toEqual([{ type: CATEGORY_TYPE_NAME }]);
+    expect(fieldOf("canonicalAtStoryRoot").type).toBe("boolean");
+    expect((await run(undefined, {}))[0]).toContain("Choose a canonical category");
+    expect((await run(undefined, { canonicalAtStoryRoot: true }))[0]).toBe(true);
+    expect(
+      (await run({ _ref: "cat-landscape" }, { canonicalAtStoryRoot: true }))[0],
+    ).toContain("Remove the canonical category");
   });
 
   it("refuses a secondary category that repeats the canonical one", async () => {

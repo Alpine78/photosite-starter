@@ -29,7 +29,8 @@
     "audit:sanity": "node scripts/audit-sanity-content.mts",
     "verify:sanity-live": "vitest run --config vitest.live.config.mts",
     "verify:sanity-adapters": "vitest run --config vitest.live-adapters.config.mts",
-    "benchmark:keywords": "node scripts/keyword-benchmark.mts"
+    "benchmark:keywords": "node scripts/keyword-benchmark.mts",
+    "write:categories": "node scripts/write-sanity-categories.mts"
   },
   "dependencies": {
     "@sanity/webhook": "4.0.4",

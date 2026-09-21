@@ -95,6 +95,24 @@ const sameDayRecords: readonly ContentListingRecord[] = [
 ];
 
 describe("listCategoryContentIds", () => {
+  it("includes an explicitly story-root-placed page in the story overview", () => {
+    const tree = buildContentTree({
+      categories: [],
+      placements: [
+        {
+          contentId: "portfolio",
+          variant: "article",
+          slug: "portfolio",
+          published: true,
+          canonicalAtStoryRoot: true,
+          canonicalCategoryId: null,
+        },
+      ],
+    });
+
+    expect(listCategoryContentIds(tree, null)).toEqual(["portfolio"]);
+  });
+
   it("lists canonically placed and secondarily listed content", () => {
     expect(listCategoryContentIds(english, "cat-coastal")).toEqual([
       "content-coastal-mornings",

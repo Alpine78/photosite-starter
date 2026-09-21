@@ -89,6 +89,7 @@ type ParsedArticleDocument = {
   readonly contentId: string;
   readonly language: string;
   readonly slug: string;
+  readonly canonicalAtStoryRoot: boolean;
   readonly canonicalCategoryRef: string | null;
   readonly secondaryCategoryRefs: readonly string[];
 };
@@ -124,6 +125,7 @@ function parseCurrentArticleDocument(
     contentId,
     language,
     slug,
+    canonicalAtStoryRoot: document.canonicalAtStoryRoot === true,
     canonicalCategoryRef: canonicalRef === undefined ? null : publishedIdOf(canonicalRef),
     secondaryCategoryRefs,
   };
@@ -139,6 +141,7 @@ function resolveProspectiveArticleFields(
     contentId: parsed.contentId,
     language: parsed.language,
     slug: parsed.slug,
+    canonicalAtStoryRoot: parsed.canonicalAtStoryRoot,
     canonicalCategoryId:
       parsed.canonicalCategoryRef === null ? null : resolve(parsed.canonicalCategoryRef),
     secondaryCategoryIds: parsed.secondaryCategoryRefs.map(resolve),
@@ -149,12 +152,14 @@ type RawArticleQueryResult = {
   readonly published: {
     readonly language?: unknown;
     readonly slug?: unknown;
+    readonly canonicalAtStoryRoot?: unknown;
     readonly canonicalCategoryRef?: unknown;
   } | null;
   readonly categories: Parameters<typeof parseProspectiveCategories>[0];
   readonly siblings: readonly {
     readonly contentId?: unknown;
     readonly slug?: unknown;
+    readonly canonicalAtStoryRoot?: unknown;
     readonly canonicalCategoryRef?: unknown;
     readonly secondaryCategoryRefs?: unknown;
   }[];
@@ -180,6 +185,7 @@ function readSiblingPlacement(
   return {
     contentId,
     slug,
+    canonicalAtStoryRoot: sibling.canonicalAtStoryRoot === true,
     canonicalCategoryId: canonicalRef === undefined ? null : resolve(publishedIdOf(canonicalRef)),
     secondaryCategoryIds: secondaryRefs.map((ref) => resolve(publishedIdOf(ref))),
   };
@@ -211,6 +217,7 @@ export async function validateArticlePublication(
       "published": *[_id == $published][0]{
         language,
         slug,
+        canonicalAtStoryRoot,
         "canonicalCategoryRef": canonicalCategory._ref
       },
       "categories": ${CATEGORY_VALIDATION_QUERY},
@@ -221,6 +228,7 @@ export async function validateArticlePublication(
       ]{
         contentId,
         slug,
+        canonicalAtStoryRoot,
         "canonicalCategoryRef": canonicalCategory._ref,
         "secondaryCategoryRefs": secondaryCategories[]._ref
       }
@@ -248,6 +256,7 @@ export async function validateArticlePublication(
     const publishedSnapshot: PublishedPlacementSnapshot = {
       language: exactString(result.published.language) ?? "",
       slug: exactString(result.published.slug) ?? "",
+      canonicalAtStoryRoot: result.published.canonicalAtStoryRoot === true,
       canonicalCategoryId:
         publishedCanonicalRef === null
           ? null

@@ -128,6 +128,7 @@ export const GALLERY_PLACEMENT_PROJECTION = `{
   contentId,
   slug,
   endDate,
+  canonicalAtStoryRoot,
   "canonicalCategoryRef": canonicalCategory._ref,
   "secondaryCategoryRefs": secondaryCategories[]._ref
 }`;
@@ -186,6 +187,7 @@ export class SanityGalleryError extends Error {
 export type RawGalleryPlacementDocument = {
   readonly contentId?: unknown;
   readonly slug?: unknown;
+  readonly canonicalAtStoryRoot?: unknown;
   readonly canonicalCategoryRef?: unknown;
   readonly secondaryCategoryRefs?: unknown;
   readonly endDate?: unknown;
@@ -343,6 +345,16 @@ export function projectGalleryPlacementInput(
   const canonicalRef = readCategoryReference(document.canonicalCategoryRef, contentId);
   const canonicalCategoryId =
     canonicalRef === null ? null : resolveCategoryId(canonicalRef, categoryIdsByDocumentId);
+  if (
+    document.canonicalAtStoryRoot != null &&
+    typeof document.canonicalAtStoryRoot !== "boolean"
+  ) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "the gallery has a malformed story-root placement flag",
+      contentId,
+    );
+  }
 
   const secondaryRefs = readSecondaryCategoryReferences(
     document.secondaryCategoryRefs,
@@ -359,6 +371,7 @@ export function projectGalleryPlacementInput(
     variant: "gallery",
     slug,
     published: !isContentEnded(endDate, now),
+    ...(document.canonicalAtStoryRoot === true ? { canonicalAtStoryRoot: true } : {}),
     canonicalCategoryId,
     ...(secondaryCategoryIds.length > 0 ? { secondaryCategoryIds } : {}),
   };
