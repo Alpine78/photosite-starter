@@ -33,6 +33,10 @@ const KNOWN_STRUCTURAL_TARGETS = new Set(["/", "/services", "/contact"]);
  * legacy source is moved out of `PENDING_LEGACY_PATHS`.
  */
 const KNOWN_PUBLISHED_CONTENT_TARGETS = new Set([
+  "/tarinat/moottoriurheilu",
+  "/en/stories/motorsport",
+  "/tarinat/moottoriurheilu/wrc",
+  "/en/stories/motorsport/wrc",
   "/tarinat/moottoriurheilu/wrc/tet-rally-latvia-2024",
   "/en/stories/motorsport/wrc/tet-rally-latvia-2024",
 ]);

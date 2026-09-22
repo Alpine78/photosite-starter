@@ -347,13 +347,62 @@ export const STRUCTURAL_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
 /**
  * First-site content redirects whose direct, same-language target has been
  * published to the Production content source and verified on the staged
- * deployment candidate. The Finnish unprefixed and `/fi`-prefixed Joomla
- * spellings are aliases of the same Finnish gallery; both land directly on
- * its one canonical Finnish route. The English source lands directly on the
- * corresponding English gallery route. No row redirects through another
- * legacy source, across languages, or to a category fallback.
+ * deployment candidate. The six category rows preserve Joomla's two-level
+ * Motorsport → WRC branch: Finnish unprefixed and `/fi`-prefixed spellings
+ * are aliases of one canonical Finnish route, and each English source lands
+ * on the matching English branch. The three gallery rows follow the same
+ * language-preserving rule. No row redirects through another legacy source
+ * or across languages.
  */
 export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
+  {
+    source: "/valokuvat/moottoriurheilu",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/mm-ralli",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/mm-ralli",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/wrc",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/wrc",
+      reservedQueryParams: "strip" as const,
+    },
+  },
   {
     source: "/valokuvat/moottoriurheilu/mm-ralli/tet-rally-latvia-2024",
     outcome: {
