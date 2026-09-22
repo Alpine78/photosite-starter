@@ -34,8 +34,47 @@
 /** Loopback only: the harness server is never reachable from the network. */
 export const HARNESS_HOSTNAME = "127.0.0.1";
 
-/** Distinct from the 3000 a `npm run dev` session usually holds. */
-export const HARNESS_PORT = 3100;
+const DEFAULT_HARNESS_PORT = 3100;
+const CI_PORT_MIN = 41_000;
+const CI_PORT_RANGE = 10_000;
+
+/**
+ * A persistent Azure agent can retain a listener from a different pipeline
+ * job. Using 3100 for every CI job would make that unrelated listener fail
+ * this job before its browser suite starts. Locally the familiar fixed port is
+ * retained; in CI, derive a loopback port from a run-unique identifier so the
+ * configuration, browser runner, and `webServer` still agree on one address.
+ *
+ * The source identifiers are supplied by the common CI providers. If a future
+ * provider exposes only the generic `CI` flag and no run identifier, the
+ * explicit local default is safer than silently claiming a random port is
+ * isolated when it is not.
+ */
+function resolveHarnessPort(environment: NodeJS.ProcessEnv): number {
+  const runIdentifier = [
+    environment.SYSTEM_JOBID,
+    environment.BUILD_BUILDID,
+    environment.GITHUB_RUN_ID,
+    environment.CI_PIPELINE_ID,
+    environment.BUILDKITE_BUILD_ID,
+  ].find((value) => value?.trim());
+
+  if (!runIdentifier || !(environment.CI || environment.TF_BUILD)) {
+    return DEFAULT_HARNESS_PORT;
+  }
+
+  let hash = 0;
+  for (const character of runIdentifier) {
+    hash = (Math.imul(hash, 31) + character.codePointAt(0)!) >>> 0;
+  }
+  return CI_PORT_MIN + (hash % CI_PORT_RANGE);
+}
+
+/**
+ * Distinct from the 3000 a `npm run dev` session usually holds. CI jobs use a
+ * deterministic per-run loopback port; see `resolveHarnessPort` above.
+ */
+export const HARNESS_PORT = resolveHarnessPort(process.env);
 
 export const HARNESS_BASE_URL = `http://${HARNESS_HOSTNAME}:${HARNESS_PORT}`;
 
