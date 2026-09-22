@@ -41,6 +41,22 @@ const KNOWN_PUBLISHED_CONTENT_TARGETS = new Set([
   "/en/stories/motorsport/wrc/tet-rally-latvia-2024",
   "/tarinat/moottoriurheilu/wrc/secto-rally-finland-2023",
   "/en/stories/motorsport/wrc/secto-rally-finland-2023",
+  "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2016",
+  "/en/stories/motorsport/wrc/rally-finland-2016",
+  "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2017",
+  "/en/stories/motorsport/wrc/neste-rally-finland-2017",
+  "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2018",
+  "/en/stories/motorsport/wrc/neste-rally-finland-2018",
+  "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2019",
+  "/en/stories/motorsport/wrc/neste-rally-finland-2019",
+  "/tarinat/moottoriurheilu/wrc/rally-finland-2001-2019",
+  "/en/stories/motorsport/wrc/rally-finland-2001-2019",
+  "/tarinat/moottoriurheilu/wrc/secto-rally-finland-2021",
+  "/en/stories/motorsport/wrc/secto-rally-finland-2021",
+  "/tarinat/moottoriurheilu/wrc/secto-rally-finland-2022",
+  "/en/stories/motorsport/wrc/secto-rally-finland-2022",
+  "/tarinat/moottoriurheilu/wrc/rally-estonia-2023",
+  "/en/stories/motorsport/wrc/rally-estonia-2023",
 ]);
 
 /**
