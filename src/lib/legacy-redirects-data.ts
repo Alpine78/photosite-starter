@@ -88,7 +88,9 @@
  * present in the Production content source and has been verified through the
  * protected deployment candidate. Keeping this list separate makes that
  * production-content evidence explicit and prevents a generic clone from
- * inheriting first-site gallery URLs by accident.
+ * inheriting first-site gallery URLs by accident. Each Finnish Joomla source
+ * and its redundant `/fi` alias point directly to the unprefixed Finnish
+ * canonical route, while the English source points to its English equivalent.
  *
  * {@link LEGACY_REDIRECTS} is built once, at module load, and `src/proxy.ts`
  * imports it directly — unlike every other value that file reads
@@ -350,7 +352,7 @@ export const STRUCTURAL_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
  * deployment candidate. The six category rows preserve Joomla's two-level
  * Motorsport → WRC branch: Finnish unprefixed and `/fi`-prefixed spellings
  * are aliases of one canonical Finnish route, and each English source lands
- * on the matching English branch. The three gallery rows follow the same
+ * on the matching English branch. The six gallery rows follow the same
  * language-preserving rule. No row redirects through another legacy source
  * or across languages.
  */
@@ -424,6 +426,30 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
     outcome: {
       kind: "redirect" as const,
       target: "/en/stories/motorsport/wrc/tet-rally-latvia-2024",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2023",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/secto-rally-finland-2023",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2023",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/secto-rally-finland-2023",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/wrc/secto-rally-finland-2023",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/wrc/secto-rally-finland-2023",
       reservedQueryParams: "strip" as const,
     },
   },

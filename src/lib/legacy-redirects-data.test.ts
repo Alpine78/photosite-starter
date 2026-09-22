@@ -39,6 +39,8 @@ const KNOWN_PUBLISHED_CONTENT_TARGETS = new Set([
   "/en/stories/motorsport/wrc",
   "/tarinat/moottoriurheilu/wrc/tet-rally-latvia-2024",
   "/en/stories/motorsport/wrc/tet-rally-latvia-2024",
+  "/tarinat/moottoriurheilu/wrc/secto-rally-finland-2023",
+  "/en/stories/motorsport/wrc/secto-rally-finland-2023",
 ]);
 
 /**
