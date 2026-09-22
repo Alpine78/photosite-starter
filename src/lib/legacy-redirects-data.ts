@@ -352,7 +352,7 @@ export const STRUCTURAL_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
  * deployment candidate. The six category rows preserve Joomla's two-level
  * Motorsport → WRC branch: Finnish unprefixed and `/fi`-prefixed spellings
  * are aliases of one canonical Finnish route, and each English source lands
- * on the matching English branch. The six gallery rows follow the same
+ * on the matching English branch. The thirty gallery rows follow the same
  * language-preserving rule. No row redirects through another legacy source
  * or across languages.
  */
@@ -450,6 +450,198 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
     outcome: {
       kind: "redirect" as const,
       target: "/en/stories/motorsport/wrc/secto-rally-finland-2023",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2016",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2016",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2016",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2016",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/wrc/rally-finland-2016",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/wrc/rally-finland-2016",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2017",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2017",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2017",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2017",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/wrc/neste-rally-finland-2017",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/wrc/neste-rally-finland-2017",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2018",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2018",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2018",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2018",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/wrc/neste-rally-finland-2018",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/wrc/neste-rally-finland-2018",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2019",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2019",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/mm-ralli/neste-rally-finland-2019",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/neste-rally-finland-2019",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/wrc/neste-rally-finland-2019",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/wrc/neste-rally-finland-2019",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/mm-ralli/rally-finland-2001-2019",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/rally-finland-2001-2019",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/mm-ralli/rally-finland-2001-2019",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/rally-finland-2001-2019",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/wrc/rally-finland-2001-2019",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/wrc/rally-finland-2001-2019",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2021",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/secto-rally-finland-2021",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2021",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/secto-rally-finland-2021",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/wrc/secto-rally-finland-2021",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/wrc/secto-rally-finland-2021",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2022",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/secto-rally-finland-2022",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2022",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/secto-rally-finland-2022",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/wrc/secto-rally-finland-2022",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/wrc/secto-rally-finland-2022",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/mm-ralli/rally-estonia-2023",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/rally-estonia-2023",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/mm-ralli/rally-estonia-2023",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/rally-estonia-2023",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/wrc/rally-estonia-2023",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/wrc/rally-estonia-2023",
       reservedQueryParams: "strip" as const,
     },
   },
