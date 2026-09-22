@@ -8,6 +8,7 @@ import {
   PENDING_LEGACY_PATHS,
 } from "../src/lib/legacy-redirects-tracking";
 import {
+  PUBLISHED_CONTENT_REDIRECT_ENTRIES,
   RETIRED_TAG_PATHS,
   STRUCTURAL_REDIRECT_ENTRIES,
 } from "../src/lib/legacy-redirects-data";
@@ -236,6 +237,57 @@ test("a decided structural redirect answers 301 and lands directly on its declar
 
     await rowPage.close();
   }
+});
+
+test("a decided published-content redirect answers 301 with its direct declared target", async ({
+  request,
+}) => {
+  test.skip(
+    PUBLISHED_CONTENT_REDIRECT_ENTRIES.length === 0,
+    "no decided published-content redirect rows in this clone's data",
+  );
+
+  for (const entry of PUBLISHED_CONTENT_REDIRECT_ENTRIES) {
+    if (entry.outcome.kind !== "redirect") continue;
+
+    // The harness intentionally contains no first-site Production content,
+    // so stop at the Proxy's response here. The registry's data test holds
+    // the target allowlist; the protected Production candidate verifies that
+    // each declared content target itself answers 200 before this row lands.
+    const response = await request.get(entry.source, { maxRedirects: 0 });
+    const location = response.headers()["location"];
+
+    expect(response.status(), entry.source).toBe(301);
+    expect(location, entry.source).toBeDefined();
+    const destination = new URL(location!, "https://e2e.photosite-starter.test");
+    expect(destination.pathname, entry.source).toBe(entry.outcome.target);
+    expect(destination.search, entry.source).toBe("");
+  }
+});
+
+test("a decided published-content redirect retains unrelated query parameters and strips Joomla-era gallery state", async ({
+  request,
+}) => {
+  const entry = PUBLISHED_CONTENT_REDIRECT_ENTRIES.find(
+    (candidate) => candidate.outcome.kind === "redirect",
+  );
+  test.skip(
+    entry === undefined,
+    "no decided published-content redirect rows in this clone's data",
+  );
+  if (entry === undefined || entry.outcome.kind !== "redirect") return;
+
+  const response = await request.get(
+    `${entry.source}?cursor=old-token&section=old-section&utm_source=legacy`,
+    { maxRedirects: 0 },
+  );
+  const location = response.headers()["location"];
+
+  expect(response.status()).toBe(301);
+  expect(location).toBeDefined();
+  const destination = new URL(location!, "https://e2e.photosite-starter.test");
+  expect(destination.pathname).toBe(entry.outcome.target);
+  expect(destination.search).toBe("?utm_source=legacy");
 });
 
 test("a decided structural redirect's query string rides through unexamined", async ({

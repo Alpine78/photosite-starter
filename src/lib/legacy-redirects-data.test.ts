@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { resolveLegacyRedirect } from "@/lib/legacy-redirects";
 import {
   LEGACY_REDIRECTS,
+  PUBLISHED_CONTENT_REDIRECT_ENTRIES,
   RETIRED_TAG_PATHS,
   STRUCTURAL_REDIRECT_ENTRIES,
 } from "@/lib/legacy-redirects-data";
@@ -19,14 +20,26 @@ import {
  * shadow a route that already answers 200 today, and a `redirect` outcome's
  * *target* must land on one of these rather than a route that does not
  * exist. Deliberately narrow rather than a general check against every
- * dynamic category, content, or service slug — none of those exist as an
- * inspectable target yet (see `PENDING_LEGACY_PATHS`'s own comment).
+ * dynamic category, content, or service slug. Published first-site content
+ * targets have their separate reviewed allowlist below because the mock
+ * fixture cannot enumerate Production content.
  */
-const KNOWN_LIVE_PATHS = new Set(["/", "/services", "/contact"]);
+const KNOWN_STRUCTURAL_TARGETS = new Set(["/", "/services", "/contact"]);
+
+/**
+ * These content routes exist only after first-site content is imported, so
+ * the mock-only harness cannot prove them by enumerating its fixture. Each
+ * is separately exercised on the protected Production candidate before its
+ * legacy source is moved out of `PENDING_LEGACY_PATHS`.
+ */
+const KNOWN_PUBLISHED_CONTENT_TARGETS = new Set([
+  "/tarinat/moottoriurheilu/wrc/tet-rally-latvia-2024",
+  "/en/stories/motorsport/wrc/tet-rally-latvia-2024",
+]);
 
 /**
  * Reserved namespace roots a legacy row must never fall inside, matched by
- * prefix. Unlike {@link KNOWN_LIVE_PATHS}, this is not "already answers 200"
+ * prefix. Unlike {@link KNOWN_STRUCTURAL_TARGETS}, this is not "already answers 200"
  * — the English locale namespace (`/en`) legitimately contains many
  * `PENDING_LEGACY_PATHS` rows (`en/about`, `en/photos/...`) that do not yet
  * resolve to anything, so a blanket `/en` prefix check would misclassify
@@ -42,7 +55,7 @@ const RESERVED_NAMESPACE_PREFIXES = ["/tarinat", "/en/stories"];
 
 function collidesWithLiveOrReservedPath(path: string): boolean {
   return (
-    KNOWN_LIVE_PATHS.has(path) ||
+    KNOWN_STRUCTURAL_TARGETS.has(path) ||
     RESERVED_NAMESPACE_PREFIXES.some(
       (prefix) => path === prefix || path.startsWith(`${prefix}/`),
     )
@@ -71,6 +84,7 @@ describe("AB#19 legacy redirect completeness", () => {
       decided: [
         ...RETIRED_TAG_PATHS,
         ...STRUCTURAL_REDIRECT_ENTRIES.map((entry) => entry.source),
+        ...PUBLISHED_CONTENT_REDIRECT_ENTRIES.map((entry) => entry.source),
       ],
       "already-live": ALREADY_LIVE_LEGACY_PATHS,
       excluded: EXCLUDED_LEGACY_PATHS,
@@ -106,12 +120,21 @@ describe("AB#19 legacy redirect completeness", () => {
       expect(outcome?.kind, `${path} should be gone`).toBe("gone");
     }
     expect(LEGACY_REDIRECTS.size).toBe(
-      RETIRED_TAG_PATHS.length + STRUCTURAL_REDIRECT_ENTRIES.length,
+      RETIRED_TAG_PATHS.length +
+        STRUCTURAL_REDIRECT_ENTRIES.length +
+        PUBLISHED_CONTENT_REDIRECT_ENTRIES.length,
     );
   });
 
   it("resolves every structural redirect entry to its declared target", () => {
     for (const entry of STRUCTURAL_REDIRECT_ENTRIES) {
+      const outcome = resolveLegacyRedirect(LEGACY_REDIRECTS, entry.source);
+      expect(outcome, entry.source).toEqual(entry.outcome);
+    }
+  });
+
+  it("resolves every published content redirect entry to its declared target", () => {
+    for (const entry of PUBLISHED_CONTENT_REDIRECT_ENTRIES) {
       const outcome = resolveLegacyRedirect(LEGACY_REDIRECTS, entry.source);
       expect(outcome, entry.source).toEqual(entry.outcome);
     }
@@ -124,8 +147,18 @@ describe("AB#19 legacy redirect completeness", () => {
     for (const entry of STRUCTURAL_REDIRECT_ENTRIES) {
       if (entry.outcome.kind !== "redirect") continue;
       expect(
-        KNOWN_LIVE_PATHS.has(entry.outcome.target),
-        `"${entry.source}" targets "${entry.outcome.target}", which is not in KNOWN_LIVE_PATHS`,
+        KNOWN_STRUCTURAL_TARGETS.has(entry.outcome.target),
+        `"${entry.source}" targets "${entry.outcome.target}", which is not in KNOWN_STRUCTURAL_TARGETS`,
+      ).toBe(true);
+    }
+  });
+
+  it("only targets a published content redirect at a verified content route", () => {
+    for (const entry of PUBLISHED_CONTENT_REDIRECT_ENTRIES) {
+      if (entry.outcome.kind !== "redirect") continue;
+      expect(
+        KNOWN_PUBLISHED_CONTENT_TARGETS.has(entry.outcome.target),
+        `"${entry.source}" targets "${entry.outcome.target}", which is not in KNOWN_PUBLISHED_CONTENT_TARGETS`,
       ).toBe(true);
     }
   });
@@ -150,6 +183,7 @@ describe("AB#19 legacy redirect completeness", () => {
     for (const path of [
       ...RETIRED_TAG_PATHS,
       ...STRUCTURAL_REDIRECT_ENTRIES.map((entry) => entry.source),
+      ...PUBLISHED_CONTENT_REDIRECT_ENTRIES.map((entry) => entry.source),
       ...PENDING_LEGACY_PATHS,
     ]) {
       expect(

@@ -11,7 +11,8 @@
  * Test-only data: nothing in `src/proxy.ts` or the runtime request path
  * imports this file. A clone with no Joomla migration empties all three
  * lists below to `[]` — the same way it empties `legacy-redirects-data.ts`'s
- * `RETIRED_TAG_PATHS`, `STRUCTURAL_REDIRECT_ENTRIES`, and
+ * `RETIRED_TAG_PATHS`, `STRUCTURAL_REDIRECT_ENTRIES`,
+ * `PUBLISHED_CONTENT_REDIRECT_ENTRIES`, and
  * `legacy-redirects-inventory.json`'s `records` — rather than deleting this
  * file, which would break the test that imports it
  * (`legacy-redirects-data.test.ts`, itself emptied the same way; see its own
@@ -168,7 +169,6 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/en/photos/motorsport/wrc/secto-rally-finland-2021",
   "/en/photos/motorsport/wrc/secto-rally-finland-2022",
   "/en/photos/motorsport/wrc/secto-rally-finland-2023",
-  "/en/photos/motorsport/wrc/tet-rally-latvia-2024",
   "/en/photos/travel",
   "/en/photos/travel/alpine-trips",
   "/en/photos/travel/alpine-trips/chamonix-ski-2006",
@@ -261,7 +261,6 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/fi/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2021",
   "/fi/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2022",
   "/fi/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2023",
-  "/fi/valokuvat/moottoriurheilu/mm-ralli/tet-rally-latvia-2024",
   "/fi/valokuvat/moottoriurheilu/muu-moottoriurheilu",
   "/fi/valokuvat/moottoriurheilu/muu-moottoriurheilu/racewknd-kuopio-2020",
   "/fi/valokuvat/sekalaiset",
@@ -331,7 +330,6 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2021",
   "/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2022",
   "/valokuvat/moottoriurheilu/mm-ralli/secto-rally-finland-2023",
-  "/valokuvat/moottoriurheilu/mm-ralli/tet-rally-latvia-2024",
   "/valokuvat/moottoriurheilu/muu-moottoriurheilu",
   "/valokuvat/moottoriurheilu/muu-moottoriurheilu/racewknd-kuopio-2020",
   "/valokuvat/sekalaiset",
