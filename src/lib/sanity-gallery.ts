@@ -953,9 +953,11 @@ function projectSpans(value: unknown): readonly GallerySectionInlineSpan[] {
  * automatically. Pure and unit-tested independently of any query.
  */
 export function projectGallerySectionIntro(
-  raw: readonly RawGallerySectionIntroBlock[] | undefined,
+  raw: readonly RawGallerySectionIntroBlock[] | null | undefined,
 ): readonly GallerySectionIntroBlock[] {
-  if (raw === undefined) return [];
+  // GROQ projects an absent optional field as `null`, whereas the in-memory
+  // contract represents both absent and empty introductions as an empty list.
+  if (raw == null) return [];
 
   return raw.map((block) => {
     const key = readString((block as { readonly _key?: unknown })._key);

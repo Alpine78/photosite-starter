@@ -259,14 +259,20 @@ describe("uploadSeedImageAsset", () => {
   it("returns the asset id and dimensions on a valid, in-policy response", async () => {
     const fetchImplementation = vi.fn(async (_url: string, init: RequestInit) => {
       expect((init.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`);
-      return jsonResponse({
-        document: {
-          _id: "image-abc123-1200x800-webp",
-          extension: "webp",
-          mimeType: "image/webp",
-          metadata: { dimensions: { width: 1200, height: 800 } },
-        },
+      if (fetchImplementation.mock.calls.length === 1) {
+        return jsonResponse({
+          document: {
+            _id: "image-abc123-1200x800-webp",
+            extension: "webp",
+            mimeType: "image/webp",
+            metadata: { dimensions: { width: 1200, height: 800 } },
+          },
+        });
+      }
+      expect(JSON.parse(init.body as string)).toEqual({
+        mutations: [{ patch: { id: "image-abc123-1200x800-webp", unset: ["originalFilename"] } }],
       });
+      return jsonResponse({ results: [] });
     });
 
     const asset = await uploadSeedImageAsset(
@@ -283,6 +289,7 @@ describe("uploadSeedImageAsset", () => {
       extension: "webp",
       mimeType: "image/webp",
     });
+    expect(fetchImplementation).toHaveBeenCalledTimes(2);
   });
 
   it("refuses an asset past the maximum public-delivery dimension", async () => {

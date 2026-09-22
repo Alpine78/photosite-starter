@@ -385,6 +385,10 @@ describe("projectGallerySectionIntro", () => {
     expect(projectGallerySectionIntro(undefined)).toEqual([]);
   });
 
+  it("returns an empty array for Sanity's null optional intro", () => {
+    expect(projectGallerySectionIntro(null)).toEqual([]);
+  });
+
   it("projects a paragraph with emphasis and a link, preserving _key", () => {
     const blocks = projectGallerySectionIntro([
       {

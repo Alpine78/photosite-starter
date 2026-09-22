@@ -69,7 +69,13 @@ export const MUTATION_BATCH_SIZE = 100;
 export type SeedMutation =
   | { readonly createOrReplace: Readonly<Record<string, unknown>> & { readonly _id: string } }
   | { readonly createIfNotExists: Readonly<Record<string, unknown>> & { readonly _id: string } }
-  | { readonly delete: { readonly id: string } };
+  | { readonly delete: { readonly id: string } }
+  | {
+      readonly patch: {
+        readonly id: string;
+        readonly unset: readonly string[];
+      };
+    };
 
 /**
  * Exported so a caller with its own array-of-ids too large for one GET
@@ -219,6 +225,17 @@ export async function uploadSeedImageAsset(
       `Uploaded asset is ${width}x${height}, past the ${policy.maxDimension}px public-delivery limit`,
     );
   }
+
+  // Studio's `storeOriginalFilename: false` option governs browser uploads,
+  // but the HTTP Asset API creates the asset document directly and retains a
+  // filename unless it is removed explicitly. Asset filenames can expose
+  // client or archive information, so clear that metadata before returning an
+  // asset reference to any caller that might publish it.
+  await runSeedMutationBatches(
+    connection,
+    [{ patch: { id, unset: ["originalFilename"] } }],
+    { ...options, batchSize: 1 },
+  );
 
   return { assetId: id, width, height, extension, mimeType };
 }

@@ -5,6 +5,7 @@ import {
   categoryDatasetIssues,
   categoryDocumentsDigest,
   categoryWriteWaves,
+  normalizeCategoryReadback,
   parseArguments,
   validateCategoryDocuments,
   validateCategoryWritePlan,
@@ -98,6 +99,12 @@ describe("category write plan validation", () => {
     expect(categoryDatasetIssues([{ ...documents[0], _id: "other-category" }], documents)).toContain(
       'categoryId "motorsport" is already owned by "other-category"',
     );
+  });
+
+  it("normalizes GROQ nulls for omitted optional fields before readback", () => {
+    expect(normalizeCategoryReadback({ ...documents[0], parent: null })).toEqual({
+      ...documents[0],
+    });
   });
 });
 

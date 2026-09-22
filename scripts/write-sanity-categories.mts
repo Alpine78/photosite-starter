@@ -310,6 +310,24 @@ function projectExistingDocument(row: ExistingDocument): CategoryWriteDocument |
   return validated.issues.length === 0 ? validated.documents[0] : undefined;
 }
 
+/**
+ * GROQ represents omitted optional fields as null, while an import plan omits
+ * them. Normalize that transport-only distinction before preflight and
+ * readback compare the document with the owner-approved plan.
+ */
+export function normalizeCategoryReadback(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  const normalized = { ...value };
+  let changed = false;
+  for (const field of ["parent", "description"] as const) {
+    if (normalized[field] === null) {
+      delete normalized[field];
+      changed = true;
+    }
+  }
+  return changed ? normalized : value;
+}
+
 /** Rejects any identity collision or owner edit; an exact previous run is safe. */
 export function categoryDatasetIssues(existing: readonly ExistingDocument[], planned: readonly CategoryWriteDocument[]): readonly string[] {
   const issues: string[] = [];
@@ -340,7 +358,7 @@ async function preflight(connection: SeedConnection, documents: readonly Categor
     query: `*[_type == "category"]{_id, _type, categoryId, parent, slug, label, description, order}`,
   });
   if (!Array.isArray(result)) return ["Sanity preflight returned a malformed result"];
-  return categoryDatasetIssues(result as readonly ExistingDocument[], documents);
+  return categoryDatasetIssues(result.map(normalizeCategoryReadback) as readonly ExistingDocument[], documents);
 }
 
 async function verifyWritten(connection: SeedConnection, documents: readonly CategoryWriteDocument[]): Promise<boolean> {
@@ -349,7 +367,7 @@ async function verifyWritten(connection: SeedConnection, documents: readonly Cat
     params: { ids: documents.map((document) => document._id) },
   });
   if (!Array.isArray(result)) return false;
-  const validated = validateCategoryDocuments(result);
+  const validated = validateCategoryDocuments(result.map(normalizeCategoryReadback));
   return validated.issues.length === 0 && categoryDocumentsDigest(validated.documents) === categoryDocumentsDigest(documents);
 }
 
