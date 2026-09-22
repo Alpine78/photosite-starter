@@ -2,8 +2,9 @@
  * First-site deployment data for AB#19: the legacy-URL rows this pass can
  * decide without guessing at a not-yet-migrated content target.
  *
- * A clone with no Joomla migration empties {@link RETIRED_TAG_PATHS} and
- * {@link STRUCTURAL_REDIRECT_ENTRIES} to `[]` — the same way a clone edits
+ * A clone with no Joomla migration empties {@link RETIRED_TAG_PATHS},
+ * {@link STRUCTURAL_REDIRECT_ENTRIES}, and
+ * {@link PUBLISHED_CONTENT_REDIRECT_ENTRIES} to `[]` — the same way a clone edits
  * `mock-content-tree.ts`'s own fixture content to be its own, rather than
  * deleting that file — leaving {@link LEGACY_REDIRECTS} an empty map with
  * zero edits needed anywhere else, `src/proxy.ts`'s import included:
@@ -17,7 +18,7 @@
  * (`legacy-redirects.ts`) stays either way; only this row data is
  * first-site-specific.
  *
- * Two kinds of decided row live here, kept in separate lists because their
+ * Three kinds of decided row live here, kept in separate lists because their
  * evidence and validation differ:
  *
  * {@link RETIRED_TAG_PATHS} is every Joomla tag/keyword-browsing page
@@ -41,8 +42,7 @@
  * Joomla-minted alias, not a generic sitemap page). Both stay `pending` in
  * `legacy-redirects-tracking.ts`, not here.
  *
- * {@link STRUCTURAL_REDIRECT_ENTRIES} is the first `redirect`-kind data this
- * file carries (2026-09-13): a small set of sources whose canonical target
+ * {@link STRUCTURAL_REDIRECT_ENTRIES} is redirect-kind data whose canonical target
  * does not depend on any not-yet-migrated content, decided instead of left
  * `pending`. `/fi/` is the Joomla-era Finnish locale-root alias the crawl
  * recorded as a real directory-style URL; it gets its own direct row —
@@ -81,6 +81,14 @@
  * final target, never through another legacy URL" — `/fi/valokuvaus` targets
  * `/services` itself, not `/valokuvaus`, so it never chains through that
  * other decided row.
+ *
+ * {@link PUBLISHED_CONTENT_REDIRECT_ENTRIES} holds a different class of
+ * redirect: a source whose target is an imported, published content page.
+ * Each row is added only once the corresponding Finnish and English page is
+ * present in the Production content source and has been verified through the
+ * protected deployment candidate. Keeping this list separate makes that
+ * production-content evidence explicit and prevents a generic clone from
+ * inheriting first-site gallery URLs by accident.
  *
  * {@link LEGACY_REDIRECTS} is built once, at module load, and `src/proxy.ts`
  * imports it directly — unlike every other value that file reads
@@ -336,10 +344,47 @@ export const STRUCTURAL_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
   },
 ];
 
+/**
+ * First-site content redirects whose direct, same-language target has been
+ * published to the Production content source and verified on the staged
+ * deployment candidate. The Finnish unprefixed and `/fi`-prefixed Joomla
+ * spellings are aliases of the same Finnish gallery; both land directly on
+ * its one canonical Finnish route. The English source lands directly on the
+ * corresponding English gallery route. No row redirects through another
+ * legacy source, across languages, or to a category fallback.
+ */
+export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
+  {
+    source: "/valokuvat/moottoriurheilu/mm-ralli/tet-rally-latvia-2024",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/tet-rally-latvia-2024",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/mm-ralli/tet-rally-latvia-2024",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/wrc/tet-rally-latvia-2024",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/wrc/tet-rally-latvia-2024",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/wrc/tet-rally-latvia-2024",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+];
+
 export const LEGACY_REDIRECTS: LegacyRedirects = buildSafely([
   ...RETIRED_TAG_PATHS.map((source) => ({
     source,
     outcome: { kind: "gone" as const, reason: GONE_REASON },
   })),
   ...STRUCTURAL_REDIRECT_ENTRIES,
+  ...PUBLISHED_CONTENT_REDIRECT_ENTRIES,
 ]);
