@@ -216,7 +216,12 @@ unused, and the report alone is often all you need.
    `sanity/schemas/media.ts`'s own Studio validation enforces (longest edge,
    format/mime-type agreement) before it is trusted, even though these six
    files are already known-good — the only check available for a write that
-   goes around the Studio entirely.
+   goes around the Studio entirely. The HTTP Asset API otherwise retains the
+   supplied original filename, so the writer immediately unsets
+   `originalFilename` from the asset document before it can be referenced by
+   published media. This mirrors the Studio schema's
+   `storeOriginalFilename: false` policy and keeps archive or client filename
+   information out of the public dataset.
 3. **Write.** All 474 documents are sent as `createOrReplace` mutations, in
    batches (a self-chosen, conservative size — not a documented Sanity limit —
    so one request stays small and one failure is cheap to diagnose), ordered
@@ -299,7 +304,8 @@ one a production deployment reads), remove every document this script wrote:
 1. **Find the six uploaded asset ids before deleting anything**, while the
    `media` documents that reference them still exist — this is much easier
    than searching Studio's media browser by hand, and does not depend on the
-   assets carrying any recognizable filename (the upload never sets one):
+   assets carrying any recognizable filename (the writer removes the HTTP
+   upload API's default `originalFilename` field before publishing):
 
    ```groq
    *[
@@ -749,6 +755,33 @@ Run this as a controlled prerequisite to `write:joomla`, not as a replacement
 for the content writer's category-resolution and route-collision preflight.
 The latter still verifies that an approved article or gallery can occupy its
 localized public route without colliding with existing content.
+
+### Writing approved site settings and home page
+
+`npm run write:foundation` writes exactly one `siteSettings` singleton and one
+`homePage` singleton from an owner-reviewed plan. It is separate from gallery
+import because it does not upload assets or resolve category references. The
+apply-time preflight refuses a draft, an owner-edited planned singleton, or a
+second singleton of either type. It also proves that the home hero already
+exists as published public media and that an optional featured-gallery identity
+already exists before either singleton is created.
+
+```bash
+# Offline validation only. It prints the digest that the owner reviews.
+npm run write:foundation -- --plan <foundation-write-plan.json>
+
+# Apply the exact reviewed foundation plan after its referenced gallery exists.
+SANITY_MIGRATION_TOKEN=<temporary-editor-token> npm run write:foundation -- \
+  --plan <foundation-write-plan.json> \
+  --approved-digest <dry-run-digest> \
+  --project <project-id> --dataset <dataset> --api-version <api-version> --yes
+```
+
+The command never patches or replaces an existing singleton. An exact prior
+run is accepted as an idempotent rerun; any difference stops before mutation.
+Its normal dependency order is categories, gallery media/content/placements,
+then foundation, because the home hero and featured gallery must be readable
+before the foundation preflight succeeds.
 
 ### The write step: `npm run write:joomla`
 
