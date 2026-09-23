@@ -50,6 +50,7 @@
  */
 
 import { ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME } from "./article-end-gallery-placement";
+import { CAPTURE_SEQUENCE_ORDERING_RULE } from "./capture-sequence";
 import { GALLERY_TYPE_NAME } from "./gallery";
 import { MEDIA_TYPE_NAME } from "./media";
 import type {
@@ -119,6 +120,7 @@ type RawPublicationQueryResult = {
   readonly galleryVersions: readonly {
     readonly _id: string;
     readonly contentId: string | null;
+    readonly orderingRule: string | null;
     readonly sections: readonly { readonly sectionId?: string | null }[] | null;
   }[];
 };
@@ -212,6 +214,7 @@ async function validateGalleryPlacementPublication(
       "galleryVersions": *[_id in [$galleryRef, $draftGalleryRef]]{
         _id,
         contentId,
+        orderingRule,
         sections[]{sectionId}
       }
     }`,
@@ -238,6 +241,14 @@ async function validateGalleryPlacementPublication(
 
   if (gallery === undefined) {
     return "This placement's gallery reference does not resolve to a gallery document.";
+  }
+
+  // ADR-0022 §1: a capture-sequence gallery holds exactly one representation —
+  // its photographs name it through their media `captureSequence` field — so a
+  // placement against it is refused rather than left for the public read to
+  // reject the whole gallery over.
+  if (gallery.orderingRule === CAPTURE_SEQUENCE_ORDERING_RULE) {
+    return "This gallery is ordered by capture sequence and has no placements. Add the photograph through its media document's capture-sequence field instead.";
   }
 
   const declaredSections = (gallery.sections ?? []).flatMap((section) => {

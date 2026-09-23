@@ -1299,8 +1299,12 @@ function assertAlreadyPublic(
  * GROQ's recommended alternative to array-slice pagination — verified against
  * https://www.sanity.io/docs/developer-guides/paginating-with-groq).
  */
-function laneKeysetPredicate(keyField: string, afterParam: string): string {
-  return `(${keyField} > ${afterParam} || (${keyField} == ${afterParam} && placementId > $afterPlacementId))`;
+function laneKeysetPredicate(
+  keyField: string,
+  afterParam: string,
+  identityField = "placementId",
+): string {
+  return `(${keyField} > ${afterParam} || (${keyField} == ${afterParam} && ${identityField} > $afterPlacementId))`;
 }
 
 type PlannedWindowQuery = {
@@ -1425,6 +1429,72 @@ function planSeededWindowQuery(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Capture-sequence galleries (ADR-0022): the same bounded window, answered from
+// `media` documents instead of placements.
+// ---------------------------------------------------------------------------
+
+export const MEDIA_DOCUMENT_TYPE = "media";
+
+/**
+ * A capture-sequence row in the manual placement shape `buildCuratedGalleryPage`
+ * already consumes (ADR-0022 §2): the identity slot carries `mediaId`, `order`
+ * is the filename `sequence`, and there is no per-occurrence visibility or text
+ * override to project. `@` is the media document itself, so the public media
+ * projection is the one every placement row dereferences — ADR-0005's checks
+ * apply unchanged.
+ */
+const CAPTURE_SEQUENCE_ITEM_PROJECTION = `{
+  "placementId": mediaId,
+  "order": captureSequence.sequence,
+  "sectionId": captureSequence.sectionId,
+  "visible": true,
+  "media": @${PUBLIC_MEDIA_PROJECTION}
+}`;
+
+/**
+ * Every clause a capture-sequence window needs, evaluated in GROQ before the
+ * limit (ADR-0022 §3): this gallery's media by the language-neutral
+ * `contentId`, publicly renderable, the same fail-closed `privateOnly` shape as
+ * `buildPlacementFilter`, and the resolved section when one is selected.
+ */
+function buildCaptureSequenceFilter(sectionId: string | undefined): string {
+  const sectionClause =
+    sectionId === undefined ? "" : " && captureSequence.sectionId == $sectionId";
+  return `_type == "${MEDIA_DOCUMENT_TYPE}" && captureSequence.galleryContentId == $contentId && publiclyRenderable == true && (privateOnly == false || !defined(privateOnly))${sectionClause}`;
+}
+
+/**
+ * The bounded window for a capture-sequence gallery: `manual`'s shape over
+ * `(captureSequence.sequence, mediaId)`. The boundary is looked up by
+ * `mediaId`, which the cursor carries in its identity slot.
+ */
+function planCaptureSequenceWindowQuery(
+  mediaFilter: string,
+  window: GalleryWindowRequest,
+): PlannedWindowQuery {
+  const order = "order(captureSequence.sequence asc, mediaId asc)";
+  const after = window.after;
+  if (after === undefined) {
+    return {
+      query: `*[${mediaFilter}] | ${order} [0...$candidateLimit]${CAPTURE_SEQUENCE_ITEM_PROJECTION}`,
+      params: {},
+      readResult: (result) => ({
+        boundary: undefined,
+        candidates: readPlacementRows(result),
+      }),
+    };
+  }
+  return {
+    query: `{
+      "boundary": *[${mediaFilter} && mediaId == $afterPlacementId][0]${CAPTURE_SEQUENCE_ITEM_PROJECTION},
+      "candidates": *[${mediaFilter} && ${laneKeysetPredicate("captureSequence.sequence", "$afterOrder", "mediaId")}] | ${order} [0...$candidateLimit]${CAPTURE_SEQUENCE_ITEM_PROJECTION}
+    }`,
+    params: { ...boundaryQueryParams(after), afterPlacementId: after.placementId },
+    readResult: readWindowQueryResult,
+  };
+}
+
 /**
  * `CuratedGallerySectionSource` (`gallery-sections.ts`) over `galleryPlacement`
  * documents: one HTTP round trip per page — an id lookup for the boundary
@@ -1441,6 +1511,8 @@ function createSanityCuratedGallerySource(
     readonly config: SanityConfig;
     readonly fallbackLanguage: string;
     readonly galleryDocumentId: string;
+    /** The language-neutral identity a capture-sequence gallery's media name (ADR-0022 §1). */
+    readonly contentId: string;
     readonly ordering: GalleryOrdering;
     /**
      * The gallery is mid-rotation (its basics `staleShuffledOrderCount` was
@@ -1460,17 +1532,21 @@ function createSanityCuratedGallerySource(
     }
     const language = toLanguageSubtag(locale);
     const sectionId = sectionIdOf(filter);
-    const placementFilter = buildPlacementFilter(sectionId);
+    const captureSequence = options.ordering.kind === "capture-sequence";
     const planned =
-      options.ordering.kind === "manual"
-        ? planManualWindowQuery(placementFilter, window)
-        : planSeededWindowQuery(placementFilter, window);
+      options.ordering.kind === "capture-sequence"
+        ? planCaptureSequenceWindowQuery(buildCaptureSequenceFilter(sectionId), window)
+        : options.ordering.kind === "manual"
+          ? planManualWindowQuery(buildPlacementFilter(sectionId), window)
+          : planSeededWindowQuery(buildPlacementFilter(sectionId), window);
 
     const { boundary: rawBoundary, candidates: rawCandidates } = planned.readResult(
       await client.query({
         query: planned.query,
         params: {
-          galleryDocumentId: options.galleryDocumentId,
+          ...(captureSequence
+            ? { contentId: options.contentId }
+            : { galleryDocumentId: options.galleryDocumentId }),
           candidateLimit: window.candidateLimit,
           ...(sectionId === undefined ? {} : { sectionId }),
           ...(options.ordering.kind === "seeded-random"
@@ -1478,7 +1554,9 @@ function createSanityCuratedGallerySource(
             : {}),
           ...planned.params,
         },
-        tag: "gallery.placements.window",
+        tag: captureSequence
+          ? "gallery.capture-sequence.window"
+          : "gallery.placements.window",
       }),
     );
 
@@ -1522,6 +1600,7 @@ function resolveOrdering(
   contentId: string,
 ): GalleryOrdering {
   if (orderingRule === "manual") return { kind: "manual" };
+  if (orderingRule === "capture-sequence") return { kind: "capture-sequence" };
   if (orderingRule === "seeded-random") {
     // Read raw, not via `readString` (which trims): the seed is used verbatim
     // downstream — `orderingScopeString` embeds it, the recompute step writes
@@ -1639,6 +1718,7 @@ type RawGalleryPaginationBasicsDocument = {
   readonly sections?: unknown;
   readonly latestPlacementUpdatedAt?: unknown;
   readonly staleShuffledOrderCount?: unknown;
+  readonly latestCaptureMediaUpdatedAt?: unknown;
 };
 
 /**
@@ -1677,6 +1757,11 @@ const GALLERY_PAGINATION_BASICS_QUERY = `*[${GALLERY_FILTER} && contentId == $co
   "latestPlacementUpdatedAt": *[
     _type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == ^._id
   ] | order(_updatedAt desc) [0]._updatedAt,
+  "latestCaptureMediaUpdatedAt": select(
+    orderingRule == "capture-sequence" => *[
+      _type == "${MEDIA_DOCUMENT_TYPE}" && captureSequence.galleryContentId == ^.contentId
+    ] | order(_updatedAt desc) [0]._updatedAt
+  ),
   "staleShuffledOrderCount": count(*[
     _type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == ^._id &&
     visible == true && media->publiclyRenderable == true &&
@@ -1767,13 +1852,36 @@ export async function readSanityCuratedGalleryPage(
     ordering.kind === "seeded-random" &&
     readCount(basics.staleShuffledOrderCount) > 0;
 
+  // ADR-0022 §1: a gallery holds exactly one representation. A capture-sequence
+  // gallery that also has placements is a content defect to raise, never two
+  // sources to merge. `latestPlacementUpdatedAt` is already read for every
+  // gallery, so its presence is the placement check at no extra cost.
+  if (
+    ordering.kind === "capture-sequence" &&
+    readString(basics.latestPlacementUpdatedAt) !== undefined
+  ) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "a capture-sequence gallery must not have galleryPlacement documents",
+      contentId,
+    );
+  }
+
   const sections = readGallerySections(basics.sections, contentId);
-  const visibilityVersion = readString(basics.latestPlacementUpdatedAt) ?? "none";
+  // ADR-0022 §2: a capture-sequence gallery's version is its newest media
+  // `_updatedAt` — the same conservative class as the placement version.
+  const visibilityVersion =
+    readString(
+      ordering.kind === "capture-sequence"
+        ? basics.latestCaptureMediaUpdatedAt
+        : basics.latestPlacementUpdatedAt,
+    ) ?? "none";
 
   const source = createSanityCuratedGallerySource(client, {
     config,
     fallbackLanguage,
     galleryDocumentId,
+    contentId,
     ordering,
     orderingStale,
   });

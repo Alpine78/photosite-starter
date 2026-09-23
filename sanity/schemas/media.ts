@@ -56,6 +56,7 @@
  * route (ADR-0002 §4).
  */
 
+import { captureSequenceField } from "./capture-sequence";
 import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
 import type {
   SchemaTypeDefinition,
@@ -374,6 +375,7 @@ export function defineMediaType(
         description:
           "When the photograph was taken. The only ordering input the photograph itself owns; a curated gallery's order is authored on the gallery. Photographs with no capture date sort last.",
       },
+      captureSequenceField,
       {
         name: "publiclyRenderable",
         title: "May be shown publicly",

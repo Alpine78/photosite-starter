@@ -174,11 +174,12 @@ describe("the content identity", () => {
 });
 
 describe("ordering", () => {
-  it("defaults to manual and offers seeded-random", () => {
+  it("defaults to manual and offers seeded-random and capture sequence", () => {
     expect(fieldOf("orderingRule").initialValue).toBe("manual");
     expect(fieldOf("orderingRule").options?.list).toEqual([
       { title: "Manual (placement order)", value: "manual" },
       { title: "Seeded random", value: "seeded-random" },
+      { title: "Capture sequence (file-name order, no placements)", value: "capture-sequence" },
     ]);
   });
 

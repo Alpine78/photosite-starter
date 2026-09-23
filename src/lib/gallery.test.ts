@@ -1472,3 +1472,53 @@ describe("getGalleryPage seam dispatch", () => {
     await expect(getGalleryPage("en", "content-shuffled")).rejects.toBe(other);
   });
 });
+
+describe("the capture-sequence fixture gallery (ADR-0022)", () => {
+  const CAPTURE_ID = "content-capture-sequence";
+  const expected = Array.from(
+    { length: 40 },
+    (_unused, index) => `capture-sequence-${String(index + 1).padStart(4, "0")}`,
+  );
+
+  async function walk(sectionSlug?: string): Promise<readonly string[]> {
+    const ids: string[] = [];
+    let cursor: string | undefined;
+    for (let pages = 0; pages < 10; pages += 1) {
+      const page = await getMockGalleryResult("en", CAPTURE_ID, {
+        cursorCodec: testCursorCodec,
+        ...(cursor === undefined ? {} : { cursor }),
+        ...(sectionSlug === undefined ? {} : { sectionSlug }),
+      });
+      if (page === undefined) throw new Error("fixture gallery missing");
+      ids.push(...page.items.map((item) => item.itemId));
+      if (!page.page.hasNextPage) return ids;
+      cursor = page.page.endCursor ?? undefined;
+    }
+    throw new Error("walk did not finish");
+  }
+
+  it("orders by sequence, not authored position, across more than one page, with itemId = mediaId", async () => {
+    const first = await getMockGalleryResult("en", CAPTURE_ID, { cursorCodec: testCursorCodec });
+    expect(first?.page.hasNextPage).toBe(true);
+    expect(first?.items.every((item) => item.itemId === item.media.mediaId)).toBe(true);
+    expect(await walk()).toEqual(expected);
+  });
+
+  it("filters each section server-side and keeps sequence order within it", async () => {
+    expect(await walk("morning-stage")).toEqual(expected.slice(0, 28));
+    expect(await walk("evening-stage")).toEqual(expected.slice(28));
+  });
+
+  it("binds its cursors to the capture-sequence ordering scope", async () => {
+    const first = await getMockGalleryResult("en", CAPTURE_ID, { cursorCodec: testCursorCodec });
+    const cursor = first?.page.endCursor;
+    expect(cursor).toBeTruthy();
+    // The same token replayed against a manual gallery's scope must not decode.
+    await expect(
+      getMockGalleryResult("en", LARGE_GALLERY_ID, {
+        cursor: cursor ?? undefined,
+        cursorCodec: testCursorCodec,
+      }),
+    ).rejects.toBeInstanceOf(GalleryCursorError);
+  });
+});

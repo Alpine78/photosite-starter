@@ -80,11 +80,18 @@ type MockPlacementInput = {
    * as an unavailable container (AB#60).
    */
   readonly visible?: boolean;
+  /**
+   * A capture-sequence gallery's filename running number (ADR-0022 §1). Required
+   * exactly when the gallery's `orderingRule` is `capture-sequence`, where it —
+   * not array position — is the order, and `placementId` names the photograph's
+   * own `mediaId` because that gallery kind has no placements.
+   */
+  readonly sequence?: number;
 };
 
 /** How a mock gallery is ordered. Absent means `manual`, the default. */
 type MockOrderingInput = {
-  readonly orderingRule?: "manual" | "seeded-random";
+  readonly orderingRule?: "manual" | "seeded-random" | "capture-sequence";
   /** Required exactly when `orderingRule` is `seeded-random`. */
   readonly orderingSeed?: string;
 };
@@ -367,6 +374,38 @@ function masonryPlacements(prefix: string): readonly MockPlacementInput[] {
   });
 }
 
+/**
+ * A capture-sequence gallery (ADR-0022): 40 photographs across two sections,
+ * enough that both the whole gallery and its first section continue past one
+ * 24-item page. Authored in reverse on purpose, so
+ * the fixture proves the public order comes from `sequence` and not from array
+ * position. Every item is its own `mediaId` — the rule this gallery kind
+ * depends on — so the identities here are synthetic and share the demo
+ * renditions; the fixture exercises ordering, sections, and pagination, not
+ * photograph reuse.
+ */
+const CAPTURE_SEQUENCE_GALLERY_SIZE = 40;
+const CAPTURE_SEQUENCE_FIRST_SECTION_END = 28;
+
+const captureSequencePlacements: readonly MockPlacementInput[] = Array.from(
+  { length: CAPTURE_SEQUENCE_GALLERY_SIZE },
+  (_unused, index) => {
+    const sequence = index + 1;
+    return {
+      placementId: `capture-sequence-${String(sequence).padStart(4, "0")}`,
+      image: archiveImageCycle[index % archiveImageCycle.length],
+      sequence,
+      sectionId:
+        sequence <= CAPTURE_SEQUENCE_FIRST_SECTION_END ? "morning-stage" : "evening-stage",
+    };
+  },
+).reverse();
+
+const captureSequenceSections: readonly MockGallerySectionInput[] = [
+  { sectionId: "morning-stage", slug: "morning-stage", label: { en: "Morning stage", fi: "Aamun osuus" } },
+  { sectionId: "evening-stage", slug: "evening-stage", label: { en: "Evening stage", fi: "Illan osuus" } },
+];
+
 const authoredGalleries: Readonly<Record<string, MockGalleryInput>> = {
   "content-selected-work": { placements: selectedWorkPlacements },
   "content-coastal-mornings": { placements: coastalMorningsPlacements },
@@ -389,6 +428,11 @@ const authoredGalleries: Readonly<Record<string, MockGalleryInput>> = {
     placements: masonryPlacements("justified-overlay").map((item) => ({ ...item, sectionId: "frames" })),
     orderingRule: "seeded-random", orderingSeed: "layout-example-v1",
     sections: [{ sectionId: "frames", slug: "frames", label: { en: "Frames", fi: "Kuvat" } }],
+  },
+  "content-capture-sequence": {
+    placements: captureSequencePlacements,
+    sections: captureSequenceSections,
+    orderingRule: "capture-sequence",
   },
   "content-layout-single": { placements: [{ placementId: "layout-single-1", image: "portrait" }] },
   "content-layout-pair": { placements: [{ placementId: "layout-pair-1", image: "portrait", caption: { en: "A narrow portrait frame", fi: "Kapea pystykuva" } }, { placementId: "layout-pair-2", image: "panorama", caption: { en: "A very wide frame", fi: "Erittäin leveä kuva" } }] },
@@ -426,7 +470,9 @@ function resolveMockOrdering(input: MockOrderingInput): GalleryOrdering {
       "orderingSeed is only used while orderingRule is seeded-random",
     );
   }
-  return { kind: "manual" };
+  return input.orderingRule === "capture-sequence"
+    ? { kind: "capture-sequence" }
+    : { kind: "manual" };
 }
 
 function buildPlacements(
@@ -436,6 +482,10 @@ function buildPlacements(
 ): readonly CuratedGalleryPlacement[] {
   const images = { ...getMockImages(language), ...getGalleryBoundaryImages(language) };
   const seed = ordering.kind === "seeded-random" ? ordering.seed : undefined;
+
+  if (ordering.kind === "capture-sequence") {
+    return inputs.map((input) => buildCaptureSequenceRow(input, images));
+  }
 
   return inputs.map((input, index) => {
     const caption = input.caption?.[language];
@@ -460,6 +510,35 @@ function buildPlacements(
       ...(shuffledOrder === undefined ? {} : { shuffledOrder }),
     };
   });
+}
+
+/**
+ * A capture-sequence row in the manual shape the pagination core consumes
+ * (ADR-0022 §2), mirroring `sanity-gallery.ts`'s projection: `order` is the
+ * sequence, the identity slot is the photograph's own `mediaId`, and there is no
+ * per-occurrence caption or visibility to carry.
+ */
+function buildCaptureSequenceRow(
+  input: MockPlacementInput,
+  images: Readonly<Record<string, ImageMedia>>,
+): CuratedGalleryPlacement {
+  if (input.sequence === undefined) {
+    throw new TypeError(
+      `Capture-sequence item ${input.placementId} has no sequence`,
+    );
+  }
+  if (input.caption !== undefined || input.visible !== undefined || input.pinned !== undefined) {
+    throw new TypeError(
+      `Capture-sequence item ${input.placementId} carries a per-occurrence field this gallery kind cannot hold`,
+    );
+  }
+  return {
+    placementId: input.placementId,
+    order: input.sequence,
+    visible: true,
+    media: { ...images[input.image], mediaId: input.placementId },
+    ...(input.sectionId === undefined ? {} : { sectionId: input.sectionId }),
+  };
 }
 
 function buildSections(
@@ -644,6 +723,19 @@ export async function getMockGalleryResult(
  * the caller before this is reached, so a `undefined` here means the fixture and
  * the content tree disagree.
  */
+/**
+ * Whether a fixture gallery is ordered by capture sequence (ADR-0022), where an
+ * enquiry's `itemId` is the photograph's `mediaId` and there is no placement to
+ * report. `undefined` when the fixture has no such gallery in that language.
+ */
+export function isMockCaptureSequenceGallery(
+  language: string,
+  contentId: string,
+): boolean | undefined {
+  const gallery = getOrBuildGallery(language, contentId);
+  return gallery === undefined ? undefined : gallery.ordering.kind === "capture-sequence";
+}
+
 export function findMockCuratedPlacement(
   language: string,
   contentId: string,

@@ -111,7 +111,22 @@ export const ENQUIRY_MEDIA_PROJECTION = `{
   caption[]{language, value}
 }`;
 
-const GALLERY_ID_QUERY = `*[_type == "${GALLERY_DOCUMENT_TYPE}" && contentId == $contentId && language == $language][0...2]{ _id }`;
+const GALLERY_ID_QUERY = `*[_type == "${GALLERY_DOCUMENT_TYPE}" && contentId == $contentId && language == $language][0...2]{ _id, orderingRule }`;
+
+/** `gallery.orderingRule` for a gallery with no placements (ADR-0022). */
+const CAPTURE_SEQUENCE_ORDERING_RULE = "capture-sequence";
+
+/**
+ * A capture-sequence gallery's item (ADR-0022 §5): the media document itself,
+ * scoped by the gallery's language-neutral `contentId`, so a photograph that
+ * belongs to another gallery — or a `placementId` sent from a stale link — does
+ * not match. `[0...2]` detects a duplicated `mediaId` the same way the
+ * placement query detects a duplicated placement.
+ */
+const CAPTURE_SEQUENCE_MEDIA_QUERY = `*[_type == "${MEDIA_DOCUMENT_TYPE}" && captureSequence.galleryContentId == $contentId && mediaId == $itemId][0...2]{
+  "sectionId": captureSequence.sectionId,
+  "media": @${ENQUIRY_MEDIA_PROJECTION}
+}`;
 
 const PLACEMENT_QUERY = `*[_type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == $galleryId && placementId == $itemId][0...2]{
   placementId,
@@ -170,11 +185,11 @@ function readArchiveLocator(value: unknown): string | undefined {
   return value;
 }
 
-async function resolveGalleryDocumentId(
+async function resolveGalleryDocument(
   client: SanityClient,
   contentId: string,
   language: string,
-): Promise<string> {
+): Promise<{ readonly id: string; readonly captureSequence: boolean }> {
   const rows = readRows(
     await client.query({
       query: GALLERY_ID_QUERY,
@@ -192,7 +207,24 @@ async function resolveGalleryDocumentId(
   if (id === undefined) {
     throw new EnquiryResolutionError("malformed-source");
   }
-  return id;
+  return {
+    id,
+    captureSequence: rows[0].orderingRule === CAPTURE_SEQUENCE_ORDERING_RULE,
+  };
+}
+
+/**
+ * The single row a keyed enquiry lookup answered, or the classified reason it
+ * could not: no row is an unknown item, more than one is a store defect.
+ */
+function readSingleRow(rows: readonly unknown[]): Record<string, unknown> {
+  if (rows.length === 0) {
+    throw new EnquiryResolutionError("unknown-item");
+  }
+  if (rows.length > 1 || !isRecord(rows[0])) {
+    throw new EnquiryResolutionError("malformed-source");
+  }
+  return rows[0];
 }
 
 function projectEnquiryMedia(
@@ -255,28 +287,53 @@ export async function resolveSanityEnquiryTarget(
   const config = options.config ?? getSanityConfig();
   const subtag = toLanguageSubtag(language);
 
-  const galleryId = await resolveGalleryDocumentId(
+  const gallery = await resolveGalleryDocument(
     client,
     request.contentId,
     subtag,
   );
 
-  const rows = readRows(
-    await client.query({
-      query: PLACEMENT_QUERY,
-      params: { galleryId, itemId: request.itemId },
-      tag: "enquiry.placement",
-    }),
-  );
-
-  if (rows.length === 0) {
-    throw new EnquiryResolutionError("unknown-item");
+  if (gallery.captureSequence) {
+    const row = readSingleRow(
+      readRows(
+        await client.query({
+          query: CAPTURE_SEQUENCE_MEDIA_QUERY,
+          params: { contentId: request.contentId, itemId: request.itemId },
+          tag: "enquiry.capture-sequence",
+        }),
+      ),
+    );
+    const media = projectEnquiryMedia(
+      row.media,
+      config.datasetVisibility === "private",
+    );
+    if (media.mediaId !== request.itemId) {
+      throw new EnquiryResolutionError("malformed-source");
+    }
+    const sectionId = readString(row.sectionId);
+    const caption = selectLocalizedText(media.captionEntries, subtag);
+    return {
+      kind: "curated",
+      mediaId: media.mediaId,
+      contentId: request.contentId,
+      ...(sectionId === undefined ? {} : { sectionId }),
+      ...(media.archiveLocator === undefined
+        ? {}
+        : { archiveLocator: media.archiveLocator }),
+      ...(caption === undefined ? {} : { caption }),
+      ...(media.credit === undefined ? {} : { credit: media.credit }),
+    };
   }
-  if (rows.length > 1 || !isRecord(rows[0])) {
-    throw new EnquiryResolutionError("malformed-source");
-  }
 
-  const placement = rows[0] as RawEnquiryPlacement;
+  const placement = readSingleRow(
+    readRows(
+      await client.query({
+        query: PLACEMENT_QUERY,
+        params: { galleryId: gallery.id, itemId: request.itemId },
+        tag: "enquiry.placement",
+      }),
+    ),
+  ) as RawEnquiryPlacement;
   const placementId = readString(placement.placementId);
   if (placementId === undefined || placementId !== request.itemId) {
     throw new EnquiryResolutionError("malformed-source");
