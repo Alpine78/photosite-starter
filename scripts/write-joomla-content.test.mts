@@ -150,6 +150,23 @@ describe("validatePlanContract", () => {
     expect(plan).toBeDefined();
   });
 
+  it("accepts approved localized media captions and credits", () => {
+    const documents: readonly PlannedDocument[] = [
+      {
+        ...goodDocuments()[0],
+        caption: [
+          { _key: "fi", _type: "localizedText", language: "fi", value: "Kuvateksti" },
+          { _key: "en", _type: "localizedText", language: "en", value: "Caption" },
+        ],
+        credit: "Marko Junttila",
+      },
+      goodDocuments()[1],
+    ];
+    const { issues, plan } = validatePlanContract(goodPlan({ documents }));
+    expect(issues).toEqual([]);
+    expect(plan).toBeDefined();
+  });
+
   it("rejects a plan built by a stale converter version", () => {
     const { issues, plan } = validatePlanContract(goodPlan({ version: "joomla-import-plan-v1" }));
     expect(plan).toBeUndefined();

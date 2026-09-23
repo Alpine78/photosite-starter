@@ -433,14 +433,23 @@ function checkNestedDocumentShapes(document: Record<string, unknown>, path: stri
           : undefined;
       });
     }
-    if (Array.isArray(document.alt)) {
-      document.alt.forEach((entry: unknown, index: number) => {
+    for (const field of ["alt", "caption"] as const) {
+      const entries = document[field];
+      if (entries === undefined) continue;
+      if (!Array.isArray(entries)) {
+        issues.push(`${path}.${field} must be a localized text array when present`);
+        continue;
+      }
+      entries.forEach((entry: unknown, index: number) => {
         if (!isPlainObject(entry)) {
-          issues.push(`${path}.alt[${index}] is not an object`);
+          issues.push(`${path}.${field}[${index}] is not an object`);
           return;
         }
-        checkFieldSet(entry, LOCALIZED_TEXT_FIELDS, `${path}.alt[${index}]`, issues);
+        checkFieldSet(entry, LOCALIZED_TEXT_FIELDS, `${path}.${field}[${index}]`, issues);
       });
+    }
+    if (document.credit !== undefined && (typeof document.credit !== "string" || document.credit.trim().length === 0)) {
+      issues.push(`${path}.credit must be a non-blank string when present`);
     }
   }
   if (document._type === ARTICLE_TYPE_NAME || document._type === "gallery") {
@@ -511,7 +520,7 @@ export function validatePlanContract(raw: unknown): { readonly issues: readonly 
     galleryPlacement: CURATED_PLACEMENT_FIELDS,
     poll: new Set(["_id", "_type", "pollId", "language", "question", "options", "closeDate"]),
     pollTally: new Set(["_id", "_type", "pollId", "counts"]),
-    [MEDIA_TYPE_NAME]: new Set(["_id", "_type", "mediaId", "mediaType", "alt", "publiclyRenderable", "image"]),
+    [MEDIA_TYPE_NAME]: new Set(["_id", "_type", "mediaId", "mediaType", "alt", "caption", "credit", "publiclyRenderable", "image"]),
     [ARTICLE_TYPE_NAME]: new Set([
       "_id",
       "_type",
