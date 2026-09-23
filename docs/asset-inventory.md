@@ -152,7 +152,10 @@ web-delivery derivative a migrated photograph may publish: resized to this proje
 with EXIF orientation applied and EXIF/GPS metadata stripped before upload. `sharp` is a
 thin binding over `libvips`, the same image-processing library this project's own
 production `next/image` optimizer already uses at runtime, so this migration tool needs
-no second image library and no new runtime dependency.
+no second image library and no new runtime dependency. AB#167's offline rally import
+planner (`npm run plan:rally`, `scripts/plan-rally-import.mts`) uses the same
+devDependency only to read each exported file's header — format, dimensions, and EXIF
+orientation — and re-encodes nothing.
 
 `server-only` (MIT, published by the React team) was added in AB#39 and is not reflected
 in the counts below. It is a marker package: inside a React Server Component build it
