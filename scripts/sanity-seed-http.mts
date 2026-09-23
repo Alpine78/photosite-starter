@@ -73,7 +73,8 @@ export type SeedMutation =
   | {
       readonly patch: {
         readonly id: string;
-        readonly unset: readonly string[];
+        readonly set?: Readonly<Record<string, unknown>>;
+        readonly unset?: readonly string[];
       };
     };
 
