@@ -2496,7 +2496,12 @@ are the third gallery ordering rule, built for large rally collections whose ord
 photographer's filename running number. Such a gallery has **no `galleryPlacement`
 documents**: its items are the `media` documents whose `captureSequence` object names the
 gallery's language-neutral `contentId`, with a `sequence` and a `sectionId`. FI and EN
-galleries share them, and `itemId = mediaId` (a scoped ADR-0002 amendment). This cuts a
+galleries share them, and `itemId = mediaId` (a scoped ADR-0002 amendment).
+The offline planner exists too (AB#167, `npm run plan:rally`,
+`scripts/rally-import-plan.mts`): it reads one exported folder plus its `rally.json`,
+refuses any file that breaks the naming, format, or size contract, and writes a plan of
+media and gallery documents plus a content-hash identity map. It makes no network
+request. Writing the plan to Sanity is the next story. This cuts a
 bilingual gallery photograph from four Sanity documents to two. The read path is the
 existing bounded contract answered from media:
 - `sanity-gallery.ts` filters gallery, section, `publiclyRenderable`, and `privateOnly`
@@ -2512,7 +2517,7 @@ Studio validation (`sanity/schemas/capture-sequence.ts`, `gallery.ts`,
 `gallery-placement.ts`) blocks every combination the read would refuse. The mock fixture
 `content-capture-sequence` has 40 photographs in two sections, authored in reverse, and
 `e2e/gallery-capture-sequence.spec.ts` walks it without JavaScript. Still unbuilt: the
-folder importer (ADR-0022 §6) and the per-gallery conversion of existing Production
+importer's write step (ADR-0022 §6) and the per-gallery conversion of existing Production
 galleries (§7).
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
@@ -2608,6 +2613,7 @@ npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noi
 npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy benchmark (owner-run for the live matrix)
 npm run convert:joomla -- --source <articles.ndjson> --out <dir> # owner-run: convert legacy content, report only, never writes
 npm run write:joomla -- --plan <import-plan.json> --image-root <dir> --out <dir> --approved-digest <hash> # owner-run: write an approved import plan to Sanity, dry-run by default
+npm run plan:rally -- --folder <rally folder> --out <dir> # owner-run: plan a capture-sequence rally import offline, never writes
 npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
 ```
 

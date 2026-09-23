@@ -1283,6 +1283,93 @@ shapes:
    real customer content is authored against the same dataset, exactly as it
    already is for Preview.
 
+## Planning a rally folder import (AB#167)
+
+A capture-sequence gallery ([ADR-0022](adr/0022-capture-sequence-rally-galleries.md))
+is imported from one folder of exported web photographs. This first step is **offline**:
+it reads the folder, checks every file, and writes a reviewable plan. It sends nothing
+anywhere, reads no credential, and changes no dataset. Writing the plan to Sanity is a
+separate, later step.
+
+### The folder
+
+```
+Rally_Finland_2024/
+  rally.json
+  Rally_Finland_2024_0001_SS1_Harju_1.jpg
+  Rally_Finland_2024_0002_SS1_Harju_1.jpg
+  SS4/Rally_Finland_2024_0147_SS4_Lankamaa_1.jpg     ← subfolders are fine
+  Rally_Finland_2024_0301_Huoltoparkki.jpg
+```
+
+- **File names:** `<filePrefix>_<NNNN>_<sectionKey>.jpg|.jpeg|.webp`, ASCII letters,
+  digits, `_`, and `-` only.
+  - `NNNN` is four digits, runs across the whole rally, and is unique. It is the order
+    the gallery shows. EXIF capture time is not read.
+  - `sectionKey` is everything after the number and must be declared in `rally.json`.
+- **Subfolders:** allowed, and ignored for ordering, because the section comes from the
+  file name.
+- **Skipped:** dot-files such as `.DS_Store`.
+- **Refused:** everything else that does not match, including camera masters (`.dng` and
+  similar) and sidecars (`.xmp`).
+- **Size and format:** only exported JPG or WebP, with the longest edge at most 2048 px
+  after EXIF orientation. A larger file is refused rather than resized; export a web
+  derivative instead.
+
+`rally.json`:
+
+```json
+{
+  "version": 1,
+  "contentId": "rally-finland-2024",
+  "filePrefix": "Rally_Finland_2024",
+  "canonicalCategory": "rally",
+  "eventDate": "2024-08-01",
+  "title": { "fi": "Rally Finland 2024", "en": "Rally Finland 2024" },
+  "slug": { "fi": "rally-finland-2024", "en": "rally-finland-2024" },
+  "summary": { "fi": "…", "en": "…" },
+  "cover": 147,
+  "sections": [
+    { "key": "SS1_Harju_1", "label": { "fi": "EK 1 Harju 1", "en": "SS 1 Harju 1" } },
+    { "key": "Huoltoparkki", "label": { "fi": "Huoltoparkki", "en": "Service park" } }
+  ]
+}
+```
+
+- **Optional fields:** `summary`, `cover` (a running number), `publishedAt` (a UTC
+  timestamp; it defaults to the time the plan is made), `photoWord` (the noun used in alt
+  text for a language other than `fi`/`en`), and a section's `slug`.
+- **Section id:** derived from the key, so `SS1_Harju_1` becomes `ss1-harju-1`, which is
+  also the default slug.
+- **Languages:** the languages are those of `title`, and every localized field must have
+  exactly those. Unknown fields are refused.
+
+### Command
+
+```bash
+npm run plan:rally -- --folder <rally folder> --out <report folder> [--accept-interleaved-sections]
+```
+
+`--out` must be outside the rally folder. The command writes three private files there,
+each mode `0600` in a mode `0700` directory:
+
+- **`rally-import-report.json`:** counts, and every refused file with its reason.
+- **`rally-import-plan.json`,** written only when nothing was refused:
+  - a media document per photograph, with FI/EN alt text in the approved pattern
+    "`<title>: <section label>, kuva <N>`";
+  - the two capture-sequence gallery documents;
+  - the asset list with each file's SHA-256;
+  - the `documentsDigest`.
+- **`rally-identities.json`:** the content-hash map that keeps each photograph's
+  `mediaId` stable. A rerun with the same `--out`, or a renamed file, reuses the identity;
+  a re-export from Lightroom changes the bytes and gets a new one. Keep this file; do not
+  delete it between runs.
+
+The console prints counts and the digest only. Sections whose running-number ranges
+overlap block the plan. That is usually a photograph in the wrong stage. When it is
+intended, for example a service-park photograph between two stages, rerun with
+`--accept-interleaved-sections`.
+
 ## Rotating a seeded-random gallery's order (AB#129)
 
 A gallery whose `orderingRule` is `seeded-random` (ADR-0009) has a per-placement
