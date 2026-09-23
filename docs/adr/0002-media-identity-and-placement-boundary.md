@@ -506,3 +506,32 @@ structure but loses the photographer-facing property that argued against Option 
   keywords are modelled and exposed.
 - **The CMS commitment is not made here.** The boundary is designed to survive Sanity not
   being chosen; it does not choose it.
+
+## Amendment 2026-09-23: capture-sequence galleries (AB#165)
+
+_Decided in [ADR-0022](0022-capture-sequence-rally-galleries.md), accepted 2026-09-23._
+
+**Scope:** only galleries whose `orderingRule` is `capture-sequence`. Curated `manual` and
+`seeded-random` galleries, dynamic results, and every rule above are unchanged for them.
+
+**What changes, and why.** Section membership and position are placement-owned above
+("section membership … is a property of the placement, not of the photograph"). A
+capture-sequence gallery has no placements. For it, the photograph's own `media` document
+carries its one gallery membership (`captureSequence.galleryContentId`), its position
+(`sequence`), and its section (`sectionId`). The item identity is `itemId = mediaId`,
+the rule this ADR already gives dynamic results. That rule is sound here for the same
+reason: a photograph appears at most once in such a gallery by construction.
+
+**Why it holds.** In the production rally galleries, which motivated the change, no
+placement uses a caption, alt, or credit override, none is hidden, and none is pinned.
+The authored order is the owner's filename order with a handful of exceptions.
+ADR-0022 records the measurements.
+
+**What stays:**
+
+- `mediaId` is still the photograph, minted opaquely and never derived from a file name.
+- Media-level flags still compose by AND.
+- A photograph in a capture-sequence gallery may still be placed in any curated gallery
+  through ordinary placements, each with its own `placementId`.
+- **Cost:** a capture-sequence occurrence cannot subtract visibility or override text on
+  its own. Its media record is the only place those live.
