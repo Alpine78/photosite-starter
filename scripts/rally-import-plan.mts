@@ -499,7 +499,15 @@ export function canonicalJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function digestOf(documents: readonly PlannedDocument[], assets: readonly RallyAssetRequirement[]): string {
+/**
+ * The digest the owner approves. The write step recomputes it from the plan's
+ * own content — never trusting the plan's `documentsDigest` field, which a
+ * hand-edit could update along with the documents.
+ */
+export function rallyPlanDigest(
+  documents: readonly PlannedDocument[],
+  assets: readonly RallyAssetRequirement[],
+): string {
   return createHash("sha256").update(canonicalJson({ documents, assets })).digest("hex");
 }
 
@@ -781,7 +789,7 @@ export function buildRallyImportPlan(input: {
       acceptedInterleavedSections: warnings.length > 0,
       documents,
       assetRequirements,
-      documentsDigest: digestOf(documents, assetRequirements),
+      documentsDigest: rallyPlanDigest(documents, assetRequirements),
     },
     refusals,
     problems,

@@ -2501,7 +2501,13 @@ The offline planner exists too (AB#167, `npm run plan:rally`,
 `scripts/rally-import-plan.mts`): it reads one exported folder plus its `rally.json`,
 refuses any file that breaks the naming, format, or size contract, and writes a plan of
 media and gallery documents plus a content-hash identity map. It makes no network
-request. Writing the plan to Sanity is the next story. This cuts a
+request. `npm run write:rally` (AB#168, `scripts/rally-import-write.mts`) writes an
+approved plan, dry-run by default:
+- It re-verifies the digest and every file, and produces EXIF-stripped public copies.
+- With `--yes`, a raw-perspective preflight refuses on category, identity, route,
+  placement, stray-member, draft or release, and frozen-URL conflicts.
+- It uploads, writes media before galleries, and reads the result back.
+- Reruns patch only plan-owned fields and never delete. This cuts a
 bilingual gallery photograph from four Sanity documents to two. The read path is the
 existing bounded contract answered from media:
 - `sanity-gallery.ts` filters gallery, section, `publiclyRenderable`, and `privateOnly`
@@ -2517,7 +2523,7 @@ Studio validation (`sanity/schemas/capture-sequence.ts`, `gallery.ts`,
 `gallery-placement.ts`) blocks every combination the read would refuse. The mock fixture
 `content-capture-sequence` has 40 photographs in two sections, authored in reverse, and
 `e2e/gallery-capture-sequence.spec.ts` walks it without JavaScript. Still unbuilt: the
-importer's write step (ADR-0022 §6) and the per-gallery conversion of existing Production
+per-gallery conversion of existing Production
 galleries (§7).
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
@@ -2614,6 +2620,7 @@ npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy bench
 npm run convert:joomla -- --source <articles.ndjson> --out <dir> # owner-run: convert legacy content, report only, never writes
 npm run write:joomla -- --plan <import-plan.json> --image-root <dir> --out <dir> --approved-digest <hash> # owner-run: write an approved import plan to Sanity, dry-run by default
 npm run plan:rally -- --folder <rally folder> --out <dir> # owner-run: plan a capture-sequence rally import offline, never writes
+npm run write:rally -- --plan <plan.json> --folder <rally folder> --out <dir> --approved-digest <hash> # owner-run: write an approved rally plan to Sanity, dry-run by default
 npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
 ```
 

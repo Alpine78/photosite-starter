@@ -155,7 +155,9 @@ production `next/image` optimizer already uses at runtime, so this migration too
 no second image library and no new runtime dependency. AB#167's offline rally import
 planner (`npm run plan:rally`, `scripts/plan-rally-import.mts`) uses the same
 devDependency only to read each exported file's header — format, dimensions, and EXIF
-orientation — and re-encodes nothing.
+orientation — and re-encodes nothing. AB#168's write step (`npm run write:rally`,
+`scripts/write-rally-import.mts`) reuses `scripts/joomla-image-derivative.mts` unchanged to
+produce each photograph's EXIF-stripped public copy before upload.
 
 `server-only` (MIT, published by the React team) was added in AB#39 and is not reflected
 in the counts below. It is a marker package: inside a React Server Component build it

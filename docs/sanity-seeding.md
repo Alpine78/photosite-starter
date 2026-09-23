@@ -1370,6 +1370,60 @@ overlap block the plan. That is usually a photograph in the wrong stage. When it
 intended, for example a service-park photograph between two stages, rerun with
 `--accept-interleaved-sections`.
 
+## Writing an approved rally plan (AB#168)
+
+The second step takes the plan `plan:rally` wrote and puts it into a Sanity dataset.
+
+```bash
+npm run write:rally -- --plan <out>/rally-import-plan.json --folder <rally folder> \
+  --out <report folder> --approved-digest <documentsDigest> [--yes]
+```
+
+**Without `--yes` it is a dry run.** It validates the plan, recomputes its digest from
+the content and compares it with `--approved-digest`, then re-reads every photograph:
+
+- the SHA-256 must still match;
+- the public copy is generated, with EXIF and GPS stripped, never cropped or upscaled;
+- the public copy's dimensions must equal the planned ones.
+
+It reads no credential and makes no network request. A plan that was edited by hand, or
+a file that changed after planning, stops it here.
+
+**With `--yes`,** the write needs `SANITY_PROJECT_ID`, `SANITY_DATASET`, and
+`SANITY_API_VERSION` (or the matching flags) and `SANITY_MIGRATION_TOKEN`, a write-scoped
+token read from the environment only. A `NEXT_PUBLIC_` copy of the token is refused.
+Before anything is uploaded, a preflight under the raw perspective (so drafts and
+releases count) refuses the whole write if:
+
+- the category is missing, or has no published label and slug in a plan language;
+- a planned document id holds another document type, or has an unpublished draft or
+  release in Studio;
+- the gallery `contentId` or a `mediaId` is already used by another document;
+- the gallery's address in a language is already used in that category by a gallery,
+  an article, or a subcategory;
+- `galleryPlacement` documents reference the gallery (ADR-0022 §1);
+- media in the dataset name this gallery but are not in the plan. The import never
+  deletes, so remove them in Studio or put the files back;
+- an existing gallery document's `contentId`, language, slug, category, or ordering rule
+  differs from the plan. A published address is not changed by an import.
+
+It then uploads each public copy, writes the media, writes the two galleries, and reads
+back the galleries and the gallery's photograph count to compare with the plan.
+
+**Reruns are safe and conservative:**
+
+- New documents are created with `createIfNotExists`.
+- An existing photograph gets only its `captureSequence` and `image` updated.
+- An existing gallery gets only sections it does not have yet, and a cover if it has
+  none.
+- Alt text, captions, credits, flags, titles, summaries, and section intros edited in
+  Studio are never overwritten.
+- Nothing is deleted.
+- An identical file uploads to the same Sanity asset, so rerunning after a failed upload
+  creates no duplicates.
+
+Documents are written as published, so the gallery is live as soon as the write finishes.
+
 ## Rotating a seeded-random gallery's order (AB#129)
 
 A gallery whose `orderingRule` is `seeded-random` (ADR-0009) has a per-placement
