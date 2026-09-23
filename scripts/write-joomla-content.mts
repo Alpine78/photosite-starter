@@ -466,7 +466,7 @@ function checkNestedDocumentShapes(document: Record<string, unknown>, path: stri
     checkReferenceShape(document.article, `${path}.article`, issues, expectResolvedRef);
     checkReferenceShape(document.media, `${path}.media`, issues, expectResolvedRef);
   }
-  if (document._type === "gallery") {
+  if (document._type === ARTICLE_TYPE_NAME || document._type === "gallery") {
     if (document.cover !== undefined) checkReferenceShape(document.cover, `${path}.cover`, issues, expectResolvedRef);
   }
   if (document._type === "galleryPlacement") {
@@ -520,6 +520,7 @@ export function validatePlanContract(raw: unknown): { readonly issues: readonly 
       "title",
       "slug",
       "summary",
+      "cover",
       "author",
       "endGalleryId",
       "publishedAt",

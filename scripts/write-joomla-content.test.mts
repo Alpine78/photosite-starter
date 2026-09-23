@@ -244,6 +244,45 @@ describe("validatePlanContract", () => {
     expect(issues.join(" ")).toContain("unrecognized field(s): archiveLocator");
   });
 
+  it("accepts an article cover only as a resolved media reference", () => {
+    const resolved = validatePlanContract(
+      goodPlan({
+        documents: [
+          {
+            _id: "migrated--article-a-fi",
+            _type: "article",
+            contentId: "a",
+            language: "fi",
+            title: "T",
+            cover: { _type: "reference", _ref: "migrated--media-photo-1" },
+          },
+        ],
+        assetRequirements: [],
+        categoryRequirements: [],
+      }),
+    );
+    expect(resolved.issues).toEqual([]);
+
+    const pending = validatePlanContract(
+      goodPlan({
+        documents: [
+          {
+            _id: "migrated--article-a-fi",
+            _type: "article",
+            contentId: "a",
+            language: "fi",
+            title: "T",
+            cover: { _type: "reference", _ref: `${PENDING_ASSET_PREFIX}photo-1` },
+          },
+        ],
+        assetRequirements: [],
+        categoryRequirements: [],
+      }),
+    );
+    expect(pending.plan).toBeUndefined();
+    expect(pending.issues.join(" ")).toContain("cover._ref should already be a resolved reference");
+  });
+
   it("rejects a private field smuggled inside a body block, not only at the document's own top level", () => {
     const { issues, plan } = validatePlanContract(
       goodPlan({
