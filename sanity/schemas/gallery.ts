@@ -48,6 +48,7 @@ import { galleryPresentationFields } from "./gallery-presentation";
  * and its 2026-08-28 amendment decide that two-step contract.
  */
 
+import { CAPTURE_SEQUENCE_ORDERING_RULE } from "./capture-sequence";
 import { CATEGORY_TYPE_NAME } from "./category";
 import {
   CONTENT_BLOCK_KINDS,
@@ -95,7 +96,11 @@ export const MAX_SECTION_ID_LENGTH = 248;
 export const MAX_SECTION_SLUG_LENGTH = 256;
 export const MAX_SECTION_LABEL_LENGTH = 256;
 
-export const ORDERING_RULES = ["manual", "seeded-random"] as const;
+export const ORDERING_RULES = [
+  "manual",
+  "seeded-random",
+  CAPTURE_SEQUENCE_ORDERING_RULE,
+] as const;
 type OrderingRule = (typeof ORDERING_RULES)[number];
 
 /**
@@ -116,6 +121,41 @@ export const MAX_ORDERING_SEED_LENGTH = 256 - "seeded-random-v1:".length;
  * instead, the same shape as `MAX_SECTION_ID_LENGTH` above.
  */
 export const GALLERY_PLACEMENT_DOCUMENT_TYPE = "galleryPlacement";
+
+/**
+ * The rule must be one of `ORDERING_RULES`, and a gallery can only become
+ * `capture-sequence` once no placement references it (ADR-0022 §1: one
+ * representation per gallery). Checked against every version of this gallery
+ * — published and draft — so a placement drafted against it also counts. The
+ * reverse direction, a placement against a capture-sequence gallery, is
+ * refused by `gallery-placement.ts`.
+ */
+async function validatesOrderingRule(
+  value: string | undefined,
+  context: SchemaValidationContext,
+): Promise<SchemaValidationResult> {
+  if (value === undefined || !(ORDERING_RULES as readonly string[]).includes(value)) {
+    return `Choose one of: ${ORDERING_RULES.join(", ")}`;
+  }
+  if (value !== CAPTURE_SEQUENCE_ORDERING_RULE) return true;
+
+  const documentId = context.document?._id;
+  if (typeof documentId !== "string") return true;
+  const published = publishedIdOf(documentId);
+
+  const hasPlacements = await validationClientOf(context).fetch<boolean>(
+    `defined(*[_type == $type && gallery._ref in [$published, $draft]][0]._id)`,
+    {
+      type: GALLERY_PLACEMENT_DOCUMENT_TYPE,
+      published,
+      draft: `drafts.${published}`,
+    },
+  );
+  if (hasPlacements) {
+    return "This gallery still has placements. Capture sequence reads its photographs from their media documents instead, so remove or convert the placements first (ADR-0022 §7).";
+  }
+  return true;
+}
 
 // ---------------------------------------------------------------------------
 // Cover duplicating the grid's own opening item: allowed, but flagged
@@ -417,22 +457,21 @@ export const galleryType: SchemaTypeDefinition = {
       title: "Ordering",
       type: "string",
       description:
-        "Manual places items in each placement's authored order. Seeded-random shuffles them deterministically (ADR-0009): pinned leads stay put, the rest are ordered by a materialized key. After choosing Seeded-random, or changing the seed below, run \"npm run recompute:shuffled-order\" — until it completes the public site serves the gallery as temporarily unavailable.",
+        "Manual places items in each placement's authored order. Seeded-random shuffles them deterministically (ADR-0009): pinned leads stay put, the rest are ordered by a materialized key. After choosing Seeded-random, or changing the seed below, run \"npm run recompute:shuffled-order\" — until it completes the public site serves the gallery as temporarily unavailable. Capture sequence has no placements at all (ADR-0022): the gallery shows the photographs whose capture-sequence field names it, in file-name order.",
       initialValue: "manual" satisfies OrderingRule,
       options: {
         list: ORDERING_RULES.map((value) => ({
-          title: value === "manual" ? "Manual (placement order)" : "Seeded random",
+          title:
+            value === "manual"
+              ? "Manual (placement order)"
+              : value === "seeded-random"
+                ? "Seeded random"
+                : "Capture sequence (file-name order, no placements)",
           value,
         })),
         layout: "radio",
       },
-      validation: (rule) =>
-        rule.required().custom<string>((value) => {
-          if (value === undefined || !(ORDERING_RULES as readonly string[]).includes(value)) {
-            return `Choose one of: ${ORDERING_RULES.join(", ")}`;
-          }
-          return true;
-        }),
+      validation: (rule) => rule.required().custom<string>(validatesOrderingRule),
     },
     {
       name: "orderingSeed",

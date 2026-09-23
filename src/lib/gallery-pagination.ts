@@ -35,10 +35,20 @@ export { assertBoundedString };
 
 export type GalleryOrdering =
   | { readonly kind: "manual" }
-  | { readonly kind: "seeded-random"; readonly seed: string };
+  | { readonly kind: "seeded-random"; readonly seed: string }
+  | { readonly kind: "capture-sequence" };
 
 /** The `ordering` half of `GalleryCursorScope`, for `manual`. Unchanged wire value. */
 export const MANUAL_ORDERING_SCOPE = "manual-v1";
+
+/**
+ * The `ordering` half of `GalleryCursorScope` for a capture-sequence gallery
+ * (ADR-0022 §2). Its rows reach this module in the manual shape — `order` is the
+ * filename `sequence`, the identity slot carries `mediaId` — so only this scope
+ * value tells the two apart, which is exactly what makes a manual cursor fail
+ * `wrong-scope` on a converted gallery and the reverse.
+ */
+export const CAPTURE_SEQUENCE_ORDERING_SCOPE = "capture-sequence-v1";
 
 /** Prefix for a seeded gallery's `ordering` scope value: `seeded-random-v1:<seed>`. */
 export const SEEDED_ORDERING_SCOPE_PREFIX = "seeded-random-v1:";
@@ -61,7 +71,7 @@ export const MAX_GALLERY_ORDERING_SEED_LENGTH =
  * length ceiling; `manual` carries nothing.
  */
 export function assertGalleryOrdering(ordering: GalleryOrdering): void {
-  if (ordering.kind === "manual") return;
+  if (ordering.kind === "manual" || ordering.kind === "capture-sequence") return;
   if (ordering.kind !== "seeded-random") {
     throw new TypeError(
       `Unknown gallery ordering rule: ${JSON.stringify((ordering as { kind: unknown }).kind)}`,
@@ -84,9 +94,14 @@ export function assertGalleryOrdering(ordering: GalleryOrdering): void {
  */
 export function orderingScopeString(ordering: GalleryOrdering): string {
   assertGalleryOrdering(ordering);
-  return ordering.kind === "manual"
-    ? MANUAL_ORDERING_SCOPE
-    : `${SEEDED_ORDERING_SCOPE_PREFIX}${ordering.seed}`;
+  switch (ordering.kind) {
+    case "manual":
+      return MANUAL_ORDERING_SCOPE;
+    case "capture-sequence":
+      return CAPTURE_SEQUENCE_ORDERING_SCOPE;
+    case "seeded-random":
+      return `${SEEDED_ORDERING_SCOPE_PREFIX}${ordering.seed}`;
+  }
 }
 
 /**
@@ -293,6 +308,8 @@ export function comparePlacementIds(left: string, right: string): number {
  *
  * - `manual`: always `{ 0, order, placementId }`. `pinned` is ignored (every
  *   placement already has a unique integer `order`).
+ * - `capture-sequence` (ADR-0022): the same single tier. A row's `order` is the
+ *   filename `sequence` and its `placementId` slot carries the `mediaId`.
  * - `seeded-random`, pinned: `{ 0, order, placementId }` — the pinned lead
  *   tier, ordered among itself by manual `order`.
  * - `seeded-random`, not pinned: `{ 1, shuffledOrder, placementId }`. The
@@ -304,7 +321,7 @@ function orderingKeyOf(
   placement: CuratedGalleryPlacement,
   ordering: GalleryOrdering,
 ): GalleryOrderingBoundary {
-  if (ordering.kind === "manual" || placement.pinned === true) {
+  if (ordering.kind !== "seeded-random" || placement.pinned === true) {
     return {
       pinnedTier: 0,
       key: placement.order,

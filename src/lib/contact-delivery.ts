@@ -179,9 +179,13 @@ export function buildEnquiryEmail(
     contextLines.push(`${contact.enquiryGalleryLabel}: ${gallery}`);
     // The occurrence, not just the photograph: the same image may be placed in
     // one gallery twice, and the visitor asked about one of them (ADR-0002 §2).
-    contextLines.push(
-      `${contact.enquiryPlacementLabel}: ${target.placementId}`,
-    );
+    // A capture-sequence gallery has no placements — its occurrence is the
+    // photograph already named above (ADR-0022 §5).
+    if (target.placementId !== undefined) {
+      contextLines.push(
+        `${contact.enquiryPlacementLabel}: ${target.placementId}`,
+      );
+    }
   }
   if (target.archiveLocator !== undefined) {
     contextLines.push(

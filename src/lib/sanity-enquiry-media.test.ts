@@ -356,3 +356,96 @@ describe("resolveSanityEnquiryTarget — dynamic", () => {
     expect(requests).toHaveLength(0);
   });
 });
+
+describe("resolveSanityEnquiryTarget — capture-sequence gallery (ADR-0022 §5)", () => {
+  const CAPTURE: EnquiryTargetRequest = {
+    kind: "curated",
+    locale: "en-GB",
+    contentId: "rally-example-2024",
+    itemId: "rally-photo-0327",
+  };
+
+  function captureHandler(mediaRows: unknown[]): Handler {
+    return (request) => {
+      if (request.tag === "enquiry.gallery") {
+        return [{ _id: "gallery-rally-en", orderingRule: "capture-sequence" }];
+      }
+      if (request.tag === "enquiry.capture-sequence") {
+        return mediaRows;
+      }
+      throw new Error(`unexpected tag ${request.tag}`);
+    };
+  }
+
+  const captureRow = (overrides: Record<string, unknown> = {}) => ({
+    sectionId: "ss2",
+    media: mediaRow({ mediaId: "rally-photo-0327" }),
+    ...overrides,
+  });
+
+  it("resolves the item as the gallery's own media, with no placement", async () => {
+    const { client, requests } = fakeClient(captureHandler([captureRow()]));
+
+    const target = await resolveSanityEnquiryTarget(CAPTURE, "en", {
+      client,
+      config: PRIVATE_CONFIG,
+    });
+
+    expect(target).toEqual({
+      kind: "curated",
+      mediaId: "rally-photo-0327",
+      contentId: "rally-example-2024",
+      sectionId: "ss2",
+      archiveLocator: "/Volumes/Archive/2020/coast/DSCF0042.RAF",
+      caption: "Media default caption",
+      credit: "Placeholder credit",
+    });
+    expect(target).not.toHaveProperty("placementId");
+    const lookup = requests.find((r) => r.tag === "enquiry.capture-sequence");
+    expect(lookup?.params).toEqual({
+      contentId: "rally-example-2024",
+      itemId: "rally-photo-0327",
+    });
+    expect(lookup?.query).toContain("captureSequence.galleryContentId == $contentId");
+    expect(requests.some((r) => r.tag === "enquiry.placement")).toBe(false);
+  });
+
+  it("collapses a placement id or another gallery's photograph to an unknown item", async () => {
+    const { client } = fakeClient(captureHandler([]));
+    const error = await rejectionOf(() =>
+      resolveSanityEnquiryTarget(
+        { ...CAPTURE, itemId: "old-placement-id" },
+        "en",
+        { client, config: PRIVATE_CONFIG },
+      ),
+    );
+    expect(error.rejection).toBe("unknown-item");
+  });
+
+  it("applies the media eligibility composition", async () => {
+    const { client } = fakeClient(
+      captureHandler([captureRow({ media: mediaRow({ mediaId: "rally-photo-0327", enquiryEligible: false }) })]),
+    );
+    const error = await rejectionOf(() =>
+      resolveSanityEnquiryTarget(CAPTURE, "en", { client, config: PRIVATE_CONFIG }),
+    );
+    expect(error.rejection).toBe("not-enquirable");
+  });
+
+  it("treats a duplicated mediaId as a store defect", async () => {
+    const { client } = fakeClient(captureHandler([captureRow(), captureRow()]));
+    const error = await rejectionOf(() =>
+      resolveSanityEnquiryTarget(CAPTURE, "en", { client, config: PRIVATE_CONFIG }),
+    );
+    expect(error.rejection).toBe("malformed-source");
+  });
+
+  it("drops the archive locator on a public dataset", async () => {
+    const { client } = fakeClient(captureHandler([captureRow()]));
+    const target = await resolveSanityEnquiryTarget(CAPTURE, "en", {
+      client,
+      config: PUBLIC_CONFIG,
+    });
+    expect(target).not.toHaveProperty("archiveLocator");
+  });
+});

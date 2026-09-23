@@ -164,6 +164,7 @@ describe("listCategoryContentIds", () => {
       "content-justified-overlay",
       "content-layout-single",
       "content-layout-pair",
+      "content-capture-sequence",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",
@@ -187,6 +188,7 @@ describe("listCategoryContentIds", () => {
       "content-justified-overlay",
       "content-layout-single",
       "content-layout-pair",
+      "content-capture-sequence",
       "content-understanding-exposure-triangle",
       "content-shooting-in-low-light",
     ]);
@@ -482,6 +484,7 @@ describe("buildContentListingQuery", () => {
       "content-justified-overlay",
       "content-layout-single",
       "content-layout-pair",
+      "content-capture-sequence",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
       "content-packing-for-a-photo-trip",

@@ -167,6 +167,7 @@ const englishRecords: readonly AuthoredContentRecord[] = [
   { contentId: "content-justified-overlay", title: "justified overlay", summary: "Example gallery presentation.", publishedAt: "2016-01-01" },
   { contentId: "content-layout-single", title: "layout single", summary: "Example gallery presentation.", publishedAt: "2016-01-01" },
   { contentId: "content-layout-pair", title: "layout pair", summary: "Example gallery presentation.", publishedAt: "2016-01-01" },
+  { contentId: "content-capture-sequence", title: "Capture sequence", summary: "A gallery ordered by its files' running numbers.", publishedAt: "2016-01-01" },
   {
     contentId: "content-choosing-a-telephoto-lens",
     title: "Choosing a telephoto lens: what the specs don't tell you",
@@ -299,6 +300,7 @@ const finnishRecords: readonly AuthoredContentRecord[] = [
   { contentId: "content-justified-overlay", title: "justified overlay", summary: "Esimerkkigallerian esitystapa.", publishedAt: "2016-01-01" },
   { contentId: "content-layout-single", title: "layout single", summary: "Esimerkkigallerian esitystapa.", publishedAt: "2016-01-01" },
   { contentId: "content-layout-pair", title: "layout pair", summary: "Esimerkkigallerian esitystapa.", publishedAt: "2016-01-01" },
+  { contentId: "content-capture-sequence", title: "Kuvausjärjestys", summary: "Tiedostojen juoksevan numeron mukaan järjestetty galleria.", publishedAt: "2016-01-01" },
   {
     contentId: "content-understanding-exposure-triangle",
     title: "Valotuskolmio käytännössä",

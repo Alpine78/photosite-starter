@@ -24,7 +24,10 @@ import {
   type EnquiryTargetRequest,
   type ResolvedEnquiryTarget,
 } from "@/lib/enquiry-media";
-import { findMockCuratedPlacement } from "@/lib/mock-gallery";
+import {
+  findMockCuratedPlacement,
+  isMockCaptureSequenceGallery,
+} from "@/lib/mock-gallery";
 import { findMockImageByMediaId } from "@/lib/mock-media";
 
 type MockEnquiryRecord = {
@@ -76,6 +79,12 @@ const MOCK_ENQUIRY_RECORDS: Readonly<Record<string, MockEnquiryRecord>> = {
     enquiryEligible: false,
     dynamicallyDiscoverable: false,
     privateOnly: true,
+  },
+  // One photograph of the capture-sequence fixture gallery (ADR-0022), so an
+  // enquiry by `mediaId` in that gallery resolves end to end.
+  "capture-sequence-0002": {
+    enquiryEligible: true,
+    dynamicallyDiscoverable: false,
   },
 };
 
@@ -148,10 +157,15 @@ export function resolveMockEnquiryTarget(
 
   const caption = placement.captionOverride ?? placement.media.caption;
 
+  // ADR-0022 §5: in a capture-sequence gallery the fixture row's identity slot
+  // is the photograph's own `mediaId`, so there is no placement to report.
+  const captureSequence =
+    isMockCaptureSequenceGallery(language, request.contentId) === true;
+
   return {
     kind: "curated",
     mediaId,
-    placementId: placement.placementId,
+    ...(captureSequence ? {} : { placementId: placement.placementId }),
     contentId: request.contentId,
     ...(placement.sectionId === undefined
       ? {}

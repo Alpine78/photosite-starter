@@ -182,6 +182,7 @@ const englishContentTree: ContentTreeInput = {
     { contentId: "content-justified-overlay", variant: "gallery", slug: "justified-overlay", published: true, canonicalCategoryId: "cat-portfolio" },
     { contentId: "content-layout-single", variant: "gallery", slug: "layout-single", published: true, canonicalCategoryId: "cat-portfolio" },
     { contentId: "content-layout-pair", variant: "gallery", slug: "layout-pair", published: true, canonicalCategoryId: "cat-portfolio" },
+    { contentId: "content-capture-sequence", variant: "gallery", slug: "capture-sequence", published: true, canonicalCategoryId: "cat-portfolio" },
     // The migrated articles keep the categories they were already filed under.
     // The old model listed them unordered; the migration rule is that the first
     // authored category became the canonical placement and any remaining ones
@@ -360,6 +361,7 @@ const finnishContentTree: ContentTreeInput = {
     { contentId: "content-justified-overlay", variant: "gallery", slug: "justified-overlay", published: true, canonicalCategoryId: "cat-portfolio" },
     { contentId: "content-layout-single", variant: "gallery", slug: "layout-single", published: true, canonicalCategoryId: "cat-portfolio" },
     { contentId: "content-layout-pair", variant: "gallery", slug: "layout-pair", published: true, canonicalCategoryId: "cat-portfolio" },
+    { contentId: "content-capture-sequence", variant: "gallery", slug: "capture-sequence", published: true, canonicalCategoryId: "cat-portfolio" },
     // One of the articles published in both languages, so a detail page has a
     // real exact language switch to offer. Some English siblings still have no
     // Finnish version and fall back to the nearest page instead.

@@ -172,6 +172,20 @@ Between a seed edit and that recompute the public site serves the gallery as tem
 unavailable rather than mis-paginated (ADR-0009's 2026-08-28
 amendment).
 
+A third rule, `capture-sequence` (AB#166,
+[ADR-0022](../docs/adr/0022-capture-sequence-rally-galleries.md)), has **no placements at
+all**. Its photographs are the `media` documents whose optional `captureSequence` object
+(`capture-sequence.ts`) names the gallery's language-neutral `contentId`, with the file
+name's running `sequence` and a `sectionId` the gallery declares. FI and EN gallery
+documents therefore read the same media. Studio refuses the combinations the public read
+would otherwise reject: a media entry naming a gallery that is not `capture-sequence` in
+every language, a section one language does not declare, a sequence number another
+photograph already holds, a `galleryPlacement` against such a gallery, and switching a
+gallery that still has placements to this rule. To list one gallery's photographs in order
+in the Studio, add a structure-builder list over `media` filtered by
+`captureSequence.galleryContentId == "<contentId>"` and ordered by
+`captureSequence.sequence` — Studio configuration, not part of these schema objects.
+
 The bounded, windowed read of a gallery's placements is `src/lib/sanity-gallery.ts`'s
 `readSanityCuratedGalleryPage` (AB#114), composing `gallery-sections.ts`'s shared
 `CuratedGallerySectionSource` contract over `galleryPlacement` documents. For a
@@ -194,7 +208,10 @@ reaches the Studio the same way a code change reaches the site.
 One photograph is one document, described once, referenced from everywhere it appears.
 Where it sits — the order in a gallery, the section it belongs to, a caption written for
 one particular page — belongs to the container that places it, never to the photograph.
-[ADR-0002](../docs/adr/0002-media-identity-and-placement-boundary.md) explains why, and
+[ADR-0002](../docs/adr/0002-media-identity-and-placement-boundary.md) explains why. The
+one scoped exception is a capture-sequence gallery, whose order and section live on the
+photograph because it belongs to exactly one such gallery
+([ADR-0022](../docs/adr/0022-capture-sequence-rally-galleries.md)). And
 [ADR-0008](../docs/adr/0008-localized-authored-text.md) explains why authored sentences
 are language-keyed arrays rather than fields named after this deployment's languages.
 

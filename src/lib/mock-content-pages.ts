@@ -276,6 +276,7 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-layout-single": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
+  "content-capture-sequence": { variant: "gallery", body: [] },
   "content-reading-coastal-light": {
     variant: "article",
     endGalleryId: "coastal-light-end-gallery",
@@ -701,6 +702,7 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-layout-single": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
+  "content-capture-sequence": { variant: "gallery", body: [] },
   "content-reading-coastal-light": {
     variant: "article",
     endGalleryId: "coastal-light-end-gallery",

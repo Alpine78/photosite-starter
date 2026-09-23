@@ -2491,6 +2491,30 @@ confirmed as this project's own photographer) for the owner's approval —
 one of the four ("Mobile menu bug") does not read as show-worthy content and
 is flagged rather than assumed includable.
 
+Capture-sequence galleries (AB#166, [ADR-0022](docs/adr/0022-capture-sequence-rally-galleries.md))
+are the third gallery ordering rule, built for large rally collections whose order is the
+photographer's filename running number. Such a gallery has **no `galleryPlacement`
+documents**: its items are the `media` documents whose `captureSequence` object names the
+gallery's language-neutral `contentId`, with a `sequence` and a `sectionId`. FI and EN
+galleries share them, and `itemId = mediaId` (a scoped ADR-0002 amendment). This cuts a
+bilingual gallery photograph from four Sanity documents to two. The read path is the
+existing bounded contract answered from media:
+- `sanity-gallery.ts` filters gallery, section, `publiclyRenderable`, and `privateOnly`
+  in GROQ before the limit, then keysets on `(captureSequence.sequence, mediaId)`.
+- Cursors carry the `capture-sequence-v1` ordering scope, so a manual or seeded token
+  fails `wrong-scope`.
+- `visibilityVersion` is the newest member media's `_updatedAt`.
+- A gallery that also has placements is refused rather than merged.
+- Enquiry resolves the item by `mediaId` inside that gallery. The target carries no
+  `placementId`, and the email omits the placement line.
+
+Studio validation (`sanity/schemas/capture-sequence.ts`, `gallery.ts`,
+`gallery-placement.ts`) blocks every combination the read would refuse. The mock fixture
+`content-capture-sequence` has 40 photographs in two sections, authored in reverse, and
+`e2e/gallery-capture-sequence.spec.ts` walks it without JavaScript. Still unbuilt: the
+folder importer (ADR-0022 §6) and the per-gallery conversion of existing Production
+galleries (§7).
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a

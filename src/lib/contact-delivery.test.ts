@@ -156,6 +156,24 @@ describe("buildEnquiryEmail", () => {
   });
 });
 
+describe("buildEnquiryEmail — capture-sequence gallery (ADR-0022 §5)", () => {
+  it("names the gallery and photograph but no placement, because there is none", () => {
+    const target: ResolvedEnquiryTarget = {
+      kind: "curated",
+      mediaId: "rally-photo-0327",
+      contentId: "rally-example-2024",
+      sectionId: "ss2",
+    };
+    const email = buildEnquiryEmail(message, target, {
+      siteName: "Studio Example",
+      labels,
+    });
+    expect(email.text).toContain("Photograph: rally-photo-0327");
+    expect(email.text).toContain("Gallery: rally-example-2024 / ss2");
+    expect(email.text).not.toContain("Placement:");
+  });
+});
+
 describe("DELIVERY_FAILURE_STATUS", () => {
   it("maps a spent quota to 502, not 503, because a retry cannot help", () => {
     expect(DELIVERY_FAILURE_STATUS["provider-quota-exceeded"]).toBe(502);

@@ -482,3 +482,32 @@ describe("resolveEnquiryTarget — container check short-circuits the source", (
     );
   });
 });
+
+describe("resolveEnquiryTarget — capture-sequence fixture gallery (ADR-0022 §5)", () => {
+  it("resolves a photograph by its mediaId and reports no placement", async () => {
+    const target = await resolveEnquiryTarget(
+      curated("content-capture-sequence", "capture-sequence-0002"),
+    );
+    expect(target).toMatchObject({
+      kind: "curated",
+      mediaId: "capture-sequence-0002",
+      contentId: "content-capture-sequence",
+      sectionId: "morning-stage",
+    });
+    expect(target).not.toHaveProperty("placementId");
+  });
+
+  it("rejects a photograph of the gallery that is not open to enquiries", async () => {
+    const error = await rejectionOf(
+      curated("content-capture-sequence", "capture-sequence-0003"),
+    );
+    expect(error.rejection).toBe("not-enquirable");
+  });
+
+  it("rejects an identity the gallery does not contain", async () => {
+    const error = await rejectionOf(
+      curated("content-capture-sequence", "selected-work-coastal-landscape"),
+    );
+    expect(error.rejection).toBe("unknown-item");
+  });
+});

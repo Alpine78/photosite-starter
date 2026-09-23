@@ -78,8 +78,10 @@ export type EnquiryTargetRequest =
 
 /**
  * The photographer-facing facts an enquiry needs. A discriminated union, so a
- * dynamic target cannot carry a `placementId` and a curated one always does —
- * the same shape `gallery-result.ts` gives its curated and dynamic items.
+ * dynamic target cannot carry a `placementId` — the same shape
+ * `gallery-result.ts` gives its curated and dynamic items. A curated target
+ * carries one whenever its gallery has placements; a capture-sequence gallery
+ * (ADR-0022) has none, because there the occurrence *is* the photograph.
  *
  * `caption`/`credit` are the ADR-0002-resolved values (placement override, then
  * media default) carried for the enquiry email's context; `archiveLocator` is
@@ -90,7 +92,8 @@ export type ResolvedEnquiryTarget =
   | {
       readonly kind: "curated";
       readonly mediaId: string;
-      readonly placementId: string;
+      /** Absent exactly for a capture-sequence gallery (ADR-0022 §5). */
+      readonly placementId?: string;
       readonly contentId: string;
       readonly sectionId?: string;
       readonly archiveLocator?: string;
