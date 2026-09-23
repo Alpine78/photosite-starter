@@ -62,6 +62,7 @@ Two conventions on top of the template:
 | [0019](0019-before-after-image-comparison.md) | AB#23 | Before/after comparison block shared by article/gallery bodies, native range reveal, full-image fallback, and approval-bound Joomla conversion | Proposed |
 | [0020](0020-tab-group-body-block.md) | AB#163 | Tab-group block: bounded named tabs each holding one table, WAI-ARIA Tabs pattern with no-JavaScript stacked fallback, and a strict sibling-paired Joomla `nav-tabs`/`tab-content` recognizer | Proposed |
 | [0021](0021-localized-static-service-routes.md) | AB#164 | Localized static service routes and service hierarchy | Accepted |
+| [0022](0022-capture-sequence-rally-galleries.md) | AB#165 | Capture-sequence rally galleries: media-owned membership, filename-sequence order and section, no placement documents, `itemId = mediaId`; file naming/import contract and per-gallery conversion preconditions (amends ADR-0002 in scope) | Accepted |
 
 Expected further entries:
 
