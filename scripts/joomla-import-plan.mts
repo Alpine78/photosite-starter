@@ -738,6 +738,28 @@ export function validateMigrationDocuments(documents: readonly PlannedDocument[]
           }
         }
       }
+      const caption = document.caption;
+      if (caption !== undefined) {
+        if (!Array.isArray(caption)) {
+          violations.push(`media ${String(mediaId)}: caption must be a localized text array when present`);
+        } else {
+          const captionLanguages = new Set<string>();
+          for (const entry of caption as readonly Record<string, unknown>[]) {
+            const language = entry.language;
+            const value = entry.value;
+            if (typeof language !== "string" || typeof value !== "string" || value.trim().length === 0) {
+              violations.push(`media ${String(mediaId)}: a caption entry is missing a language or a non-empty value`);
+            } else if (captionLanguages.has(language)) {
+              violations.push(`media ${String(mediaId)}: duplicate caption entry for language "${language}"`);
+            } else {
+              captionLanguages.add(language);
+            }
+          }
+        }
+      }
+      if (document.credit !== undefined && (typeof document.credit !== "string" || document.credit.trim().length === 0)) {
+        violations.push(`media ${String(mediaId)}: credit must be a non-empty string when present`);
+      }
     }
 
     if (document._type === ARTICLE_TYPE_NAME || document._type === "gallery") {
