@@ -58,7 +58,8 @@ import {
   uploadSeedImageAsset,
   type SeedConnection,
 } from "./sanity-seed-http.mts";
-import { resolveContainedSourcePath } from "./write-joomla-content.mts";
+import type { RequestOptions } from "./sanity-read-http.mts";
+import { chunkIdsByByteBudget, resolveContainedSourcePath } from "./write-joomla-content.mts";
 
 class RallyConversionWriteError extends Error {
   constructor(message: string) {
@@ -212,7 +213,18 @@ function requiredToken(envName: string): string {
   return value;
 }
 
-async function readSnapshot(connection: SeedConnection, plan: RallyConversionPlan): Promise<RallyConversionSnapshot> {
+/**
+ * A fresh, raw-perspective snapshot of exactly what the plan touches. Every id
+ * list goes into a GET URL, which Sanity caps (`sanity-read-http.mts`'s 11 KiB),
+ * so ids are sent in byte-budgeted chunks rather than as one array: a 107-photo
+ * gallery already needs 214 ids for media and their drafts, past the cap in a
+ * single request. `options` exists so a test can inject a fake transport.
+ */
+export async function readSnapshot(
+  connection: SeedConnection,
+  plan: RallyConversionPlan,
+  options?: RequestOptions,
+): Promise<RallyConversionSnapshot> {
   const galleryIds = plan.galleries.map((gallery) => gallery._id);
   const mediaIds = [
     ...plan.mediaPatches.map((patch) => patch._id),
@@ -220,29 +232,32 @@ async function readSnapshot(connection: SeedConnection, plan: RallyConversionPla
   ];
   const draftCandidateIds = [...galleryIds, ...mediaIds].map((id) => `drafts.${id}`);
 
-  const result = (await runSeedQuery(
-    connection,
-    {
-      query: `{
-        "galleries": *[_id in $galleryIds]{
-          _id,
-          orderingRule,
-          "placementIds": *[_type == "galleryPlacement" && gallery._ref == ^._id]._id
-        },
-        "media": *[_id in $mediaIds]{_id, mediaId, captureSequence},
-        "draftIds": *[_id in $draftIds]._id
-      }`,
-      params: { galleryIds, mediaIds, draftIds: draftCandidateIds },
-      perspective: "raw",
-    },
-  )) as { galleries?: CurrentGalleryState[]; media?: CurrentMediaState[]; draftIds?: string[] } | null;
-  if (result === null || typeof result !== "object") fail("the dataset answered the snapshot query unexpectedly");
-
-  return {
-    galleries: result.galleries ?? [],
-    media: result.media ?? [],
-    unpublishedCopyIds: (result.draftIds ?? []).map((id) => publishedIdOf(id)),
+  const ask = async (query: string, ids: readonly string[]): Promise<readonly unknown[]> => {
+    const rows = await runSeedQuery(connection, { query, params: { ids }, perspective: "raw" }, options);
+    if (!Array.isArray(rows)) fail("the dataset answered a snapshot query with something other than a list");
+    return rows;
   };
+
+  const galleries = (await ask(
+    `*[_id in $ids]{
+      _id,
+      orderingRule,
+      "placementIds": *[_type == "galleryPlacement" && gallery._ref == ^._id]._id
+    }`,
+    galleryIds,
+  )) as CurrentGalleryState[];
+
+  const media: CurrentMediaState[] = [];
+  for (const ids of chunkIdsByByteBudget(mediaIds)) {
+    media.push(...((await ask(`*[_id in $ids]{_id, mediaId, captureSequence}`, ids)) as CurrentMediaState[]));
+  }
+
+  const draftIds: string[] = [];
+  for (const ids of chunkIdsByByteBudget(draftCandidateIds)) {
+    draftIds.push(...((await ask(`*[_id in $ids]._id`, ids)) as string[]));
+  }
+
+  return { galleries, media, unpublishedCopyIds: draftIds.map((id) => publishedIdOf(id)) };
 }
 
 async function main(): Promise<void> {

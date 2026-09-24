@@ -21,7 +21,8 @@ import {
   type RallyConversionSnapshot,
 } from "./rally-conversion-write.mts";
 import { parseRallyManifest, type RallyManifest, type ScannedFile } from "./rally-import-plan.mts";
-import { parseArguments } from "./write-rally-conversion.mts";
+import { parseSeedConnection } from "./sanity-seed-http.mts";
+import { parseArguments, readSnapshot } from "./write-rally-conversion.mts";
 
 const CONTENT_ID = "rally-example-2021";
 const GALLERY_FI = `migrated--gallery-${CONTENT_ID}-fi`;
@@ -48,7 +49,8 @@ function manifest(overrides: Record<string, unknown> = {}): RallyManifest {
 }
 
 const hash = (n: number) => n.toString(16).padStart(64, "0");
-const mediaIdOf = (n: number) => `${CONTENT_ID}-m${n}`;
+// Realistic length: a real minted mediaId ends in 16 hex characters, and the id length is what decides how many fit a GET URL.
+const mediaIdOf = (n: number) => `${CONTENT_ID}-${n.toString(16).padStart(16, "0")}`;
 const mediaDocIdOf = (n: number) => `migrated--media-${mediaIdOf(n)}`;
 
 function file(n: number, section: "SS1" | "SS2"): ScannedFile {
@@ -395,5 +397,83 @@ describe("parseArguments", () => {
     expect(() => parseArguments(base.slice(0, 8))).toThrow(/--backup-archive/);
     expect(() => parseArguments([...base, "--backup-max-age-hours", "0"])).toThrow(/positive number/);
     expect(() => parseArguments([...base, "--token", "x"])).toThrow(/unknown option/);
+  });
+});
+
+describe("readSnapshot", () => {
+  const MAX_URL_BYTES = 11 * 1024; // sanity-read-http.mts's documented GET cap
+
+  /** A gallery big enough that one array of ids cannot fit a GET URL — the real Secto 2021 shape. */
+  function bigPlan() {
+    const production: ProductionSnapshot = {
+      galleries: ["fi", "en"].map((language) => ({
+        _id: `migrated--gallery-${CONTENT_ID}-${language}`,
+        language,
+        orderingRule: "manual",
+        sections,
+        placements: Array.from({ length: 107 }, (_u, index) => placement(language, index + 1, index + 1, "category-1")),
+      })),
+      placementsElsewhere: [],
+    };
+    const bigFiles = Array.from({ length: 107 }, (_u, index) => file(index + 1, "SS1"));
+    const bigArtifacts = Array.from({ length: 107 }, (_u, index) => ({
+      mediaId: mediaIdOf(index + 1),
+      contentHash: hash(index + 1),
+      sourceLocator: `stories/rally/${index + 1}.jpg`,
+    }));
+    const result = buildRallyConversionPlan({
+      manifest: manifest({ sections: [{ key: "SS1", sectionId: "category-1", slug: "ss-1", label: { fi: "EK 1", en: "SS 1" } }] }),
+      files: bigFiles,
+      artifacts: bigArtifacts,
+      production,
+      acceptInterleavedSections: false,
+      acceptRemovedDuplicates: false,
+      allowNewPhotographs: false,
+      now: new Date("2026-09-24T00:00:00.000Z"),
+      mintMediaId: () => "unused",
+    });
+    if (result.plan === undefined) throw new Error(`big fixture blocked: ${result.blockers.join("; ")}`);
+    return result.plan;
+  }
+
+  it("keeps every request under the GET cap for a 107-photograph gallery and still sees everything", async () => {
+    const plan = bigPlan();
+    const seen: { url: string; bytes: number }[] = [];
+    const draftOfFirstPhoto = `drafts.${plan.mediaPatches[0]?._id}`;
+
+    // A fake Content Lake that answers the three snapshot query shapes by their text and `$ids` parameter.
+    const fetchImplementation = (async (url: string) => {
+      const bytes = new TextEncoder().encode(url).length;
+      seen.push({ url, bytes });
+      const parsed = new URL(url);
+      const query = parsed.searchParams.get("query") ?? "";
+      const ids = JSON.parse(parsed.searchParams.get("$ids") ?? "[]") as string[];
+      let result: unknown;
+      if (query.includes("placementIds")) {
+        result = ids.map((id) => ({
+          _id: id,
+          orderingRule: "manual",
+          placementIds: plan.placementDeletions.filter((deletion) => deletion.galleryId === id).map((deletion) => deletion._id),
+        }));
+      } else if (query.includes("captureSequence")) {
+        result = ids.map((id) => ({ _id: id, mediaId: id.replace("migrated--media-", "") }));
+      } else {
+        result = ids.filter((id) => id === draftOfFirstPhoto);
+      }
+      return new Response(JSON.stringify({ result }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const snapshot = await readSnapshot(
+      parseSeedConnection({ projectId: "qq8viq8z", dataset: "production", apiVersion: "v2025-02-19", token: "test-token" }),
+      plan,
+      { fetchImplementation },
+    );
+
+    expect(seen.length).toBeGreaterThan(3); // ids really were split across requests
+    for (const request of seen) expect(request.bytes).toBeLessThanOrEqual(MAX_URL_BYTES);
+    expect(snapshot.media).toHaveLength(107);
+    expect(snapshot.galleries.map((gallery) => gallery.placementIds.length)).toEqual([107, 107]);
+    // A draft found in any chunk is reported by its published id.
+    expect(snapshot.unpublishedCopyIds).toEqual([plan.mediaPatches[0]?._id]);
   });
 });
