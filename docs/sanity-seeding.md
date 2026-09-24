@@ -1424,6 +1424,64 @@ back the galleries and the gallery's photograph count to compare with the plan.
 
 Documents are written as published, so the gallery is live as soon as the write finishes.
 
+## Planning an existing rally gallery's conversion (AB#169)
+
+A placement-based rally gallery already in Production is converted to capture sequence one
+gallery at a time ([ADR-0022](adr/0022-capture-sequence-rally-galleries.md) §7). This
+first step plans the conversion. It writes nothing to Sanity. Deleting the placements
+and switching the rule is a separate, later step.
+
+1. **Copy the gallery's source files into a new folder** and rename them to the
+   `<filePrefix>_<NNNN>_<sectionKey>.jpg` convention. Rename only: a re-export from
+   Lightroom changes the bytes, and the file can then no longer be recognized as the
+   published photograph.
+2. **Write `rally.json`** with each section's existing `sectionId` and `slug`, so every
+   published `?section=` address keeps working:
+
+   ```json
+   { "key": "SS15_Harju_2", "sectionId": "category-3", "slug": "ss-15-harju-2",
+     "label": { "fi": "SS 15 - Harju 2", "en": "SS 15 - Harju 2" } }
+   ```
+
+3. **Run:**
+
+   ```bash
+   SANITY_PROJECT_ID=… SANITY_DATASET=production SANITY_API_VERSION=v2025-02-19 \
+   npm run plan:rally-conversion -- --gallery <contentId> --folder <renamed copy> \
+     --artifacts <folder of import plans> --out <report folder>
+   ```
+
+The published gallery is read **without a token**, under the published perspective only.
+Every file is recognized by content hash through the import artifacts'
+`assetRequirements`, because Sanity stores no file names. The result:
+
+- **The photographs keep their existing documents and `mediaId`s.**
+- **Refused:** a published photograph with no file in the folder, a hidden or pinned
+  placement, or a photograph already in another capture-sequence gallery.
+- **Refused unless you pass `--allow-new-photographs`:** a file that matches no published
+  photograph.
+- **Refused unless you pass `--accept-removed-duplicates`:** a photograph placed twice.
+- **Placement alt text:** an override equal to the photograph's own alt text in that
+  language is redundant and is simply dropped. One that differs refuses the conversion.
+- **Placement captions:** moved onto the photograph when the photograph has no caption
+  in that language, or the same one. A conflicting caption refuses the conversion.
+- **Use in another gallery,** such as the best-of, is reported, not refused.
+
+`rally-conversion-report.json` lists every photograph whose position changes (`moved`),
+every duplicate placement that disappears (`duplicate-removed`), every section change,
+and every added photograph. Review it before approving the `conversionDigest`. The plan,
+`rally-conversion-plan.json`, holds the media patches (`captureSequence`, plus a caption
+where one moves), any new photographs, and the placements the write step will delete.
+
+**Known per-gallery facts (2026-09-23):**
+
+- **Secto Rally Finland 2021:** 14 files in the SS15 folder have no stage in their names.
+  After renaming, a read-only rehearsal planned it with no deviations: 107 photographs,
+  214 placements.
+- **Rally Estonia 2023:** the owner decided that the 31 photographs also placed in SS19
+  are SS14 photographs, and that SS19 receives its own 37 unpublished photographs. Plan
+  it with `--accept-removed-duplicates --allow-new-photographs`.
+
 ## Rotating a seeded-random gallery's order (AB#129)
 
 A gallery whose `orderingRule` is `seeded-random` (ADR-0009) has a per-placement

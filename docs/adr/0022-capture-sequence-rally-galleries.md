@@ -358,3 +358,38 @@ image bytes out of Sanity, or choosing a plan, is a separate decision.
   on either Sanity page consulted. The figures assume assets count, as the Production
   audit did.
 - **The Sanity plan and any move of image bytes out of Sanity** are not decided here.
+
+## Amendment 2026-09-23: placement overrides do exist (AB#169)
+
+**Correction to the Context.** The Context above says no placement carries an `alt`,
+`caption`, or `credit` override. That check queried the wrong field names. The placement
+fields are `altOverride` and `captionOverride`, and a re-check of the published dataset
+found:
+
+- **`altOverride` on every one of the 3,350 placements.** Each one checked in Secto Rally
+  Finland 2021 repeats the photograph's own alt text in that language word for word.
+- **`captionOverride` on 214 placements,** 107 in each language:
+  - 85 in Secto Rally Finland 2022;
+  - one each in Neste Rally Finland 2016, Rally Estonia 2023, and Secto Rally Finland
+    2023;
+  - 19 in the `Rally Finland 2001–2019` best-of, which stays placement-based.
+
+**What changes in §7.** Precondition 3's promise that "nothing is lost" now rests on two
+rules the conversion planner enforces:
+
+- An alt override identical to the photograph's own alt text in that language is
+  redundant and is dropped with its placement. One that differs blocks the gallery.
+- A placement caption moves onto the photograph's own `caption` in that language when
+  the photograph has none there, or the same text. A conflicting caption blocks the
+  gallery.
+
+Because a photograph belongs to at most one capture-sequence gallery, a caption moved
+onto it cannot surface in another capture-sequence gallery. Its use in a curated gallery
+such as the best-of shows it only where that gallery has no caption override of its own.
+The planner reports every such reuse.
+
+**Estonia 2023 (owner decision, recorded on AB#169).** Its 31 photographs placed in both
+SS14 and SS19 were an error carried over from the old site's gallery. They stay in SS14,
+and SS19 receives its own 37 unpublished photographs. This is the one conversion that
+adds photographs, and it does so only with the planner's explicit
+`--allow-new-photographs`.

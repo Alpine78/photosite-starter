@@ -113,6 +113,27 @@ export function parseReadConnection(
   },
   { now = new Date() }: { readonly now?: Date } = {},
 ): ReadConnection {
+  const target = parsePublicReadTarget(input, { now });
+  if (input.token.trim().length === 0 || /\s/.test(input.token)) {
+    throw new SanityReadConfigurationError(
+      "Invalid token: must be non-empty and contain no whitespace",
+    );
+  }
+  return { ...target, token: input.token };
+}
+
+/** Where a tokenless, published-only read goes: a connection without a credential. */
+export type PublicReadTarget = Omit<ReadConnection, "token">;
+
+/** The same project, dataset, and API-version rules as `parseReadConnection`, without a token. */
+export function parsePublicReadTarget(
+  input: {
+    readonly projectId: string;
+    readonly dataset: string;
+    readonly apiVersion: string;
+  },
+  { now = new Date() }: { readonly now?: Date } = {},
+): PublicReadTarget {
   if (!PROJECT_ID_PATTERN.test(input.projectId)) {
     throw new SanityReadConfigurationError(
       `Invalid project id: expected 1-63 lowercase letters, digits, or inner hyphens, received "${input.projectId}"`,
@@ -124,17 +145,11 @@ export function parseReadConnection(
     );
   }
   assertRealCalendarDate(input.apiVersion, now);
-  if (input.token.trim().length === 0 || /\s/.test(input.token)) {
-    throw new SanityReadConfigurationError(
-      "Invalid token: must be non-empty and contain no whitespace",
-    );
-  }
 
   return {
     projectId: input.projectId,
     dataset: input.dataset,
     apiVersion: input.apiVersion,
-    token: input.token,
   };
 }
 
@@ -204,7 +219,7 @@ export type ReadQueryRequest = {
 /** Restates `sanity-client.ts`'s documented 11 KB GET cap. */
 const MAX_READ_QUERY_URL_BYTES = 11 * 1024;
 
-function buildQueryUrl(connection: ReadConnection, request: ReadQueryRequest): string {
+function buildQueryUrl(connection: PublicReadTarget, request: ReadQueryRequest): string {
   const entries: (readonly [string, string])[] = [
     ["query", request.query],
     ["perspective", request.perspective ?? "published"],
@@ -241,6 +256,29 @@ export async function runReadQuery(
         Authorization: `Bearer ${connection.token}`,
       },
     },
+    options,
+  );
+  const body = await readSanityJsonResponse(response, "Query");
+  if (typeof body !== "object" || body === null || !("result" in body)) {
+    throw new SanityReadHttpError("Query returned an unexpected response shape");
+  }
+  return (body as { readonly result: unknown }).result;
+}
+
+/**
+ * A published-perspective read with **no credential at all** — for owner-run
+ * tools that only need what a public dataset already shows every visitor
+ * (AB#169's conversion planner). It never sends an `Authorization` header and
+ * cannot ask for the raw perspective, so it cannot see a draft by accident.
+ */
+export async function runPublicReadQuery(
+  target: PublicReadTarget,
+  request: Omit<ReadQueryRequest, "perspective">,
+  options?: RequestOptions,
+): Promise<unknown> {
+  const response = await sendSanityHttpRequest(
+    buildQueryUrl(target, { ...request, perspective: "published" }),
+    { method: "GET", headers: { Accept: "application/json" } },
     options,
   );
   const body = await readSanityJsonResponse(response, "Query");
