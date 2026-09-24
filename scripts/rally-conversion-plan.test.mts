@@ -203,6 +203,28 @@ describe("buildRallyConversionPlan", () => {
     expect(accepted.plan?.placementDeletions).toHaveLength(10);
   });
 
+  it("does not block on the overrides of a duplicate the folder places in another section, but still blocks a kept one", () => {
+    const withDuplicate = (language: string, keptAlt: string | null) =>
+      gallery(language, [
+        placement(language, 1, 1, "category-1", keptAlt === null ? {} : { altOverride: keptAlt }),
+        placement(language, 2, 2, "category-1"),
+        placement(language, 3, 3, "category-2"),
+        placement(language, 1, 4, "category-2", { altOverride: "another stage, photograph 1" }),
+        placement(language, 4, 5, "category-2"),
+      ]);
+    const production = (keptAlt: string | null) => ({
+      galleries: [withDuplicate("fi", keptAlt), withDuplicate("en", keptAlt)],
+      placementsElsewhere: [],
+    });
+    // The folder keeps photograph 1 in SS1 (its first placement); the SS2 copy and its alt text go away.
+    const kept = convert({ production: production(null), acceptRemovedDuplicates: true });
+    expect(kept.blockers).toEqual([]);
+    expect(kept.plan?.placementDeletions).toHaveLength(10);
+    // A differing alt text on the placement that survives is still refused.
+    const lost = convert({ production: production("a hand-written alt"), acceptRemovedDuplicates: true });
+    expect(lost.blockers).toContainEqual(expect.stringMatching(/^placements whose own alt text differs.*: 2 \(/u));
+  });
+
   it("adds new photographs only with explicit permission", () => {
     const withNew = [...files, file(9, "SS2", hash(999))];
     expect(convert({ files: withNew }).blockers).toContainEqual(expect.stringMatching(/--allow-new-photographs/));
@@ -263,9 +285,9 @@ describe("buildRallyConversionPlan", () => {
     expect(result.plan).toBeUndefined();
     expect(result.blockers).toEqual([
       expect.stringMatching(/^hidden placements.*: 2 \(/u),
+      expect.stringMatching(/^photographs already in another capture-sequence gallery: 1 \(.*another-rally\)/u),
       expect.stringMatching(/^placements whose own alt text differs.*: 2 \(/u),
       expect.stringMatching(/^placement captions that conflict.*: 2 \(/u),
-      expect.stringMatching(/^photographs already in another capture-sequence gallery: 1 \(.*another-rally\)/u),
     ]);
   });
 
