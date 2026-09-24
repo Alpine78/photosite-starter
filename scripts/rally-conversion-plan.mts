@@ -248,32 +248,11 @@ export function buildRallyConversionPlan(input: {
   );
   const hidden: string[] = [];
   const pinned: string[] = [];
-  const differingAlt: string[] = [];
-  const conflictingCaption: string[] = [];
   const otherCapture: string[] = [];
-  let redundantAltOverrides = 0;
-  const movedCaptions = new Map<string, Map<string, string>>();
   for (const { gallery, placement } of allPlacements) {
     const at = `${placement.placementId} (${gallery.language})`;
     if (placement.visible !== true) hidden.push(at);
     if (placement.pinned === true) pinned.push(at);
-    if (placement.altOverride !== undefined && placement.altOverride !== null) {
-      if (placement.altOverride === textIn(placement.mediaAlt, gallery.language)) redundantAltOverrides += 1;
-      else differingAlt.push(at);
-    }
-    if (placement.captionOverride !== undefined && placement.captionOverride !== null) {
-      const own = textIn(placement.mediaCaption, gallery.language);
-      const caption = placement.captionOverride;
-      const already = movedCaptions.get(placement.mediaId)?.get(gallery.language);
-      if (typeof caption !== "string" || caption.trim().length === 0) conflictingCaption.push(at);
-      else if (own !== undefined && own !== caption) conflictingCaption.push(at);
-      else if (already !== undefined && already !== caption) conflictingCaption.push(at);
-      else if (own === undefined) {
-        const perLanguage = movedCaptions.get(placement.mediaId) ?? new Map<string, string>();
-        perLanguage.set(gallery.language, caption);
-        movedCaptions.set(placement.mediaId, perLanguage);
-      }
-    }
     if (
       placement.mediaCaptureGallery !== undefined &&
       placement.mediaCaptureGallery !== null &&
@@ -285,8 +264,6 @@ export function buildRallyConversionPlan(input: {
   for (const line of [
     summarize("hidden placements, which a capture-sequence gallery cannot keep", hidden),
     summarize("pinned placements, which a capture-sequence gallery cannot keep", pinned),
-    summarize("placements whose own alt text differs from the photograph's", differingAlt),
-    summarize("placement captions that conflict with the photograph's own caption", conflictingCaption),
     summarize("photographs already in another capture-sequence gallery", [...new Set(otherCapture)]),
   ]) {
     if (line !== undefined) blockers.push(line);
@@ -409,6 +386,49 @@ export function buildRallyConversionPlan(input: {
       (document.captureSequence as { sectionId: string }).sectionId,
     ]),
   );
+  // A placement of a photograph that lands in another section (the owner's
+  // folder decides, and a photograph belongs to one section) is a removed
+  // duplicate: its own overrides go with it. Every other placement's alt text and
+  // caption must survive, so a differing one blocks.
+  const differingAlt: string[] = [];
+  const conflictingCaption: string[] = [];
+  let redundantAltOverrides = 0;
+  const movedCaptions = new Map<string, Map<string, string>>();
+  for (const { gallery, placement } of allPlacements) {
+    const at = `${placement.placementId} (${gallery.language})`;
+    const landsIn = sectionOf.get(placement.mediaId);
+    const removedDuplicate =
+      landsIn !== undefined &&
+      landsIn !== (placement.sectionId ?? "") &&
+      gallery.placements.some(
+        (other) => other.mediaId === placement.mediaId && (other.sectionId ?? "") === landsIn,
+      );
+    if (removedDuplicate) continue;
+    if (placement.altOverride !== undefined && placement.altOverride !== null) {
+      if (placement.altOverride === textIn(placement.mediaAlt, gallery.language)) redundantAltOverrides += 1;
+      else differingAlt.push(at);
+    }
+    if (placement.captionOverride !== undefined && placement.captionOverride !== null) {
+      const own = textIn(placement.mediaCaption, gallery.language);
+      const caption = placement.captionOverride;
+      const already = movedCaptions.get(placement.mediaId)?.get(gallery.language);
+      if (typeof caption !== "string" || caption.trim().length === 0) conflictingCaption.push(at);
+      else if (own !== undefined && own !== caption) conflictingCaption.push(at);
+      else if (already !== undefined && already !== caption) conflictingCaption.push(at);
+      else if (own === undefined) {
+        const perLanguage = movedCaptions.get(placement.mediaId) ?? new Map<string, string>();
+        perLanguage.set(gallery.language, caption);
+        movedCaptions.set(placement.mediaId, perLanguage);
+      }
+    }
+  }
+  for (const line of [
+    summarize("placements whose own alt text differs from the photograph's", differingAlt),
+    summarize("placement captions that conflict with the photograph's own caption", conflictingCaption),
+  ]) {
+    if (line !== undefined) blockers.push(line);
+  }
+
   const fileOf = new Map(
     (imported.plan?.assetRequirements ?? []).map((asset) => [asset.mediaId, asset.relativePath]),
   );

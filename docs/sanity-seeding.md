@@ -1476,11 +1476,60 @@ where one moves), any new photographs, and the placements the write step will de
 **Known per-gallery facts (2026-09-23):**
 
 - **Secto Rally Finland 2021:** 14 files in the SS15 folder have no stage in their names.
-  After renaming, a read-only rehearsal planned it with no deviations: 107 photographs,
-  214 placements.
+  After renaming, it was planned with no deviations (107 photographs, 214 placements) and
+  **converted in Production on 2026-09-24**, the first real run of `write:rally-conversion`.
+  The read-back matched the plan, and an independent tokenless read confirmed both
+  galleries are `capture-sequence`, no placement references them, all 107 photographs are
+  in ascending sequence, and the section counts are 32/11/14/16/34. Production went from
+  6,820 to 6,606 documents. A rehearsal of the write's fresh snapshot against the real
+  dataset before the run found that its id lists overflowed the GET URL cap at 107
+  photographs; the queries are now chunked, with a regression test.
+- **Neste Rally Finland 2016:** needed no renaming (all 126 files already follow
+  `NRF_2016_NNNN_<stage>.jpg`; an earlier "one unnumbered file" was a number that looked
+  like a year). **Converted in Production on 2026-09-24:** 126 photographs, 252
+  placements deleted, and one placement caption ("Ferrari / Näytösajo Harjulla", photograph
+  19) moved onto the photograph. The independent read-back matched: 0 placements left,
+  126 members in ascending sequence, sections 35/18/17/27/17/12, and the other eight rally
+  galleries untouched.
+- **Neste Rally Finland 2018:** converted in Production on 2026-09-24 (verified: 0
+  placements left, both galleries `capture-sequence`, sequences ascending and unique).
+- **Secto Rally Finland 2023** (120 photographs, two captions moved) and **TET Rally
+  Latvia 2024** (226 photographs): no renaming beyond the convention and no deviations.
+  Converted on 2026-09-24 and verified the same way.
+- **Neste Rally Finland 2017:** a folder name with a space ("Podium WRC") is not a valid
+  stage key, so the copy's keys are the source folder names with anything outside
+  `A–Z a–z 0–9 _ -` replaced by `_`. Two "SS 21 Päijälä 2" photographs (numbers 4913 and
+  4922) sit before the end of the "SS 18 Saalahti 2" range, so the two sections
+  interleave; the owner approved that (`--accept-interleaved-sections`), and the two
+  photographs move. 291 photographs, converted on 2026-09-24.
+- **Neste Rally Finland 2019:** two sections ("SS 13 Päijälä 1" and its Vetomiehet
+  section) share one stage id in their file names; the copy separates them by source
+  folder name. One SS3-named file sits in the SS9 section and stays there (the owner
+  had moved it to the right folder without renaming). Three service-park photographs
+  (numbers 673, 695, 731) now come before the SS9 photographs by running number, so they
+  move from positions 40–42 to 14–16; the owner approved the change. 172 photographs,
+  converted on 2026-09-24.
 - **Rally Estonia 2023:** the owner decided that the 31 photographs also placed in SS19
-  are SS14 photographs, and that SS19 receives its own 37 unpublished photographs. Plan
-  it with `--accept-removed-duplicates --allow-new-photographs`.
+  are SS14 photographs, and that SS19 receives its own 37 unpublished photographs
+  (`SS19_Toyota_Kambja_1`). Planned with `--accept-removed-duplicates
+  --allow-new-photographs`: 31 duplicates removed, 37 added, 203 existing photographs
+  patched, 240 in total. Converted on 2026-09-24; the 37 new photographs are renderable
+  with their image assets. (The read-only reconcile rehearsal does not upload, so it
+  cannot build the write waves for a plan with new photographs and stops there; the
+  write itself is unaffected.)
+- **Secto Rally Finland 2022:** the file names carried per-stage numbers, so running
+  numbers were not unique across the gallery. The copy is numbered `0001…0213` in the
+  gallery's existing order, which keeps every photograph where it is (no deviations);
+  the photographer's original numbers are not retained. 213 photographs, 170 captions
+  moved onto photographs. Converted on 2026-09-24.
+
+After these conversions Production held 3,581 documents (from 6,820) and 38
+`galleryPlacement` documents, all belonging to the placement-based "Rally Finland
+2001–2019" best-of collection, which stays curated.
+
+A placement of a photograph that the folder puts in a different section is a removed
+duplicate, and its own alt text or caption override goes with it; the planner no longer
+blocks on those, only on overrides of the placement that survives.
 
 ## Writing an approved rally gallery conversion (AB#170)
 
