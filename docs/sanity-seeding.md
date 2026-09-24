@@ -1496,6 +1496,10 @@ The second step of converting an existing rally gallery takes the plan
 sanity datasets export production ./backups/production-$(date +%Y%m%d-%H%M).tar.gz
 ```
 
+`backups/` is gitignored on purpose: an export is a full copy of the dataset, hundreds of
+megabytes with every image, and this repository is public. Keep it that way, and keep the
+archive itself until the converted gallery has been checked on the live site.
+
 ```bash
 npm run write:rally-conversion -- --plan <out>/rally-conversion-plan.json \
   --folder <renamed copy> --out <report folder> --approved-digest <conversionDigest> \

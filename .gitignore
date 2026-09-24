@@ -38,6 +38,10 @@ yarn-error.log*
 .env*
 !.env.example
 
+# owner-run Sanity dataset exports (docs/sanity-seeding.md, "Export and recovery"):
+# a full copy of the dataset, hundreds of MB, never for a public repository
+backups/
+
 # vercel
 .vercel
 
