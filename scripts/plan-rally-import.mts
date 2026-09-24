@@ -107,7 +107,7 @@ async function writeJson(outDir: string, fileName: string, data: unknown): Promi
  * dot-folders (`.DS_Store`, editor state) are skipped, and so is the root
  * `rally.json`; everything else is judged by the planner.
  */
-async function listFiles(root: string, relative = ""): Promise<string[]> {
+export async function listFiles(root: string, relative = ""): Promise<string[]> {
   const entries = await readdir(path.join(root, relative), { withFileTypes: true });
   const files: string[] = [];
   for (const entry of entries.toSorted((a, b) => a.name.localeCompare(b.name))) {
@@ -133,7 +133,7 @@ function orientedDimensions(metadata: Metadata): { width?: number; height?: numb
     : { width: metadata.width, height: metadata.height };
 }
 
-async function scanFile(root: string, relativePath: string): Promise<ScannedFile> {
+export async function scanFile(root: string, relativePath: string): Promise<ScannedFile> {
   const bytes = await readFile(path.join(root, relativePath));
   const contentHash = createHash("sha256").update(bytes).digest("hex");
   try {
@@ -153,7 +153,7 @@ async function scanFile(root: string, relativePath: string): Promise<ScannedFile
   }
 }
 
-async function readJsonFile(filePath: string, label: string): Promise<unknown> {
+export async function readJsonFile(filePath: string, label: string): Promise<unknown> {
   let text: string;
   try {
     text = await readFile(filePath, "utf8");

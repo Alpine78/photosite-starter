@@ -105,7 +105,7 @@ const MANIFEST_FIELDS = new Set([
   "version", "contentId", "filePrefix", "canonicalCategory", "eventDate", "publishedAt",
   "title", "slug", "summary", "photoWord", "cover", "sections",
 ]);
-const SECTION_FIELDS = new Set(["key", "label", "slug"]);
+const SECTION_FIELDS = new Set(["key", "label", "slug", "sectionId"]);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -279,7 +279,13 @@ export function parseRallyManifest(raw: unknown): {
         issues.push(`${at}.key must be the file-name section key: ASCII letters, digits, underscores, or hyphens`);
         return;
       }
-      const sectionId = sectionIdFromKey(key);
+      // An explicit `sectionId` keeps an existing gallery's section identity
+      // when a placement-based gallery is converted (ADR-0022 §7).
+      const sectionId = entry.sectionId === undefined ? sectionIdFromKey(key) : entry.sectionId;
+      if (typeof sectionId !== "string" || !IDENTITY_PATTERN.test(sectionId)) {
+        issues.push(`${at}.sectionId must use lowercase letters, digits, and single hyphens`);
+        return;
+      }
       const sectionSlug = entry.slug === undefined ? sectionId : entry.slug;
       if (typeof sectionSlug !== "string" || !IDENTITY_PATTERN.test(sectionSlug)) {
         issues.push(`${at}.slug must use lowercase letters, digits, and single hyphens`);
