@@ -26,6 +26,7 @@
     "plan:rally": "node scripts/plan-rally-import.mts",
     "write:rally": "node scripts/write-rally-import.mts",
     "plan:rally-conversion": "node scripts/plan-rally-conversion.mts",
+    "write:rally-conversion": "node scripts/write-rally-conversion.mts",
     "write:services": "node scripts/write-sanity-services.mts",
     "admin:secret": "node scripts/generate-admin-secret.mts",
     "recompute:shuffled-order": "node scripts/recompute-shuffled-order.mts",

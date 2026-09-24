@@ -2529,8 +2529,16 @@ by content hash through the import artifacts, so every photograph keeps its docu
 `mediaId`. It keeps existing section ids and slugs, drops alt overrides that repeat the
 photograph's own alt text, and moves placement captions onto the photograph. It reports
 moved, duplicate-removed, and added photographs for approval. New photographs and removed
-duplicates each need an explicit flag. Still unbuilt: the conversion's write step
-(placement deletion and rule switch).
+duplicates each need an explicit flag. The write step (`npm run write:rally-conversion`,
+AB#170, `scripts/rally-conversion-write.mts`) writes an approved conversion, dry-run by
+default: it requires a recent `--backup-archive` (a real, non-trivial, recently modified
+file — the one check this tool can make on an owner-run `sanity datasets export`), then
+with `--yes` re-derives what remains to do from a fresh raw-perspective read rather than
+trusting the plan's own snapshot, so an interrupted run is safe to resume. Photographs are
+written first; a gallery's remaining placement deletions and its `orderingRule` switch to
+`capture-sequence` are always sent in the same mutation call, so no request boundary can
+leave placements referencing a capture-sequence gallery — the one state the public read
+refuses outright. A read-back confirms both galleries afterward.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
@@ -2628,6 +2636,7 @@ npm run write:joomla -- --plan <import-plan.json> --image-root <dir> --out <dir>
 npm run plan:rally -- --folder <rally folder> --out <dir> # owner-run: plan a capture-sequence rally import offline, never writes
 npm run write:rally -- --plan <plan.json> --folder <rally folder> --out <dir> --approved-digest <hash> # owner-run: write an approved rally plan to Sanity, dry-run by default
 npm run plan:rally-conversion -- --gallery <contentId> --folder <renamed copy> --artifacts <dir> --out <dir> # owner-run: plan converting a published rally gallery, read-only
+npm run write:rally-conversion -- --plan <plan.json> --folder <renamed copy> --out <dir> --approved-digest <hash> --backup-archive <path> # owner-run: write an approved rally gallery conversion to Sanity, dry-run by default
 npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
 ```
 
