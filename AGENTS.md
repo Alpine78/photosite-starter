@@ -2538,7 +2538,16 @@ trusting the plan's own snapshot, so an interrupted run is safe to resume. Photo
 written first; a gallery's remaining placement deletions and its `orderingRule` switch to
 `capture-sequence` are always sent in the same mutation call, so no request boundary can
 leave placements referencing a capture-sequence gallery — the one state the public read
-refuses outright. A read-back confirms both galleries afterward.
+refuses outright. A read-back confirms both galleries afterward. **Nine Production
+galleries were converted this way on 2026-09-24** — Secto Rally Finland 2021, 2022 and
+2023, Neste Rally Finland 2016, 2017, 2018 and 2019, TET Rally Latvia 2024, and Rally
+Estonia 2023 — each verified by an independent tokenless read; Production went from
+6,820 to 3,581 documents. The placement-based "Rally Finland 2001–2019" best-of gallery
+(38 placements) stays curated. The per-gallery decisions are in
+`docs/sanity-seeding.md`. Converting them surfaced a deployment fact worth knowing: the
+Azure `DeployPreview` stage has been failing on exhausted Microsoft-hosted minutes since
+2026-09-23, so merged code does not deploy by itself — see `docs/deployment.md`, "When the
+pipeline cannot deploy".
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
