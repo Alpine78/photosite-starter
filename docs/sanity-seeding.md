@@ -1482,6 +1482,63 @@ where one moves), any new photographs, and the placements the write step will de
   are SS14 photographs, and that SS19 receives its own 37 unpublished photographs. Plan
   it with `--accept-removed-duplicates --allow-new-photographs`.
 
+## Writing an approved rally gallery conversion (AB#170)
+
+The second step of converting an existing rally gallery takes the plan
+`plan:rally-conversion` wrote and puts it into Sanity: existing photographs gain their
+`captureSequence`, any owner-approved new photographs are created, the old
+`galleryPlacement` documents are deleted, and both language galleries switch to
+`orderingRule: capture-sequence`.
+
+**Before running this with `--yes`, take a fresh export:**
+
+```bash
+sanity datasets export production ./backups/production-$(date +%Y%m%d-%H%M).tar.gz
+```
+
+```bash
+npm run write:rally-conversion -- --plan <out>/rally-conversion-plan.json \
+  --folder <renamed copy> --out <report folder> --approved-digest <conversionDigest> \
+  --backup-archive ./backups/production-<timestamp>.tar.gz [--yes]
+```
+
+**Without `--yes` it is a dry run**, and makes no network request at all: it validates
+the plan, recomputes its digest and compares it with `--approved-digest`, checks
+`--backup-archive` exists, is not a trivially small or placeholder file, and was
+modified within `--backup-max-age-hours` (24 by default — export again if it is
+older), and re-verifies every new photograph locally.
+
+This tool cannot run `sanity datasets export` itself and cannot confirm the archive is
+actually of this dataset — only that a real, recent file exists at the path given. That
+is the one check it can make; the export itself, and confirming it restores, stay the
+owner's own step (see "Export and recovery" above).
+
+**With `--yes`,** a fresh, raw-perspective read of the gallery, its placements, and the
+media the plan touches decides what is actually left to do — never the plan's own
+snapshot, which can be stale. This is what makes the command **safe to interrupt and
+rerun**: an already-applied photograph patch or an already-deleted placement is skipped,
+not redone. The run refuses before any write if:
+
+- a placement now references the gallery that the plan does not know about (content was
+  added after planning);
+- a photograph's `captureSequence` now disagrees with the plan;
+- a document the plan touches has an unpublished draft in Studio;
+- a gallery is now ordered by neither `manual` nor `capture-sequence`.
+
+The write order matters and is fixed: photographs (new, then patched) go first, since
+setting `captureSequence` has no effect while a gallery is still `manual`. Only then does
+each language's remaining placement deletions run, batched, with the `orderingRule`
+switch to `capture-sequence` folded into the **same mutation call** as that language's
+last deletion batch. Sanity executes every mutation in one call as a single transaction,
+so this is what stops a request boundary from ever leaving a gallery in the one state the
+public read refuses outright — `capture-sequence` while a `galleryPlacement` still
+references it (`src/lib/sanity-gallery.ts`'s own guard, ADR-0022 §1) — and bounds how long
+a gallery can look emptier than it is to at most one deletion batch.
+
+After the write, a read-back confirms both galleries are `capture-sequence` with zero
+remaining placements and a photograph count matching the plan. `rally-conversion-write-
+report.json` under `--out` records what this run actually did.
+
 ## Rotating a seeded-random gallery's order (AB#129)
 
 A gallery whose `orderingRule` is `seeded-random` (ADR-0009) has a per-placement
