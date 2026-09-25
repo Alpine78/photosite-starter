@@ -17,6 +17,12 @@ const eslintConfig = defineConfig([
     // `npm run lint` reports thousands of problems in minified vendor code.
     "playwright-report/**",
     "test-results/**",
+    // Local, gitignored trees CI never checks out. `.vercel/` holds the
+    // bundled output of a local `vercel build` (thousands of problems in
+    // minified code); `joomla-backup/` is the owner's private migration
+    // archive and its throwaway audit scripts, not application source.
+    ".vercel/**",
+    "joomla-backup/**",
   ]),
   // The CMS boundary, enforced rather than documented (AB#39, ADR-0006).
   // Sanity's HTTP surface and its read token live in two modules; adapters in

@@ -205,6 +205,12 @@ describe("theme contract: explicit light/dark (AC4)", () => {
     }
   });
 
+  it("keeps the editorial preset's two dark blocks in lockstep", () => {
+    expect(Object.fromEntries(presetPinnedDark)).toEqual(
+      Object.fromEntries(presetMediaDark),
+    );
+  });
+
   it("keeps the dark interaction wash stronger than the resting surface fill", () => {
     // Folding `dark:hover:bg-white/10` into the `/5` resting fill would erase
     // the dark hover affordance (Codex plan-review finding 1). Light kept both
