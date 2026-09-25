@@ -7,7 +7,9 @@ This covers the **Preview environment only**. Production promotion (AB#18), exer
 rollback and customer handoff (AB#118), and legacy URL redirects (AB#19) are separate
 work items. The promotion and rollback commands are recorded here because ADR-0004 §3
 requires them decided before the first deployment — but nothing in this repository
-performs them, and no production environment or DNS record exists yet.
+performs them, and no custom production domain or DNS record exists yet. (A
+production-target deployment on the project's `*.vercel.app` address does exist: see
+"A production-target deployment exists" below.)
 
 The reference host and the reasoning behind it are
 [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md). This document
@@ -91,8 +93,9 @@ authoritative for the exact clicks. What this project needs from it:
 
    `58.9.1` is the version `azure-pipelines.yml` pins in `vercelCliVersion`; that file
    is the source of truth, so read it from there if the two ever disagree. Do not run
-   `vercel deploy` from a local checkout: it would create a deployment that skipped
-   every gate.
+   `vercel deploy` from a local checkout as a routine: it would create a deployment that
+   skipped every gate. The one exception is the gated manual release in "When the
+   pipeline cannot deploy" below.
 
 3. **Leave the region and Node version alone.** `vercel.json` pins the function region to
    Stockholm (`arn1`) and `package.json` `engines` pins Node to the major named in
@@ -982,6 +985,50 @@ already was, until the quota resets (~2 weeks from 2026-09-16) or an extra
 Microsoft-hosted parallel job is purchased — the same state as before this pool existed,
 not a new cost or a new failure.
 
+**It did not recover by 2026-09-24.** Every `main` run from 2026-09-23 failed in
+`DeployPreview` with "Your organization has no free minutes remaining", while `Verify`
+(self-hosted) kept passing. No Preview deployment was created after 2026-09-23 11:54, so
+merged changes did not reach Vercel — and when data changed ahead of code (the rally
+gallery conversions, AB#170), every converted gallery answered 500 on the deployed code
+until a manual release was made. **Check `az pipelines runs list --branch main` and
+`vercel ls` before assuming a merged change is live.**
+
+### When the pipeline cannot deploy
+
+A gated manual release, done by the owner or by an agent the owner has authorized for
+that deployment. "Gated" means the commit is the tip of `main` **and** its `Verify` stage
+succeeded; never deploy a checkout with local changes or an unverified commit.
+
+```bash
+git checkout main && git pull --ff-only          # a clean tree at the verified tip
+npx vercel@<vercelCliVersion> pull --yes --environment=preview
+npx vercel@<vercelCliVersion> build --target=preview
+npx vercel@<vercelCliVersion> deploy --prebuilt --target=preview --archive=tgz
+```
+
+`<vercelCliVersion>` is the pin in `azure-pipelines.yml`. The CLI must already be
+authenticated as the owner; no token is put on a command line. A Preview deployment is
+behind Vercel Authentication, so verify it with `vercel curl <path> --deployment <url>`
+rather than `curl`. What this does **not** do: it does not run `verify:preview`
+(its secrets live in the pipeline's variable group), and it does **not** repoint
+`PREVIEW_STABLE_ALIAS` — repoint that only with the guarded script, or the Sanity
+webhook keeps reaching an older deployment. Record such a release on the work item it
+served.
+
+For the production-target deployment use the staged sequence in "Promotion and rollback"
+below: `--skip-domain`, smoke-test, then an explicit owner approval before
+`vercel promote`.
+
+### A production-target deployment exists
+
+`photosite-starter.vercel.app` is served by a deployment whose target is `production`,
+first created 2026-09-22 (its origin is not recorded; it was not produced by AB#18's
+sequence). It is public, reads the `production` Sanity dataset, and is **not** protected
+the way a Preview is. On 2026-09-24 it was replaced with a release built from the tip of
+`main` through the staged sequence below, with the owner's approval of the deploy and of
+the promote; the previous deployment (`photosite-starter-bx2ijzv9x`) stays available as the
+`vercel rollback` target. Whether this address stays public is AB#18's decision.
+
 Registering the agent (owner-run, on the machine that will build):
 
 1. Azure DevOps → user settings → **Personal access tokens** → create one scoped to
@@ -1081,9 +1128,11 @@ pinned in `package.json`, which executes TypeScript directly.
 
 ## Promotion and rollback
 
-**Recorded, not performed.** AB#18 promotes the first production build; AB#118 exercises
-rollback before handoff. Both are named here because ADR-0004 §3 requires the mechanism
-decided before the first deployment, not discovered during the first incident.
+**Recorded; AB#18 still owns the first production build.** AB#118 exercises rollback
+before handoff. Both are named here because ADR-0004 §3 requires the mechanism decided
+before the first deployment, not discovered during the first incident. The staged
+sequence below was run once by hand on 2026-09-24 (see "A production-target deployment
+exists"); that does not complete AB#18.
 
 Promotion stages a production build without routing traffic to it, smoke-tests that exact
 deployment, and then promotes the same build without rebuilding:
@@ -1142,10 +1191,12 @@ robots directives. It never prints a response body, a token, or a bypass secret.
 
 ## What this does not do
 
-- **No production environment, domain, or DNS record exists.** Nothing here touches the
+- **No custom production domain or DNS record exists.** Nothing here touches the
   registrar or the authoritative nameservers.
-- **No production deployment or promotion has been performed** (AB#18), and rollback has
-  not been exercised (AB#118).
+- **AB#18's production launch has not happened.** A production-target deployment does
+  exist on the project's `*.vercel.app` address and was promoted by hand on 2026-09-24
+  (see above), but the production environment review, the domain, and the hosting-tier
+  decision are still open, and rollback has not been exercised (AB#118).
 - **Nothing here is a legal compliance conclusion.** Each deployment owner remains
   responsible for its own privacy notice, processing record, provider terms, and review.
 - **A passing verification proves two properties**, access protection and non-indexability,
