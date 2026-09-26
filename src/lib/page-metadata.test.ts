@@ -69,6 +69,7 @@ const deployment: DeploymentConfig = {
     routePrefix: "private",
     adminRoutePrefix: "admin",
   },
+  robotsDisallowedAgents: [],
 };
 
 const context = { settings, deployment };

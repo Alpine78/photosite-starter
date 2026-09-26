@@ -36,6 +36,7 @@ const deploymentSettingNames = {
   defaultSocialImageWidth: "SITE_DEFAULT_SOCIAL_IMAGE_WIDTH",
   defaultSocialImageHeight: "SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT",
   defaultSocialImageAlt: "SITE_DEFAULT_SOCIAL_IMAGE_ALT",
+  robotsDisallowedAgents: "SITE_ROBOTS_DISALLOWED_AGENTS",
 } as const;
 
 type DeploymentEnvironment = Record<string, string | undefined>;
@@ -403,6 +404,13 @@ export type DeploymentConfig = {
    * (`private-gallery-config.ts`).
    */
   readonly privateGallery: PrivateGalleryDeployment;
+  /**
+   * Crawler user-agent tokens that production `robots.txt` disallows from the
+   * whole site (AB#181). Empty unless a deployment opts in, so a clone keeps
+   * every crawler it has not named. This is crawl guidance a well-behaved
+   * crawler follows, not access control.
+   */
+  readonly robotsDisallowedAgents: readonly string[];
 };
 
 const englishLabels = {
@@ -1147,6 +1155,58 @@ function parseDefaultSocialImage(
   }
 }
 
+/** Upper bounds that keep a mistyped value from producing an unreadable robots.txt. */
+const MAX_ROBOTS_DISALLOWED_AGENTS = 50;
+const MAX_ROBOTS_AGENT_TOKEN_LENGTH = 64;
+
+/**
+ * Parses the comma-separated crawler tokens production `robots.txt` disallows.
+ *
+ * RFC 9309's `identifier` allows letters, `-`, and `_` only, but crawlers
+ * publish tokens with digits (Majestic's own instruction is `User-agent:
+ * MJ12bot`), so digits are accepted too. Anything else — a space, a slash, a
+ * version suffix, or `*`, which would disallow every crawler — fails the
+ * deployment rather than emitting a line no crawler would match. Crawlers
+ * match tokens case-insensitively, so two spellings of one token are a
+ * duplicate.
+ */
+function parseRobotsDisallowedAgents(
+  environment: DeploymentEnvironment,
+): readonly string[] {
+  const settingName = deploymentSettingNames.robotsDisallowedAgents;
+  const value = readOptionalSetting(environment, settingName);
+  if (value === undefined) return [];
+
+  const tokens = value.split(",").map((token) => token.trim());
+  if (tokens.length > MAX_ROBOTS_DISALLOWED_AGENTS) {
+    throw new Error(
+      `[deployment-config] Invalid ${settingName}: at most ${MAX_ROBOTS_DISALLOWED_AGENTS} user agents, received ${tokens.length}`,
+    );
+  }
+
+  const seen = new Set<string>();
+  for (const token of tokens) {
+    if (
+      token.length === 0 ||
+      token.length > MAX_ROBOTS_AGENT_TOKEN_LENGTH ||
+      !/^[A-Za-z0-9_-]+$/.test(token)
+    ) {
+      throw new Error(
+        `[deployment-config] Invalid ${settingName}: expected comma-separated crawler tokens of letters, digits, "-" or "_", received "${token}"`,
+      );
+    }
+    const key = token.toLowerCase();
+    if (seen.has(key)) {
+      throw new Error(
+        `[deployment-config] Invalid ${settingName}: "${token}" is listed twice`,
+      );
+    }
+    seen.add(key);
+  }
+
+  return tokens;
+}
+
 /**
  * Builds and validates deployment-owned settings. Passing the environment in
  * keeps validation deterministic in tests while production uses process.env.
@@ -1172,6 +1232,7 @@ export function loadDeploymentConfig(
     canonicalBaseUrl,
     defaultSocialImage: parseDefaultSocialImage(environment),
     privateGallery,
+    robotsDisallowedAgents: parseRobotsDisallowedAgents(environment),
   };
 }
 

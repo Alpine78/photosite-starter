@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+// Next's own serializer, so the file a crawler reads is asserted, not only the
+// object handed to the framework.
+import { resolveRobots } from "next/dist/build/webpack/loaders/metadata/resolve-route-data";
+
 import { buildRobotsPolicy } from "@/lib/robots";
 
 const canonicalBaseUrl = new URL("https://example.test");
@@ -59,6 +63,52 @@ describe("buildRobotsPolicy", () => {
       buildRobotsPolicy("preview", canonicalBaseUrl, "private", "admin"),
     ).toEqual({
       rules: { userAgent: "*", disallow: "/" },
+    });
+  });
+  describe("named crawlers (AB#181)", () => {
+    it("adds nothing when no crawler is named, so the file is unchanged", () => {
+      expect(
+        resolveRobots(
+          buildRobotsPolicy("production", canonicalBaseUrl, "private", "admin", []),
+        ),
+      ).toBe(
+        resolveRobots(
+          buildRobotsPolicy("production", canonicalBaseUrl, "private", "admin"),
+        ),
+      );
+    });
+
+    it("disallows the whole site for the named crawlers in their own group ahead of everyone else", () => {
+      const policy = buildRobotsPolicy(
+        "production",
+        canonicalBaseUrl,
+        "private",
+        "admin",
+        ["SemrushBot", "AhrefsBot"],
+      );
+      expect(resolveRobots(policy)).toBe(
+        [
+          "User-Agent: SemrushBot",
+          "User-Agent: AhrefsBot",
+          "Disallow: /",
+          "",
+          "User-Agent: *",
+          "Allow: /",
+          "Disallow: /private/",
+          "Disallow: /admin/",
+          "",
+          "Sitemap: https://example.test/sitemap.xml",
+          "",
+        ].join("\n"),
+      );
+    });
+
+    it("still disallows everything for everyone outside production", () => {
+      expect(
+        buildRobotsPolicy("preview", canonicalBaseUrl, "private", "admin", [
+          "SemrushBot",
+        ]),
+      ).toEqual({ rules: { userAgent: "*", disallow: "/" } });
     });
   });
 });

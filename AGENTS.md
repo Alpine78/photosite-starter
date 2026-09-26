@@ -1103,12 +1103,17 @@ own structural invariants. `src/app/sitemap.ts` declares `force-dynamic`, becaus
 Next.js caches a metadata-route file like this one at build time by default —
 confirmed against the framework's own documentation — which would freeze the list
 against every later publish, unpublish, or slug change the AB#83 freshness target
-requires; `robots.txt` needs no such override, since Next already treats it as
-dynamic. `robots.txt` expresses crawl guidance only, never access control:
+requires; `robots.txt` needs no such override, because it depends only on
+deployment settings — a production build prerenders it as a static file (`○
+/robots.txt`), so a settings change reaches it with the next deployment. `robots.txt`
+expresses crawl guidance only, never access control:
 `src/lib/robots.ts`'s `buildRobotsPolicy` disallows everything for a non-production
 `SITE_DEPLOYMENT_STAGE` as defense in depth, while a Preview deployment's actual
 protection remains the platform's own access control plus its `X-Robots-Tag:
-noindex` header, per `docs/deployment.md`. Two scope boundaries were considered and
+noindex` header, per `docs/deployment.md`. A production deployment may also name
+crawlers to keep off the whole site (AB#181, `SITE_ROBOTS_DISALLOWED_AGENTS`, empty by
+default): they get their own `Disallow: /` group ahead of `*`, for SEO-tool crawlers that
+spend the hosting plan's allowances and bring no visitors. Two scope boundaries were considered and
 deliberately left alone rather than built speculatively: verifying that a
 tree-canonical placement's underlying detail record still exists would mean loading
 a full page body (or gallery page) per candidate during sitemap generation, the

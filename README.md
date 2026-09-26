@@ -76,6 +76,7 @@ or invalid.
 | `SITE_DEFAULT_SOCIAL_IMAGE_WIDTH` | True intrinsic pixel width of that image |
 | `SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT` | True intrinsic pixel height of that image |
 | `SITE_DEFAULT_SOCIAL_IMAGE_ALT` | Optional alt text for that image; unset emits none |
+| `SITE_ROBOTS_DISALLOWED_AGENTS` | Optional comma-separated crawler tokens production `robots.txt` disallows from the whole site |
 | `SITE_CONTENT_SOURCE` | Which store authored content comes from: `mock` or `sanity` |
 
 `SITE_CANONICAL_BASE_URL` must be a bare origin. Credentials, a query, or a

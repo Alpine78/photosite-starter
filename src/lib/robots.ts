@@ -20,6 +20,13 @@
  * covered here, which costs nothing: it answers with `X-Robots-Tag: noindex,
  * nofollow` like every other path in the namespace, and that is the header a
  * crawler must honour to leave it out of an index.
+ *
+ * `disallowedAgents` (AB#181) are crawlers a deployment keeps off the whole
+ * site — typically SEO tools that bring no visitors but spend the hosting
+ * plan's request, CPU, and image-optimization allowances. They get their own
+ * group ahead of `*`; RFC 9309 has a crawler obey the most specific matching
+ * group, so the namespace rules below do not also need repeating for them.
+ * With none named, the policy is exactly what it was before this option.
  */
 
 import type { MetadataRoute } from "next";
@@ -31,17 +38,23 @@ export function buildRobotsPolicy(
   canonicalBaseUrl: URL,
   privateRoutePrefix: string,
   adminRoutePrefix: string,
+  disallowedAgents: readonly string[] = [],
 ): MetadataRoute.Robots {
   if (stage !== "production") {
     return { rules: { userAgent: "*", disallow: "/" } };
   }
 
+  const everyone = {
+    userAgent: "*",
+    allow: "/",
+    disallow: [`/${privateRoutePrefix}/`, `/${adminRoutePrefix}/`],
+  };
+
   return {
-    rules: {
-      userAgent: "*",
-      allow: "/",
-      disallow: [`/${privateRoutePrefix}/`, `/${adminRoutePrefix}/`],
-    },
+    rules:
+      disallowedAgents.length === 0
+        ? everyone
+        : [{ userAgent: [...disallowedAgents], disallow: "/" }, everyone],
     sitemap: new URL("/sitemap.xml", canonicalBaseUrl).toString(),
   };
 }

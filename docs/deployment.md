@@ -236,6 +236,7 @@ time; the Production set is never fetched by the Preview job.
 | `SITE_LOCALE`, `SITE_LOCALE_ROUTES`            | same as production                                   | the launch route contract               |
 | `SITE_CANONICAL_BASE_URL`                      | a fixed non-production origin — see below            | the production origin                   |
 | `SITE_DEFAULT_SOCIAL_IMAGE` and its dimensions | same as production                                   | the launch social image                 |
+| `SITE_ROBOTS_DISALLOWED_AGENTS`                | unset (Preview's `robots.txt` already disallows everyone) | optional: crawlers to keep off the whole site — see below |
 | `CONTACT_DELIVERY_ADAPTER`                     | `sink`                                               | `resend`                                |
 | `CONTACT_DELIVERY_FROM`, `CONTACT_DELIVERY_TO` | unset                                                | the owner's verified sender and mailbox |
 | `RESEND_API_KEY`                               | unset                                                | Production-only secret                  |
@@ -252,6 +253,16 @@ publishing the project's demo photographs as a photographer's own work, or accep
 enquiry that is silently discarded, are failures worth failing the build over. Preview is
 where both are legitimate — its contact tests go to a sink, with synthetic data, and never
 to the owner's mailbox.
+
+`SITE_ROBOTS_DISALLOWED_AGENTS` (AB#181) is a comma-separated list of crawler tokens that
+production `robots.txt` disallows from the whole site, for crawlers that bring no visitors
+but spend the plan's request, CPU, and image-optimization allowances. The reference
+deployment's first candidates come from the legacy site's 2026 statistics, where SEO-tool
+crawlers outweighed human traffic: `SemrushBot,AhrefsBot,DotBot,MJ12bot`. Each crawler's
+own published token is what goes in the list. Unset leaves `robots.txt` exactly as it was.
+This is guidance only: a crawler that ignores `robots.txt` needs a Vercel Firewall rule
+instead. `robots.txt` is prerendered at build time, so a change takes effect with the next
+deployment.
 
 Every content schema and adapter is now present, and AB#135 wires the public route-facing
 seams to dispatch on this setting. The reference Preview uses `sanity` with its seeded
