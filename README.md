@@ -350,7 +350,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   contrast surface without cropping the image or truncating copy (AB#155). No authored
   cover, no hero, and no page repeats a gallery's own opening photograph by default. An article's optional per-article author
   overrides the site's photographer name on the hero byline, one meta line shared with
-  the event date (AB#151); the gallery variant has no byline field. An article may now also
+  the event date (AB#151); the gallery variant has no byline field. Story listing
+  cards show that effective article author, or the site photographer for a gallery,
+  before the event date (AB#174). An article may now also
   own one optional bounded end-gallery result, rendered after the body and isolated from the
   body's own loose-image and mini-gallery viewers (AB#161,
   [ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md)'s 2026-09-15

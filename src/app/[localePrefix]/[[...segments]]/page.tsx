@@ -1005,11 +1005,14 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
   // root has no continuation contract, so it never carries a cursor.
   const isContinuation = !isStoryRoot && resolution.cursor !== undefined;
 
-  const listing = await resolveCategoryListing(
-    locale,
-    categoryId,
-    isContinuation ? resolution.cursor : undefined,
-  );
+  const [listing, settings] = await Promise.all([
+    resolveCategoryListing(
+      locale,
+      categoryId,
+      isContinuation ? resolution.cursor : undefined,
+    ),
+    getSiteSettings(),
+  ]);
   if (listing === undefined) {
     // A cursor that names no slice — the 404 that follows carries the way back
     // to this branch, reconstructed by the not-found boundary from the Proxy's
@@ -1048,6 +1051,9 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
         title: entry.title,
         ...(entry.summary === undefined ? {} : { summary: entry.summary }),
         eventDate: entry.eventDate,
+        author: entry.variant === "article"
+          ? effectiveArticleAuthor(entry, settings)
+          : settings.photographerName,
         ...(entry.cover === undefined ? {} : { cover: entry.cover }),
         href: buildStoryPath(config, locale, entry.path),
       }))}

@@ -110,6 +110,7 @@ export const PROJECTED_ARTICLE_LISTING_FIELDS = [
   "contentId",
   "title",
   "summary",
+  "author",
   "publishedAt",
   "eventDate",
   "cover",
@@ -157,6 +158,7 @@ export const ARTICLE_LISTING_PROJECTION = `{
   contentId,
   title,
   summary,
+  author,
   publishedAt,
   eventDate,
   "cover": cover->${PUBLIC_MEDIA_PROJECTION}
@@ -233,6 +235,8 @@ export type RawArticleListingDocument = {
   readonly contentId?: unknown;
   readonly title?: unknown;
   readonly summary?: unknown;
+  /** Overrides the site photographer name on article cards and detail pages. */
+  readonly author?: unknown;
   readonly publishedAt?: unknown;
   readonly eventDate?: unknown;
   readonly cover?: unknown;
@@ -242,8 +246,6 @@ export type RawArticleDetailDocument = RawArticleListingDocument & {
   readonly endDate?: unknown;
   /** AB#172: the lead is a listing excerpt only. */
   readonly summaryListingOnly?: unknown;
-  /** Overrides `SiteSettings.photographerName` on this article's byline (AB#151). */
-  readonly author?: unknown;
   readonly endGalleryId?: unknown;
   readonly tags?: unknown;
   readonly body?: unknown;
@@ -544,6 +546,7 @@ export function projectArticleListingRecord(
   const eventDate = readOptionalIsoDate(document.eventDate, contentId, "eventDate");
 
   const summary = readString(document.summary);
+  const author = readString(document.author);
   const cover = isRecord(document.cover)
     ? projectPublicMedia(document.cover as RawPublicMediaDocument, options)
     : undefined;
@@ -556,6 +559,7 @@ export function projectArticleListingRecord(
     // `content-page.ts#effectiveEventDate` expresses for every other consumer.
     eventDate: effectiveEventDate({ publishedAt, eventDate }),
     ...(summary === undefined ? {} : { summary }),
+    ...(author === undefined ? {} : { author }),
     ...(cover === undefined ? {} : { cover }),
   };
 }

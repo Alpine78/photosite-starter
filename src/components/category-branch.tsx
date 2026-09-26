@@ -27,6 +27,7 @@ export type BranchContentCard = {
    * AB#150, ADR-0017) — never the raw `publishedAt`.
    */
   readonly eventDate: string;
+  readonly author: string;
   readonly cover?: ImageMedia;
   /** The one canonical detail route, whichever listing the card appears in. */
   readonly href: string;
@@ -201,12 +202,13 @@ export function CategoryBranch({
                         {entry.summary}
                       </p>
                     )}
-                    <time
-                      dateTime={entry.eventDate}
-                      className="mt-3 text-sm text-muted"
-                    >
-                      {formatDate(entry.eventDate, locale)}
-                    </time>
+                    <p className="mt-3 text-sm text-muted">
+                      <span>{entry.author}</span>
+                      <span className="mx-1.5">·</span>
+                      <time dateTime={entry.eventDate}>
+                        {formatDate(entry.eventDate, locale)}
+                      </time>
+                    </p>
                   </div>
                 </Link>
               </li>
