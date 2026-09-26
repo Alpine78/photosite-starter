@@ -268,3 +268,18 @@ describe("reading the published settings singleton", () => {
     ).rejects.toMatchObject({ rejection });
   });
 });
+
+it("projects the services contact band independently and omits incomplete local copy", () => {
+  expect(project(documentOf()).servicesContactCallToAction).toBeUndefined();
+  const content = {
+    heading: localized("Etkö löytänyt sopivaa?", "Looking for something else?"),
+    text: localized("Kerro tarpeestasi.", "Tell me what you need."),
+  };
+  expect(project(documentOf({ servicesContactCallToAction: content })).servicesContactCallToAction).toEqual({
+    heading: "Etkö löytänyt sopivaa?",
+    text: "Kerro tarpeestasi.",
+  });
+  expect(project(documentOf({ servicesContactCallToAction: { text: content.text } })).servicesContactCallToAction).toBeUndefined();
+  expect(project(documentOf({ servicesContactCallToAction: { heading: [{ language: "en", value: "Else?" }], text: content.text } })).servicesContactCallToAction).toBeUndefined();
+  expect(() => project(documentOf({ servicesContactCallToAction: [] }))).toThrow(SanitySiteSettingsError);
+});

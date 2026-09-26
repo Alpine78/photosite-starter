@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ContactCallToAction } from "@/components/contact-call-to-action";
 import { HeroOverlay } from "@/components/hero-overlay";
 import { HomePhotographerIntroduction } from "@/components/home-photographer-introduction";
 import { JsonLd } from "@/components/json-ld";
@@ -42,7 +43,7 @@ export default async function Home({ searchParams }: HomePageProps) {
     getSiteSettings(),
     getHomeContent(),
   ]);
-  const { hero, intro, photographerIntroduction, sections } = home;
+  const { hero, intro, photographerIntroduction, contactCallToAction, sections } = home;
   const deployment = getDeploymentConfig();
   const labels = getBuiltInLabels(deployment.localeRoutes.defaultLocale);
   const params = await searchParams;
@@ -121,6 +122,13 @@ export default async function Home({ searchParams }: HomePageProps) {
           ))}
         </ul>
       </section>
+      {contactCallToAction && (
+        <ContactCallToAction
+          content={contactCallToAction}
+          contactLabel={labels.pages.contact}
+          headingId="home-contact-call-to-action"
+        />
+      )}
     </main>
   );
 }

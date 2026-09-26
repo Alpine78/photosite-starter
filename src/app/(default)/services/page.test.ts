@@ -4,14 +4,14 @@ import { describe, expect, it, vi } from "vitest";
  * A route-level test, not just a seam-level one: it renders the actual
  * `/services` page component (not `services.ts` directly, already covered by
  * `services.test.ts`) and asserts that Sanity-shaped content — supplied here
- * by stubbing `getServices`/`getServicesIntro` themselves — reaches the
+ * by stubbing `getServices`/`getSiteSettings` themselves — reaches the
  * rendered React element tree, and that a classified adapter failure
  * propagates out of the page rather than rendering an empty or fixture page.
  * `getPageMetadata` is stubbed too: its own correctness is unrelated,
  * pre-existing behavior this story does not touch.
  */
 vi.mock("@/lib/deployment-config", () => ({
-  getDefaultLocaleLabels: () => ({ pages: { services: "Palvelut" } }),
+  getDefaultLocaleLabels: () => ({ pages: { services: "Palvelut", contact: "Ota yhteyttä" } }),
 }));
 
 const servicesModule = vi.hoisted(() => ({
@@ -19,6 +19,9 @@ const servicesModule = vi.hoisted(() => ({
   getServicesIntro: vi.fn(),
 }));
 vi.mock("@/lib/services", () => servicesModule);
+
+const siteSettingsModule = vi.hoisted(() => ({ getSiteSettings: vi.fn() }));
+vi.mock("@/lib/site-settings", () => siteSettingsModule);
 
 const pageMetadataModule = vi.hoisted(() => ({
   getPageMetadata: vi.fn(async (input: { title: string; description?: string }) => ({
@@ -47,10 +50,11 @@ describe("ServicesPage", () => {
         description: ["Straight from the CMS."],
       },
     ]);
-    servicesModule.getServicesIntro.mockResolvedValue("An intro from Sanity.");
+    siteSettingsModule.getSiteSettings.mockResolvedValue({ servicesIntro: "An intro from Sanity." });
 
     const page = (await ServicesPage()) as unknown as ReactElementLike;
-    const [header, list] = childrenOf(page);
+    const [body] = childrenOf(page);
+    const [header, list] = childrenOf(body);
 
     const introParagraph = childrenOf(header)[1] as ReactElementLike;
     expect(introParagraph.props.children).toBe("An intro from Sanity.");
@@ -62,17 +66,20 @@ describe("ServicesPage", () => {
 
   it("omits the intro paragraph entirely when none was authored", async () => {
     servicesModule.getServices.mockResolvedValue([]);
-    servicesModule.getServicesIntro.mockResolvedValue(undefined);
+    siteSettingsModule.getSiteSettings.mockResolvedValue({});
 
     const page = (await ServicesPage()) as unknown as ReactElementLike;
-    const [header] = childrenOf(page);
+    const [body, band] = childrenOf(page);
+    const [header] = childrenOf(body);
+
+    expect(band).toBeUndefined();
 
     expect(childrenOf(header)[1]).toBe(false);
   });
 
   it("propagates a classified Sanity failure rather than rendering an empty page", async () => {
     servicesModule.getServices.mockRejectedValue(new Error("classified sanity failure"));
-    servicesModule.getServicesIntro.mockResolvedValue(undefined);
+    siteSettingsModule.getSiteSettings.mockResolvedValue({});
 
     await expect(ServicesPage()).rejects.toThrow("classified sanity failure");
   });

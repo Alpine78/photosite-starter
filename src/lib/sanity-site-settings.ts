@@ -1,7 +1,9 @@
-import { readGalleryPresentationFields } from "@/lib/gallery-presentation";
 /** Published Sanity site settings projected into the project's own contract. */
 
 import "server-only";
+
+import { readGalleryPresentationFields } from "@/lib/gallery-presentation";
+import { projectOptionalContactCallToAction } from "@/lib/sanity-contact-call-to-action";
 
 import type { LocaleRouteConfig } from "@/lib/locale-routes";
 import { getSanityClient, type SanityClient } from "@/lib/sanity-client";
@@ -23,6 +25,7 @@ export const PROJECTED_SITE_SETTINGS_FIELDS = [
   "photographerName",
   "tagline",
   "servicesIntro",
+  "servicesContactCallToAction",
   "featuredGalleryId",
   "galleryLayout",
   "galleryCaptionPlacement",
@@ -39,6 +42,7 @@ export const SITE_SETTINGS_PROJECTION = `{
   photographerName,
   tagline[]{language, value},
   servicesIntro[]{language, value},
+  servicesContactCallToAction{heading[]{language, value}, text[]{language, value}},
   featuredGalleryId,
   galleryLayout,
   galleryCaptionPlacement,
@@ -235,6 +239,10 @@ export function projectSiteSettings(
     "servicesIntro",
     rejectIncomplete,
   );
+  const servicesContactCallToAction = projectOptionalContactCallToAction(
+    document.servicesContactCallToAction, options.language,
+    "servicesContactCallToAction", rejectIncomplete,
+  );
   const businessId = readOptionalString(
     contact.businessId,
     "contact.businessId",
@@ -256,6 +264,7 @@ export function projectSiteSettings(
       rejectIncomplete,
     ),
     ...(servicesIntro === undefined ? {} : { servicesIntro }),
+    ...(servicesContactCallToAction === undefined ? {} : { servicesContactCallToAction }),
     navigation: [...navigation],
     ...(featuredGalleryId === undefined ? {} : { featuredGalleryId }),
     contact: {

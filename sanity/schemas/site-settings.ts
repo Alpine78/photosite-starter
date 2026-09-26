@@ -1,5 +1,7 @@
-import { galleryPresentationFields } from "./gallery-presentation";
 /** Global brand, contact, and static-navigation content for one deployment. */
+
+import { contactCallToActionFields } from "./contact-call-to-action";
+import { galleryPresentationFields } from "./gallery-presentation";
 
 import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
 import {
@@ -198,6 +200,13 @@ export function defineSiteSettingsType(
         "Optional short intro shown above the locale's configured services listing. A deployment with none omits the paragraph rather than showing a fixture placeholder.",
       of: [{ type: LOCALIZED_TEXT_TYPE_NAME }],
       validation: uniqueLanguages,
+    },
+    {
+      name: "servicesContactCallToAction",
+      title: "Services contact call to action",
+      type: "object",
+      description: "Optional end band on the services listing. Add a heading and text in each language where it should appear.",
+      fields: contactCallToActionFields,
     },
     {
       name: "featuredGalleryId",
