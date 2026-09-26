@@ -9,6 +9,9 @@ item so the Free Core / Premium boundary (AB#42) can be decided on facts.
 owner-run migration tooling; see the npm dependency section.
 **Amended:** 2026-09-17 — `sharp` added as a development dependency for AB#137's
 owner-run migration write tooling; see the npm dependency section.  
+**Amended:** 2026-09-26 — AB#175 added the generated, generic photographer
+introduction portrait (`public/gallery/photographer-introduction.12eb753f3851.webp`);
+it has the same source and licensing basis as the other demo photographs below.
 **Amended:** 2026-08-06 — PhotoSwipe added (AB#15). Package counts below are from the
 original audit and were not recounted.
 **Amended:** 2026-08-10 — `server-only` added (AB#39); see the npm dependency section.
@@ -77,7 +80,7 @@ and none of its own code ends up in them.
 | `architecture` skill (project-adapted derivative) | `anthropics/knowledge-work-plugins` | Anthropic | Apache-2.0 | **Yes** — license copy, retained notices, state changes | Yes |
 | `security-review` skill (project-adapted derivative) | `affaan-m/ECC` | Affaan Mustafa | MIT | **Yes** — copyright + permission notice | Yes |
 | Source Sans Pro subsets embedded in `docs/architecture/*.svg` | Adobe Source Sans Pro, vendored by D2 and subset into each generated SVG | Adobe | OFL-1.1 | **Yes** — notice + license must accompany redistribution | Yes |
-| Demo photographs (`public/gallery/`, 6 files) | OpenAI services | Project author (assigned) | Project MIT | No | Yes — see below |
+| Demo photographs (`public/gallery/`, 7 demo files) | OpenAI services | Project author (assigned) | Project MIT | No | Yes — see below |
 
 Attribution for all seven is in the root `NOTICE` file; full license texts are in
 `licenses/`.
@@ -95,9 +98,9 @@ and absent from this table is an audit gap.
 
 ### Demo photographs — basis for the commercial-use finding
 
-The six WebP files carry **no embedded metadata** (bare `VP8` chunks — no EXIF, XMP, or
-ICC), so provenance could not be established from the files and was confirmed with the
-author: they were generated with OpenAI services.
+The seven demo WebP files carry **no embedded metadata** (bare `VP8` chunks — no EXIF, XMP, or
+ICC). The original six were confirmed with the author as OpenAI-generated; the seventh,
+the AB#175 photographer introduction, was generated with OpenAI services for this project.
 
 OpenAI's Terms of Use, verified 2026-07-27, state: *"As between you and OpenAI, and to
 the extent permitted by applicable law, you (a) retain your ownership rights in Input and
