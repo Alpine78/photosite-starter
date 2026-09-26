@@ -141,6 +141,26 @@ test("the Enquire control is reachable and activates by keyboard", async ({
   );
 });
 
+test("correcting enquiry errors keeps focus in the field", async ({ page }) => {
+  await page.goto(`${GALLERY_PATH}?enquire=${FIRST_ITEM}`);
+  const submit = page.locator("form").getByRole("button", { name: /\S/ });
+  await expect(submit).toBeEnabled();
+  await submit.click();
+
+  const summary = page.getByRole("main").getByRole("alert");
+  await expect(summary).toBeFocused();
+  const name = page.locator('[name="name"]');
+  await summary.getByRole("link").first().click();
+  await expect(name).toBeFocused();
+  await name.click();
+  for (const key of ["a", "b", "c"]) {
+    await page.keyboard.insertText(key);
+    await expect(name).toBeFocused();
+  }
+  await expect(name).toHaveValue("abc");
+  await expect(summary.getByRole("link")).toHaveCount(2);
+});
+
 test("a delivery failure is announced and offered a retry", async ({ page }) => {
   await page.goto(`${GALLERY_PATH}?enquire=${FIRST_ITEM}`);
   await fillAndSubmit(page, contactSinkFailureAddress("provider-unavailable"));
