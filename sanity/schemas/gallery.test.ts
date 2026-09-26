@@ -99,6 +99,11 @@ describe("the gallery document", () => {
     expect(fieldOf("cover").to).toEqual([{ type: MEDIA_TYPE_NAME }]);
   });
 
+  it("lets the short lead be a listing-only excerpt, off by default (AB#172)", () => {
+    expect(fieldOf("summaryListingOnly").type).toBe("boolean");
+    expect(fieldOf("summaryListingOnly").initialValue).toBe(false);
+  });
+
   it("restates gallery-placement.ts's own document type name", () => {
     // Duplicated rather than imported, to avoid the two files importing each
     // other — see GALLERY_PLACEMENT_DOCUMENT_TYPE's own doc comment.

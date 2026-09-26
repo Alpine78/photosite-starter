@@ -4,6 +4,7 @@ import {
   asArticlePage,
   assertSemanticHeadingOrder,
   effectiveArticleAuthor,
+  onPageSummary,
   effectiveEventDate,
   isContentEnded,
   type ContentBlock,
@@ -69,6 +70,14 @@ describe("isContentEnded", () => {
 
   it("throws for an unparseable endDate", () => {
     expect(() => isContentEnded("not-a-date", new Date())).toThrow(TypeError);
+  });
+});
+
+describe("onPageSummary (AB#172)", () => {
+  it("renders the lead on the page unless it is a listing-only excerpt", () => {
+    expect(onPageSummary({ summary: "Lead" })).toBe("Lead");
+    expect(onPageSummary({ summary: "Lead", summaryListingOnly: true })).toBeUndefined();
+    expect(onPageSummary({})).toBeUndefined();
   });
 });
 

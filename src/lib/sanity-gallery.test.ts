@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  GALLERY_DETAIL_PROJECTION,
   GALLERY_DOCUMENT_TYPE,
   GALLERY_PAGE_SIZE,
   GALLERY_PLACEMENT_DOCUMENT_TYPE,
@@ -286,6 +287,21 @@ describe("projectGalleryContentPage", () => {
       expect(() => projectGalleryContentPage(detailOf({ galleryLayout: value }), languages)).toThrow(SanityGalleryError);
       expect(() => projectGalleryContentPage(detailOf({ galleryCaptionPlacement: value }), languages)).toThrow(SanityGalleryError);
     }
+  });
+
+  it("carries a listing-only lead flag only when it is true (AB#172)", () => {
+    expect(projectGalleryContentPage(detailOf({ summary: "Lead", summaryListingOnly: true }), languages))
+      .toMatchObject({ summary: "Lead", summaryListingOnly: true });
+    for (const value of [undefined, null, false]) {
+      expect(projectGalleryContentPage(detailOf({ summaryListingOnly: value }), languages))
+        .not.toHaveProperty("summaryListingOnly");
+    }
+    for (const value of ["true", 1, {}]) {
+      expect(() => projectGalleryContentPage(detailOf({ summaryListingOnly: value }), languages))
+        .toThrow(SanityGalleryError);
+    }
+    expect(GALLERY_DETAIL_PROJECTION).toContain("summaryListingOnly");
+    expect(galleryType.fields.find((field) => field.name === "summaryListingOnly")?.type).toBe("boolean");
   });
 
   it("allows an empty body, unlike an article", () => {

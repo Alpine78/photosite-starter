@@ -1592,6 +1592,74 @@ After the write, a read-back confirms both galleries are `capture-sequence` with
 remaining placements and a photograph count matching the plan. `rally-conversion-write-
 report.json` under `--out` records what this run actually did.
 
+## Moving imported Joomla intros into listing-only leads (AB#172)
+
+The legacy importer placed each Joomla article's intro text as the first body paragraph.
+Joomla showed that intro only in listings, and the full text usually repeats it. As a
+result a migrated story opened with the same paragraph twice, and its listing card had no
+excerpt. This one-off correction moves the paragraph into `summary` and sets
+`summaryListingOnly: true` (ADR-0003's 2026-09-26 amendment), so the intro becomes the
+listing excerpt and search-engine description and leaves the page.
+
+```bash
+npm run fix:joomla-intro -- --out <report folder>                                   # plan (read-only)
+npm run fix:joomla-intro -- --out <report folder> --approved-digest <digest> --yes  # write
+```
+
+`SANITY_PROJECT_ID`, `SANITY_DATASET` and `SANITY_API_VERSION` come from the environment or
+`--project`/`--dataset`/`--api-version`.
+
+**Planning** reads the published articles and galleries without a token and writes
+`intro-summary-plan.json`. It changes a page only when all of these hold:
+
+- the page is a published article or gallery;
+- it has no summary and no flag;
+- its body is a plain paragraph (`_key`, `_type`, `text` only) followed by at least one
+  more block.
+
+Every other page is listed under `excluded` with its reason and left alone. That includes
+a page whose single paragraph is the whole text, a page that starts with a heading, and a
+malformed summary or flag value. Review the planned summaries, then approve the printed
+digest. The digest binds the target project and dataset, each page's published revision,
+its complete original body, and the exact patches.
+
+**Writing** needs a temporary write-scoped `SANITY_MIGRATION_TOKEN` in the environment,
+never as a flag, and a short editing freeze in Studio while it runs. It:
+
+- rereads the raw dataset and recomputes the plan. Any edit since the review changes the
+  digest and refuses the run.
+- refuses if any planned page has a draft or release version, because publishing one
+  later would restore the old body. It checks again immediately before the write.
+- saves the approved plan as `intro-summary-approved-<digest>.json` before sending
+  anything. The record is never overwritten, and it holds every page's original body for
+  rollback.
+- sends every patch in **one** transaction. Each patch is guarded by the approved
+  revision (`ifRevisionID`), so a page edited in the meantime rejects the whole
+  transaction.
+- reads every page back after the write, whatever its outcome, and classifies each as
+  applied, pending, or unexpected in `intro-summary-reconciliation.json`. It also reports
+  any draft that appeared during the run.
+
+If the write's outcome is uncertain, for example after a timeout, rerun the same command.
+It reconciles against the saved record first. If everything was applied it stops. If
+nothing was, it writes again under the same checks.
+
+**Rollback** is manual, one page at a time, from the recovery record. First check the page
+still has the planned result: the planned `summary`, the flag `true`, and body equal to
+`originalBody` minus its first block. Then patch it with `ifRevisionID` set to its
+*current* revision:
+
+- set `body` to `originalBody`;
+- unset `summary` and `summaryListingOnly`.
+
+A page edited since the correction needs a human decision rather than a rollback.
+
+**After the write**, check the live site once the published-content cache has been
+invalidated (`docs/cache-revalidation.md`): listing cards show the excerpts, story pages no
+longer open with the intro, and each page's meta description is its intro. The
+application must already be deployed with AB#172, or a gallery hero would briefly show the
+intro above the full text.
+
 ## Rotating a seeded-random gallery's order (AB#129)
 
 A gallery whose `orderingRule` is `seeded-random` (ADR-0009) has a per-placement

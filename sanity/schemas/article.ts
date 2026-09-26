@@ -211,6 +211,14 @@ export const articleType: SchemaTypeDefinition = {
       description: "Shown on listing cards and at the head of the page.",
     },
     {
+      name: "summaryListingOnly",
+      title: "Show the short lead only on listings",
+      type: "boolean",
+      description:
+        "Turn on when the page's own text already restates the short lead (for example a legacy intro text). The lead then shows on listing cards and in search-engine descriptions, but not on the page itself (AB#172).",
+      initialValue: false,
+    },
+    {
       name: "author",
       title: "Author",
       type: "string",
