@@ -98,6 +98,11 @@ describe("getHomeContent", () => {
     const content = await getHomeContent();
 
     expect(content.intro).toContain("CMS");
+    expect(content.photographerIntroduction).toMatchObject({
+      portrait: { type: "image", rendition: { width: 1024, height: 1536 } },
+      heading: "Hei, olen kuvaaja kameran takana",
+    });
+    expect(content.photographerIntroduction?.facts).toHaveLength(3);
     expect(sanityHomeContent.readSanityHomeDocument).not.toHaveBeenCalled();
     expect(sanityHomeContent.projectHomeContent).not.toHaveBeenCalled();
   });

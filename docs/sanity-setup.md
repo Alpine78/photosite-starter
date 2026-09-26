@@ -180,7 +180,12 @@ falling back to fixtures. Their adapters validate the raw result, resolve langua
 text for the requested language, and return the existing project-owned `SiteSettings` and
 `HomeContent` contracts. The home hero dereferences the shared media document through the
 same public-media projection as every other image, so its stored asset, intrinsic
-dimensions, and delivery policy cannot fork from the media boundary.
+dimensions, and delivery policy cannot fork from the media boundary. The optional
+`photographerIntroduction` object adds a public portrait image, language-keyed eyebrow,
+heading and text, and at most three language-keyed title/detail facts. Complete it in each
+published language; an absent object leaves the existing home introduction in place. The
+portrait uses the same public-media boundary and renders at its native ratio. The two
+application-owned actions lead to contact and services.
 
 **The Studio validates against the dataset.** Several rules query it while an editor
 works, which is the only place they can run in time: an uploaded image is measured and its
