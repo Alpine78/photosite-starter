@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildLocaleRouteConfig } from "@/lib/locale-routes";
-import { getSiteSettings, type SiteSettings } from "@/lib/site-settings";
+import { getServicesContactCallToAction, getSiteSettings, type SiteSettings } from "@/lib/site-settings";
 
 /**
  * `site-settings.ts` is a route-facing seam: it dispatches between the mock
@@ -42,6 +42,7 @@ vi.mock("@/lib/deployment-config", () => ({
 
 const sanitySiteSettings = vi.hoisted(() => ({
   readSanitySiteSettings: vi.fn(),
+  readSanityServicesContactCallToAction: vi.fn(),
 }));
 
 vi.mock("@/lib/sanity-site-settings", () => sanitySiteSettings);
@@ -58,6 +59,7 @@ deploymentConfig.localeRoutes = buildLocaleRouteConfig({
 beforeEach(() => {
   deploymentConfig.contentSource = "mock";
   sanitySiteSettings.readSanitySiteSettings.mockReset();
+  sanitySiteSettings.readSanityServicesContactCallToAction.mockReset();
 });
 
 describe("getSiteSettings", () => {
@@ -110,5 +112,26 @@ describe("getSiteSettings", () => {
     await expect(getSiteSettings()).rejects.toThrow(
       "classified sanity failure",
     );
+  });
+});
+
+
+describe("getServicesContactCallToAction", () => {
+  it("uses the mock copy in the requested locale", async () => {
+    await expect(getServicesContactCallToAction("en-GB")).resolves.toEqual({
+      heading: "Looking for something else?",
+      text: "Tell me what you need and we can plan a service that fits.",
+    });
+    expect(sanitySiteSettings.readSanityServicesContactCallToAction).not.toHaveBeenCalled();
+  });
+
+  it("reads only the requested-language CTA from Sanity for a prefixed locale", async () => {
+    deploymentConfig.contentSource = "sanity";
+    const content = { heading: "Looking for something else?", text: "Tell me more." };
+    sanitySiteSettings.readSanityServicesContactCallToAction.mockResolvedValue(content);
+
+    await expect(getServicesContactCallToAction("en-GB")).resolves.toEqual(content);
+    expect(sanitySiteSettings.readSanityServicesContactCallToAction).toHaveBeenCalledWith("en");
+    expect(sanitySiteSettings.readSanitySiteSettings).not.toHaveBeenCalled();
   });
 });

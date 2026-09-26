@@ -1,7 +1,10 @@
-import { readGalleryPresentationFields } from "@/lib/gallery-presentation";
 /** Published Sanity site settings projected into the project's own contract. */
 
 import "server-only";
+
+import type { ContactCallToAction } from "@/lib/contact-call-to-action";
+import { readGalleryPresentationFields } from "@/lib/gallery-presentation";
+import { projectOptionalContactCallToAction } from "@/lib/sanity-contact-call-to-action";
 
 import type { LocaleRouteConfig } from "@/lib/locale-routes";
 import { getSanityClient, type SanityClient } from "@/lib/sanity-client";
@@ -23,6 +26,7 @@ export const PROJECTED_SITE_SETTINGS_FIELDS = [
   "photographerName",
   "tagline",
   "servicesIntro",
+  "servicesContactCallToAction",
   "featuredGalleryId",
   "galleryLayout",
   "galleryCaptionPlacement",
@@ -39,6 +43,7 @@ export const SITE_SETTINGS_PROJECTION = `{
   photographerName,
   tagline[]{language, value},
   servicesIntro[]{language, value},
+  servicesContactCallToAction{heading[]{language, value}, text[]{language, value}},
   featuredGalleryId,
   galleryLayout,
   galleryCaptionPlacement,
@@ -235,6 +240,10 @@ export function projectSiteSettings(
     "servicesIntro",
     rejectIncomplete,
   );
+  const servicesContactCallToAction = projectOptionalContactCallToAction(
+    document.servicesContactCallToAction, options.language,
+    "servicesContactCallToAction", rejectIncomplete,
+  );
   const businessId = readOptionalString(
     contact.businessId,
     "contact.businessId",
@@ -256,6 +265,7 @@ export function projectSiteSettings(
       rejectIncomplete,
     ),
     ...(servicesIntro === undefined ? {} : { servicesIntro }),
+    ...(servicesContactCallToAction === undefined ? {} : { servicesContactCallToAction }),
     navigation: [...navigation],
     ...(featuredGalleryId === undefined ? {} : { featuredGalleryId }),
     contact: {
@@ -308,4 +318,31 @@ export async function readSanitySiteSettings(options: {
     },
   );
   return projectSiteSettings(document, options);
+}
+
+/** A narrow read for prefixed service listings; other settings remain default-locale. */
+export async function readSanityServicesContactCallToAction(
+  language: string,
+  client: SanityClient = getSanityClient(),
+): Promise<ContactCallToAction | undefined> {
+  const result = await client.query({
+    query: `*[_type == "${SITE_SETTINGS_DOCUMENT_TYPE}"]{servicesContactCallToAction{heading[]{language, value}, text[]{language, value}}}`,
+    tag: "site-settings",
+  });
+  const document = readSingletonDocument<RawSiteSettingsDocument>(
+    result,
+    "site settings",
+    (rejection, detail) => {
+      throw new SanitySiteSettingsError(rejection, detail);
+    },
+  );
+  const rejectIncomplete: (detail: string) => never = (detail) => {
+    throw new SanitySiteSettingsError("incomplete-document", detail);
+  };
+  return projectOptionalContactCallToAction(
+    document.servicesContactCallToAction,
+    language,
+    "servicesContactCallToAction",
+    rejectIncomplete,
+  );
 }

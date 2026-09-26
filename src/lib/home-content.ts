@@ -15,6 +15,7 @@
  * burned into the pixels. A clone inherits every file in `public/`.
  */
 
+import type { ContactCallToAction } from "@/lib/contact-call-to-action";
 import { getContentTrees } from "@/lib/content";
 import { getPublicContentRoute } from "@/lib/content-routes";
 import { dispatchContentSource } from "@/lib/content-source";
@@ -51,6 +52,7 @@ export type HomeContent = {
   };
   intro: string;
   photographerIntroduction?: HomePhotographerIntroduction;
+  contactCallToAction?: ContactCallToAction;
   sections: HomeSectionLink[];
 };
 
@@ -148,6 +150,9 @@ async function buildMockHomeContent(
             ],
           }),
     },
+    contactCallToAction: language === "fi"
+      ? { heading: "Suunnitteletko kuvausta?", text: "Kerro ideastasi, niin suunnittelemme kuvauksen yhdessä." }
+      : { heading: "Planning a photo session?", text: "Tell me about your idea and we can plan the session together." },
     sections: [
       {
         title: "Services",

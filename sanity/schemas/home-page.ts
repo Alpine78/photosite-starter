@@ -1,5 +1,6 @@
 /** The content unique to the public home page. */
 
+import { contactCallToActionFields } from "./contact-call-to-action";
 import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
 import { MEDIA_TYPE_NAME } from "./media";
 import { HOME_ACTION_TYPE_NAME, HOME_SECTION_TYPE_NAME } from "./site-link";
@@ -80,6 +81,13 @@ export const homePageType: SchemaTypeDefinition = {
           validation: (rule) => rule.max(3),
         },
       ],
+    },
+    {
+      name: "contactCallToAction",
+      title: "Contact call to action",
+      type: "object",
+      description: "Optional end band. Add a heading and text in each language where it should appear.",
+      fields: contactCallToActionFields,
     },
     {
       name: "sections",

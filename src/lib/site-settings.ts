@@ -1,6 +1,7 @@
-import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
 import { cache } from "react";
 
+import type { ContactCallToAction } from "@/lib/contact-call-to-action";
+import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
 import { dispatchContentSource } from "@/lib/content-source";
 import {
   getDefaultLocaleLabels,
@@ -86,6 +87,7 @@ export type SiteSettings = GalleryPresentationFields & {
    * inventing one.
    */
   servicesIntro?: string;
+  servicesContactCallToAction?: ContactCallToAction;
   navigation: NavigationItem[];
   /**
    * The curated gallery this deployment features as its portfolio, by stable
@@ -122,6 +124,12 @@ const FEATURED_GALLERY_ID = "content-selected-work";
  * configuration at import time would fail every context that has no deployment
  * environment.
  */
+function mockServicesContactCallToAction(locale: string): ContactCallToAction {
+  return new Intl.Locale(locale).language === "fi"
+    ? { heading: "Etkö löytänyt sopivaa?", text: "Kerro mitä tarvitset, niin suunnittelemme palvelun yhdessä." }
+    : { heading: "Looking for something else?", text: "Tell me what you need and we can plan a service that fits." };
+}
+
 function buildMockSiteSettings(): SiteSettings {
   const labels = getDefaultLocaleLabels();
   const { localeRoutes } = getDeploymentConfig();
@@ -140,6 +148,7 @@ function buildMockSiteSettings(): SiteSettings {
     tagline: "Timeless photography for life's important moments",
     servicesIntro:
       "An overview of what I offer and how we can work together. Placeholder copy; replaced with real wording from the CMS.",
+    servicesContactCallToAction: mockServicesContactCallToAction(localeRoutes.defaultLocale),
     featuredGalleryId: FEATURED_GALLERY_ID,
     // These labels describe application-owned static routes, so they come from
     // deployment config rather than authored CMS content. Only routes that exist
@@ -262,3 +271,22 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
     mock: async () => buildMockSiteSettings(),
   });
 });
+
+/** The optional services band in a requested locale, independent of global settings copy. */
+export async function getServicesContactCallToAction(
+  locale: string,
+): Promise<ContactCallToAction | undefined> {
+  const deployment = getDeploymentConfig();
+  if (locale === deployment.localeRoutes.defaultLocale) {
+    return (await getSiteSettings()).servicesContactCallToAction;
+  }
+  return dispatchContentSource(deployment.contentSource, {
+    sanity: async () => {
+      const { readSanityServicesContactCallToAction } = await import(
+        "@/lib/sanity-site-settings"
+      );
+      return readSanityServicesContactCallToAction(new Intl.Locale(locale).language);
+    },
+    mock: async () => mockServicesContactCallToAction(locale),
+  });
+}

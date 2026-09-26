@@ -241,3 +241,18 @@ describe("reading the published home singleton", () => {
     ).rejects.toMatchObject({ rejection });
   });
 });
+
+it("projects a complete localized home contact band and omits missing copy", () => {
+  expect(project(documentOf()).contactCallToAction).toBeUndefined();
+  const content = {
+    heading: localized("Suunnitteletko kuvausta?", "Planning a session?"),
+    text: localized("Kerro ideastasi.", "Tell me your idea."),
+  };
+  expect(project(documentOf({ contactCallToAction: content })).contactCallToAction).toEqual({
+    heading: "Suunnitteletko kuvausta?",
+    text: "Kerro ideastasi.",
+  });
+  expect(project(documentOf({ contactCallToAction: { heading: content.heading } })).contactCallToAction).toBeUndefined();
+  expect(project(documentOf({ contactCallToAction: { heading: [{ language: "en", value: "Planning?" }], text: content.text } })).contactCallToAction).toBeUndefined();
+  expect(() => project(documentOf({ contactCallToAction: false }))).toThrow(SanityHomeContentError);
+});

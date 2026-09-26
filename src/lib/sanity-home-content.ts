@@ -3,6 +3,7 @@
 import "server-only";
 
 import type { HomeContent, HomePhotographerIntroduction, HomeSectionLink } from "@/lib/home-content";
+import { projectOptionalContactCallToAction } from "@/lib/sanity-contact-call-to-action";
 import type { LocaleRouteConfig } from "@/lib/locale-routes";
 import { getSanityClient, type SanityClient } from "@/lib/sanity-client";
 import { getSanityConfig, type SanityConfig } from "@/lib/sanity-config";
@@ -25,6 +26,7 @@ export const PROJECTED_HOME_PAGE_FIELDS = [
   "heroAction",
   "intro",
   "photographerIntroduction",
+  "contactCallToAction",
   "sections",
 ] as const;
 
@@ -39,6 +41,7 @@ export const HOME_PAGE_PROJECTION = `{
     text[]{language, value},
     facts[]{title[]{language, value}, detail[]{language, value}}
   },
+  contactCallToAction{heading[]{language, value}, text[]{language, value}},
   sections[]{title[]{language, value}, description[]{language, value}, target, href}
 }`;
 
@@ -64,6 +67,7 @@ export type RawHomePageDocument = {
   readonly heroAction?: unknown;
   readonly intro?: unknown;
   readonly photographerIntroduction?: unknown;
+  readonly contactCallToAction?: unknown;
   readonly sections?: unknown;
 };
 
@@ -146,6 +150,10 @@ export function projectHomeContent(
     };
   }
 
+  const contactCallToAction = projectOptionalContactCallToAction(
+    document.contactCallToAction, options.language, "contactCallToAction", rejectIncomplete,
+  );
+
   const rawSections = document.sections;
   if (
     !Array.isArray(rawSections) ||
@@ -202,6 +210,7 @@ export function projectHomeContent(
       rejectIncomplete,
     ),
     ...(photographerIntroduction === undefined ? {} : { photographerIntroduction }),
+    ...(contactCallToAction === undefined ? {} : { contactCallToAction }),
     sections,
   };
 }

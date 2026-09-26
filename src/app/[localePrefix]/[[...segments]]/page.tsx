@@ -52,7 +52,7 @@ import { buildGalleryHref } from "@/lib/gallery-slice";
 import { projectGallerySlice } from "@/lib/gallery-slice-server";
 import type { GallerySectionSummary } from "@/lib/gallery-sections";
 import { resolveLocalePrefixRequest } from "@/lib/locale-prefix-request";
-import { getSiteSettings } from "@/lib/site-settings";
+import { getServicesContactCallToAction, getSiteSettings } from "@/lib/site-settings";
 import {
   buildStoryPath,
   buildServicePath,
@@ -193,6 +193,8 @@ async function renderService(request: ServiceRequest) {
         routes={routes}
         languages={await serviceListingLanguageLinks(request.locale)}
         languageLabel={labels.contentTree.languages}
+        contactCallToAction={await getServicesContactCallToAction(request.locale)}
+        contactLabel={labels.pages.contact}
       />
     );
   }

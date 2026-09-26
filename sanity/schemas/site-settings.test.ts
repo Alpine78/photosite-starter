@@ -53,6 +53,7 @@ describe("the site settings and home schemas", () => {
       "photographerName",
       "tagline",
       "servicesIntro",
+      "servicesContactCallToAction",
       "featuredGalleryId",
       "navigation",
       "contact",
@@ -66,6 +67,7 @@ describe("the site settings and home schemas", () => {
       "heroAction",
       "intro",
       "photographerIntroduction",
+      "contactCallToAction",
       "sections",
     ]);
   });
