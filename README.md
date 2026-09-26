@@ -532,7 +532,7 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 
 [MIT](LICENSE) for the project's own source.
 
-Third-party material — the Geist typefaces, PhotoSwipe, and two vendored agent skills —
+Third-party material — the Instrument Sans and Geist Mono typefaces, PhotoSwipe, and two vendored agent skills —
 stays under its own license. Attribution is in [NOTICE](NOTICE), full license texts in
 [licenses/](licenses/), and the audit behind both, covering every shipped asset, in
 [docs/asset-inventory.md](docs/asset-inventory.md).

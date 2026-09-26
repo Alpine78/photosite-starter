@@ -76,6 +76,9 @@ const focusRing =
  *
  * Covers render at their native ratio — `h-auto w-full` over the rendition's
  * true intrinsic dimensions — so a card never crops the photograph it presents.
+ * The design proposal's fixed 3:2 crop is deliberately not reproduced (AB#173).
+ * The summary is clamped to three lines on the card only; the page's own lead
+ * and the card's accessible name are unaffected.
  * A page with no cover renders as a text card rather than borrowing an image,
  * and a section with nothing in it is left out instead of announcing itself
  * empty.
@@ -103,7 +106,7 @@ export function CategoryBranch({
       )}
 
       <header className="mt-6">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="text-4xl font-semibold leading-none tracking-tight sm:text-6xl">
           {isContinuation
             ? `${title} (${labels.contentTree.continued})`
             : title}
@@ -120,7 +123,7 @@ export function CategoryBranch({
             <CategoryDescription blocks={description} />
           ) : (
             introduction && (
-              <p className="mt-4 max-w-2xl text-muted">{introduction}</p>
+              <p className="mt-5 max-w-2xl text-lg text-muted sm:text-xl">{introduction}</p>
             )
           )
         )}
@@ -145,7 +148,7 @@ export function CategoryBranch({
         <section aria-labelledby="branch-categories" className="mt-10">
           <h2
             id="branch-categories"
-            className="text-xs font-medium uppercase tracking-wider text-muted"
+            className="text-xs font-semibold uppercase tracking-widest text-muted"
           >
             {labels.contentTree.categories}
           </h2>
@@ -154,7 +157,7 @@ export function CategoryBranch({
               <li key={category.categoryId}>
                 <Link
                   href={category.href}
-                  className={`inline-block rounded-full border border-border-control px-4 py-1.5 text-sm transition-colors hover:border-border-strong ${focusRing}`}
+                  className={`inline-block rounded-full border border-border-control px-5 py-2.5 text-base transition-colors hover:border-foreground ${focusRing}`}
                 >
                   {category.label}
                 </Link>
@@ -165,19 +168,19 @@ export function CategoryBranch({
       )}
 
       {content.length > 0 && (
-        <section aria-labelledby="branch-content" className="mt-12">
+        <section aria-labelledby="branch-content" className="mt-16 sm:mt-20">
           <h2
             id="branch-content"
-            className="text-xs font-medium uppercase tracking-wider text-muted"
+            className="text-xs font-semibold uppercase tracking-widest text-muted"
           >
             {contentHeading}
           </h2>
-          <ul className="mt-4 grid items-start gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-7 grid items-start gap-x-10 gap-y-14 sm:grid-cols-2">
             {content.map((entry) => (
               <li key={entry.contentId}>
                 <Link
                   href={entry.href}
-                  className={`group flex h-full flex-col overflow-hidden rounded-lg border border-border transition-colors hover:border-border-strong ${focusRing}`}
+                  className={`group flex h-full flex-col gap-4 ${focusRing}`}
                 >
                   {entry.cover && (
                     <Image
@@ -186,21 +189,21 @@ export function CategoryBranch({
                       width={entry.cover.rendition.width}
                       height={entry.cover.rendition.height}
                       sizes={imageRenderProfiles.contentListingGrid.sizes}
-                      className="h-auto w-full"
+                      className="h-auto w-full rounded-sm bg-surface-muted"
                     />
                   )}
-                  <div className="flex flex-1 flex-col p-6">
-                    <h3 className="text-lg font-medium leading-snug tracking-tight">
+                  <div className="flex flex-1 flex-col">
+                    <h3 className="text-xl font-semibold leading-snug tracking-tight transition-colors group-hover:text-link-hover sm:text-2xl">
                       {entry.title}
                     </h3>
                     {entry.summary && (
-                      <p className="mt-2 text-sm text-muted">
+                      <p className="mt-2 line-clamp-3 max-w-prose text-base leading-relaxed text-muted sm:text-lg">
                         {entry.summary}
                       </p>
                     )}
                     <time
                       dateTime={entry.eventDate}
-                      className="mt-4 text-xs text-muted"
+                      className="mt-3 text-sm text-muted"
                     >
                       {formatDate(entry.eventDate, locale)}
                     </time>

@@ -250,12 +250,36 @@ describe("theme contract: text + focus contrast is AA (AC5)", () => {
       }
     });
 
+    it(`--link-hover text meets 4.5:1 (${name})`, () => {
+      const { color } = resolveToken("--link-hover", props);
+      expect(contrast(color, background)).toBeGreaterThanOrEqual(4.5);
+    });
+
     it(`--accent-foreground on --accent meets 4.5:1 (${name})`, () => {
       const fg = resolveToken("--accent-foreground", props);
       const bg = resolveToken("--accent", props);
       expect(contrast(fg.color, bg.color)).toBeGreaterThanOrEqual(4.5);
     });
   }
+});
+
+describe("theme contract: Kivi and Grafiitti (AB#173)", () => {
+  // A form field's boundary is what identifies it, so the default palettes
+  // give it a token that clears WCAG 1.4.11's 3:1 non-text contrast. The
+  // lighter --border-control stays for decorative outlines (chips, pills)
+  // whose text already identifies them.
+  for (const { name, props } of palettes().slice(0, 2)) {
+    it(`--border-strong meets 3:1 on --background (${name})`, () => {
+      const background = parseColor(props.get("--background")!);
+      const { color, alpha } = resolveToken("--border-strong", props);
+      expect(contrast(over(color, background, alpha), background)).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  it("ships the proposal's grounds", () => {
+    expect(lightRoot.get("--background")).toBe("#ece9e3");
+    expect(pinnedDark.get("--background")).toBe("#1b1c1e");
+  });
 });
 
 describe("theme contract: token vocabulary (AC1)", () => {
@@ -277,6 +301,7 @@ describe("theme contract: token vocabulary (AC1)", () => {
     "--color-accent-foreground",
     "--color-danger",
     "--color-focus",
+    "--color-link-hover",
     "--font-sans",
     "--font-mono",
   ];

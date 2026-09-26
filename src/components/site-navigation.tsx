@@ -96,7 +96,7 @@ function NavigationLink({
       onClick={onNavigate}
       className={`${className} transition-colors ${focusRing} ${
         state === "elsewhere"
-          ? "text-muted hover:text-foreground"
+          ? "text-muted hover:text-link-hover"
           : "font-medium text-foreground"
       }`}
     >
@@ -188,7 +188,7 @@ export function SiteNavigation({
 
   return (
     <nav ref={navigationRef} aria-label={labels.main} className={className}>
-      <ul className={isBar ? "flex items-center gap-6" : "flex flex-col gap-1"}>
+      <ul className={isBar ? "flex items-center gap-8" : "flex flex-col gap-1"}>
         {items.map((item) => {
           const expanded = openKey === item.key;
           const panelId = `${instanceId}-${toIdPart(item.key)}`;
@@ -200,7 +200,7 @@ export function SiteNavigation({
                   item={item}
                   pathname={pathname}
                   onNavigate={onNavigate}
-                  className={isBar ? "text-sm" : "block py-2 text-base"}
+                  className={isBar ? "text-base" : "block py-2 text-base"}
                 />
 
                 {item.children.length > 0 && (

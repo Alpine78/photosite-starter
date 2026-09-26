@@ -9,15 +9,21 @@ The full audit — source, author, attribution requirement, and commercial-use
 status for every shipped asset — is in docs/asset-inventory.md.
 
 -------------------------------------------------------------------------------
-Geist and Geist Mono (typefaces)
+Instrument Sans (typeface)
+-------------------------------------------------------------------------------
+Copyright 2022 The Instrument Sans Project Authors (https://github.com/Instrument/instrument-sans)
+Licensed under the SIL Open Font License, Version 1.1 — see licenses/OFL-1.1-instrument-sans.txt
+
+-------------------------------------------------------------------------------
+Geist Mono (typeface)
 -------------------------------------------------------------------------------
 Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font)
 Licensed under the SIL Open Font License, Version 1.1 — see licenses/OFL-1.1.txt
 
-The font files are not stored in this repository. They are fetched at build time
-by next/font and embedded, self-hosted, into the build output. A deployed site
-therefore redistributes them, and the OFL requires this copyright notice and the
-license to accompany that redistribution.
+Neither font's files are stored in this repository. They are fetched at build
+time by next/font and embedded, self-hosted, into the build output. A deployed
+site therefore redistributes them, and the OFL requires these copyright notices
+and the license to accompany that redistribution.
 
 -------------------------------------------------------------------------------
 architecture skill (.claude/skills/architecture, .agents/skills/architecture)

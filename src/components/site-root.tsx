@@ -57,6 +57,8 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
           storyLabel: labels.pages.stories,
         })}
         labels={labels.navigation}
+        themeLabels={labels.theme}
+        languageMenuLabels={labels.languageMenu}
       />
       <div className="flex-1">{children}</div>
       <SiteFooter

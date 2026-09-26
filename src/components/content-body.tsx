@@ -89,7 +89,7 @@ export function ContentBody({
             );
           case "paragraph":
             return (
-              <p key={block.key ?? index} className="leading-7 text-body">
+              <p key={block.key ?? index} className="text-lg leading-8 text-body">
                 {block.text}
               </p>
             );
@@ -103,7 +103,7 @@ export function ContentBody({
                 <h2
                   key={block.key ?? index}
                   id={id}
-                  className="mt-10 scroll-mt-24 text-2xl font-semibold tracking-tight first:mt-0"
+                  className="mt-12 scroll-mt-24 text-2xl font-semibold leading-tight tracking-tight first:mt-0 sm:text-3xl"
                 >
                   {block.text}
                 </h2>
@@ -114,7 +114,7 @@ export function ContentBody({
                 <h3
                   key={block.key ?? index}
                   id={id}
-                  className="mt-6 scroll-mt-24 text-xl font-medium tracking-tight"
+                  className="mt-8 scroll-mt-24 text-xl font-semibold tracking-tight"
                 >
                   {block.text}
                 </h3>
@@ -124,7 +124,7 @@ export function ContentBody({
               <h4
                 key={block.key ?? index}
                 id={id}
-                className="mt-4 scroll-mt-24 text-lg font-medium tracking-tight"
+                className="mt-6 scroll-mt-24 text-lg font-semibold tracking-tight"
               >
                 {block.text}
               </h4>
@@ -175,10 +175,10 @@ export function ContentBody({
               return (
                 <ol
                   key={block.key ?? index}
-                  className="list-decimal space-y-1 pl-6 text-body"
+                  className="list-decimal space-y-2 pl-6 text-lg text-body"
                 >
                   {block.items.map((item, i) => (
-                    <li key={i} className="leading-7">
+                    <li key={i} className="leading-8">
                       {item}
                     </li>
                   ))}
@@ -188,10 +188,10 @@ export function ContentBody({
             return (
               <ul
                 key={block.key ?? index}
-                className="list-disc space-y-1 pl-6 text-body"
+                className="list-disc space-y-2 pl-6 text-lg text-body"
               >
                 {block.items.map((item, i) => (
-                  <li key={i} className="leading-7">
+                  <li key={i} className="leading-8">
                     {item}
                   </li>
                 ))}

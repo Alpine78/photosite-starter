@@ -23,7 +23,7 @@ export default async function ContactPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <header className="max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="text-4xl font-semibold leading-none tracking-tight sm:text-6xl">
           {labels.pages.contact}
         </h1>
 

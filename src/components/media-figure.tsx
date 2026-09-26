@@ -50,7 +50,7 @@ export function MediaFigure({
         className={MEDIA_FIGURE_IMAGE_CLASS}
       />
       {(caption || credit) && (
-        <figcaption className="mt-2 text-sm text-subtle">
+        <figcaption className="mt-3 text-[0.9375rem] leading-normal text-muted">
           {caption}
           {caption && credit && " — "}
           {credit}

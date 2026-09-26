@@ -178,6 +178,46 @@ test("a gallery without sections renders no section controls", async ({
   await expect(sectionsNav(page)).toHaveCount(0);
 });
 
+test("a section label with one long unbroken word still wraps instead of overflowing", async ({
+  page,
+}) => {
+  // Regression for a Codex review finding: `break-words` on the link alone
+  // does not shrink the flex item that holds it, so a single very long token
+  // could widen its own <li> past the viewport instead of wrapping.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(GALLERY.path, { waitUntil: "domcontentloaded" });
+  const nav = sectionsNav(page);
+  await nav.evaluate((node) => {
+    const link = node.querySelector("li:last-child a");
+    if (link) link.textContent = "a".repeat(100);
+  });
+  const overflow = await nav.evaluate((node) => document.documentElement.scrollWidth > window.innerWidth
+    || [node, ...node.querySelectorAll("ul, li")].some((element) => element.scrollWidth > element.clientWidth + 1));
+  expect(overflow).toBe(false);
+});
+
+test("every section option is visible without horizontal scrolling (AB#173)", async ({
+  page,
+}) => {
+  // The owner's rule for the filter: the options wrap onto further lines
+  // rather than scrolling sideways, so none is ever out of view.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(GALLERY.path, { waitUntil: "domcontentloaded" });
+  const nav = sectionsNav(page);
+  await expect(nav).toBeVisible();
+
+  const overflow = await nav.evaluate((node) =>
+    [node, ...node.querySelectorAll("ul")].some((element) => element.scrollWidth > element.clientWidth + 1),
+  );
+  expect(overflow).toBe(false);
+  for (const link of await nav.getByRole("link").all()) {
+    const box = await link.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  }
+});
+
 test("section controls expose keyboard operation and selected state", async ({
   page,
 }) => {
