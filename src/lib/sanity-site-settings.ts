@@ -2,6 +2,7 @@
 
 import "server-only";
 
+import type { ContactCallToAction } from "@/lib/contact-call-to-action";
 import { readGalleryPresentationFields } from "@/lib/gallery-presentation";
 import { projectOptionalContactCallToAction } from "@/lib/sanity-contact-call-to-action";
 
@@ -317,4 +318,31 @@ export async function readSanitySiteSettings(options: {
     },
   );
   return projectSiteSettings(document, options);
+}
+
+/** A narrow read for prefixed service listings; other settings remain default-locale. */
+export async function readSanityServicesContactCallToAction(
+  language: string,
+  client: SanityClient = getSanityClient(),
+): Promise<ContactCallToAction | undefined> {
+  const result = await client.query({
+    query: `*[_type == "${SITE_SETTINGS_DOCUMENT_TYPE}"]{servicesContactCallToAction{heading[]{language, value}, text[]{language, value}}}`,
+    tag: "site-settings",
+  });
+  const document = readSingletonDocument<RawSiteSettingsDocument>(
+    result,
+    "site settings",
+    (rejection, detail) => {
+      throw new SanitySiteSettingsError(rejection, detail);
+    },
+  );
+  const rejectIncomplete: (detail: string) => never = (detail) => {
+    throw new SanitySiteSettingsError("incomplete-document", detail);
+  };
+  return projectOptionalContactCallToAction(
+    document.servicesContactCallToAction,
+    language,
+    "servicesContactCallToAction",
+    rejectIncomplete,
+  );
 }

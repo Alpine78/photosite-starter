@@ -2,11 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
+import { ContactCallToAction } from "@/components/contact-call-to-action";
 import {
   LanguageSwitch,
   type LanguageLink,
 } from "@/components/language-switch";
 import { ServiceCard } from "@/components/service-card";
+import type { ContactCallToAction as ContactCallToActionContent } from "@/lib/contact-call-to-action";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import type { ResolvedService } from "@/lib/service-routes";
@@ -19,6 +21,8 @@ type ServiceListingProps = {
   readonly routes: readonly ResolvedService[];
   readonly languages?: readonly LanguageLink[];
   readonly languageLabel?: string;
+  readonly contactCallToAction?: ContactCallToActionContent;
+  readonly contactLabel: string;
 };
 
 /** The localized service catalog. Route resolution supplies every card URL. */
@@ -29,29 +33,40 @@ export function ServiceListing({
   routes,
   languages = [],
   languageLabel,
+  contactCallToAction,
+  contactLabel,
 }: ServiceListingProps) {
   return (
-    <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-      <header className="max-w-2xl">
-        <h1 className="text-4xl font-semibold leading-none tracking-tight sm:text-6xl">
-          {title}
-        </h1>
-        {intro !== undefined && <p className="mt-5 text-lg text-muted sm:text-xl">{intro}</p>}
-        {languageLabel !== undefined && (
-          <LanguageSwitch label={languageLabel} links={languages} />
-        )}
-      </header>
+    <main>
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <header className="max-w-2xl">
+          <h1 className="text-4xl font-semibold leading-none tracking-tight sm:text-6xl">
+            {title}
+          </h1>
+          {intro !== undefined && <p className="mt-5 text-lg text-muted sm:text-xl">{intro}</p>}
+          {languageLabel !== undefined && (
+            <LanguageSwitch label={languageLabel} links={languages} />
+          )}
+        </header>
 
-      <ul className="mt-12 grid items-start gap-x-10 gap-y-14 sm:mt-16 sm:grid-cols-2">
-        {routes.map((route) => (
-          <li key={route.service.serviceId}>
-            <ServiceCard
-              service={route.service}
-              href={`${serviceRootPath}/${route.path.join("/")}`}
-            />
-          </li>
-        ))}
-      </ul>
+        <ul className="mt-12 grid items-start gap-x-10 gap-y-14 sm:mt-16 sm:grid-cols-2">
+          {routes.map((route) => (
+            <li key={route.service.serviceId}>
+              <ServiceCard
+                service={route.service}
+                href={`${serviceRootPath}/${route.path.join("/")}`}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
+      {contactCallToAction && (
+        <ContactCallToAction
+          content={contactCallToAction}
+          contactLabel={contactLabel}
+          headingId="services-contact-call-to-action"
+        />
+      )}
     </main>
   );
 }

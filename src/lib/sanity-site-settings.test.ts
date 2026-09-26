@@ -15,6 +15,7 @@ import {
   PROJECTED_SITE_SETTINGS_FIELDS,
   projectSiteSettings,
   readSanitySiteSettings,
+  readSanityServicesContactCallToAction,
   SanitySiteSettingsError,
   SITE_SETTINGS_DOCUMENT_TYPE,
   SITE_SETTINGS_PROJECTION,
@@ -282,4 +283,20 @@ it("projects the services contact band independently and omits incomplete local 
   expect(project(documentOf({ servicesContactCallToAction: { text: content.text } })).servicesContactCallToAction).toBeUndefined();
   expect(project(documentOf({ servicesContactCallToAction: { heading: [{ language: "en", value: "Else?" }], text: content.text } })).servicesContactCallToAction).toBeUndefined();
   expect(() => project(documentOf({ servicesContactCallToAction: [] }))).toThrow(SanitySiteSettingsError);
+});
+
+
+it("reads a prefixed service CTA without requiring the rest of localized settings", async () => {
+  const content = {
+    heading: localized("Etkö löytänyt sopivaa?", "Looking for something else?"),
+    text: localized("Kerro tarpeestasi.", "Tell me what you need."),
+  };
+  const { client, requests } = fakeClient([{ servicesContactCallToAction: content }]);
+  await expect(readSanityServicesContactCallToAction("en", client)).resolves.toEqual({
+    heading: "Looking for something else?",
+    text: "Tell me what you need.",
+  });
+  expect(requests).toHaveLength(1);
+  expect(requests[0]?.query).toContain("servicesContactCallToAction");
+  expect(requests[0]?.query).not.toContain("privacyNotice");
 });
