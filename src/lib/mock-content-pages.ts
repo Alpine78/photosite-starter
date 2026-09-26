@@ -52,6 +52,12 @@ type AuthoredPage = GalleryPresentationFields & {
    * itself for other per-variant fields.
    */
   readonly author?: string;
+  /**
+   * The record's `summary` is a listing-only excerpt (AB#172). Three fixtures
+   * carry it — an article, a gallery with a hero and one without — so each
+   * surface that would otherwise render the lead is served in this state.
+   */
+  readonly summaryListingOnly?: true;
   readonly tags?: readonly string[];
   readonly body: readonly ContentBlock[];
 };
@@ -269,9 +275,9 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
     variant: "gallery",
     body: [],
   },
-  "content-masonry-below": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "below", body: [] },
+  "content-masonry-below": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "below", summaryListingOnly: true, body: [] },
   "content-masonry-overlay": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "overlay", body: [] },
-  "content-grid-overlay": { variant: "gallery", galleryLayout: "grid", galleryCaptionPlacement: "overlay", body: [] },
+  "content-grid-overlay": { variant: "gallery", galleryLayout: "grid", galleryCaptionPlacement: "overlay", summaryListingOnly: true, body: [] },
   "content-justified-below": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-layout-single": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
@@ -512,6 +518,7 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
   },
   "content-shooting-in-low-light": {
     variant: "article",
+    summaryListingOnly: true,
     tags: ["low light", "technique", "ISO"],
     body: [
       {
@@ -695,9 +702,9 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
     variant: "gallery",
     body: [],
   },
-  "content-masonry-below": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "below", body: [] },
+  "content-masonry-below": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "below", summaryListingOnly: true, body: [] },
   "content-masonry-overlay": { variant: "gallery", galleryLayout: "masonry", galleryCaptionPlacement: "overlay", body: [] },
-  "content-grid-overlay": { variant: "gallery", galleryLayout: "grid", galleryCaptionPlacement: "overlay", body: [] },
+  "content-grid-overlay": { variant: "gallery", galleryLayout: "grid", galleryCaptionPlacement: "overlay", summaryListingOnly: true, body: [] },
   "content-justified-below": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-layout-single": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
@@ -811,6 +818,7 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
   },
   "content-shooting-in-low-light": {
     variant: "article",
+    summaryListingOnly: true,
     tags: ["hämärä", "käsivarakuvaus", "tekniikka"],
     body: [
       {

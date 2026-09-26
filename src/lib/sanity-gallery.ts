@@ -139,6 +139,7 @@ export const GALLERY_DETAIL_PROJECTION = `{
   contentId,
   title,
   summary,
+  summaryListingOnly,
   publishedAt,
   eventDate,
   endDate,
@@ -199,6 +200,8 @@ export type RawGalleryDetailDocument = {
   readonly contentId?: unknown;
   readonly title?: unknown;
   readonly summary?: unknown;
+  /** AB#172: the lead is a listing excerpt only. */
+  readonly summaryListingOnly?: unknown;
   readonly publishedAt?: unknown;
   readonly eventDate?: unknown;
   readonly endDate?: unknown;
@@ -741,6 +744,16 @@ export function projectGalleryContentPage(
   const endDate = readOptionalIsoDate(document.endDate, contentId, "endDate");
 
   const summary = readString(document.summary);
+  if (
+    document.summaryListingOnly != null &&
+    typeof document.summaryListingOnly !== "boolean"
+  ) {
+    throw new SanityGalleryError(
+      "malformed-result",
+      "the gallery has a malformed listing-only lead flag",
+      contentId,
+    );
+  }
   const cover = isRecord(document.cover)
     ? projectPublicMedia(document.cover as RawPublicMediaDocument, options)
     : undefined;
@@ -758,6 +771,7 @@ export function projectGalleryContentPage(
     ...(eventDate === undefined ? {} : { eventDate }),
     ...(endDate === undefined ? {} : { endDate }),
     ...(summary === undefined ? {} : { summary }),
+    ...(document.summaryListingOnly === true ? { summaryListingOnly: true } : {}),
     ...(cover === undefined ? {} : { cover }),
     ...(tags.length > 0 ? { tags } : {}),
     body,

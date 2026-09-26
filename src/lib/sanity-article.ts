@@ -119,6 +119,7 @@ export const PROJECTED_ARTICLE_DETAIL_FIELDS = [
   "contentId",
   "title",
   "summary",
+  "summaryListingOnly",
   "author",
   "endGalleryId",
   "publishedAt",
@@ -165,6 +166,7 @@ export const ARTICLE_DETAIL_PROJECTION = `{
   contentId,
   title,
   summary,
+  summaryListingOnly,
   author,
   endGalleryId,
   publishedAt,
@@ -238,6 +240,8 @@ export type RawArticleListingDocument = {
 
 export type RawArticleDetailDocument = RawArticleListingDocument & {
   readonly endDate?: unknown;
+  /** AB#172: the lead is a listing excerpt only. */
+  readonly summaryListingOnly?: unknown;
   /** Overrides `SiteSettings.photographerName` on this article's byline (AB#151). */
   readonly author?: unknown;
   readonly endGalleryId?: unknown;
@@ -795,6 +799,16 @@ export function projectArticleContentPage(
   }
 
   const summary = readString(document.summary);
+  if (
+    document.summaryListingOnly != null &&
+    typeof document.summaryListingOnly !== "boolean"
+  ) {
+    throw new SanityArticleError(
+      "malformed-result",
+      "the article has a malformed listing-only lead flag",
+      contentId,
+    );
+  }
   const cover = isRecord(document.cover)
     ? projectPublicMedia(document.cover as RawPublicMediaDocument, options)
     : undefined;
@@ -824,6 +838,7 @@ export function projectArticleContentPage(
     ...(author === undefined ? {} : { author }),
     ...(endGalleryId === undefined ? {} : { endGalleryId }),
     ...(summary === undefined ? {} : { summary }),
+    ...(document.summaryListingOnly === true ? { summaryListingOnly: true } : {}),
     ...(cover === undefined ? {} : { cover }),
     ...(tags.length > 0 ? { tags } : {}),
     body,

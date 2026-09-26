@@ -11,6 +11,7 @@ import {
 import { listContentHeadings } from "@/lib/content-headings";
 import {
   effectiveEventDate,
+  onPageSummary,
   type ArticleContentPage,
 } from "@/lib/content-page";
 import { formatDate } from "@/lib/date-format";
@@ -93,6 +94,8 @@ export function ContentArticle({
 }: ContentArticleProps) {
   const headings = listContentHeadings(page.body);
   const eventDate = effectiveEventDate(page);
+  // AB#172: a listing-only lead stays off the page itself.
+  const leadSummary = onPageSummary(page);
   // AB#151: one decided meta-line layout shared by the hero and the
   // constrained (no-cover) header, rather than each of AB#150 and AB#151
   // independently guessing how the byline and the date sit together.
@@ -153,9 +156,9 @@ export function ContentArticle({
               </header>
             )}
 
-            {page.summary && (
+            {leadSummary && (
               <p className="mt-8 text-lg leading-8 text-body">
-                {page.summary}
+                {leadSummary}
               </p>
             )}
 

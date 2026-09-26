@@ -87,6 +87,11 @@ describe("the article document", () => {
   it("keeps a canonical media reference rather than a copied asset", () => {
     expect(fieldOf("cover").to).toEqual([{ type: MEDIA_TYPE_NAME }]);
   });
+
+  it("lets the short lead be a listing-only excerpt, off by default (AB#172)", () => {
+    expect(fieldOf("summaryListingOnly").type).toBe("boolean");
+    expect(fieldOf("summaryListingOnly").initialValue).toBe(false);
+  });
 });
 
 describe("the content identity", () => {

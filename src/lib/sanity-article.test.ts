@@ -365,6 +365,28 @@ describe("projecting the full page", () => {
       projectArticleContentPage({ ...document, author: "   " }, languages),
     ).not.toHaveProperty("author");
   });
+
+  it("carries a listing-only lead flag only when it is true (AB#172)", () => {
+    expect(
+      projectArticleContentPage({ ...document, summaryListingOnly: true }, languages)
+        .summaryListingOnly,
+    ).toBe(true);
+    for (const value of [undefined, null, false]) {
+      expect(
+        projectArticleContentPage({ ...document, summaryListingOnly: value }, languages),
+      ).not.toHaveProperty("summaryListingOnly");
+    }
+  });
+
+  it.each([["a string", "true"], ["a number", 1], ["an object", {}]])(
+    "rejects a listing-only lead flag that is %s",
+    (_case, value) => {
+      const error = rejectionOf(() =>
+        projectArticleContentPage({ ...document, summaryListingOnly: value }, languages),
+      );
+      expect(error.rejection).toBe("malformed-result");
+    },
+  );
 });
 
 describe("reading placements", () => {

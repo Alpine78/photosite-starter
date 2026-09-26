@@ -2187,3 +2187,22 @@ Blank or overlong captions are rejected at the Sanity adapter and import-plan
 boundaries. The owner approved this scoped model extension while reviewing the
 AB#137 legacy-conversion evidence; individual caption text, alt text, media
 rights, and import eligibility remain separately approval-gated.
+
+## Amendment 2026-09-26 — listing-only short lead (AB#172)
+
+A content page's `summary` is shown on listing cards, as its meta, Open Graph and
+structured-data description, and on the page itself: a gallery's hero or
+constrained-header lead, or an article's lead paragraph. A page may now mark that
+summary as a **listing-only excerpt** (`summaryListingOnly`, article and gallery). The
+page then does not render it, and every other use is unchanged. Pages without the flag
+render exactly as before.
+
+The flag exists for pages whose own text already restates the lead. The legacy Joomla
+archive is the motivating case: Joomla hid each article's intro text on the article page
+and showed it only in listings, and the full text usually repeated it. Without the flag,
+migrating the intro into `summary` would still show it twice on the page. The owner chose
+this over editing the migrated full texts (2026-09-26). The flag is a presentation choice
+over the existing field, not a second excerpt field. A page that needs a lead distinct
+from its listing excerpt is not modelled. `onPageSummary` in
+`src/lib/content-page.ts` is the one place the rule lives.
+

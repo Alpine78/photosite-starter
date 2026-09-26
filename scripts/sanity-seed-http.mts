@@ -73,6 +73,8 @@ export type SeedMutation =
   | {
       readonly patch: {
         readonly id: string;
+        /** Rejects the whole transaction unless the document is still at this revision. */
+        readonly ifRevisionID?: string;
         readonly set?: Readonly<Record<string, unknown>>;
         readonly unset?: readonly string[];
       };

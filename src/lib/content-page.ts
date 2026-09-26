@@ -157,6 +157,15 @@ type ContentPageBase = {
   /** Short lead introducing the page; omitted when it has none. */
   readonly summary?: string;
   /**
+   * The lead is a listing excerpt only (AB#172): listing cards, the page's
+   * meta/Open Graph description and its structured data still use `summary`,
+   * but the page itself does not render it — read it through
+   * {@link onPageSummary}. Carried by pages whose full text already restates
+   * the lead, such as legacy Joomla articles whose intro text was hidden on
+   * the article page. Only `true` or absent, so there is one "shown" state.
+   */
+  readonly summaryListingOnly?: true;
+  /**
    * ISO 8601 date. When the page went live *on this site* — technical
    * bookkeeping only (AB#150, ADR-0017). It is still what Open Graph's
    * `article:published_time` reports, but it drives no visible order and
@@ -249,6 +258,17 @@ export function effectiveEventDate(
   page: Pick<ContentPageBase, "publishedAt" | "eventDate">,
 ): string {
   return page.eventDate ?? page.publishedAt;
+}
+
+/**
+ * The lead a page renders on itself (AB#172): its `summary`, unless the page
+ * marks that summary as a listing-only excerpt. Listing cards and metadata
+ * read `summary` directly and are unaffected.
+ */
+export function onPageSummary(
+  page: Pick<ContentPageBase, "summary" | "summaryListingOnly">,
+): string | undefined {
+  return page.summaryListingOnly === true ? undefined : page.summary;
 }
 
 /**

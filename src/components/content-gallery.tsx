@@ -13,6 +13,7 @@ import {
 import { listContentHeadings } from "@/lib/content-headings";
 import {
   effectiveEventDate,
+  onPageSummary,
   type GalleryContentPage,
 } from "@/lib/content-page";
 import { formatDate } from "@/lib/date-format";
@@ -159,6 +160,8 @@ export function ContentGallery({
   // continuation never shows one, even for a gallery with an authored cover.
   const showHero = !isContinuation && page.cover !== undefined;
   const eventDate = effectiveEventDate(page);
+  // AB#172: a listing-only lead stays off the page itself.
+  const leadSummary = onPageSummary(page);
 
   return (
     <main>
@@ -175,7 +178,7 @@ export function ContentGallery({
           media={page.cover}
           title={page.title}
           meta={{ dateTime: eventDate, label: formatDate(eventDate, locale) }}
-          description={page.summary}
+          description={leadSummary}
           titleClassName="text-3xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-4xl"
         />
       )}
@@ -230,9 +233,9 @@ export function ContentGallery({
                 label={labels.contentTree.languages}
                 links={languages}
               />
-              {page.summary && (
+              {leadSummary && (
                 <p className="mt-6 max-w-2xl text-lg leading-8 text-body">
-                  {page.summary}
+                  {leadSummary}
                 </p>
               )}
             </header>

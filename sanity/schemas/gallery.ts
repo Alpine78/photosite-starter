@@ -389,6 +389,14 @@ export const galleryType: SchemaTypeDefinition = {
       description: "Shown at the head of the page, above the grid (AB#106).",
     },
     {
+      name: "summaryListingOnly",
+      title: "Show the short lead only on listings",
+      type: "boolean",
+      description:
+        "Turn on when the page's own text already restates the short lead (for example a legacy intro text). The lead then shows on listing cards and in search-engine descriptions, but not on the page itself (AB#172).",
+      initialValue: false,
+    },
+    {
       name: "publishedAt",
       title: "Published",
       type: "datetime",

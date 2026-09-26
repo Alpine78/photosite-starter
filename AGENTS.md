@@ -2554,6 +2554,20 @@ Azure `DeployPreview` stage has been failing on exhausted Microsoft-hosted minut
 2026-09-23, so merged code does not deploy by itself — see `docs/deployment.md`, "When the
 pipeline cannot deploy".
 
+A content page's short lead can be a **listing-only excerpt** (AB#172, ADR-0003's
+2026-09-26 amendment). With `summaryListingOnly`, the lead shows on listing cards and in
+the meta, Open Graph and JSON-LD descriptions, but not on the page itself. The rule lives
+in `content-page.ts#onPageSummary`, and the Sanity article and gallery schemas and
+adapters carry the flag. The imported Joomla stories needed it: the importer left each
+intro text as the first body paragraph, so a page opened with the same text twice and its
+card had no excerpt. `npm run fix:joomla-intro` (owner-run, dry-run by default,
+revision-guarded, one transaction, recovery record) moves those paragraphs. On
+2026-09-26 its read-only plan for Production covered 26 pages: 18 rally galleries and the
+8 VAT portfolio articles. It left out Secto Rally Finland 2022, whose one paragraph is the
+whole text, and the photographer's introduction, which starts with a heading. The write
+itself is owner-run. The Joomla article importer does not yet set the flag, and must before
+the remaining articles are imported.
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
@@ -2651,6 +2665,7 @@ npm run plan:rally -- --folder <rally folder> --out <dir> # owner-run: plan a ca
 npm run write:rally -- --plan <plan.json> --folder <rally folder> --out <dir> --approved-digest <hash> # owner-run: write an approved rally plan to Sanity, dry-run by default
 npm run plan:rally-conversion -- --gallery <contentId> --folder <renamed copy> --artifacts <dir> --out <dir> # owner-run: plan converting a published rally gallery, read-only
 npm run write:rally-conversion -- --plan <plan.json> --folder <renamed copy> --out <dir> --approved-digest <hash> --backup-archive <path> # owner-run: write an approved rally gallery conversion to Sanity, dry-run by default
+npm run fix:joomla-intro -- --out <dir> [--approved-digest <hash> --yes] # owner-run: move imported Joomla intros into listing-only leads, plan-only by default
 npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)
 ```
 
