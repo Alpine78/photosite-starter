@@ -58,6 +58,10 @@ const DEFAULT_TITLE_CLASSNAME =
  * bottom edge. The grid lets a taller text stack grow the figure downward,
  * never above the photograph or over following content (AB#155). The entire
  * stack has its own contrast surface; very long copy may require scrolling.
+ * That surface is a 60%-black veil with soft transparent edges above and
+ * below it (AB#171), so the text reads as laid over the photograph rather
+ * than as a separate bar under it, while every line still clears AA even
+ * over a pure-white frame.
  *
  * One mechanism, three call sites (the home hero, and — via AB#149 — the
  * article and gallery content-page heroes): duplicating this markup a
@@ -75,7 +79,7 @@ export function HeroOverlay({
   const imageHeight = `calc(100vw * ${media.rendition.height} / ${media.rendition.width})`;
 
   return (
-    <figure className="relative grid">
+    <figure className="relative grid bg-black">
       <Image
         src={media.rendition.src}
         alt={media.alt}
@@ -102,15 +106,24 @@ export function HeroOverlay({
         </figcaption>
       )}
       <div
-        className="relative col-start-1 row-start-1 flex min-w-0 flex-col justify-end self-start"
+        className="relative col-start-1 row-start-1 flex min-w-0 flex-col justify-end self-start overflow-hidden"
         style={{
           minHeight: `min(${imageHeight}, calc(100dvh - ${HERO_CHROME_RESERVE_PX}px))`,
         }}
       >
-        <div className="bg-black/80 px-4 py-8 sm:px-6 sm:pb-14 lg:pb-20">
+        {/* The contrast surface (AB#171): a uniform 60%-black veil under
+            every text line — over a pure-white photograph that composites to
+            #666, still AA for the 90%-white metadata — feathered by a
+            transparent fade above it (`before:`) and below it (the sibling
+            spacer), so it has no hard edge to read as a bar. The top fade is
+            absolutely positioned and adds no height; the band's own
+            `overflow-hidden` stops it painting above the photograph when long
+            text fills the band. The bottom fade replaces the old bottom
+            padding at the same height, so the band's size is unchanged. */}
+        <div className="relative bg-black/60 px-4 pt-8 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-24 before:bg-linear-to-t before:from-black/60 before:to-transparent sm:px-6 sm:before:h-32">
           <div className="mx-auto max-w-6xl [overflow-wrap:anywhere]">
             {meta && (
-              <div className="text-sm text-white/80 drop-shadow-sm">
+              <div className="text-sm text-white/90 drop-shadow-sm">
                 {meta.byline && <p>{meta.byline}</p>}
                 <time dateTime={meta.dateTime} className="block">
                   {meta.label}
@@ -133,6 +146,10 @@ export function HeroOverlay({
             )}
           </div>
         </div>
+        <div
+          aria-hidden="true"
+          className="h-8 bg-linear-to-b from-black/60 to-transparent sm:h-14 lg:h-20"
+        />
       </div>
     </figure>
   );

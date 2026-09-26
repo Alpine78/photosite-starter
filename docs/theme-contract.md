@@ -204,17 +204,22 @@ blocks to that test's palette list, and a preset that misses AA fails the build.
 Four surfaces keep raw `black`/`white` values on purpose. They are deliberate
 photographic or media treatments, not brand decisions a palette should reach:
 
-- **The hero text surface** — `bg-black/80` and white title, metadata,
-  optional tagline or lead description, and CTA. Shared by home, article and
-  gallery heroes through `src/components/hero-overlay.tsx`. AB#155 replaces
-  the gradient with a uniform dark panel behind the complete text stack:
-  its size follows the text, so the first line has the same contrast guarantee
-  as the last even over a pale photograph. Over white the panel is #333 and
-  the weakest (80%-white) metadata is approximately #d6d6d6, above AA.
+- **The hero text surface** — `bg-black/60` with transparent fades above and
+  below it, and white title, 90%-white metadata, optional tagline or lead
+  description, and CTA. Shared by home, article and gallery heroes through
+  `src/components/hero-overlay.tsx`. AB#155 replaced the gradient with a uniform
+  panel behind the complete text stack. Its size follows the text, so the first
+  line has the same contrast guarantee as the last even over a pale photograph.
+  AB#171 lightened that panel from 80% to 60% black and feathered its edges, so it
+  reads as a veil over the photograph rather than a bar under it. Over pure white
+  the veil is #666, white text is about 5.7:1, and the 90%-white metadata is about
+  5.0:1, both above AA. The figure's own background is black, so text extending
+  below the image stays on black.
   ADR-0016's 2026-09-07 amendment keeps the viewport-based band minimum and
   lets long text extend the figure downward without cropping the image or
-  truncating text. Very long copy can require scrolling. A content page with
-  no authored cover renders no hero or text surface (AB#149 AC10).
+  truncating text; its 2026-09-26 amendment records the veil. Very long copy can
+  require scrolling. A content page with no authored cover renders no hero or text
+  surface (AB#149 AC10).
 - **Gallery overlay captions** (`src/components/gallery-figure.css`, AB#157)
   use white text on a uniform 72%-black surface. Even over pure white the
   resulting background is #474747 (approximately 9.2:1 against white).
@@ -250,5 +255,6 @@ photographic or media treatments, not brand decisions a palette should reach:
   get fainter (hover borders unify at `/0.4`). `text-foreground/65` folded into
   `text-subtle` (`/60`), a 5% step. The YouTube backdrop and the lightbox are
   byte-for-byte unchanged since AB#36. The hero's layout changed with
-  AB#148/ADR-0016, and AB#155 replaces its gradient with an 80%-black text
-  surface to guarantee contrast across long editorial text.
+  AB#148/ADR-0016, and AB#155 replaces its gradient with a uniform text
+  surface to guarantee contrast across long editorial text. AB#171 lightens
+  that surface to 60% black and feathers its edges.
