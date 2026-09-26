@@ -3,10 +3,11 @@
 **Status:** Accepted
 **Date:** 2026-09-04
 **Deciders:** Project owner (Ilkka Rytkönen)
-**Work item:** AB#148; overflow correction AB#155
+**Work item:** AB#148; overflow correction AB#155; surface correction AB#171
 
 > The 2026-09-07 amendment below replaces the fixed-height and upward-overflow
-> clauses. The original decision and measurements are retained as history.
+> clauses; the 2026-09-26 amendment replaces its 80%-black panel. The original
+> decision and measurements are retained as history.
 
 ## Context
 
@@ -312,3 +313,47 @@ real routes, the desktop fold targets, no-cover states and continuation pages.
 
 The AB#149 extraction action item above has also been completed: all three callers
 already use `src/components/hero-overlay.tsx`.
+
+## 2026-09-26 amendment — feathered 60% surface (AB#171)
+
+**Evidence for the correction.** The owner reviewed a production gallery hero at
+1920px: the 80%-black, hard-edged panel from the 2026-09-07 amendment spans the
+full width and reads as a separate bar *below* the photograph, hiding the part of
+the image behind the title. The goal is text that sits on the photograph, with the
+photograph visible behind it.
+
+**Replacement.** The contrast surface stays a uniform veil under every text line,
+so AB#155's reasoning holds unchanged — only its strength and edges change:
+
+- **60% black instead of 80%.** Over a pure-white photograph it composites to
+  #666. White text clears about 5.7:1. The metadata line moves from 80% to 90%
+  white (about 5.0:1), because 80% white would fall to about 4.4:1, below AA. The
+  lead was already 90% white. The CTA is its own white pill with black text and is
+  measured against that pill, not the veil.
+- **A transparent fade above the surface** (`::before`, 6rem, 8rem from `sm`),
+  absolutely positioned so it adds no height to the band. The band clips its own
+  overflow, so when long text fills the band the fade is cut off at the photograph's
+  top edge instead of painting over the header. In that case there is no room above
+  the text and no fade is visible. The figure itself does not clip: the credit label
+  can still extend above a very shallow image.
+- **A transparent fade below it**, an `aria-hidden` spacer at exactly the height of
+  the old bottom padding. The band's size, and therefore every fold measurement, is
+  unchanged. It softens the lower edge where a tall photograph continues below a
+  viewport-clamped band, the case in the owner's screenshot.
+- **The figure has a black background.** When long mobile text extends the figure
+  below the image, the veil and its lower fade sit over black rather than turning
+  into a grey block over the page colour. The same black shows while the image loads,
+  or if it fails to load.
+
+Dark photographs now show clearly through the text area. Pale photographs still
+darken to mid-grey behind the text; that is the minimum the AA guarantee over an
+arbitrary photograph allows. Text-shadow alone, or a radial falloff, was rejected
+because neither guarantees contrast for every wrapped line.
+
+**Verification.** `e2e/hero-text-overflow.spec.ts` keeps AB#155's mobile cases,
+now with a CTA whose contrast is measured against its own background. It asserts
+the surface is lighter than the old panel. A new 1920×1080 case with short copy over
+a pure-white 16:9 frame reads real screenshot pixels to check four things: the
+photograph above the top fade is untouched, both fades ramp softly with no seam into
+the veil, the veil itself is #666, and the photograph below the lower fade is
+untouched.

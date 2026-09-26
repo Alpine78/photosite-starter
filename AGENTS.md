@@ -554,12 +554,17 @@ continue), leaving the archive fixture exactly as AB#79 needs it.
 The shared hero now also handles long mobile editorial text (AB#155,
 ADR-0016's 2026-09-07 amendment): a grid overlays the image and an automatically
 sized text band whose minimum retains the viewport formula. A taller text stack
-extends the figure downward, keeping following content below it. An 80%-black
-surface covers every text line, including date and byline, instead of relying on
-a gradient's darkest stop. Image dimensions and native ratio are unchanged;
+extends the figure downward, keeping following content below it. A uniform
+contrast surface covers every text line, including date and byline, instead of
+relying on a gradient's darkest stop. Image dimensions and native ratio are unchanged;
 very long copy can require scrolling. `e2e/hero-text-overflow.spec.ts` exercises
 long title/lead/metadata over pale 16:9 and wider frames in both browser engines
 with JavaScript disabled, checking text geometry against the contrast surface.
+AB#171 (ADR-0016's 2026-09-26 amendment) lightened that surface from 80% to 60%
+black and feathered its top and bottom edges into transparent fades, because the
+hard-edged panel read as a bar under the photograph rather than text over it;
+metadata moved to 90% white so every line, the CTA included, still clears AA over
+a pure-white frame, and the same spec samples real pixels to prove both fades.
 An authored `eventDate` now replaces `publishedAt` as the public ordering key everywhere
 the site orders content chronologically (AB#150, [ADR-0017](docs/adr/0017-authored-event-date-ordering-key.md)):
 category branch listing order, the story root's recent overview,
