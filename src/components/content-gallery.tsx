@@ -220,7 +220,7 @@ export function ContentGallery({
             </header>
           ) : (
             <header className="mt-6">
-              <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+              <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
                 {page.title}
               </h1>
               <time

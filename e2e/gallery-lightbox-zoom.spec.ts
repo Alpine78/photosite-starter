@@ -7,7 +7,7 @@ import {
   OPEN_ACTION_TIMEOUT,
   expectApprovedPublicRendition,
 } from "./support/gallery";
-import { openLightbox, presentedImage } from "./support/lightbox";
+import { openLightbox, presentedImage, type PresentedImage } from "./support/lightbox";
 
 /**
  * The lightbox zoom and pan journey (AB#78).
@@ -51,13 +51,20 @@ function zoomControl(dialog: Locator) {
 async function waitForPresentedImage(
   dialog: Locator,
 ) {
+  // Return the very reading that satisfied the wait. A second read could land
+  // after the viewer swaps in a larger source on zoom, whose natural size is
+  // still 0 until it loads — a race that turned the ratio check into 0/0.
+  let presented: PresentedImage | null = null;
   await expect
-    .poll(async () => (await presentedImage(dialog))?.naturalWidth ?? 0, {
-      timeout: 15_000,
-    })
+    .poll(
+      async () => {
+        presented = await presentedImage(dialog);
+        return presented?.naturalWidth ?? 0;
+      },
+      { timeout: 15_000 },
+    )
     .toBeGreaterThan(0);
 
-  const presented = await presentedImage(dialog);
   expect(presented, "no image is covering the centre of the viewer").not.toBeNull();
   return presented!;
 }

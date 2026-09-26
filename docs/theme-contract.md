@@ -27,10 +27,10 @@ used through an ordinary static utility class — `bg-surface`, `text-muted`,
 
 | Utility | Custom property | Role | Light | Dark |
 | --- | --- | --- | --- | --- |
-| `bg-background` | `--background` | the page canvas | `#ffffff` | `#0a0a0a` |
-| `bg-surface` | `--surface` | a raised panel (menu dropdown, sticky section bar) | `#ffffff` | `#0a0a0a` |
-| `bg-surface-muted` | `--surface-muted` | a resting subtle fill (image placeholder) | `rgb(0 0 0 / 0.05)` | `rgb(255 255 255 / 0.05)` |
-| `bg-surface-hover` | `--surface-hover` | the wash a control takes on hover | `rgb(0 0 0 / 0.05)` | `rgb(255 255 255 / 0.1)` |
+| `bg-background` | `--background` | the page canvas | `#ece9e3` | `#1b1c1e` |
+| `bg-surface` | `--surface` | a raised panel (menu dropdown, sticky section bar) | `#ece9e3` | `#1b1c1e` |
+| `bg-surface-muted` | `--surface-muted` | a resting subtle fill (image placeholder) | `rgb(19 17 14 / 0.06)` | `rgb(238 236 232 / 0.05)` |
+| `bg-surface-hover` | `--surface-hover` | the wash a control takes on hover | `rgb(19 17 14 / 0.06)` | `rgb(238 236 232 / 0.1)` |
 
 `--surface` defaults to `--background`; it exists so a preset can give raised
 panels a distinct fill without touching a component. `--surface-hover` is a
@@ -42,7 +42,7 @@ affordance.
 
 | Utility | Custom property | Role | Value (both palettes) |
 | --- | --- | --- | --- |
-| `text-foreground` | `--foreground` | headings, strong text, the active nav item | `#171717` / `#ededed` |
+| `text-foreground` | `--foreground` | headings, strong text, the active nav item | `#13110e` / `#eeece8` |
 | `text-body` | `--body` | body copy, leads, list items | `--foreground` at 80% |
 | `text-muted` | `--muted` | secondary text, field labels, metadata | `--foreground` at 70% |
 | `text-subtle` | `--subtle` | captions, fine print, the breadcrumb trail | `--foreground` at 60% |
@@ -56,9 +56,9 @@ own.
 
 | Utility | Custom property | Role | Light | Dark |
 | --- | --- | --- | --- | --- |
-| `border-border` | `--border` | a hairline: a divider, a card edge | `rgb(0 0 0 / 0.1)` | `rgb(255 255 255 / 0.15)` |
-| `border-border-control` | `--border-control` | a form field, chip, or info-panel edge | `rgb(0 0 0 / 0.2)` | `rgb(255 255 255 / 0.25)` |
-| `border-border-strong` | `--border-strong` | a hover or emphasis border | `rgb(0 0 0 / 0.4)` | `rgb(255 255 255 / 0.4)` |
+| `border-border` | `--border` | a hairline: a divider, a card edge | `#d6d1c8` | `#34363a` |
+| `border-border-control` | `--border-control` | a chip or info-panel edge (decorative: its text identifies it) | `#b9b2a6` | `#4a4c51` |
+| `border-border-strong` | `--border-strong` | a form field's boundary; a hover or emphasis border — at least 3:1 on the page | `#857e72` | `#75777d` |
 
 ### Accent, danger, focus
 
@@ -68,6 +68,7 @@ own.
 | `text-accent-foreground` | `--accent-foreground` | text/icon on an accent fill | `--background` | `--background` |
 | `text-danger` / `border-danger` | `--danger` | an error message, an invalid field | `oklch(50.5% 0.213 27.518)` (Tailwind `red-700`) | `oklch(70.4% 0.191 22.216)` (`red-400`) |
 | `outline-focus` | `--focus` | the keyboard focus ring's colour | `--foreground` | `--foreground` |
+| `hover:text-link-hover` | `--link-hover` | a text link's hover colour | `#6b5a3e` | `#d9c29a` |
 
 `--accent` / `--accent-foreground` / `--focus` default to the site's ink/paper
 inversion. A preset gives them a brand colour here; a component keeps using
@@ -83,7 +84,7 @@ scrim) sets its own `outline-*` colour utility and still wins.
 
 | Utility | Custom property | Notes |
 | --- | --- | --- |
-| `font-sans` | `--font-family-sans` | Geist Sans + a full fallback stack. |
+| `font-sans` | `--font-family-sans` | Instrument Sans (AB#173) + a full fallback stack. |
 | `font-mono` | `--font-family-mono` | Geist Mono + a full fallback stack. |
 | `rounded-sm` / `rounded-md` / `rounded-lg` | `--radius-sm` / `--radius-md` / `--radius-lg` | `0.25` / `0.375` / `0.5 rem` — Tailwind's defaults, redeclared here so the scale is one owned override point. |
 
@@ -110,9 +111,63 @@ Light and dark are explicit, not an accidental `prefers-color-scheme` override:
   dark page.
 
 `<html>` ships with **no `data-theme` attribute**, so the default behaviour is
-unchanged from before this refactor: follow the OS. Setting
-`data-theme="light"` or `data-theme="dark"` on `<html>` is the documented hook
-for a preset, a clone, or a future in-page toggle. No toggle UI ships today.
+to follow the OS. Setting `data-theme="light"` or `data-theme="dark"` on
+`<html>` pins one; the visitor's theme choice below is what sets it.
+
+### The default palettes: Kivi and Grafiitti (AB#173)
+
+The default light palette is **Kivi** and the default dark palette
+**Grafiitti**, from the owner's Claude Design proposal. Two deliberate
+adaptations keep them inside this contract:
+
+- **The ink is darker than the proposal's.** Kivi's proposed ink `#1d1b18`
+  leaves the derived `--subtle` role (a fixed 60 % mix, see "What AB#37 found")
+  at 4.25:1 on `#ece9e3`, short of AA. The ink is `#13110e` instead, which clears
+  every role. For the same reason the proposal's separate body (`#35322d`) and
+  muted (`#5e5950`) colours are not reproduced; the derived roles stand in for
+  them.
+- **Form fields take `--border-strong`, not `--border-control`.** The proposal's
+  control border (`#b9b2a6` / `#4a4c51`) is about 1.7:1 / 2.0:1 on its ground.
+  That is fine for a chip or pill whose text identifies it, so it stays as
+  `--border-control`. A text field is identified by its boundary, so fields use
+  `--border-strong` (`#857e72` / `#75777d`), which clears WCAG 1.4.11's 3:1.
+  `theme-contract.test.ts` holds both default palettes to it.
+
+### The visitor's choice (AB#173)
+
+The site menu carries the design proposal's **theme toggle**: a moon while the
+light theme shows, a sun while the dark one does
+(`src/components/theme-toggle.tsx`). Its accessible name is constant, "Dark
+theme", and `aria-pressed` says whether dark is on. Until a visitor presses it,
+the device decides, including when the device setting changes while the page is
+open. A press pins the other theme, and from then on the device no longer
+decides. There is no way back to "follow the device" short of clearing the
+stored choice. That is the accepted cost of the proposal's two-state toggle; an
+earlier three-way footer select was replaced on the owner's request.
+
+- **Stored in `localStorage`** under `photosite-theme` (`src/lib/theme-preference.ts`),
+  never a cookie: the server does not need it, and the site sets no cookie without
+  a visitor's action. Only `light` or `dark` is ever stored. With storage blocked,
+  the toggle still works for the page it is on.
+- **Applied before the first paint.** A constant inline script in `<head>`
+  (`THEME_BOOTSTRAP_SCRIPT`, rendered by `DocumentRoot`) reads the stored value
+  and sets `data-theme` before the body paints, following Next.js's "preventing
+  flash before hydration" guide. `<html>` carries `suppressHydrationWarning` for
+  that one attribute. The toggle reads its state from `data-theme` and the
+  device query, so it can never disagree with the page.
+- **Without JavaScript** the toggle is absent, since it could change nothing, and
+  the site follows the device, even over a pin stored on an earlier visit. Before
+  hydration an inert placeholder holds the toggle's space, so the header does not
+  shift.
+- **Other tabs follow.** A choice made in one tab reaches the others through the
+  `storage` event.
+- The private-gallery and administrator roots share `DocumentRoot`, so a stored
+  pin applies there too. They render no site header, so they show no toggle.
+
+`e2e/theme-toggle.spec.ts` covers both directions against the device, device
+changes before and after a press, blocked storage, the no-JavaScript case, and
+the pre-paint bootstrap. The bootstrap is measured while every script bundle is
+held back, so hydration cannot mask a broken bootstrap.
 
 ---
 
@@ -244,12 +299,11 @@ photographic or media treatments, not brand decisions a palette should reach:
 - **Contrast** (AC5). `text-body`, `text-muted`, `text-subtle`, and `text-danger`
   clear WCAG 2.1 AA (≥ 4.5:1 for normal text) over `--background` in both
   palettes; the focus ring clears ≥ 3:1. Enforced by both test suites above.
-- **Known limitation — non-text control borders.** `--border-control` (form
-  fields, chips, info panels) is ~2.1:1 against the page in light, below WCAG
-  1.4.11's 3:1 for non-text UI. This is the pre-AB#36 appearance, kept
-  deliberately: AC2 forbids a site-wide restyle of every form and chip inside a
-  token refactor, and AC5 scopes AA to text and focus. Strengthening it is a
-  tracked follow-up.
+- **Non-text control borders.** Until AB#173, `--border-control` also edged
+  form fields at ~2.1:1, below WCAG 1.4.11's 3:1. Form fields now use
+  `--border-strong`, which clears 3:1 in both default palettes (tested).
+  `--border-control` remains below 3:1 on purpose, for chips, pills and info
+  panels whose text, not their edge, identifies them.
 - **Fidelity** (AC2). Dividers and resting control borders keep their existing
   dominant values; the few one-off weights fold into the nearest role and never
   get fainter (hover borders unify at `/0.4`). `text-foreground/65` folded into

@@ -2568,6 +2568,36 @@ whole text, and the photographer's introduction, which starts with a heading. Th
 itself is owner-run. The Joomla article importer does not yet set the flag, and must before
 the remaining articles are imported.
 
+The visual finish from the owner's Claude Design hi-fi proposal is in progress (AB#173).
+The default palettes are now **Kivi** (light, `#ece9e3` ground) and **Grafiitti** (dark,
+`#1b1c1e`). The site menu carries the proposal's moon/sun theme toggle
+(`theme-toggle.tsx`, `aria-pressed`): the device decides until the first press, which
+pins the other theme. The choice is stored in `localStorage`, never a cookie, and a
+constant inline `<head>` script (`THEME_BOOTSTRAP_SCRIPT`) applies it before first paint;
+without JavaScript the device decides. The language choice is in the menu too: a page's
+`LanguageSwitch` publishes its identity-based links to the header through an
+owner-scoped store (`language-menu-store.ts`). The bar shows a short code (EN), and the
+compact panel shows the language's own name, with a nearer-page note visible in both.
+The in-page switch stays as the fallback and is hidden only once the header has rendered
+the links (`data-language-menu` on `<html>`). The contact route (`CONTACT_PATH`) shows as
+a pill at the end of the bar. The wide layout switches on at `lg`, not `sm`: the
+added controls no longer fit the old breakpoint (Codex review). A gallery
+section's filter row wraps rather than scrolling, with `min-w-0` on each item so
+one long unbroken label wraps instead of widening past the viewport (Codex
+review, second finding on the same story). Instrument Sans replaced Geist as the sans face.
+Moving the font variables from `<body>` to `<html>` also fixed a long-standing bug: the
+web font had never actually applied, because `--font-family-sans` resolves on `:root`.
+Form fields now take `--border-strong` (3:1). The story and services listings are
+borderless two-column card grids with native-ratio images and three-line clamped
+excerpts. Titles, prose and the header and footer follow the proposal's scale. The
+gallery section control is an underlined row of plain links that wraps, so every option
+is visible without horizontal scrolling (owner decision). The proposal's 3:2 and cover crops are
+deliberately not reproduced. `docs/theme-contract.md` records the palette adaptations:
+the ink is darkened to `#13110e` so the derived `--subtle` role clears AA. Follow-ups:
+AB#174 card byline, AB#175 home introduction, AB#176 portfolio topic filter, AB#177
+call-to-action band, AB#178 contact form fields and service prefill, AB#179 section
+heading and count.
+
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a

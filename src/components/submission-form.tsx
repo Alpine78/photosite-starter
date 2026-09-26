@@ -119,9 +119,13 @@ function contextBody(context: SubmissionContext): Record<string, string> {
     : {};
 }
 
+// A field's boundary is what identifies it, so it takes the border token that
+// clears WCAG 1.4.11's 3:1 non-text contrast (AB#173).
+// Underlined fields, as in the design proposal (AB#173): the bottom border is
+// the boundary, and focus adds the ring rather than replacing it.
 const fieldClasses =
-  "w-full rounded-md border border-border-control bg-background px-3 py-2 text-base " +
-  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
+  "min-h-12 w-full rounded-none border-0 border-b border-border-strong bg-transparent px-0 py-3 text-lg " +
+  "focus-visible:border-b-2 focus-visible:border-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 " +
   "aria-[invalid=true]:border-danger";
 
 export function SubmissionForm({
@@ -380,7 +384,7 @@ export function SubmissionForm({
         action={endpoint}
         onSubmit={handleSubmit}
         noValidate
-        className="space-y-6"
+        className="space-y-7"
       >
         {intro}
 
@@ -392,7 +396,7 @@ export function SubmissionForm({
             <div key={field}>
               <label
                 htmlFor={fieldId(field)}
-                className="block text-sm font-medium"
+                className="block text-[0.9375rem] font-medium"
               >
                 {labels[`${field}Label`]}
                 <span aria-hidden="true" className="ml-0.5 text-subtle">
@@ -466,7 +470,7 @@ export function SubmissionForm({
         <button
           type="submit"
           disabled={!hydrated || status.kind === "submitting"}
-          className="rounded-md bg-accent px-5 py-2.5 font-medium text-accent-foreground transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
+          className="inline-flex min-h-12 items-center rounded-full bg-accent px-6 font-medium text-accent-foreground transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
         >
           {status.kind === "submitting"
             ? labels.submitting

@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { LanguageLinksRegistrar } from "@/components/language-links-registrar";
+
 export type LanguageLink = {
   readonly locale: string;
   /** The language's own name, so a visitor recognizes it without reading ours. */
@@ -31,6 +33,12 @@ type LanguageSwitchProps = {
  * bound to the link with `aria-describedby`, so a visitor tabbing through links
  * or reading a links list hears that this one opens the parent category rather
  * than meeting the caveat only if they happen to read the surrounding text.
+ *
+ * The site menu carries the same links (AB#173): this switch publishes them
+ * there once the page mounts. It stays in the page as the fallback — for a
+ * visitor without JavaScript, or whose scripts never finish loading — and is
+ * hidden only once the menu has actually rendered its replacement, which the
+ * header marks with `data-language-menu` on `<html>` (see globals.css).
  */
 export function LanguageSwitch({ label, links }: LanguageSwitchProps) {
   if (links.length === 0) return null;
@@ -38,8 +46,9 @@ export function LanguageSwitch({ label, links }: LanguageSwitchProps) {
   return (
     <nav
       aria-label={label}
-      className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm"
+      className="language-switch-fallback mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm"
     >
+      <LanguageLinksRegistrar links={links} />
       <span className="font-medium text-muted">{label}:</span>
       <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         {links.map((language) => {

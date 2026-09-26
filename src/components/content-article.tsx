@@ -139,7 +139,7 @@ export function ContentArticle({
               </header>
             ) : (
               <header className="mt-6">
-                <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
+                <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
                   {page.title}
                 </h1>
                 <p className="mt-2 text-sm text-subtle">{byline}</p>
@@ -157,7 +157,7 @@ export function ContentArticle({
             )}
 
             {leadSummary && (
-              <p className="mt-8 text-lg leading-8 text-body">
+              <p className="mt-8 text-xl leading-8 text-body">
                 {leadSummary}
               </p>
             )}

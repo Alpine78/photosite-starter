@@ -91,6 +91,13 @@ export type ResolvedNavigationLink = {
   readonly href: string;
 };
 
+/**
+ * The application-owned contact route (`src/app/(default)/contact`). The site
+ * menu shows a configured link to it as the proposal's contact button (AB#173);
+ * it is recognized by this route, never by its label, which a clone renames.
+ */
+export const CONTACT_PATH = "/contact";
+
 export type SiteNavigationItem = {
   /**
    * Stable render key: a static route path, or a category's immutable id. Never

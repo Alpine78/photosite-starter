@@ -13,7 +13,7 @@ type SiteFooterProps = {
 };
 
 const linkClasses =
-  "hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+  "transition-colors hover:text-link-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 
 /** Capitalizes a lowercase platform identifier for display, e.g. "instagram" → "Instagram". */
 function platformLabel(platform: string): string {
@@ -36,17 +36,17 @@ export function SiteFooter({
 
   return (
     <footer className="border-t border-border">
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:pt-16">
         <div className="grid gap-8 sm:grid-cols-3">
           {/* Contact */}
           <section aria-labelledby="footer-contact-heading">
             <h2
               id="footer-contact-heading"
-              className="text-sm font-semibold tracking-tight"
+              className="text-base font-semibold tracking-tight"
             >
               {labels.footer.contact}
             </h2>
-            <address className="mt-3 flex flex-col gap-1 text-sm not-italic text-muted">
+            <address className="mt-4 flex flex-col gap-2 text-base not-italic text-muted">
               <a href={`mailto:${contact.email}`} className={linkClasses}>
                 {contact.email}
               </a>
@@ -70,15 +70,15 @@ export function SiteFooter({
           {/* Quick navigation */}
           {footerLinks.length > 0 && (
             <nav aria-label={labels.navigation.footer}>
-              <h2 className="text-sm font-semibold tracking-tight">
+              <h2 className="text-base font-semibold tracking-tight">
                 {labels.footer.explore}
               </h2>
-              <ul className="mt-3 flex flex-col gap-1">
+              <ul className="mt-4 flex flex-col gap-2">
                 {footerLinks.map((item) => (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className={`text-sm text-muted ${linkClasses}`}
+                      className={`text-base text-muted ${linkClasses}`}
                     >
                       {item.label}
                     </Link>
@@ -93,11 +93,11 @@ export function SiteFooter({
             <section aria-labelledby="footer-social-heading">
               <h2
                 id="footer-social-heading"
-                className="text-sm font-semibold tracking-tight"
+                className="text-base font-semibold tracking-tight"
               >
                 {labels.footer.follow}
               </h2>
-              <ul className="mt-3 flex flex-col gap-1">
+              <ul className="mt-4 flex flex-col gap-2">
                 {socialLinks.map((social) => (
                   <li key={social.url}>
                     <a
@@ -105,7 +105,7 @@ export function SiteFooter({
                       aria-label={social.label}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`text-sm text-muted ${linkClasses}`}
+                      className={`text-base text-muted ${linkClasses}`}
                     >
                       {platformLabel(social.platform)}
                     </a>

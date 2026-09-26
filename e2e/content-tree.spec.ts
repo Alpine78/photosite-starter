@@ -691,6 +691,7 @@ test("the removed article scaffold routes are gone, not redirected", async ({
 
 test("a branch names and links the other locale's version of itself", async ({
   page,
+  isMobile,
 }) => {
   await page.goto(STORY_ROOT, { waitUntil: "domcontentloaded" });
 
@@ -704,15 +705,16 @@ test("a branch names and links the other locale's version of itself", async ({
   await expect(page.locator("meta[property='og:image:alt']")).toHaveCount(1);
 
   await test.step("the switch is navigation a visitor can see and use", async () => {
+    // The page still renders its own switch — the fallback without JavaScript —
+    // and the site menu carries the same link once the page mounts (AB#173).
+    await expect(
+      page.getByRole("main").locator(`a[href="${PREFIXED_STORY_ROOT}"]`),
+    ).toHaveCount(1);
+    if (isMobile) await page.locator('button[aria-controls="mobile-nav"]').click();
     const switchLink = page
-      .getByRole("main")
-      .locator(`a[href="${PREFIXED_STORY_ROOT}"]`);
+      .getByRole("banner")
+      .locator(`a[href="${PREFIXED_STORY_ROOT}"][hreflang]:visible`);
     await expect(switchLink).toHaveCount(1);
-    const languageSwitch = page
-      .getByRole("main")
-      .locator(`nav:has(a[href="${PREFIXED_STORY_ROOT}"])`);
-    await expect(languageSwitch).toHaveCount(1);
-    await expect(languageSwitch.locator(":scope > span")).toBeVisible();
 
     await switchLink.click();
     await page.waitForURL(`**${PREFIXED_STORY_ROOT}`);

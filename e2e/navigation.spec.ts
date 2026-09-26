@@ -411,3 +411,20 @@ test("the compact panel neither locks nor hides the page behind it", async ({
     await expect(toggle).toBeFocused();
   });
 });
+
+test("the wide header layout fits the viewport at its own breakpoint, with no page-wide horizontal scroll", async ({
+  page,
+}) => {
+  // Regression for a Codex review finding on AB#173: the wide row (nav +
+  // theme toggle + language menu + contact pill) had outgrown the `sm`
+  // breakpoint it switched on and overflowed the header. Checked one step
+  // below where the wide layout now takes over, and at a real tablet width.
+  for (const width of [1023, 1024, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+
+    const usingCompact = await headerMenuToggle(page).isVisible();
+    expect(usingCompact).toBe(width < 1024);
+  }
+});

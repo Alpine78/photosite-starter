@@ -33,16 +33,16 @@ export function ServiceListing({
   return (
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <header className="max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="text-4xl font-semibold leading-none tracking-tight sm:text-6xl">
           {title}
         </h1>
-        {intro !== undefined && <p className="mt-3 text-muted">{intro}</p>}
+        {intro !== undefined && <p className="mt-5 text-lg text-muted sm:text-xl">{intro}</p>}
         {languageLabel !== undefined && (
           <LanguageSwitch label={languageLabel} links={languages} />
         )}
       </header>
 
-      <ul className="mt-12 grid items-start gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-12 grid items-start gap-x-10 gap-y-14 sm:mt-16 sm:grid-cols-2">
         {routes.map((route) => (
           <li key={route.service.serviceId}>
             <ServiceCard
@@ -103,13 +103,13 @@ export function ServiceDetail({
 
       <div className="mt-6 grid gap-12 lg:grid-cols-[1fr_20rem]">
         <article>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h1 className="text-4xl font-semibold leading-none tracking-tight sm:text-6xl">
             {service.name}
           </h1>
           <LanguageSwitch label={labels.contentTree.languages} links={languages} />
-          <div className="mt-6 space-y-4 text-body">
+          <div className="mt-8 space-y-5 text-lg text-body">
             {service.description.map((paragraph, index) => (
-              <p key={index} className="leading-7">
+              <p key={index} className="leading-8">
                 {paragraph}
               </p>
             ))}
@@ -128,8 +128,8 @@ export function ServiceDetail({
 
         <aside className="lg:sticky lg:top-8 lg:self-start">
           {service.pricing && service.pricing.length > 0 && (
-            <div className="rounded-lg border border-border p-6">
-              <h2 className="text-lg font-medium tracking-tight">
+            <div className="rounded-md border border-border p-8">
+              <h2 className="text-xl font-semibold tracking-tight">
                 {labels.services.pricing}
               </h2>
               <dl className="mt-4 space-y-4">

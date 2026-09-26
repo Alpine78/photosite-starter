@@ -19,11 +19,17 @@ type GallerySectionControlsProps = {
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 
+/**
+ * A filter option (AB#173): the active section is marked by an underline and a
+ * heavier weight, not by colour alone. The row wraps, so every option stays
+ * visible without horizontal scrolling (owner decision, 2026-09-26), and a
+ * single long label wraps within its own option.
+ */
 function optionClassName(isActive: boolean): string {
-  return `${focusRing} shrink-0 rounded-full border px-4 py-1.5 text-sm transition-colors ${
+  return `${focusRing} -mb-px block max-w-full break-words border-b-2 px-4 py-3 text-base transition-colors ${
     isActive
-      ? "border-accent bg-accent text-accent-foreground"
-      : "border-border-control text-body hover:border-border-strong hover:text-foreground"
+      ? "border-foreground font-medium text-foreground"
+      : "border-transparent text-muted hover:text-foreground"
   }`;
 }
 
@@ -66,7 +72,6 @@ export function GallerySectionControls({
   const [hidden, setHidden] = useState(false);
   const lastScrollYRef = useRef(0);
   const navRef = useRef<HTMLElement>(null);
-
   useEffect(() => {
     if (sections.length === 0) return;
 
@@ -119,12 +124,17 @@ export function GallerySectionControls({
     <nav
       ref={navRef}
       aria-label={labels.gallery.sectionsNav}
-      className={`sticky top-0 z-10 -mx-4 bg-surface/95 px-4 py-2 backdrop-blur transition-transform duration-200 motion-reduce:transition-none sm:-mx-6 sm:px-6 ${
+      className={`sticky top-0 z-10 -mx-4 border-y border-border bg-surface/95 px-4 backdrop-blur transition-transform duration-200 motion-reduce:transition-none sm:-mx-6 sm:px-6 ${
         hidden ? "-translate-y-full" : "translate-y-0"
       }`}
     >
-      <ul className="flex gap-2 overflow-x-auto">
-        <li>
+      <ul className="flex flex-wrap">
+        {/* `min-w-0` overrides the flex item's automatic min-content floor:
+            without it, a section label with one long unbroken word can widen
+            its own <li> past the viewport instead of wrapping (Codex
+            review) — `break-words` on the link alone does not shrink the
+            item that holds it. */}
+        <li className="min-w-0 max-w-full">
           <Link
             prefetch={false}
             href={buildGalleryHref(galleryPath, {})}
@@ -135,7 +145,7 @@ export function GallerySectionControls({
           </Link>
         </li>
         {sections.map((section) => (
-          <li key={section.sectionId}>
+          <li key={section.sectionId} className="min-w-0 max-w-full">
             <Link
               prefetch={false}
               href={buildGalleryHref(galleryPath, { section: section.slug })}

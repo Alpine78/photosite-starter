@@ -2,10 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { LanguageMenu } from "@/components/language-menu";
 import { SiteNavigation } from "@/components/site-navigation";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { BuiltInLabels } from "@/lib/deployment-config";
-import type { SiteNavigationItem } from "@/lib/site-navigation";
+import {
+  getLanguageLinks,
+  getServerLanguageLinks,
+  subscribeLanguageLinks,
+} from "@/lib/language-menu-store";
+import {
+  CONTACT_PATH,
+  resolveNavigationItemState,
+  toAriaCurrent,
+  type SiteNavigationItem,
+} from "@/lib/site-navigation";
 
 type SiteHeaderProps = {
   siteName: string;
@@ -14,7 +26,12 @@ type SiteHeaderProps = {
   /** Composed by `buildSiteNavigation`, never a hand-written link list. */
   navigation: readonly SiteNavigationItem[];
   labels: BuiltInLabels["navigation"];
+  themeLabels: BuiltInLabels["theme"];
+  languageMenuLabels: BuiltInLabels["languageMenu"];
 };
+
+const focusRing =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 
 /**
  * DOM id of the compact-layout panel, named rather than generated because two
@@ -37,8 +54,38 @@ const COMPACT_PANEL_ID = "mobile-nav";
  * inside it rather than past the bottom of the window, and nothing about it
  * traps focus or locks the page behind it.
  */
-export function SiteHeader({ siteName, homeHref, navigation, labels }: SiteHeaderProps) {
+export function SiteHeader({
+  siteName,
+  homeHref,
+  navigation,
+  labels,
+  themeLabels,
+  languageMenuLabels,
+}: SiteHeaderProps) {
   const pathname = usePathname();
+  const languageEntry = useSyncExternalStore(
+    subscribeLanguageLinks,
+    getLanguageLinks,
+    getServerLanguageLinks,
+  );
+  const languageLinks = languageEntry?.links ?? [];
+
+  // The bar shows a configured link to the contact route as the proposal's
+  // contact button, last in the row; the compact panel keeps it in the list.
+  const contactItem = navigation.find(
+    (item) => item.href === CONTACT_PATH && item.children.length === 0,
+  );
+  const barItems =
+    contactItem === undefined ? navigation : navigation.filter((item) => item !== contactItem);
+
+  // Tell the page its in-page language switch is now redundant — only once the
+  // menu really shows the links, so a failed script never hides the fallback.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (languageLinks.length > 0) root.setAttribute("data-language-menu", "");
+    else root.removeAttribute("data-language-menu");
+  }, [languageLinks.length]);
+  useEffect(() => () => document.documentElement.removeAttribute("data-language-menu"), []);
   const [menuOpen, setMenuOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -102,42 +149,63 @@ export function SiteHeader({ siteName, homeHref, navigation, labels }: SiteHeade
     // than its image — a wide frame on a narrow screen — otherwise spills over
     // the header and swallows taps on the menu button and the open menu panel.
     <header className="relative z-10 border-b border-border">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 sm:py-6">
         {homeHref === undefined ? (
-          <span className="text-lg font-semibold tracking-tight">{siteName}</span>
+          <span className="text-lg font-semibold tracking-tight sm:text-xl">{siteName}</span>
         ) : (
           <Link
             href={homeHref}
-            className="text-lg font-semibold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="text-lg font-semibold tracking-tight transition-colors hover:text-link-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:text-xl"
           >
             {siteName}
           </Link>
         )}
 
-        <SiteNavigation
-          items={navigation}
-          layout="bar"
-          labels={labels}
-          className="hidden sm:block"
-        />
+        {/* The wide layout, in the proposal's order: navigation, theme,
+            language, then the contact button. Kept back to `lg`: at `sm` the
+            row (nav + toggle + language + pill) no longer fits the mock
+            navigation and overflows the header (Codex review). */}
+        <div className="hidden items-center gap-6 lg:flex">
+          <SiteNavigation items={barItems} layout="bar" labels={labels} />
+          <ThemeToggle labels={themeLabels} className="-mx-2" />
+          <LanguageMenu
+            links={languageLinks}
+            layout="bar"
+            label={languageMenuLabels.label}
+          />
+          {contactItem !== undefined && (
+            <Link
+              href={contactItem.href}
+              aria-current={toAriaCurrent(
+                resolveNavigationItemState(contactItem.href, pathname),
+              )}
+              className={`inline-flex min-h-10 items-center rounded-full bg-accent px-5 text-[0.9375rem] font-medium text-accent-foreground transition-opacity hover:opacity-90 ${focusRing}`}
+            >
+              {contactItem.label}
+            </Link>
+          )}
+        </div>
 
-        <button
-          type="button"
-          ref={toggleRef}
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-expanded={menuOpen}
-          aria-controls={COMPACT_PANEL_ID}
-          className="inline-flex items-center gap-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:hidden"
-        >
-          {menuOpen ? labels.closeMenu : labels.menu}
-        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <ThemeToggle labels={themeLabels} />
+          <button
+            type="button"
+            ref={toggleRef}
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-controls={COMPACT_PANEL_ID}
+            className={`inline-flex min-h-11 items-center gap-2 text-sm ${focusRing}`}
+          >
+            {menuOpen ? labels.closeMenu : labels.menu}
+          </button>
+        </div>
       </div>
 
       <div
         id={COMPACT_PANEL_ID}
         ref={panelRef}
         hidden={!menuOpen}
-        className="max-h-[70svh] overflow-y-auto border-t border-border px-4 pb-4 sm:hidden"
+        className="max-h-[70svh] overflow-y-auto border-t border-border px-4 pb-4 lg:hidden"
       >
         <SiteNavigation
           items={navigation}
@@ -145,6 +213,11 @@ export function SiteHeader({ siteName, homeHref, navigation, labels }: SiteHeade
           labels={labels}
           onNavigate={() => setMenuOpen(false)}
           className="pt-2"
+        />
+        <LanguageMenu
+          links={languageLinks}
+          layout="stack"
+          label={languageMenuLabels.label}
         />
       </div>
     </header>

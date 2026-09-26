@@ -44,14 +44,14 @@ excused by being a framework's own output.
 
 Applying that test, five things are redistributed and carry obligations: the vendored
 agent skills and the generated architecture diagrams (both in the repository), and —
-embedded into the build output and served by a deployed site — the Geist font files, the
+embedded into the build output and served by a deployed site — the Instrument Sans and Geist Mono font files, the
 Next.js/React client runtime, and the PhotoSwipe browser bundle.
 
 The diagrams are the one that is easy to miss, because nothing about them looks like a
 shipped asset. `docs/architecture/*.svg` are generated files, and D2 embeds a subset of
 Adobe's Source Sans Pro into each one as base64 WOFF — that is how the renditions display
 identically without a network call. Those subsets travel with every clone of this
-repository, so the OFL's notice requirement attaches to them exactly as it does to Geist.
+repository, so the OFL's notice requirement attaches to them exactly as it does to the site's own fonts.
 D2 itself does not: it is a development dependency that renders the files at author time,
 and none of its own code ends up in them.
 
@@ -70,7 +70,8 @@ and none of its own code ends up in them.
 
 | Item | Source | Author | License | Attribution required | Commercial use |
 | --- | --- | --- | --- | --- | --- |
-| Geist, Geist Mono typefaces | `vercel/geist-font` via `next/font/google` | The Geist Project Authors | OFL-1.1 | **Yes** — notice + license must accompany redistribution | Yes |
+| Instrument Sans typeface (AB#173; replaced Geist as the sans face) | `google/fonts` `ofl/instrumentsans` via `next/font/google` | The Instrument Sans Project Authors | OFL-1.1 (`licenses/OFL-1.1-instrument-sans.txt`) | **Yes** — notice + license must accompany redistribution | Yes |
+| Geist Mono typeface | `vercel/geist-font` via `next/font/google` | The Geist Project Authors | OFL-1.1 | **Yes** — notice + license must accompany redistribution | Yes |
 | Next.js, React, React DOM client runtime | `vercel/next.js`, `facebook/react` via npm | Vercel, Meta and contributors | MIT | **Yes** — copyright + permission notice | Yes |
 | PhotoSwipe 5.4.4 (JS + CSS) | `dimsemenov/PhotoSwipe` via npm | Dmitry Semenov | MIT | **Yes** — copyright + permission notice | Yes |
 | `architecture` skill (project-adapted derivative) | `anthropics/knowledge-work-plugins` | Anthropic | Apache-2.0 | **Yes** — license copy, retained notices, state changes | Yes |

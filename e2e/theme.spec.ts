@@ -151,7 +151,7 @@ test.describe("theme contract", () => {
     );
     expect(await rootColorScheme(page)).toBe("light");
     expect(await toRgb(page, await backgroundColor(page.locator("body")))).toEqual(
-      [255, 255, 255],
+      [236, 233, 227], // Kivi (AB#173)
     );
 
     await page.emulateMedia({ colorScheme: "light" });
@@ -160,7 +160,7 @@ test.describe("theme contract", () => {
     );
     expect(await rootColorScheme(page)).toBe("dark");
     expect(await toRgb(page, await backgroundColor(page.locator("body")))).toEqual(
-      [10, 10, 10],
+      [27, 28, 30], // Grafiitti (AB#173)
     );
   });
 

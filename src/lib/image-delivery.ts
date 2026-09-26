@@ -48,11 +48,15 @@ function boundedImageSizes(
  */
 const boundedRemContainerSizes = "calc(100vw - 32px)";
 
-/** Three-column card grid inside the bounded 1152px content container. */
+/**
+ * Two-column card grid inside the bounded 1152px content container (AB#173):
+ * `sm:px-6` padding and a 40px (`gap-x-10`) gutter leave (1152 − 48 − 40) / 2 =
+ * 532px per column at the cap, and (100vw − 48 − 40) / 2 below it.
+ */
 const contentCardGridSizes = boundedImageSizes(
   1152,
-  347,
-  "(min-width: 1024px) calc(33.333vw - 37.333px), (min-width: 640px) calc(50vw - 40px), calc(100vw - 32px)",
+  532,
+  "(min-width: 640px) calc(50vw - 44px), calc(100vw - 32px)",
 );
 
 /**
@@ -132,14 +136,11 @@ export const imageRenderProfiles = {
       "(min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
     ),
   },
+  /** The services listing: the same two-column card grid as stories (AB#173). */
   serviceGrid: {
-    sizes: boundedImageSizes(
-      1152,
-      352,
-      "(min-width: 1024px) calc(33.333vw - 32px), (min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
-    ),
+    sizes: contentCardGridSizes,
   },
-  /** The category branch listing: same container, same three-column grid. */
+  /** The category branch listing: the same container, two columns (AB#173). */
   contentListingGrid: {
     sizes: contentCardGridSizes,
   },

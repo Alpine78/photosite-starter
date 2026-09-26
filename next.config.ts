@@ -233,9 +233,11 @@ function permissionsPolicy(): string {
  * with per-request nonces requires converting the whole site to dynamic
  * rendering, which conflicts with the static-generation and tagged-caching
  * architecture ADR-0004 and AB#83 already committed to. No inline HTML is
- * ever rendered from unescaped input anywhere in this codebase (no
- * `dangerouslySetInnerHTML`, no raw-HTML content block), so the realistic
- * injection surface this would otherwise close is already effectively empty.
+ * ever rendered from unescaped input anywhere in this codebase: the two
+ * `dangerouslySetInnerHTML` uses are a `</script>`-safe JSON-LD serializer and
+ * the constant theme bootstrap (AB#173), and there is no raw-HTML content
+ * block, so the realistic injection surface this would otherwise close is
+ * already effectively empty.
  *
  * `script-src` additionally carries `'unsafe-eval'` in development only
  * (`process.env.NODE_ENV === "development"`, true for `npm run dev`, false

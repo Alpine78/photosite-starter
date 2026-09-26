@@ -82,6 +82,16 @@ export type BuiltInLabels = {
     readonly businessId: string;
     readonly rightsReserved: string;
   };
+  /** The visitor's light/dark toggle in the site menu (AB#173). */
+  readonly theme: {
+    /** The toggle's constant name; `aria-pressed` says whether dark is on. */
+    readonly darkTheme: string;
+  };
+  /** The site menu's language entry (AB#173). */
+  readonly languageMenu: {
+    /** Names the menu's group of language links. */
+    readonly label: string;
+  };
   readonly services: {
     readonly pricing: string;
   };
@@ -426,6 +436,12 @@ const englishLabels = {
     businessId: "Business ID",
     rightsReserved: "All rights reserved.",
   },
+  theme: {
+    darkTheme: "Dark theme",
+  },
+  languageMenu: {
+    label: "Language",
+  },
   services: {
     pricing: "Pricing",
   },
@@ -597,6 +613,12 @@ const finnishLabels = {
     follow: "Seuraa",
     businessId: "Y-tunnus",
     rightsReserved: "Kaikki oikeudet pidätetään.",
+  },
+  theme: {
+    darkTheme: "Tumma teema",
+  },
+  languageMenu: {
+    label: "Kieli",
   },
   services: {
     pricing: "Hinnoittelu",

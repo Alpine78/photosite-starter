@@ -31,11 +31,11 @@ describe("bounded image render profiles", () => {
       },
       serviceGrid: {
         sizes:
-          "(min-width: 1152px) 352px, (min-width: 1024px) calc(33.333vw - 32px), (min-width: 640px) calc(50vw - 36px), calc(100vw - 32px)",
+          "(min-width: 1152px) 532px, (min-width: 640px) calc(50vw - 44px), calc(100vw - 32px)",
       },
       contentListingGrid: {
         sizes:
-          "(min-width: 1152px) 347px, (min-width: 1024px) calc(33.333vw - 37.333px), (min-width: 640px) calc(50vw - 40px), calc(100vw - 32px)",
+          "(min-width: 1152px) 532px, (min-width: 640px) calc(50vw - 44px), calc(100vw - 32px)",
       },
       serviceContent: {
         sizes:

@@ -15,16 +15,21 @@
 :root {
   color-scheme: light;
 
-  /* Palette primitives — the values a preset swaps. */
-  --background: #ffffff;
-  --foreground: #171717;
-  --surface: #ffffff;
-  --surface-muted: rgb(0 0 0 / 0.05);
-  --surface-hover: rgb(0 0 0 / 0.05);
-  --border: rgb(0 0 0 / 0.1);
-  --border-control: rgb(0 0 0 / 0.2);
-  --border-strong: rgb(0 0 0 / 0.4);
+  /* Palette primitives — the values a preset swaps. The default is "Kivi",
+     the warm stone-grey light palette of the site's design proposal (AB#173).
+     Its ink is a shade darker than the proposal's #1D1B18: the derived
+     `--subtle` role below is a fixed 60% mix of it, and #1D1B18 leaves that
+     role at 4.25:1 on this ground, short of AA. */
+  --background: #ece9e3;
+  --foreground: #13110e;
+  --surface: #ece9e3;
+  --surface-muted: rgb(19 17 14 / 0.06);
+  --surface-hover: rgb(19 17 14 / 0.06);
+  --border: #d6d1c8;
+  --border-control: #b9b2a6;
+  --border-strong: #857e72;
   --danger: oklch(50.5% 0.213 27.518); /* = Tailwind red-700 */
+  --link-hover: #6b5a3e;
 
   /* Text roles — derived once, so they track --foreground with no dark
      override. `text-foreground/N` already compiles to this exact mix. */
@@ -39,17 +44,18 @@
   --focus: var(--foreground);
 
   /* Type families. `--font-family-*` is the project-owned override point and
-     carries a real fallback stack; it defaults to the Geist faces loaded by
-     next/font. Overriding the family here does not load a different web font —
+     carries a real fallback stack; it defaults to Instrument Sans (AB#173) and
+     Geist Mono, both loaded and self-hosted by next/font. Overriding the family here does not load a different web font —
      that is a separate step (see docs/theme-contract.md). */
-  --font-family-sans: var(--font-geist-sans), ui-sans-serif, system-ui,
+  --font-family-sans: var(--font-instrument-sans), ui-sans-serif, system-ui,
     -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-family-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular,
     Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 /*
- * Dark palette. Reachable two ways, and the two blocks below MUST hold the
+ * Dark palette: "Grafiitti", the design proposal's graphite (AB#173).
+ * Reachable two ways, and the two blocks below MUST hold the
  * same values — `theme-contract.test.ts` parses both and fails CI on drift:
  *   - the OS preference, unless an explicit `data-theme="light"` pins light
  *   - an explicit `data-theme="dark"` on <html>, which also wins in a light OS
@@ -59,29 +65,31 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --surface: #0a0a0a;
-    --surface-muted: rgb(255 255 255 / 0.05);
-    --surface-hover: rgb(255 255 255 / 0.1);
-    --border: rgb(255 255 255 / 0.15);
-    --border-control: rgb(255 255 255 / 0.25);
-    --border-strong: rgb(255 255 255 / 0.4);
+    --background: #1b1c1e;
+    --foreground: #eeece8;
+    --surface: #1b1c1e;
+    --surface-muted: rgb(238 236 232 / 0.05);
+    --surface-hover: rgb(238 236 232 / 0.1);
+    --border: #34363a;
+    --border-control: #4a4c51;
+    --border-strong: #75777d;
     --danger: oklch(70.4% 0.191 22.216); /* = Tailwind red-400 */
+    --link-hover: #d9c29a;
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --surface: #0a0a0a;
-  --surface-muted: rgb(255 255 255 / 0.05);
-  --surface-hover: rgb(255 255 255 / 0.1);
-  --border: rgb(255 255 255 / 0.15);
-  --border-control: rgb(255 255 255 / 0.25);
-  --border-strong: rgb(255 255 255 / 0.4);
+  --background: #1b1c1e;
+  --foreground: #eeece8;
+  --surface: #1b1c1e;
+  --surface-muted: rgb(238 236 232 / 0.05);
+  --surface-hover: rgb(238 236 232 / 0.1);
+  --border: #34363a;
+  --border-control: #4a4c51;
+  --border-strong: #75777d;
   --danger: oklch(70.4% 0.191 22.216); /* = Tailwind red-400 */
+  --link-hover: #d9c29a;
 }
 
 /*
@@ -129,6 +137,7 @@
   --accent: #1d4ed8;
   --accent-foreground: #ffffff;
   --focus: #1d4ed8;
+  --link-hover: #1d4ed8;
 
   --font-family-sans: ui-serif, Georgia, "Times New Roman", Times, serif;
   --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
@@ -156,6 +165,7 @@
     --accent: #9dbcff;
     --accent-foreground: #14110f;
     --focus: #9dbcff;
+    --link-hover: #9dbcff;
   }
 }
 
@@ -173,6 +183,7 @@
   --accent: #9dbcff;
   --accent-foreground: #14110f;
   --focus: #9dbcff;
+  --link-hover: #9dbcff;
 }
 
 /*
@@ -198,6 +209,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-danger: var(--danger);
   --color-focus: var(--focus);
+  --color-link-hover: var(--link-hover);
   --font-sans: var(--font-family-sans);
   --font-mono: var(--font-family-mono);
 }
@@ -228,9 +240,19 @@
   }
 }
 
+/*
+ * A page's in-page language switch is the fallback for the site menu's
+ * language entry (AB#173). The header sets `data-language-menu` on <html> only
+ * after it has rendered that entry, so a visitor whose scripts fail to load
+ * keeps the in-page links.
+ */
+[data-language-menu] .language-switch-fallback {
+  display: none;
+}
+
 /* Typography comes from the `font-sans` utility on <body> (see layout.tsx),
-   which resolves to --font-sans → --font-family-sans → the Geist face loaded
-   by next/font. */
+   which resolves to --font-sans → --font-family-sans → the Instrument Sans face
+   loaded by next/font. */
 body {
   background: var(--color-background);
   color: var(--color-foreground);
