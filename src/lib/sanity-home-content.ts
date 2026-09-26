@@ -2,7 +2,7 @@
 
 import "server-only";
 
-import type { HomeContent, HomeSectionLink } from "@/lib/home-content";
+import type { HomeContent, HomePhotographerIntroduction, HomeSectionLink } from "@/lib/home-content";
 import type { LocaleRouteConfig } from "@/lib/locale-routes";
 import { getSanityClient, type SanityClient } from "@/lib/sanity-client";
 import { getSanityConfig, type SanityConfig } from "@/lib/sanity-config";
@@ -24,6 +24,7 @@ export const PROJECTED_HOME_PAGE_FIELDS = [
   "heroMedia",
   "heroAction",
   "intro",
+  "photographerIntroduction",
   "sections",
 ] as const;
 
@@ -31,6 +32,13 @@ export const HOME_PAGE_PROJECTION = `{
   "heroMedia": heroMedia->${PUBLIC_MEDIA_PROJECTION},
   heroAction{label[]{language, value}, target, href},
   intro[]{language, value},
+  photographerIntroduction{
+    "portrait": portrait->${PUBLIC_MEDIA_PROJECTION},
+    eyebrow[]{language, value},
+    heading[]{language, value},
+    text[]{language, value},
+    facts[]{title[]{language, value}, detail[]{language, value}}
+  },
   sections[]{title[]{language, value}, description[]{language, value}, target, href}
 }`;
 
@@ -55,6 +63,7 @@ export type RawHomePageDocument = {
   readonly heroMedia?: unknown;
   readonly heroAction?: unknown;
   readonly intro?: unknown;
+  readonly photographerIntroduction?: unknown;
   readonly sections?: unknown;
 };
 
@@ -104,6 +113,37 @@ export function projectHomeContent(
       reject: rejectNavigation,
     });
     if (projected !== undefined) action = projected;
+  }
+
+  let photographerIntroduction: HomePhotographerIntroduction | undefined;
+  if (document.photographerIntroduction !== undefined && document.photographerIntroduction !== null) {
+    const raw = document.photographerIntroduction;
+    if (!isRecord(raw) || !isRecord(raw.portrait)) {
+      rejectIncomplete("photographerIntroduction has no published portrait");
+    }
+    const portrait = projectPublicMedia(raw.portrait as RawPublicMediaDocument, {
+      language: options.language,
+      fallbackLanguage: options.fallbackLanguage,
+      config: options.sanityConfig,
+    });
+    if (portrait.type !== "image") {
+      rejectIncomplete("photographerIntroduction portrait must be an image");
+    }
+    if (raw.facts !== undefined && raw.facts !== null &&
+        (!Array.isArray(raw.facts) || raw.facts.length > 3 || !raw.facts.every(isRecord))) {
+      rejectIncomplete("photographerIntroduction facts must contain at most three entries");
+    }
+    const facts = (raw.facts ?? []) as readonly Readonly<Record<string, unknown>>[];
+    photographerIntroduction = {
+      portrait,
+      eyebrow: readLocalizedText(raw.eyebrow, options.language, "photographerIntroduction.eyebrow", rejectIncomplete),
+      heading: readLocalizedText(raw.heading, options.language, "photographerIntroduction.heading", rejectIncomplete),
+      text: readLocalizedText(raw.text, options.language, "photographerIntroduction.text", rejectIncomplete),
+      facts: facts.map((fact, index) => ({
+        title: readLocalizedText(fact.title, options.language, `photographerIntroduction.facts[${index}].title`, rejectIncomplete),
+        detail: readLocalizedText(fact.detail, options.language, `photographerIntroduction.facts[${index}].detail`, rejectIncomplete),
+      })),
+    };
   }
 
   const rawSections = document.sections;
@@ -161,6 +201,7 @@ export function projectHomeContent(
       "intro",
       rejectIncomplete,
     ),
+    ...(photographerIntroduction === undefined ? {} : { photographerIntroduction }),
     sections,
   };
 }

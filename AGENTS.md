@@ -2595,13 +2595,16 @@ web font had never actually applied, because `--font-family-sans` resolves on `:
 Form fields now take `--border-strong` (3:1). The story and services listings are
 borderless two-column card grids with native-ratio images and three-line clamped
 excerpts. Story cards now show the effective article author or, for galleries, the
-site photographer name before the event date (AB#174). Titles, prose and the header
-and footer follow the proposal's scale. The
+site photographer name before the event date (AB#174). The home page now has an
+optional photographer introduction after the hero (AB#175): a native-ratio public
+portrait, localized copy, up to three facts, and contact/services actions; when absent,
+the old introduction remains. Titles, prose and the header and footer follow the
+proposal's scale. The
 gallery section control is an underlined row of plain links that wraps, so every option
 is visible without horizontal scrolling (owner decision). The proposal's 3:2 and cover crops are
 deliberately not reproduced. `docs/theme-contract.md` records the palette adaptations:
 the ink is darkened to `#13110e` so the derived `--subtle` role clears AA. Follow-ups:
-AB#175 home introduction, AB#176 portfolio topic filter, AB#177
+AB#176 portfolio topic filter, AB#177
 call-to-action band, AB#178 contact form fields and service prefill, AB#179 section
 heading and count.
 

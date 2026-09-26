@@ -81,6 +81,20 @@ function documentOf(overrides: Partial<RawHomePageDocument> = {}): RawHomePageDo
   };
 }
 
+const introduction = {
+  portrait: {
+    ...heroMedia,
+    mediaId: "photographer-portrait",
+    alt: localized("Kuvaaja metsässä", "Photographer in a forest"),
+  },
+  eyebrow: localized("Kuvaaja", "Photographer"),
+  heading: localized("Hei, olen kuvaaja", "Hello, I am the photographer"),
+  text: localized("Kuvaan ihmisiä ja paikkoja.", "I photograph people and places."),
+  facts: [
+    { title: localized("Tapa", "Approach"), detail: localized("Rauhassa", "Unhurried") },
+  ],
+};
+
 const project = (
   document: RawHomePageDocument,
   featuredGalleryHref: string | null = "/tarinat/tyot/valitut",
@@ -126,6 +140,31 @@ describe("projecting Sanity home content", () => {
       "/tarinat",
       "/tarinat/tyot/valitut",
     ]);
+  });
+
+  it("projects an optional localized introduction through the public-media boundary", () => {
+    expect(project(documentOf()).photographerIntroduction).toBeUndefined();
+
+    const home = project(documentOf({ photographerIntroduction: {
+      ...introduction,
+      portrait: { ...introduction.portrait, archiveLocator: "/private/master.raw", _id: "media-doc" },
+    } }));
+    expect(home.photographerIntroduction).toMatchObject({
+      portrait: { type: "image", mediaId: "photographer-portrait", alt: "Kuvaaja metsässä" },
+      eyebrow: "Kuvaaja",
+      heading: "Hei, olen kuvaaja",
+      text: "Kuvaan ihmisiä ja paikkoja.",
+      facts: [{ title: "Tapa", detail: "Rauhassa" }],
+    });
+    expect(JSON.stringify(home)).not.toContain("archiveLocator");
+    expect(JSON.stringify(home)).not.toContain("media-doc");
+  });
+
+  it("rejects incomplete or oversized introductions", () => {
+    expect(() => project(documentOf({ photographerIntroduction: { ...introduction, portrait: null } }))).toThrow(SanityHomeContentError);
+    expect(() => project(documentOf({ photographerIntroduction: { ...introduction, portrait: { ...introduction.portrait, privateOnly: true } } }))).toThrow();
+    expect(() => project(documentOf({ photographerIntroduction: { ...introduction, heading: [] } }))).toThrow(SanityHomeContentError);
+    expect(() => project(documentOf({ photographerIntroduction: { ...introduction, facts: [...introduction.facts, ...introduction.facts, ...introduction.facts, ...introduction.facts] } }))).toThrow(SanityHomeContentError);
   });
 
   it("drops links to an unresolved featured gallery instead of publishing a dead route", () => {

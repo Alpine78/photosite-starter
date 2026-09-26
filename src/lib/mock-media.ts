@@ -29,6 +29,18 @@ export const mockImages = {
     },
     alt: "Rocky shoreline beside calm water under an overcast sky",
   }),
+  photographerIntroduction: projectPublicImageMedia({
+    mediaId: "photographer-introduction",
+    publiclyRenderable: true,
+    rendition: {
+      sourceKind: "public-web-derivative",
+      src: "/gallery/photographer-introduction.12eb753f3851.webp",
+      version: "12eb753f3851",
+      width: 1024,
+      height: 1536,
+    },
+    alt: "Photographer holding a camera on a wooded path",
+  }),
   forestStream: projectPublicImageMedia({
     mediaId: "forest-stream",
     publiclyRenderable: true,
@@ -104,6 +116,9 @@ export type MockImages = typeof mockImages;
 const finnishImages = {
   coastalLandscape: withLocalizedText(mockImages.coastalLandscape, {
     alt: "Kivinen rantaviiva tyynen veden äärellä pilvisen taivaan alla",
+  }),
+  photographerIntroduction: withLocalizedText(mockImages.photographerIntroduction, {
+    alt: "Kuvaaja pitää kameraa metsäpolulla",
   }),
   forestStream: withLocalizedText(mockImages.forestStream, {
     alt: "Metsäpuro virtaa tummien sammaleisten kivien yli",

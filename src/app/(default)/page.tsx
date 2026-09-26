@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HeroOverlay } from "@/components/hero-overlay";
+import { HomePhotographerIntroduction } from "@/components/home-photographer-introduction";
 import { JsonLd } from "@/components/json-ld";
 import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
 import { getSiteSettings } from "@/lib/site-settings";
@@ -41,8 +42,9 @@ export default async function Home({ searchParams }: HomePageProps) {
     getSiteSettings(),
     getHomeContent(),
   ]);
-  const { hero, intro, sections } = home;
+  const { hero, intro, photographerIntroduction, sections } = home;
   const deployment = getDeploymentConfig();
+  const labels = getBuiltInLabels(deployment.localeRoutes.defaultLocale);
   const params = await searchParams;
   const legacyFallbackNotice = isLegacyFallbackNotice(
     params[LEGACY_FALLBACK_NOTICE_PARAM],
@@ -87,10 +89,17 @@ export default async function Home({ searchParams }: HomePageProps) {
         </div>
       )}
 
-      {/* Intro */}
-      <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-        <p className="text-lg leading-8 text-body">{intro}</p>
-      </section>
+      {photographerIntroduction ? (
+        <HomePhotographerIntroduction
+          introduction={photographerIntroduction}
+          contactLabel={labels.pages.contact}
+          servicesLabel={labels.pages.services}
+        />
+      ) : (
+        <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+          <p className="text-lg leading-8 text-body">{intro}</p>
+        </section>
+      )}
 
       {/* Links to main sections */}
       <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">

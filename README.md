@@ -330,6 +330,7 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   [`docs/theme-contract.md`](docs/theme-contract.md)*
 - [x] Site and deployment settings (branding, contact, navigation, locale, canonical base URL, default social image, built-in labels)
 - [x] Home page
+  - Optional photographer introduction after the hero: an uncropped portrait, localized copy and up to three facts, with contact and services links (AB#175).
 - [x] Services listing and individual service pages
 - [x] Shared generic media model (photo and video capable)
 - [x] Implementation of the proposed public image rendition boundary

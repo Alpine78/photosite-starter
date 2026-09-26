@@ -23,8 +23,8 @@ import {
   getDeploymentConfig,
 } from "@/lib/deployment-config";
 import { buildStoryPath, type LocaleRouteConfig } from "@/lib/locale-routes";
-import type { Media } from "@/lib/media";
-import { mockImages } from "@/lib/mock-media";
+import type { ImageMedia, Media } from "@/lib/media";
+import { getMockImages, mockImages } from "@/lib/mock-media";
 import { getSiteSettings } from "@/lib/site-settings";
 
 export type HomeSectionLink = {
@@ -50,7 +50,16 @@ export type HomeContent = {
     action?: HomeAction;
   };
   intro: string;
+  photographerIntroduction?: HomePhotographerIntroduction;
   sections: HomeSectionLink[];
+};
+
+export type HomePhotographerIntroduction = {
+  portrait: ImageMedia;
+  eyebrow: string;
+  heading: string;
+  text: string;
+  facts: readonly { title: string; detail: string }[];
 };
 
 /**
@@ -99,6 +108,7 @@ async function buildMockHomeContent(
     locale,
   );
   const labels = getDefaultLocaleLabels();
+  const language = new Intl.Locale(locale).language;
 
   return {
     hero: {
@@ -114,6 +124,30 @@ async function buildMockHomeContent(
     },
     intro:
       "A short introduction to the studio and the work — replaced with real copy from the CMS. Structure and responsiveness first, visual polish later.",
+    photographerIntroduction: {
+      portrait: getMockImages(language).photographerIntroduction,
+      ...(language === "fi"
+        ? {
+            eyebrow: "KUVAAJAN ESITTELY",
+            heading: "Hei, olen kuvaaja kameran takana",
+            text: "Kuvaan ihmisiä ja paikkoja rauhallisella otteella. Kertokaa ideastanne, niin suunnittelemme teille sopivan kuvauksen yhdessä.",
+            facts: [
+              { title: "Tapa", detail: "Luontevasti ja kiireettä" },
+              { title: "Kuvat", detail: "Täydessä ruudussa, ilman rajausta" },
+              { title: "Yhteistyö", detail: "Suunnitellaan yhdessä" },
+            ],
+          }
+        : {
+            eyebrow: "MEET THE PHOTOGRAPHER",
+            heading: "Hello, I am the person behind the camera",
+            text: "I photograph people and places with a calm, considered approach. Tell me about your idea and we can plan a session that feels right for you.",
+            facts: [
+              { title: "Approach", detail: "Natural and unhurried" },
+              { title: "Images", detail: "Full frame, without cropping" },
+              { title: "Working together", detail: "Planned with you" },
+            ],
+          }),
+    },
     sections: [
       {
         title: "Services",

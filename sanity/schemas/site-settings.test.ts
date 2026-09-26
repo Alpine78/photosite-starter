@@ -65,6 +65,7 @@ describe("the site settings and home schemas", () => {
       "heroMedia",
       "heroAction",
       "intro",
+      "photographerIntroduction",
       "sections",
     ]);
   });

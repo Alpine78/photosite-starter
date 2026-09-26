@@ -32,6 +32,56 @@ export const homePageType: SchemaTypeDefinition = {
       validation: (rule) => uniqueLanguages(rule.required().min(1)),
     },
     {
+      name: "photographerIntroduction",
+      title: "Photographer introduction",
+      type: "object",
+      description: "Optional introduction band after the hero. Author all visible text in each published language.",
+      fields: [
+        {
+          name: "portrait",
+          title: "Portrait",
+          type: "reference",
+          to: [{ type: MEDIA_TYPE_NAME }],
+          description: "A public portrait image shown at its native ratio, without cropping.",
+          validation: (rule) => rule.required(),
+        },
+        ...(["eyebrow", "heading", "text"] as const).map((name) => ({
+          name,
+          title: name === "text" ? "Text" : name === "heading" ? "Heading" : "Eyebrow",
+          type: "array",
+          of: [{ type: LOCALIZED_TEXT_TYPE_NAME }],
+          validation: (rule: Parameters<NonNullable<SchemaTypeDefinition["validation"]>>[0]) =>
+            uniqueLanguages(rule.required().min(1)),
+        })),
+        {
+          name: "facts",
+          title: "Facts",
+          type: "array",
+          description: "Up to three short title-and-detail pairs.",
+          of: [{
+            type: "object",
+            fields: [
+              {
+                name: "title",
+                title: "Title",
+                type: "array",
+                of: [{ type: LOCALIZED_TEXT_TYPE_NAME }],
+                validation: (rule) => uniqueLanguages(rule.required().min(1)),
+              },
+              {
+                name: "detail",
+                title: "Detail",
+                type: "array",
+                of: [{ type: LOCALIZED_TEXT_TYPE_NAME }],
+                validation: (rule) => uniqueLanguages(rule.required().min(1)),
+              },
+            ],
+          }],
+          validation: (rule) => rule.max(3),
+        },
+      ],
+    },
+    {
       name: "sections",
       title: "Section links",
       type: "array",
