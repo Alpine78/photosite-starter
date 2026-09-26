@@ -44,6 +44,7 @@ const deployment: DeploymentConfig = {
     routePrefix: "private",
     adminRoutePrefix: "admin",
   },
+  robotsDisallowedAgents: [],
 };
 
 const localCover = projectPublicImageMedia({

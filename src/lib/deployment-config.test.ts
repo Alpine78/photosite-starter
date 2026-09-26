@@ -104,6 +104,47 @@ describe("loadDeploymentConfig", () => {
     );
   });
 
+  describe("robots.txt disallowed crawlers (AB#181)", () => {
+    const load = (value: string | undefined) =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_ROBOTS_DISALLOWED_AGENTS: value,
+      }).robotsDisallowedAgents;
+
+    it("names none unless a deployment opts in", () => {
+      expect(load(undefined)).toEqual([]);
+      expect(load("   ")).toEqual([]);
+    });
+
+    it("reads comma-separated tokens in order, trimmed", () => {
+      expect(load(" SemrushBot, AhrefsBot ,DotBot,MJ12bot")).toEqual([
+        "SemrushBot",
+        "AhrefsBot",
+        "DotBot",
+        "MJ12bot",
+      ]);
+    });
+
+    it.each([
+      ["a wildcard, which would disallow every crawler", "SemrushBot,*"],
+      ["a version suffix", "AhrefsBot/7.0"],
+      ["a space inside a token", "Semrush Bot"],
+      ["an empty entry", "SemrushBot,,AhrefsBot"],
+      ["a trailing comma", "SemrushBot,"],
+    ])("refuses %s", (_label, value) => {
+      expect(() => load(value)).toThrow(/SITE_ROBOTS_DISALLOWED_AGENTS/);
+    });
+
+    it("refuses one token listed twice in two spellings, since crawlers match case-insensitively", () => {
+      expect(() => load("SemrushBot,semrushbot")).toThrow(/listed twice/);
+    });
+
+    it("refuses an unbounded list", () => {
+      const many = Array.from({ length: 51 }, (_, index) => `Bot${index}`);
+      expect(() => load(many.join(","))).toThrow(/at most 50/);
+    });
+  });
+
   describe("private client galleries (ADR-0014 §9)", () => {
     it("defaults to off with the reserved default route prefix", () => {
       expect(loadDeploymentConfig(validEnvironment).privateGallery).toEqual({
