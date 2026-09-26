@@ -42,7 +42,7 @@ function bylineFor(author: string): string {
 }
 
 // content-choosing-a-telephoto-lens authors an explicit override
-// (mock-content-pages.ts); content-reading-coastal-light (has a hero) and
+// (mock-content-listing.ts); content-reading-coastal-light (has a hero) and
 // content-packing-for-a-photo-trip (no cover, no hero) both rely on the
 // site-wide fallback — the normal, zero-extra-authoring state.
 const ARTICLE_WITH_EXPLICIT_AUTHOR = canonicalPath(
@@ -54,6 +54,28 @@ const ARTICLE_WITH_HERO_NO_AUTHOR = canonicalPath(
 const ARTICLE_NO_HERO_NO_AUTHOR = canonicalPath(
   "content-packing-for-a-photo-trip",
 );
+
+test("story cards show the effective author before the event date", async ({ page }) => {
+  const settings = await getSiteSettings();
+  const cases = [
+    { href: ARTICLE_WITH_EXPLICIT_AUTHOR, author: "Alex Rivers" },
+    { href: ARTICLE_WITH_HERO_NO_AUTHOR, author: settings.photographerName },
+    {
+      href: canonicalPath("content-coastal-mornings"),
+      author: settings.photographerName,
+    },
+  ];
+
+  for (const { href, author } of cases) {
+    await page.goto(href.slice(0, href.lastIndexOf("/")));
+    const card = page.getByRole("main").locator(`a[href="${href}"]`);
+    await expect(card.getByRole("heading", { level: 3 })).toBeVisible();
+    const meta = card.locator("p").last();
+    await expect(meta.locator("span").first()).toHaveText(author);
+    await expect(meta.locator("span").nth(1)).toHaveText("·");
+    await expect(meta.locator("time")).toHaveAttribute("dateTime", /\d{4}-\d{2}-\d{2}/);
+  }
+});
 
 test("shows the article's own explicit author on the hero, not the site's photographer name", async ({
   page,

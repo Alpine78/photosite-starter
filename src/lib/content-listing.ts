@@ -87,6 +87,8 @@ export type ContentListingRecord = {
   readonly title: string;
   /** Short lead shown on the card; omitted when the page has none. */
   readonly summary?: string;
+  /** Article-only authored override; the page resolves the site photographer fallback. */
+  readonly author?: string;
   /**
    * ISO 8601 date. The listing order's primary key **and** the date the card
    * displays: the page's *effective event date*, `eventDate ?? publishedAt`,

@@ -97,6 +97,16 @@ describe("effectiveArticleAuthor", () => {
   });
 });
 
+it("keeps the mock guest author's listing and detail bylines in sync", () => {
+  const contentId = "content-choosing-a-telephoto-lens";
+  const listing = mockContentListingRecords.en.get(contentId);
+  const page = mockContentPages.en.get(contentId);
+  expect(listing?.author).toBe("Alex Rivers");
+  expect(page?.variant).toBe("article");
+  if (page?.variant !== "article") throw new Error("expected article fixture");
+  expect(listing?.author).toBe(page.author);
+});
+
 describe("asArticlePage", () => {
   it("accepts only the requested article identity", () => {
     expect(asArticlePage("article-id", articlePage)).toBe(articlePage);

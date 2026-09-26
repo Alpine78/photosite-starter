@@ -93,6 +93,8 @@ describe("the query contract", () => {
       expect(ARTICLE_DETAIL_PROJECTION).toContain(field);
     }
 
+    expect(ARTICLE_LISTING_PROJECTION).not.toContain("body");
+
     expect(ARTICLE_DOCUMENT_TYPE).toBe(articleType.name);
     expect(ARTICLE_FILTER).toContain(ARTICLE_DOCUMENT_TYPE);
     expect(ARTICLE_FILTER).toContain("language == $language");
@@ -242,6 +244,19 @@ describe("projecting a listing record", () => {
       summary: "How overcast mornings change what a shoreline shows.",
       eventDate: "2024-08-02",
     });
+  });
+
+  it("projects the authored byline without loading an article body", () => {
+    expect(
+      projectArticleListingRecord(
+        { ...document, author: "  Alex Rivers  " },
+        languages,
+      ).author,
+    ).toBe("Alex Rivers");
+    expect(
+      projectArticleListingRecord({ ...document, author: "   " }, languages)
+        .author,
+    ).toBeUndefined();
   });
 
   it.each([

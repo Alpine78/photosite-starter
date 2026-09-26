@@ -49,6 +49,8 @@ type AuthoredContentRecord = {
   readonly contentId: string;
   readonly title: string;
   readonly summary?: string;
+  /** Article-only authored override, shared by listing and detail fixtures. */
+  readonly author?: string;
   readonly publishedAt: string;
   /** When the real-world event happened, when it differs from publish order. */
   readonly eventDate?: string;
@@ -171,6 +173,7 @@ const englishRecords: readonly AuthoredContentRecord[] = [
   {
     contentId: "content-choosing-a-telephoto-lens",
     title: "Choosing a telephoto lens: what the specs don't tell you",
+    author: "Alex Rivers",
     summary:
       "Focal length and maximum aperture are only the start. Here is what I look for after years of shooting sports and wildlife with long glass.",
     publishedAt: "2024-09-12",
@@ -362,6 +365,7 @@ function toListingRecord(record: AuthoredContentRecord): ContentListingRecord {
     contentId: record.contentId,
     title: record.title,
     ...(record.summary === undefined ? {} : { summary: record.summary }),
+    ...(record.author === undefined ? {} : { author: record.author }),
     eventDate: effectiveEventDate(record),
     ...(record.cover === undefined ? {} : { cover: record.cover }),
   };

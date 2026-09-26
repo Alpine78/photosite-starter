@@ -2573,7 +2573,7 @@ whole text, and the photographer's introduction, which starts with a heading. Th
 itself is owner-run. The Joomla article importer does not yet set the flag, and must before
 the remaining articles are imported.
 
-The visual finish from the owner's Claude Design hi-fi proposal is in progress (AB#173).
+The visual finish from the owner's Claude Design hi-fi proposal is delivered (AB#173).
 The default palettes are now **Kivi** (light, `#ece9e3` ground) and **Grafiitti** (dark,
 `#1b1c1e`). The site menu carries the proposal's moon/sun theme toggle
 (`theme-toggle.tsx`, `aria-pressed`): the device decides until the first press, which
@@ -2594,12 +2594,14 @@ Moving the font variables from `<body>` to `<html>` also fixed a long-standing b
 web font had never actually applied, because `--font-family-sans` resolves on `:root`.
 Form fields now take `--border-strong` (3:1). The story and services listings are
 borderless two-column card grids with native-ratio images and three-line clamped
-excerpts. Titles, prose and the header and footer follow the proposal's scale. The
+excerpts. Story cards now show the effective article author or, for galleries, the
+site photographer name before the event date (AB#174). Titles, prose and the header
+and footer follow the proposal's scale. The
 gallery section control is an underlined row of plain links that wraps, so every option
 is visible without horizontal scrolling (owner decision). The proposal's 3:2 and cover crops are
 deliberately not reproduced. `docs/theme-contract.md` records the palette adaptations:
 the ink is darkened to `#13110e` so the derived `--subtle` role clears AA. Follow-ups:
-AB#174 card byline, AB#175 home introduction, AB#176 portfolio topic filter, AB#177
+AB#175 home introduction, AB#176 portfolio topic filter, AB#177
 call-to-action band, AB#178 contact form fields and service prefill, AB#179 section
 heading and count.
 
