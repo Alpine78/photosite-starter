@@ -154,6 +154,64 @@ function recordDeliveryAttempts(page: Page): DeliveryAttempt[] {
   return attempts;
 }
 
+test("correcting validation errors never interrupts typing", async ({ page }) => {
+  for (const name of ["name", "email", "message"] as const) {
+    await openContactForm(page);
+    await submitButton(page).click();
+
+    const summary = errorSummary(page);
+    await expect(summary).toBeFocused();
+    const input = field(page, name);
+    await summary.getByRole("link").nth(
+      ["name", "email", "message"].indexOf(name),
+    ).click();
+    await expect(input).toBeFocused();
+    // A tap opens the software keyboard in mobile WebKit.
+    await input.click();
+
+    for (const key of ["a", "b", "c"]) {
+      await page.keyboard.insertText(key);
+      await expect(input).toBeFocused();
+    }
+    await expect(input).toHaveValue("abc");
+    await expect(input).toHaveAttribute("aria-invalid", "false");
+    await expect(summary.getByRole("link")).toHaveCount(2);
+  }
+});
+
+test("a server validation response focuses the summary only once", async ({
+  page,
+}) => {
+  await page.route("**/api/contact", (route) =>
+    route.fulfill({
+      status: 422,
+      contentType: "application/json",
+      body: JSON.stringify({
+        issues: [
+          { field: "name", code: "required" },
+          { field: "email", code: "invalid-email" },
+        ],
+      }),
+    }),
+  );
+  await openContactForm(page);
+  await fillEnquiry(page, SYNTHETIC_ENQUIRY);
+  await submitButton(page).click();
+
+  const summary = errorSummary(page);
+  await expect(summary).toBeFocused();
+  const name = field(page, "name");
+  await summary.getByRole("link").first().click();
+  await expect(name).toBeFocused();
+  await name.click();
+  for (const key of ["a", "b", "c"]) {
+    await page.keyboard.insertText(key);
+    await expect(name).toBeFocused();
+  }
+  await expect(name).toHaveValue(`${SYNTHETIC_ENQUIRY.name}abc`);
+  await expect(summary.getByRole("link")).toHaveCount(1);
+});
+
 test("a visitor can submit the contact form and is told it was sent", async ({
   page,
   externalRequests,

@@ -82,7 +82,11 @@ type FormStatus =
   | { kind: "idle" }
   | { kind: "submitting" }
   | { kind: "succeeded" }
-  | { kind: "field-errors"; issues: readonly ContactFieldIssue[] }
+  | {
+      kind: "field-errors";
+      issues: readonly ContactFieldIssue[];
+      focusSummary: boolean;
+    }
   | { kind: "failed"; message: string; retryable: boolean; reference?: string };
 
 /**
@@ -163,7 +167,9 @@ export function SubmissionForm({
   const issues = status.kind === "field-errors" ? status.issues : [];
 
   useEffect(() => {
-    if (status.kind === "field-errors") summaryRef.current?.focus();
+    if (status.kind === "field-errors" && status.focusSummary) {
+      summaryRef.current?.focus();
+    }
     if (status.kind === "succeeded" || status.kind === "failed") {
       outcomeRef.current?.focus();
     }
@@ -192,7 +198,7 @@ export function SubmissionForm({
           (issue) => issue.field !== field,
         );
         return remaining.length > 0
-          ? { kind: "field-errors", issues: remaining }
+          ? { kind: "field-errors", issues: remaining, focusSummary: false }
           : { kind: "idle" };
       }
       if (current.kind === "succeeded" || current.kind === "failed") {
@@ -232,7 +238,7 @@ export function SubmissionForm({
 
     const validated = parseContactMessage(values);
     if (!validated.ok) {
-      setStatus({ kind: "field-errors", issues: validated.issues });
+      setStatus({ kind: "field-errors", issues: validated.issues, focusSummary: true });
       return;
     }
 
@@ -280,7 +286,7 @@ export function SubmissionForm({
     }
 
     if (response.status === 422 && payload.issues !== undefined) {
-      setStatus({ kind: "field-errors", issues: payload.issues });
+      setStatus({ kind: "field-errors", issues: payload.issues, focusSummary: true });
       return;
     }
 
