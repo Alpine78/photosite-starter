@@ -257,6 +257,11 @@ export type BuiltInLabels = {
     /** Explains an explicit legacy-content fallback without exposing its source URL. */
     readonly legacyFallbackNotice: string;
   };
+  readonly homePortfolio: {
+    readonly heading: string;
+    readonly topicsNav: string;
+    readonly viewAll: string;
+  };
   readonly gallery: {
     readonly images: string;
     /** Accessible state of a published gallery with no public items yet. */
@@ -556,6 +561,11 @@ const englishLabels = {
     legacyFallbackNotice:
       "The page you requested is no longer available. You have been redirected to the closest available content.",
   },
+  homePortfolio: {
+    heading: "Selected photographs",
+    topicsNav: "Portfolio topics",
+    viewAll: "View all photographs",
+  },
   gallery: {
     images: "images",
     empty: "This gallery has no images yet.",
@@ -741,6 +751,11 @@ const finnishLabels = {
     backToStart: "Takaisin alkuun",
     legacyFallbackNotice:
       "Hakemaasi sivua ei ole enää saatavilla. Sinut ohjattiin lähimpään saatavilla olevaan sisältöön.",
+  },
+  homePortfolio: {
+    heading: "Valikoituja kuvia",
+    topicsNav: "Kuvien aiheet",
+    viewAll: "Katso kaikki kuvat",
   },
   gallery: {
     images: "kuvaa",

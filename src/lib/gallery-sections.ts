@@ -434,6 +434,11 @@ export type CuratedGalleryPage = GalleryPage<CuratedGalleryResultItem> & {
   readonly selectedSection?: GallerySection;
   /** Exact visible public photograph count, only when a first-slice source can aggregate it. */
   readonly photoCount?: number;
+  /** Exact public counts for the bounded home topic controls, when requested. */
+  readonly topicCounts?: {
+    readonly all: number;
+    readonly sections: Readonly<Record<string, number>>;
+  };
 };
 
 export type GallerySectionQuery = {

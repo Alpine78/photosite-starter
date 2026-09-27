@@ -1390,7 +1390,21 @@ describe("sections", () => {
   });
 
   it("returns an empty section catalog for a gallery with no declared sections", async () => {
-    expect((await mockPage("en", MOCK_FEATURED_GALLERY_ID))?.sections).toEqual([]);
+    expect((await mockPage("en", "content-coastal-mornings"))?.sections).toEqual([]);
+  });
+
+  it("provides exact public topic counts for the featured portfolio when requested", async () => {
+    const all = await getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID, {
+      includeTopicCounts: true,
+    });
+    const details = await getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID, {
+      sectionSlug: "details",
+      includeTopicCounts: true,
+    });
+    expect(all?.topicCounts).toEqual({ all: 6, sections: { landscapes: 4, details: 2 } });
+    expect(details?.topicCounts).toEqual(all?.topicCounts);
+    expect(details?.items).toHaveLength(2);
+    expect((await mockPage("en", MOCK_FEATURED_GALLERY_ID))?.topicCounts).toBeUndefined();
   });
 
   it("rejects a cursor minted under one section when replayed under All or a different section", async () => {

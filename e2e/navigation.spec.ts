@@ -116,7 +116,10 @@ async function hrefOf(link: Locator): Promise<string> {
  * counted in presses rather than in a fixed number, which the two layouts and a
  * clone's own link count would all disagree about.
  */
-async function tabTo(page: Page, target: Locator, presses = 25): Promise<void> {
+async function tabTo(page: Page, target: Locator): Promise<void> {
+  // A route may add portfolio filters and image triggers after the menu.
+  // Walk at most one full document cycle, derived from its current controls.
+  const presses = await page.locator('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])').count() + 2;
   for (let press = 0; press < presses; press += 1) {
     if (await target.evaluate((node) => node === document.activeElement)) return;
     await page.keyboard.press("Tab");

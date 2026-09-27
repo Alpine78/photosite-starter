@@ -174,6 +174,14 @@ tree. No category list or category path is copied into settings. If that gallery
 published canonical route, the home action and section are omitted rather than pointed at
 a 404; malformed or duplicated navigation is rejected.
 
+The home page's **Selected photographs** section reads the first bounded page of this
+featured gallery. Its authored gallery sections become the topic links: create sections
+on the gallery and assign each photograph's placement to one to offer filters. Counts
+include only public, visible photographs. A gallery without sections still shows its
+photographs without topic links. The **View all photographs** link opens the complete
+gallery, retaining the selected topic; topic links themselves reload filtered photographs
+on the home page, including when JavaScript is disabled.
+
 Both settings and the home page are published singletons. A missing document and two
 published documents are different classified content defects, and both raise instead of
 falling back to fixtures. Their adapters validate the raw result, resolve language-keyed

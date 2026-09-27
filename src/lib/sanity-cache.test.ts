@@ -24,6 +24,8 @@ describe("published Sanity query cache policy", () => {
     ["category.listing.version", "articles"],
     ["category.listing.version", "galleries"],
     ["article.listing.by-category", "articles"],
+    ["gallery.home-topic-counts", "galleries"],
+    ["gallery.home-topic-counts", "media"],
     ["gallery.placements.basics", "galleries"],
     ["gallery.placements.window", "galleries"],
     ["gallery.placements.count", "galleries"],

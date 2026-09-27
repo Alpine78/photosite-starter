@@ -53,12 +53,14 @@ export async function getGalleryPage(
   contentId: string,
   cursor?: string,
   sectionSlug?: string,
+  requestOptions?: { readonly includeTopicCounts?: boolean },
 ): Promise<CuratedGalleryPage | undefined> {
   const { contentSource } = getDeploymentConfig();
   const options = {
     ...(cursor === undefined ? {} : { cursor }),
     ...(sectionSlug === undefined ? {} : { sectionSlug }),
     cursorCodec: galleryCursorCodec,
+    ...(requestOptions?.includeTopicCounts ? { includeTopicCounts: true } : {}),
   };
 
   return dispatchContentSource(contentSource, {

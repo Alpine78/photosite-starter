@@ -25,7 +25,7 @@ the one-hour hard bound even if no operator intervenes.
 | `sanity:services` | service listing and detail inputs |
 | `sanity:articles` | article listings, placements, bodies, end-gallery windows, and neighbours |
 | `sanity:categories` | localized tree, ancestry, routes, and branch listings |
-| `sanity:galleries` | gallery metadata, sections, placements, order, filters, and cursor inputs |
+| `sanity:galleries` | gallery metadata, sections, placements, home topic counts, order, filters, and cursor inputs |
 | `sanity:media` | shared public media projections |
 | `sanity:metadata` | canonical and Open Graph inputs |
 | `sanity:sitemap` | current and future sitemap inputs (AB#85) |

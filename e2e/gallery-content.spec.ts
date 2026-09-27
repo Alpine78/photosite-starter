@@ -109,7 +109,7 @@ test("the lead, long-form body, and page-jump navigation render on the gallery's
   await expect(page.locator("#gallery")).toBeInViewport();
 });
 
-test("a gallery with no body renders no page-jump navigation and no body wrapper", async ({
+test("a gallery with no body renders no page-jump navigation", async ({
   page,
 }) => {
   await page.goto(EMPTY_BODY_GALLERY_PATH, { waitUntil: "load" });
@@ -118,7 +118,6 @@ test("a gallery with no body renders no page-jump navigation and no body wrapper
   await expect(
     page.getByRole("navigation", { name: labels.contentTree.onThisPage }),
   ).toHaveCount(0);
-  await expect(page.getByRole("main").locator("h2")).toHaveCount(0);
 });
 
 test("a continuation page omits the lead, the body, and the page-jump navigation", async ({

@@ -73,7 +73,7 @@ export type HomePhotographerIntroduction = {
  * and the home page always links to the same gallery the header and footer
  * do, whichever one is answering.
  */
-async function resolveFeaturedGalleryHref(
+export async function resolveFeaturedGalleryHref(
   localeRoutes: LocaleRouteConfig,
   locale: string,
 ): Promise<string | undefined> {
