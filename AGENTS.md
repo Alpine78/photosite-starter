@@ -2603,10 +2603,14 @@ proposal's scale. The
 gallery section control is an underlined row of plain links that wraps, so every option
 is visible without horizontal scrolling (owner decision). The proposal's 3:2 and cover crops are
 deliberately not reproduced. `docs/theme-contract.md` records the palette adaptations:
-the ink is darkened to `#13110e` so the derived `--subtle` role clears AA. Follow-ups:
-AB#176 portfolio topic filter, AB#177
-call-to-action band, AB#178 contact form fields and service prefill, AB#179 section
-heading and count.
+the ink is darkened to `#13110e` so the derived `--subtle` role clears AA.
+The gallery section row now shows its section count, and a sectioned gallery's
+first slice shows the active filter heading with the exact count of public,
+visible photographs (AB#179). The mock and Sanity sources use the same
+eligibility rules; Sanity reads the count with a scalar aggregate, without
+loading every placement. Continuation slices keep their compact layout.
+Related work items: AB#176 portfolio topic filter, AB#177 call-to-action band,
+AB#178 contact form fields and service prefill.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
