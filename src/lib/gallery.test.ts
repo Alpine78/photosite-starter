@@ -1285,6 +1285,29 @@ describe("sections", () => {
     return collected;
   }
 
+  it("counts all public photographs and each named section on the first slice only", async () => {
+    const all = await getMockGalleryResult("en", LARGE_GALLERY_ID, { cursorCodec: testCursorCodec });
+    const early = await getMockGalleryResult("en", LARGE_GALLERY_ID, {
+      sectionSlug: EARLY_SECTION_SLUG,
+      cursorCodec: testCursorCodec,
+    });
+    const empty = await getMockGalleryResult("en", LARGE_GALLERY_ID, {
+      sectionSlug: UNUSED_SECTION_SLUG,
+      cursorCodec: testCursorCodec,
+    });
+    expect(all?.photoCount).toBe(400);
+    expect(early?.photoCount).toBe(150);
+    expect(all?.items.map((item) => item.itemId)).not.toContain("large-archive-hidden");
+    expect(early?.items.map((item) => item.itemId)).not.toContain("large-archive-hidden");
+    expect(empty?.photoCount).toBe(0);
+    const continuation = await getMockGalleryResult("en", LARGE_GALLERY_ID, {
+      sectionSlug: EARLY_SECTION_SLUG,
+      cursor: early?.page.endCursor ?? undefined,
+      cursorCodec: testCursorCodec,
+    });
+    expect(continuation?.photoCount).toBeUndefined();
+  });
+
   it("includes only a named section's own placements, in original order, across more than one page", async () => {
     const itemIds = (await walkSection(EARLY_SECTION_SLUG)).map(
       (item) => item.itemId,

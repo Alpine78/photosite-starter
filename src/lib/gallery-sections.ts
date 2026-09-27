@@ -432,6 +432,8 @@ export type CuratedGalleryPage = GalleryPage<CuratedGalleryResultItem> & {
   readonly sections: readonly GallerySectionSummary[];
   /** The filtered section's own identity and intro — only on its first, uncursored slice. */
   readonly selectedSection?: GallerySection;
+  /** Exact visible public photograph count, only when a first-slice source can aggregate it. */
+  readonly photoCount?: number;
 };
 
 export type GallerySectionQuery = {
@@ -475,7 +477,7 @@ export type CuratedGallerySectionSource = (request: {
   readonly contentId: string;
   readonly filter: GallerySectionFilter;
   readonly window: GalleryWindowRequest;
-}) => Promise<GalleryWindowResult>;
+}) => Promise<GalleryWindowResult & { readonly photoCount?: number }>;
 
 /**
  * Composes one bounded curated-gallery page: resolve the requested section,
@@ -544,6 +546,13 @@ export async function readCuratedGallerySectionPage({
     window: windowRequest,
   });
 
+  if (
+    windowResult.photoCount !== undefined &&
+    (!Number.isSafeInteger(windowResult.photoCount) || windowResult.photoCount < 0)
+  ) {
+    throw new TypeError("Gallery photo count must be a non-negative safe integer");
+  }
+
   const page = buildCuratedGalleryPage({
     windowResult,
     scope,
@@ -555,6 +564,9 @@ export async function readCuratedGallerySectionPage({
   return {
     ...page,
     sections: selectGallerySectionSummaries(sections),
+    ...(query.cursor === undefined && windowResult.photoCount !== undefined
+      ? { photoCount: windowResult.photoCount }
+      : {}),
     ...(filter.kind === "section" && query.cursor === undefined
       ? { selectedSection: filter.section }
       : {}),

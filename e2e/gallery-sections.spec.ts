@@ -52,6 +52,9 @@ type SectionedGallery = {
   readonly contentId: string;
   readonly path: string;
   readonly pageSize: number;
+  readonly sectionCount: number;
+  readonly totalPhotoCount: number;
+  readonly multiPagePhotoCount: number;
   readonly multiPageSection: GallerySectionSummary;
   /**
    * The section's own itemId order across its first two pages, from the same
@@ -82,6 +85,7 @@ async function sectionedDefaultLocaleGallery(): Promise<SectionedGallery> {
 
     let multiPageSection: GallerySectionSummary | undefined;
     let multiPageSectionExpectedIds: readonly string[] | undefined;
+    let multiPagePhotoCount: number | undefined;
     let emptySection: GallerySectionSummary | undefined;
     for (const section of result.sections) {
       const sectionResult = await mockPage(language, contentId, section.slug);
@@ -97,6 +101,7 @@ async function sectionedDefaultLocaleGallery(): Promise<SectionedGallery> {
         );
         if (secondPage !== undefined) {
           multiPageSection = section;
+          multiPagePhotoCount = sectionResult.photoCount;
           multiPageSectionExpectedIds = [
             ...sectionResult.items,
             ...secondPage.items,
@@ -108,12 +113,17 @@ async function sectionedDefaultLocaleGallery(): Promise<SectionedGallery> {
     if (
       multiPageSection !== undefined &&
       multiPageSectionExpectedIds !== undefined &&
+      multiPagePhotoCount !== undefined &&
+      result.photoCount !== undefined &&
       emptySection !== undefined
     ) {
       return {
         contentId,
         path: `${STORY_ROOT}/${path.join("/")}`,
         pageSize: result.page.size,
+        sectionCount: result.sections.length,
+        totalPhotoCount: result.photoCount,
+        multiPagePhotoCount,
         multiPageSection,
         multiPageSectionExpectedIds,
         emptySection,
@@ -176,6 +186,23 @@ test("a gallery without sections renders no section controls", async ({
 }) => {
   await page.goto(UNSECTIONED_PATH, { waitUntil: "domcontentloaded" });
   await expect(sectionsNav(page)).toHaveCount(0);
+});
+
+test("the section row shows its section count and the active heading shows its photograph count", async ({ page }) => {
+  await page.goto(GALLERY.path, { waitUntil: "domcontentloaded" });
+  await expect(sectionsNav(page).locator("p")).toHaveText(
+    `${galleryLabels.sectionsNav} · ${GALLERY.sectionCount}`,
+  );
+  await expect(page.getByRole("heading", { level: 2, name: galleryLabels.allSections })).toBeVisible();
+  await expect(page.getByText(`${new Intl.NumberFormat(appUnderTestEnvironment.SITE_LOCALE).format(GALLERY.totalPhotoCount)} ${galleryLabels.photoPlural}`, { exact: true })).toBeVisible();
+
+  await sectionsNav(page).getByRole("link", { name: GALLERY.multiPageSection.label, exact: true }).click();
+  await expect(page.getByRole("heading", { level: 2, name: GALLERY.multiPageSection.label })).toBeVisible();
+  await expect(page.getByText(`${new Intl.NumberFormat(appUnderTestEnvironment.SITE_LOCALE).format(GALLERY.multiPagePhotoCount)} ${galleryLabels.photoPlural}`, { exact: true })).toBeVisible();
+
+  await sectionsNav(page).getByRole("link", { name: GALLERY.emptySection.label, exact: true }).click();
+  await expect(page.getByRole("heading", { level: 2, name: GALLERY.emptySection.label })).toBeVisible();
+  await expect(page.getByText(`0 ${galleryLabels.photoPlural}`, { exact: true })).toBeVisible();
 });
 
 test("a section label with one long unbroken word still wraps instead of overflowing", async ({

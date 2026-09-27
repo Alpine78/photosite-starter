@@ -61,12 +61,13 @@ type ContentGalleryProps = {
   activeSection?: GallerySectionSummary;
   /**
    * The active named section, present only on the first, uncursored slice of
-   * it — the one state that renders `GallerySectionIntro`'s required heading
-   * and optional introduction. Distinct from `activeSection`, which is
-   * present on every slice of that same section: this field's *absence* on a
-   * continuation is what keeps the heading and introduction from repeating.
+   * it. Its authored introduction appears beside the first-slice heading.
+   * `activeSection` remains present on continuation slices for selected-state
+   * and pagination behavior, while editorial framing is omitted there.
    */
   selectedSection?: GallerySection;
+  /** Exact public photograph count on the first slice, when the source supplies it. */
+  photoCount?: number;
   /**
    * The gallery's parameter-free first page, present only when the visitor is
    * looking at a continuation. A continuation URL is indexable, so somebody can
@@ -148,6 +149,7 @@ export function ContentGallery({
   sections,
   activeSection,
   selectedSection,
+  photoCount,
   firstPageHref,
   presentation,
   isContinuation = false,
@@ -276,14 +278,10 @@ export function ContentGallery({
             className={`scroll-mt-24 ${isContinuation ? "mt-8" : "mt-12"}`}
           >
             {/*
-              Section controls and the selected section's own heading render on
-              every slice, including a continuation and the empty-section state
-              (ADR-0003 decision 3): a visitor mid-gallery, or looking at a
-              section with nothing in it yet, still needs a way to switch. The
-              controls render nothing on their own when the gallery declares no
-              sections; the heading and introduction render only when
-              `selectedSection` is set, which the server limits to a named
-              section's first, uncursored slice.
+              Section controls remain on every slice so a visitor can switch
+              filters even from a continuation or empty section. The active
+              filter's heading and count appear only on the first slice; a
+              named section may also show its authored introduction.
             */}
             <GallerySectionControls
               sections={sections}
@@ -291,8 +289,14 @@ export function ContentGallery({
               galleryPath={galleryPath}
               labels={labels}
             />
-            {selectedSection !== undefined && (
-              <GallerySectionIntro section={selectedSection} />
+            {sections.length > 0 && !isContinuation && (
+              <GallerySectionIntro
+                label={selectedSection?.label ?? labels.gallery.allSections}
+                intro={selectedSection?.intro}
+                photoCount={photoCount}
+                locale={locale}
+                labels={labels}
+              />
             )}
 
             {slice.items.length > 0 ? (

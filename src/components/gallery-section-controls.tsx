@@ -128,6 +128,9 @@ export function GallerySectionControls({
         hidden ? "-translate-y-full" : "translate-y-0"
       }`}
     >
+      <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-widest text-muted">
+        {labels.gallery.sectionsNav} · {sections.length}
+      </p>
       <ul className="flex flex-wrap">
         {/* `min-w-0` overrides the flex item's automatic min-content floor:
             without it, a section label with one long unbroken word can widen

@@ -171,6 +171,16 @@ function fakeStore(options: {
         ];
       }
 
+      if (request.tag === "gallery.capture-sequence.count") {
+        const sectionId = params.sectionId as string | undefined;
+        return members(params.contentId).filter(
+          (row) =>
+            row.publiclyRenderable === true &&
+            (row.privateOnly === undefined || row.privateOnly === null || row.privateOnly === false) &&
+            (sectionId === undefined || row.captureSequence?.sectionId === sectionId),
+        ).length;
+      }
+
       if (request.tag === "gallery.capture-sequence.window") {
         const sectionId = params.sectionId as string | undefined;
         const candidateLimit = params.candidateLimit as number;
@@ -266,6 +276,32 @@ describe("readSanityCuratedGalleryPage — capture-sequence (ADR-0022)", () => {
     const items = await walk(client, "ss1-morning");
     expect(items.map((item) => item.itemId)).toEqual(expectedOrder(media, "ss1"));
     expect(items.length).toBe(35);
+  });
+
+  it("counts eligible media documents for All and a named section with the same query filter", async () => {
+    const media = buildMedia().map((row) =>
+      row.captureSequence?.sequence === 3
+        ? { ...row, publiclyRenderable: false }
+        : row.captureSequence?.sequence === 4
+          ? { ...row, privateOnly: true }
+          : row,
+    );
+    const { client, requests } = fakeStore({ media });
+    const section = await readPage(client, { sectionSlug: "ss1-morning" });
+    expect(section?.photoCount).toBe(33);
+    const count = requests.find((request) => request.tag === "gallery.capture-sequence.count");
+    expect(count?.params).toMatchObject({ contentId: CONTENT_ID, sectionId: "ss1" });
+    expect(count?.query).toContain(`_type == "${MEDIA_DOCUMENT_TYPE}"`);
+    expect(count?.query).toContain("captureSequence.galleryContentId == $contentId");
+    expect(count?.query).toContain("publiclyRenderable == true");
+    expect(count?.query).toContain("(privateOnly == false || !defined(privateOnly))");
+    expect(count?.query).toContain("captureSequence.sectionId == $sectionId");
+
+    const all = await readPage(client);
+    expect(all?.photoCount).toBe(GALLERY_SIZE - 2);
+    const continuation = await readPage(client, { cursor: section?.page.endCursor ?? undefined, sectionSlug: "ss1-morning" });
+    expect(continuation?.photoCount).toBeUndefined();
+    expect(requests.filter((request) => request.tag === "gallery.capture-sequence.count")).toHaveLength(2);
   });
 
   it("excludes media that is not publicly renderable or is private-only, without shortening a page", async () => {

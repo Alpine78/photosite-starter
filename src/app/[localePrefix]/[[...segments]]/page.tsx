@@ -877,6 +877,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
           galleryPath={storyPath}
           presentation={presentation}
           sections={result.sections}
+          {...(result.photoCount === undefined ? {} : { photoCount: result.photoCount })}
           {...(activeSection === undefined ? {} : { activeSection })}
           {...(result.selectedSection === undefined
             ? {}
