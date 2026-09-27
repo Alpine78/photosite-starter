@@ -21,6 +21,14 @@ import {
   CONTACT_SUBMISSION_ID_FIELD,
 } from "@/lib/contact-request";
 import type { BuiltInLabels } from "@/lib/deployment-config";
+import {
+  CONTACT_DETAIL_MAX_LENGTHS,
+  OTHER_CONTACT_SUBJECT,
+  parseContactDetails,
+  type ContactDetailFieldName,
+  type ContactDetailIssue,
+  type ContactSubjectOption,
+} from "@/lib/contact-details";
 
 /**
  * The shared submission form.
@@ -44,9 +52,8 @@ import type { BuiltInLabels } from "@/lib/deployment-config";
  */
 
 /**
- * What accompanies a submission beyond the three contact fields. A discriminated
- * type, not a bag of strings: the enquiry context cannot collide with a field
- * name, and only an `"enquiry"` context puts anything extra in the body.
+ * What accompanies the three shared message fields. A discriminated type
+ * keeps gallery enquiry context separate from contact-only details.
  */
 export type SubmissionContext =
   | { readonly kind: "contact" }
@@ -72,11 +79,18 @@ type SubmissionFormProps = {
    * no such response.
    */
   unavailableMessage?: string;
+  /** Only the contact route shows and submits these published service choices. */
+  services?: readonly ContactSubjectOption[];
+  initialSubject?: string;
 };
 
-type FormValues = Record<ContactFieldName, string>;
+type FormField = ContactFieldName | ContactDetailFieldName;
+type FormValues = Record<FormField, string>;
+type FormIssue = ContactFieldIssue | ContactDetailIssue;
 
-const EMPTY_VALUES: FormValues = { name: "", email: "", message: "" };
+function emptyValues(subject = OTHER_CONTACT_SUBJECT): FormValues {
+  return { name: "", email: "", message: "", phone: "", preferredDate: "", subject };
+}
 
 type FormStatus =
   | { kind: "idle" }
@@ -84,7 +98,7 @@ type FormStatus =
   | { kind: "succeeded" }
   | {
       kind: "field-errors";
-      issues: readonly ContactFieldIssue[];
+      issues: readonly FormIssue[];
       focusSummary: boolean;
     }
   | { kind: "failed"; message: string; retryable: boolean; reference?: string };
@@ -111,7 +125,7 @@ function createSubmissionId(): string {
   ].join("-");
 }
 
-/** The body a submission POSTs, beyond name/email/message. */
+/** The gallery context a submission POSTs, beyond its validated fields. */
 function contextBody(context: SubmissionContext): Record<string, string> {
   return context.kind === "enquiry"
     ? {
@@ -139,9 +153,12 @@ export function SubmissionForm({
   intro,
   notice,
   unavailableMessage,
+  services = [],
+  initialSubject = OTHER_CONTACT_SUBJECT,
 }: SubmissionFormProps) {
   const formId = useId();
-  const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
+  const [values, setValues] = useState<FormValues>(() => emptyValues(initialSubject));
+  const [subjectOptions, setSubjectOptions] = useState(services);
   const [honeypot, setHoneypot] = useState("");
   const [status, setStatus] = useState<FormStatus>({ kind: "idle" });
 
@@ -161,8 +178,8 @@ export function SubmissionForm({
   const submissionIdRef = useRef<string | undefined>(undefined);
   const submittedSnapshotRef = useRef<string | undefined>(undefined);
 
-  const fieldId = (field: ContactFieldName) => `${formId}-${field}`;
-  const errorId = (field: ContactFieldName) => `${formId}-${field}-error`;
+  const fieldId = (field: FormField) => `${formId}-${field}`;
+  const errorId = (field: FormField) => `${formId}-${field}-error`;
 
   const issues = status.kind === "field-errors" ? status.issues : [];
 
@@ -175,7 +192,18 @@ export function SubmissionForm({
     }
   }, [status]);
 
-  function messageFor(issue: ContactFieldIssue): string {
+  function fieldLabel(field: FormField): string {
+    switch (field) {
+      case "name": return labels.nameLabel;
+      case "email": return labels.emailLabel;
+      case "message": return labels.messageLabel;
+      case "phone": return labels.phoneLabel;
+      case "preferredDate": return labels.preferredDateLabel;
+      case "subject": return labels.subjectLabel;
+    }
+  }
+
+  function messageFor(issue: FormIssue): string {
     switch (issue.code) {
       case "required":
         return labels.fieldErrors.required;
@@ -184,12 +212,17 @@ export function SubmissionForm({
       case "too-long":
         return labels.fieldErrors.tooLong.replace(
           "{max}",
-          String(CONTACT_FIELD_MAX_LENGTHS[issue.field]),
+          String(issue.field in CONTACT_DETAIL_MAX_LENGTHS
+            ? CONTACT_DETAIL_MAX_LENGTHS[issue.field as ContactDetailFieldName]
+            : CONTACT_FIELD_MAX_LENGTHS[issue.field as ContactFieldName]),
         );
+      case "invalid-phone": return labels.fieldErrors.invalidPhone;
+      case "invalid-date": return labels.fieldErrors.invalidDate;
+      case "invalid-subject": return labels.fieldErrors.invalidSubject;
     }
   }
 
-  function updateField(field: ContactFieldName, value: string) {
+  function updateField(field: FormField, value: string) {
     setValues((current) => ({ ...current, [field]: value }));
 
     setStatus((current) => {
@@ -237,15 +270,26 @@ export function SubmissionForm({
     if (status.kind === "submitting") return;
 
     const validated = parseContactMessage(values);
-    if (!validated.ok) {
-      setStatus({ kind: "field-errors", issues: validated.issues, focusSummary: true });
+    const details = context.kind === "contact"
+      ? parseContactDetails(values, subjectOptions)
+      : undefined;
+    if (!validated.ok || (details !== undefined && !details.ok)) {
+      setStatus({
+        kind: "field-errors",
+        issues: [
+          ...(!validated.ok ? validated.issues : []),
+          ...(details !== undefined && !details.ok ? details.issues : []),
+        ],
+        focusSummary: true,
+      });
       return;
     }
 
     setStatus({ kind: "submitting" });
 
+    const contactDetails = details?.ok ? details.details : undefined;
     const submissionId = submissionIdFor(
-      JSON.stringify({ message: validated.message, endpoint, context }),
+      JSON.stringify({ message: validated.message, contactDetails, endpoint, context }),
     );
 
     let response: Response;
@@ -255,6 +299,7 @@ export function SubmissionForm({
         headers: { "Content-Type": CONTACT_CONTENT_TYPE },
         body: JSON.stringify({
           ...validated.message,
+          ...contactDetails,
           ...contextBody(context),
           [CONTACT_HONEYPOT_FIELD]: honeypot,
           [CONTACT_SUBMISSION_ID_FIELD]: submissionId,
@@ -271,14 +316,15 @@ export function SubmissionForm({
 
     const body: unknown = await response.json().catch(() => undefined);
     const payload = (body ?? {}) as {
-      issues?: readonly ContactFieldIssue[];
+      issues?: readonly FormIssue[];
+      services?: readonly ContactSubjectOption[];
       correlationId?: string;
       retryable?: boolean;
       reason?: string;
     };
 
     if (response.ok) {
-      setValues(EMPTY_VALUES);
+      setValues(emptyValues());
       submissionIdRef.current = undefined;
       submittedSnapshotRef.current = undefined;
       setStatus({ kind: "succeeded" });
@@ -286,6 +332,9 @@ export function SubmissionForm({
     }
 
     if (response.status === 422 && payload.issues !== undefined) {
+      if (context.kind === "contact" && payload.issues.some((issue) => issue.field === "subject")) {
+        if (Array.isArray(payload.services)) setSubjectOptions(payload.services);
+      }
       setStatus({ kind: "field-errors", issues: payload.issues, focusSummary: true });
       return;
     }
@@ -372,7 +421,7 @@ export function SubmissionForm({
                   href={`#${fieldId(issue.field)}`}
                   className="underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 >
-                  {labels[`${issue.field}Label`]}: {messageFor(issue)}
+                  {fieldLabel(issue.field)}: {messageFor(issue)}
                 </a>
               </li>
             ))}
@@ -450,6 +499,65 @@ export function SubmissionForm({
             </div>
           );
         })}
+
+        {context.kind === "contact" && (
+          <>
+            {(["phone", "preferredDate"] as const).map((field) => {
+              const issue = issues.find((candidate) => candidate.field === field);
+              return (
+                <div key={field}>
+                  <label htmlFor={fieldId(field)} className="block text-[0.9375rem] font-medium">
+                    {fieldLabel(field)}
+                  </label>
+                  <input
+                    id={fieldId(field)}
+                    name={field}
+                    type={field === "phone" ? "tel" : "date"}
+                    autoComplete={field === "phone" ? "tel" : "off"}
+                    maxLength={CONTACT_DETAIL_MAX_LENGTHS[field]}
+                    aria-invalid={issue !== undefined}
+                    aria-describedby={issue === undefined ? undefined : errorId(field)}
+                    value={values[field]}
+                    onChange={(event) => updateField(field, event.target.value)}
+                    className={`mt-2 ${fieldClasses}`}
+                  />
+                  {issue && <p id={errorId(field)} className="mt-2 text-sm text-danger">{messageFor(issue)}</p>}
+                </div>
+              );
+            })}
+            <div>
+              <label htmlFor={fieldId("subject")} className="block text-[0.9375rem] font-medium">
+                {labels.subjectLabel}
+              </label>
+              <select
+                id={fieldId("subject")}
+                name="subject"
+                value={values.subject}
+                aria-invalid={issues.some((issue) => issue.field === "subject")}
+                aria-describedby={issues.some((issue) => issue.field === "subject") ? errorId("subject") : undefined}
+                onChange={(event) => updateField("subject", event.target.value)}
+                className={`mt-2 ${fieldClasses}`}
+              >
+                <option value={OTHER_CONTACT_SUBJECT}>{labels.otherSubject}</option>
+                {values.subject !== OTHER_CONTACT_SUBJECT &&
+                  !subjectOptions.some((option) => option.serviceId === values.subject) && (
+                    <option value={values.subject} disabled>
+                      {services.find((option) => option.serviceId === values.subject)?.name ?? values.subject}
+                      {` (${labels.unavailableSubject})`}
+                    </option>
+                  )}
+                {subjectOptions.map(({ serviceId, name }) => (
+                  <option key={serviceId} value={serviceId}>{name}</option>
+                ))}
+              </select>
+              {issues.find((issue) => issue.field === "subject") && (
+                <p id={errorId("subject")} className="mt-2 text-sm text-danger">
+                  {labels.fieldErrors.invalidSubject}
+                </p>
+              )}
+            </div>
+          </>
+        )}
 
         {/*
           The honeypot. Hidden from sight and from the accessibility tree, and

@@ -23,6 +23,7 @@ import {
   type DeploymentStage,
 } from "@/lib/deployment-stage";
 import type { ContactMessage } from "@/lib/contact-message";
+import type { ContactDetails } from "@/lib/contact-details";
 import type { ResolvedEnquiryTarget } from "@/lib/enquiry-media";
 import { createResendDeliveryAdapter } from "@/lib/contact-delivery-resend";
 import { createSinkDeliveryAdapter } from "@/lib/contact-delivery-sink";
@@ -122,6 +123,7 @@ export type ContactDeliveryAdapter = {
 export function buildContactEmail(
   message: ContactMessage,
   { siteName, labels }: { siteName: string; labels: BuiltInLabels },
+  extra?: { readonly details: ContactDetails; readonly subjectName: string },
 ): Omit<ContactDeliveryRequest, "idempotencyKey"> {
   const { contact } = labels;
 
@@ -130,6 +132,11 @@ export function buildContactEmail(
     text: [
       `${contact.nameLabel}: ${message.name}`,
       `${contact.emailLabel}: ${message.email}`,
+      ...(extra === undefined ? [] : [
+        `${contact.subjectLabel}: ${extra.subjectName}`,
+        ...(extra.details.phone ? [`${contact.phoneLabel}: ${extra.details.phone}`] : []),
+        ...(extra.details.preferredDate ? [`${contact.preferredDateLabel}: ${extra.details.preferredDate}`] : []),
+      ]),
       "",
       `${contact.messageLabel}:`,
       message.message,

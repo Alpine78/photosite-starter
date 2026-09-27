@@ -18,21 +18,17 @@ export function PrivacyNotice({
   labels,
   notice,
   extra,
+  collapsible = false,
 }: {
   labels: BuiltInLabels["contact"];
   notice: ContactPrivacyNotice;
   extra?: ReactNode;
+  collapsible?: boolean;
 }) {
   const headingId = useId();
 
-  return (
-    <section
-      aria-labelledby={headingId}
-      className="rounded-md border border-border p-4 text-sm text-muted"
-    >
-      <h2 id={headingId} className="font-medium text-foreground">
-        {labels.privacyTitle}
-      </h2>
+  const content = (
+    <>
       <dl className="mt-3 space-y-2">
         {(
           [
@@ -49,6 +45,24 @@ export function PrivacyNotice({
         ))}
       </dl>
       {extra !== undefined && <p className="mt-3">{extra}</p>}
+    </>
+  );
+
+  if (collapsible) {
+    return (
+      <details className="rounded-md border border-border p-4 text-sm text-muted">
+        <summary className="cursor-pointer font-medium text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+          {labels.privacyTitle}
+        </summary>
+        {content}
+      </details>
+    );
+  }
+
+  return (
+    <section aria-labelledby={headingId} className="rounded-md border border-border p-4 text-sm text-muted">
+      <h2 id={headingId} className="font-medium text-foreground">{labels.privacyTitle}</h2>
+      {content}
     </section>
   );
 }

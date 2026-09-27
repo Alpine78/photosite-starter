@@ -8,6 +8,12 @@ import { projectOptionalContactCallToAction } from "@/lib/sanity-contact-call-to
 
 import type { LocaleRouteConfig } from "@/lib/locale-routes";
 import { getSanityClient, type SanityClient } from "@/lib/sanity-client";
+import { getSanityConfig, type SanityConfig } from "@/lib/sanity-config";
+import {
+  projectPublicMedia,
+  PUBLIC_MEDIA_PROJECTION,
+  type RawPublicMediaDocument,
+} from "@/lib/sanity-media";
 import { isRecord } from "@/lib/sanity-values";
 import {
   projectNavigationItems,
@@ -49,6 +55,7 @@ export const SITE_SETTINGS_PROJECTION = `{
   galleryCaptionPlacement,
   navigation[]{label[]{language, value}, target, href},
   contact{
+    "portrait": portrait->${PUBLIC_MEDIA_PROJECTION},
     email,
     phone,
     address[]{language, value},
@@ -163,6 +170,7 @@ export function projectSiteSettings(
     readonly language: string;
     readonly locale: string;
     readonly config: LocaleRouteConfig;
+    readonly sanityConfig?: SanityConfig;
   },
 ): SiteSettings {
   const rejectIncomplete: (detail: string) => never = (detail) => {
@@ -205,6 +213,17 @@ export function projectSiteSettings(
     "contact.privacyNotice",
     rejectIncomplete,
   );
+  let portrait: SiteSettings["contact"]["portrait"];
+  if (contact.portrait !== undefined && contact.portrait !== null) {
+    if (!isRecord(contact.portrait)) rejectIncomplete("contact.portrait is malformed");
+    const projected = projectPublicMedia(contact.portrait as RawPublicMediaDocument, {
+      language: options.language,
+      fallbackLanguage: options.language,
+      config: options.sanityConfig ?? getSanityConfig(),
+    });
+    if (projected.type !== "image") rejectIncomplete("contact.portrait must be a public image");
+    portrait = projected;
+  }
   const email = readRequiredString(contact.email, "contact.email", rejectIncomplete);
   if (email.length > 254 || !EMAIL.test(email)) {
     rejectIncomplete("contact.email is not a usable email address");
@@ -269,6 +288,7 @@ export function projectSiteSettings(
     navigation: [...navigation],
     ...(featuredGalleryId === undefined ? {} : { featuredGalleryId }),
     contact: {
+      ...(portrait === undefined ? {} : { portrait }),
       email,
       ...(phone === undefined ? {} : { phone }),
       ...(address === undefined ? {} : { address }),

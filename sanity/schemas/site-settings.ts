@@ -2,6 +2,7 @@
 
 import { contactCallToActionFields } from "./contact-call-to-action";
 import { galleryPresentationFields } from "./gallery-presentation";
+import { MEDIA_TYPE_NAME } from "./media";
 
 import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
 import {
@@ -235,6 +236,13 @@ export function defineSiteSettingsType(
       type: "object",
       validation: (rule) => rule.required(),
       fields: [
+        {
+          name: "portrait",
+          title: "Contact portrait",
+          type: "reference",
+          to: [{ type: MEDIA_TYPE_NAME }],
+          description: "Optional public portrait in the contact side column, shown at its native ratio.",
+        },
         { name: "email", title: "Email", type: "string", validation: (rule) => rule.required().custom(emailAddress) },
         { name: "phone", title: "Phone", type: "string" },
         {
