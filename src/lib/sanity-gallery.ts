@@ -1817,6 +1817,50 @@ function readGalleryDocumentId(value: unknown, contentId: string): string {
 }
 
 /**
+ * Exact counts for the home portfolio's at-most-20 section controls. One
+ * count-only GROQ request returns every topic and All; no placement row or
+ * camera asset is projected into the response. Its eligibility predicate is
+ * the same one the corresponding bounded window uses.
+ */
+async function readSanityGalleryTopicCounts(
+  client: SanityClient,
+  galleryDocumentId: string,
+  contentId: string,
+  ordering: GalleryOrdering,
+  sections: readonly GallerySection[],
+): Promise<NonNullable<CuratedGalleryPage["topicCounts"]>> {
+  const captureSequence = ordering.kind === "capture-sequence";
+  const baseFilter = captureSequence
+    ? buildCaptureSequenceFilter(undefined)
+    : buildPlacementFilter(undefined);
+  const sectionField = captureSequence ? "captureSequence.sectionId" : "sectionId";
+  const expressions = sections.map(
+    (_section, index) => `count(*[${baseFilter} && ${sectionField} == $section${index}])`,
+  );
+  const raw = await client.query({
+    query: `{"all": count(*[${baseFilter}]), "sections": [${expressions.join(", ")}]}`,
+    params: {
+      ...(captureSequence ? { contentId } : { galleryDocumentId }),
+      ...Object.fromEntries(sections.map((section, index) => [`section${index}`, section.sectionId])),
+    },
+    tag: "gallery.home-topic-counts",
+  });
+  if (!isRecord(raw)) {
+    throw new SanityGalleryError("malformed-result", "invalid home topic count response", contentId);
+  }
+  const rawSections = raw.sections;
+  if (!Array.isArray(rawSections) || rawSections.length !== sections.length) {
+    throw new SanityGalleryError("malformed-result", "invalid home topic count response", contentId);
+  }
+  return {
+    all: readCount(raw.all),
+    sections: Object.fromEntries(
+      sections.map((section, index) => [section.sectionId, readCount(rawSections[index])]),
+    ),
+  };
+}
+
+/**
  * One bounded page of a Sanity-backed curated gallery, mirroring
  * `mock-gallery.ts#getMockGalleryResult`'s call shape so `gallery.ts`'s route-
  * facing seam can switch sources without a route or component change (AB#114's
@@ -1846,6 +1890,7 @@ export async function readSanityCuratedGalleryPage(
     readonly cursor?: string;
     readonly sectionSlug?: string;
     readonly cursorCodec?: GalleryCursorCodec;
+    readonly includeTopicCounts?: boolean;
     readonly client?: SanityClient;
     readonly config?: SanityConfig;
   } = {},
@@ -1920,7 +1965,7 @@ export async function readSanityCuratedGalleryPage(
     orderingStale,
   });
 
-  return readCuratedGallerySectionPage({
+  const page = await readCuratedGallerySectionPage({
     query: {
       locale,
       contentId,
@@ -1934,4 +1979,15 @@ export async function readSanityCuratedGalleryPage(
     source,
     ...(options.cursorCodec === undefined ? {} : { cursorCodec: options.cursorCodec }),
   });
+  if (!options.includeTopicCounts || sections.length === 0) return page;
+  return {
+    ...page,
+    topicCounts: await readSanityGalleryTopicCounts(
+      client,
+      galleryDocumentId,
+      contentId,
+      ordering,
+      sections,
+    ),
+  };
 }

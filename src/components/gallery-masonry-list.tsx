@@ -20,6 +20,8 @@ type GalleryMasonryListProps = {
   label: string;
   items: GallerySlice["items"];
   captionPlacement: GalleryCaptionPlacement;
+  /** Home previews keep the grid dense while captions remain in the viewer and native popover. */
+  compactCaptions?: boolean;
   labels: BuiltInLabels;
 };
 
@@ -42,13 +44,14 @@ type MasonryLayout = {
 function computeMasonryLayout(
   items: GallerySlice["items"],
   captionPlacement: GalleryCaptionPlacement,
+  compactCaptions: boolean,
   resumeFrom?: readonly MasonryBandPlacement[],
 ): MasonryLayout {
   const inputs = items.map((item) => ({
     width: item.media.rendition.width,
     height: item.media.rendition.height,
     captionRem:
-      item.media.caption && resolvesToBelowCaption(captionPlacement, item.media.rendition)
+      !compactCaptions && item.media.caption && resolvesToBelowCaption(captionPlacement, item.media.rendition)
         ? MASONRY_CAPTION_BELOW_REM
         : 0,
   }));
@@ -102,28 +105,32 @@ export function GalleryMasonryList({
   label,
   items,
   captionPlacement,
+  compactCaptions = false,
   labels,
 }: GalleryMasonryListProps) {
   const [cache, setCache] = useState<{
     items: GallerySlice["items"];
     captionPlacement: GalleryCaptionPlacement;
+    compactCaptions: boolean;
     layout: MasonryLayout;
   } | null>(null);
 
-  const isCurrent = cache !== null && cache.items === items && cache.captionPlacement === captionPlacement;
+  const isCurrent = cache !== null && cache.items === items && cache.captionPlacement === captionPlacement && cache.compactCaptions === compactCaptions;
   const layout = isCurrent
     ? cache.layout
     : computeMasonryLayout(
         items,
         captionPlacement,
+        compactCaptions,
         cache !== null &&
           cache.captionPlacement === captionPlacement &&
+          cache.compactCaptions === compactCaptions &&
           cache.layout.placements.every((placement) => placement.items.length <= items.length)
           ? cache.layout.placements
           : undefined,
       );
   if (!isCurrent) {
-    setCache({ items, captionPlacement, layout });
+    setCache({ items, captionPlacement, compactCaptions, layout });
   }
 
   return (
@@ -143,6 +150,7 @@ export function GalleryMasonryList({
               item={item}
               index={index}
               captionPlacement={captionPlacement}
+              compactCaptions={compactCaptions}
               boundedBelow
               sizes={imageRenderProfiles.galleryMasonry.sizes}
               labels={labels}

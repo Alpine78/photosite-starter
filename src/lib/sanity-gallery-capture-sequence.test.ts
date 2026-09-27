@@ -171,6 +171,13 @@ function fakeStore(options: {
         ];
       }
 
+      if (request.tag === "gallery.home-topic-counts") {
+        return {
+          all: expectedOrder(options.media).length,
+          sections: [expectedOrder(options.media, "ss1").length, expectedOrder(options.media, "ss2").length],
+        };
+      }
+
       if (request.tag === "gallery.capture-sequence.count") {
         const sectionId = params.sectionId as string | undefined;
         return members(params.contentId).filter(
@@ -223,7 +230,7 @@ function fakeStore(options: {
 
 async function readPage(
   client: SanityClient,
-  options: { readonly cursor?: string; readonly sectionSlug?: string } = {},
+  options: { readonly cursor?: string; readonly sectionSlug?: string; readonly includeTopicCounts?: boolean } = {},
 ) {
   return readSanityCuratedGalleryPage("en", CONTENT_ID, {
     client,
@@ -302,6 +309,23 @@ describe("readSanityCuratedGalleryPage — capture-sequence (ADR-0022)", () => {
     const continuation = await readPage(client, { cursor: section?.page.endCursor ?? undefined, sectionSlug: "ss1-morning" });
     expect(continuation?.photoCount).toBeUndefined();
     expect(requests.filter((request) => request.tag === "gallery.capture-sequence.count")).toHaveLength(2);
+  });
+
+  it("counts public home topics from the capture-sequence media source", async () => {
+    const media = buildMedia().map((row) =>
+      row.captureSequence?.sequence === 3 ? { ...row, privateOnly: true } : row,
+    );
+    const { client, requests } = fakeStore({ media });
+    const page = await readPage(client, { includeTopicCounts: true });
+    expect(page?.topicCounts).toEqual({
+      all: expectedOrder(media).length,
+      sections: { ss1: expectedOrder(media, "ss1").length, ss2: expectedOrder(media, "ss2").length },
+    });
+    const count = requests.find((request) => request.tag === "gallery.home-topic-counts");
+    expect(count?.query).toContain('captureSequence.galleryContentId == $contentId');
+    expect(count?.query).toContain('captureSequence.sectionId == $section0');
+    expect(count?.query).toContain('(privateOnly == false || !defined(privateOnly))');
+    expect(count?.params).toMatchObject({ contentId: CONTENT_ID, section0: "ss1", section1: "ss2" });
   });
 
   it("excludes media that is not publicly renderable or is private-only, without shortening a page", async () => {
