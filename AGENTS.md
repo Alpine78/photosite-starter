@@ -2609,8 +2609,11 @@ first slice shows the active filter heading with the exact count of public,
 visible photographs (AB#179). The mock and Sanity sources use the same
 eligibility rules; Sanity reads the count with a scalar aggregate, without
 loading every placement. Continuation slices keep their compact layout.
-Related work items: AB#176 portfolio topic filter, AB#177 call-to-action band,
-AB#178 contact form fields and service prefill.
+The contact page now includes optional phone and preferred date, a published-service
+subject with safe service-link prefill, and a settings-driven portrait and direct/social
+contact column (AB#178). Its privacy notice is a native disclosure, and the
+direct email link remains usable without JavaScript. Related work item:
+AB#176 portfolio topic filter.
 
 This paragraph goes stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,

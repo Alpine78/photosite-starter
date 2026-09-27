@@ -43,6 +43,8 @@ import {
   type ContactErrorClass,
 } from "@/lib/contact-log";
 import { getDefaultLocaleLabels } from "@/lib/deployment-config";
+import { CONTACT_DETAIL_FIELD_NAMES, OTHER_CONTACT_SUBJECT, parseContactDetails } from "@/lib/contact-details";
+import { getServices } from "@/lib/services";
 import { getSiteSettings } from "@/lib/site-settings";
 
 /**
@@ -64,7 +66,8 @@ function rejectionResponse(
   {
     correlationId,
     issues,
-  }: { readonly correlationId?: string; readonly issues?: unknown } = {},
+    services,
+  }: { readonly correlationId?: string; readonly issues?: unknown; readonly services?: unknown } = {},
 ): Response {
   return jsonNoStore(
     {
@@ -72,6 +75,7 @@ function rejectionResponse(
       reason,
       ...(correlationId === undefined ? {} : { correlationId }),
       ...(issues === undefined ? {} : { issues }),
+      ...(services === undefined ? {} : { services }),
     },
     CONTACT_REJECTION_STATUS[reason],
   );
@@ -121,7 +125,7 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  const result = await readContactSubmission(request);
+  const result = await readContactSubmission(request, { extraFields: CONTACT_DETAIL_FIELD_NAMES });
 
   if (result.outcome === "rejected") {
     // Bounded by the throttle above, so these may be logged per occurrence.
@@ -135,12 +139,30 @@ export async function POST(request: Request): Promise<Response> {
     return accepted(correlationId);
   }
 
+  const services = (await getServices()).map(({ serviceId, name }) => ({ serviceId, name }));
+  const parsedDetails = parseContactDetails(result.extra ?? {}, services);
+  if (!parsedDetails.ok) {
+    return rejectionResponse("invalid-fields", {
+      correlationId: logged(correlationId, "invalid-fields"),
+      issues: parsedDetails.issues,
+      services: parsedDetails.issues.some((issue) => issue.field === "subject")
+        ? services
+        : undefined,
+    });
+  }
+
   logContactEvent({ correlationId, state: "accepted" });
 
   const settings = await getSiteSettings();
+  const labels = getDefaultLocaleLabels();
   const email = buildContactEmail(result.message, {
     siteName: settings.siteName,
-    labels: getDefaultLocaleLabels(),
+    labels,
+  }, {
+    details: parsedDetails.details,
+    subjectName: parsedDetails.details.subject === OTHER_CONTACT_SUBJECT
+      ? labels.contact.otherSubject
+      : services.find((service) => service.serviceId === parsedDetails.details.subject)!.name,
   });
 
   // A deployment that never configured delivery — or configured the sink

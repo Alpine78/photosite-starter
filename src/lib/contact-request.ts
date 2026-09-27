@@ -101,10 +101,10 @@ export type ContactRequestResult =
       /**
        * The raw string values of any `extraFields` the caller asked for that
        * the body actually carried. Present only when `extraFields` was passed
-       * and non-empty — the contact endpoint asks for none, so its result shape
-       * is unchanged. The gallery enquiry endpoint (AB#60) asks for its own
-       * item-context fields here and hands them straight to its own validator;
-       * nothing in this module interprets them.
+       * and non-empty. The contact endpoint asks for its optional details and
+       * subject; the gallery enquiry endpoint (AB#60) asks for its item-context
+       * fields. Each route validates its own extras independently; nothing in
+       * this module interprets them.
        */
       readonly extra?: Readonly<Record<string, string>>;
     }

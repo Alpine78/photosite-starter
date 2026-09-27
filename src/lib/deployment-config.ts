@@ -168,6 +168,13 @@ export type BuiltInLabels = {
     readonly enquiryArchiveLabel: string;
     readonly nameLabel: string;
     readonly emailLabel: string;
+    readonly phoneLabel: string;
+    readonly preferredDateLabel: string;
+    readonly subjectLabel: string;
+    readonly otherSubject: string;
+    readonly unavailableSubject: string;
+    readonly directContactTitle: string;
+    readonly socialLinksTitle: string;
     readonly messageLabel: string;
     /**
      * Accessible name of the field no person can see. It has to read like a
@@ -207,6 +214,9 @@ export type BuiltInLabels = {
       readonly required: string;
       readonly tooLong: string;
       readonly invalidEmail: string;
+      readonly invalidPhone: string;
+      readonly invalidDate: string;
+      readonly invalidSubject: string;
     };
   };
   readonly contentTree: {
@@ -495,6 +505,13 @@ const englishLabels = {
     enquiryArchiveLabel: "Archive location",
     nameLabel: "Name",
     emailLabel: "Email",
+    phoneLabel: "Phone (optional)",
+    preferredDateLabel: "Preferred date (optional)",
+    subjectLabel: "Subject",
+    otherSubject: "Other",
+    unavailableSubject: "unavailable",
+    directContactTitle: "Contact directly",
+    socialLinksTitle: "Follow",
     messageLabel: "Message",
     honeypotLabel: "Company",
     submit: "Send message",
@@ -517,6 +534,9 @@ const englishLabels = {
       required: "This field is required.",
       tooLong: "Please shorten this to {max} characters or fewer.",
       invalidEmail: "Please enter an email address we can reply to.",
+      invalidPhone: "Please enter a valid phone number.",
+      invalidDate: "Please enter a valid date.",
+      invalidSubject: "Please choose an available subject.",
     },
   },
   contentTree: {
@@ -671,6 +691,13 @@ const finnishLabels = {
     enquiryArchiveLabel: "Arkistosijainti",
     nameLabel: "Nimi",
     emailLabel: "Sähköposti",
+    phoneLabel: "Puhelin (valinnainen)",
+    preferredDateLabel: "Toivottu päivämäärä (valinnainen)",
+    subjectLabel: "Aihe",
+    otherSubject: "Muu",
+    unavailableSubject: "ei enää saatavilla",
+    directContactTitle: "Suorat yhteystiedot",
+    socialLinksTitle: "Seuraa",
     messageLabel: "Viesti",
     honeypotLabel: "Yritys",
     submit: "Lähetä viesti",
@@ -693,6 +720,9 @@ const finnishLabels = {
       required: "Tämä kenttä on pakollinen.",
       tooLong: "Lyhennä tämä enintään {max} merkkiin.",
       invalidEmail: "Anna sähköpostiosoite, johon voimme vastata.",
+      invalidPhone: "Anna kelvollinen puhelinnumero.",
+      invalidDate: "Anna kelvollinen päivämäärä.",
+      invalidSubject: "Valitse käytettävissä oleva aihe.",
     },
   },
   contentTree: {

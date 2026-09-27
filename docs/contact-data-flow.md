@@ -17,14 +17,26 @@ below on 2026-08-04. Work item: AB#12.
 
 ## What is collected
 
-Three fields, and nothing else. The endpoint refuses a request carrying any
-other field rather than ignoring it.
+The contact endpoint accepts three required fields, two optional fields, and a
+subject chosen from currently published services or Other. Older clients that
+omit the subject are treated as Other. The endpoint refuses any field outside
+its own whitelist rather than ignoring it. The gallery enquiry has a separate
+three-field whitelist described below.
 
 | Field | Purpose |
 | --- | --- |
 | Name | Addressing the reply |
 | Email address | Delivering the reply; used as `Reply-To` |
 | Message | The enquiry itself |
+| Subject | Published service identity or Other; resolved to the current service name on the server |
+| Phone (optional) | Alternative reply channel, if supplied |
+| Preferred date (optional) | Scheduling context, if supplied |
+
+The contact page renders the four deployment-authored privacy statements in a
+native disclosure before the send button. When enabling these fields on an
+existing Sanity deployment, update `contact.privacyNotice.collected` to name
+the subject and optional phone/date, and verify the recipient and retention
+statements against that deployment's actual mailbox and processor.
 
 Attachments and submitted HTML are outside the MVP: there is no field for
 either, so nothing downstream has to strip one. No cookie is set, no analytics
@@ -71,7 +83,7 @@ lives in the adapter that a production deployment already refuses to build.
 | Party | Role | Data it sees | Retention | Ownership |
 | --- | --- | --- | --- | --- |
 | **Vercel** (hosting) | Processor for the application; controller for its own Service-Generated Data | Request metadata: path, status, region, user agent, IP address. Not form fields — those are in the request body, which Runtime Logs do not record | **Preview, today: Runtime Logs 1 hour on Hobby** (checked live and against Vercel's own documentation, 2026-08-25 — this row's original "1 day on Base Pro" figure describes Production's still-undecided plan, per [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment; see "Before production launch" below). **Production's retention figure follows whichever tier AB#18 chooses** — unresolved. Broader Service-Generated Data is not assumed to be deleted with that window | Customer-owned Vercel team, provisioned by AB#116, currently on Hobby for Preview/development — **the Production tier is unresolved, not decided: ADR-0004's original Pro Decision stands until AB#18 reconsiders it. See [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment and "Before production launch" below** |
-| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, message text | Email data 30 days on standard plans, per Resend's documentation — **unconfirmed against a real account; see below** | Customer-owned Resend account, customer-verified sending domain, environment-scoped API key — **this describes the intended setup, not a verified live account: as of 2026-08-25 no Resend account has been confirmed to exist, and provisioning it is AB#117's own prerequisite work (see "Before production launch" below)** |
+| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, subject, message text, and optional phone/date | Email data 30 days on standard plans, per Resend's documentation — **unconfirmed against a real account; see below** | Customer-owned Resend account, customer-verified sending domain, environment-scoped API key — **this describes the intended setup, not a verified live account: as of 2026-08-25 no Resend account has been confirmed to exist, and provisioning it is AB#117's own prerequisite work (see "Before production launch" below)** |
 | **Mailbox provider** | Processor for the received message | The whole email | Whatever the owner's mailbox retention is | Customer-owned |
 
 Open and click tracking are **disabled by default** for a Resend domain and are
@@ -104,7 +116,7 @@ willing to keep sending:
   statuses in the hosting provider's request log instead.
 - A throttled client is logged once per window rather than once per request.
 
-No name, address, message, provider response body, API key, or client
+No name, address, phone, preferred date, subject, message, provider response body, API key, or client
 identifier is ever written. The correlation identifier is random, embeds nothing
 about the visitor, and is not stored beside form content, because no form
 content is stored. It is returned to the visitor only when the corresponding
@@ -136,7 +148,7 @@ ahead of the throttle, the same bounded body and closed field whitelist, the
 same honeypot rule, the same delivery adapter and mailbox, and the same
 per-instance abuse counter — and adds only the item context.
 
-**What is collected.** The three contact fields above, plus the *public*
+**What is collected.** The three required contact fields (name, email, message), plus the *public*
 identity of the photograph the visitor is looking at:
 
 | Field | Purpose |
@@ -201,9 +213,12 @@ caption/credit, the gallery and section, and, only from a private dataset, the
 
 ## Boundary rules the code enforces
 
-- Form fields travel only in the bounded request body — never in a path, query
+- Submitted personal fields travel only in the bounded request body — never in a path, query
   string, or fragment, and therefore never in a referrer or a hosting-provider
-  request log. Neither `POST /api/contact` nor `POST /api/enquiry` reads or
+  request log. The contact page may read `?service=<published service id>` to preselect
+  a public service. Older links with an exact, unique published service name also
+  resolve. Unknown, duplicated, or overlong values select Other; the query is
+  never used as visitor-authored email text. Neither `POST /api/contact` nor `POST /api/enquiry` reads or
   copies any query parameter. The *gallery page* does read one — `?enquire=<itemId>`
   selects the `noindex` enquiry form — but `itemId` is a public occurrence
   identity (a `placementId`, ADR-0002 §1), never form data, and it is not written
@@ -214,7 +229,9 @@ caption/credit, the gallery and section, and, only from a private dataset, the
   so a cross-origin POST — which a browser will send without a preflight — cannot
   spend the allowance belonging to a real visitor at the same address.
 - The submit control is inert until the page hydrates, so a form submission
-  cannot fall back to a native GET that would put the fields in the URL.
+  cannot fall back to a native GET that would put the fields in the URL. Without
+  JavaScript, the page still offers the direct `mailto:` contact link and the
+  native disclosure for the authored privacy notice.
 - Responses are `no-store` and carry no CORS headers.
 - Credentials are read server-side only, never through a `NEXT_PUBLIC_`
   variable, a URL, or the client bundle. Preview and Production hold different

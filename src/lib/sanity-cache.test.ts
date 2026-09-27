@@ -11,6 +11,7 @@ import {
 describe("published Sanity query cache policy", () => {
   it.each([
     ["site-settings", "settings"],
+    ["site-settings", "media"],
     ["home-page", "home"],
     ["service.list", "services"],
     ["article.detail", "articles"],

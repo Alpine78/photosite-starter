@@ -21,7 +21,14 @@ vi.mock("@/lib/contact-delivery", async (importOriginal) => {
 });
 
 vi.mock("@/lib/deployment-config", () => ({
-  getDefaultLocaleLabels: () => ({}),
+  getDefaultLocaleLabels: () => ({ contact: { otherSubject: "Other" } }),
+}));
+
+vi.mock("@/lib/services", () => ({
+  getServices: async () => [
+    { serviceId: "portraits", name: "Portraits" },
+    { serviceId: "events", name: "Events" },
+  ],
 }));
 
 vi.mock("@/lib/site-settings", () => ({
@@ -43,10 +50,12 @@ function contactRequest({
   address,
   contentType = "application/json",
   origin = "https://studio.example",
+  body = VALID_BODY,
 }: {
   address: string;
   contentType?: string;
   origin?: string;
+  body?: Record<string, string>;
 }): Request {
   return new Request(ENDPOINT, {
     method: "POST",
@@ -56,7 +65,7 @@ function contactRequest({
       origin,
       "x-forwarded-for": address,
     },
-    body: JSON.stringify(VALID_BODY),
+    body: JSON.stringify(body),
   });
 }
 
@@ -110,6 +119,29 @@ describe("POST /api/contact", () => {
       }
     },
   );
+
+  it("accepts bounded contact details and refuses an unpublished subject", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const valid = await POST(contactRequest({
+      address: "192.0.2.31",
+      body: { ...VALID_BODY, phone: "+358 40 1234567", preferredDate: "2028-02-29", subject: "portraits" },
+    }));
+    expect(valid.status).toBe(200);
+    expect(delivery.deliver).toHaveBeenCalledOnce();
+
+    const invalid = await POST(contactRequest({
+      address: "192.0.2.32",
+      body: { ...VALID_BODY, subject: "<script>" },
+    }));
+    expect(invalid.status).toBe(422);
+    expect(await responseBody(invalid)).toMatchObject({
+      reason: "invalid-fields",
+      issues: [{ field: "subject", code: "invalid-subject" }],
+      services: [{ serviceId: "portraits", name: "Portraits" }, { serviceId: "events", name: "Events" }],
+    });
+    expect(delivery.deliver).toHaveBeenCalledTimes(1);
+  });
 
   it("logs one throttling refusal and returns only its traceable reference", async () => {
     const address = "192.0.2.12";

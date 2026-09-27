@@ -2,6 +2,8 @@ import { cache } from "react";
 
 import type { ContactCallToAction } from "@/lib/contact-call-to-action";
 import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
+import type { ImageMedia } from "@/lib/media";
+import { getMockImages } from "@/lib/mock-media";
 import { dispatchContentSource } from "@/lib/content-source";
 import {
   getDefaultLocaleLabels,
@@ -60,6 +62,8 @@ export type ContactPrivacyNotice = {
 };
 
 export type ContactInfo = {
+  /** Optional public web portrait in the contact page's side column. */
+  portrait?: ImageMedia;
   email: string;
   phone?: string;
   address?: string;
@@ -168,6 +172,7 @@ function buildMockSiteSettings(): SiteSettings {
       { label: labels.pages.contact, href: "/contact" },
     ],
     contact: {
+      portrait: getMockImages(new Intl.Locale(localeRoutes.defaultLocale).language).photographerIntroduction,
       email: "hello@studio-example.com",
       phone: "+358 40 123 4567",
       address: "Example Street 1, 00100 Helsinki",
@@ -177,7 +182,7 @@ function buildMockSiteSettings(): SiteSettings {
       // it configured, the mailbox that receives enquiries, and the retention it
       // keeps — before it publishes the form.
       privacyNotice: {
-        collected: "Your name, email address, and message.",
+        collected: "Your name, email address, message, subject, and any phone number or preferred date you provide.",
         purpose:
           "Answering your enquiry. Nothing is used for marketing or profiling.",
         recipient:

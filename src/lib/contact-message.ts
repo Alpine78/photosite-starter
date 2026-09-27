@@ -24,7 +24,7 @@
  */
 
 /**
- * The fields a contact submission may carry. Attachments and submitted HTML
+ * The three required fields shared by contact and gallery enquiries. Attachments and submitted HTML
  * are outside the MVP, so there is no field for either and nothing downstream
  * has to strip one.
  */
@@ -133,7 +133,7 @@ function normalizeLineBreaks(value: string): string {
  * either an accident or an injection attempt) or preserved and bounded
  * (the message, where paragraphs are the point).
  */
-function normalizeField(value: string, multiline: boolean): string {
+export function normalizeContactField(value: string, multiline: boolean): string {
   const composed = normalizeLineBreaks(value.normalize("NFC"))
     .replace(INVISIBLE_CHARACTERS, "")
     .replace(CONTROL_CHARACTERS, "");
@@ -207,7 +207,7 @@ export function parseContactMessage(
   const normalized = {} as Record<ContactFieldName, string>;
 
   for (const field of CONTACT_FIELD_NAMES) {
-    const value = normalizeField(input[field] ?? "", field === "message");
+    const value = normalizeContactField(input[field] ?? "", field === "message");
     normalized[field] = value;
 
     const code = validateField(field, value);

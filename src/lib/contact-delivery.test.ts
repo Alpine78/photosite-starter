@@ -51,6 +51,17 @@ describe("buildContactEmail", () => {
     );
   });
 
+  it("puts server-resolved subject and optional fields only in the body", () => {
+    const detailed = buildContactEmail(message, { siteName: "Studio Example", labels }, {
+      details: { subject: "portraits", phone: "+358 40 1234567", preferredDate: "2028-02-29" },
+      subjectName: "Portraits",
+    });
+    expect(detailed.subject).toBe(email.subject);
+    expect(detailed.text).toContain("Subject: Portraits");
+    expect(detailed.text).toContain("Phone (optional): +358 40 1234567");
+    expect(detailed.text).toContain("Preferred date (optional): 2028-02-29");
+  });
+
   it("replies to the visitor rather than to the site", () => {
     expect(email.replyTo).toBe(message.email);
   });

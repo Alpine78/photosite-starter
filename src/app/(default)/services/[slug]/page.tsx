@@ -153,7 +153,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
           )}
 
           <Link
-            href={`/contact?service=${encodeURIComponent(name)}`}
+            href={`/contact?service=${encodeURIComponent(service.serviceId)}`}
             className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             {labels.actions.contactAboutService}

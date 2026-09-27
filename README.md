@@ -597,8 +597,10 @@ keyboard, control, and gesture, presents the caption and credit of the photograp
 screen, and magnifies a frame on a click, tap, or the `z` key with pan bounded to the
 image and the caption stepping aside while zoomed; its zoom animation/level tuning is a
 later slice. The contact form is built and
-delivers through a replaceable adapter that stores nothing, and a public-journey suite
-covers its validation, success, failure, and retry states; the gallery-item enquiry
+delivers through a replaceable adapter that stores nothing. It accepts optional phone
+and preferred date, a published-service or Other subject, and safe prefill from service
+links. A direct email link and the privacy disclosure work without JavaScript. A
+public-journey suite covers validation, success, failure, and retry states; the gallery-item enquiry
 (AB#60) builds on it. Seeded random gallery ordering renders from both the mock fixture and
 Sanity (rotation is a two-step owner operation, with an accessible "being reordered" notice
 in between); gallery section controls are done, while story-root listing continuation is

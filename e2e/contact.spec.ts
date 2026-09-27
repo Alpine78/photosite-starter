@@ -212,6 +212,68 @@ test("a server validation response focuses the summary only once", async ({
   await expect(summary.getByRole("link")).toHaveCount(1);
 });
 
+test("a published service is prefilled and optional details survive submission", async ({ page }) => {
+  await page.goto("/contact?service=portrait-sessions", { waitUntil: "domcontentloaded" });
+  await expect(submitButton(page)).toBeEnabled();
+  await expect(page.locator('[name="subject"]')).toHaveValue("portrait-sessions");
+  await expect(page.locator('[name="phone"]')).toHaveAccessibleName(/\S/);
+  await expect(page.locator('[name="preferredDate"]')).toHaveAccessibleName(/\S/);
+  await page.locator('[name="phone"]').fill("+358 40 1234567");
+  await page.locator('[name="preferredDate"]').fill("2028-02-29");
+  await fillEnquiry(page, SYNTHETIC_ENQUIRY);
+  await submitButton(page).click();
+  await expect(deliveryOutcome(page)).toContainText(labels.successTitle);
+});
+
+test("unknown service hints select Other without echoing query text", async ({ page }) => {
+  await page.goto("/contact?service=%3Cscript%3E", { waitUntil: "domcontentloaded" });
+  await expect(page.locator('[name="subject"]')).toHaveValue("__other__");
+  await expect(page.getByRole("main")).not.toContainText("<script>");
+});
+
+test("a service unpublished after page load can be reselected without losing the message", async ({ page }) => {
+  await page.goto("/contact?service=portrait-sessions", { waitUntil: "domcontentloaded" });
+  await expect(submitButton(page)).toBeEnabled();
+  await fillEnquiry(page, SYNTHETIC_ENQUIRY);
+  let intercepted = false;
+  await page.route("**/api/contact", async (route) => {
+    if (intercepted) return route.continue();
+    intercepted = true;
+    await route.fulfill({
+      status: 422,
+      contentType: "application/json",
+      body: JSON.stringify({
+        issues: [{ field: "subject", code: "invalid-subject" }],
+        services: [{ serviceId: "events", name: "Events" }],
+      }),
+    });
+  });
+  await submitButton(page).click();
+  const subject = page.locator('[name="subject"]');
+  await expect(errorSummary(page)).toBeFocused();
+  await expect(subject).toHaveValue("portrait-sessions");
+  await expect(subject.locator("option:checked")).toHaveText(`Portrait sessions (${labels.unavailableSubject})`);
+  await subject.selectOption("__other__");
+  await expect(errorSummary(page)).toBeHidden();
+  await expect(field(page, "message")).toHaveValue(SYNTHETIC_ENQUIRY.message);
+  await submitButton(page).click();
+  await expect(deliveryOutcome(page)).toContainText(labels.successTitle);
+});
+
+test.describe("without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("direct email and privacy details remain available", async ({ page }) => {
+    await page.goto(CONTACT_PATH, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("main").locator('a[href^="mailto:"]').first()).toBeVisible();
+    const privacy = page.getByRole("main").locator("details");
+    await expect(privacy.locator("summary")).toBeVisible();
+    await privacy.locator("summary").click();
+    await expect(privacy.locator("dt")).toHaveCount(4);
+    await expect(submitButton(page)).toBeDisabled();
+  });
+});
+
 test("a visitor can submit the contact form and is told it was sent", async ({
   page,
   externalRequests,

@@ -187,6 +187,13 @@ published language; an absent object leaves the existing home introduction in pl
 portrait uses the same public-media boundary and renders at its native ratio. The two
 application-owned actions lead to contact and services.
 
+`siteSettings.contact.portrait` optionally references a shared public image for the
+contact page's side column. It renders at its native ratio. The site projects only
+the public web derivative and rejects private-only or non-image media; leave the
+reference empty when the page needs no portrait. Update the authored
+`contact.privacyNotice.collected` when enabling the optional phone/date and
+subject fields on an existing deployment.
+
 **The Studio validates against the dataset.** Several rules query it while an editor
 works, which is the only place they can run in time: an uploaded image is measured and its
 format checked before the document can be published, a media ID is checked for being

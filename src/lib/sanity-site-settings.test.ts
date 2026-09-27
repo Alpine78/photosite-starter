@@ -22,6 +22,7 @@ import {
   type RawSiteSettingsDocument,
 } from "@/lib/sanity-site-settings";
 import type { SanityClient, SanityQueryRequest } from "@/lib/sanity-client";
+import type { SanityConfig } from "@/lib/sanity-config";
 
 const config = buildLocaleRouteConfig({
   locales: [
@@ -31,6 +32,13 @@ const config = buildLocaleRouteConfig({
   reservedRootSegments: ["services", "contact"],
   reservedLocaleRouteSegments: ["services", "contact"],
 });
+
+const sanityConfig: SanityConfig = {
+  projectId: "zp7mbokg",
+  dataset: "production",
+  datasetVisibility: "public",
+  apiVersion: "v2026-06-24",
+};
 
 const localized = (fi: string, en: string) => [
   { language: "fi", value: fi },
@@ -83,7 +91,7 @@ function documentOf(
 }
 
 const project = (document: RawSiteSettingsDocument, language = "fi-FI") =>
-  projectSiteSettings(document, { language, locale: language, config });
+  projectSiteSettings(document, { language, locale: language, config, sanityConfig });
 
 function fakeClient(answer: unknown): {
   client: SanityClient;
@@ -100,6 +108,33 @@ function fakeClient(answer: unknown): {
     },
   };
 }
+
+it("projects a public contact portrait without provider internals and rejects private or video media", () => {
+  const portrait = {
+    mediaId: "contact-portrait",
+    mediaType: "image",
+    publiclyRenderable: true,
+    alt: localized("Kuvaaja", "Photographer"),
+    caption: [],
+    credit: "Example credit",
+    archiveLocator: "/private/master.raw",
+    asset: {
+      url: `https://cdn.sanity.io/images/${sanityConfig.projectId}/${sanityConfig.dataset}/Tb9Ew8CXIwaY6R1kjMvI0uRR-1024x1536.webp`,
+      path: `images/${sanityConfig.projectId}/${sanityConfig.dataset}/Tb9Ew8CXIwaY6R1kjMvI0uRR-1024x1536.webp`,
+      extension: "webp",
+      mimeType: "image/webp",
+      width: 1024,
+      height: 1536,
+    },
+  };
+  const base = documentOf();
+  const contact = base.contact as Record<string, unknown>;
+  const projected = project(documentOf({ contact: { ...contact, portrait } }));
+  expect(projected.contact.portrait?.type).toBe("image");
+  expect(JSON.stringify(projected.contact.portrait)).not.toContain("archiveLocator");
+  expect(() => project(documentOf({ contact: { ...contact, portrait: { ...portrait, privateOnly: true } } }))).toThrow();
+  expect(() => project(documentOf({ contact: { ...contact, portrait: { ...portrait, mediaType: "video" } } }))).toThrow(/video/u);
+});
 
 it("projects optional presentation defaults and rejects malformed stored enums", () => {
   expect(project(documentOf())).not.toHaveProperty("galleryLayout");

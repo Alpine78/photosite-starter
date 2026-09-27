@@ -38,7 +38,7 @@ const T = SANITY_PUBLIC_CACHE_TAGS;
 const QUERY_CACHE_TAGS: Readonly<
   Record<string, readonly SanityPublicCacheTag[]>
 > = {
-  "site-settings": [T.settings, T.metadata, T.sitemap],
+  "site-settings": [T.settings, T.media, T.metadata, T.sitemap],
   "home-page": [T.home, T.media, T.metadata, T.sitemap],
   "service.list": [T.services, T.media, T.metadata, T.sitemap],
   "service.detail": [T.services, T.media, T.metadata, T.sitemap],
