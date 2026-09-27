@@ -271,6 +271,9 @@ export type BuiltInLabels = {
     readonly sectionsNav: string;
     /** Visible label of the unfiltered `All` section filter. */
     readonly allSections: string;
+    /** Singular and plural labels for an exact section photograph count. */
+    readonly photoSingular: string;
+    readonly photoPlural: string;
     /**
      * Names the page-jump navigation's link to the image grid, which appears
      * whenever a gallery carries a long body (ADR-0003 decision 3).
@@ -545,6 +548,8 @@ const englishLabels = {
     allLoaded: "All images in this gallery are loaded.",
     sectionsNav: "Gallery sections",
     allSections: "All",
+    photoSingular: "photo",
+    photoPlural: "photos",
     jumpToImages: "Jump to the image grid",
     reorderingTitle: "This gallery is being reordered",
     reorderingBody:
@@ -719,6 +724,8 @@ const finnishLabels = {
     allLoaded: "Gallerian kaikki kuvat on ladattu.",
     sectionsNav: "Gallerian osiot",
     allSections: "Kaikki",
+    photoSingular: "kuva",
+    photoPlural: "kuvaa",
     jumpToImages: "Siirry kuvaruudukkoon",
     reorderingTitle: "Tätä galleriaa järjestetään uudelleen",
     reorderingBody:

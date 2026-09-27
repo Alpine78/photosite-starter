@@ -1528,6 +1528,7 @@ function createSanityCuratedGallerySource(
     /** The language-neutral identity a capture-sequence gallery's media name (ADR-0022 §1). */
     readonly contentId: string;
     readonly ordering: GalleryOrdering;
+    readonly hasSections: boolean;
     /**
      * The gallery is mid-rotation (its basics `staleShuffledOrderCount` was
      * non-zero). Refuse here, not in `readSanityCuratedGalleryPage`, so
@@ -1547,22 +1548,26 @@ function createSanityCuratedGallerySource(
     const language = toLanguageSubtag(locale);
     const sectionId = sectionIdOf(filter);
     const captureSequence = options.ordering.kind === "capture-sequence";
+    const placementFilter = captureSequence
+      ? buildCaptureSequenceFilter(sectionId)
+      : buildPlacementFilter(sectionId);
     const planned =
       options.ordering.kind === "capture-sequence"
-        ? planCaptureSequenceWindowQuery(buildCaptureSequenceFilter(sectionId), window)
+        ? planCaptureSequenceWindowQuery(placementFilter, window)
         : options.ordering.kind === "manual"
-          ? planManualWindowQuery(buildPlacementFilter(sectionId), window)
-          : planSeededWindowQuery(buildPlacementFilter(sectionId), window);
-
-    const { boundary: rawBoundary, candidates: rawCandidates } = planned.readResult(
-      await client.query({
+          ? planManualWindowQuery(placementFilter, window)
+          : planSeededWindowQuery(placementFilter, window);
+    const identityParams = captureSequence
+      ? { contentId: options.contentId }
+      : { galleryDocumentId: options.galleryDocumentId };
+    const sectionParams = sectionId === undefined ? {} : { sectionId };
+    const [rawWindow, rawCount] = await Promise.all([
+      client.query({
         query: planned.query,
         params: {
-          ...(captureSequence
-            ? { contentId: options.contentId }
-            : { galleryDocumentId: options.galleryDocumentId }),
+          ...identityParams,
           candidateLimit: window.candidateLimit,
-          ...(sectionId === undefined ? {} : { sectionId }),
+          ...sectionParams,
           ...(options.ordering.kind === "seeded-random"
             ? { orderingScope: orderingScopeString(options.ordering) }
             : {}),
@@ -1572,7 +1577,17 @@ function createSanityCuratedGallerySource(
           ? "gallery.capture-sequence.window"
           : "gallery.placements.window",
       }),
-    );
+      options.hasSections && window.after === undefined
+        ? client.query({
+            query: `count(*[${placementFilter}])`,
+            params: { ...identityParams, ...sectionParams },
+            tag: captureSequence
+              ? "gallery.capture-sequence.count"
+              : "gallery.placements.count",
+          })
+        : Promise.resolve(undefined),
+    ]);
+    const { boundary: rawBoundary, candidates: rawCandidates } = planned.readResult(rawWindow);
 
     const languages: PublicMediaLanguage = {
       language,
@@ -1592,7 +1607,11 @@ function createSanityCuratedGallerySource(
       assertAlreadyPublic(projectGalleryPlacement(row, projectOptions)),
     );
 
-    return { ...(boundary === undefined ? {} : { boundary }), candidates };
+    return {
+      ...(boundary === undefined ? {} : { boundary }),
+      candidates,
+      ...(rawCount === undefined ? {} : { photoCount: readCount(rawCount) }),
+    };
   };
 }
 
@@ -1897,6 +1916,7 @@ export async function readSanityCuratedGalleryPage(
     galleryDocumentId,
     contentId,
     ordering,
+    hasSections: sections.length > 0,
     orderingStale,
   });
 

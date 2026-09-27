@@ -1,3 +1,4 @@
+import type { BuiltInLabels } from "@/lib/deployment-config";
 import type {
   GallerySection,
   GallerySectionInlineSpan,
@@ -5,8 +6,11 @@ import type {
 } from "@/lib/gallery-sections";
 
 type GallerySectionIntroProps = {
-  /** The active named section, resolved server-side on its first, uncursored slice. */
-  readonly section: GallerySection;
+  readonly label: string;
+  readonly intro?: GallerySection["intro"];
+  readonly photoCount?: number;
+  readonly locale: string;
+  readonly labels: BuiltInLabels;
 };
 
 function isExternalHref(href: string): boolean {
@@ -72,30 +76,32 @@ function IntroBlock({
 }
 
 /**
- * A named gallery section's own heading and optional short introduction.
- *
- * ADR-0003 decision 3: the first page of a selected section renders its
- * authored label as a level-2 heading, whether or not it carries an
- * introduction — so the heading here is unconditional on `section` being
- * supplied at all, and only the blocks beneath it are conditional on
- * `section.intro`. The caller (`ContentGallery`) renders this component only
- * on the first, uncursored slice of a named section — the one state
- * `result.selectedSection` marks — so no continuation or `All` view repeats
- * it.
- *
- * The block set is deliberately narrow — paragraphs and lists only, already
- * validated server-side by `assertGallerySectionIntroBlocks` — so this is a
- * pure renderer with no re-validation of its own.
+ * The active gallery filter's heading and public photograph count on its
+ * first slice. A named section may also supply its authored short intro.
+ * Continuation slices omit this editorial framing (ADR-0003 decision 3).
+ * Intro blocks have already been validated by the section boundary.
  */
-export function GallerySectionIntro({ section }: GallerySectionIntroProps) {
+export function GallerySectionIntro({
+  label,
+  intro,
+  photoCount,
+  locale,
+  labels,
+}: GallerySectionIntroProps) {
   return (
     <div className="mt-6 max-w-2xl">
-      <h2 className="text-xl font-semibold tracking-tight">
-        {section.label}
-      </h2>
-      {section.intro !== undefined && (
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <h2 className="text-xl font-semibold tracking-tight">{label}</h2>
+        {photoCount !== undefined && (
+          <p className="text-sm text-muted">
+            {new Intl.NumberFormat(locale).format(photoCount)}{" "}
+            {photoCount === 1 ? labels.gallery.photoSingular : labels.gallery.photoPlural}
+          </p>
+        )}
+      </div>
+      {intro !== undefined && (
         <div className="mt-3 space-y-3 text-base leading-7">
-          {section.intro.map((block, index) => (
+          {intro.map((block, index) => (
             <IntroBlock key={block.key ?? index} block={block} index={index} />
           ))}
         </div>

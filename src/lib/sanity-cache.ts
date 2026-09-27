@@ -82,7 +82,9 @@ const QUERY_CACHE_TAGS: Readonly<
   "gallery.placements": [T.galleries, T.media, T.metadata, T.sitemap],
   "gallery.placements.basics": [T.galleries, T.media, T.metadata, T.sitemap],
   "gallery.placements.window": [T.galleries, T.media, T.metadata, T.sitemap],
+  "gallery.placements.count": [T.galleries, T.media, T.metadata, T.sitemap],
   "gallery.capture-sequence.window": [T.galleries, T.media, T.metadata, T.sitemap],
+  "gallery.capture-sequence.count": [T.galleries, T.media, T.metadata, T.sitemap],
   "media.detail": [T.media],
   "media.list": [T.media],
 };

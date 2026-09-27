@@ -722,6 +722,17 @@ describe("readSanityCuratedGalleryPage", () => {
           ];
         }
 
+        if (request.tag === "gallery.placements.count") {
+          const sectionId = params.sectionId as string | undefined;
+          return params.galleryDocumentId !== galleryDocumentId
+            ? 0
+            : options.placements.filter(
+                (placement) =>
+                  servable(placement) &&
+                  (sectionId === undefined || placement.sectionId === sectionId),
+              ).length;
+        }
+
         if (request.tag === "gallery.placements.window") {
           const sectionId = params.sectionId as string | undefined;
           const candidateLimit = params.candidateLimit as number;
@@ -919,6 +930,38 @@ describe("readSanityCuratedGalleryPage", () => {
     expect(items.map((item) => item.itemId)).toEqual(
       Array.from({ length: 150 }, (_unused, index) => `large-archive-${String(index + 1).padStart(4, "0")}`),
     );
+  });
+
+  it("counts only eligible photographs in the active section, and skips the count on continuation", async () => {
+    const sections = [{ sectionId: "early", slug: "early", label: "Early" }];
+    const placements: readonly FixturePlacement[] = [
+      { placementId: "early-1", order: 0, visible: true, sectionId: "early", media: mediaDocumentOf({ mediaId: "m1" }) },
+      { placementId: "early-2", order: 1, visible: true, sectionId: "early", media: mediaDocumentOf({ mediaId: "m2" }) },
+      { placementId: "hidden", order: 2, visible: false, sectionId: "early", media: mediaDocumentOf({ mediaId: "m3" }) },
+      { placementId: "private", order: 3, visible: true, sectionId: "early", media: mediaDocumentOf({ mediaId: "m4", privateOnly: true }) },
+      { placementId: "late", order: 4, visible: true, sectionId: "late", media: mediaDocumentOf({ mediaId: "m5" }) },
+    ];
+    const { client, requests } = fakeGalleryStore({ placements, sections });
+    const first = await readPage(client, undefined, "early");
+    expect(first?.photoCount).toBe(2);
+    const count = requests.find((request) => request.tag === "gallery.placements.count");
+    const window = requests.find((request) => request.tag === "gallery.placements.window");
+    expect(count?.params).toMatchObject({ sectionId: "early" });
+    expect(count?.query).toContain("visible == true");
+    expect(count?.query).toContain("media->publiclyRenderable == true");
+    expect(count?.query).toContain("(media->privateOnly == false || !defined(media->privateOnly))");
+    expect(count?.query).toContain("sectionId == $sectionId");
+    expect(window?.query).toContain("sectionId == $sectionId");
+
+    const all = await readPage(client);
+    expect(all?.photoCount).toBe(3);
+
+    const large = fakeGalleryStore({ placements: buildLargeArchive(), sections });
+    const firstLarge = await readPage(large.client, undefined, "early");
+    expect(firstLarge?.photoCount).toBe(150);
+    const continuation = await readPage(large.client, firstLarge?.page.endCursor ?? undefined, "early");
+    expect(continuation?.photoCount).toBeUndefined();
+    expect(large.requests.filter((request) => request.tag === "gallery.placements.count")).toHaveLength(1);
   });
 
   it("does not require a different section's window to answer the requested one", async () => {

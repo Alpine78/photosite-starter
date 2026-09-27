@@ -252,31 +252,41 @@ const LARGE_ARCHIVE_SIZE = 400;
  * declares a third, "unused" section no placement references, for the
  * valid-empty-section case).
  */
-const largeArchivePlacements: readonly MockPlacementInput[] = Array.from(
-  { length: LARGE_ARCHIVE_SIZE },
-  (_unused, index): MockPlacementInput => {
-    const position = index + 1;
-    const image = archiveImageCycle[index % archiveImageCycle.length];
-    const sectionId =
-      position <= 150 ? "early" : position <= 300 ? "late" : undefined;
+const largeArchivePlacements: readonly MockPlacementInput[] = [
+  ...Array.from(
+    { length: LARGE_ARCHIVE_SIZE },
+    (_unused, index): MockPlacementInput => {
+      const position = index + 1;
+      const image = archiveImageCycle[index % archiveImageCycle.length];
+      const sectionId =
+        position <= 150 ? "early" : position <= 300 ? "late" : undefined;
 
-    return {
-      placementId: `large-archive-${String(position).padStart(4, "0")}`,
-      image,
-      ...(sectionId === undefined ? {} : { sectionId }),
-      // Every fourth placement carries none, so an item with no caption keeps
-      // appearing after a page boundary rather than only on the first page.
-      ...(position % 4 === 0
-        ? {}
-        : {
-            caption: {
-              en: `Archive image ${position}`,
-              fi: `Arkistokuva ${position}`,
-            },
-          }),
-    };
+      return {
+        placementId: `large-archive-${String(position).padStart(4, "0")}`,
+        image,
+        ...(sectionId === undefined ? {} : { sectionId }),
+        // Every fourth placement carries none, so an item with no caption keeps
+        // appearing after a page boundary rather than only on the first page.
+        ...(position % 4 === 0
+          ? {}
+          : {
+              caption: {
+                en: `Archive image ${position}`,
+                fi: `Arkistokuva ${position}`,
+              },
+            }),
+      };
+    },
+  ),
+  // Count regression: a hidden placement belongs to a section but is neither
+  // a public grid item nor part of that section's photograph total.
+  {
+    placementId: "large-archive-hidden",
+    image: "mistyBirch",
+    sectionId: "early",
+    visible: false,
   },
-);
+];
 
 const largeArchiveSections: readonly MockGallerySectionInput[] = [
   { sectionId: "early", slug: "early", label: { en: "Early", fi: "Alkupää" } },
@@ -691,7 +701,16 @@ export async function getMockGalleryResult(
         : gallery.placements.filter(
             (placement) => placement.sectionId === filter.section.sectionId,
           );
-    return selectGalleryWindow(filtered, window, gallery.ordering);
+    return {
+      ...selectGalleryWindow(filtered, window, gallery.ordering),
+      ...(gallery.sections.length > 0 && window.after === undefined
+        ? {
+            photoCount: filtered.filter(
+              (placement) => placement.visible && placement.privateOnly !== true,
+            ).length,
+          }
+        : {}),
+    };
   };
 
   return readCuratedGallerySectionPage({
