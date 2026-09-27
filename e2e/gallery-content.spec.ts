@@ -133,7 +133,12 @@ test("a continuation page omits the lead, the body, and the page-jump navigation
   await expect(
     page.getByRole("navigation", { name: labels.contentTree.onThisPage }),
   ).toHaveCount(1);
-  await expect(main.getByRole("heading", { level: 2 })).toHaveCount(1);
+  // The body heading and the active "All" section heading belong to the
+  // first slice. Neither is repeated on a continuation page.
+  await expect(main.getByRole("heading", { level: 2 })).toHaveCount(2);
+  await expect(
+    main.getByRole("heading", { level: 2, name: labels.gallery.allSections }),
+  ).toBeVisible();
   await expect(main.getByText("exercise pagination at scale", { exact: false })).toBeVisible();
 
   const result = await getMockGalleryResult(language, MULTI_PAGE_GALLERY_ID, {
