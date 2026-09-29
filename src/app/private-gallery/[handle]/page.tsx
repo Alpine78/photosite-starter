@@ -66,15 +66,21 @@ export default async function PrivateGalleryPage({
   const labels = getBuiltInLabels(localeRoutes.defaultLocale).privateGallery;
   const authorized = await resolveAuthorizedGallery(handle);
 
-  if (authorized === undefined) return <PrivateGalleryBootstrap labels={labels} />;
-
   return (
-    <PrivateGalleryView
-      labels={labels}
-      gallery={authorized.gallery}
-      items={authorized.items}
-      locale={localeRoutes.defaultLocale}
-    />
+    <>
+      {/* Scrub a link fragment on both the bootstrap and authorized documents. */}
+      <script src="/private-gallery-bootstrap.js" defer />
+      {authorized === undefined ? (
+        <PrivateGalleryBootstrap labels={labels} />
+      ) : (
+        <PrivateGalleryView
+          labels={labels}
+          gallery={authorized.gallery}
+          items={authorized.items}
+          locale={localeRoutes.defaultLocale}
+        />
+      )}
+    </>
   );
 }
 
@@ -178,7 +184,6 @@ function PrivateGalleryBootstrap({ labels }: { labels: Labels }) {
       <noscript>
         <p className="text-danger">{labels.javascriptRequired}</p>
       </noscript>
-      <script src="/private-gallery-bootstrap.js" defer />
     </main>
   );
 }
