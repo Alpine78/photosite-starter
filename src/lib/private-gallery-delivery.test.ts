@@ -176,6 +176,7 @@ describe("evaluatePrivateGalleryAccessBudget", () => {
 
     expect(decision.allowed).toBe(true);
     expect(decision.next.chargedBytes).toBe(250);
+    expect(decision.next.refusalReported).toBe(false);
   });
 
   it("accumulates across mints and refuses at the ceiling", () => {
@@ -198,7 +199,11 @@ describe("evaluatePrivateGalleryAccessBudget", () => {
   it("does not charge a refused mint", () => {
     // The bytes were never authorized, and charging them would let a refused
     // request push the counter — and so the window — further out.
-    const counter = { windowStartedAt: NOW, chargedBytes: 10_000 };
+    const counter = {
+      windowStartedAt: NOW,
+      chargedBytes: 10_000,
+      refusalReported: false,
+    };
 
     const decision = evaluatePrivateGalleryAccessBudget(
       counter,
@@ -211,19 +216,118 @@ describe("evaluatePrivateGalleryAccessBudget", () => {
     expect(decision.next.chargedBytes).toBe(10_000);
   });
 
-  it("reports the first refusal once, then not again", () => {
-    const spent = { windowStartedAt: NOW, chargedBytes: 10_001 };
+  it("reports only the first sequential refusal without charging or extending the window", () => {
+    const full = evaluatePrivateGalleryAccessBudget(
+      undefined,
+      10_000,
+      NOW,
+      config,
+    ).next;
+    const first = evaluatePrivateGalleryAccessBudget(
+      full,
+      1,
+      new Date(NOW.getTime() + 1_000),
+      config,
+    );
+    const second = evaluatePrivateGalleryAccessBudget(
+      first.next,
+      1,
+      new Date(NOW.getTime() + 2_000),
+      config,
+    );
+
+    expect([first.allowed, second.allowed]).toEqual([false, false]);
+    expect([first.firstRefusalInWindow, second.firstRefusalInWindow]).toEqual([
+      true,
+      false,
+    ]);
+    for (const decision of [first, second]) {
+      expect(decision.next.chargedBytes).toBe(10_000);
+      expect(decision.next.windowStartedAt.getTime()).toBe(NOW.getTime());
+      expect(decision.next.refusalReported).toBe(true);
+    }
+  });
+
+  it("retains the report marker through a later allowed mint", () => {
+    const almostFull = evaluatePrivateGalleryAccessBudget(
+      undefined,
+      9_999,
+      NOW,
+      config,
+    ).next;
+    const refused = evaluatePrivateGalleryAccessBudget(
+      almostFull,
+      2,
+      NOW,
+      config,
+    );
+    const allowed = evaluatePrivateGalleryAccessBudget(
+      refused.next,
+      1,
+      NOW,
+      config,
+    );
+    const refusedAgain = evaluatePrivateGalleryAccessBudget(
+      allowed.next,
+      1,
+      NOW,
+      config,
+    );
+
+    expect(refused.firstRefusalInWindow).toBe(true);
+    expect(allowed).toMatchObject({
+      allowed: true,
+      next: { chargedBytes: 10_000, refusalReported: true },
+    });
+    expect(refusedAgain.firstRefusalInWindow).toBe(false);
+  });
+
+  it("starts an empty window on an oversized refusal and reports once per window", () => {
+    const first = evaluatePrivateGalleryAccessBudget(
+      undefined,
+      10_001,
+      NOW,
+      config,
+    );
+    const repeated = evaluatePrivateGalleryAccessBudget(
+      first.next,
+      10_001,
+      new Date(NOW.getTime() + 1_000),
+      config,
+    );
+    const nextWindow = evaluatePrivateGalleryAccessBudget(
+      repeated.next,
+      10_001,
+      new Date(NOW.getTime() + config.windowMs),
+      config,
+    );
+    const repeatedNextWindow = evaluatePrivateGalleryAccessBudget(
+      nextWindow.next,
+      10_001,
+      new Date(NOW.getTime() + config.windowMs + 1_000),
+      config,
+    );
 
     expect(
-      evaluatePrivateGalleryAccessBudget(spent, 1, NOW, config)
-        .firstRefusalInWindow,
-    ).toBe(false);
+      [first, repeated, nextWindow, repeatedNextWindow].map(
+        (decision) => decision.firstRefusalInWindow,
+      ),
+    ).toEqual([true, false, true, false]);
+    for (const decision of [first, repeated, nextWindow, repeatedNextWindow]) {
+      expect(decision.allowed).toBe(false);
+      expect(decision.next.chargedBytes).toBe(0);
+    }
+    expect(repeated.next.windowStartedAt.getTime()).toBe(NOW.getTime());
+    expect(nextWindow.next.windowStartedAt.getTime()).toBe(
+      NOW.getTime() + config.windowMs,
+    );
   });
 
   it("starts a new window once the old one lapsed", () => {
     const stale = {
       windowStartedAt: new Date(NOW.getTime() - config.windowMs),
       chargedBytes: 10_000,
+      refusalReported: true,
     };
 
     const decision = evaluatePrivateGalleryAccessBudget(stale, 400, NOW, config);
@@ -231,6 +335,7 @@ describe("evaluatePrivateGalleryAccessBudget", () => {
     expect(decision.allowed).toBe(true);
     expect(decision.next.chargedBytes).toBe(400);
     expect(decision.next.windowStartedAt.getTime()).toBe(NOW.getTime());
+    expect(decision.next.refusalReported).toBe(false);
   });
 
   it("throws on a corrupt counter rather than failing open", () => {
@@ -238,7 +343,11 @@ describe("evaluatePrivateGalleryAccessBudget", () => {
     // reset would hand out a fresh allowance on every scrape.
     expect(() =>
       evaluatePrivateGalleryAccessBudget(
-        { windowStartedAt: new Date(NaN), chargedBytes: 1 },
+        {
+          windowStartedAt: new Date(NaN),
+          chargedBytes: 1,
+          refusalReported: false,
+        },
         1,
         NOW,
         config,
@@ -246,7 +355,19 @@ describe("evaluatePrivateGalleryAccessBudget", () => {
     ).toThrow(PrivateGalleryDeliveryError);
     expect(() =>
       evaluatePrivateGalleryAccessBudget(
-        { windowStartedAt: NOW, chargedBytes: -1 },
+        { windowStartedAt: NOW, chargedBytes: -1, refusalReported: false },
+        1,
+        NOW,
+        config,
+      ),
+    ).toThrow(PrivateGalleryDeliveryError);
+    expect(() =>
+      evaluatePrivateGalleryAccessBudget(
+        {
+          windowStartedAt: NOW,
+          chargedBytes: 1,
+          refusalReported: "yes" as unknown as boolean,
+        },
         1,
         NOW,
         config,
@@ -371,6 +492,7 @@ describe("authorizePrivateGalleryMint", () => {
           windowStartedAt: NOW,
           chargedBytes:
             TOTAL_BYTES * PRIVATE_GALLERY_DEFAULT_ACCESS_BUDGET_BYTE_MULTIPLIER,
+          refusalReported: false,
         },
       }),
     ).toThrow(PrivateGalleryDeliveryError);
@@ -384,6 +506,7 @@ describe("authorizePrivateGalleryMint", () => {
       windowStartedAt: NOW,
       chargedBytes:
         TOTAL_BYTES * PRIVATE_GALLERY_DEFAULT_ACCESS_BUDGET_BYTE_MULTIPLIER,
+      refusalReported: false,
     };
     let thrown: unknown;
     try {
@@ -416,7 +539,7 @@ describe("authorizePrivateGalleryMint", () => {
 
   it("returns the budget the caller must persist", () => {
     const authorization = mint({
-      budget: { windowStartedAt: NOW, chargedBytes: 1000 },
+      budget: { windowStartedAt: NOW, chargedBytes: 1000, refusalReported: false },
     });
 
     expect(authorization.nextBudget.chargedBytes).toBe(

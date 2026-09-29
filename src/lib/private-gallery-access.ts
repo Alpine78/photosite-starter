@@ -515,7 +515,10 @@ export async function listPrivateGalleryItems(
  * `consumeExchangeAttempt` is, computing the semantics
  * `evaluatePrivateGalleryAccessBudget` defines. A caller that read the counter,
  * decided, and wrote it back would race a concurrent mint and let two requests
- * each spend the last of an allowance.
+ * each spend the last of an allowance. The same atomic update must persist
+ * the refusal-reported marker even when the mint is denied and no bytes are
+ * charged. It must return the decision from the committed update, so concurrent
+ * refusals cannot each claim to be the first log-worthy refusal in a window.
  */
 export type PrivateGalleryDeliveryStore = {
   findPlacement(

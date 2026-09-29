@@ -732,7 +732,7 @@ describe("mintPrivateGalleryAssetUrl", () => {
       consumeAccessBudget: vi.fn(async () => ({
         allowed: true as const,
         firstRefusalInWindow: false,
-        next: { windowStartedAt: NOW, chargedBytes: 1 },
+        next: { windowStartedAt: NOW, chargedBytes: 1, refusalReported: false },
       })),
       totalGalleryBytes: vi.fn(async () => 40_000_000_000),
       ...overrides,
@@ -846,7 +846,7 @@ describe("mintPrivateGalleryAssetUrl", () => {
       consumeAccessBudget: vi.fn(async () => ({
         allowed: false as const,
         firstRefusalInWindow: true,
-        next: { windowStartedAt: NOW, chargedBytes: 1 },
+        next: { windowStartedAt: NOW, chargedBytes: 1, refusalReported: true },
       })),
     });
 

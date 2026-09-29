@@ -69,7 +69,14 @@ import {
   type PrivateGalleryAdminLoginStore,
 } from "@/lib/private-gallery-admin-login";
 import type { PrivateGalleryAdminSessionStore } from "@/lib/private-gallery-admin-session";
-import type { PrivateGalleryViewStore } from "@/lib/private-gallery-access";
+import type {
+  PrivateGalleryDeliveryStore,
+  PrivateGalleryViewStore,
+} from "@/lib/private-gallery-access";
+import {
+  evaluatePrivateGalleryAccessBudget,
+  type PrivateGalleryAccessBudgetCounter,
+} from "@/lib/private-gallery-delivery";
 
 /**
  * The fixture gallery's link, in full:
@@ -166,6 +173,8 @@ export type PrivateGalleryMemoryStore = {
   readonly exchangeStore: PrivateGalleryExchangeStore;
   readonly sessionStore: PrivateGallerySessionStore;
   readonly viewStore: PrivateGalleryViewStore;
+  /** Budget state only; Stage 2 delivery has no route or object store yet. */
+  readonly budgetStore: Pick<PrivateGalleryDeliveryStore, "consumeAccessBudget">;
   readonly keyring: PrivateGalleryCapabilityKeyring;
   /** The fixture gallery, for a route that wants to render its authorized state. */
   readonly gallery: PrivateGallery;
@@ -361,10 +370,35 @@ function build(now: Date): PrivateGalleryMemoryStore {
     },
   };
 
+  const accessBudgets = new Map<string, PrivateGalleryAccessBudgetCounter>();
+  const budgetStore: Pick<PrivateGalleryDeliveryStore, "consumeAccessBudget"> = {
+    async consumeAccessBudget({
+      galleryId,
+      capabilityGeneration,
+      chargeBytes,
+      now: attemptedAt,
+      config,
+    }) {
+      // No await between read, evaluation, and write: calls in this one-process
+      // fixture cannot both observe the pre-refusal state. A durable adapter
+      // must perform the same transition in one database transaction.
+      const key = JSON.stringify([galleryId, capabilityGeneration]);
+      const decision = evaluatePrivateGalleryAccessBudget(
+        accessBudgets.get(key),
+        chargeBytes,
+        attemptedAt,
+        config,
+      );
+      accessBudgets.set(key, decision.next);
+      return decision;
+    },
+  };
+
   return {
     exchangeStore,
     sessionStore,
     viewStore,
+    budgetStore,
     keyring,
     gallery,
     ...buildAdminStores(),
