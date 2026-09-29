@@ -3,6 +3,10 @@
 How a release candidate reaches a testable URL, who owns the infrastructure it runs on,
 and which settings differ between Preview and Production.
 
+The proposed [release and compatibility policy](release-policy.md) covers source
+version identifiers, changelog entries, migrations, and support windows. This
+document covers deployment operations.
+
 This covers the **Preview environment only**. Production promotion (AB#18), exercised
 rollback and customer handoff (AB#118), and legacy URL redirects (AB#19) are separate
 work items. The promotion and rollback commands are recorded here because ADR-0004 §3
