@@ -79,6 +79,7 @@ const QUERY_CACHE_TAGS: Readonly<
     T.sitemap,
   ],
   "gallery.sections": [T.galleries, T.metadata, T.sitemap],
+  "gallery.home-topic-counts": [T.galleries, T.media, T.metadata, T.sitemap],
   "gallery.placements": [T.galleries, T.media, T.metadata, T.sitemap],
   "gallery.placements.basics": [T.galleries, T.media, T.metadata, T.sitemap],
   "gallery.placements.window": [T.galleries, T.media, T.metadata, T.sitemap],

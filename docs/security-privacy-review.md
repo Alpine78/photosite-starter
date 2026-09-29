@@ -203,7 +203,7 @@ share the Resend items' blocker at all:
   protected Preview deployment on the customer-owned Vercel team. An earlier
   draft of this re-check claimed no Vercel CLI or authenticated API access
   existed in this session — **wrong, corrected after actually checking**:
-  the repository-pinned CLI (`npx vercel@58.9.1 whoami`) is already
+  the then-pinned CLI (`npx vercel@58.9.1 whoami`) was already
   authenticated on this machine from earlier provisioning work, and the same
   credential reads the team API. Checked live, 2026-08-25 — **this is a
   Preview-account inspection; it is not, and does not claim to be, a

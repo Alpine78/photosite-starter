@@ -124,30 +124,36 @@ type MockGalleryInput = MockOrderingInput & {
 const selectedWorkPlacements: readonly MockPlacementInput[] = [
   {
     placementId: "selected-work-coastal-landscape",
+    sectionId: "landscapes",
     image: "coastalLandscape",
     caption: { en: "Quiet coast", fi: "Hiljainen rannikko" },
   },
   {
     placementId: "selected-work-misty-birch",
+    sectionId: "landscapes",
     image: "mistyBirch",
     caption: { en: "Morning mist", fi: "Aamun sumu" },
   },
   {
     placementId: "selected-work-lakeside-reeds",
+    sectionId: "details",
     image: "lakesideReeds",
   },
   {
     placementId: "selected-work-forest-stream",
+    sectionId: "landscapes",
     image: "forestStream",
     caption: { en: "Forest stream", fi: "Metsäpuro" },
   },
   {
     placementId: "selected-work-open-marsh",
+    sectionId: "landscapes",
     image: "openMarsh",
     caption: { en: "After the rain", fi: "Sateen jälkeen" },
   },
   {
     placementId: "selected-work-lichen-stones",
+    sectionId: "details",
     image: "lichenStones",
     caption: { en: "Shoreline details", fi: "Rantaviivan yksityiskohtia" },
   },
@@ -416,8 +422,13 @@ const captureSequenceSections: readonly MockGallerySectionInput[] = [
   { sectionId: "evening-stage", slug: "evening-stage", label: { en: "Evening stage", fi: "Illan osuus" } },
 ];
 
+const selectedWorkSections: readonly MockGallerySectionInput[] = [
+  { sectionId: "landscapes", slug: "landscapes", label: { en: "Landscapes", fi: "Maisemat" } },
+  { sectionId: "details", slug: "details", label: { en: "Details", fi: "Yksityiskohdat" } },
+];
+
 const authoredGalleries: Readonly<Record<string, MockGalleryInput>> = {
-  "content-selected-work": { placements: selectedWorkPlacements },
+  "content-selected-work": { placements: selectedWorkPlacements, sections: selectedWorkSections },
   "content-coastal-mornings": { placements: coastalMorningsPlacements },
   "content-polar-night-sessions": { placements: polarNightPlacements },
   "content-awaiting-selection": { placements: awaitingSelectionPlacements },
@@ -673,10 +684,12 @@ export async function getMockGalleryResult(
     cursor,
     sectionSlug,
     cursorCodec,
+    includeTopicCounts,
   }: {
     readonly cursor?: string;
     readonly sectionSlug?: string;
     readonly cursorCodec?: GalleryCursorCodec;
+    readonly includeTopicCounts?: boolean;
   } = {},
 ): Promise<CuratedGalleryPage | undefined> {
   // Text is authored per language while routes are configured per locale, so
@@ -713,7 +726,7 @@ export async function getMockGalleryResult(
     };
   };
 
-  return readCuratedGallerySectionPage({
+  const page = await readCuratedGallerySectionPage({
     query: {
       locale,
       contentId,
@@ -727,6 +740,22 @@ export async function getMockGalleryResult(
     source,
     ...(cursorCodec === undefined ? {} : { cursorCodec }),
   });
+  if (!includeTopicCounts || gallery.sections.length === 0) return page;
+  const publicPlacements = gallery.placements.filter(
+    (placement) => placement.visible && placement.privateOnly !== true,
+  );
+  return {
+    ...page,
+    topicCounts: {
+      all: publicPlacements.length,
+      sections: Object.fromEntries(
+        gallery.sections.map((section) => [
+          section.sectionId,
+          publicPlacements.filter((placement) => placement.sectionId === section.sectionId).length,
+        ]),
+      ),
+    },
+  };
 }
 
 /**

@@ -120,6 +120,7 @@ describe("resolveEnquiryTarget — curated", () => {
       kind: "curated",
       mediaId: "coastal-landscape",
       placementId: "selected-work-coastal-landscape",
+      sectionId: "landscapes",
       contentId: "content-selected-work",
       archiveLocator: "/Volumes/Archive/2019/coast/DSCF1042.RAF",
       caption: "Quiet coast",
