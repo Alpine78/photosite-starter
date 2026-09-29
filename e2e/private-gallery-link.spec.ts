@@ -361,7 +361,7 @@ test.describe("private gallery session in a browser", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       GALLERY_HEADING,
     );
-    expect(new URL(page.url()).hash).toBe("");
+    await expect.poll(() => new URL(page.url()).hash).toBe("");
     expect(exchanges).toHaveLength(1);
     expect(await page.content()).not.toContain(CAPABILITY);
   });
