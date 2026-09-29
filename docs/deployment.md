@@ -87,12 +87,13 @@ authoritative for the exact clicks. What this project needs from it:
    which is also what the provider's own Azure Pipelines guidance recommends:
 
    ```bash
-   npx vercel@58.9.1 login
-   npx vercel@58.9.1 project add photosite-starter
+   npm ci
+   ./node_modules/.bin/vercel login
+   ./node_modules/.bin/vercel project add photosite-starter
    ```
 
-   `58.9.1` is the version `azure-pipelines.yml` pins in `vercelCliVersion`; that file
-   is the source of truth, so read it from there if the two ever disagree. Do not run
+   The exact CLI version is pinned in `package.json` and `package-lock.json`; the
+   Azure Preview job uses this same local installation after `npm ci`. Do not run
    `vercel deploy` from a local checkout as a routine: it would create a deployment that
    skipped every gate. The one exception is the gated manual release in "When the
    pipeline cannot deploy" below.
@@ -149,7 +150,7 @@ authoritative for the exact clicks. What this project needs from it:
    project id. Linking the checkout writes both to a local file:
 
    ```bash
-   npx vercel@58.9.1 link --yes --project photosite-starter
+   ./node_modules/.bin/vercel link --yes --project photosite-starter
    cat .vercel/project.json      # orgId and projectId
    ```
 
@@ -1014,12 +1015,13 @@ succeeded; never deploy a checkout with local changes or an unverified commit.
 
 ```bash
 git checkout main && git pull --ff-only          # a clean tree at the verified tip
-npx vercel@<vercelCliVersion> pull --yes --environment=preview
-npx vercel@<vercelCliVersion> build --target=preview
-npx vercel@<vercelCliVersion> deploy --prebuilt --target=preview --archive=tgz
+npm ci                                          # install the reviewed lockfile
+./node_modules/.bin/vercel pull --yes --environment=preview
+./node_modules/.bin/vercel build --target=preview
+./node_modules/.bin/vercel deploy --prebuilt --target=preview --archive=tgz
 ```
 
-`<vercelCliVersion>` is the pin in `azure-pipelines.yml`. The CLI must already be
+The CLI version comes from the reviewed lockfile. The CLI must already be
 authenticated as the owner; no token is put on a command line. A Preview deployment is
 behind Vercel Authentication, so verify it with `vercel curl <path> --deployment <url>`
 rather than `curl`. What this does **not** do: it does not run `verify:preview`

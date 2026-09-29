@@ -16,12 +16,6 @@ variables:
   # gate if this file and package.json drift apart.
   - name: nodeVersion
     value: "24.x"
-  # The exact Vercel CLI a release candidate is built and deployed with, pinned
-  # so a CLI release cannot change deployment behaviour between two runs of the
-  # same commit (ADR-0004 §3). Bumping it is a deliberate change: see
-  # docs/deployment.md.
-  - name: vercelCliVersion
-    value: "58.9.1"
 
 stages:
   - stage: Verify
@@ -216,16 +210,15 @@ stages:
               VERCEL_AUTOMATION_BYPASS_SECRET: $(VERCEL_AUTOMATION_BYPASS_SECRET)
               PREVIEW_STABLE_ALIAS: $(PREVIEW_STABLE_ALIAS)
 
-          # The lockfile-pinned tree, so the release candidate is built from the
-          # dependency versions the gates above just tested.
+          # The lockfile-pinned tree, including the local Vercel CLI in devDependencies,
+          # so the release candidate is built from versions the gates tested.
           - script: |
-              npm ci
+              npm ci --include=dev
             displayName: "Install dependencies"
 
           - script: |
-              npm install --global "vercel@$(vercelCliVersion)"
-              vercel --version
-            displayName: "Install pinned Vercel CLI"
+              ./node_modules/.bin/vercel --version
+            displayName: "Verify lockfile-pinned Vercel CLI"
 
           # Pulls the project's Preview-scoped settings and environment
           # variables into .vercel/. Production values are never fetched by this
@@ -234,7 +227,7 @@ stages:
           # candidate.
           - script: |
               set -euo pipefail
-              vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+              ./node_modules/.bin/vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
             displayName: "Pull Preview configuration"
             env:
               VERCEL_ORG_ID: $(VERCEL_ORG_ID)
@@ -248,7 +241,7 @@ stages:
                 "" | '$('*) unset SANITY_READ_TOKEN ;;
                 *) export SANITY_READ_TOKEN="$build_read_token" ;;
               esac
-              vercel build --target=preview --token="$VERCEL_TOKEN"
+              ./node_modules/.bin/vercel build --target=preview --token="$VERCEL_TOKEN"
             displayName: "Build release candidate"
             env:
               VERCEL_ORG_ID: $(VERCEL_ORG_ID)
@@ -297,7 +290,7 @@ stages:
               echo "##vso[task.setvariable variable=previewDeploymentUrl]"
               echo "##vso[task.setvariable variable=previewDeploymentId]"
               echo "##vso[task.setvariable variable=previewDeploymentVerified]false"
-              url="$(vercel deploy --prebuilt --target=preview --archive=tgz --token="$VERCEL_TOKEN")"
+              url="$(./node_modules/.bin/vercel deploy --prebuilt --target=preview --archive=tgz --token="$VERCEL_TOKEN")"
               echo "##vso[task.setvariable variable=previewDeploymentUrl]$url"
               deployment_id="$(npm run identify:preview --silent -- "$url")"
               echo "##vso[task.setvariable variable=previewDeploymentId]$deployment_id"
