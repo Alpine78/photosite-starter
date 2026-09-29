@@ -59,6 +59,7 @@ import {
   runSeedQuery,
   type SeedConnection,
   type SeedQueryRequest,
+  type SeedMutation,
 } from "./sanity-seed-http.mts";
 import type { RequestOptions } from "./sanity-read-http.mts";
 import { generatePublicDerivative, ImageDerivativeError, type PublicDerivative } from "./joomla-image-derivative.mts";
@@ -562,7 +563,7 @@ export function validatePlanContract(raw: unknown): { readonly issues: readonly 
     // Nested structures — body blocks, references, localized text, gallery images,
     // table rows — are checked too, not only the document's own top-level fields
     // (Codex round 4): an unexpected field could otherwise be smuggled inside any of
-    // them and still reach `createOrReplace` unchecked.
+    // them and still reach the mutation API unchecked.
     checkNestedDocumentShapes(entry, `documents[${index}]`, issues);
   }
   if (issues.length > 0) return { issues, plan: undefined };
@@ -1077,10 +1078,11 @@ export async function runCollisionPreflight(
   // query by that identity — so if some other process (a bug, a partial earlier run,
   // a manual mistake) already put a *different kind* of document at one of this
   // plan's own deterministic ids, none of those checks would ever see it, since they
-  // never query by raw `_id`. `createOrReplace` addresses purely by `_id`, though, and
-  // would silently destroy whatever it finds there regardless of what any other check
-  // concluded (Codex round 8, finding "Reject incompatible documents occupying planned
-  // IDs"). The `migrated--` namespace being this tool's own, single-writer namespace is
+  // never query by raw `_id`. Non-media `createOrReplace` still addresses
+  // purely by `_id` and would destroy an incompatible document there, regardless
+  // of what any other check concluded (Codex round 8, finding "Reject
+  // incompatible documents occupying planned IDs"). The `migrated--` namespace
+  // being this tool's own, single-writer namespace is
   // exactly the assumption this check exists to not simply trust.
   const documentByPlannedId = new Map(documents.map((document) => [document._id, document]));
   for (const idsChunk of chunkIdsByByteBudget([...plannedIds])) {
@@ -1430,20 +1432,10 @@ export async function runCollisionPreflight(
 }
 
 // ---------------------------------------------------------------------------
-// Cross-phase media field preservation (Codex round 2, finding "Preserve existing
-// media fields across phased writes"; widened after Codex round 3, finding "Preserve
-// existing media visibility during phased writes"). `docs/sanity-seeding.md` documents
-// the approved-manifest workflow as one phase per plan (`--phase launch`/`--phase
-// later`/…): a photograph reused across phases gets a *separate* plan each time, and
-// `buildImportPlan`'s own `media` document only ever carries the fields this tool
-// itself authors (`mediaId`, `mediaType`, `alt`, `publiclyRenderable`, `image`) — it
-// has no visibility into a `caption`, `credit`, `capturedAt`, or `enquiryEligible` an
-// editor added by hand after an earlier phase's write, or an `archiveLocator` a private
-// dataset carries. Writing that document with a plain `createOrReplace` would silently
-// delete all of it, since the mutate API replaces the whole document rather than
-// patching it. Worse, an editor's explicit `publiclyRenderable: false` — deliberately
-// hiding a published photograph without unpublishing it — would be silently reset to
-// this tool's own unconditional `true`, republishing something an editor chose to hide.
+// Cross-phase media writes: merge only the importer-owned multilingual `alt`
+// field. An existing document is patched at the revision read here rather than
+// replaced, so captureSequence, visibility, and every other editor-owned field
+// survive without a carry list. A concurrent edit fails the guarded patch.
 // ---------------------------------------------------------------------------
 
 type LocalizedAltEntry = { readonly language: string; readonly value: string };
@@ -1459,30 +1451,17 @@ function readAltEntries(value: unknown): readonly LocalizedAltEntry[] {
   return entries;
 }
 
-/** Fields this tool never authors — an editor's own value, once present, is always carried over unchanged. */
-const CARRIED_MEDIA_FIELDS = ["caption", "credit", "capturedAt", "enquiryEligible", "archiveLocator"] as const;
-
 export type MediaFieldMergeResult = {
   readonly documents: readonly PlannedDocument[];
+  readonly existingRevisionById: ReadonlyMap<string, string>;
   readonly issues: readonly string[];
 };
 
 /**
- * Fetches every planned `media` document's currently-published fields (published
- * perspective — exactly what a plain `createOrReplace` is about to overwrite) and
- * merges them into the plan's own document:
- * - `alt` is merged by language — this tool *does* have an authoritative opinion on
- *   it, since it is derived from real approved translations across phases. A language
- *   this plan does not itself contribute is carried over unchanged; a language both
- *   sides already provide but genuinely *disagree* on is an authoring conflict this
- *   tool refuses to silently resolve, the same posture every other conflict class in
- *   this feature already takes, rather than guessing which phase is "right."
- * - `caption`/`credit`/`capturedAt`/`enquiryEligible`/`archiveLocator` are fields this
- *   tool has no opinion on at all — an existing value, once present, is carried over
- *   unchanged rather than deleted.
- * - `publiclyRenderable` is the one field where "false wins": an existing document
- *   already hidden (`false`) stays hidden regardless of this plan's own value, since
- *   only an editor should reverse that choice.
+ * Read the published media revision and alt entries before uploading assets.
+ * This plan's languages are merged with previously published languages; a
+ * disagreement in the same language blocks the run before any upload or write.
+ * The revision protects that merged value from a concurrent editor change.
  */
 export async function mergeExistingMediaFields(
   connection: SeedConnection,
@@ -1495,7 +1474,7 @@ export async function mergeExistingMediaFields(
     const rows = (await runSeedQuery(
       connection,
       {
-        query: `*[_type == "${MEDIA_TYPE_NAME}" && _id in $ids]{_id, alt, ${CARRIED_MEDIA_FIELDS.join(", ")}, publiclyRenderable}`,
+        query: `*[_type == "${MEDIA_TYPE_NAME}" && _id in $ids]{_id, _rev, alt}`,
         params: { ids: idsChunk },
       },
       options,
@@ -1506,10 +1485,16 @@ export async function mergeExistingMediaFields(
   }
 
   const issues: string[] = [];
+  const existingRevisionById = new Map<string, string>();
   const merged = documents.map((document): PlannedDocument => {
     if (document._type !== MEDIA_TYPE_NAME) return document;
     const existing = existingById.get(document._id);
     if (existing === undefined) return document;
+    if (typeof existing._rev !== "string" || existing._rev.length === 0) {
+      issues.push(`media "${document._id}" has no readable published revision — refusing an unguarded update`);
+      return document;
+    }
+    existingRevisionById.set(document._id, existing._rev);
 
     const byLanguage = new Map(readAltEntries(document.alt).map((entry) => [entry.language, entry.value]));
     for (const entry of readAltEntries(existing.alt)) {
@@ -1526,16 +1511,35 @@ export async function mergeExistingMediaFields(
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([language, value], index) => ({ _key: `alt-${String(index + 1).padStart(2, "0")}`, _type: "localizedText", language, value }));
 
-    const carried: Record<string, unknown> = {};
-    for (const field of CARRIED_MEDIA_FIELDS) {
-      if (existing[field] !== undefined) carried[field] = existing[field];
-    }
-    const publiclyRenderable = existing.publiclyRenderable === false ? false : document.publiclyRenderable;
-
-    return { ...document, ...carried, alt, publiclyRenderable };
+    return { ...document, alt };
   });
 
-  return { documents: merged, issues };
+  return { documents: merged, existingRevisionById, issues };
+}
+
+/** Build only the media mutations; all dependent document waves follow later. */
+export function buildMediaMutations(
+  documents: readonly PlannedDocument[],
+  existingRevisionById: ReadonlyMap<string, string>,
+): readonly SeedMutation[] {
+  return documents.map((document): SeedMutation => {
+    if (document._type !== MEDIA_TYPE_NAME) throw new Error(`non-media document "${document._id}" in the media wave`);
+    const revision = existingRevisionById.get(document._id);
+    if (revision === undefined) return { create: document };
+    return {
+      patch: {
+        id: document._id,
+        ifRevisionID: revision,
+        set: {
+          mediaId: document.mediaId,
+          mediaType: document.mediaType,
+          alt: document.alt,
+          image: document.image,
+          ...(document.publiclyRenderable === false ? { publiclyRenderable: false } : {}),
+        },
+      },
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1767,11 +1771,10 @@ async function main(): Promise<void> {
   }
   console.log("No target-dataset collisions found.");
 
-  // --- step 6: merge each media document's currently-published editor-owned fields
-  // (alt text, caption, credit, capture date, enquiry eligibility, archive location,
-  // and a "hidden" publiclyRenderable), so a reused photograph does not silently lose
-  // an earlier phase's or an editor's own values to this phase's necessarily narrower
-  // plan, and a deliberately hidden photograph is never silently republished ---
+  // --- step 6: merge published alt languages and record each existing media
+  // revision. Existing media is patched after asset upload; other editor-owned
+  // fields are never copied into the plan; visibility is only set to false
+  // when an approved plan explicitly requests it. ---
   const mediaMerge = await mergeExistingMediaFields(connection, plan.documents);
   if (mediaMerge.issues.length > 0) {
     const reportPath = await writeReport(options.out, "media-field-conflicts.json", mediaMerge.issues);
@@ -1819,12 +1822,12 @@ async function main(): Promise<void> {
   // --- step 9: write in dependency waves — media first, then everything else ---
   const waves = splitIntoWaves(substituted);
   let batchesRun = 0;
-  for (const wave of waves) {
+  for (const [waveIndex, wave] of waves.entries()) {
     if (wave.length === 0) continue;
-    const summary = await runSeedMutationBatches(
-      connection,
-      wave.map((document) => ({ createOrReplace: document })),
-    );
+    const mutations: readonly SeedMutation[] = waveIndex === 0
+      ? buildMediaMutations(wave, mediaMerge.existingRevisionById)
+      : wave.map((document) => ({ createOrReplace: document }));
+    const summary = await runSeedMutationBatches(connection, mutations);
     batchesRun += summary.batchesRun;
   }
   console.log(`Wrote ${substituted.length} document(s) in ${batchesRun} batch(es).`);

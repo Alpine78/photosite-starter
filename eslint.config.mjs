@@ -23,6 +23,8 @@ const eslintConfig = defineConfig([
     // archive and its throwaway audit scripts, not application source.
     ".vercel/**",
     "joomla-backup/**",
+    // Gitignored local working copies and reports are not shipped source.
+    "temp/**",
   ]),
   // The CMS boundary, enforced rather than documented (AB#39, ADR-0006).
   // Sanity's HTTP surface and its read token live in two modules; adapters in
