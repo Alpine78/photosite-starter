@@ -305,7 +305,10 @@ instead of the whole browser matrix.
 
 ## CI
 
-Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs two stages.
+Azure Pipelines ([azure-pipelines.yml](azure-pipelines.yml)) runs quality and
+Preview stages for pushes and pull requests, plus a separate scheduled dependency
+audit on `main`. See [dependency vulnerability monitoring](docs/dependency-security.md)
+for the audit and triage process.
 
 **Quality gates** run on every push and pull request to `main`: lint, browser-free tests,
 the [architecture diagram](docs/architecture/README.md) check, the production build, and
