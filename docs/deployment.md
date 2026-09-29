@@ -1084,10 +1084,19 @@ clone before its first PR build:
 | Boundary | Observed control |
 | --- | --- |
 | GitHub and Azure admission | The GitHub repository is public, with one collaborator visible to the repository API. This Azure organization has one project and one pipeline (definition `1`). Project pipeline settings report `forkProtectionEnabled=true` and `buildsEnabledForForks=false`; definition revision `3` also has `pullRequest.forks.enabled=false`, `allowSecrets=false`, and `allowFullAccessToken=false`. The same-repository `main` PR trigger stays enabled. |
-| Job token | Project settings report `enforceJobAuthScope=true` and `enforceReferencedRepoScopedToken=true`; definition `jobAuthorizationScope=project`. The project setting also overrides a broader definition value, so the effective Azure job scope is the current project. This YAML checks out only the GitHub `self` repository and declares no other repository resource. Azure's referenced-repository control does not govern the GitHub App's installation scope, which was not readable with the available GitHub token. |
+| GitHub source connection | Definition `1` uses the `Alpine78` GitHub service connection, whose live `authorization.scheme` is `OAuth`. Its access follows that OAuth grant and the authorizing GitHub identity, not a GitHub App's selected-repository installation setting. The OAuth grant's exact reach was not inspected. A separate Azure Pipelines GitHub App installation, if present, has not been checked: the available GitHub token cannot read personal-account installation settings. Do not claim that this pipeline's GitHub access is restricted to this repository. |
+| Job token | Project settings report `enforceJobAuthScope=true` and `enforceReferencedRepoScopedToken=true`; definition `jobAuthorizationScope=project`. The project setting also overrides a broader definition value, so the effective Azure job scope is the current project. This YAML checks out only the GitHub `self` repository and declares no other repository resource. These Azure job-token controls do not narrow the separate GitHub OAuth grant. |
 | Verify pool and protected resources | Organization pool `Default` (`1`) maps to project queue `10`. It has one enabled, online Ubuntu 26.04 agent (`17`); the queue's pipeline-permissions API authorizes only definition `1`. The Preview variable group (`1`) authorizes only definition `1` and is referenced only by `DeployPreview`, on a Microsoft-hosted agent. No other Azure project or pipeline appeared in the organization listing. |
-| Actual agent host | Azure's agent hostname matches this development host. The systemd agent service runs as the operator's ordinary Unix user, with `DynamicUser=no`, `ProtectHome=no`, and `PrivateTmp=no`. The same user can read local CLI credential stores and this checkout's `.env.local`; no credential content was read. The Azure pool and service provide no host reset or OS-user isolation between jobs. Other local processes share this host. |
+| Actual agent host | Azure's agent hostname matches this development host. The systemd agent service runs as the operator's ordinary Unix user, with `DynamicUser=no`, `ProtectHome=no`, `PrivateTmp=no`, and `Restart=no`. The same user can read local CLI credential stores and this checkout's `.env.local`; no credential content was read. The agent service has no host-reset step, and no agent-specific reset was found among systemd timers, the operator's crontab, or system cron jobs. A reset performed out of band cannot be ruled out from these checks. Other local processes share this host. |
 | Build Service ACL | The `photosite-starter Build Service` is project scoped. Its inspected effective masks are Build `1089` (view builds and definition; update build information), Project `649` (read project, publish/view test results, update build), Azure Repos `0`, and Library `1` (view). Unused build-quality, queue-management, check-in-override, test-configuration-management, and Azure Repos read/tag grants were removed. No direct ServiceEndpoints or DistributedTask grant was present. The GitHub checkout uses its source connection, not Azure Repos permissions. |
+
+The existing OAuth source connection is an explicit access-scope exception: this
+change preserves it to keep the trusted checkout working while closing the fork
+admission gap. Its repository reach has not been shown to be limited to `self`. If
+repository-only access is required, replace it in a separately verified change with
+a GitHub App connection installed for only this repository and retest trusted PR
+verification. [Microsoft's GitHub repository guidance](https://learn.microsoft.com/en-us/azure/devops/pipelines/repos/github?view=azure-devops)
+distinguishes OAuth from GitHub App authentication.
 
 The central `enforceNoAccessToSecretsFromForks` field still reads `false`: two PATCH
 attempts, including a full settings body, returned the unchanged value while fork
@@ -1104,11 +1113,11 @@ trigger after the change before AB#184 can be considered fully validated.
 The Verify job requests `workspace.clean: all`, which deletes its previous
 `$(Pipeline.Workspace)` **before** the next job once this YAML is merged. It does not
 erase files or processes elsewhere on the persistent host and is not a sandbox. The
-observed host shares the operator's user account and credentials. No automatic host
-reimage or separate agent user was verified. Treat the runner as **trusted-code only**;
-review every same-repository PR and dependency change before it executes here. Record
-any out-of-band reset procedure the operator uses on AB#184. If host integrity is in
-doubt, disable the agent and rebuild the host before admitting another trusted run.
+observed host shares the operator's user account and credentials. No separate automatic
+host reset was found in the inspected service or schedules; no isolated agent user is
+configured. Treat the runner as **trusted-code only**; review every same-repository PR
+and dependency change before it executes here. If host integrity is in doubt, disable
+the agent and rebuild the host before admitting another trusted run.
 
 Never enable external fork PRs by flipping either Azure gate alone. First decide and
 record an ephemeral or isolated execution model with no trusted host-state reuse, no
