@@ -44,8 +44,7 @@
     "photoswipe": "5.4.4",
     "react": "19.2.1",
     "react-dom": "19.2.1",
-    "server-only": "^0.0.1",
-    "vercel": "^59.11.7"
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",
@@ -55,11 +54,21 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.0.10",
+    "eslint-config-next": "16.3.7",
     "parse5": "^8.0.1",
     "sharp": "^0.35.4",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vercel": "61.0.0",
     "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "ajv@8.6.3": "8.20.0",
+    "js-yaml@4.1.1": "4.3.2",
+    "minimatch@10.1.1": "10.2.6",
+    "path-to-regexp@6.1.0": "6.3.0",
+    "path-to-regexp@8.3.0": "8.4.2",
+    "smol-toml@1.5.2": "1.9.0",
+    "tar@7.5.11": "7.5.22"
   }
 }

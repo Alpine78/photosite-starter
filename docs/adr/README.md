@@ -64,12 +64,12 @@ Two conventions on top of the template:
 | [0021](0021-localized-static-service-routes.md) | AB#164 | Localized static service routes and service hierarchy | Accepted |
 | [0022](0022-capture-sequence-rally-galleries.md) | AB#165 | Capture-sequence rally galleries: media-owned membership, filename-sequence order and section, no placement documents, `itemId = mediaId`; file naming/import contract and per-gallery conversion preconditions (amends ADR-0002 in scope) | Accepted |
 | [0023](0023-customer-customization-and-upstream-updates.md) | AB#41 | Customer customization and upstream update boundary | Proposed |
+| [0024](0024-free-core-and-premium-boundary.md) | AB#42 | Free Core and Premium product boundary | Proposed |
 
 Expected further entries:
 
 | Work item | Decision |
 | --- | --- |
 | AB#95 | Image sales, checkout, and fulfilment boundary |
-| AB#42 | Free Core vs. Premium product boundary |
 
 Add a row here when an ADR lands.

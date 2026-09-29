@@ -894,7 +894,7 @@ its correct position from one swapped into the wrong field. The required
 fields `validateMigrationDocuments` itself does not check — an article's
 `title` and `language`, a placement's `visible` — are checked for presence
 and type here too, since a malformed value would otherwise reach
-`createOrReplace` and only surface later as a broken page in production.
+the mutation API and only surface later as a broken page in production.
 
 **Every photograph is re-verified immediately before it is uploaded.** The
 plan's `resolved_digest` binds an approval to the photograph bytes it was
@@ -930,8 +930,9 @@ perspective, whether the target dataset already has a document — under a
 `(contentId, language)` pair, an article's `(language, category, slug)`
 route, or an end-gallery `placementId` this plan is about to write. A hit
 under this plan's own `_id` is treated as an earlier run of the same plan
-(`migrated--` is a disjoint, single-writer namespace) and left to
-`createOrReplace`'s ordinary idempotency; any other hit refuses the whole run
+(`migrated--` is a disjoint, single-writer namespace). Existing media is
+patched at its read revision; other existing documents retain the writer's
+`createOrReplace` behavior. Any hit under another `_id` refuses the whole run
 — two documents claiming one public identity is exactly the state the site's
 own read adapters refuse to serve. That single-writer namespace assumption is
 itself checked, not simply trusted: every planned `_id` is also queried
@@ -940,13 +941,13 @@ what this plan intends refuses the run — every other check above is scoped to
 one identity field (`mediaId`, `contentId`+`language`, `placementId`) and
 queries by that field, so none of them would ever see a *different kind* of
 document already occupying one of this plan's own deterministic ids, even
-though `createOrReplace` addresses purely by `_id` and would silently destroy
-it regardless (Codex round 8, finding "Reject incompatible documents
-occupying planned IDs"). Re-running this command after a
-migrated document has been hand-edited in Studio will overwrite that edit:
-`createOrReplace` idempotency means safe to re-run, not safe from a manual
-fix landing in between. The `contentId` and route checks span **both**
-articles and curated galleries, and the route check also spans public child
+though a non-media `createOrReplace` addresses purely by `_id` and would
+silently destroy it regardless (Codex round 8, finding "Reject incompatible
+documents occupying planned IDs"). Re-running after a non-media migrated
+document has been hand-edited in Studio will overwrite that edit. Existing
+media instead keeps unrelated edits and rejects a changed revision; the
+operator must reconcile any alt conflict before rerunning. The `contentId`
+and route checks span **both** articles and curated galleries, and the route check also spans public child
 categories — `content-placement-validation.ts`'s own `makeContentIdentityValidator`
 and `findProspectiveLocalSlugCollision` establish these as one shared
 namespace, so a preflight scoped to articles alone could miss a real
@@ -1022,26 +1023,30 @@ reference's declared type against the document it points to. The check now
 also requires `_type === "reference"` before accepting the object (Codex
 round 9, finding "Require actual Sanity reference objects").
 
-**Media fields an editor owns are merged, not overwritten, across phases.** A
-photograph reused across phased writes gets a separate plan each time, and
-that plan's own `media` document only ever carries the fields this tool
-itself authors — `mediaId`, `mediaType`, `alt` (only the language(s) *this*
-phase's accepted articles contributed), `publiclyRenderable`, and `image` — it
-cannot see a `caption`, `credit`, `capturedAt`, or `enquiryEligible` an editor
-added by hand, or an earlier phase's other-language `alt` entries. Before
-uploading anything, the write step fetches each planned media document's
-currently-published fields and merges them: `alt` is merged by language (a
-language this phase does not itself contribute is carried over unchanged, and
-a language both sides already provide but genuinely *disagree* on refuses the
-whole run rather than silently picking a side — the same posture every other
-conflict class in this tool already takes); `caption`/`credit`/`capturedAt`/
-`enquiryEligible`/`archiveLocator` are fields this tool has no opinion on at
-all, so an existing value is always carried over unchanged rather than
-deleted; and `publiclyRenderable` follows a "false wins" rule — an editor who
-has already turned this off to keep a published photograph out of every
-public page stays hidden regardless of this plan's own unconditional `true`,
-since only an editor should reverse that choice. Conflicts are reported
-privately in `media-field-conflicts.json`.
+**Existing media is patched, not replaced, across phases.** A photograph reused
+across phased writes gets a separate plan each time. The plan owns `mediaId`,
+`mediaType`, the language(s) of `alt` contributed by this phase, and the new
+public `image` derivative. Before uploading anything, the write step reads the
+published media document's `_rev` and `alt`, merges translations by language,
+and refuses a disagreement in a language both sides provide. This conflict is
+reported privately in `media-field-conflicts.json` and stops the run before
+any upload.
+
+After derivative upload, a missing media document is created with a strict
+`create` mutation; if another writer creates that ID in the meantime, the
+mutation fails rather than overwriting it. An existing document gets a targeted
+`patch` of `mediaId`, `mediaType`, merged `alt`, and `image`, guarded by the
+revision read earlier (`ifRevisionID`). The patch never writes
+`publiclyRenderable: true`; it sets `false` only if the approved plan explicitly
+requests it. A photograph an editor has hidden stays hidden, including when the
+hide happens after the read. The patch also leaves `captureSequence`, caption,
+credit, archive metadata, and any future editor-owned fields untouched. If an
+editor changes the document after the read, Sanity rejects the stale patch with
+HTTP 409; the command stops without applying that transaction. Each mutation
+batch is one transaction, so earlier successful batches and uploaded assets
+are not rolled back. Resolve any same-language alt conflict, then rerun the
+approved plan: the command reads fresh revisions, treats already-created media
+as existing, and writes dependent documents only after the media wave succeeds.
 
 **Write ordering.** Sanity's mutate API requires a strong reference's target
 to already exist in an *earlier* transaction — the same constraint the demo
@@ -1060,8 +1065,9 @@ each carry whatever private detail (a source locator, a content hash, a route,
 a document id) explains the failure; the console prints only counts. Assets
 already uploaded in a run that later fails are **not** rolled back — Sanity has no
 delete-on-failure transaction for this — the same accepted posture the demo
-seeder's own upload step already has; `createOrReplace`'s idempotency makes a
-full re-run safe regardless.
+seeder's own upload step already has. A full rerun re-reads media revisions
+and creates only media still missing; dependent non-media writes remain
+`createOrReplace`.
 
 **Post-write verification.** Ends with a chunked, byte-budgeted readback
 query confirming every written document's `_id` round-trips, printed as

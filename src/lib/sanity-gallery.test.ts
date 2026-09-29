@@ -722,6 +722,17 @@ describe("readSanityCuratedGalleryPage", () => {
           ];
         }
 
+        if (request.tag === "gallery.home-topic-counts") {
+          return {
+            all: options.placements.filter(servable).length,
+            sections: (options.sections ?? []).map((section) =>
+              options.placements.filter(
+                (placement) => servable(placement) && placement.sectionId === section.sectionId,
+              ).length,
+            ),
+          };
+        }
+
         if (request.tag === "gallery.placements.count") {
           const sectionId = params.sectionId as string | undefined;
           return params.galleryDocumentId !== galleryDocumentId
@@ -867,6 +878,35 @@ describe("readSanityCuratedGalleryPage", () => {
 
     return collected;
   }
+
+  it("reads every home topic count in one count-only query with public eligibility", async () => {
+    const placements: readonly FixturePlacement[] = [
+      { placementId: "one", order: 0, visible: true, sectionId: "landscapes", media: mediaDocumentOf({ mediaId: "one" }) },
+      { placementId: "two", order: 1, visible: true, sectionId: "details", media: mediaDocumentOf({ mediaId: "two" }) },
+      { placementId: "private", order: 2, visible: true, sectionId: "details", media: mediaDocumentOf({ mediaId: "private", privateOnly: true }) },
+    ];
+    const { client, requests } = fakeGalleryStore({
+      placements,
+      sections: [
+        { sectionId: "landscapes", slug: "landscapes", label: "Landscapes" },
+        { sectionId: "details", slug: "details", label: "Details" },
+      ],
+    });
+    const page = await readSanityCuratedGalleryPage("en", CONTENT_ID, {
+      client,
+      config,
+      includeTopicCounts: true,
+    });
+    expect(page?.topicCounts).toEqual({ all: 2, sections: { landscapes: 1, details: 1 } });
+    const countQueries = requests.filter((request) => request.tag === "gallery.home-topic-counts");
+    expect(countQueries).toHaveLength(1);
+    expect(countQueries[0]?.query).toContain("gallery._ref == $galleryDocumentId");
+    expect(countQueries[0]?.query).toContain("media->publiclyRenderable == true");
+    expect(countQueries[0]?.query).toContain("media->privateOnly == false");
+    expect(countQueries[0]?.query).toContain("sectionId == $section0");
+    expect(countQueries[0]?.query).toContain("sectionId == $section1");
+    expect(countQueries[0]?.query).not.toContain(" | order(");
+  });
 
   it("returns undefined when no gallery matches this identity and language", async () => {
     const { client } = fakeGalleryStore({ placements: [] });

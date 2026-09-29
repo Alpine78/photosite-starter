@@ -15,6 +15,7 @@ import {
   parsePrivateGalleryAdminCredential,
   verifyPrivateGalleryAdminSecret,
 } from "@/lib/private-gallery-admin-credential";
+import { PRIVATE_GALLERY_ACCESS_BUDGET_WINDOW_MS } from "@/lib/private-gallery-delivery";
 
 /**
  * The fixture store is exercised through the same facade a route uses, not
@@ -198,5 +199,81 @@ describe("the fixture's own safety properties", () => {
     // A published gallery carries an access window; the fixture's is generous
     // so a long-lived development checkout does not silently expire.
     expect(gallery.accessExpiresAt?.getTime() ?? 0).toBeGreaterThan(Date.now());
+  });
+});
+
+describe("the in-memory access budget", () => {
+  const config = {
+    totalGalleryBytes: 1_000,
+    multiplier: 10,
+    windowMs: PRIVATE_GALLERY_ACCESS_BUDGET_WINDOW_MS,
+  };
+
+  it("persists the first-refusal marker across fixture reads and window rollover", async () => {
+    const store = getPrivateGalleryMemoryStore();
+    const request = {
+      galleryId: store.gallery.galleryId,
+      capabilityGeneration: store.gallery.capabilityGeneration,
+      chargeBytes: 10_001,
+      now: NOW,
+      config,
+    };
+
+    const first = await store.budgetStore.consumeAccessBudget(request);
+    const repeated = await getPrivateGalleryMemoryStore().budgetStore
+      .consumeAccessBudget({
+        ...request,
+        now: new Date(NOW.getTime() + 1_000),
+      });
+    const newWindow = await store.budgetStore.consumeAccessBudget({
+      ...request,
+      now: new Date(NOW.getTime() + config.windowMs),
+    });
+
+    expect(
+      [first, repeated, newWindow].map(
+        (decision) => decision.firstRefusalInWindow,
+      ),
+    ).toEqual([true, false, true]);
+    expect(repeated.next).toMatchObject({
+      chargedBytes: 0,
+      refusalReported: true,
+      windowStartedAt: NOW,
+    });
+    expect(newWindow.next.windowStartedAt.getTime()).toBe(
+      NOW.getTime() + config.windowMs,
+    );
+  });
+
+  it("atomically reports only one of concurrent refusals per gallery generation", async () => {
+    const store = getPrivateGalleryMemoryStore();
+    const request = {
+      galleryId: store.gallery.galleryId,
+      capabilityGeneration: store.gallery.capabilityGeneration,
+      chargeBytes: 10_001,
+      now: NOW,
+      config,
+    };
+    const decisions = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        store.budgetStore.consumeAccessBudget(request),
+      ),
+    );
+
+    expect(decisions.every((decision) => !decision.allowed)).toBe(true);
+    expect(
+      decisions.filter((decision) => decision.firstRefusalInWindow),
+    ).toHaveLength(1);
+    expect(decisions.every((decision) => decision.next.chargedBytes === 0)).toBe(
+      true,
+    );
+
+    // The budget key includes the capability generation: a replaced link is a
+    // new grant with its own allowance and first-refusal report.
+    const replaced = await store.budgetStore.consumeAccessBudget({
+      ...request,
+      capabilityGeneration: request.capabilityGeneration + 1,
+    });
+    expect(replaced.firstRefusalInWindow).toBe(true);
   });
 });

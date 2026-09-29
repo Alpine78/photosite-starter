@@ -10,11 +10,13 @@ import type { GallerySlice } from "@/lib/gallery-slice";
 import "@/components/gallery-figure.css";
 
 /** Two-line resting captions are optional; full text remains in the figcaption. */
-export function GalleryFigure({ item, index, captionPlacement, boundedBelow = false, sizes, labels }: {
+export function GalleryFigure({ item, index, captionPlacement, boundedBelow = false, compactCaptions = false, sizes, labels }: {
   item: GallerySlice["items"][number];
   index: number;
   captionPlacement: GalleryCaptionPlacement;
   boundedBelow?: boolean;
+  /** Visually quiet home preview; full captions stay in the native popover and lightbox. */
+  compactCaptions?: boolean;
   sizes: string;
   labels: BuiltInLabels;
 }) {
@@ -23,11 +25,12 @@ export function GalleryFigure({ item, index, captionPlacement, boundedBelow = fa
   // Very low panoramas cannot contain two readable lines. Their caption gets
   // a reserved strip below the image, with the same photographic treatment.
   const below = resolvesToBelowCaption(captionPlacement, media.rendition);
-  const bounded = captionPlacement === "overlay" || boundedBelow;
+  const bounded = !compactCaptions && (captionPlacement === "overlay" || boundedBelow);
+  const hasPopover = compactCaptions || bounded;
   return (
     <figure className={`gallery-figure rounded-sm bg-surface-muted${bounded && media.caption ? " gallery-figure--bounded" : ""}`}>
       <GalleryLightboxTrigger itemId={item.itemId} index={index}
-        captionPopoverId={bounded && media.caption ? captionId : undefined}
+        captionPopoverId={hasPopover && media.caption ? captionId : undefined}
         label={media.alt.length > 0 ? undefined : labels.lightbox.openImage}>
         <Image src={media.rendition.src} alt={media.alt}
           width={media.rendition.width} height={media.rendition.height}
@@ -35,12 +38,12 @@ export function GalleryFigure({ item, index, captionPlacement, boundedBelow = fa
           loading="lazy" sizes={sizes} className="h-auto w-full" />
       </GalleryLightboxTrigger>
       {media.caption && bounded && below && <div className="gallery-caption-slot" aria-hidden="true" />}
-      {media.caption && <figcaption className={bounded
+      {media.caption && <figcaption className={compactCaptions ? "sr-only" : bounded
         ? `gallery-caption gallery-caption--bounded ${captionPlacement === "overlay" ? "gallery-caption--overlay" : "bg-surface text-subtle"}`
         : "px-3 py-2 text-sm text-subtle wrap-anywhere"}>
         <span className={bounded ? "gallery-caption-text" : undefined}>{media.caption}</span>
       </figcaption>}
-      {bounded && media.caption && (
+      {hasPopover && media.caption && (
         <div id={captionId} popover="auto" role="dialog"
           aria-label={media.alt || labels.gallery.images} tabIndex={-1} autoFocus
           className="gallery-caption-popover rounded-sm border border-border-strong bg-surface text-foreground">

@@ -27,16 +27,17 @@ function readRepositoryFile(name: string): string {
 const PIPELINE_NODE_VERSION =
   /^\s*-\s+name:\s*nodeVersion\s*\n\s+value:\s*"([^"]+)"/m;
 
-/** Matches the pinned Vercel CLI version alongside it. */
-const PIPELINE_VERCEL_CLI_VERSION =
-  /^\s*-\s+name:\s*vercelCliVersion\s*\n\s+value:\s*"([^"]+)"/m;
-
 /** A major-only pin: `24.x`, never a range and never a full version. */
 const MAJOR_PIN = /^(\d+)\.x$/;
 
 const PIPELINE = readRepositoryFile("azure-pipelines.yml");
 const packageJson = JSON.parse(readRepositoryFile("package.json")) as {
   engines?: { node?: string };
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+};
+const packageLock = JSON.parse(readRepositoryFile("package-lock.json")) as {
+  packages?: Record<string, { version?: string; dev?: boolean }>;
 };
 
 function readPipelineVariable(pattern: RegExp, name: string): string {
@@ -73,11 +74,21 @@ describe("Node runtime pin", () => {
 });
 
 describe("Vercel CLI pin", () => {
-  it("names one exact version, not a range", () => {
-    // `^58.9.1` would let a CLI release change how a release candidate is
-    // built or deployed between two runs of the same commit (ADR-0004 §3).
-    expect(
-      readPipelineVariable(PIPELINE_VERCEL_CLI_VERSION, "vercelCliVersion"),
-    ).toMatch(/^\d+\.\d+\.\d+$/);
+  it("installs one exact development CLI version from the lockfile", () => {
+    const declared = packageJson.devDependencies?.vercel;
+
+    expect(declared).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(packageJson.dependencies?.vercel).toBeUndefined();
+    expect(packageLock.packages?.["node_modules/vercel"]?.version).toBe(
+      declared,
+    );
+    expect(packageLock.packages?.["node_modules/vercel"]?.dev).toBe(true);
+  });
+
+  it("uses the audited local CLI for each Preview command", () => {
+    expect(PIPELINE).not.toMatch(/npm install --global [^\n]*vercel/);
+    for (const command of ["pull", "build", "deploy"]) {
+      expect(PIPELINE).toContain(`./node_modules/.bin/vercel ${command}`);
+    }
   });
 });

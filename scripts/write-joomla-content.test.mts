@@ -6,7 +6,7 @@
  * prove argument handling and the dry-run network guarantee.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mkdtemp, rm, writeFile, symlink, mkdir } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -17,6 +17,7 @@ import sharp from "sharp";
 
 import {
   assertNoPendingReferencesRemain,
+  buildMediaMutations,
   chunkIdsByByteBudget,
   collectRequiredCategoryLanguages,
   mergeExistingMediaFields,
@@ -30,7 +31,7 @@ import {
   verifyAndDeriveAsset,
   verifyWrittenDocuments,
 } from "./write-joomla-content.mts";
-import { parseSeedConnection } from "./sanity-seed-http.mts";
+import { parseSeedConnection, runSeedMutationBatches } from "./sanity-seed-http.mts";
 import {
   IMPORT_PLAN_VERSION,
   PENDING_ASSET_PREFIX,
@@ -215,7 +216,7 @@ describe("validatePlanContract", () => {
     expect(issues.join(" ")).toContain("not a JSON object");
   });
 
-  it("rejects a document with an unrecognized _type, so a corrupted or hand-edited plan cannot reach createOrReplace unchecked", () => {
+  it("rejects a document with an unrecognized _type, so a corrupted or hand-edited plan cannot reach the mutation API unchecked", () => {
     const { issues, plan } = validatePlanContract(
       goodPlan({
         documents: [
@@ -1357,7 +1358,7 @@ describe("runCollisionPreflight", () => {
 // mergeExistingMediaFields
 // ---------------------------------------------------------------------------
 
-describe("mergeExistingMediaFields", () => {
+describe("mergeExistingMediaFields and media mutations", () => {
   function mediaDocument(alt: readonly { readonly language: string; readonly value: string }[]): PlannedDocument {
     return {
       _id: "migrated--media-photo-1",
@@ -1366,36 +1367,66 @@ describe("mergeExistingMediaFields", () => {
       mediaType: "image",
       publiclyRenderable: true,
       alt: alt.map((entry, index) => ({ _key: `alt-${String(index + 1).padStart(2, "0")}`, _type: "localizedText", ...entry })),
+      image: { _type: "image", asset: { _type: "reference", _ref: "image-new" } },
     };
   }
 
-  it("carries over a published language this phase's plan does not itself contribute", async () => {
-    // An earlier phase published "en" for this same photograph; this phase's own
-    // plan only ever saw the "fi" article referencing it.
+  it("merges another published language and guards the patch with its revision", async () => {
     const fetchImplementation = (async () =>
-      jsonResponse({ result: [{ _id: "migrated--media-photo-1", alt: [{ language: "en", value: "Published earlier" }] }] })) as unknown as typeof fetch;
+      jsonResponse({ result: [{ _id: "migrated--media-photo-1", _rev: "rev-1", alt: [{ language: "en", value: "Published earlier" }] }] })) as unknown as typeof fetch;
 
-    const { documents, issues } = await mergeExistingMediaFields(fakeConnection(), [mediaDocument([{ language: "fi", value: "Uusi" }])], {
+    const merge = await mergeExistingMediaFields(fakeConnection(), [mediaDocument([{ language: "fi", value: "Uusi" }])], {
       fetchImplementation,
     });
-    expect(issues).toEqual([]);
-    const alt = documents[0]?.alt as readonly { readonly language: string; readonly value: string }[];
-    expect(alt).toHaveLength(2);
-    expect(alt.find((entry) => entry.language === "en")?.value).toBe("Published earlier");
-    expect(alt.find((entry) => entry.language === "fi")?.value).toBe("Uusi");
+    expect(merge.issues).toEqual([]);
+    const alt = merge.documents[0]?.alt as readonly { readonly language: string; readonly value: string }[];
+    expect(alt.map(({ language, value }) => ({ language, value }))).toEqual([
+      { language: "en", value: "Published earlier" },
+      { language: "fi", value: "Uusi" },
+    ]);
+    const mutations = buildMediaMutations(merge.documents, merge.existingRevisionById);
+    expect(mutations).toEqual([{
+      patch: {
+        id: "migrated--media-photo-1",
+        ifRevisionID: "rev-1",
+        set: {
+          mediaId: "photo-1",
+          mediaType: "image",
+          alt: merge.documents[0]?.alt,
+          image: merge.documents[0]?.image,
+        },
+      },
+    }]);
   });
 
-  it("leaves a media document with no existing published version untouched", async () => {
-    const fetchImplementation = (async () => jsonResponse({ result: [] })) as unknown as typeof fetch;
+  it("creates missing media strictly, so a post-read identity collision cannot be overwritten", async () => {
+    let current: Record<string, unknown> | undefined;
+    const fetchImplementation = vi.fn(async (url: string, init: RequestInit) => {
+      if (url.includes("/data/query/")) return jsonResponse({ result: [] });
+      const body = JSON.parse(init.body as string) as { mutations: { create: Record<string, unknown> }[] };
+      if (current !== undefined) return jsonResponse({ error: "document already exists" }, 409);
+      current = body.mutations[0]?.create;
+      return jsonResponse({ results: [] });
+    });
     const original = mediaDocument([{ language: "fi", value: "Uusi" }]);
-    const { documents, issues } = await mergeExistingMediaFields(fakeConnection(), [original], { fetchImplementation });
-    expect(issues).toEqual([]);
-    expect(documents[0]).toEqual(original);
+    const merge = await mergeExistingMediaFields(fakeConnection(), [original], {
+      fetchImplementation: fetchImplementation as unknown as typeof fetch,
+    });
+    expect(merge.issues).toEqual([]);
+    expect(merge.documents[0]).toEqual(original);
+    const mutations = buildMediaMutations(merge.documents, merge.existingRevisionById);
+    expect(mutations).toEqual([{ create: original }]);
+
+    current = { _id: original._id, _type: "media", mediaId: "different-editor-photo" };
+    await expect(runSeedMutationBatches(fakeConnection(), mutations, {
+      fetchImplementation: fetchImplementation as unknown as typeof fetch,
+    })).rejects.toMatchObject({ status: 409 });
+    expect(current.mediaId).toBe("different-editor-photo");
   });
 
-  it("refuses when this phase's own value disagrees with an already-published one, rather than picking a side", async () => {
+  it("refuses a same-language alt disagreement before any mutation", async () => {
     const fetchImplementation = (async () =>
-      jsonResponse({ result: [{ _id: "migrated--media-photo-1", alt: [{ language: "fi", value: "Vanha" }] }] })) as unknown as typeof fetch;
+      jsonResponse({ result: [{ _id: "migrated--media-photo-1", _rev: "rev-1", alt: [{ language: "fi", value: "Vanha" }] }] })) as unknown as typeof fetch;
     const { issues } = await mergeExistingMediaFields(fakeConnection(), [mediaDocument([{ language: "fi", value: "Uusi" }])], {
       fetchImplementation,
     });
@@ -1404,62 +1435,125 @@ describe("mergeExistingMediaFields", () => {
     expect(issues.join(" ")).toContain("Uusi");
   });
 
+  it("refuses an existing document without a revision instead of writing an unguarded patch", async () => {
+    const fetchImplementation = (async () =>
+      jsonResponse({ result: [{ _id: "migrated--media-photo-1", alt: [] }] })) as unknown as typeof fetch;
+    const merge = await mergeExistingMediaFields(fakeConnection(), [mediaDocument([{ language: "fi", value: "Alt" }])], {
+      fetchImplementation,
+    });
+    expect(merge.issues.join(" ")).toContain("no readable published revision");
+  });
+
   it("does not touch a non-media document", async () => {
-    const fetchImplementation = (async () => jsonResponse({ result: [] })) as unknown as typeof fetch;
+    const fetchImplementation = vi.fn(async () => jsonResponse({ result: [] }));
     const article: PlannedDocument = { _id: "migrated--article-a-fi", _type: "article" };
-    const { documents } = await mergeExistingMediaFields(fakeConnection(), [article], { fetchImplementation });
+    const { documents } = await mergeExistingMediaFields(fakeConnection(), [article], { fetchImplementation: fetchImplementation as unknown as typeof fetch });
     expect(documents[0]).toEqual(article);
+    expect(fetchImplementation).not.toHaveBeenCalled();
   });
 
-  it("carries over caption, credit, capturedAt, enquiryEligible, and archiveLocator this tool never authors", async () => {
-    const fetchImplementation = (async () =>
-      jsonResponse({
-        result: [
-          {
-            _id: "migrated--media-photo-1",
-            alt: [],
-            caption: [{ _type: "localizedText", language: "fi", value: "Kuvateksti" }],
-            credit: "Photographer Name",
-            capturedAt: "2015-06-01T00:00:00.000Z",
-            enquiryEligible: true,
-            archiveLocator: "D:/archive/2015/one.nef",
-            publiclyRenderable: true,
-          },
-        ],
-      })) as unknown as typeof fetch;
-
-    const { documents, issues } = await mergeExistingMediaFields(fakeConnection(), [mediaDocument([{ language: "fi", value: "Alt" }])], {
-      fetchImplementation,
+  it("preserves hidden status, capture-sequence membership/order, and arbitrary editor fields through the actual patch transport", async () => {
+    const current: Record<string, unknown> = {
+      _id: "migrated--media-photo-1",
+      _type: "media",
+      _rev: "rev-1",
+      mediaId: "photo-1",
+      mediaType: "image",
+      publiclyRenderable: false,
+      captureSequence: { galleryContentId: "rally-gallery", sequence: 42, sectionId: "finals" },
+      newEditorField: { nested: "keep" },
+      archiveLocator: "private/one.nef",
+      alt: [{ language: "en", value: "Earlier" }],
+      image: { _type: "image", asset: { _type: "reference", _ref: "image-old" } },
+    };
+    let sentMutations: unknown;
+    const fetchImplementation = vi.fn(async (url: string, init: RequestInit) => {
+      if (url.includes("/data/query/")) {
+        return jsonResponse({ result: [{ _id: current._id, _rev: current._rev, alt: current.alt }] });
+      }
+      sentMutations = JSON.parse(init.body as string);
+      const patch = (sentMutations as { mutations: { patch: { ifRevisionID: string; set: Record<string, unknown> } }[] }).mutations[0]?.patch;
+      if (patch?.ifRevisionID !== current._rev) return jsonResponse({ error: "revision conflict" }, 409);
+      Object.assign(current, patch.set, { _rev: "rev-2" });
+      return jsonResponse({ results: [] });
     });
-    expect(issues).toEqual([]);
-    const document = documents[0]!;
-    expect(document.credit).toBe("Photographer Name");
-    expect(document.capturedAt).toBe("2015-06-01T00:00:00.000Z");
-    expect(document.enquiryEligible).toBe(true);
-    expect(document.archiveLocator).toBe("D:/archive/2015/one.nef");
-    expect(document.caption).toEqual([{ _type: "localizedText", language: "fi", value: "Kuvateksti" }]);
+    const merge = await mergeExistingMediaFields(fakeConnection(), [mediaDocument([{ language: "fi", value: "Uusi" }])], {
+      fetchImplementation: fetchImplementation as unknown as typeof fetch,
+    });
+    expect(merge.issues).toEqual([]);
+    await runSeedMutationBatches(fakeConnection(), buildMediaMutations(merge.documents, merge.existingRevisionById), {
+      fetchImplementation: fetchImplementation as unknown as typeof fetch,
+    });
+    expect(sentMutations).toMatchObject({ mutations: [{ patch: { id: "migrated--media-photo-1", ifRevisionID: "rev-1" } }] });
+    expect(current.publiclyRenderable).toBe(false);
+    expect(current.captureSequence).toEqual({ galleryContentId: "rally-gallery", sequence: 42, sectionId: "finals" });
+    expect(current.newEditorField).toEqual({ nested: "keep" });
+    expect(current.archiveLocator).toBe("private/one.nef");
+    expect(current.image).toEqual({ _type: "image", asset: { _type: "reference", _ref: "image-new" } });
+    expect((current.alt as { language: string; value: string }[]).map(({ language, value }) => ({ language, value }))).toEqual([
+      { language: "en", value: "Earlier" },
+      { language: "fi", value: "Uusi" },
+    ]);
   });
 
-  it("never reverses an editor's own publiclyRenderable: false — a deliberately hidden photograph stays hidden", async () => {
+  it("keeps the false-wins rule when an approved plan explicitly hides existing media", async () => {
     const fetchImplementation = (async () =>
-      jsonResponse({ result: [{ _id: "migrated--media-photo-1", alt: [], publiclyRenderable: false }] })) as unknown as typeof fetch;
-
-    // This plan's own document always carries publiclyRenderable: true (buildImportPlan's
-    // unconditional default) — the merge must not let that silently un-hide the photo.
-    const { documents, issues } = await mergeExistingMediaFields(fakeConnection(), [mediaDocument([{ language: "fi", value: "Alt" }])], {
-      fetchImplementation,
-    });
-    expect(issues).toEqual([]);
-    expect(documents[0]?.publiclyRenderable).toBe(false);
+      jsonResponse({ result: [{ _id: "migrated--media-photo-1", _rev: "rev-1", alt: [] }] })) as unknown as typeof fetch;
+    const planned = { ...mediaDocument([{ language: "fi", value: "Alt" }]), publiclyRenderable: false };
+    const merge = await mergeExistingMediaFields(fakeConnection(), [planned], { fetchImplementation });
+    expect(merge.issues).toEqual([]);
+    expect(buildMediaMutations(merge.documents, merge.existingRevisionById)).toMatchObject([
+      { patch: { set: { publiclyRenderable: false } } },
+    ]);
   });
 
-  it("keeps publiclyRenderable: true when the existing document is not hidden", async () => {
-    const fetchImplementation = (async () =>
-      jsonResponse({ result: [{ _id: "migrated--media-photo-1", alt: [], publiclyRenderable: true }] })) as unknown as typeof fetch;
-    const { documents } = await mergeExistingMediaFields(fakeConnection(), [mediaDocument([{ language: "fi", value: "Alt" }])], {
-      fetchImplementation,
+  it("rejects an editor hide between the read and mutation through the fake transport", async () => {
+    const current: Record<string, unknown> = { _id: "migrated--media-photo-1", _rev: "rev-1", publiclyRenderable: true, alt: [] };
+    const fetchImplementation = vi.fn(async (url: string, init: RequestInit) => {
+      if (url.includes("/data/query/")) {
+        return jsonResponse({ result: [{ _id: current._id, _rev: current._rev, alt: current.alt }] });
+      }
+      const body = JSON.parse(init.body as string) as { mutations: { patch: { ifRevisionID: string; set: Record<string, unknown> } }[] };
+      const patch = body.mutations[0]?.patch;
+      if (patch?.ifRevisionID !== current._rev) return jsonResponse({ error: "revision conflict" }, 409);
+      Object.assign(current, patch.set, { _rev: "rev-3" });
+      return jsonResponse({ results: [] });
     });
-    expect(documents[0]?.publiclyRenderable).toBe(true);
+    const planned = mediaDocument([{ language: "fi", value: "Alt" }]);
+    const first = await mergeExistingMediaFields(fakeConnection(), [planned], { fetchImplementation: fetchImplementation as unknown as typeof fetch });
+    current.publiclyRenderable = false;
+    current._rev = "rev-2";
+    await expect(runSeedMutationBatches(fakeConnection(), buildMediaMutations(first.documents, first.existingRevisionById), {
+      fetchImplementation: fetchImplementation as unknown as typeof fetch,
+    })).rejects.toMatchObject({ status: 409 });
+    expect(current.publiclyRenderable).toBe(false);
+    expect(current.image).toBeUndefined();
+
+    const fresh = await mergeExistingMediaFields(fakeConnection(), [planned], { fetchImplementation: fetchImplementation as unknown as typeof fetch });
+    await runSeedMutationBatches(fakeConnection(), buildMediaMutations(fresh.documents, fresh.existingRevisionById), {
+      fetchImplementation: fetchImplementation as unknown as typeof fetch,
+    });
+    expect(current.publiclyRenderable).toBe(false);
+    expect(current.image).toEqual(planned.image);
+  });
+
+  it("rejects a concurrent edit to previously read alt instead of overwriting it", async () => {
+    const current: Record<string, unknown> = { _id: "migrated--media-photo-1", _rev: "rev-1", alt: [{ language: "en", value: "Old" }] };
+    const fetchImplementation = vi.fn(async (url: string, init: RequestInit) => {
+      if (url.includes("/data/query/")) return jsonResponse({ result: [{ _id: current._id, _rev: current._rev, alt: current.alt }] });
+      const body = JSON.parse(init.body as string) as { mutations: { patch: { ifRevisionID: string } }[] };
+      if (body.mutations[0]?.patch.ifRevisionID !== current._rev) return jsonResponse({ error: "revision conflict" }, 409);
+      return jsonResponse({ results: [] });
+    });
+    const first = await mergeExistingMediaFields(fakeConnection(), [mediaDocument([{ language: "fi", value: "Uusi" }])], {
+      fetchImplementation: fetchImplementation as unknown as typeof fetch,
+    });
+    current.alt = [{ language: "en", value: "Edited" }];
+    current._rev = "rev-2";
+    await expect(runSeedMutationBatches(fakeConnection(), buildMediaMutations(first.documents, first.existingRevisionById), {
+      fetchImplementation: fetchImplementation as unknown as typeof fetch,
+    })).rejects.toMatchObject({ status: 409 });
+    expect(current.alt).toEqual([{ language: "en", value: "Edited" }]);
   });
 });
 

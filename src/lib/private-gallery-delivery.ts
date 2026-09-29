@@ -182,6 +182,8 @@ export function computePrivateGallerySignedUrlTtlSeconds(params: {
 export type PrivateGalleryAccessBudgetCounter = {
   readonly windowStartedAt: Date;
   readonly chargedBytes: number;
+  /** Persisted independently of bytes: a refused mint charges nothing. */
+  readonly refusalReported: boolean;
 };
 
 export type PrivateGalleryAccessBudgetConfig = {
@@ -196,7 +198,7 @@ export const PRIVATE_GALLERY_ACCESS_BUDGET_WINDOW_MS =
 
 export type PrivateGalleryAccessBudgetDecision = {
   readonly allowed: boolean;
-  /** True on the attempt that crosses the ceiling, so a caller logs once. */
+  /** True only for the first refused attempt in this fixed window. */
   readonly firstRefusalInWindow: boolean;
   readonly next: PrivateGalleryAccessBudgetCounter;
 };
@@ -211,9 +213,10 @@ export type PrivateGalleryAccessBudgetDecision = {
  * amendment 2026-09-02). One counter row cannot express a rolling window: that
  * would need the timestamp and size of every mint, which for a 1 000-file
  * gallery is a thousand rows per full browse, summed on every image load. The
- * fixed form opens on the first charge and resets when it lapses, so **up to
- * twice the allowance can be spent across a boundary** — the ceiling late in one
- * window, the ceiling again early in the next.
+ * fixed form opens on the first budget evaluation, including a refusal, and
+ * resets when it lapses, so **up to twice the allowance can be spent across
+ * a boundary** — the ceiling late in one window, the ceiling again early in
+ * the next.
  *
  * That is accepted because the budget counts *authorizations, not delivered
  * bytes*: a URL replayed inside its TTL costs nothing and `Range` requests are
@@ -252,42 +255,40 @@ export function evaluatePrivateGalleryAccessBudget(
 
   const ceiling = config.totalGalleryBytes * config.multiplier;
 
-  if (counter === undefined) {
-    const allowed = chargeBytes <= ceiling;
-    return {
-      allowed,
-      firstRefusalInWindow: !allowed,
-      next: {
-        windowStartedAt: new Date(now.getTime()),
-        chargedBytes: allowed ? chargeBytes : 0,
-      },
-    };
-  }
-
   if (
-    !isFiniteDate(counter.windowStartedAt) ||
-    !Number.isSafeInteger(counter.chargedBytes) ||
-    counter.chargedBytes < 0
+    counter !== undefined &&
+    (!isFiniteDate(counter.windowStartedAt) ||
+      !Number.isSafeInteger(counter.chargedBytes) ||
+      counter.chargedBytes < 0 ||
+      typeof counter.refusalReported !== "boolean")
   ) {
     fail("malformed-record", "the access-budget counter row is unusable");
   }
 
-  const lapsed =
-    now.getTime() - counter.windowStartedAt.getTime() >= config.windowMs;
-  const base = lapsed ? 0 : counter.chargedBytes;
+  // One path handles both an empty counter and a lapsed window. A refused
+  // first attempt starts the window too, so its report can be suppressed until
+  // that window lapses without charging bytes for an unauthorized mint.
+  const activeCounter =
+    counter !== undefined &&
+    now.getTime() - counter.windowStartedAt.getTime() < config.windowMs
+      ? counter
+      : undefined;
+  const base = activeCounter?.chargedBytes ?? 0;
+  const alreadyReported = activeCounter?.refusalReported ?? false;
   const wouldBe = base + chargeBytes;
   const allowed = wouldBe <= ceiling;
 
   return {
     allowed,
-    firstRefusalInWindow: !allowed && base <= ceiling,
+    firstRefusalInWindow: !allowed && !alreadyReported,
     next: {
-      windowStartedAt: lapsed
-        ? new Date(now.getTime())
-        : new Date(counter.windowStartedAt.getTime()),
-      // A refused mint is not charged: the bytes were never authorized, and
-      // charging them would let a refused request push the window further out.
+      windowStartedAt:
+        activeCounter === undefined
+          ? new Date(now.getTime())
+          : new Date(activeCounter.windowStartedAt.getTime()),
+      // A refused mint never changes the byte charge or extends this window.
       chargedBytes: allowed ? wouldBe : base,
+      refusalReported: alreadyReported || !allowed,
     },
   };
 }
