@@ -174,7 +174,7 @@ test.describe("theme toggle", () => {
 
     test("the toggle is absent and the device decides", async ({ page }) => {
       await page.emulateMedia({ colorScheme: "light" });
-      await page.goto("/");
+      await page.goto("/", { waitUntil: "domcontentloaded" });
       expect(await pin(page)).toBeNull();
       expect(await pageGround(page)).toBe(KIVI);
       await expect(darkToggle(page)).toHaveCount(0);
