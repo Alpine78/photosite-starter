@@ -927,6 +927,19 @@ statement that runs on **every image load**. If Fair Transfer pressure ever make
 burst shape matter, that two-counter form is the documented upgrade path and needs one
 extra column, not a schema change.
 
+**Amendment 2026-09-29 (AB#183):** the fixed window begins on its first budget
+evaluation **after all free authorization checks**, including an oversized attempt
+that the budget refuses. This corrects the 2026-09-02 wording "opens on the first
+charge": a refused first attempt already created a counter with zero charged bytes,
+and it must do so to suppress repeated reports. The counter stores a separate
+`refusalReported` marker; the first refusal in each window sets it, while later
+refusals charge no bytes, leave the window start unchanged, and produce no second
+budget-exhaustion log. A lapsed window clears the marker for its next evaluation.
+The gallery-and-capability-generation store must update the byte charge and this
+marker atomically, returning the decision from the committed update so concurrent
+refusals cannot all claim to be first. No public mint route or production store is
+introduced by this correction.
+
 A request that would exceed a bound is refused, never queued unboundedly. The per-session
 mint rate and the per-gallery authorized-access budget are **both** enforced; the budget
 is the load-bearing application-visible control, because it and the exchange's per-gallery
