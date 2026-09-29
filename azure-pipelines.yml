@@ -8,6 +8,17 @@ pr:
     include:
       - main
 
+# Check the committed lockfile even when main has not changed. Azure YAML cron
+# schedules are UTC; a UI-defined schedule overrides this one, so the owner
+# verifies the effective schedule after merging (AB#160).
+schedules:
+  - cron: "0 6 * * *"
+    displayName: "Daily dependency audit"
+    branches:
+      include:
+        - main
+    always: true
+
 variables:
   # The Node major every environment runs. Vercel's platform default moves with
   # each LTS release, so the runtime is pinned here, in package.json `engines`,
@@ -26,6 +37,9 @@ variables:
 stages:
   - stage: Verify
     displayName: "Quality gates"
+    # A scheduled advisory check needs neither the browser suite nor a new
+    # release candidate. Push and PR verification still run as before.
+    condition: ne(variables['Build.Reason'], 'Schedule')
     jobs:
       - job: Verify
         displayName: "Lint, test, build, journeys"
@@ -124,6 +138,27 @@ stages:
               targetPath: "playwright-report"
               artifact: "playwright-report"
 
+  - stage: DependencyAudit
+    displayName: "Scheduled dependency audit"
+    dependsOn: []
+    condition: eq(variables['Build.Reason'], 'Schedule')
+    jobs:
+      - job: Audit
+        displayName: "Audit committed npm dependency tree"
+        # No repository or deployment secret is passed to this job. npm audit
+        # reads package-lock.json and queries the configured advisory registry;
+        # it does not install packages or run their scripts.
+        pool: "Default"
+        steps:
+          - task: UseNode@1
+            inputs:
+              version: $(nodeVersion)
+            displayName: "Use pinned Node.js"
+
+          - script: |
+              npm audit --include=prod --include=dev --audit-level=low
+            displayName: "Report production and development vulnerabilities"
+
   - stage: DeployPreview
     displayName: "Preview release candidate"
     dependsOn: Verify
@@ -164,6 +199,7 @@ stages:
       and(
         succeeded(),
         ne(variables['Build.Reason'], 'PullRequest'),
+        ne(variables['Build.Reason'], 'Schedule'),
         eq(variables['Build.SourceBranch'], 'refs/heads/main'),
         eq(variables['PREVIEW_DEPLOYMENT_ENABLED'], 'true')
       )
