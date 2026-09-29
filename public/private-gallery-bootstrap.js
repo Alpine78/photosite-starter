@@ -24,78 +24,91 @@
   "use strict";
 
   var status = document.getElementById("private-gallery-status");
-  if (!status) return;
+  var pendingExchanges = 0;
 
   function say(attribute) {
+    if (!status) return;
     var text = status.getAttribute(attribute);
     if (text) status.textContent = text;
   }
 
-  // Read the capability and remove it from the address bar in the same breath.
-  // `replaceState` rather than `pushState`: the link with its fragment must not
-  // stay reachable through the Back button, and it must not remain on screen to
-  // be shoulder-read, screenshotted, or copied out of a shared browser.
-  var capability = window.location.hash.slice(1);
-  if (capability) {
+  // Capture the capability and replace this history entry before doing any
+  // status work or network work. A valid session renders no status element, but
+  // its original full link must still lose the fragment on every visit.
+  function takeCapability() {
+    var capability = window.location.hash.slice(1);
+    if (!capability) return "";
+
     try {
       window.history.replaceState(
-        null,
+        window.history.state,
         "",
         window.location.pathname + window.location.search,
       );
     } catch {
-      // A browser that refuses the rewrite still gets the exchange below; the
-      // link merely stays visible. Failing the whole bootstrap would be worse.
+      // A browser that refuses the rewrite can still exchange the link on the
+      // bootstrap document. Its fragment may remain visible in that browser.
     }
+    return capability;
   }
 
-  if (!capability) {
-    say("data-invalid");
-    return;
-  }
+  function visitLocation() {
+    var capability = takeCapability();
+    if (!status) return;
 
-  // The public path, not the internal rewrite target: the Proxy owns the
-  // mapping, and the browser must only ever address the configured prefix.
-  var basePath = window.location.pathname.replace(/\/+$/, "");
+    if (!capability) {
+      // Back/Forward may dispatch both popstate and hashchange. The first
+      // handler takes the fragment; the second sees the clean URL and must not
+      // replace an in-progress exchange with an invalid-link message.
+      if (pendingExchanges === 0) say("data-invalid");
+      return;
+    }
 
-  fetch(basePath + "/exchange", {
-    method: "POST",
-    // The endpoint accepts JSON only, and a JSON POST from another origin needs
-    // a CORS preflight this application never answers — that is what makes the
-    // content type a real cross-site control rather than a formality.
-    headers: { "Content-Type": "application/json" },
-    // The response's `Set-Cookie` is the entire point of the request.
-    credentials: "same-origin",
-    // The capability is in the body, never in the URL, so it cannot reach an
-    // access log, a `Referer`, or browser history.
-    body: JSON.stringify({ capability: capability }),
-  })
-    .then(function (response) {
-      // Every refusal answers identically by design, so there is exactly one
-      // failure message here — there is nothing more specific to say, and
-      // inventing a distinction would undo the endpoint's own uniformity.
-      if (!response.ok) {
-        say("data-invalid");
-        return;
-      }
+    // The public path, not the internal rewrite target: the Proxy owns the
+    // mapping, and the browser only addresses the configured prefix.
+    var basePath = window.location.pathname.replace(/\/+$/, "");
+    pendingExchanges += 1;
 
-      // The browser now holds the session cookie, and the same address renders
-      // the gallery itself once the server can see it. Reloading is what turns
-      // the exchange into a page rather than a message: no client-side render
-      // of private content, no second URL, and the visitor lands somewhere they
-      // can bookmark and return to for as long as the session lasts.
-      //
-      // `location.replace`, not `reload`: the entry being replaced is the one
-      // whose URL carried the capability before `replaceState` rewrote it, and
-      // this keeps the history stack from holding a step that re-POSTs nothing
-      // useful. The confirmation is still shown, because a browser that refuses
-      // the navigation should not be left on "opening…".
-      say("data-connected");
-      window.location.replace(
-        window.location.pathname + window.location.search,
-      );
+    fetch(basePath + "/exchange", {
+      method: "POST",
+      // A JSON POST from another origin needs a CORS preflight this application
+      // never answers. The response's Set-Cookie establishes the session.
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      // The capability is in the body, never a URL or browser history entry.
+      body: JSON.stringify({ capability: capability }),
     })
-    .catch(function () {
-      say("data-invalid");
-    });
+      .then(function (response) {
+        // Every refusal answers identically by design.
+        if (!response.ok) {
+          say("data-invalid");
+          return;
+        }
+
+        // The cookie now authorizes the clean URL. Replace this entry so Back
+        // cannot revisit a bootstrap state and POST it again.
+        say("data-connected");
+        window.location.replace(
+          window.location.pathname + window.location.search,
+        );
+      })
+      .catch(function () {
+        say("data-invalid");
+      })
+      .finally(function () {
+        pendingExchanges -= 1;
+      });
+  }
+
+  // Fragment navigation stays within this document, so its script will not
+  // execute again. Traversing history can fire both events; takeCapability's
+  // immediate rewrite makes only the first one see a credential.
+  window.addEventListener("hashchange", visitLocation);
+  window.addEventListener("popstate", visitLocation);
+  // A bfcache restore does not rerun the script. Scrub any fragment restored
+  // with that entry, while leaving an authorized gallery free of exchange POSTs.
+  window.addEventListener("pageshow", function (event) {
+    if (event.persisted) visitLocation();
+  });
+  visitLocation();
 })();

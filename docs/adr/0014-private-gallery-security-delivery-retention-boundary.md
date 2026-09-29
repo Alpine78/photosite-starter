@@ -226,6 +226,12 @@ accepted `'unsafe-inline'` residual. The script:
 3. on failure shows a generic "this link is not valid" state and never reveals whether
    the handle exists.
 
+The same external script runs on a session-authorized gallery document. It removes a
+fragment from a reopened full link without exchanging again. It also scrubs fragments
+reached by same-document hash navigation, history traversal, or a back-forward cache
+restore; only the credential-free bootstrap document exchanges a capability. The script
+preserves the current history state when replacing the URL.
+
 **The exchange endpoint:**
 
 - applies the same-origin / fetch-metadata checks already used by the contact and enquiry

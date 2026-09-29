@@ -49,8 +49,11 @@ const GALLERY_HEADING = getBuiltInLabels(
 test.describe("private gallery link", () => {
   test("exchanges the fragment capability for a session", async ({ page }) => {
     const exchanges: string[] = [];
+    const hashesAtExchange: string[] = [];
     page.on("request", (request) => {
-      if (request.method() === "POST") exchanges.push(request.url());
+      if (request.method() !== "POST") return;
+      exchanges.push(request.url());
+      hashesAtExchange.push(new URL(page.url()).hash);
     });
 
     await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
@@ -69,9 +72,46 @@ test.describe("private gallery link", () => {
     expect(exchanges).toEqual([
       `${new URL(page.url()).origin}${GALLERY_PATH}/exchange`,
     ]);
+    expect(hashesAtExchange).toEqual([""]);
 
     // The capability never travelled in a URL, only in the request body.
     for (const url of exchanges) expect(url).not.toContain(CAPABILITY);
+  });
+
+  test("exchanges a full link reached by hash-only navigation", async ({
+    page,
+    browserName,
+  }) => {
+    const exchanges: string[] = [];
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === `${GALLERY_PATH}/exchange`
+      ) {
+        exchanges.push(request.url());
+      }
+    });
+
+    await page.goto(GALLERY_PATH);
+    const status = page.getByRole("status");
+    await expect(status).toHaveText(
+      (await status.getAttribute("data-invalid")) as string,
+    );
+
+    await page.evaluate((capability) => {
+      window.location.hash = capability;
+    }, CAPABILITY);
+    await expect.poll(() => exchanges.length).toBe(1);
+    await expect.poll(() => new URL(page.url()).hash).toBe("");
+    // WebKit does not retain the Secure cookie on this HTTP loopback harness.
+    // The exchange and scrub still run there; its successful gallery landing
+    // is covered by Chromium and the cookie contract by the wire-level test.
+    if (browserName !== "webkit") {
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+        GALLERY_HEADING,
+      );
+    }
+    expect(exchanges).toHaveLength(1);
   });
 
   test("issues a host-only session cookie scoped to this gallery", async ({
@@ -294,6 +334,121 @@ test.describe("private gallery session in a browser", () => {
       GALLERY_HEADING,
     );
     await expect(page.getByRole("status")).toHaveCount(0);
+  });
+
+  test("scrubs the original full link on a repeat visit without exchanging", async ({
+    page,
+  }) => {
+    const exchanges: string[] = [];
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === `${GALLERY_PATH}/exchange`
+      ) {
+        exchanges.push(request.url());
+      }
+    });
+
+    const fullLink = `${GALLERY_PATH}#${CAPABILITY}`;
+    await page.goto(fullLink);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+    expect(exchanges).toHaveLength(1);
+
+    await page.goto("/");
+    await page.goto(fullLink);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+    expect(new URL(page.url()).hash).toBe("");
+    expect(exchanges).toHaveLength(1);
+    expect(await page.content()).not.toContain(CAPABILITY);
+  });
+
+  test("scrubs hash navigation and credential-bearing history entries", async ({
+    page,
+  }) => {
+    const exchanges: string[] = [];
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === `${GALLERY_PATH}/exchange`
+      ) {
+        exchanges.push(request.url());
+      }
+    });
+
+    await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+    expect(exchanges).toHaveLength(1);
+
+    // Assigning the hash creates a same-document entry. Its hashchange event
+    // must remove the capability without touching the valid session.
+    await page.evaluate((capability) => {
+      window.location.hash = capability;
+    }, CAPABILITY);
+    await expect.poll(() => new URL(page.url()).hash).toBe("");
+    expect(exchanges).toHaveLength(1);
+
+    // pushState itself fires no navigation event. Return to this intentionally
+    // dirty entry via Back, then traverse forward and back once more.
+    await page.evaluate(({ path, capability }) => {
+      window.history.pushState(
+        { ...window.history.state, marker: "credential-entry" },
+        "",
+        `${path}#${capability}`,
+      );
+      window.history.pushState(
+        { ...window.history.state, marker: "clean-entry" },
+        "",
+        `${path}?return=1`,
+      );
+    }, { path: GALLERY_PATH, capability: CAPABILITY });
+
+    await page.goBack();
+    await expect.poll(() => new URL(page.url()).hash).toBe("");
+    expect(await page.evaluate(() => window.history.state.marker)).toBe(
+      "credential-entry",
+    );
+    await page.goForward();
+    expect(new URL(page.url()).hash).toBe("");
+    await page.goBack();
+    expect(new URL(page.url()).hash).toBe("");
+    expect(exchanges).toHaveLength(1);
+  });
+
+  test("re-exchanges a valid full link after the session is removed", async ({
+    page,
+    context,
+  }) => {
+    const exchanges: string[] = [];
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === `${GALLERY_PATH}/exchange`
+      ) {
+        exchanges.push(request.url());
+      }
+    });
+
+    const fullLink = `${GALLERY_PATH}#${CAPABILITY}`;
+    await page.goto(fullLink);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+    await context.clearCookies();
+    // Force a new document request: a hash-only visit on the current page
+    // cannot ask the server to re-evaluate a session that has just expired.
+    await page.goto("/");
+    await page.goto(fullLink);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      GALLERY_HEADING,
+    );
+    expect(new URL(page.url()).hash).toBe("");
+    expect(exchanges).toHaveLength(2);
   });
 
   test("does not carry the session to another gallery's address", async ({
