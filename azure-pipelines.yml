@@ -30,16 +30,17 @@ stages:
       - job: Verify
         displayName: "Lint, test, build, journeys"
         # Self-hosted (docs/deployment.md § "The Verify stage runs on a self-hosted
-        # agent"): this stage reaches no external service and handles no deployment
-        # secret, which is what makes it safe to run on a persistent shared agent even
-        # though it also runs on every pull request — unlike DeployPreview below, which
-        # stays Microsoft-hosted specifically because sharing this agent with a
-        # PR-triggered job would expose its Vercel/Sanity credentials to whatever a PR's
-        # dependencies left behind on the machine. Requires an agent registered in the
-        # organization's "Default" pool with Playwright's OS-level browser dependencies
-        # already installed on the host (see the "Install Playwright browsers" step
-        # below for why the pipeline itself no longer installs them with --with-deps).
+        # agent"): npm ci and repository scripts execute on a persistent machine.
+        # Azure's central and definition gates admit trusted same-repository PRs but
+        # block fork PRs. This host's agent currently shares the operator's Unix user
+        # and can read local credentials. The absence of an injected pipeline
+        # secret does not isolate this runner. DeployPreview is Microsoft-hosted.
+        # The Default agent needs Playwright OS dependencies installed by its owner.
         pool: "Default"
+        # Remove the previous job's workspace before checkout. This is hygiene for
+        # trusted code, not isolation from writes elsewhere on the persistent host.
+        workspace:
+          clean: all
         steps:
           - task: UseNode@1
             inputs:
