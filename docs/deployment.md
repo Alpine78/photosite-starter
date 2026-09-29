@@ -975,10 +975,12 @@ Microsoft-hosted `vmImage`. The free Microsoft-hosted tier for a private Azure D
 project is one parallel job capped at 1,800 minutes/month; this pipeline's own journey
 suite exhausted that quota (2026-09-16), and an additional Microsoft-hosted parallel job
 is a recurring $40/month while an additional self-hosted one is $15/month — the
-organization already had one self-hosted parallel job free and unused. `Verify` reaches
-no external service and handles no deployment secret, so moving it is a plain cost
-decision — it also runs on every pull request, which is exactly what makes it *unsafe*
-to share with a stage that does handle a secret (see below).
+organization already had one self-hosted parallel job free and unused. The move saved
+hosted minutes, but `npm ci` and repository scripts execute on a persistent machine.
+No deployment credential is injected into the `Verify` job, but the current agent
+runs under the operator's Unix account and can read credentials stored on that host.
+It must admit only trusted same-repository code (see AB#184 below), and it must never
+share its host with `DeployPreview` or another secret-bearing job.
 
 `DeployPreview` was briefly moved to the same self-hosted agent on 2026-09-16 to avoid
 the $40/month Microsoft-hosted cost entirely, then moved back the same day once an
@@ -1074,6 +1076,44 @@ and the agent service is running. A queued run waits rather than failing, but a
 photographer relying on this template for real CI should weigh that against the $40/month
 Microsoft-hosted alternative once the free self-hosted allotment is not enough (e.g. a
 second concurrent pipeline).
+
+**AB#184 runner admission and reset (live read-back 2026-09-29).** These are this
+project's Azure settings, not values a template clone inherits. Recheck them in each
+clone before its first PR build:
+
+| Boundary | Observed control |
+| --- | --- |
+| GitHub and Azure admission | The GitHub repository is public, with one collaborator visible to the repository API. This Azure organization has one project and one pipeline (definition `1`). Project pipeline settings report `forkProtectionEnabled=true` and `buildsEnabledForForks=false`; definition revision `3` also has `pullRequest.forks.enabled=false`, `allowSecrets=false`, and `allowFullAccessToken=false`. The same-repository `main` PR trigger stays enabled. |
+| Job token | Project settings report `enforceJobAuthScope=true` and `enforceReferencedRepoScopedToken=true`; definition `jobAuthorizationScope=project`. The project setting also overrides a broader definition value, so the effective Azure job scope is the current project. This YAML checks out only the GitHub `self` repository and declares no other repository resource. Azure's referenced-repository control does not govern the GitHub App's installation scope, which was not readable with the available GitHub token. |
+| Verify pool and protected resources | Organization pool `Default` (`1`) maps to project queue `10`. It has one enabled, online Ubuntu 26.04 agent (`17`); the queue's pipeline-permissions API authorizes only definition `1`. The Preview variable group (`1`) authorizes only definition `1` and is referenced only by `DeployPreview`, on a Microsoft-hosted agent. No other Azure project or pipeline appeared in the organization listing. |
+| Actual agent host | Azure's agent hostname matches this development host. The systemd agent service runs as the operator's ordinary Unix user, with `DynamicUser=no`, `ProtectHome=no`, and `PrivateTmp=no`. The same user can read local CLI credential stores and this checkout's `.env.local`; no credential content was read. The Azure pool and service provide no host reset or OS-user isolation between jobs. Other local processes share this host. |
+| Build Service ACL | The `photosite-starter Build Service` is project scoped. Its inspected effective masks are Build `1089` (view builds and definition; update build information), Project `649` (read project, publish/view test results, update build), Azure Repos `0`, and Library `1` (view). Unused build-quality, queue-management, check-in-override, test-configuration-management, and Azure Repos read/tag grants were removed. No direct ServiceEndpoints or DistributedTask grant was present. The GitHub checkout uses its source connection, not Azure Repos permissions. |
+
+The central `enforceNoAccessToSecretsFromForks` field still reads `false`: two PATCH
+attempts, including a full settings body, returned the unchanged value while fork
+builds were disabled centrally. Treat the central **build block** and the definition's
+`allowSecrets=false` as the verified gates; do not claim that secondary central flag
+is enabled. This flag was checked by configuration read-back only. No fork PR was run. Trusted same-repository PR #210 passed Azure run #450 before
+these live settings changed. After the definition and ACL changes, manual `main`
+Verify-only run [#453](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=453)
+passed all gates with `DeployPreview` explicitly skipped; it used the already merged
+`main` YAML. Azure also compiled this branch's proposed `workspace.clean: all` YAML in
+a nonexecuting preview. A new trusted PR must exercise that YAML and the unchanged PR
+trigger after the change before AB#184 can be considered fully validated.
+
+The Verify job requests `workspace.clean: all`, which deletes its previous
+`$(Pipeline.Workspace)` **before** the next job once this YAML is merged. It does not
+erase files or processes elsewhere on the persistent host and is not a sandbox. The
+observed host shares the operator's user account and credentials. No automatic host
+reimage or separate agent user was verified. Treat the runner as **trusted-code only**;
+review every same-repository PR and dependency change before it executes here. Record
+any out-of-band reset procedure the operator uses on AB#184. If host integrity is in
+doubt, disable the agent and rebuild the host before admitting another trusted run.
+
+Never enable external fork PRs by flipping either Azure gate alone. First decide and
+record an ephemeral or isolated execution model with no trusted host-state reuse, no
+secret access, and reviewed admission; then update and test both central and definition
+settings. Microsoft documents the [fork controls](https://learn.microsoft.com/en-us/azure/devops/pipelines/repos/github?view=azure-devops), [job-token scope](https://learn.microsoft.com/en-us/azure/devops/pipelines/security/secure-access-to-repos?view=azure-devops), and [workspace-clean limit](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops).
 
 **Preview release candidate** runs only when all four of these hold:
 
