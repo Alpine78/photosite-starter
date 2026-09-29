@@ -67,6 +67,7 @@ export const MUTATION_BATCH_SIZE = 100;
 // ---------------------------------------------------------------------------
 
 export type SeedMutation =
+  | { readonly create: Readonly<Record<string, unknown>> & { readonly _id: string } }
   | { readonly createOrReplace: Readonly<Record<string, unknown>> & { readonly _id: string } }
   | { readonly createIfNotExists: Readonly<Record<string, unknown>> & { readonly _id: string } }
   | { readonly delete: { readonly id: string } }
@@ -99,10 +100,8 @@ export function chunk<T>(items: readonly T[], size: number): readonly (readonly 
 
 /**
  * Runs every mutation in dependency order, batched. Each batch is its own
- * Sanity transaction; because every write is `createOrReplace` against a
- * fixed `_id`, a run that fails partway through is safe to simply re-run in
- * full afterward — every earlier batch's writes are idempotent no-ops the
- * second time.
+ * Sanity transaction. Callers that use guarded patches or strict creates
+ * must re-read current state before retrying after a partial run.
  *
  * `visibility` maps to the Mutation API's own query parameter. The default
  * (omitted) is Sanity's `sync`: the request only returns once the changes
