@@ -65,8 +65,8 @@
  * production build with this deployment's real locale configuration
  * (`SITE_LOCALE=fi`, `SITE_LOCALE_ROUTES=fi||tarinat,en|en|stories`), the
  * bare `/en` this row would target answers `404` — no English home page
- * exists yet ("Not yet built: localized static routes", `AGENTS.md`'s
- * feature-status section) — and neither `/` (a cross-language redirect) nor
+ * exists yet (localized static routes remain later work; see
+ * `docs/feature-status.md`) — and neither `/` (a cross-language redirect) nor
  * `/en/stories` (a story-root redirect) is an allowed substitute under
  * ADR-0003 decision 9's explicit "never use a blanket home, locale-root,
  * story-root, or cross-language redirect" rule. Revisit once a real English

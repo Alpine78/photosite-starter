@@ -145,7 +145,7 @@ current 1–12-image mini-gallery cannot represent that case, and reclassifying
 an editorial article as a gallery would change its primary content identity.
 **AB#161 closed 2026-09-16** (PR #164, merged `f0247a1`) with the scoped
 ADR-0003 amendment and the bounded article end-gallery result described in
-`AGENTS.md`'s feature-status section, so the 48 source-gallery article imports
+`docs/feature-status.md`, so the 48 source-gallery article imports
 it was blocking are unblocked; AB#137 remains `Active` and is now the sole
 predecessor on the launch chain.
 The [migration handoff](sanity-seeding.md#migrating-approved-content-from-an-existing-site-ab137)

@@ -25,9 +25,10 @@ implementation:
    candidate") was reopened to `Active`. Its own acceptance criterion — "a repeatable
    release-candidate deployment produces a testable URL" — was confirmed not met:
    `az pipelines runs show` on the latest `main` run shows the pipeline's
-   `DeployPreview` stage as `skipped`, not `succeeded`, matching `AGENTS.md`'s own
-   feature-status text ("the deploy stage has never run and no release candidate has
-   ever been produced or verified") rather than the Closed state the board carried.
+   `DeployPreview` stage as `skipped`, not `succeeded`, matching the repository's
+   then-current feature-status text ("the deploy stage has never run and no release
+   candidate has ever been produced or verified") rather than the Closed state the
+   board carried.
    The same evidence applies to **AB#83**'s own documented "Deployed verification
    gate" (`docs/cache-revalidation.md`: "No Production deployment currently exists...
    AB#83 therefore remains open until a staged/current deployment can run [the
