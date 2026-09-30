@@ -9,6 +9,7 @@
 import "server-only";
 
 import type { BuiltInLabels } from "@/lib/deployment-config";
+import type { ContactDeliveryOutcome } from "@/lib/contact-delivery";
 import type { GalleryNotificationRequest } from "@/lib/gallery-notification";
 import type {
   PrivateGallery,
@@ -25,6 +26,10 @@ export type PrivateGalleryProofOutboxRecord = Omit<PrivateGalleryOutboxRecord, "
   readonly kind: "proof-confirmation";
   /** The immutable snapshot used to render this attempt's email. */
   readonly confirmationVersion: number;
+  /** Administrator-safe operational metadata; the request body stays separate. */
+  readonly retryable?: boolean;
+  readonly nextAttemptAt?: Date;
+  readonly sentAt?: Date;
 };
 
 /** Frozen when a confirmation is created, before its outbox entry is committed. */
@@ -39,6 +44,12 @@ export type PrivateGalleryProofNotificationContext = {
 /** Raw worker material; never project this into an administrator status response. */
 export type PrivateGalleryProofOutboxDelivery = {
   readonly outbox: PrivateGalleryProofOutboxRecord;
+  readonly request: GalleryNotificationRequest;
+};
+
+/** A short-lived worker claim; its opaque id is never admin-facing status. */
+export type PrivateGalleryProofOutboxClaim = {
+  readonly claimId: string;
   readonly request: GalleryNotificationRequest;
 };
 
@@ -66,6 +77,20 @@ export type PrivateGalleryProofStore = {
     galleryId: string,
     idempotencyKey: string,
   ): Promise<PrivateGalleryProofOutboxDelivery | undefined>;
+  /** Atomically reserve one due attempt; undefined means no work is claimable. */
+  claimDelivery(params: {
+    readonly galleryId: string;
+    readonly idempotencyKey: string;
+    readonly now: Date;
+  }): Promise<PrivateGalleryProofOutboxClaim | undefined>;
+  /** CAS by claim id; only a current worker can publish an outcome. */
+  completeDelivery(params: {
+    readonly galleryId: string;
+    readonly idempotencyKey: string;
+    readonly claimId: string;
+    readonly outcome: ContactDeliveryOutcome;
+    readonly now: Date;
+  }): Promise<PrivateGalleryProofOutboxRecord>;
   editDraft(params: {
     readonly galleryId: string;
     readonly expectedRevision: number;

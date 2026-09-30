@@ -53,13 +53,20 @@ now accepts one validated recipient per queued attempt and shares the existing
 contact path's HTTP provider behavior. Its attempt key is distinct from the
 contact path's; the pending memory outbox uses a stable key per initial version
 and a new unique key for each administrator resend, copying the original
-recipient and message. A future delivery worker must keep an attempt's key
-on automatic retry, persist redacted failure/status information, and avoid
-logging the message. Earlier pending attempts stay intact after administrator
-reopen; their version in the frozen message distinguishes them from later ones.
-No gallery notification is wired to send: the customer-facing proof route,
-PostgreSQL outbox and worker, runtime transport configuration and actual
-photographer email do not exist.
+recipient and message. A server-only reference dispatcher now reserves one
+queued attempt, sends the exact frozen request through an injected transport,
+and records sent or redacted failed status without logging the message. An
+automatic retry reuses the same key after a 60-second delay. Three claims are
+allowed per row; each has a 30-second lease, and an abandoned final claim
+ends as `worker-interrupted` rather than a fictitious provider failure.
+Earlier pending attempts stay intact after administrator reopen; their
+version in the frozen message distinguishes them from later ones.
+The provider's 24-hour idempotency window cannot eliminate duplicate email
+if a send succeeds but its status write is lost and a much later retry runs;
+the immutable confirmation remains the authoritative record. No runtime
+notification is wired: the customer-facing proof route, PostgreSQL outbox
+and scheduler, runtime transport configuration and actual photographer email
+do not exist.
 
 ## What is held, and why it is different from the contact form
 

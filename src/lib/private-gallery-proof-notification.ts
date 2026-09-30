@@ -1,11 +1,10 @@
 /**
  * Photographer notification for one immutable AB#130 confirmation version.
  *
- * This is a provider-independent plain-text projection. The future private
- * outbox owns persistence, one initial send per version, resend attempts,
- * delivery status and deduplication; this function enforces none of those
- * durable guarantees. A resend passes the same confirmation and a new outbox
- * attempt key. No draft or current default price is read here.
+ * This is a provider-independent plain-text projection. The private outbox
+ * owns persistence, one initial send per version, resend attempts, delivery
+ * status and deduplication; this function enforces none of those guarantees.
+ * A resend passes the same confirmation and a new outbox attempt key. No draft or current default price is read here.
  */
 
 import "server-only";

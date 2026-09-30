@@ -4,6 +4,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import type { PrivateGallery, PrivateGalleryProofPlacement } from "@/lib/private-gallery";
+import type { ContactDeliveryOutcome, ContactDeliveryErrorClass } from "@/lib/contact-delivery";
 import {
   confirmPrivateGalleryProofSelection,
   editPrivateGalleryProofDraft,
@@ -22,6 +23,7 @@ import {
 import { buildPrivateGalleryProofNotification } from "@/lib/private-gallery-proof-notification";
 import { PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY } from "@/lib/private-gallery-limits";
 import type {
+  PrivateGalleryProofOutboxClaim,
   PrivateGalleryProofOutboxDelivery,
   PrivateGalleryProofOutboxRecord,
   PrivateGalleryProofStore,
@@ -36,7 +38,9 @@ export type PrivateGalleryProofStoreErrorReason =
   | "duplicate-attempt"
   | "unknown-confirmation"
   | "draft-open"
-  | "missing-notification";
+  | "missing-notification"
+  | "unknown-attempt"
+  | "stale-claim";
 
 export class PrivateGalleryProofStoreError extends Error {
   readonly reason: PrivateGalleryProofStoreErrorReason;
@@ -60,6 +64,37 @@ function validTime(value: unknown): value is Date {
 function clone<T>(value: T): T {
   return structuredClone(value);
 }
+
+export const PROOF_OUTBOX_LEASE_MS = 30_000;
+export const PROOF_OUTBOX_RETRY_DELAY_MS = 60_000;
+export const PROOF_OUTBOX_MAX_CLAIMS = 3;
+
+const ERROR_CLASSES = new Set<ContactDeliveryErrorClass>([
+  "configuration", "provider-rejected", "provider-quota-exceeded",
+  "provider-unavailable", "timeout",
+]);
+
+function redactedOutcome(value: ContactDeliveryOutcome): ContactDeliveryOutcome {
+  if (value?.status === "delivered" && Object.keys(value).length === 1) {
+    return { status: "delivered" };
+  }
+  if (
+    value?.status === "failed" &&
+    ERROR_CLASSES.has(value.errorClass) &&
+    typeof value.retryable === "boolean"
+  ) {
+    const retryable = value.retryable && (
+      value.errorClass === "provider-unavailable" || value.errorClass === "timeout"
+    );
+    return { status: "failed", errorClass: value.errorClass, retryable };
+  }
+  return { status: "failed", errorClass: "provider-unavailable", retryable: true };
+}
+
+type MemoryOutboxEntry = {
+  readonly delivery: PrivateGalleryProofOutboxDelivery;
+  readonly lease?: { readonly claimId: string; readonly expiresAt: Date };
+};
 
 /**
  * One gallery's development state. All planning and writes in each async method
@@ -116,7 +151,7 @@ export function createPrivateGalleryProofMemoryStore(seed: {
     confirmed: false,
   };
   const confirmations = new Map<number, PrivateGalleryProofConfirmation>();
-  const outbox = new Map<string, PrivateGalleryProofOutboxDelivery>();
+  const outbox = new Map<string, MemoryOutboxEntry>();
 
   function requireGallery(galleryId: string): void {
     if (galleryId !== gallery.galleryId || gallery.state !== "published") {
@@ -169,13 +204,101 @@ export function createPrivateGalleryProofMemoryStore(seed: {
     },
     async readOutbox(galleryId, idempotencyKey) {
       if (galleryId !== gallery.galleryId) return undefined;
-      const delivery = outbox.get(idempotencyKey);
-      return delivery === undefined ? undefined : clone(delivery.outbox);
+      const entry = outbox.get(idempotencyKey);
+      return entry === undefined ? undefined : clone(entry.delivery.outbox);
     },
     async readDelivery(galleryId, idempotencyKey) {
       if (galleryId !== gallery.galleryId) return undefined;
-      const delivery = outbox.get(idempotencyKey);
-      return delivery === undefined ? undefined : clone(delivery);
+      const entry = outbox.get(idempotencyKey);
+      return entry === undefined ? undefined : clone(entry.delivery);
+    },
+    async claimDelivery({ galleryId, idempotencyKey, now }) {
+      requireGallery(galleryId);
+      if (!validTime(now)) fail("invalid-time");
+      const entry = outbox.get(idempotencyKey);
+      if (entry === undefined) return undefined;
+      const row = entry.delivery.outbox;
+      if (now.getTime() < row.createdAt.getTime() || row.state === "sent") {
+        return undefined;
+      }
+      if (entry.lease && now.getTime() < entry.lease.expiresAt.getTime()) {
+        return undefined;
+      }
+      if (row.state === "failed" && (
+        row.retryable !== true ||
+        row.nextAttemptAt === undefined ||
+        now.getTime() < row.nextAttemptAt.getTime()
+      )) return undefined;
+      if (row.attempts >= PROOF_OUTBOX_MAX_CLAIMS) {
+        // A worker may have died after claiming but before contacting the
+        // provider. Never call that a provider rejection or claim it again.
+        outbox.set(idempotencyKey, {
+          delivery: {
+            ...entry.delivery,
+            outbox: {
+              ...row,
+              state: "failed",
+              lastError: "worker-interrupted",
+              retryable: false,
+              nextAttemptAt: undefined,
+            },
+          },
+        });
+        return undefined;
+      }
+      const claimId = randomUUID();
+      const expiresAt = new Date(now.getTime() + PROOF_OUTBOX_LEASE_MS);
+      if (!validTime(expiresAt)) fail("invalid-time");
+      const next: MemoryOutboxEntry = {
+        delivery: {
+          ...entry.delivery,
+          outbox: {
+            ...row,
+            state: "pending",
+            attempts: row.attempts + 1,
+            retryable: undefined,
+            nextAttemptAt: undefined,
+          },
+        },
+        lease: { claimId, expiresAt },
+      };
+      // One synchronous check-and-set critical section in this process.
+      outbox.set(idempotencyKey, next);
+      const claim: PrivateGalleryProofOutboxClaim = {
+        claimId,
+        request: next.delivery.request,
+      };
+      return clone(claim);
+    },
+    async completeDelivery({ galleryId, idempotencyKey, claimId, outcome, now }) {
+      requireGallery(galleryId);
+      if (!validTime(now)) fail("invalid-time");
+      const entry = outbox.get(idempotencyKey);
+      if (entry === undefined) fail("unknown-attempt");
+      if (entry.lease?.claimId !== claimId) fail("stale-claim");
+      const result = redactedOutcome(outcome);
+      const row = entry.delivery.outbox;
+      let completed: PrivateGalleryProofOutboxRecord;
+      if (result.status === "delivered") {
+        completed = {
+          ...row, state: "sent", sentAt: new Date(now),
+          lastError: undefined, retryable: undefined, nextAttemptAt: undefined,
+        };
+      } else {
+        const retryable = result.retryable && row.attempts < PROOF_OUTBOX_MAX_CLAIMS;
+        const nextAttemptAt = retryable
+          ? new Date(now.getTime() + PROOF_OUTBOX_RETRY_DELAY_MS)
+          : undefined;
+        if (nextAttemptAt && !validTime(nextAttemptAt)) fail("invalid-time");
+        completed = {
+          ...row, state: "failed", lastError: result.errorClass,
+          retryable, nextAttemptAt,
+        };
+      }
+      outbox.set(idempotencyKey, {
+        delivery: { ...entry.delivery, outbox: clone(completed) },
+      });
+      return clone(completed);
     },
     async editDraft({ galleryId, expectedRevision, selectedReferences, now }) {
       requireAccess(galleryId, now);
@@ -215,7 +338,7 @@ export function createPrivateGalleryProofMemoryStore(seed: {
       // The outbox row and its exact message live in one map entry.
       draft = storedDraft;
       confirmations.set(next.confirmation.version, storedConfirmation);
-      outbox.set(row.idempotencyKey, delivery);
+      outbox.set(row.idempotencyKey, { delivery });
       return clone({ draft, confirmation: next.confirmation, outbox: row });
     },
     async reopen({ galleryId, expectedRevision, now }) {
@@ -245,9 +368,9 @@ export function createPrivateGalleryProofMemoryStore(seed: {
       );
       if (initial === undefined) fail("missing-notification");
       const row = pending(plan.outboxIdempotencyKey, confirmationVersion, now);
-      const request = { ...initial.request, idempotencyKey: row.idempotencyKey };
+      const request = { ...initial.delivery.request, idempotencyKey: row.idempotencyKey };
       const delivery = clone({ outbox: row, request });
-      outbox.set(row.idempotencyKey, delivery);
+      outbox.set(row.idempotencyKey, { delivery });
       return clone(row);
     },
   };
