@@ -1176,10 +1176,15 @@ forms the initial placement rows. A pure confirmation-email projection includes
 the required references, filenames, counts and amounts, using shared exact
 currency formatting. A server-only gallery notification transport now validates
 one recipient per attempt and reuses the existing Resend HTTP provider core;
-the contact path keeps its fixed configured recipient. No proof-selection store,
-routes, durable outbox, runtime mail wiring or customer workflow exists yet.
+the contact path keeps its fixed configured recipient. A server-only
+proof-selection store contract and a development-only, single-process reference
+implementation now exercise conditional draft edits, atomic confirmation
+snapshot plus initial pending outbox insertion, administrator reopen, and unique
+resend attempts. The memory implementation is not durable across processes or
+restarts and is not wired into a runtime route. No PostgreSQL proof store, customer
+routes, durable outbox worker, runtime mail wiring or customer workflow exists yet.
 
-Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no store
+Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no production store
 adapter and no provisioned infrastructure**, so an `enabled` deployment throws on the
 first request that needs a store rather than half-serving: the
 isolation boundary and validated two-phase configuration, the domain model and its

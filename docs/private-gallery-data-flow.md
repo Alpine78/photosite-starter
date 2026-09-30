@@ -32,8 +32,14 @@ transition plan checked against verified proof objects. The upload plan retains
 each proof's complete filename, stable media identity and server-minted placement
 identity alongside its opaque object key; after upload verification a pure join
 can form the initial proof placements for that transition. These values are not
-persisted or served. A future private database will hold the published
-included count, integer extra-image unit price and currency, permanent
+persisted or served in a deployed environment. A server-only store contract and
+single-process development implementation now model conditional draft edits,
+versioned immutable confirmations and the pending outbox row as one atomic
+operation. Administrator reopen keeps earlier snapshots and the original access
+expiry; resend queues a unique attempt only against the currently locked version.
+The memory implementation has no cross-process durability or database uniqueness
+guarantees and is not connected to a route. A future private database will
+hold the published included count, integer extra-image unit price and currency, permanent
 gallery-local references with full filenames and stable media identities, a
 revisioned draft, immutable confirmation versions, and notification outbox
 attempts. A pure server-only projection now prepares a plain-text photographer
@@ -42,10 +48,11 @@ and complete filename; a shared exact formatter presents integer minor-unit
 amounts in the owner's currency and locale. A server-only Resend gallery transport
 now accepts one validated recipient per queued attempt and shares the existing
 contact path's HTTP provider behavior. Its attempt key is distinct from the
-contact path's; the future outbox must keep a key on automatic retry and mint a
-new one for an administrator resend. No gallery notification is wired to send:
-the customer-facing proof route, durable outbox, runtime transport configuration
-and actual photographer email do not exist.
+contact path's; the pending memory outbox uses a stable key per initial version
+and a new unique key for each administrator resend. A future durable outbox must
+keep a key on automatic retry and mint a new one for an administrator resend.
+No gallery notification is wired to send: the customer-facing proof route, PostgreSQL outbox and worker, runtime transport
+configuration and actual photographer email do not exist.
 
 ## What is held, and why it is different from the contact form
 
