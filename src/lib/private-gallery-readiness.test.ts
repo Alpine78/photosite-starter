@@ -105,8 +105,11 @@ describe("a delivery gallery", () => {
     });
   });
 
-  it("accepts a watermarked proof as a derivative", () => {
-    expect(evaluate({}, [proof, zip])).toEqual({ ready: true });
+  it("requires a delivery preview even when a proof and ZIP are present", () => {
+    expect(evaluate({}, [proof, zip])).toEqual({
+      ready: false,
+      blockers: ["no-derivatives"],
+    });
   });
 });
 
@@ -173,7 +176,7 @@ describe("a proof gallery", () => {
     });
     expect(evaluate(PROOF_GALLERY, [preview], proofData)).toEqual({
       ready: false,
-      blockers: ["proof-objects-mismatch"],
+      blockers: ["no-derivatives", "proof-objects-mismatch"],
     });
   });
 

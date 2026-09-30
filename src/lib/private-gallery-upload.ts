@@ -21,10 +21,13 @@
  *
  * Everything up to the plan: whether the gallery may open one, whether the
  * declared manifest fits inside §8e's ceilings, and which key each item gets.
+ * For a proof the returned plan also holds the complete filename, stable media
+ * identity and server-minted placement identity that the future store must
+ * commit alongside the key before the CLI writes any bytes.
  * It performs no IO, opens no transaction, and never talks to the store — the
  * administrator boundary (§4, AB#145) commits what this returns, and the CLI
- * uploads it. Verification of what was actually written is a later slice: it
- * needs metadata-only reads against a real bucket.
+ * uploads it. The separate completion step compares what was actually
+ * written with metadata-only reads; no real bucket is wired up yet.
  *
  * ## The ceilings are declared, not measured
  *
@@ -36,9 +39,11 @@
  * before refusing, and checking only here would trust the client.
  */
 
+import { randomBytes } from "node:crypto";
+
 import {
   PRIVATE_GALLERY_STATE_TRANSITIONS,
-  type PrivateGalleryDerivativeKind,
+  type PrivateGalleryKind,
   type PrivateGalleryState,
   type PrivateGalleryUploadPreparation,
 } from "@/lib/private-gallery";
@@ -49,10 +54,7 @@ import {
   PRIVATE_GALLERY_DEFAULT_MAX_TOTAL_BYTES,
   PRIVATE_GALLERY_DEFAULT_MAX_ZIP_BYTES,
 } from "@/lib/private-gallery-limits";
-import {
-  buildPrivateGalleryObjectKey,
-  type PrivateGalleryObjectKind,
-} from "@/lib/private-gallery-object-key";
+import { buildPrivateGalleryObjectKey } from "@/lib/private-gallery-object-key";
 import { PRIVATE_GALLERY_MAX_PREPARATION_DAYS } from "@/lib/private-gallery-retention";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -93,24 +95,52 @@ function isPositiveInteger(value: unknown): value is number {
 export type PrivateGalleryManifestEntry =
   | {
       readonly kind: "derivative";
-      readonly derivativeKind: PrivateGalleryDerivativeKind;
+      readonly derivativeKind: "delivery-preview";
       readonly nominalBytes: number;
       readonly width: number;
       readonly height: number;
     }
+  | {
+      readonly kind: "derivative";
+      readonly derivativeKind: "watermarked-proof";
+      readonly nominalBytes: number;
+      readonly width: number;
+      readonly height: number;
+      /** Complete source filename, retained for permanent proof references. */
+      readonly filename: string;
+      /** Stable identity supplied by the owner, distinct from placementId. */
+      readonly mediaId: string;
+    }
   | { readonly kind: "zip"; readonly nominalBytes: number };
 
 /** One planned object: what to upload, and the key the server assigned it. */
-export type PrivateGalleryPlannedObject = {
-  readonly objectKey: string;
-  readonly objectKind: PrivateGalleryObjectKind;
-  readonly nominalBytes: number;
-  /** Absent for the ZIP, which has no rendered geometry. */
-  readonly width?: number;
-  readonly height?: number;
-};
+export type PrivateGalleryPlannedObject =
+  | {
+      readonly objectKey: string;
+      readonly objectKind: "preview";
+      readonly nominalBytes: number;
+      readonly width: number;
+      readonly height: number;
+    }
+  | {
+      readonly objectKey: string;
+      readonly objectKind: "proof";
+      readonly nominalBytes: number;
+      readonly width: number;
+      readonly height: number;
+      readonly filename: string;
+      readonly mediaId: string;
+      /** Opaque server identity; never the visible 001-based reference. */
+      readonly placementId: string;
+    }
+  | {
+      readonly objectKey: string;
+      readonly objectKind: "zip";
+      readonly nominalBytes: number;
+    };
 
 export type PrivateGalleryUploadPlan = {
+  readonly galleryKind: PrivateGalleryKind;
   readonly preparation: PrivateGalleryUploadPreparation;
   readonly objects: readonly PrivateGalleryPlannedObject[];
   readonly totalBytes: number;
@@ -150,6 +180,7 @@ const PREPARABLE_STATES: readonly PrivateGalleryState[] = ["draft", "preparing"]
 
 export type OpenPrivateGalleryUploadPreparationParams = {
   readonly galleryId: string;
+  readonly galleryKind: PrivateGalleryKind;
   readonly state: PrivateGalleryState;
   readonly keyPrefix: string;
   readonly preparationId: string;
@@ -162,8 +193,9 @@ export type OpenPrivateGalleryUploadPreparationParams = {
  * Validates a declared manifest and assigns one opaque key per entry.
  *
  * Returns a plan; commits nothing. The caller writes
- * {@link PrivateGalleryUploadPlan.preparation} and the assigned keys in one
- * transaction, moves the gallery to `preparing`, and only then hands the plan to
+ * {@link PrivateGalleryUploadPlan.preparation}, gallery kind, and the complete
+ * planned-object records in one transaction, moves the gallery to `preparing`,
+ * and only then hands the plan to
  * the CLI.
  *
  * Refuses the **whole** manifest when any entry is bad. A partial plan would
@@ -176,6 +208,7 @@ export function openPrivateGalleryUploadPreparation(
 ): PrivateGalleryUploadPlan {
   const {
     galleryId,
+    galleryKind,
     state,
     keyPrefix,
     preparationId,
@@ -184,6 +217,9 @@ export function openPrivateGalleryUploadPreparation(
     limits = PRIVATE_GALLERY_UPLOAD_LIMITS,
   } = params;
 
+  if (galleryKind !== "delivery" && galleryKind !== "proof") {
+    fail("invalid-parameter", "galleryKind must be delivery or proof");
+  }
   if (!isFiniteDate(now)) {
     fail("invalid-parameter", "now must be a valid date");
   }
@@ -217,6 +253,7 @@ export function openPrivateGalleryUploadPreparation(
 
   let totalBytes = 0;
   let zipCount = 0;
+  const proofMediaIds = new Set<string>();
   const objects: PrivateGalleryPlannedObject[] = [];
 
   for (const entry of manifest) {
@@ -225,6 +262,9 @@ export function openPrivateGalleryUploadPreparation(
     }
 
     if (entry.kind === "zip") {
+      if (galleryKind !== "delivery") {
+        fail("invalid-parameter", "a proof gallery cannot plan a ZIP");
+      }
       zipCount += 1;
       if (zipCount > 1) {
         // §8c: one active ZIP per gallery, named by an atomically-swapped
@@ -250,11 +290,42 @@ export function openPrivateGalleryUploadPreparation(
       continue;
     }
 
+    if (entry.kind !== "derivative") {
+      fail("invalid-parameter", "a manifest entry needs a known kind");
+    }
     if (
       entry.derivativeKind !== "delivery-preview" &&
       entry.derivativeKind !== "watermarked-proof"
     ) {
       fail("invalid-parameter", "a derivative entry needs a known kind");
+    }
+    if (
+      (galleryKind === "proof" && entry.derivativeKind !== "watermarked-proof") ||
+      (galleryKind === "delivery" && entry.derivativeKind !== "delivery-preview")
+    ) {
+      fail("invalid-parameter", "the derivative kind does not match the gallery");
+    }
+    if (entry.derivativeKind === "watermarked-proof") {
+      if (
+        typeof entry.filename !== "string" ||
+        entry.filename.trim().length === 0 ||
+        Buffer.byteLength(entry.filename, "utf8") > 255 ||
+        entry.filename === "." ||
+        entry.filename === ".." ||
+        /[/\\\x00-\x1f\x7f]/.test(entry.filename)
+      ) {
+        fail("invalid-parameter", "a proof needs a usable complete filename");
+      }
+      if (
+        typeof entry.mediaId !== "string" ||
+        entry.mediaId.trim().length === 0 ||
+        Buffer.byteLength(entry.mediaId, "utf8") > 128 ||
+        /[/\\\x00-\x1f\x7f]/.test(entry.mediaId) ||
+        proofMediaIds.has(entry.mediaId)
+      ) {
+        fail("invalid-parameter", "a proof needs a unique stable media identity");
+      }
+      proofMediaIds.add(entry.mediaId);
     }
     if (!isPositiveInteger(entry.width) || !isPositiveInteger(entry.height)) {
       // Declared here rather than discovered later: without them the gallery
@@ -280,19 +351,34 @@ export function openPrivateGalleryUploadPreparation(
     }
 
     totalBytes += entry.nominalBytes;
-    objects.push({
-      objectKey: buildPrivateGalleryObjectKey({
-        keyPrefix,
-        galleryId,
-        kind:
-          entry.derivativeKind === "watermarked-proof" ? "proof" : "preview",
-      }),
-      objectKind:
-        entry.derivativeKind === "watermarked-proof" ? "proof" : "preview",
-      nominalBytes: entry.nominalBytes,
-      width: entry.width,
-      height: entry.height,
-    });
+    if (entry.derivativeKind === "watermarked-proof") {
+      objects.push({
+        objectKey: buildPrivateGalleryObjectKey({
+          keyPrefix,
+          galleryId,
+          kind: "proof",
+        }),
+        objectKind: "proof",
+        nominalBytes: entry.nominalBytes,
+        width: entry.width,
+        height: entry.height,
+        filename: entry.filename,
+        mediaId: entry.mediaId,
+        placementId: randomBytes(16).toString("base64url"),
+      });
+    } else {
+      objects.push({
+        objectKey: buildPrivateGalleryObjectKey({
+          keyPrefix,
+          galleryId,
+          kind: "preview",
+        }),
+        objectKind: "preview",
+        nominalBytes: entry.nominalBytes,
+        width: entry.width,
+        height: entry.height,
+      });
+    }
   }
 
   if (totalBytes > limits.maxTotalBytes) {
@@ -304,6 +390,7 @@ export function openPrivateGalleryUploadPreparation(
 
   const openedAt = new Date(now.getTime());
   return {
+    galleryKind,
     preparation: {
       galleryId,
       preparationId,

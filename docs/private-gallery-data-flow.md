@@ -28,8 +28,11 @@ deployed object store or private database can
 serve one yet.
 
 AB#130 now defines proof-selection values, pure server-side rules and a first-ready
-transition plan checked against verified proof objects. They are not persisted
-or served. A future private database will hold the published
+transition plan checked against verified proof objects. The upload plan retains
+each proof's complete filename, stable media identity and server-minted placement
+identity alongside its opaque object key; after upload verification a pure join
+can form the initial proof placements for that transition. These values are not
+persisted or served. A future private database will hold the published
 included count, integer extra-image unit price and currency, permanent
 gallery-local references with full filenames and stable media identities, a
 revisioned draft, immutable confirmation versions, and notification outbox

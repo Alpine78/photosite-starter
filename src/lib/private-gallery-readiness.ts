@@ -142,8 +142,9 @@ export function evaluatePrivateGalleryReadiness(params: {
     blockers.push("wrong-state");
   }
 
+  const derivativeKind = gallery.kind === "proof" ? "proof" : "preview";
   const hasDerivative = verifiedObjects.some(
-    (object) => object.objectKind === "preview" || object.objectKind === "proof",
+    (object) => object.objectKind === derivativeKind,
   );
   if (!hasDerivative) blockers.push("no-derivatives");
 
