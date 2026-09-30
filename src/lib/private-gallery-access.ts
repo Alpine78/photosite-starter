@@ -91,6 +91,7 @@ import {
   type PrivateGalleryAccessBudgetDecision,
   type PrivateGalleryDeliveryErrorReason,
   type PrivateGalleryMintKind,
+  type PrivateGalleryMintRateDecision,
   type PrivateGalleryMintRequest,
 } from "@/lib/private-gallery-delivery";
 import { presignPrivateGalleryObjectUrl } from "@/lib/private-gallery-signed-url";
@@ -269,6 +270,7 @@ export type PrivateGalleryStores = {
   readonly exchangeStore: PrivateGalleryExchangeStore;
   readonly sessionStore: PrivateGallerySessionStore;
   readonly viewStore: PrivateGalleryViewStore;
+  readonly deliveryStore: PrivateGalleryDeliveryStore;
   readonly keyring: PrivateGalleryCapabilityKeyring;
 };
 
@@ -301,6 +303,7 @@ export function getPrivateGalleryStores(): PrivateGalleryStores {
       exchangeStore: memory.exchangeStore,
       sessionStore: memory.sessionStore,
       viewStore: memory.viewStore,
+      deliveryStore: memory.deliveryStore,
       keyring: memory.keyring,
     };
   }
@@ -529,6 +532,11 @@ export type PrivateGalleryDeliveryStore = {
     galleryId: string,
     objectKey: string,
   ): Promise<PrivateGalleryZipVersion | undefined>;
+  /** One atomic, persisted rolling 60-second counter keyed by session hash. */
+  consumeMintRate(params: {
+    readonly sessionIdHash: string;
+    readonly now: Date;
+  }): Promise<Pick<PrivateGalleryMintRateDecision, "allowed" | "firstRefusalInWindow">>;
   consumeAccessBudget(params: {
     readonly galleryId: string;
     readonly capabilityGeneration: number;
@@ -545,6 +553,7 @@ export type PrivateGalleryMintFailure = {
   readonly reason:
     | PrivateGalleryDeliveryErrorReason
     | "no-object-store"
+    | "mint-rate-limited"
     | "unexpected";
   readonly logWorthy: boolean;
 };
@@ -598,11 +607,17 @@ export type PrivateGalleryMintUrlRequest = {
  * before this function there was no legal way to reach either — the security
  * ordering was implemented and unreachable. That ordering is the point:
  *
- * 1. every **free** check first (state, generation, ownership of the resolved
- *    row, the TTL), so a request that was never going to be authorized cannot
- *    spend a gallery's allowance;
- * 2. then the **atomic** budget consume, which the store owns;
- * 3. then, and only then, the signature.
+ * 1. the object store's own undeliverability first, since no URL can ever be
+ *    produced for it and it must not cost an unknown caller anything to ask;
+ * 2. then the **atomic** per-session mint-rate consume, before any asset
+ *    lookup, so an authorized session cannot repeat unbounded unknown or
+ *    cross-gallery placement/ZIP requests for free — each still causes a
+ *    real store read and reauthorization;
+ * 3. then the remaining **free** checks (state, generation, ownership of the
+ *    resolved row, the TTL), so a request that was never going to be
+ *    authorized cannot spend the gallery's *byte* budget;
+ * 4. then the atomic gallery budget consume, which the store owns;
+ * 5. then, and only then, the signature.
  *
  * A route that did this itself could get the order wrong in a way no test of
  * the individual pieces would catch.
@@ -633,6 +648,29 @@ export async function mintPrivateGalleryAssetUrl(
         };
       }
       throw error;
+    }
+
+    // The per-session mint-rate counter is consumed for *every* asset
+    // request with a valid, freshly-authorized session — including one that
+    // turns out to name an unknown or cross-gallery placement — because the
+    // asset lookup just below and the reauthorization the route already
+    // performed are themselves real store work, which even a holder of a
+    // valid, freshly-authorized session must not get to repeat for free by
+    // naming unknown or cross-gallery placements. Only the object store's own
+    // undeliverability (above) is allowed to skip it, since no URL is ever
+    // produced for it regardless of how many times it is asked.
+    const rate = await deps.deliveryStore.consumeMintRate({
+      sessionIdHash: session.sessionIdHash,
+      now,
+    });
+    if (!rate.allowed) {
+      return {
+        ok: false,
+        failure: {
+          reason: "mint-rate-limited",
+          logWorthy: rate.firstRefusalInWindow,
+        },
+      };
     }
 
     const subject =

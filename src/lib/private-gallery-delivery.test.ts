@@ -10,7 +10,10 @@ import {
   authorizePrivateGalleryMint,
   computePrivateGallerySignedUrlTtlSeconds,
   evaluatePrivateGalleryAccessBudget,
+  evaluatePrivateGalleryMintRate,
   PRIVATE_GALLERY_ACCESS_BUDGET_WINDOW_MS,
+  PRIVATE_GALLERY_MINT_RATE_LIMIT,
+  PRIVATE_GALLERY_MINT_RATE_WINDOW_MS,
   PRIVATE_GALLERY_DEFAULT_PREVIEW_URL_TTL_SECONDS,
   PRIVATE_GALLERY_MAX_PREVIEW_URL_TTL_SECONDS,
   PRIVATE_GALLERY_MAX_ZIP_URL_TTL_SECONDS,
@@ -545,5 +548,53 @@ describe("authorizePrivateGalleryMint", () => {
     expect(authorization.nextBudget.chargedBytes).toBe(
       1000 + PLACEMENT.nominalBytes,
     );
+  });
+});
+
+describe("evaluatePrivateGalleryMintRate", () => {
+  it("accepts 60 attempts in a rolling minute, then refuses without growing the row", () => {
+    let counter;
+    for (let index = 0; index < PRIVATE_GALLERY_MINT_RATE_LIMIT; index += 1) {
+      const decision = evaluatePrivateGalleryMintRate(counter, NOW);
+      expect(decision.allowed).toBe(true);
+      counter = decision.next;
+    }
+    const first = evaluatePrivateGalleryMintRate(counter, NOW);
+    expect(first).toMatchObject({
+      allowed: false,
+      firstRefusalInWindow: true,
+    });
+    expect(first.next.attemptsMs).toHaveLength(PRIVATE_GALLERY_MINT_RATE_LIMIT);
+    expect(evaluatePrivateGalleryMintRate(first.next, NOW)).toMatchObject({
+      allowed: false,
+      firstRefusalInWindow: false,
+    });
+  });
+
+  it("releases capacity when the oldest attempt leaves the rolling window", () => {
+    const first = evaluatePrivateGalleryMintRate(undefined, NOW);
+    const afterWindow = evaluatePrivateGalleryMintRate(
+      first.next,
+      new Date(NOW.getTime() + PRIVATE_GALLERY_MINT_RATE_WINDOW_MS),
+    );
+    expect(afterWindow.allowed).toBe(true);
+    expect(afterWindow.next.attemptsMs).toEqual([
+      NOW.getTime() + PRIVATE_GALLERY_MINT_RATE_WINDOW_MS,
+    ]);
+  });
+
+  it("refuses a malformed persisted counter instead of resetting it", () => {
+    expect(() =>
+      evaluatePrivateGalleryMintRate(
+        { attemptsMs: [NOW.getTime() + 1], refusalReported: false },
+        NOW,
+      ),
+    ).toThrowError(PrivateGalleryDeliveryError);
+    expect(() =>
+      evaluatePrivateGalleryMintRate(
+        { refusalReported: false } as never,
+        NOW,
+      ),
+    ).toThrowError(PrivateGalleryDeliveryError);
   });
 });

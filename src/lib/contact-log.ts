@@ -40,6 +40,7 @@ import { randomUUID } from "node:crypto";
 import type {
   PrivateGalleryAdminFailure,
   PrivateGalleryExchangeFailure,
+  PrivateGalleryMintFailure,
   PrivateGalleryViewFailure,
 } from "@/lib/private-gallery-access";
 import type { ContactDeliveryErrorClass } from "@/lib/contact-delivery";
@@ -90,6 +91,7 @@ type SubmissionEventName =
   | "enquiry.submission"
   | "private-gallery.exchange"
   | "private-gallery.view"
+  | "private-gallery.mint"
   | "private-gallery.admin"
   | "poll.vote";
 
@@ -148,6 +150,21 @@ export type PrivateGalleryViewEvent = {
 };
 
 /**
+ * One private-gallery asset-mint event (AB#29, ADR-0014 §5). Only classified
+ * defects and the first budget refusal are logged; request identifiers, object
+ * keys, session cookies, and signed URLs never enter an event.
+ */
+export type PrivateGalleryMintEvent =
+  | { readonly correlationId: string; readonly state: "accepted" }
+  | {
+      readonly correlationId: string;
+      readonly state: "rejected";
+      readonly errorClass:
+        | PrivateGalleryMintFailure["reason"]
+        | PrivateGalleryViewFailure["reason"];
+    };
+
+/**
  * One poll-vote event (AB#162, ADR-0018). `pollId`/`optionId` never appear —
  * they are not the class the schema names, and this module's own rule is
  * three fields, nothing else. `already-voted` is its own state rather than a
@@ -183,6 +200,7 @@ function writeSubmissionLine(
     | EnquiryErrorClass
     | PrivateGalleryExchangeFailure["reason"]
     | PrivateGalleryViewFailure["reason"]
+    | PrivateGalleryMintFailure["reason"]
     | PrivateGalleryAdminFailure["reason"]
     | PollVoteErrorClass,
 ): void {
@@ -273,6 +291,16 @@ export function logPrivateGalleryViewEvent(
     event.correlationId,
     event.state,
     event.errorClass,
+  );
+}
+
+/** Emits one private-gallery asset-mint event (AB#29). */
+export function logPrivateGalleryMintEvent(event: PrivateGalleryMintEvent): void {
+  writeSubmissionLine(
+    "private-gallery.mint",
+    event.correlationId,
+    event.state,
+    event.state === "rejected" ? event.errorClass : undefined,
   );
 }
 

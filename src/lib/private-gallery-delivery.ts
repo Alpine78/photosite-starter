@@ -294,6 +294,69 @@ export function evaluatePrivateGalleryAccessBudget(
 }
 
 // ---------------------------------------------------------------------------
+// Per-session signed-URL mint rate (ADR-0014 §8e)
+// ---------------------------------------------------------------------------
+
+/** At most 60 eligible mint attempts in any rolling 60-second interval. */
+export const PRIVATE_GALLERY_MINT_RATE_LIMIT = 60;
+export const PRIVATE_GALLERY_MINT_RATE_WINDOW_MS = 60_000;
+
+/**
+ * Persisted per session hash. The bounded timestamp list gives exact rolling
+ * semantics without a clock-boundary burst; the session cap bounds how many
+ * such lists a gallery may hold. An adapter updates it atomically.
+ */
+export type PrivateGalleryMintRateCounter = {
+  readonly attemptsMs: readonly number[];
+  readonly refusalReported: boolean;
+};
+
+export type PrivateGalleryMintRateDecision = {
+  readonly allowed: boolean;
+  readonly firstRefusalInWindow: boolean;
+  readonly next: PrivateGalleryMintRateCounter;
+};
+
+export function evaluatePrivateGalleryMintRate(
+  counter: PrivateGalleryMintRateCounter | undefined,
+  now: Date,
+): PrivateGalleryMintRateDecision {
+  if (!isFiniteDate(now)) {
+    fail("invalid-parameter", "now must be a valid date");
+  }
+  const nowMs = now.getTime();
+  const attempts = counter?.attemptsMs ?? [];
+  if (
+    counter !== undefined &&
+    (typeof counter.refusalReported !== "boolean" ||
+      !Array.isArray(counter.attemptsMs) ||
+      attempts.length > PRIVATE_GALLERY_MINT_RATE_LIMIT ||
+      attempts.some(
+        (at, index) =>
+          !Number.isSafeInteger(at) ||
+          at > nowMs ||
+          (index > 0 && at < attempts[index - 1]),
+      ))
+  ) {
+    fail("malformed-record", "the session mint-rate counter is unusable");
+  }
+
+  const active = attempts.filter(
+    (at) => nowMs - at < PRIVATE_GALLERY_MINT_RATE_WINDOW_MS,
+  );
+  const allowed = active.length < PRIVATE_GALLERY_MINT_RATE_LIMIT;
+  return {
+    allowed,
+    firstRefusalInWindow: !allowed && !(counter?.refusalReported ?? false),
+    next: {
+      attemptsMs: allowed ? [...active, nowMs] : active,
+      // An accepted attempt opens a fresh chance to report a later burst.
+      refusalReported: !allowed,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // The mint decision
 // ---------------------------------------------------------------------------
 

@@ -729,6 +729,10 @@ describe("mintPrivateGalleryAssetUrl", () => {
     return {
       findPlacement: vi.fn(async () => PLACEMENT),
       findZipVersion: vi.fn(async () => ZIP),
+      consumeMintRate: vi.fn(async () => ({
+        allowed: true as const,
+        firstRefusalInWindow: false,
+      })),
       consumeAccessBudget: vi.fn(async () => ({
         allowed: true as const,
         firstRefusalInWindow: false,
@@ -827,9 +831,12 @@ describe("mintPrivateGalleryAssetUrl", () => {
     );
   });
 
-  it("spends nothing when a free check refuses", async () => {
+  it("spends no gallery budget when a free check refuses", async () => {
     // The ordering the composition exists to guarantee: a request that was
-    // never going to be authorized must not consume a gallery's allowance.
+    // never going to be authorized must not consume the gallery's *byte*
+    // budget. The per-session rate counter is still charged — a valid
+    // session repeating this same refused request is exactly the load the
+    // rate limit exists to bound.
     const { outcome, store } = await mint({
       gallery: { ...MINT_GALLERY, state: "access-suspended" },
     });
@@ -837,6 +844,57 @@ describe("mintPrivateGalleryAssetUrl", () => {
     expect(outcome).toEqual({
       ok: false,
       failure: { reason: "gallery-unavailable", logWorthy: false },
+    });
+    expect(store.consumeMintRate).toHaveBeenCalled();
+    expect(store.consumeAccessBudget).not.toHaveBeenCalled();
+  });
+
+  it("charges the per-session rate counter for an unknown or cross-gallery asset", async () => {
+    // The path Codex review round 2 found uncovered: an authorized session
+    // naming an unknown or wrong-gallery placement must still cost that
+    // session one of its 60/min mints, or the counter never moves for an
+    // attacker who only ever sends invalid asset requests.
+    const unknown = await mint({
+      store: deliveryStore({ findPlacement: vi.fn(async () => undefined) }),
+    });
+    expect(unknown.outcome).toMatchObject({
+      ok: false,
+      failure: { reason: "unknown-asset" },
+    });
+    expect(unknown.store.consumeMintRate).toHaveBeenCalledWith({
+      sessionIdHash: "hash",
+      now: NOW,
+    });
+
+    const wrongGallery = await mint({
+      store: deliveryStore({
+        findPlacement: vi.fn(async () => ({ ...PLACEMENT, galleryId: "other" })),
+      }),
+    });
+    expect(wrongGallery.outcome).toMatchObject({
+      ok: false,
+      failure: { reason: "wrong-gallery" },
+    });
+    expect(wrongGallery.store.consumeMintRate).toHaveBeenCalled();
+  });
+
+  it("refuses a per-session rate burst before spending the gallery budget", async () => {
+    const store = deliveryStore({
+      consumeMintRate: vi.fn(async () => ({
+        allowed: false as const,
+        firstRefusalInWindow: true,
+      })),
+    });
+
+    const { outcome } = await mint({ store });
+
+    expect(outcome).toEqual({
+      ok: false,
+      failure: { reason: "mint-rate-limited", logWorthy: true },
+    });
+    expect(store.consumeMintRate).toHaveBeenCalledWith({
+      sessionIdHash: "hash",
+      now: NOW,
     });
     expect(store.consumeAccessBudget).not.toHaveBeenCalled();
   });
@@ -870,6 +928,7 @@ describe("mintPrivateGalleryAssetUrl", () => {
       ok: false,
       failure: { reason: "no-object-store", logWorthy: true },
     });
+    expect(store.consumeMintRate).not.toHaveBeenCalled();
     expect(store.consumeAccessBudget).not.toHaveBeenCalled();
   });
 
