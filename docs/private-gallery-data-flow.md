@@ -17,10 +17,11 @@ contact form and the gallery-item enquiry. The boundary itself is
 the ZIP), AB#145 (administration and the customer notification), AB#130 (proof
 selection).
 
-**Status: the feature serves nothing in any deployment today.**
-`PRIVATE_GALLERY_STORE` is `off` everywhere, no object store or database is
-provisioned, and the routes exist behind that switch. This file describes what a
-provisioned deployment will do, so that the decisions are reviewable *before*
+**Status: no production or preview deployment serves client photographs.**
+`PRIVATE_GALLERY_STORE` is `off` in those deployments; no object store or
+private database is provisioned. The `memory` mode runs only in development
+and serves synthetic metadata through the routes behind that switch. This file
+describes what a provisioned deployment will do, so that the decisions are reviewable *before*
 customer photographs exist rather than after. The per-asset mint route is present
 and tested with a development fixture; it returns a signed object URL only after
 fresh session authorization and a per-session 60-per-minute rate check, but no
@@ -56,10 +57,15 @@ generation, published state and access expiry in the same write as its draft
 CAS. Edit responses include the atomic pricing summary; confirmation responses
 contain only the version, time and quote, never the photographer recipient or
 outbox material. A later database adapter must perform the generation and CAS
-guards in one transaction using database time. No customer proof route consumes
-this facade yet.
+guards in one transaction using database time. A development-only
+`GET`/`POST`/`PUT` proof API now consumes this facade through a second, distinct
+in-memory proof gallery. The link and proof metadata
+are fixtures, never a deployment with customer images. The API returns `no-store`
+JSON and one generic refusal for absent, invalid, expired or wrong-gallery
+access; only a valid holder sees a stale-draft conflict. Confirmation queues
+the frozen message into an in-process outbox, but no request sends email.
 The memory implementation has no cross-process durability or database uniqueness
-guarantees and is not connected to a route. A future private database will
+guarantees; its proof route is a development fixture only. A future private database will
 hold the published included count, integer extra-image unit price and currency, permanent
 gallery-local references with full filenames and stable media identities, a
 revisioned draft, immutable confirmation versions, and notification outbox
@@ -82,9 +88,9 @@ version in the frozen message distinguishes them from later ones.
 The provider's 24-hour idempotency window cannot eliminate duplicate email
 if a send succeeds but its status write is lost and a much later retry runs;
 the immutable confirmation remains the authoritative record. No runtime
-notification is wired: the customer-facing proof route, PostgreSQL outbox
-and scheduler, runtime transport configuration and actual photographer email
-do not exist.
+notification is wired: the production proof store, PostgreSQL outbox and
+scheduler, runtime transport configuration and actual photographer email do
+not exist. The proof customer UI also remains unbuilt.
 
 ## What is held, and why it is different from the contact form
 

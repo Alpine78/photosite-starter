@@ -283,6 +283,8 @@ export type PrivateGalleryStores = {
   readonly sessionStore: PrivateGallerySessionStore;
   readonly viewStore: PrivateGalleryViewStore;
   readonly deliveryStore: PrivateGalleryDeliveryStore;
+  readonly proofStore: PrivateGalleryProofStore;
+  readonly proofNotification: () => PrivateGalleryProofNotificationContext;
   readonly keyring: PrivateGalleryCapabilityKeyring;
 };
 
@@ -316,6 +318,8 @@ export function getPrivateGalleryStores(): PrivateGalleryStores {
       sessionStore: memory.sessionStore,
       viewStore: memory.viewStore,
       deliveryStore: memory.deliveryStore,
+      proofStore: memory.proofStore,
+      proofNotification: memory.proofNotification,
       keyring: memory.keyring,
     };
   }
@@ -518,7 +522,7 @@ export async function listPrivateGalleryItems(
  * One customer proof read. The existing session check runs first, then the raw
  * proof store is addressed only by the gallery id that session authorized.
  * Every refusal has the same value; a future route must render it identically.
- * No proof store is wired into runtime routes yet.
+ * The development fixture route consumes this facade; production remains off.
  */
 export async function readAuthorizedPrivateGalleryProofPage(
   deps: PrivateGalleryViewDeps & { readonly proofStore: PrivateGalleryProofStore },

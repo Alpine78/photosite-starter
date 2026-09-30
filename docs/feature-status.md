@@ -1208,8 +1208,18 @@ stale selection after the view lookup. The edit result includes the quote
 calculated atomically from the frozen pricing; confirmation returns only safe
 version and summary fields. A stale draft or locked selection is a conflict
 only after authorization; expired or superseded access has one generic refusal.
-No PostgreSQL proof store, customer routes, durable outbox worker, runtime
-mail wiring or customer workflow exists yet.
+A development-only proof fixture now joins the existing delivery fixture
+under `PRIVATE_GALLERY_STORE=memory`: it has a distinct shareable link, two
+watermarked proof placements with permanent references, frozen pricing and its
+own process-local proof store. The new `/<private-prefix>/<handle>/proof` API
+reads a session-authorized, browser-safe proof page and accepts revisioned
+selection edits and confirmations; it responds with `no-store`, one generic
+unauthorized refusal, and a conflict only for an authorized stale or locked
+draft. A confirmation queues one pending photographer message in memory; no
+transport dispatches it at request time. The development fixture serves no
+object bytes and cannot run in Production or Preview.
+No PostgreSQL proof store, proof customer UI, durable outbox worker, runtime
+mail wiring or production customer workflow exists yet.
 
 Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no production store
 adapter and no provisioned infrastructure**, so an `enabled` deployment throws on the

@@ -230,7 +230,9 @@ function PrivateGalleryView({
           </time>
         </p>
       )}
-      <p className="text-body">{labels.deliveryPending}</p>
+      <p className="text-body">
+        {gallery.kind === "proof" ? labels.proofPending : labels.deliveryPending}
+      </p>
       <PrivateGalleryGrid items={items} emptyLabel={labels.noPhotographs} />
     </main>
   );

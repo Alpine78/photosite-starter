@@ -118,6 +118,8 @@ export type BuiltInLabels = {
      * photographs land.
      */
     readonly deliveryPending: string;
+    /** The proof selection page is not yet built. */
+    readonly proofPending: string;
     /** A published gallery that genuinely holds nothing — a real state, not an error. */
     readonly noPhotographs: string;
   };
@@ -499,6 +501,7 @@ const englishLabels = {
     accessUntil: "This gallery stays available until {date}.",
     deliveryPending:
       "Your photographs are not available for viewing here yet.",
+    proofPending: "Proof selection is not available on this page yet.",
     noPhotographs: "This gallery does not contain any photographs.",
   },
   proofConfirmationEmail: {
@@ -706,6 +709,7 @@ const finnishLabels = {
     galleryHeading: "Galleriasi",
     accessUntil: "Galleria on käytettävissä {date} asti.",
     deliveryPending: "Valokuvasi eivät ole vielä katseltavissa täällä.",
+    proofPending: "Vedosvalinta ei ole vielä käytettävissä tällä sivulla.",
     noPhotographs: "Tässä galleriassa ei ole valokuvia.",
   },
   proofConfirmationEmail: {
