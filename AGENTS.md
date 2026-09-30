@@ -1315,8 +1315,10 @@ from verified watermarked objects. The upload plan retains complete filename,
 stable media identity and opaque placement identity, and a verified-object join
 forms the initial placement rows. A pure confirmation-email projection includes
 the required references, filenames, counts and amounts, using shared exact
-currency formatting. No proof-selection store, routes, durable outbox, email
-transport or customer workflow exists yet.
+currency formatting. A server-only gallery notification transport now validates
+one recipient per attempt and reuses the existing Resend HTTP provider core;
+the contact path keeps its fixed configured recipient. No proof-selection store,
+routes, durable outbox, runtime mail wiring or customer workflow exists yet.
 
 Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no store
 adapter and no provisioned infrastructure**, so an `enabled` deployment throws on the

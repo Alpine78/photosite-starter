@@ -39,8 +39,13 @@ revisioned draft, immutable confirmation versions, and notification outbox
 attempts. A pure server-only projection now prepares a plain-text photographer
 notification from one immutable confirmation, including every selected reference
 and complete filename; a shared exact formatter presents integer minor-unit
-amounts in the owner's currency and locale. The customer-facing proof route,
-durable outbox, mail transport and actual photographer email do not exist.
+amounts in the owner's currency and locale. A server-only Resend gallery transport
+now accepts one validated recipient per queued attempt and shares the existing
+contact path's HTTP provider behavior. Its attempt key is distinct from the
+contact path's; the future outbox must keep a key on automatic retry and mint a
+new one for an administrator resend. No gallery notification is wired to send:
+the customer-facing proof route, durable outbox, runtime transport configuration
+and actual photographer email do not exist.
 
 ## What is held, and why it is different from the contact form
 

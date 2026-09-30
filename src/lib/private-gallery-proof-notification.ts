@@ -12,10 +12,9 @@ import "server-only";
 
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import {
-  CONTACT_EMAIL_MAX_LOCAL_PART_OCTETS,
-  CONTACT_FIELD_MAX_LENGTHS,
-  EMAIL_SHAPE,
-} from "@/lib/contact-message";
+  isValidGalleryNotificationIdempotencyKey,
+  isValidGalleryNotificationRecipient,
+} from "@/lib/gallery-notification";
 import {
   isPrivateGalleryProofFilename,
   isPrivateGalleryProofMediaId,
@@ -66,18 +65,6 @@ function validBusinessReference(value: unknown): value is string {
     value.trim().length > 0 &&
     Buffer.byteLength(value, "utf8") <= 128 &&
     !SINGLE_LINE_CONTROL.test(value)
-  );
-}
-
-function validRecipient(value: unknown): value is string {
-  if (
-    typeof value !== "string" ||
-    Buffer.byteLength(value, "utf8") > CONTACT_FIELD_MAX_LENGTHS.email ||
-    !EMAIL_SHAPE.test(value)
-  ) return false;
-  return (
-    Buffer.byteLength(value.slice(0, value.indexOf("@")), "utf8") <=
-    CONTACT_EMAIL_MAX_LOCAL_PART_OCTETS
   );
 }
 
@@ -152,14 +139,13 @@ export function buildPrivateGalleryProofNotification(params: {
     labels,
   } = params;
 
-  if (!validRecipient(recipient)) fail("invalid-recipient");
+  if (!isValidGalleryNotificationRecipient(recipient)) fail("invalid-recipient");
   if (
     !validBusinessReference(galleryReference) ||
     !validBusinessReference(customerReference)
   ) fail("invalid-reference");
   if (
-    typeof outboxIdempotencyKey !== "string" ||
-    !/^[A-Za-z0-9:_-]{1,200}$/.test(outboxIdempotencyKey)
+    !isValidGalleryNotificationIdempotencyKey(outboxIdempotencyKey)
   ) fail("invalid-idempotency-key");
   if (!validSnapshot(confirmation)) fail("invalid-confirmation");
   if (
