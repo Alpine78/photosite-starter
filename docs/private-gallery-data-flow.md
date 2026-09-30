@@ -36,7 +36,11 @@ persisted or served. A future private database will hold the published
 included count, integer extra-image unit price and currency, permanent
 gallery-local references with full filenames and stable media identities, a
 revisioned draft, immutable confirmation versions, and notification outbox
-attempts. The customer-facing proof route and photographer email do not exist.
+attempts. A pure server-only projection now prepares a plain-text photographer
+notification from one immutable confirmation, including every selected reference
+and complete filename; a shared exact formatter presents integer minor-unit
+amounts in the owner's currency and locale. The customer-facing proof route,
+durable outbox, mail transport and actual photographer email do not exist.
 
 ## What is held, and why it is different from the contact form
 

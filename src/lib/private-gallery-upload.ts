@@ -56,6 +56,10 @@ import {
 } from "@/lib/private-gallery-limits";
 import { buildPrivateGalleryObjectKey } from "@/lib/private-gallery-object-key";
 import { PRIVATE_GALLERY_MAX_PREPARATION_DAYS } from "@/lib/private-gallery-retention";
+import {
+  isPrivateGalleryProofFilename,
+  isPrivateGalleryProofMediaId,
+} from "@/lib/private-gallery-proof";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -306,21 +310,11 @@ export function openPrivateGalleryUploadPreparation(
       fail("invalid-parameter", "the derivative kind does not match the gallery");
     }
     if (entry.derivativeKind === "watermarked-proof") {
-      if (
-        typeof entry.filename !== "string" ||
-        entry.filename.trim().length === 0 ||
-        Buffer.byteLength(entry.filename, "utf8") > 255 ||
-        entry.filename === "." ||
-        entry.filename === ".." ||
-        /[/\\\x00-\x1f\x7f]/.test(entry.filename)
-      ) {
+      if (!isPrivateGalleryProofFilename(entry.filename)) {
         fail("invalid-parameter", "a proof needs a usable complete filename");
       }
       if (
-        typeof entry.mediaId !== "string" ||
-        entry.mediaId.trim().length === 0 ||
-        Buffer.byteLength(entry.mediaId, "utf8") > 128 ||
-        /[/\\\x00-\x1f\x7f]/.test(entry.mediaId) ||
+        !isPrivateGalleryProofMediaId(entry.mediaId) ||
         proofMediaIds.has(entry.mediaId)
       ) {
         fail("invalid-parameter", "a proof needs a unique stable media identity");

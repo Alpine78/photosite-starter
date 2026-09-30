@@ -80,6 +80,32 @@ function positiveInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && (value as number) > 0;
 }
 
+/**
+ * One complete local filename, never a path. Upload, reference assignment and
+ * notification use the same check so a proof accepted at preparation cannot
+ * become un-notifiable after confirmation.
+ */
+export function isPrivateGalleryProofFilename(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    Buffer.byteLength(value, "utf8") <= 255 &&
+    value !== "." &&
+    value !== ".." &&
+    !/[/\\\x00-\x1f\x7f-\x9f\u2028\u2029]/u.test(value)
+  );
+}
+
+/** A stable gallery-local media identity, kept out of paths and log lines. */
+export function isPrivateGalleryProofMediaId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    Buffer.byteLength(value, "utf8") <= 128 &&
+    !/[/\\\x00-\x1f\x7f-\x9f\u2028\u2029]/u.test(value)
+  );
+}
+
 /** Validate terms before publication; the store freezes the returned copy. */
 export function validatePrivateGalleryProofPricing(
   pricing: PrivateGalleryProofPricing,
@@ -142,10 +168,8 @@ function validatePlacements(
   for (const item of placements) {
     if (
       item.derivativeKind !== "watermarked-proof" ||
-      typeof item.filename !== "string" ||
-      item.filename.length === 0 ||
-      typeof item.mediaId !== "string" ||
-      item.mediaId.length === 0 ||
+      !isPrivateGalleryProofFilename(item.filename) ||
+      !isPrivateGalleryProofMediaId(item.mediaId) ||
       typeof item.placementId !== "string" ||
       item.placementId.length === 0 ||
       typeof item.galleryId !== "string" ||

@@ -128,6 +128,7 @@ describe("openPrivateGalleryUploadPreparation", () => {
       proof({ filename: "../secret.jpg" }),
       proof({ filename: "bad\\name.jpg" }),
       proof({ filename: "bad\nname.jpg" }),
+      proof({ filename: "bad\u2028name.jpg" }),
       proof({ filename: " " }),
       proof({ filename: "a".repeat(256) }),
       proof({ mediaId: "bad/id" }),

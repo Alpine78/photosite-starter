@@ -121,6 +121,22 @@ export type BuiltInLabels = {
     /** A published gallery that genuinely holds nothing — a real state, not an error. */
     readonly noPhotographs: string;
   };
+  /** Photographer-facing AB#130 confirmation notice, in the owner locale. */
+  readonly proofConfirmationEmail: {
+    readonly subject: string;
+    readonly galleryReference: string;
+    readonly customerReference: string;
+    readonly confirmedAt: string;
+    readonly version: string;
+    readonly includedCount: string;
+    readonly selectedCount: string;
+    readonly extraCount: string;
+    readonly unitPrice: string;
+    readonly currency: string;
+    readonly extraTotal: string;
+    readonly selectedImages: string;
+    readonly noneSelected: string;
+  };
   /**
    * The administrator boundary (ADR-0015). Operator-facing rather than
    * visitor-facing, and localized anyway: a clone's operator may not read
@@ -485,6 +501,21 @@ const englishLabels = {
       "Your photographs are not available for viewing here yet.",
     noPhotographs: "This gallery does not contain any photographs.",
   },
+  proofConfirmationEmail: {
+    subject: "Proof selection confirmed",
+    galleryReference: "Gallery reference",
+    customerReference: "Customer reference",
+    confirmedAt: "Confirmed at",
+    version: "Version",
+    includedCount: "Included images",
+    selectedCount: "Selected images",
+    extraCount: "Extra images",
+    unitPrice: "Price per extra image",
+    currency: "Currency",
+    extraTotal: "Extra-image total",
+    selectedImages: "Selected photographs",
+    noneSelected: "No photographs selected",
+  },
   privateGalleryAdmin: {
     title: "Administration",
     signInHeading: "Sign in",
@@ -676,6 +707,21 @@ const finnishLabels = {
     accessUntil: "Galleria on käytettävissä {date} asti.",
     deliveryPending: "Valokuvasi eivät ole vielä katseltavissa täällä.",
     noPhotographs: "Tässä galleriassa ei ole valokuvia.",
+  },
+  proofConfirmationEmail: {
+    subject: "Vedosvalinta vahvistettu",
+    galleryReference: "Gallerian viite",
+    customerReference: "Asiakkaan viite",
+    confirmedAt: "Vahvistettu",
+    version: "Versio",
+    includedCount: "Pakettiin kuuluvat kuvat",
+    selectedCount: "Valitut kuvat",
+    extraCount: "Lisäkuvat",
+    unitPrice: "Lisäkuvan yksikköhinta",
+    currency: "Valuutta",
+    extraTotal: "Lisäkuvien yhteissumma",
+    selectedImages: "Valitut valokuvat",
+    noneSelected: "Ei valittuja valokuvia",
   },
   privateGalleryAdmin: {
     title: "Hallinta",

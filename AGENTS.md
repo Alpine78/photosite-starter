@@ -1308,13 +1308,15 @@ for an authorized gallery-link/session holder — restoring the `private or
 sales/fulfilment` clause that exception must not weaken. AB#29 (delivery + ZIP) builds on
 it in slices and stays **Active**; **AB#145** (administration and customer notification,
 split out of AB#29 on 2026-09-02) remains Active. AB#130 (proof selection)
-is Active with an initial server-only domain slice: pricing in integer minor units,
-natural complete-filename reference assignment with a persisted high-water mark
-contract for later additions, draft revision checks, and versioned confirmation
-planning in src/lib/private-gallery-proof.ts. The next pure slice plans the first
-ready transition from the complete, verified proof set and validates the frozen
-pricing and assigned references in src/lib/private-gallery-readiness.ts. No
-proof-selection store, routes, email or customer workflow exists yet.
+is Active with server-only domain rules: pricing in integer minor units, natural
+complete-filename reference assignment with a persisted high-water mark contract,
+draft revision checks, versioned confirmation planning, and a first-ready transition
+from verified watermarked objects. The upload plan retains complete filename,
+stable media identity and opaque placement identity, and a verified-object join
+forms the initial placement rows. A pure confirmation-email projection includes
+the required references, filenames, counts and amounts, using shared exact
+currency formatting. No proof-selection store, routes, durable outbox, email
+transport or customer workflow exists yet.
 
 Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no store
 adapter and no provisioned infrastructure**, so an `enabled` deployment throws on the
