@@ -1307,7 +1307,12 @@ canonical-rule change it makes is a scoped exception to "Public derivatives only
 for an authorized gallery-link/session holder — restoring the `private or
 sales/fulfilment` clause that exception must not weaken. AB#29 (delivery + ZIP) builds on
 it in slices and stays **Active**; **AB#145** (administration and customer notification,
-split out of AB#29 on 2026-09-02) and AB#130 (proof selection) have not started.
+split out of AB#29 on 2026-09-02) remains Active. AB#130 (proof selection)
+is Active with an initial server-only domain slice: pricing in integer minor units,
+natural complete-filename reference assignment with a persisted high-water mark
+contract for later additions, draft revision checks, and versioned confirmation
+planning in src/lib/private-gallery-proof.ts. No proof-selection store, routes,
+email or customer workflow exists yet.
 
 Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no store
 adapter and no provisioned infrastructure**, so an `enabled` deployment throws on the

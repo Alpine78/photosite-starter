@@ -27,6 +27,13 @@ fresh session authorization and a per-session 60-per-minute rate check, but no
 deployed object store or private database can
 serve one yet.
 
+AB#130 now defines proof-selection values and pure server-side rules, but they are
+not persisted or served. A future private database will hold the published
+included count, integer extra-image unit price and currency, permanent
+gallery-local references with full filenames and stable media identities, a
+revisioned draft, immutable confirmation versions, and notification outbox
+attempts. The customer-facing proof route and photographer email do not exist.
+
 ## What is held, and why it is different from the contact form
 
 The contact form collects three fields a visitor typed. A private gallery holds
