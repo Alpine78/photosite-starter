@@ -20,6 +20,7 @@ import type {
   PrivateGalleryProofConfirmation,
   PrivateGalleryProofDraft,
   PrivateGalleryProofPricing,
+  PrivateGalleryProofSummary,
 } from "@/lib/private-gallery-proof";
 
 export type PrivateGalleryProofOutboxRecord = Omit<PrivateGalleryOutboxRecord, "kind"> & {
@@ -95,13 +96,17 @@ export type PrivateGalleryProofStore = {
   }): Promise<PrivateGalleryProofOutboxRecord>;
   editDraft(params: {
     readonly galleryId: string;
+    /** Must match the gallery generation in the same atomic write as the draft CAS. */
+    readonly expectedCapabilityGeneration: number;
     readonly expectedRevision: number;
     readonly selectedReferences: readonly string[];
     readonly now: Date;
-  }): Promise<PrivateGalleryProofDraft>;
+  }): Promise<{ readonly draft: PrivateGalleryProofDraft; readonly summary: PrivateGalleryProofSummary }>;
   /** Conditional draft lock + snapshot + unique initial outbox insert. */
   confirm(params: {
     readonly galleryId: string;
+    /** Must match the gallery generation in the confirmation transaction. */
+    readonly expectedCapabilityGeneration: number;
     readonly expectedRevision: number;
     readonly now: Date;
     readonly notification: PrivateGalleryProofNotificationContext;

@@ -49,6 +49,15 @@ count, session value, recipient or outbox content crosses that projection. A
 malformed row refuses the whole view. The in-process reference store supplies
 the draft and current confirmation together; a future database adapter must
 use one consistent read and bounded page and selected-row queries.
+The customer write facade checks same-origin JSON requests and a streamed 64 KiB
+limit before accepting a revisioned edit or confirmation. It reauthorizes the
+session on each request; the store then checks that session's capability
+generation, published state and access expiry in the same write as its draft
+CAS. Edit responses include the atomic pricing summary; confirmation responses
+contain only the version, time and quote, never the photographer recipient or
+outbox material. A later database adapter must perform the generation and CAS
+guards in one transaction using database time. No customer proof route consumes
+this facade yet.
 The memory implementation has no cross-process durability or database uniqueness
 guarantees and is not connected to a route. A future private database will
 hold the published included count, integer extra-image unit price and currency, permanent

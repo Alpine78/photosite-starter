@@ -1199,7 +1199,15 @@ selection and pricing summary; confirmed review data comes from the immutable
 snapshot, so a later placement removal cannot rewrite the accepted selection.
 Malformed rows refuse the whole view. The development store reads draft and
 current confirmation together in-process; a database adapter still needs a
-consistent read and bounded page and selected-row queries.
+consistent read and bounded page and selected-row queries. A server-only
+customer mutation facade now checks JSON request provenance, method and streamed
+64 KiB body limit, freshly authorizes the session, then edits or confirms by
+draft revision. The store also compares the session capability generation with
+the published gallery in the same write, so a replaced link cannot submit a
+stale selection after the view lookup. The edit result includes the quote
+calculated atomically from the frozen pricing; confirmation returns only safe
+version and summary fields. A stale draft or locked selection is a conflict
+only after authorization; expired or superseded access has one generic refusal.
 No PostgreSQL proof store, customer routes, durable outbox worker, runtime
 mail wiring or customer workflow exists yet.
 

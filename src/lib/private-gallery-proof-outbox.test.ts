@@ -41,10 +41,10 @@ async function ready() {
       height: 800,
     }],
   });
-  await store.editDraft({
+  await store.editDraft({ expectedCapabilityGeneration: 1,
     galleryId: GALLERY_ID, expectedRevision: 0, selectedReferences: ["001"], now: NOW,
   });
-  const { outbox } = await store.confirm({
+  const { outbox } = await store.confirm({ expectedCapabilityGeneration: 1,
     galleryId: GALLERY_ID,
     expectedRevision: 1,
     now: NOW,

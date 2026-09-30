@@ -104,7 +104,13 @@ import {
   projectPrivateGalleryProofView,
   type PrivateGalleryProofView,
 } from "@/lib/private-gallery-proof-view";
-import type { PrivateGalleryProofStore } from "@/lib/private-gallery-proof-store";
+import type { PrivateGalleryProofNotificationContext, PrivateGalleryProofStore } from "@/lib/private-gallery-proof-store";
+import { PrivateGalleryProofError, type PrivateGalleryProofSummary } from "@/lib/private-gallery-proof";
+import { checkContactRequestHeaders, readBoundedBody } from "@/lib/contact-request";
+import {
+  PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY,
+  PRIVATE_GALLERY_DEFAULT_MAX_PROOF_SELECTION_BODY_BYTES,
+} from "@/lib/private-gallery-limits";
 import {
   PRIVATE_GALLERY_ITEM_LIMITS,
   projectPrivateGalleryItems,
@@ -542,6 +548,139 @@ export async function readAuthorizedPrivateGalleryProofPage(
     // A malformed proof row and every failed authorization produce no browser
     // payload. A route must not turn these classes into different responses.
     return undefined;
+  }
+}
+
+/** A result safe for a future no-store proof mutation endpoint to serialize. */
+export type PrivateGalleryProofMutationOutcome =
+  | {
+      readonly ok: true;
+      readonly action: "edit";
+      readonly revision: number;
+      readonly selectedReferences: readonly string[];
+      readonly summary: PrivateGalleryProofSummary;
+    }
+  | {
+      readonly ok: true;
+      readonly action: "confirm";
+      readonly revision: number;
+      readonly confirmationVersion: number;
+      readonly confirmedAt: string;
+      readonly summary: PrivateGalleryProofSummary;
+    }
+  | { readonly ok: false; readonly reason: "refused" | "conflict" };
+
+type PrivateGalleryProofMutationInput =
+  | { readonly action: "edit"; readonly expectedRevision: number; readonly selectedReferences: readonly string[] }
+  | { readonly action: "confirm"; readonly expectedRevision: number };
+
+const PROOF_REFERENCE = /^(?:00[1-9]|0[1-9][0-9]|[1-9][0-9]{2,})$/;
+
+function parseProofMutationInput(raw: string): PrivateGalleryProofMutationInput | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  if (!Number.isSafeInteger(record.expectedRevision) || (record.expectedRevision as number) < 0) {
+    return undefined;
+  }
+  const keys = Object.keys(record).sort();
+  if (record.action === "confirm" &&
+      keys.join(",") === "action,expectedRevision") {
+    return { action: "confirm", expectedRevision: record.expectedRevision as number };
+  }
+  if (record.action !== "edit" ||
+      keys.join(",") !== "action,expectedRevision,selectedReferences" ||
+      !Array.isArray(record.selectedReferences) ||
+      record.selectedReferences.length > PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY ||
+      !record.selectedReferences.every((reference: unknown) =>
+        typeof reference === "string" && PROOF_REFERENCE.test(reference))) {
+    return undefined;
+  }
+  return {
+    action: "edit",
+    expectedRevision: record.expectedRevision as number,
+    selectedReferences: record.selectedReferences,
+  };
+}
+
+/**
+ * Customer mutation boundary. It checks request provenance before any stateful
+ * work, re-authorizes the session on every call, then lets the store compare
+ * the capability generation in the same transaction as the draft CAS.
+ *
+ * A route must serialize every `refused` outcome identically with no-store
+ * headers. `conflict` is available only after authorization, for a stale draft
+ * or a locked one. A future route supplies the notification context from
+ * server-owned configuration, never from the customer request body.
+ */
+export async function mutateAuthorizedPrivateGalleryProofSelection(
+  deps: PrivateGalleryViewDeps & {
+    readonly proofStore: PrivateGalleryProofStore;
+    readonly notification: PrivateGalleryProofNotificationContext;
+  },
+  request: Request,
+  params: { readonly handle: string; readonly clock: () => Date },
+): Promise<PrivateGalleryProofMutationOutcome> {
+  const refused = { ok: false, reason: "refused" } as const;
+  if (
+    (request.method !== "POST" && request.method !== "PUT") ||
+    checkContactRequestHeaders(request) !== undefined ||
+    !isPrivateGalleryHandle(params.handle)
+  ) return refused;
+
+  try {
+    const authorized = await authorizePrivateGalleryView(deps, {
+      handle: params.handle,
+      cookieHeader: request.headers.get("cookie"),
+      now: params.clock(),
+    });
+    if (!authorized.authorized || authorized.gallery.kind !== "proof") return refused;
+
+    // Body IO follows authorization. `readBoundedBody` checks actual streamed
+    // bytes, including when Content-Length is absent or dishonest.
+    const raw = await readBoundedBody(
+      request, PRIVATE_GALLERY_DEFAULT_MAX_PROOF_SELECTION_BODY_BYTES,
+    );
+    if (raw === undefined) return refused;
+    const input = parseProofMutationInput(raw);
+    if (input === undefined) return refused;
+
+    const common = {
+      galleryId: authorized.gallery.galleryId,
+      expectedCapabilityGeneration: authorized.session.capabilityGeneration,
+      expectedRevision: input.expectedRevision,
+      // Read the clock again after bounded body IO; an access window can end
+      // while a slow request uploads its selection. SQL uses database time.
+      now: params.clock(),
+    };
+    if (input.action === "edit") {
+      const result = await deps.proofStore.editDraft({
+        ...common,
+        selectedReferences: input.selectedReferences,
+      });
+      return {
+        ok: true, action: "edit", revision: result.draft.revision,
+        selectedReferences: result.draft.selectedReferences, summary: result.summary,
+      };
+    }
+    const result = await deps.proofStore.confirm({ ...common, notification: deps.notification });
+    return {
+      ok: true, action: "confirm", revision: result.draft.revision,
+      confirmationVersion: result.confirmation.version,
+      confirmedAt: result.confirmation.confirmedAt.toISOString(),
+      summary: result.confirmation.summary,
+    };
+  } catch (error) {
+    if (error instanceof PrivateGalleryProofError &&
+        (error.reason === "stale-revision" || error.reason === "already-confirmed")) {
+      return { ok: false, reason: "conflict" };
+    }
+    return refused;
   }
 }
 

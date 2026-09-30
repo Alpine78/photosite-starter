@@ -13,8 +13,11 @@ import {
   listPrivateGalleryItems,
   mintPrivateGalleryAssetUrl,
   readAuthorizedPrivateGalleryProofPage,
+  mutateAuthorizedPrivateGalleryProofSelection,
 } from "@/lib/private-gallery-access";
 import { PRIVATE_GALLERY_ITEM_LIMITS } from "@/lib/private-gallery-item";
+import { getBuiltInLabels } from "@/lib/deployment-config";
+import { PRIVATE_GALLERY_DEFAULT_MAX_PROOF_SELECTION_BODY_BYTES } from "@/lib/private-gallery-limits";
 import { createPrivateGalleryProofMemoryStore } from "@/lib/private-gallery-proof-memory-store";
 import {
   generateCapabilitySecret,
@@ -1077,5 +1080,167 @@ describe("readAuthorizedPrivateGalleryProofPage", () => {
     f.read.mockResolvedValueOnce({ ...state!,
       gallery: { ...f.gallery, capabilityGeneration: 5 } });
     await expect(readAuthorizedPrivateGalleryProofPage(f.deps, f.request)).resolves.toBeUndefined();
+  });
+});
+
+describe("mutateAuthorizedPrivateGalleryProofSelection", () => {
+  async function fixture(options: { storeGeneration?: number; storeExpiresAt?: Date } = {}) {
+    const f = await viewFixture({ gallery: { kind: "proof" } });
+    const proofStore = createPrivateGalleryProofMemoryStore({
+      gallery: {
+        ...f.gallery,
+        capabilityGeneration: options.storeGeneration ?? f.gallery.capabilityGeneration,
+        accessExpiresAt: options.storeExpiresAt ?? f.gallery.accessExpiresAt,
+      },
+      pricingSnapshot: { includedCount: 0, extraUnitPriceMinor: 500, currency: "EUR" },
+      placements: [{
+        galleryId: f.gallery.galleryId,
+        placementId: "placement-1", mediaId: "media-1", filename: "IMG_0001.JPG",
+        reference: "001", objectKey: "private/gallery/1", derivativeKind: "watermarked-proof",
+        order: 0, nominalBytes: 1000, width: 1200, height: 800,
+      }],
+    });
+    const edit = vi.spyOn(proofStore, "editDraft");
+    const confirm = vi.spyOn(proofStore, "confirm");
+    const notification = {
+      recipient: "owner@example.test",
+      galleryReference: "job-42",
+      customerReference: "customer-17",
+      locale: "en-GB",
+      labels: getBuiltInLabels("en-GB").proofConfirmationEmail,
+    };
+    return { ...f, proofStore, edit, confirm, deps: { ...f.deps, proofStore, notification } };
+  }
+
+  function request(f: { header: string }, body: unknown, options: {
+    method?: string; origin?: string | null; contentType?: string; cookie?: string | null;
+    fetchSite?: string;
+  } = {}) {
+    const headers = new Headers({
+      "content-type": options.contentType ?? "application/json",
+      host: "photos.example.test",
+    });
+    if (options.origin !== null) headers.set("origin", options.origin ?? "https://photos.example.test");
+    headers.set("sec-fetch-site", options.fetchSite ?? "same-origin");
+    if (options.cookie !== null) headers.set("cookie", options.cookie ?? f.header);
+    return new Request("https://photos.example.test/private-gallery/handle/proof", {
+      method: options.method ?? "POST",
+      headers,
+      body: typeof body === "string" ? body : JSON.stringify(body),
+    });
+  }
+
+  async function run(f: Awaited<ReturnType<typeof fixture>>, body: unknown, options?: Parameters<typeof request>[2]) {
+    return mutateAuthorizedPrivateGalleryProofSelection(
+      f.deps, request(f, body, options), { handle: f.gallery.galleryHandle, clock: () => NOW },
+    );
+  }
+
+  it("returns the atomically priced edit and a safe confirmation while queuing one email", async () => {
+    const f = await fixture();
+    const edit = await run(f, { action: "edit", expectedRevision: 0, selectedReferences: ["001"] });
+    expect(edit).toEqual({
+      ok: true, action: "edit", revision: 1, selectedReferences: ["001"],
+      summary: { includedCount: 0, extraUnitPriceMinor: 500, currency: "EUR",
+        selectedCount: 1, extraCount: 1, extraTotalMinor: 500 },
+    });
+    expect(f.edit).toHaveBeenCalledExactlyOnceWith({
+      galleryId: f.gallery.galleryId, expectedCapabilityGeneration: 3,
+      expectedRevision: 0, selectedReferences: ["001"], now: NOW,
+    });
+    const confirmed = await run(f, { action: "confirm", expectedRevision: 1 }, { method: "PUT" });
+    expect(confirmed).toMatchObject({
+      ok: true, action: "confirm", revision: 2, confirmationVersion: 1,
+      confirmedAt: NOW.toISOString(), summary: { selectedCount: 1, extraTotalMinor: 500 },
+    });
+    expect(f.confirm).toHaveBeenCalledExactlyOnceWith({
+      galleryId: f.gallery.galleryId, expectedCapabilityGeneration: 3,
+      expectedRevision: 1, now: NOW, notification: f.deps.notification,
+    });
+    expect((await f.proofStore.read(f.gallery.galleryId))?.latestConfirmationVersion).toBe(1);
+    expect(await f.proofStore.readOutbox(f.gallery.galleryId, `proof-confirmation:${f.gallery.galleryId}:1`))
+      .toMatchObject({ kind: "proof-confirmation", state: "pending", confirmationVersion: 1 });
+    expect(JSON.stringify([edit, confirmed])).not.toMatch(/owner@example|customer-17|media-1|private\/gallery|outbox|galleryId/);
+    await expect(run(f, { action: "confirm", expectedRevision: 2 })).resolves
+      .toEqual({ ok: false, reason: "conflict" });
+    expect((await f.proofStore.read(f.gallery.galleryId))?.latestConfirmationVersion).toBe(1);
+  });
+
+  it("refuses untrusted requests before body reading or store mutation", async () => {
+    const f = await fixture();
+    const body = { action: "edit", expectedRevision: 0, selectedReferences: ["001"] };
+    const cases: Parameters<typeof request>[2][] = [
+      { origin: null }, { origin: "https://attacker.test" },
+      { fetchSite: "cross-site" }, { contentType: "text/plain" },
+      { method: "DELETE" }, { cookie: null },
+    ];
+    for (const options of cases) {
+      const input = request(f, body, options);
+      await expect(mutateAuthorizedPrivateGalleryProofSelection(
+        f.deps, input, { handle: f.gallery.galleryHandle, clock: () => NOW },
+      )).resolves.toEqual({ ok: false, reason: "refused" });
+      expect(input.bodyUsed).toBe(false);
+    }
+    expect(f.edit).not.toHaveBeenCalled();
+    expect(f.confirm).not.toHaveBeenCalled();
+  });
+
+  it("refuses malformed, oversized, unknown and duplicate selection without a write", async () => {
+    const f = await fixture();
+    const invalid = [
+      "{", " ".repeat(PRIVATE_GALLERY_DEFAULT_MAX_PROOF_SELECTION_BODY_BYTES + 1),
+      { action: "edit", expectedRevision: -1, selectedReferences: [] },
+      { action: "edit", expectedRevision: 0, selectedReferences: ["001"], recipient: "attacker@example.test" },
+      { action: "edit", expectedRevision: 0, selectedReferences: ["not-a-reference"] },
+      { action: "edit", expectedRevision: 0, selectedReferences: ["999"] },
+      { action: "edit", expectedRevision: 0, selectedReferences: ["001", "001"] },
+      { action: "confirm", expectedRevision: 0, selectedReferences: ["001"] },
+    ];
+    for (const body of invalid) {
+      await expect(run(f, body)).resolves.toEqual({ ok: false, reason: "refused" });
+    }
+    expect((await f.proofStore.read(f.gallery.galleryId))?.draft)
+      .toMatchObject({ revision: 0, selectedReferences: [], confirmed: false });
+    expect(f.confirm).not.toHaveBeenCalled();
+  });
+
+  it("reports a stale revision only to an authorized holder", async () => {
+    const f = await fixture();
+    const body = { action: "edit", expectedRevision: 0, selectedReferences: ["001"] };
+    expect((await run(f, body)).ok).toBe(true);
+    await expect(run(f, body)).resolves.toEqual({ ok: false, reason: "conflict" });
+    const input = request(f, body, { cookie: null });
+    await expect(mutateAuthorizedPrivateGalleryProofSelection(
+      f.deps, input, { handle: f.gallery.galleryHandle, clock: () => NOW },
+    )).resolves.toEqual({ ok: false, reason: "refused" });
+  });
+
+  it("rechecks expiry after body IO before committing a selection", async () => {
+    const f = await fixture({ storeExpiresAt: new Date(NOW.getTime() + 1000) });
+    const times = [NOW, new Date(NOW.getTime() + 2000)];
+    const clock = vi.fn(() => times.shift() ?? NOW);
+    const input = request(f, { action: "edit", expectedRevision: 0, selectedReferences: ["001"] });
+
+    await expect(mutateAuthorizedPrivateGalleryProofSelection(
+      f.deps, input, { handle: f.gallery.galleryHandle, clock },
+    )).resolves.toEqual({ ok: false, reason: "refused" });
+    expect(clock).toHaveBeenCalledTimes(2);
+    expect((await f.proofStore.read(f.gallery.galleryId))?.draft.revision).toBe(0);
+  });
+
+  it("collapses a store-side generation change or expiry into an authorization refusal", async () => {
+    for (const options of [
+      { storeGeneration: 4 },
+      { storeExpiresAt: NOW },
+    ]) {
+      const f = await fixture(options);
+      await expect(run(f, { action: "edit", expectedRevision: 0, selectedReferences: ["001"] }))
+        .resolves.toEqual({ ok: false, reason: "refused" });
+      await expect(run(f, { action: "confirm", expectedRevision: 0 }))
+        .resolves.toEqual({ ok: false, reason: "refused" });
+      expect((await f.proofStore.read(f.gallery.galleryId))?.draft)
+        .toMatchObject({ revision: 0, confirmed: false });
+      expect((await f.proofStore.read(f.gallery.galleryId))?.latestConfirmationVersion).toBe(0);
+    }
   });
 });

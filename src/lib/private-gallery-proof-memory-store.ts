@@ -11,6 +11,7 @@ import {
   planPrivateGalleryProofResend,
   PrivateGalleryProofError,
   reopenPrivateGalleryProofSelection,
+  summarizePrivateGalleryProofSelection,
   validatePrivateGalleryProofPricing,
   type PrivateGalleryProofConfirmation,
   type PrivateGalleryProofDraft,
@@ -32,6 +33,7 @@ import type {
 export type PrivateGalleryProofStoreErrorReason =
   | "invalid-seed"
   | "gallery-unavailable"
+  | "stale-generation"
   | "access-expired"
   | "invalid-time"
   | "invalid-attempt-key"
@@ -163,6 +165,12 @@ export function createPrivateGalleryProofMemoryStore(seed: {
     requireGallery(galleryId);
     if (!validTime(now)) fail("invalid-time");
     if (now.getTime() >= gallery.accessExpiresAt!.getTime()) fail("access-expired");
+  }
+
+  function requireCustomerAccess(galleryId: string, now: Date, expectedGeneration: number): void {
+    requireAccess(galleryId, now);
+    if (!Number.isSafeInteger(expectedGeneration) ||
+        expectedGeneration !== gallery.capabilityGeneration) fail("stale-generation");
   }
 
   function pending(
@@ -303,8 +311,8 @@ export function createPrivateGalleryProofMemoryStore(seed: {
       });
       return clone(completed);
     },
-    async editDraft({ galleryId, expectedRevision, selectedReferences, now }) {
-      requireAccess(galleryId, now);
+    async editDraft({ galleryId, expectedCapabilityGeneration, expectedRevision, selectedReferences, now }) {
+      requireCustomerAccess(galleryId, now, expectedCapabilityGeneration);
       const next = editPrivateGalleryProofDraft({
         galleryId,
         draft,
@@ -312,11 +320,14 @@ export function createPrivateGalleryProofMemoryStore(seed: {
         selectedReferences,
         placements,
       });
-      draft = clone(next);
-      return clone(draft);
+      const summary = summarizePrivateGalleryProofSelection(pricingSnapshot, next.selectedReferences.length);
+      const savedDraft = clone(next);
+      const response = clone({ draft: savedDraft, summary });
+      draft = savedDraft;
+      return response;
     },
-    async confirm({ galleryId, expectedRevision, now, notification }) {
-      requireAccess(galleryId, now);
+    async confirm({ galleryId, expectedCapabilityGeneration, expectedRevision, now, notification }) {
+      requireCustomerAccess(galleryId, now, expectedCapabilityGeneration);
       const next = confirmPrivateGalleryProofSelection({
         galleryId,
         draft,
