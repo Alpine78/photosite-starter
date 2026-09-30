@@ -21,7 +21,11 @@ selection).
 `PRIVATE_GALLERY_STORE` is `off` everywhere, no object store or database is
 provisioned, and the routes exist behind that switch. This file describes what a
 provisioned deployment will do, so that the decisions are reviewable *before*
-customer photographs exist rather than after.
+customer photographs exist rather than after. The per-asset mint route is present
+and tested with a development fixture; it returns a signed object URL only after
+fresh session authorization and a per-session 60-per-minute rate check, but no
+deployed object store or private database can
+serve one yet.
 
 ## What is held, and why it is different from the contact form
 

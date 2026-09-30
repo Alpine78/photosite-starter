@@ -1706,6 +1706,21 @@ before charging a gallery for a URL nobody receives, and the response's `no-stor
 `Content-Disposition: attachment` for the ZIP — is **signed** rather than left to upload
 metadata. `planPrivateGalleryMint` was split out of `authorizePrivateGalleryMint` for this,
 leaving the pure reference evaluator intact and its tests unchanged.
+The bounded per-asset mint route is now wired to this facade. It checks the
+request boundary and a fresh session before reading a preview placement id or
+ZIP request, and answers every refusal identically. Every request with a
+fresh, authorized session and a valid request shape consumes the per-session
+rolling 60-per-minute allowance before the asset lookup runs, including one
+that names an unknown or cross-gallery placement — that lookup is itself real
+store work a session holder must not get to repeat for free. The separate
+gallery byte budget is charged only for a request that resolves to an
+eligible mint; an invalid asset, a rate refusal, or a failed free check never
+spends it, though the budget is consumed before signing, so a later signing
+failure can still produce a refusal after the charge. The store seam requires the
+rate-limit update to be atomic and persisted. Its success path is tested
+with a development-only fixture and a fake object-store origin; no private bytes
+are served in any real deployment until the store adapters and owner-run live
+gate exist. The customer image/download controls remain unbuilt.
 Everything else is unbuilt: the ZIP generation, the owner-run upload
 CLI, the retention worker's IO, and the concrete object-store/Postgres providers with their
 live provisioning gate (the owner-run runbook for those two services

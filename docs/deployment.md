@@ -338,9 +338,14 @@ boundary — a private S3-compatible object store and a private PostgreSQL-famil
 in accounts the site owner controls, never Sanity and never a public bucket (ADR-0014
 §8, §9). AB#29 ships it in slices; the isolation boundary, the reserved route namespace
 and its response hygiene, the capability envelope, the session and cookie contract, the
-rate-limited exchange, and the link/exchange routes exist so far. **No store adapter
-does** — `PRIVATE_GALLERY_STORE=enabled` throws on the first request that needs one, by
-design, so a deployment that turns the feature on before AB#29's provisioning slice fails
+rate-limited exchange, the link/exchange routes, and a bounded per-asset mint
+route exist so far. The mint route reauthorizes a session before it reads an asset
+request, enforces a per-session rolling 60-per-minute mint limit, and reaches
+the existing budget-and-signing facade; it is verified against
+the development fixture only and cannot deliver bytes in a real deployment yet.
+**No store adapter does** — `PRIVATE_GALLERY_STORE=enabled` throws on the first
+request that needs one, by design, so a deployment that turns the feature on
+before AB#29's provisioning slice fails
 visibly instead of half-serving.
 
 Three build-safe settings, read during `loadDeploymentConfig` like the `SITE_*` values:

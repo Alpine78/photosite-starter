@@ -75,7 +75,9 @@ import type {
 } from "@/lib/private-gallery-access";
 import {
   evaluatePrivateGalleryAccessBudget,
+  evaluatePrivateGalleryMintRate,
   type PrivateGalleryAccessBudgetCounter,
+  type PrivateGalleryMintRateCounter,
 } from "@/lib/private-gallery-delivery";
 
 /**
@@ -173,7 +175,9 @@ export type PrivateGalleryMemoryStore = {
   readonly exchangeStore: PrivateGalleryExchangeStore;
   readonly sessionStore: PrivateGallerySessionStore;
   readonly viewStore: PrivateGalleryViewStore;
-  /** Budget state only; Stage 2 delivery has no route or object store yet. */
+  /** Stage 2 reads and budget state; the fixture has no object-store bytes. */
+  readonly deliveryStore: PrivateGalleryDeliveryStore;
+  /** Kept for focused budget tests. */
   readonly budgetStore: Pick<PrivateGalleryDeliveryStore, "consumeAccessBudget">;
   readonly keyring: PrivateGalleryCapabilityKeyring;
   /** The fixture gallery, for a route that wants to render its authorized state. */
@@ -394,10 +398,41 @@ function build(now: Date): PrivateGalleryMemoryStore {
     },
   };
 
+  const mintRates = new Map<string, PrivateGalleryMintRateCounter>();
+  const deliveryStore: PrivateGalleryDeliveryStore = {
+    async findPlacement(galleryId, placementId) {
+      if (galleryId !== gallery.galleryId) return undefined;
+      return placements.find((row) => row.placementId === placementId);
+    },
+    async findZipVersion() {
+      // The fixture has no delivered ZIP. A ZIP request must fail closed.
+      return undefined;
+    },
+    async consumeMintRate({ sessionIdHash, now: attemptedAt }) {
+      // One process with no await between evaluation and write. A real store
+      // must make this transition atomic across runtime instances.
+      const decision = evaluatePrivateGalleryMintRate(
+        mintRates.get(sessionIdHash),
+        attemptedAt,
+      );
+      mintRates.set(sessionIdHash, decision.next);
+      return {
+        allowed: decision.allowed,
+        firstRefusalInWindow: decision.firstRefusalInWindow,
+      };
+    },
+    consumeAccessBudget: budgetStore.consumeAccessBudget,
+    async totalGalleryBytes(galleryId) {
+      if (galleryId !== gallery.galleryId) return 0;
+      return placements.reduce((total, row) => total + row.nominalBytes, 0);
+    },
+  };
+
   return {
     exchangeStore,
     sessionStore,
     viewStore,
+    deliveryStore,
     budgetStore,
     keyring,
     gallery,
