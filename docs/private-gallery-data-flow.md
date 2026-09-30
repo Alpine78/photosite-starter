@@ -34,9 +34,12 @@ identity alongside its opaque object key; after upload verification a pure join
 can form the initial proof placements for that transition. These values are not
 persisted or served in a deployed environment. A server-only store contract and
 single-process development implementation now model conditional draft edits,
-versioned immutable confirmations and the pending outbox row as one atomic
-operation. Administrator reopen keeps earlier snapshots and the original access
-expiry; resend queues a unique attempt only against the currently locked version.
+versioned immutable confirmations and a pending outbox entry containing the
+exact validated photographer email as one atomic operation. The metadata-only
+status read cannot return the recipient or message; a separate server-only
+worker read can. Administrator reopen keeps earlier snapshots and the
+original access expiry; resend queues a unique attempt only against the
+currently locked version.
 The memory implementation has no cross-process durability or database uniqueness
 guarantees and is not connected to a route. A future private database will
 hold the published included count, integer extra-image unit price and currency, permanent
@@ -49,10 +52,14 @@ amounts in the owner's currency and locale. A server-only Resend gallery transpo
 now accepts one validated recipient per queued attempt and shares the existing
 contact path's HTTP provider behavior. Its attempt key is distinct from the
 contact path's; the pending memory outbox uses a stable key per initial version
-and a new unique key for each administrator resend. A future durable outbox must
-keep a key on automatic retry and mint a new one for an administrator resend.
-No gallery notification is wired to send: the customer-facing proof route, PostgreSQL outbox and worker, runtime transport
-configuration and actual photographer email do not exist.
+and a new unique key for each administrator resend, copying the original
+recipient and message. A future delivery worker must keep an attempt's key
+on automatic retry, persist redacted failure/status information, and avoid
+logging the message. Earlier pending attempts stay intact after administrator
+reopen; their version in the frozen message distinguishes them from later ones.
+No gallery notification is wired to send: the customer-facing proof route,
+PostgreSQL outbox and worker, runtime transport configuration and actual
+photographer email do not exist.
 
 ## What is held, and why it is different from the contact form
 

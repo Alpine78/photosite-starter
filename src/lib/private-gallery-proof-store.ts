@@ -8,6 +8,8 @@
  */
 import "server-only";
 
+import type { BuiltInLabels } from "@/lib/deployment-config";
+import type { GalleryNotificationRequest } from "@/lib/gallery-notification";
 import type {
   PrivateGallery,
   PrivateGalleryOutboxRecord,
@@ -23,6 +25,21 @@ export type PrivateGalleryProofOutboxRecord = Omit<PrivateGalleryOutboxRecord, "
   readonly kind: "proof-confirmation";
   /** The immutable snapshot used to render this attempt's email. */
   readonly confirmationVersion: number;
+};
+
+/** Frozen when a confirmation is created, before its outbox entry is committed. */
+export type PrivateGalleryProofNotificationContext = {
+  readonly recipient: string;
+  readonly galleryReference: string;
+  readonly customerReference: string;
+  readonly locale: string;
+  readonly labels: BuiltInLabels["proofConfirmationEmail"];
+};
+
+/** Raw worker material; never project this into an administrator status response. */
+export type PrivateGalleryProofOutboxDelivery = {
+  readonly outbox: PrivateGalleryProofOutboxRecord;
+  readonly request: GalleryNotificationRequest;
 };
 
 export type PrivateGalleryProofStoredState = {
@@ -44,6 +61,11 @@ export type PrivateGalleryProofStore = {
     galleryId: string,
     idempotencyKey: string,
   ): Promise<PrivateGalleryProofOutboxRecord | undefined>;
+  /** Worker-only raw message; no route or authorization is wired to this seam yet. */
+  readDelivery(
+    galleryId: string,
+    idempotencyKey: string,
+  ): Promise<PrivateGalleryProofOutboxDelivery | undefined>;
   editDraft(params: {
     readonly galleryId: string;
     readonly expectedRevision: number;
@@ -55,6 +77,7 @@ export type PrivateGalleryProofStore = {
     readonly galleryId: string;
     readonly expectedRevision: number;
     readonly now: Date;
+    readonly notification: PrivateGalleryProofNotificationContext;
   }): Promise<{
     readonly draft: PrivateGalleryProofDraft;
     readonly confirmation: PrivateGalleryProofConfirmation;

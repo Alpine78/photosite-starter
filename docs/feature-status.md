@@ -1180,8 +1180,14 @@ the contact path keeps its fixed configured recipient. A server-only
 proof-selection store contract and a development-only, single-process reference
 implementation now exercise conditional draft edits, atomic confirmation
 snapshot plus initial pending outbox insertion, administrator reopen, and unique
-resend attempts. The memory implementation is not durable across processes or
-restarts and is not wired into a runtime route. No PostgreSQL proof store, customer
+resend attempts. Each pending proof attempt now holds the exact validated
+photographer email built from its confirmation and business references; its
+recipient, wording, and image list are frozen with the attempt, while an
+administrator status read returns only outbox metadata. A deliberate resend
+copies that message under a new key. Automatic retry and delivery-status writes
+are still future worker work and must reuse the attempt key. The memory
+implementation is not durable across processes or restarts and is not wired
+into a runtime route. No PostgreSQL proof store, customer
 routes, durable outbox worker, runtime mail wiring or customer workflow exists yet.
 
 Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no production store

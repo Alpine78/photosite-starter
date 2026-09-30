@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PrivateGallery, PrivateGalleryProofPlacement } from "@/lib/private-gallery";
+import { getBuiltInLabels } from "@/lib/deployment-config";
 import {
   PrivateGalleryProofStoreError,
   createPrivateGalleryProofMemoryStore,
@@ -57,10 +58,20 @@ function fixture() {
   };
 }
 
+function notificationContext() {
+  return {
+    recipient: "owner@example.com",
+    galleryReference: "job-42",
+    customerReference: "customer-17",
+    locale: "en-GB",
+    labels: { ...getBuiltInLabels("en-GB").proofConfirmationEmail },
+  };
+}
+
 function reason(error: unknown, expected: string): void {
   expect(error).toBeInstanceOf(Error);
   expect((error as PrivateGalleryProofError | PrivateGalleryProofStoreError).reason).toBe(expected);
-  expect((error as Error).message).not.toMatch(/IMG_|media-|private-handle|gallery-private-a/);
+  expect((error as Error).message).not.toMatch(/IMG_|media-|private-handle|gallery-private-a|owner@example.com|private@example.com|customer-17|job-42/);
 }
 
 async function rejectsReason(promise: Promise<unknown>, expected: string): Promise<void> {
@@ -79,7 +90,7 @@ describe("AB#130 development proof store", () => {
       galleryId: "gallery-private-a", expectedRevision: 0,
       selectedReferences: ["002", "001"], now: NOW,
     });
-    const confirmed = await store.confirm({
+    const confirmed = await store.confirm({ notification: notificationContext(),
       galleryId: "gallery-private-a", expectedRevision: edited.revision, now: NOW,
     });
     expect(confirmed.draft).toMatchObject({ revision: 2, confirmed: true });
@@ -97,11 +108,21 @@ describe("AB#130 development proof store", () => {
       state: "pending", attempts: 0,
     });
     expect(await store.readConfirmation("gallery-private-a", 1)).toEqual(confirmed.confirmation);
-    expect(await store.readOutbox("gallery-private-a", confirmed.outbox.idempotencyKey))
-      .toEqual(confirmed.outbox);
+    const status = await store.readOutbox("gallery-private-a", confirmed.outbox.idempotencyKey);
+    expect(status).toEqual(confirmed.outbox);
+    expect(JSON.stringify(status)).not.toMatch(/owner@example.com|customer-17|IMG_/);
+    const delivery = await store.readDelivery("gallery-private-a", confirmed.outbox.idempotencyKey);
+    expect(delivery?.outbox).toEqual(status);
+    expect(delivery?.request).toMatchObject({
+      to: "owner@example.com",
+      subject: "Proof selection confirmed",
+      idempotencyKey: confirmed.outbox.idempotencyKey,
+    });
+    expect(delivery?.request.text).toContain("Customer reference: customer-17");
+    expect(delivery?.request.text).toContain("002 — IMG_0002.JPG");
     expect((await store.read("gallery-private-a"))?.latestConfirmationVersion).toBe(1);
 
-    await rejectsReason(store.confirm({
+    await rejectsReason(store.confirm({ notification: notificationContext(),
       galleryId: "gallery-private-a", expectedRevision: 2, now: NOW,
     }), "already-confirmed");
     expect((await store.read("gallery-private-a"))?.latestConfirmationVersion).toBe(1);
@@ -119,8 +140,8 @@ describe("AB#130 development proof store", () => {
     if (failedEdit?.status === "rejected") reason(failedEdit.reason, "stale-revision");
 
     const confirmations = await Promise.allSettled([
-      store.confirm({ galleryId: "gallery-private-a", expectedRevision: 1, now: NOW }),
-      store.confirm({ galleryId: "gallery-private-a", expectedRevision: 1, now: NOW }),
+      store.confirm({ notification: notificationContext(), galleryId: "gallery-private-a", expectedRevision: 1, now: NOW }),
+      store.confirm({ notification: notificationContext(), galleryId: "gallery-private-a", expectedRevision: 1, now: NOW }),
     ]);
     expect(confirmations.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(confirmations.filter((result) => result.status === "rejected")).toHaveLength(1);
@@ -134,7 +155,7 @@ describe("AB#130 development proof store", () => {
     await rejectsReason(store.editDraft({
       galleryId: "gallery-private-a", expectedRevision: 0, selectedReferences: ["999"], now: NOW,
     }), "unknown-reference");
-    await rejectsReason(store.confirm({
+    await rejectsReason(store.confirm({ notification: notificationContext(),
       galleryId: "gallery-private-a", expectedRevision: 1, now: NOW,
     }), "stale-revision");
     expect((await store.read("gallery-private-a"))?.draft).toMatchObject({
@@ -148,7 +169,7 @@ describe("AB#130 development proof store", () => {
   it("reopens with CAS, preserves expiry and old snapshot, then makes version two", async () => {
     const store = createPrivateGalleryProofMemoryStore(fixture());
     await store.editDraft({ galleryId: "gallery-private-a", expectedRevision: 0, selectedReferences: ["001"], now: NOW });
-    const first = await store.confirm({ galleryId: "gallery-private-a", expectedRevision: 1, now: NOW });
+    const first = await store.confirm({ notification: notificationContext(), galleryId: "gallery-private-a", expectedRevision: 1, now: NOW });
     await rejectsReason(store.reopen({ galleryId: "gallery-private-a", expectedRevision: 1, now: LATER }), "stale-revision");
     const reopened = await store.reopen({ galleryId: "gallery-private-a", expectedRevision: 2, now: LATER });
     expect(reopened).toMatchObject({ revision: 3, confirmed: false, selectedReferences: ["001"] });
@@ -156,7 +177,7 @@ describe("AB#130 development proof store", () => {
       galleryId: "gallery-private-a", confirmationVersion: 1, attemptId: "admin-1", now: LATER,
     }), "draft-open");
     await store.editDraft({ galleryId: "gallery-private-a", expectedRevision: 3, selectedReferences: ["002"], now: LATER });
-    const second = await store.confirm({ galleryId: "gallery-private-a", expectedRevision: 4, now: LATER });
+    const second = await store.confirm({ notification: notificationContext(), galleryId: "gallery-private-a", expectedRevision: 4, now: LATER });
     expect(second.confirmation.version).toBe(2);
     expect(second.outbox.idempotencyKey).toBe("proof-confirmation:gallery-private-a:2");
     expect(await store.readConfirmation("gallery-private-a", 1)).toEqual(first.confirmation);
@@ -169,7 +190,7 @@ describe("AB#130 development proof store", () => {
 
   it("queues one unique resend attempt against the current version only", async () => {
     const store = createPrivateGalleryProofMemoryStore(fixture());
-    await store.confirm({ galleryId: "gallery-private-a", expectedRevision: 0, now: NOW });
+    await store.confirm({ notification: notificationContext(), galleryId: "gallery-private-a", expectedRevision: 0, now: NOW });
     const resend = await store.queueResend({
       galleryId: "gallery-private-a", confirmationVersion: 1, attemptId: "admin-1", now: LATER,
     });
@@ -192,7 +213,7 @@ describe("AB#130 development proof store", () => {
     (seed.placements[0] as { filename: string }).filename = "modified.jpg";
     seed.pricingSnapshot.includedCount = 99;
     await store.editDraft({ galleryId: "gallery-private-a", expectedRevision: 0, selectedReferences: ["001"], now: NOW });
-    const result = await store.confirm({ galleryId: "gallery-private-a", expectedRevision: 1, now: NOW });
+    const result = await store.confirm({ notification: notificationContext(), galleryId: "gallery-private-a", expectedRevision: 1, now: NOW });
     result.confirmation.confirmedAt.setTime(0);
     (result.confirmation.selectedImages[0] as { filename: string }).filename = "modified-again.jpg";
     (result.confirmation.summary as { includedCount: number }).includedCount = 99;
@@ -203,6 +224,70 @@ describe("AB#130 development proof store", () => {
     expect(saved?.summary.includedCount).toBe(0);
     expect((await store.read("gallery-private-a"))?.gallery.accessExpiresAt).toEqual(EXPIRES);
     expect((await store.readOutbox("gallery-private-a", result.outbox.idempotencyKey))?.createdAt).toEqual(NOW);
+  });
+
+  it("refuses an unrenderable message before locking the draft or inserting an attempt", async () => {
+    const store = createPrivateGalleryProofMemoryStore(fixture());
+    await rejectsReason(store.confirm({
+      galleryId: "gallery-private-a", expectedRevision: 0, now: NOW,
+      notification: { ...notificationContext(), recipient: "private@example.com\nBcc: other@example.com" },
+    }), "invalid-recipient");
+    expect((await store.read("gallery-private-a"))?.draft).toMatchObject({ revision: 0, confirmed: false });
+    expect((await store.read("gallery-private-a"))?.latestConfirmationVersion).toBe(0);
+    expect(await store.readDelivery("gallery-private-a", "proof-confirmation:gallery-private-a:1"))
+      .toBeUndefined();
+    const valid = await store.confirm({
+      galleryId: "gallery-private-a", expectedRevision: 0, now: NOW,
+      notification: notificationContext(),
+    });
+    expect(valid.confirmation.version).toBe(1);
+  });
+
+  it("freezes message bytes and recipient across resend and version changes", async () => {
+    const store = createPrivateGalleryProofMemoryStore(fixture());
+    const context = notificationContext();
+    const first = await store.confirm({
+      galleryId: "gallery-private-a", expectedRevision: 0, now: NOW, notification: context,
+    });
+    const original = await store.readDelivery("gallery-private-a", first.outbox.idempotencyKey);
+    expect(original).toBeDefined();
+    (context.labels as { subject: string }).subject = "Changed wording";
+    context.recipient = "changed@example.com";
+    const resend = await store.queueResend({
+      galleryId: "gallery-private-a", confirmationVersion: 1, attemptId: "owner-1", now: LATER,
+    });
+    const resent = await store.readDelivery("gallery-private-a", resend.idempotencyKey);
+    expect(resent?.request).toEqual({ ...original?.request, idempotencyKey: resend.idempotencyKey });
+    expect(resent?.request.to).toBe("owner@example.com");
+    (resent?.request as { text: string }).text = "Changed on read";
+    (resent?.outbox.createdAt as Date).setTime(0);
+    expect((await store.readDelivery("gallery-private-a", resend.idempotencyKey))?.request.text)
+      .toBe(original?.request.text);
+    expect((await store.readOutbox("gallery-private-a", resend.idempotencyKey))?.createdAt).toEqual(LATER);
+
+    await store.reopen({ galleryId: "gallery-private-a", expectedRevision: 1, now: LATER });
+    const second = await store.confirm({
+      galleryId: "gallery-private-a", expectedRevision: 2, now: LATER,
+      notification: { ...notificationContext(), recipient: "new-owner@example.com" },
+    });
+    expect(second.confirmation.version).toBe(2);
+    expect((await store.readDelivery("gallery-private-a", first.outbox.idempotencyKey))?.request)
+      .toEqual(original?.request);
+    expect((await store.readDelivery("gallery-private-a", second.outbox.idempotencyKey))?.request.to)
+      .toBe("new-owner@example.com");
+  });
+
+  it("renders the same initial request for identical confirmation inputs", async () => {
+    const one = createPrivateGalleryProofMemoryStore(fixture());
+    const two = createPrivateGalleryProofMemoryStore(fixture());
+    const first = await one.confirm({
+      galleryId: "gallery-private-a", expectedRevision: 0, now: NOW, notification: notificationContext(),
+    });
+    const second = await two.confirm({
+      galleryId: "gallery-private-a", expectedRevision: 0, now: NOW, notification: notificationContext(),
+    });
+    expect((await one.readDelivery("gallery-private-a", first.outbox.idempotencyKey))?.request)
+      .toEqual((await two.readDelivery("gallery-private-a", second.outbox.idempotencyKey))?.request);
   });
 
   it("rejects malformed publication seeds and expired edits", async () => {

@@ -15,9 +15,14 @@ import {
   type PrivateGalleryProofDraft,
   type PrivateGalleryProofPricing,
 } from "@/lib/private-gallery-proof";
-import { isValidGalleryNotificationIdempotencyKey } from "@/lib/gallery-notification";
+import {
+  isValidGalleryNotificationIdempotencyKey,
+  validateGalleryNotificationRequest,
+} from "@/lib/gallery-notification";
+import { buildPrivateGalleryProofNotification } from "@/lib/private-gallery-proof-notification";
 import { PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY } from "@/lib/private-gallery-limits";
 import type {
+  PrivateGalleryProofOutboxDelivery,
   PrivateGalleryProofOutboxRecord,
   PrivateGalleryProofStore,
 } from "@/lib/private-gallery-proof-store";
@@ -30,7 +35,8 @@ export type PrivateGalleryProofStoreErrorReason =
   | "invalid-attempt-key"
   | "duplicate-attempt"
   | "unknown-confirmation"
-  | "draft-open";
+  | "draft-open"
+  | "missing-notification";
 
 export class PrivateGalleryProofStoreError extends Error {
   readonly reason: PrivateGalleryProofStoreErrorReason;
@@ -110,7 +116,7 @@ export function createPrivateGalleryProofMemoryStore(seed: {
     confirmed: false,
   };
   const confirmations = new Map<number, PrivateGalleryProofConfirmation>();
-  const outbox = new Map<string, PrivateGalleryProofOutboxRecord>();
+  const outbox = new Map<string, PrivateGalleryProofOutboxDelivery>();
 
   function requireGallery(galleryId: string): void {
     if (galleryId !== gallery.galleryId || gallery.state !== "published") {
@@ -163,8 +169,13 @@ export function createPrivateGalleryProofMemoryStore(seed: {
     },
     async readOutbox(galleryId, idempotencyKey) {
       if (galleryId !== gallery.galleryId) return undefined;
-      const row = outbox.get(idempotencyKey);
-      return row === undefined ? undefined : clone(row);
+      const delivery = outbox.get(idempotencyKey);
+      return delivery === undefined ? undefined : clone(delivery.outbox);
+    },
+    async readDelivery(galleryId, idempotencyKey) {
+      if (galleryId !== gallery.galleryId) return undefined;
+      const delivery = outbox.get(idempotencyKey);
+      return delivery === undefined ? undefined : clone(delivery);
     },
     async editDraft({ galleryId, expectedRevision, selectedReferences, now }) {
       requireAccess(galleryId, now);
@@ -178,7 +189,7 @@ export function createPrivateGalleryProofMemoryStore(seed: {
       draft = clone(next);
       return clone(draft);
     },
-    async confirm({ galleryId, expectedRevision, now }) {
+    async confirm({ galleryId, expectedRevision, now, notification }) {
       requireAccess(galleryId, now);
       const next = confirmPrivateGalleryProofSelection({
         galleryId,
@@ -191,10 +202,20 @@ export function createPrivateGalleryProofMemoryStore(seed: {
       });
       const row = pending(next.outboxIdempotencyKey, next.confirmation.version, now);
       if (confirmations.has(next.confirmation.version)) fail("duplicate-attempt");
-      // Commit point: no await, and every validation above finished before any write.
-      draft = clone(next.draft);
-      confirmations.set(next.confirmation.version, clone(next.confirmation));
-      outbox.set(row.idempotencyKey, clone(row));
+      const request = buildPrivateGalleryProofNotification({
+        ...notification,
+        confirmation: next.confirmation,
+        outboxIdempotencyKey: row.idempotencyKey,
+      });
+      validateGalleryNotificationRequest(request);
+      const storedDraft = clone(next.draft);
+      const storedConfirmation = clone(next.confirmation);
+      const delivery = clone({ outbox: row, request });
+      // Commit point: all validation and copies completed before the first write.
+      // The outbox row and its exact message live in one map entry.
+      draft = storedDraft;
+      confirmations.set(next.confirmation.version, storedConfirmation);
+      outbox.set(row.idempotencyKey, delivery);
       return clone({ draft, confirmation: next.confirmation, outbox: row });
     },
     async reopen({ galleryId, expectedRevision, now }) {
@@ -219,8 +240,14 @@ export function createPrivateGalleryProofMemoryStore(seed: {
       const confirmation = confirmations.get(confirmationVersion);
       if (confirmation === undefined) fail("unknown-confirmation");
       const plan = planPrivateGalleryProofResend({ confirmation, attemptId });
+      const initial = outbox.get(
+        "proof-confirmation:" + galleryId + ":" + confirmationVersion,
+      );
+      if (initial === undefined) fail("missing-notification");
       const row = pending(plan.outboxIdempotencyKey, confirmationVersion, now);
-      outbox.set(row.idempotencyKey, clone(row));
+      const request = { ...initial.request, idempotencyKey: row.idempotencyKey };
+      const delivery = clone({ outbox: row, request });
+      outbox.set(row.idempotencyKey, delivery);
       return clone(row);
     },
   };
