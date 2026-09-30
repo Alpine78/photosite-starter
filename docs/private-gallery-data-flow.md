@@ -27,8 +27,9 @@ fresh session authorization and a per-session 60-per-minute rate check, but no
 deployed object store or private database can
 serve one yet.
 
-AB#130 now defines proof-selection values and pure server-side rules, but they are
-not persisted or served. A future private database will hold the published
+AB#130 now defines proof-selection values, pure server-side rules and a first-ready
+transition plan checked against verified proof objects. They are not persisted
+or served. A future private database will hold the published
 included count, integer extra-image unit price and currency, permanent
 gallery-local references with full filenames and stable media identities, a
 revisioned draft, immutable confirmation versions, and notification outbox

@@ -142,27 +142,56 @@ describe("AB#130 proof pricing and confirmation", () => {
   });
 
   it("rejects stale edits, duplicate or foreign references and confirmed edits", () => {
-    const draft = { revision: 2, selectedReferences: ["001"], confirmed: false };
+    const draft = { galleryId: "gallery-a", revision: 2, selectedReferences: ["001"], confirmed: false };
     reason(() => editPrivateGalleryProofDraft({
+      galleryId: "gallery-a",
       draft, expectedRevision: 1, selectedReferences: ["001"], placements,
     }), "stale-revision");
     reason(() => editPrivateGalleryProofDraft({
+      galleryId: "gallery-a",
       draft, expectedRevision: 2, selectedReferences: ["001", "001"], placements,
     }), "duplicate-reference");
     reason(() => editPrivateGalleryProofDraft({
+      galleryId: "gallery-a",
       draft, expectedRevision: 2, selectedReferences: ["999"], placements,
     }), "unknown-reference");
     reason(() => editPrivateGalleryProofDraft({
+      galleryId: "gallery-a",
+      draft,
+      expectedRevision: 2,
+      selectedReferences: [123 as never],
+      placements,
+    }), "invalid-input");
+    reason(() => editPrivateGalleryProofDraft({
+      galleryId: "gallery-b",
+      draft,
+      expectedRevision: 2,
+      selectedReferences: ["001"],
+      placements,
+    }), "invalid-input");
+    reason(() => editPrivateGalleryProofDraft({
+      galleryId: "gallery-a",
+      draft: { ...draft, galleryId: "gallery-b" },
+      expectedRevision: 2,
+      selectedReferences: ["001"],
+      placements,
+    }), "invalid-input");
+    reason(() => editPrivateGalleryProofDraft({
+      galleryId: "gallery-a",
       draft: { ...draft, confirmed: true },
       expectedRevision: 2, selectedReferences: [], placements,
     }), "already-confirmed");
     expect(editPrivateGalleryProofDraft({
+      galleryId: "gallery-a",
       draft, expectedRevision: 2, selectedReferences: ["003", "001"], placements,
-    })).toEqual({ revision: 3, selectedReferences: ["003", "001"], confirmed: false });
+    })).toEqual({
+      galleryId: "gallery-a", revision: 3,
+      selectedReferences: ["003", "001"], confirmed: false,
+    });
   });
 
   it("captures a versioned immutable-content snapshot and one initial outbox identity", () => {
-    const original = { revision: 4, selectedReferences: ["003", "001"], confirmed: false };
+    const original = { galleryId: "gallery-a", revision: 4, selectedReferences: ["003", "001"], confirmed: false };
     const now = new Date("2026-09-30T10:00:00.000Z");
     const result = confirmPrivateGalleryProofSelection({
       galleryId: "gallery-a",
@@ -174,6 +203,7 @@ describe("AB#130 proof pricing and confirmation", () => {
       now,
     });
     expect(result.draft).toEqual({
+      galleryId: "gallery-a",
       revision: 5, selectedReferences: ["003", "001"], confirmed: true,
     });
     expect(result.confirmation).toEqual({
@@ -207,10 +237,25 @@ describe("AB#130 proof pricing and confirmation", () => {
     }), "already-confirmed");
   });
 
-  it("rejects a confirmation assembled from another gallery", () => {
+  it("rejects a confirmation with a foreign draft or placement set", () => {
+    const draft = {
+      galleryId: "gallery-a",
+      revision: 0,
+      selectedReferences: ["001"],
+      confirmed: false,
+    };
+    reason(() => confirmPrivateGalleryProofSelection({
+      galleryId: "gallery-a",
+      draft: { ...draft, galleryId: "gallery-b" },
+      expectedRevision: 0,
+      previousVersion: 0,
+      pricing,
+      placements,
+      now: new Date(),
+    }), "invalid-input");
     reason(() => confirmPrivateGalleryProofSelection({
       galleryId: "gallery-b",
-      draft: { revision: 0, selectedReferences: ["001"], confirmed: false },
+      draft: { ...draft, galleryId: "gallery-b" },
       expectedRevision: 0,
       previousVersion: 0,
       pricing,
@@ -221,9 +266,10 @@ describe("AB#130 proof pricing and confirmation", () => {
 
   it("reopens without changing expiry or prior confirmation", () => {
     const accessExpiresAt = new Date("2027-03-30T10:00:00.000Z");
-    const previous = { revision: 5, selectedReferences: ["003"], confirmed: true };
+    const previous = { galleryId: "gallery-a", revision: 5, selectedReferences: ["003"], confirmed: true };
     const reopened = reopenPrivateGalleryProofSelection({ draft: previous, accessExpiresAt });
     expect(reopened.draft).toEqual({
+      galleryId: "gallery-a",
       revision: 6, selectedReferences: ["003"], confirmed: false,
     });
     expect(reopened.accessExpiresAt).toEqual(accessExpiresAt);

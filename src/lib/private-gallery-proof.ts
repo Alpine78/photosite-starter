@@ -32,6 +32,7 @@ export type PrivateGalleryProofSummary = PrivateGalleryProofPricing & {
 };
 
 export type PrivateGalleryProofDraft = {
+  readonly galleryId: string;
   readonly revision: number;
   readonly selectedReferences: readonly string[];
   readonly confirmed: boolean;
@@ -250,7 +251,8 @@ function resolveSelection(
   }
   const seen = new Set<string>();
   return references.map((ref) => {
-    if (typeof ref !== "string" || seen.has(ref)) fail("duplicate-reference");
+    if (typeof ref !== "string") fail("invalid-input");
+    if (seen.has(ref)) fail("duplicate-reference");
     seen.add(ref);
     const item = byReference.get(ref);
     if (item === undefined) fail("unknown-reference");
@@ -260,19 +262,27 @@ function resolveSelection(
 
 /** Customer edit plan; persisted by a conditional update on revision. */
 export function editPrivateGalleryProofDraft(params: {
+  readonly galleryId: string;
   readonly draft: PrivateGalleryProofDraft;
   readonly expectedRevision: number;
   readonly selectedReferences: readonly string[];
   readonly placements: readonly PrivateGalleryProofPlacement[];
 }): PrivateGalleryProofDraft {
-  const { draft, expectedRevision, selectedReferences, placements } = params;
+  const { galleryId, draft, expectedRevision, selectedReferences, placements } = params;
   if (draft.confirmed) fail("already-confirmed");
+  if (
+    typeof galleryId !== "string" ||
+    galleryId.length === 0 ||
+    draft.galleryId !== galleryId ||
+    placements.some((item) => item.galleryId !== galleryId)
+  ) fail("invalid-input");
   if (!nonnegativeInteger(draft.revision) || expectedRevision !== draft.revision) {
     fail("stale-revision");
   }
   if (!Number.isSafeInteger(draft.revision + 1)) fail("overflow");
   resolveSelection(selectedReferences, placements);
   return {
+    galleryId,
     revision: draft.revision + 1,
     selectedReferences: [...selectedReferences],
     confirmed: false,
@@ -298,6 +308,7 @@ export function confirmPrivateGalleryProofSelection(params: {
   if (!nonnegativeInteger(draft.revision) || expectedRevision !== draft.revision) fail("stale-revision");
   if (
     typeof galleryId !== "string" || galleryId.length === 0 ||
+    draft.galleryId !== galleryId ||
     !nonnegativeInteger(previousVersion) ||
     !(now instanceof Date) || !Number.isFinite(now.getTime())
   ) fail("invalid-input");
@@ -310,6 +321,7 @@ export function confirmPrivateGalleryProofSelection(params: {
   const version = previousVersion + 1;
   return {
     draft: {
+      galleryId,
       revision: draft.revision + 1,
       selectedReferences: [...draft.selectedReferences],
       confirmed: true,
@@ -358,6 +370,8 @@ export function reopenPrivateGalleryProofSelection(params: {
   const { draft, accessExpiresAt } = params;
   if (!draft.confirmed) fail("not-confirmed");
   if (
+    typeof draft.galleryId !== "string" ||
+    draft.galleryId.length === 0 ||
     !nonnegativeInteger(draft.revision) ||
     !Number.isSafeInteger(draft.revision + 1) ||
     !(accessExpiresAt instanceof Date) ||
@@ -365,6 +379,7 @@ export function reopenPrivateGalleryProofSelection(params: {
   ) fail("invalid-input");
   return {
     draft: {
+      galleryId: draft.galleryId,
       revision: draft.revision + 1,
       selectedReferences: [...draft.selectedReferences],
       confirmed: false,

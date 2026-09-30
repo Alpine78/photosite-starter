@@ -1311,8 +1311,10 @@ split out of AB#29 on 2026-09-02) remains Active. AB#130 (proof selection)
 is Active with an initial server-only domain slice: pricing in integer minor units,
 natural complete-filename reference assignment with a persisted high-water mark
 contract for later additions, draft revision checks, and versioned confirmation
-planning in src/lib/private-gallery-proof.ts. No proof-selection store, routes,
-email or customer workflow exists yet.
+planning in src/lib/private-gallery-proof.ts. The next pure slice plans the first
+ready transition from the complete, verified proof set and validates the frozen
+pricing and assigned references in src/lib/private-gallery-readiness.ts. No
+proof-selection store, routes, email or customer workflow exists yet.
 
 Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no store
 adapter and no provisioned infrastructure**, so an `enabled` deployment throws on the
@@ -1510,12 +1512,15 @@ names; publishing one without it hands a customer a gallery whose whole promise 
 indistinguishable to them from one that had not finished loading. The kind is stored rather
 than inferred from `activeZipObjectKey`, because a delivery gallery _before_ its ZIP is
 verified and a proof gallery that will never have one look identical by that field, and
-guessing would publish the first as the second. **Proof readiness is refused, not guessed**:
-§8c gives it three conditions this story owns none of — watermarked derivatives, a frozen
-pricing snapshot, and every proof's permanent `001`-based reference — so a "ready" here on
-the one visible condition would look like a decision AB#130 has not made. Every blocker is
-reported at once, because an administrator told about one missing thing at a time is how a
-publication takes four attempts.
+guessing would publish the first as the second. **Proof readiness is evaluated from complete verified evidence**: the first-ready planner
+requires every placement to be unnumbered and every watermarked object verified, then
+returns one transaction plan for the pricing snapshot, permanent references, high-water
+mark, and ready state. Re-running it after ready refuses rather than renumbering. The
+readiness evaluator requires an exact match between the stored-shaped placements and
+verified proof objects, a valid pricing snapshot, and the initial natural reference order;
+its blocker codes carry no private data. The private store that would persist this plan
+does not yet exist. Every blocker is reported at once, because an administrator told
+about one missing thing at a time is how a publication takes four attempts.
 The **presigner** is built (`src/lib/private-gallery-signed-url.ts`): hand-written SigV4
 query-string signing over `node:crypto`, which is what ADR-0014 §8a's "a small, justified
 dependency; a full cloud-vendor SDK is not required and is avoided" asks for — presigning
