@@ -121,6 +121,7 @@ describe("AB#130 development proof store", () => {
     expect(delivery?.request.text).toContain("Customer reference: customer-17");
     expect(delivery?.request.text).toContain("002 — IMG_0002.JPG");
     expect((await store.read("gallery-private-a"))?.latestConfirmationVersion).toBe(1);
+    expect((await store.read("gallery-private-a"))?.currentConfirmation).toEqual(confirmed.confirmation);
 
     await rejectsReason(store.confirm({ notification: notificationContext(),
       galleryId: "gallery-private-a", expectedRevision: 2, now: NOW,
@@ -173,6 +174,7 @@ describe("AB#130 development proof store", () => {
     await rejectsReason(store.reopen({ galleryId: "gallery-private-a", expectedRevision: 1, now: LATER }), "stale-revision");
     const reopened = await store.reopen({ galleryId: "gallery-private-a", expectedRevision: 2, now: LATER });
     expect(reopened).toMatchObject({ revision: 3, confirmed: false, selectedReferences: ["001"] });
+    expect((await store.read("gallery-private-a"))?.currentConfirmation).toBeUndefined();
     await rejectsReason(store.queueResend({
       galleryId: "gallery-private-a", confirmationVersion: 1, attemptId: "admin-1", now: LATER,
     }), "draft-open");

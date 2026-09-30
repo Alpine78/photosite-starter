@@ -195,6 +195,9 @@ export function createPrivateGalleryProofMemoryStore(seed: {
         placements,
         draft,
         latestConfirmationVersion: confirmations.size,
+        ...(draft.confirmed
+          ? { currentConfirmation: confirmations.get(confirmations.size) }
+          : {}),
       });
     },
     async readConfirmation(galleryId, version) {

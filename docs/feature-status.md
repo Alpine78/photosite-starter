@@ -1192,6 +1192,14 @@ retry delay; an abandoned final claim becomes `worker-interrupted`. Automatic
 retry keeps the same key, while a deliberate resend gets a separate row. No
 scheduler or runtime transport is wired. The memory implementation is not
 durable across processes or restarts and is not wired into a runtime route.
+A server-only customer read facade now rechecks the session and live gallery
+before fetching proof state by the authorized gallery id. Its browser-safe
+projection returns at most 100 current proof cards per page and the draft
+selection and pricing summary; confirmed review data comes from the immutable
+snapshot, so a later placement removal cannot rewrite the accepted selection.
+Malformed rows refuse the whole view. The development store reads draft and
+current confirmation together in-process; a database adapter still needs a
+consistent read and bounded page and selected-row queries.
 No PostgreSQL proof store, customer routes, durable outbox worker, runtime
 mail wiring or customer workflow exists yet.
 

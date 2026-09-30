@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   PrivateGallery,
   PrivateGalleryPlacement,
+  PrivateGalleryProofPlacement,
   PrivateGalleryCapability,
   PrivateGallerySession,
 } from "@/lib/private-gallery";
@@ -11,8 +12,10 @@ import {
   exchangePrivateGalleryCapability,
   listPrivateGalleryItems,
   mintPrivateGalleryAssetUrl,
+  readAuthorizedPrivateGalleryProofPage,
 } from "@/lib/private-gallery-access";
 import { PRIVATE_GALLERY_ITEM_LIMITS } from "@/lib/private-gallery-item";
+import { createPrivateGalleryProofMemoryStore } from "@/lib/private-gallery-proof-memory-store";
 import {
   generateCapabilitySecret,
   generateGalleryHandle,
@@ -1003,5 +1006,76 @@ describe("mintPrivateGalleryAssetUrl", () => {
     const serialized = JSON.stringify(outcome);
     expect(serialized).not.toContain(OBJECT_STORE.verifierSecretAccessKey);
     expect(serialized).not.toContain(PLACEMENT.objectKey);
+  });
+});
+
+describe("readAuthorizedPrivateGalleryProofPage", () => {
+  async function proofFixture() {
+    const f = await viewFixture({ gallery: { kind: "proof" } });
+    const placement: PrivateGalleryProofPlacement = {
+      galleryId: f.gallery.galleryId,
+      placementId: "placement-1",
+      mediaId: "media-1",
+      filename: "IMG_0001.JPG",
+      reference: "001",
+      objectKey: "private/gallery/1",
+      derivativeKind: "watermarked-proof",
+      order: 0,
+      nominalBytes: 1000,
+      width: 1200,
+      height: 800,
+    };
+    const proofStore = createPrivateGalleryProofMemoryStore({
+      gallery: f.gallery,
+      pricingSnapshot: { includedCount: 1, extraUnitPriceMinor: 500, currency: "EUR" },
+      placements: [placement],
+    });
+    const read = vi.spyOn(proofStore, "read");
+    const deps = { ...f.deps, proofStore };
+    const request = { handle: f.gallery.galleryHandle, cookieHeader: f.header, now: NOW, pageIndex: 0 };
+    return { ...f, deps, read, request };
+  }
+
+  it("reads only after a fresh session check, keyed by that session's gallery", async () => {
+    const f = await proofFixture();
+    const view = await readAuthorizedPrivateGalleryProofPage(f.deps, f.request);
+
+    expect(view).toMatchObject({ confirmed: false, totalCount: 1,
+      items: [{ itemId: "placement-1", reference: "001", filename: "IMG_0001.JPG" }] });
+    expect(f.findGalleryById).toHaveBeenCalledExactlyOnceWith(f.gallery.galleryId);
+    expect(f.read).toHaveBeenCalledExactlyOnceWith(f.gallery.galleryId);
+    expect(JSON.stringify(view)).not.toMatch(/objectKey|mediaId|nominalBytes|galleryId|private\/gallery/);
+  });
+
+  it("gives one refusal value for absent, wrong, expired and revoked access", async () => {
+    const f = await proofFixture();
+    const cases = [
+      { ...f.request, cookieHeader: null },
+      { ...f.request, handle: generateGalleryHandle() },
+      { ...f.request, now: new Date(NOW.getTime() + 31 * DAY) },
+    ];
+    for (const request of cases) {
+      await expect(readAuthorizedPrivateGalleryProofPage(f.deps, request)).resolves.toBeUndefined();
+    }
+    expect(f.read).not.toHaveBeenCalled();
+
+    const revoked = await proofFixture();
+    revoked.findGalleryById.mockResolvedValueOnce({ ...revoked.gallery, capabilityGeneration: 4 });
+    await expect(readAuthorizedPrivateGalleryProofPage(revoked.deps, revoked.request))
+      .resolves.toBeUndefined();
+    expect(revoked.read).not.toHaveBeenCalled();
+  });
+
+  it("refuses a different gallery kind or an inconsistent proof store row", async () => {
+    const f = await proofFixture();
+    f.findGalleryById.mockResolvedValueOnce({ ...f.gallery, kind: "delivery" });
+    await expect(readAuthorizedPrivateGalleryProofPage(f.deps, f.request)).resolves.toBeUndefined();
+    expect(f.read).not.toHaveBeenCalled();
+
+    const state = await f.deps.proofStore.read(f.gallery.galleryId);
+    expect(state).toBeDefined();
+    f.read.mockResolvedValueOnce({ ...state!,
+      gallery: { ...f.gallery, capabilityGeneration: 5 } });
+    await expect(readAuthorizedPrivateGalleryProofPage(f.deps, f.request)).resolves.toBeUndefined();
   });
 });

@@ -39,7 +39,16 @@ exact validated photographer email as one atomic operation. The metadata-only
 status read cannot return the recipient or message; a separate server-only
 worker read can. Administrator reopen keeps earlier snapshots and the
 original access expiry; resend queues a unique attempt only against the
-currently locked version.
+currently locked version. A server-only customer read now checks the current
+session and gallery before reading proof state, then projects at most 100 current
+watermarked proof cards per page, the selected references and full filenames,
+and the frozen-pricing summary. A confirmed review takes its selected list and
+quote from the immutable confirmation even if a current placement is later
+removed; the current cards remain live. No object key, media identity, byte
+count, session value, recipient or outbox content crosses that projection. A
+malformed row refuses the whole view. The in-process reference store supplies
+the draft and current confirmation together; a future database adapter must
+use one consistent read and bounded page and selected-row queries.
 The memory implementation has no cross-process durability or database uniqueness
 guarantees and is not connected to a route. A future private database will
 hold the published included count, integer extra-image unit price and currency, permanent

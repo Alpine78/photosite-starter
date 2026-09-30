@@ -101,6 +101,11 @@ import {
   PrivateGalleryConfigurationError,
 } from "@/lib/private-gallery-config";
 import {
+  projectPrivateGalleryProofView,
+  type PrivateGalleryProofView,
+} from "@/lib/private-gallery-proof-view";
+import type { PrivateGalleryProofStore } from "@/lib/private-gallery-proof-store";
+import {
   PRIVATE_GALLERY_ITEM_LIMITS,
   projectPrivateGalleryItems,
   type PrivateGalleryItem,
@@ -109,6 +114,7 @@ import {
 export type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
 export type { PrivateGallery, PrivateGallerySession } from "@/lib/private-gallery";
 export type { PrivateGalleryItem } from "@/lib/private-gallery-item";
+export type { PrivateGalleryProofView } from "@/lib/private-gallery-proof-view";
 export type { PrivateGalleryMintRequest } from "@/lib/private-gallery-delivery";
 export { createPrivateGalleryExchangeIpLimiter };
 export { deriveClientKey } from "@/lib/contact-rate-limit";
@@ -500,6 +506,43 @@ export async function listPrivateGalleryItems(
     PRIVATE_GALLERY_ITEM_LIMITS.maxPageSize,
   );
   return projectPrivateGalleryItems(placements);
+}
+
+/**
+ * One customer proof read. The existing session check runs first, then the raw
+ * proof store is addressed only by the gallery id that session authorized.
+ * Every refusal has the same value; a future route must render it identically.
+ * No proof store is wired into runtime routes yet.
+ */
+export async function readAuthorizedPrivateGalleryProofPage(
+  deps: PrivateGalleryViewDeps & { readonly proofStore: PrivateGalleryProofStore },
+  request: PrivateGalleryViewRequest & { readonly pageIndex: number },
+): Promise<PrivateGalleryProofView | undefined> {
+  const authorized = await authorizePrivateGalleryView(deps, request);
+  if (!authorized.authorized || authorized.gallery.kind !== "proof") {
+    return undefined;
+  }
+
+  try {
+    const state = await deps.proofStore.read(authorized.gallery.galleryId);
+    const fresh = authorized.gallery;
+    if (
+      state === undefined ||
+      state.gallery.galleryId !== fresh.galleryId ||
+      state.gallery.galleryHandle !== fresh.galleryHandle ||
+      state.gallery.kind !== "proof" ||
+      state.gallery.state !== "published" ||
+      state.gallery.capabilityGeneration !== fresh.capabilityGeneration ||
+      !(state.gallery.accessExpiresAt instanceof Date) ||
+      !(fresh.accessExpiresAt instanceof Date) ||
+      state.gallery.accessExpiresAt.getTime() !== fresh.accessExpiresAt.getTime()
+    ) return undefined;
+    return projectPrivateGalleryProofView(state, request.pageIndex);
+  } catch {
+    // A malformed proof row and every failed authorization produce no browser
+    // payload. A route must not turn these classes into different responses.
+    return undefined;
+  }
 }
 
 // ---------------------------------------------------------------------------

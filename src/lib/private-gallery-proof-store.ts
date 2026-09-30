@@ -59,6 +59,8 @@ export type PrivateGalleryProofStoredState = {
   readonly placements: readonly PrivateGalleryProofPlacement[];
   readonly draft: PrivateGalleryProofDraft;
   readonly latestConfirmationVersion: number;
+  /** Present exactly when the current draft is locked; historical versions remain separate. */
+  readonly currentConfirmation?: PrivateGalleryProofConfirmation;
 };
 
 export type PrivateGalleryProofStore = {
