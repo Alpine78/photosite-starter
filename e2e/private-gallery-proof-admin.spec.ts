@@ -30,6 +30,7 @@ const labels = getBuiltInLabels(
 ).privateGalleryProofAdmin;
 
 const PRICING = { includedCount: 1, extraUnitPriceMinor: 1250, currency: "EUR" };
+const draftLabels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE as string).privateGalleryProofCreation;
 
 async function mockProofAdminApi(page: import("@playwright/test").Page) {
   let confirmed = false;
@@ -95,6 +96,33 @@ async function mockProofAdminApi(page: import("@playwright/test").Page) {
 }
 
 test.describe("private gallery proof administration", () => {
+  test("creates and lists a private draft without showing a customer access link", async ({ page }) => {
+    const drafts: unknown[] = [];
+    await page.route("**/admin/proof", async (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({ status: 200, contentType: "application/json",
+          body: JSON.stringify({ ok: true, items: drafts, hasMore: true }) });
+      }
+      const input = JSON.parse(route.request().postData() ?? "{}") as { pricing: typeof PRICING; customerReference: string };
+      const draft = { handle: HANDLE, createdAt: new Date().toISOString(),
+        pricing: input.pricing, customerReference: input.customerReference };
+      drafts.unshift(draft);
+      return route.fulfill({ status: 201, contentType: "application/json",
+        body: JSON.stringify({ ok: true, draft }) });
+    });
+    await page.reload();
+    await page.getByLabel(draftLabels.includedCount).fill("2");
+    await page.getByLabel(draftLabels.extraUnitPriceMinor).fill("1200");
+    await page.getByLabel(draftLabels.currency).fill("EUR");
+    await page.getByLabel(draftLabels.customerReference).fill("customer-1");
+    await page.getByRole("button", { name: draftLabels.create }).click();
+    await expect(page.getByRole("status")).toContainText(HANDLE);
+    await expect(page.getByText(draftLabels.hasMore)).toBeVisible();
+    await expect(page.getByText("customer-1", { exact: false })).toBeVisible();
+    await expect(page.locator(`a[href*="${HANDLE}"]`)).toHaveCount(0);
+    await expect(page.getByRole("status")).not.toContainText("#");
+  });
+
   test.beforeEach(async ({ page, browserName }) => {
     // WebKit does not store a Secure cookie over this harness's plain-HTTP
     // loopback origin (see `private-gallery-admin.spec.ts` and

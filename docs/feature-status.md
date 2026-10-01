@@ -1278,12 +1278,19 @@ as `GET`/`POST` JSON, re-authorizing the administrator session on every call;
 `e2e/private-gallery-proof-admin.spec.ts` exercises a real administrator
 sign-in against a `page.route`-mocked status/action surface, for the same
 shared-fixture-mutation reason the customer flow spec mocks its mutations.
-Gallery creation, publication, and customer/job association still do not
-exist in any form — there is no domain model for a customer or a job yet, and
-an administrator can only ever address a proof gallery whose handle they
-already hold out of band; the development fixture's one proof gallery is the
-only one this deployment can show. No PostgreSQL proof store, durable outbox
-worker, runtime mail wiring or production customer workflow exists yet.
+A separate development-memory administrator flow now creates and lists
+prepublication proof drafts. It accepts validated, nonnegative pricing and
+optional bounded customer/job external references, mints an internal gallery
+identity and handle, and exposes no capability or customer access link. The
+`GET` list is capped at 100 and reports whether more rows exist. Each call
+reauthorizes the administrator; `POST` checks same-origin JSON and a streamed
+1 KiB body bound before parsing. The draft store is separate from the
+published fixture's customer exchange, view, and proof stores, so creating a
+draft cannot give a customer access. This is not yet relational customer/job
+association: no customer or job domain records exist (AB#28). Pricing edits,
+abandoned-draft cleanup, ready/publication and production persistence remain.
+No PostgreSQL proof store, durable outbox worker, runtime mail wiring or
+production customer workflow exists yet.
 
 Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no production store
 adapter and no provisioned infrastructure**, so an `enabled` deployment throws on the

@@ -148,10 +148,22 @@ draft for a new round of edits without touching any earlier confirmation or
 outbox row; resend queues a fresh delivery attempt under the same confirmation
 version, repeatably — two clicks queue two attempts rather than colliding.
 Both re-authorize the administrator session on every call, exactly as the
-customer mutation endpoint re-authorizes the customer session. There is still
-no gallery creation, publication, or customer/job association in any form: an
-administrator can only ever address a proof gallery whose handle they already
-hold, and the development fixture has exactly one.
+customer mutation endpoint re-authorizes the customer session. A separate authenticated `GET`/`POST` at the administrator proof root now lists
+up to 100 recent prepublication proof drafts (with an explicit `hasMore` flag)
+and creates one in the development memory store. The submitted included count,
+integer extra-photo unit price and currency form an editable pricing candidate;
+optional customer and job references are bounded external identifiers, not
+relations to customer or job records (AB#28 has not supplied those records).
+This draft has a generated internal gallery ID and handle, but no capability,
+session, placements, publication timestamp or customer access link. It is kept
+out of the customer exchange, view and proof stores. The administrator API
+checks JSON provenance, authorizes the session before reading a bounded body,
+and returns only a safe projection with no internal ID or secret. The draft
+form and list are localized; this is still a process-local development aid.
+Pricing edits, abandoned-draft cleanup, relational customer/job association,
+ready/publish transactions and production persistence remain to implement.
+The status panel above continues to address only the existing published proof
+fixture by a handle the administrator already holds.
 
 ## What is held, and why it is different from the contact form
 

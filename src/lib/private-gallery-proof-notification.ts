@@ -15,6 +15,7 @@ import {
   isValidGalleryNotificationRecipient,
 } from "@/lib/gallery-notification";
 import {
+  isPrivateGalleryProofBusinessReference,
   isPrivateGalleryProofFilename,
   isPrivateGalleryProofMediaId,
   summarizePrivateGalleryProofSelection,
@@ -57,15 +58,6 @@ function fail(reason: PrivateGalleryProofNotificationErrorReason): never {
 
 const SINGLE_LINE_CONTROL = /[\x00-\x1f\x7f-\x9f\u2028\u2029]/u;
 const PROOF_REFERENCE = /^(?:00[1-9]|0[1-9][0-9]|[1-9][0-9]{2,})$/;
-
-function validBusinessReference(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.trim().length > 0 &&
-    Buffer.byteLength(value, "utf8") <= 128 &&
-    !SINGLE_LINE_CONTROL.test(value)
-  );
-}
 
 function validSnapshot(value: unknown): value is PrivateGalleryProofConfirmation {
   if (typeof value !== "object" || value === null) return false;
@@ -140,8 +132,8 @@ export function buildPrivateGalleryProofNotification(params: {
 
   if (!isValidGalleryNotificationRecipient(recipient)) fail("invalid-recipient");
   if (
-    !validBusinessReference(galleryReference) ||
-    !validBusinessReference(customerReference)
+    !isPrivateGalleryProofBusinessReference(galleryReference) ||
+    !isPrivateGalleryProofBusinessReference(customerReference)
   ) fail("invalid-reference");
   if (
     !isValidGalleryNotificationIdempotencyKey(outboxIdempotencyKey)

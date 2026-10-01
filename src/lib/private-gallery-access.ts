@@ -54,6 +54,7 @@ import {
 
 import type { ContactRateLimiter } from "@/lib/contact-rate-limit";
 import {
+  checkPrivateGalleryAdminLoginRequestHeaders,
   consumePrivateGalleryAdminLoginAttempt,
   PrivateGalleryAdminLoginError,
   type PrivateGalleryAdminLoginRateConfig,
@@ -79,6 +80,13 @@ import type { PrivateGalleryAdminSession } from "@/lib/private-gallery";
 import { getPrivateGalleryDeployment } from "@/lib/private-gallery-deployment";
 import { getPrivateGalleryMemoryStore } from "@/lib/private-gallery-memory-store";
 import type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
+import {
+  PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT,
+  PrivateGalleryProofDraftStoreError,
+  type PrivateGalleryProofDraftStore,
+  type PrivateGalleryProofDraftSetup,
+  type PrivateGalleryProofDraftSetupInput,
+} from "@/lib/private-gallery-proof-draft-store";
 import type {
   PrivateGallery,
   PrivateGalleryPlacement,
@@ -113,6 +121,8 @@ import type {
 } from "@/lib/private-gallery-proof-store";
 import {
   PrivateGalleryProofError,
+  isPrivateGalleryProofBusinessReference,
+  validatePrivateGalleryProofPricing,
   type PrivateGalleryProofPricing,
   type PrivateGalleryProofSummary,
 } from "@/lib/private-gallery-proof";
@@ -1240,13 +1250,14 @@ export type PrivateGalleryAdminStores = {
   readonly loginStore: PrivateGalleryAdminLoginStore;
   readonly sessionStore: PrivateGalleryAdminSessionStore;
   readonly proofStore: PrivateGalleryProofStore;
+  readonly proofDraftStore: PrivateGalleryProofDraftStore;
   /**
    * An administrator already holds an authorized session, so a handle-keyed
    * lookup here carries none of {@link PrivateGalleryViewStore}'s enumeration
    * concern — this is the administrator's own gallery, not a stranger's guess.
    * The development fixture answers only its own single proof gallery; a
-   * Postgres adapter's real implementation is also where AB#130's customer/job
-   * association and gallery listing belong, neither of which exists yet.
+   * The future Postgres adapter must supply durable customer/job relations and
+   * gallery listing; the separate memory-only draft list does neither.
    */
   findProofGalleryIdByHandle(handle: string): Promise<string | undefined>;
   /**
@@ -1274,6 +1285,7 @@ export function getPrivateGalleryAdminStores(): PrivateGalleryAdminStores {
       loginStore: memory.adminLoginStore,
       sessionStore: memory.adminSessionStore,
       proofStore: memory.proofStore,
+      proofDraftStore: memory.proofDraftStore,
       async findProofGalleryIdByHandle(handle) {
         return handle === memory.proofGallery.galleryHandle
           ? memory.proofGallery.galleryId
@@ -1294,6 +1306,105 @@ export function getPrivateGalleryAdminStores(): PrivateGalleryAdminStores {
   throw new PrivateGalleryStoresUnavailableError(
     'PRIVATE_GALLERY_STORE is "off"; a route must answer notFound() before asking for stores.',
   );
+}
+
+// ---------------------------------------------------------------------------
+// Administrator proof-gallery creation and listing (AB#130, draft only)
+// ---------------------------------------------------------------------------
+
+export type PrivateGalleryProofDraftAdminItem = {
+  readonly handle: string;
+  readonly createdAt: string;
+  readonly pricing: PrivateGalleryProofPricing;
+  readonly customerReference?: string;
+  readonly jobReference?: string;
+};
+
+export type PrivateGalleryProofDraftAdminOutcome<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly reason: "unauthorized" | "invalid-input" | "unavailable" };
+
+function projectProofDraft(row: PrivateGalleryProofDraftSetup): PrivateGalleryProofDraftAdminItem {
+  return {
+    handle: row.gallery.galleryHandle,
+    createdAt: row.gallery.createdAt.toISOString(),
+    pricing: row.pricing,
+    ...(row.customerReference === undefined ? {} : { customerReference: row.customerReference }),
+    ...(row.jobReference === undefined ? {} : { jobReference: row.jobReference }),
+  };
+}
+
+function parseProofDraftInput(raw: string): PrivateGalleryProofDraftSetupInput | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).some((key) =>
+    !["pricing", "customerReference", "jobReference"].includes(key))) return undefined;
+  if (typeof record.pricing !== "object" || record.pricing === null || Array.isArray(record.pricing)) return undefined;
+  const terms = record.pricing as Record<string, unknown>;
+  if (Object.keys(terms).sort().join(",") !== "currency,extraUnitPriceMinor,includedCount") return undefined;
+  if ((record.customerReference !== undefined &&
+      !isPrivateGalleryProofBusinessReference(record.customerReference)) ||
+      (record.jobReference !== undefined &&
+      !isPrivateGalleryProofBusinessReference(record.jobReference))) return undefined;
+  try {
+    return {
+      pricing: validatePrivateGalleryProofPricing(terms as PrivateGalleryProofPricing),
+      ...(record.customerReference === undefined ? {} : { customerReference: record.customerReference as string }),
+      ...(record.jobReference === undefined ? {} : { jobReference: record.jobReference as string }),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Re-authorize before body IO; create only a private, non-published setup row. */
+export async function createPrivateGalleryProofDraftAsAdmin(
+  deps: PrivateGalleryAdminRequestDeps & { readonly proofDraftStore: PrivateGalleryProofDraftStore },
+  request: Request,
+  now: Date,
+): Promise<PrivateGalleryProofDraftAdminOutcome<PrivateGalleryProofDraftAdminItem>> {
+  if (checkPrivateGalleryAdminLoginRequestHeaders(request) !== undefined) {
+    return { ok: false, reason: "invalid-input" };
+  }
+  const authorization = await authorizePrivateGalleryAdministrator(deps, {
+    cookieHeader: request.headers.get("cookie"), now,
+  });
+  if (!authorization.ok) return { ok: false, reason: "unauthorized" };
+  try {
+    const raw = await readBoundedBody(request, 1024);
+    const input = raw === undefined ? undefined : parseProofDraftInput(raw);
+    if (input === undefined) return { ok: false, reason: "invalid-input" };
+    return { ok: true, value: projectProofDraft(await deps.proofDraftStore.create(input, now)) };
+  } catch (error) {
+    if (error instanceof PrivateGalleryProofDraftStoreError && error.reason === "invalid-input") {
+      return { ok: false, reason: "invalid-input" };
+    }
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+/** Bounded, authorized listing; no internal ID, secret, or customer access URL. */
+export async function listPrivateGalleryProofDraftsAsAdmin(
+  deps: PrivateGalleryAdminRequestDeps & { readonly proofDraftStore: PrivateGalleryProofDraftStore },
+  request: PrivateGalleryAdminRequest,
+): Promise<PrivateGalleryProofDraftAdminOutcome<{
+  readonly items: readonly PrivateGalleryProofDraftAdminItem[];
+  readonly hasMore: boolean;
+}>> {
+  const authorization = await authorizePrivateGalleryAdministrator(deps, request);
+  if (!authorization.ok) return { ok: false, reason: "unauthorized" };
+  try {
+    const result = await deps.proofDraftStore.list(PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT);
+    return { ok: true, value: { items: result.items.map(projectProofDraft), hasMore: result.hasMore } };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
 }
 
 /** The `Set-Cookie` descriptor for administrator logout. */

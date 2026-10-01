@@ -206,6 +206,17 @@ describe("the fixture refuses everything a real store would", () => {
     expect(outcome.ok).toBe(false);
   });
 
+  it("does not expose newly created proof drafts to the customer exchange", async () => {
+    const store = getPrivateGalleryMemoryStore();
+    const draft = await store.proofDraftStore.create({
+      pricing: { includedCount: 1, extraUnitPriceMinor: 500, currency: "EUR" },
+    }, NOW);
+    const lookup = await store.exchangeStore.consumeExchangeAttempt(
+      draft.gallery.galleryHandle, NOW, { maxAttempts: 1, windowMs: 60_000 },
+    );
+    expect(lookup.outcome).toBe("unknown-handle");
+  });
+
   it("creates no rate-limit row for an unknown handle", async () => {
     // The contract `consumeExchangeAttempt` states, and the property the
     // Postgres adapter will enforce with a foreign key: an unknown handle must

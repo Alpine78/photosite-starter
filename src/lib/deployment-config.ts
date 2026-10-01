@@ -195,12 +195,27 @@ export type BuiltInLabels = {
     readonly administrationPending: string;
     readonly signOut: string;
   };
+  /** Development-only administrator proof setup (AB#130). */
+  readonly privateGalleryProofCreation: {
+    readonly heading: string;
+    readonly description: string;
+    readonly includedCount: string;
+    readonly extraUnitPriceMinor: string;
+    readonly currency: string;
+    readonly customerReference: string;
+    readonly jobReference: string;
+    readonly create: string;
+    readonly creating: string;
+    readonly created: string;
+    readonly listHeading: string;
+    readonly empty: string;
+    readonly hasMore: string;
+    readonly unavailable: string;
+    readonly handle: string;
+  };
   /**
-   * The administrator's proof-gallery status panel (AB#130): look up one
-   * gallery by its handle, see its draft/confirmation state and notification
-   * delivery status, and reopen or resend. Gallery creation, customer/job
-   * association and a gallery listing are not built yet, so this panel only
-   * ever addresses a handle the operator already holds.
+   * Published proof-gallery status, reopen and resend. The separate draft
+   * creator lists prepublication setup rows.
    */
   readonly privateGalleryProofAdmin: {
     readonly heading: string;
@@ -641,8 +656,25 @@ const englishLabels = {
     javascriptRequired: "Signing in needs JavaScript.",
     signedInHeading: "Signed in",
     administrationPending:
-      "There is nothing to administer yet. Creating, publishing, and revoking private galleries need the private stores, which this deployment has not provisioned.",
+      "Draft creation is available in this development store. Publishing and revoking galleries still need persistent private stores.",
     signOut: "Sign out",
+  },
+  privateGalleryProofCreation: {
+    heading: "Create proof gallery draft",
+    description: "Drafts are private. Publishing and customer access are not available yet. Prices are in minor currency units.",
+    includedCount: "Included photographs",
+    extraUnitPriceMinor: "Additional photograph price (minor units)",
+    currency: "Currency code (for example EUR)",
+    customerReference: "Customer reference (optional)",
+    jobReference: "Job reference (optional)",
+    create: "Create draft",
+    creating: "Creating…",
+    created: "Draft created.",
+    listHeading: "Recent drafts",
+    empty: "No drafts yet.",
+    hasMore: "Showing the latest 100 drafts.",
+    unavailable: "The draft request failed. Try again.",
+    handle: "Handle",
   },
   privateGalleryProofAdmin: {
     heading: "Proof gallery status",
@@ -910,8 +942,25 @@ const finnishLabels = {
     javascriptRequired: "Kirjautuminen tarvitsee JavaScriptin.",
     signedInHeading: "Kirjautunut sisään",
     administrationPending:
-      "Hallittavaa ei ole vielä. Yksityisgallerioiden luonti, julkaisu ja peruutus tarvitsevat yksityiset tietovarastot, joita tähän ympäristöön ei ole vielä pystytetty.",
+      "Luonnoksia voi luoda tässä kehitysympäristön muistivarastossa. Gallerioiden julkaisu ja peruuttaminen tarvitsevat vielä pysyvän yksityisen tietovaraston.",
     signOut: "Kirjaudu ulos",
+  },
+  privateGalleryProofCreation: {
+    heading: "Luo vedosgallerian luonnos",
+    description: "Luonnokset ovat yksityisiä. Julkaisu ja asiakkaan pääsy eivät ole vielä käytettävissä. Hinnat annetaan valuutan pienimmässä yksikössä.",
+    includedCount: "Hintaan kuuluvat valokuvat",
+    extraUnitPriceMinor: "Lisäkuvan hinta (pienin yksikkö)",
+    currency: "Valuuttakoodi (esimerkiksi EUR)",
+    customerReference: "Asiakasviite (valinnainen)",
+    jobReference: "Työviite (valinnainen)",
+    create: "Luo luonnos",
+    creating: "Luodaan…",
+    created: "Luonnos luotu.",
+    listHeading: "Uusimmat luonnokset",
+    empty: "Luonnoksia ei vielä ole.",
+    hasMore: "Näytetään 100 uusinta luonnosta.",
+    unavailable: "Luonnoksen käsittely epäonnistui. Yritä uudelleen.",
+    handle: "Tunniste",
   },
   privateGalleryProofAdmin: {
     heading: "Vedosgallerian tila",

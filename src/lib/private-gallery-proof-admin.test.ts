@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PrivateGallery, PrivateGalleryAdminSession, PrivateGalleryProofPlacement } from "@/lib/private-gallery";
 import {
+  createPrivateGalleryProofDraftAsAdmin,
+  listPrivateGalleryProofDraftsAsAdmin,
   readPrivateGalleryProofAdminStatus,
   reopenPrivateGalleryProofAsAdmin,
   resendPrivateGalleryProofNotificationAsAdmin,
@@ -20,6 +22,7 @@ import {
   PRIVATE_GALLERY_ADMIN_SESSION_COOKIE_NAME,
   type PrivateGalleryAdminSessionStore,
 } from "@/lib/private-gallery-admin-session";
+import { createPrivateGalleryProofDraftMemoryStore } from "@/lib/private-gallery-proof-draft-store";
 import { createPrivateGalleryProofMemoryStore } from "@/lib/private-gallery-proof-memory-store";
 import { getBuiltInLabels } from "@/lib/deployment-config";
 
@@ -310,5 +313,73 @@ describe("resendPrivateGalleryProofNotificationAsAdmin", () => {
 
     const state = await f.proofStore.read(GALLERY.galleryId);
     expect(state?.latestConfirmationVersion).toBe(1);
+  });
+});
+
+function draftRequest(cookie: string | null, body: unknown, origin = "http://example.test") {
+  return new Request("http://example.test/admin/proof", {
+    method: "POST",
+    headers: {
+      host: "example.test", origin,
+      "content-type": "application/json",
+      ...(cookie === null ? {} : { cookie }),
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+const DRAFT_INPUT = {
+  pricing: { includedCount: 2, extraUnitPriceMinor: 1200, currency: "EUR" },
+  customerReference: "customer-1",
+  jobReference: "job-1",
+};
+
+describe("administrator draft creation", () => {
+  it("refuses unauthenticated creation before reading a request body or writing", async () => {
+    const f = await fixture();
+    const draftStore = createPrivateGalleryProofDraftMemoryStore();
+    const request = new Request("http://example.test/admin/proof", {
+      method: "POST",
+      headers: { host: "example.test", origin: "http://example.test", "content-type": "application/json" },
+      body: new ReadableStream({ pull() {} }),
+      duplex: "half",
+    } as RequestInit);
+    const outcome = await createPrivateGalleryProofDraftAsAdmin({ ...f.deps, proofDraftStore: draftStore }, request, NOW);
+    expect(outcome).toEqual({ ok: false, reason: "unauthorized" });
+    expect(request.bodyUsed).toBe(false);
+    expect(request.body?.locked).toBe(false);
+    expect((await draftStore.list(1)).items).toEqual([]);
+  });
+
+  it("accepts a bounded exact body and lists only authorized safe projections", async () => {
+    const f = await fixture();
+    const proofDraftStore = createPrivateGalleryProofDraftMemoryStore();
+    const deps = { ...f.deps, proofDraftStore };
+    const created = await createPrivateGalleryProofDraftAsAdmin(deps, draftRequest(f.header, DRAFT_INPUT), NOW);
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    expect(created.value).toMatchObject({ pricing: DRAFT_INPUT.pricing, customerReference: "customer-1" });
+    expect(JSON.stringify(created.value)).not.toContain("galleryId");
+    expect(JSON.stringify(created.value)).not.toContain("capability");
+    const listed = await listPrivateGalleryProofDraftsAsAdmin(deps, { cookieHeader: f.header, now: NOW });
+    expect(listed).toEqual({ ok: true, value: { items: [created.value], hasMore: false } });
+    expect(await listPrivateGalleryProofDraftsAsAdmin(deps, { cookieHeader: null, now: NOW }))
+      .toEqual({ ok: false, reason: "unauthorized" });
+  });
+
+  it("rejects cross-origin, extra fields, invalid prices and oversized bodies", async () => {
+    const f = await fixture();
+    const proofDraftStore = createPrivateGalleryProofDraftMemoryStore();
+    const deps = { ...f.deps, proofDraftStore };
+    for (const request of [
+      draftRequest(f.header, DRAFT_INPUT, "http://evil.test"),
+      draftRequest(f.header, { ...DRAFT_INPUT, secret: "unexpected" }),
+      draftRequest(f.header, { ...DRAFT_INPUT, pricing: { ...DRAFT_INPUT.pricing, includedCount: -1 } }),
+      draftRequest(f.header, { ...DRAFT_INPUT, customerReference: "x".repeat(1025) }),
+    ]) {
+      expect(await createPrivateGalleryProofDraftAsAdmin(deps, request, NOW))
+        .toEqual({ ok: false, reason: "invalid-input" });
+    }
+    expect((await proofDraftStore.list(1)).items).toEqual([]);
   });
 });

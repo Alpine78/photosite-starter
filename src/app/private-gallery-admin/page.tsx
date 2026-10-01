@@ -5,6 +5,7 @@ import {
   AdminSignInForm,
   AdminSignOutButton,
 } from "@/components/admin-sign-in-form";
+import { PrivateGalleryProofDraftCreator } from "@/components/private-gallery-proof-draft-creator";
 import { PrivateGalleryProofAdminPanel } from "@/components/private-gallery-proof-admin-panel";
 import {
   authorizePrivateGalleryAdministrator,
@@ -34,6 +35,7 @@ export default async function PrivateGalleryAdminPage() {
   const { privateGallery } = getDeploymentConfig();
   const text = getDefaultLocaleLabels().privateGalleryAdmin;
   const proofText = getDefaultLocaleLabels().privateGalleryProofAdmin;
+  const draftText = getDefaultLocaleLabels().privateGalleryProofCreation;
   const locale = getDeploymentConfig().locale;
 
   // The namespace is reserved whether the feature is on or off; the *routes*
@@ -88,6 +90,11 @@ export default async function PrivateGalleryAdminPage() {
         <AdminSignOutButton action={logoutPath} label={text.signOut} />
       </div>
       <p className="text-muted">{text.administrationPending}</p>
+      <PrivateGalleryProofDraftCreator
+        apiPath={proofApiPrefix}
+        locale={locale}
+        labels={draftText}
+      />
       <PrivateGalleryProofAdminPanel
         apiPathPrefix={proofApiPrefix}
         locale={locale}

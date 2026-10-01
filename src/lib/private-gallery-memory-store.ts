@@ -52,6 +52,7 @@ import {
 import type { PrivateGalleryCapabilityKeyring } from "@/lib/private-gallery-config";
 import { getBuiltInLabels } from "@/lib/deployment-config";
 import { createPrivateGalleryProofMemoryStore } from "@/lib/private-gallery-proof-memory-store";
+import { createPrivateGalleryProofDraftMemoryStore, type PrivateGalleryProofDraftStore } from "@/lib/private-gallery-proof-draft-store";
 import type { PrivateGalleryProofNotificationContext, PrivateGalleryProofStore } from "@/lib/private-gallery-proof-store";
 import {
   computePrivateGalleryAccessExpiry,
@@ -202,6 +203,7 @@ export type PrivateGalleryMemoryStore = {
   /** Separate development proof gallery and its server-only selection state. */
   readonly proofGallery: PrivateGallery;
   readonly proofStore: PrivateGalleryProofStore;
+  readonly proofDraftStore: PrivateGalleryProofDraftStore;
   readonly proofNotification: () => PrivateGalleryProofNotificationContext;
   readonly adminSessionStore: PrivateGalleryAdminSessionStore;
   readonly adminLoginStore: PrivateGalleryAdminLoginStore;
@@ -572,6 +574,7 @@ function build(now: Date): PrivateGalleryMemoryStore {
     gallery,
     proofGallery,
     proofStore,
+    proofDraftStore: createPrivateGalleryProofDraftMemoryStore(),
     proofNotification,
     ...buildAdminStores(),
     adminCredentialHash: encodePrivateGalleryAdminCredential({
