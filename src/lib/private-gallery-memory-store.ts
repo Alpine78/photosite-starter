@@ -53,7 +53,14 @@ import type { PrivateGalleryCapabilityKeyring } from "@/lib/private-gallery-conf
 import { getBuiltInLabels } from "@/lib/deployment-config";
 import { createPrivateGalleryProofMemoryStore } from "@/lib/private-gallery-proof-memory-store";
 import type { PrivateGalleryProofNotificationContext, PrivateGalleryProofStore } from "@/lib/private-gallery-proof-store";
-import { computePrivateGalleryAccessExpiry } from "@/lib/private-gallery-retention";
+import {
+  computePrivateGalleryAccessExpiry,
+  PRIVATE_GALLERY_MAX_PREPARATION_DAYS,
+} from "@/lib/private-gallery-retention";
+import {
+  planPrivateGalleryFirstProofReady,
+  planPrivateGalleryFirstProofPublication,
+} from "@/lib/private-gallery-readiness";
 import {
   evaluatePrivateGalleryExchangeRate,
   type PrivateGalleryExchangeLookup,
@@ -289,16 +296,73 @@ function build(now: Date): PrivateGalleryMemoryStore {
     accessExpiresAt: computePrivateGalleryAccessExpiry(now),
   };
 
-  const proofGallery: PrivateGallery = {
+  const proofPreparingGallery: PrivateGallery = {
     galleryId: MEMORY_PROOF_GALLERY_ID,
     galleryHandle: MEMORY_PROOF_GALLERY_HANDLE,
     kind: "proof",
-    state: "published",
+    state: "preparing",
     capabilityGeneration: MEMORY_GALLERY_GENERATION,
     createdAt: now,
-    publishedAt: now,
-    accessExpiresAt: computePrivateGalleryAccessExpiry(now),
   };
+  const proofCandidates: readonly PrivateGalleryProofPlacement[] = [
+    {
+      galleryId: proofPreparingGallery.galleryId, placementId: "memory-proof-01",
+      mediaId: "memory-proof-media-01", filename: "IMG_0001.JPG",
+      objectKey: "memory/proof/01.webp", derivativeKind: "watermarked-proof",
+      order: 1, nominalBytes: 872_300, width: 1800, height: 1200,
+      alt: "Watermarked landscape proof",
+    },
+    {
+      galleryId: proofPreparingGallery.galleryId, placementId: "memory-proof-02",
+      mediaId: "memory-proof-media-02", filename: "IMG_0002.JPG",
+      objectKey: "memory/proof/02.webp", derivativeKind: "watermarked-proof",
+      order: 2, nominalBytes: 1_024_000, width: 1200, height: 1800,
+      alt: "Watermarked portrait proof",
+    },
+  ];
+  const verifiedProofObjects = proofCandidates.map((item) => ({
+    objectKey: item.objectKey,
+    objectKind: "proof" as const,
+    sizeBytes: item.nominalBytes,
+  }));
+  const proofPricing = {
+    includedCount: 1, extraUnitPriceMinor: 1250, currency: "EUR",
+  };
+  const readyProof = planPrivateGalleryFirstProofReady({
+    gallery: proofPreparingGallery,
+    placements: proofCandidates,
+    pricing: proofPricing,
+    verifiedObjects: verifiedProofObjects,
+  });
+  if (!readyProof.ready) throw new Error("Invalid development proof fixture readiness");
+  const readyProofGallery: PrivateGallery = {
+    ...proofPreparingGallery,
+    state: readyProof.nextState,
+  };
+  const publishedProof = planPrivateGalleryFirstProofPublication({
+    gallery: readyProofGallery,
+    proof: {
+      pricingSnapshot: readyProof.pricingSnapshot,
+      placements: readyProof.placements,
+    },
+    verifiedObjects: verifiedProofObjects,
+    preparation: {
+      galleryId: readyProofGallery.galleryId,
+      openedAt: now,
+      deadline: new Date(
+        now.getTime() + PRIVATE_GALLERY_MAX_PREPARATION_DAYS * 24 * 60 * 60 * 1000,
+      ),
+    },
+    now,
+  });
+  if (!publishedProof.publishable) throw new Error("Invalid development proof fixture publication");
+  const proofGallery: PrivateGallery = {
+    ...readyProofGallery,
+    state: publishedProof.nextState,
+    publishedAt: publishedProof.publishedAt,
+    accessExpiresAt: publishedProof.accessExpiresAt,
+  };
+  const proofPlacements = readyProof.placements;
 
   const material: PrivateGalleryCapabilityMaterial = sealCapability(
     keyring,
@@ -408,25 +472,9 @@ function build(now: Date): PrivateGalleryMemoryStore {
     (placement) => ({ ...placement, galleryId: gallery.galleryId }),
   );
 
-  const proofPlacements: readonly PrivateGalleryProofPlacement[] = [
-    {
-      galleryId: proofGallery.galleryId, placementId: "memory-proof-01",
-      mediaId: "memory-proof-media-01", filename: "IMG_0001.JPG", reference: "001",
-      objectKey: "memory/proof/01.webp", derivativeKind: "watermarked-proof",
-      order: 1, nominalBytes: 872_300, width: 1800, height: 1200,
-      alt: "Watermarked landscape proof",
-    },
-    {
-      galleryId: proofGallery.galleryId, placementId: "memory-proof-02",
-      mediaId: "memory-proof-media-02", filename: "IMG_0002.JPG", reference: "002",
-      objectKey: "memory/proof/02.webp", derivativeKind: "watermarked-proof",
-      order: 2, nominalBytes: 1_024_000, width: 1200, height: 1800,
-      alt: "Watermarked portrait proof",
-    },
-  ];
   const proofStore = createPrivateGalleryProofMemoryStore({
     gallery: proofGallery,
-    pricingSnapshot: { includedCount: 1, extraUnitPriceMinor: 1250, currency: "EUR" },
+    pricingSnapshot: readyProof.pricingSnapshot,
     placements: proofPlacements,
   });
   const proofNotification = (): PrivateGalleryProofNotificationContext => ({

@@ -8,6 +8,7 @@ import {
 import {
   evaluatePrivateGalleryReadiness,
   planPrivateGalleryFirstProofReady,
+  planPrivateGalleryFirstProofPublication,
   type PrivateGalleryProofReadinessData,
 } from "@/lib/private-gallery-readiness";
 import type { PrivateGalleryVerifiedObject } from "@/lib/private-gallery-upload-completion";
@@ -311,5 +312,128 @@ describe("the kind is a stored discriminant, not an inference", () => {
       blockers: ["no-verified-zip"],
     });
     expect(neverHasOne).toEqual({ ready: true });
+  });
+});
+
+const PUBLICATION_NOW = new Date("2026-08-31T10:00:00.000Z");
+const READY_PROOF_GALLERY: PrivateGallery = {
+  ...PROOF_GALLERY,
+  state: "ready",
+  createdAt: new Date("2026-08-01T10:00:00.000Z"),
+};
+const preparation = {
+  galleryId: READY_PROOF_GALLERY.galleryId,
+  openedAt: new Date("2026-08-02T10:00:00.000Z"),
+  deadline: new Date("2026-09-01T10:00:00.000Z"),
+};
+
+const publication = (overrides: Partial<Parameters<typeof planPrivateGalleryFirstProofPublication>[0]> = {}) =>
+  planPrivateGalleryFirstProofPublication({
+    gallery: READY_PROOF_GALLERY,
+    proof: proofData,
+    verifiedObjects: [proof],
+    preparation,
+    now: PUBLICATION_NOW,
+    ...overrides,
+  });
+
+describe("first proof publication", () => {
+  it("plans a guarded first publication with an immutable six-calendar-month expiry", () => {
+    const plan = publication();
+    expect(plan).toEqual({
+      publishable: true,
+      galleryId: READY_PROOF_GALLERY.galleryId,
+      expectedState: "ready",
+      expectedCapabilityGeneration: 1,
+      nextState: "published",
+      publishedAt: PUBLICATION_NOW,
+      accessExpiresAt: new Date("2027-02-28T10:00:00.000Z"),
+    });
+    if (!plan.publishable) return;
+    expect(plan.publishedAt).not.toBe(PUBLICATION_NOW);
+    expect(READY_PROOF_GALLERY.state).toBe("ready");
+    expect(READY_PROOF_GALLERY.publishedAt).toBeUndefined();
+    expect(proofData.placements[0].reference).toBe("001");
+    expect(proofData.pricingSnapshot).toEqual(pricing);
+    const openedAtCreation = {
+      ...preparation,
+      openedAt: READY_PROOF_GALLERY.createdAt,
+      deadline: new Date("2026-08-31T10:00:00.000Z"),
+    };
+    expect(publication({
+      now: READY_PROOF_GALLERY.createdAt,
+      preparation: openedAtCreation,
+    }).publishable).toBe(true);
+  });
+
+  it("refuses any state but a never-published ready proof", () => {
+    for (const gallery of [
+      { ...READY_PROOF_GALLERY, state: "preparing" as const },
+      { ...READY_PROOF_GALLERY, kind: "delivery" as const },
+    ]) expect(publication({ gallery })).toEqual({ publishable: false, blockers: ["wrong-state"] });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      publishedAt: new Date("2026-08-20T10:00:00.000Z"),
+    } })).toEqual({ publishable: false, blockers: ["publication-metadata-present"] });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      accessExpiresAt: new Date("2027-02-20T10:00:00.000Z"),
+    } })).toEqual({ publishable: false, blockers: ["publication-metadata-present"] });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      activeZipObjectKey: ZIP_KEY,
+    } })).toEqual({ publishable: false, blockers: ["zip-pointer-present"] });
+  });
+
+  it("rechecks exact verified proof objects, frozen pricing and permanent references", () => {
+    expect(publication({ verifiedObjects: [] })).toEqual({
+      publishable: false, blockers: ["no-derivatives", "proof-objects-mismatch"],
+    });
+    expect(publication({ verifiedObjects: [{ ...proof, sizeBytes: 1 }] })).toEqual({
+      publishable: false, blockers: ["proof-objects-mismatch"],
+    });
+    expect(publication({ proof: { ...proofData,
+      pricingSnapshot: { ...pricing, extraUnitPriceMinor: -1 },
+    } })).toEqual({ publishable: false, blockers: ["proof-pricing-invalid"] });
+    expect(publication({ proof: { ...proofData,
+      placements: [{ ...proofPlacement, reference: "002" }],
+    } })).toEqual({ publishable: false, blockers: ["proof-placements-invalid"] });
+  });
+
+  it("refuses expired, missing, foreign or overlong upload preparations", () => {
+    expect(publication({ preparation: undefined })).toEqual({
+      publishable: false, blockers: ["preparation-unavailable"],
+    });
+    expect(publication({ preparation: { ...preparation, galleryId: "other" } })).toEqual({
+      publishable: false, blockers: ["preparation-unavailable"],
+    });
+    expect(publication({ preparation: { ...preparation,
+      deadline: new Date("2026-09-02T10:00:00.000Z"),
+    } })).toEqual({ publishable: false, blockers: ["preparation-unavailable"] });
+    expect(publication({ now: preparation.deadline })).toEqual({
+      publishable: false, blockers: ["preparation-expired"],
+    });
+  });
+
+  it("validates the server clock and existing capability generation", () => {
+    expect(publication({ now: new Date(NaN) })).toEqual({
+      publishable: false, blockers: ["invalid-time"],
+    });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      createdAt: new Date(NaN),
+    } })).toEqual({
+      publishable: false, blockers: ["invalid-time", "preparation-unavailable"],
+    });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      capabilityGeneration: -1,
+    } })).toEqual({ publishable: false, blockers: ["invalid-generation"] });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      createdAt: new Date("2026-09-01T10:00:00.000Z"),
+    } })).toEqual({
+      publishable: false, blockers: ["invalid-time", "preparation-unavailable"],
+    });
   });
 });

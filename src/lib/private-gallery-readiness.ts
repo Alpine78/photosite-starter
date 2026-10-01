@@ -3,8 +3,9 @@
  *
  * A proof's first ready transition is a transaction plan. The future private
  * store must write its pricing snapshot, permanent references, high-water mark
- * and ready state atomically. A separate explicit publication later grants
- * customer access. Neither this module nor a route writes objects or sends mail.
+ * and ready state atomically. The first-publication plan below checks the
+ * persisted ready state and preparation deadline before customer access can be
+ * granted. Neither plan writes objects or sends mail.
  */
 
 import "server-only";
@@ -12,6 +13,7 @@ import "server-only";
 import type {
   PrivateGallery,
   PrivateGalleryProofPlacement,
+  PrivateGalleryUploadPreparation,
 } from "@/lib/private-gallery";
 import { projectPrivateGalleryItem } from "@/lib/private-gallery-item";
 import {
@@ -21,6 +23,10 @@ import {
 } from "@/lib/private-gallery-proof";
 import type { PrivateGalleryVerifiedObject } from "@/lib/private-gallery-upload-completion";
 import { PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY } from "@/lib/private-gallery-limits";
+import {
+  computePrivateGalleryAccessExpiry,
+  PRIVATE_GALLERY_MAX_PREPARATION_DAYS,
+} from "@/lib/private-gallery-retention";
 
 export type PrivateGalleryReadinessBlocker =
   | "no-derivatives"
@@ -240,5 +246,101 @@ export function planPrivateGalleryFirstProofReady(params: {
     pricingSnapshot,
     placements: assigned,
     lastAssignedOrdinal: assigned.length,
+  };
+}
+
+export type PrivateGalleryFirstProofPublicationBlocker =
+  | PrivateGalleryReadinessBlocker
+  | "publication-metadata-present"
+  | "invalid-time"
+  | "preparation-unavailable"
+  | "preparation-expired"
+  | "invalid-generation"
+  | "zip-pointer-present";
+
+export type PrivateGalleryFirstProofPublicationPlan =
+  | {
+      readonly publishable: true;
+      readonly galleryId: string;
+      /** Both expected values belong in the future store's atomic CAS. */
+      readonly expectedState: "ready";
+      readonly expectedCapabilityGeneration: number;
+      readonly nextState: "published";
+      readonly publishedAt: Date;
+      readonly accessExpiresAt: Date;
+    }
+  | {
+      readonly publishable: false;
+      readonly blockers: readonly PrivateGalleryFirstProofPublicationBlocker[];
+    };
+
+/**
+ * First publication of an already-ready proof gallery (ADR-0014 §5, §7).
+ * This only plans the metadata transition. A future PostgreSQL transaction
+ * must recheck the expected state/generation, persist these dates once, and
+ * persist a sealed capability and its publication notification atomically.
+ * Reopening a confirmed selection never changes the gallery's published state.
+ * Blockers contain no private row values, filenames or object keys.
+ */
+export function planPrivateGalleryFirstProofPublication(params: {
+  readonly gallery: PrivateGallery;
+  readonly proof?: PrivateGalleryProofReadinessData;
+  readonly verifiedObjects: readonly PrivateGalleryVerifiedObject[];
+  readonly preparation?: Pick<
+    PrivateGalleryUploadPreparation,
+    "galleryId" | "openedAt" | "deadline"
+  >;
+  readonly now: Date;
+}): PrivateGalleryFirstProofPublicationPlan {
+  const { gallery, proof, verifiedObjects, preparation, now } = params;
+  const blockers: PrivateGalleryFirstProofPublicationBlocker[] = [];
+  if (gallery.kind !== "proof" || gallery.state !== "ready") {
+    blockers.push("wrong-state");
+  }
+  if (gallery.publishedAt !== undefined || gallery.accessExpiresAt !== undefined) {
+    blockers.push("publication-metadata-present");
+  }
+  if (gallery.activeZipObjectKey !== undefined) blockers.push("zip-pointer-present");
+  if (!Number.isSafeInteger(gallery.capabilityGeneration) ||
+      gallery.capabilityGeneration < 0) blockers.push("invalid-generation");
+
+  const validDate = (value: unknown): value is Date =>
+    value instanceof Date && Number.isFinite(value.getTime());
+  if (!validDate(gallery.createdAt) || !validDate(now) ||
+      now.getTime() < gallery.createdAt.getTime()) blockers.push("invalid-time");
+
+  if (
+    preparation === undefined ||
+    preparation.galleryId !== gallery.galleryId ||
+    !validDate(preparation.openedAt) ||
+    !validDate(preparation.deadline) ||
+    !validDate(gallery.createdAt) ||
+    preparation.openedAt.getTime() < gallery.createdAt.getTime() ||
+    preparation.deadline.getTime() <= preparation.openedAt.getTime() ||
+    preparation.deadline.getTime() - preparation.openedAt.getTime() >
+      PRIVATE_GALLERY_MAX_PREPARATION_DAYS * 24 * 60 * 60 * 1000
+  ) {
+    blockers.push("preparation-unavailable");
+  } else if (validDate(now) && (
+    now.getTime() < preparation.openedAt.getTime() ||
+    now.getTime() >= preparation.deadline.getTime()
+  )) {
+    blockers.push("preparation-expired");
+  }
+
+  if (gallery.kind === "proof" && gallery.state === "ready") {
+    const readiness = evaluatePrivateGalleryReadiness({ gallery, verifiedObjects, proof });
+    if (!readiness.ready) blockers.push(...readiness.blockers);
+  }
+  if (blockers.length > 0) return { publishable: false, blockers };
+
+  return {
+    publishable: true,
+    galleryId: gallery.galleryId,
+    expectedState: "ready",
+    expectedCapabilityGeneration: gallery.capabilityGeneration,
+    nextState: "published",
+    publishedAt: new Date(now),
+    accessExpiresAt: computePrivateGalleryAccessExpiry(now),
   };
 }

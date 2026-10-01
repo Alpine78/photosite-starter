@@ -1170,7 +1170,14 @@ split out of AB#29 on 2026-09-02) remains Active. AB#130 (proof selection)
 is Active with server-only domain rules: pricing in integer minor units, natural
 complete-filename reference assignment with a persisted high-water mark contract,
 draft revision checks, versioned confirmation planning, and a first-ready transition
-from verified watermarked objects. The upload plan retains complete filename,
+from verified watermarked objects. A separate first-publication plan now refuses
+an expired or malformed upload preparation, missing or changed proof objects,
+invalid frozen pricing, prior publication metadata, or a wrong state; on success
+it supplies guarded `ready` → `published` fields and the six-calendar-month
+access expiry. The development proof fixture runs both plans before seeding its
+published gallery. No deployed store commits that publication yet, and the
+administrator create/publish route, sealed customer link and notification are
+still missing. The upload plan retains complete filename,
 stable media identity and opaque placement identity, and a verified-object join
 forms the initial placement rows. A pure confirmation-email projection includes
 the required references, filenames, counts and amounts, using shared exact

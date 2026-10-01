@@ -29,7 +29,14 @@ deployed object store or private database can
 serve one yet.
 
 AB#130 now defines proof-selection values, pure server-side rules and a first-ready
-transition plan checked against verified proof objects. The upload plan retains
+transition plan checked against verified proof objects. A separate first-publication
+plan rechecks the complete proof set and frozen pricing, refuses an expired upload
+preparation or prior publication metadata, and derives the immutable six-calendar-month
+access expiry from server time. The development proof fixture passes through both
+plans before becoming visible; the plan itself does not commit a publication,
+seal or expose a customer capability, or queue a publication message. Those
+steps still need one durable administrator-authorized transaction. The upload
+plan retains
 each proof's complete filename, stable media identity and server-minted placement
 identity alongside its opaque object key; after upload verification a pure join
 can form the initial proof placements for that transition. These values are not
