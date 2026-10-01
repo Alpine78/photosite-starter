@@ -118,8 +118,6 @@ export type BuiltInLabels = {
      * photographs land.
      */
     readonly deliveryPending: string;
-    /** The proof selection page is not yet built. */
-    readonly proofPending: string;
     /** A published gallery that genuinely holds nothing — a real state, not an error. */
     readonly noPhotographs: string;
   };
@@ -137,6 +135,41 @@ export type BuiltInLabels = {
     readonly currency: string;
     readonly extraTotal: string;
     readonly selectedImages: string;
+    readonly noneSelected: string;
+  };
+  /**
+   * The customer proof-selection panel (AB#130). Every mutation needs
+   * JavaScript, the same trade the administrator boundary makes and for the
+   * same reason: a fetch posting JSON cannot be a plain form submission.
+   */
+  readonly privateGalleryProof: {
+    readonly heading: string;
+    readonly includedLabel: string;
+    readonly extraPriceLabel: string;
+    readonly selectedCount: string;
+    /** `{from}`, `{to}` and `{total}` are the only placeholders. */
+    readonly pageStatus: string;
+    readonly previousPage: string;
+    readonly nextPage: string;
+    readonly saving: string;
+    /** One generic write failure, whatever the cause. */
+    readonly saveFailed: string;
+    readonly reviewHeading: string;
+    readonly confirmSelection: string;
+    readonly confirming: string;
+    readonly confirmDescription: string;
+    readonly confirmedHeading: string;
+    /** `{date}` is the only placeholder. */
+    readonly confirmedAt: string;
+    readonly confirmedNotice: string;
+    readonly conflictNotice: string;
+    readonly refusedNotice: string;
+    readonly reload: string;
+    readonly noProofs: string;
+    readonly javascriptRequired: string;
+    readonly selectedImagesHeading: string;
+    readonly extraCountLabel: string;
+    readonly extraTotalLabel: string;
     readonly noneSelected: string;
   };
   /**
@@ -158,6 +191,48 @@ export type BuiltInLabels = {
     /** Says what this surface can and cannot do yet, rather than implying more. */
     readonly administrationPending: string;
     readonly signOut: string;
+  };
+  /**
+   * The administrator's proof-gallery status panel (AB#130): look up one
+   * gallery by its handle, see its draft/confirmation state and notification
+   * delivery status, and reopen or resend. Gallery creation, customer/job
+   * association and a gallery listing are not built yet, so this panel only
+   * ever addresses a handle the operator already holds.
+   */
+  readonly privateGalleryProofAdmin: {
+    readonly heading: string;
+    readonly handleLabel: string;
+    readonly lookUp: string;
+    readonly looking: string;
+    readonly notFound: string;
+    readonly unavailable: string;
+    readonly confirmedLabel: string;
+    readonly openLabel: string;
+    readonly draftRevisionLabel: string;
+    readonly latestConfirmationVersionLabel: string;
+    readonly pricingLabel: string;
+    /** `{count}`, `{total}` are the only placeholders. */
+    readonly currentSummaryLabel: string;
+    /** `{date}` is the only placeholder. */
+    readonly confirmedAtLabel: string;
+    readonly notificationHeading: string;
+    readonly notificationNone: string;
+    readonly notificationPending: string;
+    readonly notificationSent: string;
+    readonly notificationFailed: string;
+    readonly notificationAttemptsLabel: string;
+    readonly notificationLastErrorLabel: string;
+    /** `{date}` is the only placeholder. */
+    readonly notificationSentAtLabel: string;
+    /** `{date}` is the only placeholder. */
+    readonly notificationNextAttemptAtLabel: string;
+    readonly reopenButton: string;
+    readonly reopening: string;
+    readonly reopenConflict: string;
+    readonly reopenNotConfirmed: string;
+    readonly resendButton: string;
+    readonly resending: string;
+    readonly resent: string;
   };
   readonly contact: {
     /**
@@ -501,7 +576,6 @@ const englishLabels = {
     accessUntil: "This gallery stays available until {date}.",
     deliveryPending:
       "Your photographs are not available for viewing here yet.",
-    proofPending: "Proof selection is not available on this page yet.",
     noPhotographs: "This gallery does not contain any photographs.",
   },
   proofConfirmationEmail: {
@@ -519,6 +593,37 @@ const englishLabels = {
     selectedImages: "Selected photographs",
     noneSelected: "No photographs selected",
   },
+  privateGalleryProof: {
+    heading: "Choose your photographs",
+    includedLabel: "Included in your package",
+    extraPriceLabel: "Price per extra photograph",
+    selectedCount: "{count} selected",
+    pageStatus: "Showing {from}–{to} of {total}",
+    previousPage: "Previous page",
+    nextPage: "Next page",
+    saving: "Saving…",
+    saveFailed: "Your selection could not be saved. Please try again.",
+    reviewHeading: "Review your selection",
+    confirmSelection: "Confirm selection",
+    confirming: "Confirming…",
+    confirmDescription:
+      "Once confirmed, your selection is final and the photographer is notified.",
+    confirmedHeading: "Selection confirmed",
+    confirmedAt: "Confirmed on {date}",
+    confirmedNotice:
+      "Your selection is final. Contact the photographer if you need to change it.",
+    conflictNotice:
+      "Your selection changed elsewhere. It has been refreshed below.",
+    refusedNotice: "Something went wrong. Please reload the page.",
+    reload: "Reload",
+    noProofs: "This gallery does not contain any proofs yet.",
+    javascriptRequired:
+      "Choosing and confirming your photographs needs JavaScript.",
+    selectedImagesHeading: "Selected photographs",
+    extraCountLabel: "Extra photographs",
+    extraTotalLabel: "Extra-image total",
+    noneSelected: "No photographs selected",
+  },
   privateGalleryAdmin: {
     title: "Administration",
     signInHeading: "Sign in",
@@ -532,6 +637,37 @@ const englishLabels = {
     administrationPending:
       "There is nothing to administer yet. Creating, publishing, and revoking private galleries need the private stores, which this deployment has not provisioned.",
     signOut: "Sign out",
+  },
+  privateGalleryProofAdmin: {
+    heading: "Proof gallery status",
+    handleLabel: "Gallery handle",
+    lookUp: "Look up",
+    looking: "Looking up…",
+    notFound: "No proof gallery answers to that handle.",
+    unavailable: "Something went wrong. Try again.",
+    confirmedLabel: "Confirmed",
+    openLabel: "Open draft",
+    draftRevisionLabel: "Draft revision",
+    latestConfirmationVersionLabel: "Confirmation version",
+    pricingLabel: "Pricing",
+    currentSummaryLabel: "{count} selected, extra total {total}",
+    confirmedAtLabel: "Confirmed on {date}",
+    notificationHeading: "Photographer notification",
+    notificationNone: "No notification has been queued yet.",
+    notificationPending: "Pending",
+    notificationSent: "Sent",
+    notificationFailed: "Failed",
+    notificationAttemptsLabel: "Attempts",
+    notificationLastErrorLabel: "Last error",
+    notificationSentAtLabel: "Sent on {date}",
+    notificationNextAttemptAtLabel: "Next attempt at {date}",
+    reopenButton: "Reopen for editing",
+    reopening: "Reopening…",
+    reopenConflict: "The gallery changed elsewhere. Look it up again.",
+    reopenNotConfirmed: "This draft is not confirmed yet.",
+    resendButton: "Resend notification",
+    resending: "Resending…",
+    resent: "A new delivery attempt has been queued.",
   },
   contact: {
     emailSubject: "New contact message",
@@ -709,7 +845,6 @@ const finnishLabels = {
     galleryHeading: "Galleriasi",
     accessUntil: "Galleria on käytettävissä {date} asti.",
     deliveryPending: "Valokuvasi eivät ole vielä katseltavissa täällä.",
-    proofPending: "Vedosvalinta ei ole vielä käytettävissä tällä sivulla.",
     noPhotographs: "Tässä galleriassa ei ole valokuvia.",
   },
   proofConfirmationEmail: {
@@ -727,6 +862,35 @@ const finnishLabels = {
     selectedImages: "Valitut valokuvat",
     noneSelected: "Ei valittuja valokuvia",
   },
+  privateGalleryProof: {
+    heading: "Valitse valokuvasi",
+    includedLabel: "Pakettiin sisältyy",
+    extraPriceLabel: "Lisäkuvan yksikköhinta",
+    selectedCount: "{count} valittu",
+    pageStatus: "Näytetään {from}–{to} / {total}",
+    previousPage: "Edellinen sivu",
+    nextPage: "Seuraava sivu",
+    saving: "Tallennetaan…",
+    saveFailed: "Valintaa ei voitu tallentaa. Yritä uudelleen.",
+    reviewHeading: "Tarkista valintasi",
+    confirmSelection: "Vahvista valinta",
+    confirming: "Vahvistetaan…",
+    confirmDescription:
+      "Vahvistuksen jälkeen valintasi on lopullinen ja valokuvaajalle lähtee ilmoitus.",
+    confirmedHeading: "Valinta vahvistettu",
+    confirmedAt: "Vahvistettu {date}",
+    confirmedNotice:
+      "Valintasi on lopullinen. Ota yhteyttä valokuvaajaan, jos tarvitset muutoksen.",
+    conflictNotice: "Valintasi muuttui muualla. Se on päivitetty alle.",
+    refusedNotice: "Jokin meni pieleen. Lataa sivu uudelleen.",
+    reload: "Lataa uudelleen",
+    noProofs: "Tässä galleriassa ei ole vielä vedoksia.",
+    javascriptRequired: "Valokuvien valinta ja vahvistus tarvitsee JavaScriptin.",
+    selectedImagesHeading: "Valitut valokuvat",
+    extraCountLabel: "Lisäkuvia",
+    extraTotalLabel: "Lisäkuvien yhteissumma",
+    noneSelected: "Ei valittuja valokuvia",
+  },
   privateGalleryAdmin: {
     title: "Hallinta",
     signInHeading: "Kirjaudu sisään",
@@ -739,6 +903,37 @@ const finnishLabels = {
     administrationPending:
       "Hallittavaa ei ole vielä. Yksityisgallerioiden luonti, julkaisu ja peruutus tarvitsevat yksityiset tietovarastot, joita tähän ympäristöön ei ole vielä pystytetty.",
     signOut: "Kirjaudu ulos",
+  },
+  privateGalleryProofAdmin: {
+    heading: "Vedosgallerian tila",
+    handleLabel: "Gallerian tunniste",
+    lookUp: "Hae",
+    looking: "Haetaan…",
+    notFound: "Mikään vedosgalleria ei vastaa tätä tunnistetta.",
+    unavailable: "Jokin meni pieleen. Yritä uudelleen.",
+    confirmedLabel: "Vahvistettu",
+    openLabel: "Avoin luonnos",
+    draftRevisionLabel: "Luonnoksen versio",
+    latestConfirmationVersionLabel: "Vahvistuksen versio",
+    pricingLabel: "Hinnoittelu",
+    currentSummaryLabel: "{count} valittu, lisäkuvien summa {total}",
+    confirmedAtLabel: "Vahvistettu {date}",
+    notificationHeading: "Valokuvaajalle lähtevä ilmoitus",
+    notificationNone: "Ilmoitusta ei ole vielä jonossa.",
+    notificationPending: "Odottaa",
+    notificationSent: "Lähetetty",
+    notificationFailed: "Epäonnistui",
+    notificationAttemptsLabel: "Yrityksiä",
+    notificationLastErrorLabel: "Viimeisin virhe",
+    notificationSentAtLabel: "Lähetetty {date}",
+    notificationNextAttemptAtLabel: "Seuraava yritys {date}",
+    reopenButton: "Avaa muokattavaksi",
+    reopening: "Avataan…",
+    reopenConflict: "Galleria muuttui muualla. Hae tiedot uudelleen.",
+    reopenNotConfirmed: "Tätä luonnosta ei ole vielä vahvistettu.",
+    resendButton: "Lähetä ilmoitus uudelleen",
+    resending: "Lähetetään uudelleen…",
+    resent: "Uusi toimitusyritys on lisätty jonoon.",
   },
   contact: {
     emailSubject: "Uusi yhteydenotto",

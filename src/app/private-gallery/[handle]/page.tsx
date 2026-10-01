@@ -14,10 +14,12 @@ import {
   getPrivateGalleryStores,
   isPrivateGalleryHandle,
   listPrivateGalleryItems,
+  readAuthorizedPrivateGalleryProofPage,
   type PrivateGallery,
   type PrivateGalleryItem,
 } from "@/lib/private-gallery-access";
 import { PrivateGalleryGrid } from "@/components/private-gallery-grid";
+import { PrivateGalleryProofPanel } from "@/components/private-gallery-proof-panel";
 
 /**
  * The one address a private gallery link has, serving two documents (ADR-0014
@@ -49,6 +51,7 @@ import { PrivateGalleryGrid } from "@/components/private-gallery-grid";
 export const dynamic = "force-dynamic";
 
 type Labels = ReturnType<typeof getBuiltInLabels>["privateGallery"];
+type ProofLabels = ReturnType<typeof getBuiltInLabels>["privateGalleryProof"];
 
 export default async function PrivateGalleryPage({
   params,
@@ -63,7 +66,8 @@ export default async function PrivateGalleryPage({
   // A malformed handle cannot name any gallery, so refusing it reveals nothing.
   if (!isPrivateGalleryHandle(handle)) notFound();
 
-  const labels = getBuiltInLabels(localeRoutes.defaultLocale).privateGallery;
+  const allLabels = getBuiltInLabels(localeRoutes.defaultLocale);
+  const labels = allLabels.privateGallery;
   const authorized = await resolveAuthorizedGallery(handle);
 
   return (
@@ -72,6 +76,15 @@ export default async function PrivateGalleryPage({
       <script src="/private-gallery-bootstrap.js" defer />
       {authorized === undefined ? (
         <PrivateGalleryBootstrap labels={labels} />
+      ) : authorized.kind === "proof" ? (
+        <PrivateGalleryProofDocument
+          labels={labels}
+          proofLabels={allLabels.privateGalleryProof}
+          gallery={authorized.gallery}
+          view={authorized.view}
+          locale={localeRoutes.defaultLocale}
+          proofPath={`/${privateGallery.routePrefix}/${handle}/proof`}
+        />
       ) : (
         <PrivateGalleryView
           labels={labels}
@@ -95,11 +108,21 @@ export default async function PrivateGalleryPage({
  * A store this deployment cannot provide is a wiring mistake rather than a
  * visitor state, so it is logged and then treated as "not authorized" — the
  * bootstrap document is a safe answer to every question this page is asked.
+ *
+ * A proof gallery reads its selection state instead of plain placements: the
+ * customer needs references, filenames, the current draft and pricing, none
+ * of which `listPrivateGalleryItems` carries.
  */
 async function resolveAuthorizedGallery(handle: string): Promise<
   | {
+      readonly kind: "delivery";
       readonly gallery: PrivateGallery;
       readonly items: readonly PrivateGalleryItem[];
+    }
+  | {
+      readonly kind: "proof";
+      readonly gallery: PrivateGallery;
+      readonly view: NonNullable<Awaited<ReturnType<typeof readAuthorizedPrivateGalleryProofPage>>>;
     }
   | undefined
 > {
@@ -141,7 +164,24 @@ async function resolveAuthorizedGallery(handle: string): Promise<
   // is logged and the page falls back to the unauthorized document rather than
   // rendering a gallery that is missing photographs nobody would know about.
   try {
+    if (outcome.gallery.kind === "proof") {
+      const view = await readAuthorizedPrivateGalleryProofPage(
+        { sessionStore: stores.sessionStore, viewStore: stores.viewStore,
+          proofStore: stores.proofStore },
+        { handle, cookieHeader: (await headers()).get("cookie"), now: new Date(), pageIndex: 0 },
+      );
+      if (view === undefined) {
+        logPrivateGalleryViewEvent({
+          correlationId: createCorrelationId(),
+          state: "rejected",
+          errorClass: "unexpected",
+        });
+        return undefined;
+      }
+      return { kind: "proof", gallery: outcome.gallery, view };
+    }
     return {
+      kind: "delivery",
       gallery: outcome.gallery,
       items: await listPrivateGalleryItems(stores.viewStore, outcome.gallery),
     };
@@ -230,10 +270,61 @@ function PrivateGalleryView({
           </time>
         </p>
       )}
-      <p className="text-body">
-        {gallery.kind === "proof" ? labels.proofPending : labels.deliveryPending}
-      </p>
+      <p className="text-body">{labels.deliveryPending}</p>
       <PrivateGalleryGrid items={items} emptyLabel={labels.noPhotographs} />
+    </main>
+  );
+}
+
+/**
+ * The proof gallery's authorized document: the access window, then the
+ * interactive selection panel. The first page's view is rendered server-side
+ * so an unauthorized-then-reauthorized navigation and a disabled-JavaScript
+ * visitor both see the current selection and price rather than an empty
+ * shell; every further page turn, edit and confirmation is client-driven
+ * because the mutation boundary is JSON-only (ADR-0014's admin boundary makes
+ * the same trade for the same reason).
+ */
+function PrivateGalleryProofDocument({
+  labels,
+  proofLabels,
+  gallery,
+  view,
+  locale,
+  proofPath,
+}: {
+  labels: Labels;
+  proofLabels: ProofLabels;
+  gallery: PrivateGallery;
+  view: NonNullable<Awaited<ReturnType<typeof readAuthorizedPrivateGalleryProofPage>>>;
+  locale: string;
+  proofPath: string;
+}) {
+  const expiresAt = gallery.accessExpiresAt;
+
+  return (
+    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-6 py-16">
+      <h1 className="text-2xl font-semibold tracking-tight">
+        {labels.galleryHeading}
+      </h1>
+      {expiresAt !== undefined && (
+        <p className="text-muted">
+          <time dateTime={expiresAt.toISOString()}>
+            {labels.accessUntil.replace(
+              "{date}",
+              new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(
+                expiresAt,
+              ),
+            )}
+          </time>
+        </p>
+      )}
+      <PrivateGalleryProofPanel
+        proofPath={proofPath}
+        initialView={view}
+        locale={locale}
+        labels={proofLabels}
+      />
     </main>
   );
 }

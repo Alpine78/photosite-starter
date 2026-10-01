@@ -30,6 +30,8 @@
 
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import {
   PrivateGalleryExchangeError,
   assertPrivateGalleryHandleShape,
@@ -104,8 +106,16 @@ import {
   projectPrivateGalleryProofView,
   type PrivateGalleryProofView,
 } from "@/lib/private-gallery-proof-view";
-import type { PrivateGalleryProofNotificationContext, PrivateGalleryProofStore } from "@/lib/private-gallery-proof-store";
-import { PrivateGalleryProofError, type PrivateGalleryProofSummary } from "@/lib/private-gallery-proof";
+import type {
+  PrivateGalleryProofNotificationContext,
+  PrivateGalleryProofStore,
+  PrivateGalleryProofStoredState,
+} from "@/lib/private-gallery-proof-store";
+import {
+  PrivateGalleryProofError,
+  type PrivateGalleryProofPricing,
+  type PrivateGalleryProofSummary,
+} from "@/lib/private-gallery-proof";
 import { checkContactRequestHeaders, readBoundedBody } from "@/lib/contact-request";
 import {
   PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY,
@@ -1229,6 +1239,16 @@ export function requirePrivateGalleryAdminReauthentication(
 export type PrivateGalleryAdminStores = {
   readonly loginStore: PrivateGalleryAdminLoginStore;
   readonly sessionStore: PrivateGalleryAdminSessionStore;
+  readonly proofStore: PrivateGalleryProofStore;
+  /**
+   * An administrator already holds an authorized session, so a handle-keyed
+   * lookup here carries none of {@link PrivateGalleryViewStore}'s enumeration
+   * concern — this is the administrator's own gallery, not a stranger's guess.
+   * The development fixture answers only its own single proof gallery; a
+   * Postgres adapter's real implementation is also where AB#130's customer/job
+   * association and gallery listing belong, neither of which exists yet.
+   */
+  findProofGalleryIdByHandle(handle: string): Promise<string | undefined>;
   /**
    * Where the credential is resolved from. `process.env` for a real deployment;
    * for the development fixture, the fixture's own published credential — the
@@ -1253,6 +1273,12 @@ export function getPrivateGalleryAdminStores(): PrivateGalleryAdminStores {
     return {
       loginStore: memory.adminLoginStore,
       sessionStore: memory.adminSessionStore,
+      proofStore: memory.proofStore,
+      async findProofGalleryIdByHandle(handle) {
+        return handle === memory.proofGallery.galleryHandle
+          ? memory.proofGallery.galleryId
+          : undefined;
+      },
       environment: {
         [PRIVATE_GALLERY_ADMIN_SECRET_HASH_SETTING]: memory.adminCredentialHash,
       },
@@ -1273,4 +1299,199 @@ export function getPrivateGalleryAdminStores(): PrivateGalleryAdminStores {
 /** The `Set-Cookie` descriptor for administrator logout. */
 export function buildPrivateGalleryAdminLogoutCookie(): PrivateGalleryAdminSessionCookie {
   return buildPrivateGalleryAdminSessionClearCookie();
+}
+
+// ---------------------------------------------------------------------------
+// Administrator proof-gallery status, reopen and resend (AB#130)
+// ---------------------------------------------------------------------------
+
+/** One safe, administrator-facing projection of the current notification attempt. */
+export type PrivateGalleryProofAdminNotificationStatus = {
+  readonly state: "pending" | "sent" | "failed";
+  readonly attempts: number;
+  readonly lastError?: string;
+  readonly sentAt?: string;
+  readonly nextAttemptAt?: string;
+};
+
+/**
+ * What an administrator may see about one proof gallery. No filename, no
+ * selected image, and no customer identity crosses this boundary: an
+ * administrator legitimately has the confirmation email for that, and this
+ * status view exists for the narrower question "is the notification stuck".
+ */
+export type PrivateGalleryProofAdminStatus = {
+  readonly handle: string;
+  readonly confirmed: boolean;
+  readonly draftRevision: number;
+  readonly latestConfirmationVersion: number;
+  readonly pricing: PrivateGalleryProofPricing;
+  readonly currentSummary?: PrivateGalleryProofSummary;
+  readonly confirmedAt?: string;
+  readonly notification?: PrivateGalleryProofAdminNotificationStatus;
+};
+
+export type PrivateGalleryProofAdminFailureReason =
+  | PrivateGalleryAdminFailureReason
+  | "not-found"
+  | "not-confirmed"
+  | "conflict";
+
+export type PrivateGalleryProofAdminOutcome<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly reason: PrivateGalleryProofAdminFailureReason };
+
+export type PrivateGalleryProofAdminDeps = PrivateGalleryAdminRequestDeps & {
+  readonly proofStore: PrivateGalleryProofStore;
+  readonly findProofGalleryIdByHandle: (
+    handle: string,
+  ) => Promise<string | undefined>;
+};
+
+async function authorizeProofAdmin(
+  deps: PrivateGalleryProofAdminDeps,
+  request: PrivateGalleryAdminRequest,
+  handle: string,
+): Promise<
+  | { readonly ok: true; readonly galleryId: string; readonly state: PrivateGalleryProofStoredState }
+  | { readonly ok: false; readonly reason: PrivateGalleryProofAdminFailureReason }
+> {
+  const authorization = await authorizePrivateGalleryAdministrator(deps, request);
+  if (!authorization.ok) return { ok: false, reason: authorization.failure.reason };
+  if (!isPrivateGalleryHandle(handle)) return { ok: false, reason: "not-found" };
+
+  const galleryId = await deps.findProofGalleryIdByHandle(handle);
+  if (galleryId === undefined) return { ok: false, reason: "not-found" };
+
+  const state = await deps.proofStore.read(galleryId);
+  if (state === undefined || state.gallery.kind !== "proof") {
+    return { ok: false, reason: "not-found" };
+  }
+  return { ok: true, galleryId, state };
+}
+
+/**
+ * The administrator's own read of one proof gallery: its draft/confirmation
+ * state and, once confirmed, the current notification attempt's delivery
+ * status — the "email delivery status and failures are visible to the
+ * administrator" acceptance criterion. Re-authorizes on every call, exactly
+ * as every other entry in this facade does.
+ */
+export async function readPrivateGalleryProofAdminStatus(
+  deps: PrivateGalleryProofAdminDeps,
+  request: PrivateGalleryAdminRequest & { readonly handle: string },
+): Promise<PrivateGalleryProofAdminOutcome<PrivateGalleryProofAdminStatus>> {
+  try {
+    const authorized = await authorizeProofAdmin(deps, request, request.handle);
+    if (!authorized.ok) return authorized;
+    const { galleryId, state } = authorized;
+
+    let notification: PrivateGalleryProofAdminNotificationStatus | undefined;
+    if (state.draft.confirmed && state.latestConfirmationVersion > 0) {
+      const outbox = await deps.proofStore.readLatestOutbox(
+        galleryId,
+        state.latestConfirmationVersion,
+      );
+      if (outbox !== undefined) {
+        notification = {
+          state: outbox.state,
+          attempts: outbox.attempts,
+          ...(outbox.lastError === undefined ? {} : { lastError: outbox.lastError }),
+          ...(outbox.sentAt === undefined
+            ? {}
+            : { sentAt: outbox.sentAt.toISOString() }),
+          ...(outbox.nextAttemptAt === undefined
+            ? {}
+            : { nextAttemptAt: outbox.nextAttemptAt.toISOString() }),
+        };
+      }
+    }
+
+    return {
+      ok: true,
+      value: {
+        handle: state.gallery.galleryHandle,
+        confirmed: state.draft.confirmed,
+        draftRevision: state.draft.revision,
+        latestConfirmationVersion: state.latestConfirmationVersion,
+        pricing: state.pricingSnapshot,
+        ...(state.currentConfirmation === undefined
+          ? {}
+          : {
+              currentSummary: state.currentConfirmation.summary,
+              confirmedAt: state.currentConfirmation.confirmedAt.toISOString(),
+            }),
+        ...(notification === undefined ? {} : { notification }),
+      },
+    };
+  } catch {
+    return { ok: false, reason: "unexpected" };
+  }
+}
+
+/**
+ * Administrator-only reopen (ADR-0014 §8d, AB#130's "intentional administrator
+ * reopen"). Unlocks the draft for a new round of edits while every prior
+ * confirmation and outbox row stays untouched; access expiry is never
+ * extended.
+ */
+export async function reopenPrivateGalleryProofAsAdmin(
+  deps: PrivateGalleryProofAdminDeps,
+  request: PrivateGalleryAdminRequest & {
+    readonly handle: string;
+    readonly expectedRevision: number;
+  },
+): Promise<PrivateGalleryProofAdminOutcome<{ readonly revision: number }>> {
+  try {
+    const authorized = await authorizeProofAdmin(deps, request, request.handle);
+    if (!authorized.ok) return authorized;
+    if (!authorized.state.draft.confirmed) {
+      return { ok: false, reason: "not-confirmed" };
+    }
+
+    const draft = await deps.proofStore.reopen({
+      galleryId: authorized.galleryId,
+      expectedRevision: request.expectedRevision,
+      now: request.now,
+    });
+    return { ok: true, value: { revision: draft.revision } };
+  } catch (error) {
+    if (error instanceof PrivateGalleryProofError) {
+      if (error.reason === "stale-revision") return { ok: false, reason: "conflict" };
+      if (error.reason === "not-confirmed") return { ok: false, reason: "not-confirmed" };
+    }
+    return { ok: false, reason: "unexpected" };
+  }
+}
+
+/**
+ * A deliberate resend: a fresh outbox attempt against the same immutable
+ * confirmation, never a new selection version. Safe to call repeatedly — each
+ * call mints its own attempt id, so two administrator clicks queue two
+ * attempts rather than colliding.
+ */
+export async function resendPrivateGalleryProofNotificationAsAdmin(
+  deps: PrivateGalleryProofAdminDeps,
+  request: PrivateGalleryAdminRequest & { readonly handle: string },
+): Promise<PrivateGalleryProofAdminOutcome<{ readonly confirmationVersion: number }>> {
+  try {
+    const authorized = await authorizeProofAdmin(deps, request, request.handle);
+    if (!authorized.ok) return authorized;
+    if (
+      !authorized.state.draft.confirmed ||
+      authorized.state.latestConfirmationVersion === 0
+    ) {
+      return { ok: false, reason: "not-confirmed" };
+    }
+
+    const outbox = await deps.proofStore.queueResend({
+      galleryId: authorized.galleryId,
+      confirmationVersion: authorized.state.latestConfirmationVersion,
+      attemptId: randomUUID(),
+      now: request.now,
+    });
+    return { ok: true, value: { confirmationVersion: outbox.confirmationVersion } };
+  } catch {
+    return { ok: false, reason: "unexpected" };
+  }
 }

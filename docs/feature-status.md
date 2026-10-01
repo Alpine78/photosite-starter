@@ -1189,9 +1189,14 @@ claims the queued message, sends its frozen request through an injected gallery
 transport, and records sent or redacted failed status. The memory reference
 allows three bounded claims per row, with a 30-second lease and 60-second
 retry delay; an abandoned final claim becomes `worker-interrupted`. Automatic
-retry keeps the same key, while a deliberate resend gets a separate row. No
-scheduler or runtime transport is wired. The memory implementation is not
-durable across processes or restarts and is not wired into a runtime route.
+retry keeps the same key, while a deliberate resend gets a separate row.
+`gallery-notification-transport.ts` now selects and validates this path's own
+`resend` or development-only `sink` transport — no default, `sink` refused
+outright in production, mirroring `buildContactDeliveryAdapter` exactly — but
+no scheduler calls it: the worker that would claim and dispatch a queued
+attempt is still unbuilt, the same open action item as the six-month
+retention worker. The memory implementation is not durable across processes
+or restarts and is not wired into a runtime route.
 A server-only customer read facade now rechecks the session and live gallery
 before fetching proof state by the authorized gallery id. Its browser-safe
 projection returns at most 100 current proof cards per page and the draft
@@ -1218,8 +1223,47 @@ unauthorized refusal, and a conflict only for an authorized stale or locked
 draft. A confirmation queues one pending photographer message in memory; no
 transport dispatches it at request time. The development fixture serves no
 object bytes and cannot run in Production or Preview.
-No PostgreSQL proof store, proof customer UI, durable outbox worker, runtime
-mail wiring or production customer workflow exists yet.
+The gallery page now renders a real customer proof selection / review /
+confirm panel (`PrivateGalleryProofPanel`) for `kind === "proof"` instead of a
+placeholder sentence: the first page is server-rendered (so a no-JavaScript
+visitor still sees the current draft and price), and every page turn,
+checkbox edit and confirmation is a JSON `fetch` against the existing
+customer facade, stated as a JavaScript requirement on the page. A toggle
+saves immediately as one whole-selection edit against the draft's
+`expectedRevision`, and a confirmed gallery renders only the frozen
+confirmation snapshot with no further edit control. `e2e/private-gallery-proof-flow.spec.ts`
+exercises this against a real browser: the server-rendered first page,
+the reserved frames' native ratios, and — through a `page.route`
+interception rather than the shared development fixture, which the whole
+suite's "tests share no state" contract forbids one spec from mutating — the
+full select/confirm interaction and its confirmed-review rendering.
+An administrator can now look up one proof gallery by its handle from the
+signed-in administrator page (`PrivateGalleryProofAdminPanel`) and see its
+draft/confirmation state, pricing, current selection summary, and — once
+confirmed — the queued notification's delivery status: pending, sent, or
+failed with its error class and next-retry time, read through
+`readPrivateGalleryProofAdminStatus` and the store's latest-attempt outbox
+projection, which already excludes every filename, selected image and
+customer identity from this narrower "is the notification stuck" view. Two
+administrator-only actions, `reopenPrivateGalleryProofAsAdmin` and
+`resendPrivateGalleryProofNotificationAsAdmin`, reuse the store's existing
+`reopen` and `queueResend` methods — a reopen unlocks the draft for a new
+round of edits without touching any prior confirmation or outbox row, and a
+resend queues a fresh delivery attempt under the same confirmation version,
+repeatably, never a new one. `initialProofOutboxIdempotencyKey` is a shared helper for the
+confirmation planner and memory store's resend lookup. The administrator
+status instead selects the latest attempt for the current confirmation, so a
+queued or failed resend cannot be masked by a previously sent attempt. `src/app/private-gallery-admin/proof/[handle]/route.ts` exposes this
+as `GET`/`POST` JSON, re-authorizing the administrator session on every call;
+`e2e/private-gallery-proof-admin.spec.ts` exercises a real administrator
+sign-in against a `page.route`-mocked status/action surface, for the same
+shared-fixture-mutation reason the customer flow spec mocks its mutations.
+Gallery creation, publication, and customer/job association still do not
+exist in any form — there is no domain model for a customer or a job yet, and
+an administrator can only ever address a proof gallery whose handle they
+already hold out of band; the development fixture's one proof gallery is the
+only one this deployment can show. No PostgreSQL proof store, durable outbox
+worker, runtime mail wiring or production customer workflow exists yet.
 
 Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no production store
 adapter and no provisioned infrastructure**, so an `enabled` deployment throws on the

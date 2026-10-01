@@ -23,7 +23,7 @@ test("proof API shares the exchanged session across route bundles", async ({ req
   expect(page.status()).toBe(200);
   expect(await page.text()).toContain(getBuiltInLabels(
     appUnderTestEnvironment.SITE_LOCALE as string,
-  ).privateGallery.proofPending);
+  ).privateGalleryProof.heading);
 
   const proof = await request.get(`${GALLERY_PATH}/proof`, {
     headers: { cookie },

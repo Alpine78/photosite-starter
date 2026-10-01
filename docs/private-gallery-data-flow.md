@@ -87,10 +87,47 @@ Earlier pending attempts stay intact after administrator reopen; their
 version in the frozen message distinguishes them from later ones.
 The provider's 24-hour idempotency window cannot eliminate duplicate email
 if a send succeeds but its status write is lost and a much later retry runs;
-the immutable confirmation remains the authoritative record. No runtime
-notification is wired: the production proof store, PostgreSQL outbox and
-scheduler, runtime transport configuration and actual photographer email do
-not exist. The proof customer UI also remains unbuilt.
+the immutable confirmation remains the authoritative record. A transport
+configuration module (`gallery-notification-transport.ts`) now selects and
+validates a `resend` or development-only `sink` transport for this path,
+mirroring the contact form's own adapter selection and refusing `sink`
+outright in a production deployment, but nothing calls it yet: the production
+proof store, the PostgreSQL outbox, and the scheduled worker that would claim
+and dispatch a queued attempt do not exist.
+
+The proof gallery's authorized page now renders a real selection panel
+(`PrivateGalleryProofPanel`) instead of a placeholder sentence. The gallery's
+first page of proof cards is server-rendered so the current draft and price
+are visible without JavaScript; every interaction past that — a page turn, a
+checkbox toggle, confirmation — is a JSON `fetch` against the existing
+customer read/write facade and needs JavaScript, stated on the page in words.
+A toggled checkbox saves immediately as one whole-selection edit rather than
+accumulating unsaved local state, using the store's `expectedRevision` CAS so
+two tabs cannot silently overwrite each other; checkboxes disable while a save
+is in flight to serialize writes against one revision. Once the facade reports
+`confirmed: true` the panel renders only the frozen confirmation snapshot —
+no checkbox, no edit control — so a later change to the gallery's live
+placements cannot appear to reopen what the customer already confirmed. The
+panel still runs only against the development memory fixture; no production
+store exists for it to render real customer photographs from.
+
+The administrator's own proof surface (`PrivateGalleryProofAdminPanel`, on the
+signed-in administrator page) looks up one proof gallery by its handle and
+shows its draft/confirmation state, pricing, current selection summary and —
+once confirmed — the latest queued notification attempt's delivery status:
+pending, sent, or failed with its error class and retry time. This status view is deliberately
+narrower than the confirmation email or the customer panel: it never shows a
+filename, a selected image, or a customer identity, because the question it
+answers is "is the notification stuck", not "what did the customer pick" (the
+administrator already has the confirmation email for that). Reopen unlocks the
+draft for a new round of edits without touching any earlier confirmation or
+outbox row; resend queues a fresh delivery attempt under the same confirmation
+version, repeatably — two clicks queue two attempts rather than colliding.
+Both re-authorize the administrator session on every call, exactly as the
+customer mutation endpoint re-authorizes the customer session. There is still
+no gallery creation, publication, or customer/job association in any form: an
+administrator can only ever address a proof gallery whose handle they already
+hold, and the development fixture has exactly one.
 
 ## What is held, and why it is different from the contact form
 

@@ -313,6 +313,25 @@ export function editPrivateGalleryProofDraft(params: {
   };
 }
 
+/**
+ * The initial confirmation's outbox key, deterministic from the gallery and
+ * version alone. A deliberate resend (see {@link planPrivateGalleryProofResend})
+ * gets a distinct key under the same confirmation version; this is only ever
+ * the one queued at confirmation time, which the store's resend path needs
+ * to find the frozen notification without tracking anything extra.
+ */
+export function initialProofOutboxIdempotencyKey(
+  galleryId: string,
+  confirmationVersion: number,
+): string {
+  if (
+    typeof galleryId !== "string" ||
+    galleryId.length === 0 ||
+    !positiveInteger(confirmationVersion)
+  ) fail("invalid-input");
+  return "proof-confirmation:" + galleryId + ":" + confirmationVersion;
+}
+
 /** Confirmation and unique initial outbox key, committed in one transaction. */
 export function confirmPrivateGalleryProofSelection(params: {
   readonly galleryId: string;
@@ -357,7 +376,7 @@ export function confirmPrivateGalleryProofSelection(params: {
       summary: summarizePrivateGalleryProofSelection(pricing, selectedImages.length),
       selectedImages,
     },
-    outboxIdempotencyKey: "proof-confirmation:" + galleryId + ":" + version,
+    outboxIdempotencyKey: initialProofOutboxIdempotencyKey(galleryId, version),
   };
 }
 

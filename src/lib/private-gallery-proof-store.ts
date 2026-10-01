@@ -75,6 +75,11 @@ export type PrivateGalleryProofStore = {
     galleryId: string,
     idempotencyKey: string,
   ): Promise<PrivateGalleryProofOutboxRecord | undefined>;
+  /** Most recently queued attempt for one immutable confirmation version. */
+  readLatestOutbox(
+    galleryId: string,
+    confirmationVersion: number,
+  ): Promise<PrivateGalleryProofOutboxRecord | undefined>;
   /** Worker-only raw message; no route or authorization is wired to this seam yet. */
   readDelivery(
     galleryId: string,

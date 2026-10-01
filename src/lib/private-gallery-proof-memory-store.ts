@@ -8,6 +8,7 @@ import type { ContactDeliveryOutcome, ContactDeliveryErrorClass } from "@/lib/co
 import {
   confirmPrivateGalleryProofSelection,
   editPrivateGalleryProofDraft,
+  initialProofOutboxIdempotencyKey,
   planPrivateGalleryProofResend,
   PrivateGalleryProofError,
   reopenPrivateGalleryProofSelection,
@@ -218,6 +219,16 @@ export function createPrivateGalleryProofMemoryStore(seed: {
       const entry = outbox.get(idempotencyKey);
       return entry === undefined ? undefined : clone(entry.delivery.outbox);
     },
+    async readLatestOutbox(galleryId, confirmationVersion) {
+      if (galleryId !== gallery.galleryId) return undefined;
+      let latest: PrivateGalleryProofOutboxRecord | undefined;
+      // Map iteration is queue order, including attempts created in the same millisecond.
+      for (const entry of outbox.values()) {
+        const row = entry.delivery.outbox;
+        if (row.confirmationVersion === confirmationVersion) latest = row;
+      }
+      return latest === undefined ? undefined : clone(latest);
+    },
     async readDelivery(galleryId, idempotencyKey) {
       if (galleryId !== gallery.galleryId) return undefined;
       const entry = outbox.get(idempotencyKey);
@@ -378,7 +389,7 @@ export function createPrivateGalleryProofMemoryStore(seed: {
       if (confirmation === undefined) fail("unknown-confirmation");
       const plan = planPrivateGalleryProofResend({ confirmation, attemptId });
       const initial = outbox.get(
-        "proof-confirmation:" + galleryId + ":" + confirmationVersion,
+        initialProofOutboxIdempotencyKey(galleryId, confirmationVersion),
       );
       if (initial === undefined) fail("missing-notification");
       const row = pending(plan.outboxIdempotencyKey, confirmationVersion, now);
