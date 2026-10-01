@@ -1233,17 +1233,23 @@ object bytes and cannot run in Production or Preview.
 The gallery page now renders a real customer proof selection / review /
 confirm panel (`PrivateGalleryProofPanel`) for `kind === "proof"` instead of a
 placeholder sentence: the first page is server-rendered (so a no-JavaScript
-visitor still sees the current draft and price), and every page turn,
-checkbox edit and confirmation is a JSON `fetch` against the existing
-customer facade, stated as a JavaScript requirement on the page. A toggle
+visitor still sees the current draft and price). Each visible card now mints a
+short-lived preview URL through the authorized `/asset` route and renders its
+native-ratio watermarked proof directly in an `<img>` with no referrer; image
+failure remints once, then offers a manual retry. The per-page queue admits
+four concurrent mints and 50 starts per rolling minute under the server's
+per-session limit. Viewing the images, turning a page, editing checkboxes and
+confirming all require JavaScript, stated on the page. A toggle
 saves immediately as one whole-selection edit against the draft's
 `expectedRevision`, and a confirmed gallery renders only the frozen
 confirmation snapshot with no further edit control. `e2e/private-gallery-proof-flow.spec.ts`
 exercises this against a real browser: the server-rendered first page,
-the reserved frames' native ratios, and — through a `page.route`
+the reserved frames' native ratios, the signed-preview mint and image-error
+remint with intercepted object bytes, and — through a `page.route`
 interception rather than the shared development fixture, which the whole
 suite's "tests share no state" contract forbids one spec from mutating — the
-full select/confirm interaction and its confirmed-review rendering.
+full select/confirm interaction and its confirmed-review rendering. The
+fixture still has no object store, so it cannot serve real signed proof bytes.
 An administrator can now look up one proof gallery by its handle from the
 signed-in administrator page (`PrivateGalleryProofAdminPanel`) and see its
 draft/confirmation state, pricing, current selection summary, and — once

@@ -4,6 +4,8 @@ import { useId, useState, useSyncExternalStore } from "react";
 
 import { formatPrivateGalleryProofMoney } from "@/lib/private-gallery-proof-money";
 import { PRIVATE_GALLERY_DEFAULT_MAX_PAGE_SIZE } from "@/lib/private-gallery-limits";
+import { PrivateGalleryPreviewMintQueue } from "@/lib/private-gallery-preview-mint-queue";
+import { PrivateGalleryProofImage } from "@/components/private-gallery-proof-image";
 
 const subscribeToNothing = () => () => {};
 
@@ -73,6 +75,9 @@ export type PrivateGalleryProofPanelLabels = {
   readonly extraCountLabel: string;
   readonly extraTotalLabel: string;
   readonly noneSelected: string;
+  readonly loadingImage: string;
+  readonly unavailableImage: string;
+  readonly retryImage: string;
 };
 
 type Status =
@@ -149,11 +154,13 @@ async function postMutation(
  */
 export function PrivateGalleryProofPanel({
   proofPath,
+  assetPath,
   initialView,
   locale,
   labels,
 }: {
   readonly proofPath: string;
+  readonly assetPath: string;
   readonly initialView: PrivateGalleryProofPanelView;
   readonly locale: string;
   readonly labels: PrivateGalleryProofPanelLabels;
@@ -164,6 +171,7 @@ export function PrivateGalleryProofPanel({
     () => false,
   );
   const [view, setView] = useState(initialView);
+  const [mintQueue] = useState(() => new PrivateGalleryPreviewMintQueue());
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const legendId = useId();
 
@@ -269,15 +277,14 @@ export function PrivateGalleryProofPanel({
             <ul className="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
               {view.items.map((item) => (
                 <li key={item.itemId} className="m-0">
-                  <label className="flex cursor-pointer flex-col gap-2">
-                    <div
-                      className="w-full rounded-md border border-border-strong bg-surface"
-                      style={{ aspectRatio: `${item.width} / ${item.height}` }}
-                      data-item-id={item.itemId}
-                      data-aspect-width={item.width}
-                      data-aspect-height={item.height}
+                  <div className="flex flex-col gap-2">
+                    <PrivateGalleryProofImage
+                      item={item}
+                      assetPath={assetPath}
+                      queue={mintQueue}
+                      labels={labels}
                     />
-                    <span className="flex items-center gap-2 text-sm text-strong">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-strong">
                       <input
                         type="checkbox"
                         disabled={!hydrated || status.kind === "saving" || status.kind === "confirming" || status.kind === "unavailable"}
@@ -285,8 +292,8 @@ export function PrivateGalleryProofPanel({
                         onChange={(event) => toggle(item.reference, event.target.checked)}
                       />
                       {item.reference} — {item.filename}
-                    </span>
-                  </label>
+                    </label>
+                  </div>
                 </li>
               ))}
             </ul>

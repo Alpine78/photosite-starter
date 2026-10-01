@@ -84,6 +84,7 @@ export default async function PrivateGalleryPage({
           view={authorized.view}
           locale={localeRoutes.defaultLocale}
           proofPath={`/${privateGallery.routePrefix}/${handle}/proof`}
+          assetPath={`/${privateGallery.routePrefix}/${handle}/asset`}
         />
       ) : (
         <PrivateGalleryView
@@ -292,6 +293,7 @@ function PrivateGalleryProofDocument({
   view,
   locale,
   proofPath,
+  assetPath,
 }: {
   labels: Labels;
   proofLabels: ProofLabels;
@@ -299,6 +301,7 @@ function PrivateGalleryProofDocument({
   view: NonNullable<Awaited<ReturnType<typeof readAuthorizedPrivateGalleryProofPage>>>;
   locale: string;
   proofPath: string;
+  assetPath: string;
 }) {
   const expiresAt = gallery.accessExpiresAt;
 
@@ -321,6 +324,7 @@ function PrivateGalleryProofDocument({
       )}
       <PrivateGalleryProofPanel
         proofPath={proofPath}
+        assetPath={assetPath}
         initialView={view}
         locale={locale}
         labels={proofLabels}

@@ -171,6 +171,9 @@ export type BuiltInLabels = {
     readonly extraCountLabel: string;
     readonly extraTotalLabel: string;
     readonly noneSelected: string;
+    readonly loadingImage: string;
+    readonly unavailableImage: string;
+    readonly retryImage: string;
   };
   /**
    * The administrator boundary (ADR-0015). Operator-facing rather than
@@ -618,11 +621,14 @@ const englishLabels = {
     reload: "Reload",
     noProofs: "This gallery does not contain any proofs yet.",
     javascriptRequired:
-      "Choosing and confirming your photographs needs JavaScript.",
+      "Viewing, choosing and confirming your photographs needs JavaScript.",
     selectedImagesHeading: "Selected photographs",
     extraCountLabel: "Extra photographs",
     extraTotalLabel: "Extra-image total",
     noneSelected: "No photographs selected",
+    loadingImage: "Loading proof…",
+    unavailableImage: "Proof image unavailable.",
+    retryImage: "Retry image",
   },
   privateGalleryAdmin: {
     title: "Administration",
@@ -885,11 +891,14 @@ const finnishLabels = {
     refusedNotice: "Jokin meni pieleen. Lataa sivu uudelleen.",
     reload: "Lataa uudelleen",
     noProofs: "Tässä galleriassa ei ole vielä vedoksia.",
-    javascriptRequired: "Valokuvien valinta ja vahvistus tarvitsee JavaScriptin.",
+    javascriptRequired: "Vedosten katselu, valinta ja vahvistus tarvitsee JavaScriptin.",
     selectedImagesHeading: "Valitut valokuvat",
     extraCountLabel: "Lisäkuvia",
     extraTotalLabel: "Lisäkuvien yhteissumma",
     noneSelected: "Ei valittuja valokuvia",
+    loadingImage: "Vedosta ladataan…",
+    unavailableImage: "Vedoskuva ei ole saatavilla.",
+    retryImage: "Yritä kuvan latausta uudelleen",
   },
   privateGalleryAdmin: {
     title: "Hallinta",

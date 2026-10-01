@@ -106,9 +106,18 @@ outbox, and scheduled worker that would invoke the batch runner do not exist.
 The proof gallery's authorized page now renders a real selection panel
 (`PrivateGalleryProofPanel`) instead of a placeholder sentence. The gallery's
 first page of proof cards is server-rendered so the current draft and price
-are visible without JavaScript; every interaction past that — a page turn, a
-checkbox toggle, confirmation — is a JSON `fetch` against the existing
-customer read/write facade and needs JavaScript, stated on the page in words.
+are visible without JavaScript. Each visible card mints its own short-lived
+signed preview URL through the already authorized `/asset` route and places it
+directly in a native-ratio `<img>` with `referrerPolicy="no-referrer"`; the
+application never proxies object bytes. A page-local queue allows at most four
+concurrent mints and 50 starts per rolling minute, leaving room under the
+server's per-session 60-per-minute limit for retries and other tabs. A failed
+image load remints once; further failures show an explicit retry control. A
+page turn, checkbox toggle, or confirmation uses a JSON `fetch` against the
+customer read/write facade. Image viewing and all interactions need JavaScript,
+stated on the page in words. The development fixture contains only proof
+metadata, so its `/asset` route cannot supply real signed URLs or image bytes;
+this browser path is exercised with intercepted mint and image responses.
 A toggled checkbox saves immediately as one whole-selection edit rather than
 accumulating unsaved local state, using the store's `expectedRevision` CAS so
 two tabs cannot silently overwrite each other; checkboxes disable while a save

@@ -22,7 +22,8 @@ import { expect, test } from "./support/fixtures";
  * other spec and to a rerun of this one. The initial navigation and exchange
  * are real and read-only, exactly like the API spec; every interaction past
  * that point is answered by a `page.route` interception holding its own
- * closure-local state, so the real store is never written.
+ * closure-local state, so the real store is never written. The asset mint and
+ * signed image bytes are also mocked; the fixture has no object store.
  */
 const HANDLE = "IiIiIiIiIiIiIiIiIiIiIg";
 const CAPABILITY = "Pj4-Pj4-Pj4-Pj4-Pj4-Pj4-Pj4-Pj4-Pj4-Pj4-Pj4";
@@ -117,6 +118,36 @@ test.describe("private gallery proof selection", () => {
       "WebKit does not store a Secure cookie over the harness's plain-HTTP loopback origin.",
     );
 
+    const mintCounts = new Map<string, number>();
+    const mintBodies: unknown[] = [];
+    await page.route(`**${GALLERY_PATH}/asset`, async (route) => {
+      const body = route.request().postDataJSON() as { kind: string; placementId: string };
+      mintBodies.push(body);
+      const count = (mintCounts.get(body.placementId) ?? 0) + 1;
+      mintCounts.set(body.placementId, count);
+      const origin = new URL(route.request().url()).origin;
+      return route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ ok: true,
+          url: `${origin}/mock-proof/${body.placementId}.svg?attempt=${count}`,
+          expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+        }) });
+    });
+    await page.route("**/mock-proof/*.svg*", async (route) => {
+      const url = new URL(route.request().url());
+      const attempt = Number(url.searchParams.get("attempt"));
+      if ((url.pathname.endsWith("memory-proof-01.svg") && attempt === 1) ||
+          (url.pathname.endsWith("memory-proof-02.svg") && attempt <= 2)) {
+        return route.fulfill({ status: 403, body: "expired" });
+      }
+      const portrait = url.pathname.endsWith("memory-proof-02.svg");
+      const width = portrait ? 1200 : 1800;
+      const height = portrait ? 1800 : 1200;
+      return route.fulfill({ status: 200, contentType: "image/svg+xml",
+        headers: { "cache-control": "no-store" },
+        body: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#789"/></svg>`,
+      });
+    });
+
     await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
     await expect(
       page.getByRole("heading", { name: labels.heading }),
@@ -130,6 +161,21 @@ test.describe("private gallery proof selection", () => {
     await expect(frames.nth(0)).toHaveAttribute("data-aspect-height", "1200");
     await expect(frames.nth(1)).toHaveAttribute("data-aspect-width", "1200");
     await expect(frames.nth(1)).toHaveAttribute("data-aspect-height", "1800");
+    const firstImage = page.getByRole("img", { name: "Watermarked landscape proof" });
+    const secondImage = page.getByRole("img", { name: "Watermarked portrait proof" });
+    await expect(firstImage).toHaveJSProperty("naturalWidth", 1800);
+    await expect(firstImage).toHaveAttribute("referrerpolicy", "no-referrer");
+    expect(await firstImage.getAttribute("src")).toContain("/mock-proof/memory-proof-01.svg");
+    const retryImage = page.getByRole("button", { name: labels.retryImage });
+    await expect(retryImage).toBeVisible();
+    expect(mintCounts.get("memory-proof-02")).toBe(2);
+    await retryImage.click();
+    await expect(secondImage).toHaveJSProperty("naturalHeight", 1800);
+    await expect(page.getByRole("checkbox", { name: /002 — IMG_0002\.JPG/ })).not.toBeChecked();
+    expect(mintCounts.get("memory-proof-01")).toBe(2);
+    expect(mintCounts.get("memory-proof-02")).toBe(3);
+    expect(mintBodies.filter((body) =>
+      (body as { kind: string; placementId: string }).kind === "preview")).toHaveLength(5);
 
     await mockProofMutations(page);
 
