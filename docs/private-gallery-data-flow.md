@@ -83,6 +83,15 @@ and records sent or redacted failed status without logging the message. An
 automatic retry reuses the same key after a 60-second delay. Three claims are
 allowed per row; each has a 30-second lease, and an abandoned final claim
 ends as `worker-interrupted` rather than a fictitious provider failure.
+A server-only batch runner now discovers at most 100 due attempts through the
+store seam and dispatches them sequentially. Active leases and not-yet-due
+retries are excluded; an expired lease is discoverable for recovery. A competing
+worker's successful claim is a normal skipped candidate. Results and redacted
+infrastructure errors carry only aggregate progress, never message contents.
+The development store lists its own gallery's due rows; a future PostgreSQL
+adapter needs a bounded indexed cross-gallery query and fair scheduling so one
+gallery's retry backlog cannot starve others. No runtime scheduler invokes the
+runner yet.
 Earlier pending attempts stay intact after administrator reopen; their
 version in the frozen message distinguishes them from later ones.
 The provider's 24-hour idempotency window cannot eliminate duplicate email
@@ -91,9 +100,8 @@ the immutable confirmation remains the authoritative record. A transport
 configuration module (`gallery-notification-transport.ts`) now selects and
 validates a `resend` or development-only `sink` transport for this path,
 mirroring the contact form's own adapter selection and refusing `sink`
-outright in a production deployment, but nothing calls it yet: the production
-proof store, the PostgreSQL outbox, and the scheduled worker that would claim
-and dispatch a queued attempt do not exist.
+outright in a production deployment. The production proof store, PostgreSQL
+outbox, and scheduled worker that would invoke the batch runner do not exist.
 
 The proof gallery's authorized page now renders a real selection panel
 (`PrivateGalleryProofPanel`) instead of a placeholder sentence. The gallery's

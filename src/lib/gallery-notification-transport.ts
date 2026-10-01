@@ -19,8 +19,8 @@
  * and §8d name the retention worker and the outbox dispatcher as their own
  * action items, needing a durable store neither has (`docs/feature-status.md`).
  * This module is the configuration and provider-selection half a future
- * worker or owner-run script calls `dispatchPrivateGalleryProofOutboxAttempt`
- * with; building the worker itself is out of this slice.
+ * worker supplies to `runPrivateGalleryProofOutboxBatch`; building the
+ * durable worker runtime itself is out of this slice.
  */
 import "server-only";
 

@@ -30,6 +30,7 @@ import type {
   PrivateGalleryProofOutboxRecord,
   PrivateGalleryProofStore,
 } from "@/lib/private-gallery-proof-store";
+import { PRIVATE_GALLERY_PROOF_OUTBOX_MAX_BATCH_SIZE } from "@/lib/private-gallery-proof-store";
 
 export type PrivateGalleryProofStoreErrorReason =
   | "invalid-seed"
@@ -37,6 +38,7 @@ export type PrivateGalleryProofStoreErrorReason =
   | "stale-generation"
   | "access-expired"
   | "invalid-time"
+  | "invalid-limit"
   | "invalid-attempt-key"
   | "duplicate-attempt"
   | "unknown-confirmation"
@@ -228,6 +230,35 @@ export function createPrivateGalleryProofMemoryStore(seed: {
         if (row.confirmationVersion === confirmationVersion) latest = row;
       }
       return latest === undefined ? undefined : clone(latest);
+    },
+    async listDueOutboxAttempts({ now, limit }) {
+      if (!validTime(now)) fail("invalid-time");
+      if (!Number.isSafeInteger(limit) || limit < 1 ||
+          limit > PRIVATE_GALLERY_PROOF_OUTBOX_MAX_BATCH_SIZE) fail("invalid-limit");
+      const due = [...outbox.values()]
+        .filter((entry) => {
+          const row = entry.delivery.outbox;
+          if (entry.lease && now.getTime() < entry.lease.expiresAt.getTime()) return false;
+          if (row.state === "pending") return now.getTime() >= row.createdAt.getTime();
+          return row.state === "failed" && row.retryable === true &&
+            row.nextAttemptAt !== undefined &&
+            now.getTime() >= row.nextAttemptAt.getTime();
+        })
+        .sort((left, right) => {
+          const leftRow = left.delivery.outbox;
+          const rightRow = right.delivery.outbox;
+          const leftDue = leftRow.nextAttemptAt ?? leftRow.createdAt;
+          const rightDue = rightRow.nextAttemptAt ?? rightRow.createdAt;
+          return leftDue.getTime() - rightDue.getTime() ||
+            leftRow.createdAt.getTime() - rightRow.createdAt.getTime() ||
+            (leftRow.idempotencyKey < rightRow.idempotencyKey ? -1 :
+              leftRow.idempotencyKey > rightRow.idempotencyKey ? 1 : 0);
+        })
+        .slice(0, limit);
+      return due.map((entry) => ({
+        galleryId: gallery.galleryId,
+        idempotencyKey: entry.delivery.outbox.idempotencyKey,
+      }));
     },
     async readDelivery(galleryId, idempotencyKey) {
       if (galleryId !== gallery.galleryId) return undefined;

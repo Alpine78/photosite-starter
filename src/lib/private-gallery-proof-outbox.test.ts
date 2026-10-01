@@ -9,7 +9,12 @@ import {
   PROOF_OUTBOX_MAX_CLAIMS,
   PROOF_OUTBOX_RETRY_DELAY_MS,
 } from "@/lib/private-gallery-proof-memory-store";
-import { dispatchPrivateGalleryProofOutboxAttempt } from "@/lib/private-gallery-proof-outbox";
+import {
+  PrivateGalleryProofBatchError,
+  dispatchPrivateGalleryProofOutboxAttempt,
+  runPrivateGalleryProofOutboxBatch,
+} from "@/lib/private-gallery-proof-outbox";
+import { PRIVATE_GALLERY_PROOF_OUTBOX_MAX_BATCH_SIZE } from "@/lib/private-gallery-proof-store";
 
 const NOW = new Date("2026-09-30T10:00:00.000Z");
 const GALLERY_ID = "proof-fixture-gallery";
@@ -205,5 +210,132 @@ describe("AB#130 proof outbox delivery", () => {
     expect(JSON.stringify(status)).not.toMatch(/IMG_|owner@example.com|customer-17|claimId/);
     expect(await store.claimDelivery({ galleryId: GALLERY_ID, idempotencyKey: key, now: at(1_000_000) }))
       .toBeUndefined();
+  });
+});
+
+describe("AB#130 bounded proof outbox batch", () => {
+  it("discovers only due attempts, including an expired lease and a due retry", async () => {
+    const { store, key } = await ready();
+    const resend = await store.queueResend({
+      galleryId: GALLERY_ID, confirmationVersion: 1, attemptId: "resend-1", now: at(1),
+    });
+    expect(await store.listDueOutboxAttempts({ now: NOW, limit: 1 })).toEqual([
+      { galleryId: GALLERY_ID, idempotencyKey: key },
+    ]);
+    expect(await store.listDueOutboxAttempts({ now: at(1), limit: 1 })).toHaveLength(1);
+
+    const claim = await store.claimDelivery({ galleryId: GALLERY_ID, idempotencyKey: key, now: NOW });
+    expect(claim).toBeDefined();
+    expect(await store.listDueOutboxAttempts({ now: at(PROOF_OUTBOX_LEASE_MS - 1), limit: 10 }))
+      .toEqual([{ galleryId: GALLERY_ID, idempotencyKey: resend.idempotencyKey }]);
+    expect(await store.listDueOutboxAttempts({ now: at(PROOF_OUTBOX_LEASE_MS), limit: 10 }))
+      .toContainEqual({ galleryId: GALLERY_ID, idempotencyKey: key });
+
+    const recovered = await store.claimDelivery({
+      galleryId: GALLERY_ID, idempotencyKey: key, now: at(PROOF_OUTBOX_LEASE_MS),
+    });
+    expect(recovered?.claimId).not.toBe(claim!.claimId);
+    await store.completeDelivery({
+      galleryId: GALLERY_ID, idempotencyKey: key, claimId: recovered!.claimId,
+      outcome: { status: "failed", errorClass: "timeout", retryable: true },
+      now: at(PROOF_OUTBOX_LEASE_MS),
+    });
+    const retryAt = PROOF_OUTBOX_LEASE_MS + PROOF_OUTBOX_RETRY_DELAY_MS;
+    expect(await store.listDueOutboxAttempts({ now: at(retryAt - 1), limit: 10 }))
+      .not.toContainEqual({ galleryId: GALLERY_ID, idempotencyKey: key });
+    expect(await store.listDueOutboxAttempts({ now: at(retryAt), limit: 10 }))
+      .toContainEqual({ galleryId: GALLERY_ID, idempotencyKey: key });
+  });
+
+  it("runs a bounded pass and reports only aggregate outcomes", async () => {
+    const { store, key } = await ready();
+    const resend = await store.queueResend({
+      galleryId: GALLERY_ID, confirmationVersion: 1, attemptId: "resend-1", now: at(1),
+    });
+    const sender = transport(async (request) => request.idempotencyKey === key
+      ? { status: "delivered" }
+      : { status: "failed", errorClass: "provider-rejected", retryable: false });
+    const progress = await runPrivateGalleryProofOutboxBatch({
+      store, transport: sender, clock: () => at(1), limit: 2,
+    });
+    expect(progress).toEqual({ listed: 2, completed: 2, sent: 1, failed: 1, notClaimable: 0 });
+    expect(JSON.stringify(progress)).not.toMatch(/owner@example|IMG_|customer-17|proof-confirmation/);
+    expect((await store.readOutbox(GALLERY_ID, key))?.state).toBe("sent");
+    expect((await store.readOutbox(GALLERY_ID, resend.idempotencyKey))?.state).toBe("failed");
+    expect(await runPrivateGalleryProofOutboxBatch({
+      store, transport: sender, clock: () => at(2), limit: 2,
+    })).toEqual({ listed: 0, completed: 0, sent: 0, failed: 0, notClaimable: 0 });
+  });
+
+  it("counts a claim race as a normal skip when two batches overlap", async () => {
+    const { store } = await ready();
+    let release!: (outcome: ContactDeliveryOutcome) => void;
+    const waiting = new Promise<ContactDeliveryOutcome>((resolve) => { release = resolve; });
+    let calls = 0;
+    const sender = transport(async () => { calls += 1; return waiting; });
+    const params = { store, transport: sender, clock: () => NOW, limit: 1 };
+    const first = runPrivateGalleryProofOutboxBatch(params);
+    const second = runPrivateGalleryProofOutboxBatch(params);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(calls).toBe(1);
+    release({ status: "delivered" });
+    const results = await Promise.all([first, second]);
+    expect(results.map((result) => result.completed).sort()).toEqual([0, 1]);
+    expect(results.map((result) => result.notClaimable).sort()).toEqual([0, 1]);
+  });
+
+  it("redacts infrastructure errors while retaining completed counts", async () => {
+    const { store, key } = await ready();
+    const resend = await store.queueResend({
+      galleryId: GALLERY_ID, confirmationVersion: 1, attemptId: "resend-1", now: at(1),
+    });
+    const failingStore = {
+      ...store,
+      async claimDelivery(params: Parameters<typeof store.claimDelivery>[0]) {
+        if (params.idempotencyKey === resend.idempotencyKey) {
+          throw new Error("IMG_0001.JPG owner@example.com secret");
+        }
+        return store.claimDelivery(params);
+      },
+    };
+    try {
+      await runPrivateGalleryProofOutboxBatch({
+        store: failingStore, transport: transport(async () => ({ status: "delivered" })),
+        clock: () => at(1), limit: 2,
+      });
+      throw new Error("expected batch failure");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PrivateGalleryProofBatchError);
+      expect(error).toMatchObject({
+        reason: "dispatch-failed",
+        progress: { listed: 2, completed: 1, sent: 1, failed: 0, notClaimable: 0 },
+      });
+      expect(JSON.stringify(error)).not.toMatch(/IMG_|owner@example|secret|proof-confirmation/);
+    }
+    expect((await store.readOutbox(GALLERY_ID, key))?.state).toBe("sent");
+  });
+
+  it("refuses invalid bounds and malformed discovery without delivering", async () => {
+    const { store } = await ready();
+    const sender = transport(async () => { throw new Error("must not deliver"); });
+    for (const limit of [0, -1, 1.5, PRIVATE_GALLERY_PROOF_OUTBOX_MAX_BATCH_SIZE + 1]) {
+      await expect(runPrivateGalleryProofOutboxBatch({
+        store, transport: sender, clock: () => NOW, limit,
+      })).rejects.toMatchObject({ reason: "invalid-limit" });
+    }
+    await expect(store.listDueOutboxAttempts({ now: NOW, limit: 0 }))
+      .rejects.toMatchObject({ reason: "invalid-limit" });
+    const malformedStore = {
+      ...store,
+      async listDueOutboxAttempts() {
+        return [
+          { galleryId: GALLERY_ID, idempotencyKey: "same" },
+          { galleryId: GALLERY_ID, idempotencyKey: "same" },
+        ];
+      },
+    };
+    await expect(runPrivateGalleryProofOutboxBatch({
+      store: malformedStore, transport: sender, clock: () => NOW, limit: 2,
+    })).rejects.toMatchObject({ reason: "invalid-store-result" });
   });
 });

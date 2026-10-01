@@ -1190,11 +1190,18 @@ transport, and records sent or redacted failed status. The memory reference
 allows three bounded claims per row, with a 30-second lease and 60-second
 retry delay; an abandoned final claim becomes `worker-interrupted`. Automatic
 retry keeps the same key, while a deliberate resend gets a separate row.
+A bounded server-only batch runner now discovers at most 100 due proof attempts
+through the store seam and dispatches them sequentially. It skips active
+leases, includes expired leases and due retries, and reports only aggregate
+counts; if a store call fails mid-batch, its redacted error retains the known
+completed counts. The development store implements discovery for its one
+fixture gallery. A future PostgreSQL adapter must query due rows with a
+limit and indexes, and ensure repeated runs cannot starve another gallery.
 `gallery-notification-transport.ts` now selects and validates this path's own
 `resend` or development-only `sink` transport — no default, `sink` refused
 outright in production, mirroring `buildContactDeliveryAdapter` exactly — but
-no scheduler calls it: the worker that would claim and dispatch a queued
-attempt is still unbuilt, the same open action item as the six-month
+no scheduler calls the batch runner: the durable worker runtime is still
+unbuilt, the same open action item as the six-month
 retention worker. The memory implementation is not durable across processes
 or restarts and is not wired into a runtime route.
 A server-only customer read facade now rechecks the session and live gallery

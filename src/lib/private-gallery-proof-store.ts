@@ -64,6 +64,14 @@ export type PrivateGalleryProofStoredState = {
   readonly currentConfirmation?: PrivateGalleryProofConfirmation;
 };
 
+/** Maximum candidates one proof-notification worker pass may discover. */
+export const PRIVATE_GALLERY_PROOF_OUTBOX_MAX_BATCH_SIZE = 100;
+
+export type PrivateGalleryProofDueAttempt = {
+  readonly galleryId: string;
+  readonly idempotencyKey: string;
+};
+
 export type PrivateGalleryProofStore = {
   /** Raw server-only data; read only after a fresh authorization check. */
   read(galleryId: string): Promise<PrivateGalleryProofStoredState | undefined>;
@@ -80,6 +88,11 @@ export type PrivateGalleryProofStore = {
     galleryId: string,
     confirmationVersion: number,
   ): Promise<PrivateGalleryProofOutboxRecord | undefined>;
+  /** Worker-only bounded discovery across galleries; never return message contents. */
+  listDueOutboxAttempts(params: {
+    readonly now: Date;
+    readonly limit: number;
+  }): Promise<readonly PrivateGalleryProofDueAttempt[]>;
   /** Worker-only raw message; no route or authorization is wired to this seam yet. */
   readDelivery(
     galleryId: string,
