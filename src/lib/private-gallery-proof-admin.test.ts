@@ -6,6 +6,7 @@ import type { PrivateGallery, PrivateGalleryAdminSession, PrivateGalleryProofPla
 import {
   createPrivateGalleryProofDraftAsAdmin,
   listPrivateGalleryProofDraftsAsAdmin,
+  updatePrivateGalleryProofDraftPricingAsAdmin,
   readPrivateGalleryProofAdminStatus,
   reopenPrivateGalleryProofAsAdmin,
   resendPrivateGalleryProofNotificationAsAdmin,
@@ -316,9 +317,9 @@ describe("resendPrivateGalleryProofNotificationAsAdmin", () => {
   });
 });
 
-function draftRequest(cookie: string | null, body: unknown, origin = "http://example.test") {
+function draftRequest(cookie: string | null, body: unknown, origin = "http://example.test", method = "POST") {
   return new Request("http://example.test/admin/proof", {
-    method: "POST",
+    method,
     headers: {
       host: "example.test", origin,
       "content-type": "application/json",
@@ -381,5 +382,62 @@ describe("administrator draft creation", () => {
         .toEqual({ ok: false, reason: "invalid-input" });
     }
     expect((await proofDraftStore.list(1)).items).toEqual([]);
+  });
+});
+
+describe("administrator draft pricing edits", () => {
+  it("reauthorizes before reading the PATCH body", async () => {
+    const f = await fixture();
+    const proofDraftStore = createPrivateGalleryProofDraftMemoryStore();
+    const request = new Request("http://example.test/admin/proof", {
+      method: "PATCH",
+      headers: { host: "example.test", origin: "http://example.test", "content-type": "application/json" },
+      body: new ReadableStream({ pull() {} }), duplex: "half",
+    } as RequestInit);
+    expect(await updatePrivateGalleryProofDraftPricingAsAdmin(
+      { ...f.deps, proofDraftStore }, request, NOW,
+    )).toEqual({ ok: false, reason: "unauthorized" });
+    expect(request.bodyUsed).toBe(false);
+  });
+
+  it("updates pricing by revision and returns only the safe projection", async () => {
+    const f = await fixture();
+    const proofDraftStore = createPrivateGalleryProofDraftMemoryStore();
+    const deps = { ...f.deps, proofDraftStore };
+    const created = await proofDraftStore.create(DRAFT_INPUT, NOW);
+    const body = { handle: created.gallery.galleryHandle, expectedRevision: 0,
+      pricing: { includedCount: 5, extraUnitPriceMinor: 900, currency: "USD" } };
+    const updated = await updatePrivateGalleryProofDraftPricingAsAdmin(
+      deps, draftRequest(f.header, body, undefined, "PATCH"), NOW,
+    );
+    expect(updated).toMatchObject({ ok: true, value: { revision: 1, pricing: body.pricing } });
+    expect(JSON.stringify(updated)).not.toContain("galleryId");
+    expect(JSON.stringify(updated)).not.toContain("capability");
+    expect(await updatePrivateGalleryProofDraftPricingAsAdmin(
+      deps, draftRequest(f.header, body, undefined, "PATCH"), NOW,
+    )).toEqual({ ok: false, reason: "conflict" });
+  });
+
+  it("rejects bad provenance, shape, price, and unknown draft without mutation", async () => {
+    const f = await fixture();
+    const proofDraftStore = createPrivateGalleryProofDraftMemoryStore();
+    const deps = { ...f.deps, proofDraftStore };
+    const created = await proofDraftStore.create(DRAFT_INPUT, NOW);
+    const body = { handle: created.gallery.galleryHandle, expectedRevision: 0,
+      pricing: { includedCount: 5, extraUnitPriceMinor: 900, currency: "EUR" } };
+    for (const request of [
+      draftRequest(f.header, body, "http://evil.test", "PATCH"),
+      draftRequest(f.header, { ...body, extra: true }, undefined, "PATCH"),
+      draftRequest(f.header, { ...body, pricing: { ...body.pricing, currency: "eur" } }, undefined, "PATCH"),
+      draftRequest(f.header, { ...body, expectedRevision: -1 }, undefined, "PATCH"),
+      draftRequest(f.header, { ...body, padding: "x".repeat(1025) }, undefined, "PATCH"),
+    ]) {
+      expect(await updatePrivateGalleryProofDraftPricingAsAdmin(deps, request, NOW))
+        .toEqual({ ok: false, reason: "invalid-input" });
+    }
+    expect(await updatePrivateGalleryProofDraftPricingAsAdmin(deps,
+      draftRequest(f.header, { ...body, handle: "B".repeat(21) + "A" }, undefined, "PATCH"), NOW))
+      .toEqual({ ok: false, reason: "not-found" });
+    expect((await proofDraftStore.list(1)).items[0]).toMatchObject({ revision: 0, pricing: DRAFT_INPUT.pricing });
   });
 });

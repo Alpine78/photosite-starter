@@ -1316,19 +1316,21 @@ export type PrivateGalleryProofDraftAdminItem = {
   readonly handle: string;
   readonly createdAt: string;
   readonly pricing: PrivateGalleryProofPricing;
+  readonly revision: number;
   readonly customerReference?: string;
   readonly jobReference?: string;
 };
 
 export type PrivateGalleryProofDraftAdminOutcome<T> =
   | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly reason: "unauthorized" | "invalid-input" | "unavailable" };
+  | { readonly ok: false; readonly reason: "unauthorized" | "invalid-input" | "not-found" | "conflict" | "unavailable" };
 
 function projectProofDraft(row: PrivateGalleryProofDraftSetup): PrivateGalleryProofDraftAdminItem {
   return {
     handle: row.gallery.galleryHandle,
     createdAt: row.gallery.createdAt.toISOString(),
     pricing: row.pricing,
+    revision: row.revision,
     ...(row.customerReference === undefined ? {} : { customerReference: row.customerReference }),
     ...(row.jobReference === undefined ? {} : { jobReference: row.jobReference }),
   };
@@ -1384,6 +1386,67 @@ export async function createPrivateGalleryProofDraftAsAdmin(
   } catch (error) {
     if (error instanceof PrivateGalleryProofDraftStoreError && error.reason === "invalid-input") {
       return { ok: false, reason: "invalid-input" };
+    }
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+function parseProofDraftPricingUpdate(raw: string): {
+  readonly handle: string;
+  readonly expectedRevision: number;
+  readonly pricing: PrivateGalleryProofPricing;
+} | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).sort().join(",") !== "expectedRevision,handle,pricing" ||
+      typeof record.handle !== "string" || !isPrivateGalleryHandle(record.handle) ||
+      !Number.isSafeInteger(record.expectedRevision) || (record.expectedRevision as number) < 0 ||
+      typeof record.pricing !== "object" || record.pricing === null || Array.isArray(record.pricing)) {
+    return undefined;
+  }
+  const pricing = record.pricing as Record<string, unknown>;
+  if (Object.keys(pricing).sort().join(",") !== "currency,extraUnitPriceMinor,includedCount") return undefined;
+  try {
+    return {
+      handle: record.handle,
+      expectedRevision: record.expectedRevision as number,
+      pricing: validatePrivateGalleryProofPricing(pricing as PrivateGalleryProofPricing),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Edit the whole pricing candidate, guarded by a draft revision. */
+export async function updatePrivateGalleryProofDraftPricingAsAdmin(
+  deps: PrivateGalleryAdminRequestDeps & { readonly proofDraftStore: PrivateGalleryProofDraftStore },
+  request: Request,
+  now: Date,
+): Promise<PrivateGalleryProofDraftAdminOutcome<PrivateGalleryProofDraftAdminItem>> {
+  if (request.method !== "PATCH" ||
+      checkPrivateGalleryAdminLoginRequestHeaders(request) !== undefined) {
+    return { ok: false, reason: "invalid-input" };
+  }
+  const authorization = await authorizePrivateGalleryAdministrator(deps, {
+    cookieHeader: request.headers.get("cookie"), now,
+  });
+  if (!authorization.ok) return { ok: false, reason: "unauthorized" };
+  try {
+    const raw = await readBoundedBody(request, 1024);
+    const input = raw === undefined ? undefined : parseProofDraftPricingUpdate(raw);
+    if (input === undefined) return { ok: false, reason: "invalid-input" };
+    return { ok: true, value: projectProofDraft(await deps.proofDraftStore.updatePricing(input)) };
+  } catch (error) {
+    if (error instanceof PrivateGalleryProofDraftStoreError) {
+      if (error.reason === "invalid-input") return { ok: false, reason: "invalid-input" };
+      if (error.reason === "not-found") return { ok: false, reason: "not-found" };
+      if (error.reason === "conflict") return { ok: false, reason: "conflict" };
     }
     return { ok: false, reason: "unavailable" };
   }

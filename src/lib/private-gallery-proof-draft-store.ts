@@ -15,6 +15,11 @@ import {
   validatePrivateGalleryProofPricing,
   type PrivateGalleryProofPricing,
 } from "@/lib/private-gallery-proof";
+import {
+  openPrivateGalleryUploadPreparation,
+  type PrivateGalleryManifestEntry,
+  type PrivateGalleryUploadPlan,
+} from "@/lib/private-gallery-upload";
 
 export const PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT = 100;
 
@@ -22,6 +27,10 @@ export type PrivateGalleryProofDraftSetup = {
   readonly gallery: PrivateGallery;
   /** Editable candidate; only the later ready transaction freezes it. */
   readonly pricing: PrivateGalleryProofPricing;
+  /** Optimistic version for prepublication administrator edits. */
+  readonly revision: number;
+  /** Complete first upload plan, committed with draft -> preparing. Server-only. */
+  readonly preparation?: PrivateGalleryUploadPlan;
   /** Optional external identifiers until AB#28 supplies customer/job records. */
   readonly customerReference?: string;
   readonly jobReference?: string;
@@ -44,13 +53,27 @@ export type PrivateGalleryProofDraftStore = {
     now: Date,
   ): Promise<PrivateGalleryProofDraftSetup>;
   list(limit: number): Promise<PrivateGalleryProofDraftList>;
+  updatePricing(input: {
+    readonly handle: string;
+    readonly expectedRevision: number;
+    readonly pricing: PrivateGalleryProofPricing;
+  }): Promise<PrivateGalleryProofDraftSetup>;
+  openFirstPreparation(input: {
+    readonly handle: string;
+    readonly expectedRevision: number;
+    readonly keyPrefix: string;
+    readonly manifest: readonly PrivateGalleryManifestEntry[];
+    readonly now: Date;
+  }): Promise<PrivateGalleryUploadPlan>;
 };
 
 export type PrivateGalleryProofDraftStoreErrorReason =
   | "invalid-input"
   | "invalid-time"
   | "invalid-limit"
-  | "identity-collision";
+  | "identity-collision"
+  | "not-found"
+  | "conflict";
 
 export class PrivateGalleryProofDraftStoreError extends Error {
   constructor(readonly reason: PrivateGalleryProofDraftStoreErrorReason) {
@@ -90,7 +113,7 @@ function validatedInput(input: PrivateGalleryProofDraftSetupInput): PrivateGalle
 /** One-process reference with atomic synchronous mutations inside async methods. */
 export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProofDraftStore {
   const byId = new Map<string, PrivateGalleryProofDraftSetup>();
-  const handles = new Set<string>();
+  const byHandle = new Map<string, string>();
 
   return {
     async create(input, now) {
@@ -99,7 +122,7 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
       if (!(now instanceof Date) || !Number.isFinite(now.getTime())) fail("invalid-time");
       const galleryId = randomUUID();
       const galleryHandle = generateGalleryHandle();
-      if (byId.has(galleryId) || handles.has(galleryHandle)) fail("identity-collision");
+      if (byId.has(galleryId) || byHandle.has(galleryHandle)) fail("identity-collision");
       const row: PrivateGalleryProofDraftSetup = {
         gallery: {
           galleryId,
@@ -110,10 +133,77 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
           createdAt: new Date(now),
         },
         ...validated,
+        revision: 0,
       };
       byId.set(galleryId, row);
-      handles.add(galleryHandle);
+      byHandle.set(galleryHandle, galleryId);
       return structuredClone(row);
+    },
+    async updatePricing(input) {
+      if (typeof input !== "object" || input === null ||
+          typeof input.handle !== "string" || input.handle.length === 0 ||
+          !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) {
+        fail("invalid-input");
+      }
+      let pricing: PrivateGalleryProofPricing;
+      try {
+        pricing = validatePrivateGalleryProofPricing(input.pricing);
+      } catch {
+        fail("invalid-input");
+      }
+      // No await between lookup, revision check and replacement: one process
+      // cannot interleave two updates inside this critical section.
+      const galleryId = byHandle.get(input.handle);
+      if (galleryId === undefined) fail("not-found");
+      const current = byId.get(galleryId);
+      if (current === undefined) fail("not-found");
+      // Pricing stays a candidate until ready freezes the current row value.
+      // The upload plan contains no pricing.
+      if ((current.gallery.state !== "draft" && current.gallery.state !== "preparing") ||
+          current.revision !== input.expectedRevision ||
+          current.revision === Number.MAX_SAFE_INTEGER) fail("conflict");
+      const updated = { ...current, pricing, revision: current.revision + 1 };
+      byId.set(galleryId, updated);
+      return structuredClone(updated);
+    },
+    async openFirstPreparation(input) {
+      if (typeof input !== "object" || input === null ||
+          typeof input.handle !== "string" || input.handle.length === 0 ||
+          !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) {
+        fail("invalid-input");
+      }
+      const galleryId = byHandle.get(input.handle);
+      if (galleryId === undefined) fail("not-found");
+      const current = byId.get(galleryId);
+      if (current === undefined) fail("not-found");
+      if (current.gallery.state !== "draft" || current.preparation !== undefined ||
+          current.revision !== input.expectedRevision ||
+          current.revision === Number.MAX_SAFE_INTEGER) fail("conflict");
+
+      // Validate the whole manifest before mutation. No await may occur between
+      // lookup, plan creation and replacement in this one-process store.
+      // The production adapter needs a transaction and compare-and-swap.
+      let plan: PrivateGalleryUploadPlan;
+      try {
+        plan = openPrivateGalleryUploadPreparation({
+          galleryId,
+          galleryKind: "proof",
+          state: current.gallery.state,
+          keyPrefix: input.keyPrefix,
+          preparationId: randomUUID(),
+          manifest: input.manifest,
+          now: input.now,
+        });
+      } catch {
+        fail("invalid-input");
+      }
+      byId.set(galleryId, {
+        ...current,
+        gallery: { ...current.gallery, state: "preparing" },
+        preparation: plan,
+        revision: current.revision + 1,
+      });
+      return structuredClone(plan);
     },
     async list(limit) {
       if (!Number.isSafeInteger(limit) || limit < 1 ||

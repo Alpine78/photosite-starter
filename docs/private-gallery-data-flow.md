@@ -160,8 +160,26 @@ out of the customer exchange, view and proof stores. The administrator API
 checks JSON provenance, authorizes the session before reading a bounded body,
 and returns only a safe projection with no internal ID or secret. The draft
 form and list are localized; this is still a process-local development aid.
-Pricing edits, abandoned-draft cleanup, relational customer/job association,
-ready/publish transactions and production persistence remain to implement.
+An authenticated `PATCH` to that root can replace the entire pricing candidate
+before publication, guarded by a per-draft revision. It validates request
+provenance and the full pricing tuple before one atomic memory-store compare
+and swap. A stale revision or a draft that is no longer editable returns a
+conflict; the administrator interface refreshes the list before another try.
+The revision and safe terms appear in the administrator projection, never an
+internal gallery ID or customer access link. This edit cannot alter the
+published proof fixture or a frozen confirmation. Abandoned-draft cleanup,
+relational customer/job association, ready/publish transactions and production
+persistence remain to implement.
+The server-only development store can now open one first-upload preparation for a
+draft. It records the complete declared proof manifest and server-assigned object keys
+with the `draft → preparing` transition in a single process-local change, before any
+object bytes are written. There is no route that hands this plan to a browser or CLI yet,
+and no object store is connected. The plan contains no pricing: the current candidate may
+still change while preparing, and only the later `ready` transaction freezes it. Existing
+admin `GET`/`PATCH` responses project an allow-list and do not include the preparation,
+object keys or internal gallery ID. A repeated or invalid preparation does not mutate
+that row. The confirmed-selection `reopen` action is separate from upload preparation;
+ADR-0014 has no `preparing → draft` transition.
 The status panel above continues to address only the existing published proof
 fixture by a handle the administrator already holds.
 

@@ -97,14 +97,31 @@ async function mockProofAdminApi(page: import("@playwright/test").Page) {
 
 test.describe("private gallery proof administration", () => {
   test("creates and lists a private draft without showing a customer access link", async ({ page }) => {
-    const drafts: unknown[] = [];
+    const drafts: Array<{
+      handle: string; createdAt: string; revision: number;
+      pricing: typeof PRICING; customerReference: string;
+    }> = [];
     await page.route("**/admin/proof", async (route) => {
       if (route.request().method() === "GET") {
         return route.fulfill({ status: 200, contentType: "application/json",
           body: JSON.stringify({ ok: true, items: drafts, hasMore: true }) });
       }
+      if (route.request().method() === "PATCH") {
+        const input = JSON.parse(route.request().postData() ?? "{}") as {
+          handle: string; expectedRevision: number; pricing: typeof PRICING;
+        };
+        const current = drafts.find((draft) => draft.handle === input.handle);
+        if (!current || current.revision !== input.expectedRevision) {
+          return route.fulfill({ status: 409, contentType: "application/json",
+            body: JSON.stringify({ ok: false }) });
+        }
+        current.pricing = input.pricing;
+        current.revision += 1;
+        return route.fulfill({ status: 200, contentType: "application/json",
+          body: JSON.stringify({ ok: true, draft: current }) });
+      }
       const input = JSON.parse(route.request().postData() ?? "{}") as { pricing: typeof PRICING; customerReference: string };
-      const draft = { handle: HANDLE, createdAt: new Date().toISOString(),
+      const draft = { handle: HANDLE, createdAt: new Date().toISOString(), revision: 0,
         pricing: input.pricing, customerReference: input.customerReference };
       drafts.unshift(draft);
       return route.fulfill({ status: 201, contentType: "application/json",
@@ -121,6 +138,22 @@ test.describe("private gallery proof administration", () => {
     await expect(page.getByText("customer-1", { exact: false })).toBeVisible();
     await expect(page.locator(`a[href*="${HANDLE}"]`)).toHaveCount(0);
     await expect(page.getByRole("status")).not.toContainText("#");
+
+    const row = page.getByRole("listitem").filter({ hasText: HANDLE });
+    await row.locator("summary").click();
+    await row.getByLabel(draftLabels.includedCount).fill("3");
+    await row.getByRole("button", { name: draftLabels.savePricing }).click();
+    await expect(row).toContainText(`${draftLabels.includedCount}: 3`);
+    await expect(page.getByText(draftLabels.savedPricing)).toBeVisible();
+
+    // Another administrator tab has already saved a later revision.
+    drafts[0].revision += 1;
+    drafts[0].pricing = { ...drafts[0].pricing, includedCount: 4 };
+    await row.locator("summary").click();
+    await row.getByLabel(draftLabels.includedCount).fill("5");
+    await row.getByRole("button", { name: draftLabels.savePricing }).click();
+    await expect(page.getByText(draftLabels.conflictPricing)).toBeVisible();
+    await expect(row).toContainText(`${draftLabels.includedCount}: 4`);
   });
 
   test.beforeEach(async ({ page, browserName }) => {

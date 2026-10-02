@@ -212,6 +212,12 @@ export type BuiltInLabels = {
     readonly hasMore: string;
     readonly unavailable: string;
     readonly handle: string;
+    readonly editPricing: string;
+    readonly savePricing: string;
+    readonly savingPricing: string;
+    readonly savedPricing: string;
+    readonly conflictPricing: string;
+    readonly invalidPricing: string;
   };
   /**
    * Published proof-gallery status, reopen and resend. The separate draft
@@ -675,6 +681,12 @@ const englishLabels = {
     hasMore: "Showing the latest 100 drafts.",
     unavailable: "The draft request failed. Try again.",
     handle: "Handle",
+    editPricing: "Edit pricing",
+    savePricing: "Save pricing",
+    savingPricing: "Saving…",
+    savedPricing: "Pricing saved.",
+    conflictPricing: "This draft changed elsewhere. The list has been refreshed; review the current price and try again.",
+    invalidPricing: "Enter a non-negative whole number and a three-letter uppercase currency code.",
   },
   privateGalleryProofAdmin: {
     heading: "Proof gallery status",
@@ -961,6 +973,12 @@ const finnishLabels = {
     hasMore: "Näytetään 100 uusinta luonnosta.",
     unavailable: "Luonnoksen käsittely epäonnistui. Yritä uudelleen.",
     handle: "Tunniste",
+    editPricing: "Muokkaa hinnoittelua",
+    savePricing: "Tallenna hinnoittelu",
+    savingPricing: "Tallennetaan…",
+    savedPricing: "Hinnoittelu tallennettu.",
+    conflictPricing: "Luonnos muuttui muualla. Lista on päivitetty; tarkista nykyinen hinta ja yritä uudelleen.",
+    invalidPricing: "Anna ei-negatiivinen kokonaisluku ja kolmikirjaiminen isoilla kirjaimilla kirjoitettu valuuttakoodi.",
   },
   privateGalleryProofAdmin: {
     heading: "Vedosgallerian tila",

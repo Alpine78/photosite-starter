@@ -521,10 +521,10 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   in client galleries
 - Private client galleries, subject to a separate security and storage decision
   covering revocable/expiring access, noindex/no-store behavior, retention, and downloads.
-  That decision is **drafted** in
-  [ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md)
-  (Proposed, not yet accepted); implementation would be AB#29 (delivery) and AB#130
-  (proof selection)
+  That decision is **accepted** in
+  [ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md).
+  AB#29 (delivery) and AB#130 (proof selection) have partial implementation;
+  production storage and upload remain pending.
 - Proof galleries with photo selection and extra-photo pricing
 - Optional image sales and fulfilment (enquiry first; checkout and cart only
   after a separate product, legal, security, and delivery decision)
