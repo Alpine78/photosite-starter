@@ -13,23 +13,66 @@ a dependency update automatically.
   committed lockfile. A finding or registry error fails the job, and the log
   gives the advisory detail. A scheduled run skips the normal quality gates and
   Preview deployment; push and PR runs retain them.
+  The audit uses the `Default` self-hosted pool, so it does not consume the
+  Microsoft-hosted monthly minute allowance. It still needs an available agent
+  and self-hosted parallel-job capacity; see [Azure's parallel-job limits](https://learn.microsoft.com/en-us/azure/devops/pipelines/licensing/concurrent-jobs?view=azure-devops).
 - The repository owner is the accountable reviewer. In Azure Pipelines, the
   owner must subscribe to failed runs for this pipeline and verify delivery to
   an address they monitor. In GitHub, the owner must watch the repository with
   **Security alerts** selected and verify notification delivery in the account's
   notification settings. A green/failed log is not a delivered notification.
 - GitHub's repository security settings are a second detection channel. On
-  2026-09-27 the vulnerability-alerts API returned **204** (enabled), and the
+  2026-10-02 the vulnerability-alerts API returned **204** (enabled), and the
   automated-security-fixes API returned `{"enabled":true,"paused":false}`.
-  This verifies configuration, not a future notification or pull request.
+  This verifies configuration, not notification delivery. Existing settings
+  were read without changing them.
   The available GitHub token lacks the `notifications` scope, so the owner's
   repository-watch and delivery settings could not be checked through that API.
-- When the YAML reaches `main`, check Azure Pipelines' **Scheduled runs** view
-  for the effective schedule. A schedule configured in the pipeline UI takes
-  precedence over YAML; remove that override if present. On 2026-09-27 the
+- Check Azure Pipelines' **Scheduled runs** view when changing the schedule.
+  A schedule configured in the pipeline UI takes precedence over YAML;
+  remove that override if present. On 2026-10-02 the
   existing pipeline definition showed only CI and pull-request triggers, with no
-  UI schedule. Confirm one actual scheduled run and the failure subscription
-  before treating the gate as live.
+  UI schedule. Actual scheduled execution is recorded below; failure-notification
+  delivery remains unverified.
+
+## Live evidence checked on 2026-10-02
+
+**Configuration and execution verified; maintainer notification delivery
+unverified. AB#160 remains Active.** The dated observations below demonstrate
+the existing audit and a security update reaching protected Preview. They do
+not demonstrate receipt of either channel's notification or Production promotion.
+
+| Check | Observed evidence |
+| --- | --- |
+| Dependabot configuration | Vulnerability-alerts API: HTTP 204; automated-security-fixes API: `{"enabled":true,"paused":false}`. No settings were replaced. |
+| Audit without a new source revision | [Scheduled run #497](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=497) started at 06:00 UTC on revision `06e0cab2b34d61ed5c63b9587690ea559c1ef29c`, the same revision as [main CI #494](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=494), which finished at 05:34 UTC. The exact scheduled command reported 12 affected-package entries (9 moderate, 2 high, 1 critical) and exited 1. Verify and DeployPreview were skipped. These are that revision's package entries, including inherited parent entries, not 12 demonstrated exploits or a count for later `main`. |
+| Reviewable security update | Dependabot [PR #229](https://github.com/Alpine78/photosite-starter/pull/229) updated `package.json` and `package-lock.json` from Next.js 16.3.3 to 16.3.6 for [GHSA-vcvr-r3jv-pc5j](https://github.com/vercel/next.js/security/advisories/GHSA-vcvr-r3jv-pc5j). Its merge event names the repository owner, with no auto-merge-enabled event and `auto_merge: null`. |
+| Existing PR gates | [PR CI #496](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=496) passed Verify for PR #229. The existing lint, unit-test, diagram, production-build and browser-journey gates were retained; audit and deployment were skipped on this PR run. |
+| Deployment follow-through | [Main CI #501](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=501) passed Verify and DeployPreview for PR #229's merged revision `06e0f081c8e2cc894e582ce945b1bd1b3f8e884e`. Deployment `dpl_BGXUzSdgcNgfXFLYegFiuSbLFmHm` passed identity checks, an unauthenticated 302 challenge to `vercel.com/sso-api`, and `X-Robots-Tag: noindex`; the stable Preview alias was repointed successfully. |
+| Maintainer notifications | Receipt is not yet confirmed for Dependabot alerts or failed scheduled audits. GitHub's available token lacks the `notifications` scope; Azure CLI could not discover the notification-subscriptions resource. Neither limitation proves that a subscription is absent or that delivery succeeded. |
+
+Run #501 verifies its named revision only. The later [PR #230](https://github.com/Alpine78/photosite-starter/pull/230)
+merged as `5c3464f8348bd152650a94e0f27ade2a4e7bef43` and pins Next.js to
+16.3.8; run #501 is not Preview evidence for that later revision. AB#186's
+residual-advisory decision and exact-candidate Preview check remain separate.
+
+### Remaining live check: notification receipt
+
+The accountable maintainer is the repository owner assigned to AB#160. Verify
+that maintainer's settings and receipts, not just the API token owner's settings.
+The maintainer still needs to check [GitHub security notifications](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-security-notifications)
+(repository watch: **Security alerts** or **All Activity**, plus the account's
+delivery channel) and an [Azure failed-build subscription](https://learn.microsoft.com/en-us/azure/devops/organizations/notifications/manage-your-personal-notifications?view=azure-devops)
+for this pipeline. The Azure subscription must include scheduled runs, rather
+than only builds queued by the recipient. Verify receipt against an actual
+advisory or failed audit run; a configured subscription alone is insufficient.
+A security-PR notice alone does not prove Dependabot alert delivery, and an
+update to an existing advisory does not necessarily generate a new notice.
+Record the channel, receipt date and advisory/run identifier on AB#160, without
+an email address or message contents. No notification was sent or subscription
+changed during this check. This procedure is defined but has not been verified
+as completed. Until receipt is evidenced, AC1's delivery requirement, AC2's
+maintainer-visibility requirement and AC4's notification step remain open.
 
 ## Triage each finding
 
@@ -65,26 +108,24 @@ fix cannot be shipped that day. Lower-severity findings are reviewed during the
 next weekly maintenance pass. These are review targets, not a promise that a
 particular upstream fix exists.
 
-## Initial evidence and remaining live check
+## Historical initial evidence (2026-09-27)
 
 On 2026-09-27, running the exact scheduled command against `main`'s
 `package-lock.json` returned **28 vulnerable package entries**: 1 low,
 11 moderate, 15 high, and 1 critical. The entries form a dependency chain
 through the direct `vercel@59.11.7` package. The same 28 entries remained under
-`npm audit --omit=dev` because this CLI is currently declared in
+`npm audit --omit=dev` because this CLI was then declared in
 `dependencies`. A source search found no application import of `vercel`;
-the pipeline uses a separately pinned global CLI for deployment. This is
+the pipeline then used a separately pinned global CLI for deployment. This was
 evidence that the package's manifest classification needs review, not proof
 that every advisory is exploitable in the deployed site. Do not blindly apply
 npm's offered `vercel@54.17.3` downgrade: it crosses a major version and is
 not the CLI version pinned by the deployment pipeline.
 
 The nonzero audit result is a controlled check of advisory retrieval and
-failure behavior on the committed lockfile. The after-merge scheduled run,
-maintainer notification delivery, a reviewed dependency/lockfile update, CI
-gates, and deployment follow-through are still required to complete this
-story's end-to-end demonstration. Record their run/PR/deployment links on
-AB#160 once observed.
+failure behavior on that committed lockfile. The later scheduled run and
+security-update CI/Preview evidence are recorded above; maintainer notification
+delivery is still required to complete the end-to-end demonstration.
 
 ### Next.js advisory checked during this change
 
@@ -106,18 +147,17 @@ stopped. This suggests a version-associated problem under sustained test load,
 but does not establish the framework's root cause. The trial update was removed
 from this branch rather than offered for deployment with a failing gate.
 
-**Time-bound decision:** the repository owner should retest a patched Next.js
-release by 2026-09-30, when the [announced September security release](https://nextjs.org/blog)
-is due, or investigate the 16.3.6 process exit sooner if `ImageResponse` use
-is introduced. Record the tested version, the full browser gate, and the
-deployment result on AB#160. The current source has no identified path to the
-specific `ImageResponse` advisory; review that assessment if the code changes.
+**Historical time-bound decision:** the initial review set a retest deadline of
+2026-09-30, or sooner if `ImageResponse` use was introduced. Successful full
+CI and protected Preview evidence for 16.3.6 was observed on 2026-10-02 in
+PR #229 and run #501 above. The initial source review found no path to the
+specific `ImageResponse` advisory; reassess that precondition if the code changes.
 
 ### 2026-10-02 remediation follow-up (AB#186)
 
 The earlier inventory and Next.js trial above are historical. Main already
-contains the exact development-only Vercel CLI 61.0.0 and one shared local
-Azure CLI installation. The current follow-up pins Next.js/eslint-config-next
+contains the exact development-only Vercel CLI 61.0.0 and one lockfile-pinned
+Vercel CLI installation used by Azure. The merged PR #230 pins Next.js/eslint-config-next
 to 16.3.8, refreshes compatible brace-expansion versions, and updates the old
 undici 5.28.4 consumer to 5.29.0. Fresh full audit counts are 12 → 10 affected
 package entries; the production-only audit is zero. The isolated current

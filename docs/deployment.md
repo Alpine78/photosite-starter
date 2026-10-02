@@ -983,10 +983,17 @@ its canonical home is one indexing accident away from competing with it.
 
 ## What the pipeline does
 
-`azure-pipelines.yml` has two stages.
+`azure-pipelines.yml` has three stages: Verify, DependencyAudit and DeployPreview.
 
 **Verify** runs on every push and pull request to `main`: lint, the browser-free test
-suite, the production build, and the Playwright journey suites.
+suite, the architecture-diagram check, the production build, and the Playwright journey suites.
+
+**DependencyAudit** runs daily at 06:00 UTC on `main`, even without a source
+change, in the `Default` self-hosted pool. It audits the committed production
+and development dependency tree without installing packages. Scheduled runs
+skip Verify and DeployPreview, so the audit does not spend Microsoft-hosted
+minutes or deploy a release candidate. The [dependency response process](dependency-security.md)
+records actual runs and the outstanding notification-delivery check (AB#160).
 
 ### The Verify stage runs on a self-hosted agent
 
@@ -1013,17 +1020,23 @@ later `DeployPreview` run on the same machine picks up alongside the real
 build read token in that job's environment. That is a materially different risk from
 "a credential touches a personal machine" — it is "PR-triggered code gets a path to a
 deployment credential" — so `DeployPreview` **stays on `vmImage: "ubuntu-latest"`**.
-Concretely this means `DeployPreview` keeps failing on the exhausted quota exactly as it
-already was, until the quota resets (~2 weeks from 2026-09-16) or an extra
-Microsoft-hosted parallel job is purchased — the same state as before this pool existed,
-not a new cost or a new failure.
+The exhausted quota continued to block `DeployPreview` in September; restoring
+hosted capacity was necessary to resume automated Preview deployments.
 
 **It did not recover by 2026-09-24.** Every `main` run from 2026-09-23 failed in
 `DeployPreview` with "Your organization has no free minutes remaining", while `Verify`
-(self-hosted) kept passing. No Preview deployment was created after 2026-09-23 11:54, so
+(self-hosted) kept passing. At that 2026-09-24 check, no Preview deployment had
+been created after 2026-09-23 11:54, so
 merged changes did not reach Vercel — and when data changed ahead of code (the rally
 gallery conversions, AB#170), every converted gallery answered 500 on the deployed code
-until a manual release was made. **Check `az pipelines runs list --branch main` and
+until a manual release was made.
+
+**Recovery observed on 2026-10-02:** [run #501](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=501)
+passed both Verify and DeployPreview for revision
+`06e0f081c8e2cc894e582ce945b1bd1b3f8e884e`, including identity, access-protection,
+noindex and stable-alias checks. This proves Preview delivery had resumed for
+that revision; it does not establish the remaining hosted-minute balance or
+deployment of a later merge. **Check `az pipelines runs list --branch main` and
 `vercel ls` before assuming a merged change is live.**
 
 ### When the pipeline cannot deploy

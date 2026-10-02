@@ -1807,6 +1807,22 @@ and exercised rollback and handoff (AB#118) are later stories, now unblocked rat
 waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
 see above — with 238 of 415 distinct crawled paths still pending real content
 migration (including `component/komento/*` and `sivustokartta/*`).
+
+**Ongoing dependency monitoring, 2026-10-02 (AB#160, still Active):** the
+existing daily audit and Dependabot settings were checked without replacing
+their configuration. Scheduled run #497 audited the same source revision as
+earlier main CI #494 and failed visibly on npm advisories; Verify and
+DeployPreview were skipped. The audit uses the self-hosted `Default` pool and
+does not consume Microsoft-hosted minutes. Dependabot's Next.js security-fix
+PR #229 passed PR CI #496, was merged by the owner, and its exact merge revision
+passed main CI and protected Preview deployment in #501. That is dated Preview
+evidence, not verification of the later PR #230 revision or Production promotion.
+Receipt of Dependabot and failed-audit notifications is still unverified, so
+the story's end-to-end notification demonstration remains open.
+[Evidence and remaining live check](dependency-security.md#live-evidence-checked-on-2026-10-02)
+include the run/PR links and the response policy for runtime exposure, severity,
+fix availability and Node.js/Next.js security releases.
+
 **Dependency follow-up, 2026-10-02 (AB#186, still Active):** the merged CLI
 reclassification and Azure drift fix already use one development-only,
 lockfile-pinned Vercel CLI 61.0.0. The current follow-up pins Next.js and its lint
