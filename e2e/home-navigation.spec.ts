@@ -44,13 +44,15 @@ test("the home page renders and its header navigates to a section", async ({
     await expect(banner).toBeVisible();
     await expect(page.getByRole("contentinfo")).toBeVisible();
 
-    // The brand link and the level-one heading both render the configured site
-    // name, so they agree without the test knowing what that name is.
+    // The brand link and the level-one heading both name the configured site,
+    // so they agree without the test knowing what that name is. The link is
+    // compared by accessible name: a two-line brand (AB#187) stacks its lines
+    // with no space between them in its text content.
     const siteName = (
-      await banner.getByRole("link").first().textContent()
+      await page.getByRole("heading", { level: 1 }).textContent()
     )?.trim();
     expect(siteName).toBeTruthy();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(siteName!);
+    await expect(banner.getByRole("link").first()).toHaveAccessibleName(siteName!);
 
     await expectImageDelivered(
       page.getByRole("main").getByRole("img").first(),

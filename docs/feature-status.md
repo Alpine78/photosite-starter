@@ -610,8 +610,8 @@ composes them with the fetched categories through the same `buildContentTree` ca
 layer already uses.
 The global settings and home-page schemas and adapters sit beside those boundaries too.
 Each is a published singleton: none is a fallback to fixtures, and a missing or duplicate
-published document raises as a classified content defect. Authored prose is language-keyed;
-brand identities stay language-neutral. Static navigation stores only validated root-relative
+published document raises as a classified content defect. Authored prose is language-keyed,
+and since AB#187 so is the site name; other brand identities stay language-neutral. Static navigation stores only validated root-relative
 application paths, while the story root and featured gallery are semantic targets resolved
 from deployment routing and the one `featuredGalleryId`, so settings contain neither a second
 category tree nor a generated content path. The Studio schema receives every configured
@@ -2630,6 +2630,17 @@ subject with safe service-link prefill, and a settings-driven portrait and direc
 contact column (AB#178). Its privacy notice is a native disclosure, and the
 direct email link remains usable without JavaScript. Related work item:
 AB#176 portfolio topic filter.
+The header brand follows the hi-fi proposal's `.brand` (AB#187): an optional
+`siteSettings.logo` and dark-theme `logoDark` (shared public images, decorative, native
+ratio, 43px / 33px high), swapped by the `light-mode-only` / `dark-mode-only` rules in
+`globals.css` without JavaScript, beside either one line of site name or, where a
+language has a `brandDescriptor`, the photographer name with a small uppercase
+descriptor before or after it as authored. The mock deployment uses brand-free 3:2
+placeholder marks. The site name and title template are now authored per language and
+resolved for each locale's header and metadata (`resolveSiteName`,
+`resolveTitleTemplate`), falling back to the default locale's; a descriptor never falls
+back to another language. A pre-AB#187 single-string `siteName` is still read as the
+default name until re-authored. The proposal's footer brand block is not built.
 
 These notes go stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,

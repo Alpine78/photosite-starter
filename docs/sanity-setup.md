@@ -195,6 +195,40 @@ published language; an absent object leaves the existing home introduction in pl
 portrait uses the same public-media boundary and renders at its native ratio. The two
 application-owned actions lead to contact and services.
 
+**The site name is authored per language** (AB#187). `siteSettings.siteName` is a
+language-keyed list like the tagline, because a brand commonly reads differently per
+language — "Valokuvaaja …" in Finnish, "… Photography" in English. Each locale's header,
+default page title, and Open Graph site name use that locale's entry, and the title
+template (`defaultSeo.titleTemplate`) is resolved the same way; a language without its
+own entry uses the default locale's. Surfaces only the default locale renders — the home
+page heading, its structured data, and the notification emails the owner receives — use
+the default locale's name. A document published before this change still holds one plain
+string there: the site keeps reading it as the default locale's name, while the Studio
+reports the field as the wrong type. **Re-author it once** — open Site settings, clear the
+old value, and add one entry per published language — then publish.
+
+`siteSettings.logo` optionally references a shared media document as the brand mark
+beside the brand text in the header. It renders at its native ratio, 43px high on wider
+screens and 33px on narrow ones, at most 160px wide, so a square mark and a wide
+wordmark both fit. Upload a PNG or WebP with a **transparent background** (no tile or
+matte colour). `siteSettings.logoDark` optionally references a variant shown while the
+site is in its dark theme — by the device's preference or the visitor's pinned choice —
+for a mark that does not read on a dark ground; without it the logo shows in both
+themes. Check each against its own theme before publishing. Both are decorative there —
+the visible brand text already names the link — so their alternative text is not shown,
+though each media document still requires one. A reference that does not resolve, or
+that names anything but a public image media document, is refused like any other
+malformed setting, and so is a dark variant without the logo it replaces; leave both
+empty for a text-only brand.
+
+`siteSettings.brandDescriptor` optionally gives the header a two-line brand: the
+photographer name (`photographerName`) as the large line and a small uppercase
+descriptor per language — "Valokuvaaja" in Finnish, "Photography" in English — with
+its own position, **before** or **after** the name, so each language reads naturally.
+The link's accessible name is the two lines in that order, so author the site name to
+match ("Valokuvaaja …" / "… Photography"). A language without a descriptor shows its
+site name on one line; another language's descriptor is never borrowed.
+
 `siteSettings.contact.portrait` optionally references a shared public image for the
 contact page's side column. It renders at its native ratio. The site projects only
 the public web derivative and rejects private-only or non-image media; leave the

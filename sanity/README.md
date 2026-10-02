@@ -73,7 +73,10 @@ imports; the site's adapters repeat the public boundary checks for that reason.
 
 The site settings and home page are each published as exactly one document. Their
 visitor-facing text uses the same language-keyed `localizedText` values as media and
-categories. Navigation stores only static application routes or semantic targets for the
+categories. The site name is language-keyed too (AB#187), as is the optional header
+`brandDescriptor` (each entry also carries its position before or after the name), and
+the optional `logo` and its dark-theme variant `logoDark` reference shared media
+documents rather than uploaded files of their own. Navigation stores only static application routes or semantic targets for the
 generated story root and the identity-resolved featured gallery; it never stores a second
 category tree. The home hero references the shared media document rather than copying an
 asset URL or dimensions.

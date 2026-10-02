@@ -23,7 +23,7 @@ const plan: FoundationWritePlan = {
     {
       _id: "migrated--site-settings-production",
       _type: "siteSettings",
-      siteName: "Example Photography",
+      siteName: [text("fi", "Valokuvaaja Esimerkki"), text("en", "Example Photography")],
       photographerName: "Example Photographer",
       tagline: [text("fi", "Kuvia."), text("en", "Photographs.")],
       featuredGalleryId: "rally-example",
@@ -84,12 +84,12 @@ describe("foundation write plan validation", () => {
 
   it("binds the approval digest to normalized singleton content", () => {
     expect(foundationDocumentsDigest([...plan.documents].reverse())).toBe(foundationDocumentsDigest(plan.documents));
-    expect(foundationDocumentsDigest([{ ...site, siteName: "Changed" }, plan.documents.find((document) => document._type === "homePage")!])).not.toBe(foundationDocumentsDigest(plan.documents));
+    expect(foundationDocumentsDigest([{ ...site, siteName: [text("fi", "Muutettu")] }, plan.documents.find((document) => document._type === "homePage")!])).not.toBe(foundationDocumentsDigest(plan.documents));
   });
 
   it("allows an exact rerun and rejects edits, drafts, and another singleton", () => {
     expect(foundationDatasetIssues(plan.documents, plan.documents)).toEqual([]);
-    expect(foundationDatasetIssues([{ ...site, siteName: "Changed" }], plan.documents)).toContain(
+    expect(foundationDatasetIssues([{ ...site, siteName: [text("fi", "Muutettu")] }], plan.documents)).toContain(
       'planned document "migrated--site-settings-production" already exists with different content',
     );
     expect(foundationDatasetIssues([{ ...site, _id: "drafts.migrated--site-settings-production" }], plan.documents)).toContain(

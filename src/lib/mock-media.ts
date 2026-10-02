@@ -137,6 +137,46 @@ const finnishImages = {
   }),
 } as const satisfies MockImages;
 
+/**
+ * The fixture deployment's brand mark (AB#187): two overlapping rings, a
+ * project-authored placeholder carrying no name, initials, or studio identity,
+ * so a clone that never replaces it still ships nobody's brand. Deliberately
+ * 3:2 rather than square, so the header proves it keeps a mark's native ratio.
+ *
+ * Kept apart from `mockImages`: it is a transparent PNG rather than a
+ * photograph's WebP derivative, and the header renders it decoratively beside
+ * the visible site name, so its alternative text is empty in every language.
+ */
+export const mockSiteMark: ImageMedia = projectPublicImageMedia({
+  mediaId: "site-mark",
+  publiclyRenderable: true,
+  rendition: {
+    sourceKind: "public-web-derivative",
+    src: "/gallery/site-mark.924ff9b1d397.png",
+    version: "924ff9b1d397",
+    width: 384,
+    height: 256,
+  },
+  alt: "",
+});
+
+/**
+ * The same placeholder rings in a lighter grey for the dark theme, so the
+ * fixture deployment exercises the header's light/dark mark swap.
+ */
+export const mockSiteMarkDark: ImageMedia = projectPublicImageMedia({
+  mediaId: "site-mark-dark",
+  publiclyRenderable: true,
+  rendition: {
+    sourceKind: "public-web-derivative",
+    src: "/gallery/site-mark-dark.97d20173ed1d.png",
+    version: "97d20173ed1d",
+    width: 384,
+    height: 256,
+  },
+  alt: "",
+});
+
 const imagesByLanguage: Readonly<Record<string, MockImages>> = {
   en: mockImages,
   fi: finnishImages,

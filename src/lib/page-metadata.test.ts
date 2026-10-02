@@ -12,6 +12,8 @@ import type { SiteSettings } from "@/lib/site-settings";
 
 const settings: SiteSettings = {
   siteName: "Studio Example",
+  siteNames: { en: "Studio Example" },
+  brandDescriptors: {},
   photographerName: "Jane Example",
   tagline: "Timeless photography",
   navigation: [{ label: "Home", href: "/" }],
@@ -32,6 +34,7 @@ const settings: SiteSettings = {
   copyrightHolder: "Studio Example",
   defaultSeo: {
     titleTemplate: "%s | Studio Example",
+    titleTemplates: { en: "%s | Studio Example" },
     description: "Professional photography services.",
   },
 };
@@ -569,6 +572,57 @@ describe("buildLocaleShellMetadata", () => {
     expect(metadata.description).toBeUndefined();
     expect(openGraphOf(metadata)).not.toHaveProperty("description");
     expect(openGraphOf(metadata)).not.toHaveProperty("images");
+  });
+
+  it("states the brand authored for the locale it renders (AB#187)", () => {
+    const brandContext = {
+      deployment: bilingualDeployment,
+      settings: {
+        ...settings,
+        siteName: "Valokuvaaja Esimerkki",
+        siteNames: { fi: "Valokuvaaja Esimerkki", en: "Example Photography" },
+        defaultSeo: {
+          ...settings.defaultSeo,
+          titleTemplate: "%s | Valokuvaaja Esimerkki",
+          titleTemplates: { fi: "%s | Valokuvaaja Esimerkki", en: "%s | Example Photography" },
+        },
+      },
+    };
+
+    const shell = buildLocaleShellMetadata(brandContext, "en-GB");
+    expect(shell.title).toEqual({ default: "Example Photography", template: "%s | Example Photography" });
+    expect(openGraphOf(shell).siteName).toBe("Example Photography");
+
+    const page = buildPageMetadata(
+      { path: englishVersion.path, title: "Coastal mornings", locale: "en-GB" },
+      brandContext,
+    );
+    expect(openGraphOf(page).siteName).toBe("Example Photography");
+    expect(openGraphOf(buildPageMetadata({ path: "/" }, brandContext)).siteName).toBe(
+      "Valokuvaaja Esimerkki",
+    );
+  });
+
+  it("keeps the default locale's brand where a locale has none of its own", () => {
+    const finnishOnly = {
+      deployment: bilingualDeployment,
+      settings: {
+        ...settings,
+        siteName: "Valokuvaaja Esimerkki",
+        siteNames: { fi: "Valokuvaaja Esimerkki" },
+        defaultSeo: {
+          ...settings.defaultSeo,
+          titleTemplate: "%s | Valokuvaaja Esimerkki",
+          titleTemplates: { fi: "%s | Valokuvaaja Esimerkki" },
+        },
+      },
+    };
+    const shell = buildLocaleShellMetadata(finnishOnly, "en-GB");
+
+    expect(shell.title).toEqual({
+      default: "Valokuvaaja Esimerkki",
+      template: "%s | Valokuvaaja Esimerkki",
+    });
   });
 
   it("rejects a route locale the deployment does not configure", () => {

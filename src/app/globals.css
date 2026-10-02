@@ -250,6 +250,36 @@
   display: none;
 }
 
+/*
+ * Mode-specific images (AB#187): a brand mark drawn for one ground swaps for
+ * its variant in the other mode. Same two dark selectors as the palette above,
+ * so the swap follows the OS preference and the pinned mode alike, before
+ * hydration and without JavaScript. Both variants are lazy: measured against
+ * a production build, Chromium fetches only the one shown, while WebKit also
+ * fetched the hidden light mark in dark mode — a small mark's worth of bytes.
+ */
+.dark-mode-only {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .light-mode-only {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .dark-mode-only {
+    display: block;
+  }
+}
+
+:root[data-theme="dark"] .light-mode-only {
+  display: none;
+}
+
+:root[data-theme="dark"] .dark-mode-only {
+  display: block;
+}
+
 /* Typography comes from the `font-sans` utility on <body> (see layout.tsx),
    which resolves to --font-sans → --font-family-sans → the Instrument Sans face
    loaded by next/font. */

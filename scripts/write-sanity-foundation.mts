@@ -64,7 +64,8 @@ type HomeSection = {
 export type SiteSettingsWriteDocument = {
   readonly _id: string;
   readonly _type: "siteSettings";
-  readonly siteName: string;
+  /** Per language since AB#187: a brand name commonly reads differently per language. */
+  readonly siteName: readonly LocalizedText[];
   readonly photographerName: string;
   readonly tagline: readonly LocalizedText[];
   readonly servicesIntro?: readonly LocalizedText[];
@@ -236,7 +237,7 @@ function parseSiteSettings(value: unknown, path: string, issues: string[]): Site
   unknownFields(value, SITE_FIELDS, path, issues);
   if (!isNonBlank(value._id) || !DOCUMENT_ID_PATTERN.test(value._id) || !value._id.startsWith("migrated--site-settings-")) issues.push(`${path}._id must be a migrated site settings identifier`);
   if (value._type !== "siteSettings") issues.push(`${path}._type must be "siteSettings"`);
-  if (!isNonBlank(value.siteName)) issues.push(`${path}.siteName must be non-empty`);
+  const siteName = parseLocalized(value.siteName, `${path}.siteName`, issues);
   if (!isNonBlank(value.photographerName)) issues.push(`${path}.photographerName must be non-empty`);
   if (!isNonBlank(value.copyrightHolder)) issues.push(`${path}.copyrightHolder must be non-empty`);
   if (value.featuredGalleryId !== undefined && (typeof value.featuredGalleryId !== "string" || !ID_PATTERN.test(value.featuredGalleryId))) issues.push(`${path}.featuredGalleryId is invalid`);
@@ -247,10 +248,10 @@ function parseSiteSettings(value: unknown, path: string, issues: string[]): Site
   const contact = parseContact(value.contact, `${path}.contact`, issues);
   const socialLinks = parseSocialLinks(value.socialLinks, `${path}.socialLinks`, issues);
   const defaultSeo = parseDefaultSeo(value.defaultSeo, `${path}.defaultSeo`, issues);
-  if (typeof value._id !== "string" || value._type !== "siteSettings" || !isNonBlank(value.siteName) || !isNonBlank(value.photographerName) || !isNonBlank(value.copyrightHolder) || tagline === undefined || navigation === undefined || footerLinks === undefined || contact === undefined || socialLinks === undefined || defaultSeo === undefined || (value.servicesIntro !== undefined && servicesIntro === undefined)) return undefined;
+  if (typeof value._id !== "string" || value._type !== "siteSettings" || siteName === undefined || !isNonBlank(value.photographerName) || !isNonBlank(value.copyrightHolder) || tagline === undefined || navigation === undefined || footerLinks === undefined || contact === undefined || socialLinks === undefined || defaultSeo === undefined || (value.servicesIntro !== undefined && servicesIntro === undefined)) return undefined;
   const needsFeatured = [...navigation, ...footerLinks].some((link) => link.target === "featured-gallery");
   if (needsFeatured && value.featuredGalleryId === undefined) { issues.push(`${path}.featuredGalleryId is required by a featured-gallery link`); return undefined; }
-  return { _id: value._id, _type: "siteSettings", siteName: value.siteName, photographerName: value.photographerName, tagline, ...(servicesIntro === undefined ? {} : { servicesIntro }), ...(typeof value.featuredGalleryId === "string" ? { featuredGalleryId: value.featuredGalleryId } : {}), navigation, contact, socialLinks, footerLinks, copyrightHolder: value.copyrightHolder, defaultSeo };
+  return { _id: value._id, _type: "siteSettings", siteName, photographerName: value.photographerName, tagline, ...(servicesIntro === undefined ? {} : { servicesIntro }), ...(typeof value.featuredGalleryId === "string" ? { featuredGalleryId: value.featuredGalleryId } : {}), navigation, contact, socialLinks, footerLinks, copyrightHolder: value.copyrightHolder, defaultSeo };
 }
 
 function parseContact(value: unknown, path: string, issues: string[]): SiteSettingsWriteDocument["contact"] | undefined {

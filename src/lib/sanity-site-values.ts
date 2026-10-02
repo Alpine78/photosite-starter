@@ -84,6 +84,30 @@ export function readLocalizedText(
   return value.trim();
 }
 
+/**
+ * Every authored language of one value, keyed by language subtag, for a value a
+ * surface resolves per rendered locale rather than once for the deployment.
+ * `requiredLanguage` must carry non-blank text; any other blank entry is
+ * treated as unauthored and left out, so a lookup falls back to the default.
+ */
+export function readLocalizedTextByLanguage(
+  entries: unknown,
+  requiredLanguage: string,
+  field: string,
+  reject: RejectSanitySiteValue,
+): Readonly<Record<string, string>> {
+  const byLanguage: Record<string, string> = {};
+  for (const [language, value] of readLocalizedValues(entries, field, reject)) {
+    const trimmed = value.trim();
+    if (trimmed.length > 0) byLanguage[language] = trimmed;
+  }
+  const required = toLanguageSubtag(requiredLanguage);
+  if (byLanguage[required] === undefined) {
+    reject(`${field} has no text in language "${required}"`);
+  }
+  return byLanguage;
+}
+
 export function readOptionalLocalizedText(
   entries: unknown,
   language: string,

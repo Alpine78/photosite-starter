@@ -4,7 +4,11 @@ import { contactCallToActionFields } from "./contact-call-to-action";
 import { galleryPresentationFields } from "./gallery-presentation";
 import { MEDIA_TYPE_NAME } from "./media";
 
-import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
+import {
+  LANGUAGE_SUBTAG,
+  LOCALIZED_TEXT_TYPE_NAME,
+  uniqueLanguages,
+} from "./localized-text";
 import {
   isStaticSitePath,
   NAVIGATION_ITEM_TYPE_NAME,
@@ -147,13 +151,23 @@ export function validateSocialLinks(
   return true;
 }
 
+/**
+ * Where the small descriptor line sits relative to the name in the header
+ * brand. Restated in `src/lib/site-settings.ts`'s `BRAND_DESCRIPTOR_POSITIONS`
+ * and pinned equal by `site-settings.test.ts`: a Studio schema imports nothing
+ * from the application.
+ */
+export const BRAND_DESCRIPTOR_POSITIONS = ["before", "after"] as const;
+
 type RawSiteSettings = {
   readonly featuredGalleryId?: unknown;
   readonly navigation?: unknown;
   readonly footerLinks?: unknown;
+  readonly logo?: unknown;
+  readonly logoDark?: unknown;
 };
 
-function validateSiteSettings(
+export function validateSiteSettings(
   value: RawSiteSettings | undefined,
 ): SchemaValidationResult {
   if (value === undefined) return true;
@@ -161,8 +175,11 @@ function validateSiteSettings(
   const hasFeaturedTarget = lists.some(
     (list) => Array.isArray(list) && list.some((item) => item?.target === "featured-gallery"),
   );
-  return hasFeaturedTarget && typeof value.featuredGalleryId !== "string"
-    ? "A featured-gallery navigation item requires Featured gallery ID"
+  if (hasFeaturedTarget && typeof value.featuredGalleryId !== "string") {
+    return "A featured-gallery navigation item requires Featured gallery ID";
+  }
+  return value.logoDark !== undefined && value.logo === undefined
+    ? "A dark-theme logo requires the logo it replaces"
     : true;
 }
 
@@ -184,7 +201,79 @@ export function defineSiteSettingsType(
 
   const fields: SchemaTypeDefinition["fields"] = [
     ...galleryPresentationFields(false),
-    { name: "siteName", title: "Site name", type: "string", validation: (rule) => rule.required().custom(nonBlank) },
+    {
+      name: "siteName",
+      title: "Site name",
+      type: "array",
+      description:
+        "The brand name in each language, e.g. \"Valokuvaaja …\" in Finnish and \"… Photography\" in English. Shown in the header and page titles of that language; a language without its own entry uses the default language's.",
+      of: [{ type: LOCALIZED_TEXT_TYPE_NAME }],
+      validation: (rule) => uniqueLanguages(rule.required().min(1)),
+    },
+    {
+      name: "logo",
+      title: "Logo",
+      type: "reference",
+      to: [{ type: MEDIA_TYPE_NAME }],
+      description:
+        "Optional brand mark shown beside the site name in the header, at its native ratio. Upload it as a media document with a transparent background. It is decorative there, so its alternative text is not shown.",
+    },
+    {
+      name: "logoDark",
+      title: "Logo for the dark theme",
+      type: "reference",
+      to: [{ type: MEDIA_TYPE_NAME }],
+      description:
+        "Optional variant of the logo shown while the site is in its dark theme, for a mark that does not read on a dark background. Leave it empty to show the logo in both themes.",
+    },
+    {
+      name: "brandDescriptor",
+      title: "Brand descriptor",
+      type: "array",
+      description:
+        "Optional small line beside the photographer name in the header, e.g. \"Valokuvaaja\" in Finnish and \"Photography\" in English, and whether it reads before or after the name in that language. A language without one shows the site name on one line.",
+      of: [{
+        type: "object",
+        fields: [
+          {
+            name: "language",
+            title: "Language",
+            type: "string",
+            validation: (rule) =>
+              rule.required().custom<string>((value) =>
+                value !== undefined && LANGUAGE_SUBTAG.test(value)
+                  ? true
+                  : "Use a two- or three-letter lowercase language subtag, e.g. fi or en",
+              ),
+          },
+          {
+            name: "value",
+            title: "Text",
+            type: "string",
+            validation: (rule) => rule.required().custom(nonBlank),
+          },
+          {
+            name: "position",
+            title: "Position",
+            type: "string",
+            options: {
+              list: [
+                { title: "Before the name", value: "before" },
+                { title: "After the name", value: "after" },
+              ],
+              layout: "radio",
+            },
+            validation: (rule) =>
+              rule.required().custom<string>((value) =>
+                (BRAND_DESCRIPTOR_POSITIONS as readonly (string | undefined)[]).includes(value)
+                  ? true
+                  : "Choose before or after the name",
+              ),
+          },
+        ],
+      }],
+      validation: uniqueLanguages,
+    },
     { name: "photographerName", title: "Photographer name", type: "string", validation: (rule) => rule.required().custom(nonBlank) },
     {
       name: "tagline",
@@ -334,6 +423,7 @@ export function defineSiteSettingsType(
       "The deployment-wide brand, contact details, and static navigation. Publish exactly one document.",
     validation: (rule) => rule.custom<RawSiteSettings>(validateSiteSettings),
     fields,
-    preview: { select: { title: "siteName", subtitle: "photographerName" } },
+    // The first authored language's name: an array value cannot be a preview title.
+    preview: { select: { title: "siteName.0.value", subtitle: "photographerName" } },
   };
 }

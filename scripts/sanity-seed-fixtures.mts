@@ -920,7 +920,10 @@ function buildSiteSettingsDocument(): SeedDocument {
   return {
     _id: SITE_SETTINGS_ID,
     _type: SITE_SETTINGS_TYPE_NAME,
-    siteName: "Studio Example",
+    siteName: localizedText([
+      { language: "fi", value: "Studio Example" },
+      { language: "en", value: "Studio Example" },
+    ]),
     photographerName: "Sam Example",
     tagline: localizedText([
       { language: "fi", value: "Rannikon ja metsän kuvia" },

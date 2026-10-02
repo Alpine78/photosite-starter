@@ -10,25 +10,36 @@ import type { LocaleRouteConfig } from "@/lib/locale-routes";
 import { getSanityClient, type SanityClient } from "@/lib/sanity-client";
 import { getSanityConfig, type SanityConfig } from "@/lib/sanity-config";
 import {
+  MEDIA_DOCUMENT_TYPE,
   projectPublicMedia,
   PUBLIC_MEDIA_PROJECTION,
   type RawPublicMediaDocument,
 } from "@/lib/sanity-media";
-import { isRecord } from "@/lib/sanity-values";
+import { isRecord, toLanguageSubtag } from "@/lib/sanity-values";
 import {
   projectNavigationItems,
   readLocalizedText,
+  readLocalizedTextByLanguage,
   readOptionalLocalizedText,
   readOptionalString,
   readRequiredString,
   readSingletonDocument,
 } from "@/lib/sanity-site-values";
-import type { SiteSettings, SocialLink } from "@/lib/site-settings";
+import type { ImageMedia } from "@/lib/media";
+import {
+  BRAND_DESCRIPTOR_POSITIONS,
+  type BrandDescriptor,
+  type SiteSettings,
+  type SocialLink,
+} from "@/lib/site-settings";
 
 export const SITE_SETTINGS_DOCUMENT_TYPE = "siteSettings";
 
 export const PROJECTED_SITE_SETTINGS_FIELDS = [
   "siteName",
+  "logo",
+  "logoDark",
+  "brandDescriptor",
   "photographerName",
   "tagline",
   "servicesIntro",
@@ -44,8 +55,24 @@ export const PROJECTED_SITE_SETTINGS_FIELDS = [
   "defaultSeo",
 ] as const;
 
+/**
+ * `siteName` is read whole rather than as `siteName[]{language, value}`: a
+ * document authored before AB#187 still holds one plain string there, which
+ * an array projection would silently turn into `null`.
+ *
+ * Each logo's raw reference is read beside its dereference so a reference
+ * that does not resolve is told apart from no logo at all, and its target's
+ * type is read so a reference to anything but a media document is refused.
+ */
 export const SITE_SETTINGS_PROJECTION = `{
   siteName,
+  "logoRef": logo._ref,
+  "logoType": logo->_type,
+  "logo": logo->${PUBLIC_MEDIA_PROJECTION},
+  "logoDarkRef": logoDark._ref,
+  "logoDarkType": logoDark->_type,
+  "logoDark": logoDark->${PUBLIC_MEDIA_PROJECTION},
+  brandDescriptor[]{language, value, position},
   photographerName,
   tagline[]{language, value},
   servicesIntro[]{language, value},
@@ -164,6 +191,104 @@ function readSocialLinks(
   });
 }
 
+/**
+ * One optional reference to a shared public image, projected through the same
+ * public-media boundary as every other photograph. Absent stays absent; any
+ * other media, a private one, or a malformed one is refused.
+ */
+function readOptionalPublicImage(
+  value: unknown,
+  field: string,
+  options: { readonly language: string; readonly sanityConfig?: SanityConfig },
+  reject: (detail: string) => never,
+): ImageMedia | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!isRecord(value)) reject(`${field} is malformed`);
+  const projected = projectPublicMedia(value as RawPublicMediaDocument, {
+    language: options.language,
+    fallbackLanguage: options.language,
+    config: options.sanityConfig ?? getSanityConfig(),
+  });
+  if (projected.type !== "image") reject(`${field} must be a public image`);
+  return projected;
+}
+
+/**
+ * The site name in every authored language. A document authored before
+ * AB#187 holds one plain string; it is read as the default language's name
+ * until the owner re-authors it, so deploying this change does not take a
+ * live site down before its settings are edited.
+ */
+function readSiteNames(
+  value: unknown,
+  language: string,
+  reject: (detail: string) => never,
+): Readonly<Record<string, string>> {
+  if (typeof value === "string") {
+    return { [toLanguageSubtag(language)]: readRequiredString(value, "siteName", reject) };
+  }
+  return readLocalizedTextByLanguage(value, language, "siteName", reject);
+}
+
+/**
+ * One logo field, refusing a set reference that does not resolve to a media
+ * document. `field` names the projected trio: `<field>Ref`, `<field>Type`,
+ * and `<field>` itself.
+ */
+function readLogo(
+  document: RawSiteSettingsDocument,
+  field: "logo" | "logoDark",
+  options: { readonly language: string; readonly sanityConfig?: SanityConfig },
+  reject: (detail: string) => never,
+): ImageMedia | undefined {
+  const reference = document[`${field}Ref`];
+  const target = document[field];
+  if (reference === undefined || reference === null) {
+    if (target !== undefined && target !== null) {
+      reject(`${field} resolved without a reference`);
+    }
+    return undefined;
+  }
+  if (typeof reference !== "string") reject(`${field} reference is malformed`);
+  if (target === undefined || target === null) {
+    reject(`${field} references a document that is not published`);
+  }
+  if (document[`${field}Type`] !== MEDIA_DOCUMENT_TYPE) {
+    reject(`${field} must reference a media document`);
+  }
+  return readOptionalPublicImage(target, field, options, reject);
+}
+
+/** The header descriptor per language, each with the side of the name it reads on. */
+function readBrandDescriptors(
+  value: unknown,
+  reject: (detail: string) => never,
+): Readonly<Record<string, BrandDescriptor>> {
+  if (value === undefined || value === null) return {};
+  if (!Array.isArray(value)) reject("brandDescriptor is not a language-keyed list");
+  const descriptors: Record<string, BrandDescriptor> = {};
+  for (const entry of value) {
+    if (
+      !isRecord(entry) ||
+      typeof entry.language !== "string" ||
+      !/^[a-z]{2,3}$/.test(entry.language) ||
+      typeof entry.value !== "string" ||
+      entry.value.trim().length === 0 ||
+      !(BRAND_DESCRIPTOR_POSITIONS as readonly unknown[]).includes(entry.position)
+    ) {
+      reject("brandDescriptor has a malformed language entry");
+    }
+    if (descriptors[entry.language] !== undefined) {
+      reject(`brandDescriptor has more than one entry for language "${entry.language}"`);
+    }
+    descriptors[entry.language] = {
+      text: entry.value.trim(),
+      position: entry.position as BrandDescriptor["position"],
+    };
+  }
+  return descriptors;
+}
+
 export function projectSiteSettings(
   document: RawSiteSettingsDocument,
   options: {
@@ -213,17 +338,19 @@ export function projectSiteSettings(
     "contact.privacyNotice",
     rejectIncomplete,
   );
-  let portrait: SiteSettings["contact"]["portrait"];
-  if (contact.portrait !== undefined && contact.portrait !== null) {
-    if (!isRecord(contact.portrait)) rejectIncomplete("contact.portrait is malformed");
-    const projected = projectPublicMedia(contact.portrait as RawPublicMediaDocument, {
-      language: options.language,
-      fallbackLanguage: options.language,
-      config: options.sanityConfig ?? getSanityConfig(),
-    });
-    if (projected.type !== "image") rejectIncomplete("contact.portrait must be a public image");
-    portrait = projected;
+  const portrait = readOptionalPublicImage(
+    contact.portrait,
+    "contact.portrait",
+    options,
+    rejectIncomplete,
+  );
+  const logo = readLogo(document, "logo", options, rejectIncomplete);
+  const logoDark = readLogo(document, "logoDark", options, rejectIncomplete);
+  if (logoDark !== undefined && logo === undefined) {
+    rejectIncomplete("logoDark is set without the logo it replaces");
   }
+  const brandDescriptors = readBrandDescriptors(document.brandDescriptor, rejectIncomplete);
+  const siteNames = readSiteNames(document.siteName, options.language, rejectIncomplete);
   const email = readRequiredString(contact.email, "contact.email", rejectIncomplete);
   if (email.length > 254 || !EMAIL.test(email)) {
     rejectIncomplete("contact.email is not a usable email address");
@@ -234,15 +361,20 @@ export function projectSiteSettings(
     "defaultSeo",
     rejectIncomplete,
   );
-  const titleTemplate = readLocalizedText(
+  const titleTemplates = readLocalizedTextByLanguage(
     defaultSeo.titleTemplate,
     options.language,
     "defaultSeo.titleTemplate",
     rejectIncomplete,
   );
-  if ((titleTemplate.match(/%s/g) ?? []).length !== 1) {
-    rejectIncomplete("defaultSeo.titleTemplate must contain exactly one %s placeholder");
+  for (const [language, template] of Object.entries(titleTemplates)) {
+    if ((template.match(/%s/g) ?? []).length !== 1) {
+      rejectIncomplete(
+        `defaultSeo.titleTemplate in language "${language}" must contain exactly one %s placeholder`,
+      );
+    }
   }
+  const titleTemplate = titleTemplates[toLanguageSubtag(options.language)];
   const phone = readOptionalString(contact.phone, "contact.phone", rejectIncomplete);
   const address = readOptionalLocalizedText(
     contact.address,
@@ -271,7 +403,11 @@ export function projectSiteSettings(
 
   return {
     ...readGalleryPresentationFields(document, rejectIncomplete),
-    siteName: readRequiredString(document.siteName, "siteName", rejectIncomplete),
+    siteName: siteNames[toLanguageSubtag(options.language)],
+    siteNames,
+    ...(logo === undefined ? {} : { logo }),
+    ...(logoDark === undefined ? {} : { logoDark }),
+    brandDescriptors,
     photographerName: readRequiredString(
       document.photographerName,
       "photographerName",
@@ -309,6 +445,7 @@ export function projectSiteSettings(
     ),
     defaultSeo: {
       titleTemplate,
+      titleTemplates,
       description: readLocalizedText(
         defaultSeo.description,
         options.language,

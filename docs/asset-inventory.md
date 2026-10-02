@@ -12,6 +12,9 @@ owner-run migration write tooling; see the npm dependency section.
 **Amended:** 2026-09-26 — AB#175 added the generated, generic photographer
 introduction portrait (`public/gallery/photographer-introduction.12eb753f3851.webp`);
 it has the same source and licensing basis as the other demo photographs below.
+**Amended:** 2026-10-01 — AB#187 added the project-authored placeholder brand marks
+(`public/gallery/site-mark.924ff9b1d397.png` and its dark-theme variant
+`public/gallery/site-mark-dark.97d20173ed1d.png`); see "Placeholder brand mark" below.
 **Amended:** 2026-08-06 — PhotoSwipe added (AB#15). Package counts below are from the
 original audit and were not recounted.
 **Amended:** 2026-08-10 — `server-only` added (AB#39); see the npm dependency section.
@@ -68,6 +71,7 @@ and none of its own code ends up in them.
 | Item | Author | License | Notes |
 | --- | --- | --- | --- |
 | Application source (`src/`), config, CI, docs | Ilkka Rytkönen | MIT (project `LICENSE`) | Scaffolded from `create-next-app` (Next.js, MIT) and then rewritten |
+| Placeholder brand marks (`public/gallery/site-mark.*.png`, `site-mark-dark.*.png`) | Ilkka Rytkönen | MIT (project `LICENSE`) | Brand-free fixture mark (AB#187); see "Placeholder brand mark" |
 
 ## Third-party material that ships
 
@@ -237,6 +241,19 @@ placeholder, not a finished brand mark — recorded here, not silently fixed, so
 clone knows to replace it with the photographer's own icon, exactly like the demo
 photographs above. No license or attribution applies; it is original work under the
 project's MIT license, same as `src/`.
+
+## Placeholder brand mark (AB#187)
+
+`public/gallery/site-mark.924ff9b1d397.png` (384×256, transparent) is the fixture
+deployment's header mark: two overlapping rings in a neutral warm grey, drawn as a
+project-authored SVG and rendered to PNG with `sharp`.
+`public/gallery/site-mark-dark.97d20173ed1d.png` is the same drawing in a lighter grey,
+the fixture's dark-theme variant. It carries no name, initials,
+studio identity, watermark, or URL, so a clone that never replaces it still ships nobody's
+brand. It is deliberately 3:2 rather than square, so the header journey proves a mark
+keeps its native ratio. A deployment's real mark is CMS content — a media document
+referenced from site settings — and never a file in `public/`. No license or attribution
+applies; it is original work under the project's MIT license.
 
 ## Original gallery boundary fixtures (AB#157)
 

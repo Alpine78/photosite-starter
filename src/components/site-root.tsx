@@ -7,10 +7,23 @@ import {
   buildSiteNavigation,
   resolveStaticNavigationLinks,
 } from "@/lib/site-navigation";
-import { getSiteSettings } from "@/lib/site-settings";
+import {
+  getSiteSettings,
+  resolveBrandDescriptor,
+  resolveSiteName,
+  type SiteSettings,
+} from "@/lib/site-settings";
 import { DocumentRoot } from "@/components/document-root";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+
+/** This locale's descriptor with the name it sits beside, or nothing. */
+function brandDescriptorProps(settings: SiteSettings, locale: string) {
+  const brandDescriptor = resolveBrandDescriptor(settings, locale);
+  return brandDescriptor === undefined
+    ? {}
+    : { brandDescriptor, brandName: settings.photographerName };
+}
 
 type SiteRootProps = Readonly<{
   children: React.ReactNode;
@@ -44,7 +57,10 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
   return (
     <DocumentRoot locale={locale}>
       <SiteHeader
-        siteName={settings.siteName}
+        siteName={resolveSiteName(settings, locale)}
+        {...(settings.logo === undefined ? {} : { logo: settings.logo.rendition })}
+        {...(settings.logoDark === undefined ? {} : { logoDark: settings.logoDark.rendition })}
+        {...brandDescriptorProps(settings, locale)}
         {...(route.isDefault ? { homeHref: "/" } : {})}
         navigation={buildSiteNavigation({
           staticLinks: settings.navigation,

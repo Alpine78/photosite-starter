@@ -3,7 +3,7 @@ import { cache } from "react";
 import type { ContactCallToAction } from "@/lib/contact-call-to-action";
 import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
 import type { ImageMedia } from "@/lib/media";
-import { getMockImages } from "@/lib/mock-media";
+import { getMockImages, mockSiteMark, mockSiteMarkDark } from "@/lib/mock-media";
 import { dispatchContentSource } from "@/lib/content-source";
 import {
   getDefaultLocaleLabels,
@@ -74,13 +74,71 @@ export type ContactInfo = {
 };
 
 export type DefaultSeo = {
-  /** Used as <title> suffix: "Page name | siteName" */
+  /**
+   * The default locale's <title> template, "Page name | siteName";
+   * `resolveTitleTemplate` picks a rendered locale's.
+   */
   titleTemplate: string;
+  /**
+   * The template in every language it is authored in, keyed by language
+   * subtag. Holds the default locale's language; another language without its
+   * own entry uses `titleTemplate`.
+   */
+  titleTemplates: Readonly<Record<string, string>>;
   description: string;
 };
 
+/**
+ * Where the header's small descriptor line reads relative to the name.
+ * Restated in `sanity/schemas/site-settings.ts`; a test pins the two equal.
+ */
+export const BRAND_DESCRIPTOR_POSITIONS = ["before", "after"] as const;
+
+/**
+ * The header brand's small line in one language (AB#187): "Valokuvaaja"
+ * before the name in Finnish, "Photography" after it in English. Its position
+ * is authored rather than derived from the language, so a clone decides how
+ * its own languages read.
+ */
+export type BrandDescriptor = {
+  text: string;
+  position: (typeof BRAND_DESCRIPTOR_POSITIONS)[number];
+};
+
 export type SiteSettings = GalleryPresentationFields & {
+  /**
+   * The default locale's site name: the name on surfaces that only the default
+   * locale renders (the home page heading, its structured data, and the
+   * notification emails the owner receives). `resolveSiteName` picks the name
+   * for a surface rendered in a given locale.
+   */
   siteName: string;
+  /**
+   * The site name in every language it is authored in, keyed by language
+   * subtag (AB#187). A photographer's name commonly reads differently per
+   * language ("Valokuvaaja …" beside "… Photography"), so this is authored
+   * text rather than a language-neutral identity. Holds the default locale's
+   * language; another language without its own entry uses `siteName`.
+   */
+  siteNames: Readonly<Record<string, string>>;
+  /**
+   * Optional brand mark shown beside the site name in the header (AB#187),
+   * at its native ratio. Decorative there: the visible site name already
+   * names the link, so the header never reads its alternative text.
+   */
+  logo?: ImageMedia;
+  /**
+   * Optional variant of `logo` for the dark theme, for a mark that does not
+   * read on a dark ground. Only ever set alongside `logo`.
+   */
+  logoDark?: ImageMedia;
+  /**
+   * The header brand's descriptor line per language subtag (AB#187). A
+   * language without one shows its site name on one line instead: a
+   * descriptor in another language would put the wrong language in the
+   * brand, so there is deliberately no fallback here.
+   */
+  brandDescriptors: Readonly<Record<string, BrandDescriptor>>;
   photographerName: string;
   /** Short tagline shown e.g. in the home page hero */
   tagline: string;
@@ -134,9 +192,34 @@ function mockServicesContactCallToAction(locale: string): ContactCallToAction {
     : { heading: "Looking for something else?", text: "Tell me what you need and we can plan a service that fits." };
 }
 
+/**
+ * Fixture header descriptors, Finnish before the name and English after it,
+ * the way the design proposal reads in each language.
+ */
+const MOCK_BRAND_DESCRIPTORS: Readonly<Record<string, BrandDescriptor>> = {
+  en: { text: "Photography", position: "after" },
+  fi: { text: "Valokuvaaja", position: "before" },
+};
+
+/**
+ * Fixture brand names per language: the descriptor and the photographer name
+ * read together, as the header shows them, so a prefixed locale's header and
+ * title visibly differ from the default one. Placeholders like every other
+ * value here; a deployment authors its own in site settings.
+ */
+const MOCK_SITE_NAMES: Readonly<Record<string, string>> = {
+  en: "Jane Example Photography",
+  fi: "Valokuvaaja Jane Example",
+};
+
 function buildMockSiteSettings(): SiteSettings {
   const labels = getDefaultLocaleLabels();
   const { localeRoutes } = getDeploymentConfig();
+  const defaultLanguage = new Intl.Locale(localeRoutes.defaultLocale).language;
+  const siteName = MOCK_SITE_NAMES[defaultLanguage] ?? MOCK_SITE_NAMES.en;
+  const titleTemplates = Object.fromEntries(
+    Object.entries(MOCK_SITE_NAMES).map(([language, name]) => [language, `%s | ${name}`]),
+  );
   // The public content tree's root in the unprefixed route space. Composed from
   // the configured namespace rather than written out, so a deployment that
   // routes its stories elsewhere does not leave a dead link in the chrome.
@@ -147,7 +230,11 @@ function buildMockSiteSettings(): SiteSettings {
   );
 
   return {
-    siteName: "Studio Example",
+    siteName,
+    siteNames: { ...MOCK_SITE_NAMES, [defaultLanguage]: siteName },
+    logo: mockSiteMark,
+    logoDark: mockSiteMarkDark,
+    brandDescriptors: MOCK_BRAND_DESCRIPTORS,
     photographerName: "Jane Example",
     tagline: "Timeless photography for life's important moments",
     servicesIntro:
@@ -211,17 +298,61 @@ function buildMockSiteSettings(): SiteSettings {
     ],
     copyrightHolder: "Studio Example",
     defaultSeo: {
-      titleTemplate: "%s | Studio Example",
+      titleTemplate: `%s | ${siteName}`,
+      titleTemplates: { ...titleTemplates, [defaultLanguage]: `%s | ${siteName}` },
       description:
         "Professional photography services: portraits, weddings, events, and more.",
     },
   };
 }
 
+/** One language's entry of a per-language settings value, else the default's. */
+function forLocale(
+  byLanguage: Readonly<Record<string, string>>,
+  fallback: string,
+  locale: string,
+): string {
+  return byLanguage[new Intl.Locale(locale).language] ?? fallback;
+}
+
+/** The site name a surface rendered in `locale` shows (AB#187). */
+export function resolveSiteName(
+  settings: Pick<SiteSettings, "siteName" | "siteNames">,
+  locale: string,
+): string {
+  return forLocale(settings.siteNames, settings.siteName, locale);
+}
+
+/**
+ * The header descriptor for `locale`, or none when that language has none of
+ * its own (AB#187). Never another language's: see `brandDescriptors`.
+ */
+export function resolveBrandDescriptor(
+  settings: Pick<SiteSettings, "brandDescriptors">,
+  locale: string,
+): BrandDescriptor | undefined {
+  return settings.brandDescriptors[new Intl.Locale(locale).language];
+}
+
+/** The <title> template a page rendered in `locale` uses (AB#187). */
+export function resolveTitleTemplate(
+  settings: Pick<SiteSettings, "defaultSeo">,
+  locale: string,
+): string {
+  return forLocale(
+    settings.defaultSeo.titleTemplates,
+    settings.defaultSeo.titleTemplate,
+    locale,
+  );
+}
+
 /**
  * Settings are not yet locale-aware (`docs/feature-status.md`): every
  * source reads this deployment's own default locale regardless of which
  * route space asked, matching `buildMockSiteSettings`'s existing behavior.
+ * The brand is the exception (AB#187): `siteNames` and
+ * `defaultSeo.titleTemplates` carry every authored language from this same
+ * read, and `resolveSiteName`/`resolveTitleTemplate` pick one per locale.
  *
  * Wrapped in React's `cache()` (AB#139): this singleton is read from several
  * independent seams within one request — the site chrome layout
