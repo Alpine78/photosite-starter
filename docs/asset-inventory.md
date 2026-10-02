@@ -34,6 +34,13 @@ document already prescribes; neither crosses the redistribution line, so the shi
 table below is unchanged by their addition. One real gap was found and fixed: see
 "Default scaffold favicon" below.
 
+**Amended 2026-10-02 (AB#186):** Vercel CLI 61.0.0 is now development-only
+and Azure uses that same lockfile installation. The Next.js/eslint-config-next
+16.3.8 patch and compatible transitive refreshes introduce no new dependency
+family or changed license in the reviewed lockfile. The existing Next.js client
+runtime remains inventoried above; Vercel tooling remains outside the browser
+bundle. See [dependency evidence](audits/ab186-dependency-review.md).
+
 ## Distribution model assumed by this audit
 
 The project is distributed **as source**: a photographer clones the repository and runs

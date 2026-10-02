@@ -1,3 +1,6 @@
+import { writeFileSync } from "node:fs";
+import nextPackage from "next/package.json";
+
 import {
   buildContentTree,
   getCanonicalContentPath,
@@ -461,9 +464,10 @@ test("a continuation page still offers the language switch, without its cursor",
  *
  * ADR-0007 records the four structural fixes that were tried against production
  * builds and ruled out for this app: one root layout, a root `not-found.tsx`,
- * `global-not-found.tsx` with its experimental flag, and a webpack build. The
- * underlying framework cause remains unresolved and belongs in a minimal
- * reproduction rather than this gallery change.
+ * `global-not-found.tsx` with its experimental flag, and a webpack build.
+ * AB#132 isolated this as the matched-route `notFound()` defect tracked in
+ * vercel/next.js#62228. The scriptless probes below retest its initial HTML
+ * against the installed release; ADR-0007 records the dated result.
  *
  * So these run enhanced, and this comment is the record of why. When the 404
  * document renders as HTML, `javaScriptEnabled: false` belongs here too and
@@ -580,6 +584,81 @@ test.describe("a refused continuation", () => {
       await context.close();
     }
   });
+});
+
+/**
+ * AB#132: keep the missing initial HTML visible without mistaking a known
+ * failure for a passing accessibility journey. Setup, HTTP status, unexpected
+ * error signatures, and external requests are checked before test.fail(); a
+ * complete upstream fix makes these tests unexpectedly pass and requires us to
+ * remove that marker and the JavaScript-enabled exception above.
+ */
+test.describe("initial 404 HTML without JavaScript (AB#132)", () => {
+  test.use({ javaScriptEnabled: false });
+
+  for (const refusedContinuation of [false, true]) {
+    test(
+      refusedContinuation
+        ? "a refused continuation renders a heading and parameter-free return link"
+        : "an unknown public URL renders a heading",
+      async ({ page, externalRequests }, testInfo) => {
+        const parent = PAGINATED.path.slice(0, PAGINATED.path.lastIndexOf("/"));
+        const path = refusedContinuation
+          ? `${PAGINATED.path}?cursor=not-a-token-this-deployment-minted`
+          : `${parent}/no-such-gallery`;
+        const response = await page.goto(path, { waitUntil: "load" });
+
+        expect(response).not.toBeNull();
+        expect(response?.status()).toBe(404);
+        expect(response?.request().redirectedFrom()).toBeNull();
+        expect(externalRequests).toEqual([]);
+
+        const heading = page.getByRole("heading", { level: 1 });
+        const back = page.getByRole("link", { name: galleryLabels.backToStart });
+        const headingCount = await heading.count();
+        const returnLinkCount = await back.count();
+        const returnHref = returnLinkCount === 1 ? await back.getAttribute("href") : null;
+        const htmlId = await page.locator("html").getAttribute("id");
+        const nextVersion = nextPackage.version;
+
+        const observationPath = testInfo.outputPath("initial-404-observation.json");
+        writeFileSync(observationPath, JSON.stringify({
+            nextVersion,
+            browser: testInfo.project.name,
+            javaScriptEnabled: false,
+            path,
+            status: response?.status(),
+            headingCount,
+            returnLinkCount,
+            returnHref,
+            htmlId,
+            hasNotFoundDigest: (await response!.text()).includes("NEXT_HTTP_ERROR_FALLBACK;404"),
+          }, null, 2));
+        await testInfo.attach("initial-404-observation", {
+          path: observationPath,
+          contentType: "application/json",
+        });
+
+        const knownEmptyShell = htmlId === "__next_error__" &&
+          headingCount === 0 && returnLinkCount === 0;
+        const completeSemantics = headingCount === 1 && (refusedContinuation
+          ? returnLinkCount === 1 && returnHref === PAGINATED.path
+          : returnLinkCount === 0);
+        expect(
+          knownEmptyShell || completeSemantics,
+          "The 404 differs from the known empty shell and still lacks the required semantics.",
+        ).toBe(true);
+
+        test.fail(true, "AB#132 / next.js#62228: matched-route 404 initial HTML is missing; this is not owner acceptance.");
+        expect(headingCount, "The initial HTML must render an h1, not just carry it in RSC scripts.").toBe(1);
+        await expect(heading).toBeVisible();
+        if (refusedContinuation) {
+          expect(returnHref).toBe(PAGINATED.path);
+          await expect(back).toBeVisible();
+        }
+      },
+    );
+  }
 });
 
 test("a gallery that fits on one page offers no continuation", async ({

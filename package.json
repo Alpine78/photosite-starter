@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@sanity/webhook": "4.0.4",
-    "next": "^16.3.6",
+    "next": "16.3.8",
     "photoswipe": "5.4.4",
     "react": "19.2.1",
     "react-dom": "19.2.1",
@@ -55,7 +55,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.7",
+    "eslint-config-next": "16.3.8",
     "parse5": "^8.0.1",
     "sharp": "^0.35.4",
     "tailwindcss": "^4",
@@ -70,6 +70,7 @@
     "path-to-regexp@6.1.0": "6.3.0",
     "path-to-regexp@8.3.0": "8.4.2",
     "smol-toml@1.5.2": "1.9.0",
-    "tar@7.5.11": "7.5.22"
+    "tar@7.5.11": "7.5.22",
+    "undici@5.28.4": "5.29.0"
   }
 }

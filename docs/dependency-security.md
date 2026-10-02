@@ -88,7 +88,7 @@ AB#160 once observed.
 
 ### Next.js advisory checked during this change
 
-The committed lockfile resolves `next@16.3.3`. [GHSA-vcvr-r3jv-pc5j](https://github.com/vercel/next.js/security/advisories/GHSA-vcvr-r3jv-pc5j)
+At the initial 2026-09-27 check, the committed lockfile resolved `next@16.3.3`. [GHSA-vcvr-r3jv-pc5j](https://github.com/vercel/next.js/security/advisories/GHSA-vcvr-r3jv-pc5j)
 affects 16.2.0 through 16.3.5 when an application passes attacker-controlled
 values into SVG rendered by the Node `next/og ImageResponse` implementation;
 16.3.6 is patched. A repository search on 2026-09-27 found no
@@ -112,3 +112,21 @@ is due, or investigate the 16.3.6 process exit sooner if `ImageResponse` use
 is introduced. Record the tested version, the full browser gate, and the
 deployment result on AB#160. The current source has no identified path to the
 specific `ImageResponse` advisory; review that assessment if the code changes.
+
+### 2026-10-02 remediation follow-up (AB#186)
+
+The earlier inventory and Next.js trial above are historical. Main already
+contains the exact development-only Vercel CLI 61.0.0 and one shared local
+Azure CLI installation. The current follow-up pins Next.js/eslint-config-next
+to 16.3.8, refreshes compatible brace-expansion versions, and updates the old
+undici 5.28.4 consumer to 5.29.0. Fresh full audit counts are 12 → 10 affected
+package entries; the production-only audit is zero. The isolated current
+Vercel CLI 62.1.0 comparison retains the same thirteen undici advisory IDs,
+so the selected deployment CLI remains 61.0.0.
+
+[AB#186's dated evidence](audits/ab186-dependency-review.md#2026-10-02-follow-up--ab186-remains-active)
+contains raw reports, checksums, tooling reachability, and the override and
+residual owners/review deadlines (2026-10-13). No owner acceptance or automatic
+alert dismissal is implied. The scheduled audit remains visibly nonzero while
+these advisories remain. AB#186 is still Active; its exact-candidate gates,
+Preview verification and owner decision must be reviewed before AB#117 closes.
