@@ -179,9 +179,8 @@ function compareIssues(a: LegacyRedirectIssue, b: LegacyRedirectIssue) {
  * never itself be another row's `source` — ADR-0003 decision 9's "aliases
  * map directly to the final target, never through another legacy URL."
  * Unlike `content-redirects.ts`, a `target` is not checked against a live
- * content tree here: this module has no adapter access, and no row in this
- * deployment resolves a `redirect` yet — that check belongs to a build-time
- * or e2e test once a `redirect` row exists.
+ * content tree here: this module has no adapter access. Target availability
+ * belongs to production-build journeys and owner-run deployment verification.
  */
 export function buildLegacyRedirects(
   entries: readonly LegacyRedirectEntry[],
@@ -330,7 +329,7 @@ function decodedQueryName(pair: string): string {
  * crawled route). ADR-0003 decision 9: such state is never stripped or
  * translated automatically, and AB#19 records an explicit per-value
  * behavior only once a stable equivalent media target is known. No stable
- * per-photo equivalent exists yet (`SITE_CONTENT_SOURCE=mock`), so the only
+ * per-photo equivalent is recorded, so the only
  * behavior in scope today is this function's ordinary default: a bare
  * numeric flag is exactly the `?flag` shape already covered above, name-only
  * with no `=`, and rides through unexamined like any other unrecognized

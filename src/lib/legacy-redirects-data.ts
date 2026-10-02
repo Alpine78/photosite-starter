@@ -32,7 +32,7 @@
  * only place such a replacement could come from, so today none exists and a
  * justified 410 Gone is decision 9's own prescribed answer.
  *
- * This list is pinned to an exact count deliberately (see
+ * This list is pinned to the tag-shaped inventory paths deliberately (see
  * `legacy-redirects-data.test.ts`): a future inventory update that adds or
  * removes a tag-shaped path must fail that test until the change is
  * reviewed, rather than silently reclassifying an unreviewed row — the same
@@ -91,6 +91,8 @@
  * inheriting first-site gallery URLs by accident. Each Finnish Joomla source
  * and its redundant `/fi` alias point directly to the unprefixed Finnish
  * canonical route, while the English source points to its English equivalent.
+ * `npm run verify:legacy-redirects -- check <origin> [<canonical-origin>]`
+ * rechecks those responses and targets without relying on the static allowlist.
  *
  * {@link LEGACY_REDIRECTS} is built once, at module load, and `src/proxy.ts`
  * imports it directly — unlike every other value that file reads
@@ -109,7 +111,7 @@ import {
   buildLegacyRedirects,
   type LegacyRedirectEntry,
   type LegacyRedirects,
-} from "@/lib/legacy-redirects";
+} from "./legacy-redirects.ts";
 
 const GONE_REASON =
   "Joomla tag/keyword browsing page with no current-site replacement (ADR-0003 decision 9; a future replacement is AB#66's, not yet built).";
@@ -647,11 +649,14 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
   },
 ];
 
-export const LEGACY_REDIRECTS: LegacyRedirects = buildSafely([
+/** Raw configuration lets owner-run verification fail on invalid rows. */
+export const LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
   ...RETIRED_TAG_PATHS.map((source) => ({
     source,
     outcome: { kind: "gone" as const, reason: GONE_REASON },
   })),
   ...STRUCTURAL_REDIRECT_ENTRIES,
   ...PUBLISHED_CONTENT_REDIRECT_ENTRIES,
-]);
+];
+
+export const LEGACY_REDIRECTS: LegacyRedirects = buildSafely(LEGACY_REDIRECT_ENTRIES);

@@ -19,6 +19,64 @@ The reference host and the reasoning behind it are
 [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md). This document
 is the operational half: what to create, what to set, and what the pipeline does with it.
 
+## Legacy URL mapping verification (AB#19)
+
+The first-site mapping is deployment configuration in `src/lib/legacy-redirects-data.ts`;
+the source inventory and undecided/excluded/already-live classifications live beside it.
+The reusable engine rejects invalid sources, duplicate decisions, self-redirects, and
+targets that are other legacy sources. No target is inferred from a legacy slug.
+
+Export its complete, offline JSON report with:
+
+```bash
+npm run --silent verify:legacy-redirects -- report > /tmp/legacy-mapping.json
+```
+
+The report distinguishes the full crawl's 442 URL records (the AB#19 attachment) from the
+415 path/status observations committed here. Counts and classifications are calculated
+from the mapping: currently 39 redirects, 174 justified `410` responses, 198 pending
+decisions, three excluded error paths, and one already-live root. A duplicate, unaccounted,
+or non-inventory source fails report generation. Successful export proves bookkeeping;
+it does not prove target availability or approve launch.
+
+Check a production build or candidate with the intended locale configuration and content:
+
+```bash
+npm run --silent verify:legacy-redirects -- check https://candidate.example.test https://site.example.test > /tmp/legacy-check.json
+```
+
+The first argument is the serving origin. The optional second argument is the canonical
+origin from `SITE_CANONICAL_BASE_URL`; it defaults to the serving origin. Supply it when a
+candidate serves a site's canonical URLs from a different hostname. HTTP is allowed only
+on loopback for a local production build, e.g. `http://127.0.0.1:3000`. Neither argument
+may contain a credential, path, query, or fragment. This tool sends anonymous GETs only;
+an access-protection challenge fails the check. It accepts no bypass secret or read token.
+
+Every decided source is checked against its declared response: `301` with the exact
+same-origin destination and fixed fallback query when applicable, `410` for justified
+retirements, `404` for excluded Joomla error routes, or `200` for already-live routes.
+Each distinct redirect target must answer `200` directly and emit exactly one canonical
+URL matching its declared parameter-free target and the configured canonical origin.
+Fallback responses must also carry `noindex`, status markup, and no language alternates.
+Responses are parsed without executing scripts or fetching media. GETs have a 20-second
+timeout and HTML reads a 4 MiB limit; redirects are never followed. Reports retain numeric
+statuses and fixed issue codes, without response bodies or raw network error messages.
+
+Pending paths are reported but never accepted as successful `404` decisions. Check mode
+exits nonzero if any pending decision or failed probe remains. There is no option to waive
+pending rows. This command complements the existing CI registry tests and target
+allowlists; it is an owner-run check, not a live-network CI job. The generic mock browser
+harness proves redirect and localized accessible fallback mechanics, not the first site's
+imported targets. Case-sensitive exact matching, the existing trailing-slash normalization,
+per-row `cursor`/`section` policy, and byte-preserved unrelated queries are unchanged;
+fragments remain browser-held state and are not sent in these HTTP requests.
+
+AB#19 remains **Active**. AB#137's migration and reviewed same-language target/fallback
+decisions must precede final production-target verification. This tooling slice is not
+evidence that the 198 pending paths meet AB#19's acceptance criteria or that a phased launch
+manifest has been approved. Attach the final check report to AB#19 after migration, before
+AB#117/AB#18's launch gates.
+
 ## Ownership
 
 **The site owner owns the hosting account outright**, on the same terms as the CMS
