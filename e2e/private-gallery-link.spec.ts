@@ -47,7 +47,10 @@ const GALLERY_HEADING = getBuiltInLabels(
 ).privateGallery.galleryHeading;
 
 test.describe("private gallery link", () => {
-  test("exchanges the fragment capability for a session", async ({ page }) => {
+  test("exchanges the fragment capability for a session", async ({
+    page,
+    browserName,
+  }) => {
     const exchanges: string[] = [];
     const hashesAtExchange: string[] = [];
     page.on("request", (request) => {
@@ -60,6 +63,25 @@ test.describe("private gallery link", () => {
     // The listener above is already recording, so poll it rather than starting
     // a fresh wait: the exchange fires during `goto` and would be missed.
     await expect.poll(() => exchanges.length).toBe(1);
+
+    // The POST has started; its response still has to establish the session
+    // and replace the bootstrap document with `location.replace`. Wait for
+    // that navigation to land on the clean address before inspecting it.
+    // hashesAtExchange below independently checks the earlier requirement
+    // that scrubbing happened before any exchange request.
+    await page.waitForURL(
+      (url) => url.pathname === GALLERY_PATH && url.hash === "",
+    );
+    // WebKit does not retain the Secure cookie on this HTTP loopback harness
+    // (see the cookie-storage test below), so its replaced navigation lands
+    // back on the unauthenticated bootstrap rather than the gallery. The
+    // exchange and scrub still run there; the authenticated landing is
+    // covered by Chromium and the cookie contract by the wire-level test.
+    if (browserName !== "webkit") {
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+        GALLERY_HEADING,
+      );
+    }
 
     // The capability is gone from the address bar, so it cannot be shoulder-read,
     // screenshotted, or reached with the Back button.
@@ -385,6 +407,14 @@ test.describe("private gallery session in a browser", () => {
     );
     expect(exchanges).toHaveLength(1);
 
+    // The heading above is server-rendered and can appear before the deferred
+    // bootstrap script on this replace()-navigated authenticated document has
+    // finished downloading and executing, especially under worker contention.
+    // DOMContentLoaded cannot fire until every deferred script has run, so
+    // waiting for it here guarantees the hashchange listener below is already
+    // attached before the next line fires that event.
+    await page.waitForLoadState("domcontentloaded");
+
     // Assigning the hash creates a same-document entry. Its hashchange event
     // must remove the capability without touching the valid session.
     await page.evaluate((capability) => {
@@ -409,10 +439,15 @@ test.describe("private gallery session in a browser", () => {
     }, { path: GALLERY_PATH, capability: CAPABILITY });
 
     await page.goBack();
-    await expect.poll(() => new URL(page.url()).hash).toBe("");
-    expect(await page.evaluate(() => window.history.state.marker)).toBe(
-      "credential-entry",
-    );
+    // The router can navigate while the history entry is being restored. Retry
+    // the complete state assertion across that transition, including a short
+    // interval in which the old execution context has already been destroyed.
+    await expect(async () => {
+      expect(new URL(page.url()).hash).toBe("");
+      expect(await page.evaluate(() => window.history.state.marker)).toBe(
+        "credential-entry",
+      );
+    }).toPass({ timeout: 10_000 });
     await page.goForward();
     expect(new URL(page.url()).hash).toBe("");
     await page.goBack();

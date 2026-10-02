@@ -513,6 +513,15 @@ pipeline change. Future high/critical advisories now open their own PR automatic
 closing what would otherwise have been an accepted gap in continuous dependency
 governance beyond this point-in-time audit.
 
+**2026-10-02 update (AB#186, Active):** the old zero-finding result above is
+historical. [Current dependency evidence](audits/ab186-dependency-review.md#2026-10-02-follow-up--ab186-remains-active)
+records the new 12 → 10 full-audit result, zero production-only entries, the
+shared local Azure CLI tree and thirteen residual undici advisory records.
+Tooling reachability and a 2026-10-13 review deadline do not constitute owner
+acceptance. AB#186 is an explicit predecessor of AB#117; the current candidate's
+gates and Preview verification, followed by an explicit owner decision on the
+remaining tooling risk, are required before this launch gate closes.
+
 ## Verification performed
 
 - `npm run lint` — clean (re-run after every fix round).

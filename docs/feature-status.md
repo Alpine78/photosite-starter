@@ -148,10 +148,14 @@ renders a not-found boundary with no params, and renders it before the page, so 
 in-tree can tell it. One site-wide limitation bounds that link and predates this work: a
 404 response carries its semantic UI only in the RSC payload, so no heading or link renders
 without JavaScript.
-ADR-0007 records the experiments already performed without claiming a framework root cause.
-First seen on Next.js 16.2.11, and **still reproducing on 16.3.2**: a plain `curl` of an
-unknown path against a production build returns `<html id="__next_error__">` with no `<h1>`
-in the initial HTML (measured 2026-09-03). **AB#132 owns this**, and was reopened to
+ADR-0007 records the minimal reproduction's matched-route split and upstream
+[Next.js#62228](https://github.com/vercel/next.js/issues/62228). First seen on
+Next.js 16.2.11 and **still reproducing on 16.3.8 (2026-10-02)**: production-build
+Chromium and WebKit probes with JavaScript disabled inspect actual heading/link
+nodes for an unknown public URL and a refused gallery continuation. The response
+is HTTP 404 with an empty `__next_error__` shell. Four explicit expected-failure
+probes retain the semantic requirement and become unexpected passes when it is
+fixed; they do not record owner acceptance. **AB#132 owns this**, and was reopened to
 `Active` on 2026-09-03 because it had been closed while none of its own "Done when"
 conditions held: the semantic 404 HTML above, the removal of the `javaScriptEnabled: true`
 exception the 404 cases in `e2e/gallery-continuation.spec.ts` and
@@ -1803,6 +1807,19 @@ and exercised rollback and handoff (AB#118) are later stories, now unblocked rat
 waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
 see above — with 238 of 415 distinct crawled paths still pending real content
 migration (including `component/komento/*` and `sivustokartta/*`).
+**Dependency follow-up, 2026-10-02 (AB#186, still Active):** the merged CLI
+reclassification and Azure drift fix already use one development-only,
+lockfile-pinned Vercel CLI 61.0.0. The current follow-up pins Next.js and its lint
+config to 16.3.8, refreshes brace-expansion within existing ranges, and updates
+undici's old 5.28.4 consumer to 5.29.0. Fresh full audit: 12 → 10 affected package
+entries (0 critical, 1 high, 9 moderate afterward); production-only audit: 0.
+An isolated CLI 62.1.0 comparison retains the same thirteen undici advisory IDs.
+[Raw reports and exposure/override evidence](audits/ab186-dependency-review.md)
+record accountable ownership and the 2026-10-13 review deadline. These residuals
+are proposed, with no owner acceptance or Production promotion. AB#186 remains
+AB#117's predecessor, and AB#132 remains AB#18's predecessor; a successful
+fixture gate alone closes neither launch decision.
+
 The production security and privacy launch review itself (AB#117) is built: security
 response headers (CSP, HSTS-adjacent, framing, MIME-sniffing, referrer, permissions —
 ADR-0011, `docs/security-privacy-review.md`), a dependency-vulnerability remediation

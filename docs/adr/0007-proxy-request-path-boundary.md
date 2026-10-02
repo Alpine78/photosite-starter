@@ -202,6 +202,66 @@ stays open — tracked upstream rather than solved locally — until either the 
 lands or the trade-off above is revisited on its own terms, which should happen no later
 than before AB#18's production promotion if the upstream issue is still open by then.
 
+## 2026-10-02 release-candidate recheck (AB#132)
+
+A fresh production build of the AB#186 dependency candidate uses **Next.js
+16.3.8**, Node 24.20.0 and the harness-owned mock deployment settings. The
+Chromium desktop and WebKit mobile journeys both run with JavaScript disabled
+and inspect actual accessible heading/link nodes after a complete page load,
+independently verifying HTTP 404 and no redirect. Heading text embedded in RSC
+scripts is never the semantic detector.
+
+| Request | Engines | HTTP | Rendered h1 | Gallery return link |
+| --- | --- | ---: | ---: | ---: |
+| Unknown public URL | Chromium + WebKit | 404 | 0 | 0 (none should be invented) |
+| Existing gallery, malformed continuation | Chromium + WebKit | 404 | 0 | 0 (required, missing) |
+
+The [four raw observations](../audits/ab132-2026-10-02-scriptless.json) record
+the fixture-derived paths, framework version, `__next_error__` HTML id and
+**present** `NEXT_HTTP_ERROR_FALLBACK;404` digest. Both required semantic journeys
+still fail. `e2e/gallery-continuation.spec.ts` now carries explicit known-failure
+probes with JSON attachments. Setup, HTTP status, external-request checks and a
+changed-but-still-broken signature fail before the known-failure marker. A
+complete semantic fix instead produces an unexpected pass, requiring removal
+of that marker and the JavaScript-enabled gallery/category exceptions. A green
+runner result with four expected failures is not a successful scriptless journey
+or owner acceptance.
+
+**Current upstream check, 2026-10-02:** the official GitHub API reports
+[issue #62228](https://github.com/vercel/next.js/issues/62228) open (last updated
+2026-09-29), and [PR #98455](https://github.com/vercel/next.js/pull/98455) open,
+unmerged, at head `8b76611b5edd80c5a35c6fbb5c2b174a7d6398e7` (last updated
+2026-09-12). The proposed fix documents a fallback to the empty shell when
+nested not-found boundaries are present. Landing that PR alone must not be
+treated as proof that this application's route topology passes; rerun the
+actual probes against the exact release candidate.
+
+The installed 16.3.8 guide and current [official not-found reference](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)
+still describe `global-not-found` as an unmatched-URL mechanism. The application's
+optional catch-all matches these requests. The supported [notFound function](https://nextjs.org/docs/app/api-reference/functions/not-found)
+throws the 404 fallback; moving the check behind streaming can preserve a shell
+but returns a 200, which does not meet this application's real-404 contract.
+These documented mechanisms do not establish a bounded local fix for the
+measured matched-route defect. No new global-not-found experiment, framework
+patch, pre-route content lookup or 200 substitution is introduced here.
+
+**Owner decision still required before AB#18.** The 2026-09-11 decision to retain
+the Proxy boundary remains in force; it did not accept this release candidate's
+accessibility/crawlability gap. Impact: visitors with JavaScript disabled see a
+blank 404 and cannot use the invalid-continuation return link; crawlers that do
+not execute scripts receive no semantic recovery content. The reason to retain
+the current boundary is its O(1), adapter-read-free routing cost and the absence
+of a verified supported local remedy that preserves HTTP 404. The owner can
+withhold promotion or explicitly accept that bounded limitation; this amendment
+makes neither choice.
+
+**Proposed review date:** 2026-10-08, before AB#18's existing go/no-go, or earlier
+when a supported upstream fix is released. **Follow-up:** AB#132 remains Active
+for the actual semantic fix; if it is later closed on an accepted-risk basis,
+record a successor for that fix first. Record impact, reason, review date and
+follow-up on the owner's decision, then link it from AB#18. The deployment
+runbook points here, but no acceptance or production promotion is recorded.
+
 ## Action items
 
 - [x] `src/proxy.ts` with the bounded copy, the unconditional overwrite, and a narrow matcher

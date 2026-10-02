@@ -1,0 +1,50 @@
+[
+  {
+    "nextVersion": "16.3.8",
+    "browser": "desktop-chromium",
+    "javaScriptEnabled": false,
+    "path": "/stories/portfolio/large-archive?cursor=not-a-token-this-deployment-minted",
+    "status": 404,
+    "headingCount": 0,
+    "returnLinkCount": 0,
+    "returnHref": null,
+    "htmlId": "__next_error__",
+    "hasNotFoundDigest": true
+  },
+  {
+    "nextVersion": "16.3.8",
+    "browser": "desktop-chromium",
+    "javaScriptEnabled": false,
+    "path": "/stories/portfolio/no-such-gallery",
+    "status": 404,
+    "headingCount": 0,
+    "returnLinkCount": 0,
+    "returnHref": null,
+    "htmlId": "__next_error__",
+    "hasNotFoundDigest": true
+  },
+  {
+    "nextVersion": "16.3.8",
+    "browser": "mobile-webkit",
+    "javaScriptEnabled": false,
+    "path": "/stories/portfolio/large-archive?cursor=not-a-token-this-deployment-minted",
+    "status": 404,
+    "headingCount": 0,
+    "returnLinkCount": 0,
+    "returnHref": null,
+    "htmlId": "__next_error__",
+    "hasNotFoundDigest": true
+  },
+  {
+    "nextVersion": "16.3.8",
+    "browser": "mobile-webkit",
+    "javaScriptEnabled": false,
+    "path": "/stories/portfolio/no-such-gallery",
+    "status": 404,
+    "headingCount": 0,
+    "returnLinkCount": 0,
+    "returnHref": null,
+    "htmlId": "__next_error__",
+    "hasNotFoundDigest": true
+  }
+]
