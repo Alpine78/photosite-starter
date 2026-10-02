@@ -62,6 +62,7 @@ import {
 import { validateGalleryPublication } from "./gallery-validation";
 import { defineGallerySectionIntroField } from "./gallery-section-intro";
 import { LANGUAGE_SUBTAG } from "./localized-text";
+import { defineLocalizationReviewField, defineLocalizationSourceField, validateLocalizationReview } from "./localization-review";
 import { LOCALIZED_SLUG_PATTERN } from "./localized-slug";
 import { MEDIA_TYPE_NAME } from "./media";
 import type {
@@ -339,8 +340,10 @@ export const galleryType: SchemaTypeDefinition = {
   description:
     "One curated gallery, in one language. Its placements are the image grid; its optional body is separate editorial content (ADR-0003 decision 2/5).",
   validation: (rule) =>
-    rule.custom<Readonly<Record<string, unknown>>>((value, context) =>
-      validateGalleryPublication(value, context, GALLERY_TYPE_NAME)),
+    rule.custom<Readonly<Record<string, unknown>>>((value, context) => {
+      const review = validateLocalizationReview(value);
+      return review === true ? validateGalleryPublication(value, context, GALLERY_TYPE_NAME) : review;
+    }),
   fields: [
     ...galleryPresentationFields(true),
     {
@@ -490,6 +493,8 @@ export const galleryType: SchemaTypeDefinition = {
       validation: (rule) => rule.custom(validatesOrderingSeed),
     },
     sectionsField,
+    defineLocalizationSourceField(),
+    defineLocalizationReviewField(),
     defineContentBodyField({
       name: "body",
       title: "Body",

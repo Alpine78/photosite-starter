@@ -1,6 +1,6 @@
 # Linked localized draft action plan (AB#125)
 
-**Status:** implementation design for the Studio action; no Studio action or draft write exists yet.
+**Status:** the owner-run linked-draft creator, pure plan, and Studio review guards are implemented on the AB#125 implementation branch. The customer-owned Studio still needs an action UI and live Studio verification before AB#125 is complete.
 
 ## Current source contract
 
@@ -29,4 +29,36 @@ Gallery placements have their own documents and per-language gallery reference. 
 3. Make the create operation conditional/idempotent, then test source immutability, duplicate refusal, target draft-only state, references/order, and publish blocking.
 4. Test an article and a gallery in the actual Studio, including a missing target-language category and a seeded-random gallery.
 
-This plan does not claim that a localized draft can yet be created. It identifies the separate placement and publish-safety work that a page-document copy alone would miss.
+## Implemented owner-run action
+
+`npm run create:localized-draft -- --content-id <id> --from <language> --to <language>`
+reads the source draft when present, otherwise its published version. It requires
+`SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_API_VERSION`, `SANITY_LOCALIZATION_TOKEN`, and
+`SITE_LOCALE_ROUTES` in the owner's environment. Mint a temporary Editor-role token
+for this authoring run, distinct from demo seeding, migration, runtime read, and
+poll-voting tokens; revoke it afterward. The default is a read-only dry run;
+`--yes` submits one atomic strict-create transaction. It never edits the source, writes
+only `drafts.` IDs, and uses deterministic IDs so a repeated creation fails. A target
+version already present under any ID is rejected at preflight. The transaction's strict
+creates also stop two runs of this command racing for the same target ID. Independent
+Studio or API clients that invent unrelated IDs still rely on the existing schema and
+public-adapter identity checks.
+
+The draft retains copied text as an editing base and records exact `pendingFields` in
+`localizationReview`. Remove a path only after editing or confirming its translation.
+The article, gallery, and placement schemas block ordinary Studio publication while
+pending paths remain. Their existing content-placement guard checks that the canonical
+category has a published path in the target language. Media documents are shared; the
+command reports missing target-language alt and caption entries in a persisted notice
+list, without creating or changing media. A source-language poll block is refused because
+poll IDs identify separate language-specific votes. Capture-sequence galleries reuse the
+same media sequence without creating placement documents. Seeded-random galleries copy
+only valid materialized order keys.
+
+Sanity schema validation runs in Studio, not in Content Lake. A direct API publication
+can bypass the review guard; the command never publishes. The customer-owned Studio
+needs a document action UI that offers the target only when absent and invokes this
+same planning/creation contract. That UI, large-gallery handling beyond one 3.5 MB
+transaction, and live Studio tests remain open in AB#125. The owner should inspect the
+dry-run report and perform the command on their own dataset only after reviewing the
+result. No live content was written by this implementation.

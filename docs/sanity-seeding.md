@@ -371,10 +371,8 @@ one a production deployment reads), remove every document this script wrote:
 
 Nothing in this repository enforces that cleanup automatically. A production
 deployment refuses to declare `SITE_CONTENT_SOURCE=mock` (see
-`docs/sanity-setup.md`), but once route-facing seams read from `sanity`
-(a later story — see `AGENTS.md`'s feature-status paragraph), a deployment
-reading a dataset that still holds `seed--` documents would serve them as if
-they were real. Treat this checklist as part of go-live, not as optional
+`docs/sanity-setup.md`), but a deployment reading from `sanity` would serve
+`seed--` documents left in that dataset as if they were real. Treat this checklist as part of go-live, not as optional
 cleanup.
 
 ## Export and recovery

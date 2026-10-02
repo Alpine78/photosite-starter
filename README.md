@@ -521,15 +521,16 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   in client galleries
 - Private client galleries, subject to a separate security and storage decision
   covering revocable/expiring access, noindex/no-store behavior, retention, and downloads.
-  That decision is **drafted** in
-  [ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md)
-  (Proposed, not yet accepted); implementation would be AB#29 (delivery) and AB#130
-  (proof selection)
+  That decision is **accepted** in
+  [ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md).
+  AB#29 (delivery) and AB#130 (proof selection) have partial implementation;
+  production storage and upload remain pending.
 - Proof galleries with photo selection and extra-photo pricing
 - Optional image sales and fulfilment (enquiry first; checkout and cart only
   after a separate product, legal, security, and delivery decision)
-- Multilingual authoring workflow: creating a linked localized draft from an existing page
-  in one action, and optional provider-neutral AI translation assistance. The public
+- Multilingual authoring workflow: an owner-run linked-draft creation command is available
+  for articles and galleries; its Studio action UI and optional provider-neutral AI
+  translation assistance remain later work. The public
   locale-aware routing itself is in the MVP above, not here
 - EXIF display with per-category visibility
 - Service-specific testimonials

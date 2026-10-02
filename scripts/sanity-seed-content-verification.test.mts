@@ -192,7 +192,7 @@ describe("seed fixture home page projects through the real home-content adapter"
       // `getPublicContentRoute` at read time, outside this adapter's own
       // job; a home section pointing at "featured-gallery" with no resolved
       // href drops the entry rather than link to a 404 (documented, intended
-      // behavior — see AGENTS.md's feature-status paragraph). Supplying a
+      // behavior — see docs/feature-status.md). Supplying a
       // synthetic href here proves the *rest* of the section projects
       // correctly; the CLI's live post-write check proves real resolution.
       featuredGalleryHref: "/tarinat/vuorovesialtaat/vuorovesialtaiden-valo",

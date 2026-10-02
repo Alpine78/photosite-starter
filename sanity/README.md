@@ -110,6 +110,27 @@ these identities and rejects unresolved, private, or otherwise undeliverable ref
 this block neither owns nor changes a curated gallery placement. See the
 [AB#24 amendment](../docs/adr/0003-public-content-tree-and-url-structure.md).
 
+## Linked language drafts (AB#125)
+
+The repository provides an owner-run, draft-only action while the customer-owned Studio
+has no integrated document action:
+
+```bash
+npm run create:localized-draft -- --content-id <id> --from fi --to en
+npm run create:localized-draft -- --content-id <id> --from fi --to en --yes
+```
+
+It uses `SANITY_PROJECT_ID`, `SANITY_DATASET`, `SANITY_API_VERSION`,
+`SANITY_LOCALIZATION_TOKEN`, and `SITE_LOCALE_ROUTES`. Use a temporary Editor token
+for this command alone, keep it out of deployment settings, and revoke it after the run.
+First inspect the dry-run list of copied
+text fields and related category/media notices. The `--yes` call creates a linked target
+draft and its placement drafts in one strict-create transaction. The source is untouched.
+Studio shows `Localization review` on those drafts and blocks normal publication until
+the pending field list is cleared after editorial review. See
+[`docs/localized-draft-action-plan.md`](../docs/localized-draft-action-plan.md) for the
+remaining Studio UI and direct-API limits.
+
 ## Galleries
 
 `gallery.ts` is the `gallery` variant of the same shared content-page boundary, and like

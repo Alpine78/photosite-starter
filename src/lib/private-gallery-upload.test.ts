@@ -17,13 +17,26 @@ const NOW = new Date("2026-09-02T12:00:00.000Z");
 const PREFIX = "private-galleries";
 
 const derivative = (
-  overrides: Partial<Extract<PrivateGalleryManifestEntry, { kind: "derivative" }>> = {},
+  overrides: Partial<Extract<PrivateGalleryManifestEntry, { derivativeKind: "delivery-preview" }>> = {},
 ): PrivateGalleryManifestEntry => ({
   kind: "derivative",
   derivativeKind: "delivery-preview",
   nominalBytes: 1_500_000,
   width: 2048,
   height: 1365,
+  ...overrides,
+});
+
+const proof = (
+  overrides: Partial<Extract<PrivateGalleryManifestEntry, { derivativeKind: "watermarked-proof" }>> = {},
+): PrivateGalleryManifestEntry => ({
+  kind: "derivative",
+  derivativeKind: "watermarked-proof",
+  filename: "IMG_0001.JPG",
+  mediaId: "media-1",
+  nominalBytes: 900_000,
+  width: 1200,
+  height: 800,
   ...overrides,
 });
 
@@ -37,6 +50,7 @@ function open(
 ) {
   return openPrivateGalleryUploadPreparation({
     galleryId: "gallery-1",
+    galleryKind: "delivery",
     state: "draft",
     keyPrefix: PREFIX,
     preparationId: "prep-1",
@@ -67,20 +81,69 @@ describe("openPrivateGalleryUploadPreparation", () => {
     expect(new Set(plan.preparation.objectKeys).size).toBe(3);
   });
 
-  it("names the object kind from the derivative kind", () => {
-    const plan = open({
-      manifest: [
-        derivative({ derivativeKind: "delivery-preview" }),
-        derivative({ derivativeKind: "watermarked-proof" }),
-        zip(),
-      ],
-    });
-
+  it("names delivery objects by kind", () => {
+    const plan = open({ manifest: [derivative(), zip()] });
     expect(plan.objects.map((object) => object.objectKind)).toEqual([
       "preview",
-      "proof",
       "zip",
     ]);
+  });
+
+  it("plans only proof derivatives for a proof gallery", () => {
+    const plan = open({
+      galleryKind: "proof",
+      manifest: [proof(), proof({ filename: "IMG_0002.JPG", mediaId: "media-2" })],
+    });
+    expect(plan.galleryKind).toBe("proof");
+    expect(plan.objects.map((object) => object.objectKind)).toEqual(["proof", "proof"]);
+    expect(plan.objects[0]).toMatchObject({
+      filename: "IMG_0001.JPG",
+      mediaId: "media-1",
+      width: 1200,
+      height: 800,
+    });
+    expect(plan.objects[0]).toHaveProperty("placementId");
+    expect(plan.objects[0].objectKey).not.toContain("IMG_0001.JPG");
+    expect(plan.objects[0].objectKey).not.toContain("media-1");
+    const [first, second] = plan.objects;
+    if (first.objectKind !== "proof" || second.objectKind !== "proof") {
+      throw new Error("expected a proof-only plan");
+    }
+    expect(first.placementId).not.toContain("media-1");
+    expect(first.placementId).not.toBe(second.placementId);
+  });
+
+  it("refuses proof media in delivery and ZIP or preview in proof", () => {
+    expect(() => open({ manifest: [derivative(), proof()] })).toThrow(PrivateGalleryUploadError);
+    expect(() => open({ galleryKind: "proof", manifest: [proof(), zip()] })).toThrow(PrivateGalleryUploadError);
+    expect(() => open({ galleryKind: "proof", manifest: [proof(), derivative()] })).toThrow(PrivateGalleryUploadError);
+  });
+
+  it("rejects duplicate or unusable proof metadata without exposing it in errors", () => {
+    const duplicate = [proof(), proof({ filename: "COPY.JPG" })];
+    expect(() => open({ galleryKind: "proof", manifest: duplicate })).toThrow(
+      expect.objectContaining({ reason: "invalid-parameter" }),
+    );
+    for (const entry of [
+      proof({ filename: "../secret.jpg" }),
+      proof({ filename: "bad\\name.jpg" }),
+      proof({ filename: "bad\nname.jpg" }),
+      proof({ filename: "bad\u2028name.jpg" }),
+      proof({ filename: " " }),
+      proof({ filename: "a".repeat(256) }),
+      proof({ mediaId: "bad/id" }),
+      proof({ mediaId: " " }),
+      proof({ mediaId: "a".repeat(129) }),
+    ]) {
+      try {
+        open({ galleryKind: "proof", manifest: [entry] });
+        throw new Error("expected rejection");
+      } catch (error) {
+        expect(error).toBeInstanceOf(PrivateGalleryUploadError);
+        expect(String(error)).not.toContain("secret.jpg");
+        expect(String(error)).not.toContain("bad/id");
+      }
+    }
   });
 
   it("carries the declared geometry for a derivative and none for the ZIP", () => {
@@ -191,7 +254,8 @@ describe("openPrivateGalleryUploadPreparation", () => {
     ["a fractional size", derivative({ nominalBytes: 1.5 })],
     ["no width", derivative({ width: 0 })],
     ["a fractional height", derivative({ height: 10.5 })],
-    ["an unknown derivative kind", derivative({ derivativeKind: "master" as never })],
+    ["an unknown derivative kind", { ...derivative(), derivativeKind: "master" } as never],
+    ["an unknown entry kind", { ...derivative(), kind: "other" } as never],
   ])("refuses an entry with %s", (_case, entry) => {
     expect(() => open({ manifest: [entry] })).toThrow(PrivateGalleryUploadError);
   });

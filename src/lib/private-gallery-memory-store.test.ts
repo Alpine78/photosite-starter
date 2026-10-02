@@ -8,6 +8,8 @@ import {
   MEMORY_ADMIN_SECRET,
   MEMORY_GALLERY_CAPABILITY,
   MEMORY_GALLERY_HANDLE,
+  MEMORY_PROOF_GALLERY_CAPABILITY,
+  MEMORY_PROOF_GALLERY_HANDLE,
   getPrivateGalleryMemoryStore,
   resetPrivateGalleryMemoryStore,
 } from "@/lib/private-gallery-memory-store";
@@ -113,6 +115,78 @@ describe("the published fixture link", () => {
   });
 });
 
+describe("the distinct development proof gallery", () => {
+  it("exchanges its own sealed capability and refuses the delivery capability", async () => {
+    const accepted = await exchangePrivateGalleryCapability(deps(), request({
+      handle: MEMORY_PROOF_GALLERY_HANDLE,
+      submittedSecret: MEMORY_PROOF_GALLERY_CAPABILITY,
+    }));
+    expect(accepted).toMatchObject({ ok: true });
+    if (!accepted.ok) return;
+    expect(accepted.session.galleryId).toBe(getPrivateGalleryMemoryStore().proofGallery.galleryId);
+    expect(accepted.cookie.options.path).toBe(`/private/${MEMORY_PROOF_GALLERY_HANDLE}`);
+
+    await expect(exchangePrivateGalleryCapability(deps(), request({
+      handle: MEMORY_PROOF_GALLERY_HANDLE,
+      submittedSecret: MEMORY_GALLERY_CAPABILITY,
+    }))).resolves.toMatchObject({ ok: false });
+    await expect(exchangePrivateGalleryCapability(deps(), request({
+      handle: MEMORY_GALLERY_HANDLE,
+      submittedSecret: MEMORY_PROOF_GALLERY_CAPABILITY,
+    }))).resolves.toMatchObject({ ok: false });
+  });
+
+  it("keeps proof placements, draft, notification and delivery rate buckets scoped", async () => {
+    const store = getPrivateGalleryMemoryStore();
+    expect(MEMORY_PROOF_GALLERY_HANDLE).not.toBe(MEMORY_GALLERY_HANDLE);
+    expect(MEMORY_PROOF_GALLERY_CAPABILITY).not.toBe(MEMORY_GALLERY_CAPABILITY);
+    expect(await store.viewStore.findGalleryById(store.proofGallery.galleryId))
+      .toBe(store.proofGallery);
+    expect((await store.viewStore.listPlacements(store.proofGallery.galleryId, 100))
+      .map((row) => row.placementId)).toEqual(["memory-proof-01", "memory-proof-02"]);
+    expect(await store.deliveryStore.findPlacement(store.gallery.galleryId, "memory-proof-01"))
+      .toBeUndefined();
+    expect(await store.deliveryStore.findPlacement(store.proofGallery.galleryId, "memory-placement-01"))
+      .toBeUndefined();
+    expect(await store.proofStore.read(store.gallery.galleryId)).toBeUndefined();
+
+    const edit = await store.proofStore.editDraft({
+      galleryId: store.proofGallery.galleryId, expectedCapabilityGeneration: 1,
+      expectedRevision: 0, selectedReferences: ["002"], now: NOW,
+    });
+    await store.proofStore.confirm({
+      galleryId: store.proofGallery.galleryId, expectedCapabilityGeneration: 1,
+      expectedRevision: edit.draft.revision, now: NOW,
+      notification: store.proofNotification(),
+    });
+    expect((await store.proofStore.read(store.proofGallery.galleryId))?.latestConfirmationVersion)
+      .toBe(1);
+    expect(await store.proofStore.readOutbox(store.gallery.galleryId,
+      `proof-confirmation:${store.proofGallery.galleryId}:1`)).toBeUndefined();
+    expect((await store.viewStore.listPlacements(store.gallery.galleryId, 100)).map(
+      (row) => row.placementId)).toContain("memory-placement-01");
+
+    // Saturating one gallery's exchange window leaves the other gallery's own
+    // counter untouched; unknown handles still allocate no bucket at all.
+    const tight = deps({ rateConfig: { maxAttempts: 1, windowMs: 60_000 } });
+    expect((await exchangePrivateGalleryCapability(tight, request())).ok).toBe(true);
+    expect((await exchangePrivateGalleryCapability(tight, request())).ok).toBe(false);
+    expect((await exchangePrivateGalleryCapability(tight, request({
+      handle: MEMORY_PROOF_GALLERY_HANDLE,
+      submittedSecret: MEMORY_PROOF_GALLERY_CAPABILITY,
+    }))).ok).toBe(true);
+  });
+
+  it("pins the second published fixture link's shape and exact values", () => {
+    expect(MEMORY_PROOF_GALLERY_HANDLE).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    expect(MEMORY_PROOF_GALLERY_CAPABILITY).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(MEMORY_PROOF_GALLERY_HANDLE).toBe("IiIiIiIiIiIiIiIiIiIiIg");
+    expect(MEMORY_PROOF_GALLERY_CAPABILITY).toBe(
+      "Pj4-Pj4-Pj4-Pj4-Pj4-Pj4-Pj4-Pj4-Pj4-Pj4-Pj4",
+    );
+  });
+});
+
 describe("the fixture refuses everything a real store would", () => {
   it("refuses the right handle with a wrong capability", async () => {
     const outcome = await exchangePrivateGalleryCapability(
@@ -130,6 +204,17 @@ describe("the fixture refuses everything a real store would", () => {
     );
 
     expect(outcome.ok).toBe(false);
+  });
+
+  it("does not expose newly created proof drafts to the customer exchange", async () => {
+    const store = getPrivateGalleryMemoryStore();
+    const draft = await store.proofDraftStore.create({
+      pricing: { includedCount: 1, extraUnitPriceMinor: 500, currency: "EUR" },
+    }, NOW);
+    const lookup = await store.exchangeStore.consumeExchangeAttempt(
+      draft.gallery.galleryHandle, NOW, { maxAttempts: 1, windowMs: 60_000 },
+    );
+    expect(lookup.outcome).toBe("unknown-handle");
   });
 
   it("creates no rate-limit row for an unknown handle", async () => {
