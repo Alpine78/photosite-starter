@@ -1,3 +1,6 @@
+import { execFile } from "node:child_process";
+import { resolve } from "node:path";
+import { promisify } from "node:util";
 import {
   resolveLegacyGoneLanguage,
   resolveLegacyGoneRoute,
@@ -19,6 +22,7 @@ import {
   DEFAULT_STORY_NAMESPACE,
   PREFIXED_LOCALE,
 } from "./support/harness-environment";
+
 
 /**
  * AB#19's decided rows against the production build the harness serves.
@@ -388,4 +392,22 @@ test("a legacy-shaped path the crawl never saw still gets the site's ordinary 40
   );
 
   expect(response?.status()).toBe(404);
+});
+
+test("the owner-run checker reports all decisions and cannot approve a mapping with pending paths", async ({ baseURL }) => {
+  test.skip(PENDING_LEGACY_PATHS.length === 0, "no pending legacy rows in this clone");
+  const run = promisify(execFile);
+  const result = await run(process.execPath, [
+    resolve("scripts/verify-legacy-redirects.mts"),
+    "check", baseURL!, appUnderTestEnvironment.SITE_CANONICAL_BASE_URL,
+  ]).then(
+    (value) => ({ ...value, code: 0 }),
+    (error: { code: number; stdout: string; stderr: string }) => error,
+  );
+  expect(result.code).toBe(1);
+  const report = JSON.parse(result.stdout);
+  expect(report.counts.pending).toBe(PENDING_LEGACY_PATHS.length);
+  expect(report.verification.status).not.toBe("passed");
+  expect(report.verification.results).toHaveLength(report.distinctPathCount - report.counts.pending);
+  expect(report.verification.results.some((row: { issues: string[] }) => row.issues.includes("probe-failed"))).toBe(false);
 });

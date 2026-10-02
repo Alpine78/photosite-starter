@@ -8,15 +8,14 @@
  * {@link ALREADY_LIVE_LEGACY_PATHS}, {@link EXCLUDED_LEGACY_PATHS}, or
  * {@link PENDING_LEGACY_PATHS}.
  *
- * Test-only data: nothing in `src/proxy.ts` or the runtime request path
+ * Audit-only data: nothing in `src/proxy.ts` or the runtime request path
  * imports this file. A clone with no Joomla migration empties all three
  * lists below to `[]` — the same way it empties `legacy-redirects-data.ts`'s
  * `RETIRED_TAG_PATHS`, `STRUCTURAL_REDIRECT_ENTRIES`,
  * `PUBLISHED_CONTENT_REDIRECT_ENTRIES`, and
  * `legacy-redirects-inventory.json`'s `records` — rather than deleting this
- * file, which would break the test that imports it
- * (`legacy-redirects-data.test.ts`, itself emptied the same way; see its own
- * comment).
+ * file, which would break the completeness test and owner-run mapping report
+ * that import it (`legacy-redirects-data.test.ts` and `verify:legacy-redirects`).
  *
  * This bookkeeping tracks per-*pathname* completeness only. A separate,
  * already-closed sub-decision of AB#19 is the numeric gallery lightbox
@@ -61,8 +60,8 @@ export const EXCLUDED_LEGACY_PATHS: readonly string[] = [
  * Every legacy path with real, live (HTTP 200) content whose direct target or
  * explicit category-ancestry fallback is not yet recorded. ADR-0003 decision
  * 9 requires a reviewed source-category association and a published
- * same-language target; no route reads real migrated content yet
- * (`SITE_CONTENT_SOURCE=mock`). Covers every gallery (`valokuvat/*`,
+ * same-language target. Imported rally galleries have already moved into the
+ * decided registry; this list covers remaining galleries (`valokuvat/*`,
  * `en/photos/*`), article (`blogi/*`), individual service
  * (`valokuvaus/<slug>`, `haakuvaus/*`), their `/fi`-prefixed locale-alias
  * duplicates, and the following, each verified against its real crawled
