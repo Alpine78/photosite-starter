@@ -144,14 +144,17 @@ redistributes.
 
 `parse5` (MIT) and its one dependency `entities` (BSD-2-Clause) were added in AB#137 and
 are not reflected in the counts below. They are development dependencies used only by the
-owner-run Joomla migration tooling (`npm run convert:joomla`, `scripts/joomla-*.mts`):
+owner-run Joomla migration and legacy target verification tooling
+(`npm run convert:joomla`, `scripts/joomla-*.mts`, `npm run verify:legacy-redirects`):
 nothing under `src/` imports them, they are not in the production dependency tree, and
 their bytes never reach a browser. The stated need is the allow-list guarantee that
 tooling makes — that every construct in a legacy body is explicitly converted, explicitly
 recorded as lossy, or refused, with no silent fourth category. Deciding that requires the
 source to be parsed the way a browser parses it, including unclosed tags, entities, and
 mixed content; hand-rolled or regex handling would make "unsupported" mean whatever the
-pattern happened to miss. parse5 is the WHATWG-spec reference parser and is what
+pattern happened to miss. The redirect verifier also uses it to inspect canonical and
+fallback metadata without executing response HTML. parse5 is the WHATWG-spec reference
+parser and is what
 `jsdom` and Angular use for the same reason. Both licences are permissive and would only
 require their notices if the distribution model changed to shipping the dependency tree.
 

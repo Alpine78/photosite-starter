@@ -989,43 +989,49 @@ unpublishing it — is not implemented anywhere in `content-tree.ts`, the articl
 gallery Sanity schemas, or the mock fixtures yet, so there is no such state for the
 sitemap to consult today. Both are documented as deliberate, not silently dropped.
 AB#19's legacy-URL redirect registry (`src/lib/legacy-redirects.ts`) is partially
-built: a reusable, generic, pure validated-lookup module — same-shape precedent to
-`content-redirects.ts`, but a separate registry, since a legacy Joomla path is a
-disjoint taxonomy from the `/tarinat`/`/en/stories` namespace that file owns — wired
-into `src/proxy.ts`, the only layer in this Next.js version able to answer a genuine
-`410 Gone` at all (a Server Component page's built-in error APIs stop at 404/403/401)
-and the only one that can emit a literal `301` rather than the route tree's own
-308-hardcoded `permanentRedirect()`. Of the 442-record production Joomla crawl
-inventory (415 distinct paths) AB#19's own comments and ADR-0003 decision 9 govern,
-this pass decides only the 174 `component/tags/tag/...` and
-`en/component/tags/tag/...` Joomla tag-browsing pages, each a justified `410 Gone`
-because no current-site replacement exists (a future one is AB#66's). Every other
-path — every legacy gallery, article, category, and static page, plus
-`component/komento/*` (a real Joomla gallery component, not system debris) and
-`sivustokartta/*` (real aliased content, not a generic sitemap page) — stays recorded
-as an explicit pending row in `src/lib/legacy-redirects-tracking.ts` rather than a
-guessed target, because ADR-0003 decision 9 itself requires a migrated page's locale,
-canonical category, and slug to be known first, and no route reads real migrated
-content yet (`SITE_CONTENT_SOURCE=mock`). `legacy-redirects-data.test.ts` keeps this
-bookkeeping honest: every distinct crawled path is accounted for by exactly one of a
-decided row, a pending row, an excluded row (Joomla's own `/404` error page, owed no
-redirect), or an already-live row (the site root), and the decided set is pinned to
-its exact reviewed count so a future inventory update cannot silently reclassify an
-unreviewed path the way `component/komento/*` and `sivustokartta/*` first appeared to.
-The crawl also surfaces a finding for whoever resolves the Finnish `/portfolio` row:
-it was a real, live, published Joomla page, which is evidence against the assumption
-the 2026-08-10 ADR-0003 amendment relied on to remove this template's own dead
-`/portfolio` scaffold without a redirect — that removal was about the template's own
-never-deployed route, not the production site's real one at the same path.
-The numeric gallery lightbox query-state policy the crawl comment flagged as
-unresolved (Joomla's own bare `?4738` query, layered on a page's pathname rather than
-a distinct crawled route) is decided and closed, separately from the per-pathname
-decisions above: `legacyRedirectDestinationSearch` never strips or translates such
-state automatically (ADR-0003 decision 9), covered by dedicated Vitest and Playwright
-cases naming the crawl's own shape. No `redirect` row exists yet to exercise the
-301 case end-to-end — every decided row so far is a `410 Gone` tag page — and that gap
-stays open, deliberately, until a real redirect row exists; fabricating one to close it
-would mean guessing a canonical target this pass explicitly defers.
+built: a generic pure validated lookup wired into `src/proxy.ts` emits literal `301`
+redirects and justified `410 Gone` responses. First-site deployment configuration stays
+in `legacy-redirects-data.ts`; the crawl projection and completeness classifications
+stay beside it, outside the request-time bundle. Every distinct inventory path belongs
+to exactly one decided, pending, excluded, or already-live bucket. Direct canonical
+same-language targets and explicit category-ancestry/home fallback policy follow
+ADR-0003 decision 9; unknown URLs retain ordinary not-found behavior.
+
+**Mapping verification tooling, 2026-10-02 (AB#19, still Active):** the full Boards
+attachment contains 442 URL records; the committed inventory projects them to 415
+path/status observations. Current configuration has **39 redirects** (three structural,
+36 imported-content/category rows), **174 justified tag-page `410`s**, **198 pending**
+paths, three excluded Joomla error routes, and one already-live root. The 36 content rows
+cover the ten migrated rally galleries and their category landings in Finnish, redundant
+`/fi` aliases, and English; AB#19's 2026-09-25 discussion records deployed spot checks.
+`component/komento/*` (real gallery content), `sivustokartta/*` (content aliases), remaining
+galleries/articles/static routes, and the two owner-confirmed Monza 2008 timeout paths
+remain pending reviewed targets or fallbacks. The real Joomla `/portfolio` page is also
+pending; removing the template's never-deployed scaffold at that spelling never disposed
+of the production legacy URL.
+
+`npm run verify:legacy-redirects -- report` now exports every path and its decision,
+original projected status, query/fallback policy, and calculated counts. Invalid raw
+mapping entries or incomplete/overlapping bookkeeping fail generation independently of
+the runtime fail-open wrapper. `check <origin> [<canonical-origin>]` probes each decided
+response and each distinct target without following redirects, requires the expected
+status and exact parameter-free canonical, and checks fallback noindex/status markup.
+It sends anonymous GETs only, accepts no credentials, and retains no response HTML or
+raw provider errors in the report. Any failed probe or pending decision prevents a pass.
+See `docs/deployment.md` for usage and limits. The existing CI target allowlists remain
+static guards; owner-run checks establish liveness on the intended production build.
+The mock browser suite verifies published-content `301` locations but cannot prove those
+first-site targets, because it deliberately has different locales and generic content.
+New production-build journeys exercise the existing fixed, accessible fallback notice
+on the home and both locales' category pages, its noindex/parameter-free canonical,
+invalid/repeated parameter behavior, and operation without JavaScript.
+
+The numeric lightbox query policy is already decided: bare `?4738` and other unrelated
+query state are preserved byte-for-byte; explicit per-row `cursor`/`section` handling
+remains separate. The registry's structural `301` and tag `410` journeys exercise the
+existing HTTP mechanics. **Final first-site content-target verification still depends
+on AB#137's Production migration** and reviewed decisions for the 198 pending paths.
+No phased launch manifest or completion of AB#19 is implied by the new tooling.
 The category branch listing continuation is now built (AB#140 PR 2, ADR-0013): a branch
 whose aggregated subtree exceeds `MAX_CONTENT_LISTING_PAGE_SIZE` pages through a keyset
 `?cursor=` over `(publishedAt, contentId)`, signed with the shared
@@ -1805,8 +1811,8 @@ redirect target rather than accepting any redirect status, preserving the origin
 deliberate refusal to treat an ambiguous redirect as proof. Production promotion (AB#18)
 and exercised rollback and handoff (AB#118) are later stories, now unblocked rather than
 waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
-see above — with 238 of 415 distinct crawled paths still pending real content
-migration (including `component/komento/*` and `sivustokartta/*`).
+see above — with 198 of 415 distinct crawled paths still pending reviewed targets after
+content migration (including `component/komento/*` and `sivustokartta/*`).
 **Dependency follow-up, 2026-10-02 (AB#186, still Active):** the merged CLI
 reclassification and Azure drift fix already use one development-only,
 lockfile-pinned Vercel CLI 61.0.0. The current follow-up pins Next.js and its lint
@@ -2663,4 +2669,3 @@ These notes go stale easily — treat it as a starting hint, not as truth. The M
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
 feature exists or is missing.
-
