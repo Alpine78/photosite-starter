@@ -6,6 +6,7 @@ import {
   MAX_PLACEMENT_ID_LENGTH,
 } from "./gallery-placement";
 import { MEDIA_TYPE_NAME } from "./media";
+import { defineLocalizationReviewField, defineLocalizationSourceField, validateLocalizationReview } from "./localization-review";
 import type {
   SchemaFieldDefinition,
   SchemaTypeDefinition,
@@ -181,6 +182,8 @@ const nonNegativeInteger = (value: number | undefined): SchemaValidationResult =
     : "Enter a whole number, 0 or greater";
 
 const fields: readonly SchemaFieldDefinition[] = [
+  defineLocalizationSourceField(),
+  defineLocalizationReviewField(),
   {
     name: "article",
     title: "Article",
@@ -225,6 +228,7 @@ export const articleEndGalleryPlacementType: SchemaTypeDefinition = {
   name: ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME,
   title: "Article end-gallery placement",
   type: "document",
+  validation: (rule) => rule.custom<Readonly<Record<string, unknown>>>((value) => validateLocalizationReview(value)),
   description:
     "One ordered photograph occurrence in the large gallery after an article body (AB#161).",
   fields,

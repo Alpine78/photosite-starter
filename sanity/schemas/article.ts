@@ -61,6 +61,7 @@ import {
   validatesCanonicalCategoryChoice,
 } from "./content-placement-validation";
 import { LANGUAGE_SUBTAG } from "./localized-text";
+import { defineLocalizationReviewField, defineLocalizationSourceField, validateLocalizationReview } from "./localization-review";
 import { LOCALIZED_SLUG_PATTERN } from "./localized-slug";
 import { MEDIA_TYPE_NAME } from "./media";
 import type {
@@ -161,8 +162,10 @@ export const articleType: SchemaTypeDefinition = {
   description:
     "One editorial page, in one language. Its body is the page — it does not gain a gallery result set from media placed in it (ADR-0003 decision 1).",
   validation: (rule) =>
-    rule.custom<Readonly<Record<string, unknown>>>((value, context) =>
-      validateArticlePublication(value, context, ARTICLE_TYPE_NAME)),
+    rule.custom<Readonly<Record<string, unknown>>>((value, context) => {
+      const review = validateLocalizationReview(value);
+      return review === true ? validateArticlePublication(value, context, ARTICLE_TYPE_NAME) : review;
+    }),
   fields: [
     {
       name: "contentId",
@@ -300,6 +303,8 @@ export const articleType: SchemaTypeDefinition = {
           rejectsSecondaryCategoryOverlap,
         ),
     },
+    defineLocalizationSourceField(),
+    defineLocalizationReviewField(),
     defineContentBodyField({
       name: "body",
       title: "Body",
