@@ -75,6 +75,8 @@ const cdnCover = projectPublicImageMedia({
 
 const settings: SiteSettings = {
   siteName: "Studio Example",
+  siteNames: { en: "Studio Example" },
+  brandDescriptors: {},
   photographerName: "Jane Example",
   tagline: "Timeless photography",
   navigation: [],
@@ -103,6 +105,7 @@ const settings: SiteSettings = {
   copyrightHolder: "Studio Example",
   defaultSeo: {
     titleTemplate: "%s | Studio Example",
+    titleTemplates: { en: "%s | Studio Example" },
     description: "Professional photography services.",
   },
 };

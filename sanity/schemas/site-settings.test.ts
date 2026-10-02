@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { HOME_PAGE_TYPE_NAME, homePageType } from "./home-page";
 import { defineSchemaTypes } from "./index";
+import { LOCALIZED_TEXT_TYPE_NAME } from "./localized-text";
 import { MEDIA_TYPE_NAME } from "./media";
 import {
+  BRAND_DESCRIPTOR_POSITIONS,
   SITE_SETTINGS_TYPE_NAME,
   defineSiteSettingsType,
   validateNavigationList,
+  validateSiteSettings,
   validateSocialLinks,
   validateTitleTemplates,
 } from "./site-settings";
@@ -50,6 +53,9 @@ describe("the site settings and home schemas", () => {
       "galleryLayout",
       "galleryCaptionPlacement",
       "siteName",
+      "logo",
+      "logoDark",
+      "brandDescriptor",
       "photographerName",
       "tagline",
       "servicesIntro",
@@ -80,6 +86,36 @@ describe("the site settings and home schemas", () => {
     expect(fieldNames(homePageType)).not.toEqual(
       expect.arrayContaining(["imageUrl", "width", "height", "crop", "archiveLocator"]),
     );
+  });
+
+  it("authors the site name per language and the logo as a shared media reference (AB#187)", () => {
+    const siteName = siteSettingsType.fields.find((field) => field.name === "siteName");
+    const logo = siteSettingsType.fields.find((field) => field.name === "logo");
+
+    expect(siteName?.type).toBe("array");
+    expect(siteName?.of).toEqual([{ type: LOCALIZED_TEXT_TYPE_NAME }]);
+    expect(logo?.type).toBe("reference");
+    expect(logo?.to).toEqual([{ type: MEDIA_TYPE_NAME }]);
+    expect(logo?.validation).toBeUndefined();
+    const logoDark = siteSettingsType.fields.find((field) => field.name === "logoDark");
+    expect(logoDark?.type).toBe("reference");
+    expect(logoDark?.to).toEqual([{ type: MEDIA_TYPE_NAME }]);
+  });
+
+  it("refuses a dark-theme logo without the logo it replaces", () => {
+    const reference = { _type: "reference", _ref: "media-mark" };
+    expect(validateSiteSettings({ logo: reference, logoDark: reference })).toBe(true);
+    expect(validateSiteSettings({ logo: reference })).toBe(true);
+    expect(validateSiteSettings({ logoDark: reference })).toEqual(expect.any(String));
+  });
+
+  it("offers each language's brand descriptor with a before or after position", () => {
+    const descriptor = siteSettingsType.fields.find((field) => field.name === "brandDescriptor");
+    const entryFields = descriptor?.of?.[0]?.fields?.map((field) => field.name);
+
+    expect(descriptor?.type).toBe("array");
+    expect(entryFields).toEqual(["language", "value", "position"]);
+    expect(BRAND_DESCRIPTOR_POSITIONS).toEqual(["before", "after"]);
   });
 
   it("offers only static, generated-story, and identity-resolved featured targets", () => {

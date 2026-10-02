@@ -25,7 +25,12 @@ import {
 } from "@/lib/deployment-config";
 import { getLocaleRoute, type LocaleVersion } from "@/lib/locale-routes";
 import type { ImageMedia, Media } from "@/lib/media";
-import { getSiteSettings, type SiteSettings } from "@/lib/site-settings";
+import {
+  getSiteSettings,
+  resolveSiteName,
+  resolveTitleTemplate,
+  type SiteSettings,
+} from "@/lib/site-settings";
 
 export type MetadataContext = {
   readonly settings: SiteSettings;
@@ -214,9 +219,11 @@ export function buildSiteMetadata({
 
 /**
  * Metadata defaults for a configured locale whose authored settings and UI
- * copy do not exist yet. Brand identity and the validated locale are safe to
- * state; a description, social image alt, or other language-dependent value is
- * omitted rather than copied from the default locale.
+ * copy do not exist yet. The brand — the site name and title template — is
+ * authored per language (AB#187) and resolved for this locale, falling back to
+ * the default locale's where this language has none; a description, social
+ * image alt, or other language-dependent value is omitted rather than copied
+ * from the default locale.
  */
 export function buildLocaleShellMetadata(
   { settings, deployment }: MetadataContext,
@@ -224,16 +231,17 @@ export function buildLocaleShellMetadata(
 ): Metadata {
   const resolvedLocale = resolvePageLocale(locale, deployment);
   const openGraphLocale = toOpenGraphLocale(resolvedLocale);
+  const siteName = resolveSiteName(settings, resolvedLocale);
 
   return {
     metadataBase: deployment.canonicalBaseUrl,
     title: {
-      default: settings.siteName,
-      template: settings.defaultSeo.titleTemplate,
+      default: siteName,
+      template: resolveTitleTemplate(settings, resolvedLocale),
     },
     openGraph: {
       type: "website",
-      siteName: settings.siteName,
+      siteName,
       ...(openGraphLocale === undefined ? {} : { locale: openGraphLocale }),
     },
   };
@@ -269,7 +277,7 @@ export function buildPageMetadata(
 
   const openGraphBase = {
     url: canonical,
-    siteName: settings.siteName,
+    siteName: resolveSiteName(settings, locale),
     ...(openGraphLocale === undefined ? {} : { locale: openGraphLocale }),
     ...(description === undefined ? {} : { description }),
     images: [

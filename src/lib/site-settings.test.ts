@@ -1,7 +1,19 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildLocaleRouteConfig } from "@/lib/locale-routes";
-import { getServicesContactCallToAction, getSiteSettings, type SiteSettings } from "@/lib/site-settings";
+import { mockSiteMark, mockSiteMarkDark } from "@/lib/mock-media";
+import {
+  getServicesContactCallToAction,
+  getSiteSettings,
+  resolveBrandDescriptor,
+  resolveSiteName,
+  resolveTitleTemplate,
+  type SiteSettings,
+} from "@/lib/site-settings";
 
 /**
  * `site-settings.ts` is a route-facing seam: it dispatches between the mock
@@ -66,7 +78,19 @@ describe("getSiteSettings", () => {
   it("returns the mock fixture when contentSource is mock", async () => {
     const settings = await getSiteSettings();
 
-    expect(settings.siteName).toBe("Studio Example");
+    // The fixture's default locale here is Finnish, so its name is the Finnish one.
+    expect(settings.siteName).toBe("Valokuvaaja Jane Example");
+    expect(settings.siteNames).toEqual({
+      en: "Jane Example Photography",
+      fi: "Valokuvaaja Jane Example",
+    });
+    expect(settings.defaultSeo.titleTemplate).toBe("%s | Valokuvaaja Jane Example");
+    expect(settings.logo).toBe(mockSiteMark);
+    expect(settings.logoDark).toBe(mockSiteMarkDark);
+    expect(settings.brandDescriptors).toEqual({
+      en: { text: "Photography", position: "after" },
+      fi: { text: "Valokuvaaja", position: "before" },
+    });
     expect(sanitySiteSettings.readSanitySiteSettings).not.toHaveBeenCalled();
   });
 
@@ -74,6 +98,8 @@ describe("getSiteSettings", () => {
     deploymentConfig.contentSource = "sanity";
     const fixture: SiteSettings = {
       siteName: "Sanity Studio",
+      siteNames: { fi: "Sanity Studio" },
+      brandDescriptors: {},
       photographerName: "Sanity Photographer",
       tagline: "From the CMS",
       navigation: [],
@@ -89,7 +115,11 @@ describe("getSiteSettings", () => {
       socialLinks: [],
       footerLinks: [],
       copyrightHolder: "Sanity Studio",
-      defaultSeo: { titleTemplate: "%s | Sanity Studio", description: "x" },
+      defaultSeo: {
+        titleTemplate: "%s | Sanity Studio",
+        titleTemplates: { fi: "%s | Sanity Studio" },
+        description: "x",
+      },
     };
     sanitySiteSettings.readSanitySiteSettings.mockResolvedValue(fixture);
 
@@ -133,5 +163,62 @@ describe("getServicesContactCallToAction", () => {
     await expect(getServicesContactCallToAction("en-GB")).resolves.toEqual(content);
     expect(sanitySiteSettings.readSanityServicesContactCallToAction).toHaveBeenCalledWith("en");
     expect(sanitySiteSettings.readSanitySiteSettings).not.toHaveBeenCalled();
+  });
+});
+
+describe("per-locale brand (AB#187)", () => {
+  const brand = {
+    siteName: "Valokuvaaja Esimerkki",
+    siteNames: { fi: "Valokuvaaja Esimerkki", en: "Example Photography" },
+    defaultSeo: {
+      titleTemplate: "%s | Valokuvaaja Esimerkki",
+      titleTemplates: { fi: "%s | Valokuvaaja Esimerkki", en: "%s | Example Photography" },
+      description: "x",
+    },
+  };
+
+  it("resolves the site name and title template of the rendered locale", () => {
+    expect(resolveSiteName(brand, "en-GB")).toBe("Example Photography");
+    expect(resolveSiteName(brand, "fi-FI")).toBe("Valokuvaaja Esimerkki");
+    expect(resolveTitleTemplate(brand, "en-GB")).toBe("%s | Example Photography");
+  });
+
+  it("resolves a descriptor only in its own language, never another's", () => {
+    const descriptors = {
+      brandDescriptors: {
+        fi: { text: "Valokuvaaja", position: "before" as const },
+        en: { text: "Photography", position: "after" as const },
+      },
+    };
+    expect(resolveBrandDescriptor(descriptors, "en-GB")).toEqual({
+      text: "Photography",
+      position: "after",
+    });
+    expect(resolveBrandDescriptor(descriptors, "sv-FI")).toBeUndefined();
+  });
+
+  it("falls back to the default locale's brand for a language with none of its own", () => {
+    expect(resolveSiteName(brand, "sv-FI")).toBe("Valokuvaaja Esimerkki");
+    expect(resolveTitleTemplate(brand, "sv-FI")).toBe("%s | Valokuvaaja Esimerkki");
+  });
+});
+
+describe("mock site marks", () => {
+  it.each([
+    ["light", mockSiteMark, "site-mark"],
+    ["dark", mockSiteMarkDark, "site-mark-dark"],
+  ] as const)("the %s mark is a brand-free, content-hashed PNG with its true intrinsic dimensions", (_mode, mark, name) => {
+    const { src, version, width, height } = mark.rendition;
+    const match = src.match(new RegExp(`^/gallery/${name}\\.([0-9a-f]{12})\\.png$`));
+    expect(match?.[1]).toBe(version);
+
+    const bytes = readFileSync(resolve(process.cwd(), "public", src.slice(1)));
+    expect(createHash("sha256").update(bytes).digest("hex").startsWith(version)).toBe(true);
+    expect(bytes.subarray(1, 4).toString("ascii")).toBe("PNG");
+    expect(bytes.readUInt32BE(16)).toBe(width);
+    expect(bytes.readUInt32BE(20)).toBe(height);
+    // Not square, so a layout that forced one would visibly distort it.
+    expect(width).not.toBe(height);
+    expect(mark.alt).toBe("");
   });
 });

@@ -369,7 +369,7 @@ function buildVerificationChecks(
           query: `*[_id == $id][0]{siteName, featuredGalleryId}`,
           params: { id: SITE_SETTINGS_ID },
         })) as { readonly siteName?: unknown } | null;
-        if (typeof result?.siteName !== "string") {
+        if (!Array.isArray(result?.siteName) || result.siteName.length === 0) {
           throw new Error("site settings document did not read back with a siteName");
         }
       },

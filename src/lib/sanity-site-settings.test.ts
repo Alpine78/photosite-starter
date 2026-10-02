@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BRAND_DESCRIPTOR_POSITIONS as SCHEMA_BRAND_DESCRIPTOR_POSITIONS,
   CONTENT_ID as SCHEMA_CONTENT_ID,
   defineSiteSettingsType,
   EMAIL as SCHEMA_EMAIL,
@@ -23,6 +24,7 @@ import {
 } from "@/lib/sanity-site-settings";
 import type { SanityClient, SanityQueryRequest } from "@/lib/sanity-client";
 import type { SanityConfig } from "@/lib/sanity-config";
+import { BRAND_DESCRIPTOR_POSITIONS } from "@/lib/site-settings";
 
 const config = buildLocaleRouteConfig({
   locales: [
@@ -49,7 +51,7 @@ function documentOf(
   overrides: Partial<RawSiteSettingsDocument> = {},
 ): RawSiteSettingsDocument {
   return {
-    siteName: "Example Studio",
+    siteName: localized("Esimerkkistudio", "Example Studio"),
     photographerName: "Example Photographer",
     tagline: localized("Ajattomia kuvia", "Timeless photographs"),
     featuredGalleryId: "content-selected-work",
@@ -136,6 +138,137 @@ it("projects a public contact portrait without provider internals and rejects pr
   expect(() => project(documentOf({ contact: { ...contact, portrait: { ...portrait, mediaType: "video" } } }))).toThrow(/video/u);
 });
 
+describe("the per-language brand (AB#187)", () => {
+  it("keeps every authored language of the site name and title template", () => {
+    const settings = project(documentOf());
+
+    expect(settings.defaultSeo.titleTemplates).toEqual({
+      fi: "%s | Esimerkkistudio",
+      en: "%s | Example Studio",
+    });
+  });
+
+  it("reads a pre-AB#187 single-string site name as the default language's", () => {
+    const settings = project(documentOf({ siteName: "  Legacy Studio " }));
+
+    expect(settings.siteName).toBe("Legacy Studio");
+    expect(settings.siteNames).toEqual({ fi: "Legacy Studio" });
+  });
+
+  it("drops a blank language entry and refuses a missing default-language name", () => {
+    expect(project(documentOf({ siteName: localized("Esimerkkistudio", "  ") })).siteNames)
+      .toEqual({ fi: "Esimerkkistudio" });
+    for (const siteName of [[{ language: "en", value: "Example Studio" }], [], "   ", 12, null]) {
+      expect(() => project(documentOf({ siteName }))).toThrow(SanitySiteSettingsError);
+    }
+  });
+
+  it("refuses a title template without exactly one placeholder in any language", () => {
+    const base = documentOf();
+    const defaultSeo = base.defaultSeo as Record<string, unknown>;
+    expect(() =>
+      project(documentOf({
+        defaultSeo: { ...defaultSeo, titleTemplate: localized("%s | Esimerkkistudio", "Example Studio") },
+      })),
+    ).toThrow(/language "en"/u);
+  });
+});
+
+describe("the optional logo (AB#187)", () => {
+  const mark = {
+    mediaId: "site-mark",
+    mediaType: "image",
+    publiclyRenderable: true,
+    alt: localized("Merkki", "Mark"),
+    caption: [],
+    archiveLocator: "/private/mark.ai",
+    asset: {
+      url: `https://cdn.sanity.io/images/${sanityConfig.projectId}/${sanityConfig.dataset}/Ab9Ew8CXIwaY6R1kjMvI0uRR-1308x1266.png`,
+      path: `images/${sanityConfig.projectId}/${sanityConfig.dataset}/Ab9Ew8CXIwaY6R1kjMvI0uRR-1308x1266.png`,
+      extension: "png",
+      mimeType: "image/png",
+      width: 1308,
+      height: 1266,
+    },
+  };
+  const withLogo = (overrides: Partial<RawSiteSettingsDocument> = {}) =>
+    documentOf({ logoRef: "media-site-mark", logoType: "media", logo: mark, ...overrides });
+
+  it("projects a public image's derivative and true dimensions only", () => {
+    const { logo } = project(withLogo());
+
+    expect(logo?.type).toBe("image");
+    expect(logo?.rendition).toMatchObject({ width: 1308, height: 1266 });
+    expect(JSON.stringify(logo)).not.toContain("archiveLocator");
+  });
+
+  it("leaves the logo out when none is set", () => {
+    expect(project(documentOf())).not.toHaveProperty("logo");
+    expect(project(documentOf({ logoRef: null, logoType: null, logo: null }))).not.toHaveProperty("logo");
+  });
+
+  it("refuses a reference that does not resolve rather than reading it as no logo", () => {
+    expect(() => project(withLogo({ logoType: null, logo: null }))).toThrow(/not published/u);
+  });
+
+  it("projects a dark-theme variant only beside the logo it replaces", () => {
+    const darkMark = { ...mark, mediaId: "site-mark-dark" };
+    const dark = { logoDarkRef: "media-site-mark-dark", logoDarkType: "media", logoDark: darkMark };
+
+    expect(project(withLogo(dark)).logoDark?.mediaId).toBe("site-mark-dark");
+    expect(project(withLogo())).not.toHaveProperty("logoDark");
+    expect(() => project(documentOf(dark))).toThrow(/without the logo/u);
+    expect(() => project(withLogo({ ...dark, logoDark: null }))).toThrow(/logoDark references/u);
+    expect(() => project(withLogo({ ...dark, logoDarkType: "gallery" }))).toThrow(/logoDark must/u);
+  });
+
+  it("refuses a reference to anything but a public image media document", () => {
+    expect(() => project(withLogo({ logoType: "gallery" }))).toThrow(/media document/u);
+    expect(() => project(withLogo({ logo: { ...mark, privateOnly: true } }))).toThrow();
+    expect(() => project(withLogo({ logo: { ...mark, mediaType: "video" } }))).toThrow(/video/u);
+    expect(() => project(withLogo({ logoRef: 12 }))).toThrow(/malformed/u);
+    expect(() => project(documentOf({ logo: mark }))).toThrow(/without a reference/u);
+  });
+});
+
+describe("the header brand descriptor (AB#187)", () => {
+  it("keeps each language's descriptor with its own position", () => {
+    const settings = project(documentOf({
+      brandDescriptor: [
+        { language: "fi", value: " Valokuvaaja ", position: "before" },
+        { language: "en", value: "Photography", position: "after" },
+      ],
+    }));
+
+    expect(settings.brandDescriptors).toEqual({
+      fi: { text: "Valokuvaaja", position: "before" },
+      en: { text: "Photography", position: "after" },
+    });
+  });
+
+  it("is empty when none is authored", () => {
+    expect(project(documentOf()).brandDescriptors).toEqual({});
+    expect(project(documentOf({ brandDescriptor: null })).brandDescriptors).toEqual({});
+  });
+
+  it.each([
+    ["an unknown position", [{ language: "fi", value: "Valokuvaaja", position: "above" }]],
+    ["a blank text", [{ language: "fi", value: "  ", position: "before" }]],
+    ["a malformed language", [{ language: "FI", value: "Valokuvaaja", position: "before" }]],
+    ["a repeated language", [
+      { language: "fi", value: "Valokuvaaja", position: "before" },
+      { language: "fi", value: "Kuvaaja", position: "after" },
+    ]],
+    ["a non-list value", "Valokuvaaja"],
+  ])("refuses %s", (_case, brandDescriptor) => {
+    expect(() => project(documentOf({ brandDescriptor }))).toThrow(SanitySiteSettingsError);
+  });
+
+  it("allows the same positions as the Studio schema", () => {
+    expect(BRAND_DESCRIPTOR_POSITIONS).toEqual(SCHEMA_BRAND_DESCRIPTOR_POSITIONS);
+  });
+});
+
 it("projects optional presentation defaults and rejects malformed stored enums", () => {
   expect(project(documentOf())).not.toHaveProperty("galleryLayout");
   expect(project(documentOf({ galleryLayout: "masonry", galleryCaptionPlacement: "overlay" })))
@@ -164,7 +297,8 @@ describe("projecting Sanity site settings", () => {
   it("maps localized values and semantic navigation into SiteSettings", () => {
     const settings = project(documentOf());
 
-    expect(settings.siteName).toBe("Example Studio");
+    expect(settings.siteName).toBe("Esimerkkistudio");
+    expect(settings.siteNames).toEqual({ fi: "Esimerkkistudio", en: "Example Studio" });
     expect(settings.tagline).toBe("Ajattomia kuvia");
     expect(settings.navigation).toEqual([
       { label: "Etusivu", href: "/" },
@@ -176,7 +310,7 @@ describe("projecting Sanity site settings", () => {
     expect(settings.defaultSeo.titleTemplate).toBe("%s | Esimerkkistudio");
   });
 
-  it("uses language subtags while keeping language-neutral brand values", () => {
+  it("uses language subtags for every authored value, the site name included", () => {
     const settings = project(documentOf(), "en-GB");
 
     expect(settings.siteName).toBe("Example Studio");
@@ -277,7 +411,7 @@ describe("reading the published settings singleton", () => {
     const { client, requests } = fakeClient([documentOf()]);
     await expect(
       readSanitySiteSettings({ language: "fi", locale: "fi-FI", config, client }),
-    ).resolves.toMatchObject({ siteName: "Example Studio" });
+    ).resolves.toMatchObject({ siteName: "Esimerkkistudio" });
 
     expect(requests).toEqual([
       { query: `*[_type == "${SITE_SETTINGS_DOCUMENT_TYPE}"]${SITE_SETTINGS_PROJECTION}`, tag: "site-settings" },

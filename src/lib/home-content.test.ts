@@ -60,6 +60,8 @@ vi.mock("@/lib/sanity-config", () => sanityConfigModule);
 
 const noFeaturedGallerySettings: SiteSettings = {
   siteName: "Studio Example",
+  siteNames: { fi: "Studio Example" },
+  brandDescriptors: {},
   photographerName: "Jane Example",
   tagline: "x",
   navigation: [],
@@ -70,7 +72,7 @@ const noFeaturedGallerySettings: SiteSettings = {
   socialLinks: [],
   footerLinks: [],
   copyrightHolder: "x",
-  defaultSeo: { titleTemplate: "%s | x", description: "x" },
+  defaultSeo: { titleTemplate: "%s | x", titleTemplates: { fi: "%s | x" }, description: "x" },
 };
 
 deploymentConfig.localeRoutes = buildLocaleRouteConfig({
