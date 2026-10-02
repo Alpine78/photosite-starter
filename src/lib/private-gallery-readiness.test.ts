@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { PRIVATE_GALLERY_STATES, type PrivateGallery } from "@/lib/private-gallery";
-import { evaluatePrivateGalleryReadiness } from "@/lib/private-gallery-readiness";
+import {
+  PRIVATE_GALLERY_STATES,
+  type PrivateGallery,
+  type PrivateGalleryProofPlacement,
+} from "@/lib/private-gallery";
+import {
+  evaluatePrivateGalleryReadiness,
+  planPrivateGalleryFirstProofReady,
+  planPrivateGalleryFirstProofPublication,
+  type PrivateGalleryProofReadinessData,
+} from "@/lib/private-gallery-readiness";
 import type { PrivateGalleryVerifiedObject } from "@/lib/private-gallery-upload-completion";
 
 const ZIP_KEY = "private/g/gallery-1/zip/aaaa";
@@ -35,10 +44,12 @@ const zip: PrivateGalleryVerifiedObject = {
 const evaluate = (
   gallery: Partial<PrivateGallery>,
   verifiedObjects: readonly PrivateGalleryVerifiedObject[],
+  proofData?: PrivateGalleryProofReadinessData,
 ) =>
   evaluatePrivateGalleryReadiness({
     gallery: { ...GALLERY, ...gallery },
     verifiedObjects,
+    ...(proofData === undefined ? {} : { proof: proofData }),
   });
 
 describe("a delivery gallery", () => {
@@ -95,32 +106,176 @@ describe("a delivery gallery", () => {
     });
   });
 
-  it("accepts a watermarked proof as a derivative", () => {
-    expect(evaluate({}, [proof, zip])).toEqual({ ready: true });
+  it("requires a delivery preview even when a proof and ZIP are present", () => {
+    expect(evaluate({}, [proof, zip])).toEqual({
+      ready: false,
+      blockers: ["no-derivatives"],
+    });
   });
 });
 
+const PROOF_GALLERY: PrivateGallery = {
+  ...GALLERY,
+  kind: "proof",
+  activeZipObjectKey: undefined,
+};
+const pricing = {
+  includedCount: 2,
+  extraUnitPriceMinor: 1250,
+  currency: "EUR",
+} as const;
+const proofPlacement: PrivateGalleryProofPlacement = {
+  galleryId: GALLERY.galleryId,
+  placementId: "placement-1",
+  mediaId: "media-1",
+  filename: "IMG_0002.JPG",
+  objectKey: proof.objectKey,
+  derivativeKind: "watermarked-proof",
+  reference: "001",
+  order: 1,
+  nominalBytes: proof.sizeBytes,
+  width: 1200,
+  height: 800,
+};
+const proofData: PrivateGalleryProofReadinessData = {
+  pricingSnapshot: pricing,
+  placements: [proofPlacement],
+};
+
 describe("a proof gallery", () => {
-  it("is refused rather than declared ready", () => {
-    // §8c gives proof readiness three conditions this story owns none of:
-    // watermarked derivatives, a frozen pricing snapshot, and every proof's
-    // permanent 001-based reference. Answering on the one visible condition
-    // would look like a decision.
-    expect(evaluate({ kind: "proof" }, [proof])).toEqual({
+  it("needs a frozen price and permanently referenced, verified proof set", () => {
+    expect(evaluate(PROOF_GALLERY, [proof], proofData)).toEqual({ ready: true });
+    expect(evaluate(PROOF_GALLERY, [proof])).toEqual({
       ready: false,
-      blockers: ["proof-readiness-unimplemented"],
+      blockers: ["proof-data-missing"],
     });
   });
 
-  it("is refused even when it has everything this module can see", () => {
-    expect(evaluate({ kind: "proof" }, [proof, zip]).ready).toBe(false);
+  it("refuses missing, changed and unrepresented proof objects", () => {
+    expect(evaluate(PROOF_GALLERY, [], proofData)).toEqual({
+      ready: false,
+      blockers: ["no-derivatives", "proof-objects-mismatch"],
+    });
+    expect(evaluate(PROOF_GALLERY, [{ ...proof, sizeBytes: 1 }], proofData)).toEqual({
+      ready: false,
+      blockers: ["proof-objects-mismatch"],
+    });
+    expect(evaluate(PROOF_GALLERY, [proof, {
+      objectKey: "private/g/gallery-1/proof/extra",
+      objectKind: "proof",
+      sizeBytes: 1000,
+    }], proofData)).toEqual({
+      ready: false,
+      blockers: ["proof-objects-mismatch"],
+    });
   });
 
-  it("still reports its own missing derivatives alongside the refusal", () => {
-    expect(evaluate({ kind: "proof" }, [])).toEqual({
+  it("refuses a ZIP or delivery preview in the proof set", () => {
+    expect(evaluate(PROOF_GALLERY, [proof, zip], proofData)).toEqual({
       ready: false,
-      blockers: ["no-derivatives", "proof-readiness-unimplemented"],
+      blockers: ["proof-objects-mismatch"],
     });
+    expect(evaluate(PROOF_GALLERY, [preview], proofData)).toEqual({
+      ready: false,
+      blockers: ["no-derivatives", "proof-objects-mismatch"],
+    });
+  });
+
+  it("refuses invalid pricing, misplaced or duplicated references and wrong gallery", () => {
+    expect(evaluate(PROOF_GALLERY, [proof], {
+      ...proofData,
+      pricingSnapshot: { ...pricing, includedCount: -1 },
+    })).toEqual({ ready: false, blockers: ["proof-pricing-invalid"] });
+    for (const changed of [
+      { reference: undefined },
+      { reference: "002" },
+      { galleryId: "other-gallery" },
+      { derivativeKind: "delivery-preview" as const },
+      { width: 4096 },
+    ]) {
+      expect(evaluate(PROOF_GALLERY, [proof], {
+        ...proofData,
+        placements: [
+          { ...proofPlacement, ...changed } as unknown as PrivateGalleryProofPlacement,
+        ],
+      })).toEqual({ ready: false, blockers: ["proof-placements-invalid"] });
+    }
+    const second = {
+      ...proofPlacement,
+      placementId: "placement-2",
+      mediaId: "media-2",
+      objectKey: "private/g/gallery-1/proof/bbbb",
+    };
+    expect(evaluate(PROOF_GALLERY, [proof], {
+      ...proofData,
+      placements: [proofPlacement, second],
+    }).ready).toBe(false);
+  });
+
+  it("plans one atomic first-ready transition only after the entire set is verified", () => {
+    const second: PrivateGalleryProofPlacement = {
+      ...proofPlacement,
+      placementId: "placement-2",
+      mediaId: "media-2",
+      filename: "IMG_0001.JPG",
+      objectKey: "private/g/gallery-1/proof/bbbb",
+      reference: undefined,
+    };
+    const secondObject: PrivateGalleryVerifiedObject = {
+      objectKey: second.objectKey,
+      objectKind: "proof",
+      sizeBytes: second.nominalBytes,
+    };
+    const input = [{ ...proofPlacement, reference: undefined }, second];
+    const incomplete = planPrivateGalleryFirstProofReady({
+      gallery: PROOF_GALLERY,
+      placements: input,
+      pricing,
+      verifiedObjects: [proof],
+    });
+    expect(incomplete).toEqual({
+      ready: false,
+      blockers: ["proof-objects-mismatch"],
+    });
+    expect(input.every((item) => item.reference === undefined)).toBe(true);
+
+    const plan = planPrivateGalleryFirstProofReady({
+      gallery: PROOF_GALLERY,
+      placements: input,
+      pricing,
+      verifiedObjects: [proof, secondObject],
+    });
+    expect(plan.ready).toBe(true);
+    if (!plan.ready) return;
+    expect(plan.nextState).toBe("ready");
+    expect(plan.pricingSnapshot).toEqual(pricing);
+    expect(plan.pricingSnapshot).not.toBe(pricing);
+    expect(plan.placements.map((item) => item.reference)).toEqual(["002", "001"]);
+    expect(plan.lastAssignedOrdinal).toBe(2);
+    expect(input.every((item) => item.reference === undefined)).toBe(true);
+  });
+
+  it("never reassigns an existing or partially assigned reference", () => {
+    for (const state of ["preparing", "ready", "published"] as const) {
+      const plan = planPrivateGalleryFirstProofReady({
+        gallery: { ...PROOF_GALLERY, state },
+        placements: [proofPlacement],
+        pricing,
+        verifiedObjects: [proof],
+      });
+      expect(plan.ready).toBe(false);
+    }
+    expect(planPrivateGalleryFirstProofReady({
+      gallery: { ...PROOF_GALLERY, state: "ready" },
+      placements: [{ ...proofPlacement, reference: undefined }],
+      pricing,
+      verifiedObjects: [proof],
+    })).toEqual({ ready: false, blockers: ["wrong-state"] });
+  });
+
+  it("reports no private object keys or filenames in blocker values", () => {
+    const result = evaluate(PROOF_GALLERY, [], proofData);
+    expect(JSON.stringify(result)).not.toMatch(/IMG_|private\/g\//);
   });
 });
 
@@ -150,11 +305,135 @@ describe("the kind is a stored discriminant, not an inference", () => {
     // from `activeZipObjectKey` would publish the first as though it were the
     // second.
     const awaitingZip = evaluate({ kind: "delivery" }, [preview]);
-    const neverHasOne = evaluate({ kind: "proof" }, [proof]);
+    const neverHasOne = evaluate(PROOF_GALLERY, [proof], proofData);
 
-    expect(awaitingZip).not.toEqual(neverHasOne);
-    if (awaitingZip.ready || neverHasOne.ready) return;
-    expect(awaitingZip.blockers).toContain("no-verified-zip");
-    expect(neverHasOne.blockers).not.toContain("no-verified-zip");
+    expect(awaitingZip).toEqual({
+      ready: false,
+      blockers: ["no-verified-zip"],
+    });
+    expect(neverHasOne).toEqual({ ready: true });
+  });
+});
+
+const PUBLICATION_NOW = new Date("2026-08-31T10:00:00.000Z");
+const READY_PROOF_GALLERY: PrivateGallery = {
+  ...PROOF_GALLERY,
+  state: "ready",
+  createdAt: new Date("2026-08-01T10:00:00.000Z"),
+};
+const preparation = {
+  galleryId: READY_PROOF_GALLERY.galleryId,
+  openedAt: new Date("2026-08-02T10:00:00.000Z"),
+  deadline: new Date("2026-09-01T10:00:00.000Z"),
+};
+
+const publication = (overrides: Partial<Parameters<typeof planPrivateGalleryFirstProofPublication>[0]> = {}) =>
+  planPrivateGalleryFirstProofPublication({
+    gallery: READY_PROOF_GALLERY,
+    proof: proofData,
+    verifiedObjects: [proof],
+    preparation,
+    now: PUBLICATION_NOW,
+    ...overrides,
+  });
+
+describe("first proof publication", () => {
+  it("plans a guarded first publication with an immutable six-calendar-month expiry", () => {
+    const plan = publication();
+    expect(plan).toEqual({
+      publishable: true,
+      galleryId: READY_PROOF_GALLERY.galleryId,
+      expectedState: "ready",
+      expectedCapabilityGeneration: 1,
+      nextState: "published",
+      publishedAt: PUBLICATION_NOW,
+      accessExpiresAt: new Date("2027-02-28T10:00:00.000Z"),
+    });
+    if (!plan.publishable) return;
+    expect(plan.publishedAt).not.toBe(PUBLICATION_NOW);
+    expect(READY_PROOF_GALLERY.state).toBe("ready");
+    expect(READY_PROOF_GALLERY.publishedAt).toBeUndefined();
+    expect(proofData.placements[0].reference).toBe("001");
+    expect(proofData.pricingSnapshot).toEqual(pricing);
+    const openedAtCreation = {
+      ...preparation,
+      openedAt: READY_PROOF_GALLERY.createdAt,
+      deadline: new Date("2026-08-31T10:00:00.000Z"),
+    };
+    expect(publication({
+      now: READY_PROOF_GALLERY.createdAt,
+      preparation: openedAtCreation,
+    }).publishable).toBe(true);
+  });
+
+  it("refuses any state but a never-published ready proof", () => {
+    for (const gallery of [
+      { ...READY_PROOF_GALLERY, state: "preparing" as const },
+      { ...READY_PROOF_GALLERY, kind: "delivery" as const },
+    ]) expect(publication({ gallery })).toEqual({ publishable: false, blockers: ["wrong-state"] });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      publishedAt: new Date("2026-08-20T10:00:00.000Z"),
+    } })).toEqual({ publishable: false, blockers: ["publication-metadata-present"] });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      accessExpiresAt: new Date("2027-02-20T10:00:00.000Z"),
+    } })).toEqual({ publishable: false, blockers: ["publication-metadata-present"] });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      activeZipObjectKey: ZIP_KEY,
+    } })).toEqual({ publishable: false, blockers: ["zip-pointer-present"] });
+  });
+
+  it("rechecks exact verified proof objects, frozen pricing and permanent references", () => {
+    expect(publication({ verifiedObjects: [] })).toEqual({
+      publishable: false, blockers: ["no-derivatives", "proof-objects-mismatch"],
+    });
+    expect(publication({ verifiedObjects: [{ ...proof, sizeBytes: 1 }] })).toEqual({
+      publishable: false, blockers: ["proof-objects-mismatch"],
+    });
+    expect(publication({ proof: { ...proofData,
+      pricingSnapshot: { ...pricing, extraUnitPriceMinor: -1 },
+    } })).toEqual({ publishable: false, blockers: ["proof-pricing-invalid"] });
+    expect(publication({ proof: { ...proofData,
+      placements: [{ ...proofPlacement, reference: "002" }],
+    } })).toEqual({ publishable: false, blockers: ["proof-placements-invalid"] });
+  });
+
+  it("refuses expired, missing, foreign or overlong upload preparations", () => {
+    expect(publication({ preparation: undefined })).toEqual({
+      publishable: false, blockers: ["preparation-unavailable"],
+    });
+    expect(publication({ preparation: { ...preparation, galleryId: "other" } })).toEqual({
+      publishable: false, blockers: ["preparation-unavailable"],
+    });
+    expect(publication({ preparation: { ...preparation,
+      deadline: new Date("2026-09-02T10:00:00.000Z"),
+    } })).toEqual({ publishable: false, blockers: ["preparation-unavailable"] });
+    expect(publication({ now: preparation.deadline })).toEqual({
+      publishable: false, blockers: ["preparation-expired"],
+    });
+  });
+
+  it("validates the server clock and existing capability generation", () => {
+    expect(publication({ now: new Date(NaN) })).toEqual({
+      publishable: false, blockers: ["invalid-time"],
+    });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      createdAt: new Date(NaN),
+    } })).toEqual({
+      publishable: false, blockers: ["invalid-time", "preparation-unavailable"],
+    });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      capabilityGeneration: -1,
+    } })).toEqual({ publishable: false, blockers: ["invalid-generation"] });
+    expect(publication({ gallery: {
+      ...READY_PROOF_GALLERY,
+      createdAt: new Date("2026-09-01T10:00:00.000Z"),
+    } })).toEqual({
+      publishable: false, blockers: ["invalid-time", "preparation-unavailable"],
+    });
   });
 });

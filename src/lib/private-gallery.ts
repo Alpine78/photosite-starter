@@ -8,10 +8,8 @@
  * tested with no store and no live infrastructure: the gallery **state
  * machine** (§5, §7) and the record types the ADR names.
  *
- * Scope is the **delivery gallery** (AB#29). The proof-selection records — the
- * versioned confirmation snapshot, the pricing snapshot, the `001`-based
- * reference — are AB#130's and are deliberately absent here; AB#130 extends
- * this model on the same boundary.
+ * AB#130's proof-specific records extend this server-only boundary in
+ * private-gallery-proof.ts.
  *
  * The module carries the `server-only` marker and sits behind the ESLint import
  * boundary (`eslint.config.mjs`) with `private-gallery-config.ts`: a route or
@@ -301,6 +299,15 @@ export type PrivateGalleryPlacement = {
   readonly alt?: string;
 };
 
+/** Proof-only fields stay out of the generic browser media projection. */
+export type PrivateGalleryProofPlacement = PrivateGalleryPlacement & {
+  readonly derivativeKind: "watermarked-proof";
+  readonly filename: string;
+  readonly mediaId: string;
+  /** Permanent gallery-local reference, assigned at first publication or addition. */
+  readonly reference?: string;
+};
+
 /**
  * An immutable ZIP object for a delivery gallery (ADR-0014 §8c). A regeneration
  * writes a new version under a new key; the server then atomically swaps
@@ -332,8 +339,10 @@ export type PrivateGalleryUploadPreparation = {
   readonly deadline: Date;
 };
 
-/** Kind of a queued outbox message. AB#130 adds `proof-confirmation`. */
-export type PrivateGalleryOutboxKind = "delivery-notification";
+/** Kind of a queued outbox message. */
+export type PrivateGalleryOutboxKind =
+  | "delivery-notification"
+  | "proof-confirmation";
 
 export type PrivateGalleryOutboxState = "pending" | "sent" | "failed";
 

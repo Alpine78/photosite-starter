@@ -219,7 +219,7 @@ function buildMockSiteSettings(): SiteSettings {
 }
 
 /**
- * Settings are not yet locale-aware (AGENTS.md's "not yet built" note): every
+ * Settings are not yet locale-aware (`docs/feature-status.md`): every
  * source reads this deployment's own default locale regardless of which
  * route space asked, matching `buildMockSiteSettings`'s existing behavior.
  *

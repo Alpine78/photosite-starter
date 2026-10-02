@@ -447,7 +447,7 @@ export function resolveLegacyGoneRoute(
  * whose home page lives there, or that locale's own story root otherwise.
  *
  * A non-default locale has no home page of its own yet (localized static
- * routes remain later work — see `AGENTS.md`), so linking to its bare prefix
+ * routes remain later work — see `docs/feature-status.md`), so linking to its bare prefix
  * (`/en`) would land on another 404, worse than the language mismatch this
  * replaces. Its story root, by contrast, is the one same-language page
  * ADR-0003 already guarantees a route for whenever that locale publishes

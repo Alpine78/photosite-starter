@@ -1,0 +1,2638 @@
+# Feature implementation status
+
+This is a running implementation history and a starting point for finding relevant
+code and decisions. Read the part relevant to the task; the current code and the
+Azure Boards work item are authoritative for scope, acceptance criteria and state.
+The always-applicable agent rules remain in [`AGENTS.md`](../AGENTS.md).
+
+Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
+configuration, responsive header and footer, home page, services listing and detail
+pages, a semantic design-token layer (AB#36) — the brand-sensitive colours, text
+roles, borders, accent, focus indicator, type families, and corner scale defined once
+in `src/app/globals.css`, consumed by shared components through static Tailwind
+utilities, with explicit light/dark (`prefers-color-scheme` plus a `data-theme` pin,
+`color-scheme` set), a documented override contract (`docs/theme-contract.md`), and AA
+text/focus contrast enforced by `src/lib/theme-contract.test.ts` and `e2e/theme.spec.ts`.
+That contract has since been **proved against a second preset** (AB#37): `editorial` is an
+internal validation asset — deliberately unlike the default in ground, ink, accent, type
+family and corner scale, selected by nothing the product ships — that exists so a claim
+which was never true would fail rather than sit unread. Two did. The documented selector
+`:root[data-theme="<name>"]` could not work, because `data-theme` already carries the
+light/dark pin and one attribute cannot hold both an identity and a mode; presets are now
+selected by **`data-preset`**, which is what lets one carry a dark palette at all. And the
+derived text roles (`--body`/`--muted`/`--subtle`, fixed 80/70/60 % mixes of
+`--foreground`) are not re-weightable by a preset, so its **weakest** role — not its body
+text — is what a palette must be chosen against: the first warm-paper attempt cleared AA
+for body and muted and missed it for `--subtle` at 4.41:1, and the ink had to darken. That
+constraint is recorded rather than turned into an extension point, since making the
+percentages overridable would let a preset weaken contrast as easily as strengthen it. Both
+presets are now held to AA by the same parsing test, and the browser suite verifies every
+claimed override point — including the radius scale, which lives in Tailwind's `@theme`
+rather than on `:root` and was the one claim that could plausibly have been wrong; the shared generic media model, the public
+image rendition boundary, the shared bounded gallery
+result contract, the fullscreen lightbox behind a project-owned PhotoSwipe wrapper
+(open, close, navigate, trapped focus, focus return keyed by `itemId`, and the caption
+and credit of the active item, associated with it for assistive technology),
+its zoom and pan behaviour (AB#78): the one-click/tap/`z`-key magnification and the
+gesture pan are the library's own, bounded by ADR-0005's zoom cap, and the wrapper adds
+only the two things the library omits — `aria-pressed` on the library's zoom button,
+synced from a cached `zoomPanUpdate` handler through the browser-free `isLightboxZoomed`
+predicate (`src/lib/lightbox-zoom-state.ts`), and the caption stepping out of the way
+while zoomed (AB#16's dormant `data-visually-hidden` hook, now also dropping the region's
+`pointer-events` and `tabindex` so it neither eats a pan gesture nor holds a keyboard
+stop) while its text and the image's `aria-describedby` link stay intact; zoom, pan, and
+caption state reset with the slide and on close because the library resets the
+magnification and rebuilds the dialog. `e2e/gallery-lightbox-zoom.spec.ts` covers mouse,
+synthesized tap/double-tap, keyboard, and pointer-drag paths — including a drag that
+starts over the hidden caption, proving the region's dropped `pointer-events` lets the
+gesture through — and the vertical pan-bound clamp (the axis that does not double as
+slide navigation); the one physical-device pinch/pan check (AC6) is documented as
+outstanding in ADR-0001. AB#78 itself is closed; that one manual check is tracked
+separately by the open **AB#141**, whose acceptance criteria require a real touch device
+and the result recorded back into ADR-0001. Zoom _animation and level
+tuning_ stay a later slice.
+There is also
+a bounded adjacent-image preload window (`LIGHTBOX_PRELOAD_WINDOW`, `image-delivery.ts`,
+ADR-0010) that replaces the library's own unstated default with one slide back and two
+forward, structurally unable to cross a gallery's page cursor because it only ever
+addresses slides already in the viewer's loaded array, with its own failure/retry
+behaviour and bounded network/memory footprint measured against a real browser and
+recorded in the ADR,
+the public content category domain model with its canonical placement
+contract, settings-driven page metadata with canonical URLs and Open Graph values, and
+the locale route contract — configured locale route spaces, root prefix reservation,
+locale-space namespace reservation, redundant default-prefix normalization,
+route-specific document and Open Graph locale selection, and tested helpers for
+identity-based language switching and alternate metadata. The public category branch
+routes are in place on top of that: the story-namespace root and every public category
+path in each configured locale space, with breadcrumbs following canonical ancestry, a
+deterministically ordered listing of child categories and content (secondary listings
+included, each linking to the one canonical detail route) read through a bounded query
+that pushes the order and row limit to the adapter. That branch listing aggregates every
+canonically and secondarily placed page in the category's whole descendant subtree, not
+only its direct placements (ADR-0003, 2026-08-27 amendment, AB#140): a parent surfaces a
+deep branch's galleries with no per-item secondary placement, aggregation flows downward
+only, and the query is scoped by the in-scope subtree category ids so a store-backed
+adapter pages it with a category-scoped `references()` query rather than an unbounded
+per-content-id list — the story root keeps its own explicit routed-content id list. There
+is also a bounded recent-content overview on
+the story root, uncropped cover media with a defined
+missing-cover state, single-hop permanent redirects for casing variants and for the
+recorded previous paths a move or rename retired, `hreflang`/`x-default` alternates, and
+a visible identity-based language switch. Page metadata omits the site description in
+any locale it was not authored in rather than publishing it under a translated title.
+Application-owned UI labels are per-locale (English and Finnish sets ship).
+The site menu is driven by that tree: `buildSiteNavigation` composes the configured
+static links with the public categories, dropping any configured link into the story
+namespace so no two entries own one route space, and it carries the first two category
+levels — deeper branches are reached from the landing page above them. Both layouts
+render it as a disclosure, not a menu widget: every entry is a link, one submenu is open
+at a time, a pointer or focus landing outside closes it, and the compact panel keeps its
+own scroll boundary rather than covering or locking the page. Escape is heard on the
+document, not on the menu, because WebKit leaves focus on `document.body` after a pointer
+activates a button; the submenu takes it in the capture phase and the compact panel in
+the bubble phase, so the menu unwinds one level per key and returns focus to the control
+that owned each.
+Articles have moved into that tree: the shared project-owned content-page boundary
+(`src/lib/content-page.ts`) carries the variant, the six ADR-0003 body blocks, the cover,
+the publication date, and tags, and the `article` variant renders at its one canonical
+detail route in every configured locale space, with breadcrumbs following canonical
+ancestry, the ADR-required table of contents derived from the body's level-2 headings,
+sibling navigation read through a bounded two-row neighbour query over the global article
+publication order, self-referencing canonical metadata, `hreflang`/`x-default` alternates, an
+Open Graph article, and the identity-based language switch.
+Curated galleries render there too: the `gallery` variant has its canonical detail route
+in every locale space, reading its result through `src/lib/gallery.ts` — route components
+import that contract and no mock or provider type. A gallery larger than one page now continues rather than being refused: it issues an
+opaque cursor signed with the deployment's own `GALLERY_CURSOR_SIGNING_KEY` — a
+server-only runtime secret resolved lazily, so a deployment whose galleries all fit inside
+one page never reads it — and serves the next bounded slice at its own indexable,
+self-canonical `?cursor=` URL, which names no `hreflang` alternates because no other
+locale holds an equivalent slice. The control that reaches it is a real link, so a large
+gallery pages through with no JavaScript at all (ADR-0003 decision 8), and script
+progressively enhances that same link into an in-place append: the next slice arrives in
+the page a visitor is already on, read from a bounded `GET /api/gallery` route handler
+addressed by canonical path and opaque token. One projection (`gallery-slice-server.ts`)
+serves both the server render and that endpoint, so an appended item carries the same
+identities, captions, and delivery sources as one that was there from the start, and
+`appendGallerySlice` de-duplicates by result identity without reordering what is already
+loaded. Nothing loads on its own — no scroll observer, no prefetch — so a four-hundred-item
+gallery is never implicitly retrieved whole. The control announces loading, failure, and
+completion, keeps focus on itself across an append, and retries in place; the open lightbox
+asks for one more slice when a visitor reaches the last loaded item, and a failed
+continuation neither closes it nor loses the photograph on screen. The address bar is
+deliberately left alone, because every slice already has its own honest address through the
+unenhanced link. The continuation
+page is deliberately thinner than the first, per decision 3: a compact `h1` naming the
+gallery and the continuation, the identity-based language switch (which deliberately
+drops the cursor and opens the other locale's first page), then the grid — no lead, date,
+or tags, so editorial content is not republished under several URLs. It also carries the
+way back a cursor cannot, because tokens point forward only and the URL is indexable. A token that is
+malformed, tampered with, scoped to another gallery, or stale is a 404 rather than a quiet
+return to the first page, and so is a repeated `?cursor=` — and a token arriving at a
+non-canonical spelling (casing, redundant prefix, retired path, or trailing slash) is
+validated before normalization: a good token redirects once to the canonical address and
+keeps its exact value, while an invalid one 404s without creating a redirect. The cursor is scoped to
+the gallery _and the full route locale_, so a slice cannot cross between `en-GB` and
+`en-US`. The key enters at the
+`gallery.ts` seam rather than in the fixture, ESLint keeps `src/app` and `src/components`
+away from it, and rotating it retires every continuation URL already issued and indexed.
+The 404 for an invalid cursor carries the link back to that gallery decision 8 requires,
+following at most one canonical normalization and verifying that both the content page and
+the parameter-free gallery result are served, so an unknown or broken address gets no
+invented one. It reaches the boundary through `src/proxy.ts` (ADR-0007), which copies the
+bounded requested pathname and cursor presence — never its value — into project-owned
+request headers and overwrites any client-supplied values. The Proxy also owns
+trailing-slash normalization so the adapter can validate a cursor before a 308. App Router
+renders a not-found boundary with no params, and renders it before the page, so nothing
+in-tree can tell it. One site-wide limitation bounds that link and predates this work: a
+404 response carries its semantic UI only in the RSC payload, so no heading or link renders
+without JavaScript.
+ADR-0007 records the experiments already performed without claiming a framework root cause.
+First seen on Next.js 16.2.11, and **still reproducing on 16.3.2**: a plain `curl` of an
+unknown path against a production build returns `<html id="__next_error__">` with no `<h1>`
+in the initial HTML (measured 2026-09-03). **AB#132 owns this**, and was reopened to
+`Active` on 2026-09-03 because it had been closed while none of its own "Done when"
+conditions held: the semantic 404 HTML above, the removal of the `javaScriptEnabled: true`
+exception the 404 cases in `e2e/gallery-continuation.spec.ts` and
+`e2e/category-continuation.spec.ts` still carry, and an updated or retired Known limitation
+in ADR-0007.
+One authoritative order governs the source, the DOM, keyboard focus, and the
+lightbox sequence, and the grid is row-major (one, two, three columns, top-aligned, native
+ratios, never cropped) precisely so the visual reading order cannot contradict it; the
+column-major CSS masonry it replaced did. That order is manual (the administrator's
+authored `order`) unless a gallery opts into the **seeded-random rule** (AB#129,
+ADR-0009): a deterministic shuffle whose per-placement sort key
+(`computeShuffledOrder` in `src/lib/gallery-shuffle.ts` — HMAC-SHA256 of `placementId`
+keyed by `orderingSeed`, fixed-width hex) is _materialized_ once by whoever produces the
+rows, never recomputed on the read path, with pinned lead placements kept in their exact
+manual positions ahead of the shuffled rest (ADR-0009 §3). `gallery-pagination.ts`'s
+boundary key is the tiered `(pinnedTier, key, placementId)` triple
+(`GalleryOrderingBoundary`), with the tier recoverable from `key`'s type so
+`keyset-cursor.ts`'s wire format is unchanged and a pre-AB#129 `manual` cursor still
+decodes. `GalleryOrdering` (`{kind:"manual"}` | `{kind:"seeded-random", seed}`) is the
+one structured value a caller supplies; `orderingScopeString` derives the
+`GalleryCursorScope.ordering` value centrally (`seeded-random-v1:<seed>`), so the seed is
+part of the cursor digest and a reseed retires an in-flight cursor as `wrong-scope`, not
+`stale`. Both sources serve it: the mock fixture's `content-shuffled-showcase` (34
+placements, 3 pinned), and (AB#129 PR2) a `SITE_CONTENT_SOURCE=sanity` deployment —
+`galleryPlacement` stores `shuffledOrder` (raw 64-hex) + a `shuffledOrderSeed` marker,
+`sanity-gallery.ts` serves the tiered order as two keyset lanes (pinned by `order`, then
+by `shuffledOrder`) in one round trip, and the Studio publish block on `seeded-random` is
+lifted. Rotation is two steps (ADR-0009 2026-08-28 amendment): edit `orderingSeed` in
+Studio, then `npm run recompute:shuffled-order -- --gallery <id> --language <lang>`
+(owner-run, `ifRevisionID`-guarded, refuses to run while an unpublished draft of the
+gallery or a placement exists, re-checks the gallery rev/rule/seed before and after the
+patches, ends with an authoritative consistency query that runs even for an empty plan).
+Between the two the `basics` query's bounded `staleShuffledOrderCount` aggregate makes the
+adapter raise `ordering-stale` (re-raised at the `@/lib/gallery` seam as
+`GalleryOrderingStaleError`) — _after_ the cursor/section validation, so a bad token still
+404s mid-rotation. The detail route renders an accessible "being reordered" notice
+(**HTTP 200 + `noindex`** — an App Router page render cannot set 503; a named limitation
+that no open work item tracks, and a different one from AB#132's 404 initial-HTML gap),
+and the `/api/gallery` continuation endpoint (a Route
+Handler, which can) returns a real **503 + `Retry-After`**. Recovery is automatic once the
+recompute's placement patches invalidate the `sanity:galleries` cache tag; the command's
+final check gates only its own exit code.
+A gallery's listing card takes its explicit
+cover or the deterministic first public item in the active order
+(`selectCuratedGalleryCover`), a published
+gallery with no items renders an accessible empty state (the mock publishes one, so it is
+a state the site serves rather than one only a test has seen). Category listings still answer `?cursor=` with a 404, because none issues one.
+`?section=` is a recognized gallery parameter (AB#115, below). The continuation link is progressively enhanced in the browser to
+append one bounded slice in place, with loading, failure, retry, and completion states;
+the open lightbox grows from the same result and offers its own reachable retry without
+closing or losing the current item. Focus stays on the continuation control while it
+exists and moves to the completion notice when the final slice removes it. No slice is
+loaded until the visitor activates the control or reaches the last loaded lightbox item.
+A ~400-placement fixture gallery exercises the boundary.
+Gallery sections (AB#105) sit on top of that same boundary: a gallery-local named subset
+of a curated gallery's placements (ADR-0003 decision 8), with a stable id, a
+gallery-unique lowercase-hyphenated slug, a label, an explicit manual order, and an
+optional short intro restricted to paragraphs, ordered or unordered lists, and inline
+links or emphasis — a dedicated inline-span model (`src/lib/gallery-sections.ts`), since
+the shared `ContentBlock` union's `paragraph`/`list` kinds carry only plain-string text
+with no inline structure to reuse. Membership is placement-owned, never media-owned:
+`sectionId` lives on the placement, so assigning or moving an item never touches the
+underlying photograph or its use elsewhere. `readCuratedGallerySectionPage` composes the
+request: a raw `?section=` slug resolves to `{kind: "all"}` or a matched section (absent,
+empty, and the reserved `all` token all mean unfiltered; an unmatched slug throws
+`UnknownGallerySectionError`, which is also the whole of "rename, delete, and stale URL"
+behaviour, since a retired or renamed-away slug simply matches nothing and no redirect
+history is kept for sections, unlike category or content renames); the resolved filter —
+never a raw slug — reaches a `CuratedGallerySectionSource` before any placement row is
+read, and folds into `GalleryCursorScope.normalizedFilter` so the existing HMAC
+scope-matching a cursor already goes through is what makes selecting a different section
+invalidate a stale one, with no new cursor logic. A named section's own label and intro
+appear only on that section's first, uncursored slice; the full section catalog is
+exposed on every page for a future control; `All` never concatenates a section's intro,
+and a continuation never repeats one. A valid section with no placements answers a
+successful empty page rather than a 404; an unknown section, like an unrecognized cursor,
+is the same 404-class failure. The mock fixture extends the large archive with two
+150-placement sections spanning more than one 24-item page each, plus a third declared
+section with none, so both cross-page section continuation and the empty-section state are
+exercised, not just asserted. Controls, browser history, and the grid/lightbox wiring that
+consumes this query were deliberately out of AB#105's scope, as was the catch-all page
+ever reading `?section=` from a real request; **AB#115 has since delivered all of it**
+(`src/components/gallery-section-controls.tsx`, the catch-all page's own `sectionSlug`
+resolution, and `e2e/gallery-sections.spec.ts`), inheriting AB#105's unknown- and
+empty-section behaviour by construction rather than redefining it. AB#105's own
+review surfaced a real gap it did not close on its own: `source` received neither the
+requested cursor nor the page size, so nothing let a store-backed adapter answer a large
+section with a bounded keyset query instead of fetching the whole section on every
+continuation — the same limitation the pre-existing unfiltered `All` view already had,
+inherited from `buildCuratedGalleryPage` (AB#67/AB#104). AB#134 closes it: `buildCuratedGalleryPage`
+now takes a caller-supplied `GalleryWindowResult` (the current boundary item, found by
+identity, plus up to `pageSize + 1` items strictly after it) instead of the full ordered
+set it used to derive both the slice and `hasNextPage` from, and `CuratedGallerySectionSource`
+is now asynchronous and receives that bounded `GalleryWindowRequest` — `candidateLimit` plus
+an optional `after` boundary key — rather than "every placement matching this filter."
+`resolveGalleryWindowRequest` decodes a cursor into that boundary key before a source is ever
+called, so cursor decoding moved from inside `buildCuratedGalleryPage` to just ahead of the
+source call it now has to inform; `selectGalleryWindow` is the shared in-memory reference
+implementation `mock-gallery.ts`'s fixture source composes, and the one a store-backed
+adapter (AB#114) replaces with two real queries — an id lookup for the boundary and a keyset
+range query for the rest — whose ordering must agree exactly with the file's own JS
+string-comparison tie-break, not a database's default collation. The redesign also narrowed
+cursor staleness from "any change anywhere in the gallery that shifts an array offset" to
+"the boundary item itself was reordered, hidden, or removed" — the accepted, standard
+behaviour of keyset over offset pagination, deliberately chosen over preserving the old,
+broader trigger. What AB#105 already made bounded and tested before AB#134, and remains true
+now, is the axis it always owned: a section-scoped read is never required to load a
+_different_ section's placements, or the rest of an unsectioned gallery, to answer correctly.
+A gallery's optional lead and long-form body (AB#106) are ordinary `ContentPage` fields,
+not a gallery-specific type: the short lead already rendered from AB#104's own
+`page.summary`, and the long body reuses the exact `ContentBlock` set and `ContentBody`
+renderer an article's body already reads through, so a gallery gains no article-specific
+model of its own. `ContentPageJumpNav`, extracted from the article variant's own
+heading-only navigation, gives the gallery variant its content-derived page-jump
+navigation (ADR-0003 decision 3): present only when a long body exists, always offering a
+link to the grid (`#gallery`, an in-page anchor rather than a route) ahead of any level-2
+headings the body carries, and reusing the same `listContentHeadings`/`buildHeadingIds` an
+article's own table of contents is built from, so a heading's anchor and the link that
+names it cannot drift between the two variants. Both the navigation and the body are
+omitted on a continuation slice, along with the rest of the page's editorial framing
+(decision 3), and a gallery with no body renders neither wrapper. Body media renders
+through the same `MediaFigure`/`ContentBody` boundary as an article's, so it carries the
+same public-rendition, native-dimension, no-crop, lazy-loading guarantees and stays
+separate from the gallery's own curated result set, grid, lightbox, sections, and
+pagination (decision 2) — a body photograph is a content placement, never a gallery item.
+An **image** body placement now opens the fullscreen lightbox (AB#147, ADR-0003
+2026-09-04 amendment): the same ADR-0001 PhotoSwipe wrapper, reused with no new
+dependency, mounted as a second, entirely separate `GalleryLightbox` instance whose
+sequence is the body's own image blocks in authored source order and nothing else — so
+on a gallery variant page the body viewer and the curated grid viewer share no slide
+list, and a video body block still renders nothing rather than a broken slide. Slide
+identity is per occurrence (`src/lib/content-body-media.ts`: a CMS block's stable key, or
+its image ordinal), so a photograph placed twice returns focus to the figure that opened
+it. The body viewer carries no `enquiryBasePath` — a body photograph is not a curated
+placement, so it shows no enquiry control — and the in-flow figure is enhanced into a
+trigger only after hydration (`ContentBodyFigure`), so a scriptless visitor keeps the
+plain image. The article **cover** has since become a full-bleed overlaid hero rather than
+a static image — AB#149, described below, alongside AB#148's own home hero.
+Before/after image comparisons (AB#23, ADR-0019) are the tenth shared body-block
+kind, available in both article and gallery bodies: two public images and authored
+side labels, native range interaction after hydration and successful image loads,
+a complete-image toggle, and stacked full-frame fallback for incompatible ratios,
+image failures, and visitors without JavaScript. They join no viewer sequence.
+Sanity schema/projection and approval-bound Joomla comparison-module conversion
+ship together; conversion policy v3 retires earlier conversion approvals.
+Inline mini-galleries (AB#24) are the seventh shared body-block kind: 1–12 public images,
+an optional title, a one/two-column uncropped row-major list, and a separate lightbox
+sequence per block. They enter neither the curated result nor the body's loose-image
+sequence. Localized ordinal fallback names and collision disambiguation keep lists
+identifiable, while per-occurrence slide keys restore focus to the image displayed at
+close. Studio and the public reader enforce the bound; the reader projects only public
+media and rejects invalid entries. No pagination, enquiry control, or video delivery is
+added. `e2e/content-mini-gallery.spec.ts` covers nested-provider integration and the
+public journey. The ADR-0003 amendment records the boundary.
+A data table (AB#22) is the eighth: 1–8 non-empty column headers, 1–20 rows carrying
+exactly one cell each per header, and an optional caption, all plain text. An empty
+*cell* is authored content; a short *row* is a defect, because it would shift every
+later cell under the wrong header. It renders as a real `<table>` (`<caption>`,
+`<th scope="col">`, `<td>`) inside its own horizontally scrollable region, so a wide
+table never makes the page scroll sideways. That region is unconditionally focusable and
+named by the caption — or by a localized built-in label without one — so the keyboard
+path needs no JavaScript, which `e2e/content-table.spec.ts` proves with scripting
+disabled in both engines. Rectangularity is enforced on the Studio object itself, since a
+field-level rule cannot see a sibling field, and again independently at the read
+boundary; the query reads one row and column past the bound so overflow arrives as
+overflow rather than silently truncated. Render-only: no sorting, filtering, or column
+resizing. The ADR-0003 2026-09-13 amendment records the boundary.
+A three-level nested table of contents (AB#21) shipped in PR #156.
+The home hero's overlaid site name, tagline, and call to action are now fold-safe
+(AB#148, [ADR-0016](adr/0016-hero-fold-safe-overlay.md)): the photograph itself
+still renders full native size, uncapped and never cropped, exactly as the hero
+convention already required, but the overlay is no longer anchored to the image's own
+bottom edge — a mechanism that pushed it further off-screen as the window widened,
+independent of the window's height, since a wider full-native-width image is also a
+*taller* one. The overlay band is instead anchored to the top of the hero and clamped to
+`min(the image's own rendered height, 100dvh - HERO_CHROME_RESERVE_PX)`, a pure CSS
+`min()` expression computed server-side from the media's real intrinsic dimensions, with
+no client-side measurement and no JavaScript dependency for the guarantee to hold; the
+text stack stays bottom-aligned within that band via flex, and the reserve constant
+(`image-delivery.ts`, 96px) is a deliberately generous upper bound on the header's real
+rendered height (~61px today) rather than a pin on it, chosen over both a client-measured
+header height (would make fold-safety JavaScript-dependent) and giving the shared header
+component a fixed height (a larger change than a hero-only story asked for). A wireframe
+pass that instead capped the *image's* own height (72dvh, contained) was drawn and
+rejected first: it kept the overlay on screen too, but left visible page-surface margins
+beside the photograph on desktop, which the site owner explicitly rejected in favour of
+true full-bleed — so the photograph is genuinely edge to edge at every desktop target
+size, and instead runs some way past the fold (200–305px, measured, at the four AC1
+desktop sizes with the current demo asset), reached by scrolling rather than visible on
+load. `e2e/home-hero-fold-safety.spec.ts` proves this against a real production build at
+every AC1 target viewport plus a common mobile size, asserting laid-out bounding boxes
+rather than DOM presence — the regression it exists to catch is "in the DOM but not on
+screen" — and separately proves the band is sized with `dvh`, never a bare `vh`. What it
+cannot prove, because a headless browser has no collapsing toolbar to begin with, is the
+live transition as a real mobile browser's chrome collapses on scroll; that gap is
+recorded in the ADR rather than assumed closed, the same shape as ADR-0001's own
+outstanding pinch/pan check. This is one shared mechanism, not a hero-specific one:
+AB#149 (the content-page hero for the article and gallery variants, below) reuses it
+unchanged rather than inventing a second solution, per that story's own acceptance
+criteria.
+An article's or curated gallery's own cover, when explicitly authored, now renders as
+that same full-bleed hero (AB#149, ADR-0003's 2026-09-04 amendment): the photograph and
+title (plus, for a gallery, the lead description, per its AC2) are extracted into one
+shared component (`src/components/hero-overlay.tsx`) three call sites now use — the
+home hero, and, via this story, both content-page variants — so a future change to the
+mechanism has one place to make it rather than three. `page.cover` is now explicit-only
+for **both** variants: the deterministic first-item fallback (`selectCuratedGalleryCover`)
+stays exactly where it always was, the listing card's own read path (AB#114), and never
+reaches the page a detail route renders. A gallery with no authored cover therefore
+renders no hero at all — the default — rather than a fallback-derived one duplicating
+the grid's own opening item, which was the whole reason `ContentGallery` had previously
+never rendered a cover at the head of the page. Closing that gap surfaced a real, if
+dormant, gap of its own: the mock fixture layer's detail-page composition
+(`mock-content-pages.ts#compose`) was, until this story, building `ContentPage.cover`
+from the *same* post-fallback record the listing card reads (`mockContentListingRecords`)
+— harmless only because nothing had ever read a gallery's `page.cover` before, so the
+first component to read it would have opened with the grid's own first item by default.
+`compose` now reads a second, pre-fallback map (`mockAuthoredContentRecords`) for
+`cover` specifically, mirroring the Sanity adapter's own explicit-only projection
+(`sanity-gallery.ts#projectGalleryContentPage`), which never had this gap. An author who
+explicitly picks a cover that also happens to be the gallery's first grid item has made
+that adjacency their own visible choice, not a default nobody chose: it is allowed, not
+refused, surfaced by a non-blocking Studio warning on the `cover` field
+(`gallery.ts#warnsAboutDuplicatingGridOpening`) — the same allowed-but-flagged shape
+ADR-0002 §2 already gives a photograph repeated within one gallery. AB#156 corrects both
+checks to register through `custom(check).warning()`; the placement's required media
+reference remains a separate blocking rule. Shared test builders preserve Sanity's
+immutable rule chains and severity semantics. That warning is a
+deliberately approximate, advisory check (documented in its own doc comment): it orders
+by a placement's `order` field and `visible` flag only, matching a `manual` gallery's
+public read, and does not replicate a `seeded-random` gallery's pinned-then-shuffled
+tiered order or dereference into a placement's media for `publiclyRenderable`/
+`privateOnly` — one Content Lake round trip for a non-blocking hint, not the whole public
+ordering pipeline restated in a Studio validator. The hero belongs to the first,
+uncursored slice only (ADR-0003 decision 3's already-thinner continuation shape): a
+continuation never shows one, whatever the gallery's cover, and the curated result set,
+grid, lightbox sequence, section filter, cursor scope, and `hasNextPage` are all
+untouched — the hero is presentation over an existing field, not a change to the bounded
+query contract. `HeroOverlay` also closed a real regression its own extraction would
+otherwise have caused: the pre-existing cover figure (`MediaFigure`, shared with body
+media) carried an image's caption/credit as an in-flow `<figcaption>`, and a full-bleed
+hero has no in-flow position directly under the image the way a body figure does — the
+component instead renders as a `<figure>` with a small corner-label `<figcaption>`
+overlaid on the photograph itself, so a credited photograph's attribution survives the
+move to a hero exactly as `MediaFigure`'s own doc comment requires ("a surface that
+quietly drops it is publishing uncredited work"). `e2e/content-hero.spec.ts` proves the
+mechanism against a real production build: the title (article) or title-plus-description
+(gallery) inside the fold and the photograph edge to edge at every AC1 target viewport;
+a page with no authored cover rendering the unchanged constrained title block, with no
+hero `<figure>` at all; a multi-page gallery's continuation carrying no hero even though
+its first page does; and the band's own `dvh`, never a bare `vh`. Building it surfaced
+one more finding worth recording: the large 400-placement archive fixture
+(`content-large-archive`) that AB#79's own bounded-preload measurement already depends on
+turned out to be the wrong gallery to also give an authored cover — a full-bleed hero
+image measurably perturbed that unrelated test's network-request count on
+`desktop-chromium` specifically. The cover proving AB#149's own multi-page/continuation
+case lives on `content-shuffled-showcase` instead (34 placements, already long enough to
+continue), leaving the archive fixture exactly as AB#79 needs it.
+The shared hero now also handles long mobile editorial text (AB#155,
+ADR-0016's 2026-09-07 amendment): a grid overlays the image and an automatically
+sized text band whose minimum retains the viewport formula. A taller text stack
+extends the figure downward, keeping following content below it. A uniform
+contrast surface covers every text line, including date and byline, instead of
+relying on a gradient's darkest stop. Image dimensions and native ratio are unchanged;
+very long copy can require scrolling. `e2e/hero-text-overflow.spec.ts` exercises
+long title/lead/metadata over pale 16:9 and wider frames in both browser engines
+with JavaScript disabled, checking text geometry against the contrast surface.
+AB#171 (ADR-0016's 2026-09-26 amendment) lightened that surface from 80% to 60%
+black and feathered its top and bottom edges into transparent fades, because the
+hard-edged panel read as a bar under the photograph rather than text over it;
+metadata moved to 90% white so every line, the CTA included, still clears AA over
+a pure-white frame, and the same spec samples real pixels to prove both fades.
+An authored `eventDate` now replaces `publishedAt` as the public ordering key everywhere
+the site orders content chronologically (AB#150, [ADR-0017](adr/0017-authored-event-date-ordering-key.md)):
+category branch listing order, the story root's recent overview,
+article sibling navigation, and the ADR-0013 continuation cursor's keyset sort field all
+read the **effective event date** — `eventDate ?? publishedAt`, resolved once through
+`content-page.ts#effectiveEventDate` and carried on `ContentListingRecord.eventDate` (which
+replaces that record's own `publishedAt` field, since nothing downstream needs the raw
+value any more) — never the raw `publishedAt`, which stays on the model as unchanged
+technical "went live" bookkeeping and Open Graph's `article:published_time`, but drives no
+visible order or display. `CONTENT_LISTING_ORDERING` is now `event-date-desc-v1`; since
+that value is already bound into the ADR-0013 cursor's signed scope via
+`KeysetCursorScope.ordering`, a continuation cursor issued before this shipped decodes as
+`wrong-scope` rather than a silently valid position under the new order — the identical
+mechanism ADR-0009 §4 uses for a gallery reseed, with no new scope field. An optional
+`endDate` auto-hides a page once the current time reaches it, with the identical posture an
+unpublished page already has (absent from every listing and the sitemap, 404 at its own
+route): the gate is a read-time `now() >= endDate` check folded into a placement's
+*effective* `published` boolean at the adapter boundary — for the mock,
+`content.ts#applyMockEndDateGate` transforms the tree input before `buildContentTree` ever
+sees it, and `getContentPage`'s mock branch repeats the check as its own belt-and-suspenders
+gate — so routing, listing membership, sibling-nav candidacy, and `listPublicRoutePaths` all
+exclude an ended page with no `endDate`-aware code anywhere downstream. `endDate` is
+deliberately not a content-tree input field, to avoid the tree needing two independent
+"is this public" signals. The mock fixture layer
+carries both proving cases the story requires: `content-reading-coastal-light` (article) and
+`content-polar-night-sessions` (gallery) each author an `eventDate` that reorders them
+relative to their own `publishedAt`, and `content-ended-article`/`content-ended-gallery`
+each carry a permanently-past `endDate`, so the auto-hidden state is one the site actually
+serves. `HeroOverlay` gains an optional `meta` date slot — the in-flow `<time>` the article
+and gallery headers used to render moves onto the hero band, above the title, reading the
+effective date (AB#151's author byline is expected to share this same line rather than add
+a second one); a page with no cover keeps the date in its constrained in-flow header exactly
+as before. `e2e/content-event-date.spec.ts` proves an out-of-publish-order page's real
+listing position, a pre-migration-ordering cursor's 404, and an ended page's 404 route,
+absent listing, and absent sitemap entry, against a real production build.
+The `article` and `gallery` Sanity schemas carry the same two optional `datetime` fields,
+with Studio help text stating the default-to-`publishedAt` and auto-hide behaviour in plain
+language, and `sanity-article.ts`/`sanity-gallery.ts` are fully wired onto the same
+contract: both listing readers project `eventDate` and resolve it through
+`effectiveEventDate`, `ARTICLE_LISTING_ORDER`/`GALLERY_LISTING_ORDER` and both keyset
+filters compare `coalesce(eventDate, publishedAt)`, and `projectArticlePlacementInput`/
+`projectGalleryPlacementInput` fold the `endDate` gate into a placement's effective
+`published` exactly like the mock's `applyMockEndDateGate`. A shared `NOT_ENDED_FILTER`
+GROQ fragment additionally excludes an ended document from every listing, detail, and
+article-adjacent read — required, not merely defensive, for the category-subtree listing
+query specifically, since that query is scoped by category reference rather than an
+already-gated contentId list and would otherwise still surface an ended document through
+its own category reference. For a Sanity deployment, an ended page can go on serving a
+cache `HIT` for up to `SANITY_PUBLIC_CACHE_TTL_SECONDS` after its `endDate` passes
+(ADR-0017 decision 6's accepted, documented bound — `docs/cache-revalidation.md`) rather
+than adding a scheduled revalidation trigger, since `endDate` is an editorial control, not
+a legal or security embargo. Every new code path is covered against a fake transport
+(the placement gate's four states, the listing record's eventDate-overrides-publishedAt
+case, the `NOT_ENDED_FILTER` on every affected query, and the adjacent-query's
+`coalesce()` ordering) — what remains unverified, by design and matching this codebase's
+existing posture for a new adapter path, is a live Content Lake dataset, the way
+`verify:sanity-live` separately proves other adapters against one.
+AB#154 keeps the expiry clock inside GROQ (`dateTime(now())`) instead of a per-request
+`$now` URL parameter, so equivalent reads reuse Next's tagged cache entry. The transport
+regression exercises the installed Next cache-key implementation for listing, detail,
+and sibling reads; the one-hour TTL and invalidation map are unchanged.
+A per-article author byline is in place (AB#151): `author?: string` on `ArticleContentPage`
+only — a curated gallery is credited to the site's photographer by construction, so
+`GalleryContentPage` carries no equivalent field — with the effective byline
+(`author ?? SiteSettings.photographerName`) resolved by one shared seam,
+`content-page.ts#effectiveArticleAuthor`, the same "authored override, sensible existing
+default" shape `effectiveEventDate` already gives AB#150's own field. The route (not the
+Sanity adapter, which has no business reading site settings) resolves it: the catch-all
+page reads `getSiteSettings()` alongside `getAdjacentContent()`, deduped against
+`SiteRoot`'s own read of the same singleton by React's `cache()` rather than issuing a
+second one. Display is coordinated with AB#150 into one meta line rather than two
+independently-shipped hero additions: `HeroOverlay`'s `meta` prop gains an optional
+`byline`, a fully pre-translated, pre-composed string (`labels.article.byline`, `{author}`
+replaced) rendered as a plain-text line above the `<time>` element, never inside it, so the
+date's own machine-readable value stays exactly what it names. A page with no cover shows
+the same byline in its existing constrained header, immediately above the date. The
+`article` Sanity schema gained a matching optional `author` string field, and
+`sanity-article.ts`'s detail projection carries it through unresolved (the raw override,
+never the fallback — resolving `SiteSettings` is the route's job) via the same
+`readString` blank-treated-as-absent rule every other optional text field already uses.
+The mock fixture layer proves both paths on the same footing AB#150's own fixtures do:
+`content-choosing-a-telephoto-lens` authors an explicit `"Alex Rivers"` override, and every
+other article relies on the fallback, so "no author authored" is the normal, zero-extra-
+effort state a single-photographer clone never has to think about. No structured-data
+(JSON-LD) `author` property is added to the `Article` entity `buildArticleJsonLd` (AB#86)
+already emits — a deliberate, separate decision this story's own scope excludes, left for
+a future story now that the field exists. ADR-0003 needed no amendment: decision 2 (the
+shared body-block set) and the rest of that record say nothing about a per-variant field
+like this one, so nothing it states changes.
+The pre-tree `/portfolio` route was removed rather than
+redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
+gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
+belongs and what to call it, so no two surfaces can feature different galleries. Each
+resolves that identity to the locale's canonical route through the tree
+(`getPublicContentRoute`, which also checks the variant), so no deployment-specific
+content path is written down, and an unpublished target — or one naming an article — drops
+the entry instead of putting a working link behind a label describing something else. The pre-launch `/blog` and
+`/blog/<slug>` scaffold routes were removed rather than redirected — they were never
+deployed or indexed, and only AB#19's verified production inventory earns redirects.
+The privacy-respecting contact form is in place: an accessible `/contact` page in the
+unprefixed default-locale route space, a fixed `POST /api/contact` handler accepting
+only same-origin JSON within a bounded body and a closed field whitelist, shared
+normalization and validation rules the form and the endpoint both run, honeypot and
+per-instance throttling, a replaceable `ContactDeliveryAdapter` boundary with a Resend
+HTTP adapter and a sink adapter that a production deployment refuses to build, and
+operational events limited to a random correlation identifier, a state, and a redacted
+error class. No form content is stored anywhere; the processing record is
+`docs/contact-data-flow.md`. Deployments declare themselves through
+`SITE_DEPLOYMENT_STAGE`, which defaults to production so a safeguard fails closed.
+The customer-owned Sanity connection is bootstrapped: a declared content source
+(`SITE_CONTENT_SOURCE`) that `loadDeploymentConfig` validates, so an unset value or
+`mock` in a production deployment fails the build rather than a later read; connection
+settings validated against Sanity's own project-id and dataset rules, carrying an
+optional server-only read token; and a project-owned query client over the Content Lake
+HTTP API that always asks for the published perspective, bounds and classifies its
+failures, never falls back to another source, and adds no CMS library. Sanity's HTTP
+surface lives in `src/lib/sanity-config.ts` and `src/lib/sanity-client.ts`; ESLint stops
+`src/app` and `src/components` from importing either, and the `server-only` marker
+catches the indirect case ESLint cannot see (ADR-0006, `docs/sanity-setup.md`).
+The first schema and adapter sit on top of that connection: the shared media document
+(`sanity/schemas/`, plain objects a customer Studio consumes, no `sanity` package) and
+the server-only adapter (`src/lib/sanity-media.ts`) that projects it into the same
+`ImageMedia` the fixtures produce. One photograph is one document — placement fields stay
+on whatever places it (ADR-0002) — and the adapter reads an allow-list rather than a
+document, so the archive locator, the provider ids, and the capture date used for
+ordering cannot reach a payload. The rendition's delivery URL is validated against the asset's own stored
+`path` rather than reconstructed: Sanity's documented upload response has an `assetId`
+that is only part of the path's filename, so nothing infers an identifier from a name.
+Only the trailing `-<width>x<height>.<format>` is parsed, and the version is the opaque
+name to its left, which Sanity derives partly from the file's content.
+The export policy is enforced twice, because a read-time refusal is late: the schema
+measures an upload against `MAX_PUBLIC_DELIVERY_DIMENSION` (2048px, the same number as
+the optimizer's widest candidate, pinned by a test) and its format, and blocks the
+publish; the adapter checks again, because the Studio binds an editor and not the HTTP
+API. Neither un-uploads a file — an asset is public on the CDN before anyone presses
+publish — so `docs/sanity-setup.md` carries a deletion procedure. Dataset visibility is
+declared twice and must agree: in the Studio schema, where a world-readable dataset is
+offered no archive-location field at all, because a field the adapter never projects is
+still published by a public dataset; and as `SANITY_DATASET_VISIBILITY`, where declaring
+`private` makes the read token required — an unauthenticated read of a private dataset
+answers 200 with an empty result, so without that guard a misconfigured site renders as
+though nothing had been authored and the connectivity probe agrees with it. The image
+field also stops Sanity storing the uploaded filename, which its own documentation warns
+may carry sensitive information. `mediaId` is checked in the Studio
+for uniqueness across the dataset — with an explicit `raw` perspective, because a
+client's default would not see another document's unpublished draft, and comparing on
+published identity so a document does not collide with its own draft or release version —
+and for not having changed since the last publish, and again at the boundary — its syntax, one document per identity by id, and no repeated
+identity within a page. A malformed answer from the store is a classified failure, never
+an empty result. Authored text is language-keyed (ADR-0008): alternative text falls back
+to the site's own language, a caption is dropped rather than shown in the wrong one. A
+video raises rather than half-publishing; the model stays image/video capable but the
+public video projection is deliberately a later story with its own delivery ADR (recorded
+on AB#82). `next.config.ts` allows the optimizer exactly this deployment's own asset path
+prefix, with the project id and dataset validated before they are interpolated into it,
+and nothing at all when the content source is the fixtures.
+The category schema and adapter sit beside it: the public content tree's node
+(`sanity/schemas/category.ts`) and the server-only adapter (`src/lib/sanity-content-tree.ts`)
+that projects it into `content-tree.ts`'s own `ContentCategoryInput`. One document is one
+category in every published language — `label`, `slug`, and an optional bounded landing-page
+description are language-keyed arrays, the same shape ADR-0008 gives media's `alt` and
+`caption`, because a category has no
+per-language publication lifecycle to preserve the way a gallery or article will; a
+category missing an entry in the requested language is simply absent from that language's
+tree rather than a defect. A missing description renders nothing in that language; the
+initial category landing places it below the sole `h1`, while cursor continuation pages
+omit it. `categoryId` is checked in the Studio the same way `mediaId`
+is — syntax, dataset-wide uniqueness with the same `raw`-perspective query, and
+immutability after first publish. Its document-level validation reads the published tree,
+overlays the document being edited, and blocks self-parenting, indirect cycles, orphaned
+parents, sibling-slug collisions, and excess depth before the standard Publish action.
+`content-tree.ts` remains ADR-0003 decision 4's authoritative backstop because API writes
+bypass Studio validation: the adapter resolves a `parent` reference against every category
+id it fetched rather than trusting a GROQ dereference, so an unresolved reference is
+reported as a missing parent instead of silently becoming a top-level category. Published
+parents and existing localized slugs are immutable in the ordinary form; a customer
+Studio's warned URL-change workflow must feed before/after snapshots through
+`diffPublicCategorySnapshots`, show the affected categories and content, and persist the
+accepted path history before publishing. Canonical and secondary category placement stays off this
+schema entirely — ADR-0003 decision 5 makes it a property of the gallery or article being
+placed, not of the category receiving it — so `readPublicContentTree` accepts placements as
+plain input from whatever adapter reads that content once AB#113 and AB#81 exist, and
+composes them with the fetched categories through the same `buildContentTree` call the mock
+layer already uses.
+The global settings and home-page schemas and adapters sit beside those boundaries too.
+Each is a published singleton: none is a fallback to fixtures, and a missing or duplicate
+published document raises as a classified content defect. Authored prose is language-keyed;
+brand identities stay language-neutral. Static navigation stores only validated root-relative
+application paths, while the story root and featured gallery are semantic targets resolved
+from deployment routing and the one `featuredGalleryId`, so settings contain neither a second
+category tree nor a generated content path. The Studio schema receives every configured
+locale's generated story-root path as configuration and refuses a static link duplicating
+any of them; the runtime adapter repeats the check against validated route configuration.
+The home hero dereferences the shared media
+document through `PUBLIC_MEDIA_PROJECTION` and `projectPublicMedia`, retaining its public
+derivative and true dimensions. These adapters return the existing `SiteSettings` and
+`HomeContent` contracts, and AB#135 wires both into their route-facing seams
+(`src/lib/site-settings.ts`, `src/lib/home-content.ts`) alongside every other content adapter,
+so a deployment never mixes a mock and a Sanity source on one page.
+The shared rich-content body-block schema and the article and service schemas and
+adapters sit beside those boundaries too. `sanity/schemas/content-block.ts` gives both
+public content variants the six ADR-0003 decision 2 body blocks — paragraph, heading,
+list, quote, media placement, and click-to-load YouTube — as Sanity object types named
+`content<Kind>Block` rather than the bare discriminant, because `media.ts` already claims
+`media` in the one namespace Sanity type names share; `defineContentBodyField` builds a
+body field restricted to a caller-chosen allow-list of these kinds, every kind by default,
+so a narrower context such as a future gallery section introduction reuses the same six
+types instead of a second body schema. `src/lib/sanity-content-blocks.ts` is the read
+half, projecting a query result back onto `content-page.ts`'s `ContentBlock` union; a
+media block reuses `projectPublicMedia` unchanged, so a photograph placed in a body is
+validated by exactly the boundary ADR-0005 established for every other public rendition.
+The article schema (`sanity/schemas/article.ts`) is the `article` variant of the shared
+content-page boundary, and — unlike a category's one document for every language — is one
+document _per_ language: ADR-0003 decision 7 lets a page's languages be authored and
+published independently, so `language` plus the immutable `contentId` together identify
+one version, and two documents may share a `contentId` (one per published language) but
+never both `contentId` and `language`. `canonicalCategory` is required, so a standard
+Studio publish cannot leave an article unplaced — Sanity's own validation model blocks
+publishing, not saving a draft, which is exactly ADR-0003 decision 5's allowance for
+unplaced draft content. Field-level requirement is not the whole guard, though:
+`sanity/schemas/article-validation.ts` fetches every category and every other published
+article in this language, overlays the document being edited, and restates
+`content-tree.ts`'s own public-category propagation and local-slug-namespace computation —
+not just a check against other articles in the same category, which would still miss a
+sibling _category_'s slug, or a collision only exposed because this very publish turns a
+previously private canonical- or secondary-placement ancestor category public for the
+first time. So a routine "Publish"
+click cannot be the moment a colliding local slug (ADR-0003 decision 6) or a canonical
+category with no published version in the article's own language reaches the public tree —
+both states are otherwise only caught when a route reads the whole tree, which rejects it
+outright. Gallery placements are not fetched yet, since no gallery schema exists before
+AB#113; that story extends the same query. The same validator freezes `language`, `slug`,
+and `canonicalCategory` once a document has
+been published at all, the same way `category-validation.ts` freezes a category's `parent`
+and path segments, so an ordinary edit cannot silently discard a live canonical URL or —
+since `language` plus `contentId` together are the whole identity — turn one language's
+published page into a different language's version by editing the field, rather than
+starting the new language as its own linked document the way AB#125's workflow requires.
+`content-tree.ts` remains the authoritative backstop for a document an API import wrote
+without going through any of this Studio validation. Tags stay a separate free-text
+field, unrelated to categories and consuming no tree depth. `src/lib/sanity-article.ts`
+reads three separate projections rather than one, matching `content-listing.ts`'s rule
+that a listing card must never load an article body: `readPublicArticlePlacements` feeds
+`content-tree.ts`'s placement contract, resolving `canonicalCategory`/`secondaryCategories`
+references the same way `sanity-content-tree.ts` resolves a category's own `parent` —
+raw, then looked up locally through the newly exported `readCategoryDocumentIndex`, so an
+unresolved reference reports as a missing category rather than collapsing into "unplaced";
+`readPublicArticleListingRecords` answers a bounded `ContentListingQuery`; and
+`readPublicArticlePage` reads one full page by locale and stable identity, returning
+`undefined` for a language with no published version — the normal bilingual state, not an
+error — throwing a classified `SanityArticleError` when two published documents collide on
+one identity, and, because the schema's own `min(1)` body requirement binds only the
+ordinary Studio editor and not an API import, refusing to project an article whose body
+came back missing or empty rather than silently publishing a page with nothing in it. Each
+body block also carries Sanity's own stable per-item `_key` through to
+`content-page.ts`'s `ContentBlock` as an optional `key`, which `ContentBody` prefers over
+array position for its React key — the mock fixture layer has no such concept and simply
+omits it, falling back to position, which is safe there because fixture content is never
+live-reordered the way Studio content is. The service schema (`sanity/schemas/service.ts`)
+and adapter (`src/lib/sanity-services.ts`) model `src/lib/services.ts`'s existing `Service`
+contract directly: no language field, matching the still-unlocalized `/services` route, and
+no category placement, tags, or redirect history, because a service is not part of the
+ADR-0003 public content tree. Its `slug` is checked for syntax and uniqueness the same
+asynchronous way `media.ts` and `category.ts` check theirs at publish time, without the
+immutability half those two also enforce, because a service has no redirect-history concept
+requiring it; `readPublicServices` repeats the uniqueness check across a whole listing read
+too, since Studio's rule does not bind an API import and a silently duplicated slug would
+otherwise hand a visitor two cards for one URL while `readPublicServiceBySlug` throws for
+the same state. Several rounds of independent review hardened these adapters and the article
+publication guard further: content-block and service Studio schemas reject a blank list item
+or description paragraph, matching the adapters' own read-time rule, so an ordinary publish
+cannot create content the read boundary refuses; every place a Sanity document reference
+resolves against a `categoryId` index marks an unresolved reference with a value the identity
+pattern can never produce (`unresolved-ref:<ref>`), so a coincidental string collision with an
+unrelated category's real id can never silently alias to it; `publishedAt` is checked as a real
+ISO calendar date via a `Date.UTC` round trip, not merely `Date.parse`, which is lenient enough
+to normalize `2026-02-31` into March 3 rather than reject it; a category listing's candidate id
+list is chunked to the Sanity GET URL's byte budget — measured the same way
+`buildSanityQueryUrl` measures the real request, not approximated — so a category with a few
+hundred articles cannot make the query itself fail, and a single pathologically large id is
+rejected outright rather than silently emitted as an oversized chunk; and `readContentBlocks`
+rejects two body blocks sharing one stable key, since a duplicate breaks the render-time React
+identity the key exists to provide. AB#135 wires the article and service adapters into their
+route-facing seams (`src/lib/content.ts`, `src/lib/services.ts`); the shared content-block
+schema and adapter were already reached transitively through every content page that renders
+a body.
+The gallery schema and adapter (AB#113) sit beside the article ones, sharing their
+identity/URL-freeze/local-slug-namespace guard through a new `content-placement-
+validation.ts` rather than duplicating it: a `contentId` can no longer be claimed by both
+an article and a gallery, and a local slug collision between the two types is caught the
+same way a collision between two articles already was. `gallery.ts` is one document per
+language, like `article.ts` and unlike `category.ts`, because its placement overrides and
+section labels are plain per-language text, matching `GalleryContentPage`'s own shape. Its
+named sections (AB#105) stay a gallery-local object array on the document itself —
+`sections`, bounded to `MAX_GALLERY_SECTIONS` (20) — but its curated items do not: AB#114
+found, verified against Sanity's own technical-limits documentation, that an embedded
+`placements` array cannot be read as a bounded, keyset-paginated window without the query
+engine loading the whole document (Content Lake filters and projects whole documents; a
+single one is capped at 1,000 attributes on the Free/Growth plan, a ceiling a few hundred
+placements already approaches), so each placement is now its own `galleryPlacement`
+document (`sanity/schemas/gallery-placement.ts`), referencing its `gallery`. `order` is
+therefore an authored field rather than array position — a real authoring-experience cost
+(no more drag-to-reorder) accepted for the bounded-query property. Its own document-level
+Studio guard (`validateGalleryPlacementPublication`, one round trip per placement) enforces
+what ADR-0002 leaves to be decided for a gallery specifically: every `placementId` is
+public and site-wide unique with an immutable media/gallery binding, except that the same
+occurrence may legitimately share one `placementId` across a gallery's own language
+versions; repeating a photograph within one gallery is allowed but flagged with Sanity's
+non-blocking `rule.custom(check).warning()` rather than refused (ADR-0002 §2, closing that ADR's own
+deferred action item); and a section's slug is immutable once published, restating
+`gallery-sections.ts#assertGallerySectionsSlugStable`. A section's optional intro reuses
+the same restricted paragraph/list/emphasis/link model `gallery-sections.ts` already
+defines, through dedicated object types (`gallery-section-intro.ts`) rather than the
+six-kind shared body blocks, whose plain-string paragraphs and lists carry no inline
+structure. `orderingRule`/`orderingSeed` let a gallery declare a seeded-random ordering,
+and (AB#129 PR2) `galleryPlacement` also stores the materialized key: `shuffledOrder`
+(read-only, raw 64-hex `computeShuffledOrder(orderingSeed, placementId)`) and a
+`shuffledOrderSeed` marker, absent on a pinned lead and on a `manual` gallery.
+[ADR-0009](adr/0009-seeded-random-gallery-ordering.md) decides that rule's contract
+— a materialized, precomputed sort key recomputed on rotation, because GROQ has no hash
+function to compute one live and keyset pagination needs a stored, sortable field —
+narrowly split off AB#66's broader dynamic/keyword-gallery contract, which stays open.
+Placement-level Studio validation (folded into the existing one-round-trip publication
+query) blocks only the one _structurally impossible_ generated value — a `shuffledOrder`
+present but not a 64-char hex string. Absent, now-stale, leftover-after-a-rule-switch, and
+just-re-pinned states all publish fine, because those are transient and the recompute step
+(which reads only published placements) resolves them — blocking would deadlock the
+author. What that same validator now _does_ freeze once published is `placementId` itself
+(alongside the media/gallery binding it already froze): it is an identity (ADR-0002 §1)
+and the HMAC input for `shuffledOrder`, so renaming it in place would leave a read-only
+key pointing at the old id with no `ordering-stale` signal — a re-identification is a new
+placement. The `gallery`
+document's publish block on `seeded-random` is lifted; `orderingSeed` gains the pagination
+boundary's length ceiling and is rejected if it has surrounding whitespace (it is used
+verbatim by `orderingScopeString`, the recompute step, and the stale-count query — an
+inconsistent trim anywhere would strand the gallery `ordering-stale`). `src/lib/sanity-gallery.ts`'s
+`readSanityCuratedGalleryPage` (AB#114) is the bounded, windowed read: two HTTP round trips
+per page (this gallery's ordering rule, section catalog with intro, and a conservative
+`visibilityVersion` derived from the most recently updated matching placement's
+`_updatedAt`, then the placement window itself), composing `gallery-sections.ts`'s shared
+`CuratedGallerySectionSource` contract — an id lookup for a named cursor boundary plus a
+keyset range query for the rest, following Sanity's own documented `order > $after ||
+(order == $after && placementId > $afterId)` idiom rather than array-slice offset
+pagination — over `galleryPlacement` documents, filtered by `visible` and
+`media->publiclyRenderable` in GROQ itself so a returned row is already within
+`CuratedGallerySectionSource`'s contract and nothing here can silently shrink a page by
+dropping a row after the fetch. For a `seeded-random` gallery (AB#129 PR2) the same read
+adds `orderingSeed` and a bounded `staleShuffledOrderCount` aggregate to the basics query
+(non-zero => `SanityGalleryError "ordering-stale"`, the two-step-rotation window), serves
+the tiered order as two keyset lanes in one round trip — `pinned` (by `order`) then
+non-pinned (by `shuffledOrder`), using `coalesce(pinned, false)` so a null/absent
+`pinned` still counts as non-pinned — concatenated and sliced, because ADR-0009 §3's
+tiered key cannot be one GROQ `order()` clause without a `select()` a fake-store test
+cannot pin; and passes the scope string as an always-true `$orderingScope` param so the
+window fetch-cache key varies by seed. `projectGalleryPlacement` never rejects a whole gallery
+over one placement whose media is not publicly renderable (ADR-0002 §3's AND-composition):
+it resolves to no candidate row for that placement, distinct from throwing for a genuinely
+malformed one — though the GROQ-side filter means this call site never actually exercises
+that branch, since every row it sees already passed the same check server-side. A
+~400-placement fixture, exercised against a fake Content Lake that answers the adapter's own
+two query shapes rather than a general GROQ interpreter, walks the whole archive and a
+150-item section spanning several pages with no duplicate or missing item.
+AB#135 wires every content adapter above into its route-facing seam: `src/lib/gallery.ts`'s
+`getGalleryPage`, `src/lib/content.ts`'s tree/redirects/listing/detail-page/sibling-navigation
+reads, `src/lib/site-settings.ts`, `src/lib/home-content.ts`, and `src/lib/services.ts` all
+dispatch on `SITE_CONTENT_SOURCE` — `mock` continues to read the fixture layer unchanged, and
+`sanity` now reads every one of these adapters, never a mixed mock/Sanity page. Closing that
+wiring surfaced two gaps the adapters themselves had not: `sanity-gallery.ts` gained a bounded
+gallery listing-record read (`readPublicGalleryListingRecords`, mirroring the article
+adapter's own chunked, byte-budgeted multi-id query, since a category branch can list
+galleries and articles side by side) and `sanity-article.ts` gained a bounded two-row sibling
+query (`readPublicArticleAdjacentRecords`, one HTTP round trip via a `^`-referenced keyset
+comparison) — gallery sibling navigation stays unbuilt because no current route requests it.
+A locale with no published categories, articles, or galleries is omitted from the
+Sanity-backed tree entirely, matching the mock's own "unauthored locale is absent, not empty"
+contract; a placement without its localized category still reaches the tree validator and
+fails instead of being hidden as an empty locale. No adapter yet
+records previously published path history (ADR-0003 decision 7's URL-change workflow remains
+unbuilt), so a Sanity deployment's redirect map is honestly empty rather than borrowed from
+the mock. `/services`' optional listing intro gained a matching optional `servicesIntro`
+field on the `siteSettings` singleton (schema, adapter, and seed fixture), read through
+`getSiteSettings()` rather than its own separate source, so the page never mixes an authored
+catalog with fixture-only intro copy. `content.ts`'s Sanity tree build is wrapped in React's
+`cache()` so the several seams one request touches (`resolveRequest`'s trees and redirects,
+`getCategoryListing`, `getAdjacentContent`) share one per-locale read instead of repeating it,
+without reintroducing the cross-request module cache AB#83's revalidation cannot reach.
+The public-journey harness is
+in place too — a production-build Playwright suite with an external-request guard, gated
+in Azure Pipelines — carrying the home/navigation smoke test,
+the content-tree journey (branches, the canonical detail route, redirects, and
+404s), the curated gallery journey (each chrome surface's identity-resolved link
+checked separately, the grid's reading order against DOM and lightbox order at one, two,
+and three columns, the lightbox, canonical and `hreflang`/`x-default` metadata, the empty
+gallery's accessible state, and the 404s for a cursor, an unknown slug, and the removed
+`/portfolio` route), the gallery continuation journey (run with JavaScript disabled: four
+pages walked through the real link with no duplicates or gaps, the continuation page's
+compact heading and absent lead, its self-canonical metadata and absent alternates, its
+link back to the first page, and the 404s for an unminted token, a token
+issued by another gallery, and a repeated parameter), the gallery append journey (the
+in-place append with its order and de-duplication, focus staying on the control until
+completion moves it to the notice, a failed
+continuation that keeps what is loaded and retries, the lightbox reading the grown list,
+continuing past the last loaded item from inside the open viewer, and a failure that
+neither closes it nor loses the item), the services journey (the listing, one service detail with its cover, price list,
+and breadcrumb, the navigation between them and into the story section, and an unknown
+slug's 404), the site-menu journey (its composition, the disclosure opened by pointer and
+by keyboard and dismissed either way with focus return, the level-at-a-time Escape
+unwind, ancestry marking, a branch below the menu reached from its landing page, and the
+compact panel's viewport behavior), and the contact journey (a labelled form,
+required-field and invalid-address reporting against the field that caused it, a
+successful submission, a delivery failure that may pass later — announced,
+referenced, and retried — and one a retry cannot fix, pointing at the direct
+address). Those failure states are the endpoint's own answers rather than a
+stubbed response: the sink adapter reports a chosen failure class for a reply-to
+address on the reserved `delivery-failure.test` domain, which RFC 6761 makes
+unreachable for a real enquiry and which a production deployment never builds.
+Each test also arrives from its own synthetic address, so the endpoint's
+per-client throttle bounds a client rather than the whole browser matrix.
+Route-specific journey suites are separate stories that join the gate as their
+features land.
+The repository half of the customer-owned Preview environment is in place on top of it:
+the function region and the Node major are pinned in `vercel.json` and `package.json`
+rather than inherited from the platform, and a test fails the gate if the pipeline's pin
+and the deployment's drift apart; the pipeline runs a second stage that deploys a
+release candidate to Vercel only after every gate passes, only from `main`, never from a
+pull request, and only once the pipeline-authorized Preview variable group's explicit
+enable flag is true — so provisioning can remain incomplete without reddening the branch.
+It builds and deploys the prebuilt output, binds the generated URL and immutable
+deployment ID to the expected Vercel project and team through the authenticated API,
+then asserts both access protection and an unscoped `noindex` before it publishes the
+URL, because none of those properties implies the others. Failed or cancelled
+verification deletes only that verified deployment ID.
+On top of that, once a deployment is verified the stage repoints a stable
+`*.vercel.app` **integration alias** (`PREVIEW_STABLE_ALIAS`, AB#136) at it, so a
+Sanity webhook configured once with `https://<alias>/api/revalidate` keeps working
+across ordinary redeploys instead of going stale. The repoint is a transaction
+(`scripts/repoint-preview-alias.mts`, decision logic in `scripts/preview-alias.mts`):
+it refuses the project's default production domain and any alias currently resolving to a
+production deployment; a **revision gate** (AB#144) resolves `main`'s tip live
+(`git ls-remote`) immediately before the assignment and, if this deployment's commit
+(`$(Build.SourceVersion)`) is no longer that tip, leaves the alias untouched
+(`superseded`, a pipeline warning, not a failure) — fail-closed if the tip can't be
+resolved; the monotonic `createdAt` guard runs earlier and is retained as defence in depth
+(including for an owner-run invocation of the same repoint script outside CI; a direct
+`vercel alias` command bypasses it); the alias host is re-verified for the
+same SSO challenge + exact `noindex`; and a failed re-verification restores the previous
+target (or removes a first assignment) only while the alias still points at what that run
+assigned. Concurrent `DeployPreview` runs are serialized by a stage-level exclusive lock
+(`lockBehavior: sequential` + an Exclusive lock check on the variable group) — execution,
+not commit order, which is why the revision gate exists. The alias is constrained to
+`*.vercel.app` because only that inherits Standard Protection; a custom domain is refused.
+Vercel omits its automatic `X-Robots-Tag: noindex` for an assigned alias (AC5's first live
+run proved it, 2026-09-06), so `next.config.ts` supplies it for requests whose Host is
+`PREVIEW_STABLE_ALIAS` — gated to `VERCEL_ENV === "preview"`, host-scoped so the generated
+URL is untouched (`src/lib/preview-noindex-alias.ts`, ADR-0004 §3 2026-09-06 amendment) —
+which makes `PREVIEW_STABLE_ALIAS` also a build-time input on the `vercel build` step.
+`PREVIEW_STABLE_ALIAS` is required once the deploy stage is enabled.
+`npm run verify:preview-alias` is the read-only check for handoff/rollback. The revision
+gate never initiates an assignment for a candidate already known to be superseded; the
+residual is that the alias may remain on its last verified `main` target after `main`
+advances if the current-tip run has not itself succeeded. That target is stale relative
+to the tip but remains verified and protected. A declined older run emits the
+`superseded` warning. The tip is resolved through
+the checkout's `origin`; a private-repo clone must enable `persistCredentials`. The live
+AC5 "exercise against Preview" was owner-run and completed 2026-09-07–09 (first
+assignment, ordinary redeploy with the webhook surviving, signed delivery, rollback and
+roll-forward, alias-name rotation, bypass-secret rotation, and the handoff dry-run) —
+evidence recorded on AB#136. ADR-0004 §3
+has a 2026-08-31 amendment for the "generated URL, not a custom preview domain" clause.
+The provisioning runbook, the Preview/Production environment split, and the recorded
+promotion and rollback commands are `docs/deployment.md`.
+Sample content seeding (AB#84) sits on top of every schema and adapter above: an
+owner-run script (`npm run seed:sanity`, `scripts/seed-sanity-content.mts`) that writes
+474 sample documents — a 3-level category tree, one published settings and home
+singleton, 3 services, 3 article documents (one page authored in both `fi` and `en`,
+one `fi`-only, exercising ADR-0003 decision 7's independent per-language publication),
+3 galleries, and 451 gallery placements — into a real Content Lake over the plain
+mutate/asset-upload HTTP API, never through a Studio and never wired into the
+application or CI. Every seeded document's own six real, already-vetted demo
+photographs (`public/gallery/*.webp`) back all 6 minted `media` documents — never more
+identities than there are photographs, per ADR-0002 — reused across hundreds of
+placements, including one photograph placed in both galleries under two different
+`placementId`s to prove identity survives reuse. One gallery (`featured`) has two named
+sections and a body; `archive` has neither and carries the 400 placements that exercise
+AB#114's keyset-paginated read across several pages; `shuffled` (AB#129 PR2) is a
+`seeded-random` gallery of 25 placements — 3 pinned leads, 22 with pre-computed
+`shuffledOrder` keys — so the seed run writes a gallery that is already a consistent
+generation and `verify:sanity-live` can walk its materialized tiered order. Every document's
+`_id` is a public, root-level, dot-free `seed--` id: Sanity restricts dot-path ids to
+authenticated reads even in a public dataset, so the fixture cannot use `path()` as its
+namespace without becoming invisible to the application's tokenless public reads.
+Cleanup normalizes published, draft, and release ids and recognizes the reserved prefix
+locally; the legacy private `seed.…` ids from the first implementation are recognized
+for deletion but never written. The write is fully self-policed: because Sanity's mutate API
+does not run a Studio's async validation rules, `sanity-seed-fixtures.mts`'s own
+`validateSeedFixtures` re-derives every invariant an API import could otherwise violate
+(unique identities, every reference resolving to the right document type, an acyclic
+category tree, deterministic `_key`s on every array item so a later hand-edit in
+Studio is safe) before a byte is sent, and a preflight query refuses to run at all if a
+another `siteSettings`/`homePage` document already exists, rather than silently
+creating a second published singleton. `--yes` ends with a live verification step:
+hand-written GROQ existence/shape checks run against the dataset just written, so a
+future owner-run external write can prove the "representative content queries pass"
+acceptance criterion against that real project rather than a fake one. PR #62 did not
+run this write-enabled path against an external dataset. The command also reports (or,
+with `--prune-stale`, deletes) any
+previously seeded document a shrunk fixture no longer includes. `docs/sanity-seeding.md`
+is the full runbook: the write-token story (a separate, write-scoped
+`SANITY_SEED_TOKEN`, never the runtime app's read-only `SANITY_READ_TOKEN`), the
+go-live checklist that empties and verifies every seed-owned document and the six
+uploaded assets (which mint their own non-`seed--` ids and need a manual Studio
+deletion, disclosed rather than automated at six files), and export/recovery through
+Sanity's own `dataset export`/`import` CLI. Seeding a dataset did not, on its own, change
+what any route reads — every page rendered from the mock layer until AB#135's route-facing
+switch landed (below), so a seeded project and the live site were two separate, unconnected
+facts until that story shipped. A deployment declaring `SITE_CONTENT_SOURCE=sanity` now
+renders this seeded content for real.
+`/sitemap.xml` and `/robots.txt` (AB#85) sit on top of the public content tree,
+locale route configuration, and services boundary: fixed, language-neutral root
+routes per ADR-0003, generated from `src/lib/sitemap.ts`'s `buildSitemapPaths`, a
+pure function over exactly the seams route pages already read — `content.ts`'s
+`getContentTrees`, `services.ts`'s `getServices`, and deployment-owned locale route
+config — rather than a second query of its own, so a route not public, renderable,
+and indexable there is not public, renderable, and indexable here either. Category
+and content paths come from `content-tree.ts`'s `listPublicRoutePaths`, generalized
+from that module's own pre-existing private path index rather than a duplicated
+walk; a configured locale with no published tree yet, and a published tree with no
+public category yet, are both omitted the same way `resolveStoryRoute` 404s them,
+rather than emitting a URL that does not resolve. A gallery or category's `?cursor=`
+continuation and a gallery's `?section=` filter never enter the list, because they
+are not category-tree or static-page identities the walk ever reaches, matching
+ADR-0003 decision 8's parameter-free-only sitemap-eligibility rule exactly. A
+duplicate generated path is treated as a defect and throws rather than being
+silently deduplicated, the same posture `content-tree.ts` already takes toward its
+own structural invariants. `src/app/sitemap.ts` declares `force-dynamic`, because
+Next.js caches a metadata-route file like this one at build time by default —
+confirmed against the framework's own documentation — which would freeze the list
+against every later publish, unpublish, or slug change the AB#83 freshness target
+requires; `robots.txt` needs no such override, because it depends only on
+deployment settings — a production build prerenders it as a static file (`○
+/robots.txt`), so a settings change reaches it with the next deployment. `robots.txt`
+expresses crawl guidance only, never access control:
+`src/lib/robots.ts`'s `buildRobotsPolicy` disallows everything for a non-production
+`SITE_DEPLOYMENT_STAGE` as defense in depth, while a Preview deployment's actual
+protection remains the platform's own access control plus its `X-Robots-Tag:
+noindex` header, per `docs/deployment.md`. A production deployment may also name
+crawlers to keep off the whole site (AB#181, `SITE_ROBOTS_DISALLOWED_AGENTS`, empty by
+default): they get their own `Disallow: /` group ahead of `*`, for SEO-tool crawlers that
+spend the hosting plan's allowances and bring no visitors. Two scope boundaries were considered and
+deliberately left alone rather than built speculatively: verifying that a
+tree-canonical placement's underlying detail record still exists would mean loading
+a full page body (or gallery page) per candidate during sitemap generation, the
+exact "a listing loads a body" pattern `content-listing.ts` and
+`mock-content-pages.ts` already reject elsewhere, so this boundary trusts the
+tree's `published` and canonical-placement state the same way `content.ts`'s own
+listing-record query does; and ADR-0002 §4's reserved, route-owned `indexable` field
+— letting an author keep one public gallery or article out of the sitemap without
+unpublishing it — is not implemented anywhere in `content-tree.ts`, the article or
+gallery Sanity schemas, or the mock fixtures yet, so there is no such state for the
+sitemap to consult today. Both are documented as deliberate, not silently dropped.
+AB#19's legacy-URL redirect registry (`src/lib/legacy-redirects.ts`) is partially
+built: a reusable, generic, pure validated-lookup module — same-shape precedent to
+`content-redirects.ts`, but a separate registry, since a legacy Joomla path is a
+disjoint taxonomy from the `/tarinat`/`/en/stories` namespace that file owns — wired
+into `src/proxy.ts`, the only layer in this Next.js version able to answer a genuine
+`410 Gone` at all (a Server Component page's built-in error APIs stop at 404/403/401)
+and the only one that can emit a literal `301` rather than the route tree's own
+308-hardcoded `permanentRedirect()`. Of the 442-record production Joomla crawl
+inventory (415 distinct paths) AB#19's own comments and ADR-0003 decision 9 govern,
+this pass decides only the 174 `component/tags/tag/...` and
+`en/component/tags/tag/...` Joomla tag-browsing pages, each a justified `410 Gone`
+because no current-site replacement exists (a future one is AB#66's). Every other
+path — every legacy gallery, article, category, and static page, plus
+`component/komento/*` (a real Joomla gallery component, not system debris) and
+`sivustokartta/*` (real aliased content, not a generic sitemap page) — stays recorded
+as an explicit pending row in `src/lib/legacy-redirects-tracking.ts` rather than a
+guessed target, because ADR-0003 decision 9 itself requires a migrated page's locale,
+canonical category, and slug to be known first, and no route reads real migrated
+content yet (`SITE_CONTENT_SOURCE=mock`). `legacy-redirects-data.test.ts` keeps this
+bookkeeping honest: every distinct crawled path is accounted for by exactly one of a
+decided row, a pending row, an excluded row (Joomla's own `/404` error page, owed no
+redirect), or an already-live row (the site root), and the decided set is pinned to
+its exact reviewed count so a future inventory update cannot silently reclassify an
+unreviewed path the way `component/komento/*` and `sivustokartta/*` first appeared to.
+The crawl also surfaces a finding for whoever resolves the Finnish `/portfolio` row:
+it was a real, live, published Joomla page, which is evidence against the assumption
+the 2026-08-10 ADR-0003 amendment relied on to remove this template's own dead
+`/portfolio` scaffold without a redirect — that removal was about the template's own
+never-deployed route, not the production site's real one at the same path.
+The numeric gallery lightbox query-state policy the crawl comment flagged as
+unresolved (Joomla's own bare `?4738` query, layered on a page's pathname rather than
+a distinct crawled route) is decided and closed, separately from the per-pathname
+decisions above: `legacyRedirectDestinationSearch` never strips or translates such
+state automatically (ADR-0003 decision 9), covered by dedicated Vitest and Playwright
+cases naming the crawl's own shape. No `redirect` row exists yet to exercise the
+301 case end-to-end — every decided row so far is a `410 Gone` tag page — and that gap
+stays open, deliberately, until a real redirect row exists; fabricating one to close it
+would mean guessing a canonical target this pass explicitly defers.
+The category branch listing continuation is now built (AB#140 PR 2, ADR-0013): a branch
+whose aggregated subtree exceeds `MAX_CONTENT_LISTING_PAGE_SIZE` pages through a keyset
+`?cursor=` over `(publishedAt, contentId)`, signed with the shared
+`GALLERY_CURSOR_SIGNING_KEY` (one HMAC primitive extracted to `keyset-cursor.ts`, one
+secret for both cursor families). The cursor scope carries a conservative
+`visibilityVersion` — a digest of the in-scope subtree category ids plus, for a store, the
+most recent in-scope content `_updatedAt` (`readPublicCategoryListingContentVersion`); for
+the mock, an in-memory `(contentId, publishedAt)` digest — so an authored-date edit or a
+category re-parent invalidates an in-flight token with `stale`. `cursorDisposition` now
+`carry`s a `?cursor=` at a `category` route (the story root still `reject`s one, having no
+continuation contract); a token at a non-canonical spelling is validated by an injected
+`categoryListingCursorNamesASlice` before a redirect. A continuation page is compact —
+branch title marked "continued", a link back to the first page, the child-category
+navigation, the language switch (which drops the cursor), then the grid — self-canonical
+with its `?cursor=` and naming no `hreflang` alternates, and its control is a real `<a>`
+so it pages through with no JavaScript (progressive in-place append is deliberately not
+built). The invalid-cursor 404 offers the branch's own parameter-free page
+(`not-found-return.ts`). Only the parameter-free URL enters the sitemap. Story-root listing
+continuation is deliberately out of AB#140's scope.
+The gallery-item enquiry (AB#60) is partially built — its server-only identity and
+authorization seam (PR1) and its `POST /api/enquiry` endpoint (PR2); the lightbox entry
+point and the e2e journey (PR3 / AB#123) remain. `src/lib/enquiry-media.ts`
+(`import "server-only"`) takes a
+**discriminated** request — `{kind:"curated", locale, contentId, itemId}` where
+`itemId === placementId`, or `{kind:"dynamic", locale, itemId}` where `itemId === mediaId`
+(ADR-0002 §1); the caller states the kind because the two identity spaces share one syntax
+and inferring it would let a stale or wrong-container curated reference resolve as dynamic.
+It validates the route locale against the configured locales and the identities against
+the shared `MAX_ITEM_ID_LENGTH` bound, authorizes a curated request's container through the
+public content tree (`getPublicContentRoute(..., "gallery")` — a published Sanity gallery
+document alone does not establish a supported public route, and this check runs before the
+content source is touched), then dispatches to a mock or Sanity resolver that composes
+`publiclyRenderable && enquiryEligible && !privateOnly` (ADR-0002 §3/§4, plus
+`dynamicallyDiscoverable` for a dynamic request per ADR-0012 §2, every flag compared strict
+`=== true` so a pre-field document fails closed) and returns the stable `mediaId`, the
+resolved caption/credit, and — from the private dataset only — the `archiveLocator`, as a
+discriminated union whose dynamic arm cannot carry a `placementId`. `enquiryEligible` is a
+new opt-in media field (both dataset visibilities); `archiveLocator` gains a 512-char
+schema bound restated and pinned in the resolver, which raises `malformed-source` on a
+value past it rather than passing it to a later email. The resolved target is
+server-consumer-facing — the public gallery result contract carries none of these fields
+and a serialization test proves the projection cannot start leaking them. The Sanity
+**curated** path is a two-round-trip read (gallery `_id` for `contentId`+`language`, then
+`galleryPlacement` scoped by `gallery._ref` so a sibling-language placement sharing the
+`placementId` is never picked), explicitly projected, `[0...2]` ambiguity-detected; the
+Sanity **dynamic** path fails closed (`dynamic-unsupported`, no query) until AB#58 (the
+dynamic query and its result context) and AB#68 (`dynamicallyDiscoverable` in the model)
+exist — the mock dynamic path is fully implemented and unit-tested. A classified
+content-store failure during resolution surfaces through `classifyEnquiryFailure`: a
+`SanityQueryError` (transport) keeps its own retry decision — `source-unavailable`
+(retryable) or `source-error` (not) — while any other `Sanity…Error` (a read that
+completed and returned a document the adapter refused to trust — content tree, article,
+gallery, settings, media) becomes `malformed-source`. `resolveEnquiryTarget` wraps its
+whole tree+source operation, and the route re-runs the same classifier over
+`getSiteSettings()`/email composition, so a route never answers a raw provider error with
+a bare 500 or an `accepted` event with no terminal.
+`POST /api/enquiry` (PR2) reuses the contact path rather than restating it: the same
+`checkContactRequestHeaders` ahead of the throttle, `readContactSubmission` (now taking an
+optional `extraFields` whitelist — the contact route passes none, so its result shape is
+unchanged) widened by exactly `kind`/`locale`/`contentId`/`itemId`, the same honeypot rule,
+`buildEnquiryEmail` beside `buildContactEmail` in one delivery module, the shared
+`jsonNoStore` + `DELIVERY_FAILURE_STATUS`, and one private `writeSubmissionLine` under two
+separately-closed wrappers (`logContactEvent` / `logEnquiryEvent`, `event:"enquiry.submission"`).
+Its own rate-limiter instance, so an enquiry and a contact message never spend each other's
+allowance; its idempotency key is namespaced `enquiry:<submissionId>`. Every resolver
+rejection collapses to one generic browser answer — `malformed-request` → 400, the five
+identity/authorization rejections → one `404 {reason:"item-unavailable"}` that discloses
+nothing, `source-unavailable` → 503 retryable, `source-error`/`malformed-source` → 500 —
+while the operational log keeps the specific class. After the `accepted` event, every path
+(resolution, settings read, email composition, delivery, an unclassifiable defect →
+`internal`) writes exactly one terminal event. `archiveLocator` and the resolved
+`mediaId`/caption/credit reach only the owner's email — never a response, never a log line
+(route tests assert both).
+PR3 adds the visitor-facing surface. The lightbox carries an "Enquire about this
+photograph" control — a real `<a>` in the PhotoSwipe top bar whose `href` is the gallery's
+own parameter-free path plus `?enquire=<itemId>` for the slide on screen (a stable string
+prop, not a callback, so it does not churn the open viewer). ADR-0003 §8's 2026-08-30
+amendment makes `?enquire=` a recognized gallery _action state_: a single value in the
+shared public-identity grammar (`src/lib/public-identity.ts`, used by both the route parser
+and `enquiry-media.ts` so they cannot drift), recognized only on a gallery route and only
+with neither `cursor` nor `section` — `enquire` plus either is a 404 with no redirect,
+resolved in `resolveLocalePrefixRequest` before the cursor/section refusal checks; an
+unrecognized `enquire` is preserved through normalization and otherwise ignored. The view
+is a `200` `noindex, follow` server form (`GalleryItemEnquiry`) whose canonical points at
+the parameter-free gallery, with no `hreflang` and no sitemap entry; its metadata
+short-circuits before any gallery-result read, so a gallery being reordered does not block
+it. The form is `EnquiryForm` over a shared `SubmissionForm` extracted from `ContactForm`
+(the status machine, honeypot, hydration guard, and error summary are now shared, not
+duplicated; the idempotency `submissionId` is bound to message + endpoint + a discriminated
+enquiry context, and the server page keys the form by `itemId` so a new `?enquire=` URL
+starts fresh). It reuses the deployment-authored `SiteSettings.contact.privacyNotice` and
+adds one generic line (`labels.enquiry.itemContextNotice`) that a reference to the
+photograph travels with the message. `e2e/gallery-enquiry.spec.ts` walks the journey
+(lightbox → second slide → Enter-key and click activation → the `?enquire=` form →
+delivery, a `delivery-failure.test` failure + retry, a not-`enquiryEligible` item's
+accessible refusal, a malformed `?enquire=` ignored, and `?enquire=`+`cursor=` → 404) and
+asserts the `noindex`/gallery-canonical/absent-`hreflang` metadata.
+No dynamic-result entry point (AB#58/AB#71 own the dynamic query and its UI); AB#60 stays
+open until a real dynamic result can be wired in or its acceptance criteria are amended.
+The identity/origin smoke is built (AB#123): `e2e/enquiry-identity.spec.ts` is a
+production-build Playwright suite that proves the whole chain is _wired and enforced_ when
+the app really runs — the browser-driven curated journey sends exactly the public context
+(`kind`/`locale`/`contentId`/`itemId`, nothing resolved or private) and gets back only the
+generic receipt, the enquiry view reuses the contact privacy notice, and a direct request
+to the running endpoint covers the dynamic origin that has no UI (a dynamic reference
+resolves; a dynamic request carrying a container is a `malformed-body`; an unknown
+occurrence collapses to the one generic `404 item-unavailable`; the reused cross-origin and
+content-type guards still hold). The resolution _semantics_ it complements — which trusted
+`mediaId` a reference resolves to, context preservation, no invented placement, every
+tampered/unknown/private/unpublished/non-enquirable class — are already proven against the
+real mock content source by `src/lib/enquiry-media.test.ts`, the route's generic-answer
+collapse and no-leak posture by `route.test.ts`, and `buildEnquiryEmail`'s private
+`archiveLocator` handling by `contact-delivery.test.ts`, so the smoke asserts wiring and
+the browser-only properties rather than re-deriving the matrix. It joins the Azure
+Pipelines gate through `testMatch: "**/*.spec.ts"` — no pipeline change.
+Not yet built:
+localized static routes and localized authored settings — the contact route is
+unprefixed-only for now — story-root listing continuation and progressive in-place append
+for category listings (both deferred by ADR-0013) — a **true HTTP 503** for
+the seeded gallery `ordering-stale` state _on the detail route_ — the `/api/gallery`
+endpoint already returns a real 503, but PR2 serves the detail page as an accessible HTTP
+200 + `noindex` because an App Router page render cannot set an arbitrary status (a
+follow-up would route the gallery detail through a handler; **no open work item tracks
+it** — AB#132 owns the related but distinct 404 initial-HTML limitation) — and its
+`shuffledOrderGeneration` atomic-flip alternative to the brief recompute refusal window
+(a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
+and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
+build it), lightbox zoom tuning, and the dynamic-result enquiry entry point (AB#58/AB#71).
+Private client galleries are **partially built**: a link can be opened and exchanged for a
+session, an authorized customer sees their gallery's frames, an operator can sign in to the
+administrator boundary, and the delivery path is composed end to end — but all of it only
+against a development fixture store. **A real deployment still serves nothing**, because
+neither private store has been provisioned. Their security,
+delivery, proof-selection, and retention boundary is
+[ADR-0014](adr/0014-private-gallery-security-delivery-retention-boundary.md)
+(AB#122, **Accepted**): a structural public/private isolation boundary, a
+fragment-capability link exchanged for a server session, two-stage per-asset
+authorization with direct short-lived signed object-store URLs (never a private byte
+through a Function), an S3-compatible object store plus a separate PostgreSQL-family
+private store, and a worker-authoritative six-month retention lifecycle. The one
+canonical-rule change it makes is a scoped exception to "Public derivatives only" above,
+for an authorized gallery-link/session holder — restoring the `private or
+sales/fulfilment` clause that exception must not weaken. AB#29 (delivery + ZIP) builds on
+it in slices and stays **Active**; **AB#145** (administration and customer notification,
+split out of AB#29 on 2026-09-02) remains Active. AB#130 (proof selection)
+is Active with server-only domain rules: pricing in integer minor units, natural
+complete-filename reference assignment with a persisted high-water mark contract,
+draft revision checks, versioned confirmation planning, and a first-ready transition
+from verified watermarked objects. A separate first-publication plan now refuses
+an expired or malformed upload preparation, missing or changed proof objects,
+invalid frozen pricing, prior publication metadata, or a wrong state; on success
+it supplies guarded `ready` → `published` fields and the six-calendar-month
+access expiry. The development proof fixture runs both plans before seeding its
+published gallery. No deployed store commits that publication yet, and the
+administrator create/publish route, sealed customer link and notification are
+still missing. The upload plan retains complete filename,
+stable media identity and opaque placement identity, and a verified-object join
+forms the initial placement rows. A pure confirmation-email projection includes
+the required references, filenames, counts and amounts, using shared exact
+currency formatting. A server-only gallery notification transport now validates
+one recipient per attempt and reuses the existing Resend HTTP provider core;
+the contact path keeps its fixed configured recipient. A server-only
+proof-selection store contract and a development-only, single-process reference
+implementation now exercise conditional draft edits, atomic confirmation
+snapshot plus initial pending outbox insertion, administrator reopen, and unique
+resend attempts. Each pending proof attempt now holds the exact validated
+photographer email built from its confirmation and business references; its
+recipient, wording, and image list are frozen with the attempt, while an
+administrator status read returns only outbox metadata. A deliberate resend
+copies that message under a new key. A server-only one-attempt dispatcher now
+claims the queued message, sends its frozen request through an injected gallery
+transport, and records sent or redacted failed status. The memory reference
+allows three bounded claims per row, with a 30-second lease and 60-second
+retry delay; an abandoned final claim becomes `worker-interrupted`. Automatic
+retry keeps the same key, while a deliberate resend gets a separate row.
+A bounded server-only batch runner now discovers at most 100 due proof attempts
+through the store seam and dispatches them sequentially. It skips active
+leases, includes expired leases and due retries, and reports only aggregate
+counts; if a store call fails mid-batch, its redacted error retains the known
+completed counts. The development store implements discovery for its one
+fixture gallery. A future PostgreSQL adapter must query due rows with a
+limit and indexes, and ensure repeated runs cannot starve another gallery.
+`gallery-notification-transport.ts` now selects and validates this path's own
+`resend` or development-only `sink` transport — no default, `sink` refused
+outright in production, mirroring `buildContactDeliveryAdapter` exactly — but
+no scheduler calls the batch runner: the durable worker runtime is still
+unbuilt, the same open action item as the six-month
+retention worker. The memory implementation is not durable across processes
+or restarts and is not wired into a runtime route.
+A server-only customer read facade now rechecks the session and live gallery
+before fetching proof state by the authorized gallery id. Its browser-safe
+projection returns at most 100 current proof cards per page and the draft
+selection and pricing summary; confirmed review data comes from the immutable
+snapshot, so a later placement removal cannot rewrite the accepted selection.
+Malformed rows refuse the whole view. The development store reads draft and
+current confirmation together in-process; a database adapter still needs a
+consistent read and bounded page and selected-row queries. A server-only
+customer mutation facade now checks JSON request provenance, method and streamed
+64 KiB body limit, freshly authorizes the session, then edits or confirms by
+draft revision. The store also compares the session capability generation with
+the published gallery in the same write, so a replaced link cannot submit a
+stale selection after the view lookup. The edit result includes the quote
+calculated atomically from the frozen pricing; confirmation returns only safe
+version and summary fields. A stale draft or locked selection is a conflict
+only after authorization; expired or superseded access has one generic refusal.
+A development-only proof fixture now joins the existing delivery fixture
+under `PRIVATE_GALLERY_STORE=memory`: it has a distinct shareable link, two
+watermarked proof placements with permanent references, frozen pricing and its
+own process-local proof store. The new `/<private-prefix>/<handle>/proof` API
+reads a session-authorized, browser-safe proof page and accepts revisioned
+selection edits and confirmations; it responds with `no-store`, one generic
+unauthorized refusal, and a conflict only for an authorized stale or locked
+draft. A confirmation queues one pending photographer message in memory; no
+transport dispatches it at request time. The development fixture serves no
+object bytes and cannot run in Production or Preview.
+The gallery page now renders a real customer proof selection / review /
+confirm panel (`PrivateGalleryProofPanel`) for `kind === "proof"` instead of a
+placeholder sentence: the first page is server-rendered (so a no-JavaScript
+visitor still sees the current draft and price). Each visible card now mints a
+short-lived preview URL through the authorized `/asset` route and renders its
+native-ratio watermarked proof directly in an `<img>` with no referrer; image
+failure remints once, then offers a manual retry. The per-page queue admits
+four concurrent mints and 50 starts per rolling minute under the server's
+per-session limit. Viewing the images, turning a page, editing checkboxes and
+confirming all require JavaScript, stated on the page. A toggle
+saves immediately as one whole-selection edit against the draft's
+`expectedRevision`, and a confirmed gallery renders only the frozen
+confirmation snapshot with no further edit control. `e2e/private-gallery-proof-flow.spec.ts`
+exercises this against a real browser: the server-rendered first page,
+the reserved frames' native ratios, the signed-preview mint and image-error
+remint with intercepted object bytes, and — through a `page.route`
+interception rather than the shared development fixture, which the whole
+suite's "tests share no state" contract forbids one spec from mutating — the
+full select/confirm interaction and its confirmed-review rendering. The
+fixture still has no object store, so it cannot serve real signed proof bytes.
+An administrator can now look up one proof gallery by its handle from the
+signed-in administrator page (`PrivateGalleryProofAdminPanel`) and see its
+draft/confirmation state, pricing, current selection summary, and — once
+confirmed — the queued notification's delivery status: pending, sent, or
+failed with its error class and next-retry time, read through
+`readPrivateGalleryProofAdminStatus` and the store's latest-attempt outbox
+projection, which already excludes every filename, selected image and
+customer identity from this narrower "is the notification stuck" view. Two
+administrator-only actions, `reopenPrivateGalleryProofAsAdmin` and
+`resendPrivateGalleryProofNotificationAsAdmin`, reuse the store's existing
+`reopen` and `queueResend` methods — a reopen unlocks the draft for a new
+round of edits without touching any prior confirmation or outbox row, and a
+resend queues a fresh delivery attempt under the same confirmation version,
+repeatably, never a new one. `initialProofOutboxIdempotencyKey` is a shared helper for the
+confirmation planner and memory store's resend lookup. The administrator
+status instead selects the latest attempt for the current confirmation, so a
+queued or failed resend cannot be masked by a previously sent attempt. `src/app/private-gallery-admin/proof/[handle]/route.ts` exposes this
+as `GET`/`POST` JSON, re-authorizing the administrator session on every call;
+`e2e/private-gallery-proof-admin.spec.ts` exercises a real administrator
+sign-in against a `page.route`-mocked status/action surface, for the same
+shared-fixture-mutation reason the customer flow spec mocks its mutations.
+A separate development-memory administrator flow now creates and lists
+prepublication proof drafts. It accepts validated, nonnegative pricing and
+optional bounded customer/job external references, mints an internal gallery
+identity and handle, and exposes no capability or customer access link. The
+`GET` list is capped at 100 and reports whether more rows exist. Each call
+reauthorizes the administrator; `POST` checks same-origin JSON and a streamed
+1 KiB body bound before parsing. The draft store is separate from the
+published fixture's customer exchange, view, and proof stores, so creating a
+draft cannot give a customer access. This is not yet relational customer/job
+association: no customer or job domain records exist (AB#28). A separate
+administrator-only `PATCH` now replaces a prepublication draft's complete
+pricing candidate through a revision-guarded memory-store update; stale tabs
+receive a conflict and refresh the bounded list. The candidate remains mutable
+until the later ready/publication transaction freezes it. Abandoned-draft
+cleanup, ready/publication and production persistence remain.
+The development proof draft store now has a server-only first-upload preparation
+operation. It validates a complete watermarked-proof manifest with the existing bounded
+planner, assigns opaque object keys and placement identities, and commits that plan with
+`draft → preparing` and a revision bump in one process-local synchronous mutation.
+Stale or repeated opens fail without a partial plan. The plan holds no pricing; the
+candidate remains editable while `preparing`, and a later `ready` transaction must freeze
+the current value. The existing admin JSON projection excludes the plan and object keys.
+This has no HTTP or owner-CLI upload path, no object writes and no customer access.
+`preparing → draft` is not an ADR-0014 transition; the story's reopen operation applies
+to a confirmed customer selection after publication. An incorrect/abandoned preparation
+must follow the deletion and recreation path when durable storage exists.
+No PostgreSQL proof store, durable outbox worker, runtime mail wiring or
+production customer workflow exists yet.
+
+Built so far, all of it behind `PRIVATE_GALLERY_STORE=off` (the default) with **no production store
+adapter and no provisioned infrastructure**, so an `enabled` deployment throws on the
+first request that needs a store rather than half-serving: the
+isolation boundary and validated two-phase configuration, the domain model and its
+nine-state machine, and the `privateOnly` fail-closed guard on every public projection
+(#101); the reserved route namespace's response hygiene in `src/proxy.ts` — `no-store`,
+`noindex, nofollow`, `Referrer-Policy: no-referrer` — plus `robots.txt`'s `Disallow` (#102);
+the AES-256-GCM capability envelope with its canonical associated data and rotation
+primitives (#103); the session model and its per-gallery-path `__Secure-` cookie contract
+(#104); and the capability exchange's two rate-limiting layers, its gallery/capability
+lookup, and the constant-time verification of a submitted capability, behind
+`src/lib/private-gallery-access.ts` — the one facade a route may import, since it owns an
+ordering a route must not reassemble (#105).
+The link and its exchange are now routes: the Proxy rewrites the deployment-configured
+prefix onto a reserved internal segment (`/private-gallery`, `request-path.ts`) so a
+file-system route can serve a configurable public path, and refuses a direct request to
+that segment. **Next.js runs the Proxy again on the path it rewrote to** — measured
+against a production build, not assumed — so the internal branch tells its own second pass
+apart from a stranger by the request path the first pass carried, and answers it with a
+`next()` rather than a second rewrite, because only a `next()` response's headers replace
+`next.config.ts`'s site-wide `Referrer-Policy` (a `rewrite()`'s do not, which silently cost
+§6's `no-referrer` until `e2e/private-route-hygiene.spec.ts` caught it). That header check
+is namespace hygiene, not authorization: it keeps a second URL shape away from crawlers and
+links, and a forged header reaches only a page that looks nothing up and an exchange that
+still demands the real capability. The bootstrap document renders identically for every
+well-formed handle and **looks nothing up**, because the capability is in the fragment and
+a browser never sends one; `public/private-gallery-bootstrap.js` (an external same-origin
+file, so no new inline-script grant) reads it, strips it from the address bar with
+`replaceState`, and posts it to `POST <prefix>/<handle>/exchange`, which answers a session
+cookie or **one indistinguishable 403** for every failure class — same status, same body,
+no `Retry-After` — so nothing separates an unknown handle from a throttled known one.
+`PRIVATE_GALLERY_STORE=memory` is a development-only fixture store (accepted only where
+`SITE_DEPLOYMENT_STAGE` is `development` — preview is refused as well as production, since
+it is a shared environment standing in for production) whose published, non-secret link is what the
+Playwright journey and a local `npm run dev` actually exercise; it seals that fixture under
+an ephemeral per-process key and never reads the deployment keyring.
+That same address then serves a second document: with a session cookie that currently
+authorizes _this_ gallery it renders the gallery itself, and ADR-0014 §5 Stage 1 is
+re-derived on **every** request from the cookie plus a fresh gallery read, so a revoke or a
+closed access window takes effect on the next navigation rather than whenever the session
+would have run out. The gallery is read by the **session's own `galleryId`**, never by the
+handle in the URL: a `findGalleryByHandle` would be an unauthenticated lookup primitive
+over a caller-supplied string, so the requested handle is instead compared against what the
+session already named. Every unauthorized outcome — no session, an expired one, a
+superseded capability generation, a session belonging to another gallery — renders the same
+bootstrap document, so the page is no more of an existence oracle than the exchange is. The
+authorized view is deliberately thin: it names the access window and says the photographs
+are not viewable yet, because §5 Stage 2's per-asset signed URLs need the object store that
+does not exist; an empty grid would claim the gallery had been delivered and found empty.
+Building it surfaced a defect in the fixture store that a single-process assumption had
+hidden: **Next.js compiles each route into its own server bundle, so a module imported by
+both the exchange Route Handler and the page is instantiated twice under one `next start`**
+— measured with a construction probe against a production build — which gave the two routes
+two different fixtures and made a session minted by one invisible to the other. The
+singleton is now pinned to `globalThis`, the pattern Next.js documents for a
+development-only client; the Postgres adapter keeps its state in Postgres and never had the
+problem.
+The six-month lifecycle's _rules_ are built too, as pure policy over the state machine
+(`src/lib/private-gallery-retention.ts`), the same split the exchange rate limiter already
+uses: `computePrivateGalleryAccessExpiry` adds six to the **UTC** month and clamps to the
+target month's last day with the time of day preserved — calendar months rather than 180
+days, because "six months" is what a photographer tells a customer, and the ADR's own
+worked examples are golden vectors; `evaluatePrivateGalleryRetention` decides what one
+scheduled run does with one gallery (an abandoned preparation, a reached access expiry, a
+revoked gallery never replaced, cleanup due, a failed deletion retried until a human
+acknowledges it), refusing to treat a **missing** retention timestamp as an unreached
+deadline, because one corrupt row would otherwise keep private objects alive indefinitely.
+Every proposed transition is checked against the state machine, so this module cannot
+invent an edge; nothing here ever proposes a way back to `published` (§7's deletion guard).
+The 275-day backstop bucket age is pinned to the parts it is derived from — preparation +
+the longest six-calendar-month span (184 days) + suspension + deletion grace + a day — so
+lowering a window without revisiting the rule fails a test, and
+`assertPrivateGalleryRetentionWindows` makes "a deployment may lower a window but never
+raise one" executable rather than advisory. The development fixture publishes through the
+real clock rather than an approximation. **The worker that performs the IO is not built** —
+ADR-0014 names it as its own action item and it needs both stores; its schedule (at least
+every 24 hours) and the backstop lifecycle policy are in `docs/deployment.md` so they can
+be provisioned with everything else.
+ADR-0014 §5 **Stage 2's decision** is built as pure policy too
+(`src/lib/private-gallery-delivery.ts`) — everything that happens before a signature,
+which is where the security is: a signer handed the wrong key or an unbounded expiry is
+correct and useless. `PrivateGalleryMintRequest` has **no object-key field**, so a caller
+names a `placementId` this deployment minted or nothing at all for the gallery's one ZIP,
+and the key comes back from the store row — the type is what stops the endpoint being an
+IDOR probe or a signing oracle, rather than a validation someone must remember. Stage 1's
+state and generation are re-checked rather than inherited, because minting is the step
+that hands out bytes and a gallery can leave `published` between a page render and a click
+on the download control; a placement or ZIP row belonging to another gallery is refused,
+and a ZIP is only ever signed against `activeZipObjectKey` (§8c makes the pointer the sole
+answer to "which version is current"). `computePrivateGallerySignedUrlTtlSeconds` is
+`min(configuredTTL, accessExpiresAt − now)` floored to seconds, with per-kind ceilings —
+single-digit minutes for a preview, six hours for the ZIP — that a deployment may shorten
+and never lengthen, since the TTL is exactly what a leaked URL is worth. §8e's per-gallery
+access budget (10× the gallery's own bytes, charged at full nominal size on every mint,
+keyed by gallery **and** capability generation so re-exchanging does not reset it) is a
+counter evaluator of the same shape as the exchange's, consulted only after every free
+check has passed so an unauthorized request cannot spend a gallery's allowance; a corrupt
+row throws rather than resetting, the one direction a budget must not fail. The window is
+**fixed rather than rolling**, which ADR-0014 §8e's 2026-09-02 amendment now says outright
+after this slice found the table and the design disagreeing: one persisted counter row
+cannot express a rolling window (that needs every mint's timestamp — a thousand rows per
+browse of a 1 000-file gallery, summed on every image load), so up to twice the allowance
+can be spent across a boundary. Accepted because the budget counts _authorizations, not
+delivered bytes_ — a replayed URL costs nothing and `Range` is invisible — so precision was
+never available where it would matter; a two-counter sliding approximation (~1.1×) is the
+recorded upgrade path if Fair Transfer pressure ever makes the burst shape matter.
+What a private item may _be_, once it crosses into a browser payload, is fixed too
+(`src/lib/private-gallery-item.ts`) — the private counterpart of `projectPublicMedia`, for
+the same reason: a store row carries more than a page may render, and the safe subset is
+produced by one function rather than remembered at each call site. A `PrivateGalleryItem`
+has **no `objectKey`** (a page holding one could ask for a signature by naming it, the
+exact request shape the delivery boundary refuses), no `galleryId`, and no `nominalBytes`;
+it is built field by field rather than by spreading the row, so a column added later
+cannot reach a payload by merely existing. The placement gained its **true intrinsic
+`width`/`height`**, which the model lacked entirely — without them `AGENTS.md`'s no-crop
+rule is not expressible at all, since a layout that does not know a photograph's shape can
+only guess it, and guessing is cropping. §8e's derivative ceilings (2 048 px longest edge,
+tied to `MAX_PUBLIC_DELIVERY_DIMENSION` so a private preview cannot quietly out-resolve a
+public one, and 8 MB) are enforced again at read time rather than trusted from the upload
+tool, and an oversized derivative is **refused, never downscaled on the fly** — that would
+be a crop-shaped decision made by the wrong layer. A malformed row throws rather than
+being skipped, because a skipped item silently shortens a customer's gallery and nobody
+would know a delivered photograph is missing; a page over the 100-item bound is refused
+rather than truncated, and two placements sharing an identifier are a defect.
+The authorized view now renders those items as a **grid of reserved frames**
+(`src/components/private-gallery-grid.tsx`): row-major, one to three columns,
+top-aligned, each frame at its own native ratio via an inline `aspect-ratio` built from
+the derivative's true pixels — per-item data Tailwind cannot generate a class for, and
+rounding every photograph to the nearest available class would be cropping by another
+name. The frames hold **no bytes**: §5 Stage 2's signed preview URLs need the object
+store that is not provisioned, so what exists is the geometry, and the `<img>` a later
+slice drops in cannot reflow the page. The page says that in words, because a grid of
+empty boxes would otherwise read as "your gallery is empty" — a different and alarming
+claim that has its own separate wording. `e2e/private-gallery-link.spec.ts` measures the
+laid-out box of every frame in a real browser against the ratio the fixture declares, and
+asserts the fixture's shapes genuinely differ (landscape, portrait, square, panorama), so
+a cropping grid could actually fail it; a second case proves no object key reaches the
+document, RSC payload included. The item read happens strictly **after** authorization —
+an unauthorized request never reaches a placement row — and a projection or store defect
+falls back to the unauthorized document rather than rendering a gallery quietly missing
+photographs.
+Objects now have an assigned shape (`src/lib/private-gallery-object-key.ts`):
+`<keyPrefix>/g/<galleryId>/<preview|proof|zip>/<128-bit CSPRNG token>`. The token is not a
+counter, which is what makes the runtime credential's deliberate _absence_ of `ListBucket`
+meaningful — sequential keys would make reading one object imply reading the gallery. A key
+carries nothing about the customer or the photograph (no name, no filename, no capture
+date, no gallery handle): it is not browser-facing, but it is visible to anyone who can
+list the bucket and to the provider's own tooling. Every part is validated before it is
+joined, so an "opaque" gallery id carrying a separator or a dot cannot place an object
+outside the prefix that all three credentials and the backstop lifecycle rule are scoped
+to, and `isPrivateGalleryObjectKeyInPrefix` checks a stored key segment-wise on the way
+back out, so `photos-private/…` never passes as being inside `photos`. The key layout is
+now in `docs/deployment.md`'s runbook, because the IAM policies cannot be written against a
+guess.
+The bounded **upload preparation** (`src/lib/private-gallery-upload.ts`) is §8c's answer to
+an object store and a database that cannot share a transaction: the database always knows
+first. `openPrivateGalleryUploadPreparation` validates a declared manifest against §8e's
+ceilings — file count, per-derivative pixels and bytes, one ZIP at most, and the gallery
+total — assigns one immutable key per entry, and returns a plan with the 30-day deadline;
+the administrator boundary commits it and moves the gallery to `preparing` **before** the
+CLI writes a byte, so the retention worker always has an enclosing preparation to reconcile.
+An object written without one would be invisible to cleanup and would survive until the
+275-day backstop. A bad entry refuses the _whole_ manifest, since a partial plan would put
+keys in the database for objects the CLI was never told to write. Sizes here are
+_declared_, not measured: the completion step re-checks the real object with a metadata
+read, because a declaration is a claim and the bucket is the fact — checking only at
+completion would mean writing gigabytes before refusing, and checking only at planning
+would trust the client.
+**Completion** closes that loop (`src/lib/private-gallery-upload-completion.ts`): it
+reconciles three independent accounts of the same objects — the plan the server assigned,
+the receipts the CLI reports, and metadata-only reads of those exact keys — and **only the
+third is evidence**. A receipt is a claim, carried solely so a checksum the store cannot
+compute for us has somewhere to travel; it never proves an object exists or is the right
+size. An object at a key the plan never assigned fails the completion, because nothing
+vouches for it and it would sit in the bucket uncovered by any manifest. One bad object
+fails the whole thing: a half-verified gallery is one a customer could be shown with
+photographs missing, and the failure list is bounded so a bad run cannot flood an
+administrator's status. **An ETag is never accepted as a content hash** — §8c says so, and
+it is the one plausible shortcut that would be wrong, since a multipart ETag is a digest of
+part digests, so comparing it against a hash of the file fails for correct data and
+_sometimes passes_, which is worse than always failing. Which checksum algorithm a
+deployment uses stays the provisioning-time decision §8c defers: the comparison is
+algorithm-agnostic and refuses two differently-named digests rather than guessing. On
+success the outcome names the ZIP pointer swap and, when it supersedes one, how long the
+predecessor must be retained — the longest a ZIP URL can live plus a clock-skew margin
+(this slice's hour, not an ADR number), because without it a regeneration would break an
+in-flight download or `Range` resume minted against the old immutable key.
+**Readiness is per gallery kind** (§8c), which the model could not express until now: a
+`PrivateGalleryKind` discriminant joins the gallery, and
+`src/lib/private-gallery-readiness.ts` decides whether the _verified_ objects satisfy it —
+evidence from the completion step, not what a plan intended. A **delivery** gallery is not
+ready without both a derivative and a verified ZIP that `activeZipObjectKey` actually
+names; publishing one without it hands a customer a gallery whose whole promise is missing,
+indistinguishable to them from one that had not finished loading. The kind is stored rather
+than inferred from `activeZipObjectKey`, because a delivery gallery _before_ its ZIP is
+verified and a proof gallery that will never have one look identical by that field, and
+guessing would publish the first as the second. **Proof readiness is evaluated from complete verified evidence**: the first-ready planner
+requires every placement to be unnumbered and every watermarked object verified, then
+returns one transaction plan for the pricing snapshot, permanent references, high-water
+mark, and ready state. Re-running it after ready refuses rather than renumbering. The
+readiness evaluator requires an exact match between the stored-shaped placements and
+verified proof objects, a valid pricing snapshot, and the initial natural reference order;
+its blocker codes carry no private data. The private store that would persist this plan
+does not yet exist. Every blocker is reported at once, because an administrator told
+about one missing thing at a time is how a publication takes four attempts.
+The **presigner** is built (`src/lib/private-gallery-signed-url.ts`): hand-written SigV4
+query-string signing over `node:crypto`, which is what ADR-0014 §8a's "a small, justified
+dependency; a full cloud-vendor SDK is not required and is avoided" asks for — presigning
+is four HMACs and a string concatenation, while an SDK would bring a credential-provider
+chain, a retry layer, and a request pipeline this path wants none of. It decides nothing:
+handed the wrong key or an unbounded expiry it would faithfully sign both, which is why
+`private-gallery-delivery.ts` owns that. `uriEncode` is written out rather than delegated
+to `encodeURIComponent`, which leaves `!'()*` unencoded — AWS's own guidance is that a
+platform encoder "might not work", and one differing byte changes the canonical request and
+so the signature. Only `GET` is ever produced: a presigner that took a method would be one
+mistake from handing out a write URL for a bucket whose whole model assumes the browser
+never writes to it. Response-header overrides are signed like any other parameter, so
+`Content-Disposition: attachment` and `Cache-Control: no-store` hold for a given URL
+whatever metadata the upload set.
+**How far that is verified matters and is stated rather than blurred.** The core —
+canonical-request hashing, the string to sign, the four-step key derivation, the final HMAC
+— is pinned against **AWS's own published worked example**, reproduced exactly from its
+documented inputs to its documented signature: a real known-answer test, not the
+implementation agreeing with itself. Three other documentation sources yielded no usable
+vector, and AWS's _second_ example on the same page is deliberately not pinned because its
+published signature cannot be reproduced from its published canonical request — a vector
+that does not reproduce is not a vector, and the test file records why so nobody adds it
+back believing it was overlooked. What no vector can establish is whether _this_ provider
+accepts the result: §8a's provisioning gate owns that ("a presigned `GET` minted with the
+verifier credential succeeds", plus `Range` on a large object). Verified against the
+specification, unverified against the provider — different claims, and only the first is
+made. Path-style addressing is used because `PRIVATE_GALLERY_S3_ENDPOINT` is a bare origin
+rather than a bucket host; virtual-host style is a small change the live gate would settle.
+The private routes now carry their own **`img-src` grant** for the object-store origin
+(ADR-0011 action item 4), which had been outstanding since the routes landed and would
+have blocked every private preview in the browser the moment an object store existed. It
+is emitted **only** for `PRIVATE_GALLERY_STORE=enabled`, applies to the private routes and
+nowhere else, and adds **no `connect-src`** — a preview is an `<img>`, never a script
+fetch, which is also why the bucket needs no CORS policy. Two `next.config.ts` behaviours
+were measured against a production build rather than assumed, and both had been guessed
+wrongly earlier in this story: a `headers()` rule matches the original request path **and**
+the path the Proxy rewrote to, and among matching rules the **last** one wins for a given
+header name. The rule is therefore sourced at the internal rewrite target — a build-time
+constant, unlike the configurable prefix — and placed after the site-wide entry. This makes
+`PRIVATE_GALLERY_S3_ENDPOINT` a **build-time** input for an `enabled` deployment: an origin
+rather than a credential, on the same footing as the Sanity ids `next.config.ts` already
+reads at build for the optimizer allow-list, and it fails the build if missing rather than
+shipping a gallery whose every photograph the browser blocks with no error to explain it.
+The value is validated as a bare `https://` origin before interpolation, because a stray
+space or semicolon in a CSP source widens the whole policy.
+**ADR-0014's action list is now closed except for the two items that need the services to
+exist** (its own item 1, and AB#130). The administrator-authentication boundary it left
+open is decided in [ADR-0015](adr/0015-administrator-authentication-boundary.md),
+accepted 2026-09-02 — own reserved namespace, a `__Host-` session sharing nothing with the
+customer path, a persisted login rate limit, and a **generated** single-operator secret
+verified with `scrypt`, because §4 requires the boundary to be _stronger_ than a 256-bit
+customer capability and a human-chosen passphrase is not; a passkey is the recorded upgrade
+path, deferred for its dependency and its lost-device recovery converging back on a
+configuration secret. Implementation is **AB#145's**, and its first slice is built: ADR-0015
+§1's **reserved administrator namespace**, and nothing else. `PRIVATE_GALLERY_ADMIN_ROUTE_PREFIX`
+(default `admin`) is validated as one lowercase segment and reserved as a root segment
+whether the feature is on or off, exactly as the customer prefix is — against locale
+prefixes, the redundant default prefix, story namespaces, application-owned segments, and
+legacy-redirect roots — and additionally **refused if it equals the customer prefix**,
+because that prefix is what the customer session cookie's `Path` is scoped beneath, so a
+shared root would put an administrator route inside the scope of a customer credential.
+The Proxy stamps the same `no-store` / `noindex, nofollow` / `no-referrer` hygiene on every
+response in it and skips the legacy-redirect lookup for it (a match would otherwise return
+a cacheable 410 from inside the namespace), production `robots.txt` disallows it, and one
+constant now serves both namespaces so the two cannot drift. There is **no rewrite**: the
+customer namespace needs one to reconcile a configurable prefix with a fixed file-system
+route, while administration owns no route at all, so every path under the prefix is a 404 —
+which is the point of doing this first, since a namespace has to behave privately before it
+has content or the deployment that adds the first route is also the first one crawled.
+`PRIVATE_GALLERY_ADMIN_SECRET_HASH` is already in the `NEXT_PUBLIC_` refusal list, though
+nothing reads it yet.
+**§2's session is built too**: `src/lib/private-gallery-admin-session.ts` carries the
+operator's session model, its `__Host-pg_admin_session` cookie contract, and the two checks
+every administrator route and mutation re-derives per request. It shares the _shape_ of the
+customer session and none of its state — a separate store contract over its own rows, a
+different cookie name, no `galleryId` and no `capabilityGeneration`, and no operator
+identity field at all, because this deployment has one operator and nobody to enumerate.
+The shape it does share is extracted rather than copied: `private-gallery-session-token.ts`
+now owns identifier minting, the canonical-encoding check (a round trip, since several
+43-character strings decode to one 32-byte value), the unsalted SHA-256 the store keeps,
+and the single-cookie read that refuses a duplicate — so the two models cannot drift in the
+one place a silent divergence would matter. `__Host-` is browser-enforced (`Secure`,
+`Path=/`, no `Domain`), which is what the customer cookie could not use because it needs a
+per-gallery `Path`; the cost is that this cookie travels on public requests too, accepted
+for a cookie no sibling subdomain can set. `SameSite=Strict`, two hours by default against
+a twelve-hour ceiling a deployment may lower and never raise, absolute with no sliding
+renewal. Each row carries an opaque digest of the credential it was minted against and every
+request compares it, so **rotating the administrator secret revokes every live session by
+itself** — ADR-0015 §2's central revocation with no operator action; the digest is supplied
+by the caller rather than read here, so §4's mechanism stays replaceable. `reauthenticatedAt`
+gates irreversible operations (delete, revoke) to a five-minute window, refusing a
+future-dated value rather than reading it as "very recent". A stored row with a malformed
+credential digest classifies as `invalid-session`, not `invalid-parameter`, because the
+reason reaches the operational log and a corrupt row must not point an operator at their own
+call site. **§3 is built too**: `src/lib/private-gallery-admin-login.ts` carries the login's request
+boundary and its two throttling layers, everything that must happen _before_ a credential
+is ever verified. The request boundary is reused rather than reinvented — a thin wrapper
+over the same `checkContactRequestHeaders` the contact and enquiry endpoints already pass
+through, so the administrator path cannot drift from a boundary reviewed twice. Layer 1 is
+an in-process per-IP limiter in its own instance (a login never spends the contact, enquiry,
+or exchange allowance); layer 2 is the persisted counter ADR-0015 §3 calls "the actual
+defence", with the same saturating fixed-window semantics
+`evaluatePrivateGalleryExchangeRate` already established, throwing on a corrupt row rather
+than resetting — this is the one counter whose failing open would make an expensive
+operation free. Two things about it are deliberate and stated rather than implied. It is
+**keyed globally**, one row for the whole deployment: administration has no gallery row to
+own a counter and no account to key on, so a global key is both the honest shape and
+trivially bounded storage, where a per-client persisted counter would reintroduce exactly
+the unbounded key space ADR-0014 §3 avoided. And what it actually bounds is **`scrypt` CPU
+cost**, not guessing — §4 requires a generated 256-bit secret, so no rate on a human
+timescale affects that search space, while thirty attempts per fifteen minutes caps the
+endpoint at roughly two seconds of CPU per window and also bounds the case the rule cannot
+enforce, an operator who configures a passphrase anyway. The accepted cost is availability:
+a global counter means sustained attempts can deny the operator a login until the window
+rolls over. ADR-0015 does not discuss it; `docs/deployment.md` now does, together with the
+platform-level mitigation, because the application-level alternatives are worse. A
+throttled attempt and a wrong credential must answer identically — same status, same body,
+**no `Retry-After`** — so the refusal reason is operational-log-only. **§4 completes the boundary**: `private-gallery-admin-credential-format.ts` owns the
+encoding — `scrypt$1$<N>$<r>$<p>$<salt>$<hash>`, self-describing so raising the cost later
+cannot silently invalidate a configured value — with its parsing, bounds, constant-time
+verification, and the session generation digest; `private-gallery-admin-credential.ts` is
+the server-only half that resolves `PRIVATE_GALLERY_ADMIN_SECRET_HASH` lazily, refuses a
+`NEXT_PUBLIC_` mirror, and reports a missing value distinctly from a malformed one. The
+split exists because `scripts/generate-admin-secret.mts` (`npm run admin:secret`) runs under
+plain Node, where `server-only`'s CommonJS entry throws by design — and a security format
+with two implementations is exactly the drift avoided elsewhere. That command generates the
+secret rather than letting an operator choose one, which is how §4's "a memorable passphrase
+is not an acceptable value" becomes executable rather than advisory; it verifies its own
+output before printing and writes nothing to disk. One measured detail would otherwise have
+broken every login: §4's own parameters need `128·N·r` = exactly 33 554 432 bytes and Node's
+default `maxmem` is exactly that, with OpenSSL rejecting at `>=`, so **the ADR's parameters
+throw with the default** — `maxmem` is always passed explicitly, and the parameter ceilings
+exist so that derived value can never ask for a gigabyte from a typo. The generation digest
+is SHA-256 over the _encoded credential_, never the stored hash: it lives in the session
+table and every backup, and the scrypt hash is the offline-attack target.
+With §4 present the ordering is complete, so administration finally joins the
+`private-gallery-access.ts` facade: `attemptPrivateGalleryAdminLogin` (throttle, _then_
+resolve the credential, _then_ verify, _then_ mint — a route that verified first would be
+offering unmetered CPU, and every individual piece would still pass its own tests) and
+`authorizePrivateGalleryAdminRequestSession`, which re-resolves the credential on every
+request so rotation is revocation. Both never throw, and every refusal — throttled, wrong
+secret, unprovisioned, malformed credential, stale session — is one indistinguishable answer
+with the class kept for the operational log. Building it also refined §2: a corrupt session
+row now classifies as `malformed-record` rather than `invalid-session`, because the facade
+needed to tell "a browser left open" from "your table is corrupt" and was otherwise reduced
+to matching an error message. **The routes now exist too, so ADR-0015's boundary is complete.** The Proxy rewrites the
+configured administrator prefix onto its own internal segment (`private-gallery-admin`,
+deliberately _not_ a subtree of the customer one — the isolation has to hold for the route
+tree behind the URL, not only for the URL) and 404s a direct request to it, exactly as the
+customer namespace does. One address serves both states: with a session that currently
+authorizes it renders the signed-in surface, without one the sign-in form, so a stranger and
+an operator whose session ran out see the same page. Sign-in and sign-out both post JSON,
+because §3 fixes one content type for the login and every mutation — the cost is that
+administration needs JavaScript, the opposite of the trade the customer gallery makes and
+deliberately so. AB#153 disables the secret field and submit button until hydration,
+omits the field's HTML submission name, and gives native submission an explicit POST
+target at the JSON-only login endpoint. Disabled JavaScript, blocked/delayed hydration,
+and a forced native submission are covered with a synthetic URL-leak canary.
+Sign-out deletes the session row as well as clearing the cookie, and
+authorizes before deleting so the endpoint cannot be pointed at a row named by an arbitrary
+identifier. The development fixture supplies its own published administrator secret and
+**never reads `PRIVATE_GALLERY_ADMIN_SECRET_HASH`**, the same rule its ephemeral keyring
+already follows. `e2e/private-gallery-admin.spec.ts` walks the journey against a production
+build — the accessible form, one refusal message for a wrong secret, sign-in surviving a
+navigation, sign-out ending the session, the `__Host-` cookie's real browser-stored
+attributes and its invisibility to script, the namespace hygiene, the internal segment's
+404, and the endpoint's own boundary including a request with no `Origin`.
+**What remains of AB#145 is the administration itself** — creating, publishing, notifying,
+revoking — which is blocked on the same unprovisioned private stores AB#29 is. The
+re-authentication gate for irreversible operations is built and tested but has no caller,
+because the operations it guards do not exist yet.
+`docs/private-gallery-data-flow.md`
+is the processing record behind any privacy notice, and `docs/deployment.md` now carries
+the whole operational runbook: provisioning and the live gate, the object-key layout the
+IAM policies are scoped to, the worker's at-least-daily schedule and backstop policy, the
+backup rules for both stores with §7's **worker-runs-first restore gate** (a backup taken
+before an expiry and restored after it brings a closed gallery back accessible), drift
+monitoring, owner-run repair, and the exit path. **None of that has been exercised** — no
+deployment has provisioned either service, and every one of those documents says so rather
+than reading as though it had.
+The delivery path is finally **composed** rather than only implemented:
+`mintPrivateGalleryAssetUrl` is the one call a route makes, and it exists because the
+pieces must not be assembled by a route. The mint decision and the signer are both behind
+`eslint.config.mjs`'s import ban, so until now there was no legal way for a route to reach
+either — the security ordering was written and unreachable. That ordering is the point:
+every **free** check first (state, generation, the resolved row's ownership, the TTL), so a
+request that was never going to be authorized cannot spend a gallery's allowance; then the
+**atomic** budget consume, which the store owns because a read-decide-write would race a
+concurrent mint; then, and only then, the signature. A route doing this itself could get
+the order wrong in a way no test of the individual pieces would catch. The object store's
+configuration is read _first_, so a deployment that has none (`off`, `memory`) refuses
+before charging a gallery for a URL nobody receives, and the response's `no-store` — plus
+`Content-Disposition: attachment` for the ZIP — is **signed** rather than left to upload
+metadata. `planPrivateGalleryMint` was split out of `authorizePrivateGalleryMint` for this,
+leaving the pure reference evaluator intact and its tests unchanged.
+The bounded per-asset mint route is now wired to this facade. It checks the
+request boundary and a fresh session before reading a preview placement id or
+ZIP request, and answers every refusal identically. Every request with a
+fresh, authorized session and a valid request shape consumes the per-session
+rolling 60-per-minute allowance before the asset lookup runs, including one
+that names an unknown or cross-gallery placement — that lookup is itself real
+store work a session holder must not get to repeat for free. The separate
+gallery byte budget is charged only for a request that resolves to an
+eligible mint; an invalid asset, a rate refusal, or a failed free check never
+spends it, though the budget is consumed before signing, so a later signing
+failure can still produce a refusal after the charge. The store seam requires the
+rate-limit update to be atomic and persisted. Its success path is tested
+with a development-only fixture and a fake object-store origin; no private bytes
+are served in any real deployment until the store adapters and owner-run live
+gate exist. The customer image/download controls remain unbuilt.
+Everything else is unbuilt: the ZIP generation, the owner-run upload
+CLI, the retention worker's IO, and the concrete object-store/Postgres providers with their
+live provisioning gate (the owner-run runbook for those two services
+is in `docs/deployment.md`). **Administration — creating a gallery, publishing it, the
+customer notification with its delivery state and resend, and revoking or replacing
+access — split out of AB#29 into AB#145 on 2026-09-02** and has not started.
+Validated JSON-LD structured data (AB#86) is built: `src/lib/structured-data.ts` is a pure
+builder + `</script>`-safe serializer (`<`, `>`, `&`, U+2028, U+2029 escaped — `JSON.stringify`
+alone does not, per Next.js's own guidance) rendered through the `<JsonLd>` server component.
+The supported set is core only, owner-decided at refinement: `WebSite` + `Organization` on the
+home/site root, `Service` on a service detail route, `Article` on the `article` content variant's
+canonical detail route. Nothing is emitted on a gallery detail, a category branch, the story
+root, the `/services` listing, `/contact`, or any `?cursor=` / `?section=` continuation. Every
+value is an explicitly modelled `SiteSettings`, `Service`, or `ContentPage` field or a
+deployment-config value: `Organization.name` is `siteName` and `sameAs` is the configured social
+links, but no `logo`, `contactPoint`, `provider`, `author`, `publisher`, `offers`, or address
+entity is synthesized, and an absent optional field omits its property rather than emitting a
+placeholder. Route URLs and asset URLs share `page-metadata.ts`'s rules through the new
+`canonical-url.ts` (`canonicalRouteUrl` applies ADR-0003's no-trailing-slash shape and must be
+origin-absolute against the canonical base; `absoluteAssetUrl` resolves a relative rendition and
+preserves an already-absolute public CDN derivative). The AC5 external-validator check is manual
+(CI reaches no external service); the representative builder outputs are the snapshot fixtures in
+`structured-data.test.ts`, and `e2e/structured-data.spec.ts` proves the per-route inclusion and
+exclusion wiring against a production build.
+The AB#65 spike that informs the keyword-taxonomy ADR (AB#55) and ADR-0012's own open
+questions has its **tooling** built — a deterministic ~8000-media synthetic fixture corpus
+(`scripts/keyword-benchmark-fixtures.mts`, entirely non-personal, validated), the three
+ancestor-strategy GROQ builders and an in-memory equivalence oracle
+(`scripts/keyword-benchmark-queries.mts`), the analytical models for ADR-0012 §3's
+selection-collapse, §6's cache cardinality (collapse-aware antichain count, not just
+`Σ C(V,k)`) and invalidation fan-out, and hierarchy-move write amplification
+(`scripts/keyword-benchmark-model.mts`), a measurement-capable read-only transport that the
+shipped one could not provide — endpoint (API vs API-CDN) selection, server `ms`, payload
+bytes, cache headers (`scripts/keyword-benchmark-http.mts`) — the full measurement matrix and
+its Markdown renderer (`scripts/keyword-benchmark-plan.mts`), and an owner-run orchestrator
+(`npm run benchmark:keywords -- plan|seed|run|move|clean`, `scripts/keyword-benchmark.mts`)
+that seeds a **dedicated disposable** dataset, runs a strategy × shape × endpoint matrix with
+a GROQ-vs-JS ordering correctness gate (ADR-0012 §9), and performs one reverting hierarchy
+move with query-visibility-lag timing (AC7). **The live measurement was run** (2026-08-27,
+against a throwaway Sanity project seeded and torn down; results and reasoning in
+`docs/keyword-query-benchmark.md`). It **reversed the pre-run hypothesis**: `media-expansion`
+(ancestor closure materialized on the medium) is the fastest read at every shape (~1.7–2.4×
+faster than the keyword-side join strategies, and the only one whose paginated walk is one
+request per page), so the recommendation to AB#55 is **strategy B**, accepting the
+expensive-but-rare hierarchy move (moving the broad root rewrote 3541 media docs: ~15 s to
+re-sync, ~45 s to revert) rather than paying a join on every visitor request. The
+GROQ-vs-JS keyset ordering agreed on every walk including the sub-second `capturedAt` pairs,
+so ADR-0012 §9's risk did not materialise. 3 of 4 hierarchy-move cells were measured live;
+`deep`×strategyB is modelled (its re-sync probe needed a fix, landed after the run).
+**AB#65 is closed.**
+Tagged caching and webhook revalidation (AB#83) are built — see the large paragraph earlier
+in this file and `docs/cache-revalidation.md`. Its previously outstanding "Deployed
+verification gate" is now complete: on 2026-08-26 a revision-guarded Preview publish and
+its revision-guarded restoration each produced an accepted signed webhook, a
+`REVALIDATED` response with a new ETag on the current route-wired Preview deployment, and
+seven further `HIT` responses that all carried the one current value. The webhook ran on
+an older Preview deployment while the reads ran against the newer one, directly proving
+that invalidation was not confined to one warm process or deployment. A raw-perspective
+audit confirmed the original seed value was restored and no draft or test marker remained.
+**AB#83 is closed.**
+The deployment itself: AB#116 is **closed** — the Preview environment is fully provisioned
+and proven working by a real, verified, fully-automated pipeline run (build 144, `main`,
+2026-08-24). `DeployPreview` built, deployed to Preview, bound the deployment identity to
+the expected project/team, and verified both access protection (a 302 redirect to
+`vercel.com/sso-api`) and non-indexability (`X-Robots-Tag: noindex`) against a live URL.
+Three root causes were found and fixed only by actually running this, not by code review:
+`vercel deploy`/`vercel build` needed an explicit `--target=preview`, since a project's
+first-ever deployment is otherwise assigned to production regardless of the omitted
+`--prod` flag; a TypeScript parameter-property in `scripts/vercel-preview-api.mts` crashed
+under Node's native type stripping (vitest's transpiler tolerated it, so this was invisible
+until the script ran for real); and the Vercel project's own Framework Preset was "Other"
+instead of "Next.js," which made every deployment serve only a fallback 404 regardless of
+the two code fixes — corrected directly on the Vercel project, no code involved. The
+verification script's access-protection check was also wrong in its own right (assumed a
+bare `401`; Vercel Authentication actually redirects) and is fixed to bind to the specific
+redirect target rather than accepting any redirect status, preserving the original
+deliberate refusal to treat an ambiguous redirect as proof. Production promotion (AB#18)
+and exercised rollback and handoff (AB#118) are later stories, now unblocked rather than
+waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
+see above — with 238 of 415 distinct crawled paths still pending real content
+migration (including `component/komento/*` and `sivustokartta/*`).
+The production security and privacy launch review itself (AB#117) is built: security
+response headers (CSP, HSTS-adjacent, framing, MIME-sniffing, referrer, permissions —
+ADR-0011, `docs/security-privacy-review.md`), a dependency-vulnerability remediation
+(`npm audit fix`, 6 high-severity findings to 0), and the review document walking all
+8 acceptance criteria against evidence. Two criteria were only partly closeable at the
+time of that review: AC3's live Vercel/Resend account verification and AC5's live Sanity
+asset-store audit both named the same AB#116 gap now closed above. `docs/security-privacy-review.md`
+and `docs/contact-data-flow.md` were re-checked on 2026-08-25 against the now-live
+Preview infrastructure (AB#116's closed Vercel deployment, AB#83's Preview Sanity
+wiring), and each carried-forward item split rather than closed outright, in different
+ways for the two accounts. Vercel: partially run, not just re-scoped — an earlier draft
+wrongly claimed this session had no Vercel CLI/API access; corrected after actually
+checking, since the repository-pinned CLI is already authenticated on this machine.
+Team membership checked live: one member, `OWNER` role, so "limit seats" is trivially
+satisfied for the environment that exists today. That check surfaced a real finding —
+the team's `billing.plan` reads `"hobby"`, not the `"pro"` ADR-0004 §1 and every
+deployment doc assume for Production. **This closes a Preview-account inspection, not
+a Production hosting-tier decision.** The owner's decision, 2026-08-25: Hobby remains
+in use for development and Preview; no decision has been made to use Hobby for
+Production, and the Production tier is unresolved, to be reconsidered immediately
+before AB#18. ADR-0004's original Decision (Pro) remains the authoritative Production
+plan for now — this re-check does not change it and does not grant a Hobby exception
+for Production. (An earlier draft of this paragraph stated the opposite — a settled
+decision to keep the whole reference deployment on Hobby, matching Vercel's
+non-commercial fair-use terms; that was wrong and was corrected at the owner's
+direction before any of it was committed.) PhotoSite Starter as software is
+unaffected either way — the starter remains the same generic, commercial-capable
+template it always was, and a photographer's clone actually run as a paid business
+still needs Pro or Enterprise, unchanged. Recorded as
+[ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s
+2026-08-25 amendment (which also records the verified Preview facts — Hobby's Runtime
+Logs retention is one hour, not the one-day Pro figure this ADR states for Production;
+Hobby has no RBAC at all — without rewriting the ADR's original Decision) and as
+comments on AB#117 and AB#18, including a correction of the earlier overstated
+framing. **That correction is not scoped to a future Production choice: the
+interpretation risk applies to the current Hobby-on-Preview usage too**, since
+Vercel's fair-use rule turns on the deployment's purpose, not its Preview/Production
+label — "no live Production deployment yet" does not by itself settle it, given this
+repository's dual purpose as a professional software portfolio. The owner accepts this
+as an open risk for as long as Hobby remains in use, not proof of Vercel
+Terms-of-Service compliance. Vercel Support's explicit confirmation would give
+certainty for Preview too, and becomes mandatory specifically **if Hobby is later
+proposed for Production** (one of two options AB#18 will choose between; not decided).
+**If Pro is chosen for Production instead** — this ADR's original Decision — that half
+of the analysis becomes moot for Production, though it does not retroactively resolve
+whatever period this team spent on Hobby beforehand.
+
+Sanity: this one was actually run too, not just re-scoped. Two earlier drafts of this
+re-check wrongly claimed the identifiers couldn't be retrieved — first blaming a
+missing credential (wrong: `preview` is public, no token needed), then blaming the
+Azure Pipelines variable group (wrong system: `docs/deployment.md` puts these in the
+Vercel project's Preview environment). Both were corrected by actually checking:
+`.vercel/.env.preview.local`, a gitignored file already on disk from AB#83's own
+provisioning work, carries the real values (project id and dataset `preview`,
+public — the project id itself stays out of this repository per
+`docs/sanity-setup.md`'s ownership boundary, the same as every other Sanity credential;
+it is recorded against AB#83 in Azure Boards). The first live,
+unauthenticated query (2026-08-25) found exactly one published document,
+AB#83's own `webhook-test-1` webhook-verification artifact, and zero
+published image/file assets. **A prior draft of
+this same paragraph claimed adding `perspective=raw` "confirmed" no draft exists in
+this dataset — wrong, retracted after checking Sanity's own access-control
+documentation directly**: dataset public visibility grants unauthenticated read access
+only to root-level, non-dotted document IDs; a `drafts.<id>` document is hidden from an
+unauthorized client regardless of dataset visibility or perspective, so this session's
+read cannot rule drafts in or out. What it could show — no published document beyond
+`webhook-test-1`, no published asset — was genuinely clean, and separately, that one
+document was not harmless: its null `slug` would make `sanity-services.ts` throw for
+the whole services listing the moment a route read Sanity services against this
+dataset. The owner deleted it on 2026-08-25; a second unauthenticated `GET` through
+Sanity's non-CDN API returned a successful canary, `null` for the exact id, and zero
+published root documents. The draft check is now closed: a later authenticated
+raw-perspective query (2026-08-25, same day) found zero `drafts.*` documents, with the
+dataset's only rows being Sanity's own internal `system.group`/`system.retention`
+records rather than customer or seed content. A further evidence check also
+corrected the earlier claim that AB#84's 448-document seed run had landed in an
+unidentified dataset: PR #62 explicitly says its write-enabled CLI was not run against
+an external dataset, and no later owner run is durably recorded. The owner accepted the
+finding on 2026-08-25 and reopened AB#84, which has since **closed** on the evidence
+below. That run happened the same day, against this same
+Preview project and dataset: a temporary, Editor-role `SANITY_SEED_TOKEN`, minted by the
+owner for this run only and revoked immediately after, drove `npm run seed:sanity -- --yes`
+to write exactly 448 `seed--` documents and upload the 6 demo-photograph assets, and
+all 8 of the script's built-in live-verification checks — both singletons, the
+category/service/article
+counts, the archive gallery's full 400-row placement window, the featured gallery's two
+sections, and the cross-gallery shared-media placement — reported `PASS`. A follow-up
+count confirmed no unrelated or malformed document remained: every non-`seed--`
+document in the dataset was either a Sanity-internal `system.*` record or one of the
+six expected image assets. AC5's audit now has a real, evidenced target — this Preview
+run, recorded on AB#84. `docs/sanity-seeding.md`'s _Production handoff_ section is this run's
+distillation into the exact command, inputs, verification, and rollback path the later
+Production launch seed inherits. A codex-review-loop round on that handoff caught a real
+gap the run's own two verification layers left open: AC3 requires _representative
+repository adapter queries_ against Content Lake, and neither the offline adapter test
+(which fakes the store) nor the seed script's own `--yes` step (hand-written GROQ, not
+adapter code) actually is that. `src/lib/sanity-live-verification.test.ts`
+(`npm run verify:sanity-live`) closes it: a third, opt-in, non-`npm test` suite that
+exercises the real `src/lib/sanity-*.ts` adapters — settings, home, services,
+categories/content tree, articles in every language they were actually published,
+gallery sections, media projection, sibling and placement ordering, and the full curated
+gallery's cursor chain page by page including the page-size boundary — against the same
+live Preview dataset, using a real `SanityClient` and the existing Vitest `server-only`
+stub, and all of it passed. It was Preview-only as built (a hardcoded read of
+`.vercel/.env.preview.local`) and, like every other Sanity adapter test, reaches no route
+or component. AB#138 (2026-08-26) closed a prerequisite gap this section's own
+"unimplemented future work" once named for AB#137: `verify:sanity-live` now resolves its
+target env file through `src/lib/sanity-live-verification-config.ts`, defaulting to the
+same Preview file but overridable via `SANITY_LIVE_VERIFICATION_ENV_FILE`, and refuses to
+assemble a hybrid target from an incomplete file plus ambient environment variables. It
+remains a fixture-verification suite, not a generic health check — its assertions are
+still AB#84's exact fixture values, so it only proves anything against a dataset seeded
+with that same fixture, Production included. For a Production dataset carrying different,
+owner-approved launch content, AB#138 also added a separate read-only content audit tool
+(`npm run audit:sanity`, `scripts/audit-sanity-content.mts` and `scripts/sanity-audit.mts`,
+transport in the newly split-out `scripts/sanity-read-http.mts`) that makes no assumption
+about specific content: one bounded, keyset-paginated, `raw`-perspective scan over the
+whole dataset, classifying every document as published, draft, or a release version by id
+shape rather than a known-type allow-list (so an unexpected or obsolete document is
+listed, not silently omitted), listing every document and every image/file asset
+individually by id — a count alone cannot answer "is any of this actually approved
+launch content?" — with each asset's dimensions, and reporting only the _presence_ of the
+two fields it treats as private/internal (`archiveLocator`, `capturedAt`) — never a value,
+matching the same never-log-sensitive-values posture the rest of this project's Sanity
+boundary already holds. The asset-filename and private-field checks are scoped to their
+real types (`sanity.imageAsset`/`sanity.fileAsset`, `media`), so a coincidentally
+same-named field on an unrelated type is never misreported as one of them, while the
+unfiltered per-type scan still surfaces that type either way. It fails closed on missing or ambiguous `--project`/`--dataset`/`--api-version`
+configuration (flag and environment variable disagreeing is refused rather than guessed),
+needs only a Viewer-role `SANITY_AUDIT_TOKEN` (verified against Sanity's own documentation:
+reading drafts and releases requires authentication but no stronger role), and both new
+offline suites (`scripts/sanity-audit.test.mts`,
+`src/lib/sanity-live-verification-config.test.ts`) run under `npm test` against a fake
+transport, reaching no live project. AB#138 is scoped entirely to this reusable tooling —
+it does not itself connect to, seed, or audit any real Production dataset — and is a
+recorded predecessor of AB#137, which still owns the real Production run once a real
+customer-owned project, owner-approved launch content, and a temporary credential exist.
+The Resend-account items
+(DPA, data-residency/retention terms) are unchanged in one sense — this deployment's
+own configuration still shows no Resend account wired in, and whether one exists at
+all is unverified — but their sequencing is no longer
+open: **owner decision, 2026-08-25, recorded as a comment on both AB#117 and AB#18:
+provisioning the Resend account and completing this ownership/DPA/retention review
+is AB#117's own prerequisite work, done before AB#18, not something AB#18's
+production provisioning produces.** AB#117's acceptance criteria are not weakened or
+deferred by this — AB#117 owns getting the account and running the review, in full;
+AB#18's own scope narrows to match, wiring the _already-reviewed_ account's secrets
+and sending domain into Production and verifying delivery, not provisioning or
+reviewing the account itself. The account has not been provisioned yet — that is a
+real third-party signup only the site owner can perform, not something this
+repository's tooling does — so the item stays open, now with a decided owner rather
+than an unresolved circularity. The recipient-mailbox item turned out not to share that blocker on
+inspection: Resend is only the delivery transport into a mailbox, not what creates
+one, and AB#116's own provisioning record shows the site owner already operates a
+real mail service independent of this project — so confirming that mailbox's
+retention practice is answerable now, without a Resend account. Do not assume either checklist is
+complete because an infrastructure gap closed — read the 2026-08-25 re-check sections
+in both documents before treating any of AC3 or AC5 as done.
+
+The repository's architecture is also drawn, not only described: `docs/architecture/`
+holds the system context, the application and data boundaries, and the build/deployment
+flow as authoritative D2 source with committed SVG renditions, rendered by an
+exactly-pinned engine and gated by `npm run diagrams:check` so a stale picture fails CI
+rather than misleading a reader. Anything not operating yet is drawn as such.
+
+The curated gallery's grid is now one of three selectable layouts (AB#157): the existing
+row-major `grid`, a new order-preserving `masonry`, and a new prefix-stable `justified`
+row layout — each independently pairable with a `below` or `overlay` caption placement, all
+six combinations offered. Both settings are authored site-wide (`SiteSettings`) and
+optionally overridden per gallery, each field clearable on its own; an absent value falls
+back to `grid`/`below`, so an existing deployment renders unchanged. One seam,
+`effectiveGalleryPresentation` (`src/lib/gallery-presentation.ts`), composes the two levels
+for both the mock fixture layer and the Sanity adapters, so they cannot disagree; an unknown
+stored value is rejected as malformed content (`readGalleryPresentationFields`) rather than
+silently downgraded to a default or passed through as an unrecognized CSS class, and the
+rejection path itself does not trust a non-throwing `reject` callback to have actually
+stopped execution — an invalid value is never cast and returned regardless. The Sanity
+schema (`sanity/schemas/gallery-presentation.ts`) contributes the same two optional fields
+to both `siteSettings` and `gallery` through one shared field builder
+(`galleryPresentationFields(inherit)`); its own validation lists are necessarily a second,
+independent literal copy of the two allowed-value sets (Studio schemas import nothing from
+`src/`), so a test drives the Studio validator itself against `GALLERY_LAYOUTS`/
+`GALLERY_CAPTION_PLACEMENTS` to catch the two ever silently drifting apart.
+
+`masonry` (`src/lib/gallery-masonry.ts`) has no rows, so "row-major" does not by itself
+define an order in it, and this is exactly the property the CSS multi-column masonry
+`GalleryGrid`'s own history already rejected once (a column-major reading order the
+lightbox, keyboard, and source do not share) — reintroducing masonry therefore had to name
+and prove a real order, not merely avoid regressing to that one. Its progression rule:
+items read by ascending top edge, and items whose top edges land within one CSS pixel of
+each other read left to right — matching DOM order, keyboard order, and the lightbox
+sequence exactly, at every column count. The server places every item without knowing the
+visitor's viewport: each item's top edge is a sum of column-width multiples and `rem`
+multiples, so dividing through by the column width makes it linear in `ρ = rem⁄columnWidth`,
+and each column-count band (`MASONRY_BANDS`: two columns from a 34rem container, three from
+56rem, capped at 69rem) bounds `ρ` to one closed interval — a linear inequality holding at
+both ends of an interval holds throughout it, so checking the rule at the two endpoints
+proves it for every root font-size that band can render at. Plain shortest-column placement
+does not survive appending past that same guarantee (a column the rule would refuse to grow
+into stalls forever once one item skips it), so a candidate column's start is instead raised
+to the chord through the pointwise maximum of its own bottom and the rule's floor at both
+interval ends — every column stays reachable, at the cost of a little whitespace where a
+band's own width range left a column's relative height ambiguous. Placement depends only on
+the items already placed, so `placeMasonry` accepts a previous call's own result as an
+optional `resume` argument and places only what is new — proven equal to a full
+recomputation by property test — which is what keeps `GalleryMasonryList` doing work
+proportional to an appended slice rather than to the whole list loaded so far on every
+continuation. `justified` (`src/lib/gallery-justified.ts`) is the simpler, already-familiar
+shape: greedy rows closed as soon as they would fill the band's width at a fixed maximum
+height, prefix-stable by construction (a closed row's boundary never depends on what comes
+after it), with the identical `resume`-and-reuse contract for its own append case.
+
+Both new layouts, and `grid`'s new `overlay` caption option, share one figure component
+(`GalleryFigure`, `src/components/gallery-figure.tsx`) rather than three independent
+caption implementations. A caption always renders `below` regardless of the authored
+placement once an image is too low (over `GALLERY_CAPTION_OVERLAY_MAX_RATIO`, 4:1) to hold
+two readable lines over itself — one predicate, `resolvesToBelowCaption`, decides this for
+both `GalleryFigure`'s own render and `GalleryMasonryList`'s reserved-height math, so the two
+cannot drift apart. Every bounded caption also carries a same-origin, scriptless, native
+`popover`-backed full-text fallback, reachable by activating the image trigger; hydration's
+own `preventDefault()` routes an activated trigger to the lightbox instead once JavaScript
+is running, so the popover is specifically the pre-hydration/no-script path, proven as such
+(`e2e/gallery-layouts.spec.ts`, with `javaScriptEnabled: false`). A justified row can still
+squeeze an extreme-ratio image (a tall portrait beside a panorama) to only a few rendered
+pixels wide — measured in both engines, `-webkit-line-clamp` does not merely fail to
+truncate gracefully at that width, it stops capping the caption box at all, painting real
+text far past the figure — so `GalleryFigure` is its own CSS container
+(`container-type: inline-size`) and drops the resting caption below a 3rem figure width
+entirely, keeping the same popover as the only, still fully reachable, access path.
+
+Neither new layout's `sizes` hint can track a visitor's own enlarged root font-size, a
+platform limitation rather than an oversight: a `sizes` media condition's length —
+`px` or `rem` alike — resolves against the browser's *default* root font-size, never a
+page's own CSS-overridden one (media queries resolve relative units against the initial
+value specifically to avoid depending on the very cascade they could influence), even
+though `MASONRY_BANDS`'/`JUSTIFIED_BANDS`' real container queries do shift with it. A
+per-column-count `sizes` branch was tried and measured wrong twice — soft at a 200% (32px)
+root the first time, and wrong again at the exact viewport its own revised "two columns is
+now safe" branch was meant to start from, because a container-query boundary carries
+sub-pixel/scrollbar slop no hand computation can predict. Both profiles now request
+`calc(100vw - 32px)` unconditionally: a column can never be wider than its own container,
+so this is always a safe upper bound, whatever the real column count turns out to be,
+proven across a viewport × root-font-size matrix in both engines
+(`e2e/gallery-layouts.spec.ts`) rather than asserted from arithmetic alone. The two
+synthetic extreme-ratio boundary photographs this exercises (a panorama and a portrait,
+`src/lib/mock-gallery-boundaries.ts`) are sized at the largest resolution their ratio can
+hold under this project's own 2048px public-derivative ceiling (2048×256 and 256×2048) —
+their original 128px-short-edge versions were small enough for `next/image`'s optimizer
+(which itself never upscales, confirmed against a real request) to leave the *browser's*
+own `w-full` CSS stretching them visibly soft once measured.
+
+`docs/gallery-presentation.md` is the full account: the placement rule, the responsive-
+sizing bound above, the caption-access mechanism, and the inheritance model. No ADR was
+needed — the one order contract `GalleryGrid`'s own history already required (DOM, keyboard,
+and lightbox order agreeing) is preserved exactly, not renegotiated, so this is a
+presentation choice over an existing contract rather than a change to it.
+
+An article may now own one optional bounded end-gallery result (AB#161, ADR-0003's
+2026-09-15 amendment): a large gallery placed after the article's own body without
+splitting it into inline mini-galleries or moving it to a second public content page. The
+first 24 items render with the article; every later slice is reachable through a real
+`?cursor=` link with no JavaScript, and script progressively enhances that same link into
+an in-place append with retry and completion states — the identical shared continuation
+and lightbox mechanics a curated gallery already has (`article-end-gallery-pagination.ts`,
+`article-end-gallery-request.ts`), scoped to the article identity, the end-gallery
+identity, and the full route locale, so a cross-article or cross-locale token 404s the
+same way a mismatched curated-gallery cursor does. The end-gallery viewer is its own
+sequence, isolated from the body's loose-image viewer and from every inline mini-gallery
+(AB#24) on the same page. Sanity stores each item as its own `articleEndGalleryPlacement`
+document — mirroring `galleryPlacement`'s one-document-per-item shape rather than an
+embedded array — with a validated occurrence identity stable across an article's
+per-language documents, read through `sanity-article-end-gallery.ts`'s bounded
+compound-key `(order, placementId)` query. The parameter-free article stays the sole
+canonical and indexable URL and the only one in the sitemap; a continuation is `noindex`,
+canonicalizes back to it, and names no `hreflang` alternates, since another locale carries
+the article's own identity, not an equivalent transient slice. An article with no end
+gallery keeps ignoring incidental or repeated `cursor` parameters exactly as before.
+Mock and Sanity-backed tests, plus `e2e/article-end-gallery.spec.ts`, cover a
+multi-slice article, the no-JavaScript continuation, progressive append and retry,
+lightbox sequence and focus, and a malformed continuation. Production migration and live
+dataset verification are separate, already-open follow-up work (AB#137).
+
+AB#137's legacy-content importer is **half built**: the offline conversion and approval
+layer exists, the write half does not. `npm run convert:joomla`
+(`scripts/convert-joomla-content.mts`, over the pure `joomla-html-conversion.mts`,
+`joomla-import-manifest.mts`, and `joomla-import-plan.mts`) reads an exported
+newline-delimited JSON article set and the owner's approval manifest, converts each
+legacy body into the shared `ContentBlock` set, and reports exactly what would and would
+not migrate — performing **no write of any kind**: no network request, no Sanity
+credential, no dataset change, and a plan that is marked non-writable by construction.
+The conversion is an allow-list over both elements *and* attributes, parsed with `parse5`
+(a devDependency for this tooling only, recorded in `docs/asset-inventory.md`) because
+hand-rolled or regex handling would make "unsupported" mean whatever the pattern happened
+to miss. Every construct is explicitly convertible, explicitly **lossy** (converted, with
+the loss recorded), or a **refusal** that blocks its article — there is no silent fourth
+category, since a converter that quietly dropped what it did not understand would publish
+articles whose surviving words look correct. Presentation, Word residue, and dropped
+anchor ids are lossy — as is a paragraph boundary inside a quote or list item, flattened
+into a space, since a *single* `<p>` wrapping one (a common WYSIWYG pattern,
+`<blockquote><p>…</p></blockquote>`) is exactly representable and carries no finding at all
+(an earlier draft refused it outright — a real over-restriction, not a loss, found and
+fixed in Codex review round 8); a Joomla `{loadposition}`/`{loadmodule}`/`{contentpoll}`
+marker, a non-YouTube embed, style-hidden content, a behavioural attribute, a heading
+outside levels 2–4 or out of semantic order, a nested list, a headerless/ragged/merged-cell
+table, a `<th>` outside a table's first row, an image with no approved identity or
+alternative text, a YouTube video with no accessible title, a gallery disagreeing with its
+approved count, a second oversized gallery in one article, a photograph the owner's own
+persisted identity map claims is shared between two locators whose verified bytes actually
+differ, and a body that converted to nothing are all refusals. There are **two modes**
+because of a real ordering problem: every worksheet row starts ineligible, and what makes
+one eligible is knowing what its conversion would lose, so an approval-gated tool alone
+could never produce the findings needed to grant the approval it demands — `--review`
+converts everything selected, `--plan` is strictly approval-gated to one phase (the
+owner's "Lever B"). An owner's acknowledgement of a lossy finding is bound to
+**two separate digests**, not one — the **source record's** SHA-256 (title,
+summary, author, tags, and body, not the body alone, so an edited title with an
+unchanged body still invalidates a stale approval) and, since the source text
+alone cannot see a changed photograph, alt text, gallery order, or video title,
+a second digest of the **resolved conversion output**
+(`resolvedConversionDigest`) — printed as `resolvedDigest` in `findings.json`
+for the owner to copy into the manifest, and recomputed from the plan's own
+`conversion` result rather than trusted from a caller-supplied value, so the
+check cannot drift from what is actually being planned — *and* the conversion
+policy version, so editing the article, the resolution file, or a conversion
+rule all independently invalidate a stale approval rather than silently
+carrying over. A loose body image with no language-specific approved alt text
+is refused rather than falling back to the raw Joomla `<img alt>` attribute,
+which would otherwise let unreviewed source text back in through the one path
+that still had it. A malformed approval record is an error, never a deferral,
+so it cannot quietly disappear from the launch; an identity or route collision
+is an error even across phases; and naming a phase no approved row matches is
+an error rather than a clean run over nothing. An approved gallery folder is
+verified by its **owner-approved ordered file inventory** — filename and
+content SHA-256 per entry, never a file count alone, since a same-count
+substitution would otherwise pass silently — reading every approved file's
+bytes without uploading or transmitting them, and a duplicate filename in that
+inventory is itself a refusal rather than a silent collapse into a smaller
+unique set. A loose body image gets the same treatment (`images` carries a
+`{locator, sha256}` pair, not a bare locator string), so neither path can
+resolve on trust alone; without `--image-root`, or on a missing or mismatched
+file, an image or gallery simply does not resolve. Alt text is language-keyed
+per locator, not a bare string, since a translated article pair commonly
+shares one gallery folder — this migration's own "Chamonix 2006" fi/en pair
+does — and a single string would otherwise attribute one language's words to
+the other's article. Four identities stay apart — photograph identity
+(persisted **two-part** in `photograph-identities.json` — `byLocator` plus
+`byContentHash` — across runs and phases; ADR-0002 §1 requires identity to
+survive a rename, and `byLocator` alone cannot, since a renamed file has no
+entry under its new path, so `byContentHash` correlates a new locator's
+verified bytes with an identity already known under a different one, used only
+as a lookup and never as the identity's own derivation — `mintPhotographIdentity()`
+mints an **opaque CSPRNG token with no relationship to any locator at all**,
+never a hash of the filename/path the way an earlier draft did, which was
+itself a real ADR-0002 §1 violation (found and fixed in Codex review round 9,
+not merely a stopgap for the reprocessed-photograph case): a locator-derived
+id is not a genuine mint, it is whatever the source tree's naming happened to
+be at that moment. A genuinely reprocessed photograph (different bytes, same
+work) is exactly the case a hash cannot correlate and still needs the owner to
+carry over by hand), placement identity per *occurrence* (deliberately
+language-free: an fi/en translation pair sharing one gallery sequence shares
+one placement id per occurrence, the same cross-language sharing
+`galleryPlacement` already has, so a live audit can recognize it — though each
+language still gets its own placement *document*), the private source locator,
+and the derivative/asset reference the write step resolves — so one photograph
+used twice is one identity and two placements. Three conflicts fail the whole
+run before the rest of the report is written (only a private, mode-0600
+`conflicts.json` is), so none can be silently inherited by a later run: the
+owner's own persisted map claiming two *currently referenced* locators share
+an identity whose verified bytes actually differ (round 8); the *same* file's
+`byLocator` and `byContentHash` entries naming two *different* identities — an
+earlier draft preferred `byLocator` whenever both existed, silently
+overwriting `byContentHash` with it, so the same photograph could get a
+different id depending on which locator was processed first (round 10, the
+disagreement the two-index design exists to prevent in the first place); and
+the same photograph appearing twice in one gallery with two different approved
+alt texts for one language — an authoring ambiguity a naive `Object.fromEntries`
+collapse used to silently resolve by keeping whichever occurrence was listed
+last (round 9). Every conflict's full detail — private locators, hashes, alt
+text — stays in that one report file; the console prints counts only, never
+raw conflict detail (an earlier draft printed the full detail to stderr,
+found and fixed in round 10, since this project's own runbook is explicit
+that console output is counts and digests only). Every verified content hash
+also feeds `resolvedConversionDigest`, so a file swapped in place with its
+recorded hash updated to match — same locator, same identity, different
+pixels — still invalidates a stale approval even though nothing else about the
+resolved output moved. A structural attribute (`src`, `href`, `alt`,
+`colspan`/`rowspan`, `start`/`type`) is accepted only on the element that
+actually consumes it, not globally, so `href` on a `<p>` or `src` on an `<a>`
+refuses rather than silently vanishing; a manifest ISO-instant field accepts
+any real ISO-8601 spelling — `Z` with no fractional seconds, a numeric
+offset — rather than only `Date.prototype.toISOString()`'s own canonical one,
+which had been silently rejecting ordinary exported timestamps; content hidden
+by `opacity:0`, `visibility:collapse`, or `font-size:0` refuses the same way
+`display:none`/`visibility:hidden` already did, closing a real path for
+abandoned or private legacy content to be silently republished (a bounded,
+pattern-based check, not a CSS parser — a compound technique like
+`position:absolute;left:-9999px` is a named, deliberately unclosed gap); and
+every `--<option>` name is validated, so a typo (`--phaze` for `--phase`)
+fails the command instead of silently keeping the default phase, which decides
+which approved rows a `--plan` write covers. An approved row's `published_at`/
+`event_date` are **canonicalized**, not carried into the planned document
+verbatim: `isRealCalendarDateTime` accepts a wider range of real ISO spellings
+(an offset, no fractional seconds) than `src/lib/sanity-article.ts`'s own
+already-shipped reader does (UTC `Z`, exactly three fractional digits) —
+found in Codex review round 11 as a plan that would have validated cleanly
+and then been rejected by that production adapter after the write, throwing
+on every future render of the migrated page — so `canonicalCalendarDateTime`
+resolves the accepted value (correctly applying any numeric offset via native
+`Date` parsing, not hand-rolled arithmetic) to the exact shape that reader
+requires before it ever reaches a document. `<br>` and `<hr>` now go through
+the same attribute allow-list as every other element — they were the two
+elements it never ran on at all, so a dropped anchor id or a behavioural
+attribute on either vanished with no finding (round 11). And a malformed
+`--plan` manifest's own row errors — which can name a private route, content
+id, or source id — get the same private-report treatment the round-10
+conflicts already have: a mode-0600 `manifest-errors.json`, count only on
+stderr (round 11). `isRealCalendarDateTime` itself was found still wrong in
+round 12: it folded a fractional second into the *same* `Date.UTC(...)` call
+used to validate the calendar date, so a value whose fraction rounded up to a
+full second (`.9999`) correctly carried into the next second — and the
+comparison then wrongly rejected the *written* second as not matching. Fixed
+by validating hour/minute/second as plain bounded-range checks, entirely
+independent of the fractional part, and reserving the `Date.UTC` round trip
+for what it actually needs to catch — an impossible year/month/day — which a
+fractional-second carry can no longer perturb. Two more private-detail console
+leaks were found the same way round 10/11's were and closed the same way,
+round 12: an approved manifest row with no matching article in the source
+export (the oldest of the three, present since this tool's first slice) into
+`missing-from-export.json`, and — checked *before* conversion starts, so
+nothing downstream ever reads a bad value — a malformed entry in the persisted
+`photograph-identities.json` into `malformed-identities.json`, which used to
+flow through conversion unchecked and only surface as an uncaught exception
+deep inside `buildImportPlan`'s own `migratedId` call. Migrated documents use a
+`migrated--` id namespace deliberately
+disjoint from the demo seeder's `seed--`, because `npm run seed:sanity --
+--delete-all` deletes every `seed--` document and would otherwise be able to
+destroy real launch content; a test pins the two apart. A derived end-gallery or
+placement id is checked against the Studio schema's own 128/256-character bounds
+before an article is accepted, since an API import bypasses Studio validation
+entirely. The genuinely generic document-set checks moved to
+`scripts/sanity-document-checks.mts`, shared with `validateSeedFixtures`, whose
+demo-fixture *coverage* assertions stayed where they are because they say nothing
+about launch content. **The write half is now built too**
+(`npm run write:joomla`, `scripts/write-joomla-content.mts`,
+`scripts/joomla-image-derivative.mts`): it turns an approved, non-writable
+`ImportPlan` into real Sanity documents. Dry-run by default, matching the demo
+seeder's own guarantee exactly — without `--yes` it makes no network request at
+all, not even a read, since every step through local asset verification is
+filesystem and CPU only. It never trusts the plan file blindly: the plan's own
+shape is re-validated (every requirement's fields, and an exact correspondence
+between the requirements arrays and the actual pending references the plan's
+documents carry — a stray requirement or an unresolved reference is refused
+before either the filesystem or the network is touched), `IMPORT_PLAN_VERSION`
+bumped to `-v2` so a stale pre-hash plan cannot silently satisfy a
+version-equality check that never itself changed, and `validateMigrationDocuments`
+re-run regardless of how the file claims to have been produced. `AssetRequirement`
+gained a `contentHash` field, threaded from the same `resolvedImageContentHashes`
+the conversion half already collects: the approval-binding-to-actual-pixels
+guarantee round 7 established holds at plan-build time, but the write step can
+run arbitrarily later against a separately-minted credential, so each photograph
+is re-hashed from the exact same read that feeds its derivative generator
+immediately before upload, and a mismatch refuses the run rather than trusting
+whatever bytes are now at the locator. The derivative itself
+(`joomla-image-derivative.mts`, over `sharp`, a devDependency for this tool only)
+resizes to `MAX_PUBLIC_DELIVERY_DIMENSION` with `fit: "inside"` (never crops,
+never upscales), applies EXIF orientation before resizing and strips EXIF/GPS
+on output, and re-encodes at an explicit, stated quality per format rather than
+an implicit library default — AVIF specifically needed its own detection branch,
+since Sharp reports an AVIF buffer as `{format: "heif", mediaType: "image/avif"}`,
+never `format: "avif"` (verified directly against the pinned 0.35.4, not
+assumed — a plain `format` lookup would have silently misclassified every real
+AVIF source into the fallback path). An animated or multi-page source is
+refused outright rather than silently flattened to one frame, since a universal
+fallback would discard visual meaning the photographer never chose to lose; a
+static otherwise-unsupported source still converts to JPEG, with an explicit
+white background for a transparent source rather than whatever a library
+default would composite. Category references resolve against the target
+dataset's real document ids (published perspective — an article must bind to a
+*live* category, not a draft-only one); before any upload, a target-dataset
+collision preflight (raw perspective, chunked to `sanity-read-http.mts`'s own
+11 KiB GET budget) checks every `mediaId`, article `(contentId, language)`
+pair, `(language, category, slug)` route, and end-gallery `placementId` this
+plan is about to write against what the dataset already holds, refusing the
+whole run if any is already claimed under a *different* `_id` than this plan
+intends — an API write bypasses every Studio uniqueness rule a customer's own
+Studio would otherwise enforce. Placeholder substitution is reference-aware —
+it rewrites only a matched reference object's own `_ref` string in place,
+never replacing the whole `{_type: "reference", ...}` object (an earlier draft
+of this tool would have nested a `_ref` string inside what must stay a
+reference object) — followed by an independent defensive scan for any
+surviving pending marker before a single mutation is sent. Sanity's mutate API
+requires a strong reference's target to exist in an *earlier* transaction —
+the same constraint `docs/sanity-seeding.md` already documents for the demo
+seeder's own write — so documents are batched in two ordered waves, every
+`media` document first to completion, then everything else, rather than the
+plan's own raw emission order, which interleaves an article with its media
+references and would break the moment a real migration's document count
+crosses one mutation batch. Every private report (a verification failure, an
+unresolved category, a collision, an upload failure) is mode-0600 in a
+mode-0700 directory, console limited to counts, matching the conversion half's
+own established convention exactly. `SANITY_MIGRATION_TOKEN` is read from the
+environment only, never a flag, and is a separate credential from the demo
+seeder's `SANITY_SEED_TOKEN`. This design was reviewed once against Codex
+before implementation (the mandatory one-round plan check): the wave-ordering
+requirement, the reference-aware substitution fix, the AVIF metadata
+detection gap, the collision preflight, the path-traversal/symlink
+containment check on every source locator, the query/id chunking, and the
+explicit encoder policy were all findings from that single round, verified
+against real code or measured behavior before being accepted, not taken on
+trust. Once implemented, the write half went through 8 further rounds of the
+same independent Codex review, this time against the finished, self-reviewed
+diff rather than a plan — every finding verified against real code (often by
+running the actual code path, not just reading it) before being accepted and
+fixed, each fix covered by its own regression test, with the project's gates
+green after every round. In order: a memory-accumulation bug in the asset
+verification loop, where a long-lived array was retaining full derivative
+buffers rather than a lightweight summary per iteration; the media
+field-allow-list contract and nested content-block shape validation, matching
+exactly the eight block kinds the converter emits; the required-field and
+position-aware reference checks, and the collision preflight's scope widened
+from articles alone to the shared article/gallery/category identity space
+`content-placement-validation.ts` actually governs; the approved-plan digest
+widened twice — first to bind `assetRequirements` (`mediaId` + `contentHash`,
+so approving a plan also approves exactly which photograph bytes it points
+at), then to bind `errors`/`blocked` (so a plan whose blocker state changed
+cannot silently satisfy a stale approval); a published article's URL frozen
+against a rerun (`language`/`slug`/`canonicalCategory`), and the local-slug
+collision check widened from a category's direct children to its whole
+ancestry, since migrating content can make a previously dormant branch public
+for the first time — both restating `content-placement-validation.ts`'s own
+pure functions locally rather than importing them, after direct `node`
+execution (not `tsc` or Vitest, which both tolerated it) surfaced that file's
+own extension-less internal import crashing a real subprocess — the same
+class of "passes under a transpiler, fails for real" trap as AB#116's earlier
+parameter-property crash; a direct `_id`-occupancy check ahead of the
+identity-scoped collision checks (so a document of the *wrong type* already
+occupying one of this plan's deterministic ids is caught, not just a same-type
+identity collision), and category reference resolution widened from checking
+that a language *key* is present to validating the actual label and slug
+*values* against `content-tree.ts`'s own rules, since a present-but-invalid
+value would otherwise take the whole public tree down the first time any
+route read it, well after the migration had written content depending on it;
+and, closing the loop, `checkReferenceShape` requiring an actual
+`_type: "reference"` rather than accepting any object with a valid-looking
+`_ref` (Sanity dereferences a wrong or missing `_type` as `null`, silently,
+not as an error), and `SANITY_MIGRATION_TOKEN` refusing to read if a
+`NEXT_PUBLIC_SANITY_MIGRATION_TOKEN` mirror is also set, matching the same
+established pattern the security-review skill and `src/lib/sanity-config.ts`'s
+own read-token parsing already enforce elsewhere. `docs/sanity-seeding.md`
+carries the full per-round account. A 10th round was attempted and blocked
+outright by Codex's own usage limit before producing a review — not a
+finding, and not retried in a hot loop. **Still unbuilt: every owner-run part
+of AB#137** — the manifest approval, the baseline export, the temporary
+credential, the Production run itself, the post-write audit, and the
+revocation and handoff evidence.
+
+Article polls (AB#162, ADR-0018) add the ninth shared body kind. The runtime
+poll facade reads fresh results and performs one atomic receipt/tally mutation;
+the independent per-poll cookie is established only on a vote action, before
+POST, so a lost first response can be retried without a second count. Results
+are server-rendered; voting needs JavaScript and shares the message form's
+hydration/submission guard. `convert:joomla --poll-results` carries closed
+historical pairs into the approved plan (conversion policy v2, plan v3).
+Actual token provisioning and production migration remain owner-run checks.
+
+A body media placement can now carry one optional, bounded plain-text caption
+(AB#137, ADR-0003's 2026-09-18 amendment): `contentMediaBlock.caption`, owned
+by that placement and overriding the referenced photograph's default caption
+only in that body, so the same media document can carry contextual legacy
+`<figcaption>` text differently in two different articles without turning the
+shared media record into a list of editorial contexts. It renders in the
+in-flow figure and that figure's own body-image lightbox sequence; it stays
+outside curated grids, gallery pagination, media delivery, and image
+identity. The converter now reads it from the one real legacy markup shape
+the source archive uses — `<figure><img>…<figcaption>…</figcaption></figure>`
+— through a dedicated `visitFigure`, no longer the generic transparent-wrapper
+walk `<figure>` used to fall through to, which left every `<figcaption>`
+landing on the final `unsupported-element` refusal with no way to recover the
+words. Measured against the real 102-article selection: this closed 470 of
+474 `unsupported-element` refusals outright (`joomla-conversion-v4`); the
+remaining single case is a real, different shape — a `<figure>` carrying loose
+text beside its image with no `<figcaption>` wrapper at all — refused rather
+than guessed at, the same posture a second non-blank caption on one figure or
+any other unexpected figure content gets. Raw HTML, links, and inline
+formatting inside a caption are flattened to plain text through the same
+`captureFlatText` machinery `visitTable`'s own caption already uses, and a
+figure nested inside a quote or list item is refused the same way a bare
+image already was. `scripts/write-joomla-content.mts` accepts the field at
+the write boundary with the same bound the schema enforces.
+
+A tab group (AB#163, [ADR-0020](adr/0020-tab-group-body-block.md)) adds
+the eleventh shared body-block kind: a bounded, ordered list of 2–8 named
+tabs, each holding exactly one data table (the existing AB#22 table block's
+own shape and bounds, reused by name in the Sanity schema so the two share
+one rectangularity validator) — a tab is not a generic rich sub-body, scoped
+narrowly to the one real legacy shape that motivated it. `ContentTabGroup`
+follows the WAI-ARIA Tabs pattern once hydrated — `tablist`/`tab`/`tabpanel`
+roles, a roving `tabIndex`, automatic activation with wrapping arrow-key
+navigation, the inactive panel hidden via native `hidden` (which correctly
+drops it from the accessibility tree, not merely from view) — and renders no
+tab control at all without JavaScript, every tab's table stacked and labelled
+instead, matching `ContentImageComparison`'s own no-controls-without-JS
+posture (ADR-0019). The Joomla converter recognizes the pairing at the
+sibling level — a `<ul class="nav-tabs">` immediately followed by its
+`<div class="tab-content">`, the one shape the AB#137 legacy archive actually
+carries (article 370's Bootstrap burst-test tabs) — through a new
+`visitSiblings` walk that replaces the previous flat per-node loop with no
+behavioural change for any body lacking the pattern (the full pre-existing
+suite passes unchanged). Recognition is strict: an unexpected trigger
+attribute, a pane holding anything but exactly one table, an unmatched
+fragment, or a tab count outside the schema's own bound all refuse rather
+than guess, while a pane's own specific refusal (an unresolved image, for
+instance) still surfaces as itself rather than a generic shape complaint.
+`convertPaneToSingleTable` mirrors `captureFlatText`'s save/restore technique
+for isolating the sub-walk, extended to also catch an oversized `{gallery}`
+marker inside a pane that would otherwise be silently discarded with no
+finding. Conversion policy advances to `joomla-conversion-v5`. Measured
+against the real 102-article selection, this closes the archive's last 4
+`behavioural-attribute` refusals and converts article 370 end to end —
+verified against the real, unmodified source, aside from one unrelated,
+separately-tracked gap the same article also exposed: a `<h6>` nested inside
+a table's own `<caption>`, refusing independently of this decision. Full
+browser verification (`e2e/content-tab-group.spec.ts`) covers the no-JS
+stacked fallback with keyboard-reachable table regions, the hydrated tablist
+roles, click switching, and arrow-key navigation with wrapping and no focus
+trap, in both engines. AB#137's own review-mode findings, exception
+resolution, and manifest approval remain entirely open.
+
+The converter also stopped hard-refusing an anchor's known-inert `rel` value
+(`joomla-conversion-v5`): `alternate`, `nofollow`, `tag`, and the rest of
+MDN's confirmed no-behaviour set on `<a>` now drop as a new lossy
+`link-relationship-dropped` finding, the same posture as any other
+presentational attribute, rather than the generic `behavioural-attribute`
+refusal every unrecognized attribute gets. A `rel` value with real browser
+effect (`noopener`, `noreferrer`, `opener`) or anything unrecognized still
+refuses, and a mix of a safe and an unsafe token still refuses the whole
+attribute. Measured against the real 102-article selection, this resolved 8
+of the archive's 12 `behavioural-attribute` refusals — all eight were
+`rel="alternate"`, the only `rel` value the selection actually contains — and
+left the remaining 4 (`data-toggle="tab"`, a real Bootstrap tab widget with
+no equivalent on the new site) refusing exactly as before, still a content
+decision for the owner.
+
+A table caption whose *entire* content is one heading element now flattens
+to plain caption text (`joomla-conversion-v6`) instead of refusing on the
+heading's level: `<caption><h6>…</h6></caption>` — the real shape article
+370's own tables use — notes a new lossy `caption-heading-flattened` finding
+and keeps the words, since a caption is not part of the body's heading
+outline and the level carries nothing worth preserving. `soleHeadingChild`
+scopes this narrowly: a heading alongside other caption text, or more than
+one heading, still falls through to the ordinary walk and still refuses
+exactly as before (`heading-level-unsupported`/`heading-order`). This closed
+4 of the archive's `heading-level-unsupported` refusals, all in article
+370 — but verifying it against that article's real, full body (rather than
+the isolated tab-widget extract ADR-0020's own measurement used) surfaced a
+second, unrelated defect: parse5 reports **no closing tag at all** for the
+article's own `<div class="tab-content">` — its source-location info's
+recorded end offset is the exact byte length of the article body, i.e.
+implicitly closed only at end of input. The rest of the article is
+therefore, per real HTML5 parsing rules, nested *inside* the tab-content
+container, and the tab-group recognizer (AB#163) correctly refuses this
+shape (`tab-group-unsupported-shape`) rather than absorbing unrelated
+content into the tab group or guessing where the missing tag belongs. This
+is a genuine defect in the source content itself, not a converter gap:
+[ADR-0020](adr/0020-tab-group-body-block.md) records it as an owner
+decision — correct the exported HTML before the real migration run, or
+extend `prepare-selected-source.mts`'s existing precedent (it already
+corrected 9 other tables) to insert the one missing tag, with the corrected
+body re-approved through the existing source-digest mechanism either way.
+Article 370 therefore still does not convert as a whole.
+
+A systematic pass over every remaining refusal category the real 102-article
+selection carries (`joomla-conversion-v7`) closed one more genuine technical
+gap and confirmed the rest are either already-solved false signals or
+structurally owner-gated content decisions, not converter bugs. `--poll-results`
+was simply missing from the ad hoc verification command used to measure the
+figcaption/`rel`/tab-group/caption-heading fixes above: passing it resolves
+every one of the archive's 27 `{CONTENTPOLL}` markers the same way AB#162's
+own import already does, so `unknown-plugin-marker` was never a real
+remaining gap. `image-unresolved`, `gallery-unresolved`, and
+`comparison-unresolved` are structurally gated by design, confirmed by
+reading `resolveImage`'s own implementation: resolution requires an
+owner-approved `--resolution` JSON regardless of `--image-root`, so no local
+audit can resolve them — they need the real approval work AB#137's own row
+already names. The fix: a lone `<div>` wrapping only text inside a
+`<blockquote>` or list item — `<blockquote><div>text</div></blockquote>`,
+article 371's real shape — now flattens the same way a lone `<p>` already
+does (round 8), generalizing that fix from `<p>` specifically to every
+`TRANSPARENT_ELEMENTS` tag when `flatTextCaptureDepth > 0`, since the
+underlying cause (`flushParagraph()` pushing an illegal block mid-capture)
+was never `<p>`-specific. Adjacent top-level `<div>`s outside any quote keep
+round 5's own behaviour (two separate paragraphs) unchanged. Closes the
+archive's one `block-inside-quote-or-item` refusal. The remaining categories
+— `heading-level-unsupported` (32, spread across 26 articles, no single
+mechanical shape; several `<h6>` occurrences of one exact repeated tagline
+turned out to be Joomla template-generated category-title markup —
+`<h6 class="heading-style-6…"><span class="item_title_part_…">…` word-split
+spans, a known template output pattern, not hand-authored prose — which is
+itself an owner content call: whether that fragment belongs in the migrated
+body at all), `heading-order` (48), `empty-heading` (19, confirmed genuinely
+empty: `normalizeText` already collapses a bare `&nbsp;` to nothing, so this
+is real WYSIWYG cruft, not a detection gap), the "flaticon" navigation-style
+list found in articles 325/394 (`<ul class="flaticon"><li><a>…</a></li><p>…</p>`,
+likely site-chrome content rather than body prose), and the `<dl>` term/definition
+pair in article 370 (a real, evidenced case for a possible future
+list-shaped mapping, but only 2 occurrences in the one article already
+blocked by its own missing `</div>`) — are all genuine content or scope
+decisions, not technical gaps, and stay open for the owner. For the four
+`youtube-title-missing` videos, real accessible titles were looked up
+against YouTube's own public oEmbed API (verified, not invented, author
+confirmed as this project's own photographer) for the owner's approval —
+one of the four ("Mobile menu bug") does not read as show-worthy content and
+is flagged rather than assumed includable.
+
+Capture-sequence galleries (AB#166, [ADR-0022](adr/0022-capture-sequence-rally-galleries.md))
+are the third gallery ordering rule, built for large rally collections whose order is the
+photographer's filename running number. Such a gallery has **no `galleryPlacement`
+documents**: its items are the `media` documents whose `captureSequence` object names the
+gallery's language-neutral `contentId`, with a `sequence` and a `sectionId`. FI and EN
+galleries share them, and `itemId = mediaId` (a scoped ADR-0002 amendment).
+The offline planner exists too (AB#167, `npm run plan:rally`,
+`scripts/rally-import-plan.mts`): it reads one exported folder plus its `rally.json`,
+refuses any file that breaks the naming, format, or size contract, and writes a plan of
+media and gallery documents plus a content-hash identity map. It makes no network
+request. `npm run write:rally` (AB#168, `scripts/rally-import-write.mts`) writes an
+approved plan, dry-run by default:
+- It re-verifies the digest and every file, and produces EXIF-stripped public copies.
+- With `--yes`, a raw-perspective preflight refuses on category, identity, route,
+  placement, stray-member, draft or release, and frozen-URL conflicts.
+- It uploads, writes media before galleries, and reads the result back.
+- Reruns patch only plan-owned fields and never delete. This cuts a
+bilingual gallery photograph from four Sanity documents to two. The read path is the
+existing bounded contract answered from media:
+- `sanity-gallery.ts` filters gallery, section, `publiclyRenderable`, and `privateOnly`
+  in GROQ before the limit, then keysets on `(captureSequence.sequence, mediaId)`.
+- Cursors carry the `capture-sequence-v1` ordering scope, so a manual or seeded token
+  fails `wrong-scope`.
+- `visibilityVersion` is the newest member media's `_updatedAt`.
+- A gallery that also has placements is refused rather than merged.
+- Enquiry resolves the item by `mediaId` inside that gallery. The target carries no
+  `placementId`, and the email omits the placement line.
+
+Studio validation (`sanity/schemas/capture-sequence.ts`, `gallery.ts`,
+`gallery-placement.ts`) blocks every combination the read would refuse. The mock fixture
+`content-capture-sequence` has 40 photographs in two sections, authored in reverse, and
+`e2e/gallery-capture-sequence.spec.ts` walks it without JavaScript. The conversion of an existing gallery is planned by `npm run plan:rally-conversion`
+(AB#169, `scripts/rally-conversion-plan.mts`). It reads the published gallery with a
+tokenless, published-only query (`runPublicReadQuery`) and recognizes each renamed file
+by content hash through the import artifacts, so every photograph keeps its document and
+`mediaId`. It keeps existing section ids and slugs, drops alt overrides that repeat the
+photograph's own alt text, and moves placement captions onto the photograph. It reports
+moved, duplicate-removed, and added photographs for approval. New photographs and removed
+duplicates each need an explicit flag. The write step (`npm run write:rally-conversion`,
+AB#170, `scripts/rally-conversion-write.mts`) writes an approved conversion, dry-run by
+default: it requires a recent `--backup-archive` (a real, non-trivial, recently modified
+file — the one check this tool can make on an owner-run `sanity datasets export`), then
+with `--yes` re-derives what remains to do from a fresh raw-perspective read rather than
+trusting the plan's own snapshot, so an interrupted run is safe to resume. Photographs are
+written first; a gallery's remaining placement deletions and its `orderingRule` switch to
+`capture-sequence` are always sent in the same mutation call, so no request boundary can
+leave placements referencing a capture-sequence gallery — the one state the public read
+refuses outright. A read-back confirms both galleries afterward. **Nine Production
+galleries were converted this way on 2026-09-24** — Secto Rally Finland 2021, 2022 and
+2023, Neste Rally Finland 2016, 2017, 2018 and 2019, TET Rally Latvia 2024, and Rally
+Estonia 2023 — each verified by an independent tokenless read; Production went from
+6,820 to 3,581 documents. The placement-based "Rally Finland 2001–2019" best-of gallery
+(38 placements) stays curated. The per-gallery decisions are in
+`docs/sanity-seeding.md`. Converting them surfaced a deployment fact worth knowing: the
+Azure `DeployPreview` stage has been failing on exhausted Microsoft-hosted minutes since
+2026-09-23, so merged code does not deploy by itself — see `docs/deployment.md`, "When the
+pipeline cannot deploy".
+
+A content page's short lead can be a **listing-only excerpt** (AB#172, ADR-0003's
+2026-09-26 amendment). With `summaryListingOnly`, the lead shows on listing cards and in
+the meta, Open Graph and JSON-LD descriptions, but not on the page itself. The rule lives
+in `content-page.ts#onPageSummary`, and the Sanity article and gallery schemas and
+adapters carry the flag. The imported Joomla stories needed it: the importer left each
+intro text as the first body paragraph, so a page opened with the same text twice and its
+card had no excerpt. `npm run fix:joomla-intro` (owner-run, dry-run by default,
+revision-guarded, one transaction, recovery record) moves those paragraphs. On
+2026-09-26 its read-only plan for Production covered 26 pages: 18 rally galleries and the
+8 VAT portfolio articles. It left out Secto Rally Finland 2022, whose one paragraph is the
+whole text, and the photographer's introduction, which starts with a heading. The write
+itself is owner-run. The Joomla article importer does not yet set the flag, and must before
+the remaining articles are imported.
+
+The visual finish from the owner's Claude Design hi-fi proposal is delivered (AB#173).
+The default palettes are now **Kivi** (light, `#ece9e3` ground) and **Grafiitti** (dark,
+`#1b1c1e`). The site menu carries the proposal's moon/sun theme toggle
+(`theme-toggle.tsx`, `aria-pressed`): the device decides until the first press, which
+pins the other theme. The choice is stored in `localStorage`, never a cookie, and a
+constant inline `<head>` script (`THEME_BOOTSTRAP_SCRIPT`) applies it before first paint;
+without JavaScript the device decides. The language choice is in the menu too: a page's
+`LanguageSwitch` publishes its identity-based links to the header through an
+owner-scoped store (`language-menu-store.ts`). The bar shows a short code (EN), and the
+compact panel shows the language's own name, with a nearer-page note visible in both.
+The in-page switch stays as the fallback and is hidden only once the header has rendered
+the links (`data-language-menu` on `<html>`). The contact route (`CONTACT_PATH`) shows as
+a pill at the end of the bar. The wide layout switches on at `lg`, not `sm`: the
+added controls no longer fit the old breakpoint (Codex review). A gallery
+section's filter row wraps rather than scrolling, with `min-w-0` on each item so
+one long unbroken label wraps instead of widening past the viewport (Codex
+review, second finding on the same story). Instrument Sans replaced Geist as the sans face.
+Moving the font variables from `<body>` to `<html>` also fixed a long-standing bug: the
+web font had never actually applied, because `--font-family-sans` resolves on `:root`.
+Form fields now take `--border-strong` (3:1). The story and services listings are
+borderless two-column card grids with native-ratio images and three-line clamped
+excerpts. Story cards now show the effective article author or, for galleries, the
+site photographer name before the event date (AB#174). The home page now has an
+optional photographer introduction after the hero (AB#175): a native-ratio public
+portrait, localized copy, up to three facts, and contact/services actions; when absent,
+the old introduction remains. Titles, prose and the header and footer follow the
+proposal's scale. The
+gallery section control is an underlined row of plain links that wraps, so every option
+is visible without horizontal scrolling (owner decision). The proposal's 3:2 and cover crops are
+deliberately not reproduced. `docs/theme-contract.md` records the palette adaptations:
+the ink is darkened to `#13110e` so the derived `--subtle` role clears AA.
+The gallery section row now shows its section count, and a sectioned gallery's
+first slice shows the active filter heading with the exact count of public,
+visible photographs (AB#179). The mock and Sanity sources use the same
+eligibility rules; Sanity reads the count with a scalar aggregate, without
+loading every placement. Continuation slices keep their compact layout.
+The contact page now includes optional phone and preferred date, a published-service
+subject with safe service-link prefill, and a settings-driven portrait and direct/social
+contact column (AB#178). Its privacy notice is a native disclosure, and the
+direct email link remains usable without JavaScript. Related work item:
+AB#176 portfolio topic filter.
+
+These notes go stale easily — treat it as a starting hint, not as truth. The MVP
+checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
+check the current state of the code and the relevant work item scope; do not assume a
+feature exists or is missing.
+

@@ -30,6 +30,8 @@
 
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+
 import {
   PrivateGalleryExchangeError,
   assertPrivateGalleryHandleShape,
@@ -52,6 +54,7 @@ import {
 
 import type { ContactRateLimiter } from "@/lib/contact-rate-limit";
 import {
+  checkPrivateGalleryAdminLoginRequestHeaders,
   consumePrivateGalleryAdminLoginAttempt,
   PrivateGalleryAdminLoginError,
   type PrivateGalleryAdminLoginRateConfig,
@@ -77,6 +80,13 @@ import type { PrivateGalleryAdminSession } from "@/lib/private-gallery";
 import { getPrivateGalleryDeployment } from "@/lib/private-gallery-deployment";
 import { getPrivateGalleryMemoryStore } from "@/lib/private-gallery-memory-store";
 import type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
+import {
+  PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT,
+  PrivateGalleryProofDraftStoreError,
+  type PrivateGalleryProofDraftStore,
+  type PrivateGalleryProofDraftSetup,
+  type PrivateGalleryProofDraftSetupInput,
+} from "@/lib/private-gallery-proof-draft-store";
 import type {
   PrivateGallery,
   PrivateGalleryPlacement,
@@ -101,6 +111,27 @@ import {
   PrivateGalleryConfigurationError,
 } from "@/lib/private-gallery-config";
 import {
+  projectPrivateGalleryProofView,
+  type PrivateGalleryProofView,
+} from "@/lib/private-gallery-proof-view";
+import type {
+  PrivateGalleryProofNotificationContext,
+  PrivateGalleryProofStore,
+  PrivateGalleryProofStoredState,
+} from "@/lib/private-gallery-proof-store";
+import {
+  PrivateGalleryProofError,
+  isPrivateGalleryProofBusinessReference,
+  validatePrivateGalleryProofPricing,
+  type PrivateGalleryProofPricing,
+  type PrivateGalleryProofSummary,
+} from "@/lib/private-gallery-proof";
+import { checkContactRequestHeaders, readBoundedBody } from "@/lib/contact-request";
+import {
+  PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY,
+  PRIVATE_GALLERY_DEFAULT_MAX_PROOF_SELECTION_BODY_BYTES,
+} from "@/lib/private-gallery-limits";
+import {
   PRIVATE_GALLERY_ITEM_LIMITS,
   projectPrivateGalleryItems,
   type PrivateGalleryItem,
@@ -109,6 +140,7 @@ import {
 export type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
 export type { PrivateGallery, PrivateGallerySession } from "@/lib/private-gallery";
 export type { PrivateGalleryItem } from "@/lib/private-gallery-item";
+export type { PrivateGalleryProofView } from "@/lib/private-gallery-proof-view";
 export type { PrivateGalleryMintRequest } from "@/lib/private-gallery-delivery";
 export { createPrivateGalleryExchangeIpLimiter };
 export { deriveClientKey } from "@/lib/contact-rate-limit";
@@ -271,6 +303,8 @@ export type PrivateGalleryStores = {
   readonly sessionStore: PrivateGallerySessionStore;
   readonly viewStore: PrivateGalleryViewStore;
   readonly deliveryStore: PrivateGalleryDeliveryStore;
+  readonly proofStore: PrivateGalleryProofStore;
+  readonly proofNotification: () => PrivateGalleryProofNotificationContext;
   readonly keyring: PrivateGalleryCapabilityKeyring;
 };
 
@@ -304,6 +338,8 @@ export function getPrivateGalleryStores(): PrivateGalleryStores {
       sessionStore: memory.sessionStore,
       viewStore: memory.viewStore,
       deliveryStore: memory.deliveryStore,
+      proofStore: memory.proofStore,
+      proofNotification: memory.proofNotification,
       keyring: memory.keyring,
     };
   }
@@ -500,6 +536,176 @@ export async function listPrivateGalleryItems(
     PRIVATE_GALLERY_ITEM_LIMITS.maxPageSize,
   );
   return projectPrivateGalleryItems(placements);
+}
+
+/**
+ * One customer proof read. The existing session check runs first, then the raw
+ * proof store is addressed only by the gallery id that session authorized.
+ * Every refusal has the same value; a future route must render it identically.
+ * The development fixture route consumes this facade; production remains off.
+ */
+export async function readAuthorizedPrivateGalleryProofPage(
+  deps: PrivateGalleryViewDeps & { readonly proofStore: PrivateGalleryProofStore },
+  request: PrivateGalleryViewRequest & { readonly pageIndex: number },
+): Promise<PrivateGalleryProofView | undefined> {
+  const authorized = await authorizePrivateGalleryView(deps, request);
+  if (!authorized.authorized || authorized.gallery.kind !== "proof") {
+    return undefined;
+  }
+
+  try {
+    const state = await deps.proofStore.read(authorized.gallery.galleryId);
+    const fresh = authorized.gallery;
+    if (
+      state === undefined ||
+      state.gallery.galleryId !== fresh.galleryId ||
+      state.gallery.galleryHandle !== fresh.galleryHandle ||
+      state.gallery.kind !== "proof" ||
+      state.gallery.state !== "published" ||
+      state.gallery.capabilityGeneration !== fresh.capabilityGeneration ||
+      !(state.gallery.accessExpiresAt instanceof Date) ||
+      !(fresh.accessExpiresAt instanceof Date) ||
+      state.gallery.accessExpiresAt.getTime() !== fresh.accessExpiresAt.getTime()
+    ) return undefined;
+    return projectPrivateGalleryProofView(state, request.pageIndex);
+  } catch {
+    // A malformed proof row and every failed authorization produce no browser
+    // payload. A route must not turn these classes into different responses.
+    return undefined;
+  }
+}
+
+/** A result safe for a future no-store proof mutation endpoint to serialize. */
+export type PrivateGalleryProofMutationOutcome =
+  | {
+      readonly ok: true;
+      readonly action: "edit";
+      readonly revision: number;
+      readonly selectedReferences: readonly string[];
+      readonly summary: PrivateGalleryProofSummary;
+    }
+  | {
+      readonly ok: true;
+      readonly action: "confirm";
+      readonly revision: number;
+      readonly confirmationVersion: number;
+      readonly confirmedAt: string;
+      readonly summary: PrivateGalleryProofSummary;
+    }
+  | { readonly ok: false; readonly reason: "refused" | "conflict" };
+
+type PrivateGalleryProofMutationInput =
+  | { readonly action: "edit"; readonly expectedRevision: number; readonly selectedReferences: readonly string[] }
+  | { readonly action: "confirm"; readonly expectedRevision: number };
+
+const PROOF_REFERENCE = /^(?:00[1-9]|0[1-9][0-9]|[1-9][0-9]{2,})$/;
+
+function parseProofMutationInput(raw: string): PrivateGalleryProofMutationInput | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  if (!Number.isSafeInteger(record.expectedRevision) || (record.expectedRevision as number) < 0) {
+    return undefined;
+  }
+  const keys = Object.keys(record).sort();
+  if (record.action === "confirm" &&
+      keys.join(",") === "action,expectedRevision") {
+    return { action: "confirm", expectedRevision: record.expectedRevision as number };
+  }
+  if (record.action !== "edit" ||
+      keys.join(",") !== "action,expectedRevision,selectedReferences" ||
+      !Array.isArray(record.selectedReferences) ||
+      record.selectedReferences.length > PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY ||
+      !record.selectedReferences.every((reference: unknown) =>
+        typeof reference === "string" && PROOF_REFERENCE.test(reference))) {
+    return undefined;
+  }
+  return {
+    action: "edit",
+    expectedRevision: record.expectedRevision as number,
+    selectedReferences: record.selectedReferences,
+  };
+}
+
+/**
+ * Customer mutation boundary. It checks request provenance before any stateful
+ * work, re-authorizes the session on every call, then lets the store compare
+ * the capability generation in the same transaction as the draft CAS.
+ *
+ * A route must serialize every `refused` outcome identically with no-store
+ * headers. `conflict` is available only after authorization, for a stale draft
+ * or a locked one. A future route supplies the notification context from
+ * server-owned configuration, never from the customer request body.
+ */
+export async function mutateAuthorizedPrivateGalleryProofSelection(
+  deps: PrivateGalleryViewDeps & {
+    readonly proofStore: PrivateGalleryProofStore;
+    readonly notification: PrivateGalleryProofNotificationContext;
+  },
+  request: Request,
+  params: { readonly handle: string; readonly clock: () => Date },
+): Promise<PrivateGalleryProofMutationOutcome> {
+  const refused = { ok: false, reason: "refused" } as const;
+  if (
+    (request.method !== "POST" && request.method !== "PUT") ||
+    checkContactRequestHeaders(request) !== undefined ||
+    !isPrivateGalleryHandle(params.handle)
+  ) return refused;
+
+  try {
+    const authorized = await authorizePrivateGalleryView(deps, {
+      handle: params.handle,
+      cookieHeader: request.headers.get("cookie"),
+      now: params.clock(),
+    });
+    if (!authorized.authorized || authorized.gallery.kind !== "proof") return refused;
+
+    // Body IO follows authorization. `readBoundedBody` checks actual streamed
+    // bytes, including when Content-Length is absent or dishonest.
+    const raw = await readBoundedBody(
+      request, PRIVATE_GALLERY_DEFAULT_MAX_PROOF_SELECTION_BODY_BYTES,
+    );
+    if (raw === undefined) return refused;
+    const input = parseProofMutationInput(raw);
+    if (input === undefined) return refused;
+
+    const common = {
+      galleryId: authorized.gallery.galleryId,
+      expectedCapabilityGeneration: authorized.session.capabilityGeneration,
+      expectedRevision: input.expectedRevision,
+      // Read the clock again after bounded body IO; an access window can end
+      // while a slow request uploads its selection. SQL uses database time.
+      now: params.clock(),
+    };
+    if (input.action === "edit") {
+      const result = await deps.proofStore.editDraft({
+        ...common,
+        selectedReferences: input.selectedReferences,
+      });
+      return {
+        ok: true, action: "edit", revision: result.draft.revision,
+        selectedReferences: result.draft.selectedReferences, summary: result.summary,
+      };
+    }
+    const result = await deps.proofStore.confirm({ ...common, notification: deps.notification });
+    return {
+      ok: true, action: "confirm", revision: result.draft.revision,
+      confirmationVersion: result.confirmation.version,
+      confirmedAt: result.confirmation.confirmedAt.toISOString(),
+      summary: result.confirmation.summary,
+    };
+  } catch (error) {
+    if (error instanceof PrivateGalleryProofError &&
+        (error.reason === "stale-revision" || error.reason === "already-confirmed")) {
+      return { ok: false, reason: "conflict" };
+    }
+    return refused;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1043,6 +1249,17 @@ export function requirePrivateGalleryAdminReauthentication(
 export type PrivateGalleryAdminStores = {
   readonly loginStore: PrivateGalleryAdminLoginStore;
   readonly sessionStore: PrivateGalleryAdminSessionStore;
+  readonly proofStore: PrivateGalleryProofStore;
+  readonly proofDraftStore: PrivateGalleryProofDraftStore;
+  /**
+   * An administrator already holds an authorized session, so a handle-keyed
+   * lookup here carries none of {@link PrivateGalleryViewStore}'s enumeration
+   * concern — this is the administrator's own gallery, not a stranger's guess.
+   * The development fixture answers only its own single proof gallery; a
+   * The future Postgres adapter must supply durable customer/job relations and
+   * gallery listing; the separate memory-only draft list does neither.
+   */
+  findProofGalleryIdByHandle(handle: string): Promise<string | undefined>;
   /**
    * Where the credential is resolved from. `process.env` for a real deployment;
    * for the development fixture, the fixture's own published credential — the
@@ -1067,6 +1284,13 @@ export function getPrivateGalleryAdminStores(): PrivateGalleryAdminStores {
     return {
       loginStore: memory.adminLoginStore,
       sessionStore: memory.adminSessionStore,
+      proofStore: memory.proofStore,
+      proofDraftStore: memory.proofDraftStore,
+      async findProofGalleryIdByHandle(handle) {
+        return handle === memory.proofGallery.galleryHandle
+          ? memory.proofGallery.galleryId
+          : undefined;
+      },
       environment: {
         [PRIVATE_GALLERY_ADMIN_SECRET_HASH_SETTING]: memory.adminCredentialHash,
       },
@@ -1084,7 +1308,364 @@ export function getPrivateGalleryAdminStores(): PrivateGalleryAdminStores {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Administrator proof-gallery creation and listing (AB#130, draft only)
+// ---------------------------------------------------------------------------
+
+export type PrivateGalleryProofDraftAdminItem = {
+  readonly handle: string;
+  readonly createdAt: string;
+  readonly pricing: PrivateGalleryProofPricing;
+  readonly revision: number;
+  readonly customerReference?: string;
+  readonly jobReference?: string;
+};
+
+export type PrivateGalleryProofDraftAdminOutcome<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly reason: "unauthorized" | "invalid-input" | "not-found" | "conflict" | "unavailable" };
+
+function projectProofDraft(row: PrivateGalleryProofDraftSetup): PrivateGalleryProofDraftAdminItem {
+  return {
+    handle: row.gallery.galleryHandle,
+    createdAt: row.gallery.createdAt.toISOString(),
+    pricing: row.pricing,
+    revision: row.revision,
+    ...(row.customerReference === undefined ? {} : { customerReference: row.customerReference }),
+    ...(row.jobReference === undefined ? {} : { jobReference: row.jobReference }),
+  };
+}
+
+function parseProofDraftInput(raw: string): PrivateGalleryProofDraftSetupInput | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).some((key) =>
+    !["pricing", "customerReference", "jobReference"].includes(key))) return undefined;
+  if (typeof record.pricing !== "object" || record.pricing === null || Array.isArray(record.pricing)) return undefined;
+  const terms = record.pricing as Record<string, unknown>;
+  if (Object.keys(terms).sort().join(",") !== "currency,extraUnitPriceMinor,includedCount") return undefined;
+  if ((record.customerReference !== undefined &&
+      !isPrivateGalleryProofBusinessReference(record.customerReference)) ||
+      (record.jobReference !== undefined &&
+      !isPrivateGalleryProofBusinessReference(record.jobReference))) return undefined;
+  try {
+    return {
+      pricing: validatePrivateGalleryProofPricing(terms as PrivateGalleryProofPricing),
+      ...(record.customerReference === undefined ? {} : { customerReference: record.customerReference as string }),
+      ...(record.jobReference === undefined ? {} : { jobReference: record.jobReference as string }),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Re-authorize before body IO; create only a private, non-published setup row. */
+export async function createPrivateGalleryProofDraftAsAdmin(
+  deps: PrivateGalleryAdminRequestDeps & { readonly proofDraftStore: PrivateGalleryProofDraftStore },
+  request: Request,
+  now: Date,
+): Promise<PrivateGalleryProofDraftAdminOutcome<PrivateGalleryProofDraftAdminItem>> {
+  if (checkPrivateGalleryAdminLoginRequestHeaders(request) !== undefined) {
+    return { ok: false, reason: "invalid-input" };
+  }
+  const authorization = await authorizePrivateGalleryAdministrator(deps, {
+    cookieHeader: request.headers.get("cookie"), now,
+  });
+  if (!authorization.ok) return { ok: false, reason: "unauthorized" };
+  try {
+    const raw = await readBoundedBody(request, 1024);
+    const input = raw === undefined ? undefined : parseProofDraftInput(raw);
+    if (input === undefined) return { ok: false, reason: "invalid-input" };
+    return { ok: true, value: projectProofDraft(await deps.proofDraftStore.create(input, now)) };
+  } catch (error) {
+    if (error instanceof PrivateGalleryProofDraftStoreError && error.reason === "invalid-input") {
+      return { ok: false, reason: "invalid-input" };
+    }
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+function parseProofDraftPricingUpdate(raw: string): {
+  readonly handle: string;
+  readonly expectedRevision: number;
+  readonly pricing: PrivateGalleryProofPricing;
+} | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).sort().join(",") !== "expectedRevision,handle,pricing" ||
+      typeof record.handle !== "string" || !isPrivateGalleryHandle(record.handle) ||
+      !Number.isSafeInteger(record.expectedRevision) || (record.expectedRevision as number) < 0 ||
+      typeof record.pricing !== "object" || record.pricing === null || Array.isArray(record.pricing)) {
+    return undefined;
+  }
+  const pricing = record.pricing as Record<string, unknown>;
+  if (Object.keys(pricing).sort().join(",") !== "currency,extraUnitPriceMinor,includedCount") return undefined;
+  try {
+    return {
+      handle: record.handle,
+      expectedRevision: record.expectedRevision as number,
+      pricing: validatePrivateGalleryProofPricing(pricing as PrivateGalleryProofPricing),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Edit the whole pricing candidate, guarded by a draft revision. */
+export async function updatePrivateGalleryProofDraftPricingAsAdmin(
+  deps: PrivateGalleryAdminRequestDeps & { readonly proofDraftStore: PrivateGalleryProofDraftStore },
+  request: Request,
+  now: Date,
+): Promise<PrivateGalleryProofDraftAdminOutcome<PrivateGalleryProofDraftAdminItem>> {
+  if (request.method !== "PATCH" ||
+      checkPrivateGalleryAdminLoginRequestHeaders(request) !== undefined) {
+    return { ok: false, reason: "invalid-input" };
+  }
+  const authorization = await authorizePrivateGalleryAdministrator(deps, {
+    cookieHeader: request.headers.get("cookie"), now,
+  });
+  if (!authorization.ok) return { ok: false, reason: "unauthorized" };
+  try {
+    const raw = await readBoundedBody(request, 1024);
+    const input = raw === undefined ? undefined : parseProofDraftPricingUpdate(raw);
+    if (input === undefined) return { ok: false, reason: "invalid-input" };
+    return { ok: true, value: projectProofDraft(await deps.proofDraftStore.updatePricing(input)) };
+  } catch (error) {
+    if (error instanceof PrivateGalleryProofDraftStoreError) {
+      if (error.reason === "invalid-input") return { ok: false, reason: "invalid-input" };
+      if (error.reason === "not-found") return { ok: false, reason: "not-found" };
+      if (error.reason === "conflict") return { ok: false, reason: "conflict" };
+    }
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+/** Bounded, authorized listing; no internal ID, secret, or customer access URL. */
+export async function listPrivateGalleryProofDraftsAsAdmin(
+  deps: PrivateGalleryAdminRequestDeps & { readonly proofDraftStore: PrivateGalleryProofDraftStore },
+  request: PrivateGalleryAdminRequest,
+): Promise<PrivateGalleryProofDraftAdminOutcome<{
+  readonly items: readonly PrivateGalleryProofDraftAdminItem[];
+  readonly hasMore: boolean;
+}>> {
+  const authorization = await authorizePrivateGalleryAdministrator(deps, request);
+  if (!authorization.ok) return { ok: false, reason: "unauthorized" };
+  try {
+    const result = await deps.proofDraftStore.list(PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT);
+    return { ok: true, value: { items: result.items.map(projectProofDraft), hasMore: result.hasMore } };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
 /** The `Set-Cookie` descriptor for administrator logout. */
 export function buildPrivateGalleryAdminLogoutCookie(): PrivateGalleryAdminSessionCookie {
   return buildPrivateGalleryAdminSessionClearCookie();
+}
+
+// ---------------------------------------------------------------------------
+// Administrator proof-gallery status, reopen and resend (AB#130)
+// ---------------------------------------------------------------------------
+
+/** One safe, administrator-facing projection of the current notification attempt. */
+export type PrivateGalleryProofAdminNotificationStatus = {
+  readonly state: "pending" | "sent" | "failed";
+  readonly attempts: number;
+  readonly lastError?: string;
+  readonly sentAt?: string;
+  readonly nextAttemptAt?: string;
+};
+
+/**
+ * What an administrator may see about one proof gallery. No filename, no
+ * selected image, and no customer identity crosses this boundary: an
+ * administrator legitimately has the confirmation email for that, and this
+ * status view exists for the narrower question "is the notification stuck".
+ */
+export type PrivateGalleryProofAdminStatus = {
+  readonly handle: string;
+  readonly confirmed: boolean;
+  readonly draftRevision: number;
+  readonly latestConfirmationVersion: number;
+  readonly pricing: PrivateGalleryProofPricing;
+  readonly currentSummary?: PrivateGalleryProofSummary;
+  readonly confirmedAt?: string;
+  readonly notification?: PrivateGalleryProofAdminNotificationStatus;
+};
+
+export type PrivateGalleryProofAdminFailureReason =
+  | PrivateGalleryAdminFailureReason
+  | "not-found"
+  | "not-confirmed"
+  | "conflict";
+
+export type PrivateGalleryProofAdminOutcome<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly reason: PrivateGalleryProofAdminFailureReason };
+
+export type PrivateGalleryProofAdminDeps = PrivateGalleryAdminRequestDeps & {
+  readonly proofStore: PrivateGalleryProofStore;
+  readonly findProofGalleryIdByHandle: (
+    handle: string,
+  ) => Promise<string | undefined>;
+};
+
+async function authorizeProofAdmin(
+  deps: PrivateGalleryProofAdminDeps,
+  request: PrivateGalleryAdminRequest,
+  handle: string,
+): Promise<
+  | { readonly ok: true; readonly galleryId: string; readonly state: PrivateGalleryProofStoredState }
+  | { readonly ok: false; readonly reason: PrivateGalleryProofAdminFailureReason }
+> {
+  const authorization = await authorizePrivateGalleryAdministrator(deps, request);
+  if (!authorization.ok) return { ok: false, reason: authorization.failure.reason };
+  if (!isPrivateGalleryHandle(handle)) return { ok: false, reason: "not-found" };
+
+  const galleryId = await deps.findProofGalleryIdByHandle(handle);
+  if (galleryId === undefined) return { ok: false, reason: "not-found" };
+
+  const state = await deps.proofStore.read(galleryId);
+  if (state === undefined || state.gallery.kind !== "proof") {
+    return { ok: false, reason: "not-found" };
+  }
+  return { ok: true, galleryId, state };
+}
+
+/**
+ * The administrator's own read of one proof gallery: its draft/confirmation
+ * state and, once confirmed, the current notification attempt's delivery
+ * status — the "email delivery status and failures are visible to the
+ * administrator" acceptance criterion. Re-authorizes on every call, exactly
+ * as every other entry in this facade does.
+ */
+export async function readPrivateGalleryProofAdminStatus(
+  deps: PrivateGalleryProofAdminDeps,
+  request: PrivateGalleryAdminRequest & { readonly handle: string },
+): Promise<PrivateGalleryProofAdminOutcome<PrivateGalleryProofAdminStatus>> {
+  try {
+    const authorized = await authorizeProofAdmin(deps, request, request.handle);
+    if (!authorized.ok) return authorized;
+    const { galleryId, state } = authorized;
+
+    let notification: PrivateGalleryProofAdminNotificationStatus | undefined;
+    if (state.draft.confirmed && state.latestConfirmationVersion > 0) {
+      const outbox = await deps.proofStore.readLatestOutbox(
+        galleryId,
+        state.latestConfirmationVersion,
+      );
+      if (outbox !== undefined) {
+        notification = {
+          state: outbox.state,
+          attempts: outbox.attempts,
+          ...(outbox.lastError === undefined ? {} : { lastError: outbox.lastError }),
+          ...(outbox.sentAt === undefined
+            ? {}
+            : { sentAt: outbox.sentAt.toISOString() }),
+          ...(outbox.nextAttemptAt === undefined
+            ? {}
+            : { nextAttemptAt: outbox.nextAttemptAt.toISOString() }),
+        };
+      }
+    }
+
+    return {
+      ok: true,
+      value: {
+        handle: state.gallery.galleryHandle,
+        confirmed: state.draft.confirmed,
+        draftRevision: state.draft.revision,
+        latestConfirmationVersion: state.latestConfirmationVersion,
+        pricing: state.pricingSnapshot,
+        ...(state.currentConfirmation === undefined
+          ? {}
+          : {
+              currentSummary: state.currentConfirmation.summary,
+              confirmedAt: state.currentConfirmation.confirmedAt.toISOString(),
+            }),
+        ...(notification === undefined ? {} : { notification }),
+      },
+    };
+  } catch {
+    return { ok: false, reason: "unexpected" };
+  }
+}
+
+/**
+ * Administrator-only reopen (ADR-0014 §8d, AB#130's "intentional administrator
+ * reopen"). Unlocks the draft for a new round of edits while every prior
+ * confirmation and outbox row stays untouched; access expiry is never
+ * extended.
+ */
+export async function reopenPrivateGalleryProofAsAdmin(
+  deps: PrivateGalleryProofAdminDeps,
+  request: PrivateGalleryAdminRequest & {
+    readonly handle: string;
+    readonly expectedRevision: number;
+  },
+): Promise<PrivateGalleryProofAdminOutcome<{ readonly revision: number }>> {
+  try {
+    const authorized = await authorizeProofAdmin(deps, request, request.handle);
+    if (!authorized.ok) return authorized;
+    if (!authorized.state.draft.confirmed) {
+      return { ok: false, reason: "not-confirmed" };
+    }
+
+    const draft = await deps.proofStore.reopen({
+      galleryId: authorized.galleryId,
+      expectedRevision: request.expectedRevision,
+      now: request.now,
+    });
+    return { ok: true, value: { revision: draft.revision } };
+  } catch (error) {
+    if (error instanceof PrivateGalleryProofError) {
+      if (error.reason === "stale-revision") return { ok: false, reason: "conflict" };
+      if (error.reason === "not-confirmed") return { ok: false, reason: "not-confirmed" };
+    }
+    return { ok: false, reason: "unexpected" };
+  }
+}
+
+/**
+ * A deliberate resend: a fresh outbox attempt against the same immutable
+ * confirmation, never a new selection version. Safe to call repeatedly — each
+ * call mints its own attempt id, so two administrator clicks queue two
+ * attempts rather than colliding.
+ */
+export async function resendPrivateGalleryProofNotificationAsAdmin(
+  deps: PrivateGalleryProofAdminDeps,
+  request: PrivateGalleryAdminRequest & { readonly handle: string },
+): Promise<PrivateGalleryProofAdminOutcome<{ readonly confirmationVersion: number }>> {
+  try {
+    const authorized = await authorizeProofAdmin(deps, request, request.handle);
+    if (!authorized.ok) return authorized;
+    if (
+      !authorized.state.draft.confirmed ||
+      authorized.state.latestConfirmationVersion === 0
+    ) {
+      return { ok: false, reason: "not-confirmed" };
+    }
+
+    const outbox = await deps.proofStore.queueResend({
+      galleryId: authorized.galleryId,
+      confirmationVersion: authorized.state.latestConfirmationVersion,
+      attemptId: randomUUID(),
+      now: request.now,
+    });
+    return { ok: true, value: { confirmationVersion: outbox.confirmationVersion } };
+  } catch {
+    return { ok: false, reason: "unexpected" };
+  }
 }

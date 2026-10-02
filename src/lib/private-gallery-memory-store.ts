@@ -42,6 +42,7 @@ import type {
   PrivateGallery,
   PrivateGalleryCapability,
   PrivateGalleryPlacement,
+  PrivateGalleryProofPlacement,
   PrivateGallerySession,
 } from "@/lib/private-gallery";
 import {
@@ -49,7 +50,18 @@ import {
   type PrivateGalleryCapabilityMaterial,
 } from "@/lib/private-gallery-capability";
 import type { PrivateGalleryCapabilityKeyring } from "@/lib/private-gallery-config";
-import { computePrivateGalleryAccessExpiry } from "@/lib/private-gallery-retention";
+import { getBuiltInLabels } from "@/lib/deployment-config";
+import { createPrivateGalleryProofMemoryStore } from "@/lib/private-gallery-proof-memory-store";
+import { createPrivateGalleryProofDraftMemoryStore, type PrivateGalleryProofDraftStore } from "@/lib/private-gallery-proof-draft-store";
+import type { PrivateGalleryProofNotificationContext, PrivateGalleryProofStore } from "@/lib/private-gallery-proof-store";
+import {
+  computePrivateGalleryAccessExpiry,
+  PRIVATE_GALLERY_MAX_PREPARATION_DAYS,
+} from "@/lib/private-gallery-retention";
+import {
+  planPrivateGalleryFirstProofReady,
+  planPrivateGalleryFirstProofPublication,
+} from "@/lib/private-gallery-readiness";
 import {
   evaluatePrivateGalleryExchangeRate,
   type PrivateGalleryExchangeLookup,
@@ -90,7 +102,13 @@ export const MEMORY_GALLERY_HANDLE = Buffer.alloc(16, 0x11).toString("base64url"
 export const MEMORY_GALLERY_CAPABILITY =
   Buffer.alloc(32, 0x2d).toString("base64url");
 
+/** A second, equally public development-only link for the proof workflow. */
+export const MEMORY_PROOF_GALLERY_HANDLE = Buffer.alloc(16, 0x22).toString("base64url");
+export const MEMORY_PROOF_GALLERY_CAPABILITY =
+  Buffer.alloc(32, 0x3e).toString("base64url");
+
 const MEMORY_GALLERY_ID = "memory-fixture-gallery";
+const MEMORY_PROOF_GALLERY_ID = "memory-fixture-proof-gallery";
 
 /**
  * The administrator secret this fixture accepts. Published, constant, and **not
@@ -182,6 +200,11 @@ export type PrivateGalleryMemoryStore = {
   readonly keyring: PrivateGalleryCapabilityKeyring;
   /** The fixture gallery, for a route that wants to render its authorized state. */
   readonly gallery: PrivateGallery;
+  /** Separate development proof gallery and its server-only selection state. */
+  readonly proofGallery: PrivateGallery;
+  readonly proofStore: PrivateGalleryProofStore;
+  readonly proofDraftStore: PrivateGalleryProofDraftStore;
+  readonly proofNotification: () => PrivateGalleryProofNotificationContext;
   readonly adminSessionStore: PrivateGalleryAdminSessionStore;
   readonly adminLoginStore: PrivateGalleryAdminLoginStore;
   /**
@@ -275,6 +298,74 @@ function build(now: Date): PrivateGalleryMemoryStore {
     accessExpiresAt: computePrivateGalleryAccessExpiry(now),
   };
 
+  const proofPreparingGallery: PrivateGallery = {
+    galleryId: MEMORY_PROOF_GALLERY_ID,
+    galleryHandle: MEMORY_PROOF_GALLERY_HANDLE,
+    kind: "proof",
+    state: "preparing",
+    capabilityGeneration: MEMORY_GALLERY_GENERATION,
+    createdAt: now,
+  };
+  const proofCandidates: readonly PrivateGalleryProofPlacement[] = [
+    {
+      galleryId: proofPreparingGallery.galleryId, placementId: "memory-proof-01",
+      mediaId: "memory-proof-media-01", filename: "IMG_0001.JPG",
+      objectKey: "memory/proof/01.webp", derivativeKind: "watermarked-proof",
+      order: 1, nominalBytes: 872_300, width: 1800, height: 1200,
+      alt: "Watermarked landscape proof",
+    },
+    {
+      galleryId: proofPreparingGallery.galleryId, placementId: "memory-proof-02",
+      mediaId: "memory-proof-media-02", filename: "IMG_0002.JPG",
+      objectKey: "memory/proof/02.webp", derivativeKind: "watermarked-proof",
+      order: 2, nominalBytes: 1_024_000, width: 1200, height: 1800,
+      alt: "Watermarked portrait proof",
+    },
+  ];
+  const verifiedProofObjects = proofCandidates.map((item) => ({
+    objectKey: item.objectKey,
+    objectKind: "proof" as const,
+    sizeBytes: item.nominalBytes,
+  }));
+  const proofPricing = {
+    includedCount: 1, extraUnitPriceMinor: 1250, currency: "EUR",
+  };
+  const readyProof = planPrivateGalleryFirstProofReady({
+    gallery: proofPreparingGallery,
+    placements: proofCandidates,
+    pricing: proofPricing,
+    verifiedObjects: verifiedProofObjects,
+  });
+  if (!readyProof.ready) throw new Error("Invalid development proof fixture readiness");
+  const readyProofGallery: PrivateGallery = {
+    ...proofPreparingGallery,
+    state: readyProof.nextState,
+  };
+  const publishedProof = planPrivateGalleryFirstProofPublication({
+    gallery: readyProofGallery,
+    proof: {
+      pricingSnapshot: readyProof.pricingSnapshot,
+      placements: readyProof.placements,
+    },
+    verifiedObjects: verifiedProofObjects,
+    preparation: {
+      galleryId: readyProofGallery.galleryId,
+      openedAt: now,
+      deadline: new Date(
+        now.getTime() + PRIVATE_GALLERY_MAX_PREPARATION_DAYS * 24 * 60 * 60 * 1000,
+      ),
+    },
+    now,
+  });
+  if (!publishedProof.publishable) throw new Error("Invalid development proof fixture publication");
+  const proofGallery: PrivateGallery = {
+    ...readyProofGallery,
+    state: publishedProof.nextState,
+    publishedAt: publishedProof.publishedAt,
+    accessExpiresAt: publishedProof.accessExpiresAt,
+  };
+  const proofPlacements = readyProof.placements;
+
   const material: PrivateGalleryCapabilityMaterial = sealCapability(
     keyring,
     {
@@ -292,6 +383,31 @@ function build(now: Date): PrivateGalleryMemoryStore {
     createdAt: now,
   };
 
+  const proofMaterial = sealCapability(
+    keyring,
+    {
+      galleryId: proofGallery.galleryId,
+      handle: proofGallery.galleryHandle,
+      generation: proofGallery.capabilityGeneration,
+    },
+    MEMORY_PROOF_GALLERY_CAPABILITY,
+  );
+  const proofCapability: PrivateGalleryCapability = {
+    galleryId: proofGallery.galleryId,
+    capabilityGeneration: proofGallery.capabilityGeneration,
+    keyId: proofMaterial.keyId,
+    envelope: proofMaterial.envelope,
+    createdAt: now,
+  };
+  const byHandle = new Map([
+    [gallery.galleryHandle, { gallery, capability }],
+    [proofGallery.galleryHandle, { gallery: proofGallery, capability: proofCapability }],
+  ]);
+  const byId = new Map([
+    [gallery.galleryId, gallery],
+    [proofGallery.galleryId, proofGallery],
+  ]);
+
   // Keyed by galleryId, never by a caller-supplied handle: an unknown handle
   // must not be able to create a row (the contract `consumeExchangeAttempt`
   // states, and the property the Postgres adapter enforces with a foreign key).
@@ -304,21 +420,22 @@ function build(now: Date): PrivateGalleryMemoryStore {
       attemptedAt: Date,
       config: PrivateGalleryExchangeRateConfig,
     ): Promise<PrivateGalleryExchangeLookup> {
-      if (handle !== gallery.galleryHandle) return { outcome: "unknown-handle" };
+      const resolved = byHandle.get(handle);
+      if (resolved === undefined) return { outcome: "unknown-handle" };
 
       const decision = evaluatePrivateGalleryExchangeRate(
-        counters.get(gallery.galleryId),
+        counters.get(resolved.gallery.galleryId),
         attemptedAt,
         config,
       );
-      counters.set(gallery.galleryId, decision.next);
+      counters.set(resolved.gallery.galleryId, decision.next);
       if (!decision.allowed) {
         return {
           outcome: "rate-limited",
           firstRefusalInWindow: decision.firstRefusalInWindow,
         };
       }
-      return { outcome: "ok", gallery, capability };
+      return { outcome: "ok", ...resolved };
     },
   };
 
@@ -357,18 +474,36 @@ function build(now: Date): PrivateGalleryMemoryStore {
     (placement) => ({ ...placement, galleryId: gallery.galleryId }),
   );
 
+  const proofStore = createPrivateGalleryProofMemoryStore({
+    gallery: proofGallery,
+    pricingSnapshot: readyProof.pricingSnapshot,
+    placements: proofPlacements,
+  });
+  const proofNotification = (): PrivateGalleryProofNotificationContext => ({
+    recipient: "owner@example.test",
+    galleryReference: "fixture-job",
+    customerReference: "fixture-customer",
+    locale: "en-GB",
+    labels: getBuiltInLabels("en-GB").proofConfirmationEmail,
+  });
+  const placementsByGalleryId = new Map<string, readonly PrivateGalleryPlacement[]>([
+    [gallery.galleryId, placements],
+    [proofGallery.galleryId, proofPlacements],
+  ]);
+
   // Point reads by id, matching the seam's contract. They answer only for the
-  // one fixture gallery — a handle a visitor invented resolves to nothing here
+  // two fixture galleries — a handle a visitor invented resolves to nothing here
   // just as it would resolve to no row in Postgres.
   const viewStore: PrivateGalleryViewStore = {
     async findGalleryById(galleryId) {
-      return galleryId === gallery.galleryId ? gallery : undefined;
+      return byId.get(galleryId);
     },
     async listPlacements(galleryId, limit) {
-      if (galleryId !== gallery.galleryId) return [];
+      const rows = placementsByGalleryId.get(galleryId);
+      if (rows === undefined) return [];
       // Ordered by the photographer's authored `order`, and bounded by the
       // caller's limit — the two properties a Postgres adapter has to reproduce.
-      return [...placements]
+      return [...rows]
         .sort((a, b) => a.order - b.order)
         .slice(0, limit);
     },
@@ -401,8 +536,9 @@ function build(now: Date): PrivateGalleryMemoryStore {
   const mintRates = new Map<string, PrivateGalleryMintRateCounter>();
   const deliveryStore: PrivateGalleryDeliveryStore = {
     async findPlacement(galleryId, placementId) {
-      if (galleryId !== gallery.galleryId) return undefined;
-      return placements.find((row) => row.placementId === placementId);
+      return placementsByGalleryId.get(galleryId)?.find(
+        (row) => row.placementId === placementId,
+      );
     },
     async findZipVersion() {
       // The fixture has no delivered ZIP. A ZIP request must fail closed.
@@ -423,8 +559,8 @@ function build(now: Date): PrivateGalleryMemoryStore {
     },
     consumeAccessBudget: budgetStore.consumeAccessBudget,
     async totalGalleryBytes(galleryId) {
-      if (galleryId !== gallery.galleryId) return 0;
-      return placements.reduce((total, row) => total + row.nominalBytes, 0);
+      const rows = placementsByGalleryId.get(galleryId) ?? [];
+      return rows.reduce((total, row) => total + row.nominalBytes, 0);
     },
   };
 
@@ -436,6 +572,10 @@ function build(now: Date): PrivateGalleryMemoryStore {
     budgetStore,
     keyring,
     gallery,
+    proofGallery,
+    proofStore,
+    proofDraftStore: createPrivateGalleryProofDraftMemoryStore(),
+    proofNotification,
     ...buildAdminStores(),
     adminCredentialHash: encodePrivateGalleryAdminCredential({
       secret: MEMORY_ADMIN_SECRET,

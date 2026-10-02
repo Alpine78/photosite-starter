@@ -5,6 +5,8 @@ import {
   AdminSignInForm,
   AdminSignOutButton,
 } from "@/components/admin-sign-in-form";
+import { PrivateGalleryProofDraftCreator } from "@/components/private-gallery-proof-draft-creator";
+import { PrivateGalleryProofAdminPanel } from "@/components/private-gallery-proof-admin-panel";
 import {
   authorizePrivateGalleryAdministrator,
   getPrivateGalleryAdminStores,
@@ -32,6 +34,9 @@ export const dynamic = "force-dynamic";
 export default async function PrivateGalleryAdminPage() {
   const { privateGallery } = getDeploymentConfig();
   const text = getDefaultLocaleLabels().privateGalleryAdmin;
+  const proofText = getDefaultLocaleLabels().privateGalleryProofAdmin;
+  const draftText = getDefaultLocaleLabels().privateGalleryProofCreation;
+  const locale = getDeploymentConfig().locale;
 
   // The namespace is reserved whether the feature is on or off; the *routes*
   // exist only when it is on.
@@ -39,6 +44,7 @@ export default async function PrivateGalleryAdminPage() {
 
   const loginPath = `/${privateGallery.adminRoutePrefix}/login`;
   const logoutPath = `/${privateGallery.adminRoutePrefix}/logout`;
+  const proofApiPrefix = `/${privateGallery.adminRoutePrefix}/proof`;
 
   let stores;
   try {
@@ -76,12 +82,24 @@ export default async function PrivateGalleryAdminPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-6">
-      <h1 className="text-2xl font-semibold text-strong">
-        {text.signedInHeading}
-      </h1>
+    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-8 p-6 py-16">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold text-strong">
+          {text.signedInHeading}
+        </h1>
+        <AdminSignOutButton action={logoutPath} label={text.signOut} />
+      </div>
       <p className="text-muted">{text.administrationPending}</p>
-      <AdminSignOutButton action={logoutPath} label={text.signOut} />
+      <PrivateGalleryProofDraftCreator
+        apiPath={proofApiPrefix}
+        locale={locale}
+        labels={draftText}
+      />
+      <PrivateGalleryProofAdminPanel
+        apiPathPrefix={proofApiPrefix}
+        locale={locale}
+        labels={proofText}
+      />
     </main>
   );
 }

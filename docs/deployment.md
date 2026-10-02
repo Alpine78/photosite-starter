@@ -511,6 +511,16 @@ enumerate/delete pair, and the owner-run upload CLI's write/multipart pair that 
 only on the photographer's machine (the same posture as `SANITY_SEED_TOKEN`). Only the
 verifier pair belongs in a deployed environment. `.env.example` lists all of them.
 
+**The proof-confirmation notification transport (AB#130) is a separate, smaller
+settings group**, not part of the object-store/database credentials above:
+`PRIVATE_GALLERY_NOTIFICATION_ADAPTER` (no default, `resend` or the
+development-only `sink`) and `PRIVATE_GALLERY_NOTIFICATION_FROM`, sharing the
+contact path's own `RESEND_API_KEY`. Same request-time-only, no-`NEXT_PUBLIC_`
+posture, and `sink` is refused outright in a production deployment, exactly as
+`CONTACT_DELIVERY_ADAPTER=sink` is. Configuring this does not, by itself, send
+anything: no scheduled worker yet claims a queued proof-confirmation attempt
+and calls this transport (`docs/feature-status.md`).
+
 #### Provisioning the two private services — owner-run, before the delivery slices
 
 **Nothing in this repository can do this part.** The object store and the database are

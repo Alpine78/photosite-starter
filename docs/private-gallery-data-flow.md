@@ -17,15 +17,171 @@ contact form and the gallery-item enquiry. The boundary itself is
 the ZIP), AB#145 (administration and the customer notification), AB#130 (proof
 selection).
 
-**Status: the feature serves nothing in any deployment today.**
-`PRIVATE_GALLERY_STORE` is `off` everywhere, no object store or database is
-provisioned, and the routes exist behind that switch. This file describes what a
-provisioned deployment will do, so that the decisions are reviewable *before*
+**Status: no production or preview deployment serves client photographs.**
+`PRIVATE_GALLERY_STORE` is `off` in those deployments; no object store or
+private database is provisioned. The `memory` mode runs only in development
+and serves synthetic metadata through the routes behind that switch. This file
+describes what a provisioned deployment will do, so that the decisions are reviewable *before*
 customer photographs exist rather than after. The per-asset mint route is present
 and tested with a development fixture; it returns a signed object URL only after
 fresh session authorization and a per-session 60-per-minute rate check, but no
 deployed object store or private database can
 serve one yet.
+
+AB#130 now defines proof-selection values, pure server-side rules and a first-ready
+transition plan checked against verified proof objects. A separate first-publication
+plan rechecks the complete proof set and frozen pricing, refuses an expired upload
+preparation or prior publication metadata, and derives the immutable six-calendar-month
+access expiry from server time. The development proof fixture passes through both
+plans before becoming visible; the plan itself does not commit a publication,
+seal or expose a customer capability, or queue a publication message. Those
+steps still need one durable administrator-authorized transaction. The upload
+plan retains
+each proof's complete filename, stable media identity and server-minted placement
+identity alongside its opaque object key; after upload verification a pure join
+can form the initial proof placements for that transition. These values are not
+persisted or served in a deployed environment. A server-only store contract and
+single-process development implementation now model conditional draft edits,
+versioned immutable confirmations and a pending outbox entry containing the
+exact validated photographer email as one atomic operation. The metadata-only
+status read cannot return the recipient or message; a separate server-only
+worker read can. Administrator reopen keeps earlier snapshots and the
+original access expiry; resend queues a unique attempt only against the
+currently locked version. A server-only customer read now checks the current
+session and gallery before reading proof state, then projects at most 100 current
+watermarked proof cards per page, the selected references and full filenames,
+and the frozen-pricing summary. A confirmed review takes its selected list and
+quote from the immutable confirmation even if a current placement is later
+removed; the current cards remain live. No object key, media identity, byte
+count, session value, recipient or outbox content crosses that projection. A
+malformed row refuses the whole view. The in-process reference store supplies
+the draft and current confirmation together; a future database adapter must
+use one consistent read and bounded page and selected-row queries.
+The customer write facade checks same-origin JSON requests and a streamed 64 KiB
+limit before accepting a revisioned edit or confirmation. It reauthorizes the
+session on each request; the store then checks that session's capability
+generation, published state and access expiry in the same write as its draft
+CAS. Edit responses include the atomic pricing summary; confirmation responses
+contain only the version, time and quote, never the photographer recipient or
+outbox material. A later database adapter must perform the generation and CAS
+guards in one transaction using database time. A development-only
+`GET`/`POST`/`PUT` proof API now consumes this facade through a second, distinct
+in-memory proof gallery. The link and proof metadata
+are fixtures, never a deployment with customer images. The API returns `no-store`
+JSON and one generic refusal for absent, invalid, expired or wrong-gallery
+access; only a valid holder sees a stale-draft conflict. Confirmation queues
+the frozen message into an in-process outbox, but no request sends email.
+The memory implementation has no cross-process durability or database uniqueness
+guarantees; its proof route is a development fixture only. A future private database will
+hold the published included count, integer extra-image unit price and currency, permanent
+gallery-local references with full filenames and stable media identities, a
+revisioned draft, immutable confirmation versions, and notification outbox
+attempts. A pure server-only projection now prepares a plain-text photographer
+notification from one immutable confirmation, including every selected reference
+and complete filename; a shared exact formatter presents integer minor-unit
+amounts in the owner's currency and locale. A server-only Resend gallery transport
+now accepts one validated recipient per queued attempt and shares the existing
+contact path's HTTP provider behavior. Its attempt key is distinct from the
+contact path's; the pending memory outbox uses a stable key per initial version
+and a new unique key for each administrator resend, copying the original
+recipient and message. A server-only reference dispatcher now reserves one
+queued attempt, sends the exact frozen request through an injected transport,
+and records sent or redacted failed status without logging the message. An
+automatic retry reuses the same key after a 60-second delay. Three claims are
+allowed per row; each has a 30-second lease, and an abandoned final claim
+ends as `worker-interrupted` rather than a fictitious provider failure.
+A server-only batch runner now discovers at most 100 due attempts through the
+store seam and dispatches them sequentially. Active leases and not-yet-due
+retries are excluded; an expired lease is discoverable for recovery. A competing
+worker's successful claim is a normal skipped candidate. Results and redacted
+infrastructure errors carry only aggregate progress, never message contents.
+The development store lists its own gallery's due rows; a future PostgreSQL
+adapter needs a bounded indexed cross-gallery query and fair scheduling so one
+gallery's retry backlog cannot starve others. No runtime scheduler invokes the
+runner yet.
+Earlier pending attempts stay intact after administrator reopen; their
+version in the frozen message distinguishes them from later ones.
+The provider's 24-hour idempotency window cannot eliminate duplicate email
+if a send succeeds but its status write is lost and a much later retry runs;
+the immutable confirmation remains the authoritative record. A transport
+configuration module (`gallery-notification-transport.ts`) now selects and
+validates a `resend` or development-only `sink` transport for this path,
+mirroring the contact form's own adapter selection and refusing `sink`
+outright in a production deployment. The production proof store, PostgreSQL
+outbox, and scheduled worker that would invoke the batch runner do not exist.
+
+The proof gallery's authorized page now renders a real selection panel
+(`PrivateGalleryProofPanel`) instead of a placeholder sentence. The gallery's
+first page of proof cards is server-rendered so the current draft and price
+are visible without JavaScript. Each visible card mints its own short-lived
+signed preview URL through the already authorized `/asset` route and places it
+directly in a native-ratio `<img>` with `referrerPolicy="no-referrer"`; the
+application never proxies object bytes. A page-local queue allows at most four
+concurrent mints and 50 starts per rolling minute, leaving room under the
+server's per-session 60-per-minute limit for retries and other tabs. A failed
+image load remints once; further failures show an explicit retry control. A
+page turn, checkbox toggle, or confirmation uses a JSON `fetch` against the
+customer read/write facade. Image viewing and all interactions need JavaScript,
+stated on the page in words. The development fixture contains only proof
+metadata, so its `/asset` route cannot supply real signed URLs or image bytes;
+this browser path is exercised with intercepted mint and image responses.
+A toggled checkbox saves immediately as one whole-selection edit rather than
+accumulating unsaved local state, using the store's `expectedRevision` CAS so
+two tabs cannot silently overwrite each other; checkboxes disable while a save
+is in flight to serialize writes against one revision. Once the facade reports
+`confirmed: true` the panel renders only the frozen confirmation snapshot —
+no checkbox, no edit control — so a later change to the gallery's live
+placements cannot appear to reopen what the customer already confirmed. The
+panel still runs only against the development memory fixture; no production
+store exists for it to render real customer photographs from.
+
+The administrator's own proof surface (`PrivateGalleryProofAdminPanel`, on the
+signed-in administrator page) looks up one proof gallery by its handle and
+shows its draft/confirmation state, pricing, current selection summary and —
+once confirmed — the latest queued notification attempt's delivery status:
+pending, sent, or failed with its error class and retry time. This status view is deliberately
+narrower than the confirmation email or the customer panel: it never shows a
+filename, a selected image, or a customer identity, because the question it
+answers is "is the notification stuck", not "what did the customer pick" (the
+administrator already has the confirmation email for that). Reopen unlocks the
+draft for a new round of edits without touching any earlier confirmation or
+outbox row; resend queues a fresh delivery attempt under the same confirmation
+version, repeatably — two clicks queue two attempts rather than colliding.
+Both re-authorize the administrator session on every call, exactly as the
+customer mutation endpoint re-authorizes the customer session. A separate authenticated `GET`/`POST` at the administrator proof root now lists
+up to 100 recent prepublication proof drafts (with an explicit `hasMore` flag)
+and creates one in the development memory store. The submitted included count,
+integer extra-photo unit price and currency form an editable pricing candidate;
+optional customer and job references are bounded external identifiers, not
+relations to customer or job records (AB#28 has not supplied those records).
+This draft has a generated internal gallery ID and handle, but no capability,
+session, placements, publication timestamp or customer access link. It is kept
+out of the customer exchange, view and proof stores. The administrator API
+checks JSON provenance, authorizes the session before reading a bounded body,
+and returns only a safe projection with no internal ID or secret. The draft
+form and list are localized; this is still a process-local development aid.
+An authenticated `PATCH` to that root can replace the entire pricing candidate
+before publication, guarded by a per-draft revision. It validates request
+provenance and the full pricing tuple before one atomic memory-store compare
+and swap. A stale revision or a draft that is no longer editable returns a
+conflict; the administrator interface refreshes the list before another try.
+The revision and safe terms appear in the administrator projection, never an
+internal gallery ID or customer access link. This edit cannot alter the
+published proof fixture or a frozen confirmation. Abandoned-draft cleanup,
+relational customer/job association, ready/publish transactions and production
+persistence remain to implement.
+The server-only development store can now open one first-upload preparation for a
+draft. It records the complete declared proof manifest and server-assigned object keys
+with the `draft → preparing` transition in a single process-local change, before any
+object bytes are written. There is no route that hands this plan to a browser or CLI yet,
+and no object store is connected. The plan contains no pricing: the current candidate may
+still change while preparing, and only the later `ready` transaction freezes it. Existing
+admin `GET`/`PATCH` responses project an allow-list and do not include the preparation,
+object keys or internal gallery ID. A repeated or invalid preparation does not mutate
+that row. The confirmed-selection `reopen` action is separate from upload preparation;
+ADR-0014 has no `preparing → draft` transition.
+The status panel above continues to address only the existing published proof
+fixture by a handle the administrator already holds.
 
 ## What is held, and why it is different from the contact form
 
