@@ -53,6 +53,7 @@ import { ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME } from "./article-end-gallery-p
 import { CAPTURE_SEQUENCE_ORDERING_RULE } from "./capture-sequence";
 import { GALLERY_TYPE_NAME } from "./gallery";
 import { MEDIA_TYPE_NAME } from "./media";
+import { defineLocalizationReviewField, defineLocalizationSourceField, validateLocalizationReview } from "./localization-review";
 import type {
   SchemaFieldDefinition,
   SchemaTypeDefinition,
@@ -374,6 +375,8 @@ function isNonNegativeInteger(value: number | undefined): SchemaValidationResult
 }
 
 const fields: readonly SchemaFieldDefinition[] = [
+  defineLocalizationSourceField(),
+  defineLocalizationReviewField(),
   {
     name: "gallery",
     title: "Gallery",
@@ -467,6 +470,7 @@ export const galleryPlacementType: SchemaTypeDefinition = {
   name: GALLERY_PLACEMENT_TYPE_NAME,
   title: "Gallery placement",
   type: "document",
+  validation: (rule) => rule.custom<Readonly<Record<string, unknown>>>((value) => validateLocalizationReview(value)),
   description:
     "One occurrence of one photograph in one gallery, in one language (AB#114). Position in the gallery's grid is this document's own order field, not array position.",
   fields,

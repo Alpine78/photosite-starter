@@ -36,7 +36,8 @@
     "verify:sanity-adapters": "vitest run --config vitest.live-adapters.config.mts",
     "benchmark:keywords": "node scripts/keyword-benchmark.mts",
     "write:categories": "node scripts/write-sanity-categories.mts",
-    "write:foundation": "node scripts/write-sanity-foundation.mts"
+    "write:foundation": "node scripts/write-sanity-foundation.mts",
+    "create:localized-draft": "node scripts/create-localized-draft.mts"
   },
   "dependencies": {
     "@sanity/webhook": "4.0.4",
