@@ -1786,6 +1786,17 @@ an older Preview deployment while the reads ran against the newer one, directly 
 that invalidation was not confined to one warm process or deployment. A raw-perspective
 audit confirmed the original seed value was restored and no draft or test marker remained.
 **AB#83 is closed.**
+
+**Production failure triage preparation, 2026-10-02 (AB#159, Active):** the
+[runbook](production-failure-triage.md) now gives concrete Production log filters,
+separate Sanity query/revalidation and contact/enquiry diagnosis, expected-refusal
+exclusions, request-counting rules, and rollback limitations. The alert-threshold
+decision is **Proposed**: availability probes alone cannot establish delivery health;
+native anomaly notifications need actual tier, payload, low-traffic coverage and cost
+verification. No alert path is configured/tested by this preparation. AC2's owner
+decision/notification evidence and AC3's controlled Production failure trace remain
+open **after AB#18**, before **AB#118** rollback rehearsal and customer handoff.
+
 The deployment itself: AB#116 is **closed** — the Preview environment is fully provisioned
 and proven working by a real, verified, fully-automated pipeline run (build 144, `main`,
 2026-08-24). `DeployPreview` built, deployed to Preview, bound the deployment identity to

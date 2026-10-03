@@ -310,6 +310,11 @@ Preview stages for pushes and pull requests, plus a separate scheduled dependenc
 audit on `main`. See [dependency vulnerability monitoring](docs/dependency-security.md)
 for the audit and triage process.
 
+The [Production failure runbook](docs/production-failure-triage.md) (AB#159) documents
+log diagnosis and a proposed alert threshold. Its notification decision/test and
+controlled Production failure exercise remain pending after AB#18, before AB#118's
+rollback rehearsal and handoff; monitoring is not declared verified by this draft.
+
 **Quality gates** run on every push and pull request to `main`: lint, browser-free tests,
 the [architecture diagram](docs/architecture/README.md) check, the production build, and
 the Playwright smoke suite. Test results are published on every
