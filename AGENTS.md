@@ -258,10 +258,10 @@ npm run admin:secret # owner-run: generate the private-gallery administrator cre
   the working tree may be modified — code, documentation, and configuration alike, and a
   change that "is only a one-liner" is not an exemption. Read-only work comes first and
   is expected: read the work item, explore the code, and check `git status` and the
-  tracking state so the branch starts from a clean, up-to-date `main`. Creating the
-  branch is then the last step before the first edit. If editing has already begun on
-  `main`, stop and branch — uncommitted changes carry over — rather than committing them
-  there.
+  tracking state so the branch starts from a clean, up-to-date `main`. Creating and
+  publishing the branch and verifying its upstream are the final setup steps before
+  the first edit (see below). If editing has already begun on `main`, stop and branch —
+  uncommitted changes carry over — rather than committing them there.
 - Branches: `feature/<id>-short-description`, `fix/<id>-short-description`, `chore/...`, `codex/...` — never commit directly to `main`. Include the work item id in the branch name when the branch belongs to one story (e.g. `feature/6-responsive-header`).
 - Conventional commits: `feat: add gallery grid`, `fix: focus trap in lightbox`, `chore: bump deps`
 - Reference the Azure Boards work item in the PR description with `AB#<id>`
@@ -288,6 +288,97 @@ npm run admin:secret # owner-run: generate the private-gallery administrator cre
   verbatim, so chat formatting has to be stripped by hand otherwise.
 - **No AI attribution** in commit messages or PR descriptions — no "Generated with…"
   footers or equivalent. End the description at the last substantive line.
+
+### Branch publication and VS Code worktrees
+
+These rules apply to **every new work branch**, with or without a linked worktree.
+The branch used as the starting point and the upstream used for synchronization are
+separate choices: start from `origin/main`, but track `origin/<the work branch name>`.
+
+1. **Inspect before creating.** Read `git status --short --branch`, `git branch -vv`,
+   and `git worktree list --porcelain`; fetch `origin` and verify the starting point.
+   Reuse the checkout for a single task when it is available. Use a linked worktree
+   when another task occupies it. Preserve other tasks' uncommitted changes and do
+   not switch a branch in a checkout used by another active session.
+2. **Set repository-local defaults.** Verify `origin` is the intended repository and
+   apply the settings below with `--local`, never `--global`. Git configuration is
+   shared by this repository's worktrees, but is not committed or inherited by a
+   clone; check it at the start of each task. `branch.autoSetupMerge=simple` allows
+   automatic tracking only when the local and remote branch names match.
+
+   ```bash
+   git config --local branch.autoSetupMerge simple
+   git config --local push.default simple
+   git config --local push.autoSetupRemote true
+   git config --local remote.pushDefault origin
+   ```
+
+3. **Create without inheriting the base branch's upstream.** For an ordinary branch,
+   use `git switch --no-track -c "$work_branch" origin/main`. For a linked worktree,
+   use the example below. Never create a detached worktree for implementation, use
+   `--track`/`--track=inherit` from `origin/main`, or set a work branch's upstream to
+   `main` or `origin/main`.
+4. **Publish immediately with an explicit destination.** Creating the same-named
+   remote work branch is part of task setup, before the first edit. Set its push
+   remote to `origin` and use the explicit same-name push refspec in the example below.
+   This publishes the existing
+   starting commit; it does not require an agent-created commit or upload uncommitted
+   changes. Do not force-push or overwrite an unrelated existing branch. If the user
+   explicitly requests local-only work, leave the upstream unset so VS Code offers
+   **Publish Branch**. If publication fails, report the failure and leave the upstream
+   unset; never substitute `origin/main` or claim **Sync Changes** is ready.
+5. **Verify before editing and at handoff.** In the actual working directory, check
+   the top-level path, current branch, upstream, and push destination using the commands
+   below. The branch must be the intended work branch, the upstream must be exactly
+   `origin/$work_branch`, and the dry-run must target that same remote branch. Inspect
+   effective `branch.<name>.pushRemote` and `remote.<name>.push` settings if the
+   destination differs. When continuing an existing branch with a wrong upstream,
+   repair it to its same-named remote branch; if that remote branch does not exist,
+   unset the wrong upstream and publish explicitly. Never leave a work branch tracking
+   `origin/main` for the user to repair in the editor.
+6. **Use one worktree location and predictable names.** Linked worktrees belong under
+   the primary checkout's ignored `temp/worktrees/` directory, with a directory name
+   derived from the complete branch name (replace `/` with `-`). Do not scatter them
+   across `/tmp`, arbitrary folders, or folders named after a different work item.
+   Run edits, checks, and Git commands in the selected worktree, not in the primary
+   checkout. Do not move or remove an existing worktree merely to normalize its path.
+7. **Keep worktrees visible in the existing VS Code window.** The tracked
+   `.vscode/settings.json` enables `git.detectWorktrees` and
+   `scm.alwaysShowRepositories`; preserve these settings. Native worktree detection
+   reads Git's registered worktrees, so visibility must not depend on opening a file
+   in a worktree or on scanning nested folders. Check that `git.detectWorktreesLimit`
+   accommodates the registered worktrees. If detection was enabled in an already
+   open session, run **Developer: Reload Window** once, then **Source Control: Focus
+   on Repositories View**. If a worktree was explicitly closed or ignored, reopen its
+   path with **Git: Open Repository...** and check `git.ignoredRepositories`. A separate
+   window (`code -n <path>`) is optional, not the normal discovery step. If the GUI
+   cannot be inspected, say so and give the exact recovery command; do not claim that
+   Source Control visibility was verified.
+
+Example for a new linked worktree (Bash; replace the path and branch):
+
+```bash
+primary_root="/path/to/photosite-starter"
+work_branch="chore/example-change"
+worktree_dir="$primary_root/temp/worktrees/${work_branch//\//-}"
+git -C "$primary_root" worktree add --no-track -b "$work_branch" "$worktree_dir" origin/main
+cd "$worktree_dir"
+git config --local "branch.$work_branch.pushRemote" origin
+git push --set-upstream origin "refs/heads/$work_branch:refs/heads/$work_branch"
+git rev-parse --show-toplevel
+git status --short --branch
+git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}'
+git push --dry-run --porcelain
+```
+
+At handoff, report the working directory, branch, upstream, publication result, and
+any remaining editor step alongside the suggested commit message. The user still
+reviews and commits all file changes. **Sync Changes** pulls and pushes commits; it
+does not publish uncommitted edits.
+
+References: [Git tracking and push settings](https://git-scm.com/docs/git-config),
+[VS Code worktree detection](https://code.visualstudio.com/docs/sourcecontrol/branches-worktrees#automatically-detect-worktrees),
+[VS Code repository view and synchronization](https://code.visualstudio.com/docs/sourcecontrol/repos-remotes).
 
 ## CI / project management
 
