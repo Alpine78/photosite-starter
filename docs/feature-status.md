@@ -150,12 +150,18 @@ in-tree can tell it. One site-wide limitation bounds that link and predates this
 without JavaScript.
 ADR-0007 records the minimal reproduction's matched-route split and upstream
 [Next.js#62228](https://github.com/vercel/next.js/issues/62228). First seen on
-Next.js 16.2.11 and **still reproducing on 16.3.8 (2026-10-02)**: production-build
+Next.js 16.2.11 and **still reproducing on 16.3.8 (2026-10-03)**: production-build
 Chromium and WebKit probes with JavaScript disabled inspect actual heading/link
-nodes for an unknown public URL and a refused gallery continuation. The response
+nodes for an unknown gallery slug under an existing parent and a refused gallery
+continuation. Both paths match the catch-all. The response
 is HTTP 404 with an empty `__next_error__` shell. Four explicit expected-failure
 probes retain the semantic requirement and become unexpected passes when it is
-fixed; they do not record owner acceptance. **AB#132 owns this**, and was reopened to
+fixed; they do not record owner acceptance. The [fresh main-branch audit](audits/ab132-2026-10-03-scriptless.json)
+records the commit/build provenance and 36 passing gallery/category journeys plus
+four expected failures. Both upstream candidates (#98455 and #98583) remain
+unmerged; [ADR-0007's decision proposal](adr/0007-proxy-request-path-boundary.md#2026-10-03-main-branch-recheck-and-decision-proposal-ab132)
+awaits explicit owner acceptance or withheld promotion before AB#18.
+**AB#132 owns this**, and was reopened to
 `Active` on 2026-09-03 because it had been closed while none of its own "Done when"
 conditions held: the semantic 404 HTML above, the removal of the `javaScriptEnabled: true`
 exception the 404 cases in `e2e/gallery-continuation.spec.ts` and

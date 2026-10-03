@@ -262,6 +262,74 @@ record a successor for that fix first. Record impact, reason, review date and
 follow-up on the owner's decision, then link it from AB#18. The deployment
 runbook points here, but no acceptance or production promotion is recorded.
 
+## 2026-10-03 main-branch recheck and decision proposal (AB#132)
+
+The [fresh audit](../audits/ab132-2026-10-03-scriptless.json) records a production
+build of main commit `f7b26e197a93efe263bbfc8e2d0d70f640c44f7a`, after AB#19's
+legacy-redirect verification merged. It includes the build ID, UTC run time,
+installed versions, command and four raw observations. The harness builds before
+`next start` and refuses an existing server (`reuseExistingServer: false`). The
+detector is Playwright's `getByRole` against rendered heading/link nodes with
+JavaScript disabled after `waitUntil: "load"`; text in RSC scripts cannot pass it.
+
+**Result:** unchanged on Next.js 16.3.8, still the npm `latest` release at this
+check. Both Chromium and WebKit return HTTP 404 without a redirect for an unknown
+gallery slug under an existing parent (matched by the catch-all) and a refused
+continuation, with zero rendered headings and return links.
+The gallery/category suites have **36 passing journeys and four expected
+failures**, not 40 successful semantic journeys. JavaScript-enabled recovery
+controls pass. The AB#72 gallery/category exceptions remain necessary. This is a
+fixture-backed production build, not a smoke test of the live CMS deployment.
+
+**Upstream, checked 2026-10-03:** [issue #62228](https://github.com/vercel/next.js/issues/62228)
+and both [#98455](https://github.com/vercel/next.js/pull/98455) and
+[#98583](https://github.com/vercel/next.js/pull/98583) remain open; neither PR is
+merged. The audit preserves their exact heads and update timestamps. Unlike
+[#98455's nested-boundary fallback](https://github.com/vercel/next.js/commit/1f38b1727faff130389e20f6ac2c214edda7fd8d),
+#98583 proposes rendering the nearest
+not-found boundary inside its layouts. A [2026-09-29 report on the issue](https://github.com/vercel/next.js/issues/62228#issuecomment-5894229713)
+describes success with that patch under a dynamic locale root. That is another
+reporter's measurement of an unreleased framework branch, not verification of
+this application's multiple root layouts, async boundary or return-link logic.
+It establishes neither a supported local remedy nor a release date.
+
+**Bounded remedy assessment:** the installed 16.3.8 guides, current official
+[not-found reference](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)
+and [notFound reference](https://nextjs.org/docs/app/api-reference/functions/not-found)
+retain the distinctions measured above:
+
+| Option | Disposition within the retained boundary |
+| --- | --- |
+| `global-not-found` | Handles unmatched routes; these requests match the catch-all. No supported fix established for this case. |
+| Existence check after streaming starts | The [documented streaming behaviour](https://nextjs.org/docs/app/api-reference/functions/not-found#calling-notfound-after-streaming-has-started) preserves a shell but returns 200, violating the real-404 contract. Not re-prototyped here. |
+| Proxy content lookup and rewrite | The earlier verified workaround requires pre-route content knowledge, excluded by the owner's 2026-09-11 decision. |
+| Custom HTML Route Handler | [Documented constraint](https://nextjs.org/docs/app/getting-started/route-handlers#route-resolution): a handler cannot share a route with a page or participate in its layouts. **Assessment, not prototyped:** intercepting page-decided failures would need a different routing/rendering arrangement; no bounded implementation verified here. |
+| Unreleased framework patch | Both candidates change Next.js internals; neither is a supported stable release. No patch is vendored. |
+
+This assessment finds no verified supported remedy within the retained boundary;
+it does not claim all possible remedies are exhausted. A future passing build
+must pass both semantic probes and the recovery controls before removing their
+known-failure markers and JavaScript-enabled exceptions.
+
+**Proposed temporary residual-risk decision — pending owner acceptance:**
+
+- **Impact:** a visitor without JavaScript sees a blank 404 and cannot follow the
+  refused continuation's return link; a crawler that does not execute scripts
+  receives no semantic recovery content. The measured status remains HTTP 404.
+- **Reason:** retain the O(1), adapter-read-free Proxy and real-404 contract while
+  no supported remedy has been verified; avoid taking over unreleased framework
+  internals for this launch.
+- **Review:** 2026-10-08, before AB#18's go/no-go or any earlier promotion;
+  reassess sooner if a supported upstream fix is released. Retest the exact
+  candidate even if an upstream PR has merged.
+- **Follow-up item:** AB#132 itself remains Active for the semantic fix; accepting
+  this temporary risk does not close it. If it is later closed on accepted-risk
+  grounds, create and record a successor first.
+- **Launch gate:** the owner may accept this temporary residual or withhold
+  promotion. After the decision, the maintainer records it on AB#132 and adds its
+  permalink to AB#18 before promotion. The dependency already exists; this
+  investigation constitutes neither risk acceptance nor promotion approval.
+
 ## Action items
 
 - [x] `src/proxy.ts` with the bounded copy, the unconditional overwrite, and a narrow matcher

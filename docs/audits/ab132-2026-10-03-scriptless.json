@@ -1,0 +1,111 @@
+{
+  "workItem": "AB#132",
+  "sourceCommit": "f7b26e197a93efe263bbfc8e2d0d70f640c44f7a",
+  "startedAt": "2026-10-03T05:13:19.538Z",
+  "buildId": "RBPhsQk5vyMEmuX4QZqG2",
+  "versions": {
+    "next": "16.3.8",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "@playwright/test": "1.63.0",
+    "node": "v24.20.0"
+  },
+  "command": "npm run test:e2e -- e2e/gallery-continuation.spec.ts e2e/category-continuation.spec.ts --reporter=list,json",
+  "environment": "Production build with e2e/support/harness-environment.ts mock settings; not a live CMS deployment.",
+  "serverPolicy": "playwright.config.ts rebuilds before next start; reuseExistingServer=false rejects an occupied harness port.",
+  "semanticDetector": "Accessible rendered DOM heading/link nodes via page.getByRole after waitUntil=load, with JavaScript disabled; not text matching in RSC scripts.",
+  "results": {
+    "passed": 36,
+    "expectedFailures": 4,
+    "unexpectedFailures": 0,
+    "flaky": 0,
+    "skipped": 0,
+    "scriptless404JourneyPassed": false
+  },
+  "observations": [
+    {
+      "nextVersion": "16.3.8",
+      "browser": "desktop-chromium",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/large-archive?cursor=not-a-token-this-deployment-minted",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    },
+    {
+      "nextVersion": "16.3.8",
+      "browser": "desktop-chromium",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/no-such-gallery",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    },
+    {
+      "nextVersion": "16.3.8",
+      "browser": "mobile-webkit",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/large-archive?cursor=not-a-token-this-deployment-minted",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    },
+    {
+      "nextVersion": "16.3.8",
+      "browser": "mobile-webkit",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/no-such-gallery",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    }
+  ],
+  "upstream": {
+    "checkedAt": "2026-10-03T05:14:36Z",
+    "stableNextVersion": "16.3.8",
+    "stableNextVersionSource": {
+      "registry": "https://registry.npmjs.org/next",
+      "command": "npm view next dist-tags.latest --json"
+    },
+    "issue": {
+      "number": 62228,
+      "html_url": "https://github.com/vercel/next.js/issues/62228",
+      "state": "open",
+      "updated_at": "2026-09-29T16:21:46Z",
+      "closed_at": null
+    },
+    "fixCandidates": [
+      {
+        "number": 98455,
+        "html_url": "https://github.com/vercel/next.js/pull/98455",
+        "nestedBoundaryFallbackSource": "https://github.com/vercel/next.js/commit/1f38b1727faff130389e20f6ac2c214edda7fd8d",
+        "state": "open",
+        "updated_at": "2026-09-12T22:12:09Z",
+        "merged": false,
+        "merged_at": null,
+        "head": "8b76611b5edd80c5a35c6fbb5c2b174a7d6398e7"
+      },
+      {
+        "number": 98583,
+        "html_url": "https://github.com/vercel/next.js/pull/98583",
+        "state": "open",
+        "updated_at": "2026-09-11T19:07:14Z",
+        "merged": false,
+        "merged_at": null,
+        "head": "3c34189be363cbfbeb0055cb3a58a9d28fa80398"
+      }
+    ]
+  }
+}

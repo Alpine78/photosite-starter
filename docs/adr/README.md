@@ -47,7 +47,7 @@ Two conventions on top of the template:
 | [0004](0004-reference-production-host-and-ownership-boundary.md) | AB#109 | Reference production host and ownership boundary | Accepted |
 | [0005](0005-public-image-rendition-boundary.md) | AB#108 | Public image rendition boundary | Accepted |
 | [0006](0006-sanity-data-access-boundary.md) | AB#39 | Sanity data-access boundary and client transport | Proposed |
-| [0007](0007-proxy-request-path-boundary.md) | AB#72 | A Proxy request boundary carrying the requested path | Proposed |
+| [0007](0007-proxy-request-path-boundary.md) | AB#72, AB#132 | A Proxy request boundary carrying the requested path; [scriptless 404 recheck and pending decision](0007-proxy-request-path-boundary.md#2026-10-03-main-branch-recheck-and-decision-proposal-ab132) | Proposed |
 | [0008](0008-localized-authored-text.md) | AB#82 | Localized authored text in content schemas | Accepted |
 | [0009](0009-seeded-random-gallery-ordering.md) | AB#66 (ordering clauses only) | Seeded random gallery ordering contract | Accepted |
 | [0010](0010-lightbox-preload-window.md) | AB#79 | Bounded adjacent-image lightbox preload window | Accepted |

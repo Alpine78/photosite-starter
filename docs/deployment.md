@@ -1273,7 +1273,7 @@ before the first deployment, not discovered during the first incident. The stage
 sequence below was run once by hand on 2026-09-24 (see "A production-target deployment
 exists"); that does not complete AB#18.
 
-Before AB#18 promotion, record the reviewed [AB#132 initial-404 decision evidence](adr/0007-proxy-request-path-boundary.md#2026-10-02-release-candidate-recheck-ab132)
+Before AB#18 promotion, record the reviewed [AB#132 initial-404 decision evidence](adr/0007-proxy-request-path-boundary.md#2026-10-03-main-branch-recheck-and-decision-proposal-ab132)
 on AB#132 and link that decision from AB#18. Its scriptless probes are known
 failures while the limitation exists; a green suite with those markers does not
 satisfy the semantic-HTML requirement. Obtain either a passing fix or an explicit
