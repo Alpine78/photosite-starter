@@ -41,7 +41,7 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 ## Project structure
 
 - `src/app` – App Router routes and layouts
-- `src/components` – reusable UI components *(added as features land)*
+- `src/components` – reusable UI components
 - `src/lib` – shared logic, configuration, data access, and the generic media model
 - `scripts` – deployment tooling that runs outside the application bundle
 - `sanity/schemas` – the CMS document types, as plain objects a customer's Studio
@@ -50,6 +50,7 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
 - `docs/architecture` – [architecture diagrams](docs/architecture/README.md): the system
   context, the application and data boundaries, and the build/deployment flow, as D2
   source with generated SVG
+- `docs/feature-status.md` – detailed implementation history, checked against code and Azure Boards
 
 Import alias: `@/*` → `src/*`
 
@@ -126,11 +127,13 @@ Finnish ship — and a clone adds or edits a set there. Every locale in
 `SITE_LOCALE_ROUTES` must find one, or the deployment fails at startup rather
 than rendering one language's chrome in another.
 
-Authored SiteSettings copy — site name, navigation, footer, contact — is not
-localized yet, and the static routes it links to exist only in the unprefixed
-space. A prefixed locale therefore renders its pages without that shared chrome:
-its category branches carry their own breadcrumbs and language switch instead.
-Localized settings and localized static routes are separate stories.
+The site name, title template, and header brand descriptor resolve per language
+(AB#187); other shared SiteSettings copy still uses the deployment's default
+language. Every locale renders the shared header and footer, with navigation
+resolving same-language service and story destinations and omitting unavailable
+static links. Services listings and detail routes are localized; home and contact
+remain in the unprefixed default-locale space. Fully localized settings and the
+remaining static routes are still pending.
 
 ### Contact form delivery
 
@@ -379,7 +382,7 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   branch routes with breadcrumbs, a bounded recent-content overview on the story root,
   deterministic category listings, and permanent redirects
   for retired paths, the canonical article detail route — breadcrumbs, a table of
-  contents derived from the body's headings, and publication-ordered sibling navigation —
+  contents derived from the body's headings, and event-date-ordered sibling navigation —
   and the tree-driven site menu, which composes the configured static links with the
   first two category levels behind an accessible disclosure in both the wide and the
   compact layout, the canonical curated gallery detail route, gallery cursor
@@ -399,8 +402,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   ([ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md))
   — *route configuration, prefix reservation, redundant default-prefix normalization,
   per-locale labels and content trees, category branches in every configured locale space
-  with `hreflang`/`x-default` links, and the identity-based language switch on those pages
-  done; localized static routes and localized authored settings pending*
+  with `hreflang`/`x-default` links, the identity-based language switch, localized service
+  listings and detail routes, shared locale-aware navigation, and per-language site names
+  done; localized home/contact routes and the remaining shared settings copy pending*
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
   and optional long-form body content — *shared bounded result contract, the canonical
   gallery route inside the content tree with breadcrumbs, metadata, and a deterministic
@@ -442,7 +446,7 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   personal data ([data flow](docs/contact-data-flow.md)), covered by a public-journey
   suite over validation, success, delivery failure, and retry; the gallery-item enquiry
   (AB#60) is a separate story*
-- [ ] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
+- [x] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
   canonical URLs, and Open Graph output done for every current public page; `sitemap.xml`
   and `robots.txt` done (AB#85) — every published, public, indexable category, article,
   gallery, service, and static page listed exactly once, parameter-free only (no cursor or
@@ -452,7 +456,7 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   `Article` on an article detail, nothing on gallery, category, listing, or continuation
   routes; every value from typed settings or content, optional properties omitted rather
   than fabricated, and `</script>`-safe serialization*
-- [ ] CMS integration (Sanity) — *mock data layer in place under `src/lib`; validated
+- [x] CMS integration (Sanity schemas, public adapters, caching, and sample seeding) — *mock data layer in place under `src/lib`; validated
   customer-owned connection, published-perspective query client, and the enforced
   data-access boundary done ([setup](docs/sanity-setup.md),
   [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md)); the shared media document and
@@ -503,8 +507,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   write:joomla` turns an approved plan into real Sanity documents — dry-run by default,
   generating and uploading each photograph's public derivative, resolving category
   references against the target dataset, and checking for identity collisions before
-  writing anything. Only the owner-run Production migration itself (the manifest approval,
-  the temporary write credential, the real Production run, and its audit) is not done.
+  writing anything. Real Production content has been partially migrated; the remaining
+  launch-manifest approvals and migration, the full content/asset audit, and temporary
+  write-token revocation are separate launch work under AB#137.
   Every route-facing seam (`site-settings.ts`, `home-content.ts`, `services.ts`, `content.ts`,
   `gallery.ts`) is now wired: `SITE_CONTENT_SOURCE=mock` keeps reading fixtures, and `sanity`
   reads every one of these adapters, never a mixed mock/Sanity page. Closing that wiring
@@ -512,8 +517,12 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   article sibling-navigation read — and gave the optional `/services` intro a matching
   optional field on the settings singleton. A deployed Preview render of Sanity-authored
   content enabled the AB#83 cross-instance cache-invalidation gate, which a managed-cache
-  propagation run verified on Preview on 2026-08-26; AB#83 remains Active only until that
-  evidence is reviewed and merged*
+  propagation run verified on Preview on 2026-08-26; that evidence is merged and AB#83
+  is Closed*
+- [ ] Production launch content migration and audit (AB#137) — *rally galleries have
+  been migrated and verified, including capture-sequence conversions; launch-manifest
+  completion, the full draft/release/asset audit, and write-token revocation
+  are still pending. See [migration and verification](docs/sanity-seeding.md)*
 - [ ] Production deployment — *the protected Preview environment is provisioned and its
   fully automated pipeline was verified by build 144 on 2026-08-24: the pinned runtime and
   region, gated deploy stage, project/team ownership, access protection, and non-indexability
@@ -535,13 +544,14 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   curated galleries
 - Video showcase in galleries, articles, and service pages; video delivery/sharing
   in client galleries
-- Private client galleries, subject to a separate security and storage decision
-  covering revocable/expiring access, noindex/no-store behavior, retention, and downloads.
-  That decision is **accepted** in
-  [ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md).
-  AB#29 (delivery) and AB#130 (proof selection) have partial implementation;
-  production storage and upload remain pending.
-- Proof galleries with photo selection and extra-photo pricing
+- Private client galleries follow the **accepted** security, delivery, and retention
+  boundary in [ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md)
+  (2026-08-31). AB#29 (delivery), AB#145 (administrator authentication and delivery-gallery
+  administration), and AB#130 (proof selection and extra-photo pricing) have partial
+  implementation. The feature is off by default; the development fixture exercises
+  proof selection, while production private stores, uploads, delivery-gallery image/ZIP
+  controls, the retention worker, and remaining delivery-administration operations are
+  still pending.
 - Optional image sales and fulfilment (enquiry first; checkout and cart only
   after a separate product, legal, security, and delivery decision)
 - Multilingual authoring workflow: an owner-run linked-draft creation command is available
@@ -577,7 +587,7 @@ Found a bug or have an idea? Open an issue — that is welcome.
 🚧 Work in progress — MVP in progress. The public pages (home, services, contact, and the
 canonical article and gallery routes in the content tree) read from either source behind
 `SITE_CONTENT_SOURCE` — the mock fixture layer, or a customer's own Sanity project — whose
-images use the accepted project-owned public rendition contract and whose galleries use the
+images use the project-owned public rendition contract and whose galleries use the
 shared paginated gallery result contract either way. The content tree's category domain model, canonical
 placement contract, and public category branch routes are built — breadcrumbs,
 deterministically ordered listings that aggregate every canonically and secondarily
@@ -599,21 +609,24 @@ control that reaches it is a real link, so a large gallery pages through with no
 at all, and a token that names no slice of that gallery is a 404 rather than a silent
 return to the first page. A category branch listing whose aggregated subtree exceeds one
 page now pages through the same way ([ADR-0013](docs/adr/0013-category-listing-continuation-cursor.md)):
-a keyset `?cursor=` over `(publishedAt, contentId)`, signed with the shared
-`GALLERY_CURSOR_SIGNING_KEY`, on its own indexable self-canonical URL, reached by a real
+a keyset `?cursor=` over `(eventDate, contentId)` using the effective event date, signed
+with the shared `GALLERY_CURSOR_SIGNING_KEY`, on its own indexable self-canonical URL, reached by a real
 link that works with no JavaScript, with a compact continuation page and an invalid-cursor
-404 that links back to the branch. The story root still serves only its bounded first page.
-Static routes and authored
-SiteSettings copy exist only in the unprefixed default-locale space; localizing them is a
-separate story. The Sanity connection, its published-perspective query client, and the
+404 that links back to the branch. That 404 heading and return link still need JavaScript
+to render (AB#132); valid continuation pages work without it. The story root still serves
+only its bounded first page. Service routes and header branding are localized; home,
+contact, and the remaining shared SiteSettings copy still use the default locale.
+The Sanity connection, its published-perspective query client, and the
 enforced data-access boundary are in place, as are every schema and adapter — media,
 category, site settings, home page, article, service, and gallery — and every route-facing
 seam now dispatches on `SITE_CONTENT_SOURCE`, so a deployment reads consistently from one
 source and never mixes them on one page.
-The gallery grid lays its items out row by row, so what the eye reads is the order the
-source, the DOM, keyboard focus, and the lightbox all use, and every frame keeps its native
-aspect ratio uncropped. It opens a fullscreen lightbox that navigates the loaded result by
-keyboard, control, and gesture, presents the caption and credit of the photograph on
+Gallery presentation offers `grid`, `masonry`, and `justified` layouts with `below` or
+`overlay` captions, authored site-wide and independently overridable per gallery (AB#157).
+The default remains the row-major grid. Every layout keeps the result's DOM, keyboard,
+and lightbox order under its documented visual progression, and every frame keeps its
+native aspect ratio uncropped. It opens a fullscreen lightbox that navigates the loaded
+result by keyboard, control, and gesture, presents the caption and credit of the photograph on
 screen, and magnifies a frame on a click, tap, or the `z` key with pan bounded to the
 image and the caption stepping aside while zoomed; its zoom animation/level tuning is a
 later slice. The contact form is built and
@@ -624,13 +637,16 @@ public-journey suite covers validation, success, failure, and retry states; the 
 (AB#60) builds on it. Seeded random gallery ordering renders from both the mock fixture and
 Sanity (rotation is a two-step owner operation, with an accessible "being reordered" notice
 in between); gallery section controls are done, while story-root listing continuation is
-still open; the CMS schemas and adapters are done and wired in. The deployment path exists in
-the repository — a pinned runtime and region, a pipeline stage that deploys a release
-candidate only after every gate passes, and a check that refuses to publish a URL whose
-project/team ownership, access protection, and non-indexability were not verified — but
-the existing customer-owned Vercel project is still being provisioned, so the stage has
-never run. Keyword-driven dynamic galleries remain
-post-MVP. See the MVP scope checklist above.
+still open; the CMS schemas, public adapters, and verified tagged-cache invalidation are
+done. The customer-owned Preview environment is provisioned, and its automated release
+candidate deployment has run successfully (AB#116): pinned runtime and region, quality
+gates, project/team ownership, access protection, and non-indexability are verified.
+That is Preview evidence; custom-domain Production promotion (AB#18), the launch
+security/privacy gate (AB#117), and exercised rollback and handoff (AB#118) remain open.
+Production content migration is partial (AB#137). Private client galleries remain
+partial development-fixture implementations with no production private stores.
+Keyword-driven dynamic galleries remain post-MVP. See the MVP checklist above and
+[detailed implementation history](docs/feature-status.md).
 
 ### Gallery presentation (AB#157)
 
