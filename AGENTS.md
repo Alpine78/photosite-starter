@@ -82,6 +82,13 @@ Avoid: building full systems at once, overengineering, polishing UI before funct
 - NEVER assume missing information. NEVER present guesses as facts.
 - If information is missing, STOP and say so clearly: _"I don't have enough information
   to answer this correctly."_ Then ask for the missing code, file, requirement, or docs.
+- **A design or reference you cannot read is missing information.** When the task
+  builds on a referenced source (a Claude Design project, Figma file, mockup, export,
+  or linked document) and the session cannot open it, stop before any file change that
+  depends on it. Say which source is unreadable and ask for access or an export.
+  Labelling a guess as an "assumption" does not make it acceptable, and an instruction
+  to start working does not override this rule. Read-only exploration and creating the
+  work item may go ahead; the dependent implementation may not.
 - When library/framework behavior may be version-sensitive (Next.js, Tailwind v4, Sanity),
   verify against current documentation instead of answering from memory. Use a
   documentation lookup tool if available (e.g., Context7 MCP); otherwise consult the
