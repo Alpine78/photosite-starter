@@ -1813,6 +1813,22 @@ and exercised rollback and handoff (AB#118) are later stories, now unblocked rat
 waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
 see above — with 198 of 415 distinct crawled paths still pending reviewed targets after
 content migration (including `component/komento/*` and `sivustokartta/*`).
+
+**Ongoing dependency monitoring, 2026-10-02 (AB#160, still Active):** the
+existing daily audit and Dependabot settings were checked without replacing
+their configuration. Scheduled run #497 audited the same source revision as
+earlier main CI #494 and failed visibly on npm advisories; Verify and
+DeployPreview were skipped. The audit uses the self-hosted `Default` pool and
+does not consume Microsoft-hosted minutes. Dependabot's Next.js security-fix
+PR #229 passed PR CI #496, was merged by the owner, and its exact merge revision
+passed main CI and protected Preview deployment in #501. That is dated Preview
+evidence, not verification of the later PR #230 revision or Production promotion.
+Receipt of Dependabot and failed-audit notifications is still unverified, so
+the story's end-to-end notification demonstration remains open.
+[Evidence and remaining live check](dependency-security.md#live-evidence-checked-on-2026-10-02)
+include the run/PR links and the response policy for runtime exposure, severity,
+fix availability and Node.js/Next.js security releases.
+
 **Dependency follow-up, 2026-10-02 (AB#186, still Active):** the merged CLI
 reclassification and Azure drift fix already use one development-only,
 lockfile-pinned Vercel CLI 61.0.0. The current follow-up pins Next.js and its lint
@@ -2593,10 +2609,10 @@ galleries were converted this way on 2026-09-24** — Secto Rally Finland 2021, 
 Estonia 2023 — each verified by an independent tokenless read; Production went from
 6,820 to 3,581 documents. The placement-based "Rally Finland 2001–2019" best-of gallery
 (38 placements) stays curated. The per-gallery decisions are in
-`docs/sanity-seeding.md`. Converting them surfaced a deployment fact worth knowing: the
-Azure `DeployPreview` stage has been failing on exhausted Microsoft-hosted minutes since
-2026-09-23, so merged code does not deploy by itself — see `docs/deployment.md`, "When the
-pipeline cannot deploy".
+`docs/sanity-seeding.md`. At the 2026-09-24 check, the Azure `DeployPreview` stage
+had failed on exhausted Microsoft-hosted minutes since 2026-09-23, so merged
+code had not deployed automatically. Protected Preview delivery was later
+verified in run #501 on 2026-10-02; see [deployment history and recovery](deployment.md#the-verify-stage-runs-on-a-self-hosted-agent).
 
 A content page's short lead can be a **listing-only excerpt** (AB#172, ADR-0003's
 2026-09-26 amendment). With `summaryListingOnly`, the lead shows on listing cards and in
