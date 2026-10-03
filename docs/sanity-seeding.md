@@ -478,7 +478,28 @@ reports; `--plan` builds the import plan from fully approved rows only.
 per language: `joomlaId`, `language`, `title`, `body` (the raw source HTML),
 and optionally `summary`, `author`, `tags`. This is a deliberately small
 contract rather than a general Joomla SQL or archive reader — produce it once
-from the backup. `--resolution` is a JSON file mapping each body image `src` to
+from the backup. For the Joomla listing-only intro policy (AB#172), supply the
+intro as plain text in `summary`, with markup and entities already converted to
+their intended text in the reviewed export; `body` holds the full-text HTML,
+without an extra copy of the separate intro. The importer does not infer that
+boundary or remove body paragraphs. The full text may naturally restate the
+intro. The article schema imposes no summary length limit; review its suitability
+as a short listing excerpt and metadata description.
+
+Every non-blank imported article summary gets `summaryListingOnly: true`; a missing
+or whitespace-only summary emits neither field. This applies to each approved
+phase through the same importer and does not advance a deferred article into the
+launch phase. The writer refuses summary-bearing article plans without the true
+flag, and refuses a flag without a non-blank summary. **Regenerate and review old
+summary-bearing plans**, then approve their new `documentsDigest`; do not add the
+flag to an already-approved plan during a write. A no-summary plan remains valid.
+This changes future article imports only. Already-imported stories use the
+[separate correction tool](#moving-imported-joomla-intros-into-listing-only-leads-ab172).
+After an owner-run import, verify the excerpt on a listing and in metadata, and
+verify that the story does not repeat the separate intro before its full text;
+record that Production evidence under AB#137.
+
+`--resolution` is a JSON file mapping each body image `src` to
 its **approved locator and content hash** (`{"locator": "…", "sha256": "…"}` —
 a bare locator string was the original shape, but nothing then verified a
 loose image's bytes the way a gallery file's already were, so an in-place

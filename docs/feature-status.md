@@ -2642,8 +2642,16 @@ revision-guarded, one transaction, recovery record) moves those paragraphs. On
 2026-09-26 its read-only plan for Production covered 26 pages: 18 rally galleries and the
 8 VAT portfolio articles. It left out Secto Rally Finland 2022, whose one paragraph is the
 whole text, and the photographer's introduction, which starts with a heading. The write
-itself is owner-run. The Joomla article importer does not yet set the flag, and must before
-the remaining articles are imported.
+itself is owner-run. **Article-import follow-up, 2026-10-03 (AB#137):** the Joomla
+article planner now sets the flag for every non-blank imported `summary`. The writer
+refuses a summary-bearing plan without the true flag or a flag without a non-blank
+summary. Old summary-bearing plans must be regenerated, reviewed and approved against
+their new document digest. The reviewed source export supplies the plain-text intro
+separately from the full-text HTML; the importer does not remove body paragraphs.
+Synthetic planner-to-writer tests cover both locales, missing/blank summaries, the
+approval digest and malformed or stale plans. Production writes and post-import
+listing/page verification remain owner-run under AB#137; this code slice does not
+close the migration story or change AB#172's Resolved state.
 
 The visual finish from the owner's Claude Design hi-fi proposal is delivered (AB#173).
 The default palettes are now **Kivi** (light, `#ece9e3` ground) and **Grafiitti** (dark,

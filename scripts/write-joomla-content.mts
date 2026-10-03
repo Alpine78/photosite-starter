@@ -417,6 +417,19 @@ function checkRequiredFieldTypes(document: Record<string, unknown>, path: string
 }
 
 function checkNestedDocumentShapes(document: Record<string, unknown>, path: string, issues: string[]): void {
+  // Joomla intros are listing-only (AB#172). Reject old summary-bearing plans
+  // instead of changing an already-approved payload during the write step.
+  if (
+    document._type === ARTICLE_TYPE_NAME &&
+    (document.summary !== undefined || document.summaryListingOnly !== undefined)
+  ) {
+    if (typeof document.summary !== "string" || document.summary.trim().length === 0) {
+      issues.push(`${path}.summary must be a non-blank string with summaryListingOnly`);
+    }
+    if (document.summaryListingOnly !== true) {
+      issues.push(`${path}.summaryListingOnly must be true for a Joomla article summary — regenerate and re-approve the plan`);
+    }
+  }
   if (document._type === "poll" && Array.isArray(document.options)) {
     for (const option of document.options) {
       if (!isPlainObject(option)) { issues.push(`${path}.options contains a malformed option`); continue; }
@@ -530,6 +543,7 @@ export function validatePlanContract(raw: unknown): { readonly issues: readonly 
       "title",
       "slug",
       "summary",
+      "summaryListingOnly",
       "cover",
       "author",
       "endGalleryId",
