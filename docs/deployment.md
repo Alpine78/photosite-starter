@@ -1322,6 +1322,11 @@ rollback (AB#83).
 
 ## Logs and telemetry
 
+For Production failure diagnosis, proposed escalation thresholds, and the controlled
+failure record, use the [AB#159 runbook](production-failure-triage.md). This is prelaunch
+preparation: the alert decision and live failure trace remain pending after AB#18;
+AB#118 owns exercised rollback and handoff. AB#159 remains Active.
+
 Two separate things, with different owners:
 
 **The application's own events** contain a random correlation identifier, a state, and a
