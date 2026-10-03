@@ -151,6 +151,34 @@ describe("validatePlanContract", () => {
     expect(plan).toBeDefined();
   });
 
+  it.each([undefined, false, "true", 1, null])(
+    "rejects a summary with listing-only flag %j before any write",
+    (summaryListingOnly) => {
+      const documents = [
+        goodDocuments()[0],
+        { ...goodDocuments()[1], summary: "Listing excerpt.", summaryListingOnly },
+      ];
+      const result = validatePlanContract(goodPlan({ documents }));
+
+      expect(result.plan).toBeUndefined();
+      expect(result.issues.join(" ")).toContain("summaryListingOnly must be true");
+    },
+  );
+
+  it.each([undefined, "", " \n\t ", 7, null])(
+    "rejects a listing-only flag with summary %j",
+    (summary) => {
+      const documents = [
+        goodDocuments()[0],
+        { ...goodDocuments()[1], summary, summaryListingOnly: true },
+      ];
+      const result = validatePlanContract(goodPlan({ documents }));
+
+      expect(result.plan).toBeUndefined();
+      expect(result.issues.join(" ")).toContain("summary must be a non-blank string");
+    },
+  );
+
   it("accepts approved localized media captions and credits", () => {
     const documents: readonly PlannedDocument[] = [
       {

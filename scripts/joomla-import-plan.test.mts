@@ -24,6 +24,7 @@ import {
   type PlannedDocument,
 } from "./joomla-import-plan.mts";
 import { isSeedDocumentId, SEED_ID_PREFIX } from "./sanity-seed-fixtures.mts";
+import { validatePlanContract } from "./write-joomla-content.mts";
 
 const DIGEST = "b".repeat(64);
 const RESOLVED_DIGEST = "c".repeat(64);
@@ -132,6 +133,37 @@ describe("canonical story-root placement", () => {
     expect(articleDocument?.canonicalCategory).toBeUndefined();
     expect(result.categoryRequirements).toEqual([]);
     expect(result.errors).toEqual([]);
+  });
+});
+
+describe("Joomla listing-only excerpts", () => {
+  it.each(["fi", "en"])("carries the %s excerpt through the writer without changing the body", (language) => {
+    const result = plan({
+      articles: [article({ approval: approval({ language }), summary: "  Listing excerpt.  " })],
+    });
+    const document = result.documents.find((entry) => entry._type === "article")!;
+
+    expect(document).toMatchObject({ summary: "Listing excerpt.", summaryListingOnly: true });
+    expect(document.body).toMatchObject([
+      { _type: "contentParagraphBlock", text: "Teksti." },
+    ]);
+    expect(validatePlanContract(result).issues).toEqual([]);
+
+    const { summaryListingOnly: removedFlag, ...oldDocument } = document;
+    expect(removedFlag).toBe(true);
+    const oldDocuments = result.documents.map((entry) => entry === document ? oldDocument : entry);
+    expect(writablePlanDigest(oldDocuments, result.assetRequirements, result.errors, result.blocked))
+      .not.toBe(result.documentsDigest);
+    expect(validatePlanContract({ ...result, documents: oldDocuments }).plan).toBeUndefined();
+  });
+
+  it.each([undefined, "", " \n\t "])("omits both excerpt fields when summary is %j", (summary) => {
+    const result = plan({ articles: [article({ summary })] });
+    const document = result.documents.find((entry) => entry._type === "article")!;
+
+    expect(document).not.toHaveProperty("summary");
+    expect(document).not.toHaveProperty("summaryListingOnly");
+    expect(validatePlanContract(result).issues).toEqual([]);
   });
 });
 

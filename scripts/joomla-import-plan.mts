@@ -480,7 +480,7 @@ export function buildImportPlan(input: {
       slug: approval.slug,
       ...(article.summary === undefined || article.summary.trim().length === 0
         ? {}
-        : { summary: article.summary.trim() }),
+        : { summary: article.summary.trim(), summaryListingOnly: true }),
       ...(article.author === undefined || article.author.trim().length === 0
         ? {}
         : { author: article.author.trim() }),

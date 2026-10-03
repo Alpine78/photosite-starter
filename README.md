@@ -364,7 +364,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   overrides the site's photographer name on the hero byline, one meta line shared with
   the event date (AB#151); the gallery variant has no byline field. Story listing
   cards show that effective article author, or the site photographer for a gallery,
-  before the event date (AB#174). An article may now also
+  before the event date (AB#174). A listing-only short lead stays on listing cards
+  and in metadata while the story omits it (AB#172); the Joomla article importer
+  now applies that flag to imported summaries (AB#137). An article may now also
   own one optional bounded end-gallery result, rendered after the body and isolated from the
   body's own loose-image and mini-gallery viewers (AB#161,
   [ADR-0003](docs/adr/0003-public-content-tree-and-url-structure.md)'s 2026-09-15
