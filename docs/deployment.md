@@ -1078,8 +1078,6 @@ later `DeployPreview` run on the same machine picks up alongside the real
 build read token in that job's environment. That is a materially different risk from
 "a credential touches a personal machine" — it is "PR-triggered code gets a path to a
 deployment credential" — so `DeployPreview` **stays on `vmImage: "ubuntu-latest"`**.
-The exhausted quota continued to block `DeployPreview` in September; restoring
-hosted capacity was necessary to resume automated Preview deployments.
 
 **It did not recover by 2026-09-24.** Every `main` run from 2026-09-23 failed in
 `DeployPreview` with "Your organization has no free minutes remaining", while `Verify`
@@ -1089,8 +1087,11 @@ merged changes did not reach Vercel — and when data changed ahead of code (the
 gallery conversions, AB#170), every converted gallery answered 500 on the deployed code
 until a manual release was made.
 
-**Recovery observed on 2026-10-02:** [run #501](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=501)
-passed both Verify and DeployPreview for revision
+**Recovery evidence, 2026-10-01–02:** [manual main run #488](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=488)
+passed Verify and DeployPreview on 2026-10-01 for revision
+`02d46471b092cdb7edba114d503e467872dac168`. The later automatic
+[main CI #501](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=501)
+passed both stages on 2026-10-02 for revision
 `06e0f081c8e2cc894e582ce945b1bd1b3f8e884e`, including identity, access-protection,
 noindex and stable-alias checks. This proves Preview delivery had resumed for
 that revision; it does not establish the remaining hosted-minute balance or

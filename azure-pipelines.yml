@@ -207,10 +207,9 @@ stages:
         # PR-triggered code (e.g. a compromised dependency pulled in by `npm ci`) leave
         # something behind that a later DeployPreview run — same persistent machine —
         # picks up alongside the real Vercel/Sanity credentials in this job's
-        # environment. Keeping this stage off the shared agent removes that path
-        # entirely; while the Microsoft-hosted quota is exhausted this just means the
-        # stage fails the same way it already was until the quota resets, exactly as it
-        # did before this pool existed, with no new spend either way.
+        # environment. Keeping this stage off the shared agent removes that path.
+        # The September Microsoft-hosted quota outage and the observed 2026-10-02
+        # Preview recovery are recorded in docs/deployment.md.
         pool:
           vmImage: "ubuntu-latest"
         steps:

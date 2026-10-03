@@ -32,8 +32,8 @@ a dependency update automatically.
   A schedule configured in the pipeline UI takes precedence over YAML;
   remove that override if present. On 2026-10-02 the
   existing pipeline definition showed only CI and pull-request triggers, with no
-  UI schedule. Actual scheduled execution is recorded below; failure-notification
-  delivery remains unverified.
+  UI schedule. The 2026-10-02 scheduled-run example is recorded below;
+  failure-notification delivery remains unverified.
 
 ## Live evidence checked on 2026-10-02
 
