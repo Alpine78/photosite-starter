@@ -76,6 +76,24 @@ describe("planIntroSummaries", () => {
     expect(plan.excluded).toEqual([]);
   });
 
+  it("reports a spans intro for owner review without discarding its links", () => {
+    const body = [{
+      _key: "linked-intro",
+      _type: "contentParagraphBlock",
+      spans: [{ _type: "contentInlineSpan", text: "The guide", href: "/stories/guide" }],
+    }, full];
+    const source = gallery({ body });
+    const before = structuredClone(source);
+    const plan = planIntroSummaries([source], target);
+    expect(plan.changes).toEqual([]);
+    expect(plan.mutations).toEqual([]);
+    expect(plan.excluded).toEqual([expect.objectContaining({
+      documentId: source._id,
+      reason: "the first paragraph uses spans; moving it into a plain-text summary requires an owner decision",
+    })]);
+    expect(source).toEqual(before);
+  });
+
   it("orders deterministically and binds the digest to content, revision and target", () => {
     const a = gallery({ _id: "b-doc" });
     const b = gallery({ _id: "a-doc" });

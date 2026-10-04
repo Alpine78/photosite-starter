@@ -1,3 +1,11 @@
+import {
+  readContentInlineSpans,
+  readContentRichItems,
+  isContentInlineHref,
+  MAX_CONTENT_INLINE_SPANS,
+  MAX_CONTENT_INLINE_TEXT,
+  MAX_CONTENT_RICH_ITEMS,
+} from "./content-inline";
 /**
  * The shared rich-content body blocks ADR-0003 decision 2 gives both public
  * content variants: paragraph, heading, blockquote, media placement, list, a
@@ -118,16 +126,83 @@ function nonBlankItems(
     : "Every item must be non-empty";
 }
 
+const spansField: SchemaFieldDefinition = {
+  name: "spans",
+  title: "Linked text",
+  description: "Use this instead of Text when the paragraph contains links.",
+  type: "array",
+  of: [{ type: "contentInlineSpan" }],
+  validation: (rule) => rule.min(1).max(MAX_CONTENT_INLINE_SPANS),
+};
+
+export const contentInlineTypes: readonly SchemaTypeDefinition[] = [
+  {
+    name: "contentInlineSpan",
+    title: "Text run",
+    type: "object",
+    fields: [
+      {
+        name: "text",
+        title: "Text (including spaces)",
+        type: "text",
+        validation: (rule) => rule.required().min(1).max(MAX_CONTENT_INLINE_TEXT),
+      },
+      {
+        name: "href",
+        title: "Link",
+        type: "string",
+        validation: (rule) => rule.custom((value) =>
+          value == null || isContentInlineHref(value)
+            ? true
+            : "Enter an http(s) URL, root-relative path, or fragment",
+        ),
+      },
+    ],
+    preview: { select: { title: "text" } },
+  },
+  {
+    name: "contentRichListItem",
+    title: "Linked list item",
+    type: "object",
+    fields: [{ ...spansField, description: "The list item, including its links." }],
+    preview: { select: { title: "spans.0.text" } },
+  },
+];
+
+export function validateInlineChoice(value: unknown, kind: "paragraph" | "list"): SchemaValidationResult {
+  if (!value || typeof value !== "object") return "Enter content";
+  const row = value as Record<string, unknown>;
+  const plain = kind === "paragraph" ? row.text : row.items;
+  const rich = kind === "paragraph" ? row.spans : row.richItems;
+  if ((plain != null) === (rich != null)) return "Choose either plain text or linked text";
+  try {
+    if (rich != null) {
+      if (kind === "paragraph") readContentInlineSpans(rich);
+      else readContentRichItems(rich);
+    } else {
+      const valid = kind === "paragraph"
+        ? typeof plain === "string" && !!plain.trim()
+        : Array.isArray(plain) && plain.length > 0 && plain.every(v => typeof v === "string" && v.trim());
+      if (!valid) return "Enter non-empty text";
+    }
+    return true;
+  } catch {
+    return "Invalid linked text or link destination";
+  }
+}
+
 const contentParagraphBlockType: SchemaTypeDefinition = {
   name: CONTENT_BLOCK_OBJECT_TYPES.paragraph,
   title: "Paragraph",
   type: "object",
+  validation: rule => rule.custom(value => validateInlineChoice(value, "paragraph")),
   fields: [
+    spansField,
     {
       name: "text",
       title: "Text",
       type: "text",
-      validation: (rule) => rule.required().custom(nonBlank),
+      validation: (rule) => rule.custom<string>(value => value == null ? true : nonBlank(value)),
     },
   ],
   preview: { select: { title: "text" } },
@@ -173,7 +248,16 @@ const contentListBlockType: SchemaTypeDefinition = {
   name: CONTENT_BLOCK_OBJECT_TYPES.list,
   title: "List",
   type: "object",
+  validation: rule => rule.custom(value => validateInlineChoice(value, "list")),
   fields: [
+    {
+      name: "richItems",
+      title: "Linked list items",
+      description: "Use this instead of Items when the list contains links.",
+      type: "array",
+      of: [{ type: "contentRichListItem" }],
+      validation: (rule) => rule.min(1).max(MAX_CONTENT_RICH_ITEMS),
+    },
     {
       name: "ordered",
       title: "Ordered",
@@ -187,7 +271,7 @@ const contentListBlockType: SchemaTypeDefinition = {
       title: "Items",
       type: "array",
       of: [{ type: "string" }],
-      validation: (rule) => rule.required().min(1).custom(nonBlankItems),
+      validation: (rule) => rule.min(1).custom(nonBlankItems),
     },
   ],
   preview: { select: { title: "items.0", subtitle: "ordered" } },

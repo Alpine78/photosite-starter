@@ -2653,6 +2653,35 @@ approval digest and malformed or stale plans. Production writes and post-import
 listing/page verification remain owner-run under AB#137; this code slice does not
 close the migration story or change AB#172's Resolved state.
 
+**Remaining migration preparation, 2026-10-04 (AB#137, working branch):** a fresh
+read-only Production audit found 3,593 documents: 20 gallery versions, 10 article
+versions and 6 service versions, with no drafts or release records/versions. All four
+route-facing adapter smoke checks passed. The private remaining-content candidate
+excludes the 30 published article/gallery identities from the old 102-version plan,
+preserving the converted rally galleries. It contains 72 page versions (44 gallery,
+28 article), 3,512 media, 4,230 gallery placements, 2,064 end-gallery placements, 20
+closed historical poll/tally pairs and 8 new categories. Local contract/category
+validation and the read-only Production collision preflight passed. The plan is
+unapproved and no Production write was performed. Private evidence stays in the
+ignored migration directory; these counts do not close AB#137.
+
+The owner reported upgrading Sanity to Growth on 2026-10-04. The remaining import
+projects 11,759 quota-counted Production documents, within Growth's 25,000-document
+limit. The subscription is owner-confirmed, not API-verified; current project-wide
+usage, including other datasets, must still be checked before import. The private
+capacity report records this confirmation. Content approval, a recoverable Sanity
+baseline, and the Production write remain pending; AB#137 stays Active.
+
+This branch restores the previously prepared bounded inline-link slice: paragraphs
+and lists preserve safe links through conversion, Studio, the writer and the public
+adapter/renderer. Conversion policy v9 and plan v6 retire earlier input. Unresolved
+legacy links are refusals. The category writer preserves safe description links;
+the curated-gallery writer accepts the existing listing-only-summary flag only with
+a nonblank summary. The intro-summary correction tool reports a first paragraph using
+`spans` for an owner decision and retains its links instead of converting it to plain text.
+Exact plan review, code acceptance/deployment, the import,
+post-write verification and credential revocation remain pending.
+
 The visual finish from the owner's Claude Design hi-fi proposal is delivered (AB#173).
 The default palettes are now **Kivi** (light, `#ece9e3` ground) and **Grafiitti** (dark,
 `#1b1c1e`). The site menu carries the proposal's moon/sun theme toggle

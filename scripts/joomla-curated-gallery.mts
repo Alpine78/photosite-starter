@@ -14,7 +14,7 @@ type Document = Readonly<Record<string, unknown>> & { readonly _id: string; read
 const identity = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const language = /^[a-z]{2,3}$/;
 export const CURATED_GALLERY_FIELDS = new Set([
-  '_id', '_type', 'contentId', 'language', 'title', 'slug', 'summary', 'publishedAt',
+  '_id', '_type', 'contentId', 'language', 'title', 'slug', 'summary', 'summaryListingOnly', 'publishedAt',
   'eventDate', 'endDate', 'tags', 'canonicalAtStoryRoot', 'canonicalCategory',
   'secondaryCategories', 'body', 'cover', 'orderingRule', 'orderingSeed', 'sections',
 ]);
@@ -71,6 +71,7 @@ export function validateCuratedGalleryDocuments(documents: readonly Document[]):
       }
     }
     if (d.summary !== undefined && typeof d.summary !== 'string') fail('summary must be a string');
+    if (d.summaryListingOnly !== undefined && (d.summaryListingOnly !== true || !nonBlank(d.summary))) fail('summaryListingOnly must be true with a nonblank summary');
     if (d.tags !== undefined && (!Array.isArray(d.tags) || !d.tags.every(nonBlank))) fail('tags must contain nonempty strings');
     const cover = referencedId(d.cover);
     if (d.cover !== undefined && (cover === undefined || byId.get(cover)?._type !== 'media' || byId.get(cover)?.publiclyRenderable !== true || byId.get(cover)?.mediaType !== 'image')) fail('cover must resolve to a public image');

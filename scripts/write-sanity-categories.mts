@@ -12,6 +12,8 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { isContentInlineHref } from "../src/lib/content-inline.ts";
+import { CATEGORY_DESCRIPTION_INTERNAL_LINK_PATH } from "../src/lib/category-description.ts";
 
 import {
   parseSeedConnection,
@@ -53,6 +55,7 @@ export type CategoryDescription = readonly {
       readonly _key: string;
       readonly _type: "categoryDescriptionInlineSpan";
       readonly text: string;
+      readonly href?: string;
     }[];
   }[];
 }[];
@@ -194,9 +197,10 @@ function validateDescription(
         if (span._type !== "categoryDescriptionInlineSpan") issues.push(`${spanPath}._type must be "categoryDescriptionInlineSpan"`);
         if (typeof span._key !== "string" || span._key.trim().length === 0) issues.push(`${spanPath}._key must be non-empty`);
         if (typeof span.text !== "string" || span.text.trim().length === 0 || span.text.length > 300) issues.push(`${spanPath}.text must be non-empty and at most 300 characters`);
-        if (span.marks !== undefined || span.href !== undefined) issues.push(`${spanPath} may not add marks or links to an import description`);
+        if (span.marks !== undefined) issues.push(`${spanPath} may not add marks to an import description`);
+        if (span.href !== undefined && (!isContentInlineHref(span.href) || span.href.startsWith('#') || (span.href.startsWith('/') && !CATEGORY_DESCRIPTION_INTERNAL_LINK_PATH.test(span.href)))) issues.push(`${spanPath}.href must be a safe http(s) URL or root-relative path`);
         if (typeof span._key === "string" && typeof span.text === "string" && span._type === "categoryDescriptionInlineSpan") {
-          spans.push({ _key: span._key, _type: "categoryDescriptionInlineSpan", text: span.text });
+          spans.push({ _key: span._key, _type: "categoryDescriptionInlineSpan", text: span.text, ...(typeof span.href === "string" ? { href: span.href } : {}) });
         }
       }
       if (typeof block._key === "string" && block._type === "categoryDescriptionParagraph" && spans.length === block.spans.length) {

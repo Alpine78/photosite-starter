@@ -57,6 +57,15 @@ describe('seeded gallery import',()=>{
   });
 });
 describe('curated gallery migration',()=>{
+  it('preserves a listing-only Joomla lead and refuses a malformed flag',()=>{
+    const ds=documents();
+    ds[1]={...ds[1]!,summary:'A listing introduction.',summaryListingOnly:true};
+    expect(validateCuratedGalleryDocuments(ds)).toEqual([]);
+    expect(validatePlanContract(plan(ds)).issues).toEqual([]);
+    for(const patch of [{summaryListingOnly:false},{summaryListingOnly:'true'},{summary:''},{summary:undefined}]){
+      expect(validateCuratedGalleryDocuments(ds.map(d=>d._type==='gallery'?{...d,...patch}:d)).join(' ')).toContain('summaryListingOnly');
+    }
+  });
   it('accepts matching bilingual occurrences and an empty gallery body',()=>{
     expect(validateCuratedGalleryDocuments(documents())).toEqual([]);
     expect(validateMigrationDocuments(documents())).toEqual([]);

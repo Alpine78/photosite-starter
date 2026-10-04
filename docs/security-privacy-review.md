@@ -696,3 +696,51 @@ does not change application cookie attributes.
 - Production build, TypeScript, diagram rendition check and diff whitespace
   check passed. ESLint reports zero errors and one existing unrelated
   `presetMediaDark` warning in `theme-contract.test.ts:117`.
+
+### 2026-10-04 scoped check — remaining migration text links (AB#137)
+
+The working branch adds bounded paragraph/list links through the standalone
+Studio validator, conversion, writer and Sanity public projection. The writer
+rejects unknown nested fields, non-string keys, unsafe/oversized URLs and mixed
+plain/linked representations. The category writer retains only safe destinations
+that also satisfy the existing category path contract. Unresolved legacy links
+and BA Gallery markers refuse conversion. Gallery listing-only flags require a
+nonblank summary and cannot be imported as false or another value type.
+
+The renderer uses React-escaped text and native same-tab anchors with
+`noreferrer`. No raw HTML, automatic external request, new dependency, processor,
+credential exposure or browser-policy relaxation was introduced. All 4,449
+unit tests and lint passed. The affected production-build browser journeys passed
+34 cases across Chromium and mobile WebKit, including keyboard/fragment navigation
+with and without JavaScript and the external-request guard. A second full unit
+run after the key/path validation corrections also passed. The first independent
+Claude code review prompted a clearer owner-decision exclusion for linked intros;
+the preservation test and full unit suite passed afterwards. The review was limited
+to generic code, synthetic tests and tracked documentation; private migration
+evidence was excluded pending explicit external-review permission.
+The third Claude diff review reported no findings after the intro exclusion and
+absolute-URL runbook/ADR clarifications. That round independently read the complete
+current AB#137 and AB#172 requirements and discussions; earlier truncated discussion
+reads were corrected. Lint, all 4,449 unit tests, the production build and the 34
+focused browser journeys also passed with lockfile dependencies (Next.js 16.3.8).
+The full browser suite was not run.
+
+After the owner's explicit authorization, Claude rounds four and five also read
+the private migration proposal and source evidence. Findings concerned the
+approval report's alt-text scope, historical conversion decisions and provenance,
+service-parent evidence, and a missing pair of portfolio records. Codex corrected
+the initial reporting gaps; Claude wrote the recurring portfolio-register
+correction within round five. Codex inspected those edits and verified complete
+32-version coverage, the unchanged content plan, all preview hashes and eight
+changed-input refusal probes. The fifth review also prompted removal of a stray
+backslash before the review digest. The five-round limit was reached: the last
+correction passed Codex's checks, but received no subsequent independent Claude
+diff review. The earlier generic-code NO FINDINGS verdict remains scoped to that
+code; it is not a clean private-artifact or launch verdict. Semantic source review
+was sampled, and changed inputs in an older partial approval remain owner decisions.
+
+The scoped Codex security self-review found no remaining security issue. This is not AB#117's launch verdict:
+live target availability, the exact content/rights/privacy approval, project quota,
+a recoverable Production baseline, post-import state/asset verification and write
+credential revocation remain migration gates. The prepared remaining-content plan
+is unapproved; no Production write or paid plan change was performed.

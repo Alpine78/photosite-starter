@@ -2206,3 +2206,39 @@ over the existing field, not a second excerpt field. A page that needs a lead di
 from its listing excerpt is not modelled. `onPageSummary` in
 `src/lib/content-page.ts` is the one place the rule lives.
 
+## Proposed amendment 2026-10-04 — preserve paragraph and list links (AB#137)
+
+The remaining Joomla content uses text links whose destinations the current
+plain-text conversion would drop. Paragraphs and list items can instead carry
+bounded text runs with an optional destination. This extends decision 2's body
+blocks with escaped text and native anchors. Raw HTML and links in headings,
+quotes, captions or table cells remain outside the model.
+
+A Sanity paragraph chooses either `text` or `spans`; a list chooses either string
+`items` or `richItems` containing spans. Existing plain documents require no
+rewrite. The public adapter derives the existing plain-text fields as well as
+the link runs. Studio, the writer and the reader enforce 100 spans and 10,000
+characters per paragraph/item, 100 rich list items and 2,048 characters per URL.
+
+URLs may be HTTP(S) without credentials, root-relative paths, or simple fragment
+identifiers. Executable schemes, network paths, backslashes and control-character
+evasions are refused. Native links navigate in the same tab with `noreferrer`;
+rendering makes no external request and needs no new dependency or CSP change.
+Relative legacy paths and fragments require an explicit mapping to a verified new target.
+The converter has no legacy-origin configuration: an unmapped safe absolute HTTP(S)
+URL is retained verbatim, regardless of its host. Absolute links to the former site
+can be remapped through the same exact decoded-href lookup. The owner must check
+all destinations, including former-site absolute URLs, before approving the final
+plan; URL validation does not establish that a destination is current or canonical.
+Unresolved relative links refuse conversion. Conversion policy v9 and import-plan v6 bind
+the preserved destinations into the approval digests and retire earlier input.
+The category writer also retains validated description links already supported by
+the category model, while continuing to refuse inline marks in imports.
+
+Keeping plain text alone would lose useful references. Adopting a full rich-text
+framework would expand authoring and rendering beyond this migration's need.
+The bounded extension preserves existing consumers, at the cost of maintaining
+mutually exclusive plain and linked fields and a standalone Studio validator.
+Acceptance and deployment are pending review; this proposal grants no content or
+Production-write approval. The exact final plan and its rights/privacy decisions
+remain part of AB#137's owner review.
