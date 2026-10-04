@@ -138,6 +138,9 @@ function exclusionReason(document: IntroSummarySourceDocument): string | undefin
   if (!isRecord(first) || first._type !== PARAGRAPH_BLOCK_TYPE) {
     return "the body does not start with a paragraph";
   }
+  if (Object.hasOwn(first, "spans")) {
+    return "the first paragraph uses spans; moving it into a plain-text summary requires an owner decision";
+  }
   if (Object.keys(first).some((key) => !PARAGRAPH_FIELDS.has(key))) {
     return "the first paragraph carries fields beyond _key, _type and text";
   }

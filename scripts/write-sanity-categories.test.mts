@@ -69,12 +69,32 @@ describe("category write plan validation", () => {
         ...documents[0].description![0],
         blocks: [{
           ...documents[0].description![0].blocks[0],
-          spans: [{ ...documents[0].description![0].blocks[0].spans[0], href: "https://example.test" }],
+          spans: [{ ...documents[0].description![0].blocks[0].spans[0], href: "javascript:alert(1)" }],
         }],
       }],
     }]);
     expect(result.issues).toContain("documents[0] has unsupported field(s): secret");
-    expect(result.issues).toContain("documents[0].description[0].blocks[0].spans[0] may not add marks or links to an import description");
+    expect(result.issues).toContain("documents[0].description[0].blocks[0].spans[0].href must be a safe http(s) URL or root-relative path");
+  });
+
+  it("retains safe description links through validation, digest and readback", () => {
+    const linked = (href: string) => [{ ...documents[0], description: [{
+      ...documents[0].description![0], blocks: [{
+        ...documents[0].description![0].blocks[0], spans: [{
+          ...documents[0].description![0].blocks[0].spans[0], href,
+        }],
+      }],
+    }] }];
+    for (const href of ["/services/photography", "https://example.test/guide"]) {
+      const result = validateCategoryWritePlan({ version: CATEGORY_WRITE_PLAN_VERSION, documents: linked(href) });
+      expect(result.issues).toEqual([]);
+      expect(result.plan?.documents).toEqual(linked(href));
+      expect(normalizeCategoryReadback(linked(href)[0])).toEqual(linked(href)[0]);
+    }
+    expect(categoryDocumentsDigest(linked("/services/one"))).not.toBe(categoryDocumentsDigest(linked("/services/two")));
+    for (const href of ["#fragment", "//example.test", "data:text/html,test", "https://user:password@example.test", "/%2fexample.test", "/\\example.test", "/services?sort=newest", "/UPPER", "/services/"]) {
+      expect(validateCategoryWritePlan({ version: CATEGORY_WRITE_PLAN_VERSION, documents: linked(href) }).plan).toBeUndefined();
+    }
   });
 
   it("binds approval to normalized category content", () => {

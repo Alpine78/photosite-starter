@@ -521,10 +521,12 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   content enabled the AB#83 cross-instance cache-invalidation gate, which a managed-cache
   propagation run verified on Preview on 2026-08-26; that evidence is merged and AB#83
   is Closed*
-- [ ] Production launch content migration and audit (AB#137) — *rally galleries have
-  been migrated and verified, including capture-sequence conversions; launch-manifest
-  completion, the full draft/release/asset audit, and write-token revocation
-  are still pending. See [migration and verification](docs/sanity-seeding.md)*
+- [ ] Production launch content migration and audit (AB#137) — *the 2026-10-04 read-only
+  check found 20 gallery versions, 10 article versions and 6 service versions; the
+  adapter smoke checks passed and the audit found no drafts or release versions.
+  A remaining-content candidate contains 72 page versions, 3,512 images and 8 new
+  categories. Exact-plan approval, its import and post-write audit, temporary-token
+  revocation and public promotion remain pending. See [migration and verification](docs/sanity-seeding.md)*
 - [ ] Production deployment — *the protected Preview environment is provisioned and its
   fully automated pipeline was verified by build 144 on 2026-08-24: the pinned runtime and
   region, gated deploy stage, project/team ownership, access protection, and non-indexability

@@ -1,3 +1,4 @@
+import { readContentInlineSpans, readContentRichItems, MAX_CONTENT_INLINE_SPANS, MAX_CONTENT_RICH_ITEMS } from "@/lib/content-inline";
 import { isPollDefinition } from "@/lib/poll";
 /**
  * The shared rich-content body block adapter: Sanity block objects in,
@@ -81,6 +82,8 @@ export const CONTENT_BLOCK_PROJECTION = `{
   _key,
   _type,
   text,
+  "spans": spans[0...${MAX_CONTENT_INLINE_SPANS + 1}]{_type, text, href},
+  "richItems": richItems[0...${MAX_CONTENT_RICH_ITEMS + 1}]{_type, "spans": spans[0...${MAX_CONTENT_INLINE_SPANS + 1}]{_type, text, href}},
   level,
   ordered,
   items,
@@ -138,6 +141,8 @@ export type RawContentBlock = {
   readonly _key?: unknown;
   readonly _type?: unknown;
   readonly text?: unknown;
+  readonly spans?: unknown;
+  readonly richItems?: unknown;
   readonly level?: unknown;
   readonly ordered?: unknown;
   readonly items?: unknown;
@@ -282,6 +287,15 @@ export function projectContentBlock(
       };
     }
     case CONTENT_BLOCK_OBJECT_TYPES.paragraph: {
+      if (raw.spans != null) {
+        if (raw.text != null) reject("a paragraph must choose text or spans, not both");
+        try {
+          const spans = readContentInlineSpans(raw.spans);
+          return { type: "paragraph", text: spans.map(span => span.text).join(""), spans, key };
+        } catch {
+          reject("a paragraph has invalid inline spans");
+        }
+      }
       const text = readString(raw.text);
       if (text === undefined) reject("a paragraph needs non-empty text");
       return { type: "paragraph", text, key };
@@ -299,6 +313,19 @@ export function projectContentBlock(
     case CONTENT_BLOCK_OBJECT_TYPES.list: {
       if (typeof raw.ordered !== "boolean") {
         reject("a list needs its ordered flag");
+      }
+      if (raw.richItems != null) {
+        if (raw.items != null) reject("a list must choose items or richItems, not both");
+        try {
+          const itemSpans = readContentRichItems(raw.richItems);
+          return {
+            type: "list", ordered: raw.ordered,
+            items: itemSpans.map(spans => spans.map(span => span.text).join("")),
+            itemSpans, key,
+          };
+        } catch {
+          reject("a list has invalid inline spans");
+        }
       }
       if (
         !Array.isArray(raw.items) ||

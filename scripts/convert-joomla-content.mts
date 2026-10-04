@@ -188,6 +188,8 @@ export type ApprovedLooseImage = {
 };
 
 type ResolutionFile = {
+  /** Explicit legacy href -> canonical destination, scoped by source article id. */
+  readonly links?: Readonly<Record<string, Readonly<Record<string, string>>>>;
   /** Legacy comparison module title -> approved img1/img2 and localized labels/title. */
   readonly comparisonModules?: Readonly<Record<string, unknown>>;
   /**
@@ -700,6 +702,7 @@ async function main(): Promise<void> {
       // refused rather than given an invented label.
       resolvePoll: (id) => legacyPolls.get(id),
       resolveComparison: (moduleTitle) => resolveLegacyComparison(resolution.comparisonModules?.[moduleTitle], language),
+      resolveLink: (href) => resolution.links?.[article.joomlaId]?.[href],
       resolveYoutubeTitle: (videoId) => resolution.youtubeTitles?.[videoId],
     });
     finalConversions.push({

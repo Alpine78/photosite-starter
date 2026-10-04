@@ -1644,7 +1644,9 @@ npm run fix:joomla-intro -- --out <report folder> --approved-digest <digest> --y
 
 Every other page is listed under `excluded` with its reason and left alone. That includes
 a page whose single paragraph is the whole text, a page that starts with a heading, and a
-malformed summary or flag value. Review the planned summaries, then approve the printed
+malformed summary or flag value. A first paragraph using `spans` has a dedicated exclusion:
+moving it into a plain-text summary needs an owner decision about its links. The tool
+preserves that paragraph and its destinations. Review the planned summaries, then approve the printed
 digest. The digest binds the target project and dataset, each page's published revision,
 its complete original body, and the exact patches.
 
@@ -2042,8 +2044,8 @@ Repeated references use one document pair. Poll/tally contents, including counts
 are included in the article's `resolved_digest` approval binding and the final
 plan digest.
 
-The current conversion policy is **joomla-conversion-v3** and import plan format
-**joomla-import-plan-v5**. Version 5 adds curated galleries; version 4 added the explicit story-root canonical
+The current conversion policy is **joomla-conversion-v9** and import plan format
+**joomla-import-plan-v6**. Version 6 preserves bounded paragraph/list links; version 5 added curated galleries; version 4 added the explicit story-root canonical
 placement alternative. Regenerate review reports and approvals before planning;
 old approvals/plans are intentionally rejected. Pass the same `--poll-results`
 input to the subsequent `--plan` run. The existing approval-gated writer validates
@@ -2101,8 +2103,8 @@ final plan digest covers the two images and their hashes.
 The authoritative AB#23 discussion inventories **12 comparisons in 9 articles**.
 Keep their private module inventory out of the template and CI fixtures. The
 unlabeled source pair needs owner-authored labels before approval. Regenerate
-review reports and manifest approvals under **joomla-conversion-v3**; do not reuse
-v1/v2 conversion approvals. The current plan format is **joomla-import-plan-v5**;
+review reports and manifest approvals under **joomla-conversion-v9**; do not reuse
+earlier conversion approvals. The current plan format is **joomla-import-plan-v6**;
 the later story-root and curated-gallery changes advanced it without changing this block.
 These articles enter the launch manifest only after their complete converted
 bodies have been reviewed; adding converter support does not itself approve them.
@@ -2154,7 +2156,7 @@ The normal baseline, temporary credential, dry run, explicit `--yes`, audit and
 revocation workflow still applies. Neither this command nor its review output
 uploads anything. Private input, approval and plans do not belong in Git.
 
-The writer's v5 contract validates public-image covers, section membership,
+The writer's current contract validates public-image covers, section membership,
 manual placement order and bilingual occurrence identity. Repeated uses of a
 photograph keep distinct placement IDs. It checks the target's category languages,
 shared article/gallery content identity and routes, plus existing placement
@@ -2171,3 +2173,48 @@ fields just to make the import pass. The refusal occurs before any asset upload.
 The existing ordering rule and seed must also match the plan exactly: a rerun is
 not a seed-rotation operation. Use the established recompute workflow for a later
 editorial rotation rather than silently changing it during a migration retry.
+
+## Text links in the migration (conversion v9 / plan v6)
+
+Safe external HTTP(S) links survive in bounded `contentInlineSpan` runs. A
+paragraph uses `spans` instead of `text`; a list uses `richItems` instead of
+string `items`. The writer rejects conflicting representations, unsafe URLs,
+oversized text and unknown nested fields. Existing plain text keeps its original
+form. Studio registers `contentInlineSpan` and `contentRichListItem` through the
+shared schema entry point.
+
+The resolution JSON supplies explicit mappings for relative legacy paths and fragments,
+and can remap absolute URLs as well:
+
+```json
+{
+  "links": {
+    "42": {
+      "blog/old-guide": "/stories/guides/new-guide",
+      "https://legacy.example.test/blog/old-guide": "/stories/guides/new-guide",
+      "#old-gallery": "#article-end-gallery"
+    }
+  }
+}
+```
+
+The outer key is the source Joomla article ID; the inner key is its exact decoded
+`href`. Without an explicit mapping, a safe absolute HTTP(S) URL is retained verbatim.
+The converter does not know the former site's origins: include absolute self-links
+in the mapping when their destination changes. Check every destination, including
+absolute URLs, against the candidate route tree, rendered anchor or intended external
+page before approving the plan. URL validation proves the allowed form, not target
+availability. Unresolved relative/fragment links and unsafe destinations produce
+`link-unresolved` and block conversion. Headings,
+quotes, table cells and captions remain plain text and refuse links rather than
+dropping their destinations. Conversion v9 also refuses unresolved BA Gallery
+markers, including markers split across inline markup. Regenerate conversion
+reports, resolved digests and manifest approvals under the current policy.
+The writer rejects v5 plans; the v6 digest binds the destinations and blocker state.
+
+The category writer retains safe HTTP(S) and root-relative description links
+already supported by the public category model; fragments and inline marks remain
+outside its import contract. The curated-gallery writer accepts
+`summaryListingOnly: true` with a nonblank `summary`, preserving the presentation
+decision in ADR-0003. These changes require a new exact-plan review and grant no
+Production-write approval.

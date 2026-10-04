@@ -277,3 +277,18 @@ unresolved or nonpublic references. The reveal becomes interactive after both
 images load; different ratios remain full images without an overlay. Captions
 and credits survive in both views. Neither image enters another lightbox's slides.
 See [ADR-0019](../docs/adr/0019-before-after-image-comparison.md).
+
+## Links in article and gallery text
+
+A paragraph offers **Text** for plain text or **Linked text** for text runs with
+optional links. Fill one field. A list similarly chooses **Items** or **Linked
+list items**. Keep spaces around a linked word in the surrounding text runs.
+Existing plain-text documents continue to work.
+
+Linked text allows HTTP(S) URLs without credentials, root-relative paths and
+simple heading/gallery fragments. It is limited to 100 runs and 10,000 characters
+per paragraph/item, 100 rich list items and 2,048 characters per URL. The public
+reader and migration writer enforce the same rules as the standalone Studio
+validator. Native links work without JavaScript and do not load external content
+before the visitor follows them. Category descriptions retain their separate
+restricted introduction model.
