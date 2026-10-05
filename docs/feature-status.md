@@ -2653,7 +2653,7 @@ approval digest and malformed or stale plans. Production writes and post-import
 listing/page verification remain owner-run under AB#137; this code slice does not
 close the migration story or change AB#172's Resolved state.
 
-**Remaining migration preparation, 2026-10-04 (AB#137, working branch):** a fresh
+**Remaining migration preparation, 2026-10-04 (AB#137, PR #239 merged):** a fresh
 read-only Production audit found 3,593 documents: 20 gallery versions, 10 article
 versions and 6 service versions, with no drafts or release records/versions. All four
 route-facing adapter smoke checks passed. The private remaining-content candidate
@@ -2665,22 +2665,99 @@ validation and the read-only Production collision preflight passed. The plan is
 unapproved and no Production write was performed. Private evidence stays in the
 ignored migration directory; these counts do not close AB#137.
 
-The owner reported upgrading Sanity to Growth on 2026-10-04. The remaining import
-projects 11,759 quota-counted Production documents, within Growth's 25,000-document
-limit. The subscription is owner-confirmed, not API-verified; current project-wide
-usage, including other datasets, must still be checked before import. The private
-capacity report records this confirmation. Content approval, a recoverable Sanity
-baseline, and the Production write remain pending; AB#137 stays Active.
+The owner reported upgrading Sanity to Growth on 2026-10-04. A post-merge raw read
+confirmed 1,833 quota-counted Production documents and zero in the project's other
+dataset, Preview. The remaining import projects 11,759 project-wide documents,
+within the 25,000-document limit in Sanity's published Growth pricing. The subscription
+is owner-confirmed, not API-verified; counts are planning evidence and must be read
+again before import. The separate private post-merge report records the exact quota
+query and keeps the content plan and review-bundle digest unchanged. Content approval,
+a recoverable Sanity baseline, promotion of the staged linked-content renderer, and the
+Production write were pending at that capture; the 2026-10-05 follow-up below records
+the approval and completed baseline. Temporary write-credential revocation remains
+unverified. AB#137 stays Active.
 
-This branch restores the previously prepared bounded inline-link slice: paragraphs
+PR #239 adds the previously prepared bounded inline-link slice: paragraphs
 and lists preserve safe links through conversion, Studio, the writer and the public
 adapter/renderer. Conversion policy v9 and plan v6 retire earlier input. Unresolved
 legacy links are refusals. The category writer preserves safe description links;
 the curated-gallery writer accepts the existing listing-only-summary flag only with
 a nonblank summary. The intro-summary correction tool reports a first paragraph using
 `spans` for an owner decision and retains its links instead of converting it to plain text.
-Exact plan review, code acceptance/deployment, the import,
-post-write verification and credential revocation remain pending.
+CI #523 passed lint, 4,449 unit tests, the production build, and the full browser
+journey matrix (736 passed, 36 skipped). Code acceptance and merge are complete.
+At the 2026-10-04 code handoff, exact plan approval, renderer promotion, the import,
+post-write verification and credential revocation were pending.
+
+Main CI #524 also passed Quality and Preview delivery. A separate Production-target
+candidate was built remotely from that verified main revision, with no local Production
+environment copy. Its uploaded source archive matches all 685 uploaded Git files,
+including every runtime/public file; the omitted `.gitignore` has no runtime role.
+Provider authentication and noindex were checked on the immutable candidate URL.
+The current-content HTTP comparison passed 28 GETs across FI/EN landings, services,
+articles and gallery continuation pages (24 figures per gallery slice). This is a
+current-content smoke, not verification of the unapproved remaining import.
+`--skip-domain` kept the public Production alias on the old deployment but moved the
+protected generated team alias; that alias was restored and both old targets verified.
+The staged candidate is not promoted. The private release evidence also records exact
+byte matches for 1,712 of today's 1,748 image assets in the September 24 Sanity export
+or the checked local image directories; 36 have no matched local recovery copy in
+those locations. A fresh recoverable
+baseline including assets required explicit owner authorization, received on 2026-10-05.
+
+**Approved migration preparation, 2026-10-05 (AB#137):** the owner's confirmation
+approves the unchanged remaining-content bundle and the exact local full-baseline
+destination. The private approval record resolves only the owner-approval sentinel:
+documents, photographs, categories, routes and the original review files remain unchanged.
+The resulting approved writer plan passes local contract validation, and both category
+and Joomla writer dry runs pass; all 3,512 photograph sources were reverified and their
+public derivatives generated without a network write. Fresh Production collision and
+category checks found no issues. Projected project-wide usage remains 11,759 quota
+documents; the 12 provider system documents and asset documents are excluded from that
+count. Even a conservative count adding every planned asset is 15,271.
+
+The complete baseline contains all 3,593 raw documents, including 12 provider system
+records, and all 1,748 current image binaries (916,811,028 bytes); no file assets,
+drafts or release states were present. The backup credential's effective read-only
+permissions were verified through the provider API. The official asset-inclusive export
+is bundled with an exact raw-document snapshot because the installed exporter's `raw`
+mode skips asset downloads and its normal mode omits non-release system records.
+Before/after revision manifests, transformed document and asset metadata, every binary's
+size and SHA-1, and final archive member hashes were independently verified. This is
+structural recovery evidence, not a live restore test. The owner-only archive and report
+remain ignored; their capture time is 2026-10-05 despite the approved filename's
+2026-10-04 suffix. Before a later write, the complete revision manifest must still match
+this baseline or a new baseline is required. Rollback preparation protects all existing
+asset IDs; seven reviewed derivatives match current assets, which must not be deleted
+as new-only assets.
+
+A fresh authenticated deployment lookup confirms the public alias still serves the
+September 24 commit. Its body projection omits inline spans and rich list items, so it
+cannot render 14 approved page versions (21 linked paragraphs and one rich list).
+Body-free listings/home/sitemap projections and existing category-description link
+support were inspected separately; no post-import runtime check is claimed. A compatible
+protected diagnostic build alone does not resolve the public-code gate. The Production
+write is deferred until compatible code serves the public alias through the reviewed
+release path. No new write credential was minted, and no CMS, deployment or DNS change
+was made in the approval/baseline slice. Full post-import audit, route/pagination checks, credential
+revocation and ownership/rollback handoff remain open; AB#137 stays Active.
+
+**Protected prebuilt renderer preparation, 2026-10-05 (AB#137):** a later manual
+operator build used the same verified main commit, pinned CLI 61.0.0, Next.js 16.3.8
+and Node 24.20.0. Fourteen public configuration values entered the local build; neither
+runtime Sensitive value was fetched into it. Reproducible installation, unchanged Git
+source, physical outputs and CLI-mapped runtime files were checked. Every member of the
+provider's original 607-entry prebuilt archive matched the local manifests, including
+70 function-directory aliases and 387 mapped inputs. Five physical functions declare
+Node 24 on x86_64; no local environment file or private migration data was uploaded.
+The candidate reached READY without moving either existing alias. Anonymous access is
+challenged and authorized responses carry noindex. The current-content smoke passes
+28 GETs, including gallery first/next pages, and 14 semantic comparisons match the prior
+same-commit diagnostic. New approved content has not been imported or HTTP-tested.
+This candidate was built locally, not by an Azure Production stage; it remains protected
+and inactive. Production metadata lacks the contact-delivery adapter, sender/recipient
+and provider key, so email provisioning and verification remain open. The public-code
+gate, import/audit/revocation, AB#117 and AB#18 launch decisions remain unresolved.
 
 The visual finish from the owner's Claude Design hi-fi proposal is delivered (AB#173).
 The default palettes are now **Kivi** (light, `#ece9e3` ground) and **Grafiitti** (dark,
@@ -2741,6 +2818,14 @@ the source page. Pending or malformed localization reviews refuse another derive
 language; reviewed placements get a fresh target review list. A review marker
 without `localizedFrom` is checked too. Studio action UI and live authoring checks
 remain open; this follow-up adds no provider write or public UI.
+
+**Premium delivery preparation, 2026-10-05 (AB#44, Active):**
+[ADR-0025](adr/0025-premium-source-distribution.md) proposes versioned source ZIP
+delivery followed by private repository releases if recorded manual work warrants it.
+It compares Git/release, archive and package delivery, handles template-history and
+customization baselines, and records a synthetic WSL three-way merge experiment
+(including conflicts and CRLF). Native Windows delivery remains unverified. AB#42
+and this decision still need acceptance; no Premium artifact or service is built.
 
 **Editorial AI preparation, 2026-10-05 (AB#126, Active):**
 [ADR-0026](adr/0026-editorial-assistant-provider-boundary.md) proposes a neutral
