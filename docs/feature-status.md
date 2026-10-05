@@ -2735,6 +2735,14 @@ resolved for each locale's header and metadata (`resolveSiteName`,
 back to another language. A pre-AB#187 single-string `siteName` is still read as the
 default name until re-authored. The proposal's footer brand block is not built.
 
+**Premium delivery preparation, 2026-10-05 (AB#44, Active):**
+[ADR-0025](adr/0025-premium-source-distribution.md) proposes versioned source ZIP
+delivery followed by private repository releases if recorded manual work warrants it.
+It compares Git/release, archive and package delivery, handles template-history and
+customization baselines, and records a synthetic WSL three-way merge experiment
+(including conflicts and CRLF). Native Windows delivery remains unverified. AB#42
+and this decision still need acceptance; no Premium artifact or service is built.
+
 These notes go stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
