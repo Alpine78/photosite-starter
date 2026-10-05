@@ -42,7 +42,7 @@ import {
   logContactEvent,
   type ContactErrorClass,
 } from "@/lib/contact-log";
-import { getDefaultLocaleLabels } from "@/lib/deployment-config";
+import { getDefaultLocaleLabels, getDeploymentConfig } from "@/lib/deployment-config";
 import { CONTACT_DETAIL_FIELD_NAMES, OTHER_CONTACT_SUBJECT, parseContactDetails } from "@/lib/contact-details";
 import { getServices } from "@/lib/services";
 import { getSiteSettings } from "@/lib/site-settings";
@@ -158,6 +158,7 @@ export async function POST(request: Request): Promise<Response> {
   const email = buildContactEmail(result.message, {
     siteName: settings.siteName,
     labels,
+    locale: getDeploymentConfig().locale,
   }, {
     details: parsedDetails.details,
     subjectName: parsedDetails.details.subject === OTHER_CONTACT_SUBJECT

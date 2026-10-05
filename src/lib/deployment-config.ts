@@ -260,9 +260,9 @@ export type BuiltInLabels = {
   };
   readonly contact: {
     /**
-     * Subject of the email the site owner receives. It carries no
-     * visitor-supplied text, so a stranger never writes in the one line a mail
-     * client shows before anyone has decided to trust the message.
+     * Generic contact-email subject for Other and older submissions. A selected
+     * published service uses its server-resolved name instead; either subject
+     * may append the validated preferred date, never arbitrary visitor text.
      */
     readonly emailSubject: string;
     /**
