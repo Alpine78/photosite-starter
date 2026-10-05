@@ -1306,6 +1306,54 @@ vercel deploy --prebuilt --prod --skip-domain --token="$VERCEL_TOKEN"
 vercel promote <deployment-url> --token="$VERCEL_TOKEN"
 ```
 
+Check the public Production domain **and the generated project/team alias** before and
+after staging, using the authenticated deployment API and immutable deployment IDs.
+During the 2026-10-04 AB#137 remote-build rehearsal, `--prod --skip-domain` kept the
+public Production domain on the old deployment but reassigned the protected generated
+team alias to the candidate. The operator restored exactly that alias to its original
+deployment and verified both targets. Do not infer that every alias stayed put from
+the flag or the CLI's success message; keep the original IDs and single-alias restoration
+operation ready. Smoke the candidate through its immutable generated URL, retain
+deployment protection, and never forward a bypass header through a redirect.
+
+The 2026-10-04 remote build was a one-time operator staging rehearsal after a local
+Production environment copy was blocked. The Azure/prebuilt release path and its
+phase-separated Sanity credentials remain the documented delivery design. Vercel's
+remote builder receives the [configured Production environment](https://vercel.com/docs/environment-variables), including Sensitive
+values; it does not preserve the prebuilt build/runtime credential split. Its source
+identity was verified against the original uploaded archive, rather than inferred from
+absent provider Git metadata. This protected rehearsal does not authorize promotion
+or replace the launch gates or the Azure/prebuilt release path above.
+
+The 2026-10-05 protected renderer preparation used a **manual prebuilt** build from
+the unchanged, CI-verified main revision. Only named public configuration values entered
+the local build; the Production dataset is public and needs no build read token.
+Runtime Sensitive values stayed provider-side. The uploaded archive's physical outputs,
+function aliases and mapped runtime files all matched the local manifests. Both existing
+aliases stayed on the old deployment, and protected FI/EN route and gallery-continuation
+checks passed. This is operator evidence, not an Azure Production build or launch approval.
+Production contact-delivery settings were absent in the project metadata and remain
+an open provisioning requirement; rendering GET checks do not test email delivery.
+
+Before publishing a CMS batch with a new field representation, verify compatibility
+against the deployment actually serving each public alias. A merged adapter and a
+protected candidate do not establish that the current public deployment can read it.
+The 2026-10-05 AB#137 check found that the September 24 public renderer omits inline
+`spans` and `richItems`, making 14 pages in the approved batch unreadable there. Keep
+the CMS write gated until compatible code is live; do not remove approved links to
+fit the old renderer. Re-read the complete raw revision manifest immediately before
+the write and require equality with the verified full baseline, or capture a new
+baseline. Record actual created document/asset IDs and preserve pre-existing or shared
+assets during any separately authorized rollback.
+Vote receipts or tally updates count as baseline drift too: take a new stable baseline
+before writing and defer the import if ongoing votes prevent one. Do not silently
+exclude that data from the comparison. The two polls in the October 5 baseline are
+closed historical polls, so they cannot accept new public votes.
+
+An old code rollback after importing new representations can make those pages unreadable
+again. Recheck compatibility with the imported batch before selecting a rollback target;
+the pre-import deployment is not automatically a safe code-only rollback afterward.
+
 Rollback repoints production at the last known-good deployment:
 
 ```bash

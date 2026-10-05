@@ -510,7 +510,7 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   generating and uploading each photograph's public derivative, resolving category
   references against the target dataset, and checking for identity collisions before
   writing anything. Real Production content has been partially migrated; the remaining
-  launch-manifest approvals and migration, the full content/asset audit, and temporary
+  migration, the full content/asset audit, and temporary
   write-token revocation are separate launch work under AB#137.
   Every route-facing seam (`site-settings.ts`, `home-content.ts`, `services.ts`, `content.ts`,
   `gallery.ts`) is now wired: `SITE_CONTENT_SOURCE=mock` keeps reading fixtures, and `sanity`
@@ -524,9 +524,15 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - [ ] Production launch content migration and audit (AB#137) — *the 2026-10-04 read-only
   check found 20 gallery versions, 10 article versions and 6 service versions; the
   adapter smoke checks passed and the audit found no drafts or release versions.
-  A remaining-content candidate contains 72 page versions, 3,512 images and 8 new
-  categories. Exact-plan approval, its import and post-write audit, temporary-token
-  revocation and public promotion remain pending. See [migration and verification](docs/sanity-seeding.md)*
+  The owner approved the exact remaining batch on 2026-10-05: 72 page versions,
+  3,512 images and 8 new categories. A fresh full baseline preserves all 3,593 raw
+  documents and 1,748 existing image binaries; revision, metadata and byte-hash checks
+  passed. Both writer dry runs passed. The public deployment's older renderer cannot
+  read 14 of the approved pages, so the import waits for compatible public code.
+  A protected prebuilt renderer candidate passes current-content route and pagination
+  checks; it is not activated. Production contact-delivery provisioning remains open.
+  Post-write audit, temporary-token revocation and public promotion remain pending.
+  See [migration and verification](docs/sanity-seeding.md)*
 - [ ] Production deployment — *the protected Preview environment is provisioned and its
   fully automated pipeline was verified by build 144 on 2026-08-24: the pinned runtime and
   region, gated deploy stage, project/team ownership, access protection, and non-indexability
