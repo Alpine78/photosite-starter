@@ -562,6 +562,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   for articles and galleries; its Studio action UI and optional provider-neutral AI
   translation assistance remain later work. The public
   locale-aware routing itself is in the MVP above, not here
+- Optional public AI chat: [proposed knowledge/provider boundary](docs/adr/0027-public-chat-and-knowledge-boundary.md)
+  for current published sources, explicit human fallback, privacy and cost controls;
+  no chatbot runtime or retrieval index is implemented
 - EXIF display with per-category visibility
 - Service-specific testimonials
 - Cookieless analytics

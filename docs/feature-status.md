@@ -2735,6 +2735,14 @@ resolved for each locale's header and metadata (`resolveSiteName`,
 back to another language. A pre-AB#187 single-string `siteName` is still read as the
 default name until re-authored. The proposal's footer brand block is not built.
 
+**Public chatbot preparation, 2026-10-05 (AB#127, Active):**
+[ADR-0027](adr/0027-public-chat-and-knowledge-boundary.md) proposes separate chat and
+retrieval ports, published public knowledge with authoritative eligibility checked
+before inference and before output, synchronization/reconciliation, structured
+canonical citations, browser-memory conversation and atomic spend admission.
+Defaults and evaluation thresholds require acceptance; no chatbot, index, profile
+schema, model adapter or infrastructure exists. AB#126 remains a predecessor.
+
 These notes go stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
