@@ -2847,6 +2847,13 @@ and the facts needed by legal and tax advisers. It is not operative terms or leg
 advice. AB#45 offer validation, actual seller/offer facts and qualified signoff
 remain open; no payment code or completed commercial launch gate is claimed.
 
+**Editorial AI preparation, 2026-10-05 (AB#126, Active):**
+[ADR-0026](adr/0026-editorial-assistant-provider-boundary.md) proposes a neutral
+suggestion port, server-authorized direct inference, per-target acceptance
+preconditions, transient suggestions, protected live evaluations and privacy/cost
+controls. It requires owner acceptance and AB#125 integration before implementation.
+No port, AI SDK, infrastructure, inference or Studio suggestion UI exists yet.
+
 These notes go stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
