@@ -559,7 +559,8 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - Optional image sales and fulfilment (enquiry first; checkout and cart only
   after a separate product, legal, security, and delivery decision)
 - Multilingual authoring workflow: an owner-run linked-draft creation command is available
-  for articles and galleries; its Studio action UI and optional provider-neutral AI
+  for articles and galleries, with source page/placement review checked before copying;
+  its Studio action UI and optional provider-neutral AI
   translation assistance remain later work. The public
   locale-aware routing itself is in the MVP above, not here
 - EXIF display with per-category visibility
