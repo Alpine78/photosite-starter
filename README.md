@@ -568,7 +568,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   for articles and galleries, with source page/placement review checked before copying;
   its Studio action UI and optional provider-neutral AI
   translation assistance remain later work. The public
-  locale-aware routing itself is in the MVP above, not here
+  locale-aware routing itself is in the MVP above, not here.
+  The [editorial provider boundary](docs/adr/0026-editorial-assistant-provider-boundary.md)
+  is proposed; no AI inference or suggestion UI is implemented.
 - Optional public AI chat: [proposed knowledge/provider boundary](docs/adr/0027-public-chat-and-knowledge-boundary.md)
   for current published sources, explicit human fallback, privacy and cost controls;
   no chatbot runtime or retrieval index is implemented
@@ -579,6 +581,10 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 Premium distribution remains a proposal: [ADR-0025](docs/adr/0025-premium-source-distribution.md)
 compares source archives, private releases and packages, including update and exit
 responsibility. No paid delivery service is implemented.
+
+Commercial sales require offer validation and qualified review. The
+[requirements worksheet](docs/commercial-policy-requirements.md) prepares AB#49;
+it is not legal advice or operative terms. No sale or legal signoff is implied.
 
 ## License
 

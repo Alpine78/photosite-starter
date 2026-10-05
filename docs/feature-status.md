@@ -2827,6 +2827,21 @@ customization baselines, and records a synthetic WSL three-way merge experiment
 (including conflicts and CRLF). Native Windows delivery remains unverified. AB#42
 and this decision still need acceptance; no Premium artifact or service is built.
 
+**Commercial terms preparation, 2026-10-05 (AB#49, Active):** the
+[requirements worksheet](commercial-policy-requirements.md) maps separate
+software/digital delivery and service/bundle classification, MIT and third-party
+notices, sales/support/privacy/exit documents, current consent/withdrawal review
+and the facts needed by legal and tax advisers. It is not operative terms or legal
+advice. AB#45 offer validation, actual seller/offer facts and qualified signoff
+remain open; no payment code or completed commercial launch gate is claimed.
+
+**Editorial AI preparation, 2026-10-05 (AB#126, Active):**
+[ADR-0026](adr/0026-editorial-assistant-provider-boundary.md) proposes a neutral
+suggestion port, server-authorized direct inference, per-target acceptance
+preconditions, transient suggestions, protected live evaluations and privacy/cost
+controls. It requires owner acceptance and AB#125 integration before implementation.
+No port, AI SDK, infrastructure, inference or Studio suggestion UI exists yet.
+
 **Public chatbot preparation, 2026-10-05 (AB#127, Active):**
 [ADR-0027](adr/0027-public-chat-and-knowledge-boundary.md) proposes separate chat and
 retrieval ports, published public knowledge with authoritative eligibility checked

@@ -66,6 +66,7 @@ Two conventions on top of the template:
 | [0023](0023-customer-customization-and-upstream-updates.md) | AB#41 | Customer customization and upstream update boundary | Proposed |
 | [0024](0024-free-core-and-premium-boundary.md) | AB#42 | Free Core and Premium product boundary | Proposed |
 | [0025](0025-premium-source-distribution.md) | AB#44 | Separate Premium source archives and later private release delivery; no runtime entitlement check | Proposed |
+| [0026](0026-editorial-assistant-provider-boundary.md) | AB#126 | Provider-neutral editorial suggestions, independent text acceptance, server authorization and two-tier evaluation | Proposed |
 | [0027](0027-public-chat-and-knowledge-boundary.md) | AB#127 | Optional grounded public chat, authoritative eligibility, synchronization, privacy and budget boundaries | Proposed |
 
 Expected further entries:
