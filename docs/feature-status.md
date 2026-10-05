@@ -2827,6 +2827,14 @@ customization baselines, and records a synthetic WSL three-way merge experiment
 (including conflicts and CRLF). Native Windows delivery remains unverified. AB#42
 and this decision still need acceptance; no Premium artifact or service is built.
 
+**Commercial terms preparation, 2026-10-05 (AB#49, Active):** the
+[requirements worksheet](commercial-policy-requirements.md) maps separate
+software/digital delivery and service/bundle classification, MIT and third-party
+notices, sales/support/privacy/exit documents, current consent/withdrawal review
+and the facts needed by legal and tax advisers. It is not operative terms or legal
+advice. AB#45 offer validation, actual seller/offer facts and qualified signoff
+remain open; no payment code or completed commercial launch gate is claimed.
+
 These notes go stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a

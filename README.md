@@ -577,6 +577,10 @@ Premium distribution remains a proposal: [ADR-0025](docs/adr/0025-premium-source
 compares source archives, private releases and packages, including update and exit
 responsibility. No paid delivery service is implemented.
 
+Commercial sales require offer validation and qualified review. The
+[requirements worksheet](docs/commercial-policy-requirements.md) prepares AB#49;
+it is not legal advice or operative terms. No sale or legal signoff is implied.
+
 ## License
 
 [MIT](LICENSE) for the project's own source.
