@@ -561,7 +561,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - Multilingual authoring workflow: an owner-run linked-draft creation command is available
   for articles and galleries; its Studio action UI and optional provider-neutral AI
   translation assistance remain later work. The public
-  locale-aware routing itself is in the MVP above, not here
+  locale-aware routing itself is in the MVP above, not here.
+  The [editorial provider boundary](docs/adr/0026-editorial-assistant-provider-boundary.md)
+  is proposed; no AI inference or suggestion UI is implemented.
 - EXIF display with per-category visibility
 - Service-specific testimonials
 - Cookieless analytics

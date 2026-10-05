@@ -2735,6 +2735,13 @@ resolved for each locale's header and metadata (`resolveSiteName`,
 back to another language. A pre-AB#187 single-string `siteName` is still read as the
 default name until re-authored. The proposal's footer brand block is not built.
 
+**Editorial AI preparation, 2026-10-05 (AB#126, Active):**
+[ADR-0026](adr/0026-editorial-assistant-provider-boundary.md) proposes a neutral
+suggestion port, server-authorized direct inference, per-target acceptance
+preconditions, transient suggestions, protected live evaluations and privacy/cost
+controls. It requires owner acceptance and AB#125 integration before implementation.
+No port, AI SDK, infrastructure, inference or Studio suggestion UI exists yet.
+
 These notes go stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a

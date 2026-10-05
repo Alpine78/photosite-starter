@@ -65,6 +65,7 @@ Two conventions on top of the template:
 | [0022](0022-capture-sequence-rally-galleries.md) | AB#165 | Capture-sequence rally galleries: media-owned membership, filename-sequence order and section, no placement documents, `itemId = mediaId`; file naming/import contract and per-gallery conversion preconditions (amends ADR-0002 in scope) | Accepted |
 | [0023](0023-customer-customization-and-upstream-updates.md) | AB#41 | Customer customization and upstream update boundary | Proposed |
 | [0024](0024-free-core-and-premium-boundary.md) | AB#42 | Free Core and Premium product boundary | Proposed |
+| [0026](0026-editorial-assistant-provider-boundary.md) | AB#126 | Provider-neutral editorial suggestions, independent text acceptance, server authorization and two-tier evaluation | Proposed |
 
 Expected further entries:
 
