@@ -46,6 +46,14 @@ function cloneDocument(source: Document): MutableDocument {
   return copy;
 }
 
+function assertSourceReviewed(source: Document, label: string): void {
+  if (source.localizedFrom === undefined && source.localizationReview === undefined) return;
+  const review = source.localizationReview;
+  if (!record(review) || !Array.isArray(review.pendingFields) || review.pendingFields.length > 0) {
+    throw new LocalizedDraftPlanError(`Finish the ${label}'s localization review before creating another language from it.`);
+  }
+}
+
 /** Source text remains in place as an editing base. Every copied field is tracked until an editor reviews it. */
 function textPaths(value: unknown, prefix: string, paths: string[]): void {
   if (Array.isArray(value)) {
@@ -105,11 +113,7 @@ export function planLocalizedDraft(input: {
   const contentId = requiredString(source.contentId, "contentId");
   const sourceLanguage = requiredString(source.language, "language");
   const sourceId = requiredString(source._id, "_id");
-  const sourceReview = source.localizationReview;
-  if (source.localizedFrom !== undefined &&
-      (!record(sourceReview) || !Array.isArray(sourceReview.pendingFields) || sourceReview.pendingFields.length > 0)) {
-    throw new LocalizedDraftPlanError("Finish the source language's localization review before creating another language from it.");
-  }
+  assertSourceReviewed(source, "source language");
 
   if (!CONTENT_ID.test(contentId) || !LANGUAGE.test(sourceLanguage) || !LANGUAGE.test(targetLanguage)) {
     throw new LocalizedDraftPlanError("Content ID or language has an invalid shape.");
@@ -179,6 +183,7 @@ export function planLocalizedDraft(input: {
     const placementId = requiredString(sourcePlacement.placementId, "placementId");
     if (seenPlacementIds.has(placementId)) throw new LocalizedDraftPlanError(`Duplicate source placement ID ${placementId}.`);
     seenPlacementIds.add(placementId);
+    assertSourceReviewed(sourcePlacement, `source placement ${placementId}`);
     const next = cloneDocument(sourcePlacement);
     next._id = `drafts.${deterministicId(placementType, contentId, targetLanguage, placementId)}`;
     next[refField] = { _type: "reference", _ref: publishedId(draftId) };
