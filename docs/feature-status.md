@@ -2819,6 +2819,14 @@ language; reviewed placements get a fresh target review list. A review marker
 without `localizedFrom` is checked too. Studio action UI and live authoring checks
 remain open; this follow-up adds no provider write or public UI.
 
+**Premium delivery preparation, 2026-10-05 (AB#44, Active):**
+[ADR-0025](adr/0025-premium-source-distribution.md) proposes versioned source ZIP
+delivery followed by private repository releases if recorded manual work warrants it.
+It compares Git/release, archive and package delivery, handles template-history and
+customization baselines, and records a synthetic WSL three-way merge experiment
+(including conflicts and CRLF). Native Windows delivery remains unverified. AB#42
+and this decision still need acceptance; no Premium artifact or service is built.
+
 These notes go stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a

@@ -573,6 +573,10 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - Service-specific testimonials
 - Cookieless analytics
 
+Premium distribution remains a proposal: [ADR-0025](docs/adr/0025-premium-source-distribution.md)
+compares source archives, private releases and packages, including update and exit
+responsibility. No paid delivery service is implemented.
+
 ## License
 
 [MIT](LICENSE) for the project's own source.
