@@ -62,3 +62,14 @@ same planning/creation contract. That UI, large-gallery handling beyond one 3.5 
 transaction, and live Studio tests remain open in AB#125. The owner should inspect the
 dry-run report and perform the command on their own dataset only after reviewing the
 result. No live content was written by this implementation.
+
+## Source placement review follow-up (2026-10-05)
+
+A new language cannot be derived from a page or selected source placement whose
+localization review is pending or malformed. This includes gallery placements and
+article end-gallery placements, including a selected placement draft when the page
+is published. A review marker without its source-language marker still requires
+review. The refusal names the placement; no mutation or partial plan is returned.
+Reviewed source placements receive a new pending-fields list for the immediate
+source language. Ordinary unlocalized source placements retain their behavior.
+The Studio action and live verification remain open; AB#125 stays Active.

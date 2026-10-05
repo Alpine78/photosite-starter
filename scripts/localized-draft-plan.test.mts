@@ -101,6 +101,59 @@ describe("planLocalizedDraft", () => {
     expect(selectCurrentPlacementVersions(rows)).toEqual([rows[2]]);
   });
 
+  it("rejects a pending review even if its localization source marker was removed", () => {
+    expect(() => planLocalizedDraft(input({ ...article, localizationReview: { pendingFields: ["title"] } })))
+      .toThrow(/Finish the source language/);
+  });
+
+  it.each([
+    { localizedFrom: "sv", localizationReview: { pendingFields: ["captionOverride"] } },
+    { localizedFrom: "sv" },
+    { localizedFrom: "sv", localizationReview: null },
+    { localizedFrom: "sv", localizationReview: { pendingFields: "captionOverride" } },
+    { localizationReview: { pendingFields: ["altOverride"] } },
+    { localizationReview: null },
+  ])("refuses an unreviewed source placement (%j) even when the page is reviewed", (review) => {
+    const source = { ...gallery, localizedFrom: "sv", localizationReview: { pendingFields: [] } };
+    const sourcePlacement = { ...placement, ...review };
+    const before = structuredClone({ source, sourcePlacement });
+    expect(() => planLocalizedDraft(input(source, [sourcePlacement])))
+      .toThrow(/source placement beach-photo's localization review/);
+    expect({ source, sourcePlacement }).toEqual(before);
+  });
+
+  it("recomputes the review for a reviewed placement from the immediate source language", () => {
+    const sourcePlacement = { ...placement, localizedFrom: "sv", localizationReview: { sourceLanguage: "sv", pendingFields: [] } };
+    const before = structuredClone(sourcePlacement);
+    const plan = planLocalizedDraft(input(gallery, [sourcePlacement]));
+    expect(plan.placementDrafts[0].localizedFrom).toBe("fi");
+    expect(plan.placementDrafts[0].localizationReview).toEqual({
+      _type: "localizationReview", sourceLanguage: "fi", pendingFields: ["altOverride", "captionOverride"],
+    });
+    expect(sourcePlacement).toEqual(before);
+  });
+
+  it("checks article end-gallery source placements before copying their text", () => {
+    const sourcePlacement = {
+      ...placement, _type: "articleEndGalleryPlacement", gallery: undefined,
+      article: { _type: "reference", _ref: article._id },
+      localizedFrom: "sv", localizationReview: { pendingFields: ["captionOverride"] },
+    };
+    expect(() => planLocalizedDraft(input(article, [sourcePlacement]))).toThrow(/source placement beach-photo/);
+    const plan = planLocalizedDraft(input(article, [{ ...sourcePlacement, localizationReview: { pendingFields: [] } }]));
+    expect(plan.placementDrafts[0].article).toEqual({ _type: "reference", _ref: String(plan.draft._id).slice(7) });
+    expect(plan.placementDrafts[0].localizedFrom).toBe("fi");
+  });
+
+  it("returns no partial plan and preserves inputs when a later placement is pending", () => {
+    const first = { ...placement, localizedFrom: "sv", localizationReview: { pendingFields: [] } };
+    const second = { ...placement, _id: "drafts.placement-two", placementId: "second-photo", localizedFrom: "sv", localizationReview: { pendingFields: ["captionOverride"] } };
+    const selected = selectCurrentPlacementVersions([first, second]);
+    const before = structuredClone(selected);
+    expect(() => planLocalizedDraft(input(gallery, [...selected]))).toThrow(/source placement second-photo/);
+    expect(selected).toEqual(before);
+  });
+
   it("requires capture-sequence galleries to have no placements", () => {
     const source = { ...gallery, orderingRule: "capture-sequence" };
     expect(planLocalizedDraft(input(source)).placementDrafts).toHaveLength(0);
