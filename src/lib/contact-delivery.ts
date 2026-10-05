@@ -22,8 +22,8 @@ import {
   readDeploymentStage,
   type DeploymentStage,
 } from "@/lib/deployment-stage";
-import type { ContactMessage } from "@/lib/contact-message";
-import type { ContactDetails } from "@/lib/contact-details";
+import { normalizeContactField, type ContactMessage } from "@/lib/contact-message";
+import { OTHER_CONTACT_SUBJECT, type ContactDetails } from "@/lib/contact-details";
 import type { ResolvedEnquiryTarget } from "@/lib/enquiry-media";
 import { createResendDeliveryAdapter } from "@/lib/contact-delivery-resend";
 import { createSinkDeliveryAdapter } from "@/lib/contact-delivery-sink";
@@ -111,10 +111,10 @@ export type ContactDeliveryAdapter = {
 /**
  * Composes the email the site owner receives.
  *
- * The subject carries no visitor-supplied text: a subject line is the one part
- * of a message a mail client shows before anyone has decided to trust it, and
- * a name is the wrong place to let a stranger write there. The name and
- * address appear in the body and in `Reply-To`, where they belong.
+ * The subject uses the server-resolved published service name and, if supplied,
+ * the validated preferred date. Other and older submissions use the generic
+ * contact label. Visitor names, addresses, phone numbers and messages stay in
+ * the body; `Reply-To` is still the visitor's address.
  *
  * Labels come from the deployment's default locale because the recipient is
  * the site owner, not the visitor — the enquiry itself stays in whatever
@@ -122,13 +122,32 @@ export type ContactDeliveryAdapter = {
  */
 export function buildContactEmail(
   message: ContactMessage,
-  { siteName, labels }: { siteName: string; labels: BuiltInLabels },
+  { labels, locale }: { siteName: string; labels: BuiltInLabels; locale: string },
   extra?: { readonly details: ContactDetails; readonly subjectName: string },
 ): Omit<ContactDeliveryRequest, "idempotencyKey"> {
   const { contact } = labels;
+  const title = contactSubjectText(
+    extra !== undefined && extra.details.subject !== OTHER_CONTACT_SUBJECT
+      ? extra.subjectName
+      : contact.emailSubject,
+  ) || contactSubjectText(contact.emailSubject);
+  const preferredDate = extra?.details.preferredDate;
+  const date = preferredDate === undefined ? "" : contactSubjectText(
+    new Intl.DateTimeFormat(locale, {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+      calendar: "gregory",
+      timeZone: "UTC",
+    }).format(new Date(`${preferredDate}T00:00:00Z`)),
+  );
+  const suffix = date ? ` ${date}` : "";
+  // Keep the full scheduling date and bound authored titles without splitting
+  // a Unicode code point. This is a project limit, not a provider header limit.
+  const boundedTitle = [...title].slice(0, 160 - [...suffix].length).join("").trimEnd();
 
   return {
-    subject: `${contact.emailSubject} — ${siteName}`,
+    subject: `${boundedTitle}${suffix}`,
     text: [
       `${contact.nameLabel}: ${message.name}`,
       `${contact.emailLabel}: ${message.email}`,
@@ -143,6 +162,14 @@ export function buildContactEmail(
     ].join("\n"),
     replyTo: message.email,
   };
+}
+
+/** A mail subject is one visible line, including when the CMS title is malformed. */
+function contactSubjectText(value: string): string {
+  return normalizeContactField(
+    value.replace(/\u2014/gu, " ").replace(/\p{Cf}/gu, ""),
+    false,
+  );
 }
 
 /**

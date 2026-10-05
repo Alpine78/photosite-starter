@@ -3,16 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const delivery = vi.hoisted(() => ({
   deliver: vi.fn(),
 }));
+const serviceFixtures = vi.hoisted(() => ({
+  options: [
+    { serviceId: "portraits", name: "Portraits" },
+    { serviceId: "events", name: "Events" },
+  ],
+}));
 
 vi.mock("@/lib/contact-delivery", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/contact-delivery")>();
   return {
     ...actual,
-    buildContactEmail: () => ({
-      subject: "Contact message",
-      text: "Bounded synthetic test message",
-      replyTo: "visitor@route.test",
-    }),
     getContactDeliveryAdapter: () => ({
       name: "test",
       deliver: delivery.deliver,
@@ -20,15 +21,17 @@ vi.mock("@/lib/contact-delivery", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/deployment-config", () => ({
-  getDefaultLocaleLabels: () => ({ contact: { otherSubject: "Other" } }),
-}));
+vi.mock("@/lib/deployment-config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/deployment-config")>();
+  return {
+    ...actual,
+    getDefaultLocaleLabels: () => actual.getBuiltInLabels("en-GB"),
+    getDeploymentConfig: () => ({ locale: "en-GB" }),
+  };
+});
 
 vi.mock("@/lib/services", () => ({
-  getServices: async () => [
-    { serviceId: "portraits", name: "Portraits" },
-    { serviceId: "events", name: "Events" },
-  ],
+  getServices: async () => serviceFixtures.options,
 }));
 
 vi.mock("@/lib/site-settings", () => ({
@@ -77,6 +80,10 @@ beforeEach(() => {
   vi.restoreAllMocks();
   delivery.deliver.mockReset();
   delivery.deliver.mockResolvedValue({ status: "delivered" });
+  serviceFixtures.options = [
+    { serviceId: "portraits", name: "Portraits" },
+    { serviceId: "events", name: "Events" },
+  ];
 });
 
 describe("POST /api/contact", () => {
@@ -129,6 +136,10 @@ describe("POST /api/contact", () => {
     }));
     expect(valid.status).toBe(200);
     expect(delivery.deliver).toHaveBeenCalledOnce();
+    expect(delivery.deliver).toHaveBeenCalledWith(expect.objectContaining({
+      subject: "Portraits 29/02/2028",
+      replyTo: VALID_BODY.email,
+    }));
 
     const invalid = await POST(contactRequest({
       address: "192.0.2.32",
@@ -141,6 +152,32 @@ describe("POST /api/contact", () => {
       services: [{ serviceId: "portraits", name: "Portraits" }, { serviceId: "events", name: "Events" }],
     });
     expect(delivery.deliver).toHaveBeenCalledTimes(1);
+  });
+
+  it("delivers a single-line subject even when the CMS service title contains header controls", async () => {
+    serviceFixtures.options[0].name = "Portraits\r\nBcc: injected@example.test —\u202E\u0600 Studio";
+    const response = await POST(contactRequest({
+      address: "192.0.2.33",
+      body: { ...VALID_BODY, subject: "portraits", preferredDate: "2027-06-19" },
+    }));
+    expect(response.status).toBe(200);
+    expect(delivery.deliver).toHaveBeenCalledWith(expect.objectContaining({
+      subject: "Portraits Bcc: injected@example.test Studio 19/06/2027",
+      replyTo: VALID_BODY.email,
+    }));
+    expect(delivery.deliver.mock.calls[0][0].subject).not.toMatch(/[\p{Cc}\p{Cf}\u2014]/u);
+  });
+
+  it("rejects a nonexistent preferred date before any delivery", async () => {
+    const response = await POST(contactRequest({
+      address: "192.0.2.34",
+      body: { ...VALID_BODY, subject: "portraits", preferredDate: "2027-02-29" },
+    }));
+    expect(response.status).toBe(422);
+    expect(await responseBody(response)).toMatchObject({
+      reason: "invalid-fields", issues: [{ field: "preferredDate", code: "invalid-date" }],
+    });
+    expect(delivery.deliver).not.toHaveBeenCalled();
   });
 
   it("logs one throttling refusal and returns only its traceable reference", async () => {

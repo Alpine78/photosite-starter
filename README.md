@@ -448,6 +448,8 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   personal data ([data flow](docs/contact-data-flow.md)), covered by a public-journey
   suite over validation, success, delivery failure, and retry; the gallery-item enquiry
   (AB#60) is a separate story*
+  - Contact email subjects show the selected published service and optional preferred
+    date; Other uses the localized generic contact label (AB#188).
 - [x] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
   canonical URLs, and Open Graph output done for every current public page; `sitemap.xml`
   and `robots.txt` done (AB#85) — every published, public, indexable category, article,

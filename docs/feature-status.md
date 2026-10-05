@@ -2800,6 +2800,18 @@ subject with safe service-link prefill, and a settings-driven portrait and direc
 contact column (AB#178). Its privacy notice is a native disclosure, and the
 direct email link remains usable without JavaScript. Related work item:
 AB#176 portfolio topic filter.
+
+**Contact email subject follow-up, 2026-10-05 (AB#188, Active):** ordinary contact
+emails use the server-resolved selected service name and optional preferred date in
+the deployment's numeric date format, without an em dash or site-name suffix. Other
+and older submissions keep the generic contact label. The subject is normalized to
+one line and bounded to 160 Unicode code points with the full Gregorian date retained;
+the body and visitor reply address are preserved. Composer and route tests cover
+locale/timezone behavior, authored header controls and rejected service/date inputs.
+The contact data-flow record documents date visibility in inbox and notification
+previews. This is a source change awaiting owner commit/review; the live protected
+contact test used the preceding renderer and does not validate this new subject format.
+
 The header brand follows the hi-fi proposal's `.brand` (AB#187): an optional
 `siteSettings.logo` and dark-theme `logoDark` (shared public images, decorative, native
 ratio, 43px / 33px high), swapped by the `light-mode-only` / `dark-mode-only` rules in

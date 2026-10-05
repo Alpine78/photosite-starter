@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildContactDeliveryAdapter,
@@ -9,6 +9,7 @@ import {
 } from "@/lib/contact-delivery";
 import type { ResolvedEnquiryTarget } from "@/lib/enquiry-media";
 import { getBuiltInLabels } from "@/lib/deployment-config";
+import { OTHER_CONTACT_SUBJECT } from "@/lib/contact-details";
 
 const labels = getBuiltInLabels("en-GB");
 
@@ -29,12 +30,14 @@ describe("buildContactEmail", () => {
   const email = buildContactEmail(message, {
     siteName: "Studio Example",
     labels,
+    locale: "en-GB",
   });
 
-  it("names the site in the subject and nothing the visitor wrote", () => {
-    expect(email.subject).toBe("New contact message — Studio Example");
+  it("uses the generic subject for older submissions without exposing personal fields", () => {
+    expect(email.subject).toBe("New contact message");
     expect(email.subject).not.toContain(message.name);
     expect(email.subject).not.toContain(message.email);
+    expect(email.subject).not.toContain("—");
   });
 
   it("carries the enquiry, its author, and the labels of the site's own locale", () => {
@@ -51,15 +54,96 @@ describe("buildContactEmail", () => {
     );
   });
 
-  it("puts server-resolved subject and optional fields only in the body", () => {
-    const detailed = buildContactEmail(message, { siteName: "Studio Example", labels }, {
+  it("uses the resolved service and numeric preferred date while preserving the body", () => {
+    const detailed = buildContactEmail(message, { siteName: "Studio Example", labels, locale: "en-GB" }, {
       details: { subject: "portraits", phone: "+358 40 1234567", preferredDate: "2028-02-29" },
       subjectName: "Portraits",
     });
-    expect(detailed.subject).toBe(email.subject);
-    expect(detailed.text).toContain("Subject: Portraits");
-    expect(detailed.text).toContain("Phone (optional): +358 40 1234567");
-    expect(detailed.text).toContain("Preferred date (optional): 2028-02-29");
+    expect(detailed.subject).toBe("Portraits 29/02/2028");
+    expect(detailed.text).toBe([
+      "Name: Jane Example",
+      "Email: jane@example.com",
+      "Subject: Portraits",
+      "Phone (optional): +358 40 1234567",
+      "Preferred date (optional): 2028-02-29",
+      "",
+      "Message:",
+      message.message,
+    ].join("\n"));
+    expect(detailed.replyTo).toBe(message.email);
+    expect(detailed.subject).not.toContain(message.name);
+    expect(detailed.subject).not.toContain(message.email);
+    expect(detailed.subject).not.toContain("+358");
+    expect(detailed.subject).not.toContain("Are you available");
+  });
+
+  it("formats the preferred date in Finnish independently of the process timezone", () => {
+    vi.stubEnv("TZ", "America/Los_Angeles");
+    try {
+      const detailed = buildContactEmail(message, {
+        siteName: "Studio Example", labels: getBuiltInLabels("fi"), locale: "fi",
+      }, {
+        details: { subject: "portraits", preferredDate: "2027-06-19" },
+        subjectName: "Muotokuvaus",
+      });
+      expect(detailed.subject).toBe("Muotokuvaus 19.6.2027");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("uses the service name alone when no date was supplied", () => {
+    const detailed = buildContactEmail(message, { siteName: "Studio Example", labels, locale: "en-GB" }, {
+      details: { subject: "portraits" }, subjectName: "Portraits",
+    });
+    expect(detailed.subject).toBe("Portraits");
+  });
+
+  it("keeps the submitted Gregorian date when the locale requests another calendar", () => {
+    const detailed = buildContactEmail(message, {
+      siteName: "Studio Example", labels, locale: "en-GB-u-ca-buddhist",
+    }, {
+      details: { subject: "portraits", preferredDate: "2027-06-19" },
+      subjectName: "Portraits",
+    });
+    expect(detailed.subject).toBe("Portraits 19/06/2027");
+  });
+
+  it("decides Other by identity, including a service whose display name is Other", () => {
+    const context = { siteName: "Studio Example", labels, locale: "en-GB" };
+    const other = buildContactEmail(message, context, {
+      details: { subject: OTHER_CONTACT_SUBJECT, preferredDate: "2027-06-19" },
+      subjectName: labels.contact.otherSubject,
+    });
+    expect(other.subject).toBe("New contact message 19/06/2027");
+    const service = buildContactEmail(message, context, {
+      details: { subject: "other-service", preferredDate: "2027-06-19" },
+      subjectName: labels.contact.otherSubject,
+    });
+    expect(service.subject).toBe("Other 19/06/2027");
+  });
+
+  it("normalizes authored subject controls and em dashes before checking the fallback", () => {
+    const context = { siteName: "Studio Example", labels, locale: "en-GB" };
+    const detailed = buildContactEmail(message, context, {
+      details: { subject: "portraits" },
+      subjectName: "  Portraits\r\n—\u0085\u202E\u0600\u200B Studio\u2028 Session\u2029  ",
+    });
+    expect(detailed.subject).toBe("Portraits Studio Session");
+    expect(detailed.subject).not.toMatch(/[\p{Cc}\p{Cf}\u2014]/u);
+    const empty = buildContactEmail(message, context, {
+      details: { subject: "portraits" }, subjectName: " —\u0600— ",
+    });
+    expect(empty.subject).toBe("New contact message");
+  });
+
+  it("bounds long Unicode service names while keeping the complete preferred date", () => {
+    const detailed = buildContactEmail(message, { siteName: "Studio Example", labels, locale: "en-GB" }, {
+      details: { subject: "portraits", preferredDate: "2027-06-19" },
+      subjectName: "📷".repeat(300),
+    });
+    expect([...detailed.subject]).toHaveLength(160);
+    expect(detailed.subject).toMatch(/^📷+ 19\/06\/2027$/u);
   });
 
   it("replies to the visitor rather than to the site", () => {
@@ -70,9 +154,10 @@ describe("buildContactEmail", () => {
     const finnish = buildContactEmail(message, {
       siteName: "Studio Example",
       labels: getBuiltInLabels("fi"),
+      locale: "fi",
     });
 
-    expect(finnish.subject).toBe("Uusi yhteydenotto — Studio Example");
+    expect(finnish.subject).toBe("Uusi yhteydenotto");
     expect(finnish.text).toContain("Nimi: Jane Example");
   });
 });

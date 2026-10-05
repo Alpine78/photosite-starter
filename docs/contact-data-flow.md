@@ -30,7 +30,19 @@ three-field whitelist described below.
 | Message | The enquiry itself |
 | Subject | Published service identity or Other; resolved to the current service name on the server |
 | Phone (optional) | Alternative reply channel, if supplied |
-| Preferred date (optional) | Scheduling context, if supplied |
+| Preferred date (optional) | Scheduling context in the email subject and body, if supplied |
+
+The ordinary contact email subject uses the current published service name resolved
+on the server and the optional validated preferred date. Other and older submissions
+use the generic contact label. Dates use numeric day/month/year formatting in the
+deployment's default locale, UTC and the Gregorian calendar; their order and separators
+depend on that locale. Subjects are one line, contain no em dash, and are limited to
+160 Unicode code points while preserving the complete date. Visitor names, email
+addresses, phone numbers and message text are not included in the subject.
+The service name and date can therefore appear in inbox lists and notification
+previews, including a lock screen, in addition to the message body. They travel through
+the same delivery processor and recipient mailbox described below; no new processor
+or application storage is introduced.
 
 The contact page renders the four deployment-authored privacy statements in a
 native disclosure before the send button. When enabling these fields on an
