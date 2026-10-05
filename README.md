@@ -566,6 +566,10 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - Service-specific testimonials
 - Cookieless analytics
 
+Commercial sales require offer validation and qualified review. The
+[requirements worksheet](docs/commercial-policy-requirements.md) prepares AB#49;
+it is not legal advice or operative terms. No sale or legal signoff is implied.
+
 ## License
 
 [MIT](LICENSE) for the project's own source.
