@@ -2735,6 +2735,13 @@ resolved for each locale's header and metadata (`resolveSiteName`,
 back to another language. A pre-AB#187 single-string `siteName` is still read as the
 default name until re-authored. The proposal's footer brand block is not built.
 
+**Localized draft source review, 2026-10-05 (AB#125, Active):** the pure planner
+now checks selected gallery and article end-gallery source placements as well as
+the source page. Pending or malformed localization reviews refuse another derived
+language; reviewed placements get a fresh target review list. A review marker
+without `localizedFrom` is checked too. Studio action UI and live authoring checks
+remain open; this follow-up adds no provider write or public UI.
+
 **Public chatbot preparation, 2026-10-05 (AB#127, Active):**
 [ADR-0027](adr/0027-public-chat-and-knowledge-boundary.md) proposes separate chat and
 retrieval ports, published public knowledge with authoritative eligibility checked
