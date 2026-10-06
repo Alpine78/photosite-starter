@@ -161,6 +161,11 @@ records the commit/build provenance and 36 passing gallery/category journeys plu
 four expected failures. Both upstream candidates (#98455 and #98583) remain
 unmerged; [ADR-0007's decision proposal](adr/0007-proxy-request-path-boundary.md#2026-10-03-main-branch-recheck-and-decision-proposal-ab132)
 awaits explicit owner acceptance or withheld promotion before AB#18.
+**Checkpoint, 2026-10-06 (AB#201, Active):** the merged source retains all four
+scriptless semantic failures across Chromium/WebKit. The
+[redacted audit](audits/ab132-2026-10-06-scriptless.json) records exact build/harness
+identities and current upstream states. No AB#132 risk acceptance is implied.
+
 **AB#132 owns this**, and was reopened to
 `Active` on 2026-09-03 because it had been closed while none of its own "Done when"
 conditions held: the semantic 404 HTML above, the removal of the `javaScriptEnabled: true`
@@ -2879,6 +2884,11 @@ subject with safe service-link prefill, and a settings-driven portrait and direc
 contact column (AB#178). Its privacy notice is a native disclosure, and the
 direct email link remains usable without JavaScript. Related work item:
 AB#176 portfolio topic filter.
+
+**Offline web DNS guard, 2026-10-06 (AB#200, Active):** an owner-run normalized
+snapshot comparator preserves full protected-record multisets and refuses CNAME
+conflicts. It emits counts/digests only. Current zone export, live propagation and
+received-mail verification remain separate AB#18/131 gates; no DNS changes were made.
 
 **Contact email subject follow-up, 2026-10-05 (AB#188, Closed):** ordinary contact
 emails use the server-resolved selected service name and optional preferred date in
