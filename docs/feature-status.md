@@ -2873,6 +2873,11 @@ contact column (AB#178). Its privacy notice is a native disclosure, and the
 direct email link remains usable without JavaScript. Related work item:
 AB#176 portfolio topic filter.
 
+**Offline web DNS guard, 2026-10-06 (AB#200, Active):** an owner-run normalized
+snapshot comparator preserves full protected-record multisets and refuses CNAME
+conflicts. It emits counts/digests only. Current zone export, live propagation and
+received-mail verification remain separate AB#18/131 gates; no DNS changes were made.
+
 **Contact email subject follow-up, 2026-10-05 (AB#188, Closed):** ordinary contact
 emails use the server-resolved selected service name and optional preferred date in
 the deployment's numeric date format, without an em dash or site-name suffix. Other
