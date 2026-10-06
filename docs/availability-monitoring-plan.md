@@ -33,3 +33,34 @@ On an alert, verify from another network and inspect deployment status and provi
 | Failure and recovery notification exercise | Pending live exercise |
 
 The document does not claim that monitoring is active. Its criteria need the real production domain and owner account.
+
+## Owner-run probe preparation (AB#206)
+
+`npm run check:availability -- <config.json>` performs ordinary anonymous GETs only
+when explicitly invoked. It provisions no account, schedule, telemetry or alerts.
+Keep operator configuration private (64 KiB maximum), for example:
+
+```json
+{"checks":[{"url":"https://example.test/","heading":"Photographs"},{"url":"https://example.test/stories/example","heading":"Example","link":{"text":"Stories","href":"/stories"}}],"timeoutMs":10000,"maxBytes":1048576}
+```
+
+Choose two actual public pages/markers at launch. Config supports one or two distinct
+URLs, exact normalized h1 text and an optional exact link text/root-relative href.
+An optional `canonicalUrl` permits one 301/308 redirect to that exact public URL;
+all other redirects/chains fail. HTTPS is required except explicit loopback HTTP
+for local production-build checks. Credentials, query/fragment, public IP literals
+and private/API/admin/Studio namespaces are refused. This is trusted operator input,
+not an exposed request endpoint or proof against DNS rebinding.
+
+One total deadline (1–60,000 ms) spans headers, redirect and decoded body reads.
+Decoded bytes are capped (1 byte–2 MiB); timeout, oversized body, non-HTML, non-200 and
+missing marker retain distinct fixed classes. Output contains check indexes/classes,
+never URLs or response bodies. Exit 0 means all supplied checks passed, 1 means an
+unhealthy check and 2 means invalid configuration. Body cancellation cannot extend
+the deadline. Existing parse5 checks HTML h1/link nodes, excluding script, style,
+template, noscript, hidden/aria-hidden and explicit inline-hidden subtrees. It does
+not execute scripts or establish computed CSS/pixel visibility.
+
+A cached content page proves availability, not a live CMS read or POST delivery.
+AB#158's actual monitoring account, cadence, notification destinations and controlled
+failure/recovery exercise remain pending after AB#18.

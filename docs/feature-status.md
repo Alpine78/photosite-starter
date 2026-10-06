@@ -1835,6 +1835,11 @@ verification. No alert path is configured/tested by this preparation. AC2's owne
 decision/notification evidence and AC3's controlled Production failure trace remain
 open **after AB#18**, before **AB#118** rollback rehearsal and customer handoff.
 
+**Availability probe preparation, 2026-10-06 (AB#206, Active):** a configurable
+owner-run public GET probe enforces total timeout/body limits and semantic markers.
+Synthetic fetch tests need no live service. AB#158 monitoring/notification setup stays
+open; cached content success does not prove live CMS reads or mail delivery.
+
 The deployment itself: AB#116 is **closed** — the Preview environment is fully provisioned
 and proven working by a real, verified, fully-automated pipeline run (build 144, `main`,
 2026-08-24). `DeployPreview` built, deployed to Preview, bound the deployment identity to
