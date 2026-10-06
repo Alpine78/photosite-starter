@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 
 import { DocumentRoot } from "@/components/document-root";
 import { getDeploymentConfig } from "@/lib/deployment-config";
@@ -26,6 +27,8 @@ export default function PrivateGalleryLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <DocumentRoot locale={getDeploymentConfig().localeRoutes.defaultLocale}>
+      {/* Scrub before the router captures the initial URL, including its hash. */}
+      <Script src="/private-gallery-bootstrap.js" strategy="beforeInteractive" />
       {children}
     </DocumentRoot>
   );
