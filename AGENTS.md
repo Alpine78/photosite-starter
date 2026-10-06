@@ -244,7 +244,7 @@ npm run test:e2e  # Playwright public-journey smoke tests (CI gate, builds and s
 npm run diagrams  # regenerate docs/architecture/*.svg from their .d2 sources
 npm run diagrams:check # CI gate: sources compile and committed SVGs are current
 npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
-npm run verify:legacy-redirects -- report # AB#19: mapping report; check <origin> [<canonical-origin>] probes a production build
+npm run verify:legacy-redirects -- report [--csv] # AB#19: mapping report or pending review CSV; check <origin> [<canonical-origin>] probes a production build
 npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy benchmark (owner-run for the live matrix)
 npm run convert:joomla -- --source <articles.ndjson> --out <dir> # owner-run: convert legacy content, report only, never writes
 npm run write:joomla -- --plan <import-plan.json> --image-root <dir> --out <dir> --approved-digest <hash> # owner-run: write an approved import plan to Sanity, dry-run by default

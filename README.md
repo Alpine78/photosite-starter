@@ -550,6 +550,7 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   39 direct redirects and 174 justified `410` responses; 198 of the 415 inventoried
   paths still await reviewed content targets or fallbacks after AB#137's migration.
   `npm run verify:legacy-redirects -- report` exports the complete mapping;
+  `report --csv` exports pending paths as a blank owner-review worksheet.
   `check <origin> [<canonical-origin>]` checks decided responses and canonical target
   availability against a production build. Pending decisions prevent a passing check.
   See [deployment verification](docs/deployment.md#legacy-url-mapping-verification-ab19)*
