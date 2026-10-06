@@ -46,10 +46,24 @@ claude auth status
 authentication is missing, stop and report the blocker. Do not install, update, or log in
 to Claude Code on the user's behalf.
 
-Before review, confirm the base branch and that there is a committed or uncommitted diff
-to inspect. Default the base to `main`; do not spend a review round on an empty change.
-Record `git rev-parse HEAD` before the first Claude call so the ending check can prove
-that neither agent committed during the workflow.
+Before the first call, record `git rev-parse HEAD`. A preimplementation plan review
+needs no patch; the nonempty-diff requirement applies to Phase 3 only.
+
+For the finished diff, fetch `origin` and default the selected base ref to
+`origin/main`, as this repository's work branches do. Honor an explicit user base.
+If fetching the default fails, report the stale ref and stop rather than silently
+review against an old checkout. Record the selected ref, its resolved SHA, HEAD,
+and `git merge-base <selected-ref> HEAD`. Use that merge-base SHA as the immutable
+comparison point: comparing directly with a newer main tip can show unrelated
+main commits reversed.
+
+Inspect `git diff <merge-base-sha>` for the tracked working-tree result, plus
+`git diff --cached` and `git diff` to account for both staging states. List and
+read in-scope untracked files from `git ls-files --others --exclude-standard`;
+`git diff` alone omits them. Do not use intent-to-add to change the owner's index.
+A nonempty final scope requires actual tracked changes or new in-scope files,
+not generated ignored artifacts. Record a fingerprint of the reviewed tracked
+diff and the contents of those new files so later edits cannot pass as reviewed.
 
 If an Azure Boards item scopes the work, Codex must first read its description, acceptance
 criteria, discussion, and relevant relations under `AGENTS.md`. The plan sent to Claude
@@ -129,8 +143,11 @@ For each round, up to the configured limit:
      --effort medium \
      --permission-mode plan \
      --no-session-persistence \
-     "Review the current implementation against the repository instructions and authoritative work item. Inspect the diff from the configured base branch plus all staged and unstaged changes. Report only concrete correctness, security, accessibility, regression, or requirement gaps, ordered by severity, with file and line references, impact, and the smallest appropriate fix. Do not edit files. If there are no findings, say so explicitly." <<'EOF'
-   Base branch: main
+     "Review the current implementation against the repository instructions and authoritative work item. Inspect the diff from the recorded immutable merge-base SHA plus all staged, unstaged and listed untracked changes. Report only concrete correctness, security, accessibility, regression, or requirement gaps, ordered by severity, with file and line references, impact, and the smallest appropriate fix. Do not edit files. If there are no findings, say so explicitly." <<'EOF'
+   Selected base ref and resolved SHA: <origin/main or explicit override, SHA>
+   Immutable merge-base SHA: <SHA>
+   Recorded HEAD and scope fingerprint: <SHA, fingerprint>
+   Scope: tracked diff from that merge-base, staged/unstaged changes, and listed untracked files
    Work item: <id or none>
    Prior-round findings and dispositions: <none on round 1>
    EOF
@@ -199,9 +216,15 @@ After Claude returns:
   committing. Leave the working tree for the user and suggest a conventional commit
   message and, when applicable, PR text.
 
-Before reporting any ending state, compare `git rev-parse HEAD` with the value recorded
-before the first Claude call and inspect `git status`. If `HEAD` changed unexpectedly,
-stop and report it; never rewrite history or reset the user's branch to conceal it.
+After a deliberate correction and its gate pass, update the scope fingerprint;
+keep the original HEAD/base snapshot and record the correction in the ledger.
+Before each diff review and before reporting any ending state, recheck the selected
+base ref's SHA, HEAD, and scope fingerprint, including untracked contents. Compare
+HEAD with the value recorded before the first Claude call and inspect `git status`.
+If the base, HEAD or reviewed scope changed concurrently, stop and report what
+changed; reassess the intended scope before another review. Never rewrite history,
+reset the user's branch or conceal another session's work. A clean review ends the
+loop once these checks match; it does not need an extra reassurance round.
 
 ## CLI compatibility
 
