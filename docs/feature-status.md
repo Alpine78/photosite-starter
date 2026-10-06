@@ -1862,6 +1862,11 @@ waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
 see above — with 198 of 415 distinct crawled paths still pending reviewed targets after
 content migration (including `component/komento/*` and `sivustokartta/*`).
 
+**Rollback record preparation, 2026-10-06 (AB#208, Active):** the
+[blank exercise record](rollback-exercise-record.md) separates code, CMS, shared assets,
+cache, credentials and mail. AB#118 still needs actual post-promotion recovery and
+owner handoff; no Production mutation was performed.
+
 **Ongoing dependency monitoring, 2026-10-02 (AB#160, still Active):** the
 existing daily audit and Dependabot settings were checked without replacing
 their configuration. Scheduled run #497 audited the same source revision as

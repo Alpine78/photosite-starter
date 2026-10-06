@@ -1510,3 +1510,10 @@ Use the blank [mail recovery worksheet](mail-recovery-evidence.md) for AB#131's 
 independent mailboxes, current full-zone export and exercised message/DNS/account
 recovery. Completed records belong in ignored private operator evidence. Working mail
 and owner-reported backups do not establish tested restoration or contractual closure.
+
+## Rollback exercise evidence
+
+Fill the [rollback exercise record](rollback-exercise-record.md) privately after AB#18.
+It separates immutable deployment recovery from CMS, assets, cache, credentials and
+already sent mail, and records owner control/access removal. AB#118 still requires an
+actual accepted exercise; publishing this blank record performs no rollback.
