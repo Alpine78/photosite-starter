@@ -1,6 +1,6 @@
 # AB#186 dependency remediation evidence — 2026-09-29
 
-The 2026-09-29 section below is historical evidence. The current follow-up is recorded in the dated 2026-10-02 section.
+The 2026-09-29 section below is historical evidence. The current audit is recorded in the dated 2026-10-05 section; the October 2 remediation remains historical evidence.
 
 This is a snapshot of the root lockfile and the Azure Preview CLI path. npm audit reports **affected package entries**, including parent packages reached through a transitive dependency; the counts below are not counts of distinct exploits or proof of a publicly reachable vulnerability. The baseline is merged `main` at `c6b7b69cb91abc24ddc65e3ff22ed747d48f6881`. The proposed result is the uncommitted AB#186 branch. The audit used Node 24.20.0 and npm 12.0.2 against `https://registry.npmjs.org`.
 
@@ -220,3 +220,78 @@ separate requirement; AB#186 remains Active. No commit, merge or Production
 promotion was performed.
 
 Preview artifact inspection (2026-10-02): 150 files across 51 unique real directories, following local directory links once; 0 affected CLI package file paths and 0 text path references. Lockfile SHA-256: `fa44fb8c5563f5d06ef048a4148bcb674c32f47bd2d81208acf0b65a8af7a1d7`. This excludes the four installed CLI package paths named above; it is not a claim about every bundled framework internal.
+
+## 2026-10-05 audit refresh — new tooling families, no package change
+
+This follow-up audits the exact root lockfile at merged main
+`4b8dd013880eddf79e54e42244d18f5cda32d860`, after PR #246. Node 24.20.0 /
+npm 12.0.2 ran `npm audit --json --include=prod --include=dev
+--registry=https://registry.npmjs.org` (exit 1) and the corresponding
+`--omit=dev` audit (exit 0) in the published AB#186 worktree. No manifest,
+lockfile, override, CLI, application or pipeline setting changed.
+
+| Affected package entries | Full audit | Production-only |
+| --- | ---: | ---: |
+| Critical | 0 | 0 |
+| High | 25 | 0 |
+| Moderate / low / informational | 0 | 0 |
+| Total | 25 | 0 |
+
+These are affected package entries, including dependent parents, **not 25
+independent exploits or proof of visitor reachability**. Fifteen advisory
+records belong to three dependency families. The thirteen undici records
+listed in the October 2 residual table remain; the newly reported families
+are busboy and braces. The older ten-entry report is a dated snapshot and
+must not be used as the current audit result.
+
+| Fresh report | SHA-256 |
+| --- | --- |
+| [full](ab186-2026-10-05-full.json) | `5d433f33b0ec19bd8c87f5f9929b8ab440a953d4196cb658dfb2140a42cae011` |
+| [production](ab186-2026-10-05-production.json) | `dfcbd36d5cb91962f8beb674915b73c83645505fed514906383b57d1450f0c1a` |
+
+### Supported remediation and actual consumer boundaries
+
+| Family | Installed chain and measured reachability | Supported fix / current disposition |
+| --- | --- | --- |
+| [@fastify/busboy, GHSA-x8mw-p69m-v3mx](https://github.com/fastify/busboy/security/advisories/GHSA-x8mw-p69m-v3mx) | `vercel@61.0.0 → undici@5.29.0 → @fastify/busboy@2.1.1`. Undici's `lib/fetch/body.js` imports Busboy and calls its direct `write()` / `end()` in multipart `formData()` parsing. The advisory's malformed part-header failure therefore has an installed consumer; attacker control and invocation through this CLI were not established. No public application import or emitted installed-package path was found. | The maintainer fixes versions below 3.2.1 in **3.2.1**. Undici declares `^2.0.0`; the published 2.x line ends at 2.1.1. Substituting 3.x is an unverified major transitive change. No override added. |
+| [braces, GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) | `eslint-config-next@16.3.8 → @next/eslint-plugin-next → fast-glob → micromatch → braces@3.0.3`, also reported through CLI builders. `fast-glob/out/utils/pattern.js` calls `micromatch.braces(..., {expand:true})`. The Next plugin's `get-root-dirs.js` globs configured `settings.next.rootDir`; this repository does not configure that setting. Build/lint patterns and repository configuration are tooling inputs, not shown to originate in visitor requests. Untrusted repository input remains a CI concern. | The current registry latest is **3.0.3** and the advisory has no patched version. No supported patch was available at this check. No downgrade or force fix. |
+| undici | The thirteen October 2 advisory rows retain their per-mechanism assessment. The root CLI and `@vercel/node` resolve the same 5.29.0 copy. CLI network use remains a tooling risk; absence from public output is not a finding dismissal. | No fixed 5.x release was published. Registry metadata for latest `vercel@62.4.0` still declares `undici: 5.29.0`; changing CLI major alone would retain that family and its busboy chain. This is dependency-metadata inspection, not a CLI 62.4 compatibility or full-tree audit. |
+
+The audit covers the **actual Azure CLI installation**: `npm ci` installs
+root devDependencies, and DeployPreview uses `./node_modules/.bin/vercel`
+61.0.0. The historical global CLI drift has already been removed. The eight
+exact-old-version overrides, their scope and October 13 review/removal deadline
+remain as documented above; this refresh changes none of them.
+
+A fresh manual Production-target prebuilt build of the same unchanged main
+source passed with the pinned CLI and fourteen public configuration values.
+All six contact/key runtime settings were excluded from the local build.
+The 27 `.next` trace files contained 346 unique resolved paths; none named
+installed `vercel`, `@vercel/node`, `undici`, `@fastify/busboy` or `braces`
+packages. The 387 CLI-mapped runtime inputs also contained no such package path.
+The complete output manifest covered 220 entries, including 70 directory
+aliases, and five physical Node 24 functions. A heuristic scan of all 537
+physical/mapped files found no selected token shapes. Input exclusion, path
+inventory and a heuristic scan have different limits: Node's built-in fetch
+and framework-bundled internals are separate inventories, and none of these
+checks proves every possible execution path safe.
+
+### Proposed residual decision and verification limits
+
+**Accountable maintainer already named on AB#186:** `ilkka@ilkkarytkonen.fi`.
+**Proposed review/remediation deadline for every advisory and override:**
+**2026-10-13**, or before any earlier public promotion. The busboy and braces
+rows join the existing thirteen undici rows in that decision. A choice to
+retain the current supported tooling must record these input boundaries,
+remaining uncertainty, compensating trusted-PR gate and next review. It is
+**pending owner acceptance**; the agent does not accept it on the owner's
+behalf, suppress the daily failed audit, or close AB#186.
+
+Validation for this evidence refresh: clean lockfile installation, lint,
+193 Vitest files / 4,467 tests and the exact-source manual prebuilt build passed.
+The first lint invocation overlapped that build's dependency reinstall and
+failed to resolve a plugin; the unchanged post-build lint and test runs passed.
+Authenticated deployment/upload/protection proof is a separate release check;
+this document does not claim it occurred. The required main CI and release
+candidate records are reported by the release handoff. No dependency change,
+new runtime exploit, owner acceptance, CMS write or public promotion is claimed.

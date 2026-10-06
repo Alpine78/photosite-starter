@@ -1846,6 +1846,15 @@ the story's end-to-end notification demonstration remains open.
 include the run/PR links and the response policy for runtime exposure, severity,
 fix availability and Node.js/Next.js security releases.
 
+**Dependency audit refresh, 2026-10-05 (AB#186, still Active):** the unchanged
+merged lockfile now reports 25 high affected package entries across undici,
+busboy and braces; production-only audit remains zero. These counts include
+parents and do not establish 25 exploits. Current published versions do not
+provide a verified compatible remediation for all three families. The
+[dated evidence and proposed October 13 residual decision](audits/ab186-dependency-review.md#2026-10-05-audit-refresh--new-tooling-families-no-package-change)
+record actual consumers and exclusions in a fresh exact-source prebuilt artifact.
+No package or pipeline changes, accepted residual or public promotion are claimed.
+
 **Dependency follow-up, 2026-10-02 (AB#186, still Active):** the merged CLI
 reclassification and Azure drift fix already use one development-only,
 lockfile-pinned Vercel CLI 61.0.0. The current follow-up pins Next.js and its lint
