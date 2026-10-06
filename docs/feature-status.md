@@ -1830,6 +1830,11 @@ that invalidation was not confined to one warm process or deployment. A raw-pers
 audit confirmed the original seed value was restored and no draft or test marker remained.
 **AB#83 is closed.**
 
+**Redacted failure summary preparation, 2026-10-06 (AB#205, Active):** an
+offline emitter-NDJSON tool counts fixed state/class outcomes, deduplicates terminal
+events and reports invalid/incomplete evidence. It neither reads live logs nor
+configures notifications; AB#159 live exercise remains open.
+
 **Production failure triage preparation, 2026-10-02 (AB#159, Active):** the
 [runbook](production-failure-triage.md) now gives concrete Production log filters,
 separate Sanity query/revalidation and contact/enquiry diagnosis, expected-refusal
