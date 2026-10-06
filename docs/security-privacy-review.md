@@ -341,6 +341,19 @@ harmless no-op.
 
 ## AC5 — Draft, private, non-discoverable, full-resolution data cannot leak
 
+Scoped implementation checkpoint, 2026-10-06 (AB#199): private-gallery startup
+scrubs the capability before Next captures its initial router URL. The external
+bootstrap is loaded through the private root layout's `beforeInteractive` queue;
+the inline queue contains only a fixed same-origin path under ADR-0011's existing
+CSP residual. The pending capability remains local until parsed bootstrap markup
+permits its exchange. No capability enters React props/state, history state,
+browser storage or operational logs; authorized documents start no exchange.
+This correction enables no Production storage or public activation. Local gates
+passed: lint, 4,479 browser-free tests and the complete production-build browser
+matrix (738 passes, 36 documented skips, four workers and zero retries). See the
+private-gallery data flow's AB#199 checkpoint for ordering proof and the separate
+shared-fixture counter concern; these checks establish no live-storage readiness.
+
 - **Sitemap**: `sitemap.ts`'s `buildSitemapPaths` reads through the exact same seams
   (`getContentTrees`, `getServices`, locale route config) route pages themselves read
   — nothing not public/renderable/indexable can appear. No `?cursor=`/`?section=` URL
