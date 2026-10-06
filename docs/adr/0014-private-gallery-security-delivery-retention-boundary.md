@@ -217,12 +217,15 @@ obtaining a session gets one bound to its own cookie jar, not the customer's.
 
 **The initial `GET` is non-sensitive.** It returns only a minimal bootstrap document — no
 gallery metadata, no image references, no customer data — plus a small first-party
-script served as an **external same-origin file**. It needs no CSP grant beyond the
-existing `script-src 'self'` and does not add another inline-script use to ADR-0011's
-accepted `'unsafe-inline'` residual. The script:
+script served as an **external same-origin file**. The private root layout loads it
+with Next's `beforeInteractive` strategy, so it strips the fragment before the router
+captures its initial URL. Next emits an inline startup queue containing only the fixed
+script path; this uses ADR-0011's existing `'unsafe-inline'` residual and adds no CSP
+grant. The capability never enters that queue or a React prop. The script:
 
 1. reads the fragment and immediately removes it with `history.replaceState`;
-2. `POST`s the capability to a **same-origin exchange endpoint** in a bounded JSON body;
+2. waits for the server document to be parsed, then `POST`s the capability to a
+   **same-origin exchange endpoint** in a bounded JSON body;
 3. on failure shows a generic "this link is not valid" state and never reveals whether
    the handle exists.
 
@@ -231,6 +234,11 @@ fragment from a reopened full link without exchanging again. It also scrubs frag
 reached by same-document hash navigation, history traversal, or a back-forward cache
 restore; only the credential-free bootstrap document exchanges a capability. The script
 preserves the current history state when replacing the URL.
+Only one exchange runs at a time; overlapping captures are scrubbed and discarded.
+A new link can retry after refusal, while a successful exchange remains terminal until
+its clean navigation completes. A failed script download or a browser refusing history
+rewrites can leave the fragment visible; this boundary does not promise to scrub when
+the necessary browser operation cannot run.
 
 **The exchange endpoint:**
 
