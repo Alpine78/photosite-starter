@@ -421,6 +421,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `docs/security-privacy-review.md`    | the site owner and future launch reviews                           | the launch security/privacy review is rerun, a finding's disposition changes, or the security response headers change (also update ADR-0011)                |
 | `docs/keyword-query-benchmark.md`    | AB#55's taxonomy ADR and whoever runs the AB#65 spike              | the keyword-query benchmark fixture, harness, or matrix changes, or an owner-run live measurement is completed and its numbers/recommendation are filled in |
 | `docs/commercial-policy-requirements.md` | owner and qualified legal/tax reviewers (AB#49) | proposed offer, licensing boundary, sales channel, buyer classification, processors, law or review evidence changes; this is requirements, not legal advice |
+| `docs/photographer-operations.md` | owner refining AB#28 | confirmed scope, open decisions or unapproved implementation slices change; no runtime acceptance is implied |
 | `NOTICE`, `licenses/`                | anyone receiving the product                                       | a third-party component with an attribution requirement is added                                                                                            |
 | `.claude/skills/`, `.agents/skills/` | agents                                                             | a recurring workflow needs a skill; duplicate into both, no symlinks                                                                                        |
 
