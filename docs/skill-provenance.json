@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "verifiedOn": "2026-10-06",
+  "originalImportCommit": "b6467b8a2e4715570cff0888297e79b0afe9f739",
+  "consumer": {
+    "source": "vercel-labs/skills",
+    "commit": "14cf84aa922cccc7e5b11fee5af9a01b3750fddf",
+    "folderHashAlgorithm": "SHA256 of sorted relative paths (localeCompare) followed by raw bytes, without separators; whole upstream skill folder",
+    "lockComputedHashEncoding": "CRLF",
+    "refFormat": "40-character upstream commit SHA"
+  },
+  "normalization": "Replace CRLF with LF; retain all other bytes. Local adaptation hashes do not populate installer computedHash.",
+  "skills": [
+    {
+      "skill": "architecture",
+      "source": "anthropics/knowledge-work-plugins",
+      "commit": "2d6f7e22dd25593f0f748010430ef86f19659735",
+      "sourcePath": "engineering/skills/architecture/SKILL.md",
+      "upstreamGitBlob": "f316e4661ed267d56c5b5cd0f5025ec4c9024452",
+      "upstreamUrl": "https://github.com/anthropics/knowledge-work-plugins/blob/2d6f7e22dd25593f0f748010430ef86f19659735/engineering/skills/architecture/SKILL.md",
+      "normalizedOriginalSha256": "de7db3170a3ae1a894c70ef6cb555fe15618ed9b9674d20895eda3d2a0a5f9a2",
+      "normalizedAdaptationSha256": "4102bd08ec80a28fe6ea3ea49fcde9353cd7dd5e04fdb7d4c6ab8b88bf359cfb",
+      "localPaths": [
+        ".claude/skills/architecture/SKILL.md",
+        ".agents/skills/architecture/SKILL.md"
+      ],
+      "sourceFolder": {
+        "files": [
+          "SKILL.md"
+        ],
+        "lfSha256": "0220c55f7be41d5ac6e622510b3367e7ad023cbcd9b804a43ede7db82185eafb",
+        "crlfSha256": "481afeee512fabfcd6efd78f4cc1c7024f443f8be376cf5c890a806b8511d73a"
+      },
+      "vendoredFiles": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "skill": "security-review",
+      "source": "affaan-m/ECC",
+      "commit": "d8f879e671fa2e522df8cdf80472250b0b736b0f",
+      "sourcePath": "skills/security-review/SKILL.md",
+      "upstreamGitBlob": "4afc85d17d53424fe6b9063d46a72fd5dad7ea42",
+      "upstreamUrl": "https://github.com/affaan-m/ECC/blob/d8f879e671fa2e522df8cdf80472250b0b736b0f/skills/security-review/SKILL.md",
+      "normalizedOriginalSha256": "2488fb9de701c260ba4dcdd085288571c84f35797019de7a3c78634aa3e3dc31",
+      "normalizedAdaptationSha256": "8c268ac60f28d921db8c1b53631c6013dea8d9c1d86b843cf3ced801483fab77",
+      "localPaths": [
+        ".claude/skills/security-review/SKILL.md",
+        ".agents/skills/security-review/SKILL.md"
+      ],
+      "sourceFolder": {
+        "files": [
+          "cloud-infrastructure-security.md",
+          "SKILL.md"
+        ],
+        "lfSha256": "997a20d294003157511b86c72487c6193c524fb2977677f245e89ccdfc7202be",
+        "crlfSha256": "7e488eba549ed7145579a7177e7b491906b2c66319a052a31a068e5219c1ebcd"
+      },
+      "vendoredFiles": [
+        "SKILL.md"
+      ],
+      "historicallyVendoredAuxiliary": {
+        "file": "cloud-infrastructure-security.md",
+        "originalImport": "b6467b8a2e4715570cff0888297e79b0afe9f739",
+        "originalGitBlob": "12634421765e25f961913dd380190ebfa970dd64",
+        "normalizedOriginalSha256": "7d9a83852475a9396e04c59c73df84ac24ee0f41322016de7c11c62138c2a8ca",
+        "removedBy": "93fd397da35dd60cd2a34381114c11b1387305a4",
+        "removedInPr": 69,
+        "absentNow": true
+      }
+    }
+  ]
+}
