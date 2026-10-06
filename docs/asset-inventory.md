@@ -215,20 +215,38 @@ warrant a note if the distribution model changes:
 
 | # | Item | Status |
 | --- | --- | --- |
-| 1 | `skills-lock.json` records four skills but only two are vendored here; `computedHash` is not reproducible as a content hash and cannot be used to verify provenance. | Replace with pinned commit SHAs, or trim to what the repo actually contains |
+| 1 | Vendored skill provenance (AB#207). | Pinned two actual sources; reproduced installer folder hashes and separate local adaptation hashes in [skill-provenance.json](skill-provenance.json) |
 | 2 | Distribution model unratified. | Blocked on AB#42 |
 
 ## Verifying provenance of a vendored skill
 
-`computedHash` in `skills-lock.json` is not a reproducible content hash. Verify against
-the upstream source instead, normalizing line endings first — a Windows checkout is CRLF
-and an unnormalized diff reports every line as changed:
+The two vendored skills have immutable source commits in `skills-lock.json` and a
+[provenance manifest](skill-provenance.json). The official
+[version-1 consumer](https://github.com/vercel-labs/skills/blob/14cf84aa922cccc7e5b11fee5af9a01b3750fddf/src/skill-lock.ts)
+and [update implementation](https://github.com/vercel-labs/skills/blob/14cf84aa922cccc7e5b11fee5af9a01b3750fddf/src/update.ts)
+hash the **complete upstream folder**, concatenating sorted relative paths
+(`localeCompare`) and raw file bytes without separators. Both historical lock hashes
+reproduce those folders with CRLF endings. The manifest also records LF folder hashes,
+immutable Git blob identities, original-import and current-adaptation LF SHA256 values.
+Security's upstream auxiliary `cloud-infrastructure-security.md` contributes to that
+folder hash. It was vendored in both tool directories in `b6467b8`, removed in
+[`93fd397` (PR #69)](https://github.com/Alpine78/photosite-starter/commit/93fd397da35dd60cd2a34381114c11b1387305a4),
+and is absent now. The manifest records its original Git blob and normalized hash
+separately from currently vendored files. Absent code-review/find-skills entries are
+removed; first-party tool-specific review-loop skills are not third-party vendored entries.
 
-```bash
-curl -sf "https://raw.githubusercontent.com/<org>/<repo>/main/<path>/SKILL.md" -o upstream.md
-tr -d '\r' < .claude/skills/<name>/SKILL.md > local.md
-diff upstream.md local.md
-```
+To verify, fetch each manifest's immutable `upstreamUrl`, normalize only CRLF to LF,
+and compare its SHA256 to `normalizedOriginalSha256` and the original file at commit
+`b6467b8`. Independently normalize and hash both listed local copies; they must agree
+with `normalizedAdaptationSha256`. Reproduce folder hashes with **all** listed source
+files and the consumer algorithm, not only SKILL.md. Do not put a local adaptation
+hash in installer `computedHash`, or silently remove the upstream auxiliary file
+from its hash input. Existing NOTICE, original licences and adaptation notices remain.
+
+These skills are manually maintained adaptations. A generic installer update or
+reinstall may overwrite local tailoring when source paths/hashes change; inspect and
+merge source changes manually, then refresh this separate manifest. This verification
+does not decide AB#42's distribution model or close AB#43's distribution obligations.
 
 ## Contributions
 
