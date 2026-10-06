@@ -182,14 +182,39 @@ code exists to review.
    gate by stripping the work-item context from the prompt, since that
    defeats a rule the project owner deliberately wants enforced.
 
-4. Confirm there is something to review: a diff against the base branch, or
-   uncommitted changes. `codex review` costs real time and usage per call, so
-   do not run it against an empty diff.
+4. The finished-change loop requires a nonempty, explicitly declared scope;
+   the earlier plan review requires no patch. Fetch `origin` and default the
+   selected base ref to `origin/main`, honoring an explicit user base. If the
+   fetch fails, report the stale ref and stop. Record the ref's resolved SHA,
+   HEAD before the first Codex call, and `git merge-base <selected-ref> HEAD`.
+   A comparison with a newer main tip can show unrelated changes reversed;
+   the merge-base is the immutable Git comparison point for self-review.
+
+   Inspect the tracked result from that merge-base, staged and unstaged diffs,
+   and read new in-scope files listed by `git ls-files --others --exclude-standard`.
+   Git diff alone ignores untracked files; do not change the owner's index with
+   intent-to-add. Record a fingerprint of the tracked diff and untracked contents,
+   excluding generated ignored artifacts. Do not pay for an empty final review.
 
 ## The loop
 
-Default base branch is `main`; default round limit is 5. Both are
+Default base ref is verified `origin/main`; default round limit is 5. Both are
 overridable via `$ARGUMENTS` (`[base-branch-or---uncommitted] [max-iterations]`).
+
+Choose the installed CLI mode to match the declared scope. `--uncommitted`
+explicitly reviews staged, unstaged and untracked changes and is the usual mode
+when the owner has not committed this task. Use `--base <branch>` for a branch
+comparison. Do not assume that mode covers new files, combine it with
+`--uncommitted`, or invent a SHA/custom-prompt combination without verifying the
+installed `codex review --help`. If both committed task changes and working-tree
+changes need separate passes, declare both scopes and review each once within the
+round; a clean report for one scope does not cover the other.
+
+After a deliberate correction and its gates, update the scope fingerprint and
+ledger while keeping the original HEAD/base snapshot. Before each round and at
+handoff, compare the selected ref's SHA, recorded HEAD
+and scope fingerprint. If another session changes them, report it and stop to
+reassess; never reset or rewrite that session's branch.
 
 For each round, up to the limit:
 
@@ -274,8 +299,9 @@ reviewee is exactly the case an independent second opinion is for.
 - **Clean pass:** summarize the whole run for the user, not just the final
   round — the Phase 1 plan-check verdict and any resulting plan changes (if
   that phase ran), what Claude's own self-review found and fixed, and what
-  each loop round found and fixed (or that it found nothing). Run the full
-  verification suite one more time, and stop. Do not keep looping past a
+  each loop round found and fixed (or that it found nothing), and the latest
+  applicable gate results. If code did not change after those gates, stop
+  without repeating them. Do not keep looping past a
   clean review "just to be sure" — that just burns usage.
 - **Round limit reached with findings still open:** report the remaining
   findings and why each is still open (disagreement, needs a human decision,
@@ -285,4 +311,6 @@ reviewee is exactly the case an independent second opinion is for.
 - **Never commit.** This repository's `AGENTS.md` forbids the agent from
   running `git commit` under any circumstances, in any workflow, including
   this one. Leave the working tree ready and suggest a commit message, the
-  same as any other change.
+  same as any other change. Compare HEAD with the pre-first-call value and
+  verify the base/scope snapshot before reporting; an unexpected change is a
+  blocker to report, never a reason to reset the owner's history.
