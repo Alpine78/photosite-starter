@@ -161,6 +161,11 @@ records the commit/build provenance and 36 passing gallery/category journeys plu
 four expected failures. Both upstream candidates (#98455 and #98583) remain
 unmerged; [ADR-0007's decision proposal](adr/0007-proxy-request-path-boundary.md#2026-10-03-main-branch-recheck-and-decision-proposal-ab132)
 awaits explicit owner acceptance or withheld promotion before AB#18.
+**Checkpoint, 2026-10-06 (AB#201, Active):** the merged source retains all four
+scriptless semantic failures across Chromium/WebKit. The
+[redacted audit](audits/ab132-2026-10-06-scriptless.json) records exact build/harness
+identities and current upstream states. No AB#132 risk acceptance is implied.
+
 **AB#132 owns this**, and was reopened to
 `Active` on 2026-09-03 because it had been closed while none of its own "Done when"
 conditions held: the semantic 404 HTML above, the removal of the `javaScriptEnabled: true`
@@ -1017,6 +1022,11 @@ to exactly one decided, pending, excluded, or already-live bucket. Direct canoni
 same-language targets and explicit category-ancestry/home fallback policy follow
 ADR-0003 decision 9; unknown URLs retain ordinary not-found behavior.
 
+**Legacy review export, 2026-10-06 (AB#209, Active):** optional `report --csv`
+exports pending exact paths/statuses with blank owner decisions. Formula-safe
+semicolon CSV leaves JSON/check behavior and the redirect registry unchanged.
+AB#19 accepted mapping and post-import target verification remain open.
+
 **Mapping verification tooling, 2026-10-02 (AB#19, still Active):** the full Boards
 attachment contains 442 URL records; the committed inventory projects them to 415
 path/status observations. Current configuration has **39 redirects** (three structural,
@@ -1825,6 +1835,11 @@ that invalidation was not confined to one warm process or deployment. A raw-pers
 audit confirmed the original seed value was restored and no draft or test marker remained.
 **AB#83 is closed.**
 
+**Redacted failure summary preparation, 2026-10-06 (AB#205, Active):** an
+offline emitter-NDJSON tool counts fixed state/class outcomes, deduplicates terminal
+events and reports invalid/incomplete evidence. It neither reads live logs nor
+configures notifications; AB#159 live exercise remains open.
+
 **Production failure triage preparation, 2026-10-02 (AB#159, Active):** the
 [runbook](production-failure-triage.md) now gives concrete Production log filters,
 separate Sanity query/revalidation and contact/enquiry diagnosis, expected-refusal
@@ -1834,6 +1849,11 @@ native anomaly notifications need actual tier, payload, low-traffic coverage and
 verification. No alert path is configured/tested by this preparation. AC2's owner
 decision/notification evidence and AC3's controlled Production failure trace remain
 open **after AB#18**, before **AB#118** rollback rehearsal and customer handoff.
+
+**Availability probe preparation, 2026-10-06 (AB#206, Active):** a configurable
+owner-run public GET probe enforces total timeout/body limits and semantic markers.
+Synthetic fetch tests need no live service. AB#158 monitoring/notification setup stays
+open; cached content success does not prove live CMS reads or mail delivery.
 
 The deployment itself: AB#116 is **closed** — the Preview environment is fully provisioned
 and proven working by a real, verified, fully-automated pipeline run (build 144, `main`,
@@ -1857,6 +1877,11 @@ waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
 see above — with 198 of 415 distinct crawled paths still pending reviewed targets after
 content migration (including `component/komento/*` and `sivustokartta/*`).
 
+**Rollback record preparation, 2026-10-06 (AB#208, Active):** the
+[blank exercise record](rollback-exercise-record.md) separates code, CMS, shared assets,
+cache, credentials and mail. AB#118 still needs actual post-promotion recovery and
+owner handoff; no Production mutation was performed.
+
 **Ongoing dependency monitoring, 2026-10-02 (AB#160, still Active):** the
 existing daily audit and Dependabot settings were checked without replacing
 their configuration. Scheduled run #497 audited the same source revision as
@@ -1871,6 +1896,11 @@ the story's end-to-end notification demonstration remains open.
 [Evidence and remaining live check](dependency-security.md#live-evidence-checked-on-2026-10-02)
 include the run/PR links and the response policy for runtime exposure, severity,
 fix availability and Node.js/Next.js security releases.
+
+**Saved audit summary preparation, 2026-10-06 (AB#204, Active):** an offline
+npm v2 reader validates the reference graph and separates affected package entries
+from unique numeric advisories. No dependency fixes or residual-risk acceptance
+are implied; AB#160/186 remain open.
 
 **Dependency audit refresh, 2026-10-05 (AB#186, still Active):** the unchanged
 merged lockfile now reports 25 high affected package entries across undici,
@@ -2045,13 +2075,25 @@ and sending domain into Production and verifying delivery, not provisioning or
 reviewing the account itself. The account has not been provisioned yet — that is a
 real third-party signup only the site owner can perform, not something this
 repository's tooling does — so the item stays open, now with a decided owner rather
-than an unresolved circularity. The recipient-mailbox item turned out not to share that blocker on
+than an unresolved circularity.
+
+**Mailbox recovery preparation, 2026-10-06 (AB#202, Active):** the
+[blank recovery worksheet](mail-recovery-evidence.md) separates two independent
+accounts, local message copies, full DNS exports and exercised recovery. Actual restore,
+account/contract decisions and the alternate legacy SMTP dependency remain open in AB#131.
+
+The recipient-mailbox item turned out not to share that blocker on
 inspection: Resend is only the delivery transport into a mailbox, not what creates
 one, and AB#116's own provisioning record shows the site owner already operates a
 real mail service independent of this project — so confirming that mailbox's
 retention practice is answerable now, without a Resend account. Do not assume either checklist is
 complete because an infrastructure gap closed — read the 2026-08-25 re-check sections
 in both documents before treating any of AC3 or AC5 as done.
+
+**Skill provenance preparation, 2026-10-06 (AB#207, Active):** two vendored
+source commits and reproduced CRLF folder hashes are pinned;
+[skill-provenance.json](skill-provenance.json) distinguishes original and local
+adaptation bytes. NOTICE/licences remain; AB#42/43 distribution decisions stay open.
 
 The repository's architecture is also drawn, not only described: `docs/architecture/`
 holds the system context, the application and data boundaries, and the build/deployment
@@ -2872,6 +2914,11 @@ subject with safe service-link prefill, and a settings-driven portrait and direc
 contact column (AB#178). Its privacy notice is a native disclosure, and the
 direct email link remains usable without JavaScript. Related work item:
 AB#176 portfolio topic filter.
+
+**Offline web DNS guard, 2026-10-06 (AB#200, Active):** an owner-run normalized
+snapshot comparator preserves full protected-record multisets and refuses CNAME
+conflicts. It emits counts/digests only. Current zone export, live propagation and
+received-mail verification remain separate AB#18/131 gates; no DNS changes were made.
 
 **Hero CSS journey readiness, 2026-10-06 (AB#203, Active):** both real-component
 hero groups wait for DOM/CSS readiness, then retain explicit font/pale-image and all

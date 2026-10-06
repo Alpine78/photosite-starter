@@ -6,6 +6,7 @@ import { ALREADY_LIVE_LEGACY_PATHS, EXCLUDED_LEGACY_PATHS, PENDING_LEGACY_PATHS 
 import {
   buildMappingReport,
   parseVerificationOrigin,
+  pendingLegacyReviewCsv,
   redirectTargetUrl,
   sourceResponseIssues,
   targetResponseIssues,
@@ -48,7 +49,9 @@ async function probe(url: string, readHtml = false) {
 }
 
 async function main() {
-  const [mode, originArgument, canonicalArgument, ...extra] = process.argv.slice(2);
+  const argumentsList = process.argv.slice(2);
+  const csv = argumentsList.length === 2 && argumentsList[0] === "report" && argumentsList[1] === "--csv";
+  const [mode, originArgument, canonicalArgument, ...extra] = csv ? ["report"] : argumentsList;
   if ((mode !== "report" && mode !== "check") || extra.length > 0 ||
       (mode === "report" && originArgument !== undefined) ||
       (mode === "check" && originArgument === undefined)) {
@@ -62,7 +65,8 @@ async function main() {
     alreadyLive: ALREADY_LIVE_LEGACY_PATHS,
   });
   if (mode === "report") {
-    console.log(JSON.stringify(report, null, 2));
+    if (csv) process.stdout.write(pendingLegacyReviewCsv(report));
+    else console.log(JSON.stringify(report, null, 2));
     return;
   }
   const origin = parseVerificationOrigin(originArgument!);
@@ -98,6 +102,6 @@ async function main() {
 }
 
 main().catch(() => {
-  console.error("Legacy mapping verification failed: invalid arguments or mapping. Use report | check <origin> [<canonical-origin>]; inspect the committed mapping and inventory.");
+  console.error("Legacy mapping verification failed: invalid arguments or mapping. Use report [--csv] | check <origin> [<canonical-origin>]; inspect the committed mapping and inventory.");
   process.exitCode = 1;
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildMappingReport,
   parseVerificationOrigin,
+  pendingLegacyReviewCsv,
   redirectTargetUrl,
   sourceResponseIssues,
   targetResponseIssues,
@@ -125,5 +126,25 @@ describe("target availability and canonical metadata", () => {
     expect(verificationStatus(1, [{ issues: [] }])).toBe("incomplete");
     expect(verificationStatus(1, [{ issues: ["probe-failed"] }])).toBe("failed");
     expect(verificationStatus(0, [{ issues: [] }])).toBe("passed");
+  });
+});
+
+
+describe("pending legacy owner CSV", () => {
+  it("keeps exact pending paths/statuses and leaves every decision blank", () => {
+    const report = buildMappingReport(input);
+    const csv = pendingLegacyReviewCsv(report);
+    expect(csv).toBe('\uFEFF"source";"observed_statuses";"owner_decision";"target";"evidence"\r\n"/pending";"200, error";"";"";""\r\n');
+    expect(report.rows.some((row) => row.outcome.kind === "redirect")).toBe(true);
+    expect(verificationStatus(report.counts.pending, [])).toBe("incomplete");
+  });
+  it("quotes delimiters/quotes/newlines without altering paths and neutralizes formulas", () => {
+    const rows: MappingRow[] = [{ source: '/a;"quoted"\npath', crawlStatuses: ['  =SECRET', 'timeout'], outcome: { kind: 'pending' } }];
+    expect(pendingLegacyReviewCsv({ rows })).toContain('"/a;""quoted""\npath";"\'  =SECRET, timeout";"";"";""\r\n');
+    for (const status of ['=FORMULA','+FORMULA','-FORMULA','@FORMULA','\tFORMULA','\rFORMULA',' \t=FORMULA']) expect(pendingLegacyReviewCsv({ rows: [{ ...rows[0], crawlStatuses: [status] }] })).toContain('"\''+status+'"');
+  });
+  it("outputs a header for no pending rows and refuses non-path input", () => {
+    expect(pendingLegacyReviewCsv({ rows: [] }).split('\r\n')).toHaveLength(2);
+    expect(() => pendingLegacyReviewCsv({ rows: [{ source: '=SECRET', crawlStatuses: [], outcome: { kind: 'pending' } }] })).toThrow();
   });
 });

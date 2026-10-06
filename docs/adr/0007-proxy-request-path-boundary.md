@@ -364,3 +364,15 @@ No framework patch or content lookup was introduced. The October 8 review propos
 required explicit owner decision before AB#18, and AB#132 follow-up remain unchanged.
 Main CI #545 passed its gates with the documented expected failures; it does not mean
 scriptless recovery passed. No residual acceptance or public promotion is recorded.
+
+## Scriptless checkpoint, 2026-10-06 (AB#201)
+
+The merged baseline's four production-build cases still return HTTP404 with the
+known empty shell: neither browser renders the required heading, and refused gallery
+continuations have no parameter-free return link. The harness classifies the four
+assertion failures as expected; they are not passing accessibility journeys.
+[Redacted observations and exact identities](../audits/ab132-2026-10-06-scriptless.json)
+record the source/build, harness locale, package versions and artifact hashes.
+Official issue62228 remains open; PR88491 is closed without merge; PR98455 and98583
+remain open/unmerged at the recorded check time. AB#132's launch decision remains
+pending. No CMS existence lookup, framework upgrade or risk acceptance is introduced.

@@ -23,7 +23,7 @@ const test = base.extend<{ homeCssReady: () => Promise<void> }>({
       if (held.size > 0) { await route.fallback(); return; }
       held.add(image);
       await gate;
-      // Abort the unrelated image only when measurement is over. Drain handlers
+      // Abort after HTML/CSS readiness, or when cleanup runs. Drain handlers
       // before the page fixture closes, including a failed assertion/navigation.
       await route.abort();
     };

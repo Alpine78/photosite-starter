@@ -244,7 +244,7 @@ npm run test:e2e  # Playwright public-journey smoke tests (CI gate, builds and s
 npm run diagrams  # regenerate docs/architecture/*.svg from their .d2 sources
 npm run diagrams:check # CI gate: sources compile and committed SVGs are current
 npm run verify:preview -- <url> <dpl_id> # assert ownership, protection, and noindex
-npm run verify:legacy-redirects -- report # AB#19: mapping report; check <origin> [<canonical-origin>] probes a production build
+npm run verify:legacy-redirects -- report [--csv] # AB#19: mapping report or pending review CSV; check <origin> [<canonical-origin>] probes a production build
 npm run benchmark:keywords -- plan # AB#65 spike: fixture + query-strategy benchmark (owner-run for the live matrix)
 npm run convert:joomla -- --source <articles.ndjson> --out <dir> # owner-run: convert legacy content, report only, never writes
 npm run write:joomla -- --plan <import-plan.json> --image-root <dir> --out <dir> --approved-digest <hash> # owner-run: write an approved import plan to Sanity, dry-run by default
@@ -450,6 +450,8 @@ This is the complete set — there is no other documentation to hunt for:
 | `docs/sanity-setup.md`               | the site owner and whoever provisions a clone's CMS                | the Sanity connection settings, ownership/transfer story, perspective, schemas, media policy, or failure behavior change                                    |
 | `docs/sanity-seeding.md`             | the site owner and whoever seeds a clone's sample or first content | the seed script's fixture content, id/idempotency contract, write-token story, verification steps, or go-live cleanup checklist change                      |
 | `sanity/README.md`                   | whoever wires a clone's Studio to these schemas                    | a document type is added, or how the Studio consumes them changes                                                                                           |
+| `docs/mail-recovery-evidence.md` | owner and recovery operator (AB#131/118) | mailbox, DNS or account recovery evidence requirements change |
+| `docs/rollback-exercise-record.md` | owner and recovery operator (AB#118) | code/content recovery exercise or ownership evidence requirements change |
 | `docs/deployment.md`                 | the site owner and whoever provisions a clone's hosting            | the Preview environment, pipeline deployment stage, environment-variable split, runtime pins, or promotion/rollback mechanism change                        |
 | `docs/security-privacy-review.md`    | the site owner and future launch reviews                           | the launch security/privacy review is rerun, a finding's disposition changes, or the security response headers change (also update ADR-0011)                |
 | `docs/keyword-query-benchmark.md`    | AB#55's taxonomy ADR and whoever runs the AB#65 spike              | the keyword-query benchmark fixture, harness, or matrix changes, or an owner-run live measurement is completed and its numbers/recommendation are filled in |

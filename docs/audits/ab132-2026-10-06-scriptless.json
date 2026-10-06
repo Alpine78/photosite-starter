@@ -1,0 +1,122 @@
+{
+  "workItem": "AB#132",
+  "checkpointWorkItem": "AB#201",
+  "checkedAt": "2026-10-06T11:56:24.439139+00:00",
+  "sourceCommit": "dda4d1511cd68ea645c925c498b0ba34e4d909f8",
+  "buildId": "4594J7NR40n9ihDvQwGNP",
+  "versions": {
+    "next": "16.3.8",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "@playwright/test": "1.63.0",
+    "node": "v24.20.0"
+  },
+  "command": "npm run test:e2e -- e2e/gallery-continuation.spec.ts --grep 'initial 404 HTML without JavaScript'",
+  "environment": {
+    "source": "e2e/support/harness-environment.ts",
+    "sourceSha256": "f7096c6ada9ecfc561bc4a1751bc7be2bd16cdb695bb2f2be954a1e9df509bd7",
+    "SITE_LOCALE": "en-GB",
+    "SITE_LOCALE_ROUTES": "en-GB||stories|services,fi|fi|tarinat|palvelut",
+    "SITE_CANONICAL_BASE_URL": "https://e2e.photosite-starter.test",
+    "data": "harness-owned mock content; no live CMS"
+  },
+  "semanticDetector": "JavaScript disabled, accessible rendered h1 and parameter-free return link; observed before expected-failure assertion. HTTP404 and script-contained notFound digest do not prove visible semantics.",
+  "results": {
+    "expectedFailures": 4,
+    "unexpectedFailures": 0,
+    "workers": 4,
+    "retries": 0,
+    "scriptless404JourneyPassed": false
+  },
+  "observations": [
+    {
+      "nextVersion": "16.3.8",
+      "browser": "desktop-chromium",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/large-archive?cursor=not-a-token-this-deployment-minted",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    },
+    {
+      "nextVersion": "16.3.8",
+      "browser": "mobile-webkit",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/large-archive?cursor=not-a-token-this-deployment-minted",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    },
+    {
+      "nextVersion": "16.3.8",
+      "browser": "desktop-chromium",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/no-such-gallery",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    },
+    {
+      "nextVersion": "16.3.8",
+      "browser": "mobile-webkit",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/no-such-gallery",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    }
+  ],
+  "observationSha256": [
+    "a9a7933216af5b98d6bdfa2ef39572a13644a1d01132e618414cfad88959a362",
+    "c8f15846367ec05d1d3e5cb0c1805bd5308089d7cb565dd0013221c78485eea6",
+    "04568b0e85287d5718df6bdfb6d6a2343f6902faed5b2bf3cb96672897a3449c",
+    "049a0646fa773b6e4c960ced157836b8e3da96b6fd140fe8b2f3773218629fc8"
+  ],
+  "upstream": [
+    {
+      "number": 62228,
+      "state": "open",
+      "merged": null,
+      "merged_at": null,
+      "html_url": "https://github.com/vercel/next.js/issues/62228",
+      "updated_at": "2026-09-29T16:21:46Z"
+    },
+    {
+      "number": 88491,
+      "state": "closed",
+      "merged": false,
+      "merged_at": null,
+      "html_url": "https://github.com/vercel/next.js/pull/88491",
+      "updated_at": "2026-09-19T00:25:23Z"
+    },
+    {
+      "number": 98455,
+      "state": "open",
+      "merged": false,
+      "merged_at": null,
+      "html_url": "https://github.com/vercel/next.js/pull/98455",
+      "updated_at": "2026-09-12T22:12:09Z"
+    },
+    {
+      "number": 98583,
+      "state": "open",
+      "merged": false,
+      "merged_at": null,
+      "html_url": "https://github.com/vercel/next.js/pull/98583",
+      "updated_at": "2026-09-11T19:07:14Z"
+    }
+  ],
+  "decision": "AB#132 owner acceptance or withheld promotion remains open. Proxy remains constant-time without CMS existence lookups."
+}
