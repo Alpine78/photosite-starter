@@ -1472,3 +1472,15 @@ robots directives. It never prints a response body, a token, or a bypass secret.
 - **A passing verification proves two properties**, access protection and non-indexability,
   at one moment on one URL. It says nothing about what the provider logs, and it is not a
   substitute for the launch review.
+
+## Legacy owner-review CSV (AB#209)
+
+`npm run verify:legacy-redirects -- report --csv` exports only pending rows with exact
+sorted source paths and observed crawl statuses. Redirect, gone, excluded and
+already-live rows remain in the default JSON report. Output is semicolon-separated,
+UTF-8 BOM, CRLF, with quoted/escaped cells and spreadsheet formula prefixes neutralized
+in non-path text. Use `npm run --silent verify:legacy-redirects -- report --csv > review.csv`
+when saving stdout to avoid npm's command banner. Owner decision, target and evidence
+columns start blank. The worksheet chooses no target and is not an import format;
+timeouts remain observed timeouts. Check mode still reports pending decisions as
+incomplete/nonzero. AB#19 still requires accepted mappings and post-import targets.
