@@ -530,6 +530,9 @@ already emits — a deliberate, separate decision this story's own scope exclude
 a future story now that the field exists. ADR-0003 needed no amendment: decision 2 (the
 shared body-block set) and the rest of that record say nothing about a per-variant field
 like this one, so nothing it states changes.
+AB#193 prepares AB#20's [reading-position worksheet](article-reading-position.md).
+Browser-local persistence and restoration decisions remain open; no reading-position
+feature is implemented.
 The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
