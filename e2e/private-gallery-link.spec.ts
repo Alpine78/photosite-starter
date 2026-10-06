@@ -31,6 +31,10 @@ import { expect, test } from "./support/fixtures";
 const HANDLE = "EREREREREREREREREREREQ";
 const CAPABILITY = "LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0";
 const GALLERY_PATH = `/private/${HANDLE}`;
+// Refusals use the existing published proof fixture, whose exchange contract
+// is identical. They spend no delivery-gallery allowance or active session,
+// leaving the successful delivery journeys independent of these attempts.
+const REFUSAL_PATH = "/private/IiIiIiIiIiIiIiIiIiIiIg";
 /**
  * The right shape, naming no gallery. It must decode canonically — a handle
  * that does not is refused as malformed long before any store is consulted, so
@@ -46,6 +50,16 @@ const UNKNOWN_HANDLE = "MzMzMzMzMzMzMzMzMzMzMw";
 const GALLERY_HEADING = getBuiltInLabels(
   appUnderTestEnvironment.SITE_LOCALE as string,
 ).privateGallery.galleryHeading;
+
+function expectEarlyBootstrapQueue(html: string) {
+  const queue = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
+    .map((match) => match[1])
+    .filter((body) => body.startsWith("(self.__next_s=") &&
+      body.includes('"/private-gallery-bootstrap.js"'));
+  expect(queue).toHaveLength(1);
+  expect(html).not.toContain('src="/private-gallery-bootstrap.js"');
+  expect(html).not.toContain(CAPABILITY);
+}
 
 /** Opt-in observer: the normal gate keeps its original timing and fixtures. */
 type HistoryEvent = {
@@ -116,7 +130,7 @@ if (process.env.PRIVATE_GALLERY_HISTORY_DIAGNOSTICS === "1") {
       await new Promise((resolve) => setTimeout(resolve, 2_000));
       await route.continue();
     });
-    await page.goto(`${GALLERY_PATH}#${"A".repeat(43)}`);
+    await page.goto(`${REFUSAL_PATH}#${"A".repeat(43)}`);
     const status = page.getByRole("status");
     await expect(status).toHaveText((await status.getAttribute("data-invalid")) as string);
     expect(new URL(page.url()).hash).toBe("");
@@ -147,6 +161,16 @@ if (process.env.PRIVATE_GALLERY_HISTORY_DIAGNOSTICS === "1") {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(GALLERY_HEADING);
     await expect.poll(() => new URL(page.url()).hash).toBe("");
     expect(exchanges).toHaveLength(1);
+    await expect.poll(() => page.evaluate(() => Boolean(history.state?.__NA))).toBe(true);
+    expect(new URL(page.url()).hash).toBe("");
+    const events = eventsByPage.get(page) ?? [];
+    const start = events.findLastIndex((event) => event.kind === "init" && event.hasHash);
+    expect(start).toBeGreaterThanOrEqual(0);
+    const finalDocument = events.slice(start);
+    const scrub = finalDocument.findIndex((event) => event.kind === "replaceState:after" && !event.hasHash);
+    expect(scrub).toBeGreaterThanOrEqual(0);
+    expect(finalDocument.slice(0, scrub).some((event) => event.frameworkState)).toBe(false);
+    expect(finalDocument.slice(scrub).some((event) => event.hasHash)).toBe(false);
   });
 
   test.afterEach(async ({ page }, testInfo) => {
@@ -171,7 +195,7 @@ test.describe("private gallery link", () => {
       hashesAtExchange.push(new URL(page.url()).hash);
     });
 
-    await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
+    const openingResponse = await page.goto(`${GALLERY_PATH}#${CAPABILITY}`);
     // The listener above is already recording, so poll it rather than starting
     // a fresh wait: the exchange fires during `goto` and would be missed.
     await expect.poll(() => exchanges.length).toBe(1);
@@ -207,6 +231,8 @@ test.describe("private gallery link", () => {
       `${new URL(page.url()).origin}${GALLERY_PATH}/exchange`,
     ]);
     expect(hashesAtExchange).toEqual([""]);
+    expect(openingResponse).not.toBeNull();
+    expectEarlyBootstrapQueue(await openingResponse!.text());
 
     // The capability never travelled in a URL, only in the request body.
     for (const url of exchanges) expect(url).not.toContain(CAPABILITY);
@@ -316,7 +342,7 @@ test.describe("private gallery link", () => {
   test("shows the same invalid state for a wrong capability", async ({ page }) => {
     // The bootstrap has exactly one failure message because the endpoint has
     // exactly one refusal; a second, more specific message here would undo that.
-    await page.goto(`${GALLERY_PATH}#${"A".repeat(43)}`);
+    await page.goto(`${REFUSAL_PATH}#${"A".repeat(43)}`);
 
     const status = page.getByRole("status");
     await expect(status).toHaveText(
@@ -414,7 +440,7 @@ test.describe("private gallery link", () => {
     // Same status, same body, same headers: nothing distinguishes a handle that
     // exists from one that does not.
     expect(await shape(`/private/${UNKNOWN_HANDLE}`, CAPABILITY)).toEqual(
-      await shape(GALLERY_PATH, "A".repeat(43)),
+      await shape(REFUSAL_PATH, "A".repeat(43)),
     );
   });
 });
@@ -491,13 +517,20 @@ test.describe("private gallery session in a browser", () => {
     expect(exchanges).toHaveLength(1);
 
     await page.goto("/");
-    await page.goto(fullLink);
+    const authorizedResponse = await page.goto(fullLink);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       GALLERY_HEADING,
     );
     await expect.poll(() => new URL(page.url()).hash).toBe("");
     expect(exchanges).toHaveLength(1);
     expect(await page.content()).not.toContain(CAPABILITY);
+    expect(authorizedResponse).not.toBeNull();
+    expectEarlyBootstrapQueue(await authorizedResponse!.text());
+    // The server-rendered heading alone does not prove router initialization.
+    // Assert again after Next has written its initial history state, the point
+    // at which the old deferred script's cleaned URL could be restored.
+    await expect.poll(() => page.evaluate(() => Boolean(history.state?.__NA))).toBe(true);
+    expect(new URL(page.url()).hash).toBe("");
   });
 
   test("scrubs hash navigation and credential-bearing history entries", async ({
@@ -519,13 +552,10 @@ test.describe("private gallery session in a browser", () => {
     );
     expect(exchanges).toHaveLength(1);
 
-    // The heading above is server-rendered and can appear before the deferred
-    // bootstrap script on this replace()-navigated authenticated document has
-    // finished downloading and executing, especially under worker contention.
-    // DOMContentLoaded cannot fire until every deferred script has run, so
-    // waiting for it here guarantees the hashchange listener below is already
-    // attached before the next line fires that event.
+    // The heading is server-rendered. Wait for the beforeInteractive bootstrap
+    // and subsequent router initialization before exercising traversal.
     await page.waitForLoadState("domcontentloaded");
+    await expect.poll(() => page.evaluate(() => Boolean(history.state?.__NA))).toBe(true);
 
     // Assigning the hash creates a same-document entry. Its hashchange event
     // must remove the capability without touching the valid session.

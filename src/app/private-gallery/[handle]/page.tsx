@@ -44,9 +44,9 @@ import { PrivateGalleryProofPanel } from "@/components/private-gallery-proof-pan
  * would be exactly the existence oracle the exchange endpoint is careful not to
  * be.
  *
- * The script that reads the fragment is served as an **external same-origin
- * file**, so it needs no CSP grant beyond `script-src 'self'` and adds no
- * inline-script use to ADR-0011's accepted `'unsafe-inline'` residual.
+ * The private root layout loads the external same-origin bootstrap before
+ * router initialization. Next's inline queue contains only its fixed path,
+ * under ADR-0011's existing CSP residual; no capability is a framework prop.
  */
 export const dynamic = "force-dynamic";
 
@@ -72,8 +72,6 @@ export default async function PrivateGalleryPage({
 
   return (
     <>
-      {/* Scrub a link fragment on both the bootstrap and authorized documents. */}
-      <script src="/private-gallery-bootstrap.js" defer />
       {authorized === undefined ? (
         <PrivateGalleryBootstrap labels={labels} />
       ) : authorized.kind === "proof" ? (

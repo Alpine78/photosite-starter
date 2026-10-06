@@ -236,7 +236,8 @@ the photographer to replace it, which retires the old one.
 
 ## Fragment investigation (AB#192)
 
-The external same-origin bootstrap is emitted as a deferred script on both the
+At the AB#192 investigation checkpoint, the external same-origin bootstrap was
+emitted as a deferred script on both the
 opening and authorized documents. It attempts `history.replaceState` before a
 status update or exchange POST; the server initially emits the opening status.
 This describes the implementation's intent, not proof that later browser/router
@@ -287,12 +288,74 @@ passes, one WebKit skip). The observer's controlled test also checks that a
 scrub event arrives and that its serialized buffer excludes the synthetic handle
 and attempted capability. These experiments did not reproduce the CI failure.
 
-The fragment-restoration cause and the 548 wire-check refusal remain unresolved.
+At that checkpoint, the fragment-restoration cause and the 548 wire-check refusal
+remained unresolved.
 A gallery-wide exchange counter is shared by these memory fixtures independently
 of the per-test client-address isolation; a rate-limited event was observed in the
 control log, but it does not identify the cause of that CI request. Future runs
 must distinguish shared-counter interference from router ordering. No runtime
 privacy correction is claimed merely because diagnostics were added.
+
+### Proved startup correction (AB#199, 2026-10-06)
+
+[Run 565](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=565)
+repeated the original-full-link failure on both attempts. A local production-build
+repetition with the opt-in observer reproduced four failures in ten Chromium visits,
+with zero retries and two diagnostic workers on a fresh harness. Each failed record
+shows the bootstrap removing the hash without a framework history marker, followed
+8–15 ms later by Next's history replacement restoring the hash with its marker.
+The restoration can occur after `pageshow`. Together with the installed 16.3.8
+router source, this proves the ordering mechanism for these local failures. It does
+not retroactively identify every historical CI failure from a missing trace.
+
+The private root layout now uses the supported `beforeInteractive` loader. Its
+same-origin external script captures and scrubs before router initialization;
+markup-dependent work waits for `DOMContentLoaded` if parsing is incomplete.
+The pending capability stays in one local closure and is cleared at readiness.
+Only bootstrap markup permits an exchange; an authorized view simply loses the
+fragment. One request runs at a time, duplicate empty events preserve its state,
+and a new link can retry after refusal. Status updates resolve the current DOM node.
+Next emits an inline queue containing only the fixed script URL, using ADR-0011's
+existing `'unsafe-inline'` residual. No capability enters framework props or that
+queue, and no CSP grant or production rate/session limit changes.
+
+VM regressions prove the script's early capture, delayed exactly-once exchange,
+authorized no-exchange, traversal and failure behavior; only a production-build
+browser can prove its ordering relative to Next. The repeat-visit browser assertion
+also checks the clean address after the router writes its initial history state.
+The opt-in delayed-repeat experiment checks first scrub before framework state and
+absence of a later restored fragment. If the file cannot load, Next 16.3.8 still
+attempts hydration; no exchange runs and the fragment can remain visible. A slow
+download delays router initialization. A browser refusing `replaceState` can also
+retain the fragment; repeated events cannot repeatedly exchange that unsrubbable
+entry until it is cleared or rewriting succeeds.
+
+Run 565's WebKit cookie-wire request also returned 403, and its server log records
+a per-gallery `rate-limited` refusal. The memory gallery counter is independent of
+per-test client addresses, and retries reuse that server. The request's causal link
+to the fragment failures is not established; it must be distinguished from the
+proved startup race. The earlier run 548 refusal remains unclassified.
+
+Local post-correction checks on the PR #257 source branch: all 4,479 browser-free
+tests and the complete production-build browser gate passed (738 passes, 36
+documented skips, four workers, zero retries; AB#132's existing expected failures
+retain their classification). The scoped private/proof/namespace gate passed
+63 cases with 11 skips. A fresh ten-repeat diagnostic passed all ten Chromium
+visits, and the delayed-start ordering experiment passed three cases with one
+WebKit cookie-storage skip. These are fixture results, not live customer or
+storage validation.
+
+The first local correction still let the generic refusal comparison reach the
+shared delivery-gallery counter without failing its indistinguishable-response
+assertion. The final test correction assigns wrong-capability browser cases and
+that wire-level comparison to the existing proof fixture, with the same generic
+exchange/refusal contract. They spend no delivery session or delivery-gallery
+counter; successful delivery cases retain their original fixture. The normal
+two-project matrix now makes 17 delivery attempts and seven proof attempts,
+including the existing proof API/selection journeys, within each unchanged
+20/hour bound. The final scoped and full gates recorded no rate-limit event.
+Counters remain per gallery, rather than per client; this fixture allocation
+does not grant unlimited retries or repetition.
 
 ## The access cookie
 
