@@ -2423,6 +2423,8 @@ are server-rendered; voting needs JavaScript and shares the message form's
 hydration/submission guard. `convert:joomla --poll-results` carries closed
 historical pairs into the approved plan (conversion policy v2, plan v3).
 Actual token provisioning and production migration remain owner-run checks.
+AB#194 prepares AB#26's separate [comment and reader-rating requirements](article-comments-and-ratings.md).
+Neither interaction is implemented; completed AB#162 poll behavior is excluded.
 
 A body media placement can now carry one optional, bounded plain-text caption
 (AB#137, ADR-0003's 2026-09-18 amendment): `contentMediaBlock.caption`, owned
