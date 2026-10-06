@@ -1053,6 +1053,25 @@ skip Verify and DeployPreview, so the audit does not spend Microsoft-hosted
 minutes or deploy a release candidate. The [dependency response process](dependency-security.md)
 records actual runs and the outstanding notification-delivery check (AB#160).
 
+### Cancelling a run
+
+Both quality and scheduled-audit stages retain Azure's default `succeeded()`
+status guard alongside their `Build.Reason` predicate (AB#189). The reason-only
+condition previously admitted Verify after cancellation: run
+[#546](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=546)
+reported that its custom condition re-evaluated to true while waiting for an agent.
+DependencyAudit is independently admitted with `dependsOn: []`; Verify is the
+first stage. The success guard also preserves dependency-success gating if a
+prerequisite is added later. Pool, fork admission and Preview conditions are unchanged.
+
+Azure [custom-condition semantics](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/conditions?view=azure-devops)
+require an explicit status check when replacing a default condition. Local YAML
+parsing cannot prove service-side evaluation. After merging, cancel a trusted run
+while its stage waits for an agent and confirm the stage does not start; repeat
+for a scheduled audit when available. This live check remains pending until the
+changed YAML is committed and run. Cancellation of already-running steps remains
+Azure's normal cancellation process.
+
 ### The Verify stage runs on a self-hosted agent
 
 `Verify` runs in the organization's `Default` pool, a self-hosted agent, not a
