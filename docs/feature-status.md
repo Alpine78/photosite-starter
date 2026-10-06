@@ -1872,6 +1872,11 @@ the story's end-to-end notification demonstration remains open.
 include the run/PR links and the response policy for runtime exposure, severity,
 fix availability and Node.js/Next.js security releases.
 
+**Saved audit summary preparation, 2026-10-06 (AB#204, Active):** an offline
+npm v2 reader validates the reference graph and separates affected package entries
+from unique numeric advisories. No dependency fixes or residual-risk acceptance
+are implied; AB#160/186 remain open.
+
 **Dependency audit refresh, 2026-10-05 (AB#186, still Active):** the unchanged
 merged lockfile now reports 25 high affected package entries across undici,
 busboy and braces; production-only audit remains zero. These counts include
