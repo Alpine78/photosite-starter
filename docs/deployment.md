@@ -1472,3 +1472,10 @@ robots directives. It never prints a response body, a token, or a bypass secret.
 - **A passing verification proves two properties**, access protection and non-indexability,
   at one moment on one URL. It says nothing about what the provider logs, and it is not a
   substitute for the launch review.
+
+## Rollback exercise evidence
+
+Fill the [rollback exercise record](rollback-exercise-record.md) privately after AB#18.
+It separates immutable deployment recovery from CMS, assets, cache, credentials and
+already sent mail, and records owner control/access removal. AB#118 still requires an
+actual accepted exercise; publishing this blank record performs no rollback.
