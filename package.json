@@ -22,6 +22,7 @@
     "check:dns-cutover": "node scripts/check-dns-cutover.mts",
     "verify:legacy-redirects": "node scripts/verify-legacy-redirects.mts",
     "verify:preview-alias": "node scripts/verify-preview-alias.mts",
+    "check:availability": "node scripts/check-availability.mts",
     "seed:sanity": "node scripts/seed-sanity-content.mts",
     "convert:joomla": "node scripts/convert-joomla-content.mts",
     "write:joomla": "node scripts/write-joomla-content.mts",
