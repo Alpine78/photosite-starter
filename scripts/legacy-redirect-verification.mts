@@ -150,3 +150,20 @@ export function verificationStatus(pendingCount: number, results: readonly { rea
   if (results.some((result) => result.issues.length > 0)) return "failed";
   return pendingCount > 0 ? "incomplete" : "passed";
 }
+
+/** AB#209: blank owner-review worksheet; never chooses or imports decisions. */
+export function pendingLegacyReviewCsv(report: { readonly rows: readonly MappingRow[] }): string {
+  const cell = (value: string, path = false) => {
+    // Neutralize spreadsheet formulas even after leading whitespace. Exact
+    // slash-leading source paths are retained; all other cells are untrusted text.
+    const safe = !path && (/^[\s\uFEFF]*[=+@-]/.test(value) || /^[\t\r\n]/.test(value)) ? `'${value}` : value;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
+  const rows = [["source", "observed_statuses", "owner_decision", "target", "evidence"].map((value) => cell(value)).join(";")];
+  for (const row of report.rows) {
+    if (row.outcome.kind !== "pending") continue;
+    if (!row.source.startsWith("/") || row.source.startsWith("//")) throw new Error("Invalid review source path.");
+    rows.push([cell(row.source, true), cell(row.crawlStatuses.join(", ")), cell(""), cell(""), cell("")].join(";"));
+  }
+  return `\uFEFF${rows.join("\r\n")}\r\n`;
+}

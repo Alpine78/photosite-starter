@@ -1022,6 +1022,11 @@ to exactly one decided, pending, excluded, or already-live bucket. Direct canoni
 same-language targets and explicit category-ancestry/home fallback policy follow
 ADR-0003 decision 9; unknown URLs retain ordinary not-found behavior.
 
+**Legacy review export, 2026-10-06 (AB#209, Active):** optional `report --csv`
+exports pending exact paths/statuses with blank owner decisions. Formula-safe
+semicolon CSV leaves JSON/check behavior and the redirect registry unchanged.
+AB#19 accepted mapping and post-import target verification remain open.
+
 **Mapping verification tooling, 2026-10-02 (AB#19, still Active):** the full Boards
 attachment contains 442 URL records; the committed inventory projects them to 415
 path/status observations. Current configuration has **39 redirects** (three structural,
