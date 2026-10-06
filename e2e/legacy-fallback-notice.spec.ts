@@ -15,7 +15,8 @@ const canonicalHref = (path: string) => `${appUnderTestEnvironment.SITE_CANONICA
 /** Discover a published category through the real route's accessible navigation. */
 async function targetPath(page: Page, target: (typeof targets)[number]) {
   if (!target.category) return target.root;
-  await page.goto(target.root);
+  // The navigation and notice are server-rendered; image completion is unrelated.
+  await page.goto(target.root, { waitUntil: "domcontentloaded" });
   const categories = page.getByRole("region", { name: getBuiltInLabels(target.locale).contentTree.categories, exact: true });
   const href = await categories.getByRole("link").first().getAttribute("href");
   expect(href).toBeTruthy();
@@ -23,7 +24,7 @@ async function targetPath(page: Page, target: (typeof targets)[number]) {
 }
 
 async function assertNotice(page: Page, path: string, locale: string) {
-  const response = await page.goto(`${path}?legacy-notice=content-unavailable`);
+  const response = await page.goto(`${path}?legacy-notice=content-unavailable`, { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
   await expect(page.getByRole("status")).toHaveText(getBuiltInLabels(locale).contentTree.legacyFallbackNotice);
   await expect(page.getByRole("status")).toBeVisible();
@@ -47,7 +48,7 @@ for (const target of targets) {
   test(`invalid and repeated legacy notice values are ignored at ${target.root}`, async ({ page }) => {
     const path = await targetPath(page, target);
     for (const query of ["legacy-notice=untrusted-copy", "legacy-notice=content-unavailable&legacy-notice=content-unavailable", "legacy-notice=content-unavailable&legacy-notice=untrusted-copy"]) {
-      const response = await page.goto(`${path}?${query}`);
+      const response = await page.goto(`${path}?${query}`, { waitUntil: "domcontentloaded" });
       expect(response?.status()).toBe(200);
       await expect(page.getByRole("status")).toHaveCount(0);
       await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", canonicalHref(path));
@@ -57,6 +58,28 @@ for (const target of targets) {
 
 test.describe("legacy fallback without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
+  test("the server-rendered notice is available while photographs are pending", async ({ page, baseURL }) => {
+    let releaseImages!: () => void;
+    let imagePending = false;
+    const imagesReleased = new Promise<void>((resolve) => { releaseImages = resolve; });
+    await page.route((url) => url.origin === new URL(baseURL!).origin &&
+      (url.pathname === "/_next/image" || url.pathname.endsWith(".webp")), async (route) => {
+      imagePending = true;
+      await imagesReleased;
+      await route.continue();
+    });
+    try {
+      await assertNotice(page, "/", appUnderTestEnvironment.SITE_LOCALE);
+      await expect.poll(() => imagePending).toBe(true);
+      // The complete load event is still held by images; SSR assertions need only the DOM.
+      expect(await page.evaluate(() => document.readyState)).toBe("interactive");
+    } finally {
+      releaseImages();
+      // Drain intercepted handlers; finishing image downloads is outside this SSR check.
+      await page.unrouteAll({ behavior: "wait" });
+    }
+  });
+
   test("home and both languages' category targets still explain the fallback", async ({ page }) => {
     for (const target of targets) await assertNotice(page, await targetPath(page, target), target.locale);
   });
