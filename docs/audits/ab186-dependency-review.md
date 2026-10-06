@@ -295,3 +295,14 @@ Authenticated deployment/upload/protection proof is a separate release check;
 this document does not claim it occurred. The required main CI and release
 candidate records are reported by the release handoff. No dependency change,
 new runtime exploit, owner acceptance, CMS write or public promotion is claimed.
+
+## Offline counts from a saved report (AB#204)
+
+Run `npm run summarize:audit -- <saved-audit.json>` on npm audit v2 JSON (maximum
+4 MiB). No registry call or dependency fix occurs. Exit 0 is validated clean, 1 is
+findings and 2 is invalid/error/inconsistent input. Package entries, concrete and
+inherited entries, string-via edges and unique numeric advisory IDs are distinct
+counts. Direct dependencies are counted by npm's `isDirect`; this differs from entries
+with concrete advisories. Cycles must reach a concrete advisory, and every reference
+must exist. GHSA IDs are optional and extracted only from exact GitHub advisory URLs.
+Counts do not establish exploitability or approve risk. AB#160/186 remain open.
