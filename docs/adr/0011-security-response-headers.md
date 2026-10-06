@@ -67,6 +67,12 @@ Two more Codex findings were checked directly rather than taken on faith:
 
 ## Decision
 
+Implementation checkpoint, 2026-10-06 (AB#199): the private-gallery root uses
+Next's `beforeInteractive` loader for its same-origin bootstrap. The framework emits
+an inline startup queue with only the fixed script URL, under the existing
+`'unsafe-inline'` residual below. The gallery capability is never in this queue.
+This corrects startup ordering without changing the policy or adding a script origin.
+
 Add a broad `headers()` entry (`source: "/:path*"`, applied to every response,
 alongside the existing versioned-gallery-asset entry which still governs only its own
 narrower `Cache-Control`) setting:
