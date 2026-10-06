@@ -170,3 +170,24 @@ rollback alone does not prove restored code and current content/cache agree.
 Record a redacted timeline, impact, cause, recovery, remaining gaps and owner.
 The owner must also address any credential/data exposure as a security incident;
 restoring availability does not resolve that exposure.
+
+## Offline emitter summary (AB#205)
+
+Run `npm run summarize:contact-failures -- <emitter.ndjson>` on privately saved bare
+application-emitter JSON lines for `contact.submission` and `enquiry.submission`.
+Provider log wrappers are not accepted. Each line must end in a newline; input is
+limited to 4 MiB, 64 KiB per record, 40,000 records and 10,000 family/correlation keys.
+No live logs are fetched. Output contains fixed state/class counts only, never IDs,
+form fields, exception messages, URLs or raw lines. Unknown/extra fields, malformed
+records, missing IDs and conflicting terminal outcomes count as invalid evidence.
+
+Repeated accepted or identical terminal events count once per family/correlation.
+An accepted-only correlation is incomplete. Expected input/item refusals and honeypots
+are separated from delivery failures and rejected source/runtime defects. Every
+`delivery-failed` event is a failure. Exit 0 means complete valid supplied evidence,
+1 means observed failures, and 2 means invalid or incomplete evidence (including empty
+or unterminated input). Invalid/incomplete status takes precedence while observed
+failure counts remain visible. No timestamps means no alert window or cadence can be
+inferred. Delivered means provider acceptance, not mailbox arrival. Missing emitter
+events can conceal runtime/transport faults; a complete summary does not prove overall
+service health. Live notification and controlled failure exercises remain open in AB#159.

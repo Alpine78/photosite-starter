@@ -31,6 +31,7 @@
     "fix:joomla-intro": "node scripts/write-joomla-intro-summary.mts",
     "write:services": "node scripts/write-sanity-services.mts",
     "admin:secret": "node scripts/generate-admin-secret.mts",
+    "summarize:contact-failures": "node scripts/summarize-contact-failures.mts",
     "recompute:shuffled-order": "node scripts/recompute-shuffled-order.mts",
     "audit:sanity": "node scripts/audit-sanity-content.mts",
     "verify:sanity-live": "vitest run --config vitest.live.config.mts",
