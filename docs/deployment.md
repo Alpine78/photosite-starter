@@ -1473,6 +1473,51 @@ robots directives. It never prints a response body, a token, or a bypass secret.
   at one moment on one URL. It says nothing about what the provider logs, and it is not a
   substitute for the launch review.
 
+## Offline web DNS comparison (AB#200)
+
+Before changing DNS, export the **complete current zone** privately and normalize it
+into `{"zone":"example.test","records":[{"name":"@","type":"A","value":"192.0.2.1","ttl":300}]}`.
+This local format is not a raw provider export. Records require name, uppercase type,
+value and integer TTL in seconds; an optional integer priority is preserved. Relative
+owners are appended to the zone; absolute owners must end in a dot; `@` is the apex.
+ASCII case/trailing dots normalize in names and CNAME targets. TXT, MX, SRV, CAA and
+other RDATA remain byte exact: concatenate TXT chunks yourself without trimming or
+adding spaces. CNAME targets are absolute names, with an optional terminal dot.
+
+Supply a second proposed snapshot and a JSON array of explicit web owners, e.g.
+`["@","www"]`, to `npm run check:dns-cutover -- before.json after.json web-hosts.json`.
+Each file is limited to 4 MiB. Exit 0 means the protected record multisets agree and
+there is no proposed CNAME conflict; 1 means a protected change or conflict; 2 means
+invalid input. Output contains counts and digests, never record values. TTL, priority
+and duplicate occurrences count. Only allowlisted A/AAAA/CNAME records may change;
+wildcards and all other records remain protected. Apex aliases, multiple alias targets
+and conflicting data are refused. DNSSEC coexistence follows
+[RFC4035 §2.5](https://www.rfc-editor.org/rfc/rfc4035#section-2.5) and
+[RFC2181 §10.1](https://www.rfc-editor.org/rfc/rfc2181#section-10.1).
+
+A passing comparison performs no DNS write and proves neither current-export freshness,
+ownership, DNSSEC validity, propagation nor mail health. In particular, SPF `a`/`mx`
+authorization can depend on changed addresses even when its TXT is unchanged. Verify
+received-message authentication and external mail delivery separately under AB#131.
+Before allowlisting a host, inspect protected MX/SRV/NS and CNAME target dependencies.
+A protected record can retain its exact bytes while an allowed target's changed
+address moves mail or another service. Select hosts without those dependencies or
+resolve and verify the affected service separately before cutover.
+
+## Mail recovery evidence
+
+Use the blank [mail recovery worksheet](mail-recovery-evidence.md) for AB#131's two
+independent mailboxes, current full-zone export and exercised message/DNS/account
+recovery. Completed records belong in ignored private operator evidence. Working mail
+and owner-reported backups do not establish tested restoration or contractual closure.
+
+## Rollback exercise evidence
+
+Fill the [rollback exercise record](rollback-exercise-record.md) privately after AB#18.
+It separates immutable deployment recovery from CMS, assets, cache, credentials and
+already sent mail, and records owner control/access removal. AB#118 still requires an
+actual accepted exercise; publishing this blank record performs no rollback.
+
 ## Legacy owner-review CSV (AB#209)
 
 `npm run verify:legacy-redirects -- report --csv` exports only pending rows with exact
