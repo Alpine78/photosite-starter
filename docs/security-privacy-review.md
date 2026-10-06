@@ -9,6 +9,10 @@ This is the launch-gate review AB#117's acceptance criteria require. It is a
 point-in-time review: rerun it (or at least re-check the finding register below)
 before every subsequent production promotion, not only once.
 
+The [2026-10-05 operational checkpoint](#2026-10-05-operational-checkpoint-ab13711718)
+supersedes historical claims below that Resend is unprovisioned or the remaining
+migration bundle is unapproved. It is scoped preparation, not the final AB#117 verdict.
+
 ## How this review was run
 
 A plan for this review was sent to Codex (OpenAI's CLI, `codex-review-loop` skill,
@@ -744,3 +748,42 @@ live target availability, the exact content/rights/privacy approval, project quo
 a recoverable Production baseline, post-import state/asset verification and write
 credential revocation remain migration gates. The prepared remaining-content plan
 is unapproved; no Production write or paid plan change was performed.
+
+### 2026-10-05 operational checkpoint (AB#137/117/18)
+
+PR #246 is merged and exact main CI #545 passed. The fresh manual prebuilt candidate
+uses that source; all 607 provider archive members match local manifests. It reached
+READY with deployment protection and noindex, preserving both existing aliases and the
+project's Production target. The old default alias returns anonymous HTTP 200; activating
+it changes public serving code and still requires the release gates. The immutable
+candidate's protection is distinct from that public alias. Fourteen current-content
+route/pagination GETs pass. Contact
+GET and four fixed rejected POST probes pass; no test reaches the delivery adapter.
+The owner verified a real email and Reply-To on the preceding candidate. Current
+Production delivery settings exist, but actual delivery from the new source is unverified.
+
+The approved content and category digests are unchanged. Both dry runs, complete
+baseline freshness, zero collision results, quota projection and all 3,512 derivative
+checks pass. Seven shared existing assets and all baseline IDs are protected by the
+rollback guard. No Production CMS write or revocation occurred. The current operator
+is an Administrator and production/preview visibility is public; region was not returned
+by the checked metadata endpoints. Token and robot-principal inventories are separate;
+the cleanup scope still needs reconciliation, including the old temporary Editor.
+The read-only audit credential's effective permissions were verified separately.
+
+[The contact checkpoint](contact-data-flow.md#2026-10-05-account-and-notice-checkpoint)
+records the actual Resend provisioning, provider residence, tracking uncertainty and
+missing CMS notice fields. Account MFA, credential scope, terms/retention and mailbox
+deletion practice remain open. The owner's earlier approval to rotate the exposed
+Vercel automation bypass was executed: the private receipt records old-secret rejection,
+replacement verification and consumer updates; fresh readback verifies the replacement
+entry and protected access. No second rotation or approval is needed for that incident.
+Secret values and private content/evidence are not committed.
+
+This checkpoint does not close AB#117. AB#132's exact local production-build probes still
+fail semantically without JavaScript; no acceptance is recorded. AB#186's current full
+audit adds tooling advisory families and requires a current residual decision before
+promotion. The Production hosting-tier decision, physical-device check, pending legacy
+routes, compatible serving-code activation, approved import, full post-write audit and
+credential revocation remain open. The October 8 go/no-go and October 15 legacy-host
+removal dates remain in force; Infomaniak mail must survive any web-DNS change.
