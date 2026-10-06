@@ -161,6 +161,11 @@ records the commit/build provenance and 36 passing gallery/category journeys plu
 four expected failures. Both upstream candidates (#98455 and #98583) remain
 unmerged; [ADR-0007's decision proposal](adr/0007-proxy-request-path-boundary.md#2026-10-03-main-branch-recheck-and-decision-proposal-ab132)
 awaits explicit owner acceptance or withheld promotion before AB#18.
+**Checkpoint, 2026-10-06 (AB#201, Active):** the merged source retains all four
+scriptless semantic failures across Chromium/WebKit. The
+[redacted audit](audits/ab132-2026-10-06-scriptless.json) records exact build/harness
+identities and current upstream states. No AB#132 risk acceptance is implied.
+
 **AB#132 owns this**, and was reopened to
 `Active` on 2026-09-03 because it had been closed while none of its own "Done when"
 conditions held: the semantic 404 HTML above, the removal of the `javaScriptEnabled: true`
