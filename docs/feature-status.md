@@ -2755,9 +2755,44 @@ challenged and authorized responses carry noindex. The current-content smoke pas
 28 GETs, including gallery first/next pages, and 14 semantic comparisons match the prior
 same-commit diagnostic. New approved content has not been imported or HTTP-tested.
 This candidate was built locally, not by an Azure Production stage; it remains protected
-and inactive. Production metadata lacks the contact-delivery adapter, sender/recipient
-and provider key, so email provisioning and verification remain open. The public-code
+and inactive. At that checkpoint Production metadata lacked the contact-delivery adapter,
+sender/recipient and provider key; the later checkpoint below supersedes that provisioning
+status. Email verification remains open. The public-code
 gate, import/audit/revocation, AB#117 and AB#18 launch decisions remain unresolved.
+
+**Merged release and migration readiness, 2026-10-05 (AB#137, Active):** PR #246
+merged and AB#188 reached Closed; exact main revision `4b8dd013880eddf79e54e42244d18f5cda32d860`
+passed Azure CI #545. A fresh manual prebuilt Production-target candidate reached READY
+with that revision. Later main advancement changed only four documentation files;
+the release source and runtime/build inputs remain frozen at the CI-verified revision.
+All 607 uploaded archive members match the local output and mapped-input manifests.
+Provider-side runtime secrets were not downloaded into the build. Both existing aliases
+and the project's Production target stayed on the prior deployment; no custom domain
+was attached. The candidate's protection and noindex are verified; the old default alias
+returns anonymous HTTP 200, so activation changes public serving code. Fourteen
+current-content route/pagination GETs pass. Contact GET and four fixed rejected POST cases pass without delivery; the actual email/Reply-To owner test belongs to the
+preceding candidate, so the new revision's real delivery is still unverified.
+
+All 3,593 raw revisions and 1,748 asset metadata records still match the complete
+baseline. Both approved writers pass dry runs, collision checks remain clear and the
+unchanged projected project quota is 11,759 documents (15,271 conservatively including
+every planned asset). All 3,512 derivatives pass dimensions, ratio, no-upscale and
+EXIF/IPTC/XMP checks: 3,404 unique hashes and seven shared existing assets. Protect all
+baseline IDs during rollback and use actual write receipts for new-only IDs. No CMS
+write occurred. The operator has Administrator membership and the two datasets are
+public; the metadata endpoints do not establish storage region. Token metadata shows
+three write-capable project-managed tokens, including a never-expiring temporary Editor;
+a separate principal inventory needs reconciliation before cleanup. No token was revoked.
+
+Resend provisioning is no longer absent: the owner verified its sending domain and
+received real mail, and Production contact settings are present. Account MFA, key
+scoping, actual retention and tracking settings remain AB#117 checks. The published CMS
+privacy notice names only name/email/message and generic delivery; its new-field and
+processor coverage needs updating, and its authored 12-month mailbox promise still
+needs an operational deletion check. The exact local production build reproduces
+AB#132's four scriptless semantic failures. AB#132/186 owner decisions, hosting tier,
+real-device verification, legacy-route completion, public activation and import/audit/
+revocation remain open. This checkpoint neither accepts risk nor closes AB#117/18.
 
 The visual finish from the owner's Claude Design hi-fi proposal is delivered (AB#173).
 The default palettes are now **Kivi** (light, `#ece9e3` ground) and **Grafiitti** (dark,
@@ -2801,7 +2836,7 @@ contact column (AB#178). Its privacy notice is a native disclosure, and the
 direct email link remains usable without JavaScript. Related work item:
 AB#176 portfolio topic filter.
 
-**Contact email subject follow-up, 2026-10-05 (AB#188, Active):** ordinary contact
+**Contact email subject follow-up, 2026-10-05 (AB#188, Closed):** ordinary contact
 emails use the server-resolved selected service name and optional preferred date in
 the deployment's numeric date format, without an em dash or site-name suffix. Other
 and older submissions keep the generic contact label. The subject is normalized to
@@ -2809,8 +2844,9 @@ one line and bounded to 160 Unicode code points with the full Gregorian date ret
 the body and visitor reply address are preserved. Composer and route tests cover
 locale/timezone behavior, authored header controls and rejected service/date inputs.
 The contact data-flow record documents date visibility in inbox and notification
-previews. This is a source change awaiting owner commit/review; the live protected
-contact test used the preceding renderer and does not validate this new subject format.
+previews. PR #246 is merged and exact main CI #545 passed. The fresh protected candidate
+contains this format; the earlier owner delivery test used the preceding renderer and
+does not validate the new subject end to end.
 
 The header brand follows the hi-fi proposal's `.brand` (AB#187): an optional
 `siteSettings.logo` and dark-theme `logoDark` (shared public images, decorative, native

@@ -439,8 +439,8 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   pinch/pan check that ADR-0001 records as an outstanding gap*
 - [ ] Scriptless 404 recovery (AB#132) — Next.js 16.3.8
   still needs JavaScript to show the 404 heading and invalid-continuation return
-  link. [ADR-0007](docs/adr/0007-proxy-request-path-boundary.md#2026-10-03-main-branch-recheck-and-decision-proposal-ab132)
-  records the 2026-10-03 check and pending owner decision; known-failure probes
+  link. [ADR-0007](docs/adr/0007-proxy-request-path-boundary.md#2026-10-05-merged-release-build-check-ab132)
+  records the 2026-10-05 check and pending owner decision; known-failure probes
   keep it visible without declaring the journey fixed.
 - [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
   handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
@@ -531,9 +531,14 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   documents and 1,748 existing image binaries; revision, metadata and byte-hash checks
   passed. Both writer dry runs passed. The public deployment's older renderer cannot
   read 14 of the approved pages, so the import waits for compatible public code.
-  A protected prebuilt renderer candidate passes current-content route and pagination
-  checks; it is not activated. Production contact-delivery provisioning remains open.
-  Post-write audit, temporary-token revocation and public promotion remain pending.
+  A fresh protected prebuilt candidate uses the merged contact-subject revision and
+  CI #545. Production Resend settings are configured, and the owner verified delivery
+  and Reply-To on the preceding candidate; real delivery from this revision still needs
+  verification. The current CMS privacy notice omits the new fields and specific
+  processors. The complete baseline and derivative/shared-asset guards were rechecked.
+  Existing aliases still serve the old code; the default alias is publicly accessible.
+  Activation changes public serving code and remains gated. Post-write audit,
+  temporary-token revocation and public promotion remain pending.
   See [migration and verification](docs/sanity-seeding.md)*
 - [ ] Production deployment — *the protected Preview environment is provisioned and its
   fully automated pipeline was verified by build 144 on 2026-08-24: the pinned runtime and

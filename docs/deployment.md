@@ -1325,15 +1325,52 @@ identity was verified against the original uploaded archive, rather than inferre
 absent provider Git metadata. This protected rehearsal does not authorize promotion
 or replace the launch gates or the Azure/prebuilt release path above.
 
-The 2026-10-05 protected renderer preparation used a **manual prebuilt** build from
+The initial 2026-10-05 protected renderer preparation used a **manual prebuilt** build from
 the unchanged, CI-verified main revision. Only named public configuration values entered
 the local build; the Production dataset is public and needs no build read token.
 Runtime Sensitive values stayed provider-side. The uploaded archive's physical outputs,
 function aliases and mapped runtime files all matched the local manifests. Both existing
 aliases stayed on the old deployment, and protected FI/EN route and gallery-continuation
 checks passed. This is operator evidence, not an Azure Production build or launch approval.
-Production contact-delivery settings were absent in the project metadata and remain
-an open provisioning requirement; rendering GET checks do not test email delivery.
+Production contact-delivery settings were absent at that initial checkpoint. The later
+checkpoint below supersedes that provisioning status; rendering GET checks do not
+test email delivery.
+
+**Later checkpoint, 2026-10-05 (AB#137):** PR #246's merged source
+`4b8dd013880eddf79e54e42244d18f5cda32d860` passed main CI #545, including the
+Playwright gate. A new manual prebuilt candidate from that exact source reached READY.
+The subsequently merged documentation-only change did not alter its runtime or build
+inputs. All 607 uploaded members match the local manifests. Only 14 public build
+settings entered the build; the temporary local configuration was removed and the
+original project link restored. Runtime contact settings and Sensitive credentials
+remain provider-side. No new Sanity write credential was created.
+
+Both generated aliases and the project's Production target remained on the previous
+deployment after a settling check; the complete project-domain inventory contains no
+custom domain. A separate anonymous readback found the default project alias publicly
+serves that old deployment with HTTP 200, while the generated team alias redirects to
+Vercel login. The immutable candidate URL is challenged anonymously and its authorized
+responses carry noindex. Activating the default alias would change public serving code;
+the project protection setting alone does not establish every alias's access behavior.
+Fourteen current-content route/pagination GETs passed. Contact GET plus four rejected
+POST cases passed without sending. The owner has already verified real delivery and Reply-To on the preceding candidate. `CONTACT_DELIVERY_ADAPTER`,
+sender, recipient and `RESEND_API_KEY` are now configured for Production; a real email
+from this revision is still unverified. Its current CMS notice must cover the new
+fields and actual processors; see [the contact checkpoint](contact-data-flow.md#2026-10-05-account-and-notice-checkpoint).
+
+The raw-document and asset metadata manifests still equal the complete baseline.
+Approved writer dry runs and collisions/quotas were rechecked. All 3,512 derivatives
+pass full-frame dimension and metadata checks; seven match existing assets, and 3,404
+unique hashes demonstrate why row counts cannot predict created asset IDs. Keep all
+1,748 baseline IDs protected and record actual new IDs during any write. Repeat the
+complete freshness and collision checks immediately before a later write.
+
+This evidence leaves activation, import/audit/revocation and the public launch open.
+AB#132's scriptless recovery still fails on the exact local build, and AB#186's fresh
+advisories need a current residual decision before earlier promotion. Production hosting,
+AB#141's physical-device check, AB#19's remaining route decisions and AB#117's live-account
+review also remain gates. The October 8 go/no-go and October 15 legacy-host deadline
+are unchanged; preserve Infomaniak mail and change only approved web records at cutover.
 
 Before publishing a CMS batch with a new field representation, verify compatibility
 against the deployment actually serving each public alias. A merged adapter and a

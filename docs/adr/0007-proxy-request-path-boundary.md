@@ -345,3 +345,22 @@ known-failure markers and JavaScript-enabled exceptions.
       an application-specific one; the owner decision above tracks it there instead of
       working around it locally. Retiring the limitation below also retires the
       JavaScript-enabled exception in the continuation journey.
+
+## 2026-10-05 merged release build check (AB#132)
+
+The exact PR #246 merged source (`4b8dd013880eddf79e54e42244d18f5cda32d860`),
+Next.js 16.3.8 and Node 24.20.0 was built with the live public Production CMS settings.
+An owned local production server used a synthetic cursor key and no delivery credential.
+Chromium and WebKit, JavaScript disabled, both measured an unknown matched route and a
+refused existing-gallery continuation after page load. All four returned HTTP 404 and
+noindex without a redirect, with zero rendered headings; both continuation cases also
+had zero required return links. The `__next_error__` document and fallback digest were
+present. The owner-only receipt is retained with the release evidence; this is a local
+production-build measurement, not a physical-device test or a provider-deployment
+Playwright result.
+
+The existing O(1) Proxy decision and supported-remedy assessment above remain in force.
+No framework patch or content lookup was introduced. The October 8 review proposal,
+required explicit owner decision before AB#18, and AB#132 follow-up remain unchanged.
+Main CI #545 passed its gates with the documented expected failures; it does not mean
+scriptless recovery passed. No residual acceptance or public promotion is recorded.

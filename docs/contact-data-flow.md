@@ -95,12 +95,14 @@ lives in the adapter that a production deployment already refuses to build.
 | Party | Role | Data it sees | Retention | Ownership |
 | --- | --- | --- | --- | --- |
 | **Vercel** (hosting) | Processor for the application; controller for its own Service-Generated Data | Request metadata: path, status, region, user agent, IP address. Not form fields — those are in the request body, which Runtime Logs do not record | **Preview, today: Runtime Logs 1 hour on Hobby** (checked live and against Vercel's own documentation, 2026-08-25 — this row's original "1 day on Base Pro" figure describes Production's still-undecided plan, per [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment; see "Before production launch" below). **Production's retention figure follows whichever tier AB#18 chooses** — unresolved. Broader Service-Generated Data is not assumed to be deleted with that window | Customer-owned Vercel team, provisioned by AB#116, currently on Hobby for Preview/development — **the Production tier is unresolved, not decided: ADR-0004's original Pro Decision stands until AB#18 reconsiders it. See [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment and "Before production launch" below** |
-| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, subject, message text, and optional phone/date | Email data 30 days on standard plans, per Resend's documentation — **unconfirmed against a real account; see below** | Customer-owned Resend account, customer-verified sending domain, environment-scoped API key — **this describes the intended setup, not a verified live account: as of 2026-08-25 no Resend account has been confirmed to exist, and provisioning it is AB#117's own prerequisite work (see "Before production launch" below)** |
-| **Mailbox provider** | Processor for the received message | The whole email | Whatever the owner's mailbox retention is | Customer-owned |
+| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, subject, message text, and optional phone/date | Current provider documentation states 30 days on standard plans; the actual account setting still needs verification | Account and sending domain provisioned by the owner; prior protected candidate delivered real mail. Production settings are present. MFA, key scope, terms/retention and tracking checks remain open (2026-10-05) |
+| **Infomaniak** (reference mailbox) | Processor for the received message | The whole email | Published owner-authored notice promises at most 12 months after last contact, with contract/legal exceptions; actual deletion practice and provider terms still need verification | Owner confirms migrated mail is working; a clone records its own provider |
 
-Open and click tracking are **disabled by default** for a Resend domain and are
-left disabled: the outbound message is plain text with no links to rewrite, no
-HTML part, and no tracking pixel.
+The adapter emits plain text with no HTML part or application-added tracking pixel.
+Visitor message text can contain links. [Resend documents tracking as off by default](https://resend.com/docs/dashboard/domains/tracking),
+but the owner reported that the checkbox appeared checked and could not be switched
+off during domain setup. The actual domain settings have not been read back. Do not infer that tracking is disabled
+from the adapter's text-only payload. Verify both domain controls before closing AB#117.
 
 ## Application-emitted logs
 
@@ -251,6 +253,33 @@ caption/credit, the gallery and section, and, only from a private dataset, the
 
 ## Before production launch
 
+### 2026-10-05 account and notice checkpoint
+
+The owner has provisioned Resend, verified its sending domain in the Ireland region,
+and received a real message with a working visitor Reply-To on the preceding protected
+candidate. Production has the adapter, sender, recipient and Sensitive provider-key
+settings. The newly merged subject-format revision has passed CI and protected rejection
+probes; its real-delivery test remains open. Preview still uses the sink.
+
+[Resend's current GDPR statement](https://resend.com/security/gdpr) places stored message,
+log and account data in the United States; choosing Ireland for sending does not change
+storage residence. It states that its DPA applies to all accounts at signup. The account's
+terms, transfer basis, retention settings, MFA, API-key scope and tracking controls still
+need the operator's account-specific check. Provisioning is complete; the privacy review
+is not.
+
+A read-only CMS check found that the published `collected` statement names only name,
+email and message; the recipient statement describes a generic delivery service. Update
+both languages for subject, optional phone/date and the actual processors. The authored
+12-month mailbox promise is a statement to verify against deletion practice, rather than
+proof that either provider automatically enforces it. The private release packet contains
+the captured revision and a proposed text update. No CMS text was changed by this check.
+
+### Historical account review — August 2026
+
+The following dated observations preserve the earlier prerequisite decisions. The
+October checkpoint supersedes their claims that Resend is unprovisioned or unwired.
+
 These are AB#116's and AB#117's to close, and they are listed here so the gap is
 visible rather than assumed. AB#117's launch review
 (`docs/security-privacy-review.md`, AC3) confirmed on 2026-08-22 that all four remain
@@ -316,8 +345,10 @@ no longer share one blocker — they split three ways:
   likely that pre-existing service, answerable now without a Resend
   account — see the checklist entry below.
 
-Re-check this list again once the Resend account is provisioned, rather than
-assuming it is still accurate.
+### Current before-launch checklist
+
+The account is provisioned. The following account-specific checks remain open;
+use the October checkpoint when interpreting the historical observations above.
 
 - [ ] Verify Resend's current data-residency options, retention terms,
       sub-processor list, and DPA (including EU transfer clauses) against the
@@ -326,8 +357,8 @@ assuming it is still accurate.
       account data is held in the United States under SCCs — that has to be
       confirmed against the terms in force at provisioning, not assumed from
       this file. **Owned by AB#117 as prerequisite work (decided
-      2026-08-25), not deferred to AB#18: the account still needs to be
-      provisioned, by the site owner, before this item can close.**
+      2026-08-25), not deferred to AB#18. The account is now provisioned;
+      the account-specific review remains open.**
 - [ ] Record the Vercel privacy role, data categories, access, retention,
       deletion, and transfer boundary **in force for Production** (ADR-0004,
       action item 3), and limit Runtime Logs access to operators who need it.
@@ -372,7 +403,6 @@ assuming it is still accurate.
       which mailbox receives contact enquiries and check that provider's own
       retention terms.
 - [ ] Replace every placeholder value in that notice with what this deployment
-      actually does. **Partially unblocked: the mailbox-retention half can
-      be written in now; the Resend data-residency/DPA half above is
-      AB#117's prerequisite work (decided 2026-08-25) and still needs the
-      account provisioned first.**
+      actually does. **The account is provisioned. Confirm the actual processor and
+      retention settings, then update the missing field/processor coverage
+      identified in the October checkpoint above.**
