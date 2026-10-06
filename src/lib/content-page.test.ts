@@ -68,6 +68,28 @@ describe("isContentEnded", () => {
     expect(isContentEnded("2024-01-01", new Date("2023-06-01"))).toBe(false);
   });
 
+  it.each([
+    "2026-02-30", "2026-02-30T00:00:00Z", "2026-04-31T12:00:00+02:00",
+    "1900-02-29", "2100-02-29", "2026-00-01", "2026-13-01",
+    "2026-01-00", "2026-01-32", " 2026-02-30t00:00:00Z ",
+    "2026-02-30 00:00:00", "+002026-02-30T00:00:00Z",
+  ])("rejects an impossible ISO calendar date: %s", (endDate) => {
+    expect(() => isContentEnded(endDate, new Date("2026-03-01T12:00:00Z")))
+      .toThrow(TypeError);
+  });
+
+  it.each([
+    "2000-02-29", "2024-02-29", "0000-02-29", "0096-02-29",
+    "+012000-02-29T00:00:00Z", "-000004-02-29T00:00:00Z",
+    "2026-04-30", "2026-02-28T24:00:00Z", "2024-02-29t12:00:00Z",
+    "2024-02-29 12:00:00", "2024-02-29T12:00:00+02:30",
+  ])("preserves the parsed expiry instant for a valid calendar date: %s", (endDate) => {
+    const instant = Date.parse(endDate);
+    expect(Number.isFinite(instant)).toBe(true);
+    expect(isContentEnded(endDate, new Date(instant - 1))).toBe(false);
+    expect(isContentEnded(endDate, new Date(instant))).toBe(true);
+  });
+
   it("throws for an unparseable endDate", () => {
     expect(() => isContentEnded("not-a-date", new Date())).toThrow(TypeError);
   });
