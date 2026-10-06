@@ -1503,3 +1503,10 @@ Before allowlisting a host, inspect protected MX/SRV/NS and CNAME target depende
 A protected record can retain its exact bytes while an allowed target's changed
 address moves mail or another service. Select hosts without those dependencies or
 resolve and verify the affected service separately before cutover.
+
+## Mail recovery evidence
+
+Use the blank [mail recovery worksheet](mail-recovery-evidence.md) for AB#131's two
+independent mailboxes, current full-zone export and exercised message/DNS/account
+recovery. Completed records belong in ignored private operator evidence. Working mail
+and owner-reported backups do not establish tested restoration or contractual closure.
