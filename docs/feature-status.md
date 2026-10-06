@@ -1317,7 +1317,11 @@ reauthorizes the administrator; `POST` checks same-origin JSON and a streamed
 1 KiB body bound before parsing. The draft store is separate from the
 published fixture's customer exchange, view, and proof stores, so creating a
 draft cannot give a customer access. This is not yet relational customer/job
-association: no customer or job domain records exist (AB#28). A separate
+association: no customer or job domain records exist (AB#28).
+AB#196 adds a [single-photographer operations worksheet](photographer-operations.md)
+for AB#28. It maps the parent criteria into decisions and unapproved slices;
+customer, contract and billing functionality remains disabled and unimplemented.
+A separate
 administrator-only `PATCH` now replaces a prepublication draft's complete
 pricing candidate through a revision-guarded memory-store update; stale tabs
 receive a conflict and refresh the bounded list. The candidate remains mutable
