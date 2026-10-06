@@ -270,6 +270,10 @@ behaviour of keyset over offset pagination, deliberately chosen over preserving 
 broader trigger. What AB#105 already made bounded and tested before AB#134, and remains true
 now, is the axis it always owned: a section-scoped read is never required to load a
 _different_ section's placements, or the rest of an unsectioned gallery, to answer correctly.
+AB#195 prepares AB#27's [author-rated catalog worksheet](review-catalog.md).
+Rating scale, content identity, detail surface and filtering decisions remain open;
+no catalog variant or rating filter is implemented.
+
 A gallery's optional lead and long-form body (AB#106) are ordinary `ContentPage` fields,
 not a gallery-specific type: the short lead already rendered from AB#104's own
 `page.summary`, and the long body reuses the exact `ContentBlock` set and `ContentBody`
