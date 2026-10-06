@@ -2045,7 +2045,14 @@ and sending domain into Production and verifying delivery, not provisioning or
 reviewing the account itself. The account has not been provisioned yet — that is a
 real third-party signup only the site owner can perform, not something this
 repository's tooling does — so the item stays open, now with a decided owner rather
-than an unresolved circularity. The recipient-mailbox item turned out not to share that blocker on
+than an unresolved circularity.
+
+**Mailbox recovery preparation, 2026-10-06 (AB#202, Active):** the
+[blank recovery worksheet](mail-recovery-evidence.md) separates two independent
+accounts, local message copies, full DNS exports and exercised recovery. Actual restore,
+account/contract decisions and the alternate legacy SMTP dependency remain open in AB#131.
+
+The recipient-mailbox item turned out not to share that blocker on
 inspection: Resend is only the delivery transport into a mailbox, not what creates
 one, and AB#116's own provisioning record shows the site owner already operates a
 real mail service independent of this project — so confirming that mailbox's

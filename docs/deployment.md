@@ -1472,3 +1472,10 @@ robots directives. It never prints a response body, a token, or a bypass secret.
 - **A passing verification proves two properties**, access protection and non-indexability,
   at one moment on one URL. It says nothing about what the provider logs, and it is not a
   substitute for the launch review.
+
+## Mail recovery evidence
+
+Use the blank [mail recovery worksheet](mail-recovery-evidence.md) for AB#131's two
+independent mailboxes, current full-zone export and exercised message/DNS/account
+recovery. Completed records belong in ignored private operator evidence. Working mail
+and owner-reported backups do not establish tested restoration or contractual closure.
