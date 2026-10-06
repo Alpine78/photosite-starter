@@ -2873,6 +2873,12 @@ contact column (AB#178). Its privacy notice is a native disclosure, and the
 direct email link remains usable without JavaScript. Related work item:
 AB#176 portfolio topic filter.
 
+**Hero CSS journey readiness, 2026-10-06 (AB#203, Active):** both real-component
+hero groups wait for DOM/CSS readiness, then retain explicit font/pale-image and all
+existing geometry/contrast/fade assertions. The original eager home image is held
+and witnessed through HTML/CSS readiness, then drained before measurement; old load navigation timed out before assertions.
+Runtime styles and accepted AB#155/171 presentation are unchanged.
+
 **Contact email subject follow-up, 2026-10-05 (AB#188, Closed):** ordinary contact
 emails use the server-resolved selected service name and optional preferred date in
 the deployment's numeric date format, without an em dash or site-name suffix. Other
