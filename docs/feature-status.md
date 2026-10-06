@@ -1368,10 +1368,18 @@ links, and a forged header reaches only a page that looks nothing up and an exch
 still demands the real capability. The bootstrap document renders identically for every
 well-formed handle and **looks nothing up**, because the capability is in the fragment and
 a browser never sends one; `public/private-gallery-bootstrap.js` (an external same-origin
-file, so no new inline-script grant) reads it, strips it from the address bar with
+file loaded before router initialization through the private root layout) reads it,
+strips it from the address bar with
 `replaceState`, and posts it to `POST <prefix>/<handle>/exchange`, which answers a session
 cookie or **one indistinguishable 403** for every failure class — same status, same body,
 no `Retry-After` — so nothing separates an unknown handle from a throttled known one.
+AB#199 corrects the proved startup race in which Next 16.3.8 could restore a fragment
+already scrubbed by the former deferred script. `beforeInteractive` keeps that
+credential out of the router's initial URL; a local pending capture waits for parsed
+bootstrap markup, and an authorized document starts no exchange. Next's inline startup
+queue contains only the fixed script path under ADR-0011's existing CSP residual.
+History traversal, generic refusal, original history state and production limits remain
+in force; VM startup regressions supplement the production-build browser journeys.
 `PRIVATE_GALLERY_STORE=memory` is a development-only fixture store (accepted only where
 `SITE_DEPLOYMENT_STAGE` is `development` — preview is refused as well as production, since
 it is a shared environment standing in for production) whose published, non-secret link is what the
