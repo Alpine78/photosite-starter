@@ -457,7 +457,14 @@ sees it, and `getContentPage`'s mock branch repeats the check as its own belt-an
 gate — so routing, listing membership, sibling-nav candidacy, and `listPublicRoutePaths` all
 exclude an ended page with no `endDate`-aware code anywhere downstream. `endDate` is
 deliberately not a content-tree input field, to avoid the tree needing two independent
-"is this public" signals. The mock fixture layer
+"is this public" signals. AB#191 also rejects impossible ISO calendar days in
+`isContentEnded` before V8 can normalize them into a later expiry instant. This
+uses the existing adapter-defect `TypeError` posture, so malformed content can
+fail the enclosing read rather than merely hide one page. Valid leap dates,
+offsets and date-only values keep their parsed expiry instant. This is a local
+seam check; it does not change GROQ's source-side date parsing or the accepted
+cache window. Non-ISO formats remain the existing parser's separate residual.
+The mock fixture layer
 carries both proving cases the story requires: `content-reading-coastal-light` (article) and
 `content-polar-night-sessions` (gallery) each author an `eventDate` that reorders them
 relative to their own `publishedAt`, and `content-ended-article`/`content-ended-gallery`

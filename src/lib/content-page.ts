@@ -272,6 +272,18 @@ export function onPageSummary(
   return page.summaryListingOnly === true ? undefined : page.summary;
 }
 
+/** V8 can normalize February 30; validate the ISO calendar prefix first. */
+function hasImpossibleIsoCalendarDate(value: string): boolean {
+  const date = /^([+-]\d{6}|\d{4})-(\d{2})-(\d{2})(?=$|[Tt ])/.exec(value.trim());
+  if (!date) return false;
+  const [, year, month, day] = date;
+  // setUTCFullYear preserves years 0–99, unlike Date.UTC's 1900 adjustment.
+  const probe = new Date(0);
+  probe.setUTCFullYear(Number(year), Number(month) - 1, Number(day));
+  return probe.getUTCFullYear() !== Number(year) ||
+    probe.getUTCMonth() !== Number(month) - 1 || probe.getUTCDate() !== Number(day);
+}
+
 /**
  * Whether `endDate` has been reached by `now` (AB#150, ADR-0017 decision 5).
  * `undefined` — the ordinary case — is never ended. Unlike the ordering
@@ -285,7 +297,7 @@ export function isContentEnded(
 ): boolean {
   if (endDate === undefined) return false;
   const ends = Date.parse(endDate);
-  if (Number.isNaN(ends)) {
+  if (Number.isNaN(ends) || hasImpossibleIsoCalendarDate(endDate)) {
     throw new TypeError(`content endDate is not a parseable ISO date: "${endDate}"`);
   }
   return now.getTime() >= ends;
