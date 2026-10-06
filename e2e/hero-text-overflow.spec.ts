@@ -1,9 +1,59 @@
+import { writeFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import sharp from "sharp";
 import { HeroOverlay } from "../src/components/hero-overlay";
 import { projectPublicImageMedia } from "../src/lib/media";
-import { expect, test } from "./support/fixtures";
+import { expect, test as base } from "./support/fixtures";
+
+// Hold the original eager homepage image until HTML and real CSS are ready.
+// Then drain it: WebKit measurement/capture also depends on document loading. The pale
+// component frame remains independently awaited by each existing assertion.
+const test = base.extend<{ homeCssReady: () => Promise<void> }>({
+  homeCssReady: async ({ page }, provideFixture) => {
+    const held = new Set<string>();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    let witnessedEagerImage = false;
+    const holdImage: Parameters<typeof page.route>[1] = async (route) => {
+      const image = new URL(route.request().url()).searchParams.get("url") ?? "";
+      if (image.startsWith("/gallery/hero-overflow-") || image.startsWith("/gallery/hero-feather.")) {
+        await route.fallback(); return;
+      }
+      if (held.size > 0) { await route.fallback(); return; }
+      held.add(image);
+      await gate;
+      // Abort the unrelated image only when measurement is over. Drain handlers
+      // before the page fixture closes, including a failed assertion/navigation.
+      await route.abort();
+    };
+    await page.route("**/_next/image?**", holdImage);
+    const witness = async () => {
+      const urls = await page.locator('main > figure img[loading="eager"], main > figure img:not([loading])').evaluateAll((images) => images.map((image) => (image as HTMLImageElement).currentSrc || (image as HTMLImageElement).src));
+      return urls.some((url) => held.has(new URL(url).searchParams.get("url") ?? ""));
+    };
+    try {
+      await provideFixture(async () => {
+        await page.goto("/", { waitUntil: "domcontentloaded" });
+        await expect.poll(witness).toBe(true);
+        witnessedEagerImage = true;
+        await expect.poll(() => page.evaluate(() => {
+          const links = [...document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')];
+          return links.length > 0 && links.every((link) => link.sheet !== null);
+        })).toBe(true);
+        release();
+        await page.unroute("**/_next/image?**", holdImage);
+      });
+    } finally {
+      try {
+        if (!witnessedEagerImage && !page.isClosed()) witnessedEagerImage = await witness().catch(() => false);
+        const path = test.info().outputPath("original-home-image-held.json");
+        writeFileSync(path, JSON.stringify({ heldRequests: held.size, witnessedEagerImage }));
+        await test.info().attach("original-home-image-held", { path, contentType: "application/json" });
+      } finally { release(); await page.unrouteAll({ behavior: "wait" }); }
+    }
+  },
+});
 
 const title = "Photographs from the northern coast and the people who call it home";
 const description = "A photographic journey through changing seasons, quiet villages and the everyday lives of people along the northern coastline.";
@@ -21,7 +71,7 @@ test.describe("AB#155: hero text stays on its contrast surface", () => {
 
   for (const height of [900, 500]) {
     for (const withByline of [false, true]) {
-      test(`${1600}:${height} pale cover, long lead, date${withByline ? " and byline" : ""}`, async ({ page }) => {
+      test(`${1600}:${height} pale cover, long lead, date${withByline ? " and byline" : ""}`, async ({ page, homeCssReady }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         const src = `/gallery/hero-overflow-${height}.abcdef123456.webp`;
         const media = projectPublicImageMedia({
@@ -45,7 +95,7 @@ test.describe("AB#155: hero text stays on its contrast surface", () => {
             body: `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="${height}"><rect width="100%" height="100%" fill="white"/></svg>`,
           });
         });
-        await page.goto("/", { waitUntil: "load" });
+        await homeCssReady();
         const markup = renderToStaticMarkup(createElement(HeroOverlay, {
           media, title, description,
           titleClassName: "text-3xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-4xl",
@@ -163,7 +213,7 @@ test.describe("AB#155: hero text stays on its contrast surface", () => {
 test.describe("AB#171: hero text surface fades into the photograph", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("short copy at 1920×1080 over a pale 16:9 cover", async ({ page }) => {
+  test("short copy at 1920×1080 over a pale 16:9 cover", async ({ page, homeCssReady }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     const src = "/gallery/hero-feather.abcdef123456.webp";
     const media = projectPublicImageMedia({
@@ -185,7 +235,7 @@ test.describe("AB#171: hero text surface fades into the photograph", () => {
         body: '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><rect width="100%" height="100%" fill="white"/></svg>',
       });
     });
-    await page.goto("/", { waitUntil: "load" });
+    await homeCssReady();
     const markup = renderToStaticMarkup(createElement(HeroOverlay, {
       media, title: "Coastal light",
       meta: { dateTime: "2026-09-07", label: date },
