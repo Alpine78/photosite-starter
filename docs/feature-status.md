@@ -2053,6 +2053,11 @@ retention practice is answerable now, without a Resend account. Do not assume ei
 complete because an infrastructure gap closed — read the 2026-08-25 re-check sections
 in both documents before treating any of AC3 or AC5 as done.
 
+**Skill provenance preparation, 2026-10-06 (AB#207, Active):** two vendored
+source commits and reproduced CRLF folder hashes are pinned;
+[skill-provenance.json](skill-provenance.json) distinguishes original and local
+adaptation bytes. NOTICE/licences remain; AB#42/43 distribution decisions stay open.
+
 The repository's architecture is also drawn, not only described: `docs/architecture/`
 holds the system context, the application and data boundaries, and the build/deployment
 flow as authoritative D2 source with committed SVG renditions, rendered by an
