@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { getBuiltInLabels } from "@/lib/deployment-config";
 
 import {
@@ -45,6 +46,117 @@ const UNKNOWN_HANDLE = "MzMzMzMzMzMzMzMzMzMzMw";
 const GALLERY_HEADING = getBuiltInLabels(
   appUnderTestEnvironment.SITE_LOCALE as string,
 ).privateGallery.galleryHeading;
+
+/** Opt-in observer: the normal gate keeps its original timing and fixtures. */
+type HistoryEvent = {
+  kind: string;
+  time: number;
+  hasHash: boolean;
+  frameworkState: boolean;
+  readyState: string;
+};
+
+if (process.env.PRIVATE_GALLERY_HISTORY_DIAGNOSTICS === "1") {
+  const eventsByPage = new WeakMap<Page, HistoryEvent[]>();
+  const kinds = ["init", "replaceState:before", "replaceState:after",
+    "pushState:before", "pushState:after", "DOMContentLoaded", "hashchange",
+    "popstate", "pageshow", "pagehide"];
+
+  test.beforeEach(async ({ page }) => {
+    const events: HistoryEvent[] = [];
+    eventsByPage.set(page, events);
+    // Keep prior documents in Node, not in browser storage or history state.
+    await page.exposeBinding("recordPrivateGalleryHistory", (_, value: unknown) => {
+      if (!value || typeof value !== "object") return;
+      const event = value as Record<string, unknown>;
+      if (typeof event.kind !== "string" || !kinds.includes(event.kind) ||
+        typeof event.time !== "number" || !Number.isFinite(event.time) ||
+        typeof event.hasHash !== "boolean" || typeof event.frameworkState !== "boolean" ||
+        typeof event.readyState !== "string" ||
+        !["loading", "interactive", "complete"].includes(event.readyState)) return;
+      // Explicit projection: no URL, history payload, status text or credential.
+      events.push({ kind: event.kind, time: event.time, hasHash: event.hasHash,
+        frameworkState: event.frameworkState, readyState: event.readyState });
+      // Keep the late restore event rather than dropping it after a noisy start.
+      if (events.length > 256) events.shift();
+    });
+    await page.addInitScript(() => {
+      const record = (kind: string) => {
+        const sink = (window as Window & {
+          recordPrivateGalleryHistory?: (event: HistoryEvent) => Promise<void>;
+        }).recordPrivateGalleryHistory;
+        if (typeof sink !== "function") return;
+        try {
+          void sink({ kind, time: performance.now(), hasHash: Boolean(location.hash),
+            frameworkState: Boolean(history.state?.__NA), readyState: document.readyState })
+            .catch(() => {});
+        } catch {
+          // An unavailable observer must never change native history behavior.
+        }
+      };
+      for (const method of ["replaceState", "pushState"] as const) {
+        const original = history[method];
+        history[method] = function (this: History, ...args: Parameters<History[typeof method]>) {
+          record(`${method}:before`);
+          // Preserve receiver, arguments, return value and native exceptions.
+          const result = Reflect.apply(original, this, args);
+          record(`${method}:after`);
+          return result;
+        };
+      }
+      for (const event of ["DOMContentLoaded", "hashchange", "popstate", "pageshow", "pagehide"]) {
+        window.addEventListener(event, () => record(event));
+      }
+      record("init");
+    });
+  });
+
+  test("diagnostic: delayed bootstrap still scrubs a wrong capability", async ({ page }) => {
+    await page.route("**/private-gallery-bootstrap.js", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      await route.continue();
+    });
+    await page.goto(`${GALLERY_PATH}#${"A".repeat(43)}`);
+    const status = page.getByRole("status");
+    await expect(status).toHaveText((await status.getAttribute("data-invalid")) as string);
+    expect(new URL(page.url()).hash).toBe("");
+    await expect.poll(() => eventsByPage.get(page)?.some((event) =>
+      event.kind === "replaceState:after" && !event.hasHash)).toBe(true);
+    const serialized = JSON.stringify(eventsByPage.get(page));
+    expect(serialized).not.toContain("A".repeat(43));
+    expect(serialized).not.toContain(HANDLE);
+  });
+
+  test("diagnostic: delayed bootstrap scrubs an authorized repeat visit", async ({ page, browserName }) => {
+    test.skip(browserName === "webkit", "The HTTP harness cannot retain its Secure cookie in WebKit.");
+    const exchanges: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST" && new URL(request.url()).pathname === `${GALLERY_PATH}/exchange`) {
+        exchanges.push(request.url());
+      }
+    });
+    const fullLink = `${GALLERY_PATH}#${CAPABILITY}`;
+    await page.goto(fullLink);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(GALLERY_HEADING);
+    await page.goto("/");
+    await page.route("**/private-gallery-bootstrap.js", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      await route.continue();
+    });
+    await page.goto(fullLink);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(GALLERY_HEADING);
+    await expect.poll(() => new URL(page.url()).hash).toBe("");
+    expect(exchanges).toHaveLength(1);
+  });
+
+  test.afterEach(async ({ page }, testInfo) => {
+    if (testInfo.status === testInfo.expectedStatus) return;
+    await testInfo.attach("private-gallery-history-events", {
+      body: JSON.stringify(eventsByPage.get(page) ?? [], null, 2),
+      contentType: "application/json",
+    });
+  });
+}
 
 test.describe("private gallery link", () => {
   test("exchanges the fragment capability for a session", async ({

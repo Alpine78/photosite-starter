@@ -234,6 +234,66 @@ limits, revocation by the photographer, and the fact that a scanner's session is
 bound to its own cookie jar. A customer who suspects a link was intercepted asks
 the photographer to replace it, which retires the old one.
 
+## Fragment investigation (AB#192)
+
+The external same-origin bootstrap is emitted as a deferred script on both the
+opening and authorized documents. It attempts `history.replaceState` before a
+status update or exchange POST; the server initially emits the opening status.
+This describes the implementation's intent, not proof that later browser/router
+work cannot restore a fragment.
+
+Observed fixture failures, all desktop Chromium unless noted:
+
+| Run / attempt | Journey | Assertion observed |
+| --- | --- | --- |
+| [527](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=527), first attempt | Wrong capability | Fragment remained after the invalid status. |
+| [543](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=543), first attempt | Original full link on repeat visit | The existing ten-second empty-hash poll expired; its built-in test retry passed. |
+| [548](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=548), both test attempts | Original full link on repeat visit | The same empty-hash poll expired on both attempts. |
+| 548, first test attempt | Wrong capability | Immediate fragment assertion failed; its retry passed. |
+| 548, both test attempts, mobile WebKit | Session-cookie wire check | Exchange returned 403 rather than 200; refusal cause is not established. |
+
+Pinned Next 16.3.8 source initializes its router canonical URL from browser
+location and later writes history from that URL. Its native-history patch also
+bypasses synchronization when the supplied state has its framework marker.
+That makes router/bootstrap ordering a hypothesis to investigate, not a proved
+cause of these CI failures. A downloaded bootstrap's 200 response alone does
+not prove execution order. Do not replace the immediate pre-exchange privacy
+assertion with a wait or raise the existing budgets to hide this observation.
+
+Set `PRIVATE_GALLERY_HISTORY_DIAGNOSTICS=1` only in the test runner to enable the
+opt-in observer in `e2e/private-gallery-link.spec.ts`. On a failing test its new
+JSON attachment keeps the latest 256 event records: event kind, elapsed time,
+hash presence, framework-history-marker presence and document-ready state.
+It records no URL, fragment value, cookie, history payload or private asset ID.
+Node retains records across document replacements; `performance.now()` resets
+for each document, so those values are not a single cross-document clock.
+
+With the flag set, hooks instrument every test in this file, including creating
+a page for request-only cases. This deliberately allows a failure in an existing
+journey to retain evidence, rather than instrumenting only the artificial cases.
+Leave it off in the normal gate; use `--grep 'diagnostic:'` for the controlled
+experiments, or select the particular existing journey under investigation.
+History wrappers and the extra page can change timing. Compare with the normal
+uninstrumented production-build journeys; a noisy observer also drops the oldest
+records, so an attachment does not promise a complete history from navigation.
+Existing Playwright trace/screenshots/assertion messages still contain the
+harness's public synthetic memory fixtures; this observer does not sanitize those
+existing artifacts or authorize diagnostics against real customer credentials.
+Local production-build checks on 2026-10-05, normal four workers and zero retries:
+30 uninstrumented link/session tests passed (10 WebKit cookie-dependent cases
+skipped); the two-second delayed-bootstrap experiment passed in both engines
+for a wrong capability and in Chromium for an authorized repeat visit (three
+passes, one WebKit skip). The observer's controlled test also checks that a
+scrub event arrives and that its serialized buffer excludes the synthetic handle
+and attempted capability. These experiments did not reproduce the CI failure.
+
+The fragment-restoration cause and the 548 wire-check refusal remain unresolved.
+A gallery-wide exchange counter is shared by these memory fixtures independently
+of the per-test client-address isolation; a rate-limited event was observed in the
+control log, but it does not identify the cause of that CI request. Future runs
+must distinguish shared-counter interference from router ordering. No runtime
+privacy correction is claimed merely because diagnostics were added.
+
 ## The access cookie
 
 One cookie, set only after a valid capability is exchanged.
