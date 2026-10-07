@@ -2846,6 +2846,31 @@ sender/recipient and provider key; the later checkpoint below supersedes that pr
 status. Email verification remains open. The public-code
 gate, import/audit/revocation, AB#117 and AB#18 launch decisions remain unresolved.
 
+**Preparation batch merged, 2026-10-07 (AB#219):** as of main revision
+`8f926c9362b1d81e696699d0772609738359ef7b`, PRs #259–#268 are merged and
+AB#200–209 are verified Closed. Azure CI #620 passed the Quality gates
+stage (lint, unit tests, production build and journeys) and the protected Preview
+release candidate stage. The scheduled dependency audit stage was skipped.
+Earlier dated Active labels describe their original checkpoints.
+
+The completed preparation comprises the offline DNS guard, scriptless-404 evidence
+refresh, mail-recovery worksheet, hero CSS journey correction, saved audit summary,
+redacted contact failure summary, public availability probe, skill provenance,
+rollback worksheet and pending legacy CSV export. Completion of these bounded
+items leaves the broader migration and launch acceptance work open.
+
+The owner's remaining-content approval is recorded in the 2026-10-05 checkpoint
+above; this integration changes no approved bundle or content decision. The next
+operation still needs a compatible renderer on the public alias, a freshly verified
+recoverable baseline, the approved import, raw-document/asset and route/pagination
+checks, and temporary write-credential revocation. AB#19's pending paths require
+per-row decisions and real target verification after migration, including explicit
+deferred-path behavior for a phased launch. AB#137, AB#117 and AB#18 remain open.
+
+A successful protected Preview stage does not establish Production activation,
+CMS import or domain cutover. Live mail-preservation checks, monitoring notifications
+and code/content rollback exercises retain their own acceptance boundaries.
+
 **Merged release and migration readiness, 2026-10-05 (AB#137, Active):** PR #246
 merged and AB#188 reached Closed; exact main revision `4b8dd013880eddf79e54e42244d18f5cda32d860`
 passed Azure CI #545. A fresh manual prebuilt Production-target candidate reached READY
