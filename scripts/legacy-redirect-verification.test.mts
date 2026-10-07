@@ -148,3 +148,35 @@ describe("pending legacy owner CSV", () => {
     expect(() => pendingLegacyReviewCsv({ rows: [{ source: '=SECRET', crawlStatuses: [], outcome: { kind: 'pending' } }] })).toThrow();
   });
 });
+
+describe("fallback semantic evidence", () => {
+  const fallback = { ...redirect, fallbackNotice: "content-unavailable" as const };
+  const head = `${canonical}<meta name="robots" content="noindex, follow">`;
+  it.each([
+    "<p role='status' hidden>Unavailable</p>",
+    "<div hidden><p role='status'>Unavailable</p></div>",
+    "<div inert><p role='status'>Unavailable</p></div>",
+    "<div aria-hidden='TRUE'><p role='status'>Unavailable</p></div>",
+    "<p role='status' style='DISPLAY: none !important;'>Unavailable</p>",
+    "<div style='visibility:hidden'><p role='status'>Unavailable</p></div>",
+    "<div style='content-visibility:hidden'><p role='status'>Unavailable</p></div>",
+    "<p role='status'> </p>", "<p role='status'>&nbsp;</p>",
+    "<p role='status'><!-- comment --></p>",
+    "<p role='status'><span hidden>Unavailable</span></p>",
+    "<p role='status'><script>Unavailable</script></p>",
+    "<template><p role='status'>Unavailable</p></template>",
+    "<noscript><p role='status'>Unavailable</p></noscript>",
+    "<svg><g role='status'>Unavailable</g></svg>",
+  ])("refuses hidden, inert, empty or foreign notice %s", (body) => {
+    expect(targetResponseIssues(fallback, { ...response, html: html(head, body) }, canonicalOrigin)).toEqual(["fallback-missing-status"]);
+  });
+  it("accepts genuine nested HTML notice text without counting hidden child text", () => {
+    expect(targetResponseIssues(fallback, { ...response, html: html(head, "<div><p role='status'><span>Sivua ei ole saatavilla.</span><span hidden>Ignored</span></p></div>") }, canonicalOrigin)).toEqual([]);
+  });
+  it("refuses a foreign canonical link and ignores a foreign language-alternate lookalike", () => {
+    const foreign = `<svg><link rel='canonical' href='${canonicalOrigin}${redirect.target}'></link></svg>`;
+    expect(targetResponseIssues(redirect, { ...response, html: html("", foreign) }, canonicalOrigin)).toEqual(["target-canonical-mismatch"]);
+    const body = "<p role='status'>Unavailable</p><svg><link rel='alternate' hreflang='fi'></link></svg>";
+    expect(targetResponseIssues(fallback, { ...response, html: html(head, body) }, canonicalOrigin)).toEqual([]);
+  });
+});

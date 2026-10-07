@@ -1691,11 +1691,16 @@ function requiredEnvSetting(envName: string): string {
   return value;
 }
 
+// Keep the fs UTF-8 reader's BOM behavior while refusing corrupt byte sequences.
+async function readUtf8(filePath: string): Promise<string> {
+  return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(filePath));
+}
+
 async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
 
   // --- step 1: load & validate the plan's shape (local filesystem only) ---
-  const planText = await readFile(options.plan, "utf8").catch(() => fail(`could not read ${options.plan}`));
+  const planText = await readUtf8(options.plan).catch(() => fail(`could not read ${options.plan} as UTF-8`));
   let rawPlan: unknown;
   try {
     rawPlan = JSON.parse(planText);
