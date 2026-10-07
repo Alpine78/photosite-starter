@@ -2231,6 +2231,12 @@ multi-slice article, the no-JavaScript continuation, progressive append and retr
 lightbox sequence and focus, and a malformed continuation. Production migration and live
 dataset verification are separate, already-open follow-up work (AB#137).
 
+**Converter input integrity, 2026-10-07 (AB#212):** `convert:joomla` refuses
+malformed UTF-8 in the source NDJSON, poll-results TSV, resolution JSON and approval
+manifest CSV before producing reports. Valid Unicode and each format's existing BOM
+behavior are preserved. Source/manifest digest and content-approval rules are unchanged;
+AB#137's Production import and audit remain open.
+
 AB#137's legacy-content importer is **half built**: the offline conversion and approval
 layer exists, the write half does not. `npm run convert:joomla`
 (`scripts/convert-joomla-content.mts`, over the pure `joomla-html-conversion.mts`,
