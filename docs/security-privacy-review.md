@@ -822,3 +822,13 @@ promotion. The Production hosting-tier decision, physical-device check, pending 
 routes, compatible serving-code activation, approved import, full post-write audit and
 credential revocation remain open. The October 8 go/no-go and October 15 legacy-host
 removal dates remain in force; Infomaniak mail must survive any web-DNS change.
+
+### 2026-10-07 email-account MFA confirmation (AB#117)
+
+The owner confirms two-factor login is enabled on both Infomaniak and Resend
+(AB#117 comment `59470`). This resolves those accounts' MFA checklist item on
+owner confirmation, superseding the October 5 uncertainty above; no independent
+dashboard inspection was performed. Resend sending-only/domain-scoped key access,
+tracking settings, provider message/log/backup retention and practical twelve-month
+correspondence deletion remain open. AB#117 stays Active. No account setting or CMS
+content was changed by this documentation update.

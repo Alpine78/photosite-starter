@@ -3144,6 +3144,13 @@ canonical citations, browser-memory conversation and atomic spend admission.
 Defaults and evaluation thresholds require acceptance; no chatbot, index, profile
 schema, model adapter or infrastructure exists. AB#126 remains a predecessor.
 
+**Email-account MFA confirmation, 2026-10-07 (AB#117, Active):** the owner
+confirms two-factor login enabled on both Infomaniak and Resend, recorded in
+AB#117 comment `59470`. This resolves the MFA uncertainty in the earlier contact
+checkpoint on owner confirmation; no independent dashboard inspection was performed.
+Key permissions/domain restriction, tracking, provider retention and practical mailbox
+deletion remain open. No provider setting or CMS content was changed.
+
 These notes go stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a

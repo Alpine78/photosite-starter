@@ -95,7 +95,7 @@ lives in the adapter that a production deployment already refuses to build.
 | Party | Role | Data it sees | Retention | Ownership |
 | --- | --- | --- | --- | --- |
 | **Vercel** (hosting) | Processor for the application; controller for its own Service-Generated Data | Form fields transiently in the Function request/memory; request metadata such as path, status, region, user agent and IP address. Application logs exclude form fields; the request body is not recorded in Runtime Logs | **Preview, today: Runtime Logs 1 hour on Hobby** (checked live and against Vercel's own documentation, 2026-08-25 — this row's original "1 day on Base Pro" figure describes Production's still-undecided plan, per [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment; see "Before production launch" below). **Production's retention figure follows whichever tier AB#18 chooses** — unresolved. Broader Service-Generated Data is not assumed to be deleted with that window | Customer-owned team, provisioned by AB#116. Owner retains the existing Hobby subscription for now (2026-10-07); commercial hosting suitability and final serving-environment retention remain open. See [the current preference](adr/0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference) |
-| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, subject, message text, and optional phone/date | Current provider documentation states 30 days on standard plans; the actual account setting still needs verification | Account and sending domain provisioned by the owner; prior protected candidate delivered real mail. Production settings are present. MFA, key scope, terms/retention and tracking checks remain open (2026-10-05) |
+| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, subject, message text, and optional phone/date | Current provider documentation states 30 days on standard plans; the actual account setting still needs verification | Account and sending domain provisioned by the owner; prior protected candidate delivered real mail. Production settings are present. Owner confirms account MFA enabled (2026-10-07); key scope, terms/retention and tracking checks remain open |
 | **Infomaniak** (reference mailbox) | Processor for the received message | The whole email | Published owner-authored notice promises at most 12 months after last contact, with contract/legal exceptions; actual deletion practice and provider terms still need verification | Owner confirms migrated mail is working; a clone records its own provider |
 
 The adapter emits plain text with no HTML part or application-added tracking pixel.
@@ -296,8 +296,10 @@ AB#117 comment `59468` records progress. No CMS text was written and no new
 baseline is needed for a local draft. Before publication verify the controller and
 legal bases, account retention/backups/transfer safeguards, tracking and the actual
 mailbox deletion practice. Never claim tracking is disabled from a plain-text payload
-alone. Verify MFA, including the upstream identity-provider account when used, and
-sending-only key access restricted to the approved sending domain without storing
+alone. On 2026-10-07 the owner confirmed two-factor login enabled on both Infomaniak
+and Resend (AB#117 comment `59470`). This resolves the account-MFA checklist item
+on owner confirmation; no independent dashboard inspection was performed.
+Verify sending-only key access restricted to the approved sending domain without storing
 key values. The four-field draft does not certify a complete Article 13 disclosure.
 Re-read the revision and protect the pre-change baseline before a notice write;
 then capture and verify a new complete baseline before bulk import. Keep the old
