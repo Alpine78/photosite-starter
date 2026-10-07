@@ -264,11 +264,12 @@ async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
   const folder = path.resolve(options.folder);
 
+  // Preserve the existing BOM behavior; malformed UTF-8 must never become replacement text.
   let raw: unknown;
   try {
-    raw = JSON.parse(await readFile(options.plan, "utf8"));
+    raw = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(options.plan)));
   } catch {
-    fail(`could not read ${options.plan} as JSON`);
+    fail(`could not read ${options.plan} as UTF-8 JSON`);
   }
   const { plan, issues } = validateRallyConversionPlanContract(raw);
   if (plan === undefined) {
