@@ -104,11 +104,42 @@ export function sourceResponseIssues(row: MappingRow, status: number, location: 
   return issues;
 }
 
-function elements(node: DefaultTreeAdapterTypes.Node): DefaultTreeAdapterTypes.Element[] {
-  return [
-    ...("tagName" in node ? [node] : []),
-    ...("childNodes" in node ? node.childNodes.flatMap(elements) : []),
-  ];
+type HtmlNode = DefaultTreeAdapterTypes.Node;
+const HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
+const attr = (node: DefaultTreeAdapterTypes.Element, name: string) => node.attrs.find((attribute) => attribute.name === name)?.value;
+
+function elements(root: HtmlNode): DefaultTreeAdapterTypes.Element[] {
+  const stack = [root], result: DefaultTreeAdapterTypes.Element[] = [];
+  while (stack.length) {
+    const node = stack.pop()!;
+    if ("tagName" in node && node.namespaceURI === HTML_NAMESPACE) result.push(node);
+    if ("childNodes" in node) for (let i = node.childNodes.length - 1; i >= 0; i--) stack.push(node.childNodes[i]);
+  }
+  return result;
+}
+
+function hidden(node: DefaultTreeAdapterTypes.Element): boolean {
+  return ["script", "style", "template", "noscript"].includes(node.tagName) ||
+    node.attrs.some((attribute) => ["hidden", "inert"].includes(attribute.name) ||
+      (attribute.name === "aria-hidden" && attribute.value.toLowerCase() === "true") ||
+      (attribute.name === "style" && /(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden|content-visibility\s*:\s*hidden)\s*(?:!important\s*)?(?:;|$)/i.test(attribute.value)));
+}
+
+/** Static semantic evidence only; computed CSS and exact localized copy need browser checks. */
+function hasNoticeText(root: DefaultTreeAdapterTypes.Element): boolean {
+  let ancestor: HtmlNode | undefined = root;
+  while (ancestor) {
+    if ("tagName" in ancestor && hidden(ancestor)) return false;
+    ancestor = "parentNode" in ancestor ? ancestor.parentNode ?? undefined : undefined;
+  }
+  const stack: HtmlNode[] = [root];
+  while (stack.length) {
+    const node = stack.pop()!;
+    if ("tagName" in node && (node.namespaceURI !== HTML_NAMESPACE || hidden(node))) continue;
+    if (node.nodeName === "#text" && "value" in node && node.value.trim()) return true;
+    if ("childNodes" in node) for (let i = node.childNodes.length - 1; i >= 0; i--) stack.push(node.childNodes[i]);
+  }
+  return false;
 }
 
 export function targetResponseIssues(
@@ -119,7 +150,6 @@ export function targetResponseIssues(
   if (response.status !== 200) return ["target-not-200"];
   if (!/^text\/html(?:\s*;|$)/i.test(response.contentType ?? "")) return ["target-not-html"];
   const nodes = elements(parse(response.html));
-  const attr = (node: DefaultTreeAdapterTypes.Element, name: string) => node.attrs.find((attribute) => attribute.name === name)?.value;
   const canonicals = nodes.filter((node) => node.tagName === "link" && attr(node, "rel")?.toLowerCase().split(/\s+/).includes("canonical"));
   const issues: string[] = [];
   let canonicalMatches = false;
@@ -136,7 +166,7 @@ export function targetResponseIssues(
   if (outcome.fallbackNotice !== undefined) {
     const noindex = nodes.some((node) => node.tagName === "meta" && attr(node, "name")?.toLowerCase() === "robots" && attr(node, "content")?.toLowerCase().split(/[\s,]+/).includes("noindex"));
     if (!noindex) issues.push("fallback-missing-noindex");
-    if (!nodes.some((node) => attr(node, "role") === "status" && "childNodes" in node && node.childNodes.length > 0)) {
+    if (!nodes.some((node) => attr(node, "role") === "status" && hasNoticeText(node))) {
       issues.push("fallback-missing-status");
     }
     if (nodes.some((node) => node.tagName === "link" && attr(node, "hreflang") !== undefined)) {
