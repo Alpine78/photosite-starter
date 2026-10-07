@@ -1850,6 +1850,13 @@ verification. No alert path is configured/tested by this preparation. AC2's owne
 decision/notification evidence and AC3's controlled Production failure trace remain
 open **after AB#18**, before **AB#118** rollback rehearsal and customer handoff.
 
+**Probe host classification, 2026-10-07 (AB#210):** terminal DNS dots no longer
+bypass internal/private suffix checks. Classification leaves the requested public URL
+unchanged and keeps the exact existing loopback exception. This guards operator
+configuration; it does not establish DNS resolution safety or enable AB#158 monitoring.
+A public URL keeps its terminal dot; its TLS and exact URL comparisons still use that
+requested spelling.
+
 **Availability probe preparation, 2026-10-06 (AB#206, Active):** a configurable
 owner-run public GET probe enforces total timeout/body limits and semantic markers.
 Synthetic fetch tests need no live service. AB#158 monitoring/notification setup stays
