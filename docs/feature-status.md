@@ -2732,6 +2732,12 @@ approval digest and malformed or stale plans. Production writes and post-import
 listing/page verification remain owner-run under AB#137; this code slice does not
 close the migration story or change AB#172's Resolved state.
 
+**Rally conversion plan integrity, 2026-10-07 (AB#218):** `write:rally-conversion`
+rejects malformed UTF-8 before parsing, backup inspection or credential resolution.
+Valid localized caption text retains its exact approved digest and existing JSON BOM
+rejection. The recoverable-export requirement, dry-run, resume reconciliation and atomic
+placement-deletion/rule-switch boundaries are unchanged; no gallery is converted here.
+
 **Remaining migration preparation, 2026-10-04 (AB#137, PR #239 merged):** a fresh
 read-only Production audit found 3,593 documents: 20 gallery versions, 10 article
 versions and 6 service versions, with no drafts or release records/versions. All four

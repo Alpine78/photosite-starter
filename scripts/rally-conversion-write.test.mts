@@ -477,3 +477,60 @@ describe("readSnapshot", () => {
     expect(snapshot.unpublishedCopyIds).toEqual([plan.mediaPatches[0]?._id]);
   });
 });
+
+describe("CLI UTF-8 input integrity", () => {
+  const marker = "Åä 😀 \uFFFD";
+  const networkGuard = "data:text/javascript," + encodeURIComponent("globalThis.fetch = () => { process.stderr.write('UNEXPECTED_NETWORK'); process.exit(86); };");
+  async function execute(bytes: Buffer, apply = false) {
+    const { mkdtemp, writeFile, rm, readdir } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const root = await mkdtemp(path.join(tmpdir(), "utf8-plan-"));
+    try {
+      const planPath = path.join(root, "plan.json");
+      await writeFile(planPath, bytes);
+      // Synthetic stat-only fixture, not evidence of a recoverable dataset export.
+      if (!apply) await writeFile(path.join(root, "backup.tar.gz"), Buffer.alloc(4096));
+      const digest = recomputeConversionPlanDigest(JSON.parse(bytes.toString("utf8").replace(/^\uFEFF/, "")));
+      const args = ["--import", networkGuard, path.join(import.meta.dirname, "write-rally-conversion.mts"), "--plan", planPath, ...["--folder", root, "--out", path.join(root, "out"), "--approved-digest", digest, "--backup-archive", path.join(root, "backup.tar.gz")], ...(apply ? ["--yes"] : [])];
+      const result = await promisify(execFile)(process.execPath, args, { env: { NODE_ENV: "test", NODE_NO_WARNINGS: "1" } })
+        .then((value) => ({ code: 0, ...value }), (error: { code: number; stdout: string; stderr: string }) => error);
+      expect(result.stderr).not.toContain("UNEXPECTED_NETWORK");
+      expect((await readdir(root)).sort()).toEqual(apply ? ["plan.json"] : ["backup.tar.gz", "plan.json"]);
+      return { ...result, digest };
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }
+  function fixture() { return (() => { const p = buildPlan(); return { ...p, mediaPatches: p.mediaPatches.map((v, i) => i === 0 ? { ...v, caption: [{ _key: "fi", _type: "localizedText", language: "fi", value: marker }] } : v) }; })(); }
+  function corrupt(bad: number[]) {
+    const text = JSON.stringify(fixture());
+    const at = text.indexOf("\uFFFD");
+    expect(at).toBeGreaterThan(-1);
+    return Buffer.concat([Buffer.from(text.slice(0, at)), Buffer.from(bad), Buffer.from(text.slice(at + 1))]);
+  }
+  it("preserves valid Unicode, an intentional replacement character and its approval digest", async () => {
+    const result = await execute(Buffer.from(JSON.stringify(fixture())));
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("Dry run only");
+    expect(result.digest).toMatch(/^[0-9a-f]{64}$/);
+  });
+  it.each([[0xff], [0xc2], [0xc0, 0x80], [0xed, 0xa0, 0x80]])("refuses malformed UTF-8 %j before parsing or local output", async (...bad) => {
+    const result = await execute(corrupt(bad));
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(/UTF-8|utf-8/);
+  });
+  it("refuses malformed UTF-8 with --yes before resolving credentials", async () => {
+    const result = await execute(corrupt([0xff]), true);
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(/UTF-8|utf-8/);
+    expect(result.stderr).not.toContain("SANITY_");
+  });
+  it("retains the JSON BOM rejection instead of silently removing it", async () => {
+    const result = await execute(Buffer.from("\uFEFF" + JSON.stringify(fixture())));
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+  });
+});
