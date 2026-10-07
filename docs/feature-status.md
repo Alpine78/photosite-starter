@@ -2784,6 +2784,11 @@ or the checked local image directories; 36 have no matched local recovery copy i
 those locations. A fresh recoverable
 baseline including assets required explicit owner authorization, received on 2026-10-05.
 
+**Joomla plan input integrity, 2026-10-07 (AB#213):** `write:joomla` rejects
+malformed UTF-8 before parsing a plan, verifying assets or resolving credentials.
+Valid Unicode, existing JSON BOM rejection, the exact approval digest and dry-run
+boundary are preserved. This changes no approved content and performs no import.
+
 **Approved migration preparation, 2026-10-05 (AB#137):** the owner's confirmation
 approves the unchanged remaining-content bundle and the exact local full-baseline
 destination. The private approval record resolves only the owner-approval sentinel:

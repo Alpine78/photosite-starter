@@ -1963,3 +1963,65 @@ describe("CLI", () => {
     });
   });
 });
+
+describe("CLI UTF-8 input integrity", () => {
+  const marker = "Åä 😀 \uFFFD";
+  const networkGuard = "data:text/javascript," + encodeURIComponent("globalThis.fetch = () => { process.stderr.write('UNEXPECTED_NETWORK'); process.exit(86); };");
+  async function execute(bytes: Buffer, apply = false) {
+    const { mkdtemp, writeFile, rm, readdir } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const root = await mkdtemp(path.join(tmpdir(), "utf8-plan-"));
+    try {
+      const planPath = path.join(root, "plan.json");
+      await writeFile(planPath, bytes);
+      const digest = (() => { const p = JSON.parse(bytes.toString("utf8").replace(/^\uFEFF/, "")); return writablePlanDigest(p.documents, p.assetRequirements, p.errors, p.blocked); })();
+      const args = ["--import", networkGuard, path.join(import.meta.dirname, "write-joomla-content.mts"), "--plan", planPath, ...["--image-root", root, "--out", path.join(root, "out"), "--approved-digest", digest], ...(apply ? ["--yes"] : [])];
+      const result = await promisify(execFile)(process.execPath, args, { env: { NODE_ENV: "test", NODE_NO_WARNINGS: "1" } })
+        .then((value) => ({ code: 0, ...value }), (error: { code: number; stdout: string; stderr: string }) => error);
+      expect(result.stderr).not.toContain("UNEXPECTED_NETWORK");
+      expect(await readdir(root)).toEqual(["plan.json"]);
+      return { ...result, digest };
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }
+  function fixture() { return (() => {
+    const documents = [
+      { _id: "migrated--poll--1", _type: "poll", pollId: "migrated-poll-1", language: "fi", question: marker,
+        options: [{ _key: "option-1", optionId: "option-1", label: "Yes" }, { _key: "option-2", optionId: "option-2", label: "No" }], closeDate: "1970-01-01T00:00:00Z" },
+      { _id: "pollTally-migrated-poll-1", _type: "pollTally", pollId: "migrated-poll-1", counts: { "option-1": 1, "option-2": 0 } },
+    ];
+    return goodPlan({ documents, documentsDigest: writablePlanDigest(documents, [], [], []), assetRequirements: [], categoryRequirements: [] });
+  })(); }
+  function corrupt(bad: number[]) {
+    const text = JSON.stringify(fixture());
+    const at = text.indexOf("\uFFFD");
+    expect(at).toBeGreaterThan(-1);
+    return Buffer.concat([Buffer.from(text.slice(0, at)), Buffer.from(bad), Buffer.from(text.slice(at + 1))]);
+  }
+  it("preserves valid Unicode, an intentional replacement character and its approval digest", async () => {
+    const result = await execute(Buffer.from(JSON.stringify(fixture())));
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("Dry run only");
+    expect(result.digest).toMatch(/^[0-9a-f]{64}$/);
+  });
+  it.each([[0xff], [0xc2], [0xc0, 0x80], [0xed, 0xa0, 0x80]])("refuses malformed UTF-8 %j before parsing or local output", async (...bad) => {
+    const result = await execute(corrupt(bad));
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(/UTF-8|utf-8/);
+  });
+  it("refuses malformed UTF-8 with --yes before resolving credentials", async () => {
+    const result = await execute(corrupt([0xff]), true);
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(/UTF-8|utf-8/);
+    expect(result.stderr).not.toContain("SANITY_");
+  });
+  it("retains the JSON BOM rejection instead of silently removing it", async () => {
+    const result = await execute(Buffer.from("\uFEFF" + JSON.stringify(fixture())));
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+  });
+});
