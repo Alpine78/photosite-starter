@@ -1306,17 +1306,22 @@ before the first deployment, not discovered during the first incident. The stage
 sequence below was run once by hand on 2026-09-24 (see "A production-target deployment
 exists"); that does not complete AB#18.
 
-Before AB#18 promotion, record the reviewed [AB#132 initial-404 decision evidence](adr/0007-proxy-request-path-boundary.md#2026-10-03-main-branch-recheck-and-decision-proposal-ab132)
-on AB#132 and link that decision from AB#18. Its scriptless probes are known
-failures while the limitation exists; a green suite with those markers does not
-satisfy the semantic-HTML requirement. Obtain either a passing fix or an explicit
-owner acceptance with impact, reason, review date and follow-up. AB#186's
-dependency gate is Closed: zero full and production-only audit findings and a
-passed exact-main CI #655 authenticated protected Preview with the patched CLI
-tree ([current evidence](audits/ab137-renderer-readiness-2026-10-07.md#merged-source-and-dependency-gate);
-the [2026-10-02 residual-decision section](audits/ab186-dependency-review.md#2026-10-02-follow-up--ab186-remains-active)
-is historical). AB#117, AB#132, AB#137 and AB#18 remain Active, independent gates.
-The AB#132 decision is not made by this follow-up or by a successful Preview check.
+The owner accepted [AB#132's temporary scriptless-404 residual](adr/0007-proxy-request-path-boundary.md#2026-10-07-owner-accepted-temporary-residual-risk-ab132)
+on 2026-10-07; AB#132 comment `59465` records impact, reason, review date and
+follow-up, and AB#18 comment `59466` links that decision. Review on 2026-10-08
+before go/no-go or any earlier promotion and retest the exact candidate. Scriptless
+probes remain known semantic failures; acceptance does not make them passing
+journeys. AB#132 stays Active for a verified fix.
+
+AB#186's dependency gate is Closed: zero full and production-only audit findings
+and a passed exact-main CI #655 authenticated protected Preview with the patched
+CLI tree ([current evidence](audits/ab137-renderer-readiness-2026-10-07.md#merged-source-and-dependency-gate)).
+AB#117, AB#137 and AB#18 retain their independent Active gates.
+
+The owner keeps the existing Hobby subscription for now and will reconsider later
+(AB#18 comment `59467`). [The dated hosting preference](adr/0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference)
+is recorded separately from the unresolved suitability of commercial launch content.
+No billing change or provider exception is established by that preference.
 
 Promotion stages a production build without routing traffic to it, smoke-tests that exact
 deployment, and then promotes the same build without rebuilding:

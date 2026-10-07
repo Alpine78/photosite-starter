@@ -3006,6 +3006,29 @@ retain their own gates. [Dated evidence and acceptance boundaries](audits/ab137-
 record the precise preparation scope and October 8/15 decisions; AB#137/117/18 are
 not closed by this checkpoint.
 
+**Owner-accepted temporary scriptless-404 risk, 2026-10-07 (AB#132, Active):**
+the owner explicitly accepted the measured accessibility/crawlability limitation
+with the existing O(1) Proxy and real-404 contract retained. [Dated decision](adr/0007-proxy-request-path-boundary.md#2026-10-07-owner-accepted-temporary-residual-risk-ab132)
+records impact, reason, October 8 review before go/no-go or any earlier promotion,
+and AB#132 as the Active follow-up for a verified fix. AB#132 comment `59465`
+records the decision; AB#18 comment `59466` links it. The earlier pending-decision
+entries are historical. Expected semantic failures and JavaScript-enabled test
+exceptions remain; no other launch gate or public activation is approved here.
+
+**Contact privacy draft and current hosting preference, 2026-10-07 (AB#117/18,
+Active):** the owner keeps Hobby in use for now and will reconsider later; this
+records billing preference without claiming commercial hosting suitability or a
+provider exception. [ADR-0004 amendment](adr/0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference)
+and AB#18 comment `59467` preserve that boundary. A fresh published-only
+CMS read informs a private FI/EN notice draft naming photography type, optional
+phone/date, actual processors and published transfer facts. The draft fits the four
+existing localized-text arrays; it proposes legal bases/rights and retains the
+existing twelve-month mailbox promise pending operational verification. [Data-flow
+checkpoint](contact-data-flow.md#2026-10-07-owner-preferences-and-notice-draft-ab117-ab18)
+and AB#117 comment `59468` record account-specific checks and a new complete
+baseline after any notice write. No CMS mutation, billing change or public activation
+was performed; AB#117/18 remain Active.
+
 The visual finish from the owner's Claude Design hi-fi proposal is delivered (AB#173).
 The default palettes are now **Kivi** (light, `#ece9e3` ground) and **Grafiitti** (dark,
 `#1b1c1e`). The site menu carries the proposal's moon/sun theme toggle

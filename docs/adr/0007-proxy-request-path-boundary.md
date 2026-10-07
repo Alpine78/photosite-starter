@@ -409,3 +409,35 @@ The temporary residual-risk proposal above remains **pending owner acceptance**,
 with its October 8 review before AB#18's go/no-go or any earlier promotion.
 AB#132 stays Active. A successful quality pipeline or a protected Preview
 does not supply that acceptance or authorize public promotion.
+
+## 2026-10-07 owner-accepted temporary residual risk (AB#132)
+
+**Status: Accepted, limited to the temporary residual described below.** After
+reviewing the measured impact and the proposed decision, the owner explicitly
+accepted it in this session: “Hyväksyn riskin.” This dated decision supersedes the
+pending-acceptance status of the October 3 proposal and October 7 checkpoint;
+the measured failures and the wider ADR's status are preserved.
+
+- **Impact:** without JavaScript, an unknown public URL or refused gallery
+  continuation returns HTTP 404 without a visible error heading or required
+  gallery return link. Scriptless crawlers receive no semantic recovery content.
+  JavaScript-enabled recovery controls pass; HTTP 404 remains the response status.
+- **Reason:** retain the O(1), adapter-read-free Proxy and real-404 contract while
+  no supported remedy has been verified; avoid maintaining unreleased framework
+  internals for this launch.
+- **Review:** 2026-10-08 before AB#18's go/no-go or any earlier promotion;
+  reassess sooner if a supported upstream fix is released. Retest the exact candidate.
+- **Follow-up:** AB#132 remains Active for the semantic fix. Keep expected-failure
+  markers and the JavaScript-enabled exceptions until both scriptless semantic
+  probes and recovery controls pass. This acceptance does not close the story
+  or supply approval for other launch gates.
+
+The [authoritative decision comment](https://dev.azure.com/ilkkarytkonen/62b19d48-11f0-4c5a-a41b-58913c123cfd/_apis/wit/workItems/132/comments/59465) is recorded on AB#132 as
+comment `59465`; AB#18 comment `59466` links that exact decision. Both items remain
+Active. No public activation, CMS write or DNS change was performed.
+
+A fresh upstream metadata check on 2026-10-07 confirms [issue #62228](https://github.com/vercel/next.js/issues/62228)
+and candidate fixes [#98455](https://github.com/vercel/next.js/pull/98455) and
+[#98583](https://github.com/vercel/next.js/pull/98583) are open; neither fix is merged.
+There is no confirmed release date. A merged proposal alone does not establish a
+supported released fix or a passing project-specific journey.

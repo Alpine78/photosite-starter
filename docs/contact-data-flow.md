@@ -94,7 +94,7 @@ lives in the adapter that a production deployment already refuses to build.
 
 | Party | Role | Data it sees | Retention | Ownership |
 | --- | --- | --- | --- | --- |
-| **Vercel** (hosting) | Processor for the application; controller for its own Service-Generated Data | Request metadata: path, status, region, user agent, IP address. Not form fields — those are in the request body, which Runtime Logs do not record | **Preview, today: Runtime Logs 1 hour on Hobby** (checked live and against Vercel's own documentation, 2026-08-25 — this row's original "1 day on Base Pro" figure describes Production's still-undecided plan, per [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment; see "Before production launch" below). **Production's retention figure follows whichever tier AB#18 chooses** — unresolved. Broader Service-Generated Data is not assumed to be deleted with that window | Customer-owned Vercel team, provisioned by AB#116, currently on Hobby for Preview/development — **the Production tier is unresolved, not decided: ADR-0004's original Pro Decision stands until AB#18 reconsiders it. See [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment and "Before production launch" below** |
+| **Vercel** (hosting) | Processor for the application; controller for its own Service-Generated Data | Form fields transiently in the Function request/memory; request metadata such as path, status, region, user agent and IP address. Application logs exclude form fields; the request body is not recorded in Runtime Logs | **Preview, today: Runtime Logs 1 hour on Hobby** (checked live and against Vercel's own documentation, 2026-08-25 — this row's original "1 day on Base Pro" figure describes Production's still-undecided plan, per [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment; see "Before production launch" below). **Production's retention figure follows whichever tier AB#18 chooses** — unresolved. Broader Service-Generated Data is not assumed to be deleted with that window | Customer-owned team, provisioned by AB#116. Owner retains the existing Hobby subscription for now (2026-10-07); commercial hosting suitability and final serving-environment retention remain open. See [the current preference](adr/0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference) |
 | **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, subject, message text, and optional phone/date | Current provider documentation states 30 days on standard plans; the actual account setting still needs verification | Account and sending domain provisioned by the owner; prior protected candidate delivered real mail. Production settings are present. MFA, key scope, terms/retention and tracking checks remain open (2026-10-05) |
 | **Infomaniak** (reference mailbox) | Processor for the received message | The whole email | Published owner-authored notice promises at most 12 months after last contact, with contract/legal exceptions; actual deletion practice and provider terms still need verification | Owner confirms migrated mail is working; a clone records its own provider |
 
@@ -274,6 +274,34 @@ both languages for subject, optional phone/date and the actual processors. The a
 12-month mailbox promise is a statement to verify against deletion practice, rather than
 proof that either provider automatically enforces it. The private release packet contains
 the captured revision and a proposed text update. No CMS text was changed by this check.
+
+### 2026-10-07 owner preferences and notice draft (AB#117, AB#18)
+
+The owner retains the current Hobby subscription and will reconsider later.
+[ADR-0004's dated amendment](adr/0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference)
+records that preference and the still-unresolved commercial hosting suitability;
+no provider exception, billing change or fresh account-retention observation is implied.
+
+A new published-only read confirms the notice still omits photography type and
+optional phone/date, names delivery generically and promises twelve months after
+last contact with contract/legal exceptions. The owner requested a suitable rewrite.
+The local FI/EN draft uses the existing four localized-text arrays, names Vercel,
+Resend and Infomaniak, explains the optional fields and published provider transfer
+facts, proposes processing bases/rights, and preserves the existing mailbox promise.
+The draft names actual processors without putting a photographer's identity into
+application code or shared schemas. Its full deployment-specific copy stays in the
+ignored operator packet, alongside the captured document revision and source links.
+
+AB#117 comment `59468` records progress. No CMS text was written and no new
+baseline is needed for a local draft. Before publication verify the controller and
+legal bases, account retention/backups/transfer safeguards, tracking and the actual
+mailbox deletion practice. Never claim tracking is disabled from a plain-text payload
+alone. Verify MFA, including the upstream identity-provider account when used, and
+sending-only key access restricted to the approved sending domain without storing
+key values. The four-field draft does not certify a complete Article 13 disclosure.
+Re-read the revision and protect the pre-change baseline before a notice write;
+then capture and verify a new complete baseline before bulk import. Keep the old
+baseline and content approval. AB#117 remains Active.
 
 ### Historical account review — August 2026
 

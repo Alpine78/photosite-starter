@@ -59,7 +59,10 @@ The stored alias restore plan is a contingency, not an executed restoration.
 Two additional GET probes reproduce the known scriptless 404 defect on the live
 candidate: an unknown URL and a refused gallery cursor both return HTTP 404 without
 the required visible heading and return-link semantics. They are **expected semantic
-failures**, not successful visitor journeys. Owner risk acceptance is pending.
+failures**, not successful visitor journeys. At that checkpoint acceptance was
+pending. The owner subsequently [accepted the bounded temporary risk](../adr/0007-proxy-request-path-boundary.md#2026-10-07-owner-accepted-temporary-residual-risk-ab132)
+on 2026-10-07, with review on October 8 before go/no-go or any earlier promotion;
+AB#132 remains Active for the fix.
 
 Both existing aliases and the project's Production target stayed on the old
 September 24 deployment. No alias restoration was needed. No public promotion,
@@ -115,14 +118,16 @@ and requires a new complete baseline before the bulk import.
 | AC6: revoke write credential; runtime/rollback/retry/handoff | Four project-managed tokens remain, three write-capable; one temporary Editor has no expiry. Principal reconciliation, revocation after the operation, retry/rollback verification and handoff remain open. No token revoked. |
 | AC7: evidence for AB#117 and closure before launch | Preparation evidence recorded; AB#137 is not complete and cannot close AB#117 or AB#18. |
 
-Before public renderer activation, resolve AB#132's explicit temporary-risk decision
-or supported fix, the unresolved Production hosting-tier decision (ADR-0004 Pro,
-or Hobby only with the recorded operating constraint and Support confirmation),
-and the AB#117 processor/key/retention/tracking checks. No billing-plan observation
-was refreshed in this checkpoint. The published contact privacy notice
-still omits the photography type and optional phone/date fields and names delivery
-generically. A private correction proposal is prepared, not applied; the mailbox's
-existing twelve-month promise still needs an operational deletion check.
+Before public renderer activation, review the accepted AB#132 residual and retest
+the exact candidate. The owner now keeps the existing Hobby subscription for now
+and will reconsider later; [commercial hosting suitability](../adr/0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference)
+and the AB#117 processor/key/retention/tracking checks remain open before activation.
+No billing-plan observation was refreshed in this checkpoint. The published contact
+privacy notice still omits photography type and optional phone/date and names delivery
+generically. A new private FI/EN draft covers those fields and actual processors;
+it is not published or an executable CMS mutation. Verify account-specific details
+and the existing twelve-month deletion promise before publication, then capture a
+new complete baseline before bulk import.
 
 After compatible public code is verified, write the already approved categories and
 content with a temporary least-privilege credential; audit the final content/routes/
