@@ -539,6 +539,15 @@ acceptance. AB#186 is an explicit predecessor of AB#117; the current candidate's
 gates and Preview verification, followed by an explicit owner decision on the
 remaining tooling risk, are required before this launch gate closes.
 
+**2026-10-07 update (AB#186, Active):** a new candidate's full audit is clear
+(25 high affected package entries before, zero after); the production-only
+audit remains zero. It uses a local, depth-bounded `braces` fork because no
+upstream fix is published, plus a major Undici 5.x → 6.29.0 substitution in the
+Vercel CLI's development dependency tree. Clean install, lint, unit tests,
+production build and E2E pass. This does not certify Vercel's compatibility
+with that major substitution: authenticated Preview checks and owner review
+remain necessary before AB#186 or this launch gate can close.
+
 ## Verification performed
 
 - `npm run lint` — clean (re-run after every fix round).
