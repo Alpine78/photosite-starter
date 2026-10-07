@@ -1941,6 +1941,13 @@ npm v2 reader validates the reference graph and separates affected package entri
 from unique numeric advisories. No dependency fixes or residual-risk acceptance
 are implied; AB#160/186 remain open.
 
+**Merged dependency verification, 2026-10-07 (AB#186, Closed):** owner-reviewed
+PR #281 merged and exact main CI #655 passed quality gates and the real protected
+Preview deployment with the remediated CLI tree. AB#186 was explicitly moved
+Active → Closed; the earlier candidate/audit entries below remain dated history.
+[Current evidence](audits/ab137-renderer-readiness-2026-10-07.md#merged-source-and-dependency-gate).
+AB#117 retains its own live launch review and is not closed by dependency remediation.
+
 **Dependency remediation candidate, 2026-10-07 (AB#186, still Active):** full
 `npm audit` moved from 25 high affected package entries to zero; production
 remains zero. Narrow CLI-tree overrides lift Undici 5.28.4/5.29.0 to 6.29.0,
@@ -2976,6 +2983,28 @@ needs an operational deletion check. The exact local production build reproduces
 AB#132's four scriptless semantic failures. AB#132/186 owner decisions, hosting tier,
 real-device verification, legacy-route completion, public activation and import/audit/
 revocation remain open. This checkpoint neither accepts risk nor closes AB#117/18.
+
+**Fresh protected renderer readiness, 2026-10-07 (AB#137, Active):** PR #281
+merged; main CI #655 passed quality and a real protected Preview deployment with
+the patched CLI tree, and AB#186 was explicitly moved Active → Closed. PR #282
+then merged after CI #656 and a clean Claude documentation review; its exact main
+source `49812f639d3e575235cfc7076e356be7abdc4306` passed CI #657, including Preview.
+A fresh manual prebuilt Production-target candidate from that source is READY.
+All 611 uploaded artifact members match local manifests. Thirty current-content
+FI/EN route, contact-field and gallery-pagination GETs pass. Two separate live
+scriptless 404 probes reproduce the known semantic defect; they are expected
+failures, not successful journeys. AB#132 remains Active without risk acceptance.
+
+The complete baseline archive hash and all 3,593 raw revisions match; no planned
+content/category IDs collide. The existing credentialed asset/state audit, four live
+adapter tests and both current-main offline writer dry runs pass. Actual import,
+post-import audit and credential revocation remain open. All aliases and the
+Production target stayed on the old renderer; public activation, DNS and billing
+were not changed. Hosting plan, 404 decision, processor/retention/tracking evidence,
+privacy-notice correction, region/handoff, final routes and real-device verification
+retain their own gates. [Dated evidence and acceptance boundaries](audits/ab137-renderer-readiness-2026-10-07.md)
+record the precise preparation scope and October 8/15 decisions; AB#137/117/18 are
+not closed by this checkpoint.
 
 The visual finish from the owner's Claude Design hi-fi proposal is delivered (AB#173).
 The default palettes are now **Kivi** (light, `#ece9e3` ground) and **Grafiitti** (dark,

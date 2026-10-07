@@ -530,8 +530,13 @@ pipeline change. Future high/critical advisories now open their own PR automatic
 closing what would otherwise have been an accepted gap in continuous dependency
 governance beyond this point-in-time audit.
 
-**2026-10-02 update (AB#186, Active):** the old zero-finding result above is
-historical. [Current dependency evidence](audits/ab186-dependency-review.md#2026-10-02-follow-up--ab186-remains-active)
+**Current status: AB#186 is Closed** (zero full and production-only audit
+findings; exact-main CI #655 passed with an authenticated protected Preview) —
+see [current evidence](audits/ab137-renderer-readiness-2026-10-07.md#merged-source-and-dependency-gate).
+The dated updates below are preserved history; AB#117 stays Active.
+
+**2026-10-02 update (AB#186, Active then):** the old zero-finding result above is
+historical. [Historical dependency evidence](audits/ab186-dependency-review.md#2026-10-02-follow-up--ab186-remains-active)
 records the new 12 → 10 full-audit result, zero production-only entries, the
 shared local Azure CLI tree and thirteen residual undici advisory records.
 Tooling reachability and a 2026-10-13 review deadline do not constitute owner
@@ -547,6 +552,14 @@ Vercel CLI's development dependency tree. Clean install, lint, unit tests,
 production build and E2E pass. This does not certify Vercel's compatibility
 with that major substitution: authenticated Preview checks and owner review
 remain necessary before AB#186 or this launch gate can close.
+
+**2026-10-07 merged verification (AB#186, Closed):** PR #281 merged after
+owner review; exact main CI #655 passed quality gates and a real authenticated,
+protected Preview deployment using the patched CLI tree. AB#186 was explicitly
+moved Active → Closed. The Active/candidate statements above describe earlier
+checkpoints; no residual advisory acceptance was needed for the zero-audit
+candidate. AB#117 remains Active with its independent live privacy/security gates.
+[Current evidence](audits/ab137-renderer-readiness-2026-10-07.md#merged-source-and-dependency-gate).
 
 ## Verification performed
 

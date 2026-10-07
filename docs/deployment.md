@@ -1310,9 +1310,13 @@ Before AB#18 promotion, record the reviewed [AB#132 initial-404 decision evidenc
 on AB#132 and link that decision from AB#18. Its scriptless probes are known
 failures while the limitation exists; a green suite with those markers does not
 satisfy the semantic-HTML requirement. Obtain either a passing fix or an explicit
-owner acceptance with impact, reason, review date and follow-up. AB#117 also
-requires [AB#186's dependency residual decision](audits/ab186-dependency-review.md#2026-10-02-follow-up--ab186-remains-active).
-Neither decision is made by this follow-up or by a successful Preview check.
+owner acceptance with impact, reason, review date and follow-up. AB#186's
+dependency gate is Closed: zero full and production-only audit findings and a
+passed exact-main CI #655 authenticated protected Preview with the patched CLI
+tree ([current evidence](audits/ab137-renderer-readiness-2026-10-07.md#merged-source-and-dependency-gate);
+the [2026-10-02 residual-decision section](audits/ab186-dependency-review.md#2026-10-02-follow-up--ab186-remains-active)
+is historical). AB#117, AB#132, AB#137 and AB#18 remain Active, independent gates.
+The AB#132 decision is not made by this follow-up or by a successful Preview check.
 
 Promotion stages a production build without routing traffic to it, smoke-tests that exact
 deployment, and then promotes the same build without rebuilding:
@@ -1390,6 +1394,12 @@ advisories need a current residual decision before earlier promotion. Production
 AB#141's physical-device check, AB#19's remaining route decisions and AB#117's live-account
 review also remain gates. The October 8 go/no-go and October 15 legacy-host deadline
 are unchanged; preserve Infomaniak mail and change only approved web records at cutover.
+
+**2026-10-07 dependency gate update:** the October 5 dependency conclusions
+above are historical. PR #281 and main CI #655 verified the remediated CLI tree,
+including authenticated protected Preview deployment; AB#186 is now Closed.
+[The fresh renderer checkpoint](audits/ab137-renderer-readiness-2026-10-07.md)
+records the current preparation and the still-open activation/import/launch gates.
 
 Before publishing a CMS batch with a new field representation, verify compatibility
 against the deployment actually serving each public alias. A merged adapter and a
