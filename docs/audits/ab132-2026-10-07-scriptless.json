@@ -1,0 +1,170 @@
+{
+  "workItem": "AB#132",
+  "checkedAt": "2026-10-07T14:43:53.836570+00:00",
+  "sourceCommit": "9aadd907633c7e39279ac2bd1e810f3b32a212cd",
+  "pullRequest": 281,
+  "qualityPipeline": {
+    "id": 654,
+    "result": "succeeded",
+    "sourceBranch": "refs/pull/281/merge",
+    "sourceVersion": "3321c6588ab1f74d2f5fec2d0f1788663effbef0"
+  },
+  "buildId": "zwvAM0SQARm83Kbm1Wqr_",
+  "versions": {
+    "next": "16.3.8",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "@playwright/test": "1.63.0"
+  },
+  "nodeVersion": "v24.20.0",
+  "command": "npm run test:e2e -- e2e/gallery-continuation.spec.ts e2e/category-continuation.spec.ts",
+  "environment": {
+    "source": "e2e/support/harness-environment.ts",
+    "sourceSha256": "f7096c6ada9ecfc561bc4a1751bc7be2bd16cdb695bb2f2be954a1e9df509bd7",
+    "data": "harness-owned mock content; no live CMS"
+  },
+  "semanticDetector": "JavaScript disabled; rendered accessible h1 and parameter-free return link. Script payload text is not rendered HTML.",
+  "results": {
+    "runnerExitCode": 0,
+    "runnerReportedPassed": 40,
+    "genuinePassed": 36,
+    "expectedSemanticFailures": 4,
+    "unexpectedFailures": 0,
+    "scriptless404JourneyPassed": false
+  },
+  "observations": [
+    {
+      "nextVersion": "16.3.8",
+      "browser": "desktop-chromium",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/large-archive?cursor=not-a-token-this-deployment-minted",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    },
+    {
+      "nextVersion": "16.3.8",
+      "browser": "mobile-webkit",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/large-archive?cursor=not-a-token-this-deployment-minted",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    },
+    {
+      "nextVersion": "16.3.8",
+      "browser": "desktop-chromium",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/no-such-gallery",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    },
+    {
+      "nextVersion": "16.3.8",
+      "browser": "mobile-webkit",
+      "javaScriptEnabled": false,
+      "path": "/stories/portfolio/no-such-gallery",
+      "status": 404,
+      "headingCount": 0,
+      "returnLinkCount": 0,
+      "returnHref": null,
+      "htmlId": "__next_error__",
+      "hasNotFoundDigest": true
+    }
+  ],
+  "observationSha256": [
+    "a9a7933216af5b98d6bdfa2ef39572a13644a1d01132e618414cfad88959a362",
+    "c8f15846367ec05d1d3e5cb0c1805bd5308089d7cb565dd0013221c78485eea6",
+    "04568b0e85287d5718df6bdfb6d6a2343f6902faed5b2bf3cb96672897a3449c",
+    "049a0646fa773b6e4c960ced157836b8e3da96b6fd140fe8b2f3773218629fc8"
+  ],
+  "latestStableCheck": {
+    "registry": "https://registry.npmjs.org",
+    "command": "npm view next@latest version --registry=https://registry.npmjs.org",
+    "version": "16.4.0",
+    "isolatedReproduction": {
+      "versions": {
+        "next": "16.4.0",
+        "react": "19.2.1",
+        "react-dom": "19.2.1"
+      },
+      "buildId": "AfWsYmBNx6i5WU2xsPfix",
+      "observations": [
+        {
+          "path": "/no-such-path",
+          "status": 404,
+          "headingCount": 1,
+          "returnLinkCount": 1,
+          "htmlId": null,
+          "responseSha256": "6b4560b987b36618c0273c3fd239feeceec9f59d37e20e79aa11b798db41a9df",
+          "hasNotFoundDigest": false
+        },
+        {
+          "path": "/throws",
+          "status": 404,
+          "headingCount": 0,
+          "returnLinkCount": 0,
+          "htmlId": "__next_error__",
+          "responseSha256": "f00aa8612f27591f7b549002889b8ab7b12020037d817b831d77c645c9ba45f5",
+          "hasNotFoundDigest": true
+        }
+      ],
+      "packageLockSha256": "198f22edcb7178884474b26ead6d25c7d111a9ef4f50184c9c07a03395c0e08b",
+      "sourceFiles": {
+        "app/layout.jsx": "export default function Layout({children}) { return <html lang=\"en\"><body>{children}</body></html>; }\n",
+        "app/not-found.jsx": "export default function NotFound() { return <main><h1>404-MARKER</h1><a href=\"/\">Return home</a></main>; }\n",
+        "app/page.jsx": "export default function Page() { return <main><h1>Home</h1></main>; }\n",
+        "app/throws/page.jsx": "import {notFound} from \"next/navigation\"; export default function Page() { notFound(); }\n"
+      },
+      "packageJson": {
+        "name": "ab132-isolated-reproduction",
+        "private": true,
+        "scripts": {
+          "build": "next build",
+          "start": "next start"
+        },
+        "dependencies": {
+          "next": "16.4.0",
+          "react": "19.2.1",
+          "react-dom": "19.2.1"
+        }
+      },
+      "scope": "Fresh isolated four-file production build; not an application upgrade or a test of the application on Next.js 16.4.0."
+    }
+  },
+  "upstream": [
+    {
+      "number": 62228,
+      "state": "open",
+      "html_url": "https://github.com/vercel/next.js/issues/62228",
+      "updated_at": "2026-09-29T16:21:46Z"
+    },
+    {
+      "number": 98455,
+      "state": "open",
+      "merged": false,
+      "headSha": "8b76611b5edd80c5a35c6fbb5c2b174a7d6398e7",
+      "html_url": "https://github.com/vercel/next.js/pull/98455",
+      "updated_at": "2026-09-12T22:12:09Z"
+    },
+    {
+      "number": 98583,
+      "state": "open",
+      "merged": false,
+      "headSha": "3c34189be363cbfbeb0055cb3a58a9d28fa80398",
+      "html_url": "https://github.com/vercel/next.js/pull/98583",
+      "updated_at": "2026-09-11T19:07:14Z"
+    }
+  ],
+  "decision": "Pending explicit owner acceptance or a verified fix before AB#18; AB#132 remains Active. The Proxy stays bounded without content lookups."
+}

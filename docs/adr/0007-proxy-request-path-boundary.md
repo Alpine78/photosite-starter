@@ -376,3 +376,36 @@ record the source/build, harness locale, package versions and artifact hashes.
 Official issue62228 remains open; PR88491 is closed without merge; PR98455 and98583
 remain open/unmerged at the recorded check time. AB#132's launch decision remains
 pending. No CMS existence lookup, framework upgrade or risk acceptance is introduced.
+
+## 2026-10-07 release-candidate and latest-stable check (AB#132)
+
+The [dated audit](../audits/ab132-2026-10-07-scriptless.json) records a fresh
+production build of PR #281's exact source
+`9aadd907633c7e39279ac2bd1e810f3b32a212cd`, on Next.js 16.3.8 and React 19.2.1.
+The gallery/category suites exit successfully and report 40 passed, but that
+total includes **four expected semantic failures**. The 36 other journeys pass,
+including the JavaScript-enabled recovery controls. In both Chromium and WebKit,
+an unknown matched gallery path and a refused continuation return HTTP 404 with
+zero rendered headings and return links, the `__next_error__` document and the
+fallback digest. The harness uses mock content, not live CMS data.
+
+The npm registry now resolves `next@latest` to **16.4.0**. A separate, freshly
+installed four-file App Router reproduction with that version and the same
+React 19.2.1 also reproduces the matched-route defect: `/throws`, which calls
+`notFound()`, returns HTTP 404 without an HTML heading or return link. Its
+unmatched `/no-such-path` control returns HTTP 404 with both elements. The
+detector parses actual HTML start tags; it does not search for text inside
+scripts. The audit includes the scaffold, versions, lockfile hash, build ID
+and response hashes. This isolated check does not upgrade the application or
+prove its whole route tree on 16.4.0.
+
+[Issue #62228](https://github.com/vercel/next.js/issues/62228) and proposed fixes
+[#98455](https://github.com/vercel/next.js/pull/98455) and
+[#98583](https://github.com/vercel/next.js/pull/98583) remain open; neither fix is
+merged at this check. The earlier bounded-remedy assessment and O(1) Proxy
+decision remain in force. A framework bump alone is not a verified remedy.
+
+The temporary residual-risk proposal above remains **pending owner acceptance**,
+with its October 8 review before AB#18's go/no-go or any earlier promotion.
+AB#132 stays Active. A successful quality pipeline or a protected Preview
+does not supply that acceptance or authorize public promotion.
