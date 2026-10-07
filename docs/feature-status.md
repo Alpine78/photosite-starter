@@ -2794,6 +2794,12 @@ journey matrix (736 passed, 36 skipped). Code acceptance and merge are complete.
 At the 2026-10-04 code handoff, exact plan approval, renderer promotion, the import,
 post-write verification and credential revocation were pending.
 
+**Category plan input integrity, 2026-10-07 (AB#215):** `write:categories`
+refuses malformed UTF-8 before category validation or credential resolution. Valid
+localized text and approval digests remain intact, including intentionally encoded
+replacement characters. JSON BOM rejection, dependency ordering and create-only
+preflight/read-back behavior are preserved; no category is written by this change.
+
 Main CI #524 also passed Quality and Preview delivery. A separate Production-target
 candidate was built remotely from that verified main revision, with no local Production
 environment copy. Its uploaded source archive matches all 685 uploaded Git files,
