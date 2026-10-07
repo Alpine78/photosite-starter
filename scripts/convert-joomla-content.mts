@@ -383,25 +383,30 @@ function parseArguments(argv: readonly string[]): Options {
   };
 }
 
+// Keep the fs UTF-8 reader's BOM behavior while refusing corrupt byte sequences.
+async function readUtf8(filePath: string): Promise<string> {
+  return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(filePath));
+}
+
 async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
 
-  const sourceText = await readFile(options.source, "utf8").catch(() => fail(`could not read ${options.source}`));
+  const sourceText = await readUtf8(options.source).catch(() => fail(`could not read ${options.source} as UTF-8`));
   const sourceExportDigest = createHash("sha256").update(sourceText, "utf8").digest("hex");
   const { articles, errors: sourceErrors } = parseSourceArticles(sourceText);
   if (sourceErrors.length > 0) fail(`the source export has ${sourceErrors.length} bad line(s): ${sourceErrors[0]}`);
   if (articles.length === 0) fail("the source export holds no articles");
 
-  const legacyPolls = options.pollResults === undefined ? new Map() : parseLegacyPollResults(await readFile(options.pollResults, "utf8"));
+  const legacyPolls = options.pollResults === undefined ? new Map() : parseLegacyPollResults(await readUtf8(options.pollResults).catch(() => fail(`could not read ${options.pollResults} as UTF-8`)));
   const resolution: ResolutionFile =
     options.resolution === undefined
       ? {}
-      : JSON.parse(await readFile(options.resolution, "utf8").catch(() => fail(`could not read ${options.resolution}`)));
+      : JSON.parse(await readUtf8(options.resolution).catch(() => fail(`could not read ${options.resolution} as UTF-8`)));
 
   const manifestText =
     options.manifest === undefined
       ? undefined
-      : await readFile(options.manifest, "utf8").catch(() => fail(`could not read ${options.manifest}`));
+      : await readUtf8(options.manifest).catch(() => fail(`could not read ${options.manifest} as UTF-8`));
   const review = manifestText === undefined ? undefined : reviewImportManifest(manifestText, { phase: options.phase });
 
   if (options.mode === "plan") {
