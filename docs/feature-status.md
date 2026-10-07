@@ -166,6 +166,18 @@ scriptless semantic failures across Chromium/WebKit. The
 [redacted audit](audits/ab132-2026-10-06-scriptless.json) records exact build/harness
 identities and current upstream states. No AB#132 risk acceptance is implied.
 
+**Release-candidate check, 2026-10-07 (AB#132, Active):** PR #281's exact source
+was rebuilt and tested with mock content. The runner reports 40 passed across
+the gallery/category suites, including four expected semantic failures; 36
+journeys genuinely pass. The four JavaScript-disabled probes still return
+HTTP 404 without a rendered heading or return link. A fresh isolated App Router
+reproduction also fails on the current npm latest, Next.js 16.4.0, while its
+unmatched-URL control renders correctly. This does not upgrade the application.
+The [redacted audit](audits/ab132-2026-10-07-scriptless.json) includes both
+measurements and scaffold provenance. Both upstream fix candidates remain
+open/unmerged. The October 8 owner decision remains pending; green CI does not
+close the launch gate.
+
 **AB#132 owns this**, and was reopened to
 `Active` on 2026-09-03 because it had been closed while none of its own "Done when"
 conditions held: the semantic 404 HTML above, the removal of the `javaScriptEnabled: true`
