@@ -464,6 +464,64 @@ describe("plan:rally then write:rally, as real Node processes", () => {
     ]);
   });
 
+
+  describe("CLI UTF-8 input integrity", () => {
+    let utf8Plan: RallyImportPlan;
+    beforeAll(async () => { utf8Plan = JSON.parse(await readFile(path.join(out, "rally-import-plan.json"), "utf8")); });
+    const marker = "Åä 😀 \uFFFD";
+    const networkGuard = "data:text/javascript," + encodeURIComponent("globalThis.fetch = () => { process.stderr.write('UNEXPECTED_NETWORK'); process.exit(86); };");
+    async function execute(bytes: Buffer, apply = false) {
+      const { mkdtemp, writeFile, rm, readdir } = await import("node:fs/promises");
+      const { tmpdir } = await import("node:os");
+      const path = await import("node:path");
+      const { execFile } = await import("node:child_process");
+      const { promisify } = await import("node:util");
+      const root = await mkdtemp(path.join(tmpdir(), "utf8-plan-"));
+      try {
+        const planPath = path.join(root, "plan.json");
+        await writeFile(planPath, bytes);
+        const digest = recomputeRallyPlanDigest(JSON.parse(bytes.toString("utf8").replace(/^\uFEFF/, "")));
+        const args = ["--import", networkGuard, path.join(import.meta.dirname, "write-rally-import.mts"), "--plan", planPath, ...["--folder", folder, "--out", path.join(root, "write-out"), "--approved-digest", digest], ...(apply ? ["--yes"] : [])];
+        const result = await promisify(execFile)(process.execPath, args, { env: { NODE_ENV: "test", NODE_NO_WARNINGS: "1" } })
+          .then((value) => ({ code: 0, ...value }), (error: { code: number; stdout: string; stderr: string }) => error);
+        expect(result.stderr).not.toContain("UNEXPECTED_NETWORK");
+        expect(await readdir(root)).toEqual(["plan.json"]);
+        return { ...result, digest };
+      } finally { await rm(root, { recursive: true, force: true }); }
+    }
+    function fixture() { return { ...utf8Plan, documents: utf8Plan.documents.map((d) => d._type === "gallery" ? { ...d, title: marker } : d) }; }
+    function corrupt(bad: number[]) {
+      const text = JSON.stringify(fixture());
+      const at = text.indexOf("\uFFFD");
+      expect(at).toBeGreaterThan(-1);
+      return Buffer.concat([Buffer.from(text.slice(0, at)), Buffer.from(bad), Buffer.from(text.slice(at + 1))]);
+    }
+    it("preserves valid Unicode, an intentional replacement character and its approval digest", async () => {
+      const result = await execute(Buffer.from(JSON.stringify(fixture())));
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("Dry run only");
+      expect(result.digest).toMatch(/^[0-9a-f]{64}$/);
+    });
+    it.each([[0xff], [0xc2], [0xc0, 0x80], [0xed, 0xa0, 0x80]])("refuses malformed UTF-8 %j before parsing or local output", async (...bad) => {
+      const result = await execute(corrupt(bad));
+      expect(result.code).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toMatch(/UTF-8|utf-8/);
+    });
+    it("refuses malformed UTF-8 with --yes before resolving credentials", async () => {
+      const result = await execute(corrupt([0xff]), true);
+      expect(result.code).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toMatch(/UTF-8|utf-8/);
+      expect(result.stderr).not.toContain("SANITY_");
+    });
+    it("retains the JSON BOM rejection instead of silently removing it", async () => {
+      const result = await execute(Buffer.from("\uFEFF" + JSON.stringify(fixture())));
+      expect(result.code).toBe(1);
+      expect(result.stdout).toBe("");
+    });
+  });
+
   it("strips camera metadata from the public copy", async () => {
     const { generatePublicDerivative } = await import("./joomla-image-derivative.mts");
     const source = await readFile(path.join(folder, "Rally_Example_2024_0001_SS1_Harju_1.jpg"));
