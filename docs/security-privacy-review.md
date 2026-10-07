@@ -832,3 +832,21 @@ dashboard inspection was performed. Resend sending-only/domain-scoped key access
 tracking settings, provider message/log/backup retention and practical twelve-month
 correspondence deletion remain open. AB#117 stays Active. No account setting or CMS
 content was changed by this documentation update.
+
+### 2026-10-07 email settings confirmation (AB#117)
+
+The owner confirms the existing Resend key already has Sending access restricted to
+the verified sending domain, both open and click tracking have been turned off, and
+the account uses Free (AB#117 comment `59471`). These resolve the key-scope and
+tracking checklist items on owner confirmation, superseding their uncertainty above;
+no independent dashboard/API readback was performed. Resend's published Free policy
+specifies 30-day email/log retention and 7-day backups, as recorded in
+[the contact inventory](contact-data-flow.md#2026-10-07-owner-preferences-and-notice-draft-ab117-ab18).
+The owner-supplied Infomaniak description matches kSuite Free on the official
+comparison. Its published guidance excludes in-plan mailbox restore and describes
+up to 30-day recovery after upgrading; this does not establish absence of backups.
+Comment `59472` records the product identification and the owner's explicit commitment
+to twelve-month enquiry/own-copy deletion with necessary contract/legal exceptions.
+This confirms the owner policy, not an implemented automatic job or observed deletion.
+Exact technical backup erasure and remaining provider/launch checks stay open.
+AB#117 remains Active; no CMS write or provider change was performed by this task.

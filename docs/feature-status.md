@@ -3151,6 +3151,18 @@ checkpoint on owner confirmation; no independent dashboard inspection was perfor
 Key permissions/domain restriction, tracking, provider retention and practical mailbox
 deletion remain open. No provider setting or CMS content was changed.
 
+**Email settings confirmation, 2026-10-07 (AB#117, Active):** the owner confirms
+the existing Resend key is sending-only and restricted to the verified domain,
+both tracking controls are off and the Resend plan is Free (comment `59471`).
+Those checklist items are resolved on owner confirmation; no independent dashboard/API
+readback was performed. The contact inventory records Resend's published 30-day
+email/log and 7-day backup policy. The supplied Infomaniak description matches
+kSuite Free. The owner commits to twelve-month enquiry/own-copy deletion with
+necessary contract/legal exceptions (comment `59472`); no automatic deletion job or
+mailbox audit was performed. Exact technical backup erasure and other launch checks
+remain open.
+The notice remains a local draft; no CMS or provider change was performed by this task.
+
 These notes go stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
