@@ -433,7 +433,8 @@ function migrationToken(): string { if (process.env.NEXT_PUBLIC_SANITY_MIGRATION
 
 async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
-  const validated = validateFoundationWritePlan(JSON.parse(await readFile(options.plan, "utf8")) as unknown);
+  // Preserve the existing BOM behavior; malformed UTF-8 must never become replacement text.
+  const validated = validateFoundationWritePlan(JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(options.plan))) as unknown);
   if (validated.plan === undefined) throw new Error(`foundation plan failed ${validated.issues.length} check(s): ${validated.issues.join("; ")}`);
   const digest = foundationDocumentsDigest(validated.plan.documents);
   console.log(`Foundation plan valid: ${validated.plan.documents.length} singleton document(s).`);

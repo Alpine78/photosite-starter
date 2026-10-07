@@ -637,6 +637,13 @@ placed, not of the category receiving it — so `readPublicContentTree` accepts 
 plain input from whatever adapter reads that content once AB#113 and AB#81 exist, and
 composes them with the fetched categories through the same `buildContentTree` call the mock
 layer already uses.
+
+**Foundation plan input integrity, 2026-10-07 (AB#216):** `write:foundation`
+refuses malformed UTF-8 before singleton validation or credential resolution. Valid
+Unicode and its approval digest remain unchanged. Existing JSON BOM rejection,
+dry-run, reference checks and create-only singleton rules are preserved;
+AB#137 still requires the live content operation and audit.
+
 The global settings and home-page schemas and adapters sit beside those boundaries too.
 Each is a published singleton: none is a fallback to fixtures, and a missing or duplicate
 published document raises as a classified content defect. Authored prose is language-keyed,
