@@ -1022,6 +1022,12 @@ to exactly one decided, pending, excluded, or already-live bucket. Direct canoni
 same-language targets and explicit category-ancestry/home fallback policy follow
 ADR-0003 decision 9; unknown URLs retain ordinary not-found behavior.
 
+**Legacy target semantics, 2026-10-07 (AB#211):** the owner-run verification
+requires genuine HTML metadata and nonempty HTML status text outside hidden or inert
+subtrees. Foreign canonical/alternate lookalikes, comments and hidden-child-only notices
+are excluded. Computed CSS visibility and exact localized copy still need browser checks;
+no mapping decision or AB#19 live-target acceptance is implied.
+
 **Legacy review export, 2026-10-06 (AB#209, Active):** optional `report --csv`
 exports pending exact paths/statuses with blank owner decisions. Formula-safe
 semicolon CSV leaves JSON/check behavior and the redirect registry unchanged.
