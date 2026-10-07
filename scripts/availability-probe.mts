@@ -18,9 +18,11 @@ export function publicProbeUrl(value: unknown): string {
   if (typeof value !== "string" || value.trim() !== value || /[\u0000-\u0020\u007f\\]/.test(value)) return invalid();
   let url: URL;
   try { url = new URL(value); } catch { return invalid(); }
+  // Classify terminal DNS dots without changing the requested URL or loopback exception.
+  const host = url.hostname.replace(/\.+$/u, "");
   const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (url.username || url.password || /[?#]/.test(url.href) || (url.protocol !== "https:" && !(loopback && url.protocol === "http:")) ||
-      (!loopback && (isIP(url.hostname.replace(/^\[|\]$/g, "")) !== 0 || !url.hostname.includes(".") || /\.(?:localhost|local|internal|home|invalid)$/.test(url.hostname)))) return invalid();
+      (!loopback && (isIP(host.replace(/^\[|\]$/g, "")) !== 0 || !host.includes(".") || /\.(?:localhost|local|internal|home|invalid)$/.test(host)))) return invalid();
   let path: string;
   try { path = decodeURIComponent(url.pathname); } catch { return invalid(); }
   if (/[\u0000-\u0020\u007f\\%]/.test(path) || path.split("/").some((part) => /^(?:private|api|admin|studio)(?:-|$)/i.test(part))) return invalid();
