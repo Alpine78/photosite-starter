@@ -1929,6 +1929,17 @@ npm v2 reader validates the reference graph and separates affected package entri
 from unique numeric advisories. No dependency fixes or residual-risk acceptance
 are implied; AB#160/186 remain open.
 
+**Dependency remediation candidate, 2026-10-07 (AB#186, still Active):** full
+`npm audit` moved from 25 high affected package entries to zero; production
+remains zero. Narrow CLI-tree overrides lift Undici 5.28.4/5.29.0 to 6.29.0,
+removing the old Busboy dependency. Since no upstream braces fix is published, a
+documented, tested local `braces` fork caps parser nesting at 100. Clean
+`npm ci`, `npm ls`, lint, all 4,642 unit tests, production build and the E2E
+suite pass. Authenticated Preview verification remains open because the
+Undici major substitution changes Vercel CLI's dependency contract. AB#186 is
+still Active; no merge, deployment or owner risk acceptance occurred.
+[Dated evidence and raw reports](audits/ab186-dependency-review.md#2026-10-07-remediation-candidate--full-audit-clear-ab186-remains-active).
+
 **Dependency audit refresh, 2026-10-05 (AB#186, still Active):** the unchanged
 merged lockfile now reports 25 high affected package entries across undici,
 busboy and braces; production-only audit remains zero. These counts include

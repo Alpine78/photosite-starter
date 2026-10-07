@@ -1,6 +1,8 @@
 # AB#186 dependency remediation evidence — 2026-09-29
 
-The 2026-09-29 section below is historical evidence. The current audit is recorded in the dated 2026-10-05 section; the October 2 remediation remains historical evidence.
+The 2026-09-29, October 2 and October 5 sections below are historical evidence.
+The latest audit and remediation candidate are recorded in the dated October 7
+section; older dispositions are not the current dependency status.
 
 This is a snapshot of the root lockfile and the Azure Preview CLI path. npm audit reports **affected package entries**, including parent packages reached through a transitive dependency; the counts below are not counts of distinct exploits or proof of a publicly reachable vulnerability. The baseline is merged `main` at `c6b7b69cb91abc24ddc65e3ff22ed747d48f6881`. The proposed result is the uncommitted AB#186 branch. The audit used Node 24.20.0 and npm 12.0.2 against `https://registry.npmjs.org`.
 
@@ -295,6 +297,65 @@ Authenticated deployment/upload/protection proof is a separate release check;
 this document does not claim it occurred. The required main CI and release
 candidate records are reported by the release handoff. No dependency change,
 new runtime exploit, owner acceptance, CMS write or public promotion is claimed.
+
+## 2026-10-07 remediation candidate — full audit clear, AB#186 remains Active
+
+The baseline is the exact merged `origin/main` revision
+`26e2d8f1fce93568b0b13d72ab66627fe77fd1cd`, before this branch's manifest and
+lockfile changes. Node 24.20.0 / npm 12.0.2 ran the full and production-only
+audits against `https://registry.npmjs.org` before and after the candidate.
+The full audit changed from 25 high affected package entries to zero; the
+production-only audit was zero both before and after. npm counts affected
+package entries, including transitive parents, and do not count independent
+exploits or establish public reachability.
+
+| npm audit entries | Before full | After full | Before production | After production |
+| --- | ---: | ---: | ---: | ---: |
+| Critical | 0 | 0 | 0 | 0 |
+| High | 25 | 0 | 0 | 0 |
+| Moderate / low / informational | 0 | 0 | 0 | 0 |
+| Total | 25 | 0 | 0 | 0 |
+
+Raw reports and SHA-256:
+
+| Report | SHA-256 |
+| --- | --- |
+| [before, full](ab186-2026-10-07-before.json) | `bf4fb12c8754f9a8483bd48956465acd94a4ee856f98ffd27b85e13c72c6aaa9` |
+| [after, full](ab186-2026-10-07-after-full.json) | `dfcbd36d5cb91962f8beb674915b73c83645505fed514906383b57d1450f0c1a` |
+| [after, production-only](ab186-2026-10-07-after-production.json) | `dfcbd36d5cb91962f8beb674915b73c83645505fed514906383b57d1450f0c1a` |
+
+The candidate resolves both Vercel CLI Undici 5.x pins (`5.28.4` and
+`5.29.0`) to `6.29.0`. That removes the old `@fastify/busboy@2.1.1`
+dependency from the selected tree. This is a major Undici substitution inside
+the development-only Vercel CLI tree; `npm
+audit` being clear does not itself prove Vercel has tested that combination.
+`npm ls` shows the selected tree and `vercel --version` starts the pinned CLI,
+but authenticated Preview pull/build/deploy verification is still required.
+No deploy or promotion was performed from this uncommitted branch.
+
+The current braces advisory has no upstream patched release. Its reported
+consumer is a development-only `micromatch` path. The branch packages the
+upstream MIT-licensed 3.0.3 implementation as an explicitly named local fork
+`3.0.4-photosite.1`, adding a maximum parse nesting depth of 100 for braces and
+parentheses. A focused test confirms ordinary compilation/expansion remains
+available and deeply nested input is rejected. The fork's source and packed
+tarball are both kept in `vendor/`; the lockfile resolves to the committed
+tarball, and a direct development dependency plus npm's `$braces` override
+keep a clean npm 12 installation and deduplicated consumer tree in sync. This
+is a project-maintained mitigation, not an upstream release. Replace it with
+an upstream fix when one is published and verified.
+
+Validation on this candidate: clean `npm ci --allow-remote=all` reported zero
+vulnerabilities and `npm audit` full and production-only both exited 0;
+`npm ls` showed the expected patched tree; Vercel CLI version reported
+61.0.0; lint passed; 199 Vitest files / 4,642 tests passed; the production
+build passed; Playwright passed 738 tests with 36 configured skips. npm 12
+reported install scripts blocked for `esbuild@0.27.0` and
+`unrs-resolver@1.11.1`; the repository's tests, build and E2E completed with
+that default script policy. AB#186 remains Active: PR CI and authenticated
+Preview checks still need to pass, and Preview verification is especially
+important because the major Undici override changes a Vercel CLI dependency.
+There has been no merge, deployment, promotion, or owner acceptance.
 
 ## Offline counts from a saved report (AB#204)
 
