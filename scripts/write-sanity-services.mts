@@ -591,7 +591,8 @@ function migrationToken(): string {
 
 async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
-  const text = await readFile(options.plan, "utf8");
+  // Preserve the existing BOM behavior; malformed UTF-8 must never become replacement text.
+  const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(options.plan));
   const parsed: unknown = JSON.parse(text);
   const validated = validateServiceWritePlan(parsed);
   if (validated.plan === undefined) {

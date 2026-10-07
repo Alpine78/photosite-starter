@@ -47,3 +47,13 @@ describe("availability decisions", () => {
     expect((await probeAvailability(check, { ...options(vi.fn().mockResolvedValue(new Response(stalled, { headers: { 'content-type': 'text/html' } }))), timeoutMs: 20 })).code).toBe('timeout');
   });
 });
+
+describe("terminal DNS-dot host classification", () => {
+  it.each(["localhost", "local", "internal", "home", "invalid"].flatMap((suffix) =>
+    ["", ".", ".."].map((dots) => `https://example.${suffix}${dots}/`)))
+    ("refuses private-suffix host %s", (url) => expect(() => publicProbeUrl(url)).toThrow("invalid-probe-config"));
+  it.each(["https://localhost./", "http://localhost./", "https://localhost../"])
+    ("does not widen the explicit loopback exception to %s", (url) => expect(() => publicProbeUrl(url)).toThrow("invalid-probe-config"));
+  it.each(["https://example.test./", "https://EXAMPLE.test./", "http://localhost:3100/", "http://127.0.0.1:3100/", "http://[::1]:3100/"])
+    ("retains the original parsed URL for %s", (url) => expect(publicProbeUrl(url)).toBe(new URL(url).href));
+});
