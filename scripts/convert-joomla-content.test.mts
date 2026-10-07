@@ -1173,3 +1173,63 @@ describe("CLI inline-link resolution", () => {
     }
   });
 });
+
+describe("CLI UTF-8 input integrity", () => {
+  const marker = "Åä 😀 \uFFFD";
+  const networkGuard = "data:text/javascript," + encodeURIComponent("globalThis.fetch = () => { process.stderr.write('UNEXPECTED_NETWORK'); process.exit(86); };");
+  async function inputs() {
+    const { MANIFEST_COLUMNS } = await import("./joomla-import-manifest.mts");
+    const { CONVERSION_POLICY_VERSION } = await import("./joomla-html-conversion.mts");
+    const row: Record<string, string> = {
+      joomla_id: "1", language: "fi", content_id: "example", slug: "example", canonical_category: "example",
+      phase: "launch", published_at: "2024-01-01T00:00:00Z", source_digest: "a".repeat(64), resolved_digest: "b".repeat(64),
+      conversion_policy: CONVERSION_POLICY_VERSION, public_launch_decision: "LATER", eligible_for_import: "NO",
+      approved_by: marker, approved_at: "2026-10-01",
+    };
+    return {
+      source: JSON.stringify({ joomlaId: "1", language: "fi", title: marker, body: "<p>Example.</p>" }) + "\r\n",
+      polls: "poll_id\tquestion\ttotal_votes\tlanguage\toption_title\toption_votes\n" +
+        `1\t${marker}\t1\tfi\tYes\t1\n1\t${marker}\t1\tfi\tNo\t0\n`,
+      resolution: JSON.stringify({ links: { "1": { unused: marker } } }),
+      manifest: MANIFEST_COLUMNS.join(";") + "\r\n" + MANIFEST_COLUMNS.map((column) => row[column] ?? "").join(";") + "\r\n",
+    };
+  }
+  type Input = keyof Awaited<ReturnType<typeof inputs>>;
+  async function execute(type: Input, transform: (text: string) => Buffer) {
+    const { readdir } = await import("node:fs/promises");
+    const root = await mkdtemp(path.join(tmpdir(), "utf8-converter-"));
+    try {
+      const texts = await inputs();
+      for (const key of Object.keys(texts) as Input[]) await writeFileNode(path.join(root, key), key === type ? transform(texts[key]) : Buffer.from(texts[key]));
+      const out = path.join(root, "out");
+      const result = await run(process.execPath, ["--import", networkGuard, path.join(import.meta.dirname, "convert-joomla-content.mts"),
+        "--source", path.join(root, "source"), "--poll-results", path.join(root, "polls"),
+        "--resolution", path.join(root, "resolution"), "--manifest", path.join(root, "manifest"), "--out", out, "--review"],
+      { env: { NODE_ENV: "test", NODE_NO_WARNINGS: "1" } }).then((r) => ({ code: 0, ...r }), (e: { code: number; stdout: string; stderr: string }) => e);
+      expect(result.stderr).not.toContain("UNEXPECTED_NETWORK");
+      const files = (await readdir(root)).sort();
+      if (result.code !== 0) expect(files).toEqual(["manifest", "polls", "resolution", "source"]);
+      return { ...result, texts, ...(result.code === 0 ? { report: await readFileNode(path.join(out, "findings.json"), "utf8") } : {}) };
+    } finally { await rm(root, { recursive: true, force: true }); }
+  }
+  it("preserves valid Unicode and the exact source digest", async () => {
+    const result = await execute("source", (text) => Buffer.from(text));
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(`Source export digest: ${createHash("sha256").update(result.texts.source).digest("hex")}`);
+    expect(result.report).toContain(marker);
+  });
+  it.each(["source", "polls", "resolution", "manifest"] as const)("rejects corrupt %s bytes before reports or console success", async (type) => {
+    const result = await execute(type, (text) => {
+      const at = text.indexOf("\uFFFD"); expect(at).toBeGreaterThan(-1);
+      return Buffer.concat([Buffer.from(text.slice(0, at)), Buffer.from([0xff]), Buffer.from(text.slice(at + 1))]);
+    });
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(/UTF-8|utf-8/);
+    expect(result.stderr).toContain("Joomla conversion failed:");
+  });
+  it.each([["source", 1], ["polls", 1], ["resolution", 1], ["manifest", 0]] as const)("preserves %s BOM behavior", async (type, code) => {
+    const result = await execute(type, (text) => Buffer.from("\uFEFF" + text));
+    expect(result.code).toBe(code);
+  });
+});
