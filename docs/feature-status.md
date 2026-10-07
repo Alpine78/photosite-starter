@@ -739,6 +739,13 @@ identity the key exists to provide. AB#135 wires the article and service adapter
 route-facing seams (`src/lib/content.ts`, `src/lib/services.ts`); the shared content-block
 schema and adapter were already reached transitively through every content page that renders
 a body.
+
+**Service plan input integrity, 2026-10-07 (AB#214):** `write:services` rejects
+malformed UTF-8 before plan validation and credential resolution. Valid accented text,
+emoji and deliberately encoded replacement characters retain their approval digest.
+JSON BOM rejection, dry-run and create-only preflight/read-back rules are unchanged;
+this does not complete AB#137's live migration.
+
 The gallery schema and adapter (AB#113) sit beside the article ones, sharing their
 identity/URL-freeze/local-slug-namespace guard through a new `content-placement-
 validation.ts` rather than duplicating it: a `contentId` can no longer be claimed by both
