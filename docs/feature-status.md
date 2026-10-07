@@ -2713,6 +2713,12 @@ existing bounded contract answered from media:
 - Enquiry resolves the item by `mediaId` inside that gallery. The target carries no
   `placementId`, and the email omits the placement line.
 
+**Rally import plan integrity, 2026-10-07 (AB#217):** `write:rally` rejects
+malformed UTF-8 before parsing the approved plan, inspecting image files or reading
+credentials. Valid Unicode and the existing digest/JSON BOM behavior are preserved.
+Local derivative checks, dry-run and raw-perspective preflight remain unchanged;
+this is an offline tooling correction, not a new rally import.
+
 Studio validation (`sanity/schemas/capture-sequence.ts`, `gallery.ts`,
 `gallery-placement.ts`) blocks every combination the read would refuse. The mock fixture
 `content-capture-sequence` has 40 photographs in two sections, authored in reverse, and
