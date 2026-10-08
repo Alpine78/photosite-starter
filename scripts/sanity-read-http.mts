@@ -197,7 +197,8 @@ export async function readSanityJsonResponse(response: Response, context: string
     );
   }
   try {
-    return await response.json();
+    const bytes = await response.arrayBuffer();
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
   } catch {
     throw new SanityReadHttpError(`${context} returned a non-JSON response`);
   }

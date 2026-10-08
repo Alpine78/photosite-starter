@@ -3096,3 +3096,12 @@ These notes go stale easily — treat it as a starting hint, not as truth. The M
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
 feature exists or is missing.
+
+### AB#227 — shared Sanity response UTF-8
+
+`readSanityJsonResponse` now rejects malformed UTF-8 before JSON parsing, preserving
+its fixed errors, status handling and transport-BOM acceptance. This also covers its
+shared query/upload callers; the mutate path does not read its response body.
+Stream failures retain the existing non-JSON class.
+It does not change the runtime app, exact-byte plan files or live verification.
+No real CMS request or write was performed for this slice.
