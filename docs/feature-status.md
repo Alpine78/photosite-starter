@@ -3096,3 +3096,11 @@ These notes go stale easily — treat it as a starting hint, not as truth. The M
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
 feature exists or is missing.
+
+### AB#225 — keys inside mixed CMS arrays
+
+Pre-write key validation now checks object elements even when an array also contains
+primitives or null, and traverses nested containers with independent sibling-key sets.
+Malformed keys use index paths without coercing their values. This is a generic key
+check, not schema validation: accepting a nested container does not make arrays of
+arrays valid Sanity content. No Production dataset or launch gate was verified here.
