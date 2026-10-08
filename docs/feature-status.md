@@ -3210,3 +3210,11 @@ waiting; late responses are cancelled. A four-MiB response-byte cap remains, and
 malformed UTF-8 now gives the existing fixed `probe-failed` verification result.
 Mapping decisions, pending paths and live AB#19 launch checks remain unchanged.
 Repeated failed targets are still probed per row; failure caching is a separate follow-up.
+
+### AB#225 — keys inside mixed CMS arrays
+
+Pre-write key validation now checks object elements even when an array also contains
+primitives or null, and traverses nested containers with independent sibling-key sets.
+Malformed keys use index paths without coercing their values. This is a generic key
+check, not schema validation: accepting a nested container does not make arrays of
+arrays valid Sanity content. No Production dataset or launch gate was verified here.

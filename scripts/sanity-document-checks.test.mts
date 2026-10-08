@@ -183,3 +183,32 @@ describe("collectKeyViolations", () => {
     expect(violations.some((v) => v.includes("missing a non-empty _key"))).toBe(true);
   });
 });
+
+describe("object keys in mixed arrays", () => {
+  function violations(value: unknown) {
+    const result: string[] = []; collectKeyViolations("doc", value, result); return result;
+  }
+  it("checks missing and duplicate keys across primitive siblings in index order", () => {
+    expect(violations({ items: [1, {}, { _key: "a" }, "a", null, { _key: "a" }, { _key: "" }] })).toEqual([
+      "doc.items: array item is missing a non-empty _key",
+      'doc.items: duplicate _key "a"',
+      "doc.items: array item is missing a non-empty _key",
+    ]);
+  });
+  it("walks nested arrays with independent key namespaces", () => {
+    expect(violations({ items: [{ _key: "a", child: [null, { _key: "a" }] }, [null, {}, { _key: "a" }, { _key: "a" }]] })).toEqual([
+      "doc.items[1]: array item is missing a non-empty _key",
+      'doc.items[1]: duplicate _key "a"',
+    ]);
+  });
+  it.each(["", 1, null, { toString: 1 }])("uses an index path for a malformed key: %j", (key) => {
+    expect(violations({ items: [{ _key: key, child: [{}] }] })).toEqual([
+      "doc.items: array item is missing a non-empty _key",
+      "doc.items[0].child: array item is missing a non-empty _key",
+    ]);
+  });
+  it.each([[], [null], [1, "text", false, null], [null, { _key: "a" }, [null, { _key: "a" }]]].map(items => ({ items })))
+    ("accepts containers and valid keys without treating primitives as objects: %j", ({ items }) => {
+      expect(violations({ items })).toEqual([]);
+    });
+});
