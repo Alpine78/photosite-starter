@@ -3282,3 +3282,9 @@ The work item remains Active until owner review and merge.
 Gallery continuation requests stay on their application endpoint with manual redirects; browser opaque redirect responses fail the existing HTTP-success check. Successful JSON must be valid UTF-8 before item/slide identity and metadata validation. Parser and body-read failures expose only a fixed unusable-slice message. Valid Unicode, literal U+FFFD and a response BOM remain supported; layout, image dimensions, full-frame rendering and cursor semantics are unchanged.
 
 The work item remains Active until owner review and merge.
+
+### AB#235 — Prevent email delivery POSTs from following provider redirects (2026-10-08)
+
+The shared plain-text Resend transport uses `redirect: manual` for its fixed `https://api.resend.com/emails` endpoint. A 3xx is a non-retryable provider rejection; its Location and error-name body cannot cause forwarding, a false delivered outcome or a retry override. Contact Reply-To, recipients, idempotency, timeout and genuine provider failure classification remain unchanged. The same transport guard covers existing private-gallery notifications without introducing a new processor or a live email test.
+
+The work item remains Active until owner review and merge.
