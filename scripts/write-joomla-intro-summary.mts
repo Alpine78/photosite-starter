@@ -29,7 +29,7 @@
  * draft that appeared.
  */
 
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -146,23 +146,32 @@ async function writeReport(outDir: string, fileName: string, data: unknown): Pro
 
 const recoveryFileName = (digest: string) => `intro-summary-approved-${digest}.json`;
 
-async function readRecoveryRecord(outDir: string, digest: string): Promise<IntroSummaryPlan | undefined> {
-  let text: string;
+export async function readRecoveryRecord(outDir: string, digest: string): Promise<IntroSummaryPlan | undefined> {
+  const filePath = path.join(outDir, recoveryFileName(digest));
   try {
-    text = await readFile(path.join(outDir, recoveryFileName(digest)), "utf8");
+    if (!(await stat(filePath)).isFile()) fail("The intro recovery entry must resolve to a regular file");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-    throw error;
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      try { await lstat(filePath); } catch (entryError) {
+        if ((entryError as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      }
+    }
+    fail("The intro recovery entry cannot be read; restore it before continuing");
   }
-  const plan = JSON.parse(text) as IntroSummaryPlan;
-  if (plan.digest !== digest || recomputeIntroSummaryDigest(plan) !== digest) {
-    fail(`${recoveryFileName(digest)} does not match its own digest — it was edited; restore it before continuing`);
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(filePath));
+    const plan = JSON.parse(text) as IntroSummaryPlan;
+    if (plan.digest !== digest || recomputeIntroSummaryDigest(plan) !== digest) {
+      fail("The intro recovery record does not match its digest; restore it before continuing");
+    }
+    return plan;
+  } catch {
+    fail("The intro recovery record is invalid or unreadable; restore it before continuing");
   }
-  return plan;
 }
 
 /** Saves the approved plan once. An existing record must be byte-for-byte the same plan. */
-async function persistRecoveryRecord(outDir: string, plan: IntroSummaryPlan): Promise<string> {
+export async function persistRecoveryRecord(outDir: string, plan: IntroSummaryPlan): Promise<string> {
   await ensureOutDir(outDir);
   const filePath = path.join(outDir, recoveryFileName(plan.digest));
   const text = `${JSON.stringify(plan, null, 2)}\n`;
@@ -170,7 +179,8 @@ async function persistRecoveryRecord(outDir: string, plan: IntroSummaryPlan): Pr
     await writeFile(filePath, text, { encoding: "utf8", mode: 0o600, flag: "wx" });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-    const existing = JSON.parse(await readFile(filePath, "utf8")) as IntroSummaryPlan;
+    const existing = await readRecoveryRecord(outDir, plan.digest);
+    if (existing === undefined) fail("The existing intro recovery record disappeared; verify it before continuing");
     if (canonicalJson(existing) !== canonicalJson(plan)) {
       fail(`${filePath} already exists with different content; it is never overwritten`);
     }
