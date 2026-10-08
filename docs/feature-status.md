@@ -3187,3 +3187,10 @@ The preview verifier now accepts the provider SSO challenge only over HTTPS, wit
 no credentials and the default port, at its existing exact host and path. Redirect
 status and fixed diagnostic contracts are unchanged; Location values are not logged.
 This is deterministic classifier coverage, not a fresh live deployment verification.
+
+### AB#222 — rally planner input integrity
+
+The offline planner rejects malformed UTF-8 and unreadable identity maps instead of
+silently replacing bytes or starting new identities. It checks the identity map before
+writing reports. Existing ID minting and the file-BOM policy are unchanged; writes are
+not made transactional by this slice. No real rally plan or CMS write was performed.
