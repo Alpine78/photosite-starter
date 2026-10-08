@@ -3252,3 +3252,9 @@ range 0100–9999, including offset crossings; migration and seed document guard
 that compatible projection. This deliberately accepts real early calendar dates
 while keeping unsupported instants out of public document plans. The runtime reader
 is unchanged and its own early-year behavior remains a separate follow-up.
+
+### AB#233 — Fail closed on malformed UTF-8 and redirects from Sanity queries (2026-10-08)
+
+Runtime published queries keep their fixed Content Lake origin and use manual redirects. Successful JSON is decoded as strict UTF-8; a response BOM, valid Unicode and literal U+FFFD remain supported. Damaged bytes and body-read failures keep the existing non-retryable `malformed-response` classification with redacted events. Published perspective, parameters, timeout and finite Next cache tags/TTL remain unchanged. The pinned Next fetch implementation caches response bytes before application-level JSON validation: a malformed cached 200 can therefore keep failing until the existing TTL expires or approved webhook/recovery invalidation clears it. This change adds no live propagation proof.
+
+The work item remains Active until owner review and merge.
