@@ -2231,3 +2231,7 @@ outside its import contract. The curated-gallery writer accepts
 `summaryListingOnly: true` with a nonblank `summary`, preserving the presentation
 decision in ADR-0003. These changes require a new exact-plan review and grant no
 Production-write approval.
+
+### AB#231 — input and diagnostic integrity
+
+Intro-summary recovery records are read as strict UTF-8 JSON with the existing no-BOM policy. Valid Unicode and a literal U+FFFD remain valid; damaged bytes are refused before digest checks. Only a genuinely absent directory entry counts as missing: a dangling link, directory or unreadable record refuses recovery. A symlink to an intact regular file retains its existing behavior. Exclusive creation remains mandatory; an existing record is checked through the same reader and never overwritten. This local-file guard does not perform the owner-run correction.
