@@ -3226,3 +3226,12 @@ redacts body-read errors, and rejects malformed UTF-8. Payload size counts recei
 post-decompression bytes, including a BOM; wall time ends before decode/JSON parsing.
 Query strategy and cache measurements are unchanged. This covers only the benchmark
 transport with synthetic responses; no live measurement or launch gate was completed.
+
+### AB#227 — shared Sanity response UTF-8
+
+`readSanityJsonResponse` now rejects malformed UTF-8 before JSON parsing, preserving
+its fixed errors, status handling and transport-BOM acceptance. This also covers its
+shared query/upload callers; the mutate path does not read its response body.
+Stream failures retain the existing non-JSON class.
+It does not change the runtime app, exact-byte plan files or live verification.
+No real CMS request or write was performed for this slice.
