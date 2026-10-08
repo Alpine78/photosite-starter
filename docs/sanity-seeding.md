@@ -2235,3 +2235,7 @@ Production-write approval.
 ### AB#231 — input and diagnostic integrity
 
 Intro-summary recovery records are read as strict UTF-8 JSON with the existing no-BOM policy. Valid Unicode and a literal U+FFFD remain valid; damaged bytes are refused before digest checks. Only a genuinely absent directory entry counts as missing: a dangling link, directory or unreadable record refuses recovery. A symlink to an intact regular file retains its existing behavior. Exclusive creation remains mandatory; an existing record is checked through the same reader and never overwritten. This local-file guard does not perform the owner-run correction.
+
+### AB#232 — input and diagnostic integrity
+
+The curated-gallery offline planner reads both the content input and owner-approval file as strict UTF-8 JSON before opening its output. Damaged bytes, a leading BOM and malformed JSON receive fixed role-specific diagnostics; their contents are not echoed. Valid Unicode and literal U+FFFD preserve the existing review-digest computation and approval binding. An invalid input or approval leaves any existing output untouched. This parser check is not a new content approval or CMS write.
