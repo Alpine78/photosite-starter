@@ -1544,3 +1544,9 @@ when saving stdout to avoid npm's command banner. Owner decision, target and evi
 columns start blank. The worksheet chooses no target and is not an import format;
 timeouts remain observed timeouts. Check mode still reports pending decisions as
 incomplete/nonzero. AB#19 still requires accepted mappings and post-import targets.
+
+### AB#236 — operator verification behavior
+
+Preview verification no longer prints arbitrary identity/probe exception messages, which can include malformed secret header values. The injectable header-only probe preserves manual redirects, no-store, the twenty-second signal and response metadata. The CLI verifies deployment ownership before supplying the bypass, uses fixed unknown-cause diagnostics and has an import-safe main guard. Known project-owned VercelApiError diagnostics remain available.
+
+This deliberately also withholds ordinary validation `Error` messages during identity lookup. Those errors share the catch boundary with transport failures, whose contents are not trusted; the fixed phase diagnostic identifies where verification stopped. Only the explicit project-owned `VercelApiError` class may supply additional detail. Inspect the URL, expected deployment ID and required Vercel settings locally when that phase fails.
