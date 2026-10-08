@@ -3252,3 +3252,7 @@ range 0100–9999, including offset crossings; migration and seed document guard
 that compatible projection. This deliberately accepts real early calendar dates
 while keeping unsupported instants out of public document plans. The runtime reader
 is unchanged and its own early-year behavior remains a separate follow-up.
+
+### AB#239 — October 8 launch checkpoint
+
+The [dated post-merge checkpoint](audits/launch-readiness-2026-10-08.md) records exact main CI, protected Preview and unchanged old Production evidence, today's continuing scriptless 404 residual, and ordered remaining launch operations; launch parents and the ten new review items stay Active.
