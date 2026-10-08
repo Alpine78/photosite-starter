@@ -15,6 +15,32 @@ import {
 describe("access protection", () => {
   const SSO_REDIRECT = "https://vercel.com/sso-api?url=https%3A%2F%2Fexample.vercel.app%2F&nonce=abc";
 
+  it.each([
+    "http://vercel.com/sso-api", "ftp://vercel.com/sso-api",
+    "https://user:secret@vercel.com/sso-api", "https://evil.com@vercel.com/sso-api",
+    "https://vercel.com@evil.com/sso-api", "https://vercel.com.evil.com/sso-api",
+    "https://vercel.com:80/sso-api", "https://vercel.com:444/sso-api",
+    "//vercel.com/sso-api", "/sso-api", "https://vercel.com./sso-api",
+  ])("refuses an untrusted SSO target without echoing it: %s", (location) => {
+    const result = classifyProtection(302, location);
+    expect(result.ok).toBe(false);
+    expect(result.detail).not.toContain(location);
+    expect(result.detail).not.toContain("secret");
+    expect(result.detail).not.toContain("user:");
+  });
+
+  it.each([301, 302, 303, 307, 308])("pins the accepted challenge detail for status %i", (status) => {
+    expect(classifyProtection(status, SSO_REDIRECT)).toEqual({
+      ok: true,
+      detail: `unauthenticated request challenged with a ${status} redirect to vercel.com/sso-api`,
+    });
+  });
+
+  it.each(["https://vercel.com:443/sso-api", "HTTPS://VERCEL.COM/sso-api", "https://:@vercel.com/sso-api"])
+    ("accepts URL-normalized HTTPS default-port challenges: %s", (location) => {
+      expect(classifyProtection(302, location).ok).toBe(true);
+    });
+
   it("accepts a redirect whose Location names the provider's own SSO host and path", () => {
     // Verified against a real deployment (AB#116, 2026-08-24): Vercel
     // Authentication answers an unauthenticated request with a 302 to
