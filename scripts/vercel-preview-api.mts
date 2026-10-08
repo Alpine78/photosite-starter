@@ -111,6 +111,13 @@ function readIsProductionTarget(payload: unknown): boolean {
   return (payload as Record<string, unknown>).target === "production";
 }
 
+async function readStrictJsonResponse(response: Response, message: string): Promise<unknown> {
+  try {
+    const bytes = await response.arrayBuffer();
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  } catch { throw new VercelApiError(message); }
+}
+
 async function requestDeployment(
   reference: string,
   settings: VercelPreviewApiSettings,
@@ -132,12 +139,7 @@ async function requestDeployment(
     );
   }
 
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new VercelApiError("Vercel deployment lookup returned invalid JSON");
-  }
+  const payload = await readStrictJsonResponse(response, "Vercel deployment lookup returned invalid JSON");
 
   return { response, payload };
 }
@@ -229,12 +231,7 @@ export async function assignPreviewAlias(
     );
   }
 
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new VercelApiError("Vercel alias assignment returned invalid JSON");
-  }
+  const payload = await readStrictJsonResponse(response, "Vercel alias assignment returned invalid JSON");
 
   const record = asRecord(payload, "alias assignment");
   const uid = typeof record.uid === "string" ? record.uid.trim() : "";
@@ -298,12 +295,7 @@ export async function readAliasCurrentTarget(
     );
   }
 
-  let aliasPayload: unknown;
-  try {
-    aliasPayload = await aliasResponse.json();
-  } catch {
-    throw new VercelApiError("Vercel alias lookup returned invalid JSON");
-  }
+  const aliasPayload = await readStrictJsonResponse(aliasResponse, "Vercel alias lookup returned invalid JSON");
 
   const aliasRecord = asRecord(aliasPayload, "alias lookup");
   const aliasUid =

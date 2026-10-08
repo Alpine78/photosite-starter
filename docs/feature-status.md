@@ -3235,3 +3235,11 @@ shared query/upload callers; the mutate path does not read its response body.
 Stream failures retain the existing non-JSON class.
 It does not change the runtime app, exact-byte plan files or live verification.
 No real CMS request or write was performed for this slice.
+
+### AB#228 — Vercel metadata UTF-8
+
+Deployment lookup, alias lookup and alias-assignment confirmation reject malformed
+UTF-8 before parsing JSON, with their existing fixed errors and ownership checks.
+A failed lookup cannot proceed to deletion. Assignment has already issued its POST
+when its response is read: a corrupt response leaves remote state unknown and calls
+for manual alias verification. Coverage uses synthetic responses, not provider changes.
