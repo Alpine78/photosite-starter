@@ -3270,3 +3270,9 @@ The work item remains Active while this independent branch awaits owner review a
 The curated-gallery offline planner reads both the content input and owner-approval file as strict UTF-8 JSON before opening its output. Damaged bytes, a leading BOM and malformed JSON receive fixed role-specific diagnostics; their contents are not echoed. Valid Unicode and literal U+FFFD preserve the existing review-digest computation and approval binding. An invalid input or approval leaves any existing output untouched. This parser check is not a new content approval or CMS write.
 
 The work item remains Active while this independent branch awaits owner review and merge.
+
+### AB#233 — Fail closed on malformed UTF-8 and redirects from Sanity queries (2026-10-08)
+
+Runtime published queries keep their fixed Content Lake origin and use manual redirects. Successful JSON is decoded as strict UTF-8; a response BOM, valid Unicode and literal U+FFFD remain supported. Damaged bytes and body-read failures keep the existing non-retryable `malformed-response` classification with redacted events. Published perspective, parameters, timeout and finite Next cache tags/TTL remain unchanged. The pinned Next fetch implementation caches response bytes before application-level JSON validation: a malformed cached 200 can therefore keep failing until the existing TTL expires or approved webhook/recovery invalidation clears it. This change adds no live propagation proof.
+
+The work item remains Active until owner review and merge.

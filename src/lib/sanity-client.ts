@@ -281,6 +281,7 @@ export function createSanityClient(
       try {
         response = await send(url, {
           method: "GET",
+          redirect: "manual",
           headers: {
             Accept: "application/json",
             // Absent for a public dataset. The token authorizes the read; it
@@ -323,7 +324,9 @@ export function createSanityClient(
 
       let body: unknown;
       try {
-        body = await response.json();
+        // JSON is always UTF-8. Reject damaged bytes rather than changing
+        // identifiers or authored text through replacement decoding.
+        body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await response.arrayBuffer()));
       } catch {
         return fail(request.tag, "malformed-response", false);
       }
