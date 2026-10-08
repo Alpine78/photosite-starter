@@ -132,15 +132,18 @@ export function collectArtifactAssets(documents: readonly unknown[]): ArtifactAs
   return assets;
 }
 
-async function readArtifacts(directory: string): Promise<ArtifactAsset[]> {
+export async function readArtifacts(directory: string): Promise<ArtifactAsset[]> {
   const documents: unknown[] = [];
-  for (const name of (await readdir(directory)).toSorted()) {
-    if (!name.endsWith(".json")) continue;
-    try {
-      documents.push(JSON.parse(await readFile(path.join(directory, name), "utf8")));
-    } catch {
-      // Not every JSON file in an audit folder is an import artifact.
+  try {
+    for (const name of (await readdir(directory)).toSorted()) {
+      if (!name.endsWith(".json")) continue;
+      const bytes = await readFile(path.join(directory, name));
+      // Preserve the file JSON BOM policy; malformed files must not disappear.
+      const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+      documents.push(JSON.parse(text));
     }
+  } catch {
+    fail("could not read valid UTF-8 JSON from --artifacts; check every .json file in that directory");
   }
   return collectArtifactAssets(documents);
 }

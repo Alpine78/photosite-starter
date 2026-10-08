@@ -1484,6 +1484,12 @@ and switching the rule is a separate, later step.
    ```
 
 The published gallery is read **without a token**, under the published perspective only.
+Every lowercase `.json` file in `--artifacts` must be readable, valid UTF-8 JSON
+without a file BOM. A corrupt or unreadable file now stops the planner instead of
+being silently ignored. Valid unrelated JSON still contributes no requirements;
+keep the directory limited to known import evidence to locate a bad file. This read
+guard does not validate the schema of every requirement or include `.JSON` files.
+
 Every file is recognized by content hash through the import artifacts'
 `assetRequirements`, because Sanity stores no file names. The result:
 

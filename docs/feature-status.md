@@ -3194,3 +3194,10 @@ The offline planner rejects malformed UTF-8 and unreadable identity maps instead
 silently replacing bytes or starting new identities. It checks the identity map before
 writing reports. Existing ID minting and the file-BOM policy are unchanged; writes are
 not made transactional by this slice. No real rally plan or CMS write was performed.
+
+### AB#223 — conversion artifact read failures
+
+The conversion planner now stops on unreadable or corrupt lowercase `.json` files,
+including malformed UTF-8, with a fixed operator error. Valid non-artifact JSON is
+still ignored; the existing file-BOM and requirement-collection policies remain.
+Real artifact-directory verification and any approved conversion write remain open.
