@@ -3257,56 +3257,62 @@ is unchanged and its own early-year behavior remains a separate follow-up.
 
 The recovery CLI decodes response bytes as strict UTF-8 (a response BOM is tolerated) and prints a correlation reference only when a successful HTTP response contains `status: accepted` and a canonical lowercase UUID v4. An unusable acknowledgement leaves the purge outcome unverified; it does not prove the purge was refused. Arbitrary transport exceptions are withheld, including native header-validation errors that can echo a bypass value. Fixed project-owned Vercel errors remain actionable. This validates retained output; it adds no response-size cap or live invalidation proof.
 
-The work item remains Active while this independent branch awaits owner review and merge.
+The work item is Closed after its owner-approved sequential PR merge on 2026-10-08; the launch parent remains open.
 
 ### AB#231 — Reject damaged or dangling Joomla intro recovery records (2026-10-08)
 
 Intro-summary recovery records are read as strict UTF-8 JSON with the existing no-BOM policy. Valid Unicode and a literal U+FFFD remain valid; damaged bytes are refused before digest checks. Only a genuinely absent directory entry counts as missing: a dangling link, directory or unreadable record refuses recovery. A symlink to an intact regular file retains its existing behavior. Exclusive creation remains mandatory; an existing record is checked through the same reader and never overwritten. This local-file guard does not perform the owner-run correction.
 
-The work item remains Active while this independent branch awaits owner review and merge.
+The work item is Closed after its owner-approved sequential PR merge on 2026-10-08; the launch parent remains open.
 
 ### AB#232 — Refuse invalid UTF-8 curated-gallery input and approval files (2026-10-08)
 
 The curated-gallery offline planner reads both the content input and owner-approval file as strict UTF-8 JSON before opening its output. Damaged bytes, a leading BOM and malformed JSON receive fixed role-specific diagnostics; their contents are not echoed. Valid Unicode and literal U+FFFD preserve the existing review-digest computation and approval binding. An invalid input or approval leaves any existing output untouched. This parser check is not a new content approval or CMS write.
 
-The work item remains Active while this independent branch awaits owner review and merge.
+The work item is Closed after its owner-approved sequential PR merge on 2026-10-08; the launch parent remains open.
 
 ### AB#233 — Fail closed on malformed UTF-8 and redirects from Sanity queries (2026-10-08)
 
 Runtime published queries keep their fixed Content Lake origin and use manual redirects. Successful JSON is decoded as strict UTF-8; a response BOM, valid Unicode and literal U+FFFD remain supported. Damaged bytes and body-read failures keep the existing non-retryable `malformed-response` classification with redacted events. Published perspective, parameters, timeout and finite Next cache tags/TTL remain unchanged. The pinned Next fetch implementation caches response bytes before application-level JSON validation: a malformed cached 200 can therefore keep failing until the existing TTL expires or approved webhook/recovery invalidation clears it. This change adds no live propagation proof.
 
-The work item remains Active until owner review and merge.
+The work item is Closed after its owner-approved sequential PR merge on 2026-10-08; the launch parent remains open.
 
 ### AB#234 — Reject corrupt JSON bytes in browser gallery continuation responses (2026-10-08)
 
 Gallery continuation requests stay on their application endpoint with manual redirects; browser opaque redirect responses fail the existing HTTP-success check. Successful JSON must be valid UTF-8 before item/slide identity and metadata validation. Parser and body-read failures expose only a fixed unusable-slice message. Valid Unicode, literal U+FFFD and a response BOM remain supported; layout, image dimensions, full-frame rendering and cursor semantics are unchanged.
 
-The work item remains Active until owner review and merge.
+The work item is Closed after its owner-approved sequential PR merge on 2026-10-08; the launch parent remains open.
 
 ### AB#235 — Prevent email delivery POSTs from following provider redirects (2026-10-08)
 
 The shared plain-text Resend transport uses `redirect: manual` for its fixed `https://api.resend.com/emails` endpoint. A 3xx is a non-retryable provider rejection; its Location and error-name body cannot cause forwarding, a false delivered outcome or a retry override. Contact Reply-To, recipients, idempotency, timeout and genuine provider failure classification remain unchanged. The same transport guard covers existing private-gallery notifications without introducing a new processor or a live email test.
 
-The work item remains Active until owner review and merge.
+The work item is Closed after its owner-approved sequential PR merge on 2026-10-08; the launch parent remains open.
 
 ### AB#236 — Keep arbitrary transport causes out of Preview verification logs (2026-10-08)
 
 Preview verification no longer prints arbitrary identity/probe exception messages, which can include malformed secret header values. The injectable header-only probe preserves manual redirects, no-store, the twenty-second signal and response metadata. The CLI verifies deployment ownership before supplying the bypass, uses fixed unknown-cause diagnostics and has an import-safe main guard. Known project-owned VercelApiError diagnostics remain available.
 
-This independent work item remains Active until owner review and merge.
+This independent work item is Closed after its owner-approved sequential PR merge on 2026-10-08; the launch parent remains open.
 
 ### AB#237 — Redact arbitrary failures during stable Preview alias reconciliation (2026-10-08)
 
 Stable Preview alias assignment and reconciliation outcomes now withhold arbitrary transport exceptions rather than echoing their message or serializing thrown values. Known project-owned VercelApiError diagnostics remain available. Probe retry errors were already fixed messages; those retries, revision/ownership gates and post-assignment restore outcomes remain unchanged. These are local injected-transport checks, not a live alias mutation.
 
-This independent work item remains Active until owner review and merge.
+This independent work item is Closed after its owner-approved sequential PR merge on 2026-10-08; the launch parent remains open.
 
 ### AB#238 — Probe each declared legacy redirect target once per verification run (2026-10-08)
 
 The legacy verifier probes each exact declared target URL once per invocation, retaining both successful and failed attempts. Source requests remain independent and every affected row keeps its source status and fixed probe-failed result. Failed target timeouts therefore accumulate per distinct target rather than per alias row; source timeouts still apply separately. A fresh invocation retries naturally. Pending paths remain blockers, and a timeout remains an operational failure, never a new 410 or missing-content decision.
 
-This independent work item remains Active until owner review and merge.
+This independent work item is Closed after its owner-approved sequential PR merge on 2026-10-08; the launch parent remains open.
 
 ### AB#239 — October 8 launch checkpoint
 
-The [dated post-merge checkpoint](audits/launch-readiness-2026-10-08.md) records exact main CI, protected Preview and unchanged old Production evidence, today's continuing scriptless 404 residual, and ordered remaining launch operations; launch parents and the ten new review items stay Active.
+The [dated post-merge checkpoint](audits/launch-readiness-2026-10-08.md) records exact main CI, protected Preview and unchanged old Production evidence, today's continuing scriptless 404 residual, and ordered remaining launch operations; launch parents stay Active. The checkpoint and its nine companion implementation items are now Closed after the owner-approved merges #294–303.
+
+### AB#137 — fresh Production preparation after PRs #295–303 (2026-10-08)
+
+The [afternoon checkpoint](audits/ab137-production-preparation-2026-10-08.md) binds full main CI #719, a protected Production prebuilt candidate and all 611 uploaded artifact members to exact merged source `8e3efe625d03726ff5db04e57da3b8a6b9e83bc7`. Thirty current-content GETs, four live Production adapter tests and the exact fourteen-version rich-block compatibility check passed. The new complete baseline preserves 3,593 raw documents and all 1,748 asset binaries; binary headers and all 3,512 approved derivatives passed their bounded privacy/dimension checks. Both writer dry runs and zero-collision/shared-asset guards are current.
+
+The old public renderer remains active. The refreshed FI/EN notice is a private revision-bound single-field proposal, not a CMS write. Actual Hobby hosting/DPA applicability, notice publication, approved import, post-write audit/revocation, legacy verification and physical-device checks remain launch work. AB#137, AB#117, AB#132 and AB#18 remain Active. Existing content/risk/account approvals are preserved; no new ten-task batch or roadmap expansion was started.

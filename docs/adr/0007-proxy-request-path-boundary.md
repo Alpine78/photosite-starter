@@ -441,3 +441,28 @@ and candidate fixes [#98455](https://github.com/vercel/next.js/pull/98455) and
 [#98583](https://github.com/vercel/next.js/pull/98583) are open; neither fix is merged.
 There is no confirmed release date. A merged proposal alone does not establish a
 supported released fix or a passing project-specific journey.
+
+## 2026-10-08 frozen Production candidate recheck (AB#132)
+
+The [afternoon Production checkpoint](../audits/ab137-production-preparation-2026-10-08.md)
+binds a new protected prebuilt candidate to merged source
+`8e3efe625d03726ff5db04e57da3b8a6b9e83bc7`, Next.js 16.3.8 and Node 24.20.0,
+after full main CI #719. Two immutable-candidate GETs without JavaScript again
+return HTTP 404 with zero rendered main, h1 and anchor elements: an unknown URL
+and a refused existing-gallery continuation. The parser counts HTML elements,
+not text in RSC scripts. These are two expected semantic failures and zero
+semantic passes; the successful pipeline is not a passing scriptless journey.
+
+An authenticated primary-source check at 16:39:34 UTC confirms
+[issue #62228](https://github.com/vercel/next.js/issues/62228) and proposed fixes
+[#98455](https://github.com/vercel/next.js/pull/98455) and
+[#98583](https://github.com/vercel/next.js/pull/98583) remain open, with neither
+proposed fix merged. No supported released remedy was verified by these checks.
+The separate October 7 latest-stable reproduction remains historical evidence,
+not an upgrade of this candidate. No framework patch or Proxy content lookup
+was introduced.
+
+This fulfills today's recorded candidate/upstream recheck. The owner's October 7
+bounded acceptance is preserved without a new acceptance, permanent waiver or
+GO decision. AB#132 remains Active for the fix; AB#18 still needs its actual
+promotion decision and the other launch gates.

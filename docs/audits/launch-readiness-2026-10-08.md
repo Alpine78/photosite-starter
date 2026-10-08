@@ -11,6 +11,10 @@ at that decision, AB#18's recorded October 15 fallback is a deliberately dark we
 by removing the web A/www records while preserving mail and unrelated records. That
 fallback is an existing owner decision, not a DNS operation performed here.
 
+The [afternoon Production checkpoint](ab137-production-preparation-2026-10-08.md)
+records subsequent merges #295–303, final main CI #719 and fresh Production preparation.
+The source/status values below are the morning observations, not the current head.
+
 ## Verified merged source and CI
 
 Observed `origin/main` is `bbfa04728abe29b78dc70b55b2dc2d52489e04b0`.
@@ -150,19 +154,19 @@ These statements are provenance from the merged October 7 documentation and Boar
    Use the recorded DNS-dark fallback if the deadline decision requires it; do not
    assume Joomla remains available after October 15.
 
-**NOT PERFORMED today:** Production promotion, CMS notice/bulk mutation, complete live
+**NOT PERFORMED at the morning checkpoint:** Production promotion, CMS notice/bulk mutation, complete live
 CMS/asset freshness audit or restore exercise, contact POST/mailbox delivery, credential
 revocation, billing change, domain/DNS change, physical-device check or post-import
 legacy verification. They remain operations with their own evidence and acceptance.
 
-## Ten new independent review branches
+## Ten independent review branches at morning preparation
 
-These are a separate set from the eleven merged PRs above. Every new branch starts
-from the observed main revision, is published with its same-named upstream, and keeps
-its file changes uncommitted for the owner's editor review. AB#230–239 remain Active.
-This table records scopes, not merged completion or a release verdict. Each gets the
-requested one-time Claude plan review and bounded diff review; final local gate and
-review receipts are handed off separately after all ten finish.
+These were a separate set from the eleven merged PRs above. At preparation, each
+branch started from the observed main revision, was published with its same-named
+upstream and kept its changes uncommitted for the owner's editor review. The requested
+Claude plan/diff reviews and local gate receipts accompanied that handoff. AB#230–239
+were Active at preparation time and are now Closed after owner-approved merges
+#294–303. This table retains their original scopes; it is not a release verdict.
 
 | Item | Branch | Independent boundary |
 | --- | --- | --- |
@@ -175,10 +179,10 @@ review receipts are handed off separately after all ten finish.
 | AB#236 | `fix/236-preview-verifier-error-redaction` | Header-only verifier diagnostics and import safety; no protection change. |
 | AB#237 | `fix/237-preview-alias-error-redaction` | Fixed unknown alias reconciliation errors; no alias mutation. |
 | AB#238 | `fix/238-legacy-target-failure-memoization` | One exact target probe promise per run, including failure; source rows remain independent. |
-| AB#239 | `chore/239-oct8-launch-checkpoint` | This documentation checkpoint itself; owner review/merge still pending. |
+| AB#239 | `chore/239-oct8-launch-checkpoint` | This morning documentation checkpoint; subsequently merged in #303. |
 
-The worktrees are under ignored `temp/worktrees/<branch-with-slashes-replaced-by-hyphens>/`.
-Earlier retired worktree data is preserved separately in ignored local storage; no
-private migration artifacts are included in these PRs. The owner's next review can
-start with the ten branch diffs and their supplied commit/PR texts, then the ordered
-launch gates above. None of these small branch fixes alone authorizes domain launch.
+Their worktrees were under ignored
+`temp/worktrees/<branch-with-slashes-replaced-by-hyphens>/` and have since been retired
+after local-file preservation. Private migration artifacts were excluded from these
+PRs. The next work is the ordered launch gates above, using the newer afternoon
+evidence. None of these small branch fixes alone authorizes domain launch.

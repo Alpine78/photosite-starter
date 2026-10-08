@@ -95,7 +95,7 @@ lives in the adapter that a production deployment already refuses to build.
 | Party | Role | Data it sees | Retention | Ownership |
 | --- | --- | --- | --- | --- |
 | **Vercel** (hosting) | Processor for the application; controller for its own Service-Generated Data | Form fields transiently in the Function request/memory; request metadata such as path, status, region, user agent and IP address. Application logs exclude form fields; the request body is not recorded in Runtime Logs | **Preview, today: Runtime Logs 1 hour on Hobby** (checked live and against Vercel's own documentation, 2026-08-25 — this row's original "1 day on Base Pro" figure describes Production's still-undecided plan, per [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment; see "Before production launch" below). **Production's retention figure follows whichever tier AB#18 chooses** — unresolved. Broader Service-Generated Data is not assumed to be deleted with that window | Customer-owned team, provisioned by AB#116. Owner retains the existing Hobby subscription for now (2026-10-07); commercial hosting suitability and final serving-environment retention remain open. See [the current preference](adr/0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference) |
-| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, subject, message text, and optional phone/date | Owner confirms Free plan (2026-10-07). [Provider policy](https://resend.com/security/gdpr) specifies 30-day email/log retention and 7-day backups; this is published policy, not an account-specific deletion audit | Account and sending domain provisioned by the owner; prior protected candidate delivered real mail. Production settings are present. Owner confirms MFA, Sending access restricted to the verified domain, and open/click tracking off (2026-10-07). Transfer/contract review and other launch checks remain open |
+| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, subject, message text, and optional phone/date | Owner confirms Free plan (2026-10-07). [Provider policy](https://resend.com/security/gdpr) specifies 30-day email/log retention and 7-day backups; this is published policy, not an account-specific deletion audit | Account and sending domain provisioned by the owner; prior protected candidate delivered real mail. Production settings are present. Owner confirms MFA, Sending access restricted to the verified domain, and open/click tracking off (2026-10-07). Published DPA/transfer terms were rechecked on 2026-10-08; the wider launch review remains open |
 | **Infomaniak** (reference mailbox) | Processor for the received message | The whole email | Owner commits to deleting enquiries/own correspondence copies within 12 months after last contact, with necessary contract/legal exceptions (2026-10-07). Provider inboxes do not automatically expire by age; technical backup erasure remains unverified | Owner confirms migrated mail is working and MFA enabled. Supplied free-tier description matches kSuite Free (2026-10-07); identification is based on owner-supplied description and the official comparison, not a dashboard read. A clone records its own provider |
 
 The adapter emits plain text with no HTML part or application-added tracking pixel.
@@ -467,3 +467,40 @@ use the October checkpoint when interpreting the historical observations above.
 ### AB#235 — response transport integrity
 
 The shared plain-text Resend transport uses `redirect: manual` for its fixed `https://api.resend.com/emails` endpoint. A 3xx is a non-retryable provider rejection; its Location and error-name body cannot cause forwarding, a false delivered outcome or a retry override. Contact Reply-To, recipients, idempotency, timeout and genuine provider failure classification remain unchanged. The same transport guard covers existing private-gallery notifications without introducing a new processor or a live email test.
+
+## 2026-10-08 provider-contract and scoped-notice preparation (AB#117/137)
+
+The [afternoon Production checkpoint](audits/ab137-production-preparation-2026-10-08.md)
+records the new protected candidate, complete baseline and current import checks.
+The refreshed private FI/EN notice covers all six form fields, the service/date in
+the email subject and notifications, the actual delivery/mailbox path, transfers,
+rights and the owner's twelve-month enquiry/own-copy deletion practice. Its offline
+patch sets only `contact.privacyNotice` and is bound to the settings revision in
+the new full baseline. No notice was published. An authorized notice write requires
+a revision re-read, then a new complete baseline before bulk import.
+
+[Resend's current policy](https://resend.com/security/gdpr) says its Article 28 DPA
+is effective for every account on signup, with no separate countersignature needed.
+It documents US content/log storage, SCCs and DPF, thirty-day Free email/log retention
+and seven-day backups. Ireland remains the sending region, not an EU storage promise.
+A downloaded signed copy is useful evidence, not an extra prerequisite invented by
+this review. The owner's MFA, sending/domain scope and tracking-off confirmations
+remain accepted; no settings change or repeated confirmation is required here.
+
+An authenticated team GET still returned Hobby on October 8. The
+[current Vercel DPA](https://vercel.com/legal/dpa) expressly addresses Pro/Enterprise
+customers, and [fair-use terms](https://vercel.com/docs/limits/fair-use-guidelines)
+reserve Hobby for personal non-commercial use. The intended paid-photography site
+nevertheless keeps the owner's current subscription preference until a supported
+hosting decision; neither a paid upgrade nor a provider exception is inferred.
+The processor role in the inventory describes the intended processing path and
+does not establish applicability of that DPA to the existing Hobby account.
+
+Infomaniak's [published DPA](https://www.infomaniak.com/documents/privacy/DPA/Data_Processing_Agreement_(DPA).pdf)
+is incorporated into applicable service terms. No account-specific signed-copy
+retrieval was performed or imposed as a separate approval step. The exact technical
+backup-erasure interval for the owner-described Free product remains unverified:
+the mailbox recovery window after upgrading is not proof of physical backup erasure.
+The owner's deletion practice concerns active correspondence and own copies, with
+necessary contractual/legal exceptions, rather than a blanket promise for every
+provider's technical records. Provider questions are prepared locally and not sent.

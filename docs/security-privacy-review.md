@@ -850,3 +850,13 @@ to twelve-month enquiry/own-copy deletion with necessary contract/legal exceptio
 This confirms the owner policy, not an implemented automatic job or observed deletion.
 Exact technical backup erasure and remaining provider/launch checks stay open.
 AB#117 remains Active; no CMS write or provider change was performed by this task.
+
+### 2026-10-08 fresh Production preparation (AB#117/137)
+
+The [afternoon checkpoint](audits/ab137-production-preparation-2026-10-08.md) records exact main CI #719 with real protected Preview deployment, a manual Production-configured prebuilt candidate and all 611 provider archive members matching its frozen source/artifact manifests. Thirty current-content GET checks passed. The two scriptless 404 probes remain expected semantic failures; the October 7 owner acceptance is preserved without a new acceptance or GO decision.
+
+A new read-only complete baseline and final raw revision comparison cover 3,593 documents and all 1,748 asset binaries. New binary-header inspection covers every archived public image; all 3,512 planned derivatives, both offline writer dry runs and raw collision/shared-asset checks passed. A fresh root dependency audit reports zero vulnerabilities and matches the frozen package/lockfile hashes; this is not independent certification of vendored patches. No real restore or full existing-content approval traceability is claimed.
+
+The [provider/notice record](contact-data-flow.md#2026-10-08-provider-contract-and-scoped-notice-preparation-ab117137) distinguishes Resend's automatically effective DPA from the unresolved applicability of Vercel's Pro/Enterprise DPA to the still-Hobby team. Existing MFA, key-scope, tracking-off and deletion confirmations are retained. Exact Infomaniak Free backup erasure remains unverified. The refreshed notice is an offline, revision-bound single-field proposal; no CMS notice/bulk write occurred.
+
+AB#117 remains Active pending actual content migration and post-write audit/revocation, the remaining provider/hosting resolution, legacy targets and final public launch evidence. No billing upgrade, public promotion, email delivery, DNS change or physical-device verification was performed. Private helpers received scoped local boundary checks, not a claimed independent line-by-line review or a full launch approval.
