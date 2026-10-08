@@ -160,11 +160,14 @@ fixed; they do not record owner acceptance. The [fresh main-branch audit](audits
 records the commit/build provenance and 36 passing gallery/category journeys plus
 four expected failures. Both upstream candidates (#98455 and #98583) remain
 unmerged; [ADR-0007's decision proposal](adr/0007-proxy-request-path-boundary.md#2026-10-03-main-branch-recheck-and-decision-proposal-ab132)
-awaits explicit owner acceptance or withheld promotion before AB#18.
+awaited explicit owner acceptance or withheld promotion before AB#18 (true at the
+2026-10-03 checkpoint; superseded by the owner-accepted temporary residual recorded
+further below, 2026-10-07).
 **Checkpoint, 2026-10-06 (AB#201, Active):** the merged source retains all four
 scriptless semantic failures across Chromium/WebKit. The
 [redacted audit](audits/ab132-2026-10-06-scriptless.json) records exact build/harness
-identities and current upstream states. No AB#132 risk acceptance is implied.
+identities and current upstream states. No AB#132 risk acceptance was recorded at
+that checkpoint; the later owner acceptance (2026-10-07) is recorded below.
 
 **Release-candidate check, 2026-10-07 (AB#132, Active):** PR #281's exact source
 was rebuilt and tested with mock content. The runner reports 40 passed across
@@ -175,8 +178,10 @@ reproduction also fails on the current npm latest, Next.js 16.4.0, while its
 unmatched-URL control renders correctly. This does not upgrade the application.
 The [redacted audit](audits/ab132-2026-10-07-scriptless.json) includes both
 measurements and scaffold provenance. Both upstream fix candidates remain
-open/unmerged. The October 8 owner decision remains pending; green CI does not
-close the launch gate.
+open/unmerged. At this checkpoint the October 8 owner decision was pending; the
+owner later accepted the temporary residual risk (see the 2026-10-07 owner-accepted
+entry below), but the October 8 review, the verified semantic fix and the
+exact-candidate retest remain pending, and green CI does not close the launch gate.
 
 **AB#132 owns this**, and was reopened to
 `Active` on 2026-09-03 because it had been closed while none of its own "Done when"
@@ -1941,6 +1946,13 @@ npm v2 reader validates the reference graph and separates affected package entri
 from unique numeric advisories. No dependency fixes or residual-risk acceptance
 are implied; AB#160/186 remain open.
 
+**Merged dependency verification, 2026-10-07 (AB#186, Closed):** owner-reviewed
+PR #281 merged and exact main CI #655 passed quality gates and the real protected
+Preview deployment with the remediated CLI tree. AB#186 was explicitly moved
+Active → Closed; the earlier candidate/audit entries below remain dated history.
+[Current evidence](audits/ab137-renderer-readiness-2026-10-07.md#merged-source-and-dependency-gate).
+AB#117 retains its own live launch review and is not closed by dependency remediation.
+
 **Dependency remediation candidate, 2026-10-07 (AB#186, still Active):** full
 `npm audit` moved from 25 high affected package entries to zero; production
 remains zero. Narrow CLI-tree overrides lift Undici 5.28.4/5.29.0 to 6.29.0,
@@ -2977,6 +2989,52 @@ AB#132's four scriptless semantic failures. AB#132/186 owner decisions, hosting 
 real-device verification, legacy-route completion, public activation and import/audit/
 revocation remain open. This checkpoint neither accepts risk nor closes AB#117/18.
 
+**Fresh protected renderer readiness, 2026-10-07 (AB#137, Active):** PR #281
+merged; main CI #655 passed quality and a real protected Preview deployment with
+the patched CLI tree, and AB#186 was explicitly moved Active → Closed. PR #282
+then merged after CI #656 and a clean Claude documentation review; its exact main
+source `49812f639d3e575235cfc7076e356be7abdc4306` passed CI #657, including Preview.
+A fresh manual prebuilt Production-target candidate from that source is READY.
+All 611 uploaded artifact members match local manifests. Thirty current-content
+FI/EN route, contact-field and gallery-pagination GETs pass. Two separate live
+scriptless 404 probes reproduce the known semantic defect; they are expected
+failures, not successful journeys. At that checkpoint AB#132 remained Active and risk acceptance was pending;
+see the subsequent owner-acceptance entry below for the current decision.
+
+The complete baseline archive hash and all 3,593 raw revisions match; no planned
+content/category IDs collide. The existing credentialed asset/state audit, four live
+adapter tests and both current-main offline writer dry runs pass. Actual import,
+post-import audit and credential revocation remain open. All aliases and the
+Production target stayed on the old renderer; public activation, DNS and billing
+were not changed. Hosting plan, 404 decision, processor/retention/tracking evidence,
+privacy-notice correction, region/handoff, final routes and real-device verification
+retain their own gates. [Dated evidence and acceptance boundaries](audits/ab137-renderer-readiness-2026-10-07.md)
+record the precise preparation scope and October 8/15 decisions; AB#137/117/18 are
+not closed by this checkpoint.
+
+**Owner-accepted temporary scriptless-404 risk, 2026-10-07 (AB#132, Active):**
+the owner explicitly accepted the measured accessibility/crawlability limitation
+with the existing O(1) Proxy and real-404 contract retained. [Dated decision](adr/0007-proxy-request-path-boundary.md#2026-10-07-owner-accepted-temporary-residual-risk-ab132)
+records impact, reason, October 8 review before go/no-go or any earlier promotion,
+and AB#132 as the Active follow-up for a verified fix. AB#132 comment `59465`
+records the decision; AB#18 comment `59466` links it. The earlier pending-decision
+entries are historical. Expected semantic failures and JavaScript-enabled test
+exceptions remain; no other launch gate or public activation is approved here.
+
+**Contact privacy draft and current hosting preference, 2026-10-07 (AB#117/18,
+Active):** the owner keeps Hobby in use for now and will reconsider later; this
+records billing preference without claiming commercial hosting suitability or a
+provider exception. [ADR-0004 amendment](adr/0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference)
+and AB#18 comment `59467` preserve that boundary. A fresh published-only
+CMS read informs a private FI/EN notice draft naming photography type, optional
+phone/date, actual processors and published transfer facts. The draft fits the four
+existing localized-text arrays; it proposes legal bases/rights and retains the
+existing twelve-month mailbox promise pending operational verification. [Data-flow
+checkpoint](contact-data-flow.md#2026-10-07-owner-preferences-and-notice-draft-ab117-ab18)
+and AB#117 comment `59468` record account-specific checks and a new complete
+baseline after any notice write. No CMS mutation, billing change or public activation
+was performed; AB#117/18 remain Active.
+
 The visual finish from the owner's Claude Design hi-fi proposal is delivered (AB#173).
 The default palettes are now **Kivi** (light, `#ece9e3` ground) and **Grafiitti** (dark,
 `#1b1c1e`). The site menu carries the proposal's moon/sun theme toggle
@@ -3092,10 +3150,74 @@ canonical citations, browser-memory conversation and atomic spend admission.
 Defaults and evaluation thresholds require acceptance; no chatbot, index, profile
 schema, model adapter or infrastructure exists. AB#126 remains a predecessor.
 
+**Email-account MFA confirmation, 2026-10-07 (AB#117, Active):** the owner
+confirms two-factor login enabled on both Infomaniak and Resend, recorded in
+AB#117 comment `59470`. This resolves the MFA uncertainty in the earlier contact
+checkpoint on owner confirmation; no independent dashboard inspection was performed.
+Key permissions/domain restriction, tracking, provider retention and practical mailbox
+deletion remain open. No provider setting or CMS content was changed.
+
+**Email settings confirmation, 2026-10-07 (AB#117, Active):** the owner confirms
+the existing Resend key is sending-only and restricted to the verified domain,
+both tracking controls are off and the Resend plan is Free (comment `59471`).
+Those checklist items are resolved on owner confirmation; no independent dashboard/API
+readback was performed. The contact inventory records Resend's published 30-day
+email/log and 7-day backup policy. The supplied Infomaniak description matches
+kSuite Free. The owner commits to twelve-month enquiry/own-copy deletion with
+necessary contract/legal exceptions (comment `59472`); no automatic deletion job or
+mailbox audit was performed. Exact technical backup erasure and other launch checks
+remain open.
+The notice remains a local draft; no CMS or provider change was performed by this task.
+
 These notes go stale easily — treat it as a starting hint, not as truth. The MVP
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
 feature exists or is missing.
+
+### AB#220 — static inert availability markers
+
+The availability probe now excludes elements with the boolean `inert` attribute and
+their descendants from both marker traversal and marker text. Independent visible
+markers still pass. This checks fetched HTML only; computed CSS and JavaScript changes
+are not evaluated. AB#158 live monitoring and its failure/recovery exercise remain open.
+
+### AB#221 — HTTPS SSO redirect proof
+
+The preview verifier now accepts the provider SSO challenge only over HTTPS, with
+no credentials and the default port, at its existing exact host and path. Redirect
+status and fixed diagnostic contracts are unchanged; Location values are not logged.
+This is deterministic classifier coverage, not a fresh live deployment verification.
+
+### AB#222 — rally planner input integrity
+
+The offline planner rejects malformed UTF-8 and unreadable identity maps instead of
+silently replacing bytes or starting new identities. It checks the identity map before
+writing reports. Existing ID minting and the file-BOM policy are unchanged; writes are
+not made transactional by this slice. No real rally plan or CMS write was performed.
+
+### AB#223 — conversion artifact read failures
+
+The conversion planner now stops on unreadable or corrupt lowercase `.json` files,
+including malformed UTF-8, with a fixed operator error. Valid non-artifact JSON is
+still ignored; the existing file-BOM and requirement-collection policies remain.
+Real artifact-directory verification and any approved conversion write remain open.
+
+### AB#224 — bounded legacy HTTP verification
+
+The legacy redirect probe now shares one 20-second deadline across headers and HTML
+body reads, including injected IO that ignores abort. Cleanup is observed without
+waiting; late responses are cancelled. A four-MiB response-byte cap remains, and
+malformed UTF-8 now gives the existing fixed `probe-failed` verification result.
+Mapping decisions, pending paths and live AB#19 launch checks remain unchanged.
+Repeated failed targets are still probed per row; failure caching is a separate follow-up.
+
+### AB#225 — keys inside mixed CMS arrays
+
+Pre-write key validation now checks object elements even when an array also contains
+primitives or null, and traverses nested containers with independent sibling-key sets.
+Malformed keys use index paths without coercing their values. This is a generic key
+check, not schema validation: accepting a nested container does not make arrays of
+arrays valid Sanity content. No Production dataset or launch gate was verified here.
 
 ### AB#226 — benchmark response integrity
 
