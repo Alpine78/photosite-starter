@@ -329,3 +329,9 @@ almost certainly a leftover manual `vercel deploy`/`vercel build` run from
 AB#116 debugging, before its `--target=preview` fix landed. It served only
 mock content, so nothing sensitive was exposed, but it was public, indexable,
 and unprotected. It has been deleted.
+
+### AB#230 — input and diagnostic integrity
+
+The recovery CLI decodes response bytes as strict UTF-8 (a response BOM is tolerated) and prints a correlation reference only when a successful HTTP response contains `status: accepted` and a canonical lowercase UUID v4. An unusable acknowledgement leaves the purge outcome unverified; it does not prove the purge was refused. Arbitrary transport exceptions are withheld, including native header-validation errors that can echo a bypass value. Fixed project-owned Vercel errors remain actionable. This validates retained output; it adds no response-size cap or live invalidation proof.
+
+During bypass-host verification, ordinary identity-validation `Error` messages share a catch with untrusted transport failures and are deliberately withheld. The fixed refusal identifies that the endpoint could not be verified before supplying the bypass; inspect the endpoint and configured project/team locally. Missing configuration names and timeout cues use fixed diagnostics. An HTTP failure response remains distinct from an unverified success acknowledgement, and does not establish that no tag was expired before a server-side failure.
