@@ -3252,3 +3252,9 @@ range 0100–9999, including offset crossings; migration and seed document guard
 that compatible projection. This deliberately accepts real early calendar dates
 while keeping unsupported instants out of public document plans. The runtime reader
 is unchanged and its own early-year behavior remains a separate follow-up.
+
+### AB#235 — Prevent email delivery POSTs from following provider redirects (2026-10-08)
+
+The shared plain-text Resend transport uses `redirect: manual` for its fixed `https://api.resend.com/emails` endpoint. A 3xx is a non-retryable provider rejection; its Location and error-name body cannot cause forwarding, a false delivered outcome or a retry override. Contact Reply-To, recipients, idempotency, timeout and genuine provider failure classification remain unchanged. The same transport guard covers existing private-gallery notifications without introducing a new processor or a live email test.
+
+The work item remains Active until owner review and merge.
