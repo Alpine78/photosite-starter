@@ -3253,6 +3253,12 @@ that compatible projection. This deliberately accepts real early calendar dates
 while keeping unsupported instants out of public document plans. The runtime reader
 is unchanged and its own early-year behavior remains a separate follow-up.
 
+### AB#230 — Bound and redact the public-cache recovery response (2026-10-08)
+
+The recovery CLI decodes response bytes as strict UTF-8 (a response BOM is tolerated) and prints a correlation reference only when a successful HTTP response contains `status: accepted` and a canonical lowercase UUID v4. An unusable acknowledgement leaves the purge outcome unverified; it does not prove the purge was refused. Arbitrary transport exceptions are withheld, including native header-validation errors that can echo a bypass value. Fixed project-owned Vercel errors remain actionable. This validates retained output; it adds no response-size cap or live invalidation proof.
+
+The work item remains Active while this independent branch awaits owner review and merge.
+
 ### AB#231 — Reject damaged or dangling Joomla intro recovery records (2026-10-08)
 
 Intro-summary recovery records are read as strict UTF-8 JSON with the existing no-BOM policy. Valid Unicode and a literal U+FFFD remain valid; damaged bytes are refused before digest checks. Only a genuinely absent directory entry counts as missing: a dangling link, directory or unreadable record refuses recovery. A symlink to an intact regular file retains its existing behavior. Exclusive creation remains mandatory; an existing record is checked through the same reader and never overwritten. This local-file guard does not perform the owner-run correction.
