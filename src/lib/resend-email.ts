@@ -117,6 +117,7 @@ export async function sendResendEmail(
   try {
     response = await send(RESEND_EMAILS_ENDPOINT, {
       method: "POST",
+      redirect: "manual",
       headers: {
         Authorization: `Bearer ${settings.apiKey}`,
         "Content-Type": "application/json",
@@ -144,5 +145,11 @@ export async function sendResendEmail(
   }
 
   if (response.ok) return { status: "delivered" };
+  if (response.status >= 300 && response.status < 400) {
+    // A redirect is not a provider error envelope: never let its body/name
+    // override refusal or forward the message to the Location destination.
+    void response.body?.cancel().catch(() => {});
+    return classifyFailure(response.status, undefined);
+  }
   return classifyFailure(response.status, await readErrorName(response));
 }

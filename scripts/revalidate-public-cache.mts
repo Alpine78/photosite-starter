@@ -33,9 +33,8 @@ import { encodeSignatureHeader, SIGNATURE_HEADER_NAME } from "@sanity/webhook";
 
 import {
   inspectPreviewDeployment,
-  readVercelPreviewApiSettings,
-  VercelApiError,
 } from "./vercel-preview-api.mts";
+import { classifyRecoveryResult, describeRecoveryFailure, readRecoveryPreviewSettings, readRecoveryResponse } from "./revalidation-recovery.mts";
 
 const REQUEST_TIMEOUT_MS = 20_000;
 const BYPASS_HEADER = "x-vercel-protection-bypass";
@@ -97,13 +96,10 @@ async function main(): Promise<void> {
 
   if (bypassSecret) {
     try {
-      const settings = readVercelPreviewApiSettings();
+      const settings = readRecoveryPreviewSettings();
       await inspectPreviewDeployment(`${endpoint.origin}/`, settings);
     } catch (cause) {
-      const detail =
-        cause instanceof VercelApiError || cause instanceof Error
-          ? cause.message
-          : String(cause);
+      const detail = describeRecoveryFailure(cause);
       return fail(
         `refusing to send ${BYPASS_SECRET_SETTING} to an unverified host: ${detail}`,
       );
@@ -127,13 +123,13 @@ async function main(): Promise<void> {
     });
   } catch (cause) {
     return fail(
-      `the deployment could not be reached: ${cause instanceof Error ? cause.message : String(cause)}`,
+      `the deployment could not be reached: ${describeRecoveryFailure(cause)}`,
     );
   }
 
   let result: unknown;
   try {
-    result = await response.json();
+    result = await readRecoveryResponse(response);
   } catch {
     const hint =
       response.status >= 300 && response.status < 400 && !bypassSecret
@@ -142,21 +138,18 @@ async function main(): Promise<void> {
     return fail(`the endpoint returned non-JSON with HTTP ${response.status}${hint}`);
   }
 
-  if (
-    !response.ok ||
-    typeof result !== "object" ||
-    result === null ||
-    !("status" in result) ||
-    result.status !== "accepted" ||
-    !("correlationId" in result) ||
-    typeof result.correlationId !== "string"
-  ) {
-    return fail(`the endpoint refused the purge with HTTP ${response.status}`);
+  const outcome = classifyRecoveryResult(response, result);
+  if (outcome.kind === "http-failure") {
+    return fail(`the endpoint returned a failure response with HTTP ${outcome.status}`);
+  }
+
+  if (outcome.kind === "unverified") {
+    return fail(`the purge outcome could not be verified with HTTP ${outcome.status}`);
   }
 
   console.log(
-    `Public Sanity cache expired at ${endpoint.origin} (reference ${result.correlationId}).`,
+    `Public Sanity cache expired at ${endpoint.origin} (reference ${outcome.correlationId}).`,
   );
 }
 
-await main();
+await main().catch(() => fail("operation failed; details withheld"));

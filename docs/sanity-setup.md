@@ -500,3 +500,7 @@ operational document has a Studio schema, but both remain API-readable in a
 public dataset. Follow the current amendment in ADR-0018 and the
 [poll processing record](poll-data-flow.md), rather than assuming Studio
 invisibility protects them.
+
+### AB#233 — response transport integrity
+
+Runtime published queries keep their fixed Content Lake origin and use manual redirects. Successful JSON is decoded as strict UTF-8; a response BOM, valid Unicode and literal U+FFFD remain supported. Damaged bytes and body-read failures keep the existing non-retryable `malformed-response` classification with redacted events. Published perspective, parameters, timeout and finite Next cache tags/TTL remain unchanged. The pinned Next fetch implementation caches response bytes before application-level JSON validation: a malformed cached 200 can therefore keep failing until the existing TTL expires or approved webhook/recovery invalidation clears it. This change adds no live propagation proof.
