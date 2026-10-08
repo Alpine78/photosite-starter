@@ -44,6 +44,7 @@ describe("gallery Resend notification transport", () => {
     expect(url).toBe("https://api.resend.com/emails");
     expect(init.method).toBe("POST");
     expect(init.cache).toBe("no-store");
+    expect(init.redirect).toBe("manual");
     expect(init.signal).toBeInstanceOf(AbortSignal);
     expect(JSON.parse(String(init.body))).toEqual({
       from: "Studio <notices@studio.example>",
@@ -120,5 +121,20 @@ describe("gallery Resend notification transport", () => {
     expect(error).toBeInstanceOf(GalleryNotificationValidationError);
     expect(String(error)).not.toContain("private");
     expect(JSON.stringify(error)).not.toContain(request.text);
+  });
+});
+
+describe("shared gallery provider redirect refusal", () => {
+  it.each([301, 302, 303, 307, 308])("keeps HTTP %d from forwarding gallery notification content", async status => {
+    let redirected = 0;
+    const fetchImplementation = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toBe("https://api.resend.com/emails");
+      if (init?.redirect !== "manual") { redirected++; return Response.json({ id: "foreign-success" }); }
+      return Response.json({ name: "monthly_quota_exceeded" }, { status, headers: { location: "https://redirect.example/emails" } });
+    });
+    const transport = createResendGalleryNotificationTransport({ apiKey: "re_test_key", from: "Studio <notices@studio.example>", fetchImplementation: fetchImplementation as typeof fetch });
+    await expect(transport.deliver(request)).resolves.toEqual({ status: "failed", errorClass: "provider-rejected", retryable: false });
+    expect(fetchImplementation).toHaveBeenCalledTimes(1);
+    expect(redirected).toBe(0);
   });
 });
