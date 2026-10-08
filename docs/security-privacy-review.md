@@ -530,8 +530,13 @@ pipeline change. Future high/critical advisories now open their own PR automatic
 closing what would otherwise have been an accepted gap in continuous dependency
 governance beyond this point-in-time audit.
 
-**2026-10-02 update (AB#186, Active):** the old zero-finding result above is
-historical. [Current dependency evidence](audits/ab186-dependency-review.md#2026-10-02-follow-up--ab186-remains-active)
+**Current status: AB#186 is Closed** (zero full and production-only audit
+findings; exact-main CI #655 passed with an authenticated protected Preview) —
+see [current evidence](audits/ab137-renderer-readiness-2026-10-07.md#merged-source-and-dependency-gate).
+The dated updates below are preserved history; AB#117 stays Active.
+
+**2026-10-02 update (AB#186, Active then):** the old zero-finding result above is
+historical. [Historical dependency evidence](audits/ab186-dependency-review.md#2026-10-02-follow-up--ab186-remains-active)
 records the new 12 → 10 full-audit result, zero production-only entries, the
 shared local Azure CLI tree and thirteen residual undici advisory records.
 Tooling reachability and a 2026-10-13 review deadline do not constitute owner
@@ -547,6 +552,14 @@ Vercel CLI's development dependency tree. Clean install, lint, unit tests,
 production build and E2E pass. This does not certify Vercel's compatibility
 with that major substitution: authenticated Preview checks and owner review
 remain necessary before AB#186 or this launch gate can close.
+
+**2026-10-07 merged verification (AB#186, Closed):** PR #281 merged after
+owner review; exact main CI #655 passed quality gates and a real authenticated,
+protected Preview deployment using the patched CLI tree. AB#186 was explicitly
+moved Active → Closed. The Active/candidate statements above describe earlier
+checkpoints; no residual advisory acceptance was needed for the zero-audit
+candidate. AB#117 remains Active with its independent live privacy/security gates.
+[Current evidence](audits/ab137-renderer-readiness-2026-10-07.md#merged-source-and-dependency-gate).
 
 ## Verification performed
 
@@ -809,3 +822,31 @@ promotion. The Production hosting-tier decision, physical-device check, pending 
 routes, compatible serving-code activation, approved import, full post-write audit and
 credential revocation remain open. The October 8 go/no-go and October 15 legacy-host
 removal dates remain in force; Infomaniak mail must survive any web-DNS change.
+
+### 2026-10-07 email-account MFA confirmation (AB#117)
+
+The owner confirms two-factor login is enabled on both Infomaniak and Resend
+(AB#117 comment `59470`). This resolves those accounts' MFA checklist item on
+owner confirmation, superseding the October 5 uncertainty above; no independent
+dashboard inspection was performed. Resend sending-only/domain-scoped key access,
+tracking settings, provider message/log/backup retention and practical twelve-month
+correspondence deletion remain open. AB#117 stays Active. No account setting or CMS
+content was changed by this documentation update.
+
+### 2026-10-07 email settings confirmation (AB#117)
+
+The owner confirms the existing Resend key already has Sending access restricted to
+the verified sending domain, both open and click tracking have been turned off, and
+the account uses Free (AB#117 comment `59471`). These resolve the key-scope and
+tracking checklist items on owner confirmation, superseding their uncertainty above;
+no independent dashboard/API readback was performed. Resend's published Free policy
+specifies 30-day email/log retention and 7-day backups, as recorded in
+[the contact inventory](contact-data-flow.md#2026-10-07-owner-preferences-and-notice-draft-ab117-ab18).
+The owner-supplied Infomaniak description matches kSuite Free on the official
+comparison. Its published guidance excludes in-plan mailbox restore and describes
+up to 30-day recovery after upgrading; this does not establish absence of backups.
+Comment `59472` records the product identification and the owner's explicit commitment
+to twelve-month enquiry/own-copy deletion with necessary contract/legal exceptions.
+This confirms the owner policy, not an implemented automatic job or observed deletion.
+Exact technical backup erasure and remaining provider/launch checks stay open.
+AB#117 remains Active; no CMS write or provider change was performed by this task.

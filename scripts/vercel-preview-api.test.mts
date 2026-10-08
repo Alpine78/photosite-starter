@@ -413,3 +413,48 @@ describe("resolveDeploymentIfLive", () => {
     ).rejects.toThrow(/belongs to project/);
   });
 });
+
+describe("Vercel metadata UTF-8", () => {
+  const corrupt = (value: unknown) => new Response(Buffer.concat([
+    Buffer.from(JSON.stringify(value).slice(0, -1) + ',"note":"'), Buffer.from([0xff]), Buffer.from('"}'),
+  ]));
+  it.each([
+    { name: "lookup", run: (fetcher: typeof fetch) => inspectPreviewDeployment(`https://${DEPLOYMENT.url}`, SETTINGS, DEPLOYMENT.id, fetcher) },
+    { name: "delete by id", run: (fetcher: typeof fetch) => deletePreviewDeployment(DEPLOYMENT.id, SETTINGS, fetcher) },
+    { name: "delete by URL", run: (fetcher: typeof fetch) => deletePreviewDeploymentFromUrl(`https://${DEPLOYMENT.url}`, SETTINGS, fetcher) },
+  ])("refuses corrupt lookup before any destructive follow-up: $name", async ({ run }) => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(corrupt(DEPLOYMENT));
+    await expect(run(fetcher)).rejects.toThrow("Vercel deployment lookup returned invalid JSON");
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+  });
+  it("refuses corrupt alias lookup before resolving its deployment", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(corrupt({ uid: "al_1", deploymentId: DEPLOYMENT.id }));
+    await expect(readAliasCurrentTarget(ALIAS, SETTINGS, fetcher)).rejects.toThrow("Vercel alias lookup returned invalid JSON");
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+  it("refuses corrupt deployment metadata after a valid alias lookup", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(jsonResponse({ uid: "al_1", deploymentId: DEPLOYMENT.id })).mockResolvedValueOnce(corrupt(DEPLOYMENT));
+    await expect(readAliasCurrentTarget(ALIAS, SETTINGS, fetcher)).rejects.toThrow("Vercel deployment lookup returned invalid JSON");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it("reports an unverifiable assignment response after its POST without further actions", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(corrupt({ uid: "al_1", alias: ALIAS }));
+    await expect(assignPreviewAlias(DEPLOYMENT.id, ALIAS, SETTINGS, fetcher)).rejects.toThrow("Vercel alias assignment returned invalid JSON");
+    expect(fetcher).toHaveBeenCalledOnce(); expect(fetcher.mock.calls[0]?.[1]?.method).toBe("POST");
+  });
+  it("accepts Unicode and a transport BOM for each JSON metadata reader", async () => {
+    const unicode = (value: unknown) => new Response(Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(JSON.stringify({ ...value as object, note: "\u00e4\ud83d\ude00\ufffd" }))]));
+    const inspect = vi.fn<typeof fetch>().mockResolvedValue(unicode(DEPLOYMENT));
+    expect((await inspectPreviewDeployment(`https://${DEPLOYMENT.url}`, SETTINGS, DEPLOYMENT.id, inspect)).deployment.id).toBe(DEPLOYMENT.id);
+    await expect(assignPreviewAlias(DEPLOYMENT.id, ALIAS, SETTINGS, vi.fn<typeof fetch>().mockResolvedValue(unicode({ uid: "al_1", alias: ALIAS })))).resolves.toMatchObject({ alias: ALIAS });
+    const alias = vi.fn<typeof fetch>().mockResolvedValueOnce(unicode({ uid: "al_1", deploymentId: DEPLOYMENT.id })).mockResolvedValueOnce(unicode(DEPLOYMENT));
+    await expect(readAliasCurrentTarget(ALIAS, SETTINGS, alias)).resolves.toMatchObject({ deploymentId: DEPLOYMENT.id });
+  });
+  it("redacts stream failures without attaching native causes", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(new ReadableStream({ start(controller) { controller.error(new Error("synthetic-provider-detail")); } })));
+    const result = await inspectPreviewDeployment(`https://${DEPLOYMENT.url}`, SETTINGS, DEPLOYMENT.id, fetcher).catch((error: unknown) => error);
+    expect(result).toMatchObject({ message: "Vercel deployment lookup returned invalid JSON" });
+    expect(result).not.toHaveProperty("cause"); expect((result as Error).stack).not.toContain("synthetic-provider-detail");
+  });
+});

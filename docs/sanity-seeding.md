@@ -1449,6 +1449,13 @@ back the galleries and the gallery's photograph count to compare with the plan.
 
 Documents are written as published, so the gallery is live as soon as the write finishes.
 
+The offline planner reads manifest and identity JSON as strict UTF-8 (a file BOM
+remains invalid JSON). Only a genuinely absent identity map starts a new map;
+unreadable, malformed or dangling-link maps stop before any report is written.
+Restore the existing map from a backup instead of deleting it. Identity minting is
+unchanged. The existing output writes are not transactional; retain the identity-map
+backup and avoid concurrent planner runs.
+
 ## Planning an existing rally gallery's conversion (AB#169)
 
 A placement-based rally gallery already in Production is converted to capture sequence one
@@ -1477,6 +1484,12 @@ and switching the rule is a separate, later step.
    ```
 
 The published gallery is read **without a token**, under the published perspective only.
+Every lowercase `.json` file in `--artifacts` must be readable, valid UTF-8 JSON
+without a file BOM. A corrupt or unreadable file now stops the planner instead of
+being silently ignored. Valid unrelated JSON still contributes no requirements;
+keep the directory limited to known import evidence to locate a bad file. This read
+guard does not validate the schema of every requirement or include `.JSON` files.
+
 Every file is recognized by content hash through the import artifacts'
 `assetRequirements`, because Sanity stores no file names. The result:
 

@@ -19,31 +19,34 @@ export function referencedId(value: unknown): string | undefined {
   return typeof ref === "string" ? ref : undefined;
 }
 
-function isKeyedArray(value: unknown): value is readonly Readonly<Record<string, unknown>>[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "object" && item !== null);
-}
-
 /**
- * Every `_key` in every array-of-objects field, anywhere in one document's field
+ * Every object item’s `_key` in every array field, anywhere in one document's field
  * tree, is present, non-empty, and unique among its own array siblings. A
  * duplicate or missing key breaks the render-time React identity the key exists
  * to provide, and makes a later hand-edit in Studio unsafe.
  */
 export function collectKeyViolations(path: string, value: unknown, violations: string[]): void {
-  if (isKeyedArray(value)) {
+  if (Array.isArray(value)) {
     const seen = new Set<string>();
-    for (const item of value) {
+    for (const [index, item] of value.entries()) {
+      if (Array.isArray(item)) {
+        collectKeyViolations(`${path}[${index}]`, item, violations);
+        continue;
+      }
+      if (typeof item !== "object" || item === null) continue;
       const key = item._key;
-      if (typeof key !== "string" || key.length === 0) {
+      const validKey = typeof key === "string" && key.length > 0;
+      if (!validKey) {
         violations.push(`${path}: array item is missing a non-empty _key`);
       } else if (seen.has(key)) {
         violations.push(`${path}: duplicate _key "${key}"`);
       } else {
         seen.add(key);
       }
+      const itemPath = validKey ? `${path}.${key}` : `${path}[${index}]`;
       for (const [field, fieldValue] of Object.entries(item)) {
         if (field === "_key") continue;
-        collectKeyViolations(`${path}.${String(key)}.${field}`, fieldValue, violations);
+        collectKeyViolations(`${itemPath}.${field}`, fieldValue, violations);
       }
     }
     return;
