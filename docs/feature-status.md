@@ -3096,3 +3096,10 @@ These notes go stale easily — treat it as a starting hint, not as truth. The M
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
 feature exists or is missing.
+
+### AB#221 — HTTPS SSO redirect proof
+
+The preview verifier now accepts the provider SSO challenge only over HTTPS, with
+no credentials and the default port, at its existing exact host and path. Redirect
+status and fixed diagnostic contracts are unchanged; Location values are not logged.
+This is deterministic classifier coverage, not a fresh live deployment verification.
