@@ -3096,3 +3096,11 @@ These notes go stale easily — treat it as a starting hint, not as truth. The M
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
 feature exists or is missing.
+
+### AB#226 — benchmark response integrity
+
+The keyword benchmark transport now checks HTTP failure before reading the body,
+redacts body-read errors, and rejects malformed UTF-8. Payload size counts received
+post-decompression bytes, including a BOM; wall time ends before decode/JSON parsing.
+Query strategy and cache measurements are unchanged. This covers only the benchmark
+transport with synthetic responses; no live measurement or launch gate was completed.
