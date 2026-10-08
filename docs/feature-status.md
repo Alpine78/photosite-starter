@@ -3294,3 +3294,9 @@ The work item remains Active until owner review and merge.
 Preview verification no longer prints arbitrary identity/probe exception messages, which can include malformed secret header values. The injectable header-only probe preserves manual redirects, no-store, the twenty-second signal and response metadata. The CLI verifies deployment ownership before supplying the bypass, uses fixed unknown-cause diagnostics and has an import-safe main guard. Known project-owned VercelApiError diagnostics remain available.
 
 This independent work item remains Active until owner review and merge.
+
+### AB#237 — Redact arbitrary failures during stable Preview alias reconciliation (2026-10-08)
+
+Stable Preview alias assignment and reconciliation outcomes now withhold arbitrary transport exceptions rather than echoing their message or serializing thrown values. Known project-owned VercelApiError diagnostics remain available. Probe retry errors were already fixed messages; those retries, revision/ownership gates and post-assignment restore outcomes remain unchanged. These are local injected-transport checks, not a live alias mutation.
+
+This independent work item remains Active until owner review and merge.

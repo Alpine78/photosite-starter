@@ -1550,3 +1550,7 @@ incomplete/nonzero. AB#19 still requires accepted mappings and post-import targe
 Preview verification no longer prints arbitrary identity/probe exception messages, which can include malformed secret header values. The injectable header-only probe preserves manual redirects, no-store, the twenty-second signal and response metadata. The CLI verifies deployment ownership before supplying the bypass, uses fixed unknown-cause diagnostics and has an import-safe main guard. Known project-owned VercelApiError diagnostics remain available.
 
 This deliberately also withholds ordinary validation `Error` messages during identity lookup. Those errors share the catch boundary with transport failures, whose contents are not trusted; the fixed phase diagnostic identifies where verification stopped. Only the explicit project-owned `VercelApiError` class may supply additional detail. Inspect the URL, expected deployment ID and required Vercel settings locally when that phase fails.
+
+### AB#237 — operator verification behavior
+
+Stable Preview alias assignment and reconciliation outcomes now withhold arbitrary transport exceptions rather than echoing their message or serializing thrown values. Known project-owned VercelApiError diagnostics remain available. Probe retry errors were already fixed messages; those retries, revision/ownership gates and post-assignment restore outcomes remain unchanged. These are local injected-transport checks, not a live alias mutation.
