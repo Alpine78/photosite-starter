@@ -3096,3 +3096,11 @@ These notes go stale easily — treat it as a starting hint, not as truth. The M
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
 feature exists or is missing.
+
+### AB#228 — Vercel metadata UTF-8
+
+Deployment lookup, alias lookup and alias-assignment confirmation reject malformed
+UTF-8 before parsing JSON, with their existing fixed errors and ownership checks.
+A failed lookup cannot proceed to deletion. Assignment has already issued its POST
+when its response is read: a corrupt response leaves remote state unknown and calls
+for manual alias verification. Coverage uses synthetic responses, not provider changes.
