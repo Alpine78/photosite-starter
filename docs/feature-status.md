@@ -3252,3 +3252,9 @@ range 0100–9999, including offset crossings; migration and seed document guard
 that compatible projection. This deliberately accepts real early calendar dates
 while keeping unsupported instants out of public document plans. The runtime reader
 is unchanged and its own early-year behavior remains a separate follow-up.
+
+### AB#230 — Bound and redact the public-cache recovery response (2026-10-08)
+
+The recovery CLI decodes response bytes as strict UTF-8 (a response BOM is tolerated) and prints a correlation reference only when a successful HTTP response contains `status: accepted` and a canonical lowercase UUID v4. An unusable acknowledgement leaves the purge outcome unverified; it does not prove the purge was refused. Arbitrary transport exceptions are withheld, including native header-validation errors that can echo a bypass value. Fixed project-owned Vercel errors remain actionable. This validates retained output; it adds no response-size cap or live invalidation proof.
+
+The work item remains Active while this independent branch awaits owner review and merge.
