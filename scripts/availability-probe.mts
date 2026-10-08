@@ -48,7 +48,7 @@ export function parseAvailabilityConfig(value: unknown) {
 }
 type Node = DefaultTreeAdapterTypes.Node;
 function hidden(node: DefaultTreeAdapterTypes.Element) {
-  return ["script", "style", "template", "noscript"].includes(node.tagName) || node.attrs.some((attr) => attr.name === "hidden" || (attr.name === "aria-hidden" && attr.value.toLowerCase() === "true") || (attr.name === "style" && /(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden|content-visibility\s*:\s*hidden)\s*(?:!important\s*)?(?:;|$)/i.test(attr.value)));
+  return ["script", "style", "template", "noscript"].includes(node.tagName) || node.attrs.some((attr) => attr.name === "hidden" || attr.name === "inert" || (attr.name === "aria-hidden" && attr.value.toLowerCase() === "true") || (attr.name === "style" && /(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden|content-visibility\s*:\s*hidden)\s*(?:!important\s*)?(?:;|$)/i.test(attr.value)));
 }
 function visibleText(root: Node): string {
   const stack = [root], parts: string[] = []; let visited = 0;

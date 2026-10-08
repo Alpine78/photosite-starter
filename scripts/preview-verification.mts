@@ -35,7 +35,7 @@ export type ProbeOutcome = {
  * The provider's own login-challenge redirect, which is what proves Vercel
  * Authentication answered — verified against a real deployment (AB#116,
  * 2026-08-24): an unauthenticated request receives a 3xx redirect whose
- * `Location` names this exact host and path
+ * `Location` names this exact HTTPS host and path, without credentials or a non-default port
  * (`https://vercel.com/sso-api?url=...&nonce=...`), not the bare `401` this
  * check originally assumed. Vercel's own documentation confirms the shape:
  * "Users attempting to access the deployment will encounter a Vercel login
@@ -70,6 +70,8 @@ function isSsoChallengeRedirect(status: number, location: string | null): boolea
   }
 
   return (
+    target.protocol === "https:" &&
+    target.username === "" && target.password === "" && target.port === "" &&
     target.hostname === SSO_CHALLENGE_HOST &&
     target.pathname === SSO_CHALLENGE_PATH
   );
