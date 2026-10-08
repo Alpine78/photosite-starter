@@ -3096,3 +3096,10 @@ These notes go stale easily — treat it as a starting hint, not as truth. The M
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
 feature exists or is missing.
+
+### AB#222 — rally planner input integrity
+
+The offline planner rejects malformed UTF-8 and unreadable identity maps instead of
+silently replacing bytes or starting new identities. It checks the identity map before
+writing reports. Existing ID minting and the file-BOM policy are unchanged; writes are
+not made transactional by this slice. No real rally plan or CMS write was performed.

@@ -17,7 +17,7 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
-import { chmod, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -153,34 +153,39 @@ export async function scanFile(root: string, relativePath: string): Promise<Scan
   }
 }
 
-export async function readJsonFile(filePath: string, label: string): Promise<unknown> {
-  let text: string;
-  try {
-    text = await readFile(filePath, "utf8");
-  } catch {
-    fail(`${label} was not found at ${filePath}`);
-  }
-  try {
-    return JSON.parse(text);
-  } catch {
-    fail(`${label} is not valid JSON`);
-  }
+function isAbsent(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
-async function readIdentities(out: string): Promise<RallyIdentityMap> {
-  const filePath = path.join(out, IDENTITY_FILE);
+async function readStrictJson(filePath: string, label: string, optional = false): Promise<unknown> {
+  const recovery = optional ? "; restore it from a backup rather than deleting it" : "";
+  let bytes: Buffer;
+  try {
+    bytes = await readFile(filePath);
+  } catch (error) {
+    if (optional && isAbsent(error)) {
+      // A dangling symlink is an existing map, not a safe first-run absence.
+      try { await lstat(filePath); }
+      catch (statError) { if (isAbsent(statError)) return undefined; }
+    }
+    fail(`${label} ${isAbsent(error) && !optional ? "was not found" : "could not be read"}${recovery}`);
+  }
   let text: string;
   try {
-    text = await readFile(filePath, "utf8");
-  } catch {
-    return emptyIdentityMap();
-  }
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    fail(`${IDENTITY_FILE} in --out is not valid JSON; restore it from a backup rather than deleting it`);
-  }
+    // File JSON preserves a BOM, matching the previous readFile UTF-8 policy.
+    text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch { fail(`${label} is not valid UTF-8${recovery}`); }
+  try { return JSON.parse(text); }
+  catch { fail(`${label} is not valid JSON${recovery}`); }
+}
+
+export async function readJsonFile(filePath: string, label: string): Promise<unknown> {
+  return readStrictJson(filePath, label);
+}
+
+export async function readIdentities(out: string): Promise<RallyIdentityMap> {
+  const raw = await readStrictJson(path.join(out, IDENTITY_FILE), `${IDENTITY_FILE} in --out`, true);
+  if (raw === undefined) return emptyIdentityMap();
   const { identities, issues } = parseIdentityMap(raw);
   if (identities === undefined) {
     fail(`${IDENTITY_FILE} in --out is malformed (${issues.length} issue(s)); restore it from a backup rather than deleting it`);
@@ -196,6 +201,7 @@ async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
   const folder = path.resolve(options.folder);
   const out = path.resolve(options.out);
+  const identities = await readIdentities(out);
 
   const { manifest, issues } = parseRallyManifest(
     await readJsonFile(path.join(folder, RALLY_MANIFEST_FILE), RALLY_MANIFEST_FILE),
@@ -209,7 +215,6 @@ async function main(): Promise<void> {
     return;
   }
 
-  const identities = await readIdentities(out);
   const files: ScannedFile[] = [];
   for (const relativePath of await listFiles(folder)) {
     files.push(await scanFile(folder, relativePath));
