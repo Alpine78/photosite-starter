@@ -3180,3 +3180,10 @@ The availability probe now excludes elements with the boolean `inert` attribute 
 their descendants from both marker traversal and marker text. Independent visible
 markers still pass. This checks fetched HTML only; computed CSS and JavaScript changes
 are not evaluated. AB#158 live monitoring and its failure/recovery exercise remain open.
+
+### AB#221 — HTTPS SSO redirect proof
+
+The preview verifier now accepts the provider SSO challenge only over HTTPS, with
+no credentials and the default port, at its existing exact host and path. Redirect
+status and fixed diagnostic contracts are unchanged; Location values are not logged.
+This is deterministic classifier coverage, not a fresh live deployment verification.
