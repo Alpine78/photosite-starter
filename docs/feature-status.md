@@ -3096,3 +3096,12 @@ These notes go stale easily — treat it as a starting hint, not as truth. The M
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
 feature exists or is missing.
+
+### AB#224 — bounded legacy HTTP verification
+
+The legacy redirect probe now shares one 20-second deadline across headers and HTML
+body reads, including injected IO that ignores abort. Cleanup is observed without
+waiting; late responses are cancelled. A four-MiB response-byte cap remains, and
+malformed UTF-8 now gives the existing fixed `probe-failed` verification result.
+Mapping decisions, pending paths and live AB#19 launch checks remain unchanged.
+Repeated failed targets are still probed per row; failure caching is a separate follow-up.
