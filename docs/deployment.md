@@ -1544,3 +1544,17 @@ when saving stdout to avoid npm's command banner. Owner decision, target and evi
 columns start blank. The worksheet chooses no target and is not an import format;
 timeouts remain observed timeouts. Check mode still reports pending decisions as
 incomplete/nonzero. AB#19 still requires accepted mappings and post-import targets.
+
+### AB#236 — operator verification behavior
+
+Preview verification no longer prints arbitrary identity/probe exception messages, which can include malformed secret header values. The injectable header-only probe preserves manual redirects, no-store, the twenty-second signal and response metadata. The CLI verifies deployment ownership before supplying the bypass, uses fixed unknown-cause diagnostics and has an import-safe main guard. Known project-owned VercelApiError diagnostics remain available.
+
+This deliberately also withholds ordinary validation `Error` messages during identity lookup. Those errors share the catch boundary with transport failures, whose contents are not trusted; the fixed phase diagnostic identifies where verification stopped. Only the explicit project-owned `VercelApiError` class may supply additional detail. Inspect the URL, expected deployment ID and required Vercel settings locally when that phase fails.
+
+### AB#237 — operator verification behavior
+
+Stable Preview alias assignment and reconciliation outcomes now withhold arbitrary transport exceptions rather than echoing their message or serializing thrown values. Known project-owned VercelApiError diagnostics remain available. Probe retry errors were already fixed messages; those retries, revision/ownership gates and post-assignment restore outcomes remain unchanged. These are local injected-transport checks, not a live alias mutation.
+
+### AB#238 — operator verification behavior
+
+The legacy verifier probes each exact declared target URL once per invocation, retaining both successful and failed attempts. Source requests remain independent and every affected row keeps its source status and fixed probe-failed result. Failed target timeouts therefore accumulate per distinct target rather than per alias row; source timeouts still apply separately. A fresh invocation retries naturally. Pending paths remain blockers, and a timeout remains an operational failure, never a new 410 or missing-content decision.

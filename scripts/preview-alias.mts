@@ -46,6 +46,7 @@
  * bypasses its in-script safeguards.
  */
 import {
+  VercelApiError,
   assignPreviewAlias,
   deleteAlias,
   inspectPreviewDeployment,
@@ -158,7 +159,10 @@ export function isTransientProbe(probes: PreviewProbes): boolean {
 }
 
 function describeCause(cause: unknown): string {
-  return cause instanceof Error ? cause.message : String(cause);
+  try {
+    if (cause instanceof VercelApiError) return cause.message;
+  } catch { /* arbitrary thrown objects need not support inspection */ }
+  return "operation failed; details withheld";
 }
 
 export async function repointAndVerifyPreviewAlias(

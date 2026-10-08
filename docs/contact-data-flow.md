@@ -463,3 +463,7 @@ use the October checkpoint when interpreting the historical observations above.
       actually does. **The account is provisioned. Confirm the actual processor and
       retention settings, then update the missing field/processor coverage
       identified in the October checkpoint above.**
+
+### AB#235 — response transport integrity
+
+The shared plain-text Resend transport uses `redirect: manual` for its fixed `https://api.resend.com/emails` endpoint. A 3xx is a non-retryable provider rejection; its Location and error-name body cannot cause forwarding, a false delivered outcome or a retry override. Contact Reply-To, recipients, idempotency, timeout and genuine provider failure classification remain unchanged. The same transport guard covers existing private-gallery notifications without introducing a new processor or a live email test.

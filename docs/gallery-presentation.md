@@ -175,3 +175,7 @@ section filter, or lightbox ordering — see the seam boundary above. Content
 placement, membership, and every other gallery contract (sections, seeded
 ordering, continuation cursors) are unaffected by any of the three layouts or
 two caption placements.
+
+### AB#234 — response transport integrity
+
+Gallery continuation requests stay on their application endpoint with manual redirects; browser opaque redirect responses fail the existing HTTP-success check. Successful JSON must be valid UTF-8 before item/slide identity and metadata validation. Parser and body-read failures expose only a fixed unusable-slice message. Valid Unicode, literal U+FFFD and a response BOM remain supported; layout, image dimensions, full-frame rendering and cursor semantics are unchanged.

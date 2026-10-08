@@ -139,6 +139,7 @@ export async function fetchGallerySlice(
   endpoint: "/api/gallery" | "/api/article-gallery" = "/api/gallery",
 ): Promise<GallerySlice> {
   const response = await fetch(gallerySliceEndpoint(galleryPath, cursor, section, endpoint), {
+    redirect: "manual",
     headers: { accept: "application/json" },
     // The response is `no-store` and the token is single-purpose; asking the
     // HTTP cache for it would only risk replaying a stale slice.
@@ -149,7 +150,12 @@ export async function fetchGallerySlice(
     throw new Error(`Gallery continuation failed with status ${response.status}`);
   }
 
-  const payload: unknown = await response.json();
+  let payload: unknown;
+  try {
+    payload = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await response.arrayBuffer()));
+  } catch {
+    throw new Error("Gallery continuation returned an unusable slice.");
+  }
   if (!isGallerySlice(payload)) {
     throw new TypeError("Gallery continuation returned an unusable slice");
   }

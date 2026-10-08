@@ -6,7 +6,7 @@ import {
   type AliasProbe,
 } from "./preview-alias.mts";
 import type { PreviewProbes } from "./preview-verification.mts";
-import type { VercelPreviewApiSettings } from "./vercel-preview-api.mts";
+import { VercelApiError, type VercelPreviewApiSettings } from "./vercel-preview-api.mts";
 
 const SETTINGS: VercelPreviewApiSettings = {
   token: "test-token",
@@ -97,6 +97,9 @@ function json(value: unknown, status = 200): Response {
 type FakeOptions = {
   /** POST /aliases applies the change to state, then throws (lost response). */
   readonly assignThrowsAfterApply?: boolean;
+  readonly assignmentFailure?: unknown;
+  readonly reconciliationReadFailure?: unknown;
+  readonly restoreFailure?: unknown;
   /** GET /v4/aliases throws once the alias has been assigned by this run. */
   readonly aliasReadThrowsAfterAssign?: boolean;
   /**
@@ -138,6 +141,7 @@ function createFakeVercel(
     // GET /v4/aliases/{host}
     const aliasGet = url.pathname.match(/^\/v4\/aliases\/(.+)$/);
     if (aliasGet && method === "GET") {
+      if (state.assigned && "reconciliationReadFailure" in options) throw options.reconciliationReadFailure;
       if (options.aliasReadThrowsAfterAssign && state.assigned) {
         throw new Error("ECONNRESET reading the alias");
       }
@@ -153,6 +157,7 @@ function createFakeVercel(
     const assign = url.pathname.match(/^\/v2\/deployments\/(.+)\/aliases$/);
     if (assign && method === "POST") {
       const id = decodeURIComponent(assign[1]);
+      if (id !== OUR_ID && "restoreFailure" in options) throw options.restoreFailure;
       const firstAssign = !state.assigned;
       const previous =
         firstAssign && options.aliasTargetAtAssign !== undefined
@@ -160,6 +165,7 @@ function createFakeVercel(
           : state.aliasTarget;
       state.aliasTarget = id;
       state.assigned = true;
+      if (id === OUR_ID && "assignmentFailure" in options) throw options.assignmentFailure;
       if (options.assignThrowsAfterApply && id === OUR_ID) {
         throw new Error("socket hang up after the alias was assigned");
       }
@@ -174,6 +180,7 @@ function createFakeVercel(
     // DELETE /v2/aliases/{uid}
     const aliasDelete = url.pathname.match(/^\/v2\/aliases\/(.+)$/);
     if (aliasDelete && method === "DELETE") {
+      if ("restoreFailure" in options) throw options.restoreFailure;
       if (decodeURIComponent(aliasDelete[1]) !== "al_fake") {
         return new Response(null, { status: 404 });
       }
@@ -639,5 +646,39 @@ describe("repointAndVerifyPreviewAlias", () => {
 
     expect(fake.fetcher).not.toHaveBeenCalled();
     expect(resolveCurrentMainRevision).not.toHaveBeenCalled();
+  });
+});
+
+describe("alias reconciliation error redaction", () => {
+  it.each(["read", "restore", "delete"])("withholds %s failures when the alias remains unreconciled", async phase => {
+    const secret = "fixture-secret\ninvalid";
+    let cause: unknown;
+    try { new Headers({ Authorization: secret }); } catch (error) { cause = error; }
+    const fake = createFakeVercel(phase === "delete" ? null : OLD_ID, {
+      assignmentFailure: new Error("fixture assignment failure"),
+      ...(phase === "read" ? { reconciliationReadFailure: cause } : { restoreFailure: cause }),
+    });
+    const outcome = await run(async () => PASS, fake).promise;
+    expect(outcome).toMatchObject({ kind: "unreconciled", detail: expect.stringContaining("operation failed; details withheld") });
+    expect(fake.state.aliasTarget).toBe(OUR_ID);
+    expect(JSON.stringify(outcome)).not.toContain("fixture-secret");
+  });
+  it("retains known project-owned assignment diagnostics", async () => {
+    const message = "Vercel alias assignment failed with HTTP 500";
+    const fake = createFakeVercel(OLD_ID, { assignmentFailure: new VercelApiError(message) });
+    expect(await run(async () => PASS, fake).promise).toMatchObject({ kind: "restored", checks: [{ detail: message }] });
+  });
+  it.each(["native", "string", "object", "proxy"])("keeps %s assignment failures out of the complete restored outcome", async kind => {
+    const secret = "fixture-secret\ninvalid";
+    let native: unknown;
+    try { new Headers({ "x-vercel-protection-bypass": secret }); } catch (cause) { native = cause; }
+    const cause = kind === "native" ? native : kind === "string" ? secret : kind === "proxy"
+      ? new Proxy({}, { getPrototypeOf() { throw new Error(secret); } })
+      : { get message() { throw new Error(secret); }, toString() { throw new Error(secret); } };
+    const fake = createFakeVercel(OLD_ID, { assignmentFailure: cause });
+    const outcome = await run(async () => PASS, fake).promise;
+    expect(outcome).toMatchObject({ kind: "restored", restoredTo: OLD_ID, checks: [{ name: "alias assignment", ok: false, detail: "operation failed; details withheld" }] });
+    expect(fake.state.aliasTarget).toBe(OLD_ID);
+    expect(JSON.stringify(outcome)).not.toContain("fixture-secret");
   });
 });

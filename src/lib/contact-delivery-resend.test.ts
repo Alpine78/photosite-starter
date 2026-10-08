@@ -64,6 +64,7 @@ describe("createResendDeliveryAdapter", () => {
       `contact-form/${request.idempotencyKey}`,
     );
     expect(init.cache).toBe("no-store");
+    expect(init.redirect).toBe("manual");
     expect(JSON.parse(String(init.body))).toEqual({
       from: settings.from,
       to: [settings.to],
@@ -254,5 +255,20 @@ describe("createResendDeliveryAdapter", () => {
       errorClass: "provider-unavailable",
       retryable: true,
     });
+  });
+});
+
+describe("contact provider redirect refusal", () => {
+  it.each([301, 302, 303, 307, 308])("does not follow HTTP %d or trust its error name", async status => {
+    let redirected = 0;
+    const fetchImplementation = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toBe("https://api.resend.com/emails");
+      if (init?.redirect !== "manual") { redirected++; return Response.json({ id: "foreign-success" }); }
+      return Response.json({ name: "rate_limit_exceeded", message: "private-fixture" }, { status, headers: { location: "https://redirect.example/emails" } });
+    });
+    const adapter = createResendDeliveryAdapter({ ...settings, fetchImplementation: fetchImplementation as typeof fetch });
+    await expect(adapter.deliver(request)).resolves.toEqual({ status: "failed", errorClass: "provider-rejected", retryable: false });
+    expect(fetchImplementation).toHaveBeenCalledTimes(1);
+    expect(redirected).toBe(0);
   });
 });
