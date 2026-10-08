@@ -7,13 +7,11 @@ import {
   buildMappingReport,
   parseVerificationOrigin,
   pendingLegacyReviewCsv,
-  redirectTargetUrl,
-  sourceResponseIssues,
-  targetResponseIssues,
   verificationStatus,
 } from "./legacy-redirect-verification.mts";
 
 import { probeLegacyRedirect as probe } from "./legacy-redirect-probe.mts";
+import { verifyLegacyMappingRows } from "./legacy-target-probe.mts";
 
 async function main() {
   const argumentsList = process.argv.slice(2);
@@ -38,31 +36,7 @@ async function main() {
   }
   const origin = parseVerificationOrigin(originArgument!);
   const canonicalOrigin = parseVerificationOrigin(canonicalArgument ?? origin);
-  const results: { source: string; sourceStatus?: number; targetStatus?: number; issues: string[] }[] = [];
-  const targets = new Map<string, Awaited<ReturnType<typeof probe>>>();
-  for (const row of report.rows) {
-    // A missing decision is a launch blocker, never an implicitly accepted 404.
-    if (row.outcome.kind === "pending") continue;
-    const result: (typeof results)[number] = { source: row.source, issues: [] };
-    try {
-      const response = await probe(new URL(row.source, origin).href);
-      result.sourceStatus = response.status;
-      result.issues.push(...sourceResponseIssues(row, response.status, response.location, origin));
-      if (row.outcome.kind === "redirect") {
-        // Probe only the declared target; never follow a response's Location.
-        const target = redirectTargetUrl(row.outcome, origin);
-        const targetResponse = targets.get(target) ?? await probe(target, true);
-        targets.set(target, targetResponse);
-        result.targetStatus = targetResponse.status;
-        result.issues.push(...targetResponseIssues(row.outcome, targetResponse, canonicalOrigin));
-      }
-    } catch {
-      // Provider HTML, response headers and network errors can contain sensitive
-      // values. Retain only our fixed error class and numeric statuses.
-      result.issues.push("probe-failed");
-    }
-    results.push(result);
-  }
+  const results = await verifyLegacyMappingRows(report.rows, origin, canonicalOrigin, probe);
   const status = verificationStatus(report.counts.pending, results);
   console.log(JSON.stringify({ ...report, verification: { origin, canonicalOrigin, status, results } }, null, 2));
   if (status !== "passed") process.exitCode = 1;

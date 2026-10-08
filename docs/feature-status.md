@@ -3252,3 +3252,9 @@ range 0100–9999, including offset crossings; migration and seed document guard
 that compatible projection. This deliberately accepts real early calendar dates
 while keeping unsupported instants out of public document plans. The runtime reader
 is unchanged and its own early-year behavior remains a separate follow-up.
+
+### AB#238 — Probe each declared legacy redirect target once per verification run (2026-10-08)
+
+The legacy verifier probes each exact declared target URL once per invocation, retaining both successful and failed attempts. Source requests remain independent and every affected row keeps its source status and fixed probe-failed result. Failed target timeouts therefore accumulate per distinct target rather than per alias row; source timeouts still apply separately. A fresh invocation retries naturally. Pending paths remain blockers, and a timeout remains an operational failure, never a new 410 or missing-content decision.
+
+This independent work item remains Active until owner review and merge.

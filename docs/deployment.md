@@ -1544,3 +1544,7 @@ when saving stdout to avoid npm's command banner. Owner decision, target and evi
 columns start blank. The worksheet chooses no target and is not an import format;
 timeouts remain observed timeouts. Check mode still reports pending decisions as
 incomplete/nonzero. AB#19 still requires accepted mappings and post-import targets.
+
+### AB#238 — operator verification behavior
+
+The legacy verifier probes each exact declared target URL once per invocation, retaining both successful and failed attempts. Source requests remain independent and every affected row keeps its source status and fixed probe-failed result. Failed target timeouts therefore accumulate per distinct target rather than per alias row; source timeouts still apply separately. A fresh invocation retries naturally. Pending paths remain blockers, and a timeout remains an operational failure, never a new 410 or missing-content decision.
