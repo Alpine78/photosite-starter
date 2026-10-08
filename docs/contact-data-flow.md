@@ -94,15 +94,17 @@ lives in the adapter that a production deployment already refuses to build.
 
 | Party | Role | Data it sees | Retention | Ownership |
 | --- | --- | --- | --- | --- |
-| **Vercel** (hosting) | Processor for the application; controller for its own Service-Generated Data | Request metadata: path, status, region, user agent, IP address. Not form fields — those are in the request body, which Runtime Logs do not record | **Preview, today: Runtime Logs 1 hour on Hobby** (checked live and against Vercel's own documentation, 2026-08-25 — this row's original "1 day on Base Pro" figure describes Production's still-undecided plan, per [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment; see "Before production launch" below). **Production's retention figure follows whichever tier AB#18 chooses** — unresolved. Broader Service-Generated Data is not assumed to be deleted with that window | Customer-owned Vercel team, provisioned by AB#116, currently on Hobby for Preview/development — **the Production tier is unresolved, not decided: ADR-0004's original Pro Decision stands until AB#18 reconsiders it. See [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment and "Before production launch" below** |
-| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, subject, message text, and optional phone/date | Current provider documentation states 30 days on standard plans; the actual account setting still needs verification | Account and sending domain provisioned by the owner; prior protected candidate delivered real mail. Production settings are present. MFA, key scope, terms/retention and tracking checks remain open (2026-10-05) |
-| **Infomaniak** (reference mailbox) | Processor for the received message | The whole email | Published owner-authored notice promises at most 12 months after last contact, with contract/legal exceptions; actual deletion practice and provider terms still need verification | Owner confirms migrated mail is working; a clone records its own provider |
+| **Vercel** (hosting) | Processor for the application; controller for its own Service-Generated Data | Form fields transiently in the Function request/memory; request metadata such as path, status, region, user agent and IP address. Application logs exclude form fields; the request body is not recorded in Runtime Logs | **Preview, today: Runtime Logs 1 hour on Hobby** (checked live and against Vercel's own documentation, 2026-08-25 — this row's original "1 day on Base Pro" figure describes Production's still-undecided plan, per [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md)'s 2026-08-25 amendment; see "Before production launch" below). **Production's retention figure follows whichever tier AB#18 chooses** — unresolved. Broader Service-Generated Data is not assumed to be deleted with that window | Customer-owned team, provisioned by AB#116. Owner retains the existing Hobby subscription for now (2026-10-07); commercial hosting suitability and final serving-environment retention remain open. See [the current preference](adr/0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference) |
+| **Resend** (delivery) | Processor for the outbound message | The whole email: name, address, subject, message text, and optional phone/date | Owner confirms Free plan (2026-10-07). [Provider policy](https://resend.com/security/gdpr) specifies 30-day email/log retention and 7-day backups; this is published policy, not an account-specific deletion audit | Account and sending domain provisioned by the owner; prior protected candidate delivered real mail. Production settings are present. Owner confirms MFA, Sending access restricted to the verified domain, and open/click tracking off (2026-10-07). Transfer/contract review and other launch checks remain open |
+| **Infomaniak** (reference mailbox) | Processor for the received message | The whole email | Owner commits to deleting enquiries/own correspondence copies within 12 months after last contact, with necessary contract/legal exceptions (2026-10-07). Provider inboxes do not automatically expire by age; technical backup erasure remains unverified | Owner confirms migrated mail is working and MFA enabled. Supplied free-tier description matches kSuite Free (2026-10-07); identification is based on owner-supplied description and the official comparison, not a dashboard read. A clone records its own provider |
 
 The adapter emits plain text with no HTML part or application-added tracking pixel.
 Visitor message text can contain links. [Resend documents tracking as off by default](https://resend.com/docs/dashboard/domains/tracking),
-but the owner reported that the checkbox appeared checked and could not be switched
-off during domain setup. The actual domain settings have not been read back. Do not infer that tracking is disabled
-from the adapter's text-only payload. Verify both domain controls before closing AB#117.
+but the owner initially reported that the checkbox appeared checked and could not be switched
+off during domain setup. On 2026-10-07 the owner confirmed both open and click tracking
+have been turned off (AB#117 comment `59471`). This resolves the domain tracking checklist
+item on owner confirmation; no independent dashboard/API readback was performed.
+The text-only payload alone is not evidence of provider tracking configuration.
 
 ## Application-emitted logs
 
@@ -274,6 +276,61 @@ both languages for subject, optional phone/date and the actual processors. The a
 12-month mailbox promise is a statement to verify against deletion practice, rather than
 proof that either provider automatically enforces it. The private release packet contains
 the captured revision and a proposed text update. No CMS text was changed by this check.
+
+### 2026-10-07 owner preferences and notice draft (AB#117, AB#18)
+
+The owner retains the current Hobby subscription and will reconsider later.
+[ADR-0004's dated amendment](adr/0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference)
+records that preference and the still-unresolved commercial hosting suitability;
+no provider exception, billing change or fresh account-retention observation is implied.
+
+A new published-only read confirms the notice still omits photography type and
+optional phone/date, names delivery generically and promises twelve months after
+last contact with contract/legal exceptions. The owner requested a suitable rewrite.
+The local FI/EN draft uses the existing four localized-text arrays, names Vercel,
+Resend and Infomaniak, explains the optional fields and published provider transfer
+facts, proposes processing bases/rights, and preserves the existing mailbox promise.
+The draft names actual processors without putting a photographer's identity into
+application code or shared schemas. Its full deployment-specific copy stays in the
+ignored operator packet, alongside the captured document revision and source links.
+
+AB#117 comment `59468` records progress. No CMS text was written and no new
+baseline is needed for a local draft. Before publication verify the controller and
+legal bases, remaining provider retention/backups/transfer safeguards and the actual
+mailbox deletion practice. Never claim tracking is disabled from a plain-text payload
+alone. On 2026-10-07 the owner confirmed two-factor login enabled on both Infomaniak
+and Resend (AB#117 comment `59470`). This resolves the account-MFA checklist item
+on owner confirmation; no independent dashboard inspection was performed.
+The owner subsequently confirmed the existing key already has Sending access restricted
+to the verified sending domain, both tracking controls are off and Resend uses Free
+(AB#117 comment `59471`). These resolve the key-scope and tracking checklist items
+on owner confirmation, without recording key values or changing the key in this task.
+The four-field draft does not certify a complete Article 13 disclosure.
+Re-read the revision and protect the pre-change baseline before a notice write;
+then capture and verify a new complete baseline before bulk import. Keep the old
+baseline and content approval. AB#117 remains Active.
+
+The Resend Free plan's [published policy](https://resend.com/security/gdpr) retains
+email/log data for 30 days and backups for 7 days; earlier message removal requires
+provider assistance. The owner-supplied collaborative-suite description matches
+[kSuite Free](https://www.infomaniak.com/en/ksuite/ksuite-pro/prices)
+(15 GB cloud and one address with 20 GB mail); this identification uses the supplied
+description, not an independent account inspection (AB#117 comment `59472`).
+Its [restore guide](https://www.infomaniak.com/en/support/faq/1203/restore-a-mail-account-recover-deleted-emails)
+excludes kSuite Free, my kSuite and Mail Starter from in-plan mailbox restoration.
+The same guide describes daily backups and recovery for up to 30 days after upgrading;
+unavailable in-plan restoration does not establish that backups are absent.
+The [storage guide](https://www.infomaniak.com/en/support/faq/2351/understanding-email-storage-and-size-limits)
+states that inbox/subfolder messages have no automatic age expiry and Trash/Spam
+equivalents purge after 30 days. Exact technical backup erasure for this free
+subscription remains unverified.
+
+The owner explicitly commits to deleting enquiry threads and own copies within
+twelve months after last contact, retaining only separately necessary contract/legal
+records (AB#117 comment `59472`). This resolves the owner-policy confirmation; no
+automatic deletion job was implemented and actual deletion was not audited.
+The final notice must distinguish active correspondence from provider backup/log
+retention rather than promise that every technical copy disappears at twelve months.
 
 ### Historical account review — August 2026
 
