@@ -45,7 +45,7 @@ import { createHash, randomBytes } from "node:crypto";
 import {
   collectDuplicateIds,
   collectKeyViolations,
-  isRealCalendarDateTime,
+  hasReaderSupportedCalendarYears,
   referencedId,
 } from "./sanity-document-checks.mts";
 import {
@@ -772,11 +772,11 @@ export function validateMigrationDocuments(documents: readonly PlannedDocument[]
       }
       identities.add(key);
 
-      if (!isRealCalendarDateTime(document.publishedAt)) {
-        violations.push(`article ${key}: publishedAt "${String(document.publishedAt)}" is not a real ISO instant`);
+      if (!hasReaderSupportedCalendarYears(document.publishedAt)) {
+        violations.push(`article ${key}: publishedAt "${String(document.publishedAt)}" is not a real ISO instant supported by the public reader`);
       }
-      if (document.eventDate !== undefined && !isRealCalendarDateTime(document.eventDate)) {
-        violations.push(`article ${key}: eventDate "${String(document.eventDate)}" is not a real ISO instant`);
+      if (document.eventDate !== undefined && !hasReaderSupportedCalendarYears(document.eventDate)) {
+        violations.push(`article ${key}: eventDate "${String(document.eventDate)}" is not a real ISO instant supported by the public reader`);
       }
       if (document._type === ARTICLE_TYPE_NAME && (!Array.isArray(document.body) || document.body.length === 0)) {
         violations.push(`article ${key}: body is required and must hold at least one block`);

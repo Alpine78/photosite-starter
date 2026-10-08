@@ -38,7 +38,7 @@
 
 import { createHash } from "node:crypto";
 
-import { canonicalCalendarDateTime, isRealCalendarDate, isRealCalendarDateTime } from "./sanity-document-checks.mts";
+import { canonicalCalendarDateTime, isRealCalendarDate } from "./sanity-document-checks.mts";
 import { CONVERSION_POLICY_VERSION, type ConversionFindingCode } from "./joomla-html-conversion.mts";
 
 /** Column set of the approval manifest. Documented in `docs/sanity-seeding.md`. */
@@ -277,11 +277,13 @@ export function reviewImportManifest(
         `canonical_category "${canonicalCategoryCell}" is not a valid category identity or ${STORY_ROOT_CANONICAL_PLACEMENT}`,
       );
     }
-    if (!isRealCalendarDateTime(publishedAt)) {
-      rowErrors.push(`published_at "${publishedAt}" is not a real ISO instant`);
+    const canonicalPublishedAt = canonicalCalendarDateTime(publishedAt);
+    const canonicalEventDate = eventDate.length > 0 ? canonicalCalendarDateTime(eventDate) : undefined;
+    if (canonicalPublishedAt === undefined) {
+      rowErrors.push(`published_at "${publishedAt}" is not a real ISO instant supported by the public reader`);
     }
-    if (eventDate.length > 0 && !isRealCalendarDateTime(eventDate)) {
-      rowErrors.push(`event_date "${eventDate}" is not a real ISO instant`);
+    if (eventDate.length > 0 && canonicalEventDate === undefined) {
+      rowErrors.push(`event_date "${eventDate}" is not a real ISO instant supported by the public reader`);
     }
 
     const secondaryCategories = cell("secondary_categories")
@@ -338,20 +340,8 @@ export function reviewImportManifest(
       continue;
     }
 
-    // Canonicalized to the exact shape `src/lib/sanity-article.ts#isValidIsoDate`
-    // (the real, already-shipped adapter) requires — UTC `Z`, exactly three
-    // fractional digits — rather than kept in whatever equally-valid ISO
-    // spelling the manifest happened to use. `isRealCalendarDateTime` above
-    // already accepted a wider range (an offset, no fractional seconds) for
-    // the manifest's own "is this real" question; a value carried verbatim
-    // into a planned Sanity document has to be something the production
-    // reader will actually accept, not merely something this tool reads
-    // (found in Codex review round 11 — an accepted-but-non-canonical value
-    // would have validated cleanly here and been rejected by that adapter
-    // after the write). Both calls are infallible at this point: `rowErrors`
-    // above already required `isRealCalendarDateTime` to hold for each.
-    const canonicalPublishedAt = canonicalCalendarDateTime(publishedAt)!;
-    const canonicalEventDate = eventDate.length > 0 ? canonicalCalendarDateTime(eventDate)! : undefined;
+    // The guards above require reader-compatible canonical values, including
+    // normalized UTC-year bounds. A merely real early year cannot enter the plan.
 
     approved.push({
       sourceId,
@@ -362,7 +352,7 @@ export function reviewImportManifest(
       canonicalCategory,
       secondaryCategories,
       phase,
-      publishedAt: canonicalPublishedAt,
+      publishedAt: canonicalPublishedAt!,
       ...(canonicalEventDate === undefined ? {} : { eventDate: canonicalEventDate }),
       sourceDigest,
       resolvedDigest,

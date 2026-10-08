@@ -281,3 +281,18 @@ describe("assessApprovedConversion", () => {
     expect(blockers[0]).toContain("joomla-conversion-v0");
   });
 });
+
+describe("public reader year bounds", () => {
+  it.each(["published_at", "event_date"])("refuses a real but unsupported UTC year in %s", (field) => {
+    for (const value of ["0099-06-01T00:00:00Z", "0100-01-01T00:00:00+01:00", "9999-12-31T23:00:00-05:00"]) {
+      const result = review([row({ [field]: value })]);
+      expect(result.approved).toEqual([]);
+      expect(result.errors.length).toBeGreaterThan(0);
+    }
+  });
+  it("approves an offset instant whose normalized UTC year is supported", () => {
+    const result = review([row({ published_at: "0099-12-31T23:00:00-01:00" })]);
+    expect(result.errors).toEqual([]);
+    expect(result.approved[0]?.publishedAt).toBe("0100-01-01T00:00:00.000Z");
+  });
+});

@@ -3096,3 +3096,12 @@ These notes go stale easily — treat it as a starting hint, not as truth. The M
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
 feature exists or is missing.
+
+### AB#229 — early calendar years and public-reader bounds
+
+Generic calendar checks now validate written years 0000–0099 without Date.UTC's
+1900 remapping. Canonical projection retains the current public reader's UTC-year
+range 0100–9999, including offset crossings; migration and seed document guards use
+that compatible projection. This deliberately accepts real early calendar dates
+while keeping unsupported instants out of public document plans. The runtime reader
+is unchanged and its own early-year behavior remains a separate follow-up.

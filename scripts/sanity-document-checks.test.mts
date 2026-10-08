@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canonicalCalendarDateTime,
+  hasReaderSupportedCalendarYears,
   collectDuplicateIds,
   collectKeyViolations,
   isRealCalendarDate,
@@ -182,4 +183,32 @@ describe("collectKeyViolations", () => {
     );
     expect(violations.some((v) => v.includes("missing a non-empty _key"))).toBe(true);
   });
+});
+
+describe("four-digit early calendar years and reader bounds", () => {
+  it.each(["0000-01-01", "0000-02-29", "0004-02-29", "0099-06-01", "0100-01-01", "2000-02-29"])
+    ("accepts the real calendar date %s without a 1900 remap", (date) => {
+      expect(isRealCalendarDate(date)).toBe(true);
+      expect(isRealCalendarDateTime(`${date}T00:00:00Z`)).toBe(true);
+    });
+  it.each(["0001-02-29", "0099-02-29", "0100-02-29", "1900-02-29", "0000-00-01", "0099-01-00"])
+    ("refuses invalid early dates: %s", (date) => expect(isRealCalendarDate(date)).toBe(false));
+  it.each(["0000-01-01T00:00:00Z", "0004-02-29T00:00:00Z", "0099-06-01T00:00:00Z", "0100-01-01T00:00:00+01:00", "9999-12-31T23:00:00-05:00"])
+    ("keeps real instants outside the reader's UTC-year range out of plans: %s", (value) => {
+      expect(isRealCalendarDateTime(value)).toBe(true);
+      expect(canonicalCalendarDateTime(value)).toBeUndefined();
+    });
+  it.each([
+    { value: "0099-12-31T23:00:00-01:00", expected: "0100-01-01T00:00:00.000Z" },
+    { value: "0100-01-01T00:00:00Z", expected: "0100-01-01T00:00:00.000Z" },
+    { value: "9999-12-31T23:59:59.999Z", expected: "9999-12-31T23:59:59.999Z" },
+  ])("canonicalizes reader-compatible boundary instants: $value", ({ value, expected }) => {
+    expect(canonicalCalendarDateTime(value)).toBe(expected);
+  });
+});
+
+it("guards written early years even when an offset normalizes into the supported range", () => {
+  expect(hasReaderSupportedCalendarYears("0099-12-31T23:00:00-01:00")).toBe(false);
+  expect(hasReaderSupportedCalendarYears("0100-01-01T00:00:00+01:00")).toBe(false);
+  expect(hasReaderSupportedCalendarYears("0100-01-01T00:00:00Z")).toBe(true);
 });
