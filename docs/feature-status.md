@@ -3276,3 +3276,9 @@ The work item remains Active while this independent branch awaits owner review a
 Runtime published queries keep their fixed Content Lake origin and use manual redirects. Successful JSON is decoded as strict UTF-8; a response BOM, valid Unicode and literal U+FFFD remain supported. Damaged bytes and body-read failures keep the existing non-retryable `malformed-response` classification with redacted events. Published perspective, parameters, timeout and finite Next cache tags/TTL remain unchanged. The pinned Next fetch implementation caches response bytes before application-level JSON validation: a malformed cached 200 can therefore keep failing until the existing TTL expires or approved webhook/recovery invalidation clears it. This change adds no live propagation proof.
 
 The work item remains Active until owner review and merge.
+
+### AB#234 — Reject corrupt JSON bytes in browser gallery continuation responses (2026-10-08)
+
+Gallery continuation requests stay on their application endpoint with manual redirects; browser opaque redirect responses fail the existing HTTP-success check. Successful JSON must be valid UTF-8 before item/slide identity and metadata validation. Parser and body-read failures expose only a fixed unusable-slice message. Valid Unicode, literal U+FFFD and a response BOM remain supported; layout, image dimensions, full-frame rendering and cursor semantics are unchanged.
+
+The work item remains Active until owner review and merge.
