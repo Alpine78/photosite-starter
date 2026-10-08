@@ -807,3 +807,24 @@ Official documentation checked on 2026-08-03; privacy terms rechecked on 2026-08
   compliance conclusion. Each deployment owner remains responsible for its privacy
   notice, processing record, provider terms, and applicable legal review.
 - No private-storage provider or strict data-residency commitment has been selected.
+
+### Amendment 2026-10-07 (AB#18, AB#117) — current Hobby preference
+
+The owner now states: “Hobby on toistaiseksi ja katsotaan tilannetta myöhemmin
+uudelleen.” Retain the existing Hobby subscription for now and reconsider later;
+no upgrade or billing change was performed. This supersedes the older unresolved
+current-billing preference, not the provider's commercial-use restriction or a
+verification of Production suitability. The owner did not supply Support confirmation
+or commit to removing paid services from the launch content.
+
+The [current Vercel Fair Use Guidelines](https://vercel.com/docs/limits/fair-use-guidelines)
+still restrict Hobby to non-commercial personal use; commercial use requires Pro
+or Enterprise. The reference launch content contains paid photography services.
+Resolve hosting suitability before public activation. Retaining Hobby during
+preparation does not prove an exception for that content. The original Pro plan
+remains the documented option for commercial Production; the starter's commercial
+capability is unaffected. The October 8/15 launch decisions remain in force.
+
+AB#18 comment `59467` records the preference; AB#18 and AB#117 remain
+Active. Account-specific log/backup retention still needs verification against
+the eventual serving environment. This amendment does not close those gates.

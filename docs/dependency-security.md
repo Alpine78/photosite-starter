@@ -155,6 +155,11 @@ specific `ImageResponse` advisory; reassess that precondition if the code change
 
 ### 2026-10-02 remediation follow-up (AB#186)
 
+**Current status: AB#186 is Closed** (zero full and production-only audit
+findings; exact-main CI #655 passed with an authenticated protected Preview) —
+see [current evidence](audits/ab137-renderer-readiness-2026-10-07.md#merged-source-and-dependency-gate).
+The text below is the preserved 2026-10-02 checkpoint.
+
 The earlier inventory and Next.js trial above are historical. Main already
 contains the exact development-only Vercel CLI 61.0.0 and one lockfile-pinned
 Vercel CLI installation used by Azure. The merged PR #230 pins Next.js/eslint-config-next
@@ -168,5 +173,12 @@ so the selected deployment CLI remains 61.0.0.
 contains raw reports, checksums, tooling reachability, and the override and
 residual owners/review deadlines (2026-10-13). No owner acceptance or automatic
 alert dismissal is implied. The scheduled audit remains visibly nonzero while
-these advisories remain. AB#186 is still Active; its exact-candidate gates,
-Preview verification and owner decision must be reviewed before AB#117 closes.
+these advisories remain at that historical checkpoint. AB#186 was Active then.
+
+**2026-10-07 merged verification:** PR #281's remediated candidate has zero full
+and production-only audit findings. Exact main CI #655 passed quality gates and
+an authenticated protected Preview deployment with the patched CLI tree. AB#186
+was explicitly moved Active → Closed; the October 2 residuals and open Preview
+check above are superseded by that evidence. The scheduled audit remains in place;
+AB#117 still needs its separate live launch review.
+[Current evidence](audits/ab137-renderer-readiness-2026-10-07.md#merged-source-and-dependency-gate).

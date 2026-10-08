@@ -1449,6 +1449,13 @@ back the galleries and the gallery's photograph count to compare with the plan.
 
 Documents are written as published, so the gallery is live as soon as the write finishes.
 
+The offline planner reads manifest and identity JSON as strict UTF-8 (a file BOM
+remains invalid JSON). Only a genuinely absent identity map starts a new map;
+unreadable, malformed or dangling-link maps stop before any report is written.
+Restore the existing map from a backup instead of deleting it. Identity minting is
+unchanged. The existing output writes are not transactional; retain the identity-map
+backup and avoid concurrent planner runs.
+
 ## Planning an existing rally gallery's conversion (AB#169)
 
 A placement-based rally gallery already in Production is converted to capture sequence one
