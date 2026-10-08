@@ -6,11 +6,28 @@ const options = (fetcher: typeof fetch) => ({ fetch: fetcher, timeoutMs: 100, ma
 const html = '<h1>Photographs</h1><a href="/stories">Stories</a>';
 const response = (body = html) => new Response(body, { headers: { "content-type": "text/html" } });
 describe("availability decisions", () => {
-  it("requires semantic HTML markers, excluding inert and hidden markup", () => {
+  it("requires semantic HTML markers, excluding non-rendered and hidden markup", () => {
     expect(htmlHasMarkers(html, check)).toBe(true);
     for (const wrapper of ['<script>BODY</script>', '<template>BODY</template>', '<div hidden>BODY</div>', '<div aria-hidden="true">BODY</div>', '<div style="display:none !important">BODY</div>']) expect(htmlHasMarkers(wrapper.replace('BODY', html), check)).toBe(false);
     expect(htmlHasMarkers('<svg><text>Photographs</text></svg><a href="/stories">Stories</a>', check)).toBe(false);
     expect(htmlHasMarkers('<h1>Photo<span hidden>SECRET</span>graphs</h1><a href="/stories">Stories</a>', check)).toBe(true);
+  });
+  it.each(['inert', 'inert=""', 'inert="false"', 'INERT'])
+    ("excludes inert subtrees by attribute presence: %s", (attribute) => {
+      expect(htmlHasMarkers(`<div ${attribute}>${html}</div>`, check)).toBe(false);
+    });
+  it.each([
+    '<h1 inert>Photographs</h1><a href="/stories">Stories</a>',
+    '<h1>Photographs</h1><a inert href="/stories">Stories</a>',
+    '<h1>Photo<span inert>graphs</span></h1><a href="/stories">Stories</a>',
+    '<h1><span inert>Photographs</span></h1><a href="/stories">Stories</a>',
+    '<h1>Photographs</h1><a href="/stories"><span inert>Stories</span></a>',
+  ])("does not assemble a marker from inert elements or text: %s", (markup) => {
+    expect(htmlHasMarkers(markup, check)).toBe(false);
+  });
+  it("still accepts independent visible markers and excludes inert text within them", () => {
+    expect(htmlHasMarkers(`<div inert>${html}</div>${html}`, check)).toBe(true);
+    expect(htmlHasMarkers('<h1>Photo<span inert>SECRET</span>graphs</h1><a href="/stories">Stories</a>', check)).toBe(true);
   });
   it.each(['https://user:secret@example.test/','http://example.test/','https://example.test/?token=secret','https://example.test/#private','https://127.0.0.2/','https://example.test/en/%70rivate/x','https://example.test/api/contact','https://host.local/','https://example.test/private-gallery/synthetic-handle','https://example.test/en/private-gallery-admin/login','https://example.test/en/%70rivate-gallery/synthetic-handle/exchange'])('refuses unsafe URL %s', (url) => expect(() => publicProbeUrl(url)).toThrow('invalid-probe-config'));
   it("accepts explicit loopback test URLs and validates strict configuration", () => {
