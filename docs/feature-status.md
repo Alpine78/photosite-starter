@@ -3252,3 +3252,9 @@ range 0100–9999, including offset crossings; migration and seed document guard
 that compatible projection. This deliberately accepts real early calendar dates
 while keeping unsupported instants out of public document plans. The runtime reader
 is unchanged and its own early-year behavior remains a separate follow-up.
+
+### AB#232 — Refuse invalid UTF-8 curated-gallery input and approval files (2026-10-08)
+
+The curated-gallery offline planner reads both the content input and owner-approval file as strict UTF-8 JSON before opening its output. Damaged bytes, a leading BOM and malformed JSON receive fixed role-specific diagnostics; their contents are not echoed. Valid Unicode and literal U+FFFD preserve the existing review-digest computation and approval binding. An invalid input or approval leaves any existing output untouched. This parser check is not a new content approval or CMS write.
+
+The work item remains Active while this independent branch awaits owner review and merge.

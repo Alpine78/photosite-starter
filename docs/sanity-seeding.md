@@ -2231,3 +2231,7 @@ outside its import contract. The curated-gallery writer accepts
 `summaryListingOnly: true` with a nonblank `summary`, preserving the presentation
 decision in ADR-0003. These changes require a new exact-plan review and grant no
 Production-write approval.
+
+### AB#232 — input and diagnostic integrity
+
+The curated-gallery offline planner reads both the content input and owner-approval file as strict UTF-8 JSON before opening its output. Damaged bytes, a leading BOM and malformed JSON receive fixed role-specific diagnostics; their contents are not echoed. Valid Unicode and literal U+FFFD preserve the existing review-digest computation and approval binding. An invalid input or approval leaves any existing output untouched. This parser check is not a new content approval or CMS write.
