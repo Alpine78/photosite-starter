@@ -22,12 +22,14 @@
  * The second is the response a reviewer actually sees.
  *
  * All decisions live in `preview-verification.mts`, which has tests. This file
- * is the part that cannot be tested without a network: read settings, make two
- * requests, print, set an exit code.
+ * wires settings, identity and the injectable header-only probe together,
+ * prints fixed diagnostics, and sets the exit code.
  *
  * Runs on the Node major pinned in `package.json` (`engines.node`), which
  * executes TypeScript directly.
  */
+import { fileURLToPath } from "node:url";
+import { describePreviewFailure, probePreviewDeployment as probe } from "./preview-probe.mts";
 import { verifyPreviewDeployment } from "./preview-verification.mts";
 import {
   inspectPreviewDeployment,
@@ -39,44 +41,7 @@ const BYPASS_HEADER = "x-vercel-protection-bypass";
 
 const BYPASS_SECRET_SETTING = "VERCEL_AUTOMATION_BYPASS_SECRET";
 
-/**
- * Bounds a hung pipeline step. Generous enough for a cold deployment's first
- * request, short enough that a wedged step fails rather than burning the job's
- * whole budget.
- */
-const REQUEST_TIMEOUT_MS = 20_000;
-
-type ProbeResponse = {
-  readonly status: number;
-  readonly location: string | null;
-  readonly robotsTag: string | null;
-};
-
-async function probe(
-  url: URL,
-  headers: Record<string, string>,
-): Promise<ProbeResponse> {
-  const response = await fetch(url, {
-    headers,
-    // A redirect is an answer in itself here: following one would hide a
-    // protection layer bouncing the request somewhere else, and report
-    // whatever sat at the end of the chain instead.
-    redirect: "manual",
-    cache: "no-store",
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-
-  // The body is never read. It is either a provider challenge page or the
-  // site's own HTML, and neither belongs in a retained pipeline log. The
-  // `Location` header on an unauthenticated redirect is retained, though: it
-  // is what `classifyProtection` binds to the provider's own SSO host and
-  // path, and it names no secret or application content.
-  return {
-    status: response.status,
-    location: response.headers.get("location"),
-    robotsTag: response.headers.get("x-robots-tag"),
-  };
-}
+type ProbeResponse = Awaited<ReturnType<typeof probe>>;
 
 function fail(message: string): never {
   console.error(`Preview verification failed: ${message}`);
@@ -109,7 +74,7 @@ async function main(): Promise<void> {
     );
   } catch (cause) {
     fail(
-      `the deployment identity could not be verified before sending the bypass secret: ${cause instanceof Error ? cause.message : String(cause)}`,
+      `the deployment identity could not be verified before sending the bypass secret: ${describePreviewFailure(cause)}`,
     );
   }
 
@@ -122,10 +87,9 @@ async function main(): Promise<void> {
       }),
     };
   } catch (cause) {
-    // The message is the platform's own (a DNS failure, a timeout). It carries
-    // the host, never the header that was sent with the request.
+    // Native header errors can echo the secret. Unknown causes are withheld.
     fail(
-      `the deployment could not be reached: ${cause instanceof Error ? cause.message : String(cause)}`,
+      `the deployment could not be reached: ${describePreviewFailure(cause)}`,
     );
   }
 
@@ -151,4 +115,6 @@ async function main(): Promise<void> {
   );
 }
 
-await main();
+if (import.meta.main || process.argv[1] === fileURLToPath(import.meta.url)) {
+  await main().catch(() => fail("operation failed; details withheld"));
+}

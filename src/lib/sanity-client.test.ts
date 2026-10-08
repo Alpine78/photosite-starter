@@ -416,3 +416,38 @@ describe("probeSanityConnectivity", () => {
     });
   });
 });
+
+describe("query response byte and origin integrity", () => {
+  const request = { query: "*[false]", tag: "probe" };
+  it.each([[0xff], [0xc3], [0xc0, 0xaf], [0xed, 0xa0, 0x80]].map(bytes => ({ bytes })))("refuses malformed UTF-8 %# without echoing it", async ({ bytes }) => {
+    const log = silenceFailureLog();
+    const body = Buffer.concat([Buffer.from('{"result":"private-fixture-'), Buffer.from(bytes), Buffer.from('"}')]);
+    const { fetchImplementation } = stubFetch(() => new Response(body));
+    const client = createSanityClient({ config, fetchImplementation });
+    await expect(client.query(request)).rejects.toMatchObject({ errorClass: "malformed-response", retryable: false });
+    expect(JSON.stringify(log.mock.calls)).not.toContain("private-fixture");
+  });
+  it("retains valid Unicode, literal U+FFFD and a response BOM", async () => {
+    const result = "Ää 📷 �";
+    const { fetchImplementation } = stubFetch(() => new Response(`\uFEFF${JSON.stringify({ result })}`));
+    await expect(createSanityClient({ config, fetchImplementation }).query(request)).resolves.toBe(result);
+  });
+  it.each([300, 301, 302, 303, 304, 307, 308])("refuses HTTP %d before reading its body", async status => {
+    silenceFailureLog();
+    const response = new Response(null, { status, headers: { location: "https://redirect.example/private-fixture" } });
+    const read = vi.spyOn(response, "arrayBuffer");
+    const { fetchImplementation, calls } = stubFetch(() => response);
+    await expect(createSanityClient({ config: authenticatedConfig, fetchImplementation }).query(request)).rejects.toMatchObject({ errorClass: "query-rejected", retryable: false });
+    expect(read).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].init?.redirect).toBe("manual");
+    expect(headerOf(calls[0], "Authorization")).toBe(`Bearer ${authenticatedConfig.readToken}`);
+  });
+  it("keeps body transport failures in the existing malformed-response class", async () => {
+    const log = silenceFailureLog();
+    const response = new Response(new ReadableStream({ start(controller) { controller.error(new Error("private-fixture")); } }));
+    const { fetchImplementation } = stubFetch(() => response);
+    await expect(createSanityClient({ config, fetchImplementation }).query(request)).rejects.toMatchObject({ errorClass: "malformed-response", retryable: false });
+    expect(JSON.stringify(log.mock.calls)).not.toContain("private-fixture");
+  });
+});

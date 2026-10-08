@@ -60,11 +60,19 @@ export function buildCuratedGalleryPlan(input: CuratedGalleryInput, approval?: C
   }};
 }
 
-async function main() {
-  const args = process.argv.slice(2);
+export async function readCuratedJsonFile(filePath: string, role: "input" | "approval"): Promise<unknown> {
+  const bytes = await readFile(filePath);
+  try {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes));
+  } catch {
+    throw new Error(`Curated-gallery ${role} must be valid UTF-8 JSON without a BOM`);
+  }
+}
+
+export async function main(args: readonly string[] = process.argv.slice(2)) {
   if (args.length !== 2 && args.length !== 3) throw new Error('Usage: node scripts/joomla-curated-gallery-plan.mts INPUT.json OUTPUT.json [OWNER-APPROVAL.json]');
-  const input = JSON.parse(await readFile(args[0]!, 'utf8')) as CuratedGalleryInput;
-  const approval = args[2] ? JSON.parse(await readFile(args[2], 'utf8')) as CuratedGalleryApproval : undefined;
+  const input = await readCuratedJsonFile(args[0]!, "input") as CuratedGalleryInput;
+  const approval = args[2] ? await readCuratedJsonFile(args[2], "approval") as CuratedGalleryApproval : undefined;
   const result = buildCuratedGalleryPlan(input, approval);
   await writeFile(args[1]!, JSON.stringify(result.plan, null, 2) + '\n', {mode:0o600});
   console.log(`Review digest: ${result.reviewDigest}\nDocuments: ${result.plan.documents.length}; unresolved checks: ${result.plan.errors.length}\nWrite-plan digest: ${result.plan.documentsDigest}`);
