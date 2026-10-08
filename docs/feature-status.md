@@ -3252,3 +3252,9 @@ range 0100–9999, including offset crossings; migration and seed document guard
 that compatible projection. This deliberately accepts real early calendar dates
 while keeping unsupported instants out of public document plans. The runtime reader
 is unchanged and its own early-year behavior remains a separate follow-up.
+
+### AB#237 — Redact arbitrary failures during stable Preview alias reconciliation (2026-10-08)
+
+Stable Preview alias assignment and reconciliation outcomes now withhold arbitrary transport exceptions rather than echoing their message or serializing thrown values. Known project-owned VercelApiError diagnostics remain available. Probe retry errors were already fixed messages; those retries, revision/ownership gates and post-assignment restore outcomes remain unchanged. These are local injected-transport checks, not a live alias mutation.
+
+This independent work item remains Active until owner review and merge.

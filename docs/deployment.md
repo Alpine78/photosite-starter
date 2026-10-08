@@ -1544,3 +1544,7 @@ when saving stdout to avoid npm's command banner. Owner decision, target and evi
 columns start blank. The worksheet chooses no target and is not an import format;
 timeouts remain observed timeouts. Check mode still reports pending decisions as
 incomplete/nonzero. AB#19 still requires accepted mappings and post-import targets.
+
+### AB#237 — operator verification behavior
+
+Stable Preview alias assignment and reconciliation outcomes now withhold arbitrary transport exceptions rather than echoing their message or serializing thrown values. Known project-owned VercelApiError diagnostics remain available. Probe retry errors were already fixed messages; those retries, revision/ownership gates and post-assignment restore outcomes remain unchanged. These are local injected-transport checks, not a live alias mutation.
