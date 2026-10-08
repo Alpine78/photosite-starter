@@ -13,40 +13,7 @@ import {
   verificationStatus,
 } from "./legacy-redirect-verification.mts";
 
-const REQUEST_TIMEOUT_MS = 20_000;
-const MAX_HTML_BYTES = 4 * 1024 * 1024;
-
-async function probe(url: string, readHtml = false) {
-  const response = await fetch(url, {
-    redirect: "manual",
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    headers: { accept: "text/html" },
-  });
-  let html = "";
-  if (readHtml && response.status === 200 && response.body) {
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let bytes = 0;
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        bytes += value.byteLength;
-        if (bytes > MAX_HTML_BYTES) throw new Error("Response body exceeds the verification limit.");
-        html += decoder.decode(value, { stream: true });
-      }
-      html += decoder.decode();
-    } finally { await reader.cancel(); }
-  } else {
-    await response.body?.cancel();
-  }
-  return {
-    status: response.status,
-    location: response.headers.get("location"),
-    contentType: response.headers.get("content-type"),
-    html,
-  };
-}
+import { probeLegacyRedirect as probe } from "./legacy-redirect-probe.mts";
 
 async function main() {
   const argumentsList = process.argv.slice(2);

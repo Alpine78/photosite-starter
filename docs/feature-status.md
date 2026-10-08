@@ -3201,3 +3201,12 @@ The conversion planner now stops on unreadable or corrupt lowercase `.json` file
 including malformed UTF-8, with a fixed operator error. Valid non-artifact JSON is
 still ignored; the existing file-BOM and requirement-collection policies remain.
 Real artifact-directory verification and any approved conversion write remain open.
+
+### AB#224 — bounded legacy HTTP verification
+
+The legacy redirect probe now shares one 20-second deadline across headers and HTML
+body reads, including injected IO that ignores abort. Cleanup is observed without
+waiting; late responses are cancelled. A four-MiB response-byte cap remains, and
+malformed UTF-8 now gives the existing fixed `probe-failed` verification result.
+Mapping decisions, pending paths and live AB#19 launch checks remain unchanged.
+Repeated failed targets are still probed per row; failure caching is a separate follow-up.
