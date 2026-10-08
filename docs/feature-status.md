@@ -3306,3 +3306,7 @@ This independent work item remains Active until owner review and merge.
 The legacy verifier probes each exact declared target URL once per invocation, retaining both successful and failed attempts. Source requests remain independent and every affected row keeps its source status and fixed probe-failed result. Failed target timeouts therefore accumulate per distinct target rather than per alias row; source timeouts still apply separately. A fresh invocation retries naturally. Pending paths remain blockers, and a timeout remains an operational failure, never a new 410 or missing-content decision.
 
 This independent work item remains Active until owner review and merge.
+
+### AB#239 — October 8 launch checkpoint
+
+The [dated post-merge checkpoint](audits/launch-readiness-2026-10-08.md) records exact main CI, protected Preview and unchanged old Production evidence, today's continuing scriptless 404 residual, and ordered remaining launch operations; launch parents and the ten new review items stay Active.
