@@ -58,7 +58,7 @@ missing marker retain distinct fixed classes. Output contains check indexes/clas
 never URLs or response bodies. Exit 0 means all supplied checks passed, 1 means an
 unhealthy check and 2 means invalid configuration. Body cancellation cannot extend
 the deadline. Existing parse5 checks HTML h1/link nodes, excluding script, style,
-template, noscript, hidden/aria-hidden and explicit inline-hidden subtrees. It does
+template, noscript, inert, hidden/aria-hidden and explicit inline-hidden subtrees. It does
 not execute scripts or establish computed CSS/pixel visibility.
 
 A cached content page proves availability, not a live CMS read or POST delivery.

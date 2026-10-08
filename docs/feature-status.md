@@ -3173,3 +3173,10 @@ These notes go stale easily — treat it as a starting hint, not as truth. The M
 checklist lives in `README.md`, and Azure Boards is authoritative. Before starting work,
 check the current state of the code and the relevant work item scope; do not assume a
 feature exists or is missing.
+
+### AB#220 — static inert availability markers
+
+The availability probe now excludes elements with the boolean `inert` attribute and
+their descendants from both marker traversal and marker text. Independent visible
+markers still pass. This checks fetched HTML only; computed CSS and JavaScript changes
+are not evaluated. AB#158 live monitoring and its failure/recovery exercise remain open.
