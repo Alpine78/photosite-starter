@@ -160,11 +160,14 @@ fixed; they do not record owner acceptance. The [fresh main-branch audit](audits
 records the commit/build provenance and 36 passing gallery/category journeys plus
 four expected failures. Both upstream candidates (#98455 and #98583) remain
 unmerged; [ADR-0007's decision proposal](adr/0007-proxy-request-path-boundary.md#2026-10-03-main-branch-recheck-and-decision-proposal-ab132)
-awaits explicit owner acceptance or withheld promotion before AB#18.
+awaited explicit owner acceptance or withheld promotion before AB#18 (true at the
+2026-10-03 checkpoint; superseded by the owner-accepted temporary residual recorded
+further below, 2026-10-07).
 **Checkpoint, 2026-10-06 (AB#201, Active):** the merged source retains all four
 scriptless semantic failures across Chromium/WebKit. The
 [redacted audit](audits/ab132-2026-10-06-scriptless.json) records exact build/harness
-identities and current upstream states. No AB#132 risk acceptance is implied.
+identities and current upstream states. No AB#132 risk acceptance was recorded at
+that checkpoint; the later owner acceptance (2026-10-07) is recorded below.
 
 **Release-candidate check, 2026-10-07 (AB#132, Active):** PR #281's exact source
 was rebuilt and tested with mock content. The runner reports 40 passed across
@@ -175,8 +178,10 @@ reproduction also fails on the current npm latest, Next.js 16.4.0, while its
 unmatched-URL control renders correctly. This does not upgrade the application.
 The [redacted audit](audits/ab132-2026-10-07-scriptless.json) includes both
 measurements and scaffold provenance. Both upstream fix candidates remain
-open/unmerged. The October 8 owner decision remains pending; green CI does not
-close the launch gate.
+open/unmerged. At this checkpoint the October 8 owner decision was pending; the
+owner later accepted the temporary residual risk (see the 2026-10-07 owner-accepted
+entry below), but the October 8 review, the verified semantic fix and the
+exact-candidate retest remain pending, and green CI does not close the launch gate.
 
 **AB#132 owns this**, and was reopened to
 `Active` on 2026-09-03 because it had been closed while none of its own "Done when"
@@ -2993,7 +2998,8 @@ A fresh manual prebuilt Production-target candidate from that source is READY.
 All 611 uploaded artifact members match local manifests. Thirty current-content
 FI/EN route, contact-field and gallery-pagination GETs pass. Two separate live
 scriptless 404 probes reproduce the known semantic defect; they are expected
-failures, not successful journeys. AB#132 remains Active without risk acceptance.
+failures, not successful journeys. At that checkpoint AB#132 remained Active and risk acceptance was pending;
+see the subsequent owner-acceptance entry below for the current decision.
 
 The complete baseline archive hash and all 3,593 raw revisions match; no planned
 content/category IDs collide. The existing credentialed asset/state audit, four live

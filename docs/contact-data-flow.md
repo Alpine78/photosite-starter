@@ -302,7 +302,7 @@ alone. On 2026-10-07 the owner confirmed two-factor login enabled on both Infoma
 and Resend (AB#117 comment `59470`). This resolves the account-MFA checklist item
 on owner confirmation; no independent dashboard inspection was performed.
 The owner subsequently confirmed the existing key already has Sending access restricted
-to `lomake.ilkansivu.net`, both tracking controls are off and Resend uses Free
+to the verified sending domain, both tracking controls are off and Resend uses Free
 (AB#117 comment `59471`). These resolve the key-scope and tracking checklist items
 on owner confirmation, without recording key values or changing the key in this task.
 The four-field draft does not certify a complete Article 13 disclosure.
