@@ -44,10 +44,10 @@ Two conventions on top of the template:
 | [0001](0001-lightbox-library.md) | AB#13 | Lightbox library: PhotoSwipe over react-photo-view | Accepted |
 | [0002](0002-media-identity-and-placement-boundary.md) | AB#64 | Shared media identity and placement metadata boundary | Accepted |
 | [0003](0003-public-content-tree-and-url-structure.md) | AB#102 | Public content tree, category taxonomy, and localized URL structure; AB#24 adds bounded inline mini-gallery blocks; AB#161 adds a separately paginated article end gallery; [AB#137 proposes bounded paragraph/list links](0003-public-content-tree-and-url-structure.md#proposed-amendment-2026-10-04--preserve-paragraph-and-list-links-ab137) | Accepted; link amendment Proposed |
-| [0004](0004-reference-production-host-and-ownership-boundary.md) | AB#109 | Reference production host and ownership boundary | Accepted |
+| [0004](0004-reference-production-host-and-ownership-boundary.md) | AB#109 | Reference production host and ownership boundary; [current Hobby preference and unresolved commercial suitability](0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference) | Accepted |
 | [0005](0005-public-image-rendition-boundary.md) | AB#108 | Public image rendition boundary | Accepted |
 | [0006](0006-sanity-data-access-boundary.md) | AB#39 | Sanity data-access boundary and client transport | Proposed |
-| [0007](0007-proxy-request-path-boundary.md) | AB#72, AB#132 | A Proxy request boundary carrying the requested path; [scriptless 404 recheck and pending decision](0007-proxy-request-path-boundary.md#2026-10-03-main-branch-recheck-and-decision-proposal-ab132) | Proposed |
+| [0007](0007-proxy-request-path-boundary.md) | AB#72, AB#132 | A Proxy request boundary carrying the requested path; [scriptless 404 temporary-risk acceptance](0007-proxy-request-path-boundary.md#2026-10-07-owner-accepted-temporary-residual-risk-ab132) | Proposed; temporary residual Accepted |
 | [0008](0008-localized-authored-text.md) | AB#82 | Localized authored text in content schemas | Accepted |
 | [0009](0009-seeded-random-gallery-ordering.md) | AB#66 (ordering clauses only) | Seeded random gallery ordering contract | Accepted |
 | [0010](0010-lightbox-preload-window.md) | AB#79 | Bounded adjacent-image lightbox preload window | Accepted |

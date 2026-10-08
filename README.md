@@ -440,7 +440,8 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - [ ] Scriptless 404 recovery (AB#132) — Next.js 16.3.8
   still needs JavaScript to show the 404 heading and invalid-continuation return
   link. [ADR-0007](docs/adr/0007-proxy-request-path-boundary.md#2026-10-05-merged-release-build-check-ab132)
-  records the 2026-10-05 check and pending owner decision; known-failure probes
+  records the checks and the owner-accepted temporary residual on 2026-10-07,
+  with review due 2026-10-08 and a fix still pending; known-failure probes
   keep it visible without declaring the journey fixed.
 - [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
   handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
