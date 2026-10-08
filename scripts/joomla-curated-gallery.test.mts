@@ -258,3 +258,9 @@ describe('curated gallery secondary category invariants', () => {
   expect(validateMigrationDocuments(ds)).toEqual([]);
  });
 });
+
+it.each(["publishedAt", "eventDate", "endDate"])("refuses reader-unsupported calendar years in copied %s", (field) => {
+  const ds = documents(); ds[1] = { ...ds[1]!, [field]: "0099-12-31T23:00:00-01:00" };
+  expect(validateCuratedGalleryDocuments(ds).join(" ")).toContain("supported by the public reader");
+  if (field !== "endDate") expect(validateMigrationDocuments(ds).join(" ")).toContain("supported by the public reader");
+});

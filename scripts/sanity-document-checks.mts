@@ -108,13 +108,13 @@ export function isRealCalendarDateTime(value: unknown): boolean {
     if (offsetHour > 23 || offsetMinute > 59) return false;
   }
 
-  // Only the calendar date (year/month/day) needs `Date.UTC`'s own round
+  // Only the calendar date (year/month/day) needs a UTC calendar round
   // trip — that is where a *real* invalid date (`2026-02-31`) actually lives.
   // Time-of-day fields are deliberately excluded from this construction so a
   // fractional-second rollover can never perturb it.
-  const utcMillis = Date.UTC(year, month - 1, day);
-  if (Number.isNaN(utcMillis)) return false;
-  const recomputed = new Date(utcMillis);
+  const recomputed = new Date(0);
+  // Date.UTC remaps years 0–99 to 1900–1999; this setter preserves the year.
+  recomputed.setUTCFullYear(year, month - 1, day);
   return (
     recomputed.getUTCFullYear() === year &&
     recomputed.getUTCMonth() === month - 1 &&
@@ -133,7 +133,8 @@ export function isRealCalendarDate(value: unknown): boolean {
  * the exact shape `src/lib/sanity-article.ts#isValidIsoDate` — the real,
  * already-shipped adapter that reads a Sanity document's own datetime
  * fields — requires: UTC `Z`, exactly three fractional digits. Returns
- * `undefined` for anything `isRealCalendarDateTime` itself would reject.
+ * `undefined` for invalid instants or UTC years outside 0100–9999, the
+ * current public reader’s supported range.
  *
  * `isRealCalendarDateTime` deliberately accepts a *wider* range of equally
  * real ISO spellings than that reader does — a numeric offset, no fractional
@@ -156,7 +157,22 @@ export function isRealCalendarDate(value: unknown): boolean {
  */
 export function canonicalCalendarDateTime(value: unknown): string | undefined {
   if (!isRealCalendarDateTime(value)) return undefined;
-  return new Date(value as string).toISOString();
+  const date = new Date(value as string);
+  // The public reader still remaps early years and requires four-digit UTC years.
+  // Keep this projection compatible until that reader gets its own reviewed fix.
+  const year = date.getUTCFullYear();
+  if (!Number.isFinite(year) || year < 100 || year > 9999) return undefined;
+  return date.toISOString();
+}
+
+/**
+ * Range guard for document values copied verbatim rather than canonicalized.
+ * Both the written and normalized UTC years must fit the existing reader.
+ * This preserves the callers' ISO spelling policy; it is not schema validation.
+ */
+export function hasReaderSupportedCalendarYears(value: unknown): boolean {
+  return typeof value === "string" && Number(value.slice(0, 4)) >= 100 &&
+    canonicalCalendarDateTime(value) !== undefined;
 }
 
 /** Reports every `_id` claimed by more than one document in the set. */

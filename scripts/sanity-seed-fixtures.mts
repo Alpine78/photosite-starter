@@ -72,7 +72,7 @@ import { createHmac } from "node:crypto";
 
 import {
   collectKeyViolations,
-  isRealCalendarDateTime,
+  hasReaderSupportedCalendarYears,
   referencedId,
 } from "./sanity-document-checks.mts";
 
@@ -1504,8 +1504,8 @@ export function validateSeedFixtures(documents: readonly SeedDocument[]): readon
         violations.push(`${doc._type} ${contentId}: a level-3 heading precedes the first level-2 heading`);
       }
 
-      if (!isRealCalendarDateTime(doc.publishedAt)) {
-        violations.push(`${doc._type} ${contentId}: publishedAt is not a real ISO calendar date`);
+      if (!hasReaderSupportedCalendarYears(doc.publishedAt)) {
+        violations.push(`${doc._type} ${contentId}: publishedAt is not a real ISO calendar date supported by the public reader`);
       }
     }
 

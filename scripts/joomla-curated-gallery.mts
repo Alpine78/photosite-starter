@@ -2,7 +2,7 @@
  * The write API bypasses Studio validation. Supports visible, unpinned placements
  * with manual or fully materialized seeded ordering, and plain named sections.
  */
-import { isRealCalendarDateTime, referencedId } from './sanity-document-checks.mts';
+import { hasReaderSupportedCalendarYears, referencedId } from './sanity-document-checks.mts';
 import { computeShuffledOrder } from '../src/lib/gallery-shuffle.ts';
 
 // Pinned by tests to the runtime/Studio ceiling; keep the owner-run Node CLI alias-free.
@@ -48,9 +48,9 @@ export function validateCuratedGalleryDocuments(documents: readonly Document[]):
     if (!nonBlank(d.language) || !language.test(d.language)) fail('invalid language');
     if (!nonBlank(d.title)) fail('title is required');
     if (!nonBlank(d.slug) || !identity.test(d.slug)) fail('invalid slug');
-    if (!isRealCalendarDateTime(d.publishedAt)) fail('publishedAt must be a real ISO instant');
+    if (!hasReaderSupportedCalendarYears(d.publishedAt)) fail('publishedAt must be a real ISO instant supported by the public reader');
     for (const field of ['eventDate', 'endDate']) {
-      if (d[field] !== undefined && !isRealCalendarDateTime(d[field])) fail(`${field} must be a real ISO instant`);
+      if (d[field] !== undefined && !hasReaderSupportedCalendarYears(d[field])) fail(`${field} must be a real ISO instant supported by the public reader`);
     }
     if (d.orderingRule === 'seeded-random') {
       if (!validSeed(d.orderingSeed)) fail('seeded-random requires a bounded, nonblank orderingSeed without surrounding whitespace');

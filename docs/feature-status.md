@@ -3243,3 +3243,12 @@ UTF-8 before parsing JSON, with their existing fixed errors and ownership checks
 A failed lookup cannot proceed to deletion. Assignment has already issued its POST
 when its response is read: a corrupt response leaves remote state unknown and calls
 for manual alias verification. Coverage uses synthetic responses, not provider changes.
+
+### AB#229 — early calendar years and public-reader bounds
+
+Generic calendar checks now validate written years 0000–0099 without Date.UTC's
+1900 remapping. Canonical projection retains the current public reader's UTC-year
+range 0100–9999, including offset crossings; migration and seed document guards use
+that compatible projection. This deliberately accepts real early calendar dates
+while keeping unsupported instants out of public document plans. The runtime reader
+is unchanged and its own early-year behavior remains a separate follow-up.
