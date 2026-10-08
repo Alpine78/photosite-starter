@@ -61,11 +61,11 @@ export type MeasuredQueryRequest = {
 
 export type MeasuredQueryResult = {
   readonly endpoint: BenchmarkEndpoint;
-  /** End-to-end: request start until the body has been fully read. */
+  /** Request start until all body bytes are read; excludes JSON decode and parse. */
   readonly wallMs: number;
   /** Sanity's own `ms` field, when present in the response body. */
   readonly serverMs: number | undefined;
-  /** Decompressed JSON response body length in bytes. */
+  /** Received decompressed response bytes, including any transport BOM. */
   readonly payloadBytes: number;
   /** `result.length` for an array result, `1` for a scalar (e.g. a `count()`), `0` for null. */
   readonly resultCount: number;
@@ -138,12 +138,21 @@ export async function runMeasuredQuery(
     throw new BenchmarkHttpError(timedOut ? "Request timed out" : "Request failed before a response");
   }
 
-  const text = await response.text();
-  const wallMs = performance.now() - startedAt;
-
   if (!response.ok) {
+    // Observe cleanup without letting a stalled cancel delay the status error.
+    try { void response.body?.cancel().catch(() => {}); } catch { /* fixed status wins */ }
     throw new BenchmarkHttpError(`Query failed with HTTP ${response.status}`, response.status);
   }
+  let bytes: ArrayBuffer;
+  try { bytes = await response.arrayBuffer(); }
+  catch (cause) {
+    const timedOut = cause instanceof DOMException && (cause.name === "TimeoutError" || cause.name === "AbortError");
+    throw new BenchmarkHttpError(timedOut ? "Response body timed out" : "Response body could not be read");
+  }
+  const wallMs = performance.now() - startedAt;
+  let text: string;
+  try { text = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  catch { throw new BenchmarkHttpError("Query returned invalid UTF-8"); }
 
   let body: unknown;
   try {
@@ -168,7 +177,7 @@ export async function runMeasuredQuery(
     endpoint: request.endpoint,
     wallMs,
     serverMs: typeof serverMsRaw === "number" ? serverMsRaw : undefined,
-    payloadBytes: new TextEncoder().encode(text).length,
+    payloadBytes: bytes.byteLength,
     resultCount: Array.isArray(result) ? result.length : result === null ? 0 : 1,
     result,
     cacheHeaders,

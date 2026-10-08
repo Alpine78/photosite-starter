@@ -165,3 +165,39 @@ describe("runRepeatedQuery / countAllDocuments", () => {
     ).rejects.toThrow(BenchmarkHttpError);
   });
 });
+
+describe("benchmark response integrity", () => {
+  const request = { query: "count(*)", endpoint: "api" } as const;
+  const run = (response: Response) => runMeasuredQuery(CONNECTION, request, { fetchImplementation: vi.fn().mockResolvedValue(response) });
+  it.each([new Error("synthetic-provider-detail"), new DOMException("synthetic-provider-detail", "TimeoutError")])
+    ("redacts body stream errors and preserves timeout classification: %s", async (error) => {
+      const response = new Response(new ReadableStream({ start(controller) { controller.error(error); } }));
+      const result = await run(response).catch((failure: unknown) => failure);
+      expect(result).toBeInstanceOf(BenchmarkHttpError);
+      expect(result).toMatchObject({ status: undefined, message: `[keyword-benchmark-http] ${error.name === "TimeoutError" ? "Response body timed out" : "Response body could not be read"}` });
+      expect(result).not.toHaveProperty("cause");
+      expect(String(result)).not.toContain("synthetic-provider-detail");
+      expect((result as Error).stack).not.toContain("synthetic-provider-detail");
+    });
+  it("classifies HTTP failure without consuming or awaiting a stalled body", async () => {
+    const cancel = vi.fn(() => new Promise<void>(() => {}));
+    const response = new Response(new ReadableStream({ pull() { return new Promise<void>(() => {}); }, cancel }), { status: 503 });
+    const read = vi.spyOn(response, "arrayBuffer"), text = vi.spyOn(response, "text"), json = vi.spyOn(response, "json");
+    await expect(run(response)).rejects.toMatchObject({ status: 503, message: "[keyword-benchmark-http] Query failed with HTTP 503" });
+    expect(cancel).toHaveBeenCalledOnce(); expect(read).not.toHaveBeenCalled(); expect(text).not.toHaveBeenCalled(); expect(json).not.toHaveBeenCalled();
+  });
+  it("observes cancellation rejection without replacing the HTTP status", async () => {
+    const response = new Response(new ReadableStream({ cancel() { return Promise.reject(new Error("synthetic-provider-detail")); } }), { status: 502 });
+    await expect(run(response)).rejects.toMatchObject({ status: 502 });
+    await expect(run(new Response(null, { status: 502 }))).rejects.toMatchObject({ status: 502 });
+  });
+  it.each([[0xff], [0xc0, 0x80], [0xe2, 0x82]].map(bytes => ({ bytes })))("rejects malformed UTF-8 inside otherwise parseable JSON: %j", async ({ bytes: corruption }) => {
+    const bytes = Buffer.concat([Buffer.from('{"result":"'), Buffer.from(corruption), Buffer.from('"}')]);
+    await expect(run(new Response(bytes))).rejects.toMatchObject({ message: "[keyword-benchmark-http] Query returned invalid UTF-8" });
+  });
+  it.each([false, true])("measures received Unicode bytes, including a leading BOM: %s", async (bom) => {
+    const body = { result: "\u00e4\u20ac\ud83d\ude00\ufffd", ms: 4 };
+    const bytes = Buffer.concat([bom ? Buffer.from([0xef, 0xbb, 0xbf]) : Buffer.alloc(0), Buffer.from(JSON.stringify(body))]);
+    expect(await run(new Response(bytes))).toMatchObject({ result: body.result, serverMs: 4, payloadBytes: bytes.byteLength, resultCount: 1 });
+  });
+});
