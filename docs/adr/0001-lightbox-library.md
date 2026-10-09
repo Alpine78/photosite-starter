@@ -329,6 +329,21 @@ them. AB#141 remains **Active** after its earlier New → Active transition, pen
 the remaining acceptance evidence and review/merge of this record. No defect was
 reported; no lightbox code or AB#78 acceptance criterion changed.
 
+### 2026-10-09 owner clarification of the earlier phone test (AB#141)
+
+The owner identifies the tested gallery as **VAT-portfolio** and individually
+confirms single-tap chrome toggle, double-tap and two-finger pinch zoom, edge-bound
+pan without an empty gap, the caption moving out of the way while zoomed, and
+closing resetting zoom and restoring normal page interaction. Device, OS/browser
+and deployment are the same owner-reported October 8 test identified above. The
+exact gallery pathname was not supplied and is not inferred from its name.
+
+These confirmations narrow the earlier missing observations; they do not transfer
+the physical test to the subsequently promoted compatible candidate. An explicit
+maximum-pinch/unchanged-ratio confirmation is still pending. AB#141 remains Active,
+with no defect reported or lightbox code change. The historical automated-vs-physical
+coverage distinction remains valid.
+
 ## What implementation found (AB#147 — content-body images)
 
 This ADR framed the wrapper as the gallery grid's single contact surface with the
