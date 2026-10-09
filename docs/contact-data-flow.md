@@ -504,3 +504,35 @@ the mailbox recovery window after upgrading is not proof of physical backup eras
 The owner's deletion practice concerns active correspondence and own copies, with
 necessary contractual/legal exceptions, rather than a blanket promise for every
 provider's technical records. Provider questions are prepared locally and not sent.
+
+### 2026-10-08 owner-approved notice publication (AB#117/137)
+
+The owner approved the exact private FI/EN notice. A revision-guarded patch set only
+`contact.privacyNotice` in the existing published settings document. Independent
+raw and anonymous published reads confirmed the approved values, preservation of
+every other settings field apart from the provider revision/update timestamp, and
+unchanged revisions for all other dataset documents. A new complete post-notice
+baseline was captured read-only and verified with all 3,593 raw documents and
+1,748 asset binaries; the pre-notice baseline was retained. The two archives'
+asset bytes match. Repeat freshness immediately before bulk import.
+
+Initial contact GETs still showed cached old copy. Two signed recovery requests
+were accepted, after which both the old serving deployment and protected candidate
+returned all four approved Finnish paragraphs in rendered HTML. The candidate
+remained noindex and aliases/bypass inventory were unchanged. The English notice
+was verified in published CMS reads; no English rendered-route check is claimed.
+No form submission or bulk import occurred. Hosting suitability and the broader
+provider/privacy review remain open. The subsequent owner-approved signing
+maintenance updated both environment keys and the existing hook secret, replaced
+current runtimes, and retired the three approved old deployments. The public
+application source and contact-delivery project settings remain unchanged. All raw
+CMS revisions still match the post-notice baseline.
+
+The [security/privacy record](security-privacy-review.md#2026-10-08-approved-notice-and-operator-signing-key-incident-ab117)
+records the 80 additional protected historical runtimes and the separately approved
+October 9 Preview-hook dataset correction. The hook now follows its receiver's
+actual `production` data source; readback verified that every other hook setting
+was preserved. Direct signed receiver tests passed, with all 3,593 raw document
+IDs/revisions/types unchanged. Automatic Sanity delivery on a genuine CMS event
+and complete historical-key revocation remain unverified. No new form submission,
+mail delivery, CMS document write, billing or DNS change occurred during maintenance.

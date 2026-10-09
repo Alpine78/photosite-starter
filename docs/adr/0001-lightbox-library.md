@@ -300,6 +300,35 @@ and AB#78 stays open until it is:
   glass. Before launch, perform that check on one real device and record device,
   OS/browser, the tap / pinch / pan / close behaviour observed, and the result.
 
+### 2026-10-08 owner-reported physical-phone check (AB#141)
+
+The owner reports a successful real-device test on **iPhone 16 Pro Max**, using
+**Safari on iOS 26.7.1** (versions reported by the owner). The tested deployment is
+`photosite-starter-2yvrqechj-ilkka-rytkonens-projects.vercel.app`, identified by the
+owner's dashboard link as `dpl_6PCmpGqTX6MaYLaEMnSrjrmnrRjF`. This is the existing
+Production version; the deployment audit records source
+`110dd006832da155141401d06d0c742e43a7fd0b`. That immutable URL was subsequently
+retired in the owner-approved signing-key maintenance. Its historical test evidence
+is retained; current Production uses a replacement with the same source archive.
+The observation does not certify the
+protected candidate built from `8e3efe625d03726ff5db04e57da3b8a6b9e83bc7`.
+
+| Owner-reported check | Result |
+| --- | --- |
+| Gallery and zoom on a physical phone | Worked well; zoom worked perfectly |
+| Switching between images | Tried successfully within the reported working gallery |
+| Moving a magnified image | Tried successfully within the reported working gallery |
+| Closing and reopening the gallery | Tried successfully within the reported working gallery |
+
+These are owner observations, not an automated gesture test. The exact gallery
+path, single-tap chrome toggle, double-tap and two-finger pinch, zoom cap,
+edge-bound pan/no gap, caption hiding, and explicit zoom/pan reset and page
+interaction after close have not been individually confirmed. Those remaining
+observations were requested; the general success report is not substituted for
+them. AB#141 remains **Active** after its earlier New → Active transition, pending
+the remaining acceptance evidence and review/merge of this record. No defect was
+reported; no lightbox code or AB#78 acceptance criterion changed.
+
 ## What implementation found (AB#147 — content-body images)
 
 This ADR framed the wrapper as the gallery grid's single contact surface with the
