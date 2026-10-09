@@ -3,7 +3,8 @@
  * decide without guessing at a not-yet-migrated content target.
  *
  * A clone with no Joomla migration empties {@link RETIRED_TAG_PATHS},
- * {@link STRUCTURAL_REDIRECT_ENTRIES}, and
+ * {@link STRUCTURAL_REDIRECT_ENTRIES},
+ * {@link PUBLISHED_SERVICE_REDIRECT_ENTRIES}, and
  * {@link PUBLISHED_CONTENT_REDIRECT_ENTRIES} to `[]` — the same way a clone edits
  * `mock-content-tree.ts`'s own fixture content to be its own, rather than
  * deleting that file — leaving {@link LEGACY_REDIRECTS} an empty map with
@@ -18,7 +19,7 @@
  * (`legacy-redirects.ts`) stays either way; only this row data is
  * first-site-specific.
  *
- * Three kinds of decided row live here, kept in separate lists because their
+ * Four kinds of decided row live here, kept in separate lists because their
  * evidence and validation differ:
  *
  * {@link RETIRED_TAG_PATHS} is every Joomla tag/keyword-browsing page
@@ -37,8 +38,7 @@
  * removes a tag-shaped path must fail that test until the change is
  * reviewed, rather than silently reclassifying an unreviewed row — the same
  * mistake this AB#19 pass caught and corrected for `component/komento/*`
- * (Komento Gallery, a real Joomla photo-gallery component, not a defunct
- * system route) and `sivustokartta/*` (real content reached through a
+ * (unresolved profile routes) and `sivustokartta/*` (real content reached through a
  * Joomla-minted alias, not a generic sitemap page). Both stay `pending` in
  * `legacy-redirects-tracking.ts`, not here.
  *
@@ -343,6 +343,112 @@ export const STRUCTURAL_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
     outcome: {
       kind: "redirect" as const,
       target: "/services",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+];
+
+/**
+ * Owner-approved service mappings from ADR-0021. Their published source menu
+ * identities were checked in the fresh Joomla backup, and all seven direct
+ * targets returned 200 with matching language and canonical metadata on the
+ * activated Production renderer (2026-10-09). Redundant Finnish prefixes
+ * resolve straight to the same target. Other unreviewed wedding-package URLs stay pending.
+ */
+export const PUBLISHED_SERVICE_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
+  {
+    source: "/haakuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/haakuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/haakuvaus/miljoomuotokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/miljoomuotokuvaus",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/haakuvaus/miljoomuotokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/miljoomuotokuvaus",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/haakuvaus/vihkiseremonia-muotokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/vihkiseremonia-ja-miljoomuotokuvat",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/haakuvaus/vihkiseremonia-muotokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/vihkiseremonia-ja-miljoomuotokuvat",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/haakuvaus/puoli-paivaa",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/puoli-paivaa",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/haakuvaus/puoli-paivaa",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/puoli-paivaa",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/haakuvaus/koko-paiva",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/koko-paiva",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/haakuvaus/koko-paiva",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/koko-paiva",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/wedding",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/services/wedding-photography",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/wedding/portraits",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/services/wedding-photography/portraits",
       reservedQueryParams: "strip" as const,
     },
   },
@@ -656,6 +762,7 @@ export const LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
     outcome: { kind: "gone" as const, reason: GONE_REASON },
   })),
   ...STRUCTURAL_REDIRECT_ENTRIES,
+  ...PUBLISHED_SERVICE_REDIRECT_ENTRIES,
   ...PUBLISHED_CONTENT_REDIRECT_ENTRIES,
 ];
 
