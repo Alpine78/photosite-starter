@@ -600,11 +600,19 @@ function migrationToken(): string {
   );
 }
 
+
+export function parseServicePlanBytes(bytes: Uint8Array): unknown {
+  try {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes));
+  } catch {
+    throw new Error("service plan must be valid UTF-8 JSON without a BOM");
+  }
+}
+
 async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
   // Preserve the existing BOM behavior; malformed UTF-8 must never become replacement text.
-  const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(options.plan));
-  const parsed: unknown = JSON.parse(text);
+  const parsed: unknown = parseServicePlanBytes(await readFile(options.plan));
   const validated = validateServiceWritePlan(parsed);
   if (validated.plan === undefined) {
     throw new Error(

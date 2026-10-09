@@ -3377,3 +3377,7 @@ The foundation writer's raw query includes planned published and draft IDs regar
 ### AB#243 — service preflight row integrity
 
 The service writer refuses malformed or repeated identity rows instead of dropping them from its route collision graph. Foreign service route identity fields must be bounded nonblank strings without control characters; a malformed optional parent is not treated as a root service. The raw query also includes services lacking language so they cannot disappear at that filter. Synthetic tests retain normal reruns and draft/type collisions. This guards returned rows and absent languages, not all unrelated-locale data or concurrent edits, and performs no live import.
+
+### AB#244 — opaque writer plan parser failures
+
+Service, category and foundation writer CLIs use fixed role-specific errors for invalid UTF-8, BOM and JSON without preserving native parser excerpts or causes. Pure byte-parser tests preserve valid Unicode; guarded --yes subprocess tests prove malformed input stops before credentials or network work. Existing filesystem errors, plan validation and digest computation are unchanged. This parser-only repair does not redact every authored validation issue or perform a live import.
