@@ -16,6 +16,7 @@ import {
   runSeedMutationBatches,
   runSeedQuery,
   type SeedConnection,
+  type SeedQueryRequest,
 } from "./sanity-seed-http.mts";
 
 export const SERVICE_WRITE_PLAN_VERSION = "sanity-service-write-plan-v1";
@@ -406,15 +407,21 @@ export function serviceWriteWaves(
 }
 
 export function serviceDatasetIssues(
-  existing: readonly ExistingDocument[],
+  existing: readonly unknown[],
   planned: readonly ServiceWriteDocument[],
 ): readonly string[] {
   const issues: string[] = [];
   const plannedById = new Map(planned.map((document) => [document._id, document]));
   const foreignServices: ServiceWriteDocument[] = [];
 
+  const seen = new Set<string>();
+  const boundedIdentity = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0 && value.length <= 128 && !/[\u0000-\u001f\u007f]/u.test(value);
   for (const row of existing) {
-    if (typeof row._id !== "string") continue;
+    if (!isRecord(row) || !boundedIdentity(row._id) || !boundedIdentity(publishedIdOf(row._id)) || !boundedIdentity(row._type)) {
+      issues.push("Sanity service preflight has malformed identity rows"); continue;
+    }
+    if (seen.has(row._id)) { issues.push("Sanity service preflight repeats a document ID"); continue; }
+    seen.add(row._id);
     const publishedId = publishedIdOf(row._id);
     const replacement = plannedById.get(publishedId);
     if (replacement !== undefined) {
@@ -444,6 +451,9 @@ export function serviceDatasetIssues(
       }
       continue;
     }
+    if (row._type === "service" && (!boundedIdentity(row.serviceId) || !boundedIdentity(row.language) || !boundedIdentity(row.slug) || (row.parentServiceId !== undefined && row.parentServiceId !== null && !boundedIdentity(row.parentServiceId)))) {
+      issues.push("Sanity service preflight has malformed route identity rows"); continue;
+    }
     if (
       row._type === "service" &&
       typeof row.serviceId === "string" &&
@@ -471,25 +481,26 @@ export function serviceDatasetIssues(
   return [...new Set(issues)].sort();
 }
 
-async function preflight(
-  connection: SeedConnection,
-  documents: readonly ServiceWriteDocument[],
-): Promise<readonly string[]> {
+export function buildServicePreflightQuery(documents: readonly ServiceWriteDocument[]): SeedQueryRequest {
   const publishedIds = documents.map((document) => document._id);
   const ids = [
     ...publishedIds,
     ...publishedIds.map((id) => `drafts.${id}`),
   ];
   const languages = [...new Set(documents.map((document) => document.language))];
-  const result = await runSeedQuery(connection, {
+  return {
     perspective: "raw",
-    query: `*[_id in $ids || (_type == "service" && language in $languages)]{
+    query: `*[_id in $ids || (_type == "service" && (language in $languages || !defined(language)))]{
       _id, _type, serviceId, language, parentServiceId, slug,
       name, shortDescription, description, order,
       coverMedia, startingPrice, pricing
     }`,
     params: { ids, languages },
-  });
+  };
+}
+
+export async function preflightServices(connection: SeedConnection, documents: readonly ServiceWriteDocument[], runQuery: typeof runSeedQuery = runSeedQuery): Promise<readonly string[]> {
+  const result = await runQuery(connection, buildServicePreflightQuery(documents));
   if (!Array.isArray(result)) return ["Sanity preflight returned a malformed result"];
   return serviceDatasetIssues(
     result.map(normalizeServiceReadback) as readonly ExistingDocument[],
@@ -589,11 +600,19 @@ function migrationToken(): string {
   );
 }
 
+
+export function parseServicePlanBytes(bytes: Uint8Array): unknown {
+  try {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes));
+  } catch {
+    throw new Error("service plan must be valid UTF-8 JSON without a BOM");
+  }
+}
+
 async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
   // Preserve the existing BOM behavior; malformed UTF-8 must never become replacement text.
-  const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(options.plan));
-  const parsed: unknown = JSON.parse(text);
+  const parsed: unknown = parseServicePlanBytes(await readFile(options.plan));
   const validated = validateServiceWritePlan(parsed);
   if (validated.plan === undefined) {
     throw new Error(
@@ -637,7 +656,7 @@ async function main(): Promise<void> {
     token: migrationToken(),
   });
 
-  const preflightIssues = await preflight(connection, documents);
+  const preflightIssues = await preflightServices(connection, documents);
   if (preflightIssues.length > 0) {
     throw new Error(
       `target dataset failed ${preflightIssues.length} preflight check(s): ${preflightIssues.join("; ")}`,

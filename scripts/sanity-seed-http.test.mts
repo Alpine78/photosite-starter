@@ -349,3 +349,27 @@ describe("uploadSeedImageAsset", () => {
     ).rejects.toBeInstanceOf(SanitySeedHttpError);
   });
 });
+
+
+describe("upload response metadata boundary (AB#240)", () => {
+  const connection = parseSeedConnection(VALID_CONNECTION);
+  const valid = { _id: "image-synthetic", extension: "webp", mimeType: "image/webp", metadata: { dimensions: { width: 1200, height: 800 } } };
+  const bodies: unknown[] = [null, [], "SYNTHETIC_PRIVATE", { document: null }, { document: [] },
+    { document: { ...valid, _id: "  " } }, { document: { ...valid, metadata: [] } },
+    { document: { ...valid, metadata: { dimensions: [] } } },
+    ...[0, -1, 1.5, 1e21, Number.MAX_SAFE_INTEGER + 1, "100", null].flatMap(value =>
+      ["width", "height"].map(field => ({ document: { ...valid, metadata: { dimensions: { ...valid.metadata.dimensions, [field]: value } } } }))),
+    { document: { ...valid, mimeType: "SYNTHETIC_PRIVATE" } },
+    { document: { ...valid, metadata: { dimensions: { width: 4000, height: 800 } } } }];
+  it.each(bodies.map((body, index) => ({ body, index })))("refuses bad metadata case $index before mutation without echoing it", async ({ body }) => {
+    const send = vi.fn(async (url: string | URL | Request) => { void url; return jsonResponse(body); });
+    const error = await uploadSeedImageAsset(connection, { bytes: new Uint8Array([1]), contentType: "image/webp" },
+      { maxDimension: 2048, formatsByExtension: { webp: "image/webp" } }, { fetchImplementation: send as typeof fetch }).catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(SanitySeedHttpError);
+    expect((error as Error).message).not.toMatch(/SYNTHETIC_PRIVATE|image-synthetic|4000|1200|800/);
+    expect((error as Error).message).not.toContain(TOKEN);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(String(send.mock.calls[0]?.[0])).toContain("/assets/images/");
+    expect(String(send.mock.calls[0]?.[0])).not.toContain(TOKEN);
+  });
+});
