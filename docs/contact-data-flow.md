@@ -529,8 +529,10 @@ application source and contact-delivery project settings remain unchanged. All r
 CMS revisions still match the post-notice baseline.
 
 The [security/privacy record](security-privacy-review.md#2026-10-08-approved-notice-and-operator-signing-key-incident-ab117)
-records the 80 additional protected historical runtimes and the existing Preview
-hook's dataset mismatch. Those are open findings, not proof of a working
-CMS-triggered hook or complete revocation. The dataset change was rejected by
-automatic approval review and was not made. No new form submission, mail delivery,
-CMS document write, billing or DNS change occurred during maintenance.
+records the 80 additional protected historical runtimes and the separately approved
+October 9 Preview-hook dataset correction. The hook now follows its receiver's
+actual `production` data source; readback verified that every other hook setting
+was preserved. Direct signed receiver tests passed, with all 3,593 raw document
+IDs/revisions/types unchanged. Automatic Sanity delivery on a genuine CMS event
+and complete historical-key revocation remain unverified. No new form submission,
+mail delivery, CMS document write, billing or DNS change occurred during maintenance.
