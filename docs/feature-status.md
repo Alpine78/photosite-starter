@@ -3381,3 +3381,7 @@ The service writer refuses malformed or repeated identity rows instead of droppi
 ### AB#244 — opaque writer plan parser failures
 
 Service, category and foundation writer CLIs use fixed role-specific errors for invalid UTF-8, BOM and JSON without preserving native parser excerpts or causes. Pure byte-parser tests preserve valid Unicode; guarded --yes subprocess tests prove malformed input stops before credentials or network work. Existing filesystem errors, plan validation and digest computation are unchanged. This parser-only repair does not redact every authored validation issue or perform a live import.
+
+### AB#245 — content audit response diagnostics
+
+Malformed audit pages, rows, field values and pagination cursor IDs are no longer serialized into errors. Fixed field/page diagnostics retain useful locations. Counts require nonnegative safe integers and every non-null projected dimension requires a positive safe integer, including metadata on non-asset rows; null still represents absent dimensions. Synthetic response/cursor redaction and numeric-boundary tests retain the successful presence-only report. Operator configuration diagnostics and the existing count-only consistency limitation remain outside this response-only repair. No live audit or CMS change was performed.
