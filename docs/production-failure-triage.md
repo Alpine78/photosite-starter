@@ -182,7 +182,7 @@ form fields, exception messages, URLs or raw lines. Unknown/extra fields, malfor
 records, missing IDs and conflicting terminal outcomes count as invalid evidence.
 
 Repeated accepted or identical terminal events count once per family/correlation.
-An accepted-only correlation is incomplete. Expected input/item refusals and honeypots
+An accepted-only correlation, or a delivered/delivery-failed correlation missing its accepted event, is incomplete. Terminal-before-accepted ordering is accepted when both events are present; rejection-only refusals do not require an accepted event. Expected input/item refusals and honeypots
 are separated from delivery failures and rejected source/runtime defects. Every
 `delivery-failed` event is a failure. Exit 0 means complete valid supplied evidence,
 1 means observed failures, and 2 means invalid or incomplete evidence (including empty
