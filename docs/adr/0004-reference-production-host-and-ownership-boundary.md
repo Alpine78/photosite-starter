@@ -828,3 +828,19 @@ capability is unaffected. The October 8/15 launch decisions remain in force.
 AB#18 comment `59467` records the preference; AB#18 and AB#117 remain
 Active. Account-specific log/backup retention still needs verification against
 the eventual serving environment. This amendment does not close those gates.
+
+## Amendment 2026-10-09 — owner-selected active Pro for the commercial launch
+
+The owner superseded the October 7 temporary Hobby preference: start the commercial
+photography launch on Pro, and reconsider Hobby only if the commercial services
+are later removed. The owner performed the upgrade; authenticated October 9
+readback of the existing project-owning team confirms `billing.plan=pro` and
+`billing.status=active`. No new team, account transfer or operator purchase was
+performed. The [dated launch checkpoint](../audits/ab137-production-launch-2026-10-09.md)
+records the exact compatible Production promotion and pending custom-domain gates.
+
+This resolves the actual hosting-tier mismatch for that activation. It does not
+replace the provider-telemetry/privacy boundary above, enable Observability Plus
+or imply that AB#117 and AB#18 have closed. Earlier dated Hobby observations remain
+historical evidence. Any later downgrade needs the then-current commercial scope
+and provider conditions checked before it changes the serving account.
