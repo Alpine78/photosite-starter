@@ -431,10 +431,19 @@ export function parseArguments(argv: readonly string[]): Options {
 function required(value: string | undefined, message: string): string { if (value === undefined || value.trim().length === 0) throw new Error(message); return value; }
 function migrationToken(): string { if (process.env.NEXT_PUBLIC_SANITY_MIGRATION_TOKEN?.trim()) throw new Error("NEXT_PUBLIC_SANITY_MIGRATION_TOKEN must be removed; a write credential must never be public"); return required(process.env.SANITY_MIGRATION_TOKEN, "SANITY_MIGRATION_TOKEN is required for --yes"); }
 
+
+export function parseFoundationPlanBytes(bytes: Uint8Array): unknown {
+  try {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes));
+  } catch {
+    throw new Error("foundation plan must be valid UTF-8 JSON without a BOM");
+  }
+}
+
 async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
   // Preserve the existing BOM behavior; malformed UTF-8 must never become replacement text.
-  const validated = validateFoundationWritePlan(JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(options.plan))) as unknown);
+  const validated = validateFoundationWritePlan(parseFoundationPlanBytes(await readFile(options.plan)));
   if (validated.plan === undefined) throw new Error(`foundation plan failed ${validated.issues.length} check(s): ${validated.issues.join("; ")}`);
   const digest = foundationDocumentsDigest(validated.plan.documents);
   console.log(`Foundation plan valid: ${validated.plan.documents.length} singleton document(s).`);

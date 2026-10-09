@@ -404,10 +404,19 @@ function migrationToken(): string {
   return requiredValue(process.env.SANITY_MIGRATION_TOKEN, "SANITY_MIGRATION_TOKEN is required for --yes");
 }
 
+
+export function parseCategoryPlanBytes(bytes: Uint8Array): unknown {
+  try {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes));
+  } catch {
+    throw new Error("category plan must be valid UTF-8 JSON without a BOM");
+  }
+}
+
 async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
   // Preserve the existing BOM behavior; malformed UTF-8 must never become replacement text.
-  const validated = validateCategoryWritePlan(JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(options.plan))) as unknown);
+  const validated = validateCategoryWritePlan(parseCategoryPlanBytes(await readFile(options.plan)));
   if (validated.plan === undefined) throw new Error(`category plan failed ${validated.issues.length} check(s): ${validated.issues.join("; ")}`);
   const { documents } = validated.plan;
   const digest = categoryDocumentsDigest(documents);

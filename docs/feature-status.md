@@ -3316,3 +3316,8 @@ The [dated post-merge checkpoint](audits/launch-readiness-2026-10-08.md) records
 The [afternoon checkpoint](audits/ab137-production-preparation-2026-10-08.md) binds full main CI #719, a protected Production prebuilt candidate and all 611 uploaded artifact members to exact merged source `8e3efe625d03726ff5db04e57da3b8a6b9e83bc7`. Thirty current-content GETs, four live Production adapter tests and the exact fourteen-version rich-block compatibility check passed. The new complete baseline preserves 3,593 raw documents and all 1,748 asset binaries; binary headers and all 3,512 approved derivatives passed their bounded privacy/dimension checks. Both writer dry runs and zero-collision/shared-asset guards are current.
 
 The old public renderer remains active. The refreshed FI/EN notice is a private revision-bound single-field proposal, not a CMS write. Actual Hobby hosting/DPA applicability, notice publication, approved import, post-write audit/revocation, legacy verification and physical-device checks remain launch work. AB#137, AB#117, AB#132 and AB#18 remain Active. Existing content/risk/account approvals are preserved; no new ten-task batch or roadmap expansion was started.
+
+
+### AB#244 — opaque writer plan parser failures
+
+Service, category and foundation writer CLIs use fixed role-specific errors for invalid UTF-8, BOM and JSON without preserving native parser excerpts or causes. Pure byte-parser tests preserve valid Unicode; guarded --yes subprocess tests prove malformed input stops before credentials or network work. Existing filesystem errors, plan validation and digest computation are unchanged. This parser-only repair does not redact every authored validation issue or perform a live import.
