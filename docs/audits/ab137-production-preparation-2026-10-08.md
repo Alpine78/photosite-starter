@@ -2,7 +2,11 @@
 
 The approved batch is ready for its next operational gates: a new complete baseline,
 current collision/derivative checks, and a source-bound protected Production candidate
-are verified. Public activation and the actual import remain open. AB#137, AB#117,
+are verified. The owner-approved contact notice has since been published with a new
+complete post-notice baseline. Compatible-renderer activation and the actual import remain open. The later
+owner-approved signing-key maintenance changed deployment IDs while retaining
+the old public application source; see the current maintenance record below.
+AB#137, AB#117,
 AB#132 and AB#18 remain Active; this record issues no GO decision.
 
 This afternoon checkpoint supersedes the current-state observations in the
@@ -29,7 +33,9 @@ explicit Active → Closed updates; the other seven were already Closed after me
 | [#302](https://github.com/Alpine78/photosite-starter/pull/302) | `a54bc1b1ecf5c06186b3dd6df66ce9c56a2fdfb2` | [716](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=716) | AB#238 Closed |
 | [#303](https://github.com/Alpine78/photosite-starter/pull/303) | `8e3efe625d03726ff5db04e57da3b8a6b9e83bc7` | [718](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=718) | AB#239 Closed |
 
-Final main is `8e3efe625d03726ff5db04e57da3b8a6b9e83bc7`. Main CI
+Main after that ordered batch was `8e3efe625d03726ff5db04e57da3b8a6b9e83bc7`.
+PR #304 later merged this preparation documentation at
+`8504a5d0917183b7cbfc35bab4b9ff90e560525f`. Main CI
 [#719](https://dev.azure.com/ilkkarytkonen/photosite-starter/_build/results?buildId=719)
 completed successfully with both actual **Verify** and **DeployPreview** stages.
 Intermediate duplicate main jobs were cancelled only after verifying tree equality
@@ -45,7 +51,11 @@ hash-verified in owner-only ignored preservation storage. Branch refs were retai
 The owner's primary checkout was preserved. The temporary merge coordinator was also retired after the protected checks,
 preserving its 97 local files separately: twelve retired worktrees, 467 preserved files. VS Code's repository UI was not inspected.
 
-## Protected Production candidate
+## Protected Production candidate — afternoon evidence
+
+This section records the original afternoon deployment checks. The later
+credential-maintenance replacement preserves its exact source archive; the current
+identities and residuals are recorded below.
 
 A manual prebuilt candidate from that exact main revision is READY. The build used
 15 allow-listed public Production settings, Node 24.20.0, Next.js 16.3.8 and Vercel
@@ -92,8 +102,8 @@ is preserved; this check records no new acceptance or GO decision. AB#132 stays 
 
 ## Fresh Production baseline and approved import guards
 
-A new exclusive, owner-only complete baseline was captured on October 8 using a
-credential whose effective permissions allow only read/history. It contains **3,593
+Before the notice write, a new exclusive, owner-only complete baseline was captured
+on October 8 using a credential whose effective permissions allow only read/history. It contains **3,593
 raw documents**, all IDs/revisions/types, provider-owned system records and a normal
 importable export with **1,748 asset binaries**. Every binary's SHA-1/size agrees with
 its asset ID/metadata; normal export references and metadata agree with the raw snapshot.
@@ -136,9 +146,96 @@ bandwidth usage or a guarantee against charges. Growth is owner-confirmed;
 its plan was not independently returned by the inspected metadata. Sanity region was
 also not returned and has not been guessed from a hostname or community answer.
 
+## Owner-approved notice publication and physical-phone report
+
+The owner approved the exact private FI/EN notice. The published settings patch
+changed only `contact.privacyNotice` plus provider revision/update timestamp;
+independent raw and anonymous published reads matched the approved values and all
+other document revisions remained unchanged. A second complete read-only baseline
+after the notice write was verified: 3,593 raw documents, 1,748 assets and unchanged
+asset-byte proofs. Both archives are retained; use the post-notice baseline and
+repeat freshness immediately before the future bulk write. No live restore or
+independent-machine backup copy is claimed.
+
+Both the old serving deployment and protected candidate now render all four
+approved Finnish paragraphs after two accepted signed cache-recovery requests.
+The candidate remains noindex and aliases/bypass inventory are unchanged. English
+copy is verified in published CMS reads, not an English rendered-route check.
+
+The owner reports a successful gallery/zoom test on iPhone 16 Pro Max, Safari,
+iOS 26.7.1, at the existing Production deployment
+`photosite-starter-2yvrqechj-ilkka-rytkonens-projects.vercel.app`
+(`dpl_6PCmpGqTX6MaYLaEMnSrjrmnrRjF`). Switching images, moving a magnified image,
+and closing/reopening the gallery were tried. This is evidence for the old serving
+version, not the protected candidate. The [ADR test record](../adr/0001-lightbox-library.md#2026-10-08-owner-reported-physical-phone-check-ab141)
+lists the remaining gallery-path and individual gesture/bound/reset observations.
+AB#141 remains Active; no new state transition or acceptance closure is claimed.
+
+A local operator diagnostic exposed active Preview/Production webhook-signing
+values. The corrected helper withholds values. The [security/privacy record](../security-privacy-review.md#2026-10-08-approved-notice-and-operator-signing-key-incident-ab117)
+distinguishes the original probes and recovery from the subsequently approved
+maintenance. Historical-key remediation and automatic hook delivery verification
+remain open; the three authorized retirements are complete. The separately
+approved October 9 dataset correction is recorded below.
+
+## Owner-approved signing maintenance — current identities
+
+| Role | Current deployment | Application source |
+| --- | --- | --- |
+| Serving Production maintenance replacement | `dpl_6mhVWnBUHLgxAkMuj5chRLEnckKP` | `110dd006832da155141401d06d0c742e43a7fd0b` |
+| Protected compatible Production candidate | `dpl_44SDGwpPtrcZDTFDAHLTBLvHBneU` | `8e3efe625d03726ff5db04e57da3b8a6b9e83bc7` |
+| Stable Preview published by CI during maintenance | `dpl_GBFgYEbScpHyqyM3G2YvRf9UhxAb` | `8504a5d0917183b7cbfc35bab4b9ff90e560525f` |
+
+Distinct Production/Preview signing secrets were replaced; both old keys are
+rejected by current receivers. Direct signed reconciliation, current aliases,
+contact notice and gallery GETs passed. Original source-archive UIDs and output
+paths match the maintenance replacements. The serving replacement additionally
+receives the already-configured contact settings and provider runtime flags that
+were absent from its historical environment-name list; no original variable name
+was removed or unrelated project variable changed. No new contact POST was sent.
+
+The three approved old deployments were deleted and return provider
+`404 DEPLOYMENT_NOT_FOUND`. Current immutable versions remain access-protected and
+noindex; bypass inventory is unchanged. The extra protected Preview replacement
+built from the ordered-batch source was retained as evidence rather than replacing
+CI's newer stable Preview. All 3,593 raw document revisions match the post-notice
+baseline after maintenance; no new CMS document write occurred.
+
+Global revocation is **not** established: 80 other protected historical versions
+still accept an exposed key, outside the three authorized deletions. A private
+retirement list is prepared; any additional deletion needs a separate owner
+decision. The existing Preview hook's signing key was updated on October 8. Its
+dataset correction was excluded from that secret-only approval and completed on
+October 9 after separate explicit owner authorization.
+
+## October 9 — approved Preview hook dataset correction
+
+Both deployment environments' `SANITY_DATASET` settings were independently reread
+as `production`. The existing Preview hook was changed from `preview` to
+`production`; provider readback compared every other configuration field,
+including the rotated secret, URL, protection headers, filter and projection,
+and verified they remained unchanged. The identity-only projection matches the
+maintained [cache-revalidation contract](../cache-revalidation.md). Stable Preview
+remained on `dpl_GBFgYEbScpHyqyM3G2YvRf9UhxAb` throughout the operation.
+
+Direct signed production-update and duplicate requests each returned 200 accepted.
+Wrong-dataset and wrong-signature controls returned 403 and 401 rejected. These
+manual requests verify the receiver, not Sanity's automatic event delivery; that
+still needs observation during a genuine content change. No CMS event was
+manufactured and no Production hook was created. The complete raw document
+ID/revision/type manifest matched before and after (3,593 documents), so this
+configuration correction did not invalidate the post-notice content baseline.
+Freshness must still be repeated immediately before any future content write.
+AB#117 and AB#137 remain Active for the recorded remaining launch work.
+
 ## Next launch operations
 
-1. Resolve the actual hosting contract. An authenticated October 8 team read still
+1. Resolve the remaining signing/delivery findings: review the 80 individually
+   identified protected historical deployments for a separately authorized
+   retirement, and verify automatic delivery from the corrected Preview hook on a
+   genuine CMS event. The approved two-key maintenance, three named retirements and
+   Preview dataset correction are complete; their approval is not requested again.
+2. Resolve the actual hosting contract. An authenticated October 8 team read still
    returns Hobby. The owner keeps that subscription for now; this does not authorize
    a paid upgrade or establish a commercial-use exception. Current
    [fair-use terms](https://vercel.com/docs/limits/fair-use-guidelines) reserve Hobby
@@ -146,12 +243,6 @@ also not returned and has not been guessed from a hostname or community answer.
    [DPA](https://vercel.com/legal/dpa) expressly addresses Pro/Enterprise customers.
    The planned paid-photography site needs a supported hosting resolution before
    public activation. Provider-question drafts are prepared but not sent.
-2. Publish the exact reviewed FI/EN contact notice through a revision-guarded,
-   single-field patch once its publication is authorized. The refreshed private
-   proposal names photography type, optional phone/date, email-subject visibility,
-   actual processors, transfer safeguards and the owner's twelve-month policy.
-   No CMS write is implied by drafting. Re-read the revision before patching, then
-   capture and verify another complete baseline before bulk import.
 3. Activate the verified compatible renderer on the existing public Vercel address
    after applicable gates. Repeat baseline, collision, category, quota and shared-asset
    guards immediately before the already approved import. Existing approval is not
@@ -174,8 +265,8 @@ and deletion confirmations remain accepted. Infomaniak's exact Free backup-erasu
 interval remains unverified: upgrade recovery availability is not proof of physical
 erasure. No further account changes or repeated confirmations are assumed.
 
-**Not performed:** public promotion, CMS notice/bulk mutation, live restore,
-contact delivery, writer revocation, physical-device testing, post-import legacy
+**Not performed:** public promotion, bulk CMS mutation, live restore,
+contact delivery, writer revocation, operator-executed physical-device testing, post-import legacy
 verification, billing change or DNS cutover. Private operator evidence and the notice
-proposal remain ignored local files. This checkpoint does not certify the full
+approval/publication evidence remain ignored local files. This checkpoint does not certify the full
 AB#117 security/privacy review or an independent review of each private helper line.
