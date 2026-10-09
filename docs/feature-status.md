@@ -1053,6 +1053,18 @@ to exactly one decided, pending, excluded, or already-live bucket. Direct canoni
 same-language targets and explicit category-ancestry/home fallback policy follow
 ADR-0003 decision 9; unknown URLs retain ordinary not-found behavior.
 
+**Imported-content redirect preparation, 2026-10-09 (AB#19, Active):**
+138 further direct rows preserve verified Joomla article/gallery/category identities,
+including Finnish `/fi` aliases and differently spelled English slugs. All 98 distinct
+new targets returned anonymous direct 200 HTML with the expected main heading,
+configured language and exact canonical on the activated Production renderer. This
+branch now includes the twelve service rows merged in PR #318 and accounts for 189
+redirects, 174 tag-page 410s, 48 pending paths, three excluded error pages and one live
+root. The content/category and service sources are disjoint. These rows are committed
+for PR #319 but not deployed to the public Production alias; the mock journey verifies
+301 locations, while target availability comes from the dated live GET evidence. Full inventory acceptance remains blocked by
+pending decisions. The clone scaffold 404 journey applies only without an explicit legacy decision for that source; decided 301s are covered by the separate legacy journey. [Scope and evidence](audits/ab19-content-redirects-2026-10-09.md).
+
 **Legacy target semantics, 2026-10-07 (AB#211):** the owner-run verification
 requires genuine HTML metadata and nonempty HTML status text outside hidden or inert
 subtrees. Foreign canonical/alternate lookalikes, comments and hidden-child-only notices
@@ -1064,14 +1076,28 @@ exports pending exact paths/statuses with blank owner decisions. Formula-safe
 semicolon CSV leaves JSON/check behavior and the redirect registry unchanged.
 AB#19 accepted mapping and post-import target verification remain open.
 
+**Published service redirect preparation, 2026-10-09 (AB#19, Active):**
+ADR-0021's seven owner-approved service mappings and their five redundant Finnish aliases
+now have direct `301` rows prepared in this branch. The fresh Joomla backup proves exact
+published source-menu identities; all seven targets answered `200` with matching language
+and canonical metadata on the activated renderer. The registry now accounts for **51
+redirects, 174 justified tag-page `410`s, 186 pending paths, three excluded error paths,
+and one already-live root**. The mock production-build journey verifies every new service
+row's target and query policy without depending on first-site CMS content. Runtime rows
+have not yet been deployed; pending package URLs and post-import content decisions remain
+open. [Audit and limits](audits/ab19-service-redirects-2026-10-09.md).
+
+**Published package follow-up, 2026-10-09 (AB#19, Active):**
+Two additional owner-requested FI wedding services were separately published and verified on the activated renderer after the original import audits and a fresh complete baseline. Four matching legacy source rows, including their redundant Finnish aliases, are now prepared as direct permanent redirects. Source menu/article identities and an independent literal pair guard keep the two offerings distinct; canonical/language, prices, listing, sitemap and contact prefills were verified separately from the generic test harness. The prepared registry has 51 redirects and 186 pending paths among the same 415. These rows are not yet deployed; AB#19 and the wider AB#137 launch remain Active. The original 9,918-document / 3,512-image import passed independent byte/data verification and 494 public route/gallery GET cases before the separate service operation. The temporary migration writer has been revoked with a confirmed 401 denial. All old service content and timestamps stayed unchanged; the createIfNotExists parent wave changed only that one parent revision, recorded separately in the private audit.
+
 **Mapping verification tooling, 2026-10-02 (AB#19, still Active):** the full Boards
 attachment contains 442 URL records; the committed inventory projects them to 415
-path/status observations. Current configuration has **39 redirects** (three structural,
+path/status observations. That checkpoint had **39 redirects** (three structural,
 36 imported-content/category rows), **174 justified tag-page `410`s**, **198 pending**
 paths, three excluded Joomla error routes, and one already-live root. The 36 content rows
 cover the ten migrated rally galleries and their category landings in Finnish, redundant
 `/fi` aliases, and English; AB#19's 2026-09-25 discussion records deployed spot checks.
-`component/komento/*` (real gallery content), `sivustokartta/*` (content aliases), remaining
+`component/komento/*` (unresolved profile intent), `sivustokartta/*` (content aliases), remaining
 galleries/articles/static routes, and the two owner-confirmed Monza 2008 timeout paths
 remain pending reviewed targets or fallbacks. The real Joomla `/portfolio` page is also
 pending; removing the template's never-deployed scaffold at that spelling never disposed
@@ -1097,7 +1123,7 @@ The numeric lightbox query policy is already decided: bare `?4738` and other unr
 query state are preserved byte-for-byte; explicit per-row `cursor`/`section` handling
 remains separate. The registry's structural `301` and tag `410` journeys exercise the
 existing HTTP mechanics. **Final first-site content-target verification still depends
-on AB#137's Production migration** and reviewed decisions for the 198 pending paths.
+on AB#137's Production migration** and reviewed decisions for the remaining pending paths.
 No phased launch manifest or completion of AB#19 is implied by the new tooling.
 The category branch listing continuation is now built (AB#140 PR 2, ADR-0013): a branch
 whose aggregated subtree exceeds `MAX_CONTENT_LISTING_PAGE_SIZE` pages through a keyset
@@ -1918,7 +1944,7 @@ redirect target rather than accepting any redirect status, preserving the origin
 deliberate refusal to treat an ambiguous redirect as proof. Production promotion (AB#18)
 and exercised rollback and handoff (AB#118) are later stories, now unblocked rather than
 waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
-see above — with 198 of 415 distinct crawled paths still pending reviewed targets after
+see above — with 48 of 415 distinct crawled paths still pending reviewed targets after
 content migration (including `component/komento/*` and `sivustokartta/*`).
 
 **Rollback record preparation, 2026-10-06 (AB#208, Active):** the
@@ -3407,3 +3433,8 @@ Identification and cleanup CLIs withhold arbitrary caught exception details with
 The compatible Production renderer is active on the existing Vercel aliases and Pro is confirmed. The approved eight categories and 9,918 content/media/placement documents were imported; separate checks matched all 3,512 derivative references and 494 route/gallery GET cases. A fresh complete baseline before the two owner-priced service additions covers 16,916 raw documents and 5,145 asset binaries; those additions bring the raw count to 16,918. The dedicated migration writer is deleted and rejects authentication with 401; unrelated credentials remain. A later raw check preserves all 16,907 non-group revisions and verifies the exact eleven-group retirement delta. The [completion addendum](audits/ab137-production-launch-2026-10-09.md#completion-addendum-2026-10-09) records count reconciliation, failed evidence, review limits and unresolved gates. Preserved-content approval traceability, dataset region, older Editor disposition, private-customer continuity, legacy verification and final public launch remain open; AB#137 stays Active.
 
 The owner supplied a fresh Joomla backup and the new private K2 gallery's separate files. Archive CRC checks pass; the database contains the new gallery and the exact paths of all 34 JPEGs and its delivery ZIP, which also passes CRC and holds 34 images. Hash receipts cover both the backup and separate files; the Joomla ZIP does not embed these images, and no live restore is claimed. Customer-access continuity still needs a decision before DNS cutover/October 15 retirement. The private gallery is absent from the approved public import. No custom-domain cutover, complete AB#137 acceptance or launch-parent closure is claimed. AB#137, AB#19, AB#117, AB#132 and AB#18 remain Active.
+
+
+### AB#137 — optional prices in owner-run service plans (2026-10-09)
+
+The service writer now accepts the existing CMS model's optional listing price and keyed pricing entries. Validation, normalized approval digests, exact preflight and readback include these fields; malformed prices and edits to existing documents refuse the create-only run. No-price plan digests are unchanged. Synthetic tests cover malformed fields, duplicate keys, changed prices, both mismatch directions and dropped readback fields. This work adds no owner-specific service fixtures or application model changes and does not perform a live CMS write. Production migration audits, separate owner-content publication and temporary-credential revocation remain operational work; AB#137 stays Active.

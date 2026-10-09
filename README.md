@@ -540,8 +540,8 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   ([deployment](docs/deployment.md)). Production promotion and exercised rollback remain
   pending under AB#18 and AB#118*
 - [ ] Redirects for important legacy URLs (first implementation) — *the registry has
-  39 direct redirects and 174 justified `410` responses; 198 of the 415 inventoried
-  paths still await reviewed content targets or fallbacks after AB#137's migration.
+  189 direct redirects (including twelve service rows) and 174 justified `410`
+  responses; 48 of the 415 inventoried paths still await reviewed content targets or fallbacks after AB#137's migration.
   `npm run verify:legacy-redirects -- report` exports the complete mapping;
   `report --csv` exports pending paths as a blank owner-review worksheet.
   `check <origin> [<canonical-origin>]` checks decided responses and canonical target

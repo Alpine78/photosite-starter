@@ -12,6 +12,7 @@ import {
 } from "../src/lib/legacy-redirects-tracking";
 import {
   PUBLISHED_CONTENT_REDIRECT_ENTRIES,
+  PUBLISHED_SERVICE_REDIRECT_ENTRIES,
   RETIRED_TAG_PATHS,
   STRUCTURAL_REDIRECT_ENTRIES,
 } from "../src/lib/legacy-redirects-data";
@@ -266,6 +267,30 @@ test("a decided published-content redirect answers 301 with its direct declared 
     const destination = new URL(location!, "https://e2e.photosite-starter.test");
     expect(destination.pathname, entry.source).toBe(entry.outcome.target);
     expect(destination.search, entry.source).toBe("");
+  }
+});
+
+test("a decided service redirect preserves its direct target and query policy", async ({
+  request,
+}) => {
+  test.skip(
+    PUBLISHED_SERVICE_REDIRECT_ENTRIES.length === 0,
+    "no decided service redirect rows in this clone's data",
+  );
+  for (const entry of PUBLISHED_SERVICE_REDIRECT_ENTRIES) {
+    if (entry.outcome.kind !== "redirect") continue;
+    // Target content is separately verified on Production; this generic
+    // harness proves the actual Proxy response without following it to CMS.
+    const response = await request.get(
+      `${entry.source}?cursor=old-token&section=old-section&utm_source=legacy`,
+      { maxRedirects: 0 },
+    );
+    expect(response.status(), entry.source).toBe(301);
+    const location = response.headers()["location"];
+    expect(location, entry.source).toBeDefined();
+    const destination = new URL(location!, "https://e2e.photosite-starter.test");
+    expect(destination.pathname, entry.source).toBe(entry.outcome.target);
+    expect(destination.search, entry.source).toBe("?utm_source=legacy");
   }
 });
 

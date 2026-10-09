@@ -36,7 +36,17 @@ const DOCUMENT_FIELDS = new Set([
   "shortDescription",
   "description",
   "order",
+  "startingPrice",
+  "pricing",
 ]);
+
+export type ServiceWritePrice = {
+  readonly _key: string;
+  readonly _type: "object";
+  readonly name: string;
+  readonly price: string;
+  readonly note?: string;
+};
 
 export type ServiceWriteDocument = {
   readonly _id: string;
@@ -49,6 +59,8 @@ export type ServiceWriteDocument = {
   readonly shortDescription: string;
   readonly description: readonly string[];
   readonly order: number;
+  readonly startingPrice?: string;
+  readonly pricing?: readonly ServiceWritePrice[];
 };
 
 export type ServiceWritePlan = {
@@ -94,7 +106,43 @@ function normalizedDocument(document: ServiceWriteDocument) {
     shortDescription: document.shortDescription,
     description: [...document.description],
     order: document.order,
+    ...(document.startingPrice === undefined ? {} : { startingPrice: document.startingPrice }),
+    ...(document.pricing === undefined ? {} : { pricing: document.pricing.map((entry) => ({
+      _key: entry._key,
+      _type: entry._type,
+      name: entry.name,
+      price: entry.price,
+      ...(entry.note === undefined ? {} : { note: entry.note }),
+    })) }),
   };
+}
+
+function priceIssues(value: unknown, path: string): readonly string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length === 0) return [`${path} must be a non-empty array`];
+  const issues: string[] = [];
+  const keys = new Set<string>();
+  for (const [index, entry] of value.entries()) {
+    const itemPath = `${path}[${index}]`;
+    if (!isRecord(entry)) { issues.push(`${itemPath} must be an object`); continue; }
+    if (Object.keys(entry).some((key) => !["_key", "_type", "name", "price", "note"].includes(key))) {
+      issues.push(`${itemPath} has unsupported fields`);
+    }
+    if (typeof entry._key !== "string" || !/^[a-zA-Z0-9_-]{1,128}$/u.test(entry._key)) {
+      issues.push(`${itemPath} needs a stable _key`);
+    } else {
+      if (keys.has(entry._key)) issues.push(`${itemPath} has a duplicate _key`);
+      keys.add(entry._key);
+    }
+    if (entry._type !== "object") issues.push(`${itemPath}._type must be "object"`);
+    for (const field of ["name", "price", "note"] as const) {
+      if (field === "note" && entry.note === undefined) continue;
+      if (typeof entry[field] !== "string" || entry[field].trim().length === 0) {
+        issues.push(`${itemPath}.${field} must be a non-empty string`);
+      }
+    }
+  }
+  return issues;
 }
 
 function projectedExistingDocument(
@@ -110,7 +158,10 @@ function projectedExistingDocument(
     typeof row.shortDescription !== "string" ||
     !Array.isArray(row.description) ||
     !row.description.every((paragraph) => typeof paragraph === "string") ||
-    typeof row.order !== "number"
+    typeof row.order !== "number" ||
+    (row.startingPrice !== undefined &&
+      (typeof row.startingPrice !== "string" || row.startingPrice.trim().length === 0)) ||
+    priceIssues(row.pricing, "pricing").length > 0
   ) {
     return undefined;
   }
@@ -127,6 +178,8 @@ function projectedExistingDocument(
     shortDescription: row.shortDescription,
     description: row.description,
     order: row.order,
+    ...(typeof row.startingPrice === "string" ? { startingPrice: row.startingPrice } : {}),
+    ...(row.pricing === undefined ? {} : { pricing: row.pricing as readonly ServiceWritePrice[] }),
   };
 }
 
@@ -259,6 +312,8 @@ export function validateServiceDocuments(
       shortDescription,
       description,
       order,
+      startingPrice,
+      pricing,
     } = value;
     if (typeof _id !== "string" || _id.length > DOCUMENT_ID_MAX_LENGTH) {
       issues.push(`${path} needs a string _id no longer than 128 characters`);
@@ -306,6 +361,11 @@ export function validateServiceDocuments(
     if (!Number.isSafeInteger(order)) {
       issues.push(`${path}.order must be a safe integer`);
     }
+    if (startingPrice !== undefined &&
+      (typeof startingPrice !== "string" || startingPrice.trim().length === 0)) {
+      issues.push(`${path}.startingPrice must be a non-empty string`);
+    }
+    issues.push(...priceIssues(pricing, `${path}.pricing`));
 
     if (
       typeof _id !== "string" ||
@@ -317,7 +377,9 @@ export function validateServiceDocuments(
       typeof shortDescription !== "string" ||
       !Array.isArray(description) ||
       !description.every((paragraph) => typeof paragraph === "string") ||
-      typeof order !== "number"
+      typeof order !== "number" ||
+      (startingPrice !== undefined && typeof startingPrice !== "string") ||
+      priceIssues(pricing, `${path}.pricing`).length > 0
     ) {
       continue;
     }
@@ -339,6 +401,8 @@ export function validateServiceDocuments(
       shortDescription,
       description,
       order,
+      ...(typeof startingPrice === "string" ? { startingPrice } : {}),
+      ...(pricing === undefined ? {} : { pricing: pricing as readonly ServiceWritePrice[] }),
     });
   }
 
@@ -435,10 +499,7 @@ export function serviceDatasetIssues(
         issues.push(`planned _id "${publishedId}" already carries another identity`);
       } else {
         const projected = projectedExistingDocument(row);
-        const hasFieldsOutsidePlan =
-          row.coverMedia !== undefined ||
-          row.startingPrice !== undefined ||
-          row.pricing !== undefined;
+        const hasFieldsOutsidePlan = row.coverMedia !== undefined;
         if (
           hasFieldsOutsidePlan ||
           projected === undefined ||
@@ -508,14 +569,16 @@ export async function preflightServices(connection: SeedConnection, documents: r
   );
 }
 
-async function verifyWritten(
+export async function verifyWritten(
   connection: SeedConnection,
   documents: readonly ServiceWriteDocument[],
+  runQuery: typeof runSeedQuery = runSeedQuery,
 ): Promise<boolean> {
-  const result = await runSeedQuery(connection, {
+  const result = await runQuery(connection, {
     query: `*[_id in $ids]{
       _id, _type, serviceId, language, parentServiceId, slug,
-      name, shortDescription, description, order
+      name, shortDescription, description, order,
+      startingPrice, pricing
     }`,
     params: { ids: documents.map((document) => document._id) },
   });

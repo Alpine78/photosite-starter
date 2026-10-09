@@ -3,7 +3,8 @@
  * decide without guessing at a not-yet-migrated content target.
  *
  * A clone with no Joomla migration empties {@link RETIRED_TAG_PATHS},
- * {@link STRUCTURAL_REDIRECT_ENTRIES}, and
+ * {@link STRUCTURAL_REDIRECT_ENTRIES},
+ * {@link PUBLISHED_SERVICE_REDIRECT_ENTRIES}, and
  * {@link PUBLISHED_CONTENT_REDIRECT_ENTRIES} to `[]` — the same way a clone edits
  * `mock-content-tree.ts`'s own fixture content to be its own, rather than
  * deleting that file — leaving {@link LEGACY_REDIRECTS} an empty map with
@@ -18,7 +19,7 @@
  * (`legacy-redirects.ts`) stays either way; only this row data is
  * first-site-specific.
  *
- * Three kinds of decided row live here, kept in separate lists because their
+ * Four kinds of decided row live here, kept in separate lists because their
  * evidence and validation differ:
  *
  * {@link RETIRED_TAG_PATHS} is every Joomla tag/keyword-browsing page
@@ -37,8 +38,7 @@
  * removes a tag-shaped path must fail that test until the change is
  * reviewed, rather than silently reclassifying an unreviewed row — the same
  * mistake this AB#19 pass caught and corrected for `component/komento/*`
- * (Komento Gallery, a real Joomla photo-gallery component, not a defunct
- * system route) and `sivustokartta/*` (real content reached through a
+ * (unresolved profile routes) and `sivustokartta/*` (real content reached through a
  * Joomla-minted alias, not a generic sitemap page). Both stay `pending` in
  * `legacy-redirects-tracking.ts`, not here.
  *
@@ -349,12 +349,118 @@ export const STRUCTURAL_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
 ];
 
 /**
+ * Owner-approved service mappings from ADR-0021. Their published source menu
+ * identities were checked in the fresh Joomla backup, and all seven direct
+ * targets returned 200 with matching language and canonical metadata on the
+ * activated Production renderer (2026-10-09). Redundant Finnish prefixes
+ * resolve straight to the same target. Other unreviewed wedding-package URLs stay pending.
+ */
+export const PUBLISHED_SERVICE_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
+  {
+    source: "/haakuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/haakuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/haakuvaus/miljoomuotokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/miljoomuotokuvaus",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/haakuvaus/miljoomuotokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/miljoomuotokuvaus",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/haakuvaus/vihkiseremonia-muotokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/vihkiseremonia-ja-miljoomuotokuvat",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/haakuvaus/vihkiseremonia-muotokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/vihkiseremonia-ja-miljoomuotokuvat",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/haakuvaus/puoli-paivaa",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/puoli-paivaa",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/haakuvaus/puoli-paivaa",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/puoli-paivaa",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/haakuvaus/koko-paiva",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/koko-paiva",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/haakuvaus/koko-paiva",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut/haakuvaus/koko-paiva",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/wedding",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/services/wedding-photography",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/wedding/portraits",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/services/wedding-photography/portraits",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+];
+
+/**
  * First-site content redirects whose direct, same-language target has been
  * published to the Production content source and verified on the staged
  * deployment candidate. The six category rows preserve Joomla's two-level
  * Motorsport → WRC branch: Finnish unprefixed and `/fi`-prefixed spellings
  * are aliases of one canonical Finnish route, and each English source lands
- * on the matching English branch. The thirty gallery rows follow the same
+ * on the matching English branch. The gallery, article and further category rows follow the same
  * language-preserving rule. No row redirects through another legacy source
  * or across languages.
  */
@@ -647,6 +753,1113 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
       reservedQueryParams: "strip" as const,
     },
   },
+
+  // AB#19: exact imported content/category identities; live target evidence
+  // is recorded in docs/audits/ab19-content-redirects-2026-10-09.md.
+  {
+    source: "/blogi",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/2016-suuri-makkaravertailu",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/2016-suuri-makkaravertailu",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/canon-eos-1d-x",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/canon-eos-1d-x",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/canon-powershot-sx610-hs",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/canon-powershot-sx610-hs",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/fujifilm-fujinon-xf100-400mmf45-56-r-lm-ois-wr",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/fujifilm-fujinon-xf100-400mmf45-56-r-lm-ois-wr",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/fujifilm-fujinon-xf18-135mmf3-5-5-6-r-lm-ois-wr",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/fujifilm-fujinon-xf18-135mmf3-5-5-6-r-lm-ois-wr",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/fujifilm-fujinon-xf35mmf2-r-wr",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/fujifilm-fujinon-xf35mmf2-r-wr",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/fujifilm-fujinon-xf50-140mm-f2-8-r-lm-ois-wr",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/fujifilm-fujinon-xf50-140mm-f2-8-r-lm-ois-wr",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/fujifilm-fujinon-xf56mm-f1-2-r",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/fujifilm-fujinon-xf56mm-f1-2-r",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/fujifilm-x-pro2",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/fujifilm-x-pro2",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/fujifilm-x-t1",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/fujifilm-x-t1",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/fujifilm-x-t10",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/fujifilm-x-t10",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/garmin-vivoactive",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/garmin-vivoactive",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/nettisivujen-ulkoasu-uudistus-2017",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/nettisivujen-ulkoasu-uudistus-2017",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/nikon-d4s",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/nikon-d4s",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/nikon-df",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/nikon-df",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/pentax-645z",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/pentax-645z",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/polar-m600-suunto-spartan-ultra",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/polar-m600-suunto-spartan-ultra",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/blogi/uudet-sivut-avattu",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/uudet-sivut-avattu",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/about",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/common/ilkka-rytkonen-photographer",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/misc/examination-portfolio",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/vat-portfolio",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/misc/examination-portfolio/commercial-skills",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/vat-portfolio/commercial-skills",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/misc/examination-portfolio/digital-workflow",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/vat-portfolio/digital-workflow",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/misc/examination-portfolio/on-location-photography",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/vat-portfolio/on-location-photography",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/misc/examination-portfolio/studio-photography",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/vat-portfolio/studio-photography",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/formula-1",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/formula-1",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/formula-1/austrian-grand-prix-2021-en",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/formula-1/austrian-grand-prix-2021",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/other-motorsport",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/other-motorsport",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/motorsport/other-motorsport/racewknd-kuopio-2020",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/motorsport/other-motorsport/racewknd-kuopio-2020",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/travel",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/travel-photos",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/travel/alpine-trips",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/travel-photos/alpine-trips",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/travel/alpine-trips/chamonix-ski-2006",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/travel-photos/alpine-trips/chamonix-ski-2006",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/travel/f1",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/travel-photos/f1-trips",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/travel/f1/italy-round-trip-monza-f1-2008",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/travel-photos/f1-trips/italian-grand-prix-2008",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/travel/f1/monza-f1-gp-2007",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/travel-photos/f1-trips/italian-grand-prix-2007",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/travel/norway",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/travel-photos/norway-and-lapland",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/travel/norway/lapland-roundtrip-2010",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/travel-photos/norway-and-lapland/lapland-roundtrip-2010",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/annika-and-johannes",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/annika-and-johannes",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/elisa-joni",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/elisa-joni",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/elsku-and-janne",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/elsku-and-janne",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/emilia-and-jussi",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/emilia-and-jussi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/hanna-and-heikki",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/hanna-and-heikki",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/jenni-tomi",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/jenni-tomi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/johanna-and-jani",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/johanna-and-jani",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/kristiina-and-sampo",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/kristiina-and-sampo",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/laurabrett",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/laurabrett",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/laurajukka",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/laura-jukka",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/marianna-and-mikko",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/marianna-and-mikko",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/marittalassi",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/marittalassi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/minnamikko",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/minnamikko",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/mirja-matti",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/mirja-matti",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/olga-and-vesa",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/olga-and-vesa",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/paula-and-ville",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/paula-and-ville",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/pirjo-and-ville",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/pirjo-and-ville",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/salla-and-vesa",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/salla-and-vesa",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/photos/wedding/tiia-maria-and-jouni",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/wedding-photos/tiia-maria-and-jouni",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/en/portfolio-en",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/en/stories/portfolio",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/blogi",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/blogi/canon-powershot-sx610-hs",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/canon-powershot-sx610-hs",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/kuvaaja",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/yleinen/valokuvaaja-ilkka-rytkonen",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/portfolio",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/portfolio",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/annika-johannes",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/annika-johannes",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/elisa-joni",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/elisa-joni",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/elsku-janne",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/elsku-janne",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/emilia-jussi",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/emilia-jussi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/hanna-heikki",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/hanna-heikki",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/jenni-tomi",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/jenni-tomi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/johanna-jani",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/johanna-jani",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/kristiina-sampo",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/kristiina-sampo",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/laura-brett",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/laura-brett",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/laura-jukka",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/laura-jukka",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/marianna-mikko",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/marianna-mikko",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/maritta-lassi",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/maritta-lassi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/minna-mikko",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/minna-mikko",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/mirja-matti",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/mirja-matti",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/olga-vesa",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/olga-vesa",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/paula-ville",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/paula-ville",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/pirjo-ville",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/pirjo-ville",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/salla-vesa",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/salla-vesa",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/haakuvat/tiia-maria-jouni",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/tiia-maria-jouni",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/matkailu",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/matkailu/alppireissut",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/alppimatkat",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/matkailu/alppireissut/chamonix-2006",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/alppimatkat/chamonix-2006",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/matkailu/f1",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/formulamatkat",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/matkailu/f1/italia-monza-f1-2008",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/formulamatkat/italian-grand-prix-2008",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/matkailu/f1/monza-f1-2007",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/formulamatkat/italian-grand-prix-2007",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/matkailu/norja",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/norja-ja-lappi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/matkailu/norja/lapin-kierros-2010",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/norja-ja-lappi/lapin-kierros-2010",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/f1/austrian-grand-prix-2021",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/f1/austrian-grand-prix-2021",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/muu-moottoriurheilu",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/muu-moottoriurheilu",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/moottoriurheilu/muu-moottoriurheilu/racewknd-kuopio-2020",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/muu-moottoriurheilu/racewknd-kuopio-2020",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/sekalaiset/vat-portfolio",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/vat-portfolio",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/sekalaiset/vat-portfolio/digitaalinen-tyonkulku",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/vat-portfolio/digitaalinen-tyonkulku",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/sekalaiset/vat-portfolio/kaupallinen",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/vat-portfolio/kaupallinen",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/sekalaiset/vat-portfolio/miljoo",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/vat-portfolio/miljoo",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvat/sekalaiset/vat-portfolio/studio",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/vat-portfolio/studio",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/kuvaaja",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/yleinen/valokuvaaja-ilkka-rytkonen",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/portfolio",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/portfolio",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/sivustokartta/haaportfolio",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haaportfolio",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/annika-johannes",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/annika-johannes",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/elisa-joni",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/elisa-joni",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/elsku-janne",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/elsku-janne",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/emilia-jussi",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/emilia-jussi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/hanna-heikki",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/hanna-heikki",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/jenni-tomi",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/jenni-tomi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/johanna-jani",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/johanna-jani",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/kristiina-sampo",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/kristiina-sampo",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/laura-brett",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/laura-brett",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/laura-jukka",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/laura-jukka",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/marianna-mikko",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/marianna-mikko",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/maritta-lassi",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/maritta-lassi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/minna-mikko",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/minna-mikko",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/mirja-matti",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/mirja-matti",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/olga-vesa",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/olga-vesa",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/paula-ville",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/paula-ville",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/pirjo-ville",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/pirjo-ville",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/salla-vesa",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/salla-vesa",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/haakuvat/tiia-maria-jouni",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/haakuvat/tiia-maria-jouni",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/matkailu",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/matkailu/alppireissut",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/alppimatkat",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/matkailu/alppireissut/chamonix-2006",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/alppimatkat/chamonix-2006",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/matkailu/f1",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/formulamatkat",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/matkailu/f1/italia-monza-f1-2008",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/formulamatkat/italian-grand-prix-2008",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/matkailu/f1/monza-f1-2007",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/formulamatkat/italian-grand-prix-2007",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/matkailu/norja",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/norja-ja-lappi",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/matkailu/norja/lapin-kierros-2010",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/matkailu/norja-ja-lappi/lapin-kierros-2010",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/f1",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/f1",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/f1/austrian-grand-prix-2021",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/f1/austrian-grand-prix-2021",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/muu-moottoriurheilu",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/muu-moottoriurheilu",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/moottoriurheilu/muu-moottoriurheilu/racewknd-kuopio-2020",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/moottoriurheilu/muu-moottoriurheilu/racewknd-kuopio-2020",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/sekalaiset/vat-portfolio",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/vat-portfolio",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/sekalaiset/vat-portfolio/digitaalinen-tyonkulku",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/vat-portfolio/digitaalinen-tyonkulku",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/sekalaiset/vat-portfolio/kaupallinen",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/vat-portfolio/kaupallinen",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/sekalaiset/vat-portfolio/miljoo",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/vat-portfolio/miljoo",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/valokuvat/sekalaiset/vat-portfolio/studio",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/vat-portfolio/studio",
+      reservedQueryParams: "strip" as const,
+    },
+  },
 ];
 
 /** Raw configuration lets owner-run verification fail on invalid rows. */
@@ -656,6 +1869,7 @@ export const LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
     outcome: { kind: "gone" as const, reason: GONE_REASON },
   })),
   ...STRUCTURAL_REDIRECT_ENTRIES,
+  ...PUBLISHED_SERVICE_REDIRECT_ENTRIES,
   ...PUBLISHED_CONTENT_REDIRECT_ENTRIES,
 ];
 
