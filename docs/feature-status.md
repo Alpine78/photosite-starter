@@ -1053,6 +1053,18 @@ to exactly one decided, pending, excluded, or already-live bucket. Direct canoni
 same-language targets and explicit category-ancestry/home fallback policy follow
 ADR-0003 decision 9; unknown URLs retain ordinary not-found behavior.
 
+**Imported-content redirect preparation, 2026-10-09 (AB#19, Active):**
+138 further direct rows preserve verified Joomla article/gallery/category identities,
+including Finnish `/fi` aliases and differently spelled English slugs. All 98 distinct
+new targets returned anonymous direct 200 HTML with the expected main heading,
+configured language and exact canonical on the activated Production renderer. This
+branch now includes the twelve service rows merged in PR #318 and accounts for 189
+redirects, 174 tag-page 410s, 48 pending paths, three excluded error pages and one live
+root. The content/category and service sources are disjoint. These rows are committed
+for PR #319 but not deployed to the public Production alias; the mock journey verifies
+301 locations, while target availability comes from the dated live GET evidence. Full inventory acceptance remains blocked by
+pending decisions. The clone scaffold 404 journey applies only without an explicit legacy decision for that source; decided 301s are covered by the separate legacy journey. [Scope and evidence](audits/ab19-content-redirects-2026-10-09.md).
+
 **Legacy target semantics, 2026-10-07 (AB#211):** the owner-run verification
 requires genuine HTML metadata and nonempty HTML status text outside hidden or inert
 subtrees. Foreign canonical/alternate lookalikes, comments and hidden-child-only notices
@@ -1932,7 +1944,7 @@ redirect target rather than accepting any redirect status, preserving the origin
 deliberate refusal to treat an ambiguous redirect as proof. Production promotion (AB#18)
 and exercised rollback and handoff (AB#118) are later stories, now unblocked rather than
 waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
-see above — with 186 of 415 distinct crawled paths still pending reviewed targets after
+see above — with 48 of 415 distinct crawled paths still pending reviewed targets after
 content migration (including `component/komento/*` and `sivustokartta/*`).
 
 **Rollback record preparation, 2026-10-06 (AB#208, Active):** the

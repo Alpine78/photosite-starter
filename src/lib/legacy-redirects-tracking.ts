@@ -57,90 +57,28 @@ export const EXCLUDED_LEGACY_PATHS: readonly string[] = [
 ];
 
 /**
- * Every inventoried legacy path whose direct target or
- * explicit category-ancestry fallback is not yet recorded. ADR-0003 decision
- * 9 requires a reviewed source-category association and a published
- * same-language target. Imported rally galleries have already moved into the
- * decided registry; this list covers remaining galleries (`valokuvat/*`,
- * `en/photos/*`), article (`blogi/*`), individual service
- * (`valokuvaus/<slug>`, `haakuvaus/*`), their `/fi`-prefixed locale-alias
- * duplicates, and the following, each verified against its real crawled
- * title before being left here rather than guessed at. The bare
- * `/valokuvaus` listing root and its `/fi/valokuvaus` duplicate are the one
- * exception: unlike an individual service, that page has no migrated-content
- * identity of its own to wait for — it is decided in
- * `legacy-redirects-data.ts`'s `STRUCTURAL_REDIRECT_ENTRIES` against this
- * site's own generic `/services` listing instead.
+ * Legacy paths whose exact same-language replacement or explicit ancestry
+ * fallback is not yet recorded. The imported content/category rows verified
+ * on 2026-10-09 now belong to PUBLISHED_CONTENT_REDIRECT_ENTRIES; this list
+ * retains only undecided static/service and source-identity rows.
  *
- * - `component/komento/profile[/138]`, `en/component/komento/profile` —
- *   unresolved profile routes. The original crawl includes a user-profile
- *   title; it does not prove gallery intent or justify a content redirect.
- * - `sivustokartta/haaportfolio`, `sivustokartta/fujifilm-x-pro2-tarkennusnopeus`
- *   — NOT a generic HTML sitemap page: Joomla's sitemap/menu system minted
- *   these as alias URLs for real content that also has a primary URL
- *   elsewhere (a wedding portfolio and a focus-speed article). The fresh
- *   Joomla backup identifies the focus-speed article as 450, distinct from
- *   the camera review 370 at `/blogi/fujifilm-x-pro2`; they must not be merged
- *   by a similar title. ADR-0003 decision 9's alias rule
- *   means that once resolved, each must point at the *same* target its
- *   primary URL gets, never a separate one.
- * - `/blogi/370-fujifilm-x-pro2` — the crawl's raw 200 observation followed
- *   Joomla's `/404` error page. The numeric source and camera-review article
- *   identity need explicit verification; raw status alone proves no content.
- * - `kuvaaja`, `kalusto`, `sivusto`, `en/about`, `en/gear`, `en/site`,
- *   `en/blog`, `en/portfolio-en`, `en/wedding-portfolio`, and the unprefixed
- *   Finnish `/portfolio` — real, live, published Joomla pages with real
- *   editorial titles and no current equivalent route.
- * - The Finnish `/portfolio` record is itself worth flagging beyond this
- *   list: the crawl proves it was a real, live, published Joomla page,
- *   which is evidence against the assumption an earlier ADR-0003 amendment
- *   (AB#104/AB#124) relied on to remove *this template's own* pre-launch
- *   `/portfolio` scaffold without a redirect ("never deployed, published, or
- *   indexed") — that was about the template's dead route, not the
- *   production Joomla site's real one at the same path. Reconciling that is
- *   left for whoever resolves this row, once a real target exists.
- * - `/en/`, the English locale-root alias — investigated and deliberately
- *   left pending rather than decided, unlike its Finnish counterpart: measured
- *   against a production build under this deployment's real locale
- *   configuration, the bare `/en` a direct redirect would target answers
- *   `404` (no English home page exists yet), and neither `/` nor
- *   `/en/stories` is an allowed substitute under ADR-0003 decision 9's
- *   "never use a blanket home, locale-root, story-root, or cross-language
- *   redirect" rule. See `legacy-redirects-data.ts`'s
- *   `STRUCTURAL_REDIRECT_ENTRIES` comment for the full record; revisit once a
- *   real English home page exists.
- * - The two Monza F1 2008 gallery timeout records (`valokuvat/matkailu/f1/
- *   italia-monza-f1-2008` and its `/fi` alias) — per the site owner's own
- *   comment on AB#19, the gallery is real and intentionally large; its first
- *   uncached load is slow, not missing. Recheck with a longer cold-cache
- *   timeout when the mapping is otherwise ready, rather than treating the
- *   timeout as a 404/410 signal.
+ * Remaining system-shaped sources are not classified by their spelling:
+ * Komento profile intent needs evidence; the Fujifilm focus-speed sitemap
+ * alias is a different article from the camera review already mapped. English
+ * static/service replacements, unpublished source pages and category ancestry
+ * need their own source/target verification. No pending path is an implicit
+ * 410, home redirect or accepted launch omission.
+ *
+ * The old /en/ locale-root claim predates localized static routes: recheck its
+ * current exact /en target before recording the alias. The real Joomla
+ * /portfolio page now maps to the imported portfolio; that does not change
+ * the historical removal of the template's unpublished scaffold.
  */
 export const PENDING_LEGACY_PATHS: readonly string[] = [
-  "/blogi",
-  "/blogi/2016-suuri-makkaravertailu",
   "/blogi/370-fujifilm-x-pro2",
-  "/blogi/canon-eos-1d-x",
-  "/blogi/canon-powershot-sx610-hs",
-  "/blogi/fujifilm-fujinon-xf100-400mmf45-56-r-lm-ois-wr",
-  "/blogi/fujifilm-fujinon-xf18-135mmf3-5-5-6-r-lm-ois-wr",
-  "/blogi/fujifilm-fujinon-xf35mmf2-r-wr",
-  "/blogi/fujifilm-fujinon-xf50-140mm-f2-8-r-lm-ois-wr",
-  "/blogi/fujifilm-fujinon-xf56mm-f1-2-r",
-  "/blogi/fujifilm-x-pro2",
-  "/blogi/fujifilm-x-t1",
-  "/blogi/fujifilm-x-t10",
-  "/blogi/garmin-vivoactive",
-  "/blogi/nettisivujen-ulkoasu-uudistus-2017",
-  "/blogi/nikon-d4s",
-  "/blogi/nikon-df",
-  "/blogi/pentax-645z",
-  "/blogi/polar-m600-suunto-spartan-ultra",
-  "/blogi/uudet-sivut-avattu",
   "/component/komento/profile",
   "/component/komento/profile/138",
   "/en/",
-  "/en/about",
   "/en/blog",
   "/en/component/komento/profile",
   "/en/gear",
@@ -153,44 +91,6 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/en/photography/real-estate",
   "/en/photos",
   "/en/photos/misc",
-  "/en/photos/misc/examination-portfolio",
-  "/en/photos/misc/examination-portfolio/commercial-skills",
-  "/en/photos/misc/examination-portfolio/digital-workflow",
-  "/en/photos/misc/examination-portfolio/on-location-photography",
-  "/en/photos/misc/examination-portfolio/studio-photography",
-  "/en/photos/motorsport/formula-1",
-  "/en/photos/motorsport/formula-1/austrian-grand-prix-2021-en",
-  "/en/photos/motorsport/other-motorsport",
-  "/en/photos/motorsport/other-motorsport/racewknd-kuopio-2020",
-  "/en/photos/travel",
-  "/en/photos/travel/alpine-trips",
-  "/en/photos/travel/alpine-trips/chamonix-ski-2006",
-  "/en/photos/travel/f1",
-  "/en/photos/travel/f1/italy-round-trip-monza-f1-2008",
-  "/en/photos/travel/f1/monza-f1-gp-2007",
-  "/en/photos/travel/norway",
-  "/en/photos/travel/norway/lapland-roundtrip-2010",
-  "/en/photos/wedding",
-  "/en/photos/wedding/annika-and-johannes",
-  "/en/photos/wedding/elisa-joni",
-  "/en/photos/wedding/elsku-and-janne",
-  "/en/photos/wedding/emilia-and-jussi",
-  "/en/photos/wedding/hanna-and-heikki",
-  "/en/photos/wedding/jenni-tomi",
-  "/en/photos/wedding/johanna-and-jani",
-  "/en/photos/wedding/kristiina-and-sampo",
-  "/en/photos/wedding/laurabrett",
-  "/en/photos/wedding/laurajukka",
-  "/en/photos/wedding/marianna-and-mikko",
-  "/en/photos/wedding/marittalassi",
-  "/en/photos/wedding/minnamikko",
-  "/en/photos/wedding/mirja-matti",
-  "/en/photos/wedding/olga-and-vesa",
-  "/en/photos/wedding/paula-and-ville",
-  "/en/photos/wedding/pirjo-and-ville",
-  "/en/photos/wedding/salla-and-vesa",
-  "/en/photos/wedding/tiia-maria-and-jouni",
-  "/en/portfolio-en",
   "/en/site",
   "/en/wedding-portfolio",
   "/en/wedding/ceremony",
@@ -198,52 +98,12 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/en/wedding/from-morning",
   "/en/wedding/half-day",
   "/en/wedding/whole-day",
-  "/fi/blogi",
-  "/fi/blogi/canon-powershot-sx610-hs",
   "/fi/haakuvaus/aamusta-iltaan",
   "/fi/haakuvaus/vihkiseremonia",
   "/fi/kalusto",
-  "/fi/kuvaaja",
-  "/fi/portfolio",
   "/fi/sivusto",
   "/fi/valokuvat",
-  "/fi/valokuvat/haakuvat",
-  "/fi/valokuvat/haakuvat/annika-johannes",
-  "/fi/valokuvat/haakuvat/elisa-joni",
-  "/fi/valokuvat/haakuvat/elsku-janne",
-  "/fi/valokuvat/haakuvat/emilia-jussi",
-  "/fi/valokuvat/haakuvat/hanna-heikki",
-  "/fi/valokuvat/haakuvat/jenni-tomi",
-  "/fi/valokuvat/haakuvat/johanna-jani",
-  "/fi/valokuvat/haakuvat/kristiina-sampo",
-  "/fi/valokuvat/haakuvat/laura-brett",
-  "/fi/valokuvat/haakuvat/laura-jukka",
-  "/fi/valokuvat/haakuvat/marianna-mikko",
-  "/fi/valokuvat/haakuvat/maritta-lassi",
-  "/fi/valokuvat/haakuvat/minna-mikko",
-  "/fi/valokuvat/haakuvat/mirja-matti",
-  "/fi/valokuvat/haakuvat/olga-vesa",
-  "/fi/valokuvat/haakuvat/paula-ville",
-  "/fi/valokuvat/haakuvat/pirjo-ville",
-  "/fi/valokuvat/haakuvat/salla-vesa",
-  "/fi/valokuvat/haakuvat/tiia-maria-jouni",
-  "/fi/valokuvat/matkailu",
-  "/fi/valokuvat/matkailu/alppireissut",
-  "/fi/valokuvat/matkailu/alppireissut/chamonix-2006",
-  "/fi/valokuvat/matkailu/f1",
-  "/fi/valokuvat/matkailu/f1/italia-monza-f1-2008",
-  "/fi/valokuvat/matkailu/f1/monza-f1-2007",
-  "/fi/valokuvat/matkailu/norja",
-  "/fi/valokuvat/matkailu/norja/lapin-kierros-2010",
-  "/fi/valokuvat/moottoriurheilu/f1/austrian-grand-prix-2021",
-  "/fi/valokuvat/moottoriurheilu/muu-moottoriurheilu",
-  "/fi/valokuvat/moottoriurheilu/muu-moottoriurheilu/racewknd-kuopio-2020",
   "/fi/valokuvat/sekalaiset",
-  "/fi/valokuvat/sekalaiset/vat-portfolio",
-  "/fi/valokuvat/sekalaiset/vat-portfolio/digitaalinen-tyonkulku",
-  "/fi/valokuvat/sekalaiset/vat-portfolio/kaupallinen",
-  "/fi/valokuvat/sekalaiset/vat-portfolio/miljoo",
-  "/fi/valokuvat/sekalaiset/vat-portfolio/studio",
   "/fi/valokuvaus/asuntokuvaus",
   "/fi/valokuvaus/hautajaiskuvaus",
   "/fi/valokuvaus/juhlakuvaus",
@@ -253,50 +113,10 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/haakuvaus/aamusta-iltaan",
   "/haakuvaus/vihkiseremonia",
   "/kalusto",
-  "/kuvaaja",
-  "/portfolio",
   "/sivusto",
   "/sivustokartta/fujifilm-x-pro2-tarkennusnopeus",
-  "/sivustokartta/haaportfolio",
   "/valokuvat",
-  "/valokuvat/haakuvat",
-  "/valokuvat/haakuvat/annika-johannes",
-  "/valokuvat/haakuvat/elisa-joni",
-  "/valokuvat/haakuvat/elsku-janne",
-  "/valokuvat/haakuvat/emilia-jussi",
-  "/valokuvat/haakuvat/hanna-heikki",
-  "/valokuvat/haakuvat/jenni-tomi",
-  "/valokuvat/haakuvat/johanna-jani",
-  "/valokuvat/haakuvat/kristiina-sampo",
-  "/valokuvat/haakuvat/laura-brett",
-  "/valokuvat/haakuvat/laura-jukka",
-  "/valokuvat/haakuvat/marianna-mikko",
-  "/valokuvat/haakuvat/maritta-lassi",
-  "/valokuvat/haakuvat/minna-mikko",
-  "/valokuvat/haakuvat/mirja-matti",
-  "/valokuvat/haakuvat/olga-vesa",
-  "/valokuvat/haakuvat/paula-ville",
-  "/valokuvat/haakuvat/pirjo-ville",
-  "/valokuvat/haakuvat/salla-vesa",
-  "/valokuvat/haakuvat/tiia-maria-jouni",
-  "/valokuvat/matkailu",
-  "/valokuvat/matkailu/alppireissut",
-  "/valokuvat/matkailu/alppireissut/chamonix-2006",
-  "/valokuvat/matkailu/f1",
-  "/valokuvat/matkailu/f1/italia-monza-f1-2008",
-  "/valokuvat/matkailu/f1/monza-f1-2007",
-  "/valokuvat/matkailu/norja",
-  "/valokuvat/matkailu/norja/lapin-kierros-2010",
-  "/valokuvat/moottoriurheilu/f1",
-  "/valokuvat/moottoriurheilu/f1/austrian-grand-prix-2021",
-  "/valokuvat/moottoriurheilu/muu-moottoriurheilu",
-  "/valokuvat/moottoriurheilu/muu-moottoriurheilu/racewknd-kuopio-2020",
   "/valokuvat/sekalaiset",
-  "/valokuvat/sekalaiset/vat-portfolio",
-  "/valokuvat/sekalaiset/vat-portfolio/digitaalinen-tyonkulku",
-  "/valokuvat/sekalaiset/vat-portfolio/kaupallinen",
-  "/valokuvat/sekalaiset/vat-portfolio/miljoo",
-  "/valokuvat/sekalaiset/vat-portfolio/studio",
   "/valokuvaus/asuntokuvaus",
   "/valokuvaus/hautajaiskuvaus",
   "/valokuvaus/juhlakuvaus",
