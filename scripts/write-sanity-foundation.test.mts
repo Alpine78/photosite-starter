@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   FOUNDATION_WRITE_PLAN_VERSION,
   foundationDatasetIssues,
+  buildFoundationPreflightQuery,
+  preflightFoundation,
   foundationDocumentsDigest,
   parseArguments,
   validateFoundationWritePlan,
@@ -162,5 +164,29 @@ describe("CLI UTF-8 input integrity", () => {
     const result = await execute(Buffer.from("\uFEFF" + JSON.stringify(fixture())));
     expect(result.code).toBe(1);
     expect(result.stdout).toBe("");
+  });
+});
+
+
+describe("planned identity preflight (AB#242)", () => {
+  const connection = { projectId: "synthetic", dataset: "preview", apiVersion: "v2026-06-24", token: "synthetic-token" };
+  it("queries published and draft IDs regardless of type and retains type identities", () => {
+    const request = buildFoundationPreflightQuery(plan.documents);
+    expect(request.perspective).toBe("raw");
+    expect(request.query).toContain('|| _id in $ids');
+    expect(request.query).toContain("_type");
+    expect(request.params?.ids).toEqual(plan.documents.flatMap(d => [d._id, `drafts.${d._id}`]).sort());
+  });
+  it("returns a collision for a planned ID occupied by another type", async () => {
+    const query = vi.fn(async (...args: unknown[]) => { void args; return [{ _id: plan.documents[0]._id, _type: "unrelated" }]; });
+    const issues = await preflightFoundation(connection, plan.documents, query);
+    expect(query.mock.calls[0]).toEqual([connection, buildFoundationPreflightQuery(plan.documents)]);
+    expect(issues.join(" ")).toContain("different content");
+  });
+  it("refuses garbage and repeated raw IDs without echoing row content", () => {
+    for (const row of [null, [], 7, "PRIVATE_SENTINEL", {}, { _id: " ", _type: "category", secret: "PRIVATE_SENTINEL" }]) {
+      const issues = foundationDatasetIssues([row], plan.documents); expect(issues.length).toBeGreaterThan(0); expect(issues.join(" ")).not.toContain("PRIVATE_SENTINEL");
+    }
+    expect(foundationDatasetIssues([plan.documents[0], plan.documents[0]], plan.documents).join(" ")).toContain("repeats a document ID");
   });
 });
