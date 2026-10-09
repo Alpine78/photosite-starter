@@ -3369,3 +3369,7 @@ The owner-run Sanity image uploader rejects malformed acknowledgement objects, b
 ### AB#241 — planned categories identity preflight
 
 The categories writer's raw query includes planned published and draft IDs regardless of the stored type, retaining the existing type inventory. An occupied ID of another type, malformed identity row or repeated raw ID refuses preflight before the write loop. Pure query and injected-query tests cover the widened lookup and refusal. Digests, createIfNotExists, normal readback and reference rules are unchanged. Foreign-type release-version IDs and concurrent edits after preflight are outside this bounded check; it performs no live import and does not close AB#137.
+
+### AB#242 — planned foundation identity preflight
+
+The foundation writer's raw query includes planned published and draft IDs regardless of the stored type, retaining the existing type inventory. An occupied ID of another type, malformed identity row or repeated raw ID refuses preflight before the write loop. Pure query and injected-query tests cover the widened lookup and refusal. Digests, createIfNotExists, normal readback and reference rules are unchanged. Foreign-type release-version IDs and concurrent edits after preflight are outside this bounded check; it performs no live import and does not close AB#137.
