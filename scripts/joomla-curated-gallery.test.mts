@@ -1,5 +1,5 @@
-import { buildCuratedGalleryPlan } from './joomla-curated-gallery-plan.mts';
-import { describe, it, expect } from 'vitest';
+import { buildCuratedGalleryPlan, main as runCuratedPlanner } from './joomla-curated-gallery-plan.mts';
+import { describe, it, expect, vi } from 'vitest';
 import { validateCuratedGalleryDocuments, MAX_IMPORT_ORDERING_SEED_LENGTH } from './joomla-curated-gallery.mts';
 import { computeShuffledOrder } from '../src/lib/gallery-shuffle';
 import { MAX_GALLERY_ORDERING_SEED_LENGTH } from '../src/lib/gallery-pagination';
@@ -263,4 +263,89 @@ it.each(["publishedAt", "eventDate", "endDate"])("refuses reader-unsupported cal
   const ds = documents(); ds[1] = { ...ds[1]!, [field]: "0099-12-31T23:00:00-01:00" };
   expect(validateCuratedGalleryDocuments(ds).join(" ")).toContain("supported by the public reader");
   if (field !== "endDate") expect(validateMigrationDocuments(ds).join(" ")).toContain("supported by the public reader");
+});
+
+
+describe("private curated output permissions (AB#247)", () => {
+  async function workspace(check: (dir: string) => Promise<void>) {
+    const { mkdtemp, rm } = await import("node:fs/promises"); const { tmpdir } = await import("node:os"); const { join } = await import("node:path");
+    const dir = await mkdtemp(join(tmpdir(), "curated-permissions-")); const exitCode = process.exitCode; const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    try { await check(dir); } finally { process.exitCode = exitCode; log.mockRestore(); await rm(dir, { recursive: true, force: true }); }
+  }
+  const input = () => ({ documents: documents(), assetRequirements: plan().assetRequirements, categoryRequirements: plan().categoryRequirements, sourceEvidenceDigest: "b".repeat(64) });
+  it.runIf(process.platform !== "win32").each([undefined, 0o644, 0o666])("makes new and existing mode %s output private and fully replaces bytes", async mode => {
+    await workspace(async dir => {
+      const { writeFile, readFile, stat, chmod } = await import("node:fs/promises"); const source = dir + "/input.json", output = dir + "/out.json"; const value = input();
+      await writeFile(source, JSON.stringify(value)); if (mode !== undefined) { await writeFile(output, "old".repeat(10000)); await chmod(output, mode); }
+      await runCuratedPlanner([source, output]);
+      expect((await stat(output)).mode & 0o777).toBe(0o600); expect(await readFile(output, "utf8")).toBe(JSON.stringify(buildCuratedGalleryPlan(value).plan, null, 2) + "\n");
+    });
+  });
+  it.runIf(process.platform !== "win32")("preserves output bytes and mode when input or approval parsing fails", async () => {
+    await workspace(async dir => {
+      const { writeFile, readFile, stat, chmod } = await import("node:fs/promises"); const source = dir + "/input.json", output = dir + "/out.json", approval = dir + "/approval.json";
+      await writeFile(output, "existing"); await chmod(output, 0o644); await writeFile(source, "invalid");
+      await expect(runCuratedPlanner([source, output])).rejects.toThrow();
+      await writeFile(source, JSON.stringify(input())); await writeFile(approval, "invalid"); await expect(runCuratedPlanner([source, output, approval])).rejects.toThrow();
+      expect(await readFile(output, "utf8")).toBe("existing"); expect((await stat(output)).mode & 0o777).toBe(0o644);
+    });
+  });
+  it.runIf(process.platform !== "win32")("retains existing symlink target behavior with private target permissions", async () => {
+    await workspace(async dir => {
+      const { writeFile, readFile, stat, chmod, symlink, lstat } = await import("node:fs/promises"); const source = dir + "/input.json", target = dir + "/target.json", link = dir + "/out.json";
+      await writeFile(source, JSON.stringify(input())); await writeFile(target, "old"); await chmod(target, 0o644); await symlink(target, link); await runCuratedPlanner([source, link]);
+      expect((await lstat(link)).isSymbolicLink()).toBe(true); expect((await stat(target)).mode & 0o777).toBe(0o600); expect(await readFile(target, "utf8")).not.toBe("old");
+    });
+  });
+  it.runIf(process.platform === "linux")("retains writing to a non-regular FIFO target without truncating it", async () => {
+    await workspace(async dir => {
+      const { open, writeFile, chmod, constants, stat } = await import("node:fs/promises");
+      const { execFile } = await import("node:child_process");
+      const { promisify } = await import("node:util");
+      const source = dir + "/input.json", output = dir + "/output.pipe", value = input();
+      await writeFile(source, JSON.stringify(value));
+      await promisify(execFile)("mkfifo", [output]);
+      await chmod(output, 0o640);
+      const reader = await open(output, constants.O_RDWR | constants.O_NONBLOCK);
+      const expected = Buffer.from(JSON.stringify(buildCuratedGalleryPlan(value).plan, null, 2) + "\n");
+      const received = Buffer.alloc(expected.length);
+      let writing: Promise<void> | undefined;
+      try {
+        writing = runCuratedPlanner([source, output]);
+        let writeError: unknown;
+        void writing.catch(error => { writeError = error; });
+        const deadline = Date.now() + 4000;
+        let offset = 0;
+        while (offset < received.length) {
+          if (writeError !== undefined) throw writeError;
+          if (Date.now() >= deadline) throw new Error("FIFO plan read timed out");
+          const { bytesRead } = await reader.read(received, offset, received.length - offset, null).catch(async error => {
+            if (error.code !== "EAGAIN") throw error;
+            await new Promise(resolve => setTimeout(resolve, 5));
+            return { bytesRead: -1 };
+          });
+          if (bytesRead === -1) continue;
+          if (bytesRead === 0) throw new Error("FIFO ended before the complete plan");
+          offset += bytesRead;
+        }
+        await writing;
+        expect(received).toEqual(expected);
+        expect((await stat(output)).isFIFO()).toBe(true);
+        expect((await stat(output)).mode & 0o777).toBe(0o640);
+      } finally {
+        await reader.close();
+        await writing?.catch(() => {});
+      }
+    });
+  });
+  it.runIf(process.platform === "linux" && process.getuid?.() !== 0)("writes to a non-owned /dev/null device without changing its mode", async () => {
+    await workspace(async dir => {
+      const { writeFile, stat } = await import("node:fs/promises");
+      const source = dir + "/input.json";
+      await writeFile(source, JSON.stringify(input()));
+      const before = (await stat("/dev/null")).mode;
+      await expect(runCuratedPlanner([source, "/dev/null"])).resolves.toBeUndefined();
+      expect((await stat("/dev/null")).mode).toBe(before);
+    });
+  });
 });

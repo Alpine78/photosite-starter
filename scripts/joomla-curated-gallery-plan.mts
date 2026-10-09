@@ -3,7 +3,8 @@
  * category requirement and source-evidence digest, before approval is accepted.
  */
 import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, open } from 'node:fs/promises';
+import { constants } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { IMPORT_PLAN_VERSION, validateMigrationDocuments, writablePlanDigest, type ImportPlan,
   type PlannedDocument, type AssetRequirement, type CategoryRequirement } from './joomla-import-plan.mts';
@@ -74,7 +75,19 @@ export async function main(args: readonly string[] = process.argv.slice(2)) {
   const input = await readCuratedJsonFile(args[0]!, "input") as CuratedGalleryInput;
   const approval = args[2] ? await readCuratedJsonFile(args[2], "approval") as CuratedGalleryApproval : undefined;
   const result = buildCuratedGalleryPlan(input, approval);
-  await writeFile(args[1]!, JSON.stringify(result.plan, null, 2) + '\n', {mode:0o600});
+  const file = await open(args[1]!, constants.O_WRONLY | constants.O_CREAT, 0o600);
+  let failed = false;
+  try {
+    if ((await file.stat()).isFile()) {
+      await file.chmod(0o600);
+      await file.truncate(0);
+    }
+    await file.writeFile(JSON.stringify(result.plan, null, 2) + '\n');
+  } catch (error) { failed = true; throw error; }
+  finally {
+    if (failed) await file.close().catch(() => {});
+    else await file.close();
+  }
   console.log(`Review digest: ${result.reviewDigest}\nDocuments: ${result.plan.documents.length}; unresolved checks: ${result.plan.errors.length}\nWrite-plan digest: ${result.plan.documentsDigest}`);
   if (result.plan.errors.length) process.exitCode = 1;
 }
