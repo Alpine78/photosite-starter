@@ -11,6 +11,7 @@ import {
   normalizeServiceReadback,
   validateServiceDocuments,
   validateServiceWritePlan,
+  verifyWritten,
   type ServiceWriteDocument,
 } from "./write-sanity-services.mts";
 
@@ -39,6 +40,61 @@ const documents: readonly ServiceWriteDocument[] = [
     order: 20,
   },
 ];
+
+describe("service write prices", () => {
+  const tier = { _key: "basic", _type: "object" as const, name: "Basic", price: "100 €", note: "One session" };
+  const priced: readonly ServiceWriteDocument[] = [{ ...documents[0], startingPrice: "100 €", pricing: [tier] }, documents[1]];
+
+  it("preserves validated price fields and the recorded no-price digest", () => {
+    expect(validateServiceDocuments(priced)).toEqual({ documents: priced, issues: [] });
+    expect(serviceDocumentsDigest(documents)).toBe("18a0ed9a9ac31d1dd1ad93992f1bd32e593e4048295dac53d0b57025325891c6");
+    expect(serviceDocumentsDigest(priced)).not.toBe(serviceDocumentsDigest(documents));
+    for (const field of ["_key", "name", "price", "note"] as const) {
+      expect(serviceDocumentsDigest([{ ...priced[0], pricing: [{ ...tier, [field]: "changed" }] }, priced[1]])).not.toBe(serviceDocumentsDigest(priced));
+    }
+    expect(serviceDocumentsDigest([{ ...priced[0], startingPrice: "200 €" }, priced[1]])).not.toBe(serviceDocumentsDigest(priced));
+  });
+
+  it.each([null, "100 €", [], [null], [{ ...tier, privateLocator: "forbidden" }], [{ ...tier, _key: "" }], [{ ...tier, _type: "other" }], [{ ...tier, name: " " }], [{ ...tier, price: 100 }], [{ ...tier, note: null }], [tier, tier]])("refuses malformed pricing instead of discarding it: %j", (pricing) => {
+    const result = validateServiceWritePlan({ version: SERVICE_WRITE_PLAN_VERSION, documents: [{ ...documents[0], pricing }, documents[1]] });
+    expect(result.plan).toBeUndefined();
+    expect(result.issues.length).toBeGreaterThan(0);
+  });
+
+  it.each([null, 100, true, "", " "])("refuses malformed listing price: %j", (startingPrice) => {
+    expect(validateServiceWritePlan({ version: SERVICE_WRITE_PLAN_VERSION, documents: [{ ...documents[0], startingPrice }, documents[1]] }).plan).toBeUndefined();
+  });
+
+  it("keeps price array order significant and requires unique stable keys", () => {
+    const second = { ...tier, _key: "extended", name: "Extended", price: "200 €" };
+    const forward = [{ ...priced[0], pricing: [tier, second] }, priced[1]];
+    const reverse = [{ ...priced[0], pricing: [second, tier] }, priced[1]];
+    expect(validateServiceDocuments(forward).issues).toEqual([]);
+    expect(serviceDocumentsDigest(forward)).not.toBe(serviceDocumentsDigest(reverse));
+  });
+
+  it("accepts exact priced reruns and refuses mismatches in both directions", () => {
+    expect(serviceDatasetIssues(priced, priced)).toEqual([]);
+    for (const [existing, planned] of [[priced, documents], [documents, priced], [[{ ...priced[0], pricing: [{ ...tier, price: "200 €" }] }, priced[1]], priced]] as const) {
+      expect(serviceDatasetIssues(existing, planned)).toContain('planned document "migrated--service--weddings--fi" already exists with different content');
+    }
+    expect(serviceDatasetIssues([{ ...priced[0], pricing: [{ ...tier, unexpected: true }] }], priced)).toContain('planned document "migrated--service--weddings--fi" already exists with different content');
+  });
+
+  it("reads actual prices back and detects dropped or changed prices", async () => {
+    const connection = { projectId: "test1234", dataset: "production", apiVersion: "v2025-02-19", token: "synthetic" };
+    const query = vi.fn(async (_connection: unknown, request: { query: string }) => {
+      expect(request.query).toContain("startingPrice");
+      expect(request.query).toContain("pricing");
+      return priced;
+    });
+    expect(await verifyWritten(connection, priced, query)).toBe(true);
+    expect(query.mock.calls[0]).toHaveLength(2);
+    expect(await verifyWritten(connection, priced, vi.fn(async () => documents))).toBe(false);
+    expect(await verifyWritten(connection, documents, vi.fn(async () => priced))).toBe(false);
+    expect(await verifyWritten(connection, priced, vi.fn(async () => [{ ...priced[0], pricing: [{ ...tier, price: "200 €" }] }, priced[1]]))).toBe(false);
+  });
+});
 
 describe("service write plan validation", () => {
   it("accepts a complete localized parent-child plan", () => {
@@ -209,6 +265,14 @@ describe("CLI UTF-8 input integrity", () => {
     expect(at).toBeGreaterThan(-1);
     return Buffer.concat([Buffer.from(text.slice(0, at)), Buffer.from(bad), Buffer.from(text.slice(at + 1))]);
   }
+  it("dry-runs priced documents without resolving credentials or using the network", async () => {
+    const priced = { ...fixture(), documents: [{ ...fixture().documents[0], startingPrice: "100 €", pricing: [{ _key: "basic", _type: "object", name: "Basic", price: "100 €" }] }, fixture().documents[1]] };
+    const result = await execute(Buffer.from(JSON.stringify(priced)));
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("Dry run only");
+    expect(result.stdout).toContain(`Approved digest: ${result.digest}`);
+  });
+
   it("preserves valid Unicode, an intentional replacement character and its approval digest", async () => {
     const result = await execute(Buffer.from(JSON.stringify(fixture())));
     expect(result.code).toBe(0);
