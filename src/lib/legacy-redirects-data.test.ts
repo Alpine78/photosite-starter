@@ -57,6 +57,104 @@ const KNOWN_PUBLISHED_CONTENT_TARGETS = new Set([
   "/en/stories/motorsport/wrc/secto-rally-finland-2022",
   "/tarinat/moottoriurheilu/wrc/rally-estonia-2023",
   "/en/stories/motorsport/wrc/rally-estonia-2023",
+  "/en/stories/common/ilkka-rytkonen-photographer",
+  "/en/stories/motorsport/formula-1",
+  "/en/stories/motorsport/formula-1/austrian-grand-prix-2021",
+  "/en/stories/motorsport/other-motorsport",
+  "/en/stories/motorsport/other-motorsport/racewknd-kuopio-2020",
+  "/en/stories/portfolio",
+  "/en/stories/travel-photos",
+  "/en/stories/travel-photos/alpine-trips",
+  "/en/stories/travel-photos/alpine-trips/chamonix-ski-2006",
+  "/en/stories/travel-photos/f1-trips",
+  "/en/stories/travel-photos/f1-trips/italian-grand-prix-2007",
+  "/en/stories/travel-photos/f1-trips/italian-grand-prix-2008",
+  "/en/stories/travel-photos/norway-and-lapland",
+  "/en/stories/travel-photos/norway-and-lapland/lapland-roundtrip-2010",
+  "/en/stories/vat-portfolio",
+  "/en/stories/vat-portfolio/commercial-skills",
+  "/en/stories/vat-portfolio/digital-workflow",
+  "/en/stories/vat-portfolio/on-location-photography",
+  "/en/stories/vat-portfolio/studio-photography",
+  "/en/stories/wedding-photos",
+  "/en/stories/wedding-photos/annika-and-johannes",
+  "/en/stories/wedding-photos/elisa-joni",
+  "/en/stories/wedding-photos/elsku-and-janne",
+  "/en/stories/wedding-photos/emilia-and-jussi",
+  "/en/stories/wedding-photos/hanna-and-heikki",
+  "/en/stories/wedding-photos/jenni-tomi",
+  "/en/stories/wedding-photos/johanna-and-jani",
+  "/en/stories/wedding-photos/kristiina-and-sampo",
+  "/en/stories/wedding-photos/laura-jukka",
+  "/en/stories/wedding-photos/laurabrett",
+  "/en/stories/wedding-photos/marianna-and-mikko",
+  "/en/stories/wedding-photos/marittalassi",
+  "/en/stories/wedding-photos/minnamikko",
+  "/en/stories/wedding-photos/mirja-matti",
+  "/en/stories/wedding-photos/olga-and-vesa",
+  "/en/stories/wedding-photos/paula-and-ville",
+  "/en/stories/wedding-photos/pirjo-and-ville",
+  "/en/stories/wedding-photos/salla-and-vesa",
+  "/en/stories/wedding-photos/tiia-maria-and-jouni",
+  "/tarinat/blogi",
+  "/tarinat/blogi/2016-suuri-makkaravertailu",
+  "/tarinat/blogi/canon-eos-1d-x",
+  "/tarinat/blogi/canon-powershot-sx610-hs",
+  "/tarinat/blogi/fujifilm-fujinon-xf100-400mmf45-56-r-lm-ois-wr",
+  "/tarinat/blogi/fujifilm-fujinon-xf18-135mmf3-5-5-6-r-lm-ois-wr",
+  "/tarinat/blogi/fujifilm-fujinon-xf35mmf2-r-wr",
+  "/tarinat/blogi/fujifilm-fujinon-xf50-140mm-f2-8-r-lm-ois-wr",
+  "/tarinat/blogi/fujifilm-fujinon-xf56mm-f1-2-r",
+  "/tarinat/blogi/fujifilm-x-pro2",
+  "/tarinat/blogi/fujifilm-x-t1",
+  "/tarinat/blogi/fujifilm-x-t10",
+  "/tarinat/blogi/garmin-vivoactive",
+  "/tarinat/blogi/nettisivujen-ulkoasu-uudistus-2017",
+  "/tarinat/blogi/nikon-d4s",
+  "/tarinat/blogi/nikon-df",
+  "/tarinat/blogi/pentax-645z",
+  "/tarinat/blogi/polar-m600-suunto-spartan-ultra",
+  "/tarinat/blogi/uudet-sivut-avattu",
+  "/tarinat/haakuvat",
+  "/tarinat/haakuvat/annika-johannes",
+  "/tarinat/haakuvat/elisa-joni",
+  "/tarinat/haakuvat/elsku-janne",
+  "/tarinat/haakuvat/emilia-jussi",
+  "/tarinat/haakuvat/hanna-heikki",
+  "/tarinat/haakuvat/jenni-tomi",
+  "/tarinat/haakuvat/johanna-jani",
+  "/tarinat/haakuvat/kristiina-sampo",
+  "/tarinat/haakuvat/laura-brett",
+  "/tarinat/haakuvat/laura-jukka",
+  "/tarinat/haakuvat/marianna-mikko",
+  "/tarinat/haakuvat/maritta-lassi",
+  "/tarinat/haakuvat/minna-mikko",
+  "/tarinat/haakuvat/mirja-matti",
+  "/tarinat/haakuvat/olga-vesa",
+  "/tarinat/haakuvat/paula-ville",
+  "/tarinat/haakuvat/pirjo-ville",
+  "/tarinat/haakuvat/salla-vesa",
+  "/tarinat/haakuvat/tiia-maria-jouni",
+  "/tarinat/haaportfolio",
+  "/tarinat/matkailu",
+  "/tarinat/matkailu/alppimatkat",
+  "/tarinat/matkailu/alppimatkat/chamonix-2006",
+  "/tarinat/matkailu/formulamatkat",
+  "/tarinat/matkailu/formulamatkat/italian-grand-prix-2007",
+  "/tarinat/matkailu/formulamatkat/italian-grand-prix-2008",
+  "/tarinat/matkailu/norja-ja-lappi",
+  "/tarinat/matkailu/norja-ja-lappi/lapin-kierros-2010",
+  "/tarinat/moottoriurheilu/f1",
+  "/tarinat/moottoriurheilu/f1/austrian-grand-prix-2021",
+  "/tarinat/moottoriurheilu/muu-moottoriurheilu",
+  "/tarinat/moottoriurheilu/muu-moottoriurheilu/racewknd-kuopio-2020",
+  "/tarinat/portfolio",
+  "/tarinat/vat-portfolio",
+  "/tarinat/vat-portfolio/digitaalinen-tyonkulku",
+  "/tarinat/vat-portfolio/kaupallinen",
+  "/tarinat/vat-portfolio/miljoo",
+  "/tarinat/vat-portfolio/studio",
+  "/tarinat/yleinen/valokuvaaja-ilkka-rytkonen",
 ]);
 
 /**
@@ -159,6 +257,48 @@ describe("AB#19 legacy redirect completeness", () => {
     for (const entry of PUBLISHED_CONTENT_REDIRECT_ENTRIES) {
       const outcome = resolveLegacyRedirect(LEGACY_REDIRECTS, entry.source);
       expect(outcome, entry.source).toEqual(entry.outcome);
+    }
+  });
+
+  it("keeps the verified target snapshot equal to the targets actually used", () => {
+    const used = PUBLISHED_CONTENT_REDIRECT_ENTRIES.flatMap((entry) =>
+      entry.outcome.kind === "redirect" ? [entry.outcome.target] : [],
+    );
+    // A clone with no legacy configuration empties the registry; the
+    // first-site verification snapshot has no runtime effect in that case.
+    if (used.length === 0) return;
+    expect(new Set(used)).toEqual(KNOWN_PUBLISHED_CONTENT_TARGETS);
+  });
+
+  it("preserves the first-site source language on every published-content redirect", () => {
+    for (const entry of PUBLISHED_CONTENT_REDIRECT_ENTRIES) {
+      if (entry.outcome.kind !== "redirect") continue;
+      expect(entry.outcome.target.startsWith("/en/"), entry.source).toBe(
+        entry.source.startsWith("/en/"),
+      );
+    }
+  });
+
+  it("keeps distinct imported identities and historical aliases on their exact targets", () => {
+    // Independently transcribed identities: altered English slugs, portfolio
+    // alias, category/article distinction and the slow original Monza page.
+    const expected = [
+      ["/en/photos/wedding/laurajukka", "/en/stories/wedding-photos/laura-jukka"],
+      ["/fi/valokuvat/haakuvat/laura-jukka", "/tarinat/haakuvat/laura-jukka"],
+      ["/blogi", "/tarinat/blogi"],
+      ["/blogi/fujifilm-x-pro2", "/tarinat/blogi/fujifilm-x-pro2"],
+      ["/sivustokartta/haaportfolio", "/tarinat/haaportfolio"],
+      ["/en/portfolio-en", "/en/stories/portfolio"],
+      ["/valokuvat/matkailu/f1/italia-monza-f1-2008", "/tarinat/matkailu/formulamatkat/italian-grand-prix-2008"],
+    ];
+    // A clone may empty the first-site registry completely.
+    if (PUBLISHED_CONTENT_REDIRECT_ENTRIES.length === 0) return;
+    for (const [source, target] of expected) {
+      expect(resolveLegacyRedirect(LEGACY_REDIRECTS, source), source).toEqual({
+        kind: "redirect",
+        target,
+        reservedQueryParams: "strip",
+      });
     }
   });
 

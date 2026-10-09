@@ -1053,6 +1053,18 @@ to exactly one decided, pending, excluded, or already-live bucket. Direct canoni
 same-language targets and explicit category-ancestry/home fallback policy follow
 ADR-0003 decision 9; unknown URLs retain ordinary not-found behavior.
 
+**Imported-content redirect preparation, 2026-10-09 (AB#19, Active):**
+138 further direct rows preserve verified Joomla article/gallery/category identities,
+including Finnish `/fi` aliases and differently spelled English slugs. All 98 distinct
+new targets returned anonymous direct 200 HTML with the expected main heading,
+configured language and exact canonical on the activated Production renderer. This
+branch accounts for 177 redirects, 174 tag-page 410s, 60 pending paths, three excluded
+error pages and one live root. The separate prepared twelve-service-row branch is
+source-disjoint; integrating both leaves 48 pending paths. These rows are uncommitted
+and not deployed; the mock journey verifies 301 locations, while target availability
+comes from the dated live GET evidence. Full inventory acceptance remains blocked by
+pending decisions. [Scope and evidence](audits/ab19-content-redirects-2026-10-09.md).
+
 **Legacy target semantics, 2026-10-07 (AB#211):** the owner-run verification
 requires genuine HTML metadata and nonempty HTML status text outside hidden or inert
 subtrees. Foreign canonical/alternate lookalikes, comments and hidden-child-only notices
