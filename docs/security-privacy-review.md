@@ -860,3 +860,63 @@ A new read-only complete baseline and final raw revision comparison cover 3,593 
 The [provider/notice record](contact-data-flow.md#2026-10-08-provider-contract-and-scoped-notice-preparation-ab117137) distinguishes Resend's automatically effective DPA from the unresolved applicability of Vercel's Pro/Enterprise DPA to the still-Hobby team. Existing MFA, key-scope, tracking-off and deletion confirmations are retained. Exact Infomaniak Free backup erasure remains unverified. The refreshed notice is an offline, revision-bound single-field proposal; no CMS notice/bulk write occurred.
 
 AB#117 remains Active pending actual content migration and post-write audit/revocation, the remaining provider/hosting resolution, legacy targets and final public launch evidence. No billing upgrade, public promotion, email delivery, DNS change or physical-device verification was performed. Private helpers received scoped local boundary checks, not a claimed independent line-by-line review or a full launch approval.
+
+### 2026-10-08 approved notice and operator signing-key incident (AB#117)
+
+The owner approved the exact FI/EN notice. The [publication record](contact-data-flow.md#2026-10-08-owner-approved-notice-publication-ab117137)
+records its guarded single-field write, independent reads, complete post-write
+baseline and rendered Finnish copy after normal signed cache reconciliation.
+
+A local operator assertion diagnostic exposed two active webhook signing values.
+The error boundary was corrected to withhold values. Controlled, deliberately
+invalid-schema requests established that one value is accepted by current Preview
+and the other by the old serving Production deployment and protected candidate;
+those scope probes never produced a cache plan. The separately identified two
+legitimate Production recovery calls were accepted. CMS write credentials, email
+keys and the Vercel bypass were not exposed by that diagnostic; no credential value
+is committed in this record. No unauthorized use was observed or ruled out.
+
+The owner subsequently authorized the prepared key/alias maintenance and deletion
+of its three named old deployments. Both Vercel signing variables were replaced
+with distinct environment-specific Secret values. Unrelated environment metadata
+was unchanged. Protected replacements retain the original provider source-archive
+UIDs; output paths match, while packaged runtime UIDs may change. Current runtimes
+accept the new signatures, reject both exposed values, and acknowledge valid
+signed reconciliations. Two active local credential files were synchronized.
+
+Production aliases now point to the maintenance replacement using the **same old
+application source**. During maintenance, CI deployed merged PR #304 to stable
+Preview; its new signing key was verified and that newer deployment was preserved.
+The compatible Production candidate remains protected and unactivated. The three
+authorized old immutable deployments were deleted; each now returns provider
+`404 DEPLOYMENT_NOT_FOUND`. The bypass inventory is unchanged. All 3,593 raw CMS
+document revisions still match the complete post-notice baseline; this maintenance
+made no CMS document, billing, mail-delivery or DNS change.
+
+Two concrete residuals prevent a claim of full remediation:
+
+- **Historical keys:** all 90 listed historical deployments were inventoried. Of
+  86 other READY versions probed, 80 still accept the exposed environment key
+  (6 Production, 74 Preview), with the new-key control rejected. All 80 return a
+  verified anonymous Vercel SSO challenge. They were not covered by the three-ID
+  deletion authorization and remain retained; a private, individually identified
+  retirement proposal is prepared. No blanket revocation or absence of misuse is
+  claimed.
+- **CMS-triggered delivery:** the Preview hook's dataset mismatch was corrected
+  on October 9 after the owner's separate explicit approval. Both deployment
+  environments' actual `production` data source was reread through the
+  single-variable endpoint; only the existing hook's dataset changed from `preview`
+  to `production`. Readback proves all other settings, including the rotated
+  secret, URL, headers, filter and identity-only projection, are unchanged. Direct
+  signed production-update and duplicate requests each returned 200; wrong-dataset
+  and wrong-signature controls returned 403 and 401. These were manual receiver
+  probes, not Sanity-generated deliveries. Automatic delivery remains to be
+  observed on a genuine CMS change; no test content was written. The stable Preview
+  alias and all 3,593 raw document IDs/revisions/types remained unchanged across
+  the operation. No Production hook was created. The October 8 automatic approval
+  rejection applied to the earlier secret-only scope; the separate October 9
+  owner approval covers the completed dataset correction.
+
+AB#117 remains Active for these residuals and the existing launch gates. Private
+operator helpers received scoped self-verification, not an independent line-by-line
+review or a full security/privacy approval.
