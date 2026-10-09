@@ -443,6 +443,11 @@ async function deleteExactDeploymentId(
     );
   }
 
+  const payload = await readStrictJsonResponse(response, "Vercel deployment deletion returned invalid JSON");
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload) ||
+      (payload as Record<string, unknown>).uid !== id || (payload as Record<string, unknown>).state !== "DELETED") {
+    throw new VercelApiError("Vercel deployment deletion returned an unverified acknowledgement");
+  }
   return { deleted: true, id };
 }
 
