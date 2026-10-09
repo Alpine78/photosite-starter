@@ -1944,7 +1944,7 @@ redirect target rather than accepting any redirect status, preserving the origin
 deliberate refusal to treat an ambiguous redirect as proof. Production promotion (AB#18)
 and exercised rollback and handoff (AB#118) are later stories, now unblocked rather than
 waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
-see above — with 186 of 415 distinct crawled paths still pending reviewed targets after
+see above — with 48 of 415 distinct crawled paths still pending reviewed targets after
 content migration (including `component/komento/*` and `sivustokartta/*`).
 
 **Rollback record preparation, 2026-10-06 (AB#208, Active):** the

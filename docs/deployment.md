@@ -34,7 +34,7 @@ npm run --silent verify:legacy-redirects -- report > /tmp/legacy-mapping.json
 
 The report distinguishes the full crawl's 442 URL records (the AB#19 attachment) from the
 415 path/status observations committed here. Counts and classifications are calculated
-from the mapping: currently 51 redirects, 174 justified `410` responses, 186 pending
+from the mapping: currently 189 redirects, 174 justified `410` responses, 48 pending
 decisions, three excluded error paths, and one already-live root. A duplicate, unaccounted,
 or non-inventory source fails report generation. Successful export proves bookkeeping;
 it does not prove target availability or approve launch.
@@ -80,7 +80,7 @@ fragments remain browser-held state and are not sent in these HTTP requests.
 
 AB#19 remains **Active**. AB#137's migration and reviewed same-language target/fallback
 decisions must precede final production-target verification. This tooling slice is not
-evidence that the 186 pending paths meet AB#19's acceptance criteria or that a phased launch
+evidence that the 48 pending paths meet AB#19's acceptance criteria or that a phased launch
 manifest has been approved. Attach the final check report to AB#19 after migration, before
 AB#117/AB#18's launch gates.
 
