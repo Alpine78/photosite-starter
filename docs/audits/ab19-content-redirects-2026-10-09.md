@@ -45,7 +45,7 @@ including bare numeric lightbox flags, remain byte-for-byte; no fragment transla
 is introduced. Existing case and slash normalization remains unchanged.
 No engine, route, CMS, dependency or private-gallery implementation changes.
 
-| Classification | This branch | After the separate service branch is integrated |
+| Classification | Original isolated content branch | With the service branch integrated |
 | --- | ---: | ---: |
 | Direct redirects | 177 | 189 |
 | Justified tag-page 410s | 174 | 174 |
@@ -54,7 +54,11 @@ No engine, route, CMS, dependency or private-gallery implementation changes.
 | Already-live root | 1 | 1 |
 | Total distinct inventory paths | 415 | 415 |
 
-The 138 content/category sources and twelve prepared service sources are explicitly
+PR #318 is now merged into main, and this branch integrates its twelve service rows.
+The current classification is the right-hand column above; the left-hand column
+preserves the original isolated content checkpoint.
+
+The 138 content/category sources and twelve service sources are explicitly
 disjoint. A separate local integration snapshot includes both redirect branches and
 the pricing-tool branch; pending-list conflicts retain only the exact intersection
 of the undecided source sets. No worktree was committed or rewritten for this trial. Residual static/service/source-identity decisions remain pending; no phased
@@ -62,13 +66,18 @@ manifest, blanket fallback or complete inventory pass is approved by this slice.
 
 ## Validation
 
-Lint, 4,959 browser-free tests across 210 files, the production build and 44
+Original isolated validation: lint, 4,959 browser-free tests across 210 files, the production build and 44
 Chromium/WebKit legacy/fallback journeys passed. The initial shared dependency
 symlink was rejected by Turbopack; the worktree now has its own dependency copy.
 The sandboxed CLI tests produced empty child-process outputs; the full suite
 passed when run with the required process permissions. No application fix was
 needed for either execution-environment failure. The combined snapshot passed 4,982 tests across 210 files and its independent
 mapping report confirms 189 redirects / 174 gone / 48 pending / 3 excluded / 1 live.
+After integrating main and resolving the tracking-list conflicts for PR #319,
+all 4,982 browser-free tests, lint, the production build and 46 Chromium/WebKit
+legacy/fallback journeys passed again. The current mapping report exactly matches
+the prior combined snapshot; only the test snapshot's already-reviewed empty-clone
+guard differs from that earlier integration copy.
 No public deployment,
 DNS change, contact POST, CMS write, physical-device check, dataset-region proof or
 backup restore is performed by this work.

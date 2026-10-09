@@ -4,6 +4,7 @@ import { resolveLegacyRedirect } from "@/lib/legacy-redirects";
 import {
   LEGACY_REDIRECTS,
   PUBLISHED_CONTENT_REDIRECT_ENTRIES,
+  PUBLISHED_SERVICE_REDIRECT_ENTRIES,
   RETIRED_TAG_PATHS,
   STRUCTURAL_REDIRECT_ENTRIES,
 } from "@/lib/legacy-redirects-data";
@@ -205,6 +206,7 @@ describe("AB#19 legacy redirect completeness", () => {
         ...RETIRED_TAG_PATHS,
         ...STRUCTURAL_REDIRECT_ENTRIES.map((entry) => entry.source),
         ...PUBLISHED_CONTENT_REDIRECT_ENTRIES.map((entry) => entry.source),
+        ...PUBLISHED_SERVICE_REDIRECT_ENTRIES.map((entry) => entry.source),
       ],
       "already-live": ALREADY_LIVE_LEGACY_PATHS,
       excluded: EXCLUDED_LEGACY_PATHS,
@@ -242,6 +244,7 @@ describe("AB#19 legacy redirect completeness", () => {
     expect(LEGACY_REDIRECTS.size).toBe(
       RETIRED_TAG_PATHS.length +
         STRUCTURAL_REDIRECT_ENTRIES.length +
+        PUBLISHED_SERVICE_REDIRECT_ENTRIES.length +
         PUBLISHED_CONTENT_REDIRECT_ENTRIES.length,
     );
   });
@@ -325,6 +328,54 @@ describe("AB#19 legacy redirect completeness", () => {
     }
   });
 
+  it("keeps published service redirects direct and in the source language", () => {
+    // Independently verified on the activated renderer; the harness contains
+    // only generic services and must not depend on first-site CMS content.
+    // `verify:legacy-redirects check` against the intended serving origin is
+    // the availability gate; this allowlist is an independent typo guard.
+    const targets = new Set([
+      "/palvelut/haakuvaus",
+      "/palvelut/haakuvaus/miljoomuotokuvaus",
+      "/palvelut/haakuvaus/vihkiseremonia-ja-miljoomuotokuvat",
+      "/palvelut/haakuvaus/puoli-paivaa",
+      "/palvelut/haakuvaus/koko-paiva",
+      "/en/services/wedding-photography",
+      "/en/services/wedding-photography/portraits",
+    ]);
+    for (const entry of PUBLISHED_SERVICE_REDIRECT_ENTRIES) {
+      expect(resolveLegacyRedirect(LEGACY_REDIRECTS, entry.source)).toEqual(
+        entry.outcome,
+      );
+      expect(entry.outcome.kind).toBe("redirect");
+      if (entry.outcome.kind !== "redirect") continue;
+      expect(targets.has(entry.outcome.target), entry.source).toBe(true);
+      expect(entry.outcome.target.startsWith("/en/"), entry.source).toBe(
+        entry.source.startsWith("/en/"),
+      );
+      expect(
+        resolveLegacyRedirect(LEGACY_REDIRECTS, entry.outcome.target),
+        entry.source,
+      ).toBeUndefined();
+    }
+  });
+
+  it("keeps the independently verified half-day and full-day source identities distinct", () => {
+    if (PUBLISHED_SERVICE_REDIRECT_ENTRIES.length === 0) return;
+    const pairs = [
+      ["/haakuvaus/puoli-paivaa", "/palvelut/haakuvaus/puoli-paivaa"],
+      ["/fi/haakuvaus/puoli-paivaa", "/palvelut/haakuvaus/puoli-paivaa"],
+      ["/haakuvaus/koko-paiva", "/palvelut/haakuvaus/koko-paiva"],
+      ["/fi/haakuvaus/koko-paiva", "/palvelut/haakuvaus/koko-paiva"],
+    ] as const;
+    for (const [source, target] of pairs) {
+      expect(resolveLegacyRedirect(LEGACY_REDIRECTS, source), source).toEqual({
+        kind: "redirect",
+        target,
+        reservedQueryParams: "strip",
+      });
+    }
+  });
+
   it("keeps the decided tag list pinned to exactly the tag-shaped inventory paths", () => {
     // Re-derives the pattern independently of `legacy-redirects-data.ts` so a
     // future inventory update that adds or removes a tag-shaped path fails
@@ -346,6 +397,7 @@ describe("AB#19 legacy redirect completeness", () => {
       ...RETIRED_TAG_PATHS,
       ...STRUCTURAL_REDIRECT_ENTRIES.map((entry) => entry.source),
       ...PUBLISHED_CONTENT_REDIRECT_ENTRIES.map((entry) => entry.source),
+      ...PUBLISHED_SERVICE_REDIRECT_ENTRIES.map((entry) => entry.source),
       ...PENDING_LEGACY_PATHS,
     ]) {
       expect(

@@ -12,7 +12,7 @@
  * imports this file. A clone with no Joomla migration empties all three
  * lists below to `[]` — the same way it empties `legacy-redirects-data.ts`'s
  * `RETIRED_TAG_PATHS`, `STRUCTURAL_REDIRECT_ENTRIES`,
- * `PUBLISHED_CONTENT_REDIRECT_ENTRIES`, and
+ * `PUBLISHED_SERVICE_REDIRECT_ENTRIES`, `PUBLISHED_CONTENT_REDIRECT_ENTRIES`, and
  * `legacy-redirects-inventory.json`'s `records` — rather than deleting this
  * file, which would break the completeness test and owner-run mapping report
  * that import it (`legacy-redirects-data.test.ts` and `verify:legacy-redirects`).
@@ -60,7 +60,7 @@ export const EXCLUDED_LEGACY_PATHS: readonly string[] = [
  * Legacy paths whose exact same-language replacement or explicit ancestry
  * fallback is not yet recorded. The imported content/category rows verified
  * on 2026-10-09 now belong to PUBLISHED_CONTENT_REDIRECT_ENTRIES; this list
- * retains only undecided rows, including the separate service follow-up.
+ * retains only undecided static/service and source-identity rows.
  *
  * Remaining system-shaped sources are not classified by their spelling:
  * Komento profile intent needs evidence; the Fujifilm focus-speed sitemap
@@ -92,21 +92,14 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/en/photos",
   "/en/photos/misc",
   "/en/site",
-  "/en/wedding",
   "/en/wedding-portfolio",
   "/en/wedding/ceremony",
   "/en/wedding/ceremony-portraits",
   "/en/wedding/from-morning",
   "/en/wedding/half-day",
-  "/en/wedding/portraits",
   "/en/wedding/whole-day",
-  "/fi/haakuvaus",
   "/fi/haakuvaus/aamusta-iltaan",
-  "/fi/haakuvaus/koko-paiva",
-  "/fi/haakuvaus/miljoomuotokuvaus",
-  "/fi/haakuvaus/puoli-paivaa",
   "/fi/haakuvaus/vihkiseremonia",
-  "/fi/haakuvaus/vihkiseremonia-muotokuvaus",
   "/fi/kalusto",
   "/fi/sivusto",
   "/fi/valokuvat",
@@ -117,13 +110,8 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/fi/valokuvaus/perhe-ja-lapsikuvaus",
   "/fi/valokuvaus/valmistujaiskuvaus",
   "/fi/valokuvaus/yrityskuvaus",
-  "/haakuvaus",
   "/haakuvaus/aamusta-iltaan",
-  "/haakuvaus/koko-paiva",
-  "/haakuvaus/miljoomuotokuvaus",
-  "/haakuvaus/puoli-paivaa",
   "/haakuvaus/vihkiseremonia",
-  "/haakuvaus/vihkiseremonia-muotokuvaus",
   "/kalusto",
   "/sivusto",
   "/sivustokartta/fujifilm-x-pro2-tarkennusnopeus",
