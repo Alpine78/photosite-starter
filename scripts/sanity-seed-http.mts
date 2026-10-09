@@ -161,14 +161,10 @@ export type UploadedAsset = {
   readonly mimeType: string;
 };
 
-type RawUploadResponse = {
-  readonly document?: {
-    readonly _id?: unknown;
-    readonly extension?: unknown;
-    readonly mimeType?: unknown;
-    readonly metadata?: { readonly dimensions?: { readonly width?: unknown; readonly height?: unknown } };
-  };
-};
+function record(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown> : undefined;
+}
 
 /**
  * Uploads one image asset and validates the response against the exact same
@@ -199,32 +195,33 @@ export async function uploadSeedImageAsset(
     },
     options,
   );
-  const body = (await readSanityJsonResponse(response, "Asset upload")) as RawUploadResponse;
-
-  const id = body.document?._id;
-  const extension = body.document?.extension;
-  const mimeType = body.document?.mimeType;
-  const width = body.document?.metadata?.dimensions?.width;
-  const height = body.document?.metadata?.dimensions?.height;
+  const body = record(await readSanityJsonResponse(response, "Asset upload"));
+  const document = record(body?.document);
+  const dimensions = record(record(document?.metadata)?.dimensions);
+  const id = document?._id;
+  const extension = document?.extension;
+  const mimeType = document?.mimeType;
+  const width = dimensions?.width;
+  const height = dimensions?.height;
 
   if (
-    typeof id !== "string" ||
+    typeof id !== "string" || !id.trim() ||
     typeof extension !== "string" ||
     typeof mimeType !== "string" ||
-    typeof width !== "number" ||
-    typeof height !== "number"
+    typeof width !== "number" || !Number.isSafeInteger(width) || width <= 0 ||
+    typeof height !== "number" || !Number.isSafeInteger(height) || height <= 0
   ) {
     throw new SanityReadHttpError("Asset upload response was missing expected fields");
   }
 
   if (policy.formatsByExtension[extension] !== mimeType) {
     throw new SanityReadHttpError(
-      `Uploaded asset was accepted as an unexpected format ("${extension}"/"${mimeType}") — refusing to trust it against this project's public-delivery policy`,
+      "Uploaded asset was accepted as an unexpected format — refusing to trust it against this project's public-delivery policy",
     );
   }
   if (Math.max(width, height) > policy.maxDimension) {
     throw new SanityReadHttpError(
-      `Uploaded asset is ${width}x${height}, past the ${policy.maxDimension}px public-delivery limit`,
+      `Uploaded asset exceeds the ${policy.maxDimension}px public-delivery limit`,
     );
   }
 

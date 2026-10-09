@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   CATEGORY_WRITE_PLAN_VERSION,
   categoryDatasetIssues,
+  buildCategoryPreflightQuery,
+  preflightCategories,
   categoryDocumentsDigest,
   categoryWriteWaves,
   normalizeCategoryReadback,
@@ -189,5 +191,47 @@ describe("CLI UTF-8 input integrity", () => {
     const result = await execute(Buffer.from("\uFEFF" + JSON.stringify(fixture())));
     expect(result.code).toBe(1);
     expect(result.stdout).toBe("");
+  });
+});
+
+
+describe("planned identity preflight (AB#241)", () => {
+  const connection = { projectId: "synthetic", dataset: "preview", apiVersion: "v2026-06-24", token: "synthetic-token" };
+  it("queries published and draft IDs regardless of type and retains type identities", () => {
+    const request = buildCategoryPreflightQuery(documents);
+    expect(request.perspective).toBe("raw");
+    expect(request.query).toContain('|| _id in $ids');
+    expect(request.query).toContain('_type == "category"');
+    expect(request.params?.ids).toEqual(documents.flatMap(d => [d._id, `drafts.${d._id}`]).sort());
+  });
+  it("returns a collision for a planned ID occupied by another type", async () => {
+    const query = vi.fn(async (...args: unknown[]) => { void args; return [{ _id: documents[0]._id, _type: "unrelated" }]; });
+    const issues = await preflightCategories(connection, documents, query);
+    expect(query.mock.calls[0]).toEqual([connection, buildCategoryPreflightQuery(documents)]);
+    expect(issues.join(" ")).toContain("different content");
+  });
+  it("accepts an exact rerun with projected optional nulls", async () => {
+    const query = vi.fn(async () => documents.map(document => ({
+      ...document, parent: document.parent ?? null, description: document.description ?? null,
+    })));
+    expect(await preflightCategories(connection, documents, query)).toEqual([]);
+  });
+  it("reports only the occupied ID in a mixed existing plan", async () => {
+    const query = vi.fn(async () => [documents[0], { _id: documents[1]._id, _type: "unrelated" }]);
+    expect(await preflightCategories(connection, documents, query)).toEqual([
+      `planned document "${documents[1]._id}" already exists with different content`,
+    ]);
+  });
+  it("refuses a wrong-type draft at a planned ID", async () => {
+    const query = vi.fn(async () => [{ _id: `drafts.${documents[0]._id}`, _type: "unrelated" }]);
+    expect(await preflightCategories(connection, documents, query)).toEqual([
+      `planned document "${documents[0]._id}" has an unpublished draft`,
+    ]);
+  });
+  it("refuses garbage and repeated raw IDs without echoing row content", () => {
+    for (const row of [null, [], 7, "PRIVATE_SENTINEL", {}, { _id: " ", _type: "category", secret: "PRIVATE_SENTINEL" }]) {
+      const issues = categoryDatasetIssues([row], documents); expect(issues.length).toBeGreaterThan(0); expect(issues.join(" ")).not.toContain("PRIVATE_SENTINEL");
+    }
+    expect(categoryDatasetIssues([documents[0], documents[0]], documents).join(" ")).toContain("repeats a document ID");
   });
 });
