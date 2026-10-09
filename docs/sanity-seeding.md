@@ -735,6 +735,16 @@ the planned ids, writes parents before children with `createIfNotExists`, and re
 document back afterward. It never replaces an existing document; an identical prior write
 is accepted as an idempotent rerun.
 
+Plans may include an optional `startingPrice` string and a `pricing` array for
+the existing listing-card and detail-page price displays. Amounts, currency and
+wording are authored content; the writer performs no price calculation. Each pricing
+entry needs a unique stable `_key`, `_type: "object"`, a non-blank `name` and `price`,
+and optionally a non-blank `note`. Unknown fields, empty pricing arrays and malformed
+prices refuse the plan. Keys and array order are included in its digest, together with
+all price text. Plans without prices retain their previous digests. Preflight and
+readback compare price fields exactly; differing existing prices are refused rather
+than patched or silently ignored. This remains a create-only operation.
+
 ```bash
 SANITY_MIGRATION_TOKEN=<temporary-editor-token> npm run write:services -- \
   --plan <service-write-plan.json> \
