@@ -204,9 +204,9 @@ export function buildAuditPageQuery(after: string | undefined, pageSize: number)
 // ---------------------------------------------------------------------------
 
 function parseCount(value: unknown, context: string): number {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
     throw new AuditQueryError(
-      `Expected ${context} to be a non-negative integer, received ${JSON.stringify(value)}`,
+      `Expected ${context} to be a non-negative integer`,
     );
   }
   return value;
@@ -224,29 +224,29 @@ export type AuditRawRow = {
 
 function requireBoolean(value: unknown, field: string, context: string): boolean {
   if (typeof value !== "boolean") {
-    throw new AuditQueryError(`Expected ${context}.${field} to be a boolean, received ${JSON.stringify(value)}`);
+    throw new AuditQueryError(`Expected ${context}.${field} to be a boolean`);
   }
   return value;
 }
 
 function requireNumberOrNull(value: unknown, field: string, context: string): number | null {
-  if (value !== null && typeof value !== "number") {
-    throw new AuditQueryError(`Expected ${context}.${field} to be a number or null, received ${JSON.stringify(value)}`);
+  if (value !== null && (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0)) {
+    throw new AuditQueryError(`Expected ${context}.${field} to be a positive safe integer or null`);
   }
   return value;
 }
 
 function parseAuditRawRow(value: unknown, context: string): AuditRawRow {
   if (typeof value !== "object" || value === null) {
-    throw new AuditQueryError(`Expected ${context} to be an object, received ${JSON.stringify(value)}`);
+    throw new AuditQueryError(`Expected ${context} to be an object`);
   }
   const row = value as Record<string, unknown>;
   const { _id, _type } = row;
   if (typeof _id !== "string" || _id.length === 0) {
-    throw new AuditQueryError(`Expected ${context}._id to be a non-empty string, received ${JSON.stringify(_id)}`);
+    throw new AuditQueryError(`Expected ${context}._id to be a non-empty string`);
   }
   if (typeof _type !== "string" || _type.length === 0) {
-    throw new AuditQueryError(`Expected ${context}._type to be a non-empty string, received ${JSON.stringify(_type)}`);
+    throw new AuditQueryError(`Expected ${context}._type to be a non-empty string`);
   }
   return {
     _id,
@@ -259,11 +259,11 @@ function parseAuditRawRow(value: unknown, context: string): AuditRawRow {
   };
 }
 
-function parseAuditPage(value: unknown): readonly AuditRawRow[] {
+function parseAuditPage(value: unknown, pageNumber: number): readonly AuditRawRow[] {
   if (!Array.isArray(value)) {
-    throw new AuditQueryError(`Expected a page of documents to be an array, received ${JSON.stringify(value)}`);
+    throw new AuditQueryError(`Expected a page of documents to be an array`);
   }
-  return value.map((item, index) => parseAuditRawRow(item, `row ${index}`));
+  return value.map((item, index) => parseAuditRawRow(item, `page ${pageNumber} row ${index}`));
 }
 
 // ---------------------------------------------------------------------------
@@ -353,7 +353,7 @@ export async function runContentAudit(
       );
     }
 
-    const page = parseAuditPage(await runQuery(buildAuditPageQuery(after, pageSize)));
+    const page = parseAuditPage(await runQuery(buildAuditPageQuery(after, pageSize)), pageCount + 1);
     pageCount += 1;
 
     if (page.length > pageSize) {
@@ -366,7 +366,7 @@ export async function runContentAudit(
     for (const row of page) {
       if (previousId !== undefined && !(row._id > previousId)) {
         throw new AuditQueryError(
-          `Pagination did not advance strictly: expected an _id greater than "${previousId}", received "${row._id}"`,
+          `Pagination did not advance strictly on page ${pageCount}`,
         );
       }
       previousId = row._id;

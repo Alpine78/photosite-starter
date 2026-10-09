@@ -458,3 +458,19 @@ describe("Vercel metadata UTF-8", () => {
     expect(result).not.toHaveProperty("cause"); expect((result as Error).stack).not.toContain("synthetic-provider-detail");
   });
 });
+
+
+describe("exact deployment deletion acknowledgement (AB#248)", () => {
+  const bodies: unknown[] = [null, [], "SYNTHETIC_PRIVATE", {}, { uid: "SYNTHETIC_PRIVATE", state: "DELETED" }, { uid: DEPLOYMENT.id + " ", state: "DELETED" }, { uid: DEPLOYMENT.id, state: "READY" }, { uid: DEPLOYMENT.id, state: "deleted" }];
+  it.each(bodies.map((body, index) => ({ body, index })))("refuses acknowledgement $index via both cleanup entry points", async ({ body }) => {
+    for (const fromUrl of [false, true]) {
+      const send = vi.fn<typeof fetch>().mockResolvedValueOnce(jsonResponse(DEPLOYMENT)).mockResolvedValueOnce(jsonResponse(body));
+      const error = await (fromUrl ? deletePreviewDeploymentFromUrl(`https://${DEPLOYMENT.url}`, SETTINGS, send) : deletePreviewDeployment(DEPLOYMENT.id, SETTINGS, send)).catch((cause: unknown) => cause);
+      expect(error).toBeInstanceOf(Error); expect(String(error)).not.toContain("SYNTHETIC_PRIVATE"); expect(String(error)).not.toContain(SETTINGS.token); expect(send).toHaveBeenCalledTimes(2); expect(send.mock.calls[1][1]?.method).toBe("DELETE");
+    }
+  });
+  it.each([() => new Response("not JSON SYNTHETIC_PRIVATE"), () => new Response(Buffer.from([0xff])), () => new Response(null, { status: 204 })])("refuses empty or damaged acknowledgement bytes without parser details", async response => {
+    const send = vi.fn<typeof fetch>().mockResolvedValueOnce(jsonResponse(DEPLOYMENT)).mockResolvedValueOnce(response());
+    await expect(deletePreviewDeployment(DEPLOYMENT.id, SETTINGS, send)).rejects.toThrow("deletion returned invalid JSON");
+  });
+});

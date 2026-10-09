@@ -17,6 +17,7 @@ import {
   runSeedMutationBatches,
   runSeedQuery,
   type SeedConnection,
+  type SeedQueryRequest,
 } from "./sanity-seed-http.mts";
 
 export const FOUNDATION_WRITE_PLAN_VERSION = "sanity-foundation-write-plan-v1";
@@ -373,11 +374,17 @@ function projectExistingDocument(row: ExistingDocument): FoundationDocument | un
 }
 
 /** Reject any other singleton, draft, or owner edit; an exact rerun is safe. */
-export function foundationDatasetIssues(existing: readonly ExistingDocument[], planned: readonly FoundationDocument[]): readonly string[] {
+export function foundationDatasetIssues(existing: readonly unknown[], planned: readonly FoundationDocument[]): readonly string[] {
   const issues: string[] = [];
   const plannedById = new Map(planned.map((document) => [document._id, document]));
-  for (const row of existing) {
-    if (typeof row._id !== "string") continue;
+  const seen = new Set<string>();
+  for (const [index, row] of existing.entries()) {
+    if (!isRecord(row) || typeof row._id !== "string" || !row._id.trim() || typeof row._type !== "string" || !row._type.trim()) {
+      issues.push(`preflight row ${index} has malformed identity`);
+      continue;
+    }
+    if (seen.has(row._id)) { issues.push(`preflight row ${index} repeats a document ID`); continue; }
+    seen.add(row._id);
     const plannedDocument = plannedById.get(publishedIdOf(row._id));
     if (plannedDocument !== undefined) {
       if (row._id.startsWith("drafts.")) issues.push(`planned document "${plannedDocument._id}" has an unpublished draft`);
@@ -392,13 +399,21 @@ export function foundationDatasetIssues(existing: readonly ExistingDocument[], p
   return [...new Set(issues)].sort();
 }
 
-async function preflight(connection: SeedConnection, documents: readonly FoundationDocument[]): Promise<readonly string[]> {
+export function buildFoundationPreflightQuery(documents: readonly FoundationDocument[]): SeedQueryRequest {
+  return {
+    perspective: "raw",
+    query: `*[_type in ["siteSettings", "homePage"] || _id in $ids]{${FOUNDATION_DOCUMENT_PROJECTION}}`,
+    params: { ids: [...new Set(documents.flatMap(document => [document._id, `drafts.${document._id}`]))].sort() },
+  };
+}
+
+export async function preflightFoundation(connection: SeedConnection, documents: readonly FoundationDocument[], runQuery: typeof runSeedQuery = runSeedQuery): Promise<readonly string[]> {
   const site = documents.find((document): document is SiteSettingsWriteDocument => document._type === "siteSettings")!;
   const home = documents.find((document): document is HomePageWriteDocument => document._type === "homePage")!;
-  const existing = await runSeedQuery(connection, { perspective: "raw", query: `*[_type in ["siteSettings", "homePage"]]{${FOUNDATION_DOCUMENT_PROJECTION}}` });
+  const existing = await runQuery(connection, buildFoundationPreflightQuery(documents));
   if (!Array.isArray(existing)) return ["Sanity singleton preflight returned a malformed result"];
   const issues = [...foundationDatasetIssues(existing.map(normalizeFoundationReadback) as readonly ExistingDocument[], documents)];
-  const refs = await runSeedQuery(connection, { query: `*[_id == $heroMedia || (_type == "gallery" && contentId == $featuredGalleryId)]{_id, _type, contentId}`, params: { heroMedia: home.heroMedia._ref, featuredGalleryId: site.featuredGalleryId ?? "" } });
+  const refs = await runQuery(connection, { query: `*[_id == $heroMedia || (_type == "gallery" && contentId == $featuredGalleryId)]{_id, _type, contentId}`, params: { heroMedia: home.heroMedia._ref, featuredGalleryId: site.featuredGalleryId ?? "" } });
   if (!Array.isArray(refs)) return [...issues, "Sanity foundation reference preflight returned a malformed result"];
   if (!refs.some((row) => isRecord(row) && row._id === home.heroMedia._ref && row._type === "media")) issues.push(`hero media "${home.heroMedia._ref}" does not exist as a published media document`);
   if (site.featuredGalleryId !== undefined && !refs.some((row) => isRecord(row) && row._type === "gallery" && row.contentId === site.featuredGalleryId)) issues.push(`featured gallery "${site.featuredGalleryId}" does not exist as a published gallery`);
@@ -431,10 +446,19 @@ export function parseArguments(argv: readonly string[]): Options {
 function required(value: string | undefined, message: string): string { if (value === undefined || value.trim().length === 0) throw new Error(message); return value; }
 function migrationToken(): string { if (process.env.NEXT_PUBLIC_SANITY_MIGRATION_TOKEN?.trim()) throw new Error("NEXT_PUBLIC_SANITY_MIGRATION_TOKEN must be removed; a write credential must never be public"); return required(process.env.SANITY_MIGRATION_TOKEN, "SANITY_MIGRATION_TOKEN is required for --yes"); }
 
+
+export function parseFoundationPlanBytes(bytes: Uint8Array): unknown {
+  try {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes));
+  } catch {
+    throw new Error("foundation plan must be valid UTF-8 JSON without a BOM");
+  }
+}
+
 async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
   // Preserve the existing BOM behavior; malformed UTF-8 must never become replacement text.
-  const validated = validateFoundationWritePlan(JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(options.plan))) as unknown);
+  const validated = validateFoundationWritePlan(parseFoundationPlanBytes(await readFile(options.plan)));
   if (validated.plan === undefined) throw new Error(`foundation plan failed ${validated.issues.length} check(s): ${validated.issues.join("; ")}`);
   const digest = foundationDocumentsDigest(validated.plan.documents);
   console.log(`Foundation plan valid: ${validated.plan.documents.length} singleton document(s).`);
@@ -443,7 +467,7 @@ async function main(): Promise<void> {
   if (options.approvedDigest === undefined || !DIGEST_PATTERN.test(options.approvedDigest)) throw new Error("--approved-digest <sha256> is required with --yes");
   if (options.approvedDigest !== digest) throw new Error("the foundation plan differs from the reviewed dry run; refusing to write");
   const connection = parseSeedConnection({ projectId: required(options.project ?? process.env.SANITY_PROJECT_ID, "SANITY_PROJECT_ID is required for --yes (or pass --project)"), dataset: required(options.dataset ?? process.env.SANITY_DATASET, "SANITY_DATASET is required for --yes (or pass --dataset)"), apiVersion: required(options.apiVersion ?? process.env.SANITY_API_VERSION, "SANITY_API_VERSION is required for --yes (or pass --api-version)"), token: migrationToken() });
-  const issues = await preflight(connection, validated.plan.documents);
+  const issues = await preflightFoundation(connection, validated.plan.documents);
   if (issues.length > 0) throw new Error(`target dataset failed ${issues.length} foundation preflight check(s): ${issues.join("; ")}`);
   const result = await runSeedMutationBatches(connection, validated.plan.documents.map((document) => ({ createIfNotExists: document })));
   console.log(`Wrote ${validated.plan.documents.length} foundation document(s) in ${result.batchesRun} batch(es).`);
