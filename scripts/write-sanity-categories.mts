@@ -20,6 +20,7 @@ import {
   runSeedMutationBatches,
   runSeedQuery,
   type SeedConnection,
+  type SeedQueryRequest,
 } from "./sanity-seed-http.mts";
 
 export const CATEGORY_WRITE_PLAN_VERSION = "sanity-category-write-plan-v1";
@@ -333,12 +334,18 @@ export function normalizeCategoryReadback(value: unknown): unknown {
 }
 
 /** Rejects any identity collision or owner edit; an exact previous run is safe. */
-export function categoryDatasetIssues(existing: readonly ExistingDocument[], planned: readonly CategoryWriteDocument[]): readonly string[] {
+export function categoryDatasetIssues(existing: readonly unknown[], planned: readonly CategoryWriteDocument[]): readonly string[] {
   const issues: string[] = [];
   const plannedById = new Map(planned.map((document) => [document._id, document]));
   const plannedByCategoryId = new Map(planned.map((document) => [document.categoryId, document]));
-  for (const row of existing) {
-    if (typeof row._id !== "string") continue;
+  const seen = new Set<string>();
+  for (const [index, row] of existing.entries()) {
+    if (!isRecord(row) || typeof row._id !== "string" || !row._id.trim() || typeof row._type !== "string" || !row._type.trim()) {
+      issues.push(`preflight row ${index} has malformed identity`);
+      continue;
+    }
+    if (seen.has(row._id)) { issues.push(`preflight row ${index} repeats a document ID`); continue; }
+    seen.add(row._id);
     const publishedId = publishedIdOf(row._id);
     const replacement = plannedById.get(publishedId);
     if (replacement !== undefined) {
@@ -356,11 +363,16 @@ export function categoryDatasetIssues(existing: readonly ExistingDocument[], pla
   return [...new Set(issues)].sort();
 }
 
-async function preflight(connection: SeedConnection, documents: readonly CategoryWriteDocument[]): Promise<readonly string[]> {
-  const result = await runSeedQuery(connection, {
+export function buildCategoryPreflightQuery(documents: readonly CategoryWriteDocument[]): SeedQueryRequest {
+  return {
     perspective: "raw",
-    query: `*[_type == "category"]{_id, _type, categoryId, parent, slug, label, description, order}`,
-  });
+    query: `*[_type == "category" || _id in $ids]{_id, _type, categoryId, parent, slug, label, description, order}`,
+    params: { ids: [...new Set(documents.flatMap(document => [document._id, `drafts.${document._id}`]))].sort() },
+  };
+}
+
+export async function preflightCategories(connection: SeedConnection, documents: readonly CategoryWriteDocument[], runQuery: typeof runSeedQuery = runSeedQuery): Promise<readonly string[]> {
+  const result = await runQuery(connection, buildCategoryPreflightQuery(documents));
   if (!Array.isArray(result)) return ["Sanity preflight returned a malformed result"];
   return categoryDatasetIssues(result.map(normalizeCategoryReadback) as readonly ExistingDocument[], documents);
 }
@@ -404,10 +416,19 @@ function migrationToken(): string {
   return requiredValue(process.env.SANITY_MIGRATION_TOKEN, "SANITY_MIGRATION_TOKEN is required for --yes");
 }
 
+
+export function parseCategoryPlanBytes(bytes: Uint8Array): unknown {
+  try {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes));
+  } catch {
+    throw new Error("category plan must be valid UTF-8 JSON without a BOM");
+  }
+}
+
 async function main(): Promise<void> {
   const options = parseArguments(process.argv.slice(2));
   // Preserve the existing BOM behavior; malformed UTF-8 must never become replacement text.
-  const validated = validateCategoryWritePlan(JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(await readFile(options.plan))) as unknown);
+  const validated = validateCategoryWritePlan(parseCategoryPlanBytes(await readFile(options.plan)));
   if (validated.plan === undefined) throw new Error(`category plan failed ${validated.issues.length} check(s): ${validated.issues.join("; ")}`);
   const { documents } = validated.plan;
   const digest = categoryDocumentsDigest(documents);
@@ -423,7 +444,7 @@ async function main(): Promise<void> {
     apiVersion: requiredValue(options.apiVersion ?? process.env.SANITY_API_VERSION, "SANITY_API_VERSION is required for --yes (or pass --api-version)"),
     token: migrationToken(),
   });
-  const issues = await preflight(connection, documents);
+  const issues = await preflightCategories(connection, documents);
   if (issues.length > 0) throw new Error(`target dataset failed ${issues.length} preflight check(s): ${issues.join("; ")}`);
   let batches = 0;
   for (const wave of waves) batches += (await runSeedMutationBatches(connection, wave.map((document) => ({ createIfNotExists: document })))).batchesRun;
