@@ -81,3 +81,11 @@ guard differs from that earlier integration copy.
 No public deployment,
 DNS change, contact POST, CMS write, physical-device check, dataset-region proof or
 backup restore is performed by this work.
+
+The first PR #319 CI run (#752) failed only the older lightbox scaffold assertion:
+`/portfolio` expected a direct 404 despite its newly verified Joomla decision.
+The clone scaffold 404 check is now separate and runs only without a configured
+legacy decision. The unknown-gallery and cursor checks still run in all clones;
+the legacy journey checks every configured content source's direct 301/Location.
+Local revalidation passed lint, the production build and 68 Chromium/WebKit cases;
+the two explicitly mapped scaffold cases are skipped. No runtime mapping changed.

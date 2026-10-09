@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import { getBuiltInLabels } from "@/lib/deployment-config";
+import { LEGACY_REDIRECT_ENTRIES } from "@/lib/legacy-redirects-data";
 import {
   appUnderTestEnvironment,
   PREFIXED_LOCALE,
@@ -649,17 +650,26 @@ test("a gallery answers honestly for the addresses it does not serve", async ({
 
     expect(response?.status()).toBe(404);
   });
+});
 
-  await test.step("the removed portfolio route is gone, not redirected", async () => {
-    // Never deployed or indexed, so nobody holds it and it earns no redirect
-    // (ADR-0003, 2026-08-10).
-    const response = await page.goto("/portfolio", {
-      waitUntil: "domcontentloaded",
-    });
+test("the removed portfolio scaffold without a legacy decision is a direct 404", async ({
+  page,
+}) => {
+  // ADR-0003 removes the unpublished scaffold unless the site's legacy
+  // inventory earns an explicit decision. Decided source responses are
+  // exercised separately in legacy-redirects.spec.ts, without following
+  // first-site CMS targets that the generic harness does not contain.
+  test.skip(
+    LEGACY_REDIRECT_ENTRIES.some((entry) => entry.source === "/portfolio"),
+    "the site has an explicit legacy decision for this source",
+  );
 
-    expect(response?.status()).toBe(404);
-    expect(new URL(page.url()).pathname).toBe("/portfolio");
+  const response = await page.goto("/portfolio", {
+    waitUntil: "domcontentloaded",
   });
+
+  expect(response?.status()).toBe(404);
+  expect(new URL(page.url()).pathname).toBe("/portfolio");
 });
 
 test("the grid reads in the same order the lightbox navigates, at every column count", async ({

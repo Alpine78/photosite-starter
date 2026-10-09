@@ -1063,7 +1063,7 @@ redirects, 174 tag-page 410s, 48 pending paths, three excluded error pages and o
 root. The content/category and service sources are disjoint. These rows are committed
 for PR #319 but not deployed to the public Production alias; the mock journey verifies
 301 locations, while target availability comes from the dated live GET evidence. Full inventory acceptance remains blocked by
-pending decisions. [Scope and evidence](audits/ab19-content-redirects-2026-10-09.md).
+pending decisions. The clone scaffold 404 journey applies only without an explicit legacy decision for that source; decided 301s are covered by the separate legacy journey. [Scope and evidence](audits/ab19-content-redirects-2026-10-09.md).
 
 **Legacy target semantics, 2026-10-07 (AB#211):** the owner-run verification
 requires genuine HTML metadata and nonempty HTML status text outside hidden or inert
