@@ -3373,3 +3373,7 @@ The categories writer's raw query includes planned published and draft IDs regar
 ### AB#242 — planned foundation identity preflight
 
 The foundation writer's raw query includes planned published and draft IDs regardless of the stored type, retaining the existing type inventory. An occupied ID of another type, malformed identity row or repeated raw ID refuses preflight before the write loop. Pure query and injected-query tests cover the widened lookup and refusal. Digests, createIfNotExists, normal readback and reference rules are unchanged. Foreign-type release-version IDs and concurrent edits after preflight are outside this bounded check; it performs no live import and does not close AB#137.
+
+### AB#243 — service preflight row integrity
+
+The service writer refuses malformed or repeated identity rows instead of dropping them from its route collision graph. Foreign service route identity fields must be bounded nonblank strings without control characters; a malformed optional parent is not treated as a root service. The raw query also includes services lacking language so they cannot disappear at that filter. Synthetic tests retain normal reruns and draft/type collisions. This guards returned rows and absent languages, not all unrelated-locale data or concurrent edits, and performs no live import.
