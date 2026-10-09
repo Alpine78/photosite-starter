@@ -3365,3 +3365,7 @@ compatible-renderer activation, content import, billing or DNS change is claimed
 ### AB#240 — validate image upload metadata
 
 The owner-run Sanity image uploader rejects malformed acknowledgement objects, blank IDs and dimensions that are not positive safe integers before the filename-clearing mutation. Format and public-size guards retain their policy and use fixed diagnostics rather than echoing provider fields. Synthetic malformed-response tests verify that no follow-up mutation runs; the existing valid upload/filename-removal test remains. A refused acknowledgement can still mean the provider stored an asset: reconcile its identity and filename in the live import audit rather than assuming the upload was rolled back. This local repair does not perform a CMS write or complete AB#137.
+
+### AB#241 — planned categories identity preflight
+
+The categories writer's raw query includes planned published and draft IDs regardless of the stored type, retaining the existing type inventory. An occupied ID of another type, malformed identity row or repeated raw ID refuses preflight before the write loop. Pure query and injected-query tests cover the widened lookup and refusal. Digests, createIfNotExists, normal readback and reference rules are unchanged. Foreign-type release-version IDs and concurrent edits after preflight are outside this bounded check; it performs no live import and does not close AB#137.
