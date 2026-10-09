@@ -920,3 +920,25 @@ Two concrete residuals prevent a claim of full remediation:
 AB#117 remains Active for these residuals and the existing launch gates. Private
 operator helpers received scoped self-verification, not an independent line-by-line
 review or a full security/privacy approval.
+
+
+### Production import completion evidence, 2026-10-09 (AB#137 / AB#117)
+
+The [AB#137 completion addendum](audits/ab137-production-launch-2026-10-09.md#completion-addendum-2026-10-09)
+records the completed approved import, authenticated raw document/asset checks,
+494 anonymous route/gallery GET cases, the fresh pre-service-price baseline and
+subsequent exact service checks. The dedicated migration credential is retired with
+management readback and a 401 denial; unrelated credentials were preserved.
+
+A post-retirement authenticated raw comparison verifies unchanged non-group
+revisions and the narrowly recorded system-group revision/timestamp changes and
+revoked-member removals. Earlier failed strict/retry evidence is retained. These
+receipts do not establish full historical content approval, dataset region,
+physical-device acceptance, restored recovery or retirement of other Editor keys.
+The final private PNG correction was self-verified after the Claude round limit,
+not certified by another clean operator review.
+
+AB#117 stays Active. The protected historical old-key receivers, pre-DNS alias
+indexing, remaining legacy mapping and private-customer continuity remain explicit
+residuals alongside final launch controls. No new CMS mutation, credential
+retirement, contact POST or DNS change was performed by this documentation follow-up.
