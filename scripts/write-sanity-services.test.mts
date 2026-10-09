@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   SERVICE_WRITE_PLAN_VERSION,
   parseArguments,
   serviceDatasetIssues,
+  buildServicePreflightQuery,
+  preflightServices,
   serviceDocumentsDigest,
   serviceWriteWaves,
   normalizeServiceReadback,
@@ -230,5 +232,29 @@ describe("CLI UTF-8 input integrity", () => {
     const result = await execute(Buffer.from("\uFEFF" + JSON.stringify(fixture())));
     expect(result.code).toBe(1);
     expect(result.stdout).toBe("");
+  });
+});
+
+
+describe("service preflight row integrity (AB#243)", () => {
+  it("does not silently discard malformed identity rows", () => {
+    for (const row of [null, [], 3, "PRIVATE_SENTINEL", {}, { _id: "drafts.", _type: "service" }, { _id: " ", _type: "service" }, { _id: "id", _type: "" }]) {
+      const issues = serviceDatasetIssues([row], documents); expect(issues.length).toBeGreaterThan(0); expect(issues.join(" ")).not.toContain("PRIVATE_SENTINEL");
+    }
+    expect(serviceDatasetIssues([documents[0], documents[0]], documents).join(" ")).toContain("repeats a document ID");
+  });
+  it("refuses foreign services with missing, oversized or unsafe route identities", () => {
+    const foreign = { _id: "foreign-service", _type: "service", serviceId: "foreign", language: "fi", slug: "foreign" };
+    for (const field of ["serviceId", "language", "slug", "parentServiceId"]) for (const value of ["", 7, "PRIVATE_SENTINEL\n", "PRIVATE_SENTINEL".repeat(200)]) {
+      const issues = serviceDatasetIssues([{ ...foreign, [field]: value }], documents);
+      expect(issues.join(" ")).toContain("malformed route identity"); expect(issues.join(" ")).not.toContain("PRIVATE_SENTINEL");
+    }
+  });
+  it("includes missing-language services in the actual preflight request", async () => {
+    const connection = { projectId: "synthetic", dataset: "preview", apiVersion: "v2026-06-24", token: "synthetic-token" };
+    const query = vi.fn(async (...args: unknown[]) => { void args; return [{ _id: "foreign", _type: "service", serviceId: "foreign", slug: "foreign" }]; });
+    expect(await preflightServices(connection, documents, query)).toContain("Sanity service preflight has malformed route identity rows");
+    expect(query.mock.calls[0]).toEqual([connection, buildServicePreflightQuery(documents)]);
+    expect(buildServicePreflightQuery(documents).query).toContain("!defined(language)");
   });
 });
