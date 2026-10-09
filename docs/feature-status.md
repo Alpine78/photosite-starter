@@ -1064,14 +1064,28 @@ exports pending exact paths/statuses with blank owner decisions. Formula-safe
 semicolon CSV leaves JSON/check behavior and the redirect registry unchanged.
 AB#19 accepted mapping and post-import target verification remain open.
 
+**Published service redirect preparation, 2026-10-09 (AB#19, Active):**
+ADR-0021's seven owner-approved service mappings and their five redundant Finnish aliases
+now have direct `301` rows prepared in this branch. The fresh Joomla backup proves exact
+published source-menu identities; all seven targets answered `200` with matching language
+and canonical metadata on the activated renderer. The registry now accounts for **51
+redirects, 174 justified tag-page `410`s, 186 pending paths, three excluded error paths,
+and one already-live root**. The mock production-build journey verifies every new service
+row's target and query policy without depending on first-site CMS content. Runtime rows
+have not yet been deployed; pending package URLs and post-import content decisions remain
+open. [Audit and limits](audits/ab19-service-redirects-2026-10-09.md).
+
+**Published package follow-up, 2026-10-09 (AB#19, Active):**
+Two additional owner-requested FI wedding services were separately published and verified on the activated renderer after the original import audits and a fresh complete baseline. Four matching legacy source rows, including their redundant Finnish aliases, are now prepared as direct permanent redirects. Source menu/article identities and an independent literal pair guard keep the two offerings distinct; canonical/language, prices, listing, sitemap and contact prefills were verified separately from the generic test harness. The prepared registry has 51 redirects and 186 pending paths among the same 415. These rows are not yet deployed; AB#19 and the wider AB#137 launch remain Active. The original 9,918-document / 3,512-image import passed independent byte/data verification and 494 public route/gallery GET cases before the separate service operation. The temporary migration writer has been revoked with a confirmed 401 denial. All old service content and timestamps stayed unchanged; the createIfNotExists parent wave changed only that one parent revision, recorded separately in the private audit.
+
 **Mapping verification tooling, 2026-10-02 (AB#19, still Active):** the full Boards
 attachment contains 442 URL records; the committed inventory projects them to 415
-path/status observations. Current configuration has **39 redirects** (three structural,
+path/status observations. That checkpoint had **39 redirects** (three structural,
 36 imported-content/category rows), **174 justified tag-page `410`s**, **198 pending**
 paths, three excluded Joomla error routes, and one already-live root. The 36 content rows
 cover the ten migrated rally galleries and their category landings in Finnish, redundant
 `/fi` aliases, and English; AB#19's 2026-09-25 discussion records deployed spot checks.
-`component/komento/*` (real gallery content), `sivustokartta/*` (content aliases), remaining
+`component/komento/*` (unresolved profile intent), `sivustokartta/*` (content aliases), remaining
 galleries/articles/static routes, and the two owner-confirmed Monza 2008 timeout paths
 remain pending reviewed targets or fallbacks. The real Joomla `/portfolio` page is also
 pending; removing the template's never-deployed scaffold at that spelling never disposed
@@ -1097,7 +1111,7 @@ The numeric lightbox query policy is already decided: bare `?4738` and other unr
 query state are preserved byte-for-byte; explicit per-row `cursor`/`section` handling
 remains separate. The registry's structural `301` and tag `410` journeys exercise the
 existing HTTP mechanics. **Final first-site content-target verification still depends
-on AB#137's Production migration** and reviewed decisions for the 198 pending paths.
+on AB#137's Production migration** and reviewed decisions for the remaining pending paths.
 No phased launch manifest or completion of AB#19 is implied by the new tooling.
 The category branch listing continuation is now built (AB#140 PR 2, ADR-0013): a branch
 whose aggregated subtree exceeds `MAX_CONTENT_LISTING_PAGE_SIZE` pages through a keyset
@@ -1918,7 +1932,7 @@ redirect target rather than accepting any redirect status, preserving the origin
 deliberate refusal to treat an ambiguous redirect as proof. Production promotion (AB#18)
 and exercised rollback and handoff (AB#118) are later stories, now unblocked rather than
 waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
-see above — with 198 of 415 distinct crawled paths still pending reviewed targets after
+see above — with 186 of 415 distinct crawled paths still pending reviewed targets after
 content migration (including `component/komento/*` and `sivustokartta/*`).
 
 **Rollback record preparation, 2026-10-06 (AB#208, Active):** the

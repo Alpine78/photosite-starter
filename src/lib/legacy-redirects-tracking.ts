@@ -12,7 +12,7 @@
  * imports this file. A clone with no Joomla migration empties all three
  * lists below to `[]` — the same way it empties `legacy-redirects-data.ts`'s
  * `RETIRED_TAG_PATHS`, `STRUCTURAL_REDIRECT_ENTRIES`,
- * `PUBLISHED_CONTENT_REDIRECT_ENTRIES`, and
+ * `PUBLISHED_SERVICE_REDIRECT_ENTRIES`, `PUBLISHED_CONTENT_REDIRECT_ENTRIES`, and
  * `legacy-redirects-inventory.json`'s `records` — rather than deleting this
  * file, which would break the completeness test and owner-run mapping report
  * that import it (`legacy-redirects-data.test.ts` and `verify:legacy-redirects`).
@@ -57,7 +57,7 @@ export const EXCLUDED_LEGACY_PATHS: readonly string[] = [
 ];
 
 /**
- * Every legacy path with real, live (HTTP 200) content whose direct target or
+ * Every inventoried legacy path whose direct target or
  * explicit category-ancestry fallback is not yet recorded. ADR-0003 decision
  * 9 requires a reviewed source-category association and a published
  * same-language target. Imported rally galleries have already moved into the
@@ -72,16 +72,21 @@ export const EXCLUDED_LEGACY_PATHS: readonly string[] = [
  * `legacy-redirects-data.ts`'s `STRUCTURAL_REDIRECT_ENTRIES` against this
  * site's own generic `/services` listing instead.
  *
- * - `component/komento/profile[/138]`, `en/component/komento/profile` — NOT
- *   a defunct system route: "Komento" is Komento Gallery, a real Joomla
- *   photo-gallery extension, and the titles match real gallery content.
+ * - `component/komento/profile[/138]`, `en/component/komento/profile` —
+ *   unresolved profile routes. The original crawl includes a user-profile
+ *   title; it does not prove gallery intent or justify a content redirect.
  * - `sivustokartta/haaportfolio`, `sivustokartta/fujifilm-x-pro2-tarkennusnopeus`
  *   — NOT a generic HTML sitemap page: Joomla's sitemap/menu system minted
  *   these as alias URLs for real content that also has a primary URL
- *   elsewhere (a wedding portfolio; the same Fujifilm X-Pro2 post already
- *   reachable at `/blogi/fujifilm-x-pro2`). ADR-0003 decision 9's alias rule
+ *   elsewhere (a wedding portfolio and a focus-speed article). The fresh
+ *   Joomla backup identifies the focus-speed article as 450, distinct from
+ *   the camera review 370 at `/blogi/fujifilm-x-pro2`; they must not be merged
+ *   by a similar title. ADR-0003 decision 9's alias rule
  *   means that once resolved, each must point at the *same* target its
  *   primary URL gets, never a separate one.
+ * - `/blogi/370-fujifilm-x-pro2` — the crawl's raw 200 observation followed
+ *   Joomla's `/404` error page. The numeric source and camera-review article
+ *   identity need explicit verification; raw status alone proves no content.
  * - `kuvaaja`, `kalusto`, `sivusto`, `en/about`, `en/gear`, `en/site`,
  *   `en/blog`, `en/portfolio-en`, `en/wedding-portfolio`, and the unprefixed
  *   Finnish `/portfolio` — real, live, published Joomla pages with real
@@ -187,23 +192,16 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/en/photos/wedding/tiia-maria-and-jouni",
   "/en/portfolio-en",
   "/en/site",
-  "/en/wedding",
   "/en/wedding-portfolio",
   "/en/wedding/ceremony",
   "/en/wedding/ceremony-portraits",
   "/en/wedding/from-morning",
   "/en/wedding/half-day",
-  "/en/wedding/portraits",
   "/en/wedding/whole-day",
   "/fi/blogi",
   "/fi/blogi/canon-powershot-sx610-hs",
-  "/fi/haakuvaus",
   "/fi/haakuvaus/aamusta-iltaan",
-  "/fi/haakuvaus/koko-paiva",
-  "/fi/haakuvaus/miljoomuotokuvaus",
-  "/fi/haakuvaus/puoli-paivaa",
   "/fi/haakuvaus/vihkiseremonia",
-  "/fi/haakuvaus/vihkiseremonia-muotokuvaus",
   "/fi/kalusto",
   "/fi/kuvaaja",
   "/fi/portfolio",
@@ -252,13 +250,8 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/fi/valokuvaus/perhe-ja-lapsikuvaus",
   "/fi/valokuvaus/valmistujaiskuvaus",
   "/fi/valokuvaus/yrityskuvaus",
-  "/haakuvaus",
   "/haakuvaus/aamusta-iltaan",
-  "/haakuvaus/koko-paiva",
-  "/haakuvaus/miljoomuotokuvaus",
-  "/haakuvaus/puoli-paivaa",
   "/haakuvaus/vihkiseremonia",
-  "/haakuvaus/vihkiseremonia-muotokuvaus",
   "/kalusto",
   "/kuvaaja",
   "/portfolio",

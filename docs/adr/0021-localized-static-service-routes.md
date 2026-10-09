@@ -64,6 +64,8 @@ The initial production targets are:
 | `/haakuvaus` | `/palvelut/haakuvaus` |
 | `/haakuvaus/miljoomuotokuvaus` | `/palvelut/haakuvaus/miljoomuotokuvaus` |
 | `/haakuvaus/vihkiseremonia-muotokuvaus` | `/palvelut/haakuvaus/vihkiseremonia-ja-miljoomuotokuvat` |
+| `/haakuvaus/puoli-paivaa` (menu 831 / article 305) | `/palvelut/haakuvaus/puoli-paivaa` |
+| `/haakuvaus/koko-paiva` (menu 830 / article 304) | `/palvelut/haakuvaus/koko-paiva` |
 | `/en/wedding` | `/en/services/wedding-photography` |
 | `/en/wedding/portraits` | `/en/services/wedding-photography/portraits` |
 
@@ -120,8 +122,12 @@ import plan and customer-owned dataset. Fixture services remain generic.
 
 The locale route configuration, localized service contract, route resolution,
 metadata, language switching, navigation, and sitemap integration are
-implemented in this change. The Joomla import plan and owner-approved copy
-identify six wedding-service documents, but pricing and cover media remain
-intentionally unfilled until they are approved for publication. The five
-permanent redirect rows are therefore pending the plan's Sanity-write and
-publication checks; they are not present in the runtime registry yet.
+implemented in this change. The initial Joomla import plan and owner-approved copy
+identify six wedding-service documents, with pricing and cover media intentionally
+unfilled. The two subsequently requested FI package documents carry the owner-confirmed
+prices and add no cover media. On 2026-10-09, all seven legacy target routes were verified as
+published: direct `200`, matching language and canonical metadata on the activated
+Production renderer. Twelve permanent rows (the seven sources plus five redundant Finnish
+aliases) are now prepared in `PUBLISHED_SERVICE_REDIRECT_ENTRIES`; the rows are not yet
+deployed. The two additional FI packages were requested by the owner, their prices confirmed, published as children under the existing wedding parent, and checked through seven public GET cases. They add four source rows after publication; no English versions were invented. Other remaining package URLs still require their reviewed service targets.
+See the [service redirect audit](../audits/ab19-service-redirects-2026-10-09.md).
