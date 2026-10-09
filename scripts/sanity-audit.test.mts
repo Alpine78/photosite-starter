@@ -384,3 +384,24 @@ describe("audit-sanity-content.mts import boundary", () => {
     expect(source).not.toContain("sanity-seed-http");
   });
 });
+
+
+describe("audit malformed-response privacy (AB#245)", () => {
+  const marker = "SYNTHETIC_PRIVATE";
+  const good = row({ _id: "synthetic-id", _type: "media" });
+  it.each([null, marker, { [marker]: "secret" }, [{ ...good, _id: { [marker]: 1 } }], [{ ...good, _type: { [marker]: 1 } }], [{ ...good, width: { [marker]: 1 } }], [{ ...good, hasCapturedAt: { [marker]: 1 } }], [marker]].map(value => ({ value })))("does not serialize a malformed page or row", async ({ value }) => {
+    const error = await runContentAudit(async request => request.query === "count(*[])" ? 1 : value).catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(AuditQueryError);
+    expect(String(error)).not.toContain(marker); expect((error as Error).stack).not.toContain(marker); expect(error).not.toHaveProperty("cause");
+  });
+  it.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, "12"])("refuses invalid non-null dimensions %s", async value => {
+    for (const field of ["width", "height"]) await expect(runContentAudit(async request => request.query === "count(*[])" ? 1 : [{ ...good, [field]: value }])).rejects.toBeInstanceOf(AuditQueryError);
+  });
+  it.each([-1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, { [marker]: 1 }])("refuses invalid counts without value projection", async value => {
+    const error = await runContentAudit(async () => value).catch((cause: unknown) => cause); expect(error).toBeInstanceOf(AuditQueryError); expect(String(error)).not.toContain(marker);
+  });
+  it("redacts offending IDs at the pagination guard", async () => {
+    const error = await runContentAudit(async request => request.query === "count(*[])" ? 2 : [row({ _id: marker + "-b", _type: "media" }), row({ _id: marker + "-a", _type: "media" })]).catch((cause: unknown) => cause);
+    expect(error).toBeInstanceOf(AuditQueryError); expect(String(error)).not.toContain(marker); expect(String(error)).toContain("page 1");
+  });
+});

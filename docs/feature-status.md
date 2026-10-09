@@ -3315,8 +3315,84 @@ The [dated post-merge checkpoint](audits/launch-readiness-2026-10-08.md) records
 
 The [afternoon checkpoint](audits/ab137-production-preparation-2026-10-08.md) binds full main CI #719, a protected Production prebuilt candidate and all 611 uploaded artifact members to exact merged source `8e3efe625d03726ff5db04e57da3b8a6b9e83bc7`. Thirty current-content GETs, four live Production adapter tests and the exact fourteen-version rich-block compatibility check passed. The new complete baseline preserves 3,593 raw documents and all 1,748 asset binaries; binary headers and all 3,512 approved derivatives passed their bounded privacy/dimension checks. Both writer dry runs and zero-collision/shared-asset guards are current.
 
-The old public renderer remains active. The refreshed FI/EN notice is a private revision-bound single-field proposal, not a CMS write. Actual Hobby hosting/DPA applicability, notice publication, approved import, post-write audit/revocation, legacy verification and physical-device checks remain launch work. AB#137, AB#117, AB#132 and AB#18 remain Active. Existing content/risk/account approvals are preserved; no new ten-task batch or roadmap expansion was started.
+At the afternoon pre-write checkpoint, the old public renderer remained active and the refreshed FI/EN notice was a private revision-bound single-field proposal. The subsequent approved notice publication is recorded below. Actual Hobby hosting/DPA applicability, approved import, post-write audit/revocation, legacy verification and physical-device evidence remain launch work. AB#137, AB#117, AB#132 and AB#18 remain Active. Existing content/risk/account approvals are preserved; no new ten-task batch or roadmap expansion was started.
 
+### AB#117/137 — approved contact notice published (2026-10-08)
+
+The owner approved the exact FI/EN privacy notice. Its single revision-guarded
+settings patch passed independent raw/published verification with every other
+dataset revision unchanged. A new complete post-notice baseline preserves all
+3,593 documents and 1,748 unchanged asset binaries; the previous baseline remains
+available. Both current Production renderers show all four approved Finnish
+paragraphs after accepted signed cache recovery. No bulk import or alias activation
+occurred during that notice-publication step. Subsequent signing maintenance is
+recorded below; AB#117/137 remain Active for the residual findings and launch gates.
+
+### AB#141 — owner reports successful physical-phone gallery/zoom test (2026-10-08)
+
+The owner reports successful gallery/zoom testing on iPhone 16 Pro Max, Safari,
+iOS 26.7.1, at existing Production deployment `dpl_6PCmpGqTX6MaYLaEMnSrjrmnrRjF`
+(`photosite-starter-2yvrqechj-ilkka-rytkonens-projects.vercel.app`). Switching images,
+moving a magnified image and closing/reopening were tried. The [ADR observation](adr/0001-lightbox-library.md#2026-10-08-owner-reported-physical-phone-check-ab141)
+records the confirmed environment and checks separately from the remaining
+acceptance observations. This does not verify the protected candidate. AB#141
+remains Active following its earlier New → Active transition; it is not Closed.
+
+### AB#117 — authorized webhook-signing maintenance and scoped retirement (2026-10-08)
+
+The owner approved replacing the two signing keys, current-runtime maintenance and
+three named old-deployment deletions. Distinct environment keys and the existing
+Preview-hook secret are updated. Current runtimes reject both exposed values;
+source-archive checks, direct reconciliation, protected/noindex checks, current
+routes and rendered notice passed. Production still runs its old application
+source. CI's newer stable Preview from merged PR #304 was preserved. All three
+approved old URLs now return provider `404 DEPLOYMENT_NOT_FOUND`; two active local
+credential files were synchronized and the complete post-notice raw CMS manifest
+remains unchanged.
+
+[Current identities and residuals](audits/ab137-production-preparation-2026-10-08.md#owner-approved-signing-maintenance--current-identities)
+are recorded explicitly. Eighty additional protected historical runtimes still
+accept an exposed key and were not authorized for deletion. On October 9, the owner
+separately approved aligning the existing Preview hook to its receiver's actual
+`production` dataset. Only that setting changed; readback verified the remaining
+configuration. Direct signed update/duplicate requests returned 200, with wrong
+dataset/signature controls returning 403/401. The alias and all 3,593 raw document
+IDs/revisions/types were unchanged. These probes do not establish automatic Sanity
+delivery; that requires a genuine CMS event. Full revocation and CMS-triggered
+delivery remain unverified. AB#117 stays Active; no
+compatible-renderer activation, content import, billing or DNS change is claimed.
+
+### AB#240 — validate image upload metadata
+
+The owner-run Sanity image uploader rejects malformed acknowledgement objects, blank IDs and dimensions that are not positive safe integers before the filename-clearing mutation. Format and public-size guards retain their policy and use fixed diagnostics rather than echoing provider fields. Synthetic malformed-response tests verify that no follow-up mutation runs; the existing valid upload/filename-removal test remains. A refused acknowledgement can still mean the provider stored an asset: reconcile its identity and filename in the live import audit rather than assuming the upload was rolled back. This local repair does not perform a CMS write or complete AB#137.
+
+### AB#241 — planned categories identity preflight
+
+The categories writer's raw query includes planned published and draft IDs regardless of the stored type, retaining the existing type inventory. An occupied ID of another type, malformed identity row or repeated raw ID refuses preflight before the write loop. Pure query and injected-query tests cover the widened lookup and refusal. Digests, createIfNotExists, normal readback and reference rules are unchanged. Foreign-type release-version IDs and concurrent edits after preflight are outside this bounded check; it performs no live import and does not close AB#137.
+
+### AB#242 — planned foundation identity preflight
+
+The foundation writer's raw query includes planned published and draft IDs regardless of the stored type, retaining the existing type inventory. An occupied ID of another type, malformed identity row or repeated raw ID refuses preflight before the write loop. Pure query and injected-query tests cover the widened lookup and refusal. Digests, createIfNotExists, normal readback and reference rules are unchanged. Foreign-type release-version IDs and concurrent edits after preflight are outside this bounded check; it performs no live import and does not close AB#137.
+
+### AB#243 — service preflight row integrity
+
+The service writer refuses malformed or repeated identity rows instead of dropping them from its route collision graph. Foreign service route identity fields must be bounded nonblank strings without control characters; a malformed optional parent is not treated as a root service. The raw query also includes services lacking language so they cannot disappear at that filter. Synthetic tests retain normal reruns and draft/type collisions. This guards returned rows and absent languages, not all unrelated-locale data or concurrent edits, and performs no live import.
+
+### AB#244 — opaque writer plan parser failures
+
+Service, category and foundation writer CLIs use fixed role-specific errors for invalid UTF-8, BOM and JSON without preserving native parser excerpts or causes. Pure byte-parser tests preserve valid Unicode; guarded --yes subprocess tests prove malformed input stops before credentials or network work. Existing filesystem errors, plan validation and digest computation are unchanged. This parser-only repair does not redact every authored validation issue or perform a live import.
+
+### AB#245 — content audit response diagnostics
+
+Malformed audit pages, rows, field values and pagination cursor IDs are no longer serialized into errors. Fixed field/page diagnostics retain useful locations. Counts require nonnegative safe integers and every non-null projected dimension requires a positive safe integer, including metadata on non-asset rows; null still represents absent dimensions. Synthetic response/cursor redaction and numeric-boundary tests retain the successful presence-only report. Operator configuration diagnostics and the existing count-only consistency limitation remain outside this response-only repair. No live audit or CMS change was performed.
+
+### AB#246 — delivery summary completeness
+
+The offline contact/enquiry summary flags both missing delivery terminal events and delivery terminals missing their accepted event. The actual contact and enquiry emitters were read to verify that delivery paths emit accepted first. Out-of-order complete logs and rejection-only refusals remain valid; duplicate/invalid precedence and redacted counts remain. An orphan delivery failure now returns incomplete evidence (CLI exit 2) while retaining its failure count. This is log-window evidence, not a live delivery or alert verification.
+
+### AB#247 — private curated-plan output
+
+The offline curated planner applies mode 0600 through the output file handle before truncating or writing, so overwriting a permissive existing regular file no longer leaves private locators readable. Private permissions and truncation apply to regular output files only (including symlinks that resolve to one); non-regular targets such as FIFOs and devices like `/dev/null` keep the previous write behavior, with no chmod or truncate and their mode unchanged. Input and approval parsing remain ahead of output opening; error-bearing validly parsed plans retain their existing written-report behavior. Existing symlinks still target the same file, whose permissions are tightened. Synthetic filesystem tests cover new/overwritten output, parser refusal preserving bytes/mode, symlink behavior, Linux FIFO output with retained mode and non-root `/dev/null` output with unchanged device mode; mode assertions are Linux/Unix-only. No content approval, digest or CMS write changes.
 
 ### AB#248 — verified deployment deletion acknowledgement
 

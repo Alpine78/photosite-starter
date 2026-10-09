@@ -18,7 +18,7 @@ export function summarizeContactFailures(input: string) {
   const family = (classes: Record<string, boolean>) => ({ states: { ...states }, errorClasses: Object.fromEntries(Object.keys(classes).map((key) => [key, 0])), failures: 0, expectedRefusals: 0 });
   const counts = { contact: family(contactClasses), enquiry: family(enquiryClasses) };
   let invalidRecords = 0, duplicateEvents = 0, incompleteCorrelations = 0;
-  const correlations = new Map<string, { accepted: boolean; terminal?: string }>();
+  const correlations = new Map<string, { accepted: boolean; terminal?: string; delivery?: boolean }>();
   const result = () => ({ schemaVersion: 1, status: invalidRecords ? "invalid" : incompleteCorrelations ? "incomplete" : counts.contact.failures + counts.enquiry.failures ? "failures" : "complete", counts, invalidRecords, duplicateEvents, incompleteCorrelations, correlations: correlations.size });
   if (!input || Buffer.byteLength(input, "utf8") > FAILURE_INPUT_LIMITS.bytes) { invalidRecords++; return result(); }
   if (!input.endsWith("\n")) invalidRecords++;
@@ -48,7 +48,7 @@ export function summarizeContactFailures(input: string) {
       continue;
     }
     if (state === "accepted" && current.accepted) { duplicateEvents++; continue; }
-    if (terminal) current.terminal = signature; else current.accepted = true;
+    if (terminal) { current.terminal = signature; current.delivery = state === "delivered" || state === "delivery-failed"; } else current.accepted = true;
     correlations.set(key, current);
     counts[selected].states[state as keyof typeof states]++;
     if (failureState) {
@@ -58,6 +58,6 @@ export function summarizeContactFailures(input: string) {
       else counts[selected].expectedRefusals++;
     }
   }
-  incompleteCorrelations = [...correlations.values()].filter((value) => value.accepted && value.terminal === undefined).length;
+  incompleteCorrelations = [...correlations.values()].filter((value) => (value.accepted && value.terminal === undefined) || (!value.accepted && value.delivery)).length;
   return result();
 }
