@@ -4,7 +4,7 @@ const event = (state: string, errorClass?: string, correlationId = "synthetic-id
 const lines = (...values: unknown[]) => values.map((value) => JSON.stringify(value)).join("\n") + "\n";
 describe("closed redacted submission summary", () => {
   it("deduplicates accepted/terminal lines by family and correlation", () => {
-    const result = summarizeContactFailures(lines(event("accepted"), event("accepted"), event("delivered"), event("delivered"), event("delivery-failed", "timeout", "synthetic-id", "enquiry.submission")));
+    const result = summarizeContactFailures(lines(event("accepted"), event("accepted"), event("delivered"), event("delivered"), event("accepted", undefined, "synthetic-id", "enquiry.submission"), event("delivery-failed", "timeout", "synthetic-id", "enquiry.submission")));
     expect(result).toMatchObject({ status: "failures", duplicateEvents: 2, correlations: 2, counts: { contact: { states: { accepted: 1, delivered: 1 }, failures: 0 }, enquiry: { failures: 1 } } });
   });
   it("separates expected refusal from rejected defects and all delivery failures", () => {
@@ -26,7 +26,7 @@ describe("closed redacted submission summary", () => {
   });
   it("ignores no malformed lines and handles prototype-like correlations safely", () => {
     expect(summarizeContactFailures('{"secret":"VALUE"\n').invalidRecords).toBe(1);
-    expect(summarizeContactFailures(lines(event("delivered", undefined, "__proto__"))).status).toBe("complete");
+    expect(summarizeContactFailures(lines(event("accepted", undefined, "__proto__"), event("delivered", undefined, "__proto__"))).status).toBe("complete");
     expect(summarizeContactFailures(lines(event("rejected", "__proto__"))).status).toBe("invalid");
   });
   it("bounds record bytes, total bytes and distinct correlations", () => {
@@ -34,5 +34,23 @@ describe("closed redacted submission summary", () => {
     expect(summarizeContactFailures("X".repeat(FAILURE_INPUT_LIMITS.bytes + 1)).status).toBe("invalid");
     const rows = Array.from({ length: FAILURE_INPUT_LIMITS.correlations + 1 }, (_, index) => event("delivered", undefined, `id-${index}`));
     expect(summarizeContactFailures(lines(...rows))).toMatchObject({ status: "invalid", correlations: FAILURE_INPUT_LIMITS.correlations, invalidRecords: 1 });
+  });
+});
+
+
+describe("delivery evidence completeness (AB#246)", () => {
+  it.each(["contact.submission", "enquiry.submission"])("detects missing accepted events for %s", family => {
+    for (const state of ["delivered", "delivery-failed"]) {
+      const terminal = event(state, state === "delivery-failed" ? "timeout" : undefined, "synthetic-id", family);
+      const result = summarizeContactFailures(lines(terminal, terminal));
+      expect(result).toMatchObject({ status: "incomplete", incompleteCorrelations: 1, duplicateEvents: 1 });
+      expect(JSON.stringify(result)).not.toContain("synthetic-id");
+      expect(summarizeContactFailures(lines(terminal, event("accepted", undefined, "synthetic-id", family))).status).toBe(state === "delivered" ? "complete" : "failures");
+    }
+  });
+  it("does not match start and terminal across separate event families", () => {
+    expect(summarizeContactFailures(lines(event("accepted"), event("delivered", undefined, "synthetic-id", "enquiry.submission")))).toMatchObject({ status: "incomplete", incompleteCorrelations: 2 });
+    expect(summarizeContactFailures(lines(event("rejected", "honeypot"))).status).toBe("complete");
+    expect(summarizeContactFailures(lines(event("delivered"), event("delivery-failed", "timeout"))).status).toBe("invalid");
   });
 });
