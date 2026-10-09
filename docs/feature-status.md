@@ -3397,3 +3397,7 @@ The offline curated planner applies mode 0600 through the output file handle bef
 ### AB#248 — verified deployment deletion acknowledgement
 
 The Preview deployment cleanup client requires a JSON object with state DELETED and uid exactly matching the requested immutable deployment before reporting deletion. Empty/malformed UTF-8/JSON and wrong-object/state/ID responses use fixed errors. This matches the [Vercel DELETE deployment API response](https://vercel.com/docs/rest-api/deployments/delete-a-deployment). Both ID and URL cleanup paths have synthetic refusal tests; ownership prelookup and 404 idempotence remain. A failed acknowledgement is an unverified outcome, not proof the deployment still exists; inspect before retrying. Alias deletion acknowledgements are outside this scope. No live deletion was performed.
+
+### AB#249 — Preview identify/cleanup CLI diagnostics
+
+Identification and cleanup CLIs withhold arbitrary caught exception details with fixed phase-specific diagnostics. Import-safe injectable entry points return exit codes; the CLI guard assigns process.exitCode without immediate process.exit, retaining exact ID-only stdout and removed/already-absent output. Injected synthetic tests cover native/untyped failures, throwing message getters, settings failures and dispatch. Existing API ownership enforcement is untouched and remains covered by its own tests; no live lookup or deletion was performed.
