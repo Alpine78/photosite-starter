@@ -159,3 +159,104 @@ dies without a completion receipt, it waits up to six hours and fails closed; in
 the original writer session and preserve partial evidence before any separately
 reviewed retry. No helper restarts the writer or revokes credentials. These prepared
 checks do not certify an import which has not yet finished.
+
+
+## Completion addendum, 2026-10-09
+
+This addendum supersedes the earlier in-progress write/audit/revocation status above.
+AB#137 remains **Active** for the residual acceptance criteria; it does not declare
+AB#19, AB#117 or AB#18 complete. No repeated approval was requested for the accepted
+72 page versions, 3,512 image references or eight new categories.
+
+### Completed import and recovery evidence
+
+The approved content writer exited successfully at 12:18:01 UTC. Separate post-write
+verification completed at 14:21:21 UTC and checked all **9,918 planned document
+payloads**, all **3,512 derivative references**, their original byte hashes and
+anonymous public-response dimensions/privacy. The 9,918 excludes the eight categories
+written first. Seven existing shared image assets changed only `_rev`, `_updatedAt`
+and `uploadId`; their creation times and all other fields remained unchanged.
+
+The count relationships are explicit: 3,593 baseline documents + 8 categories +
+9,918 content/media/placement documents + 3,397 new image-asset documents = **16,916**.
+The 3,512 references use **3,404 unique asset IDs**, including seven pre-existing
+assets and 108 repeated references. The original 1,748 assets + 3,397 new assets =
+**5,145 image assets**. The complete authenticated raw snapshot contains zero draft,
+release-version or file-asset documents. New IDs match only the approved payloads
+and verified image-asset set. Approval traceability of every preserved pre-existing
+object remains a separate unresolved gate.
+
+Checks of the approved image references reject original filenames and compare true
+intrinsic dimensions, derivative bytes and anonymous responses without private
+metadata. Coverage is **3,506 JPEG + 6 PNG references**, not a new blanket privacy
+certification of every historical asset. Failed retry evidence is retained. The final
+private PNG-format correction was self-verified after the configured Claude round
+limit; it has no additional clean Claude operator-review verdict. The successful
+verification run is not an independent security certification of that correction.
+
+At 14:23:56 UTC, **494 anonymous GET cases across 119 distinct routes** passed on the
+compatible activated renderer. This includes 102 content-page routes, category
+landings, bounded gallery windows, section and multi-page continuation witnesses,
+canonical/language/robots checks and a stable raw revision manifest. It is not a
+JavaScript interaction test, physical-device test or traversal of every gallery image.
+
+A separate full baseline was then captured **before the additional priced services**:
+16,916 raw documents, 5,145 asset binaries and 2,432,677,495 asset bytes. Its archive
+SHA-256 is `5550b8fd50f115f51ea9a8ce8102929753c3322ffd102a7b667296b6ba32ea70`.
+Both complete baseline receipts explicitly bind to the same customer Production
+project, `production` dataset and API version, rather than inferring environment from
+counts. Official export, raw manifest, metadata, binaries and archive members were
+verified; revisions remained stable through publication. A restore, off-machine copy
+and accepted retry/rollback exercise have not been performed.
+
+### Additional services and credential closure
+
+The owner's separate 900 EUR / 1,400 EUR confirmation was used for the two Finnish
+half-day/full-day wedding services. Three exact service readbacks passed after the
+create-only write, including the existing parent; only two documents were new. The
+existing parent's `createIfNotExists` wave changed only `_rev`, with content and all
+timestamps unchanged; every other 16,915 existing document and revision was unchanged.
+The raw count became **16,918**, with no new assets, drafts or release versions.
+At 14:34:12 UTC, seven anonymous GET cases verified prices, listing, sitemap,
+canonical/language and the correct contact prefills. No English versions were invented
+and no contact POST was performed.
+
+The categories, content import and service writer used the same dedicated temporary
+migration Editor. Production-hook provisioning used the existing owner session,
+not another temporary writer. At 14:35:28 UTC, deletion of exactly that migration
+credential was confirmed by the management API, absence from the token list and a
+**401** authentication rejection. All other previously listed credentials were
+preserved. This is not revocation of the old `webhook test` Editor or certification
+that every historical write credential is retired; their usage/disposition remains
+unverified.
+
+A read-only raw check at 2026-10-09T15:29:22.315Z confirms all **16,907 non-group document
+identities, revisions and types** still match the final service audit. An initial
+strict whole-manifest comparison failed and is retained: all eleven `system.group`
+revisions/update timestamps changed at 14:35:29 UTC. Full group-payload comparison
+verifies that only the revoked robot disappeared from the Editor and write groups;
+all other members, permissions and payload fields are unchanged. The timing and
+exact member identity are consistent with the recorded credential retirement.
+This narrowly recorded system delta is not treated as a content mutation or a new
+binary/payload audit. No additional CMS write or token mutation occurred in this check.
+
+### Remaining launch work
+
+Preserved-content approval traceability, actual dataset-region evidence and the
+older Editor credential's disposition remain AB#137 gates. Keep the compatible
+renderer as the serving baseline; reverting to the old renderer needs a separately
+verified content rollback. The complete baseline is recoverable material, not an
+exercised restore or off-machine backup.
+
+AB#19 still needs the remaining exact legacy decisions and deployed source/target
+verification. The private K2 customer's continuing access after DNS cutover and
+October 15 retirement is unresolved; that gallery remains outside public Sanity.
+The expected DigitalOcean credential file was absent during this follow-up. DNS,
+Infomaniak/Resend mail records and webhook destination are unchanged. Canonical-host
+DNS/TLS/receiver verification and actual post-cutover webhook delivery remain open.
+
+AB#117 also retains the 80 protected historical receivers accepting an old signing
+key, pre-DNS alias-indexing disposition and the other final privacy/security gates.
+The accepted temporary scriptless-404 risk remains an Active AB#132 follow-up;
+physical-device observations do not certify the newly promoted candidate. Final
+AB#18 go/no-go and exercised recovery remain incomplete.

@@ -524,23 +524,15 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   content enabled the AB#83 cross-instance cache-invalidation gate, which a managed-cache
   propagation run verified on Preview on 2026-08-26; that evidence is merged and AB#83
   is Closed*
-- [ ] Production launch content migration and audit (AB#137) — *the 2026-10-04 read-only
-  check found 20 gallery versions, 10 article versions and 6 service versions; the
-  adapter smoke checks passed and the audit found no drafts or release versions.
-  The owner approved the exact remaining batch on 2026-10-05: 72 page versions,
-  3,512 images and 8 new categories. A fresh full baseline preserves all 3,593 raw
-  documents and 1,748 existing image binaries; revision, metadata and byte-hash checks
-  passed. Both writer dry runs passed. The public deployment's older renderer cannot
-  read 14 of the approved pages, so the import waits for compatible public code.
-  A fresh protected prebuilt candidate uses the merged contact-subject revision and
-  CI #545. Production Resend settings are configured, and the owner verified delivery
-  and Reply-To on the preceding candidate; real delivery from this revision still needs
-  verification. The current CMS privacy notice omits the new fields and specific
-  processors. The complete baseline and derivative/shared-asset guards were rechecked.
-  Existing aliases still serve the old code; the default alias is publicly accessible.
-  Activation changes public serving code and remains gated. Post-write audit,
-  temporary-token revocation and public promotion remain pending.
-  See [migration and verification](docs/sanity-seeding.md)*
+- [ ] Production launch content migration and audit (AB#137) — *the approved eight
+  categories and 9,918 content/media/placement documents are imported, and all 3,512
+  derivative references and 494 route/gallery GET cases passed separate verification.
+  The compatible renderer serves the existing Vercel aliases. Two later owner-priced
+  services bring the raw document count to 16,918; a complete pre-service baseline
+  preserves 16,916 documents and 5,145 assets. The temporary migration writer is revoked
+  and returns 401. Preserved-content approval traceability, actual dataset region,
+  older credentials and private-customer continuity remain open. No exercised restore
+  or custom-domain launch is claimed. See the [completion checkpoint](docs/audits/ab137-production-launch-2026-10-09.md#completion-addendum-2026-10-09).*
 - [ ] Production deployment — *the protected Preview environment is provisioned and its
   fully automated pipeline was verified by build 144 on 2026-08-24: the pinned runtime and
   region, gated deploy stage, project/team ownership, access protection, and non-indexability
