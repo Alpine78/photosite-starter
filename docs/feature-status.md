@@ -3589,3 +3589,25 @@ tests, all 217 browser-free test files / 5,147 tests, lint, production build and
 three current diagrams. No public journey changed, so E2E was not repeated for
 this operator-only slice. These checks establish a local source review, not
 customer publication or a supported large-file provider guarantee.
+
+### AB#250 — offline asset-bound document candidates
+
+The pure document compiler rebuilds the retained-source review and validates
+complete, exact candidate asset bindings before creating allowlisted legacy
+gallery/image documents. It preserves source order, finite/indefinite access,
+original dimensions and one unchanged referenced ZIP; it invents no missing
+package. Galleries are always unpublished, and their ordered manifest follows
+the merged runtime reader's contract. A separate candidate digest binds exact
+asset identities and payloads without treating declarations as provider proof.
+
+Synthetic tests cover malformed/contradictory bindings, missing/extra/duplicate
+sources, shared assets with distinct placements, canonical ordering, exact expiry,
+schema fields, detached frozen results and round trips through the real reader.
+No runtime, schema, dependency or customer content changed. The compiler has no
+IO or mutation path. Source/CDN verification, supported ZIP transport,
+baseline/conflicts/usage/recovery, notice, exact mutation approval and publication
+remain separate gates; AB#250/18/117 stay Active. See the
+[operator contract](sanity-seeding.md#offline-asset-bindings-and-document-candidates).
+Validation: 48 synthetic compiler tests, all 218 browser-free test files / 5,195
+tests, lint, production build, strict type checking and three current diagrams.
+No public journey changed; local E2E was not repeated for this pure-tooling slice.
