@@ -83,6 +83,45 @@ writer must independently revalidate sources, deadlines, exact asset bindings an
 those gates immediately before mutation. Runtime merging alone enables no customer
 gallery. AB#250, AB#18 and AB#117 remain Active until their full gates are met.
 
+### Offline asset bindings and document candidates
+
+`scripts/legacy-delivery-document-plan.mts` adds the pure
+`buildLegacyDocumentPlan(source, expectedReviewDigest, candidateBindings, now)`
+function. It has no CLI, credential, filesystem or provider access. Pass the
+normalized source from the source-review artifact; the function rebuilds its
+digest and placement identities and refuses invalid or expired source input.
+Candidate bindings are JSON-compatible declarations, not upload receipts or
+evidence that an asset exists or preserves the source bytes.
+
+The closed binding object has `version: 1`, the exact `target`, `reviewDigest`
+and `assets`. Every distinct source SHA-256 needs exactly one entry containing
+`sourceSha256`, `assetId`, `sha1`, `bytes`, `mimeType`; image entries also need
+`width`, `height`, `orientation: 1`. Source hashes, sizes, kinds and dimensions
+must match exactly, including the asset ID's SHA-1 and dimensions. Both `jpg`
+and `jpeg` IDs are allowed for JPEGs; ZIP MIME is `application/zip` or
+`application/x-zip-compressed`. Unknown fields, missing/extra/duplicate bindings,
+contradictory descriptors and unsupported orientation are refused. Existing
+repeated photographs share an asset while retaining separate ordered placements.
+
+The deeply frozen result has status `offline-document-candidate`, explicit
+`candidateAssets` and `candidateDocuments`, and a separate `candidateDigest`
+covering the exact target, source review digest, canonical binding tuples and
+allowlisted document payloads. Binding order and the clock do not change that
+identity. Each gallery is always `published: false`; optional deadlines, title
+and whole-ZIP reference are preserved only where present in the source. Manifest
+digests use the same versioned contract as the runtime reader. Source locators,
+legacy IDs/paths and evidence receipts never enter candidate CMS documents.
+
+This result is not a mutation request or approval. A later writer must verify
+source/CDN bytes and asset metadata, resolve supported whole-ZIP transfer,
+baseline and existing-batch conflicts, usage, recovery and notice, obtain exact
+mutation approval, and recheck availability before writing. A different binding
+set can have the same source batch but a different candidate digest: do not mix
+it with existing documents without those checks. Publication is a separate gate.
+Even unpublished documents in a public dataset are enumerable; page expiry does
+not revoke asset URLs or purge CDN copies. Real customer inputs and any locally
+serialized candidates must remain owner-only, untracked and Git-ignored.
+
 ## What the script is, and is not
 
 `scripts/seed-sanity-content.mts` (`npm run seed:sanity`) writes a fixed set
