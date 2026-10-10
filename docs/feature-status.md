@@ -3523,6 +3523,24 @@ full-size processed JPEGs. Preserve both roles and supplied files; this is not
 an independently verified print-quality specification. No source image has
 been changed or uploaded.
 
+### AB#18 — intact ZIP transfer diagnostic (2026-10-10)
+
+PR #321 merged at `b0299f45ae73cb560d22f4569cd6fd34ec85ab20` after CI #758.
+The isolated synthetic diagnostic has seventeen passing offline tests. The
+original 101 MB upload was accepted but verification was inconclusive; its own
+asset was removed. After Claude's bounded helper loop ended clean at round 5,
+the corrected 101,000,000-byte and 2,032,617,616-byte trials both returned HTTP
+200 and passed complete anonymous CDN size/SHA-256 verification and upload-response SHA-1 validation. Both
+created assets were deleted and the empty Preview baseline restored. The
+largest upload took 75.394 seconds. This is measured project behavior; Sanity's
+general documented 100 MB HTTP-body limit still has no established larger-file
+support exception. Attachment behavior, supported production import, notice,
+usage and recovery remain release gates. No customer media or Production/DNS
+settings changed. The owner's January 7, 2027 finite expiry clarification is
+retained privately. [The audit](audits/ab18-sanity-zip-transfer-2026-10-10.md)
+records the results, review history and residuals. The helper and receipts stay
+ignored local evidence outside application CI. AB#18/117 remain Active.
+
 ### AB#250 — legacy delivery runtime preparation (2026-10-10)
 
 A separate default-off `/client-gallery/<opaque-handle>` route, read facade and
