@@ -3522,3 +3522,21 @@ have the intended size for 10 × 15 cm prints, while the ZIP contains separate
 full-size processed JPEGs. Preserve both roles and supplied files; this is not
 an independently verified print-quality specification. No source image has
 been changed or uploaded.
+
+### AB#18 — intact ZIP transfer diagnostic (2026-10-10)
+
+PR #321 merged at `b0299f45ae73cb560d22f4569cd6fd34ec85ab20` after CI #758.
+An isolated synthetic file-upload diagnostic is prepared for the existing
+Preview dataset, with fifteen passing offline tests, exact byte/hash checks and
+guarded cleanup. The first synthetic 101 MB upload was accepted, but subsequent
+verification was inconclusive; its own asset was deleted and the empty baseline
+restored. Complete delivery and the largest package remain unverified. No
+customer media or Production/DNS settings changed. The owner confirmed the relevant January 7,
+2027 expiry includes the full Finnish local day; its exact boundary is retained
+in private import evidence. [The follow-up audit](audits/ab18-sanity-zip-transfer-2026-10-10.md)
+records this bounded diagnostic. AB#18/117 remain Active; legacy-gallery
+implementation and release gates remain open.
+The corrected operator helper's final Claude review is incomplete after a
+work-item discussion omission and an unsuccessful retry at the session limit.
+The CLI reports reset at 14:40 Europe/Helsinki on October 10. No further live
+trial or clean review is claimed; complete delivery is still a release gate.
