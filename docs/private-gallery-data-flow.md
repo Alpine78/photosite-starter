@@ -17,6 +17,40 @@ contact form and the gallery-item enquiry. The boundary itself is
 the ZIP), AB#145 (administration and the customer notification), AB#130 (proof
 selection).
 
+**Scoped legacy continuity decision, 2026-10-10:**
+[ADR-0028](adr/0028-legacy-unlisted-gallery-continuity.md) defines a separate,
+owner-accepted **unlisted public-delivery** path for 21 retained legacy galleries.
+It is not implemented or published. The protected workflow below remains its
+own roadmap and stays disabled; its private-store requirements do not govern
+that bounded exception.
+
+For the unlisted path, prepared browse JPEGs and intended download packages
+use existing Sanity storage. The owner confirms the browse JPEGs are already
+sized appropriately for 10 × 15 cm prints; the ZIP separately contains full-size
+processed JPEGs. This is an owner statement, not an independently verified
+print-quality specification. Keep those two image roles distinct. The current dataset is public: documents, references
+and assets can be queried directly without a gallery link. Preserve the supplied
+processed JPEGs byte for byte, at their existing resolution and with embedded
+EXIF and other metadata intact, as the owner explicitly requires. These source
+URLs expose the individual JPEGs and their metadata. Add no customer contact/job
+records, legacy passwords or archive locators to CMS display fields. A link can
+be forwarded, and direct image/package URLs work without authentication. Noindex,
+sitemap/listing exclusion and no-referrer reduce routine discovery; they do not
+make content confidential or control Sanity CDN indexing. Existing deadlines
+and the owner's indefinite exceptions are preserved. Page expiry checks must
+use fresh server reads and no-store; they do not revoke file URLs or downloaded
+copies. Sanity documents indefinite CDN caching and says asset deletion does
+not purge already cached bytes.
+
+On a removal request, take down the page/references, identify any shared asset
+before deleting it, and assess CDN/provider removal options and existing copies.
+Do not promise immediate erasure or retroactive secrecy. Reconcile the applicable
+notice and processor/region evidence under AB#117 before customer publication.
+Keep real customer content out of Preview and CI artifacts. Public downloads
+count toward bandwidth and can incur overages; check usage and billing alerts.
+ZIP upload/format, importer, route, exclusions and expiry tests are still open;
+no paid service or delivery-format change is authorized by this record.
+
 **Status: no production or preview deployment serves client photographs.**
 `PRIVATE_GALLERY_STORE` is `off` in those deployments; no object store or
 private database is provisioned. The `memory` mode runs only in development

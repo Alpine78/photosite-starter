@@ -341,6 +341,24 @@ harmless no-op.
 
 ## AC5 — Draft, private, non-discoverable, full-resolution data cannot leak
 
+**2026-10-10 scoped owner decision:**
+[ADR-0028](adr/0028-legacy-unlisted-gallery-continuity.md) accepts unlisted public
+Sanity delivery for the 21 retained legacy galleries, separately from protected
+AB#29/145. Public dataset documents and direct assets are enumerable without
+authentication; page expiry does not revoke file URLs or purge CDN copies.
+This explicitly differs from this criterion's original confidentiality boundary.
+Before closing AB#117, reconcile that scoped accepted residual with the
+work item's AC5 and the applicable visitor notice, including public source JPEGs
+and embedded metadata preserved at the owner's explicit request. Verify source
+hashes and true dimensions without resizing or stripping metadata, CMS display
+field exclusions, fresh expiry checks, exact
+link/download continuity, region and billing/cleanup limits. ZIP transport and
+the entire unlisted runtime/import remain unverified. The owner rejected the
+separate UpCloud/PostgreSQL order for this path; protected-store provisioning
+remains separate roadmap work, not a prerequisite for the limited exception.
+No customer content was uploaded by this documentation slice, and the launch
+gate remains **Active**.
+
 Scoped implementation checkpoint, 2026-10-06 (AB#199): private-gallery startup
 scrubs the capability before Next captures its initial router URL. The external
 bootstrap is loaded through the private root layout's `beforeInteractive` queue;

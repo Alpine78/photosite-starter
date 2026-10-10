@@ -1335,3 +1335,19 @@ Checked 2026-08-31 against current official documentation:
 - **This is a product-requirement and architecture boundary, not a legal compliance
   conclusion** — each deployment owner remains responsible for its own privacy notice,
   processing record, provider terms, and applicable legal review (as ADR-0004 states).
+
+## Scoped owner override — 2026-10-10 legacy continuity
+
+[ADR-0028](0028-legacy-unlisted-gallery-continuity.md) records the owner's later
+acceptance of public Sanity assets and unlisted pages for the 21 retained legacy
+galleries only, replacing separate UpCloud/PostgreSQL provisioning for that
+continuity path. It overrides this record's §2 public/private storage isolation,
+§3/§5 per-request authorization and §7 uniform six-month/deletion rules for that
+set, including the protected-preview resolution boundary: legacy source JPEGs
+retain their exact bytes, existing resolution and embedded metadata by explicit
+owner instruction. Existing indefinite galleries remain indefinite and finite
+dates do not restart. Direct file URLs remain public past page expiry; ZIP transport is not
+verified. This preserves the original decision above as history, including
+AB#122's earlier prohibition on public Sanity client assets. AB#29/145 criteria
+and this record's stronger protected workflow are unchanged; they are not
+satisfied by the unlisted exception. No new customer gallery inherits it.
