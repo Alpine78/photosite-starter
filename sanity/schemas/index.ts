@@ -26,6 +26,8 @@ import { localizedSlugType } from "./localized-slug";
 import { localizedTextType } from "./localized-text";
 import { defineMediaType, type MediaSchemaOptions } from "./media";
 import { pollType } from "./poll";
+import { legacyDeliveryGalleryType } from "./legacy-delivery-gallery";
+import { legacyDeliveryImageType } from "./legacy-delivery-image";
 import { serviceType } from "./service";
 import {
   defineSiteSettingsType,
@@ -61,5 +63,7 @@ export function defineSchemaTypes(
     galleryPlacementType,
     serviceType,
     pollType,
+    legacyDeliveryGalleryType,
+    legacyDeliveryImageType,
   ];
 }

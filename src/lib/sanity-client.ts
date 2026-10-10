@@ -152,7 +152,59 @@ export type SanityClientSettings = {
   readonly config: SanityConfig;
   /** Injected in tests; production uses the global `fetch`. */
   readonly fetchImplementation?: typeof fetch;
+  /** Optional streaming response bound for a narrowly projected adapter. */
+  readonly maxResponseBytes?: number;
 };
+
+export const SANITY_DOCUMENT_MAX_RESPONSE_BYTES = 32 * 1024;
+
+/** Fresh published-ID reads, separate from the indexed Query API. */
+export type SanityDocumentReader = {
+  read(documentId: string): Promise<unknown | null>;
+};
+
+async function readSanityJson(response: Response, limit?: number): Promise<unknown> {
+  let bytes: Uint8Array;
+  if (limit === undefined) {
+    bytes = new Uint8Array(await response.arrayBuffer());
+  } else {
+    const declared = response.headers.get("content-length");
+    if (declared !== null && /^\d+$/.test(declared) && Number(declared) > limit) {
+      await response.body?.cancel();
+      throw new TypeError("Oversized content response");
+    }
+    if (response.body === null) throw new TypeError("Missing content response");
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let length = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        length += value.byteLength;
+        if (length > limit) {
+          await reader.cancel();
+          throw new TypeError("Oversized content response");
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+  }
+  return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+}
+
+function isAbortedRead(cause: unknown): boolean {
+  return cause instanceof DOMException &&
+    (cause.name === "TimeoutError" || cause.name === "AbortError");
+}
 
 const TAG_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
 
@@ -271,6 +323,11 @@ export function createSanityClient(
 ): SanityClient {
   const { config } = settings;
   const send = settings.fetchImplementation ?? fetch;
+  const responseLimit = settings.maxResponseBytes;
+  if (responseLimit !== undefined &&
+      (!Number.isSafeInteger(responseLimit) || responseLimit < 1 || responseLimit > 1024 * 1024)) {
+    throw new TypeError("Invalid content response bound");
+  }
 
   return {
     async query(request: SanityQueryRequest): Promise<unknown> {
@@ -326,8 +383,11 @@ export function createSanityClient(
       try {
         // JSON is always UTF-8. Reject damaged bytes rather than changing
         // identifiers or authored text through replacement decoding.
-        body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await response.arrayBuffer()));
-      } catch {
+        body = await readSanityJson(response, responseLimit);
+      } catch (cause) {
+        if (responseLimit !== undefined && isAbortedRead(cause)) {
+          return fail(request.tag, "timeout", true);
+        }
         return fail(request.tag, "malformed-response", false);
       }
 
@@ -344,6 +404,62 @@ export function createSanityClient(
       }
 
       return (body as { result: unknown }).result;
+    },
+  };
+}
+
+/**
+ * Sanity's Doc endpoint bypasses caching/indexing middleware. Only published
+ * root IDs are accepted; drafts, versions, lists and path fragments never enter
+ * this URL. Freshness is the documented provider contract, not a cache purge.
+ * https://www.sanity.io/docs/http-reference/doc
+ */
+export function createSanityDocumentReader(
+  settings: Omit<SanityClientSettings, "maxResponseBytes">,
+): SanityDocumentReader {
+  const { config } = settings;
+  const send = settings.fetchImplementation ?? fetch;
+  const tag = "legacy.document";
+  return {
+    async read(documentId) {
+      if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(documentId)) {
+        throw new TypeError("Expected one published root document ID");
+      }
+      const url = `https://${config.projectId}.api.sanity.io/${config.apiVersion}/data/doc/${config.dataset}/${documentId}?includeAllVersions=false`;
+      let response: Response;
+      try {
+        response = await send(url, {
+          method: "GET", redirect: "manual", cache: "no-store",
+          signal: AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS),
+          headers: {
+            Accept: "application/json",
+            ...(config.readToken === undefined ? {} : { Authorization: `Bearer ${config.readToken}` }),
+          },
+        });
+      } catch (cause) {
+        return fail(tag, isAbortedRead(cause) ? "timeout" : "unavailable", true);
+      }
+      if (!response.ok) {
+        const { errorClass, retryable } = classifyStatus(response.status);
+        return fail(tag, errorClass, retryable);
+      }
+      let body: unknown;
+      try {
+        body = await readSanityJson(response, SANITY_DOCUMENT_MAX_RESPONSE_BYTES);
+      } catch (cause) {
+        return fail(tag, isAbortedRead(cause) ? "timeout" : "malformed-response", isAbortedRead(cause));
+      }
+      if (typeof body !== "object" || body === null || Array.isArray(body) ||
+          !("documents" in body) || !Array.isArray(body.documents) || body.documents.length > 1) {
+        return fail(tag, "malformed-response", false);
+      }
+      if (body.documents.length === 0) return null;
+      const document: unknown = body.documents[0];
+      if (typeof document !== "object" || document === null || Array.isArray(document) ||
+          !("_id" in document) || document._id !== documentId) {
+        return fail(tag, "malformed-response", false);
+      }
+      return document;
     },
   };
 }

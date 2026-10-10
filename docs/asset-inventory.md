@@ -292,3 +292,14 @@ They contain no third-party imagery, watermark, signature, branding, or URL.
 They follow this repository's license and commercial-use terms; no additional
 attribution or third-party license applies. Each filename includes its content
 hash, and `src/lib/mock-gallery-boundaries.ts` records its true dimensions.
+
+## Synthetic legacy delivery ZIP (AB#250)
+
+`public/gallery/legacy-fixture.09eadd90911d.zip` is a deterministic, project-authored
+179-byte ZIP containing only `README.txt` with a generic fixture explanation.
+It contains no photograph, customer detail, external asset or third-party code.
+SHA-256: `09eadd90911ddec1dbcb81ce0b35144816804eb13097cae06bc10c0e8f29127d`.
+The legacy development fixture reuses the existing coastal demo image and
+project-authored geometric portrait unchanged.
+The ZIP uses the repository's license and commercial-use terms; no attribution
+or additional dependency applies.
