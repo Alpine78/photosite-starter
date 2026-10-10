@@ -18,9 +18,10 @@ the ZIP), AB#145 (administration and the customer notification), AB#130 (proof
 selection).
 
 **Scoped legacy continuity decision, 2026-10-10:**
+
 [ADR-0028](adr/0028-legacy-unlisted-gallery-continuity.md) defines a separate,
 owner-accepted **unlisted public-delivery** path for 21 retained legacy galleries.
-It is not implemented or published. The protected workflow below remains its
+Its runtime is prepared but off; no customer content is imported or published. The protected workflow below remains its
 own roadmap and stays disabled; its private-store requirements do not govern
 that bounded exception.
 
@@ -48,8 +49,26 @@ Do not promise immediate erasure or retroactive secrecy. Reconcile the applicabl
 notice and processor/region evidence under AB#117 before customer publication.
 Keep real customer content out of Preview and CI artifacts. Public downloads
 count toward bandwidth and can incur overages; check usage and billing alerts.
-ZIP upload/format, importer, route, exclusions and expiry tests are still open;
+The importer, legacy-link map and deployed customer-delivery checks remain open;
 no paid service or delivery-format change is authorized by this record.
+
+**AB#250 runtime preparation:** `/client-gallery/<opaque-handle>` now has its
+own document shell and a separate Sanity read facade. It defaults to
+`LEGACY_GALLERY_ADAPTER=off`; no customer gallery is imported or activated by this
+change. Sanity mode requires an explicitly deployed handle list and approved
+batch digest. Those are publication/quota guards, not authentication.
+The first fresh Doc API read checks publication and the exclusive UTC deadline;
+the bounded image query must match an ordered manifest digest; a second fresh
+Doc API read rechecks the revision and deadline. No cross-request gallery-data
+cache is used. Missing, unavailable and malformed content fails closed; malformed
+content has a constant operational classification. Provider transport errors
+propagate as generic server failures, without an empty/mock gallery fallback.
+All responses in the application-owned namespace carry `no-store`,
+`noindex, nofollow` and `no-referrer`. Direct CDN image/ZIP URLs remain public
+and page expiry does not revoke copied URLs, CDN caches or downloaded files.
+Raw full-frame image sources bypass the public optimizer and retain supplied
+bytes/metadata. The optional download is one whole ZIP, directly from the CDN.
+Notice/processor/region, usage, import/recovery and old-link checks remain gates.
 
 **Status: no production or preview deployment serves client photographs.**
 `PRIVATE_GALLERY_STORE` is `off` in those deployments; no object store or

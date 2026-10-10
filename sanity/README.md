@@ -292,3 +292,12 @@ reader and migration writer enforce the same rules as the standalone Studio
 validator. Native links work without JavaScript and do not load external content
 before the visitor follows them. Category descriptions retain their separate
 restricted introduction model.
+## Legacy delivery schemas
+
+`legacyDeliveryGallery` and `legacyDeliveryImage` are the separate ADR-0028
+legacy-continuity types. They preserve approved source JPEGs and one optional
+whole ZIP; they are not ordinary `media` or authenticated private-gallery
+records. Their import-owned fields are read-only, and availability defaults
+false. The server validates manifest, ordering, dimensions and expiry independently.
+No customer import is performed by registering the types. See
+[`docs/sanity-setup.md`](../docs/sanity-setup.md) for activation and import gates.

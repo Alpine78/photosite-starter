@@ -8,6 +8,7 @@ import {
   resolveLegacyRedirect,
 } from "@/lib/legacy-redirects";
 import { LEGACY_REDIRECTS } from "@/lib/legacy-redirects-data";
+import { isLegacyGalleryNamespace, legacyGalleryHandleFromPath } from "@/lib/legacy-gallery-path";
 import {
   REQUEST_HAS_CURSOR_HEADER,
   REQUEST_HAS_CURSOR_VALUE,
@@ -116,6 +117,23 @@ export function proxy(request: NextRequest) {
   const hasCursor = request.nextUrl.searchParams.has("cursor");
   const hasSection = request.nextUrl.searchParams.has("section");
   const hasTrailingSlash = pathname.length > 1 && pathname.endsWith("/");
+
+  const routes = getDeploymentConfig().localeRoutes;
+  const galleryPrefixes = routes.locales.flatMap((route) => [route.prefix, route.locale.split("-")[0]]).filter((value): value is string => typeof value === "string" && value.length > 0);
+  if (isLegacyGalleryNamespace(pathname, galleryPrefixes)) {
+    if (legacyGalleryHandleFromPath(pathname) === undefined) {
+      return withReservedNamespaceHygieneHeaders(new NextResponse(null, { status: 404 }));
+    }
+    if (hasTrailingSlash) {
+      const destination = request.nextUrl.clone();
+      destination.pathname = pathname.slice(0, -1);
+      return withReservedNamespaceHygieneHeaders(NextResponse.redirect(destination, 308));
+    }
+    requestHeaders.delete(REQUEST_PATH_HEADER);
+    requestHeaders.delete(REQUEST_HAS_CURSOR_HEADER);
+    requestHeaders.delete(REQUEST_HAS_SECTION_HEADER);
+    return withReservedNamespaceHygieneHeaders(NextResponse.next({ request: { headers: requestHeaders } }));
+  }
 
   // The two reserved namespaces: the private client-gallery one (ADR-0014 §9)
   // and the administrator one (ADR-0015 §1). Both prefixes are validated and

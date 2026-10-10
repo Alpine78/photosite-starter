@@ -63,6 +63,10 @@ const eslintConfig = defineConfig([
         {
           patterns: [
             {
+              group: ["@/lib/legacy-gallery-sanity", "@/lib/legacy-gallery-deployment", "@/lib/legacy-gallery-manifest"],
+              message: "Use the legacy-gallery-access facade; CMS identities and publication settings stay server-only (ADR-0028).",
+            },
+            {
               group: ["@/lib/sanity-client", "@/lib/sanity-config"],
               message:
                 "Read content through an adapter in src/lib instead. Sanity clients, queries, and credentials stay behind that boundary (ADR-0006).",
