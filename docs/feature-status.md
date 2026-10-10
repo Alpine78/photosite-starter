@@ -3438,3 +3438,87 @@ The owner supplied a fresh Joomla backup and the new private K2 gallery's separa
 ### AB#137 — optional prices in owner-run service plans (2026-10-09)
 
 The service writer now accepts the existing CMS model's optional listing price and keyed pricing entries. Validation, normalized approval digests, exact preflight and readback include these fields; malformed prices and edits to existing documents refuse the create-only run. No-price plan digests are unchanged. Synthetic tests cover malformed fields, duplicate keys, changed prices, both mismatch directions and dropped readback fields. This work adds no owner-specific service fixtures or application model changes and does not perform a live CMS write. Production migration audits, separate owner-content publication and temporary-credential revocation remain operational work; AB#137 stays Active.
+
+### AB#18 — protected finalization candidate and K2 continuity inventory (2026-10-09)
+
+Main CI #756 and a new protected manual Production build bind the merged release
+to `f7de04f`; all 641 uploaded artifact members match. The complete 415-path
+inventory was probed: 189 decided redirects and 131 distinct targets passed,
+alongside the 174 Gone paths; 48 decisions remain open. Nine additional GETs and
+two rejected synthetic POSTs passed without sending email or mutating CMS/cache.
+The existing Production target and both aliases stayed unchanged. The
+[release preparation audit](audits/ab18-launch-finalization-2026-10-09.md) records
+the exact scope and retained failed operator check.
+
+The owner requires continued K2 customer-gallery access. The private backup
+inventory separates 45 expired and 42 disabled items from 28 published items
+needing continuity (six dated and 22 indefinite). Those items reference 2,277
+Balbooa image rows; 323 images and three delivery ZIPs are absent locally and
+redirect to Joomla's error page on the old host. No missing material was
+recovered or customer content published. Durable private-gallery provisioning,
+required-material disposition, DNS access and the existing launch gates remain
+open. AB#18 was reconfirmed Active; no parent item is closed.
+
+### AB#18 — owner customer-gallery selection (2026-10-10)
+
+The owner excludes seven legacy K2 items from migration and gives one previously
+indefinite item an end date. The separate private decision overlay retains
+**21 galleries**, seven dated and fourteen indefinite; the October 9 inventory
+above remains the historical source baseline. No backup or customer file was
+deleted. The date-only override is preserved without inventing a timezone or
+runtime expiry instant. The retained source set has 1,831 image references.
+The owner confirms that the current 49- and 15-image folders replace two
+older lists; 39 obsolete missing references are omitted from the overlay.
+The effective 1,792 image references all resolve locally or in the backup.
+Hash receipts and ZIP CRC/JPEG-count checks bind the two replacement folders
+and packages. Twelve linked ZIPs are available; nine items have no ZIP reference.
+No derivative suitability or working customer access is claimed.
+
+At this initial checkpoint the owner requested private-gallery provisioning
+and confirmed that an UpCloud account would need to be created. That basis is
+replaced for retained legacy continuity by the later decision below. The current customer and administrator store
+resolvers explicitly refuse `enabled` until durable adapters exist; changing
+environment settings alone cannot serve protected galleries. At that checkpoint,
+the proposed protected continuity path required durable storage/adapters,
+upload/delivery/retention and recovery, an indefinite-legacy policy and secure
+old-link handoff. ADR-0028 supersedes those protected-store prerequisites for
+these 21 retained unlisted deliveries; they remain requirements of the separate
+protected AB#29/145 workflow. The unlisted route and its own delivery checks
+remain to build. The [dated audit follow-up](audits/ab18-launch-finalization-2026-10-09.md#owner-continuity-decisions--october-10-follow-up)
+records the unchanged launch boundary. No paid service, promotion, DNS/CMS write
+or customer publication occurred. AB#18/29 remain Active; no item was closed.
+
+
+### AB#18 — accepted unlisted legacy-gallery direction (2026-10-10)
+
+The owner rejected the separate UpCloud/PostgreSQL order and accepts unlisted
+pages using existing Sanity storage with public direct image/package URLs.
+[ADR-0028](adr/0028-legacy-unlisted-gallery-continuity.md) bounds this exception
+to the 21 retained legacy galleries, preserves their finite/indefinite deadlines
+and keeps protected AB#29/145 separate and disabled. The public dataset permits
+CMS enumeration; page expiry cannot revoke file URLs or cached copies.
+
+Read-only current asset documents total about 2.43 GB. With the retained source
+images and referenced ZIPs the estimate is about 12.10 GB before derivative or
+repackaging overhead, within the current Growth 100 GB storage allowance; this
+is not a billing-usage check or no-overage guarantee. All 12 source ZIPs exceed
+the documented HTTP upload-body limit; intact ZIP transport remains unverified,
+and the owner explicitly requires one complete ZIP per gallery, rejecting
+several independent packages. No format change or paid service was ordered.
+
+The schema, unlisted runtime, importer, legacy link mapping, deadline checks,
+source-byte/dimension checks and end-to-end delivery remain to implement and
+verify. AB#117 notice/accepted-residual reconciliation and other launch gates
+remain open. Documentation and the planned system-context diagram were updated;
+no customer upload, private adapter activation, production/DNS mutation or
+launch closure occurred. AB#18/117 remain Active.
+
+The owner explicitly rejected pre-upload downsizing and EXIF removal for this
+legacy set on October 10. Preserve supplied processed JPEG bytes, existing
+resolution and embedded metadata; public source URLs expose those individual
+files. The earlier 2,048-pixel scan comparison is diagnostic, not an import
+processing requirement. The owner clarifies that prepared browse JPEGs already
+have the intended size for 10 × 15 cm prints, while the ZIP contains separate
+full-size processed JPEGs. Preserve both roles and supplied files; this is not
+an independently verified print-quality specification. No source image has
+been changed or uploaded.

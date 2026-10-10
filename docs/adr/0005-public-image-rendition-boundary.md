@@ -365,3 +365,18 @@ official documentation:
        context.
 7. [ ] Document and verify provider-source revocation and Vercel image-cache purge with
        AB#83; keep private delivery under AB#122.
+
+## Scoped owner exception — 2026-10-10 legacy unlisted delivery
+
+[ADR-0028](0028-legacy-unlisted-gallery-continuity.md) permits public Sanity processed
+JPEGs and processed-JPEG package URLs for the owner's 21 retained legacy
+customer galleries, separately from ADR-0014 protected delivery. For this set,
+the owner requires source JPEG bytes, existing resolution and embedded metadata
+to be preserved. Source URLs expose those individual JPEGs and their metadata.
+This overrides the prepared-web-derivative requirement for this set only; true
+dimensions and complete-frame presentation still apply. Package links use a
+separate download contract, never the image optimizer.
+Direct file addresses do not expire with the gallery page; package transport
+remains unresolved. Camera masters, archive locators, `privateOnly` records and
+sales/fulfilment assets retain their existing exclusions. This is not a general
+relaxation of the public-media contract or authority for future client galleries.

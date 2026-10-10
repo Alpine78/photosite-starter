@@ -50,7 +50,7 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   or any browser payload. Use bounded, context-specific responsive `sizes`; transforms may
   downscale but never crop or upscale. URL parameters are optimization controls, not
   access protection.
-  **Private client galleries (ADR-0014) are the one scoped exception,** for an
+  **Private client galleries (ADR-0014) are a scoped exception,** for an
   **authorized holder of a valid gallery link or session** (the model proves possession of
   the capability, not identity), through a short-lived single-object signed object-store
   URL the server mints per request, never touching the public optimizer or the public
@@ -61,6 +61,16 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   archive locators, and provider internals still never reach any browser. **This exception
   is for ADR-0014 client galleries only and grants nothing to AB#95 sales/fulfilment
   assets,** which stay fully behind the server-only adapter until their own decision.
+  **Legacy unlisted delivery (ADR-0028) is a separate owner-accepted exception**
+  limited to the 21 retained migration galleries: owner-supplied processed JPEGs
+  at their existing resolution, with embedded metadata preserved byte for byte,
+  and public processed-JPEG delivery ZIP URLs may use existing Sanity storage
+  without authentication. Their source URLs expose the individual JPEG bytes. ZIP transport is still
+  unresolved; no splitting or dropping downloads is implied. Page expiry does
+  not revoke direct file URLs or cached bytes. This permits no camera masters,
+  archive locators, `privateOnly` reclassification, individual full-resolution
+  download control or AB#95 sales assets. Future galleries require a separate
+  scope decision; ADR-0014's protected workflow remains distinct.
 - **Privacy by default.** No tracking cookies, no Google Analytics, no auto-loading
   third-party embeds. Goal: no cookie banner.
 - **Accessibility:** target WCAG 2.1 AA. Keyboard navigation matters, especially in galleries.

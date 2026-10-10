@@ -68,6 +68,7 @@ Two conventions on top of the template:
 | [0025](0025-premium-source-distribution.md) | AB#44 | Separate Premium source archives and later private release delivery; no runtime entitlement check | Proposed |
 | [0026](0026-editorial-assistant-provider-boundary.md) | AB#126 | Provider-neutral editorial suggestions, independent text acceptance, server authorization and two-tier evaluation | Proposed |
 | [0027](0027-public-chat-and-knowledge-boundary.md) | AB#127 | Optional grounded public chat, authoritative eligibility, synchronization, privacy and budget boundaries | Proposed |
+| [0028](0028-legacy-unlisted-gallery-continuity.md) | AB#18 / AB#117 | Owner-accepted public Sanity delivery for 21 unlisted legacy galleries; protected workflow remains separate, ZIP transport unresolved | Accepted |
 
 Expected further entries:
 
