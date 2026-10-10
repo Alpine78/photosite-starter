@@ -3564,3 +3564,28 @@ production ZIP import/attachment behavior, baseline/usage/recovery, notice and
 public activation remain open. AB#250 moved New → Active before edits and stays
 Active; AB#18/117 remain Active. Validation and review scope are recorded in
 [the preparation audit](audits/ab250-legacy-gallery-runtime-2026-10-10.md).
+
+### AB#250 — offline retained-source import plan
+
+The separate `plan:legacy-delivery` command produces a private, digest-bound
+source review before asset binding or a writer. It verifies exact JPEG/whole-ZIP
+and backup bytes, JPEG dimensions/orientation, source order, exclusions and
+finite/indefinite availability. It neither transforms assets nor contacts Sanity.
+Normalized source tuples bind every reviewed field; stable opaque placement IDs
+preserve repeated photographs as separate positions. Expiry is rechecked after
+IO, and an existing review result is never overwritten.
+
+All customer input/results stay ignored with owner-only permissions. Synthetic
+tests cover malformed input, descriptor collisions, exact expiry, source/backup
+mismatches, format/orientation, symlinks, private output and fixed diagnostics.
+The operator contract and remaining support/baseline/usage/recovery/notice/approval
+gates are documented in [sanity-seeding](sanity-seeding.md#offline-legacy-delivery-plan-ab250).
+This is an offline preparation slice: no CMS payload, asset upload, public
+activation or old-link mapping is implemented here. AB#250/18/117 remain Active.
+The owner-local run verified all 21 retained galleries, 1,792 browse-image
+placements, 12 whole ZIPs and the original backup against the source plan;
+seven exclusions and nine absent packages are preserved. Validation: 58 focused
+tests, all 217 browser-free test files / 5,147 tests, lint, production build and
+three current diagrams. No public journey changed, so E2E was not repeated for
+this operator-only slice. These checks establish a local source review, not
+customer publication or a supported large-file provider guarantee.

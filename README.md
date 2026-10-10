@@ -515,6 +515,13 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   writing anything. Real Production content has been partially migrated; the remaining
   migration, the full content/asset audit, and temporary
   write-token revocation are separate launch work under AB#137.
+  ADR-0028's retained legacy deliveries have a separate offline review command,
+  `npm run plan:legacy-delivery -- --input <private.json> --image-root <dir>
+  --backup <archive.zip> --out <private-dir>`. It verifies unchanged browse JPEGs,
+  existing whole ZIPs and the backup, preserving image order and exact deadlines.
+  Its private plan is not approved or writable; asset binding, supported whole-ZIP
+  transfer, recovery, notice reconciliation and customer publication remain gated.
+  See [the operator contract](docs/sanity-seeding.md#offline-legacy-delivery-plan-ab250).
   Every route-facing seam (`site-settings.ts`, `home-content.ts`, `services.ts`, `content.ts`,
   `gallery.ts`) is now wired: `SITE_CONTENT_SOURCE=mock` keeps reading fixtures, and `sanity`
   reads every one of these adapters, never a mixed mock/Sanity page. Closing that wiring

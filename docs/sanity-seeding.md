@@ -9,6 +9,80 @@ work. It covers the script itself, not the connection, schemas, or failure
 behavior — see that document for those; this one links back rather than
 repeating them.
 
+## Offline legacy delivery plan (AB#250)
+
+ADR-0028's retained legacy deliveries use `npm run plan:legacy-delivery`, separate
+from ordinary public-media importers. It reads local files only, needs no credential,
+and emits no CMS documents or mutation instructions. Browse JPEGs retain their exact
+bytes, resolution and embedded metadata. Each referenced ZIP stays whole; a null
+reference remains absent. This does not implement the protected AB#29/145 feature.
+
+```bash
+npm run plan:legacy-delivery -- \
+  --input <private-source.json> --image-root <source-root> \
+  --backup <joomla-backup.zip> --out <private-review-dir>
+```
+
+Run under the pinned Node major on POSIX (including WSL). The input file must be
+owner-owned mode `0600` in an owner-owned `0700` directory; output uses the same
+permissions. Symlink components are refused. Repository-local input/output must be
+untracked and Git-ignored, for example under `temp/`. The entire output directory
+must be ignored, including temporary files; a final-filename-only rule is refused.
+Never publish a real customer
+fixture or review artifact. Console diagnostics contain fixed codes and zero-based
+gallery/image indices, without customer names, paths or underlying error messages.
+
+The input is a closed version-1 JSON object:
+
+- `target`: `projectId` and dataset `production` only. This names a future target;
+  the planner never contacts it.
+- `sourceEvidence`: SHA-256 values `backupSha256`, `availabilitySha256`,
+  `orderingSha256`, `inventorySha256`. Only backup bytes are independently read here;
+  the other three receipt digests are declared evidence references.
+- `excludedLegacyIds`: distinct positive IDs, disjoint from retained galleries.
+- `galleries`: `legacyId`, an already-persisted random 32-lowercase-hex `handle`,
+  exact owner-local `legacyPath`, optional reviewed `displayTitle`, `availability`,
+  ordered `images`, and `zip` (one source descriptor or null).
+- `availability`: `{ "mode": "indefinite" }` or `{ "mode": "until",
+  "expiryInstant": "2027-01-07T22:00:00Z" }`. UTC seconds must name a real instant;
+  availability ends exactly at it. Expired candidates block the plan, including
+  deadlines crossed during file verification. No six-month restart or silent omission.
+- Each image: relative POSIX `sourceLocator`, lowercase `sha1`/`sha256`, `bytes`,
+  actual `width`/`height`, `orientation: 1` and reviewed `alt` (may be empty).
+  ZIP descriptors have only `sourceLocator`, `sha1`, `sha256`, `bytes`.
+
+Unknown fields, controls, malformed Unicode, traversal, duplicate identities,
+case/NFC filename aliases and conflicting source descriptors are refused. Exact
+text/codepoints are preserved. Limits are 8 MiB raw JSON, 256 galleries, 256 images
+per gallery and 2,048 images total; JPEGs at most 100,000,000 bytes, 32,768 pixels
+per edge and 256,000,000 pixels; ZIPs and the backup at most 3,000,000,000 bytes.
+Title/alt/path bounds are respectively 200/400/1,024 UTF-8 bytes. Other EXIF
+orientations require a separate reviewed display contract, not an automatic rotation.
+
+Every JPEG is hashed and header-checked from the same bounded buffer. ZIP/backup
+bytes are streamed from regular file descriptors and checked for ZIP magic;
+**CRC and full image decode are not checked** by this tool. Earlier audit receipts
+remain distinct evidence. Files are never re-encoded or modified.
+Signature recognition includes the `PK00` single-segment marker documented in
+[PKWARE APPNOTE §8.5.4](https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT);
+this does not validate archive members or change the byte-hash requirement.
+
+The normalized source and deterministic placement IDs are written once to
+`legacy-plan-<reviewDigest>.json`, through an exclusive atomic file creation.
+Existing results are never overwritten. The SHA-256 review digest covers versioned
+tuples containing every source/target/evidence field. Galleries and exclusions sort
+by numeric ID; image arrays retain source order. The raw input-byte SHA-256 is also
+recorded. Standard `JSON.parse` accepts duplicate object keys with last-key-wins;
+review the normalized output, rather than assuming duplicate-key rejection.
+
+The fixed `offline-review-only` status leaves supported whole-ZIP transfer, fresh
+target baseline, provider usage, recovery, notice reconciliation, exact-plan approval
+and publication unresolved. A local hash does not establish ownership, current
+provider capacity, backup contents, approval or eventual CDN behavior. A future
+writer must independently revalidate sources, deadlines, exact asset bindings and
+those gates immediately before mutation. Runtime merging alone enables no customer
+gallery. AB#250, AB#18 and AB#117 remain Active until their full gates are met.
+
 ## What the script is, and is not
 
 `scripts/seed-sanity-content.mts` (`npm run seed:sanity`) writes a fixed set
