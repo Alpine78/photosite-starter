@@ -504,3 +504,34 @@ invisibility protects them.
 ### AB#233 — response transport integrity
 
 Runtime published queries keep their fixed Content Lake origin and use manual redirects. Successful JSON is decoded as strict UTF-8; a response BOM, valid Unicode and literal U+FFFD remain supported. Damaged bytes and body-read failures keep the existing non-retryable `malformed-response` classification with redacted events. Published perspective, parameters, timeout and finite Next cache tags/TTL remain unchanged. The pinned Next fetch implementation caches response bytes before application-level JSON validation: a malformed cached 200 can therefore keep failing until the existing TTL expires or approved webhook/recovery invalidation clears it. This change adds no live propagation proof.
+## Legacy delivery continuity (AB#250)
+
+The registered `legacyDeliveryGallery` and `legacyDeliveryImage` types implement
+ADR-0028's separate imported legacy surface. They do not become `media`, ordinary
+galleries or discoverable content-tree entries. Imported fields are read-only in
+the Studio; the initial availability flag is false. Runtime projection validates
+every field, exact source asset identity, JPEG dimensions/orientation, ordered
+manifest and optional whole-ZIP identity. Studio read-only fields are an editing
+convention, not authorization for an API credential.
+
+The runtime is off by default. Sanity selection requires the existing content
+source configuration, `LEGACY_GALLERY_IMPORT_BATCH` (64 lowercase hex characters)
+and distinct `LEGACY_GALLERY_HANDLES` (32 lowercase hex characters each).
+Sanity selection is refused in a declared or platform Preview environment,
+so customer content cannot be served by that adapter in Preview.
+No more than 256 handles or images per gallery are accepted. Unknown handles are
+refused before provider IO. Availability uses two uncached
+[Doc API](https://www.sanity.io/docs/http-reference/doc) reads around a bounded
+image query, with revision and manifest checks; these reads are intentionally
+separate from ordinary cached public queries. Doc replies are capped at 32 KiB,
+image-query replies at 512 KiB. The reader accepts only the verified legacy
+orientation 1 and exact intrinsic dimensions; unsupported data is refused,
+never transformed. Image URLs have no transformation parameters. The direct ZIP
+URL uses the documented [`dl` parameter](https://www.sanity.io/docs/content-lake/manage-assets);
+live attachment/byte verification remains an import gate.
+
+Before importing, independently verify the approved batch/source inventory,
+fresh baseline, quota/usage, recovery, notice and project webhook filters. The
+inspected production document hooks select ordinary types and exclude these
+legacy types; preserve that exclusion. Do not add legacy types to the public
+revalidation cache map or expose customer paths/contact details in fields.

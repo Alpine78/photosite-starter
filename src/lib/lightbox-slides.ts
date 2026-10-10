@@ -21,11 +21,11 @@ export type LightboxSlide = {
   readonly itemId: string;
   /** Media identity: which photo this is, independent of its placement. */
   readonly mediaId: string;
-  /** Public delivery source for the full-frame view. */
+  /** Full-frame presentation source: public derivative, or ADR-0028's bounded legacy exception. */
   readonly src: string;
   /** Candidate set for the same public derivative, as width descriptors. */
   readonly srcset?: string;
-  /** True intrinsic dimensions of the public derivative, never a crop box. */
+  /** True intrinsic dimensions of that source, never a crop box. */
   readonly width: number;
   readonly height: number;
   readonly alt: string;

@@ -3540,3 +3540,27 @@ settings changed. The owner's January 7, 2027 finite expiry clarification is
 retained privately. [The audit](audits/ab18-sanity-zip-transfer-2026-10-10.md)
 records the results, review history and residuals. The helper and receipts stay
 ignored local evidence outside application CI. AB#18/117 remain Active.
+
+### AB#250 — legacy delivery runtime preparation (2026-10-10)
+
+A separate default-off `/client-gallery/<opaque-handle>` route, read facade and
+import-owned `legacyDeliveryGallery` / `legacyDeliveryImage` schemas implement
+ADR-0028's retained legacy exception. Sanity mode requires an approved batch and
+deployed handles; unknown handles are rejected before provider IO. Two fresh,
+uncached Doc reads fence the bounded placement query. An ordered manifest digest
+refuses stale, missing, foreign or independently changed images and ZIPs.
+Publication and the exclusive UTC deadline are rechecked after IO. Missing,
+unpublished, expired and malformed content is unavailable; provider failures
+remain generic server errors. Direct original JPEG/whole-ZIP sources bypass the
+public optimizer and ordinary tree/search/sitemap. The existing lightbox supplies
+keyboard and touch viewing, with the generic fixture in development only.
+
+All responses under the owned namespace receive no-store/noindex/no-referrer;
+this is measured on a local production build, not asserted for a Vercel deploy.
+Source JPEG/ZIP transport preservation is a separate import gate: the renderer
+performs no resize, crop, re-encoding or metadata removal. Direct asset URLs
+remain public after page expiry. Customer upload, old-link mapping, supported
+production ZIP import/attachment behavior, baseline/usage/recovery, notice and
+public activation remain open. AB#250 moved New → Active before edits and stays
+Active; AB#18/117 remain Active. Validation and review scope are recorded in
+[the preparation audit](audits/ab250-legacy-gallery-runtime-2026-10-10.md).

@@ -102,6 +102,7 @@ export type BuiltInLabels = {
    * closed access window, and a wrong capability are deliberately
    * indistinguishable, so the page never reveals whether a handle exists.
    */
+  readonly legacyGallery: { readonly title: string; readonly unavailable: string; readonly download: string };
   readonly privateGallery: {
     readonly title: string;
     readonly opening: string;
@@ -588,6 +589,7 @@ const englishLabels = {
   services: {
     pricing: "Pricing",
   },
+  legacyGallery: { title: "Your gallery", unavailable: "This gallery is unavailable.", download: "Download all photographs (ZIP)" },
   privateGallery: {
     title: "Private gallery",
     opening: "Opening your gallery…",
@@ -886,6 +888,7 @@ const finnishLabels = {
   services: {
     pricing: "Hinnoittelu",
   },
+  legacyGallery: { title: "Galleriasi", unavailable: "Galleria ei ole saatavilla.", download: "Lataa kaikki kuvat (ZIP)" },
   privateGallery: {
     title: "Yksityinen galleria",
     opening: "Avataan galleriaasi…",

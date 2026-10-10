@@ -37,6 +37,7 @@ export const RESERVED_ROOT_SEGMENTS: readonly string[] = [
   // The contact endpoint's own segment. It serves no page, but a locale prefix
   // that claimed it would shadow a route the contact form posts to.
   "api",
+  "client-gallery",
   "contact",
   "favicon.ico",
   // The public directory the mock media is served from. It owns no page, but a
@@ -67,7 +68,7 @@ export const RESERVED_ROOT_SEGMENTS: readonly string[] = [
  * not compete with a story namespace beneath `/en` or another locale prefix.
  * Add `contact` here when its localized public route lands.
  */
-export const RESERVED_LOCALE_ROUTE_SEGMENTS: readonly string[] = ["services"];
+export const RESERVED_LOCALE_ROUTE_SEGMENTS: readonly string[] = ["services", "client-gallery"];
 
 /**
  * Whether the unprefixed default-locale route path resolves to a page today.

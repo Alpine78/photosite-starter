@@ -118,6 +118,10 @@ export const appUnderTestEnvironment: Record<string, string> = {
   // below is refused outright in one, because accepting a message and sending
   // nothing is silent data loss there.
   SITE_DEPLOYMENT_STAGE: "development",
+  VERCEL_ENV: "",
+  LEGACY_GALLERY_ADAPTER: "fixture",
+  LEGACY_GALLERY_IMPORT_BATCH: "",
+  LEGACY_GALLERY_HANDLES: "",
   // The contact endpoint's delivery boundary, resolved to the adapter that
   // accepts a message and sends nothing. The suite therefore exercises the real
   // route, the real validation, and the real response contract without a
