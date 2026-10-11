@@ -35,6 +35,8 @@ const FIXTURE_DEPLOYMENT = {
   // every assertion in this file fail to load.
   VERCEL_ENV: "",
   PREVIEW_STABLE_ALIAS: "",
+  PRODUCTION_NOINDEX_ALIASES: "",
+  SITE_CANONICAL_BASE_URL: "https://example.com",
 } as const;
 
 const PUBLIC_SANITY_DEPLOYMENT = {
@@ -604,5 +606,45 @@ describe("the Preview integration alias's noindex header (AB#136)", () => {
     const response = await getConfigResponse("/", PREVIEW_BUILD);
 
     expect(response.headers.get("x-robots-tag")).toBeNull();
+  });
+});
+
+describe("assigned Production alias noindex (AB#18, AB#117)", () => {
+  const production = {
+    VERCEL_ENV: "production",
+    SITE_CANONICAL_BASE_URL: "https://canonical.example.com",
+    PRODUCTION_NOINDEX_ALIASES: "first.vercel.app, second.vercel.app",
+  };
+
+  it.each(["first.vercel.app", "second.vercel.app", "FIRST.VERCEL.APP", "first.vercel.app:8443"])("marks an explicitly configured alias, preserving security headers: %s", async (host) => {
+    const response = await getConfigResponse("/", production, `https://${host}`);
+    expect(response.headers.get("x-robots-tag")).toBe("noindex");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("content-security-policy")).toContain("default-src 'self'");
+  });
+
+  it.each([
+    "canonical.example.com", "firstXvercelXapp", "xfirst.vercel.app",
+    "first.vercel.app.evil.test", "first.vercel.app.", "generated-123-team.vercel.app",
+  ])("does not widen the rule to a different hostname: %s", async (host) => {
+    const response = await getConfigResponse("/", production, `https://${host}`);
+    expect(response.headers.get("x-robots-tag")).toBeNull();
+  });
+
+  it.each(["", "development"])("is inert outside Production builds: %s", async (platform) => {
+    const response = await getConfigResponse("/", { ...production, VERCEL_ENV: platform }, "https://first.vercel.app");
+    expect(response.headers.get("x-robots-tag")).toBeNull();
+  });
+
+  it("leaves the entire Preview header rule set identical", async () => {
+    const environment = { VERCEL_ENV: "preview", PREVIEW_STABLE_ALIAS: "preview.vercel.app" };
+    const previous = await configuredWith(environment);
+    const before = await previous.headers?.();
+    const configured = await configuredWith({ ...environment, PRODUCTION_NOINDEX_ALIASES: production.PRODUCTION_NOINDEX_ALIASES });
+    expect(await configured.headers?.()).toEqual(before);
+  });
+
+  it("fails a configured Production build if its canonical hostname is included", async () => {
+    await expect(configuredWith({ ...production, SITE_CANONICAL_BASE_URL: "https://first.vercel.app" })).rejects.toThrow(/must not include/);
   });
 });
