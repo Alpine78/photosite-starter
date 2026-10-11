@@ -3778,3 +3778,14 @@ Production write: set `siteSettings.featuredGalleryId` to the real portfolio gal
 hero button and menu entry, so check it is published and placed in every locale
 whose links change), and attach service and package cover images. AB#252 stays
 Active until both are done.
+
+### AB#18 / AB#117 — Assigned Production alias indexing preparation (2026-10-11)
+
+`fix/18-production-alias-noindex` adds optional build-time
+`PRODUCTION_NOINDEX_ALIASES` for explicitly listed noncanonical Vercel hosts.
+Only Production-target builds emit exact-host noindex rules; malformed settings
+and attempts to include the canonical hostname fail. Unconfigured clones and
+Preview's existing header rules remain unchanged. No provider setting or serving
+alias was changed. A new Production build and live edge/header checks are needed
+before this preparation can resolve the reference alias-indexing gate. Both
+items remain Active.
