@@ -3804,3 +3804,15 @@ Preview's existing header rules remain unchanged. No provider setting or serving
 alias was changed. A new Production build and live edge/header checks are needed
 before this preparation can resolve the reference alias-indexing gate. Both
 items remain Active.
+
+**Service overview CMS preparation, 2026-10-11 (AB#137, Active):**
+The published FI/EN wedding overview still lacks `hideFromListing`; its card
+therefore remains on the protected latest-main candidate. A complete stable
+16,945-document raw snapshot covers 5,158 assets using unchanged prior recovery
+evidence and ten newly preserved original public-derivative byte copies. The
+private non-writable plan binds exactly two boolean patches to current revisions
+and preserves original documents for a post-write-revision rollback. It cannot
+approve or perform an import. Compatible public renderer activation and a new
+pre-write freshness check remain prerequisites; no credential was minted or CMS
+mutation performed. [Preparation evidence](audits/ab137-service-listing-preparation-2026-10-11.md)
+records asset coverage, unexercised restore and remaining gates.
