@@ -126,7 +126,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
         </article>
 
         {/* Pricing + contact CTA */}
-        <aside className="lg:sticky lg:top-8 lg:self-start">
+        <aside className="lg:sticky lg:top-[calc(var(--site-header-offset,0px)+2rem)] lg:self-start">
           {pricing && pricing.length > 0 && (
             <div className="rounded-lg border border-border p-6">
               <h2 className="text-lg font-medium tracking-tight">

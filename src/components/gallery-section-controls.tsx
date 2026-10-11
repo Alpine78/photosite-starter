@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect } from "react";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { buildGalleryHref } from "@/lib/gallery-slice";
 import type { GallerySectionSummary } from "@/lib/gallery-sections";
+import { useScrollReveal } from "@/lib/use-scroll-reveal";
 
 type GallerySectionControlsProps = {
   /** The gallery's declared section catalog, already ordered. */
@@ -69,54 +70,22 @@ export function GallerySectionControls({
   galleryPath,
   labels,
 }: GallerySectionControlsProps) {
-  const [hidden, setHidden] = useState(false);
-  const lastScrollYRef = useRef(0);
-  const navRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    if (sections.length === 0) return;
-
-    // Reduced motion turns off the *animation*, not the reveal-on-scroll-up
-    // behavior itself: preserving image space by moving the controls out of
-    // view on scroll-down is a functional layout decision the ADR still
-    // requires, not a decorative effect a motion preference should disable
-    // wholesale. Only the CSS transition on the element below is skipped.
-    lastScrollYRef.current = window.scrollY;
-
-    const onScroll = () => {
-      const currentY = window.scrollY;
-      // Focus can stay put while the page scrolls under it — a mouse wheel or
-      // trackpad gesture moves nothing else. ADR-0003 decision 3 requires
-      // focus inside the controls to *keep* them visible, not just reveal
-      // them once on the focus event that put it there, so hiding is skipped
-      // for as long as focus remains inside rather than only suppressed at
-      // the moment focus arrives.
-      if (navRef.current === null || !navRef.current.contains(document.activeElement)) {
-        const delta = currentY - lastScrollYRef.current;
-        if (delta > 0 && currentY > 0) {
-          setHidden(true);
-        } else if (delta < 0) {
-          setHidden(false);
-        }
-      }
-      lastScrollYRef.current = currentY;
-    };
-    const onFocusIn = (event: FocusEvent) => {
-      if (
-        navRef.current !== null &&
-        event.target instanceof Node &&
-        navRef.current.contains(event.target)
-      ) {
-        setHidden(false);
-      }
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    document.addEventListener("focusin", onFocusIn);
+  const { ref: navRef, hidden } = useScrollReveal({ enabled: sections.length > 0 });
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (sections.length === 0 || nav === null) return;
+    const root = document.documentElement;
+    const measure = () => root.style.setProperty(
+      "--gallery-section-height", `${nav.getBoundingClientRect().height}px`,
+    );
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(nav);
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      document.removeEventListener("focusin", onFocusIn);
+      observer.disconnect();
+      root.style.removeProperty("--gallery-section-height");
     };
-  }, [sections.length]);
+  }, [navRef, sections.length]);
 
   if (sections.length === 0) return null;
 
@@ -124,7 +93,7 @@ export function GallerySectionControls({
     <nav
       ref={navRef}
       aria-label={labels.gallery.sectionsNav}
-      className={`sticky top-0 z-10 -mx-4 border-y border-border bg-surface/95 px-4 backdrop-blur transition-transform duration-200 motion-reduce:transition-none sm:-mx-6 sm:px-6 ${
+      className={`sticky top-[var(--site-header-offset,0px)] z-10 -mx-4 border-y border-border bg-surface/95 px-4 backdrop-blur transition-transform duration-200 motion-reduce:transition-none sm:-mx-6 sm:px-6 ${
         hidden ? "-translate-y-full" : "translate-y-0"
       }`}
     >

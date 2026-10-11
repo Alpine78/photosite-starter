@@ -141,7 +141,7 @@ export function ServiceDetail({
           )}
         </article>
 
-        <aside className="lg:sticky lg:top-8 lg:self-start">
+        <aside className="lg:sticky lg:top-[calc(var(--site-header-offset,0px)+2rem)] lg:self-start">
           {service.pricing && service.pricing.length > 0 && (
             <div className="rounded-md border border-border p-8">
               <h2 className="text-xl font-semibold tracking-tight">

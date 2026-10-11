@@ -239,7 +239,7 @@ export function SiteNavigation({
                         // in flow so it does not reflow the page beneath it,
                         // and height-capped so a wide tree cannot grow past the
                         // bottom of the window.
-                        "absolute inset-x-0 top-full z-20 max-h-[70svh] overflow-y-auto border-b border-border bg-surface shadow-lg"
+                        "absolute inset-x-0 top-full z-20 max-h-[min(70svh,calc(100svh-var(--site-header-bar-height,0px)))] overflow-y-auto border-b border-border bg-surface shadow-lg"
                       : "pb-2 pl-3"
                   }
                 >

@@ -461,16 +461,30 @@ test("closing the zoomed viewer leaves the page behind interactive and unlocked"
   const dialog = page.getByRole("dialog");
   const triggers = page.getByRole("main").getByRole("button");
 
+  // The shared header publishes its geometry during hydration. Baseline the
+  // enhanced page, so later hydration cannot look like a viewer style leak.
+  await expect.poll(() => page.getByRole("banner").evaluate((element) =>
+    getComputedStyle(element).position,
+  )).toBe("sticky");
+
   // Baseline the page chrome the viewer might touch, so the check compares
   // against what was there rather than assuming a clean slate.
-  const baseline = await page.evaluate(() => ({
-    htmlClass: document.documentElement.className,
-    bodyClass: document.body.className,
-    htmlStyle: document.documentElement.getAttribute("style"),
-    bodyStyle: document.body.getAttribute("style"),
-    htmlOverflow: getComputedStyle(document.documentElement).overflow,
-    bodyOverflow: getComputedStyle(document.body).overflow,
-  }));
+  // Opening a trigger scrolls the page and can hide the shared header. Its
+  // visible offset may change legitimately; retain every other declaration,
+  // including overflow, so this still detects a leaked viewer scroll lock.
+  const pageChrome = () => page.evaluate(() => {
+    const style = document.documentElement.style;
+    return {
+      htmlClass: document.documentElement.className,
+      bodyClass: document.body.className,
+      htmlStyle: Array.from(style).filter((name) => name !== "--site-header-offset").sort()
+        .map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)]),
+      bodyStyle: document.body.getAttribute("style"),
+      htmlOverflow: getComputedStyle(document.documentElement).overflow,
+      bodyOverflow: getComputedStyle(document.body).overflow,
+    };
+  });
+  const baseline = await pageChrome();
 
   await openLightbox(dialog, () =>
     triggers.first().click({ timeout: OPEN_ACTION_TIMEOUT }),
@@ -487,14 +501,7 @@ test("closing the zoomed viewer leaves the page behind interactive and unlocked"
   expect(await page.locator(".pswp").count()).toBe(0);
 
   // The page chrome is exactly as it was before the viewer opened.
-  const after = await page.evaluate(() => ({
-    htmlClass: document.documentElement.className,
-    bodyClass: document.body.className,
-    htmlStyle: document.documentElement.getAttribute("style"),
-    bodyStyle: document.body.getAttribute("style"),
-    htmlOverflow: getComputedStyle(document.documentElement).overflow,
-    bodyOverflow: getComputedStyle(document.body).overflow,
-  }));
+  const after = await pageChrome();
   expect(after).toEqual(baseline);
 
   // And it genuinely responds again: the page scrolls...
