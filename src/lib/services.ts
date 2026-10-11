@@ -42,6 +42,8 @@ export type Service = {
   language: string;
   /** Optional stable identity of the service's parent. */
   parentServiceId?: string;
+  /** Keep a landing page routable while omitting its card from service listings. */
+  hideFromListing?: boolean;
   /** One path segment below the service's locale-specific namespace. */
   slug: string;
   name: string;

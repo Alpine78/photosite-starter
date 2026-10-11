@@ -37,6 +37,7 @@ export const PROJECTED_SERVICE_FIELDS = [
   "serviceId",
   "language",
   "parentServiceId",
+  "hideFromListing",
   "slug",
   "name",
   "shortDescription",
@@ -59,6 +60,7 @@ export const PUBLIC_SERVICE_PROJECTION = `{
   serviceId,
   language,
   parentServiceId,
+  hideFromListing,
   slug,
   name,
   shortDescription,
@@ -116,6 +118,7 @@ export type RawPublicServiceDocument = {
   readonly serviceId?: unknown;
   readonly language?: unknown;
   readonly parentServiceId?: unknown;
+  readonly hideFromListing?: unknown;
   readonly slug?: unknown;
   readonly name?: unknown;
   readonly shortDescription?: unknown;
@@ -260,6 +263,15 @@ export function projectPublicService(
   const startingPrice = readString(document.startingPrice);
   const pricing = readPricing(document.pricing, slug);
   const parentServiceId = readString(document.parentServiceId);
+  const hideFromListing = document.hideFromListing;
+  if (hideFromListing !== undefined && hideFromListing !== null &&
+      typeof hideFromListing !== "boolean") {
+    throw new SanityServiceError(
+      "incomplete-document",
+      "a service listing visibility must be a boolean",
+      slug,
+    );
+  }
   if (parentServiceId !== undefined && !SERVICE_SLUG.test(parentServiceId)) {
     throw new SanityServiceError(
       "incomplete-document",
@@ -272,6 +284,7 @@ export function projectPublicService(
     serviceId,
     language,
     ...(parentServiceId === undefined ? {} : { parentServiceId }),
+    ...(typeof hideFromListing !== "boolean" ? {} : { hideFromListing }),
     slug,
     name,
     shortDescription,

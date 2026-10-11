@@ -299,8 +299,9 @@ palette — can carry a variant for the other mode (AB#187). Mark the light imag
 same two dark selectors as the palette (`prefers-color-scheme: dark` unless
 `data-theme="light"` pins light, and `data-theme="dark"`), so the right image shows
 before hydration, without JavaScript, and follows the theme toggle. These are display
-rules, not colours: no `dark:` pair is written in a component. The header brand mark
-(`site-header.tsx`, `siteSettings.logoDark`) is the one current user.
+rules, not colours: no `dark:` pair is written in a component. The brand mark
+(`brand-mark.tsx`, `siteSettings.logoDark`) is the one current user, in both the header
+and the footer brand block.
 
 ---
 

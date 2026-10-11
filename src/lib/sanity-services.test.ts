@@ -88,6 +88,19 @@ describe("the query contract", () => {
 });
 
 describe("projecting one document", () => {
+  it("preserves authored listing visibility and treats null as unauthored", () => {
+    for (const value of [true, false]) {
+      expect(projectPublicService(documentOf({ hideFromListing: value }), { ...languages, config }))
+        .toHaveProperty("hideFromListing", value);
+    }
+    expect(projectPublicService(documentOf({ hideFromListing: null }), { ...languages, config }))
+      .not.toHaveProperty("hideFromListing");
+  });
+
+  it.each(["true", "false", 0, 1, {}, []])("refuses malformed listing visibility %j", (value) => {
+    expect(() => projectPublicService(documentOf({ hideFromListing: value }), { ...languages, config }))
+      .toThrow(SanityServiceError);
+  });
   it("maps a service with no cover, price, or pricing", () => {
     expect(projectPublicService(documentOf(), { ...languages, config })).toEqual({
       serviceId: "portrait-sessions",
@@ -204,6 +217,13 @@ describe("reading the catalog", () => {
 });
 
 describe("reading one service by slug", () => {
+  it("keeps a hidden landing page available to detail and hierarchy reads", async () => {
+    const { client } = fakeClient([documentOf({ hideFromListing: true })]);
+    const options = { language: "en", client, config };
+    expect(await readPublicServiceBySlug("portrait-sessions", options))
+      .toMatchObject({ slug: "portrait-sessions", hideFromListing: true });
+    expect(await readPublicServices(options)).toHaveLength(1);
+  });
   it("returns undefined for an unknown or unpublished slug", async () => {
     const { client } = fakeClient([]);
 

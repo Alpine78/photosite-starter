@@ -132,3 +132,36 @@ test("the pinned theme picks the mark too, not only the device preference", asyn
   await expect(shown()).toHaveCount(1);
   expect(await shown().getAttribute("src")).not.toBe(lightSource);
 });
+
+test("the footer repeats the brand: one mark per theme beside the site name", async ({ page }) => {
+  const footerBrand = page.getByRole("contentinfo").locator(":scope > div > :first-child");
+
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    const marks = footerBrand.locator("img");
+    await expect(marks.first()).toHaveAttribute("alt", "");
+    const shown = marks.filter({ visible: true });
+    await expect(shown, colorScheme).toHaveCount(1);
+    // Lazy below the fold: bring it in so the browser actually fetches it.
+    await shown.scrollIntoViewIfNeeded();
+    await expectImageDelivered(shown);
+
+    const geometry = await shown.evaluate((element) => {
+      const image = element as HTMLImageElement;
+      const box = image.getBoundingClientRect();
+      return {
+        ratio: box.width / box.height,
+        height: box.height,
+        nativeRatio: image.naturalWidth / image.naturalHeight,
+      };
+    });
+    expect(geometry.ratio, colorScheme).toBeCloseTo(geometry.nativeRatio, 1);
+    // The design proposal's footer mark height.
+    expect(geometry.height, colorScheme).toBeLessThanOrEqual(62.5);
+  }
+
+  const name = await openGraphSiteName(page);
+  await expect(footerBrand).toContainText(name);
+});

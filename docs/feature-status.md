@@ -3611,3 +3611,79 @@ remain separate gates; AB#250/18/117 stay Active. See the
 Validation: 48 synthetic compiler tests, all 218 browser-free test files / 5,195
 tests, lint, production build, strict type checking and three current diagrams.
 No public journey changed; local E2E was not repeated for this pure-tooling slice.
+
+**Service landing-page listing visibility, 2026-10-10 (AB#137, Active):**
+An optional `service.hideFromListing` boolean omits a card in both default and
+localized service listings while retaining the full service catalog for detail
+routes, parent breadcrumbs, language links, sitemap and contact choices. Missing
+or null flags preserve existing listing behavior; malformed values fail at the CMS
+projection boundary. The source change is ready for review, not deployed. The
+reference content flag is not set; publish the compatible reader before enabling
+that listing-only CMS flag.
+
+The separately approved Production content refresh completed on 2026-10-10:
+three missing service documents, four prices across two existing bilingual
+services, the two theme-specific logo references and the bilingual photographer
+introduction were written. Six creates and six revision-guarded patches ran in
+one transaction after a fresh full raw snapshot and verification that every
+current asset was covered by the existing full binary archive. The three new
+image assets preserve source bytes and native dimensions. The temporary
+project-scoped Editor credential was revoked; its old key returned HTTP 401.
+Unrelated content revisions were unchanged. No customer-gallery or DNS change
+was part of this operation.
+
+Validation: lint, production build, all 219 browser-free test files / 5,205 tests,
+20 affected public-journey cases, four live Production adapter tests and the
+full read-only post-write content audit. Fourteen public checks across desktop
+Chromium and mobile WebKit verified the changed service prices/detail URLs,
+logo delivery in both themes, portrait delivery and visible introduction. The
+audit found no drafts/releases, missing image dimensions, stored original
+filenames or media documents carrying private/internal metadata. Private
+source, backup, operator and credential evidence remain outside Git. AB#137
+remains Active; this refresh does not complete the wider launch work item.
+
+**Design brand restoration and language choice on every page, 2026-10-11 (AB#137, Active):**
+The footer now carries the hi-fi proposal's brand block (`.sfoot .fl`): the same
+`siteSettings.logo` / `logoDark` pair as the header at the proposal's 62px height
+(shared `brand-mark.tsx`, native ratio, decorative), beside this locale's site name
+and the canonical origin's host as the site's address. The proposal's footer row
+navigation and copyright are not duplicated; the existing footer columns keep them.
+The header language entry is no longer limited to pages that publish their own
+links: a page without a translation of its own (home, contact, a 404) offers each
+other language's public story root with the visible "opens all stories" note
+(`buildFallbackLanguageLinks`). The fallback appears only after hydration, and a
+page's published language links take precedence over it;
+without JavaScript such a page still has no language entry.
+
+The 2026-10-10 Production refresh had pointed both logo media documents at the old
+site's text-and-URL wordmarks. The approved correction replaces them with the
+proposal's text-free `logo-mark.png` and `logo-mark-knockout.png` (256×249) and
+authors the per-language site name and descriptor ("Valokuvaaja" before the name in
+Finnish, "Photography" after it in English).
+
+That separately approved Production correction completed on 2026-10-11. Two
+byte-verified 256×249 PNGs replaced only `image.asset` in the two existing logo
+media documents; the site settings' localized name and descriptor were patched
+in the same three-document revision-guarded transaction. The baseline combined a
+fresh full raw snapshot with the verified full asset archive and the three
+subsequently added source assets. Unrelated content revisions were unchanged and
+the old assets remain available for recovery. The temporary project-scoped Editor
+credential was revoked, its old key returned HTTP 401, and the unrelated token
+inventory was unchanged.
+
+Eight public browser cases verified the corrected header brand in Finnish and
+English, both themes, desktop Chromium and mobile WebKit, including native image
+ratio, delivery and horizontal overflow. Existing service prices were preserved.
+The footer, general language fallback and listing visibility source changes are
+still uncommitted and undeployed; the reference listing flag remains unset.
+
+Validation: lint; 220 browser-free test files / 5,209 tests; the full production
+journey matrix (774 passed / 38 skipped, including four expected failures for the
+existing AB#132 scriptless 404 limitation); 20 final brand/language cases; a build
+against the updated Production read configuration; four live adapter tests; and
+the full post-write raw audit (16,929 published documents / 5,150 image assets,
+no drafts/releases, missing dimensions, stored original filenames or media
+private/internal metadata). The bounded review finished without findings after
+operator cleanup corrections and offline failure checks. Private sources,
+snapshots, operator scripts and credential evidence remain outside Git. No code
+deployment, customer-gallery mutation or DNS change was made. AB#137 stays Active.

@@ -63,6 +63,7 @@ import {
   type LocaleVersion,
   type LocalizedContentTrees,
 } from "@/lib/locale-routes";
+import { languageName } from "@/lib/language-fallback";
 import { getPageMetadata } from "@/lib/page-metadata";
 import { defaultLocaleRouteExists } from "@/lib/public-routes";
 import { buildArticleJsonLd } from "@/lib/structured-data";
@@ -502,15 +503,6 @@ function listRouteVersions(
   return location === null
     ? listStoryRootVersions(config, trees)
     : listPublishedLocaleVersions(config, trees, location);
-}
-
-/**
- * The language's own name, read in that language. `Intl` supplies it, so adding
- * a locale never means adding a translated label to the codebase; an ICU build
- * that has no name for it falls back to the tag itself rather than to ours.
- */
-function languageName(locale: string): string {
-  return new Intl.DisplayNames([locale], { type: "language" }).of(locale) ?? locale;
 }
 
 /**

@@ -535,3 +535,10 @@ fresh baseline, quota/usage, recovery, notice and project webhook filters. The
 inspected production document hooks select ordinary types and exclude these
 legacy types; preserve that exclusion. Do not add legacy types to the public
 revalidation cache map or expose customer paths/contact details in fields.
+
+A service landing page can set `hideFromListing: true` to omit its card from both
+service listings while keeping its URL and child-route ancestry. This is a
+presentation setting, not publication or access control: the page remains in the
+service catalog, sitemap and contact choices. Leave the field unset (or false)
+for an ordinary visible service. Deploy a reader that supports the flag before
+expecting a Production listing to hide the card.

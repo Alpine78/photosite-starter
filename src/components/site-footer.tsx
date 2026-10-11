@@ -1,9 +1,18 @@
 import Link from "next/link";
+import { BrandMarks } from "@/components/brand-mark";
 import type { BuiltInLabels } from "@/lib/deployment-config";
+import type { PublicImageRendition } from "@/lib/media";
 import type { ResolvedNavigationLink } from "@/lib/site-navigation";
 import type { ContactInfo, SocialLink } from "@/lib/site-settings";
 
 type SiteFooterProps = {
+  /** This locale's site name (`resolveSiteName`), the brand block's name. */
+  siteName: string;
+  /** The canonical origin's host, shown under the name as the site's address. */
+  siteHost: string;
+  /** The header's brand mark and its dark-theme variant, at the footer's scale. */
+  logo?: PublicImageRendition;
+  logoDark?: PublicImageRendition;
   contact: ContactInfo;
   socialLinks: SocialLink[];
   /** Already resolved against this locale's tree; see `site-navigation.ts`. */
@@ -26,6 +35,10 @@ function platformLabel(platform: string): string {
  * interactivity, so it stays out of the client bundle.
  */
 export function SiteFooter({
+  siteName,
+  siteHost,
+  logo,
+  logoDark,
   contact,
   socialLinks,
   footerLinks,
@@ -37,7 +50,21 @@ export function SiteFooter({
   return (
     <footer className="border-t border-border">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:pt-16">
-        <div className="grid gap-8 sm:grid-cols-3">
+        {/* The proposal's footer brand: the mark beside the name and the
+            site's address. The mark is decorative, as in the header. */}
+        <div className="flex items-center gap-5">
+          {logo !== undefined && (
+            <BrandMarks logo={logo} logoDark={logoDark} placement="footer" />
+          )}
+          <p className="min-w-0 text-[0.9375rem] text-muted">
+            <span className="block text-[1.0625rem] font-semibold text-foreground">
+              {siteName}
+            </span>
+            {siteHost}
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-8 sm:grid-cols-3">
           {/* Contact */}
           <section aria-labelledby="footer-contact-heading">
             <h2
