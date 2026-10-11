@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Reserve the measured bars for anchor jumps and browser focus scrolling,
+   including an upward jump that reveals bars which were hidden beforehand.
+   With no script the properties are absent and the original layout applies. */
+html {
+  scroll-padding-top: calc(var(--site-header-height, 0px) + var(--gallery-section-height, 0px));
+}
+
 /*
  * Semantic design tokens — the theme contract (AB#36).
  *

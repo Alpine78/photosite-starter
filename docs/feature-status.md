@@ -93,6 +93,20 @@ document, not on the menu, because WebKit leaves focus on `document.body` after 
 activates a button; the submenu takes it in the capture phase and the compact panel in
 the bubble phase, so the menu unwinds one level per key and returns focus to the control
 that owned each.
+The shared site header now uses the gallery section controls' extracted scroll-reveal
+hook (AB#253, implemented on the work branch; owner acceptance and merge pending):
+downward scrolling hides it without reflow, and the first upward movement brings it
+back at the viewport top. Keyboard focus reveals and pins it; a pointer-focused link
+alone does not pin it, while an open displayed disclosure does. Header and gallery
+controls retain independent focus pins. The measured visible header height offsets
+the gallery controls, so both bars remain usable when revealed together. Their full
+measured heights reserve room for browser focus scrolling and anchor jumps. Resize
+observers and event listeners are removed on unmount; reduced motion skips the slide.
+The header stays in its original document flow before hydration and without JavaScript.
+Both menu layouts cap an open panel to the viewport space below the measured brand
+bar, so the panel's own scrolling can reach its final links even on a short screen.
+Service pricing sidebars also use the visible header offset, preserving their existing
+spacing without letting the revealed header cover the top of a pinned pricing box.
 Articles have moved into that tree: the shared project-owned content-page boundary
 (`src/lib/content-page.ts`) carries the variant, the six ADR-0003 body blocks, the cover,
 the publication date, and tags, and the `article` variant renders at its one canonical

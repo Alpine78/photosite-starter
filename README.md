@@ -335,6 +335,7 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - [x] Next.js App Router project setup (TypeScript, Tailwind, `src/`)
 - [x] CI pipeline (lint + test + build + production-build smoke tests)
 - [x] Responsive base layout with header and footer
+  - The shared header hides while scrolling down and returns on the first upward scroll, with keyboard access, pinned open disclosures and gallery section controls stacked below it (AB#253).
 - [x] Semantic design tokens and a documented theme contract — *brand-sensitive
   colours, text roles, borders, accent, focus, type, and corners defined once in
   `src/app/globals.css`, explicit light/dark, override points for a future preset in

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { BrandMarks } from "@/components/brand-mark";
 import { LanguageMenu } from "@/components/language-menu";
 import type { LanguageLink } from "@/components/language-switch";
@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import type { PublicImageRendition } from "@/lib/media";
 import type { BrandDescriptor } from "@/lib/site-settings";
+import { useScrollReveal } from "@/lib/use-scroll-reveal";
 import {
   getLanguageLinks,
   getServerLanguageLinks,
@@ -172,6 +173,34 @@ export function SiteHeader({
   // translated page's visitor the story root instead of its exact translation.
   // Once published, the page's own links take precedence over the fallback.
   const hydrated = useSyncExternalStore(subscribeNever, isClient, isServer);
+  const { ref: headerRef, hidden: headerHidden } = useScrollReveal({
+    keepExpanded: true,
+    keyboardFocusOnly: true,
+  });
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    if (!hydrated || header === null) return;
+    const root = document.documentElement;
+    const bar = header.firstElementChild;
+    const measure = () => {
+      // Leave the rest of a short viewport to the disclosure's own scroll
+      // region. A sticky header cannot scroll its off-screen bottom into view.
+      header.style.setProperty("--site-header-bar-height", `${bar?.getBoundingClientRect().height ?? 0}px`);
+      const height = `${header.getBoundingClientRect().height}px`;
+      root.style.setProperty("--site-header-height", height);
+      root.style.setProperty("--site-header-offset", headerHidden ? "0px" : height);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    if (bar !== null) observer.observe(bar);
+    return () => {
+      observer.disconnect();
+      header.style.removeProperty("--site-header-bar-height");
+      root.style.removeProperty("--site-header-height");
+      root.style.removeProperty("--site-header-offset");
+    };
+  }, [headerRef, headerHidden, hydrated]);
   const languageLinks = languageEntry?.links ?? (hydrated ? fallbackLanguageLinks : []);
 
   // The bar shows a configured link to the contact route as the proposal's
@@ -252,7 +281,10 @@ export function SiteHeader({
     // The site chrome stays above page content. A hero whose overlay is taller
     // than its image — a wide frame on a narrow screen — otherwise spills over
     // the header and swallows taps on the menu button and the open menu panel.
-    <header className="relative z-10 border-b border-border">
+    <header
+      ref={headerRef}
+      className={`${hydrated ? "sticky top-0" : "relative"} z-20 border-b border-border bg-surface transition-transform duration-200 motion-reduce:transition-none ${headerHidden ? "-translate-y-full" : ""}`}
+    >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 sm:py-6">
         {homeHref === undefined ? (
           <span className={brandClass}>
@@ -314,7 +346,7 @@ export function SiteHeader({
         id={COMPACT_PANEL_ID}
         ref={panelRef}
         hidden={!menuOpen}
-        className="max-h-[70svh] overflow-y-auto border-t border-border px-4 pb-4 lg:hidden"
+        className="max-h-[min(70svh,calc(100svh-var(--site-header-bar-height,0px)))] overflow-y-auto border-t border-border px-4 pb-4 lg:hidden"
       >
         <SiteNavigation
           items={navigation}
