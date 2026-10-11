@@ -205,6 +205,14 @@ the read token stay behind the adapter boundary. Setup, ownership, transfer, and
 behavior are in [docs/sanity-setup.md](docs/sanity-setup.md); the trade-offs are in
 [ADR-0006](docs/adr/0006-sanity-data-access-boundary.md).
 
+An optional standalone [`studio/`](studio/README.md) application provides the
+owner's browser editor for the canonical Sanity schemas. It has its own locked
+dependencies and build, and uses the owner's Sanity login rather than a bundled
+API token. Follow its setup guide to connect the existing project/dataset and
+publish it to Sanity hosting. Studio source/build readiness does not establish a
+live deployment or content-publication verification. It is outside the public
+Next.js application and introduces no CMS SDK into that application's dependencies.
+
 The document types are separate again, in [`sanity/schemas`](sanity/README.md) — plain
 objects that import nothing, so describing a schema costs no dependency and a clone points
 its own Studio at them. The shared **media** document is the first one, with a server-only

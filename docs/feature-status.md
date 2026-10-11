@@ -3789,3 +3789,43 @@ Preview's existing header rules remain unchanged. No provider setting or serving
 alias was changed. A new Production build and live edge/header checks are needed
 before this preparation can resolve the reference alias-indexing gate. Both
 items remain Active.
+
+### AB#254 — Standalone Sanity Studio (2026-10-11, Active)
+
+The optional `studio/` package reuses the canonical `sanity/schemas` without copies
+and keeps its dependencies, lockfile, type check and static build outside Next.js.
+Public configuration supplies the existing project/dataset, actual visibility,
+complete localized route table and editor title; no embedded credential is used.
+Home and site settings resolve the existing singleton identity, including imported
+IDs and draft/release variants. Failed, malformed, excessive or conflicting query
+results stop the pane rather than creating replacement documents. Creation
+templates and destructive/duplicate actions for these types are excluded.
+
+Editorial navigation covers services, articles, galleries, placements, shared
+media, categories, article end galleries and polls. Image previews preserve the
+full frame with contained, bounded thumbnails. Legacy-delivery schema types stay
+available to their separate approved importer but have no Studio navigation,
+creation template or document action. Private-client records, public draft preview,
+translation/AI workflows and category URL-change management are outside this slice.
+The public site's dependencies, published reads and media boundary are unchanged.
+
+CI adds a separate synthetic Studio schema/type/build job and scheduled lockfile
+audit. Root browser-free tests cover routing settings, singleton resolution,
+editorial policy drift, preview sources and generated notice policy without a live
+CMS or Studio dependency install. Build notices cover the full installed dependency
+tree. The remaining moderate-only YAML CLI advisory chain is recorded in the
+asset inventory; it is not a clean dependency audit.
+
+The owner-selected Sanity hostname was deployed after the offline gates, including
+a required successful schema-store deployment. Chromium reached the hosted
+address's redirect to Sanity's account login. It has no authenticated editor
+session; a vendor login-page script error was observed, so this is evidence of
+the login entry point, not an error-free editor check. CLI read-only queries
+confirmed one existing home and one site-settings identity, and the generated
+public-dataset schema omits archiveLocator. Authenticated panes, prepared test
+content publication and webhook propagation remain owner-run checks. No dataset
+was created, CMS content migrated or production document rewritten.
+PRs #331–#333 were inspected; their operational/preflight changes do not change
+the canonical schemas consumed here. #331 merged into main during preparation;
+the Studio branch retains its original merge base. AB#254 moved New → Active before the first
+edit and stays Active until the owner accepts and merges the implementation.

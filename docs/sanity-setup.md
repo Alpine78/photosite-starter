@@ -144,6 +144,17 @@ already applies: a value mirrored under `NEXT_PUBLIC_SANITY_POLL_VOTE_TOKEN` fai
 request rather than being silently accepted, because its presence means the write
 credential is already on its way to every visitor.
 
+## Standalone editor
+
+The optional [`studio/`](../studio/README.md) application consumes the canonical
+schemas in this checkout with a separate package-lock and build. Configure it
+with this site's existing project, dataset, actual dataset visibility and complete
+locale-routing table. The editor uses the owner's Sanity session; the site's
+server-only read token is never a Studio setting. Its guide covers local CORS,
+login, schema/build checks and explicit owner publication to Sanity hosting.
+CI validates the editor without deploying it. Deployment is an explicit owner
+operation and does not import or rewrite the site's content documents.
+
 ## Content schemas
 
 The document types this site reads live in [`sanity/`](../sanity/README.md) as plain
@@ -161,10 +172,11 @@ reject a static link that would duplicate any configured locale's generated stor
 navigation before the settings can be published; naming only the default locale's path
 would leave every other locale's collision undetected until the site reads the document.
 
-Four document types exist: **siteSettings**, the deployment's brand, contact details, and
-static navigation; **homePage**, the hero, introduction, and section links; **media**, the
-shared photograph; and **category**, one node in the public content tree. Galleries,
-articles, and services arrive with their own stories.
+The canonical schema includes **siteSettings**, **homePage**, **media**, **category**,
+articles, services, galleries and their placements, article end-gallery placements,
+polls and the separately gated retained legacy-delivery types. Studio's normal
+editorial navigation excludes those importer-owned legacy types, whose creation
+and publication remain outside this application setup.
 
 **Settings and home links name intent, not generated paths.** A link stores either an
 application-owned root-relative static route, the generated story root, or the featured

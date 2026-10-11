@@ -28,6 +28,9 @@ const eslintConfig = defineConfig([
     // This is a documented local security fork of an upstream dependency;
     // its CommonJS source is intentionally kept in upstream style.
     "vendor/**",
+    "studio/node_modules/**",
+    "studio/dist/**",
+    "studio/.sanity/**",
   ]),
   // The CMS boundary, enforced rather than documented (AB#39, ADR-0006).
   // Sanity's HTTP surface and its read token live in two modules; adapters in
