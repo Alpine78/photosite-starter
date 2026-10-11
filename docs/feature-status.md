@@ -3793,3 +3793,14 @@ cutover remain release gates. No CMS mutation, real contact delivery, alias move
 or DNS change was performed. See
 [the candidate audit](audits/ab18-production-candidate-2026-10-11.md).
 AB#18, AB#117 and AB#137 remain Active.
+
+### AB#18 / AB#117 — Assigned Production alias indexing preparation (2026-10-11)
+
+`fix/18-production-alias-noindex` adds optional build-time
+`PRODUCTION_NOINDEX_ALIASES` for explicitly listed noncanonical Vercel hosts.
+Only Production-target builds emit exact-host noindex rules; malformed settings
+and attempts to include the canonical hostname fail. Unconfigured clones and
+Preview's existing header rules remain unchanged. No provider setting or serving
+alias was changed. A new Production build and live edge/header checks are needed
+before this preparation can resolve the reference alias-indexing gate. Both
+items remain Active.

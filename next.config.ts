@@ -6,6 +6,7 @@ import {
 import { readPrivateObjectStoreOrigin } from "@/lib/private-object-store-origin";
 import {
   previewNoindexAliasHostPattern,
+  readProductionNoindexAliasHosts,
   readPreviewNoindexAliasHost,
 } from "@/lib/preview-noindex-alias";
 
@@ -330,6 +331,7 @@ const privateObjectStoreOrigin = readPrivateObjectStoreOrigin(process.env);
  * marks this one host non-indexable.
  */
 const previewNoindexAliasHost = readPreviewNoindexAliasHost(process.env);
+const productionNoindexAliasHosts = readProductionNoindexAliasHosts(process.env);
 
 const nextConfig: NextConfig = {
   // Proxy owns trailing-slash normalization so a gallery cursor can be
@@ -377,7 +379,7 @@ const nextConfig: NextConfig = {
       // whose Host is that alias, so the generated URL (which Vercel already
       // covers) is untouched and the pipeline's exact-match `X-Robots-Tag:
       // noindex` check on it cannot regress on a possible `noindex, noindex`
-      // join. `X-Robots-Tag` has no other `headers()` entry, so this only adds a
+      // join. The Production alias rule is gated to a different target, so this only adds a
       // header — the site-wide security headers above still apply (Next.js
       // combines matching rules, overriding only per key). Emitted only when
       // `VERCEL_ENV === "preview"`, so it can never reach a Production build.
@@ -396,6 +398,14 @@ const nextConfig: NextConfig = {
               headers: [{ key: "X-Robots-Tag", value: "noindex" }],
             },
           ]),
+      // Assigned Production aliases need their own crawl guidance. Match only
+      // explicitly configured, noncanonical hosts, never a wildcard or every
+      // route on the canonical site. Private-route hygiene below stays stronger.
+      ...productionNoindexAliasHosts.map((host) => ({
+        source: "/:path*",
+        has: [{ type: "host" as const, value: previewNoindexAliasHostPattern(host) }],
+        headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+      })),
       // ADR-0011 action item 4 / ADR-0014 §6: the private routes, and only they,
       // may load images from the private object store. `img-src` is widened by
       // exactly that origin and nothing else is — in particular no `connect-src`

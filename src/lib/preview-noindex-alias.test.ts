@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   isPreviewAliasHost,
+  readProductionNoindexAliasHosts,
+  ProductionNoindexAliasError,
   PreviewNoindexAliasError,
   previewNoindexAliasHostPattern,
   readPreviewNoindexAliasHost,
 } from "@/lib/preview-noindex-alias";
+
+import { loadDeploymentConfig } from "@/lib/deployment-config";
 
 const ALIAS = "photosite-starter-preview.vercel.app";
 
@@ -120,5 +124,77 @@ describe("readPreviewNoindexAliasHost", () => {
         PREVIEW_STABLE_ALIAS: alias,
       }),
     ).toThrow(PreviewNoindexAliasError);
+  });
+});
+
+describe("readProductionNoindexAliasHosts", () => {
+  const production = {
+    VERCEL_ENV: "production",
+    SITE_CANONICAL_BASE_URL: "https://example.com",
+  };
+
+  it("deduplicates case-equivalent hosts and returns a frozen exact list", () => {
+    const aliases = readProductionNoindexAliasHosts({
+      ...production,
+      PRODUCTION_NOINDEX_ALIASES: "First.vercel.app, second.team.vercel.app, first.vercel.app",
+    });
+    expect(aliases).toEqual(["first.vercel.app", "second.team.vercel.app"]);
+    expect(Object.isFrozen(aliases)).toBe(true);
+  });
+
+  it.each([undefined, ""])("leaves an unconfigured clone unchanged: %s", (value) => {
+    expect(readProductionNoindexAliasHosts({ ...production, PRODUCTION_NOINDEX_ALIASES: value })).toEqual([]);
+  });
+
+  it.each([undefined, "", "preview", "development"])("does nothing outside a Production build: %s", (platform) => {
+    expect(readProductionNoindexAliasHosts({
+      VERCEL_ENV: platform,
+      PRODUCTION_NOINDEX_ALIASES: "invalid",
+    })).toEqual([]);
+  });
+
+  it.each([
+    " ", "first.vercel.app,", ",first.vercel.app", "first.vercel.app,,second.vercel.app",
+    "https://first.vercel.app", "first.vercel.app:443", "first.vercel.app/path",
+    "*.vercel.app", "first.vercel.app.evil.test", "first.vercel.app.", "vercel.app",
+    "first.vercel.app\n", "first.vercel.app\r\n", "$(PRODUCTION_NOINDEX_ALIASES)",
+    `${"a".repeat(64)}.vercel.app`,
+    Array.from({ length: 9 }, (_, i) => `alias-${i}.vercel.app`).join(","),
+    "a".repeat(2048),
+  ])("refuses malformed or oversized configuration: %s", (value) => {
+    expect(() => readProductionNoindexAliasHosts({ ...production, PRODUCTION_NOINDEX_ALIASES: value })).toThrow(ProductionNoindexAliasError);
+  });
+
+  it("refuses to hide the canonical Vercel host, including its other port", () => {
+    expect(() => readProductionNoindexAliasHosts({
+      ...production,
+      SITE_CANONICAL_BASE_URL: "https://First.VERCEL.app:8443/",
+      PRODUCTION_NOINDEX_ALIASES: "first.vercel.app",
+    })).toThrow(/must not include/);
+  });
+
+  // A config leaf cannot import the server-only resolver. Pin both parsers to
+  // the same origin contract so future resolver changes cannot silently diverge.
+  const resolverEnvironment = {
+    SITE_CONTENT_SOURCE: "mock", SITE_DEPLOYMENT_STAGE: "development",
+    SITE_LOCALE: "en-GB", SITE_LOCALE_ROUTES: "en-GB||stories",
+    SITE_DEFAULT_SOCIAL_IMAGE: "/gallery/coastal-landscape.1683eecb7e65.webp",
+    SITE_DEFAULT_SOCIAL_IMAGE_WIDTH: "1536", SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT: "1024",
+  };
+  it.each([
+    "https://example.com", "https://WWW.example.com/", "http://localhost:3210",
+    "https://example.com:8443/", " https://example.com/ ", "https://[::1]:8443",
+  ])("accepts the resolver's canonical origin: %s", (origin) => {
+    const config = loadDeploymentConfig({ ...resolverEnvironment, SITE_CANONICAL_BASE_URL: origin });
+    expect(config.canonicalBaseUrl.origin).toBe(new URL(origin.trim()).origin);
+    expect(readProductionNoindexAliasHosts({ ...production, SITE_CANONICAL_BASE_URL: origin, PRODUCTION_NOINDEX_ALIASES: "first.vercel.app" })).toEqual(["first.vercel.app"]);
+  });
+  it.each([
+    undefined, "", "relative", "//example.com", "ftp://example.com",
+    "https://user:password@example.com", "https://example.com/path",
+    "https://example.com/?query=1", "https://example.com/#fragment",
+  ])("refuses the resolver's invalid canonical origin: %s", (origin) => {
+    expect(() => loadDeploymentConfig({ ...resolverEnvironment, SITE_CANONICAL_BASE_URL: origin })).toThrow();
+    expect(() => readProductionNoindexAliasHosts({ ...production, SITE_CANONICAL_BASE_URL: origin, PRODUCTION_NOINDEX_ALIASES: "first.vercel.app" })).toThrow(ProductionNoindexAliasError);
   });
 });
