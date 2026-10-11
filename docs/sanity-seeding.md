@@ -122,6 +122,46 @@ Even unpublished documents in a public dataset are enumerable; page expiry does
 not revoke asset URLs or purge CDN copies. Real customer inputs and any locally
 serialized candidates must remain owner-only, untracked and Git-ignored.
 
+### Offline first-import collision preflight
+
+`scripts/legacy-delivery-import-preflight.mts` adds the pure
+`buildLegacyImportPreflight(source, expectedReviewDigest, candidateBindings, baseline, now)`.
+It rebuilds the unpublished candidate from its source, rather than trusting a supplied
+compiled plan. It performs no filesystem, credential, network, upload or mutation IO.
+
+The closed baseline declaration has `version: 1`, exact `target`, `perspective: "raw"`,
+`capturedAt` (canonical UTC ISO with milliseconds), `expectedDocumentCount` and `documents`.
+Each row has exactly `_id`, `_type`, `_rev`, `migrationBatch`, `handle`, `galleryId`;
+the last three fields are a bounded string or null. The last field is the caller's
+projected single reference, not a scan of all nested references. Obtain the count
+from a separate authenticated `count(*)` read, never from the supplied array length.
+A paginated read is not an atomic snapshot. This function cannot establish authenticated
+visibility, completeness, baseline authenticity or recoverability from declarations.
+
+Up to 50,000 rows are accepted, with distinct raw IDs and nonempty revisions. Unknown
+unrelated document types are retained. Arrays must be dense, own-data-only and free of
+extra properties; accessors, proxies and open row/root shapes are refused. The declared
+capture time must be no later than the caller clock and at most five minutes old,
+including exactly 300,000 ms. This local freshness rule never authorizes a later write.
+
+The result has status `offline-preflight-only` and
+`noCollisionObservedInDeclaredBaseline`, not a write approval. Collisions are counted
+by fixed code: occupied planned ID (including draft/release copies), matching source
+batch, matching gallery handle (case-insensitive conservatively), or projected reference
+to any planned ID (also normalized for draft/release). Even an identical existing batch
+is refused; resume, replacement and deletion need a separate reviewed workflow.
+The report never echoes existing row IDs or field values. Its baseline digest binds
+the exact target, raw perspective, capture time and every sorted projected row/revision;
+two captures at different times therefore have different digests.
+
+Malformed inputs throw fixed-code `LegacyPreflightError`; collisions return a refusal
+report. Output is detached and deeply frozen, with candidate IDs and separate source,
+candidate and baseline digests. It supplies no mutations or publication instructions.
+All source/CDN byte checks, asset review, supported whole-ZIP transfer, usage, recovery,
+notice reconciliation and exact owner approval remain mandatory. A future writer must
+re-read current authenticated data, enforce creation without overwrite atomically and
+recheck availability; this module neither implements that writer nor clears those gates.
+
 ## What the script is, and is not
 
 `scripts/seed-sanity-content.mts` (`npm run seed:sanity`) writes a fixed set
