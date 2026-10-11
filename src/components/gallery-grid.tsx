@@ -90,9 +90,9 @@ type ContinuationOutcome = {
  * with no JavaScript at all. Script only intercepts that link and puts the next
  * slice into the page instead of navigating to it.
  *
- * **Nothing loads on its own.** There is no scroll observer and no prefetch of
- * later pages: a visitor asks for each slice, one bounded page at a time, so a
- * four-hundred-item gallery is never implicitly retrieved whole.
+ * The grid waits for its continuation control. An open lightbox requests one
+ * bounded next page near the loaded end; there is no grid scroll observer or
+ * eager retrieval of a whole archive (AB#251).
  *
  * **The address bar is deliberately left alone.** Replacing it with the last
  * appended slice's URL would name a page that shows *only* that slice, while
@@ -389,6 +389,12 @@ export function GalleryGrid({
         : {
             continuation: {
               loadNext: continueForLightbox,
+              // At most five images ahead, capped to a quarter of the first
+              // slice (at least one for a short paginated slice).
+              lookahead: Math.max(1, Math.min(5, Math.floor(initialSlice.items.length / 4))),
+              loading: isLoading,
+              failed: hasFailed,
+              loadingLabel: labels.gallery.loadingMore,
               failedLabel: labels.gallery.loadFailed,
               retryLabel: labels.gallery.retry,
             },

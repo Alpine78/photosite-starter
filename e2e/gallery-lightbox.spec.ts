@@ -161,7 +161,7 @@ test("the gallery grid opens a lightbox that navigates and closes by keyboard", 
     });
     const nextControl = dialog.getByRole("button", { name: labels.next });
 
-    await expect(previousControl).toBeVisible();
+    await expect(dialog.getByRole("button", { name: labels.previous, includeHidden: true })).toBeDisabled();
     await expect(nextControl).toBeVisible();
 
     await nextControl.click();
@@ -169,6 +169,7 @@ test("the gallery grid opens a lightbox that navigates and closes by keyboard", 
       .poll(async () => (await presentedImage(dialog))?.alt)
       .toBe(itemNames[1]);
 
+    await expect(previousControl).toBeVisible();
     await previousControl.click();
     await expect
       .poll(async () => (await presentedImage(dialog))?.alt)

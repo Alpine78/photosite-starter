@@ -126,12 +126,12 @@
 }
 
 /*
- * The continuation failure notice, shown inside the open viewer.
+ * Loading, retry, and terminal notice at the open viewer's loaded boundary.
  *
  * The grid's own control and message are behind this modal, so a visitor who
  * hits a network failure while browsing full-screen has no way back to them.
- * This sits above the frame, centred, and is hidden until something actually
- * fails — it is not chrome the viewer wears by default.
+ * This sits above the frame, centred, and stays hidden while browsing before
+ * the boundary, including a lookahead request in the background (AB#251).
  */
 .pswp .pswp__gallery-continuation {
   position: absolute;
@@ -146,8 +146,9 @@
   pointer-events: none;
 }
 
-.pswp .pswp__gallery-continuation[hidden] {
-  display: none;
+.pswp .pswp__gallery-continuation[data-empty="true"] {
+  /* A rendered empty live region can announce later text updates. */
+  opacity: 0;
 }
 
 .pswp .pswp__gallery-continuation-message {
