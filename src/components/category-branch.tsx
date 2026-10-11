@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
 import { CategoryDescription } from "@/components/category-description";
@@ -6,10 +5,8 @@ import {
   LanguageSwitch,
   type LanguageLink,
 } from "@/components/language-switch";
-import { formatDate } from "@/lib/date-format";
+import { StoryCard, type StoryCardEntry } from "@/components/story-card";
 import type { BuiltInLabels } from "@/lib/deployment-config";
-import { imageRenderProfiles } from "@/lib/image-delivery";
-import type { ImageMedia } from "@/lib/media";
 import type { CategoryDescriptionBlock } from "@/lib/category-description";
 
 export type BranchCategoryLink = {
@@ -18,20 +15,7 @@ export type BranchCategoryLink = {
   readonly href: string;
 };
 
-export type BranchContentCard = {
-  readonly contentId: string;
-  readonly title: string;
-  readonly summary?: string;
-  /**
-   * ISO 8601 date: the page's effective event date (`eventDate ?? publishedAt`,
-   * AB#150, ADR-0017) — never the raw `publishedAt`.
-   */
-  readonly eventDate: string;
-  readonly author: string;
-  readonly cover?: ImageMedia;
-  /** The one canonical detail route, whichever listing the card appears in. */
-  readonly href: string;
-};
+export type BranchContentCard = StoryCardEntry;
 
 type CategoryBranchProps = {
   locale: string;
@@ -179,38 +163,7 @@ export function CategoryBranch({
           <ul className="mt-7 grid items-start gap-x-10 gap-y-14 sm:grid-cols-2">
             {content.map((entry) => (
               <li key={entry.contentId}>
-                <Link
-                  href={entry.href}
-                  className={`group flex h-full flex-col gap-4 ${focusRing}`}
-                >
-                  {entry.cover && (
-                    <Image
-                      src={entry.cover.rendition.src}
-                      alt={entry.cover.alt}
-                      width={entry.cover.rendition.width}
-                      height={entry.cover.rendition.height}
-                      sizes={imageRenderProfiles.contentListingGrid.sizes}
-                      className="h-auto w-full rounded-sm bg-surface-muted"
-                    />
-                  )}
-                  <div className="flex flex-1 flex-col">
-                    <h3 className="text-xl font-semibold leading-snug tracking-tight transition-colors group-hover:text-link-hover sm:text-2xl">
-                      {entry.title}
-                    </h3>
-                    {entry.summary && (
-                      <p className="mt-2 line-clamp-3 max-w-prose text-base leading-relaxed text-muted sm:text-lg">
-                        {entry.summary}
-                      </p>
-                    )}
-                    <p className="mt-3 text-sm text-muted">
-                      <span>{entry.author}</span>
-                      <span className="mx-1.5">·</span>
-                      <time dateTime={entry.eventDate}>
-                        {formatDate(entry.eventDate, locale)}
-                      </time>
-                    </p>
-                  </div>
-                </Link>
+                <StoryCard entry={entry} locale={locale} />
               </li>
             ))}
           </ul>

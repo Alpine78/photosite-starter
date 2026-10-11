@@ -52,6 +52,13 @@ type AuthoredContentRecord = {
   /** Article-only authored override, shared by listing and detail fixtures. */
   readonly author?: string;
   readonly publishedAt: string;
+  /**
+   * The document's last update, when it differs from publication (AB#252).
+   * Only the home page's latest-stories order reads it; an absent value
+   * falls back to `publishedAt`. Two fixtures carry one that disagrees with
+   * their event-date order, so the two orders stay distinguishable.
+   */
+  readonly updatedAt?: string;
   /** When the real-world event happened, when it differs from publish order. */
   readonly eventDate?: string;
   /** A permanently-past date on the one fixture that exercises the auto-hide. */
@@ -87,6 +94,7 @@ const englishRecords: readonly AuthoredContentRecord[] = [
     summary:
       "First light along the shoreline, photographed over a series of early starts.",
     publishedAt: "2024-06-18",
+    updatedAt: "2026-03-01T10:00:00.000Z",
     cover: englishImages.coastalLandscape,
   },
   {
@@ -100,6 +108,7 @@ const englishRecords: readonly AuthoredContentRecord[] = [
     summary:
       "How overcast mornings change what a shoreline shows, and why they are worth waiting for.",
     publishedAt: "2024-08-02",
+    updatedAt: "2026-02-10T08:30:00.000Z",
     eventDate: "2025-03-15",
     cover: englishImages.mistyBirch,
   },
@@ -245,6 +254,7 @@ const finnishRecords: readonly AuthoredContentRecord[] = [
     summary:
       "Ensimmäinen valo rantaviivalla, kuvattuna useiden aikaisten aamujen aikana.",
     publishedAt: "2024-06-18",
+    updatedAt: "2026-03-01T10:00:00.000Z",
     cover: finnishImages.coastalLandscape,
   },
   {
@@ -253,6 +263,7 @@ const finnishRecords: readonly AuthoredContentRecord[] = [
     summary:
       "Miten pilvinen aamu muuttaa rantamaisemaa ja miksi sitä kannattaa odottaa.",
     publishedAt: "2024-08-02",
+    updatedAt: "2026-02-10T08:30:00.000Z",
     eventDate: "2025-03-15",
     cover: finnishImages.mistyBirch,
   },
@@ -377,6 +388,14 @@ function indexAuthored(
   return new Map(records.map((record) => [record.contentId, record]));
 }
 
+function indexUpdatedAt(
+  records: readonly AuthoredContentRecord[],
+): ReadonlyMap<string, string> {
+  return new Map(
+    records.map((record) => [record.contentId, record.updatedAt ?? record.publishedAt]),
+  );
+}
+
 function indexListing(
   records: readonly ContentListingRecord[],
 ): ReadonlyMap<string, ContentListingRecord> {
@@ -407,6 +426,18 @@ export const mockAuthoredContentRecords: Readonly<
 };
 
 export type { AuthoredContentRecord };
+
+/**
+ * Update instants per language subtag (AB#252): the authored `updatedAt`, else
+ * the publication date, which is date-only like every other mock date and is
+ * read by `Date.parse` as midnight UTC.
+ */
+export const mockContentUpdatedAt: Readonly<
+  Record<string, ReadonlyMap<string, string>>
+> = {
+  en: indexUpdatedAt(englishRecords),
+  fi: indexUpdatedAt(finnishRecords),
+};
 
 /** Card-contract listing records per language subtag (effective event date, fallback cover). */
 export const mockContentListingRecords: Readonly<

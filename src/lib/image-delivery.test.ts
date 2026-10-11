@@ -37,6 +37,10 @@ describe("bounded image render profiles", () => {
         sizes:
           "(min-width: 1152px) 532px, (min-width: 640px) calc(50vw - 44px), calc(100vw - 32px)",
       },
+      servicePackages: {
+        sizes:
+          "(min-width: 1152px) 348px, (min-width: 1024px) calc((100vw - 456px) / 2), (min-width: 640px) calc((100vw - 88px) / 2), calc(100vw - 32px)",
+      },
       serviceContent: {
         sizes:
           "(min-width: 1152px) 736px, (min-width: 1024px) calc(100vw - 416px), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)",

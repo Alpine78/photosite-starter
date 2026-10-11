@@ -43,6 +43,9 @@ const QUERY_CACHE_TAGS: Readonly<
   "service.list": [T.services, T.media, T.metadata, T.sitemap],
   "service.detail": [T.services, T.media, T.metadata, T.sitemap],
   "article.listing": [T.articles, T.categories, T.media, T.metadata, T.sitemap],
+  // The home page's latest-stories read (AB#252): the same dependencies as the
+  // listing it mirrors, since it reads the same documents and cover media.
+  "article.latest": [T.articles, T.categories, T.media, T.metadata, T.sitemap],
   "article.listing.by-category": [
     T.articles,
     T.categories,
@@ -71,6 +74,7 @@ const QUERY_CACHE_TAGS: Readonly<
   "category.tree": [T.categories, T.articles, T.galleries, T.metadata, T.sitemap],
   "gallery.detail": [T.galleries, T.categories, T.media, T.metadata, T.sitemap],
   "gallery.listing": [T.galleries, T.categories, T.media, T.metadata, T.sitemap],
+  "gallery.latest": [T.galleries, T.categories, T.media, T.metadata, T.sitemap],
   "gallery.listing.by-category": [
     T.galleries,
     T.categories,

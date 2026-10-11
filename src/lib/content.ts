@@ -24,6 +24,8 @@ import {
   buildAdjacentContentQuery,
   buildCategoryListing,
   buildContentListingQuery,
+  buildLatestContent,
+  buildLatestContentQuery,
   listContentIdsInCategories,
   orderContentListingRecords,
   resolveAdjacentContent,
@@ -36,6 +38,9 @@ import {
   type ContentListingBoundary,
   type ContentListingQuery,
   type ContentListingRecord,
+  type LatestContentEntry,
+  type LatestContentQuery,
+  type LatestContentRecord,
 } from "@/lib/content-listing";
 /**
  * `content-listing-cursor.ts` carries the `server-only` marker. Importing it at
@@ -66,6 +71,7 @@ import type { LocaleRouteConfig, LocalizedContentTrees } from "@/lib/locale-rout
 import {
   mockAuthoredContentRecords,
   mockContentListingRecords,
+  mockContentUpdatedAt,
 } from "@/lib/mock-content-listing";
 import { mockContentPages } from "@/lib/mock-content-pages";
 import {
@@ -689,6 +695,75 @@ export async function getCategoryListing(
         afterEventDate: boundary.eventDate,
         afterContentId: boundary.contentId,
       }),
+  });
+}
+
+async function queryLatestRecords(
+  locale: string,
+  tree: ContentTree,
+  query: LatestContentQuery,
+): Promise<readonly LatestContentRecord[]> {
+  const { contentSource } = getDeploymentConfig();
+
+  return dispatchContentSource(contentSource, {
+    // See dispatchContentSource's own doc comment for why these imports are dynamic.
+    sanity: async () => {
+      const language = languageOf(locale);
+      const [{ readPublicArticleLatestRecords }, { readPublicGalleryLatestRecords }] =
+        await Promise.all([
+          import("@/lib/sanity-article"),
+          import("@/lib/sanity-gallery"),
+        ]);
+
+      const articleIds: string[] = [];
+      const galleryIds: string[] = [];
+      for (const contentId of query.contentIds) {
+        if (tree.placements.get(contentId)?.variant === "gallery") {
+          galleryIds.push(contentId);
+        } else {
+          articleIds.push(contentId);
+        }
+      }
+
+      const [articleRecords, galleryRecords] = await Promise.all([
+        readPublicArticleLatestRecords({ ...query, contentIds: articleIds }, { language }),
+        readPublicGalleryLatestRecords({ ...query, contentIds: galleryIds }, { language }),
+      ]);
+      // `buildLatestContent` re-orders and re-bounds the merged rows.
+      return [...articleRecords, ...galleryRecords];
+    },
+    mock: async () => {
+      const authored = mockContentListingRecords[languageOf(locale)];
+      const updated = mockContentUpdatedAt[languageOf(locale)];
+      return query.contentIds.flatMap((contentId) => {
+        const record = authored?.get(contentId);
+        const updatedAt = updated?.get(contentId);
+        return record === undefined || updatedAt === undefined
+          ? []
+          : [{ ...record, updatedAt }];
+      });
+    },
+  });
+}
+
+/**
+ * The home page's latest stories (AB#252): the story root's routed content,
+ * newest document update first. A separate read from `getCategoryListing`, whose
+ * event-date order is bound into continuation cursors and is left untouched.
+ * Empty when the locale publishes no content tree.
+ */
+export async function getLatestContent(
+  locale: string,
+  limit: number,
+): Promise<readonly LatestContentEntry[]> {
+  const tree = (await getContentTrees()).get(locale);
+  if (tree === undefined) return [];
+
+  const query = buildLatestContentQuery({ tree, limit });
+  return buildLatestContent({
+    tree,
+    records: await queryLatestRecords(locale, tree, query),
+    limit,
   });
 }
 

@@ -2,10 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ContactCallToAction } from "@/components/contact-call-to-action";
 import { HeroOverlay } from "@/components/hero-overlay";
+import { HomeLatestStories } from "@/components/home-latest-stories";
 import { HomePhotographerIntroduction } from "@/components/home-photographer-introduction";
 import { HomePortfolio } from "@/components/home-portfolio";
 import { JsonLd } from "@/components/json-ld";
 import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
+import { getContentTrees, getLatestContent } from "@/lib/content";
+import { listStoryRootVersions } from "@/lib/content-routes";
+import { effectiveArticleAuthor } from "@/lib/content-page";
+import { buildStoryPath } from "@/lib/locale-routes";
 import { getSiteSettings } from "@/lib/site-settings";
 import { getHomeContent, resolveFeaturedGalleryHref } from "@/lib/home-content";
 import { getGalleryPage, GalleryOrderingStaleError, UnknownGallerySectionError } from "@/lib/gallery";
@@ -21,6 +26,9 @@ import {
   buildOrganizationJsonLd,
   buildWebSiteJsonLd,
 } from "@/lib/structured-data";
+
+/** How many stories the home page's latest-stories section shows (design frame 05). */
+const HOME_LATEST_STORY_COUNT = 2;
 
 /**
  * The unprefixed default-locale site root keeps the SiteSettings site name as
@@ -59,6 +67,28 @@ export default async function Home({ searchParams }: HomePageProps) {
     : undefined;
   const locale = deployment.localeRoutes.defaultLocale;
   const galleryPath = await resolveFeaturedGalleryHref(deployment.localeRoutes, locale);
+  // The latest stories (AB#252): the two most recently updated public stories,
+  // and the story root they lead to when this locale publishes one.
+  const [latest, trees] = await Promise.all([
+    getLatestContent(locale, HOME_LATEST_STORY_COUNT),
+    getContentTrees(),
+  ]);
+  const storiesHref = listStoryRootVersions(deployment.localeRoutes, trees).some(
+    (version) => version.locale === locale,
+  )
+    ? buildStoryPath(deployment.localeRoutes, locale)
+    : undefined;
+  const latestStories = latest.map((entry) => ({
+    contentId: entry.contentId,
+    title: entry.title,
+    ...(entry.summary === undefined ? {} : { summary: entry.summary }),
+    eventDate: entry.eventDate,
+    author: entry.variant === "article"
+      ? effectiveArticleAuthor(entry, settings)
+      : settings.photographerName,
+    ...(entry.cover === undefined ? {} : { cover: entry.cover }),
+    href: buildStoryPath(deployment.localeRoutes, locale, entry.path),
+  }));
   // Authored section slugs are bounded by the same identity limit. Longer
   // untrusted values cannot match a published topic and stay on the All view.
   const requestedTopic =
@@ -140,6 +170,13 @@ export default async function Home({ searchParams }: HomePageProps) {
           <p className="text-lg leading-8 text-body">{intro}</p>
         </section>
       )}
+
+      <HomeLatestStories
+        entries={latestStories}
+        {...(storiesHref === undefined ? {} : { storiesHref })}
+        locale={locale}
+        labels={labels}
+      />
 
       {galleryPath && portfolioPage && (
         <HomePortfolio

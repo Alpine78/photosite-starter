@@ -372,6 +372,125 @@ export function resolveAdjacentContent({
 }
 
 /**
+ * The ordering rule of the home page's "latest stories" read, named like
+ * `CONTENT_LISTING_ORDERING` but deliberately separate (AB#252): the branch
+ * listing's event-date order is bound into stored continuation cursors, and the
+ * latest read has no continuation, so the two never share a rule.
+ *
+ * `updated-at-desc-v1`: the content document's own `_updatedAt`, newest first,
+ * with `contentId` ascending as the deterministic tie-break. An old trip added
+ * to the album, or a story revised later, therefore surfaces. Adding photographs
+ * to an existing gallery does not touch the gallery document, so it does not.
+ */
+export const LATEST_CONTENT_ORDERING = "updated-at-desc-v1";
+
+/** One latest-content row: a listing card plus the timestamp it was ordered by. */
+export type LatestContentRecord = ContentListingRecord & {
+  /** ISO 8601 instant of the page document's last update; never displayed. */
+  readonly updatedAt: string;
+};
+
+export type LatestContentEntry = LatestContentRecord & {
+  readonly variant: ContentVariant;
+  readonly path: readonly string[];
+};
+
+/** The bounded latest read: the story root's routed ids, newest update first. */
+export type LatestContentQuery = {
+  readonly ordering: typeof LATEST_CONTENT_ORDERING;
+  readonly limit: number;
+  readonly contentIds: readonly string[];
+};
+
+/**
+ * Validates an adapter-supplied update timestamp. A missing or unparseable value
+ * is an adapter defect, never a reason to guess an order.
+ */
+export function readLatestUpdatedAt(value: unknown, contentId: string): string {
+  if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
+    throw new TypeError(
+      `latest content "${contentId}" has no usable update timestamp`,
+    );
+  }
+  return value;
+}
+
+/**
+ * `LATEST_CONTENT_ORDERING` applied in memory: by instant, not by string, so
+ * fractional seconds and offsets cannot reorder rows.
+ */
+export function orderLatestContentRecords<T extends LatestContentRecord>(
+  records: readonly T[],
+): readonly T[] {
+  return [...records].sort((left, right) => {
+    const delta = Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
+    if (delta !== 0) return delta;
+    return left.contentId < right.contentId ? -1 : left.contentId > right.contentId ? 1 : 0;
+  });
+}
+
+/**
+ * Builds the bounded latest query from the story root's routed content, the
+ * same membership the root's recent overview uses. Drops nothing silently:
+ * a limit below one is a caller defect.
+ */
+export function buildLatestContentQuery({
+  tree,
+  limit,
+}: {
+  readonly tree: ContentTree;
+  readonly limit: number;
+}): LatestContentQuery {
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new RangeError(`latest content limit must be a positive integer, received ${limit}`);
+  }
+  return {
+    ordering: LATEST_CONTENT_ORDERING,
+    limit,
+    contentIds: listCategoryContentIds(tree, null),
+  };
+}
+
+/**
+ * Assembles latest entries from adapter rows, re-ordered and re-bounded here
+ * rather than trusted. A row for content that is not routed, or has no
+ * canonical detail path, is a defect and says so.
+ */
+export function buildLatestContent({
+  tree,
+  records,
+  limit,
+}: {
+  readonly tree: ContentTree;
+  readonly records: readonly LatestContentRecord[];
+  readonly limit: number;
+}): readonly LatestContentEntry[] {
+  const listed = new Set(listCategoryContentIds(tree, null));
+  const seen = new Set<string>();
+
+  const entries = records.map((record) => {
+    if (!listed.has(record.contentId)) {
+      throw new TypeError(
+        `latest record for content "${record.contentId}" is not routed at the story root`,
+      );
+    }
+    if (seen.has(record.contentId)) {
+      throw new TypeError(`latest query returned content "${record.contentId}" more than once`);
+    }
+    seen.add(record.contentId);
+
+    const placement = tree.placements.get(record.contentId);
+    const path = getCanonicalContentPath(tree, record.contentId);
+    if (placement === undefined || path === null) {
+      throw new Error(`latest content "${record.contentId}" has no canonical detail path`);
+    }
+    return { ...record, variant: placement.variant, path };
+  });
+
+  return orderLatestContentRecords(entries).slice(0, limit);
+}
+
+/**
  * Every published page a branch lists: the ones canonically or secondarily
  * placed in this category or in any category within its descendant subtree
  * (ADR-0003, 2026-08-27 amendment). Aggregation is downward only, so a
