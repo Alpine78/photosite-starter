@@ -11,6 +11,7 @@ import {
   projectGalleryPlacementInput,
   projectGallerySectionIntro,
   projectGallerySectionSummary,
+  readPublicGalleryLatestRecords,
   readPublicGalleryListingRecords,
   readPublicGalleryListingRecordsInCategories,
   readPublicGalleryPage,
@@ -1690,5 +1691,66 @@ describe("legacy story-root flag projection", () => {
   });
   it("rejects a malformed non-null flag", () => {
     expect(() => projectGalleryPlacementInput({contentId: "legacy-page", slug: "legacy-page", canonicalAtStoryRoot: "true", canonicalCategoryRef: null}, new Map())).toThrow();
+  });
+});
+
+describe("reading latest records (AB#252)", () => {
+  const row = (contentId: string, updatedAt: unknown) => ({
+    contentId,
+    title: contentId,
+    publishedAt: "2024-01-01",
+    updatedAt,
+  });
+
+  it("skips the query for an empty candidate list", async () => {
+    const { client, requests } = fakeClient({});
+    expect(
+      await readPublicGalleryLatestRecords({ contentIds: [], limit: 2 }, { language: "en", client }),
+    ).toEqual([]);
+    expect(requests).toHaveLength(0);
+  });
+
+  it("orders by _updatedAt, then contentId, and asks for the timestamp", async () => {
+    const { client, requests } = fakeClient({ "gallery.latest": [] });
+    await readPublicGalleryLatestRecords(
+      { contentIds: ["content-a"], limit: 2 },
+      { language: "en", client, config },
+    );
+    expect(requests[0].query).toContain("order(_updatedAt desc, contentId asc)");
+    expect(requests[0].query).toContain('"updatedAt": _updatedAt');
+    expect(requests[0].query).toContain("dateTime(now())");
+    expect(requests[0].params).toMatchObject({ limit: 2, contentIds: ["content-a"] });
+  });
+
+  it("merges chunks by instant — fractional seconds and offsets cannot reorder rows", async () => {
+    const contentIds = Array.from({ length: 500 }, (_, i) => `content-${"x".repeat(40)}-${i}`);
+    let call = 0;
+    const requests: SanityQueryRequest[] = [];
+    const client: SanityClient = {
+      async query(request) {
+        requests.push(request);
+        call += 1;
+        return call === 1
+          ? [row("content-late", "2026-01-01T10:00:00.900Z")]
+          : [row("content-later", "2026-01-01T12:00:00.000+02:00")];
+      },
+    };
+    const records = await readPublicGalleryLatestRecords(
+      { contentIds, limit: 1 },
+      { language: "en", client, config },
+    );
+    expect(requests.length).toBeGreaterThan(1);
+    // 12:00+02:00 is 10:00:00.000Z, earlier than 10:00:00.900Z.
+    expect(records.map((record) => record.contentId)).toEqual(["content-late"]);
+  });
+
+  it("rejects a row without a usable update timestamp rather than guessing an order", async () => {
+    const { client } = fakeClient({ "gallery.latest": [row("content-a", undefined)] });
+    await expect(
+      readPublicGalleryLatestRecords(
+        { contentIds: ["content-a"], limit: 2 },
+        { language: "en", client, config },
+      ),
+    ).rejects.toThrow(/update timestamp/);
   });
 });

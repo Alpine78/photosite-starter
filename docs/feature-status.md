@@ -3687,3 +3687,32 @@ private/internal metadata). The bounded review finished without findings after
 operator cleanup corrections and offline failure checks. Private sources,
 snapshots, operator scripts and credential evidence remain outside Git. No code
 deployment, customer-gallery mutation or DNS change was made. AB#137 stays Active.
+
+**Home latest stories and service packages, 2026-10-11 (AB#252, Active):**
+The home page shows a "Latest stories" section (two cards and an "All stories" link,
+design frame 05) between the photographer introduction and the portfolio. It orders
+the story root's routed public content by each page document's own `_updatedAt`,
+newest first with `contentId` as the tie-break, so an old trip added later or a
+revised story surfaces. This is a separate bounded read (`getLatestContent`,
+`LATEST_CONTENT_ORDERING = updated-at-desc-v1`; Sanity `article.latest` /
+`gallery.latest`, cached under the same families as the listings): the story
+listings keep their event-date order, which stored continuation cursors depend on.
+Cards come from the shared `StoryCard`, so covers keep their native ratio. The card
+still displays the effective event date, not the update time.
+
+Known limit: adding photographs to an existing gallery changes its placement
+documents, not the gallery document, so it does not move that gallery up; a new
+gallery, or an edit and publish of the gallery document, does.
+
+A service page that has child services lists them under a "Packages" heading as
+cards with name and cover at native ratio (`ServiceDetail`, direct children only;
+children flagged `hideFromListing` stay listed there). The service cover on cards and
+detail pages was already supported in code; no Production service has a
+`coverMedia` yet.
+
+Content steps outside the PR, each its own owner-approved, revision-guarded
+Production write: set `siteSettings.featuredGalleryId` to the real portfolio gallery
+(`portfolio`; Production currently points at a rally gallery, which also drives the
+hero button and menu entry, so check it is published and placed in every locale
+whose links change), and attach service and package cover images. AB#252 stays
+Active until both are done.

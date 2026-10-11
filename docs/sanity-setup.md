@@ -542,3 +542,12 @@ presentation setting, not publication or access control: the page remains in the
 service catalog, sitemap and contact choices. Leave the field unset (or false)
 for an ordinary visible service. Deploy a reader that supports the flag before
 expecting a Production listing to hide the card.
+
+The home page's "Latest stories" section reads published article and gallery
+documents ordered by their own `_updatedAt` (AB#252). Because a gallery's
+photographs live in separate placement documents, adding photographs to an existing
+gallery does not change that order; creating a gallery, or editing and publishing
+the gallery document, does. `siteSettings.featuredGalleryId` names the gallery
+shown as the home portfolio and used by the hero button and menu entry. A service
+page lists its child services (those whose `parentServiceId` is its `serviceId`) as
+packages, each with its `coverMedia` when set.

@@ -31,6 +31,10 @@ import "server-only";
 
 import {
   orderContentListingRecords,
+  orderLatestContentRecords,
+  readLatestUpdatedAt,
+  type LatestContentQuery,
+  type LatestContentRecord,
   type CategorySubtreeListingQuery,
   type ContentListingRecord,
   type RoutedContentListingQuery,
@@ -465,14 +469,16 @@ export async function readPublicGalleryPlacements(
 // comment explains why a listing card must never load a body).
 // ---------------------------------------------------------------------------
 
-export const GALLERY_LISTING_PROJECTION = `{
+const GALLERY_LISTING_FIELDS = `
   contentId,
   title,
   summary,
   publishedAt,
   eventDate,
   "cover": cover->${PUBLIC_MEDIA_PROJECTION}
-}`;
+`;
+
+export const GALLERY_LISTING_PROJECTION = `{${GALLERY_LISTING_FIELDS}}`;
 
 /**
  * The GROQ order `content-listing.ts`'s `CONTENT_LISTING_ORDERING` names: the
@@ -624,6 +630,63 @@ export async function readPublicGalleryListingRecords(
   );
 
   return orderContentListingRecords(chunkedRecords.flat()).slice(0, query.limit);
+}
+
+/**
+ * The GROQ order of the latest read (AB#252): the document's own `_updatedAt`,
+ * newest first, `contentId` ascending as the tie-break. `_updatedAt` is system
+ * generated UTC ISO, so its string order is its instant order.
+ */
+export const GALLERY_LATEST_ORDER = `order(_updatedAt desc, contentId asc)`;
+
+/** The listing projection plus the ordering timestamp, which is never displayed. */
+export const GALLERY_LATEST_PROJECTION = `{${GALLERY_LISTING_FIELDS},
+  "updatedAt": _updatedAt
+}`;
+
+/**
+ * The home page's "latest stories" read, gallery half (AB#252): at most
+ * `query.limit` rows among `query.contentIds`, newest document update first
+ * (`_updatedAt`, `contentId` ascending as the tie-break), through the same
+ * public filter, scheduled-end gate and listing projection as the event-date
+ * read. It never touches `CONTENT_LISTING_ORDERING`, so stored continuation
+ * cursors stay valid.
+ *
+ * Chunked like the listing read: each chunk contributes its own top `limit`,
+ * the only candidates that can reach the overall top `limit`, and the merged
+ * rows are re-ordered by instant and re-bounded.
+ */
+export async function readPublicGalleryLatestRecords(
+  query: Pick<LatestContentQuery, "contentIds" | "limit">,
+  options: PublicGalleryListingReadOptions,
+): Promise<readonly LatestContentRecord[]> {
+  if (query.contentIds.length === 0) return [];
+
+  const client = options.client ?? getSanityClient();
+  const language = toLanguageSubtag(options.language);
+  const config = options.config ?? getSanityConfig();
+  const languages = { language, fallbackLanguage: getFallbackLocale(), config };
+
+  const chunks = chunkGalleryContentIds(query.contentIds, MAX_CONTENT_IDS_BYTES);
+
+  const chunkedRecords = await Promise.all(
+    chunks.map(async (contentIds) => {
+      const result = await client.query({
+        query: `*[${GALLERY_FILTER} && contentId in $contentIds && ${NOT_ENDED_FILTER}] | ${GALLERY_LATEST_ORDER} [0...$limit]${GALLERY_LATEST_PROJECTION}`,
+        params: { language, contentIds, limit: query.limit },
+        tag: "gallery.latest",
+      });
+
+      return readDocuments<RawGalleryListingDocument & { readonly updatedAt?: unknown }>(result).map(
+        (document) => ({
+          ...projectGalleryListingRecord(document, languages),
+          updatedAt: readLatestUpdatedAt(document.updatedAt, String(document.contentId)),
+        }),
+      );
+    }),
+  );
+
+  return orderLatestContentRecords(chunkedRecords.flat()).slice(0, query.limit);
 }
 
 /**

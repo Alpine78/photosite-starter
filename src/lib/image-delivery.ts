@@ -144,6 +144,18 @@ export const imageRenderProfiles = {
   contentListingGrid: {
     sizes: contentCardGridSizes,
   },
+  /**
+   * A service page's package cards: two columns with a 40px gap inside the
+   * article column — 348px at the container cap, beside the 320px aside
+   * from `lg`, full width from `sm` and a single column below it (AB#252).
+   */
+  servicePackages: {
+    sizes: boundedImageSizes(
+      1152,
+      348,
+      "(min-width: 1024px) calc((100vw - 456px) / 2), (min-width: 640px) calc((100vw - 88px) / 2), calc(100vw - 32px)",
+    ),
+  },
   serviceContent: {
     sizes: boundedImageSizes(
       1152,

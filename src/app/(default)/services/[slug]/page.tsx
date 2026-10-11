@@ -3,13 +3,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/json-ld";
+import { listDirectChildServices, ServicePackages } from "@/components/service-pages";
 import {
   getDefaultLocaleLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import { getPageMetadata } from "@/lib/page-metadata";
-import { getService, getServices } from "@/lib/services";
+import { buildServicePath } from "@/lib/locale-routes";
+import { getService, getServiceRoutes, getServices } from "@/lib/services";
 import { buildServiceJsonLd } from "@/lib/structured-data";
 
 type ServicePageProps = {
@@ -66,6 +68,11 @@ export default async function ServicePage({ params }: ServicePageProps) {
   const service = await getService(slug);
   if (!service) notFound();
   const labels = getDefaultLocaleLabels();
+  // Packages: the catalog's own routes resolve this service's children.
+  const { localeRoutes } = getDeploymentConfig();
+  const routes = await getServiceRoutes();
+  const own = routes.find((route) => route.service.serviceId === service.serviceId);
+  const packages = own === undefined ? [] : listDirectChildServices(routes, own.path);
 
   const { name, description, coverMedia, pricing } = service;
 
@@ -123,6 +130,11 @@ export default async function ServicePage({ params }: ServicePageProps) {
               className="mt-8 h-auto w-full rounded-lg"
             />
           )}
+          <ServicePackages
+            packages={packages}
+            serviceRootPath={buildServicePath(localeRoutes, localeRoutes.defaultLocale)}
+            heading={labels.services.packages}
+          />
         </article>
 
         {/* Pricing + contact CTA */}

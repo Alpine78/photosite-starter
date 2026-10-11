@@ -71,6 +71,60 @@ export function ServiceListing({
   );
 }
 
+/**
+ * The routes one level below `serviceSegments`, in the catalog's own order.
+ * Only direct children: a grandchild is reached through its own parent's page.
+ * Hidden-from-listing children stay: that flag only keeps a card off the
+ * listings, and a package must remain reachable from the service it belongs to.
+ */
+export function listDirectChildServices(
+  routes: readonly ResolvedService[],
+  serviceSegments: readonly string[],
+): readonly ResolvedService[] {
+  return routes.filter(
+    (route) =>
+      route.path.length === serviceSegments.length + 1 &&
+      serviceSegments.every((segment, index) => route.path[index] === segment),
+  );
+}
+
+/**
+ * A service's own sub-services as cards — name and cover only — under a heading
+ * one level below the page's. Renders nothing without any, so a service with no
+ * packages shows no empty section.
+ */
+export function ServicePackages({
+  packages,
+  serviceRootPath,
+  heading,
+}: {
+  readonly packages: readonly ResolvedService[];
+  readonly serviceRootPath: string;
+  readonly heading: string;
+}) {
+  if (packages.length === 0) return null;
+  return (
+    <section aria-labelledby="service-packages-heading" className="mt-12">
+      <h2 id="service-packages-heading" className="text-2xl font-semibold tracking-tight">
+        {heading}
+      </h2>
+      <ul className="mt-6 grid items-start gap-x-10 gap-y-12 sm:grid-cols-2">
+        {packages.map((route) => (
+          <li key={route.service.serviceId}>
+            <ServiceCard
+              service={route.service}
+              href={`${serviceRootPath}/${route.path.join("/")}`}
+              headingLevel={3}
+              compact
+              imageSizes={imageRenderProfiles.servicePackages.sizes}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 type ServiceDetailProps = {
   readonly service: Service;
   readonly serviceSegments: readonly string[];
@@ -103,6 +157,7 @@ export function ServiceDetail({
         route.path.every((segment, index) => segment === serviceSegments[index]),
     )
     .sort((left, right) => left.path.length - right.path.length);
+  const packages = listDirectChildServices(routes, serviceSegments);
   const breadcrumbs: readonly BreadcrumbStep[] = [
     { label: labels.pages.services, href: serviceRootPath },
     ...ancestors.map((ancestor) => ({
@@ -139,6 +194,11 @@ export function ServiceDetail({
               className="mt-8 h-auto w-full rounded-lg"
             />
           )}
+          <ServicePackages
+            packages={packages}
+            serviceRootPath={serviceRootPath}
+            heading={labels.services.packages}
+          />
         </article>
 
         <aside className="lg:sticky lg:top-8 lg:self-start">

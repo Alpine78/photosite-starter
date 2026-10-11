@@ -116,6 +116,30 @@ const mockServices: Service[] = [
     ],
   },
   {
+    // Packages of the weddings service: the fixture's one parent/child
+    // relationship, so the packages list on the parent's page is exercised. The
+    // first has a cover, the second none, like the top-level fixtures above.
+    serviceId: "weddings-half-day",
+    language: "en",
+    parentServiceId: "weddings",
+    slug: "half-day",
+    name: "Half-day coverage",
+    shortDescription: "Ceremony and portraits in a compact package.",
+    description: ["Placeholder copy; replaced with real wording from the CMS."],
+    coverMedia: mockImages.lakesideReeds,
+    startingPrice: "900 €",
+  },
+  {
+    serviceId: "weddings-full-day",
+    language: "en",
+    parentServiceId: "weddings",
+    slug: "full-day",
+    name: "Full-day coverage",
+    shortDescription: "From preparations to the last dance.",
+    description: ["Placeholder copy; replaced with real wording from the CMS."],
+    startingPrice: "1 400 €",
+  },
+  {
     serviceId: "events",
     language: "en",
     // Intentionally has no cover media: the card must render cleanly without one.

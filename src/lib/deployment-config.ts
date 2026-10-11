@@ -95,6 +95,8 @@ export type BuiltInLabels = {
   };
   readonly services: {
     readonly pricing: string;
+    /** Heading of the list of a service's own sub-services, e.g. its packages. */
+    readonly packages: string;
   };
   /**
    * The private client-gallery bootstrap (ADR-0014 §3). `invalidLink` is the
@@ -375,6 +377,10 @@ export type BuiltInLabels = {
     /** Explains an explicit legacy-content fallback without exposing its source URL. */
     readonly legacyFallbackNotice: string;
   };
+  readonly homeLatestStories: {
+    /** The link from the home page's latest stories to the whole story root. */
+    readonly allStories: string;
+  };
   readonly homePortfolio: {
     readonly heading: string;
     readonly topicsNav: string;
@@ -588,6 +594,7 @@ const englishLabels = {
   },
   services: {
     pricing: "Pricing",
+    packages: "Packages",
   },
   legacyGallery: { title: "Your gallery", unavailable: "This gallery is unavailable.", download: "Download all photographs (ZIP)" },
   privateGallery: {
@@ -783,6 +790,9 @@ const englishLabels = {
     legacyFallbackNotice:
       "The page you requested is no longer available. You have been redirected to the closest available content.",
   },
+  homeLatestStories: {
+    allStories: "All stories",
+  },
   homePortfolio: {
     heading: "Selected photographs",
     topicsNav: "Portfolio topics",
@@ -887,6 +897,7 @@ const finnishLabels = {
   },
   services: {
     pricing: "Hinnoittelu",
+    packages: "Paketit",
   },
   legacyGallery: { title: "Galleriasi", unavailable: "Galleria ei ole saatavilla.", download: "Lataa kaikki kuvat (ZIP)" },
   privateGallery: {
@@ -1075,6 +1086,9 @@ const finnishLabels = {
     backToStart: "Takaisin alkuun",
     legacyFallbackNotice:
       "Hakemaasi sivua ei ole enää saatavilla. Sinut ohjattiin lähimpään saatavilla olevaan sisältöön.",
+  },
+  homeLatestStories: {
+    allStories: "Kaikki tarinat",
   },
   homePortfolio: {
     heading: "Valikoituja kuvia",

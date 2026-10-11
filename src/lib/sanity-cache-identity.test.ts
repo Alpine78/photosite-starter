@@ -5,12 +5,14 @@ import type { SanityConfig } from "@/lib/sanity-config";
 import { getSanityPublicCachePolicy } from "@/lib/sanity-cache";
 import {
   readPublicArticlePage,
+  readPublicArticleLatestRecords,
   readPublicArticleListingRecords,
   readPublicArticleListingRecordsInCategories,
   readPublicArticleAdjacentRecords,
 } from "@/lib/sanity-article";
 import {
   readPublicGalleryPage,
+  readPublicGalleryLatestRecords,
   readPublicGalleryListingRecords,
   readPublicGalleryListingRecordsInCategories,
 } from "@/lib/sanity-gallery";
@@ -37,6 +39,7 @@ const category = {
   ordering: "event-date-desc-v1" as const,
   limit: 5,
 };
+const latest = { contentIds: ["content-a"], limit: 2 };
 const reads: readonly [string, (client: SanityClient, language: string) => Promise<unknown>][] = [
   ["article.detail", (client, language) => readPublicArticlePage("content-a", { client, language, config })],
   ["gallery.detail", (client, language) => readPublicGalleryPage("content-a", { client, language, config })],
@@ -44,6 +47,8 @@ const reads: readonly [string, (client: SanityClient, language: string) => Promi
   ["gallery.listing", (client, language) => readPublicGalleryListingRecords(listing, { client, language, config })],
   ["article.listing.by-category", (client, language) => readPublicArticleListingRecordsInCategories(category, { client, language, config })],
   ["gallery.listing.by-category", (client, language) => readPublicGalleryListingRecordsInCategories(category, { client, language, config })],
+  ["article.latest", (client, language) => readPublicArticleLatestRecords(latest, { client, language, config })],
+  ["gallery.latest", (client, language) => readPublicGalleryLatestRecords(latest, { client, language, config })],
   ["article.adjacent", (client, language) => readPublicArticleAdjacentRecords("content-a", { client, language, config })],
 ];
 

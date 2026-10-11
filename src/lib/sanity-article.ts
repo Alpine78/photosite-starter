@@ -52,6 +52,10 @@ import "server-only";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
   orderContentListingRecords,
+  orderLatestContentRecords,
+  readLatestUpdatedAt,
+  type LatestContentQuery,
+  type LatestContentRecord,
   type AdjacentContentRecords,
   type CategorySubtreeListingQuery,
   type ContentListingRecord,
@@ -154,7 +158,7 @@ export const ARTICLE_PLACEMENT_PROJECTION = `{
   "secondaryCategoryRefs": secondaryCategories[]._ref
 }`;
 
-export const ARTICLE_LISTING_PROJECTION = `{
+const ARTICLE_LISTING_FIELDS = `
   contentId,
   title,
   summary,
@@ -162,7 +166,9 @@ export const ARTICLE_LISTING_PROJECTION = `{
   publishedAt,
   eventDate,
   "cover": cover->${PUBLIC_MEDIA_PROJECTION}
-}`;
+`;
+
+export const ARTICLE_LISTING_PROJECTION = `{${ARTICLE_LISTING_FIELDS}}`;
 
 export const ARTICLE_DETAIL_PROJECTION = `{
   contentId,
@@ -634,6 +640,63 @@ export async function readPublicArticleListingRecords(
   );
 
   return orderContentListingRecords(chunkedRecords.flat()).slice(0, query.limit);
+}
+
+/**
+ * The GROQ order of the latest read (AB#252): the document's own `_updatedAt`,
+ * newest first, `contentId` ascending as the tie-break. `_updatedAt` is system
+ * generated UTC ISO, so its string order is its instant order.
+ */
+export const ARTICLE_LATEST_ORDER = `order(_updatedAt desc, contentId asc)`;
+
+/** The listing projection plus the ordering timestamp, which is never displayed. */
+export const ARTICLE_LATEST_PROJECTION = `{${ARTICLE_LISTING_FIELDS},
+  "updatedAt": _updatedAt
+}`;
+
+/**
+ * The home page's "latest stories" read, article half (AB#252): at most
+ * `query.limit` rows among `query.contentIds`, newest document update first
+ * (`_updatedAt`, `contentId` ascending as the tie-break), through the same
+ * public filter, scheduled-end gate and listing projection as the event-date
+ * read. It never touches `CONTENT_LISTING_ORDERING`, so stored continuation
+ * cursors stay valid.
+ *
+ * Chunked like the listing read: each chunk contributes its own top `limit`,
+ * the only candidates that can reach the overall top `limit`, and the merged
+ * rows are re-ordered by instant and re-bounded.
+ */
+export async function readPublicArticleLatestRecords(
+  query: Pick<LatestContentQuery, "contentIds" | "limit">,
+  options: PublicArticleListingReadOptions,
+): Promise<readonly LatestContentRecord[]> {
+  if (query.contentIds.length === 0) return [];
+
+  const client = options.client ?? getSanityClient();
+  const language = toLanguageSubtag(options.language);
+  const config = options.config ?? getSanityConfig();
+  const languages = { language, fallbackLanguage: getFallbackLocale(), config };
+
+  const chunks = chunkContentIds(query.contentIds, MAX_CONTENT_IDS_BYTES);
+
+  const chunkedRecords = await Promise.all(
+    chunks.map(async (contentIds) => {
+      const result = await client.query({
+        query: `*[${ARTICLE_FILTER} && contentId in $contentIds && ${NOT_ENDED_FILTER}] | ${ARTICLE_LATEST_ORDER} [0...$limit]${ARTICLE_LATEST_PROJECTION}`,
+        params: { language, contentIds, limit: query.limit },
+        tag: "article.latest",
+      });
+
+      return readDocuments<RawArticleListingDocument & { readonly updatedAt?: unknown }>(result).map(
+        (document) => ({
+          ...projectArticleListingRecord(document, languages),
+          updatedAt: readLatestUpdatedAt(document.updatedAt, String(document.contentId)),
+        }),
+      );
+    }),
+  );
+
+  return orderLatestContentRecords(chunkedRecords.flat()).slice(0, query.limit);
 }
 
 /**

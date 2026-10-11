@@ -4,17 +4,23 @@ import {
   buildAdjacentContentQuery,
   buildCategoryListing,
   buildContentListingQuery,
+  buildLatestContent,
+  buildLatestContentQuery,
   CONTENT_LISTING_ORDERING,
+  LATEST_CONTENT_ORDERING,
   listCategoryContentIds,
   listContentIdsInCategories,
   MAX_CONTENT_LISTING_PAGE_SIZE,
   orderContentListingRecords,
+  orderLatestContentRecords,
+  readLatestUpdatedAt,
   resolveAdjacentContent,
   selectAdjacentRecords,
   selectContentListingAfterBoundary,
   type ContentListingBoundary,
   type ContentListingQuery,
   type ContentListingRecord,
+  type LatestContentRecord,
 } from "@/lib/content-listing";
 import { buildContentTree, type ContentTreeInput } from "@/lib/content-tree";
 import { mockContentListingRecords } from "@/lib/mock-content-listing";
@@ -925,5 +931,91 @@ describe("category listing continuation (AB#140, ADR-0013)", () => {
         after: { eventDate: "2024-01-01", contentId: "x" },
       }),
     ).toThrow(/story root/);
+  });
+});
+
+describe("latest content (AB#252)", () => {
+  const routed = listCategoryContentIds(english, null);
+  const row = (contentId: string, updatedAt: string): LatestContentRecord => ({
+    ...(englishRecords.get(contentId) as ContentListingRecord),
+    updatedAt,
+  });
+
+  it("is a separate rule from the event-date order, so stored cursors are untouched", () => {
+    expect(LATEST_CONTENT_ORDERING).not.toBe(CONTENT_LISTING_ORDERING);
+  });
+
+  it("queries the story root's routed content with the requested limit", () => {
+    const query = buildLatestContentQuery({ tree: english, limit: 2 });
+    expect(query).toEqual({
+      ordering: LATEST_CONTENT_ORDERING,
+      limit: 2,
+      contentIds: routed,
+    });
+  });
+
+  it.each([0, -1, 1.5, Number.NaN])("refuses a limit of %s", (limit) => {
+    expect(() => buildLatestContentQuery({ tree: english, limit })).toThrow(RangeError);
+  });
+
+  it("orders by update instant, not by event date", () => {
+    // The oldest event date by far is the newest update.
+    const [a, b, c] = routed.slice(0, 3);
+    const entries = buildLatestContent({
+      tree: english,
+      limit: 3,
+      records: [
+        row(a!, "2024-01-01T00:00:00.000Z"),
+        row(b!, "2026-03-01T00:00:00.000Z"),
+        row(c!, "2025-01-01T00:00:00.000Z"),
+      ],
+    });
+    expect(entries.map((entry) => entry.contentId)).toEqual([b, c, a]);
+    expect(entries[0]!.path.length).toBeGreaterThan(0);
+  });
+
+  it("compares instants, so a fractional second or an offset cannot reorder rows", () => {
+    const [a, b] = routed;
+    const ordered = orderLatestContentRecords([
+      row(a!, "2026-01-01T12:00:00.000+02:00"),
+      row(b!, "2026-01-01T10:00:00.900Z"),
+    ]);
+    expect(ordered.map((entry) => entry.contentId)).toEqual([b, a]);
+  });
+
+  it("breaks an exact tie by contentId ascending", () => {
+    const [a, b] = [...routed.slice(0, 2)].sort();
+    const ordered = orderLatestContentRecords([
+      row(b!, "2026-01-01T00:00:00.000Z"),
+      row(a!, "2026-01-01T00:00:00.000Z"),
+    ]);
+    expect(ordered.map((entry) => entry.contentId)).toEqual([a, b]);
+  });
+
+  it("returns at most the limit, and an empty result for no rows", () => {
+    const records = routed.slice(0, 4).map((id, i) => row(id, `2026-01-0${i + 1}T00:00:00.000Z`));
+    expect(buildLatestContent({ tree: english, limit: 1, records })).toHaveLength(1);
+    expect(buildLatestContent({ tree: english, limit: 2, records: [] })).toEqual([]);
+  });
+
+  it("treats a row outside the story root's routed content, or repeated, as an adapter defect", () => {
+    expect(() =>
+      buildLatestContent({
+        tree: english,
+        limit: 2,
+        records: [{ ...row(routed[0]!, "2026-01-01T00:00:00.000Z"), contentId: "content-unknown" }],
+      }),
+    ).toThrow(/not routed at the story root/);
+    expect(() =>
+      buildLatestContent({
+        tree: english,
+        limit: 2,
+        records: [row(routed[0]!, "2026-01-01T00:00:00.000Z"), row(routed[0]!, "2026-01-02T00:00:00.000Z")],
+      }),
+    ).toThrow(/more than once/);
+  });
+
+  it.each([undefined, "", "yesterday", 5])("rejects the update timestamp %s", (value) => {
+    expect(() => readLatestUpdatedAt(value, "content-x")).toThrow(TypeError);
   });
 });
