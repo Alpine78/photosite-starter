@@ -1565,3 +1565,43 @@ Stable Preview alias assignment and reconciliation outcomes now withhold arbitra
 ### AB#238 — operator verification behavior
 
 The legacy verifier probes each exact declared target URL once per invocation, retaining both successful and failed attempts. Source requests remain independent and every affected row keeps its source status and fixed probe-failed result. Failed target timeouts therefore accumulate per distinct target rather than per alias row; source timeouts still apply separately. A fresh invocation retries naturally. Pending paths remain blockers, and a timeout remains an operational failure, never a new 410 or missing-content decision.
+
+### Noncanonical assigned Production aliases (AB#18, AB#117)
+
+An assigned Production Vercel alias can answer publicly even while the canonical
+custom domain still serves an older site. Canonical metadata alone does not add
+an HTTP `noindex` directive. To keep explicitly chosen assigned Vercel aliases
+out of search, set optional **Production-scoped, build-time**
+`PRODUCTION_NOINDEX_ALIASES` to at most eight comma-separated bare
+`*.vercel.app` hosts. For example:
+
+```dotenv
+PRODUCTION_NOINDEX_ALIASES=example-project.vercel.app,example-project-team.vercel.app
+```
+
+A Production-target build (`VERCEL_ENV=production`) adds `X-Robots-Tag: noindex`
+only when the request host exactly matches one of those hosts. Case-equivalent
+entries are deduplicated. Schemes, ports, paths, wildcards, empty entries,
+multiline values and malformed/oversized hosts fail the build. The canonical
+base URL must be a valid bare HTTP(S) origin; including its hostname fails the
+build. Unset preserves existing behavior, including clones whose canonical site
+is their Vercel host. Preview's separate `PREVIEW_STABLE_ALIAS` rule is unchanged.
+This uses Next.js's documented
+[host-conditioned headers](https://nextjs.org/docs/app/api-reference/config/next-config-js/headers).
+
+Changes require a new Production-target build; setting the variable on an
+already built deployment does not update its headers. Supply this nonsecret
+setting to a manually allowlisted build too. A Preview-built artifact does not
+acquire this rule through promotion. Generated deployment URLs retain their
+provider protection/noindex controls; the explicit list does not cover other
+assigned aliases. Enumerate the actual attached domains before release.
+
+After staging and activation, check the effective headers on each listed alias
+for a prerendered page, a dynamic page, robots, sitemap, not-found, legacy
+redirect/gone and private routes. Verify the canonical host remains indexable
+and stronger private-route `noindex, nofollow` survives. A local build check
+cannot prove Vercel's edge behavior. Robots on an alias must allow the relevant
+crawler to retrieve pages to observe noindex. This is crawl guidance, not access
+control or immediate removal of already indexed content; it changes neither
+canonical links nor domain DNS. A rollback to an older artifact without the rule
+restores its previous indexing behavior and requires its own release assessment.

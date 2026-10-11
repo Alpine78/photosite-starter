@@ -1,6 +1,7 @@
 /**
  * The Preview integration alias that the application itself must mark
- * non-indexable (AB#136), as a leaf module with no imports.
+ * non-indexable (AB#136), and optional Production alias configuration (AB#18),
+ * as a leaf module with no imports.
  *
  * It lives apart from the rest of the deployment configuration for the same
  * mechanical reason `private-object-store-origin.ts` next to it does:
@@ -137,4 +138,68 @@ export function readPreviewNoindexAliasHost(
   }
 
   return alias.toLowerCase();
+}
+
+export class ProductionNoindexAliasError extends Error {
+  constructor(message: string) {
+    super(`[production-noindex-alias] ${message}`);
+    this.name = "ProductionNoindexAliasError";
+  }
+}
+
+/**
+ * An explicit list of noncanonical assigned Vercel hosts to keep out of search.
+ * Optional: a clone may use its default Vercel host as its canonical site.
+ * This is crawl guidance, not access protection or removal of cached content.
+ * A changed value requires a new Production-target build; Preview rules stay
+ * independent and generated deployment hosts keep their platform header.
+ */
+export function readProductionNoindexAliasHosts(
+  environment: Record<string, string | undefined>,
+): readonly string[] {
+  if (environment.VERCEL_ENV?.trim() !== "production") return [];
+  const value = environment.PRODUCTION_NOINDEX_ALIASES;
+  if (value === undefined || value === "") return [];
+
+  const maxAliases = 8;
+  if (
+    value.length > maxAliases * MAX_DNS_HOSTNAME_LENGTH + maxAliases - 1 ||
+    /[\r\n]/.test(value)
+  ) {
+    throw new ProductionNoindexAliasError(
+      "PRODUCTION_NOINDEX_ALIASES must contain at most eight bare Vercel hosts on one line.",
+    );
+  }
+  const aliases = value.split(",").map((alias) => alias.trim());
+  if (aliases.length > maxAliases || aliases.some((alias) => !isPreviewAliasHost(alias))) {
+    throw new ProductionNoindexAliasError(
+      "PRODUCTION_NOINDEX_ALIASES must contain one to eight comma-separated bare *.vercel.app hosts; empty entries, URLs and patterns are refused.",
+    );
+  }
+
+  let canonical: URL;
+  try {
+    canonical = new URL(environment.SITE_CANONICAL_BASE_URL?.trim() ?? "");
+  } catch {
+    throw new ProductionNoindexAliasError(
+      "SITE_CANONICAL_BASE_URL must be a bare HTTP(S) origin when Production alias noindex is configured.",
+    );
+  }
+  if (
+    !["http:", "https:"].includes(canonical.protocol) ||
+    canonical.username || canonical.password || canonical.search || canonical.hash ||
+    canonical.pathname !== "/"
+  ) {
+    throw new ProductionNoindexAliasError(
+      "SITE_CANONICAL_BASE_URL must be a bare HTTP(S) origin without credentials, query, fragment or path.",
+    );
+  }
+
+  const normalized = [...new Set(aliases.map((alias) => alias.toLowerCase()))];
+  if (normalized.includes(canonical.hostname)) {
+    throw new ProductionNoindexAliasError(
+      "PRODUCTION_NOINDEX_ALIASES must not include the SITE_CANONICAL_BASE_URL hostname.",
+    );
+  }
+  return Object.freeze(normalized);
 }
