@@ -3769,15 +3769,30 @@ gallery, or an edit and publish of the gallery document, does.
 A service page that has child services lists them under a "Packages" heading as
 cards with name and cover at native ratio (`ServiceDetail`, direct children only;
 children flagged `hideFromListing` stay listed there). The service cover on cards and
-detail pages was already supported in code; no Production service has a
-`coverMedia` yet.
+detail pages was already supported in code. On 2026-10-11 the current published
+CMS read showed covers on all eleven Finnish/English service documents and
+`siteSettings.featuredGalleryId` set to `portfolio`. The protected Production
+candidate rendered that content, the two independently checked latest stories,
+native-ratio covers, package links and the corrected header/footer brand.
+The existing public alias still serves source `8e3efe6`; it has not activated
+the `050298c` candidate. AB#252 remains Active pending public release acceptance.
 
-Content steps outside the PR, each its own owner-approved, revision-guarded
-Production write: set `siteSettings.featuredGalleryId` to the real portfolio gallery
-(`portfolio`; Production currently points at a rally gallery, which also drives the
-hero button and menu entry, so check it is published and placed in every locale
-whose links change), and attach service and package cover images. AB#252 stays
-Active until both are done.
+### AB#18 — Protected current-source Production candidate (2026-10-11)
+
+Green main CI #778's source `050298c` was built manually with allowlisted public
+Production settings and staged without moving aliases. All 735 uploaded archive
+members matched local manifests. Thirteen current-content GET cases, desktop
+Chromium/mobile WebKit branding and lightbox checks, and 415 legacy registry
+cases passed their decided expectations. Pending redirect decisions and the
+AB#132 scriptless 404 semantic failure remain open. The enabled Production
+webhook already exists; no hook or secret was changed.
+
+The candidate is protected and noindex. The public default alias's indexing
+policy, activation/rollback checks, customer-gallery continuity and custom-domain
+cutover remain release gates. No CMS mutation, real contact delivery, alias move
+or DNS change was performed. See
+[the candidate audit](audits/ab18-production-candidate-2026-10-11.md).
+AB#18, AB#117 and AB#137 remain Active.
 
 ### AB#18 / AB#117 — Assigned Production alias indexing preparation (2026-10-11)
 
