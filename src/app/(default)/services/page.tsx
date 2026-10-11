@@ -34,7 +34,7 @@ export default async function ServicesPage() {
         {/* 1 / 2 / 3 columns. items-start lets each card keep its natural height
             (covers vary by native ratio; image-less cards don't stretch to match). */}
         <ul className="mt-12 grid items-start gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((service) => (
+          {services.filter((service) => service.hideFromListing !== true).map((service) => (
             <li key={service.slug}>
               <ServiceCard service={service} href={`/services/${service.slug}`} />
             </li>

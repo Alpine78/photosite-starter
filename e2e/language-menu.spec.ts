@@ -86,17 +86,36 @@ test("a nearer-page fallback says so visibly in the menu", async ({ page, isMobi
   await expect(page.locator(`[id="${noteId}"]`)).toHaveText(/\S/);
 });
 
-test("navigating to a page without other languages clears the menu entry", async ({ page, isMobile }) => {
+test("a page without a translation of its own offers the other language's stories and says so", async ({ page, isMobile }) => {
+  const storyRoot = `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.storyNamespace}`;
+
+  for (const path of ["/", CONTACT_PATH]) {
+    await page.goto(path);
+    await openCompactMenu(page, isMobile);
+
+    const link = menuLanguageLink(page);
+    await expect(link, path).toBeVisible();
+    await expect(link, path).toHaveAttribute("href", storyRoot);
+    const noteId = await link.getAttribute("aria-describedby");
+    expect(noteId, path).toBeTruthy();
+    await expect(page.locator(`[id="${noteId}"]`), path).toHaveText(/\S/);
+  }
+});
+
+test("navigating from a translated page to one without a translation swaps in the fallback", async ({ page, isMobile }) => {
   await page.goto(TRANSLATED);
   await openCompactMenu(page, isMobile);
-  await expect(menuLanguageLink(page)).toBeVisible();
+  const exactHref = await menuLanguageLink(page).getAttribute("href");
 
   await page.getByRole("banner").locator(`a[href="${CONTACT_PATH}"]:visible`).click();
   await expect(page).toHaveURL(new RegExp(`${CONTACT_PATH}$`));
-  await expect(
-    page.getByRole("banner").locator(`a[hreflang="${PREFIXED_LOCALE.prefix}"]`),
-  ).toHaveCount(0);
-  await expect(page.locator("html")).not.toHaveAttribute("data-language-menu");
+  await openCompactMenu(page, isMobile);
+  const link = menuLanguageLink(page);
+  await expect(link).toHaveAttribute(
+    "href",
+    `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.storyNamespace}`,
+  );
+  expect(await link.getAttribute("href")).not.toBe(exactHref);
 });
 
 test("while scripts are still loading the in-page switch stays usable", async ({ page }) => {

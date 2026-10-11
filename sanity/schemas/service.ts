@@ -224,6 +224,13 @@ export const serviceType: SchemaTypeDefinition = {
       validation: (rule) => rule.required().min(1).custom(nonBlankParagraphs),
     },
     {
+      name: "hideFromListing",
+      title: "Hide from service listings",
+      type: "boolean",
+      description:
+        "Omit this page's card from service listings. The page, child routes, breadcrumbs and contact choice remain available. Leave unset to show the card.",
+    },
+    {
       name: "coverMedia",
       title: "Cover media",
       type: "reference",

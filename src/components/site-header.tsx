@@ -1,10 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { BrandMarks } from "@/components/brand-mark";
 import { LanguageMenu } from "@/components/language-menu";
+import type { LanguageLink } from "@/components/language-switch";
 import { SiteNavigation } from "@/components/site-navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { BuiltInLabels } from "@/lib/deployment-config";
@@ -42,7 +43,17 @@ type SiteHeaderProps = {
   labels: BuiltInLabels["navigation"];
   themeLabels: BuiltInLabels["theme"];
   languageMenuLabels: BuiltInLabels["languageMenu"];
+  /**
+   * The menu's language links on a page that publishes none of its own — the
+   * home page, contact, a 404: each other language's story root, with the
+   * visible note that it is not this page's translation.
+   */
+  fallbackLanguageLinks: readonly LanguageLink[];
 };
+
+const subscribeNever = () => () => {};
+const isClient = () => true;
+const isServer = () => false;
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
@@ -63,71 +74,6 @@ const brandClass =
  * rebranding cannot rename.
  */
 const COMPACT_PANEL_ID = "mobile-nav";
-
-/**
- * The brand mark's CSS bounds: the design proposal's 43px height (33px below
- * `sm`), and the widest a wordmark may get.
- */
-const LOGO_MAX_HEIGHT_PX = 43;
-const LOGO_MAX_WIDTH_PX = 160;
-
-/**
- * The mark beside the site name, at its native ratio.
- *
- * Width and height both stay `auto`, each under its own maximum: CSS sizes a
- * replaced element with two auto dimensions and min/max constraints so that
- * its intrinsic ratio holds, so a square mark and a wide wordmark both fit the
- * bar without being cropped or stretched. The true pixel dimensions on the
- * `<Image>` give it that ratio and reserve its space while it loads.
- *
- * `alt` is empty because the mark is decorative here: the visible site name
- * beside it is already the link's whole accessible name, and a second name
- * would only repeat it. `sizes` is the exact rendered width the bounds
- * produce, so the optimizer is asked for nothing wider than the bar shows.
- */
-function BrandMark({
-  logo,
-  modeClass = "",
-}: {
-  logo: PublicImageRendition;
-  modeClass?: string;
-}) {
-  const renderedWidth = Math.ceil(
-    Math.min(LOGO_MAX_WIDTH_PX, (LOGO_MAX_HEIGHT_PX * logo.width) / logo.height),
-  );
-  return (
-    <Image
-      src={logo.src}
-      alt=""
-      width={logo.width}
-      height={logo.height}
-      sizes={`${renderedWidth}px`}
-      className={`h-auto max-h-[33px] w-auto max-w-40 shrink-0 sm:max-h-[43px] ${modeClass}`}
-    />
-  );
-}
-
-/**
- * The mark, or the light/dark pair. The pair swaps through the
- * `light-mode-only` / `dark-mode-only` rules in `globals.css`, which follow the
- * same OS preference and pinned mode as the palette, so the right variant
- * shows before hydration and without JavaScript.
- */
-function BrandMarks({
-  logo,
-  logoDark,
-}: {
-  logo: PublicImageRendition;
-  logoDark?: PublicImageRendition;
-}) {
-  if (logoDark === undefined) return <BrandMark logo={logo} />;
-  return (
-    <>
-      <BrandMark logo={logo} modeClass="light-mode-only" />
-      <BrandMark logo={logoDark} modeClass="dark-mode-only" />
-    </>
-  );
-}
 
 /**
  * The brand text: one line of site name, or — where this locale has a
@@ -211,6 +157,7 @@ export function SiteHeader({
   labels,
   themeLabels,
   languageMenuLabels,
+  fallbackLanguageLinks,
 }: SiteHeaderProps) {
   const pathname = usePathname();
   const lines = brandLines(siteName, brandName, brandDescriptor);
@@ -220,7 +167,12 @@ export function SiteHeader({
     getLanguageLinks,
     getServerLanguageLinks,
   );
-  const languageLinks = languageEntry?.links ?? [];
+  // The fallback waits for hydration. A page's own links are published only
+  // after it mounts, so a fallback in the server HTML would first offer every
+  // translated page's visitor the story root instead of its exact translation.
+  // Once published, the page's own links take precedence over the fallback.
+  const hydrated = useSyncExternalStore(subscribeNever, isClient, isServer);
+  const languageLinks = languageEntry?.links ?? (hydrated ? fallbackLanguageLinks : []);
 
   // The bar shows a configured link to the contact route as the proposal's
   // contact button, last in the row; the compact panel keeps it in the list.
@@ -304,7 +256,7 @@ export function SiteHeader({
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 sm:py-6">
         {homeHref === undefined ? (
           <span className={brandClass}>
-            {logo !== undefined && <BrandMarks logo={logo} logoDark={logoDark} />}
+            {logo !== undefined && <BrandMarks logo={logo} logoDark={logoDark} placement="header" />}
             <BrandText lines={lines} />
           </span>
         ) : (
@@ -313,7 +265,7 @@ export function SiteHeader({
             className={`${brandClass} transition-colors hover:text-link-hover ${focusRing}`}
             {...(label === undefined ? {} : { "aria-label": label })}
           >
-            {logo !== undefined && <BrandMarks logo={logo} logoDark={logoDark} />}
+            {logo !== undefined && <BrandMarks logo={logo} logoDark={logoDark} placement="header" />}
             <BrandText lines={lines} />
           </Link>
         )}

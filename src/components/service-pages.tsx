@@ -50,7 +50,7 @@ export function ServiceListing({
         </header>
 
         <ul className="mt-12 grid items-start gap-x-10 gap-y-14 sm:mt-16 sm:grid-cols-2">
-          {routes.map((route) => (
+          {routes.filter((route) => route.service.hideFromListing !== true).map((route) => (
             <li key={route.service.serviceId}>
               <ServiceCard
                 service={route.service}

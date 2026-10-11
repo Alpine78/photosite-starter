@@ -41,6 +41,20 @@ function childrenOf(element: ReactElementLike): readonly ReactElementLike[] {
 }
 
 describe("ServicesPage", () => {
+  it("omits a hidden parent card while keeping visible package cards", async () => {
+    servicesModule.getServices.mockResolvedValue([
+      { slug: "sessions", name: "Sessions", hideFromListing: true },
+      { slug: "short-session", name: "Short session", parentServiceId: "sessions" },
+      { slug: "long-session", name: "Long session", hideFromListing: false },
+    ]);
+    siteSettingsModule.getSiteSettings.mockResolvedValue({});
+    const page = (await ServicesPage()) as unknown as ReactElementLike;
+    const [body] = childrenOf(page);
+    const [, list] = childrenOf(body);
+    const items = list.props.children as readonly ReactElementLike[];
+    expect(items.map((item) => (item.props.children as ReactElementLike).props.href))
+      .toEqual(["/services/short-session", "/services/long-session"]);
+  });
   it("renders a Sanity-projected catalog into the grid", async () => {
     servicesModule.getServices.mockResolvedValue([
       {

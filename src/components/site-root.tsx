@@ -3,6 +3,8 @@ import {
   getDeploymentConfig,
 } from "@/lib/deployment-config";
 import { getContentTrees } from "@/lib/content";
+import { listStoryRootVersions } from "@/lib/content-routes";
+import { buildFallbackLanguageLinks } from "@/lib/language-fallback";
 import {
   buildSiteNavigation,
   resolveStaticNavigationLinks,
@@ -53,11 +55,12 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
   const tree = trees.get(locale);
   const route = config.byLocale.get(locale);
   if (route === undefined) throw new Error(`site root locale "${locale}" is not configured`);
+  const siteName = resolveSiteName(settings, locale);
 
   return (
     <DocumentRoot locale={locale}>
       <SiteHeader
-        siteName={resolveSiteName(settings, locale)}
+        siteName={siteName}
         {...(settings.logo === undefined ? {} : { logo: settings.logo.rendition })}
         {...(settings.logoDark === undefined ? {} : { logoDark: settings.logoDark.rendition })}
         {...brandDescriptorProps(settings, locale)}
@@ -75,9 +78,18 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
         labels={labels.navigation}
         themeLabels={labels.theme}
         languageMenuLabels={labels.languageMenu}
+        fallbackLanguageLinks={buildFallbackLanguageLinks(
+          listStoryRootVersions(config, trees),
+          locale,
+          labels.contentTree.storyRootFallback,
+        )}
       />
       <div className="flex-1">{children}</div>
       <SiteFooter
+        siteName={siteName}
+        siteHost={getDeploymentConfig().canonicalBaseUrl.host}
+        {...(settings.logo === undefined ? {} : { logo: settings.logo.rendition })}
+        {...(settings.logoDark === undefined ? {} : { logoDark: settings.logoDark.rendition })}
         contact={settings.contact}
         socialLinks={settings.socialLinks}
         footerLinks={resolveStaticNavigationLinks({
