@@ -62,10 +62,14 @@ async function fillAndSubmit(
   page: Page,
   email: string = SYNTHETIC.email,
 ): Promise<void> {
+  const submit = page.locator("form").getByRole("button", { name: /\S/ });
+  // The form can arrive in streamed HTML before its input handlers hydrate.
+  // Its existing submit guard marks when it can retain the entered values.
+  await expect(submit).toBeEnabled();
   await page.locator('[name="name"]').fill(SYNTHETIC.name);
   await page.locator('[name="email"]').fill(email);
   await page.locator('[name="message"]').fill(SYNTHETIC.message);
-  await page.locator("form").getByRole("button", { name: /\S/ }).click();
+  await submit.click();
 }
 
 function outcome(page: Page) {

@@ -243,6 +243,15 @@ Then iterate.
   mirrored Claude plan/diff reviewer and hands a recurring failed Codex correction to
   Claude to edit directly. Create further skills only for recurring workflows.
 
+### Standing authorization for Claude review
+
+The owner authorizes sharing project context with the configured Claude Code
+reviewer, including repository code and diffs, Azure Boards descriptions,
+acceptance criteria, discussion and relations, and owner-supplied device and
+reproduction details. This standing authorization also covers future project
+reviews; do not ask for separate disclosure permission on each invocation.
+It records the owner's consent and does not change tool approval enforcement.
+
 ## Commands
 
 ```bash

@@ -434,6 +434,8 @@ export type BuiltInLabels = {
     readonly close: string;
     readonly previous: string;
     readonly next: string;
+    /** Announced at the actual end of a finite lightbox sequence. */
+    readonly lastImage: string;
     readonly zoom: string;
     /** Joins position and total in the counter, as in "1 of 6". */
     readonly indexSeparator: string;
@@ -823,6 +825,7 @@ const englishLabels = {
     close: "Close",
     previous: "Previous image",
     next: "Next image",
+    lastImage: "Last image",
     zoom: "Zoom",
     indexSeparator: " of ",
     loadError: "The image cannot be loaded",
@@ -1120,6 +1123,7 @@ const finnishLabels = {
     close: "Sulje",
     previous: "Edellinen kuva",
     next: "Seuraava kuva",
+    lastImage: "Viimeinen kuva",
     zoom: "Suurenna",
     // A counter reads "1 / 6" in Finnish, where English reads "1 of 6".
     indexSeparator: " / ",

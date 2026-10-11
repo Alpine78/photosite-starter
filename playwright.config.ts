@@ -167,6 +167,12 @@ export default defineConfig({
       name: "mobile-webkit",
       use: { ...devices["iPhone 15"] },
     },
+    {
+      // AB#251 also checks mobile Blink without duplicating the full matrix.
+      name: "mobile-chromium-lightbox",
+      testMatch: "**/gallery-lightbox-continuity.spec.ts",
+      use: { ...devices["Pixel 7"] },
+    },
   ],
 
   webServer: {

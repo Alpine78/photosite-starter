@@ -20,6 +20,10 @@ measured on an agreed mobile profile and recorded.
 
 Reading PhotoSwipe 5.4.4's own source settled the mechanics rather than assuming them:
 
+The observations below describe the 2026-08-20 implementation. The
+[AB#251 implementation update](#implementation-update-2026-10-11-ab251) records
+finite navigation and earlier cursor continuation while preserving this decision.
+
 - `ContentLoader.updateLazy` only ever requests indices derived from
   `pswp.currIndex +/- preload[n]`, looped modulo the length of the `dataSource` array the
   viewer was actually given. `gallery-lightbox.tsx` builds that array from exactly the
@@ -59,6 +63,24 @@ with no demonstrated need.
 The window stays a compile-time constant rather than an environment variable or other
 runtime knob: AB#79 asks for it to be configurable from project-owned integration code, not
 configurable per deployment, and no clone has a stated reason to need a different value.
+
+### Implementation update: 2026-10-11 (AB#251)
+
+The implementation on `fix/251-lightbox-continuity`, awaiting owner review and
+commit, retains the `[1, 2]` adjacent-image window. It sets PhotoSwipe's `loop`
+option to `false`: installed 5.4.4's `getLoopedIndex` clamps to the loaded array
+bounds instead of wrapping modulo its length. This updates the first Context
+mechanics bullet's description of looping, without changing the preload decision.
+
+Cursor retrieval remains separate from adjacent-image preloading. Its trigger
+now starts one bounded page when at most
+`max(1, min(5, floor(firstSliceSize / 4)))` loaded images remain ahead, through the
+grid's shared single-flight loader. This replaces that Context bullet's former
+last-loaded-image timing. Decision verification item 1 still measures opening
+the first image before the lookahead window, which makes no cursor request;
+opening inside the window can request a page. The original August measurements
+remain the historical baseline. AB#251's production journeys verify early
+retrieval, stable append and finite endpoints without widening the preload window.
 
 `e2e/gallery-lightbox-preload.spec.ts` is the verification this decision rests on, run
 against the production build on both Playwright projects:

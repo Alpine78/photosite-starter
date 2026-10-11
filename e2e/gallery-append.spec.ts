@@ -226,7 +226,7 @@ test("an open lightbox continues past the last loaded item", async ({
     await page.keyboard.press("Enter");
   });
 
-  // Reaching the end asks for one more slice — and only then. The grid behind
+  // Opening near the end asks for one bounded slice (AB#251). The grid behind
   // the dialog grows, which is what makes the extra slides reachable.
   await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
 
@@ -380,10 +380,12 @@ test("a lightbox continuation failure offers its retry inside the dialog", async
   await notice.getByRole("button", { name: galleryLabels.retry }).click();
 
   // The retry succeeds: the sequence grows, the dialog never closed, and the
-  // notice takes itself away.
+  // notice becomes empty while retaining its live-region role.
   await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
   await expect(dialog).toBeVisible();
-  await expect(notice).toBeHidden();
+  await expect(notice).toHaveAttribute("data-empty", "true");
+  await expect(notice.locator("p")).toBeEmpty();
+  await expect(notice.getByRole("button", { name: galleryLabels.retry, includeHidden: true })).toBeHidden();
 
   await page.keyboard.press("ArrowRight");
   await expect(dialog).toBeVisible();

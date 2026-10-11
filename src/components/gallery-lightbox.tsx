@@ -137,13 +137,16 @@ export function GalleryLightbox({
    * How this viewer continues past the last loaded slide, when anything
    * follows it. Absent once nothing does.
    *
-   * The viewer asks when a visitor actually reaches the end, never ahead of it:
-   * one bounded slice, when the sequence runs out (AB#72). A failure is shown
-   * *inside* the dialog, with its own retry, because the grid's control is
-   * behind a modal and unreachable while a photograph is open.
+   * The viewer asks within a small lookahead window (AB#251), through the
+   * grid's shared single-flight loader. Pending and failed continuation stay
+   * distinguishable from the true end inside the dialog.
    */
   readonly continuation?: {
     readonly loadNext: () => Promise<boolean>;
+    readonly lookahead: number;
+    readonly loading: boolean;
+    readonly failed: boolean;
+    readonly loadingLabel: string;
     readonly failedLabel: string;
     readonly retryLabel: string;
   };
@@ -156,13 +159,12 @@ export function GalleryLightbox({
   // Held in a ref so a new callback identity never tears down a working viewer.
   const continuationRef = useRef(continuation);
   const continuingRef = useRef(false);
+  const continuationFailedRef = useRef(false);
+  const syncContinuationRef = useRef<(() => void) | null>(null);
+  const restoreFrameRef = useRef<number | null>(null);
   // The caption region is referenced by the photograph it describes, so it
   // needs an id no second gallery on the same page could also mint.
   const captionId = useId();
-
-  useEffect(() => {
-    continuationRef.current = continuation;
-  }, [continuation]);
 
   /**
    * Puts newly loaded slides into the viewer that is already open.
@@ -174,11 +176,15 @@ export function GalleryLightbox({
    */
   useEffect(() => {
     slidesRef.current = slides;
+    continuationRef.current = continuation;
 
     const pswp = lightboxRef.current?.pswp;
     const dataSource = pswp?.options.dataSource;
-    if (!pswp || !Array.isArray(dataSource)) return;
-    if (slides.length <= dataSource.length) return;
+    if (!pswp || pswp.isDestroying || !Array.isArray(dataSource)) return;
+    if (slides.length <= dataSource.length) {
+      syncContinuationRef.current?.();
+      return;
+    }
 
     // Identity, not length: an append never rewrites what came before, so the
     // slides already in the viewer are the ones already in `dataSource`.
@@ -187,17 +193,15 @@ export function GalleryLightbox({
     for (const slide of added) {
       dataSource.push(toSlideData(slide, triggersRef.current));
     }
-    // The viewer keeps the current slide's neighbours mounted. At the old
-    // end, its next holder still contains the looped first photograph; at
-    // index zero, its previous holder still contains the old last one.
-    // Refresh both changed boundaries after an append, keeping the active
-    // slide intact. Refreshing only the new last item leaves the first newly
-    // loaded item displaying the old looped image and returning focus to it.
+    // Populate the formerly empty next holder at the old end. Refresh emits
+    // `change`, updating the finite-navigation arrows and counter while the
+    // current slide stays intact. The new last boundary is refreshed too.
     pswp.refreshSlideContent(firstAddedIndex);
     if (dataSource.length - 1 !== firstAddedIndex) {
       pswp.refreshSlideContent(dataSource.length - 1);
     }
-  }, [slides]);
+    syncContinuationRef.current?.();
+  }, [slides, continuation]);
 
   // Depends on the label strings rather than on the object holding them: a new
   // object identity from a re-render would tear down a working instance and
@@ -211,6 +215,7 @@ export function GalleryLightbox({
     indexSeparator,
     loadError,
     enquire,
+    lastImage,
   } = labels;
 
   useEffect(() => {
@@ -220,6 +225,8 @@ export function GalleryLightbox({
     let captionElement: HTMLElement | null = null;
     let describedElement: Element | null = null;
     let continuationElement: HTMLElement | null = null;
+    let continuationMessage: HTMLElement | null = null;
+    let retryElement: HTMLButtonElement | null = null;
     // The "Enquire about this photograph" anchor, when this gallery has an
     // enquiry base path. Its `href` is kept pointed at the slide on screen.
     let enquireElement: HTMLAnchorElement | null = null;
@@ -239,6 +246,43 @@ export function GalleryLightbox({
     // frame) only touches the DOM when zoomed-in actually flips.
     let zoomedIn = false;
 
+    const syncContinuation = () => {
+      const pswp = lightbox.pswp;
+      const root = pswp?.element;
+      if (!pswp || pswp.isDestroying || !root || !continuationElement) return;
+
+      const atEnd = pswp.currIndex === pswp.getNumItems() - 1;
+      const current = continuationRef.current;
+      const loading = continuingRef.current || current?.loading;
+      const failed = current !== undefined && (continuationFailedRef.current || current.failed);
+      const message = !atEnd ? ""
+        : loading ? current?.loadingLabel ?? ""
+        : failed ? current?.failedLabel ?? ""
+        : current === undefined ? lastImage : "";
+      const showRetry = atEnd && failed && !loading;
+
+      // The library hides a disabled arrow. Move its focus before its own
+      // change listener disables it; hiding a focused retry needs the same care.
+      const focused = document.activeElement;
+      if (focused && root.contains(focused) && (
+        (atEnd && focused.classList.contains("pswp__button--arrow--next")) ||
+        (pswp.currIndex === 0 && focused.classList.contains("pswp__button--arrow--prev")) ||
+        (focused === retryElement && !showRetry)
+      )) root.focus({ preventScroll: true });
+
+      if (continuationMessage && continuationMessage.textContent !== message) {
+        continuationMessage.textContent = message;
+      }
+      if (retryElement) {
+        retryElement.hidden = !showRetry;
+        retryElement.textContent = current?.retryLabel ?? "";
+      }
+      // Keep the empty live region in the accessibility tree before updating
+      // it. Revealing a hidden region together with its text can lose the announcement.
+      continuationElement.dataset.empty = String(message === "");
+    };
+    syncContinuationRef.current = syncContinuation;
+
     /**
      * One continuation attempt, with its failure shown inside the dialog.
      *
@@ -250,21 +294,19 @@ export function GalleryLightbox({
      */
     const attemptContinuation = async (): Promise<void> => {
       const continuation = continuationRef.current;
-      if (continuation === undefined || continuingRef.current) return;
+      if (continuation === undefined || continuingRef.current || continuation.loading) return;
 
       continuingRef.current = true;
-      if (continuationElement !== null) continuationElement.hidden = true;
+      continuationFailedRef.current = false;
+      syncContinuation();
 
       try {
-        const appended = await continuation.loadNext();
-        // A failure keeps the dialog exactly where it is: the photograph on
-        // screen is not lost over a network blip, and the notice offers the
-        // retry rather than the visitor having to guess at one.
-        if (!appended && continuationElement !== null) {
-          continuationElement.hidden = false;
-        }
+        continuationFailedRef.current = !(await continuation.loadNext());
+      } catch {
+        continuationFailedRef.current = true;
       } finally {
         continuingRef.current = false;
+        if (lightboxRef.current === lightbox) syncContinuation();
       }
     };
 
@@ -297,6 +339,9 @@ export function GalleryLightbox({
       // library's own option type is not `readonly`, and the constant stays
       // the one place this decision is made either way.
       preload: [...LIGHTBOX_PRELOAD_WINDOW],
+      // A loaded boundary may be waiting for another cursor page; a complete
+      // boundary is the real end. Neither may wrap back to image one.
+      loop: false,
       imageClickAction: "zoom",
       trapFocus: true,
       // Focus returns to the trigger for the slide the visitor ended on, which
@@ -366,10 +411,8 @@ export function GalleryLightbox({
         // Having nothing to say is said by not being there: an empty strip
         // would cover part of the frame while describing none of it.
         captionElement.hidden = parts.length === 0;
-        // Presentation state, reset on every slide. AB#78 turns it on while a
-        // slide is zoomed; the text stays where assistive technology can read
-        // it either way.
-        captionElement.dataset.visuallyHidden = "false";
+        // Zoom presentation is owned by syncZoomedState. A boundary refresh
+        // also emits change, so it must not reveal a still-zoomed caption.
       }
 
       // Never a reference to text that is not there: without the region there
@@ -452,25 +495,26 @@ export function GalleryLightbox({
       // dialog root instead of taking a strip of it: the viewport is the slot
       // the image was delivered for, and a caption that consumed layout would
       // shrink the photograph below it.
-      // Hidden until a continuation fails. Registered whether or not this
-      // gallery has one, because a slice loaded while the viewer is open can
-      // make one appear.
+      // Loading/failure at the loaded boundary, or the real last image. The
+      // empty live region stays rendered during background lookahead.
       pswp.ui?.registerElement({
         name: "gallery-continuation",
         appendTo: "root",
         onInit: (element) => {
-          element.hidden = true;
+          element.dataset.empty = "true";
           element.dataset.galleryContinuation = "";
           element.setAttribute("role", "status");
 
           const message = document.createElement("p");
           message.className = "pswp__gallery-continuation-message";
-          message.textContent = continuationRef.current?.failedLabel ?? "";
+          continuationMessage = message;
 
           const retry = document.createElement("button");
           retry.type = "button";
           retry.className = "pswp__gallery-continuation-retry";
           retry.textContent = continuationRef.current?.retryLabel ?? "";
+          retry.hidden = true;
+          retryElement = retry;
           retry.addEventListener("click", () => {
             void attemptContinuation();
           });
@@ -519,6 +563,7 @@ export function GalleryLightbox({
           // The name this region is found by, in the stylesheet and in the
           // journey test alike.
           element.dataset.galleryCaption = "";
+          element.dataset.visuallyHidden = "false";
           captionElement = element;
         },
       });
@@ -535,18 +580,22 @@ export function GalleryLightbox({
       // now, so this settles the caption and the zoom control back to their
       // un-zoomed state rather than carrying the previous slide's over.
       syncZoomedState();
+      syncContinuation();
 
       const pswp = lightbox.pswp;
 
-      // Reaching the end of what is loaded is the only thing that asks for
-      // more. Nothing is fetched ahead of the visitor, so browsing a
-      // four-hundred-item gallery never quietly pulls the whole of it.
+      // One bounded page near the loaded end. A failed attempt is rearmed only
+      // by the visible retry, not by each change/refresh event.
       if (
         !pswp ||
         continuationRef.current === undefined ||
         continuingRef.current ||
+        continuationRef.current.loading ||
+        continuationRef.current.failed ||
+        continuationFailedRef.current ||
+        pswp.isDestroying ||
         pswp.currSlide === undefined ||
-        pswp.currSlide.index < pswp.getNumItems() - 1
+        pswp.currSlide.index < pswp.getNumItems() - 1 - continuationRef.current.lookahead
       ) {
         return;
       }
@@ -604,6 +653,8 @@ export function GalleryLightbox({
       captionElement = null;
       describedElement = null;
       continuationElement = null;
+      continuationMessage = null;
+      retryElement = null;
       enquireElement = null;
       // The dialog and its buttons are rebuilt on the next open, so the
       // resolved control and the cached state must not outlive this one.
@@ -619,8 +670,27 @@ export function GalleryLightbox({
       // A trigger that has left the document means the grid unmounted while the
       // viewer was open; there is nothing left to return focus to.
       const trigger = triggersRef.current.get(itemId);
-      if (trigger?.isConnected) {
-        trigger.focus();
+      if (trigger?.isConnected && lightboxRef.current === lightbox) {
+        // `destroy` precedes removal of the dialog. Wait for that cleanup,
+        // then restore the final occurrence's preview explicitly: mobile
+        // focus alone does not guarantee scrolling an off-screen button.
+        const restorePreview = (settled: boolean) => {
+          restoreFrameRef.current = null;
+          if (lightboxRef.current !== lightbox || activeItemIdRef.current !== null || !trigger.isConnected) return;
+          if (!settled) trigger.focus({ preventScroll: true });
+          const rect = trigger.getBoundingClientRect();
+          const viewport = window.visualViewport;
+          const top = viewport?.offsetTop ?? 0;
+          const bottom = top + (viewport?.height ?? window.innerHeight);
+          // Preserve the desktop position if the preview is already visible.
+          if (rect.top < top || rect.bottom > bottom) {
+            trigger.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+          }
+          // One bounded recheck also covers a layout/viewport adjustment in
+          // the frame after focus and scrolling. Reopen/unmount cancels it.
+          if (!settled) restoreFrameRef.current = requestAnimationFrame(() => restorePreview(true));
+        };
+        restoreFrameRef.current = requestAnimationFrame(() => restorePreview(false));
       }
     });
 
@@ -628,7 +698,10 @@ export function GalleryLightbox({
     lightboxRef.current = lightbox;
 
     return () => {
+      if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
+      restoreFrameRef.current = null;
       lightboxRef.current = null;
+      syncContinuationRef.current = null;
       lightbox.destroy();
     };
   }, [
@@ -641,6 +714,7 @@ export function GalleryLightbox({
     indexSeparator,
     loadError,
     enquire,
+    lastImage,
     // A stable string within one gallery; a different gallery remounts the grid.
     enquiryBasePath,
   ]);
@@ -653,7 +727,10 @@ export function GalleryLightbox({
       return;
     }
 
+    if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
+    restoreFrameRef.current = null;
     activeItemIdRef.current = slide.itemId;
+    continuationFailedRef.current = false;
 
     const triggers = triggersRef.current;
     const dataSource = slides.map((resultSlide) =>
