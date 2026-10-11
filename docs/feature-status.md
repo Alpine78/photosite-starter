@@ -3805,7 +3805,7 @@ alias was changed. A new Production build and live edge/header checks are needed
 before this preparation can resolve the reference alias-indexing gate. Both
 items remain Active.
 
-### AB#254 — Standalone Sanity Studio (2026-10-11, Active)
+### AB#254 — Standalone Sanity Studio (2026-10-11, Closed)
 
 The optional `studio/` package reuses the canonical `sanity/schemas` without copies
 and keeps its dependencies, lockfile, type check and static build outside Next.js.
@@ -3841,9 +3841,14 @@ public-dataset schema omits archiveLocator. Authenticated panes, prepared test
 content publication and webhook propagation remain owner-run checks. No dataset
 was created, CMS content migrated or production document rewritten.
 PRs #331–#333 were inspected; their operational/preflight changes do not change
-the canonical schemas consumed here. #331 merged into main during preparation;
-the Studio branch retains its original merge base. AB#254 moved New → Active before the first
-edit and stays Active until the owner accepts and merges the implementation.
+the canonical schemas consumed here. Main through #333 was merged into the Studio
+branch, preserving both histories in the feature-status conflict resolution.
+[PR #334](https://github.com/Alpine78/photosite-starter/pull/334) merged at
+`a9c64b74134d023e2e289e3eded3ced282717d90` after CI #791 passed both jobs for
+`1e12ddee46f7a3efe687ad991e6dffc12b82bd21`. The run passed all 5,393 browser-free
+tests; Playwright reported 848 passed, one passed on retry and 38 skipped.
+AB#254 moved New → Active before the first edit and Active → Closed after the
+owner-authorized merge. The live editor checks above remain outstanding.
 
 **Service overview CMS preparation, 2026-10-11 (AB#137, Active):**
 The published FI/EN wedding overview still lacks `hideFromListing`; its card
