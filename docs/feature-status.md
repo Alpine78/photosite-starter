@@ -3871,3 +3871,30 @@ source/CDN-byte proof, recovery evidence or full AB#250 acceptance. Supported in
 transfer, live atomic collision enforcement, usage/notice reconciliation, actual import,
 legacy links and deployed customer verification remain open. AB#250/18/117 stay Active.
 See [sanity-seeding](sanity-seeding.md#offline-first-import-collision-preflight).
+
+
+### AB#18 — Current-main alias-indexing release preparation (2026-10-11)
+
+Exact green main CI #789 (`14b1af0`) was built manually with allowlisted public
+Production settings and staged as a protected Production-target candidate.
+All 735 uploaded archive members match the local output and runtime-input
+manifests. Thirteen content GET cases, desktop/mobile browser checks and 415
+legacy registry cases passed their decided expectations. A fresh full dependency
+audit reports zero vulnerabilities. The AB#132 scriptless semantic failure and
+48 pending AB#19 mapping decisions remain open.
+
+The nonsecret `PRODUCTION_NOINDEX_ALIASES` setting now lists both assigned Vercel
+aliases in Production only. The protected alias was temporarily moved to the
+candidate: ten route cases confirmed noindex and disabled customer-route policy,
+then its exact prior UID was restored with settled readback. This tests that
+alias path, not project promotion/rollback or customer handoff. Both serving
+aliases and the project Production target remain on the prior artifact; the
+public default alias therefore still lacks the new noindex header.
+
+The fresh read-only CMS snapshot covers 16,947 documents and 5,158 assets,
+preserving concurrent Studio changes and the owner's settings draft. No CMS
+write credential, wedding-overview mutation, customer import or DNS change was
+performed. Contact and genuine webhook delivery, activation-specific rollback,
+full launch prerequisites and supported whole-ZIP customer transport remain
+open. AB#18/117/137/250 remain Active. See the
+[activation preparation audit](audits/ab18-production-activation-2026-10-11.md).
