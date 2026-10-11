@@ -3903,3 +3903,30 @@ performed. Contact and genuine webhook delivery, activation-specific rollback,
 full launch prerequisites and supported whole-ZIP customer transport remain
 open. AB#18/117/137/250 remain Active. See the
 [activation preparation audit](audits/ab18-production-activation-2026-10-11.md).
+
+### AB#18 — Compatible Vercel alias activation verified (2026-10-11)
+
+After ordered merges #334 and #335, both existing Vercel aliases now serve the
+tested `14b1af0` Production artifact, `dpl_6e4xtTvbq7Zd39g3mmp9AVNL7KYF`.
+The final two alias writes were acknowledged and their destinations verified;
+the project pointer targets the same candidate. All 28 public/protected GET
+cases and Chromium/mobile WebKit journeys passed, including noindex, seven
+service prices, latest-story comparison, both-theme branding and gallery
+open/next/close/reopen. Configuration, raw CMS revisions and source guards passed.
+The owner's earlier physical iPhone result is not claimed for this candidate.
+
+Earlier failed settling/browser checks caused verified exact-old alias restores.
+The job-state detector was corrected by Claude, and the private browser smoke now
+waits for actual viewer focus before Escape. A concurrent documentation-only
+main merge (#336) correctly stopped the third attempt before provider writes;
+its unchanged application delta and explicit main pin were then independently
+reviewed. Seven diff rounds, including the round-6 complete-authority retry,
+ended clean before final apply. Original receipts remain private and preserved.
+
+The root dependency audit remains clean. The isolated Studio lockfile has one
+`sprintf-js` advisory affecting eight dependency-chain entries; Studio is absent
+from this prebuilt public application. No application-code, CMS, credential or
+DNS change was made. Canonical launch, supported customer ZIP transport, fresh
+contact/webhook delivery and genuine recovery/handoff gates remain open.
+AB#18/117/137/250 remain Active; AB#118 remains New. See the
+[bounded activation audit](audits/ab18-compatible-alias-activation-2026-10-11.md).
