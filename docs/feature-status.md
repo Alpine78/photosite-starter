@@ -3816,3 +3816,18 @@ approve or perform an import. Compatible public renderer activation and a new
 pre-write freshness check remain prerequisites; no credential was minted or CMS
 mutation performed. [Preparation evidence](audits/ab137-service-listing-preparation-2026-10-11.md)
 records asset coverage, unexercised restore and remaining gates.
+
+### AB#250 — offline initial-import collision evidence (2026-10-11)
+
+A pure preflight rebuilds the unpublished source/binding candidate and compares it with
+a bounded, caller-declared raw baseline. It refuses occupied IDs including draft/release
+copies, source-batch and handle claims, and the baseline's single projected reference.
+Canonical digests bind every projected revision, target and capture time; malformed,
+stale, duplicate and effectful input fails closed. Collision reports contain only codes
+and counts. No uploader, writer, resume, replacement, deletion or publication is added.
+
+This is preparation for initial-import review, not authenticated baseline completeness,
+source/CDN-byte proof, recovery evidence or full AB#250 acceptance. Supported intact ZIP
+transfer, live atomic collision enforcement, usage/notice reconciliation, actual import,
+legacy links and deployed customer verification remain open. AB#250/18/117 stay Active.
+See [sanity-seeding](sanity-seeding.md#offline-first-import-collision-preflight).
