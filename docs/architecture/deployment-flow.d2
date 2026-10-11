@@ -35,6 +35,7 @@ verify: "Stage 1 — Quality gates\nEvery push and PR to main" {
   diagrams: "npm run diagrams:check\nSources compile, committed\nSVGs match a fresh render" {class: built}
   build: "npm run build\nFixture settings; reaches\nno external service" {class: built}
   e2e: "npm run test:e2e\nPublic journeys against a\nproduction build" {class: built}
+  studio: "Separate Studio job — AB#254\nOwn locked install; typecheck,\nschema validation and static build.\nSynthetic settings, no deployment." {class: built}
 }
 
 gate: "All four, or skipped:\ngates green, not a PR,\nmain only, and\nPREVIEW_DEPLOYMENT_ENABLED" {

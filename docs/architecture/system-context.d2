@@ -55,6 +55,10 @@ sanity: "Sanity Content Lake\nThe site owner's own project\nand dataset — ADR-
   class: [store; external]
 }
 
+studio: "Optional standalone Studio — AB#254\nstudio/ imports canonical schemas;\nseparate build, Sanity-session login.\nHosted publication/login redirect checked;\nauthenticated editing unverified." {
+  class: built
+}
+
 resend: "Resend\nContact delivery from the site\nowner's own account — ADR-0004 §5" {
   class: external
 }
@@ -79,7 +83,8 @@ visitor -> site: "Reads pages,\nbrowses galleries"
 visitor -> site: Sends an enquiry
 
 owner -> repo: Commits
-owner -> sanity: "Authors content\n(planned)" {class: pending-flow}
+owner -> studio: "Edits content with a Sanity account\n(authenticated workflow unverified)" {class: pending-flow}
+studio -> sanity: "Authenticated editor reads/writes\n(authenticated workflow unverified)" {class: pending-flow}
 owner -> site: "Administers client galleries\nthrough the app's admin route — ADR-0014 §4\n(planned)" {class: pending-flow}
 owner -> private-store: "Uploads locally-prepared derivatives and ZIPs\nwith an owner-run CLI — not a browser (planned)" {class: pending-flow}
 

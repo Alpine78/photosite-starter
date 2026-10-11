@@ -20,9 +20,11 @@ something, not in advance.
 
 ## Using them in a Studio
 
-The Studio is the site owner's own project, created and billed in their Sanity account
-(see [`docs/sanity-setup.md`](../docs/sanity-setup.md)). It is not part of this
-repository. Point its schema configuration at these files:
+The Studio uses the site owner's own Sanity project and billing
+(see [`docs/sanity-setup.md`](../docs/sanity-setup.md)). The optional standalone
+[`studio/`](../studio/README.md) application imports these files directly and has
+its own dependency lockfile and build, separate from the public site. A customer
+can also use these schemas in another Studio:
 
 ```ts
 // sanity.config.ts, in the owner's Studio project

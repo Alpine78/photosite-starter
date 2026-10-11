@@ -23,6 +23,7 @@ export default defineConfig({
     include: [
       "src/**/*.test.ts",
       "sanity/**/*.test.ts",
+      "studio/**/*.test.ts",
       "scripts/**/*.test.mts",
     ],
     // AB#84's live integration suite, and AB#137's content-agnostic adapter

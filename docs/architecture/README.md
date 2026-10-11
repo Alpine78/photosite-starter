@@ -14,6 +14,13 @@ installing a toolchain first.
 
 ## The diagrams
 
+AB#254 adds an optional standalone Studio to the system-context diagram and a
+separate Studio schema/build job to the quality gates. Its source and local build
+are separate from the public site's runtime. The first owner-hosted publication
+and anonymous login redirect are checked; authenticated editor verification
+remains an owner step. Other historic deployment-status annotations in
+these diagrams are not refreshed by this slice.
+
 ### System context
 
 **Purpose:** every system outside this repository that a deployed clone depends on, and

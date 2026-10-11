@@ -133,6 +133,35 @@ stages:
               targetPath: "playwright-report"
               artifact: "playwright-report"
 
+      # The optional Studio has its own dependency tree and never deploys from CI.
+      # Synthetic settings validate schemas/build without reading customer content.
+      - job: Studio
+        displayName: "Standalone Studio schemas and build"
+        pool: "Default"
+        workspace:
+          clean: all
+        steps:
+          - task: UseNode@1
+            inputs:
+              version: $(nodeVersion)
+            displayName: "Use pinned Node.js"
+          - script: |
+              npm ci --prefix studio
+            displayName: "Install Studio dependencies"
+          - script: |
+              set -e
+              npm run typecheck --prefix studio
+              npm run schema:validate --prefix studio
+              npm run build --prefix studio
+            displayName: "Check standalone Studio"
+            env:
+              DO_NOT_TRACK: "1"
+              SANITY_STUDIO_PROJECT_ID: "example1"
+              SANITY_STUDIO_DATASET: "example"
+              SANITY_STUDIO_DATASET_VISIBILITY: "public"
+              SANITY_STUDIO_TITLE: "Example Studio"
+              SANITY_STUDIO_LOCALE_ROUTES: "fi||tarinat|palvelut,en-GB|en|stories|services"
+
   - stage: DependencyAudit
     displayName: "Scheduled dependency audit"
     dependsOn: []
@@ -153,6 +182,10 @@ stages:
           - script: |
               npm audit --include=prod --include=dev --audit-level=low
             displayName: "Report production and development vulnerabilities"
+          - script: |
+              npm audit --prefix studio --include=prod --include=dev --audit-level=low
+            condition: succeededOrFailed()
+            displayName: "Report standalone Studio vulnerabilities"
 
   - stage: DeployPreview
     displayName: "Preview release candidate"

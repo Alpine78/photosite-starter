@@ -4,6 +4,9 @@ Audit of everything non-original that ships in this project, per AB#43. Records 
 source, author, license, attribution requirement, and commercial-use status of each
 item so the Free Core / Premium boundary (AB#42) can be decided on facts.
 
+**Amended 2026-10-11 (AB#254):** the optional standalone Studio has its own
+dependency lock and published notice artifact; see "Standalone Studio" below.
+
 **Audited:** 2026-07-31 · **Against dependency tree:** current `package-lock.json`
 **Amended:** 2026-09-17 — `parse5` added as a development dependency for AB#137's
 owner-run migration tooling; see the npm dependency section.
@@ -54,6 +57,10 @@ framework emitted it. Most of the dependency tree never crosses that line — it
 tooling, or it runs server-side, or it is stripped from the client bundle. Everything
 that does cross it belongs in the shipped table below, and nothing that crosses it is
 excused by being a framework's own output.
+
+The optional Sanity Studio is a separate browser application and adds its own
+redistributed dependency tree when deployed. Its conservative whole-tree notice
+inventory below is separate from the public-site shipped table.
 
 Applying that test, five things are redistributed and carry obligations: the vendored
 agent skills and the generated architecture diagrams (both in the repository), and —
@@ -303,3 +310,57 @@ The legacy development fixture reuses the existing coastal demo image and
 project-authored geometric portrait unchanged.
 The ZIP uses the repository's license and commercial-use terms; no attribution
 or additional dependency applies.
+
+## Standalone Studio (AB#254)
+
+`studio/package.json` and `studio/package-lock.json` belong only to the optional
+editor application. No Sanity SDK or Studio package is added to the public-site
+dependency tree. Direct dependencies and verified package license declarations:
+
+| Package | Pinned version | License | Need |
+| --- | --- | --- | --- |
+| `sanity` | 6.18.0 | MIT | Studio framework, native forms, authenticated editing and CLI |
+| `@sanity/image-url` | 2.1.1 | MIT | Bounded full-frame editor thumbnails; already present transitively |
+| `react`, `react-dom` | 19.3.0 | MIT | Sanity's required compatible React runtime |
+| `styled-components` | 6.5.3 | MIT | Sanity's required styling peer |
+| `typescript` | 7.0.2 | Apache-2.0 | Independent Studio type check |
+| `@types/node` | 24.10.9 | MIT | Studio configuration/tool types |
+| `@types/react`, `@types/react-dom` | 19.2.14 / 19.2.3 | MIT | Studio component types |
+| `braces` | vendored 3.0.4-photosite.1 | MIT | Existing repository security fork, reused as the transitive override |
+
+The 2026-10-11 Linux x64 installation contained 895 installed package entries:
+772 MIT, 39 ISC, 38 Apache-2.0, 13 BSD-2-Clause, 10 BSD-3-Clause,
+10 BlueOak-1.0.0, 3 MPL-2.0, 2 MIT-0, 2 `(MIT OR CC0-1.0)`, and one each
+CC-BY-4.0, `(MPL-2.0 OR Apache-2.0)`, Public Domain, CC0-1.0, 0BSD and
+undeclared metadata. Optional packages for other platforms are not installed or
+redistributed by this build. `md5-o-matic` 0.1.1 has no package license declaration,
+but its shipped `LICENSE` contains the MIT text; that original text is included.
+The MPL declarations belong to `@vercel/stega`, `lightningcss` and its Linux native
+package; `dompurify` declares an MPL/Apache choice. The CC-BY declaration belongs
+to `caniuse-lite`'s build-time browser-support data. Upstream packages are unmodified
+except the already inventoried braces fork.
+
+Every Studio build runs `scripts/write-studio-notices.mts`, including original
+root LICENSE/LICENCE/NOTICE/COPYING text, exact release artifact URLs and declared
+source repository URLs for the complete installed tree in
+`studio/dist/THIRD-PARTY-NOTICES.txt`. This deliberately includes tools absent from
+the browser bundle. The deploy command builds once, then uses `--no-build` so this
+notice accompanies the published assets. Do not omit it from another hosting path.
+The lockfile's immutable artifact URLs also identify the unchanged corresponding
+upstream sources. The vendor fork's existing license and adaptation notice remain.
+
+The initial Studio audit reported 17 affected package entries (9 high, 8 moderate).
+Compatible overrides reuse the braces fix, move `smol-toml` 1.5.2 to 1.9.1,
+`uuid` 10.0.0 to 11.1.1 and `js-yaml` 3.13.1 to 3.15.2. `@vercel/frameworks`
+still calls `safeLoad`, so upgrading it to js-yaml 4+ would break that tooling API.
+The resulting audit has **0 critical, 0 high and 8 moderate affected entries**;
+it exits nonzero and is not a clean audit. All eight entries trace to the single
+`sprintf-js` advisory [GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c):
+`sanity → @sanity/cli → @vercel/frameworks → js-yaml → argparse → sprintf-js`
+(with CLI build/runtime packages reporting the same inherited advisory).
+Installed source inspection found argparse imported by `js-yaml/bin/js-yaml.js`,
+not by its library entry used by the framework detector. This is a standalone YAML
+CLI formatting path, outside the public-site dependency tree and the editor's
+content request path. The formatter has no patched release in the audited range;
+do not apply audit's proposed Sanity downgrade as a fix. The scheduled pipeline
+audits the Studio lock independently and will still report this moderate chain.
