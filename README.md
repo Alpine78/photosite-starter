@@ -664,7 +664,9 @@ Gallery presentation offers `grid`, `masonry`, and `justified` layouts with `bel
 The default remains the row-major grid. Every layout keeps the result's DOM, keyboard,
 and lightbox order under its documented visual progression, and every frame keeps its
 native aspect ratio uncropped. It opens a fullscreen lightbox that navigates the loaded
-result by keyboard, control, and gesture, presents the caption and credit of the photograph on
+result by keyboard, control, and gesture, loads the next bounded page before reaching the
+loaded end, stops at the true final image, and restores the final item's visible preview
+on close (AB#251). It presents the caption and credit of the photograph on
 screen, and magnifies a frame on a click, tap, or the `z` key with pan bounded to the
 image and the caption stepping aside while zoomed; its zoom animation/level tuning is a
 later slice. The contact form is built and

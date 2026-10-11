@@ -130,10 +130,10 @@ addressed by canonical path and opaque token. One projection (`gallery-slice-ser
 serves both the server render and that endpoint, so an appended item carries the same
 identities, captions, and delivery sources as one that was there from the start, and
 `appendGallerySlice` de-duplicates by result identity without reordering what is already
-loaded. Nothing loads on its own — no scroll observer, no prefetch — so a four-hundred-item
-gallery is never implicitly retrieved whole. The control announces loading, failure, and
-completion, keeps focus on itself across an append, and retries in place; the open lightbox
-asks for one more slice when a visitor reaches the last loaded item, and a failed
+loaded. The grid has no scroll observer or eager archive prefetch. The control announces
+loading, failure, and completion, keeps focus on itself across an append, and retries in
+place; the open lightbox asks for one bounded slice within a small lookahead window before
+the last loaded item (AB#251), and a failed
 continuation neither closes it nor loses the photograph on screen. The address bar is
 deliberately left alone, because every slice already has its own honest address through the
 unenhanced link. The continuation
@@ -250,7 +250,8 @@ append one bounded slice in place, with loading, failure, retry, and completion 
 the open lightbox grows from the same result and offers its own reachable retry without
 closing or losing the current item. Focus stays on the continuation control while it
 exists and moves to the completion notice when the final slice removes it. No slice is
-loaded until the visitor activates the control or reaches the last loaded lightbox item.
+loaded until the visitor activates the control or browses within the lightbox's bounded
+lookahead window.
 A ~400-placement fixture gallery exercises the boundary.
 Gallery sections (AB#105) sit on top of that same boundary: a gallery-local named subset
 of a curated gallery's placements (ADR-0003 decision 8), with a stable id, a
@@ -3701,3 +3702,50 @@ private/internal metadata). The bounded review finished without findings after
 operator cleanup corrections and offline failure checks. Private sources,
 snapshots, operator scripts and credential evidence remain outside Git. No code
 deployment, customer-gallery mutation or DNS change was made. AB#137 stays Active.
+
+PR #326 merged on 2026-10-11 at commit `83afd9d` after Azure Pipelines build #770
+succeeded. The footer, language fallback and listing source changes are now on
+`main`. AB#137 remains Active because this accepted slice does not complete its
+wider launch requirements.
+
+### AB#251 — Continuous lightbox browsing and return to the visible preview (2026-10-11)
+
+Implementation is on `fix/251-lightbox-continuity`, awaiting owner review and
+commit; the Bug is Active. The shared viewer disables looping for every gallery,
+including article body and inline galleries. A gallery with a continuation asks
+for one bounded cursor page when at most `max(1, min(5, floor(firstSliceSize / 4)))`
+loaded photographs remain ahead. The existing grid single-flight guard and
+adjacent-image preload window stay in use; opening early in a gallery does not
+retrieve its archive. Appending preserves the current occurrence, caption and
+result order, and makes the formerly empty next holder reachable in place.
+
+At a loaded boundary the dialog announces pending loading or exposes an explicit
+retry after failure; failed lookahead does not retry on every slide change.
+Navigation stays on that image until the next slice arrives and the visitor
+advances. Only an absent continuation cursor exposes the localized last-image
+notice. The empty status region stays rendered so later text updates can be
+announced. Focus moves inside the dialog before a terminal arrow or retry is hidden.
+
+Closing waits for dialog teardown and the next layout frame, focuses the final
+`itemId` trigger without relying on focus-induced scrolling, then brings its
+preview into the viewport if needed. One further frame checks for a settling
+layout/viewport adjustment without refocusing. Reopening or unmounting cancels
+a pending restoration. This applies to appended items and repeated media occurrences in
+row and masonry layouts.
+
+The production-build regression suite covers early single-flight loading, a
+held response, repeated forward inputs and gesture navigation, explicit retry,
+multiple boundaries, exact-multiple and short final slices, a complete named
+section, singleton termination, and focus plus viewport restoration. It runs on
+desktop Chromium, mobile WebKit and a targeted mobile Chromium project. A
+controlled focus-without-scroll case checks the fallback, alongside close-button,
+keyboard and supported vertical-drag closing. The owner identified an iPhone 16
+Pro Max with Safari and reported the jump after both the close button and a
+closing gesture. The iOS version and precise gesture were not supplied. The
+physical-mobile jump did not reproduce in the initial WebKit emulation; physical
+device reproduction and post-fix verification remain owner-run checks.
+Validation: lint, production build, all 220 browser-free test files / 5,209 tests,
+and the full 857-case public-journey matrix (819 passed, 38 skipped), including
+vertical-drag closing, rendered empty status and next-frame layout settling.
+The one-time Claude implementation-plan review is complete; final diff-review
+evidence accompanies the owner handoff. Physical Safari verification is pending.

@@ -599,7 +599,7 @@ test("re-selecting the active section does not disable its own continuation", as
   ).toHaveCount(GALLERY.pageSize * 2);
 });
 
-test("an open lightbox continues within the active section, past the last loaded item", async ({
+test("an open lightbox continues within the active section from the lookahead window", async ({
   page,
 }) => {
   // `gallery-append.spec.ts` proves this auto-continuation for the unfiltered
@@ -624,7 +624,7 @@ test("an open lightbox continues within the active section, past the last loaded
   });
   const beforeAlt = (await presentedImage(dialog))?.alt;
 
-  // Reaching the section's last loaded item asks for one more slice, and the
+  // Opening inside the section's lookahead window asks for one more slice, and the
   // grown grid's own itemId order is checked against the section's ground
   // truth — not just its length — so a continuation that quietly escaped the
   // section (fetching the unfiltered gallery's next slice instead, while

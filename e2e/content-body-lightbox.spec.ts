@@ -162,12 +162,17 @@ test("an article body photograph opens the viewer, walks its own images, and ret
         .toBe(ARTICLE.alts[index]);
     }
 
-    // One more wraps straight back to the first: the YouTube block between the
-    // two photographs is not a slide, so the sequence length is the image count.
+    // One more stays at the true end (AB#251). The YouTube block between the
+    // photographs is not a slide.
     await page.keyboard.press("ArrowRight");
     await expect
       .poll(async () => (await presentedImage(dialog))?.alt)
-      .toBe(ARTICLE.alts[0]);
+      .toBe(ARTICLE.alts.at(-1));
+    await expect(dialog.getByRole("status")).toHaveText(labels.lastImage);
+    for (let index = ARTICLE.alts.length - 2; index >= 0; index -= 1) {
+      await page.keyboard.press("ArrowLeft");
+      await expect.poll(async () => (await presentedImage(dialog))?.alt).toBe(ARTICLE.alts[index]);
+    }
 
     // And no slide is ever a broken video embed.
     await expect(dialog.locator("iframe")).toHaveCount(0);
@@ -178,7 +183,7 @@ test("an article body photograph opens the viewer, walks its own images, and ret
     const captionId = await caption.getAttribute("id");
     expect(captionId).toBeTruthy();
 
-    // Left on the first image by the wrap above; its figure names the caption.
+    // Returned to the first image above; its figure names the caption.
     const presented = await presentedImage(dialog);
     expect(presented?.alt).toBe(ARTICLE.alts[0]);
     if ((await caption.locator(":scope > p").count()) > 0) {
@@ -283,14 +288,15 @@ test("on a gallery variant page the body viewer and the curated grid are separat
       .poll(async () => (await presentedImage(dialog))?.alt)
       .toBe(GALLERY.alts[0]);
 
-    // Stepping `bodyCount` times returns to the first body image: the curated
-    // grid's items are not in this sequence.
+    // Stepping `bodyCount` times stops at the final body image: the curated
+    // grid's items are not in this sequence (AB#251).
     for (let step = 0; step < bodyCount; step += 1) {
       await page.keyboard.press("ArrowRight");
     }
     await expect
       .poll(async () => (await presentedImage(dialog))?.alt)
-      .toBe(GALLERY.alts[0]);
+      .toBe(GALLERY.alts.at(-1));
+    await expect(dialog.getByRole("status")).toHaveText(labels.lastImage);
 
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);

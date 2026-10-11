@@ -220,7 +220,7 @@ test("opening a large gallery loads only the bounded adjacent window, not the wh
 
   expect(
     apiGalleryRequests,
-    "opening a gallery must never itself cross the page cursor — only reaching the last loaded slide does, through the shared continuation contract",
+    "opening the first image stays before the lookahead window; cursor retrieval starts only near the loaded end through the shared continuation contract",
   ).toEqual([]);
 
   expect(
