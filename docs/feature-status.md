@@ -4595,7 +4595,8 @@ separate ready AB#264 source remain unchanged.
 The new `verify:contact-delivery` command defaults to plan-only and requires `--send`
 for one bounded synthetic application POST, with a durable pre-send identity, no
 automatic retry and a non-overwriting private receipt. One authorized test on the
-verified `14b1af0` Production artifact returned a valid delivered acknowledgement;
+verified Production deployment tagged with base `14b1af0` and `gitDirty=1`
+returned a valid delivered acknowledgement; the full deployed source delta is unverified;
 its correlation has accepted/delivered log events. Mailbox arrival and Reply-To
 are still awaiting owner confirmation. A fresh authenticated raw audit and complete revision-rechecked raw snapshot cover
 16,947 records / 5,158 assets, preserving the existing settings draft; the root

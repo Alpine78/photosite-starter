@@ -9,6 +9,9 @@ No full security/privacy approval, canonical launch or customer handoff is claim
 Authenticated provider readback verifies the intended owner-controlled project and team.
 The public Production alias serves `dpl_6e4xtTvbq7Zd39g3mmp9AVNL7KYF`, source
 `14b1af09da443ee52248b94535c286be31f8fd10`, READY and Production-targeted.
+Provider metadata also reports `gitDirty=1`: that commit is a tagged source base,
+not proof of the complete deployed patch. The uncommitted source delta remains
+unverified; exact deployment ID, rather than commit equality, binds the live receipts.
 The main code used by this worktree begins at `5262def`; its newer language and
 presentation changes are not attributed to the serving artifact. The intended
 canonical domain continues to serve Joomla. No DNS, promotion or alias write occurred.

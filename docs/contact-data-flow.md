@@ -553,7 +553,8 @@ changes. Fixture journeys cover successful submission in both language spaces.
 ### 2026-10-12 current Production delivery observation (AB#117)
 
 The compatible Production alias now serves the previously verified Pro project
-artifact from `14b1af0`; historical Hobby-preference rows above describe their
+artifact tagged with base `14b1af0` and `gitDirty=1`; the full local source delta
+is unverified. Historical Hobby-preference rows above describe their
 dated checkpoints and do not establish today's serving tier. One explicitly
 requested synthetic contact POST returned delivered and produced the same
 correlation's accepted/delivered application logs. Receipt in the independent
