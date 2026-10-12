@@ -94,3 +94,15 @@ routes need a separate implementation that preserves their security contracts.
 2. Audit and author missing live shared-copy entries before Production activation.
 3. Complete the remaining coverage in
    [the AB#255 inventory](../bilingual-page-coverage.md); keep the story Active.
+
+## Amendment 2026-10-12 — Isolate the home link from unrelated pages
+
+Decision 5 did not specify how a failed home projection affects other pages.
+Review found that using the strict home accessor for link availability made
+contact, services and stories depend on the health of the home document.
+
+The shell now hides the home link when that one availability read fails,
+while continuing to render the current page. The home render and sitemap
+retain strict error propagation, and shared settings/category failures still
+fail as before. Only decision 5's link-availability behavior is clarified;
+the authored-content, route, metadata and contact contracts are unchanged.

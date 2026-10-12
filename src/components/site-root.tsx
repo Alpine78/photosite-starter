@@ -49,7 +49,10 @@ type SiteRootProps = Readonly<{
 export async function SiteRoot({ children, locale }: SiteRootProps) {
   const [contactPage, homePage, trees] = await Promise.all([
     getStaticPageData("contact", locale),
-    getStaticPageData("home", locale),
+    // This read controls a link, not this page's content. A defective home
+    // must not break contact, service or story pages. The home render and
+    // sitemap still use the strict accessor and surface its original failure.
+    getStaticPageData("home", locale).catch(() => undefined),
     getContentTrees(),
   ]);
   // Story pages remain readable while shared copy is awaiting translation.

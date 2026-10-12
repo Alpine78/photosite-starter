@@ -3935,8 +3935,9 @@ AB#18/117/137/250 remain Active; AB#118 remains New. See the
 
 The owner confirmed coverage includes historical articles/galleries and customer/
 administrator pages, and requested home/contact as the first slice. The story
-moved New → Active before the first edit. Source work is on
-`feature/255-bilingual-pages`, awaiting owner review and commit.
+moved New → Active before the first edit. The owner committed the first slice
+as `65a0cd9`; PR #338 is being integrated with main on
+`feature/255-bilingual-pages` under the owner's 2026-10-12 merge/commit authorization.
 
 Shared home/contact Server Components now accept the route locale. Configured
 non-default locale bases serve a real home and `/contact`, including native-ratio
@@ -3955,12 +3956,19 @@ availability contract. [The page-family inventory](bilingual-page-coverage.md)
 records the wider work still required and its ownership; no live CMS translation
 count or full bilingual completion is claimed. The owner reaffirmed permanent
 Claude context-sharing consent; AGENTS.md and existing Claude project memory
-record it. No live CMS writes, deployment or commits were performed.
+record it. No live CMS writes or deployments were performed.
 
-Validation: lint, all 227 unit-test files / 5,412 tests and architecture diagram
+The 2026-10-12 integration retained both appended status sections from main
+and the feature branch. Review also isolated the home-link availability read:
+a defective home no longer breaks unrelated contact/service/story pages through
+their shell. The home render and sitemap remain strict. The ADR index now keeps
+0029 inside the table. AB#255 remains Active after this first slice merges.
+
+Validation after 2026-10-12 integration corrections: lint, all 228 unit-test files /
+5,420 tests and architecture diagram
 freshness passed. The production-build journey matrix passed 867 cases with 38
 existing skips; AB#132's marked scriptless-404 failures remain visible rather
 than claimed fixed. After self-review and review corrections, a fresh production build and
-26 affected home/contact/service journeys passed. The bounded Claude diff review
+44 affected home/contact/navigation/sitemap journeys passed. The bounded Claude diff review
 is recorded in the local handoff evidence. AB#255 stays Active: this first source
 slice does not fulfill the whole story.
