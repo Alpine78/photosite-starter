@@ -51,6 +51,37 @@ their container identities and required references before publishing. Capture
 sequence galleries use shared media's capture-sequence fields instead of gallery
 placements; see [schema guidance](../sanity/README.md).
 
+Article and gallery list rows and reference pickers identify language versions in their subtitle
+(for example, `FI · coastal-visit` and `EN · coastal-visit`). Categories use their
+authored localized labels and language tags. Gallery image and article end-gallery
+rows show `Image 31 · Coastal visit`, the container's language and a full-frame
+thumbnail from the referenced shared media's public web image. Missing titles,
+languages or positions are marked explicitly so incomplete drafts stay editable.
+These preview labels are specific to this Studio; the canonical schemas keep their
+existing metadata for other consumers.
+
+An image number is the stored zero-based `order` plus one, not a computed rank in
+the current visitor view. Gaps and ties remain visible as authored; a shuffled
+gallery can present a different order. The document list's sorting is unchanged.
+Each occurrence is its own document so large galleries can be queried in bounded
+pages. FI/EN occurrences share one image asset and occurrence identity but can
+carry different captions. Equal page titles likewise can represent language
+siblings. A matching title alone is not evidence of duplicate content.
+
+Content, category and placement IDs are permanent technical identities. An
+imported `joomla-…` value records its origin; it does not require a running Joomla
+installation. Readable previews do not rename these fields or Sanity `_id` values.
+Keep them intact during source import/reimport and recovery verification. After
+migration acceptance, [AB#257](https://dev.azure.com/ilkkarytkonen/photosite-starter/_workitems/edit/257)
+tracks planning their replacement: inventory consumers, agree on stable names,
+check collisions and every language/reference, rehearse against a restorable
+snapshot, and update or retire reimport tooling before an approved write.
+Sanity document `_id` cannot be patched; replacing documents also requires
+rewriting references and assessing history/recovery consequences. See
+[Sanity's ID contract](https://www.sanity.io/docs/content-lake/ids).
+New readable identities must still be minted once and remain stable after later
+title, slug or translation edits.
+
 Upload only prepared public web derivatives, at most 2048 pixels on the longest
 edge. Assets have public URLs from upload, including in a private dataset. Never
 upload camera masters, protected client-gallery files or sales assets. The

@@ -3972,3 +3972,41 @@ than claimed fixed. After self-review and review corrections, a fresh production
 44 affected home/contact/navigation/sitemap journeys passed. The bounded Claude diff review
 is recorded in the local handoff evidence. AB#255 stays Active: this first source
 slice does not fulfill the whole story.
+
+### AB#256 — Readable Studio names (2026-10-12, Active)
+
+The owner reported Joomla-derived category/image-placement titles and apparent
+duplicate content in Studio. AB#256 moved New → Active before the first file
+change. The Studio adapter now overrides preview metadata only: article and gallery
+subtitles show their language and slug; categories show authored
+localized labels and language tags; gallery and article-end-gallery occurrences
+show a one-based authored image number, container title, language and the shared
+media's public web-image thumbnail. Missing draft metadata is explicitly marked.
+The existing full-frame preview renderer receives the image instead of the media
+document reference. Stored identities, references, canonical schemas/publication
+validators, document-list sorting and the public application remain unchanged.
+
+A published-only read on 2026-10-12 confirmed that RaceWKND has 60 distinct media
+references and 60 distinct orders per FI/EN version (120 placement documents),
+while Austrian Grand Prix 2021 has one gallery document per language. These are
+language siblings and separately queried image occurrences, not evidence of
+unwanted copies. Equal titles elsewhere still require checking their identities
+and references before any duplicate-content conclusion. No CMS data was rewritten
+or removed, and no Studio deployment was performed. Authenticated list, document
+heading and reference-picker checks remain owner-run after publishing the Studio.
+
+[AB#257](https://dev.azure.com/ilkkarytkonen/photosite-starter/_workitems/edit/257)
+remains New and tracks a separate plan for replacing Joomla-derived persistent
+identities after migration/reimport and recovery acceptance. Readable labels can
+ship now; identity replacement requires a complete mapping, consumer/reference
+inventory, rehearsal, restorable snapshot and reimport/rollback policy. Joomla
+names do not introduce a runtime dependency on Joomla. The editor guide records
+this distinction; this slice does not implement that migration.
+
+Offline validation passed in `feature/256-readable-studio-names`: lint, all 229
+browser-free test files / 5,448 tests, the public production build and Studio
+typecheck/schema validation/static build with synthetic CI configuration. The
+installed Sanity preview preparer also accepted localized label arrays and a
+resolved public-image selection. No public journey changed, so Playwright was
+not rerun for this presentation-only slice. Source remains uncommitted for owner
+review, and AB#256 remains Active until acceptance and merge.
