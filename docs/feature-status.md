@@ -4161,6 +4161,24 @@ records bounds, primary sources, private evidence and remaining API/runtime/owne
 journey gates. No package/config/schema/CMS/deployment change or application/Studio
 gate rerun occurred. This slice establishes no fully bilingual Studio.
 
+**Studio structure titles, 2026-10-12:** the project-owned `photosite-editorial`
+namespace supplies 11 English/Finnish title resources for the content root,
+home/settings singleton entries and document panes, and eight editorial lists
+and their child panes. Original English fallback titles, schema types, document
+identities, queries, sorting, menus and editorial controls remain. Root lint,
+Studio typecheck, zero-error schema validation, static build and all 55 focused
+editorial tests pass. An actual pinned-Sanity synthetic builder check verifies
+21 localized nodes, matching dictionaries and preserved whole-type counts.
+[The dated receipt](audits/ab255-studio-structure-locales-2026-10-12.md) records
+exact scope and build/source evidence; no dependency, canonical schema, content,
+auth policy, live CMS request/write or deployment changes.
+
+This bundle registration does not enable a Finnish core locale choice: the
+separate core-locale branch remains uncommitted at this receipt. Authenticated
+rendering/switching/wording and schema/preview/validation text remain pending.
+The owner directed continuation without Claude; source review and applicable
+checks are complete. AB#255 stays Active after this partial source slice.
+
 ### AB#256 — Readable Studio names (2026-10-12, Closed)
 
 The owner reported Joomla-derived category/image-placement titles and apparent

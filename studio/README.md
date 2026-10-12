@@ -33,6 +33,20 @@ to edit this project/dataset. Studio uses that account's authenticated session,
 including for private datasets. It has no embedded API credential and creates no
 new project or dataset.
 
+## Project-owned interface titles
+
+The content root, home/settings panes and editorial lists use English (`en-US`)
+and Finnish (`fi-FI`) resources in `studio/locales/`, registered in the separate
+`photosite-editorial` namespace. Structure nodes keep their original English
+fallback titles and stable IDs. Change the resource values to refine wording;
+keep both dictionaries' keys aligned.
+
+Resources do not add an available core UI locale. Finnish title rendering needs
+a configured `fi-FI` core locale; that activation is a separate source slice.
+Authored document language, schema field text, preview fallbacks and custom
+validation messages are independent. Verify actual authenticated FI/EN rendering
+and wording before publishing Studio. See the [build/source receipt](../docs/audits/ab255-studio-structure-locales-2026-10-12.md).
+
 ## Editing content
 
 Home page and Site settings open the existing document identity, including an
