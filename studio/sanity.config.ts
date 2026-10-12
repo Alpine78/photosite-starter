@@ -5,10 +5,12 @@ import { studioSettings } from "./environment";
 import { allowAction, allowTemplate } from "./editorial-policy";
 import { editorialStructure } from "./structure";
 import { FullFramePreview } from "./full-frame-preview";
+import { withEditorialPreview } from "./editorial-preview";
 
 // The shared schemas use a readonly, dependency-free subset of Sanity's types.
 // This boundary asserts that subset; `schemas validate` checks the actual objects.
 const schemaTypes = defineSchemaTypes(studioSettings)
+  .map(withEditorialPreview)
   .map((type) => type.type === "document" || type.type === "object"
     ? { ...type, components: { preview: FullFramePreview } }
     : type) as SchemaTypeDefinition[];
