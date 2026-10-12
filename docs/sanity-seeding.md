@@ -607,6 +607,39 @@ separately approved operations. AB#258/259 stay strict offline
 prewrite tools and refuse already-new/revision-drift states; they do not become a
 resume mechanism by using relocated inputs.
 
+### In-memory identity alias validation (AB#261)
+
+[The Node-only alias module](../src/lib/identity-aliases.ts) implements the first
+pure part of ADR-0031. `createIdentityAliasResolver()` defaults to `legacy`.
+Explicit `legacy` accepts only its mode; `renamed` and `restored` require a
+JSON-decoded payload and deployment-owned `sourceMapSha256`, `payloadSha256` and
+`expectedRowCount` pins. Invalid explicit configuration fails instead of falling
+back to legacy. Rollback compatibility uses pinned `restored`, not legacy.
+
+The closed payload contains only `aliases`, `formatVersion` (`identity-aliases-v1`)
+and `sourceMapSha256`. Each row has only `field`, `newId` and `oldId`; supported
+fields are `contentId`, `categoryId`, `endGalleryId` and `placementId`. It requires
+the existing bounded identity grammar, the exact positive pinned count, globally
+unique and disjoint old/new sets, matching SHA-256 pins and at most 256 KiB of
+canonical payload. Canonical UTF-8 JSON orders root/row keys lexically, retains
+row order and includes no whitespace or terminal newline. Hashes establish
+integrity, not owner permission. No real mapping is compiled into this module.
+
+The private lookup closure maps old → new in `renamed`, new → old in `restored`
+and passes through well-formed unknown IDs for downstream resolution. It exposes
+no table, performs no IO and cannot be changed by later caller mutations. Errors
+carry static classifications rather than payloads. This is a decoded-data
+boundary: raw transport byte limits, duplicate JSON keys, provider document
+metadata and CMS publication checks still require their own adapter.
+
+The module is not connected to deployed readers. CMS/schema/loader, generation
+cache/invalidation, public reader integration, legacy-write guard, maintenance
+boundary and operational writer/receipts remain separate implementation slices.
+Future integration must preserve request/locale validation, public-container and
+media eligibility, dynamic/capture-sequence media IDs and signed cursor rejection.
+This resolver itself grants no authorization and supports no `mediaId` family.
+No deployment or CMS operation follows from this offline implementation.
+
 ### Offline reconciliation (AB#258)
 
 `npm run reconcile:identities` compares the immutable approved map with supplied
