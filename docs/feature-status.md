@@ -4069,6 +4069,48 @@ placement text, semantic acceptance and live journeys remain open.
 points to the ignored complete FI/EN comparison workbook. No CMS write,
 publication, deployment or runtime change occurred; AB#255 stays Active.
 
+**Shared-media language inventory, 2026-10-12:** PR #350 merged as `504f05a`
+after full required CI #830. Its exact merged tree matches the tested candidate.
+The owner's committed audit and nine private evidence hashes matched the prior
+clean review; the integration correction acknowledges AB#260's accepted policy
+without inferring CMS-write or freeze approval. Both policy corrections passed
+one joint Claude review without findings. The published record inventory covers
+5,272 eligible media, with 687 FI-only alt records and 679 one-language captions.
+Actual consumers, occurrence overrides, image meaning and draft/release state
+remain separate. [The dated inventory](audits/ab255-shared-media-language-inventory-2026-10-12.md)
+contains counts, scope and owner-only receipt location. No CMS write occurred.
+
+**Category-description inventory, 2026-10-12:** PR #351 merged as `9fb9631`
+after full required CI #831. The candidate and actual merged trees match;
+the only addition to its tested tree is PR #350's already reviewed/merged audit,
+with all runtime and other tracked files unchanged. No merge conflict occurred.
+The 12 categories have 8 both-language, 1 FI-only, 1 EN-only and 2 absent optional
+description pairs. The missing category label/slug still blocks dependent EN
+articles; optional absence is not automatically a gap. Shared-category changes
+require their own authoring path: AB#125 does not update them and the category
+writer's `createIfNotExists` does not patch an existing document.
+[The dated inventory](audits/ab255-category-description-language-inventory-2026-10-12.md)
+keeps real wording, identities and revisions in owner-only local evidence.
+
+**English article copy, batch 2, 2026-10-12:** the next local proposal covers
+18 paragraphs, six headings, five quotes and eight per-version captions, plus
+title and first EN slug. All 38 blocks and non-text references remain unchanged.
+Four model/name captions deliberately match the source pending owner review;
+source numeric/fraction literals are retained pending formatting review. Fresh
+count-bound published and associated raw-metadata reads match; no associated EN,
+draft or release variant was observed for the selected source. Its category
+still lacks EN label/slug. Thirty-six referenced public media need EN alt/caption
+review; 36 visible end-gallery occurrences and the inherited closed FI poll
+remain publication gates. Across batches 1 and 2, two distinct articles have
+complete local article-owned proposals and 16 remain unprepared in those packets.
+Published counts remain 28 FI / 10 EN, with 18 missing EN versions.
+[The dated copy receipt](audits/ab255-english-article-drafts-batch-2-2026-10-12.md)
+points to the ignored complete FI/EN workbook, non-writable suggestions and
+source/structure/reference/numeric/heading/slug validation. No source metadata,
+CMS draft/write/publication, schema/runtime or production deployment changed.
+Application gates are not rerun for copy/documentation alone; source observations
+do not establish actual route or image-semantic acceptance. AB#255 stays Active.
+
 ### AB#256 — Readable Studio names (2026-10-12, Closed)
 
 The owner reported Joomla-derived category/image-placement titles and apparent
@@ -4225,7 +4267,7 @@ for byte, and a second private planning run matches the first artifact exactly.
 Public Playwright and standalone Studio were not rerun locally because this
 slice changes neither public journeys nor Studio/schema code.
 
-### AB#260 — Identity migration operational proposal (2026-10-12, Active)
+### AB#260 — Identity migration operational policy (2026-10-12, Closed)
 
 After PRs #345/#346 merged, the owner explicitly approved archival/removal of
 eight historical worktrees: PR #329 and #338–344. Each checkout was clean, matched
@@ -4251,20 +4293,97 @@ The owner decision packet separates policy/implementation acceptance from named
 isolated-target/asset-copy permission and actual Production approval. Restored
 target revisions require a new reviewed operational binding; original map/baseline
 and AB#258/259 guards stay immutable. No runtime/schema/IO implementation, CMS write,
-restore, credential action or deployment was performed. AB#260 remains Active until
-owner editor review, commit and accepted merge. The ADR is Accepted for those
-implementation policies only; the isolated target, asset-copy accessibility and
-actual Production operations remain pending separate approval.
+restore, credential action or deployment was performed. The owner committed the
+exact reviewed patch as `c67129c`; [PR #349](https://github.com/Alpine78/photosite-starter/pull/349)
+merged as `046c350` after Azure CI #825 passed lint, tests, build, public journeys
+and standalone Studio. Integration with current main was conflict-free, and
+AB#260's Active → Closed transition was verified after merge. The ADR is Accepted
+for those implementation policies only; the isolated target, asset-copy
+accessibility and actual Production operations remain pending separate approval.
 
 Documentation validation passed: 109 relative Markdown links/anchors checked,
 diff whitespace check and all three diagram renditions compiled/current. There
 are no runtime/dependency/diagram-source changes, so application tests/build,
 public journeys and Studio were not rerun for this documentation-only slice.
 
-### AB#262 — gallery and story presentation corrections (2026-10-12, Active)
+### AB#261 — Pinned in-memory identity aliases (2026-10-12, Closed)
 
-The source changes are implemented in `fix/262-gallery-story-presentation`,
-uncommitted and unmerged. The selector is absent for zero or one **declared**
+After PR #349 merged, AB#261 moved New → Active before source edits on the
+published `feature/261-identity-alias-resolver` branch, based on `046c350`.
+The Node-only, server-only `identity-aliases.ts` factory validates a closed
+JSON-decoded ID-only payload against deployment-owned source/payload SHA-256 and
+exact row-count pins. It reuses the public identity grammar, caps canonical bytes
+at 256 KiB and rejects duplicate/overlapping old/new identities across all four
+domain families. Private lookup closures implement `legacy`, old → new `renamed`
+and new → old `restored`; invalid configuration cannot select a silent fallback.
+Later caller mutations cannot change a validated generation, and static error
+classes disclose no payload. The original private map's 1,541 pairs all pass the
+existing grammar; all 28 critical evidence hashes, including that map, are unchanged.
+
+This module is currently used only by synthetic tests. It does not fetch raw CMS
+data, detect duplicate raw JSON keys, validate provider metadata, load environment
+settings or authorize requests. CMS/schema/loader, cache generation/invalidation,
+public reader integration, legacy-write guard, maintenance boundary and operational
+writer/receipts remain separate implementation slices. Dynamic/capture-sequence
+media identities, cursors, current deployed behavior and accepted ADR history
+remain unchanged. No CMS, asset, credential, restore or deployment operation was
+performed. The owner committed the reviewed change as `7a265d8`;
+[PR #352](https://github.com/Alpine78/photosite-starter/pull/352) merged as `1614e90`
+after other-agent PRs #350/#351 and successful CI #829, including journeys and
+Studio. Integration was conflict-free and its exact tree was verified; only the
+two previously accepted audit documents differed from the CI merge. The push
+destination was already up to date, with no correction commit needed.
+AB#261's Active → Closed transition was verified. Named rehearsal targets and
+actual Production operations remain separately gated.
+
+Local validation passed: 68 new alias cases, all 234 browser-free test files /
+5,574 tests, lint, production build with synthetic mock settings and diagram
+freshness. The first build hit Turbopack's outside-root dependency symlink limit;
+an ignored local dependency copy resolved it without source/config changes or
+altering the retained archive. No public journey or Studio/schema change exists,
+so their local gates were not rerun; both remain required CI checks.
+
+### AB#263 — Bounded published identity alias loader (2026-10-12, Active)
+
+After PR #352 merged, six completed worktrees were retired into private archives
+`temp/worktree-retirement/20261012T131826Z/` and `20261012T140445Z/`.
+All 92,586 ignored files and all six branch refs were preserved; the other
+agent's active checkouts were kept. AB#259's three output artifacts moved with
+its checkout. The expanded 36-file critical evidence ledger retains every
+original hash. These local archives are preservation evidence, not CMS backups.
+
+AB#263 moved New → Active before edits on the published
+`feature/263-published-identity-alias-loader` branch from `1614e90`. The mandatory
+Claude plan review waited for the owner-reported 17:10 quota reset. Its feedback
+made shared request cancellation transport-owned, required an explicit byte
+bound for duplicate-key decoding and clarified metadata and generation recovery.
+The unconnected Node/server-only loader captures validated configuration and
+pins before IO. Default legacy needs no CMS settings; renamed/restored share one
+lazy, uncached, parameterized published full-record query capped at 1 MiB.
+Closed provider/row metadata validation precedes the core's canonical digest,
+count and 256 KiB checks. The opt-in decoder rejects nested escaped-equivalent
+duplicate keys and depth/node excess; existing reader defaults remain native.
+Each captured generation returns only a private resolver and keeps failed loads
+sticky until explicit factory recreation, without automatic retry or fallback.
+
+Local validation passed: 223 focused cases, all 236 browser-free test files /
+5,687 tests, lint, synthetic mock production build and diagram freshness.
+The first build found an invalid test-only TypeScript cast; the corrected cast
+passed the subsequent build. No public journey or Studio/schema behavior changed;
+their required CI checks remain pending the owner's commit and PR. New source
+stays uncommitted for editor review, and AB#263 remains Active until accepted merge.
+Only synthetic responses were used: actual provider metadata/wire fit needs the
+first separately approved live read. Public reader/environment and coordinated
+generation/cache wiring, legacy-write guard, maintenance, operational writer/
+receipts and named rehearsal/Production operations remain separate gates.
+No CMS, asset, credential, restore or deployment operation was performed.
+
+### AB#262 — gallery and story presentation corrections (2026-10-12)
+
+The owner reviewed and committed the source changes as `787deac` on
+`fix/262-gallery-story-presentation`, then opened
+[PR #355](https://github.com/Alpine78/photosite-starter/pull/355). The selector is
+absent for zero or one **declared**
 gallery section on every slice, including scriptless and direct filtered pages.
 Two or more declared sections retain the selector even on a filtered or empty
 result. The selector's section count disappears with it; the separate photograph
@@ -4300,5 +4419,14 @@ desktop Chromium/mobile WebKit journeys passed with the enlarged titles
 (eight desktop-only viewport cases are intentionally skipped on mobile).
 The anchor journey awaits the router's hash update rather than reading the URL
 immediately after a click. The earlier Claude diff round omitted test/documentation
-coverage; a complete diff review is required before handoff.
-AB#262 remains Active pending owner editor review, commit and accepted merge.
+coverage; the final review covered all 19 changed/new files and reported no
+findings. The owner subsequently authorized committing integration corrections,
+pushing and merging PR #355 after PRs #353/#354. Integrating their merged main
+required only a feature-status conflict resolution; all incoming history and
+the reviewed presentation code were preserved. The work item closes after the
+authorized merge is verified.
+
+Post-integration validation passed against main after PR #354: lint, all 237
+browser-free test files / 5,696 tests, all three diagram renditions, the production
+build and the same 140 focused Chromium/WebKit journeys (eight intentional mobile
+skips). The required full Azure PR pipeline remains the final merge gate.
