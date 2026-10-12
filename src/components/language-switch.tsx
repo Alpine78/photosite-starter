@@ -23,11 +23,10 @@ type LanguageSwitchProps = {
  * ADR-0003 decision 7 makes language switching a deliberate choice — nothing
  * here reads `Accept-Language` — and requires the switch to say when it will
  * open a nearer page instead of an exact translation. That is what `note`
- * carries, and it renders as visible text rather than a title attribute so it
- * reaches every visitor who is about to follow the link.
+ * carries. The owner requested removing the visible note (AB#262); it remains
+ * a screen-reader description of the link's actual destination.
  *
- * Two things make that promise hold for a screen reader as well as a sighted
- * one. The link carries `lang` as well as `hrefLang`, because its text is the
+ * The link carries `lang` as well as `hrefLang`, because its text is the
  * language's own name — "suomi" inside an English page — and without it a
  * speech synthesizer pronounces that name with the wrong voice. And the note is
  * bound to the link with `aria-describedby`, so a visitor tabbing through links
@@ -57,7 +56,7 @@ export function LanguageSwitch({ label, links }: LanguageSwitchProps) {
             : undefined;
 
           return (
-            <li key={language.locale}>
+            <li key={language.locale} className="relative">
               <Link
                 href={language.href}
                 hrefLang={language.locale}
@@ -68,7 +67,7 @@ export function LanguageSwitch({ label, links }: LanguageSwitchProps) {
                 {language.label}
               </Link>
               {language.note && (
-                <span id={noteId} className="text-muted">
+                <span id={noteId} className="sr-only">
                   {" "}
                   ({language.note})
                 </span>

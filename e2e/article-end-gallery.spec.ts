@@ -19,7 +19,7 @@ test("end gallery loads only on request, retries and preserves its own sequence"
     else await route.continue();
   });
   await page.goto(path);
-  const gallery = page.locator('section[aria-labelledby="article-end-gallery"]');
+  const gallery = page.locator('[data-article-end-gallery]');
   const triggers = gallery.locator("button[data-item-id]");
   await expect(triggers).toHaveCount(24);
   await expect(page.locator("[data-mini-gallery]")).toHaveCount(2);
@@ -50,7 +50,7 @@ test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
   test("the real next link serves only the remaining slice with first-page canonical", async ({ page }) => {
     await page.goto(path);
-    const gallery = page.locator('section[aria-labelledby="article-end-gallery"]');
+    const gallery = page.locator('[data-article-end-gallery]');
     await expect(gallery.locator("img")).toHaveCount(24);
     await gallery.getByRole("link", { name: labels.gallery.showMore }).click();
     await expect(page.getByRole("main").locator("img")).toHaveCount(6);
@@ -78,7 +78,7 @@ test("the open end-gallery viewer retries a failed continuation without losing i
     else await route.continue();
   });
   await page.goto(path);
-  const triggers = page.locator('section[aria-labelledby="article-end-gallery"] button[data-item-id]');
+  const triggers = page.locator('[data-article-end-gallery] button[data-item-id]');
   await expect(triggers).toHaveCount(24);
   const dialog = page.getByRole("dialog", { name: labels.lightbox.viewer });
   await openLightbox(dialog, async () => { await triggers.nth(23).focus(); await page.keyboard.press("Enter"); });

@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import sharp from "sharp";
-import { HeroOverlay } from "../src/components/hero-overlay";
+import { CONTENT_HERO_TITLE_CLASSNAME, HeroOverlay } from "../src/components/hero-overlay";
 import { projectPublicImageMedia } from "../src/lib/media";
 import { expect, test as base } from "./support/fixtures";
 
@@ -98,7 +98,7 @@ test.describe("AB#155: hero text stays on its contrast surface", () => {
         await homeCssReady();
         const markup = renderToStaticMarkup(createElement(HeroOverlay, {
           media, title, description,
-          titleClassName: "text-3xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-4xl",
+          titleClassName: CONTENT_HERO_TITLE_CLASSNAME,
           meta: { dateTime: "2026-09-07", label: date, ...(withByline ? { byline } : {}) },
           action,
         }));

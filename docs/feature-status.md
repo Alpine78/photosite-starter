@@ -3085,7 +3085,9 @@ constant inline `<head>` script (`THEME_BOOTSTRAP_SCRIPT`) applies it before fir
 without JavaScript the device decides. The language choice is in the menu too: a page's
 `LanguageSwitch` publishes its identity-based links to the header through an
 owner-scoped store (`language-menu-store.ts`). The bar shows a short code (EN), and the
-compact panel shows the language's own name, with a nearer-page note visible in both.
+compact panel shows the language's own name. AB#262 removes the visible nearer-page
+note from both layouts and the in-page switch; the description remains available
+to screen readers through `aria-describedby`.
 The in-page switch stays as the fallback and is hidden only once the header has rendered
 the links (`data-language-menu` on `<html>`). The contact route (`CONTACT_PATH`) shows as
 a pill at the end of the bar. The wide layout switches on at `lg`, not `sm`: the
@@ -4258,3 +4260,45 @@ Documentation validation passed: 109 relative Markdown links/anchors checked,
 diff whitespace check and all three diagram renditions compiled/current. There
 are no runtime/dependency/diagram-source changes, so application tests/build,
 public journeys and Studio were not rerun for this documentation-only slice.
+
+### AB#262 — gallery and story presentation corrections (2026-10-12, Active)
+
+The source changes are implemented in `fix/262-gallery-story-presentation`,
+uncommitted and unmerged. The selector is absent for zero or one **declared**
+gallery section on every slice, including scriptless and direct filtered pages.
+Two or more declared sections retain the selector even on a filtered or empty
+result. The selector's section count disappears with it; the separate photograph
+count and an explicitly selected section's introduction remain available.
+
+The shared hero computes its band and attribution position from the figure's
+actual inline-size query-container width. The original `100vw` formula reproduced
+a 10px black strip on the owner's 3:2 image with a 15px scrollbar gutter; `100cqw`
+keeps the complete native frame and the overlay aligned. Dynamic viewport bounds,
+long-text growth and contrast, attribution, no-cover and continuation behavior
+remain covered. The owner clarified that the cover-overlay story title should
+be larger. Article and gallery heroes now share a 2.25rem mobile, 3rem small-screen
+and 3.75rem large-screen title scale (previously 1.875rem / 2.25rem), with tight
+line spacing and responsive wrapping. The long-title pale-image integration
+journeys use this same shared scale to verify contrast and text containment.
+
+Language fallback notes are screen-reader descriptions rather than visible text
+beside the language link, in the wide menu, compact menu and scriptless in-page
+switch. Destinations and actual translation metadata are unchanged. An article's
+terminal authored h2 matching its localized end-gallery label supplies the gallery
+region's accessible name, so a second h2 is omitted. The authored heading and its
+TOC fragment remain intact; the existing `article-end-gallery` anchor also remains.
+Other body headings, distinct terminal text and articles without an end gallery
+retain authored content. No CMS data is modified.
+
+The one-time Claude plan review completed after the owner's 17:10 availability
+reset. Verified feedback preserved the stable gallery anchor, explicit container
+ancestry, declared-section semantics and proper clipping assertions for screen-reader
+notes. Codex self-review and the React quality checklist covered hook order and
+cleanup, derived visibility, existing server/client boundaries and accessible
+labelling. Lint, all 5,515 deterministic tests, the production build and 140
+desktop Chromium/mobile WebKit journeys passed with the enlarged titles
+(eight desktop-only viewport cases are intentionally skipped on mobile).
+The anchor journey awaits the router's hash update rather than reading the URL
+immediately after a click. The earlier Claude diff round omitted test/documentation
+coverage; a complete diff review is required before handoff.
+AB#262 remains Active pending owner editor review, commit and accepted merge.
