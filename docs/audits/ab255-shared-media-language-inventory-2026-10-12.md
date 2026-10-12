@@ -63,8 +63,8 @@ not enter Git. Preserve the complete local evidence before worktree retirement.
 
 Later authoring must refresh sources/variants and coordinate
 [ADR-0030](../adr/0030-legacy-identity-retirement.md)'s accepted map and operational
-freeze/compatibility gates. The other agent's AB#260 proposal is not a freeze or
-write approval. Changed revisions invalidate these bindings, including changes
+freeze/compatibility gates. AB#260's accepted implementation policy is not a
+freeze or CMS write approval. Changed revisions invalidate these bindings, including changes
 to fields outside this projection. No CMS write, publication, package/schema
 change or production activation occurred. Source/shape/count, privacy, local
 link and whitespace checks apply; application tests/build were not rerun for
