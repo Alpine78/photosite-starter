@@ -4455,3 +4455,27 @@ Post-integration validation passed against main after PR #354: lint, all 237
 browser-free test files / 5,696 tests, all three diagram renditions, the production
 build and the same 140 focused Chromium/WebKit journeys (eight intentional mobile
 skips). The required full Azure PR pipeline remains the final merge gate.
+
+### AB#137 — Restore omitted Joomla import guards (2026-10-12, Active)
+
+The owner requested a separate worktree after the remote-branch audit found three
+guards still present only in `feature/137-story-root-content` at `bf55aeb`.
+`fix/137-restore-import-guards` starts from current main `4382537`; AB#137 was
+already Active before edits and remains Active for its wider operational scope.
+
+Document validation requires an article cover to resolve to a public image in
+the plan, and each body poll to resolve to an included historical poll with the
+page's language or `und`. Gallery rerun preflight reads and refuses editor-owned
+`galleryLayout`, `galleryCaptionPlacement` and section `intro` before uploads,
+restoring the existing seeding guide's stated behavior. Valid public covers,
+historical poll pairs and unchanged gallery reruns remain supported.
+
+Only those guards are restored. AB#185's revision-guarded media patches, current
+calendar validation, plan digests and format versions remain intact. Synthetic
+regressions demonstrated the omissions before the fix; all 245 focused tests,
+all 237 test files / 5,706 browser-free tests, lint, the production build with
+mock harness settings, all three diagram renditions and 79 relative documentation
+file links pass. Playwright and the Studio build were not rerun locally because
+browser and Studio source are unchanged; their required CI gates remain.
+Source remains uncommitted for owner editor review. No live CMS write,
+deployment or launch acceptance is implied.
