@@ -7,6 +7,7 @@ import {
   IDENTITY_ALIAS_FORMAT_VERSION,
   IdentityAliasError,
   MAX_IDENTITY_ALIAS_PAYLOAD_BYTES,
+  validateIdentityAliasPins,
   type IdentityAliasConfiguration,
   type IdentityAliasField,
 } from "@/lib/identity-aliases";
@@ -65,6 +66,17 @@ function createUnknown(config: unknown) {
 }
 
 describe("pinned identity aliases", () => {
+  it("validates a frozen scalar pin copy for pre-IO checks", () => {
+    const original = configured().pins;
+    const checked = validateIdentityAliasPins(original);
+    expect(checked).toEqual(original);
+    expect(checked).not.toBe(original);
+    expect(Object.isFrozen(checked)).toBe(true);
+    original.expectedRowCount = 1;
+    expect(checked.expectedRowCount).toBe(4);
+    rejected(() => validateIdentityAliasPins({ ...original, extra: true }), "configuration");
+  });
+
   it("defaults to legacy with no table or pins", () => {
     const resolve = createIdentityAliasResolver();
     for (const row of ROWS) {

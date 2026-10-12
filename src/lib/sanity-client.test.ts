@@ -71,6 +71,38 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("bounded duplicate-key opt-in", () => {
+  const request = { query: "*[false]", tag: "fixture.json" };
+
+  it.each([undefined, false])("preserves native duplicate-key behavior by default (%j)", async (flag) => {
+    const { fetchImplementation } = stubFetch(() => new Response('{"result":1,"result":2}'));
+    const client = createSanityClient({ config, fetchImplementation, rejectDuplicateJsonKeys: flag });
+    await expect(client.query(request)).resolves.toBe(2);
+  });
+
+  it("rejects duplicate and escaped-equivalent keys only with the bounded opt-in", async () => {
+    silenceFailureLog();
+    for (const body of ['{"result":1,"result":2}', '{"result":1,"\\u0072esult":2}']) {
+      const { fetchImplementation } = stubFetch(() => new Response(body));
+      const client = createSanityClient({ config, fetchImplementation, maxResponseBytes: 1024, rejectDuplicateJsonKeys: true });
+      await expect(client.query(request)).rejects.toMatchObject({ errorClass: "malformed-response", retryable: false });
+      expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(body);
+    }
+  });
+
+  it("requires an explicit valid streaming bound before IO", () => {
+    const { fetchImplementation } = stubFetch(() => jsonResponse({ result: [] }));
+    expect(() => createSanityClient({ config, fetchImplementation, rejectDuplicateJsonKeys: true })).toThrow("Invalid bounded JSON decoding configuration");
+    for (const maxResponseBytes of [0, -1, 1.5, 1024 * 1024 + 1]) {
+      expect(() => createSanityClient({ config, fetchImplementation, maxResponseBytes, rejectDuplicateJsonKeys: true })).toThrow("Invalid content response bound");
+    }
+  });
+
+  it.each([null, "true", 1])("rejects invalid flag %j before IO", (flag) => {
+    expect(() => createSanityClient({ config, maxResponseBytes: 1024, rejectDuplicateJsonKeys: flag as unknown as boolean })).toThrow("Invalid bounded JSON decoding configuration");
+  });
+});
+
 describe("buildSanityQueryUrl", () => {
   it("composes the documented query endpoint for a published read", () => {
     const url = new URL(
