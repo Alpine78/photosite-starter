@@ -1347,7 +1347,7 @@ export async function runCollisionPreflight(
   const articleIds = articles.map((document) => document._id);
   for (const idsChunk of chunkIdsByByteBudget(articleIds)) {
     const rows = await runQuery({
-      query: `*[_id in $ids]{_id, language, slug, canonicalAtStoryRoot, orderingRule, orderingSeed, sections, "canonicalCategoryId": canonicalCategory->categoryId}`,
+      query: `*[_id in $ids]{_id, language, slug, canonicalAtStoryRoot, orderingRule, orderingSeed, sections, galleryLayout, galleryCaptionPlacement, "canonicalCategoryId": canonicalCategory->categoryId}`,
       params: { ids: idsChunk },
     });
     for (const row of rows) {
@@ -1359,9 +1359,19 @@ export async function runCollisionPreflight(
         collisions.push(`gallery "${row._id}" already has incompatible ordering — refusing to replace it`);
       }
       if (planned._type === "gallery") {
+        // These editor-owned fields are outside the importer's allow-list.
+        // A whole-document replacement would erase them even on an exact rerun.
+        for (const field of ["galleryLayout", "galleryCaptionPlacement"] as const) {
+          if (row[field] != null) {
+            collisions.push(`gallery "${row._id}" has an editor-owned ${field} — refusing to erase it`);
+          }
+        }
         const nextSections = Array.isArray(planned.sections) ? planned.sections : [];
         const oldSections = Array.isArray(row.sections) ? row.sections : [];
         for (const section of oldSections) {
+          if (isPlainObject(section) && section.intro != null) {
+            collisions.push(`gallery "${row._id}" has an editor-owned section intro — refusing to erase it`);
+          }
           if (!section || typeof section !== "object" ||
               !nextSections.some(next => next && typeof next === "object" &&
                 next.sectionId === section.sectionId && next.slug === section.slug)) {

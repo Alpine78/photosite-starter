@@ -4540,7 +4540,7 @@ only, not future reviews. The accepted PR #357 merge and AB#265 closure are
 verified above; no live CMS or deployment operation was performed.
 
 
-### AB#266 — Terminal gallery headings at every supported level (2026-10-12, Active)
+### AB#266 — Terminal gallery headings at every supported level (2026-10-12, Closed)
 
 The owner requested gallery and identity continuation in separate worktrees.
 AB#266 moved New → Active before edits on the published
@@ -4567,9 +4567,8 @@ All 237 browser-free test files / 5,707 tests, lint and diagram freshness passed
 The journey harness's production build passed. Full required CI still applies.
 No CSS, typography, media framing, CMS data, dependency or deployment changed.
 The owner committed the reviewed slice as `72e781c` and authorized PR #358
-merge after CI, including the documentation conflict correction. AB#266 remains
-Active until the accepted merge is verified. AB#264 and the independent AB#265
-branch remain separate.
+merge after CI, including the documentation conflict correction. AB#264 and
+the independent AB#265 branch remained separate during integration.
 
 
 The final Claude diff review attempt hit the session limit before substantive
@@ -4588,3 +4587,42 @@ synthetic mock production build and all three diagram renditions. The original
 44 focused browser journeys remain applicable; the updated PR's required full
 CI must pass before its accepted merge. All 38 prior evidence hashes and the
 separate ready AB#264 source remain unchanged.
+
+PR #358 subsequently merged as `5262def6063beebb4d1fd0e5d6ae60f2a022f89e`
+after required Azure CI #850 passed for integration head `5a8bd18`. The source
+head ancestry and final merged tree were verified; AB#266's Active → Closed
+transition was confirmed. This completion record supersedes the pending-merge
+checkpoint above.
+
+### AB#137 — Restore omitted Joomla import guards (2026-10-12, Active)
+
+The owner requested a separate worktree after the remote-branch audit found three
+guards still present only in `feature/137-story-root-content` at `bf55aeb`.
+`fix/137-restore-import-guards` starts from current main `4382537`; AB#137 was
+already Active before edits and remains Active for its wider operational scope.
+
+Document validation requires an article cover to resolve to a public image in
+the plan, and each body poll to resolve to an included historical poll with the
+page's language or `und`. Gallery rerun preflight reads and refuses editor-owned
+`galleryLayout`, `galleryCaptionPlacement` and section `intro` before uploads,
+restoring the existing seeding guide's stated behavior. Valid public covers,
+historical poll pairs and unchanged gallery reruns remain supported.
+
+Only those guards are restored. AB#185's revision-guarded media patches, current
+calendar validation, plan digests and format versions remain intact. Synthetic
+regressions demonstrated the omissions before the fix; all 245 focused tests,
+all 237 test files / 5,706 browser-free tests, lint, the production build with
+mock harness settings, all three diagram renditions and 79 relative documentation
+file links pass. Playwright and the Studio build were not rerun locally because
+browser and Studio source are unchanged; their required CI gates remain.
+The owner committed the reviewed source as `c53e5a8` and authorized integration
+with main after PRs #357/#358. The feature-status conflict preserves both
+implementation histories; the restored source guards are unchanged. Required
+CI remains the final merge gate. No live CMS write or launch acceptance is implied.
+
+Post-integration validation passed against main after PR #358: all 245 focused
+import tests, 239 browser-free files / 5,741 tests, lint, the mock production
+build, all three diagram renditions and 201 relative documentation file links.
+The first sandboxed focused run could not capture child-command output; its
+unsandboxed retry and the complete test suite both passed. AB#185's media writer
+and all five restored code/test blobs match owner commit `c53e5a8`.
