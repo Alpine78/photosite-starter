@@ -4223,7 +4223,7 @@ for byte, and a second private planning run matches the first artifact exactly.
 Public Playwright and standalone Studio were not rerun locally because this
 slice changes neither public journeys nor Studio/schema code.
 
-### AB#260 — Identity migration operational proposal (2026-10-12, Active)
+### AB#260 — Identity migration operational policy (2026-10-12, Closed)
 
 After PRs #345/#346 merged, the owner explicitly approved archival/removal of
 eight historical worktrees: PR #329 and #338–344. Each checkout was clean, matched
@@ -4249,12 +4249,47 @@ The owner decision packet separates policy/implementation acceptance from named
 isolated-target/asset-copy permission and actual Production approval. Restored
 target revisions require a new reviewed operational binding; original map/baseline
 and AB#258/259 guards stay immutable. No runtime/schema/IO implementation, CMS write,
-restore, credential action or deployment was performed. AB#260 remains Active until
-owner editor review, commit and accepted merge. The ADR is Accepted for those
-implementation policies only; the isolated target, asset-copy accessibility and
-actual Production operations remain pending separate approval.
+restore, credential action or deployment was performed. The owner committed the
+exact reviewed patch as `c67129c`; [PR #349](https://github.com/Alpine78/photosite-starter/pull/349)
+merged as `046c350` after Azure CI #825 passed lint, tests, build, public journeys
+and standalone Studio. Integration with current main was conflict-free, and
+AB#260's Active → Closed transition was verified after merge. The ADR is Accepted
+for those implementation policies only; the isolated target, asset-copy
+accessibility and actual Production operations remain pending separate approval.
 
 Documentation validation passed: 109 relative Markdown links/anchors checked,
 diff whitespace check and all three diagram renditions compiled/current. There
 are no runtime/dependency/diagram-source changes, so application tests/build,
 public journeys and Studio were not rerun for this documentation-only slice.
+
+### AB#261 — Pinned in-memory identity aliases (2026-10-12, Active)
+
+After PR #349 merged, AB#261 moved New → Active before source edits on the
+published `feature/261-identity-alias-resolver` branch, based on `046c350`.
+The Node-only, server-only `identity-aliases.ts` factory validates a closed
+JSON-decoded ID-only payload against deployment-owned source/payload SHA-256 and
+exact row-count pins. It reuses the public identity grammar, caps canonical bytes
+at 256 KiB and rejects duplicate/overlapping old/new identities across all four
+domain families. Private lookup closures implement `legacy`, old → new `renamed`
+and new → old `restored`; invalid configuration cannot select a silent fallback.
+Later caller mutations cannot change a validated generation, and static error
+classes disclose no payload. The original private map's 1,541 pairs all pass the
+existing grammar; all 28 critical evidence hashes, including that map, are unchanged.
+
+This module is currently used only by synthetic tests. It does not fetch raw CMS
+data, detect duplicate raw JSON keys, validate provider metadata, load environment
+settings or authorize requests. CMS/schema/loader, cache generation/invalidation,
+public reader integration, legacy-write guard, maintenance boundary and operational
+writer/receipts remain separate implementation slices. Dynamic/capture-sequence
+media identities, cursors, current deployed behavior and accepted ADR history
+remain unchanged. No CMS, asset, credential, restore or deployment operation was
+performed. AB#261 remains Active pending owner editor review, commit and accepted
+merge; named rehearsal targets and actual Production operations remain separately
+gated.
+
+Local validation passed: 68 new alias cases, all 234 browser-free test files /
+5,574 tests, lint, production build with synthetic mock settings and diagram
+freshness. The first build hit Turbopack's outside-root dependency symlink limit;
+an ignored local dependency copy resolved it without source/config changes or
+altering the retained archive. No public journey or Studio/schema change exists,
+so their local gates were not rerun; both remain required CI checks.
