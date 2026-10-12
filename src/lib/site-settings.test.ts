@@ -50,6 +50,7 @@ const stubLabels = {
 vi.mock("@/lib/deployment-config", () => ({
   getDeploymentConfig: () => deploymentConfig,
   getDefaultLocaleLabels: () => stubLabels,
+  getBuiltInLabels: () => stubLabels,
 }));
 
 const sanitySiteSettings = vi.hoisted(() => ({

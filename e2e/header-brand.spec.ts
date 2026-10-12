@@ -54,10 +54,10 @@ test("the brand names the site in the locale it renders", async ({ page }) => {
   // Compared case-insensitively: the descriptor line is uppercased by CSS.
   expect((await visibleBrandText(page)).toLowerCase()).toBe(defaultName.toLowerCase());
 
-  // A prefixed locale has no home route of its own yet, so its brand is plain
-  // text rather than a link — still this locale's name, not the default's.
+  // A prefixed locale uses its own home link and localized brand.
   await page.goto(prefixedRoute, { waitUntil: "domcontentloaded" });
   const prefixedName = await openGraphSiteName(page);
+  await expect(brand(page)).toHaveAttribute("href", `/${PREFIXED_LOCALE.prefix}`);
   expect((await visibleBrandText(page)).toLowerCase()).toBe(prefixedName.toLowerCase());
 });
 

@@ -107,6 +107,7 @@ export type SanitySiteSettingsRejection =
   | "missing-document"
   | "ambiguous-document"
   | "incomplete-document"
+  | "missing-translation"
   | "invalid-navigation"
   | "malformed-result";
 
@@ -199,14 +200,14 @@ function readSocialLinks(
 function readOptionalPublicImage(
   value: unknown,
   field: string,
-  options: { readonly language: string; readonly sanityConfig?: SanityConfig },
+  options: { readonly language: string; readonly config?: LocaleRouteConfig; readonly sanityConfig?: SanityConfig },
   reject: (detail: string) => never,
 ): ImageMedia | undefined {
   if (value === undefined || value === null) return undefined;
   if (!isRecord(value)) reject(`${field} is malformed`);
   const projected = projectPublicMedia(value as RawPublicMediaDocument, {
     language: options.language,
-    fallbackLanguage: options.language,
+    fallbackLanguage: options.config?.defaultLocale ?? options.language,
     config: options.sanityConfig ?? getSanityConfig(),
   });
   if (projected.type !== "image") reject(`${field} must be a public image`);
@@ -238,7 +239,7 @@ function readSiteNames(
 function readLogo(
   document: RawSiteSettingsDocument,
   field: "logo" | "logoDark",
-  options: { readonly language: string; readonly sanityConfig?: SanityConfig },
+  options: { readonly language: string; readonly config?: LocaleRouteConfig; readonly sanityConfig?: SanityConfig },
   reject: (detail: string) => never,
 ): ImageMedia | undefined {
   const reference = document[`${field}Ref`];
@@ -298,11 +299,11 @@ export function projectSiteSettings(
     readonly sanityConfig?: SanityConfig;
   },
 ): SiteSettings {
-  const rejectIncomplete: (detail: string) => never = (detail) => {
-    throw new SanitySiteSettingsError("incomplete-document", detail);
+  const rejectIncomplete: (detail: string, missingTranslation?: boolean) => never = (detail, missingTranslation = false) => {
+    throw new SanitySiteSettingsError(missingTranslation ? "missing-translation" : "incomplete-document", detail);
   };
-  const rejectNavigation: (detail: string) => never = (detail) => {
-    throw new SanitySiteSettingsError("invalid-navigation", detail);
+  const rejectNavigation: (detail: string, missingTranslation?: boolean) => never = (detail, missingTranslation = false) => {
+    throw new SanitySiteSettingsError(missingTranslation ? "missing-translation" : "invalid-navigation", detail);
   };
 
   const featuredGalleryId = readOptionalString(
@@ -350,7 +351,11 @@ export function projectSiteSettings(
     rejectIncomplete("logoDark is set without the logo it replaces");
   }
   const brandDescriptors = readBrandDescriptors(document.brandDescriptor, rejectIncomplete);
-  const siteNames = readSiteNames(document.siteName, options.language, rejectIncomplete);
+  const defaultLanguage = new Intl.Locale(options.config.defaultLocale).language;
+  // Default brand entries are mandatory even when projecting another locale.
+  // Their absence is malformed settings, not an unpublished local translation.
+  const rejectRequiredDefault: (detail: string) => never = (detail) => rejectIncomplete(detail);
+  const siteNames = readSiteNames(document.siteName, defaultLanguage, rejectRequiredDefault);
   const email = readRequiredString(contact.email, "contact.email", rejectIncomplete);
   if (email.length > 254 || !EMAIL.test(email)) {
     rejectIncomplete("contact.email is not a usable email address");
@@ -363,9 +368,9 @@ export function projectSiteSettings(
   );
   const titleTemplates = readLocalizedTextByLanguage(
     defaultSeo.titleTemplate,
-    options.language,
+    defaultLanguage,
     "defaultSeo.titleTemplate",
-    rejectIncomplete,
+    rejectRequiredDefault,
   );
   for (const [language, template] of Object.entries(titleTemplates)) {
     if ((template.match(/%s/g) ?? []).length !== 1) {
@@ -374,7 +379,7 @@ export function projectSiteSettings(
       );
     }
   }
-  const titleTemplate = titleTemplates[toLanguageSubtag(options.language)];
+  const titleTemplate = titleTemplates[toLanguageSubtag(options.language)] ?? titleTemplates[defaultLanguage];
   const phone = readOptionalString(contact.phone, "contact.phone", rejectIncomplete);
   const address = readOptionalLocalizedText(
     contact.address,
@@ -403,7 +408,7 @@ export function projectSiteSettings(
 
   return {
     ...readGalleryPresentationFields(document, rejectIncomplete),
-    siteName: siteNames[toLanguageSubtag(options.language)],
+    siteName: siteNames[toLanguageSubtag(options.language)] ?? siteNames[defaultLanguage],
     siteNames,
     ...(logo === undefined ? {} : { logo }),
     ...(logoDark === undefined ? {} : { logoDark }),

@@ -333,7 +333,12 @@ export function SubmissionForm({
 
     if (response.status === 422 && payload.issues !== undefined) {
       if (context.kind === "contact" && payload.issues.some((issue) => issue.field === "subject")) {
-        if (Array.isArray(payload.services)) setSubjectOptions(payload.services);
+        if (Array.isArray(payload.services)) {
+          // The endpoint returns the owner's catalog. Its identities refresh
+          // availability; the page's authored local names remain the UI copy.
+          const available = new Set(payload.services.map((option) => option.serviceId));
+          setSubjectOptions(services.filter((option) => available.has(option.serviceId)));
+        }
       }
       setStatus({ kind: "field-errors", issues: payload.issues, focusSummary: true });
       return;

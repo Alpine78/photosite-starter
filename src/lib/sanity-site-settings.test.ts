@@ -47,6 +47,17 @@ const localized = (fi: string, en: string) => [
   { language: "en", value: en },
 ];
 
+it.each(["siteName", "titleTemplate"] as const)("classifies a missing default %s as malformed settings even on the English page", (field) => {
+  const missingDefault = [{ language: "en", value: field === "siteName" ? "Example" : "%s | Example" }];
+  const document = field === "siteName"
+    ? documentOf({ siteName: missingDefault })
+    : documentOf({ defaultSeo: {
+        ...(documentOf().defaultSeo as Record<string, unknown>),
+        titleTemplate: missingDefault,
+      } });
+  expect(() => project(document, "en-GB")).toThrow(expect.objectContaining({ rejection: "incomplete-document" }));
+});
+
 function documentOf(
   overrides: Partial<RawSiteSettingsDocument> = {},
 ): RawSiteSettingsDocument {
@@ -94,6 +105,15 @@ function documentOf(
 
 const project = (document: RawSiteSettingsDocument, language = "fi-FI") =>
   projectSiteSettings(document, { language, locale: language, config, sanityConfig });
+
+it("selects English privacy/site copy and preserves legacy brand fallback to the actual default language", () => {
+  const settings = project(documentOf({siteName:"Legacy default name"}), "en-GB");
+  expect(settings.siteNames).toEqual({fi:"Legacy default name"});
+  expect(settings.siteName).toBe("Legacy default name");
+  expect(settings.contact.privacyNotice.collected).toBe("Name, address, and message.");
+  expect(settings.navigation[0]).toEqual({label:"Home",href:"/en"});
+  expect(settings.defaultSeo.description).toBe("Example photography.");
+});
 
 function fakeClient(answer: unknown): {
   client: SanityClient;

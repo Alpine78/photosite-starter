@@ -25,6 +25,11 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   explicitly prioritized. **Locale-aware public routing is prioritized:** ADR-0003 makes
   unprefixed default-locale Finnish routes and `/en/…` English routes a first-launch
   requirement. The authoring workflow around them is not.
+  **Bilingual coverage is prioritized (AB#255, owner request 2026-10-11):** every
+  page family must be available in Finnish and English, including historical
+  articles/galleries and customer/administrator pages. Start with home and contact
+  as a working slice. Track the remaining coverage explicitly; do not invent
+  translations or claim that a language-menu fallback is the same page translated.
 - **Minimal dependencies.** Do not add a library without a clear, stated need.
 - **Small, reviewable changes.** No large rewrites without an explicit request.
 - **Never crop images.** Gallery, preview (thumbnails included), and hero/banner images
@@ -245,10 +250,12 @@ Then iterate.
 
 ### Standing authorization for Claude review
 
-The owner authorizes sharing project context with the configured Claude Code
+The owner authorizes sharing all relevant project context with the configured Claude Code
 reviewer, including repository code and diffs, Azure Boards descriptions,
 acceptance criteria, discussion and relations, and owner-supplied device and
-reproduction details. This standing authorization also covers future project
+reproduction details, supplied design materials and relevant operational evidence.
+The owner reaffirmed this permission on 2026-10-11 and requested a permanent record.
+This standing authorization also covers future project
 reviews; do not ask for separate disclosure permission on each invocation.
 It records the owner's consent and does not change tool approval enforcement.
 
@@ -461,6 +468,7 @@ This is the complete set — there is no other documentation to hunt for:
 | `docs/architecture/`                 | anyone forming a mental model of the system                        | a system boundary, layer, external dependency, or the deploy flow changes — edit the `.d2` source and re-run `npm run diagrams`, never the `.svg`           |
 | `docs/theme-contract.md`             | whoever restyles a clone or builds a theme preset (AB#37)          | a semantic design token is added, renamed, or revalued, the light/dark mechanism changes, or a surface moves in or out of the "stays explicit" list         |
 | `docs/gallery-presentation.md`       | whoever authors gallery layout defaults or restyles the gallery grid (AB#157) | the placement rule, a responsive threshold, the caption-access mechanism, or the layout/caption inheritance model changes                                   |
+| `docs/bilingual-page-coverage.md` | maintainers implementing AB#255 | page-family language coverage or remaining ownership changes; source evidence is distinct from live CMS completeness |
 | `docs/article-reading-position.md` | owner refining AB#20 | confirmed scope, open decisions or unapproved implementation slices change; no runtime acceptance is implied |
 | `docs/asset-inventory.md`            | licensing audit                                                    | any third-party asset, font, or shipped dependency is added or removed                                                                                      |
 | `docs/contact-data-flow.md`          | the site owner, a visitor who asks, and the AB#117 launch review   | the contact form's fields, delivery path, processors, logs, or retention change                                                                             |

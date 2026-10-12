@@ -31,7 +31,7 @@ test("home and services contact bands lead to contact without JavaScript", async
   await page.goto(prefixedPath, { waitUntil: "domcontentloaded" });
   const prefixedBand = page.getByRole("region", { name: prefixedCopy!.heading });
   await expect(prefixedBand).toContainText(prefixedCopy!.text);
-  await expect(prefixedBand.getByRole("link")).toHaveAttribute("href", "/contact");
+  await expect(prefixedBand.getByRole("link")).toHaveAttribute("href", `/${PREFIXED_LOCALE.prefix}/contact`);
   await prefixedBand.getByRole("link").click();
   await expect(page).toHaveURL(/\/contact$/);
   expect(externalRequests).toEqual([]);

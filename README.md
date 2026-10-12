@@ -127,13 +127,18 @@ Finnish ship — and a clone adds or edits a set there. Every locale in
 `SITE_LOCALE_ROUTES` must find one, or the deployment fails at startup rather
 than rendering one language's chrome in another.
 
-The site name, title template, and header brand descriptor resolve per language
-(AB#187); other shared SiteSettings copy still uses the deployment's default
-language. Every locale renders the shared header and footer, with navigation
-resolving same-language service and story destinations and omitting unavailable
-static links. Services listings and detail routes are localized; home and contact
-remain in the unprefixed default-locale space. Fully localized settings and the
-remaining static routes are still pending.
+Home and contact render inside every configured locale space: `/` and `/contact`
+for the default locale, `/<prefix>` and `/<prefix>/contact` for other locales
+(AB#255, ADR-0029). Shared settings and home copy use the requested language;
+missing required non-default translations withhold that static version from routes,
+navigation, language alternates and sitemap. The same-page language choice works
+without JavaScript. Services/story navigation and contact calls to action retain
+the selected locale. Contact delivery still uses the fixed `/api/contact` endpoint.
+
+The wider all-pages requirement remains in progress, including historical content,
+client/admin pages and Studio. See [the coverage inventory](docs/bilingual-page-coverage.md).
+The source implementation does not prove live authored-copy completeness or activate
+new Production routes.
 
 ### Contact form delivery
 

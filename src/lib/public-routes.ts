@@ -66,9 +66,9 @@ export const RESERVED_ROOT_SEGMENTS: readonly string[] = [
  * Static visitor-facing route segments that repeat beneath every locale base.
  * Root-only compatibility routes, assets, and machine files stay out: they do
  * not compete with a story namespace beneath `/en` or another locale prefix.
- * Add `contact` here when its localized public route lands.
+ * Home occupies the empty path; contact occupies its fixed segment.
  */
-export const RESERVED_LOCALE_ROUTE_SEGMENTS: readonly string[] = ["services", "client-gallery"];
+export const RESERVED_LOCALE_ROUTE_SEGMENTS: readonly string[] = ["services", "contact", "client-gallery"];
 
 /**
  * Whether the unprefixed default-locale route path resolves to a page today.
@@ -77,7 +77,10 @@ export const RESERVED_LOCALE_ROUTE_SEGMENTS: readonly string[] = ["services", "c
  */
 export async function defaultLocaleRouteExists(path: string): Promise<boolean> {
   const segments = path.split("/").filter((segment) => segment.length > 0);
-  if (segments.length === 0) return true;
+  if (segments.length === 0) {
+    const { getStaticPageData } = await import("@/lib/static-pages");
+    return await getStaticPageData("home", getDeploymentConfig().localeRoutes.defaultLocale) !== undefined;
+  }
 
   const [first, second] = segments;
   const { localeRoutes } = getDeploymentConfig();
@@ -99,8 +102,11 @@ export async function defaultLocaleRouteExists(path: string): Promise<boolean> {
   switch (first) {
     case "services":
       return second === undefined || (await getService(second)) !== undefined;
-    case "contact":
-      return second === undefined;
+    case "contact": {
+      if (second !== undefined) return false;
+      const { getStaticPageData } = await import("@/lib/static-pages");
+      return await getStaticPageData("contact", defaultRoute.locale) !== undefined;
+    }
     default:
       return false;
   }

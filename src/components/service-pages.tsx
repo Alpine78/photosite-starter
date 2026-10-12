@@ -23,6 +23,7 @@ type ServiceListingProps = {
   readonly languageLabel?: string;
   readonly contactCallToAction?: ContactCallToActionContent;
   readonly contactLabel: string;
+  readonly contactHref?: string;
 };
 
 /** The localized service catalog. Route resolution supplies every card URL. */
@@ -35,6 +36,7 @@ export function ServiceListing({
   languageLabel,
   contactCallToAction,
   contactLabel,
+  contactHref,
 }: ServiceListingProps) {
   return (
     <main>
@@ -64,6 +66,7 @@ export function ServiceListing({
         <ContactCallToAction
           content={contactCallToAction}
           contactLabel={contactLabel}
+          contactHref={contactHref}
           headingId="services-contact-call-to-action"
         />
       )}

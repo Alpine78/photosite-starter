@@ -6,7 +6,7 @@ import type { ImageMedia } from "@/lib/media";
 import { getMockImages, mockSiteMark, mockSiteMarkDark } from "@/lib/mock-media";
 import { dispatchContentSource } from "@/lib/content-source";
 import {
-  getDefaultLocaleLabels,
+  getBuiltInLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
 import { buildServicePath, buildStoryPath } from "@/lib/locale-routes";
@@ -107,10 +107,9 @@ export type BrandDescriptor = {
 
 export type SiteSettings = GalleryPresentationFields & {
   /**
-   * The default locale's site name: the name on surfaces that only the default
-   * locale renders (the home page heading, its structured data, and the
-   * notification emails the owner receives). `resolveSiteName` picks the name
-   * for a surface rendered in a given locale.
+   * The name selected by this settings read's locale. Reads with no locale keep
+   * the deployment default for global structured data and owner notifications.
+   * `resolveSiteName` can select another authored brand name from the same read.
    */
   siteName: string;
   /**
@@ -212,10 +211,10 @@ const MOCK_SITE_NAMES: Readonly<Record<string, string>> = {
   fi: "Valokuvaaja Jane Example",
 };
 
-function buildMockSiteSettings(): SiteSettings {
-  const labels = getDefaultLocaleLabels();
+function buildMockSiteSettings(locale: string): SiteSettings {
+  const labels = getBuiltInLabels(locale);
   const { localeRoutes } = getDeploymentConfig();
-  const defaultLanguage = new Intl.Locale(localeRoutes.defaultLocale).language;
+  const defaultLanguage = new Intl.Locale(locale).language;
   const siteName = MOCK_SITE_NAMES[defaultLanguage] ?? MOCK_SITE_NAMES.en;
   const titleTemplates = Object.fromEntries(
     Object.entries(MOCK_SITE_NAMES).map(([language, name]) => [language, `%s | ${name}`]),
@@ -236,10 +235,10 @@ function buildMockSiteSettings(): SiteSettings {
     logoDark: mockSiteMarkDark,
     brandDescriptors: MOCK_BRAND_DESCRIPTORS,
     photographerName: "Jane Example",
-    tagline: "Timeless photography for life's important moments",
-    servicesIntro:
+    tagline: defaultLanguage === "fi" ? "Ajattomia kuvia elämän tärkeistä hetkistä" : "Timeless photography for life's important moments",
+    servicesIntro: defaultLanguage === "fi" ? "Tutustu palveluihin ja yhteistyön mahdollisuuksiin. Esimerkkiteksti korvataan CMS:n sisällöllä." :
       "An overview of what I offer and how we can work together. Placeholder copy; replaced with real wording from the CMS.",
-    servicesContactCallToAction: mockServicesContactCallToAction(localeRoutes.defaultLocale),
+    servicesContactCallToAction: mockServicesContactCallToAction(locale),
     featuredGalleryId: FEATURED_GALLERY_ID,
     // These labels describe application-owned static routes, so they come from
     // deployment config rather than authored CMS content. Only routes that exist
@@ -259,7 +258,7 @@ function buildMockSiteSettings(): SiteSettings {
       { label: labels.pages.contact, href: "/contact" },
     ],
     contact: {
-      portrait: getMockImages(new Intl.Locale(localeRoutes.defaultLocale).language).photographerIntroduction,
+      portrait: getMockImages(defaultLanguage).photographerIntroduction,
       email: "hello@studio-example.com",
       phone: "+358 40 123 4567",
       address: "Example Street 1, 00100 Helsinki",
@@ -268,7 +267,12 @@ function buildMockSiteSettings(): SiteSettings {
       // replaces it with what its own deployment actually does — the processor
       // it configured, the mailbox that receives enquiries, and the retention it
       // keeps — before it publishes the form.
-      privacyNotice: {
+      privacyNotice: defaultLanguage === "fi" ? {
+        collected: "Nimesi, sähköpostiosoitteesi, viestisi ja aihe sekä mahdollinen puhelinnumerosi tai toivottu päivämäärä.",
+        purpose: "Yhteydenottoosi vastaaminen. Tietoja ei käytetä markkinointiin tai profilointiin.",
+        recipient: "Studio Example, sähköpostipalvelumme välityksellä. Verkkosivusto ei tallenna viestiä.",
+        retention: "Säilytetään postilaatikossamme vastaamisen edellyttämä aika ja poistetaan sen jälkeen.",
+      } : {
         collected: "Your name, email address, message, subject, and any phone number or preferred date you provide.",
         purpose:
           "Answering your enquiry. Nothing is used for marketing or profiling.",
@@ -282,12 +286,12 @@ function buildMockSiteSettings(): SiteSettings {
       {
         platform: "instagram",
         url: "https://instagram.com/studioexample",
-        label: "Studio Example on Instagram",
+        label: defaultLanguage === "fi" ? "Studio Example Instagramissa" : "Studio Example on Instagram",
       },
       {
         platform: "facebook",
         url: "https://facebook.com/studioexample",
-        label: "Studio Example on Facebook",
+        label: defaultLanguage === "fi" ? "Studio Example Facebookissa" : "Studio Example on Facebook",
       },
     ],
     footerLinks: [
@@ -300,7 +304,7 @@ function buildMockSiteSettings(): SiteSettings {
     defaultSeo: {
       titleTemplate: `%s | ${siteName}`,
       titleTemplates: { ...titleTemplates, [defaultLanguage]: `%s | ${siteName}` },
-      description:
+      description: defaultLanguage === "fi" ? "Valokuvauspalvelut: muotokuvat, häät, tapahtumat ja paljon muuta." :
         "Professional photography services: portraits, weddings, events, and more.",
     },
   };
@@ -347,12 +351,9 @@ export function resolveTitleTemplate(
 }
 
 /**
- * Settings are not yet locale-aware (`docs/feature-status.md`): every
- * source reads this deployment's own default locale regardless of which
- * route space asked, matching `buildMockSiteSettings`'s existing behavior.
- * The brand is the exception (AB#187): `siteNames` and
- * `defaultSeo.titleTemplates` carry every authored language from this same
- * read, and `resolveSiteName`/`resolveTitleTemplate` pick one per locale.
+ * Each caller may request a configured locale; callers without one use the
+ * deployment default. Required editorial copy never falls back to another
+ * language. The existing brand-name compatibility fallback is preserved.
  *
  * Wrapped in React's `cache()` (AB#139): this singleton is read from several
  * independent seams within one request — the site chrome layout
@@ -392,8 +393,9 @@ export function resolveTitleTemplate(
  * already pure and deterministic, so memoizing it changes nothing
  * observable.
  */
-export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
-  const { contentSource, locale, localeRoutes } = getDeploymentConfig();
+const readSiteSettingsForLocale = cache(async (locale: string): Promise<SiteSettings> => {
+  const { contentSource, localeRoutes } = getDeploymentConfig();
+  if (!localeRoutes.byLocale.has(locale)) throw new TypeError(`site settings locale "${locale}" is not configured`);
 
   return dispatchContentSource(contentSource, {
     // See dispatchContentSource's own doc comment for why this import is dynamic.
@@ -404,9 +406,14 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
       const language = new Intl.Locale(locale).language;
       return readSanitySiteSettings({ language, locale, config: localeRoutes });
     },
-    mock: async () => buildMockSiteSettings(),
+    mock: async () => buildMockSiteSettings(locale),
   });
 });
+
+/** Normalize the optional default before caching so both call shapes share one read. */
+export function getSiteSettings(locale = getDeploymentConfig().localeRoutes.defaultLocale): Promise<SiteSettings> {
+  return readSiteSettingsForLocale(locale);
+}
 
 /** The optional services band in a requested locale, independent of global settings copy. */
 export async function getServicesContactCallToAction(

@@ -212,9 +212,9 @@ language-keyed list like the tagline, because a brand commonly reads differently
 language — "Valokuvaaja …" in Finnish, "… Photography" in English. Each locale's header,
 default page title, and Open Graph site name use that locale's entry, and the title
 template (`defaultSeo.titleTemplate`) is resolved the same way; a language without its
-own entry uses the default locale's. Surfaces only the default locale renders — the home
-page heading, its structured data, and the notification emails the owner receives — use
-the default locale's name. A document published before this change still holds one plain
+own entry uses the default locale's. Localized home headings use the requested
+locale; global structured data on the default home and owner notification emails
+retain the default locale's name (AB#255). A document published before this change still holds one plain
 string there: the site keeps reading it as the default locale's name, while the Studio
 reports the field as the wrong type. **Re-author it once** — open Site settings, clear the
 old value, and add one entry per published language — then publish.

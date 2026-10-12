@@ -3930,3 +3930,45 @@ DNS change was made. Canonical launch, supported customer ZIP transport, fresh
 contact/webhook delivery and genuine recovery/handoff gates remain open.
 AB#18/117/137/250 remain Active; AB#118 remains New. See the
 [bounded activation audit](audits/ab18-compatible-alias-activation-2026-10-11.md).
+
+### AB#255 — Finnish and English on every page (2026-10-11, Active)
+
+The owner confirmed coverage includes historical articles/galleries and customer/
+administrator pages, and requested home/contact as the first slice. The story
+moved New → Active before the first edit. The owner committed the first slice
+as `65a0cd9`; PR #338 is being integrated with main on
+`feature/255-bilingual-pages` under the owner's 2026-10-12 merge/commit authorization.
+
+Shared home/contact Server Components now accept the route locale. Configured
+non-default locale bases serve a real home and `/contact`, including native-ratio
+media, requested-language copy/privacy/service choices, exact language switching
+with a scriptless fallback, canonical/hreflang and availability-driven sitemap.
+Missing required non-default language entries withhold only those static versions;
+missing default copy, malformed CMS data and provider failures still fail.
+Header/footer and home/service calls to
+action retain the selected language. The fixed contact endpoint, payload,
+validation/throttle and owner-language email are preserved. Shared settings reads
+normalize the default locale before React caching. WebSite/Organization JSON-LD
+remain on the default home as global entities.
+
+[ADR-0029](adr/0029-localized-home-and-contact-pages.md) records the static URL and
+availability contract. [The page-family inventory](bilingual-page-coverage.md)
+records the wider work still required and its ownership; no live CMS translation
+count or full bilingual completion is claimed. The owner reaffirmed permanent
+Claude context-sharing consent; AGENTS.md and existing Claude project memory
+record it. No live CMS writes or deployments were performed.
+
+The 2026-10-12 integration retained both appended status sections from main
+and the feature branch. Review also isolated the home-link availability read:
+a defective home no longer breaks unrelated contact/service/story pages through
+their shell. The home render and sitemap remain strict. The ADR index now keeps
+0029 inside the table. AB#255 remains Active after this first slice merges.
+
+Validation after 2026-10-12 integration corrections: lint, all 228 unit-test files /
+5,420 tests and architecture diagram
+freshness passed. The production-build journey matrix passed 867 cases with 38
+existing skips; AB#132's marked scriptless-404 failures remain visible rather
+than claimed fixed. After self-review and review corrections, a fresh production build and
+44 affected home/contact/navigation/sitemap journeys passed. The bounded Claude diff review
+is recorded in the local handoff evidence. AB#255 stays Active: this first source
+slice does not fulfill the whole story.
