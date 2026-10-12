@@ -4186,7 +4186,7 @@ with synthetic CI settings. The final private report retains the same counts
 and no blockers. Playwright and standalone Studio gates were not rerun locally:
 this slice changes neither public journeys nor Studio code/schemas.
 
-### AB#259 — Offline identity change batches (2026-10-12, Active)
+### AB#259 — Offline identity change batches (2026-10-12, Closed)
 
 The owner requested continuation after PR #344. AB#259 moved New → Active before
 the first edit on the published `feature/259-identity-change-plan` branch. Its
@@ -4210,7 +4210,11 @@ plan body SHA-256 is
 This is non-executable local planning data, always non-writable and not cutover-ready.
 Source freeze, reader/import/writer acceptance, runtime route/order/media checks,
 backup/restore/migration/rollback rehearsal and separate Production approval remain
-ADR-0030 gates. AB#259 stays Active pending owner editor review, commit and merge.
+ADR-0030 gates. The owner committed the exact reviewed patch as `c2a1dfa`;
+[PR #346](https://github.com/Alpine78/photosite-starter/pull/346) merged as `8427cd1`
+after required Azure CI #817 passed, including public journeys and Studio.
+PR #345 was left to the other agent and merged first as `883f87b`; integration
+had no conflicts. AB#259's Active → Closed transition was verified after merge.
 
 Local validation passed: lint, 233 browser-free files / 5,506 tests (27 new planner
 cases), production build with synthetic CI settings and diagram freshness.
@@ -4218,3 +4222,39 @@ The shared-IO refactor preserves the existing private reconciliation report byte
 for byte, and a second private planning run matches the first artifact exactly.
 Public Playwright and standalone Studio were not rerun locally because this
 slice changes neither public journeys nor Studio/schema code.
+
+### AB#260 — Identity migration operational proposal (2026-10-12, Active)
+
+After PRs #345/#346 merged, the owner explicitly approved archival/removal of
+eight historical worktrees: PR #329 and #338–344. Each checkout was clean, matched
+its merged source branch/head, and had ordinary merge ancestry in current main.
+All 194,942 ignored local files were retained in private
+`temp/worktree-retirement/20261012T104159Z/` with per-checkout preservation receipts;
+the eight branch refs remain. All 16 private AB#259 input/evidence hashes match at
+their relocated paths. No ignored file was disposed of, including generated files
+and dependencies. PR #345/#346 checkouts and the other agent's new worktrees stayed
+registered. The earlier automatic approval rejection was resolved by the owner's
+explicit approval of this exact set; no removal occurred before that approval.
+
+AB#260 moved New → Active before source edits on the published
+`chore/260-identity-cutover-proposal` branch, based on merged PR #346.
+[Accepted ADR-0031](adr/0031-identity-migration-operational-plan.md) records the
+concrete reader/import/recovery contract required by ADR-0030. The owner explicitly
+accepted its first three implementation policies on 2026-10-12 with “Hyväksyn nämä
+toteutuskäytännöt”: a
+bounded, digest-pinned CMS alias table with explicit readability acceptance,
+permanent forward/reverse compatibility by reader generation, legacy-writer
+retirement and a tested maintenance boundary with a provisional 15-minute target.
+The owner decision packet separates policy/implementation acceptance from named
+isolated-target/asset-copy permission and actual Production approval. Restored
+target revisions require a new reviewed operational binding; original map/baseline
+and AB#258/259 guards stay immutable. No runtime/schema/IO implementation, CMS write,
+restore, credential action or deployment was performed. AB#260 remains Active until
+owner editor review, commit and accepted merge. The ADR is Accepted for those
+implementation policies only; the isolated target, asset-copy accessibility and
+actual Production operations remain pending separate approval.
+
+Documentation validation passed: 109 relative Markdown links/anchors checked,
+diff whitespace check and all three diagram renditions compiled/current. There
+are no runtime/dependency/diagram-source changes, so application tests/build,
+public journeys and Studio were not rerun for this documentation-only slice.

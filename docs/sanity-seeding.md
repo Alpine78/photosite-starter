@@ -556,7 +556,7 @@ Readable Studio labels can be updated independently of stored identities (AB#256
 The [Accepted ADR-0030](adr/0030-legacy-identity-retirement.md) records owner
 acceptance on 2026-10-12 of all 1,541 mapped content/category/end-gallery/placement
 IDs while retaining Sanity document IDs and references. Its complete candidate map and dataset/order
-evidence are private under the worktree's ignored `temp/identity-retirement/`.
+evidence were created under the worktree's ignored `temp/identity-retirement/`.
 The original artifact remains explicitly non-writable and is not accepted by an
 importer. A separate private approval receipt binds its unchanged SHA-256 digest;
 acceptance applies to the mapping and conditional policy, not a Production write.
@@ -578,6 +578,34 @@ handling, partial-run classification and rollback guarded by post-write revision
 
 AB#257 discovery performs no CMS mutation or backup restore and does not relax the
 normal publication validators. Its document snapshot is not an asset backup.
+
+**Evidence relocation, 2026-10-12:** the owner approved retirement of eight exact
+merged checkouts. Their ignored local files were moved without disposal into
+`temp/worktree-retirement/20261012T104159Z/`, one directory per original worktree
+name. Branches remain available; `retirement-index.json` and each
+`preservation-receipt.json` record the retained files and original checkout/PR.
+The AB#257 map, approval and baseline are now beneath
+`chore-257-identity-retirement-plan/temp/identity-retirement/` in that archive.
+AB#258's fresh snapshot/receipt/index/reports are beneath
+`feature-258-identity-reconciliation/temp/identity-reconciliation-evidence/`.
+All 16 private input/evidence hashes checked for AB#259 are unchanged. Supply
+these relocated paths explicitly to the offline commands; historical artifacts
+remain byte-identical and can still contain their original provenance paths.
+AB#259's output plans remain in its retained worktree. Archive permissions are
+0700 at the archive/checkpoint directories and 0600 on the private data/receipts.
+The archive also retains generated files and dependencies; its existence proves
+local-file preservation, not a current CMS/binary backup or a successful restore.
+
+[Accepted ADR-0031](adr/0031-identity-migration-operational-plan.md) provides the
+next compatibility/operational plan and an
+[owner decision packet](adr/0031-identity-migration-operational-plan.md#owner-decision-packet).
+No alias reader, guard, maintenance switch or writer was implemented by AB#260.
+The owner accepted the first three implementation policies on 2026-10-12,
+including permanent all-1,541 aliases in a directly readable public CMS table.
+Isolated target/asset-copy permission, restore and Production cutover remain
+separately approved operations. AB#258/259 stay strict offline
+prewrite tools and refuse already-new/revision-drift states; they do not become a
+resume mechanism by using relocated inputs.
 
 ### Offline reconciliation (AB#258)
 
