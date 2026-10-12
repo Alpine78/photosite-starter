@@ -4183,6 +4183,23 @@ records bounds, primary sources, private evidence and remaining API/runtime/owne
 journey gates. No package/config/schema/CMS/deployment change or application/Studio
 gate rerun occurred. This slice establishes no fully bilingual Studio.
 
+**Standalone Studio core locale choice, 2026-10-12:** the separately planned
+`feature/255-studio-core-locale` slice registers `@sanity/locale-fi-fi@1.1.40`
+next to structureTool, retaining the English core choice and existing project
+schemas/editorial/full-frame/auth/content/deployment contracts. One exact
+locale dependency is added; all existing lock entries remain unchanged.
+Studio typecheck, zero-error schema validation and synthetic static build pass;
+the compiled plugin/fi-FI ID and original MIT artifact notice are present among
+896 package notices. Audit retains the same eight moderate advisories, adding
+none. [The bounded build receipt](audits/ab255-studio-core-locale-build-2026-10-12.md)
+records actual proof and pending authenticated switching/persistence/wording,
+159 missing keys, and separate project interface/authored text. No live CMS
+request/write, login, deployment or public Next.js behavior change. AB#255 stays
+Active; this source feature does not complete the Studio/all-pages story.
+The owner directed this continuation to proceed without Claude on 2026-10-12;
+Codex completed the source review and applicable checks. Earlier reviews remain
+history; no session-reset wait remains for this slice.
+
 **Studio structure titles, 2026-10-12:** the project-owned `photosite-editorial`
 namespace supplies 11 English/Finnish title resources for the content root,
 home/settings singleton entries and document panes, and eight editorial lists
@@ -4666,3 +4683,31 @@ build, all three diagram renditions and 201 relative documentation file links.
 The first sandboxed focused run could not capture child-command output; its
 unsandboxed retry and the complete test suite both passed. AB#185's media writer
 and all five restored code/test blobs match owner commit `c53e5a8`.
+
+
+**Sequential PR integration, 2026-10-13 (AB#255, Active):** PR #359 merged as
+`6a7d714` after full CI #859; PR #363 as `c29ac72` after CI #855; PR #364 as
+`7e47904` after CI #856. Every final merged tree and source-head ancestry was
+verified. #363/#364 needed no conflict correction or new commit; their relevant
+application/Studio inputs matched the tested trees. AB#137 and AB#255 remain
+Active for their wider operational/content acceptance criteria.
+
+The owner requested sequential handling without Claude, authorizing conflict
+corrections, commits and pushes. Integrating those three merges into #365
+resolved four conflicts: retain both core Finnish plugin registration and the
+11-key project-title bundles, both README sections and all implementation/
+coverage history. Authenticated UI/wording, hosted Studio publication and
+all-pages acceptance remain separate; this integration performs no CMS write.
+The earlier structure-only receipt's uncommitted-core checkpoint is superseded
+by this combined configuration. Required updated CI remains the merge gate.
+
+Post-integration local checks passed: all 239 browser-free files / 5,741 tests,
+root lint and all three diagram renditions; Studio typecheck, zero-error schema
+validation and static build with 896 package notices; mock Next.js production
+build. Compiled Studio includes the Finnish core plugin and custom-title
+namespace/resources, and all main structure files remain byte-identical. Every
+existing lock entry is unchanged; the locale package is the only dependency add.
+The initial Next.js attempt lacked worktree-local dependencies; existing caches
+were preserved and matching dependencies copied locally. A sandboxed retry
+stalled during compilation and was stopped; the unrestricted synthetic retry
+passed. Full Playwright remains the updated required CI gate.
