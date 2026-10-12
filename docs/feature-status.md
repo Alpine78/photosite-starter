@@ -4588,3 +4588,20 @@ synthetic mock production build and all three diagram renditions. The original
 44 focused browser journeys remain applicable; the updated PR's required full
 CI must pass before its accepted merge. All 38 prior evidence hashes and the
 separate ready AB#264 source remain unchanged.
+
+
+### AB#19 — eleven verified final decisions and raw-query correction (2026-10-12)
+
+The owner-requested continuation resolves one numeric camera-review alias, seven
+explicit Common-category article fallbacks and three justified Komento-profile
+410s from fresh backup/menu/category and current target evidence. All 415 sources
+remain accounted for: 197 redirect / 177 gone / 37 pending / three excluded / one
+live. Production's previous 367 decided rows all passed live expectations; new
+rows are not claimed deployed. `pending <origin>` observes unresolved responses
+without making decisions or approving omissions. A production-build regression
+exposed Next's reconstruction of a bare numeric query flag; the documented
+`skipProxyUrlNormalize` setting preserves the original URL, with the complete
+895-pass / 38-skip journey matrix after the boundary correction. Final row-specific
+checks accompany the PR. [The decision receipt](audits/ab19-final-decisions-2026-10-12.md)
+records all 37 remaining paths, source identity distinctions and deployment limits.
+AB#19 stays Active; no CMS, DNS or alias write and no complete launch acceptance.
