@@ -33,6 +33,27 @@ to edit this project/dataset. Studio uses that account's authenticated session,
 including for private datasets. It has no embedded API credential and creates no
 new project or dataset.
 
+## Core interface language
+
+The Studio registers the pinned `@sanity/locale-fi-fi@1.1.40` plugin alongside the
+existing structure tool. It adds **Suomi (`fi-FI`)** to Sanity's core interface
+locale choices while retaining English (`en-US`). Use Sanity's user-menu language
+control after signing in; no project default or site-content locale is changed.
+The registration API is documented by [Sanity](https://www.sanity.io/docs/studio/localizing-studio-ui)
+and the [Finnish package](https://github.com/sanity-io/locales/tree/main/locales/fi-FI).
+
+This is partial core-UI localization. Against pinned Sanity 6.18.0, the package
+lacks 159 of 2,151 English resource keys; fallback display and Finnish wording
+still need authenticated owner review. Project schema titles/descriptions,
+structure/preview labels and custom validation text remain project-owned source
+strings. Authored FI/EN content is independent. Login/hosted chrome and language
+preference persistence are not established by the static build.
+
+See [the checked build receipt](../docs/audits/ab255-studio-core-locale-build-2026-10-12.md).
+Before deploying, verify actual FI/EN switching, persistence, applicable missing
+messages, wording, and normal editor/action/validation behavior with agreed test
+content. This registration does not establish a fully bilingual Studio.
+
 ## Editing content
 
 Home page and Site settings open the existing document identity, including an

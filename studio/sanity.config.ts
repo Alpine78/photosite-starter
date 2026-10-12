@@ -1,4 +1,5 @@
 import { defineConfig, type SchemaTypeDefinition } from "sanity";
+import { fiFILocale } from "@sanity/locale-fi-fi";
 import { structureTool } from "sanity/structure";
 import { defineSchemaTypes } from "../sanity/schemas";
 import { studioSettings } from "./environment";
@@ -20,7 +21,7 @@ export default defineConfig({
   title: studioSettings.title,
   projectId: studioSettings.projectId,
   dataset: studioSettings.dataset,
-  plugins: [structureTool({ structure: editorialStructure })],
+  plugins: [structureTool({ structure: editorialStructure }), fiFILocale()],
   schema: {
     types: schemaTypes,
     templates: (templates) => templates.filter(({ schemaType }) => allowTemplate(schemaType)),

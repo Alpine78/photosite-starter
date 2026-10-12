@@ -4136,6 +4136,23 @@ records bounds, primary sources, private evidence and remaining API/runtime/owne
 journey gates. No package/config/schema/CMS/deployment change or application/Studio
 gate rerun occurred. This slice establishes no fully bilingual Studio.
 
+**Standalone Studio core locale choice, 2026-10-12:** the separately planned
+`feature/255-studio-core-locale` slice registers `@sanity/locale-fi-fi@1.1.40`
+next to structureTool, retaining the English core choice and existing project
+schemas/editorial/full-frame/auth/content/deployment contracts. One exact
+locale dependency is added; all existing lock entries remain unchanged.
+Studio typecheck, zero-error schema validation and synthetic static build pass;
+the compiled plugin/fi-FI ID and original MIT artifact notice are present among
+896 package notices. Audit retains the same eight moderate advisories, adding
+none. [The bounded build receipt](audits/ab255-studio-core-locale-build-2026-10-12.md)
+records actual proof and pending authenticated switching/persistence/wording,
+159 missing keys, and separate project interface/authored text. No live CMS
+request/write, login, deployment or public Next.js behavior change. AB#255 stays
+Active; this source feature does not complete the Studio/all-pages story.
+The owner directed this continuation to proceed without Claude on 2026-10-12;
+Codex completed the source review and applicable checks. Earlier reviews remain
+history; no session-reset wait remains for this slice.
+
 ### AB#256 — Readable Studio names (2026-10-12, Closed)
 
 The owner reported Joomla-derived category/image-placement titles and apparent
