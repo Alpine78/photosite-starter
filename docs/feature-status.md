@@ -4588,3 +4588,20 @@ synthetic mock production build and all three diagram renditions. The original
 44 focused browser journeys remain applicable; the updated PR's required full
 CI must pass before its accepted merge. All 38 prior evidence hashes and the
 separate ready AB#264 source remain unchanged.
+
+
+### AB#117 — one real contact attempt and current launch evidence (2026-10-12)
+
+The new `verify:contact-delivery` command defaults to plan-only and requires `--send`
+for one bounded synthetic application POST, with a durable pre-send identity, no
+automatic retry and a non-overwriting private receipt. One authorized test on the
+verified `14b1af0` Production artifact returned a valid delivered acknowledgement;
+its correlation has accepted/delivered log events. Mailbox arrival and Reply-To
+are still awaiting owner confirmation. A fresh authenticated raw audit and complete revision-rechecked raw snapshot cover
+16,947 records / 5,158 assets, preserving the existing settings draft; the root
+audit is clean and Studio's separate moderate chain remains. Configured genuine
+hook history predates this artifact, so fresh visible publication is not claimed.
+[The dated release checks](audits/ab117-final-release-checks-2026-10-12.md) record
+the exact source, evidence limits, private one-field publication proposal and
+separate recovery gates. AB#117/18/137/250 remain Active; no DNS, CMS, alias,
+rollback, customer import, full approval or handoff was performed.

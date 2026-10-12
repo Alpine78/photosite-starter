@@ -548,3 +548,16 @@ against the deployment-default catalog and produces the owner's email in that
 locale. The page offers only local service identities also accepted by that
 catalog; Other remains available. No provider, storage, log or throttle boundary
 changes. Fixture journeys cover successful submission in both language spaces.
+
+
+### 2026-10-12 current Production delivery observation (AB#117)
+
+The compatible Production alias now serves the previously verified Pro project
+artifact from `14b1af0`; historical Hobby-preference rows above describe their
+dated checkpoints and do not establish today's serving tier. One explicitly
+requested synthetic contact POST returned delivered and produced the same
+correlation's accepted/delivered application logs. Receipt in the independent
+Infomaniak inbox and Reply-To confirmation are pending. The new plan-only-by-default
+operator command is documented in the [dated release checks](audits/ab117-final-release-checks-2026-10-12.md).
+It sends no customer information and does not make a broader retention/erasure
+promise, change tracking settings or complete the final launch privacy gate.
