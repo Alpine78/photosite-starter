@@ -4006,6 +4006,20 @@ writer freeze and refresh mapped source identities/revisions after cutover.
 to the ignored FI/EN workbook and structured suggestions. AB#255 stays Active;
 the 18 article counterparts and other page families remain unfinished.
 
+**Service-cover language inventory, 2026-10-12:** the owner selected FI/EN alt
+and caption coverage after PR #342 merged as `26b906b`. Its integration commit
+`c7cfe6a` passed full required CI #810; the reviewed, tested and merged trees match.
+Two matching scoped published reads find 11 service versions referencing eight
+shared covers. All eight have nonempty FI/EN alt; optional captions are absent
+in both languages. No current service version needs alt fallback. The direct
+published consumer graph has 11 documents, all services; three covers are shared
+by FI/EN siblings. Five prior copy proposals retain their source revisions and
+cover references. No observed cover-language metadata gap requires new text;
+owner review of image meaning/translation quality and pending drafts remains.
+[The dated cover inventory](audits/ab255-service-media-language-inventory-2026-10-12.md)
+records exact scope, receipts and limits. Local detail stays ignored. No image
+bytes, CMS writes, publication or deployment occurred; broader AB#255 stays Active.
+
 ### AB#256 — Readable Studio names (2026-10-12, Closed)
 
 The owner reported Joomla-derived category/image-placement titles and apparent
