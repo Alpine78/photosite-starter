@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18, 2026-09-19 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18, 2026-09-19, 2026-10-12 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -12,6 +12,23 @@ This broad record remains accepted as a whole. A scoped clause is amended in pla
 when implementation produces evidence the original text did not have, and each partial
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
+
+### 2026-10-12 — Conditional one-time legacy domain identity retirement (AB#257)
+
+Decision 1 separates permanent page identity from localized content and URLs;
+Decision 4 makes `categoryId` immutable. The 2026-09-15 end-gallery amendment
+likewise gives each article end gallery a stable identity. The owner accepted
+[ADR-0030](0030-legacy-identity-retirement.md)'s exact private map for 24 content,
+12 category and 20 end-gallery identities, alongside the placement scope in
+ADR-0002, retaining Sanity document IDs and references.
+
+Those permanence clauses admit one operator migration of the mapped domain IDs
+to descriptive names only after ADR-0030's implementation and cutover gates pass,
+including separate approval of the writer and Production write. The original
+clauses remain below and govern ordinary authoring and all later renames. Language
+sibling identity, tree relationships, slugs, public paths and redirect history
+remain unchanged. The exception is bound to ADR-0030's candidate-file digest and
+authorizes no current CMS write or schema relaxation.
 
 ### 2026-09-19 — A page may be canonically placed at the story root (AB#137)
 
