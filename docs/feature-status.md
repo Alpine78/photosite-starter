@@ -4540,7 +4540,7 @@ only, not future reviews. The accepted PR #357 merge and AB#265 closure are
 verified above; no live CMS or deployment operation was performed.
 
 
-### AB#266 — Terminal gallery headings at every supported level (2026-10-12, Active)
+### AB#266 — Terminal gallery headings at every supported level (2026-10-12, Closed)
 
 The owner requested gallery and identity continuation in separate worktrees.
 AB#266 moved New → Active before edits on the published
@@ -4567,9 +4567,8 @@ All 237 browser-free test files / 5,707 tests, lint and diagram freshness passed
 The journey harness's production build passed. Full required CI still applies.
 No CSS, typography, media framing, CMS data, dependency or deployment changed.
 The owner committed the reviewed slice as `72e781c` and authorized PR #358
-merge after CI, including the documentation conflict correction. AB#266 remains
-Active until the accepted merge is verified. AB#264 and the independent AB#265
-branch remain separate.
+merge after CI, including the documentation conflict correction. AB#264 and
+the independent AB#265 branch remained separate during integration.
 
 
 The final Claude diff review attempt hit the session limit before substantive
@@ -4588,6 +4587,12 @@ synthetic mock production build and all three diagram renditions. The original
 44 focused browser journeys remain applicable; the updated PR's required full
 CI must pass before its accepted merge. All 38 prior evidence hashes and the
 separate ready AB#264 source remain unchanged.
+
+PR #358 subsequently merged as `5262def6063beebb4d1fd0e5d6ae60f2a022f89e`
+after required Azure CI #850 passed for integration head `5a8bd18`. The source
+head ancestry and final merged tree were verified; AB#266's Active → Closed
+transition was confirmed. This completion record supersedes the pending-merge
+checkpoint above.
 
 ### AB#137 — Restore omitted Joomla import guards (2026-10-12, Active)
 
