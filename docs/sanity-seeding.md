@@ -591,10 +591,23 @@ AB#258's fresh snapshot/receipt/index/reports are beneath
 All 16 private input/evidence hashes checked for AB#259 are unchanged. Supply
 these relocated paths explicitly to the offline commands; historical artifacts
 remain byte-identical and can still contain their original provenance paths.
-AB#259's output plans remain in its retained worktree. Archive permissions are
+AB#259's output plans initially remained in its retained worktree. Archive permissions are
 0700 at the archive/checkpoint directories and 0600 on the private data/receipts.
 The archive also retains generated files and dependencies; its existence proves
 local-file preservation, not a current CMS/binary backup or a successful restore.
+
+**Further retirement after PR #352:** the owner's cleanup request retired five
+older merged checkouts (PRs #345–349) into
+`temp/worktree-retirement/20261012T131826Z/`, preserving all 61,806 ignored files.
+The completed #352 checkout followed into
+`temp/worktree-retirement/20261012T140445Z/`, preserving another 30,780 files.
+All six branches remain; the other agent's active checkouts were kept. The same
+index/receipt layout records source paths and preserved metadata. AB#259's three
+output artifacts now reside beneath the first of these archives at
+`feature-259-identity-change-plan/temp/identity-change-plan-evidence/`.
+The original 28 critical hashes match at relocated paths; the expanded 36-file
+ledger includes the new preservation receipts/indexes. No archived file was
+disposed of, and these archives still do not constitute live backup/restore proof.
 
 [Accepted ADR-0031](adr/0031-identity-migration-operational-plan.md) provides the
 next compatibility/operational plan and an
@@ -639,6 +652,54 @@ Future integration must preserve request/locale validation, public-container and
 media eligibility, dynamic/capture-sequence media IDs and signed cursor rejection.
 This resolver itself grants no authorization and supports no `mediaId` family.
 No deployment or CMS operation follows from this offline implementation.
+
+### Bounded published alias loading (AB#263)
+
+[`createSanityIdentityAliasLoader`](../src/lib/sanity-identity-aliases.ts) adds the
+unconnected Node/server-only adapter. Factory construction validates and captures
+mode, pins, source and one published root document ID synchronously. Omitted
+configuration selects legacy; explicit legacy accepts only its mode and needs no
+CMS configuration. `load()` returns a promise of the same synchronous core
+resolver in every mode. Renamed/restored perform one lazy, parameterized full-record
+published query against the non-CDN API, capped at 1 MiB of streamed UTF-8 bytes.
+The constant `identity.aliases` tag is uncached. No caller abort signal is accepted;
+the shared request owns its timeout.
+
+The query must return exactly one `identityAliasSet` at the selected ID. Authored
+root keys remain `aliases`, `formatVersion`, `sourceMapSha256`; known provider
+metadata is validated separately, including optional matching `_originalId`.
+Revision text is bounded and opaque; timestamps accept RFC 3339 `Z`/offset forms
+and optional fractional seconds. Row metadata may omit `_key`/`_type`; present
+keys are unique ASCII alphanumeric/underscore/hyphen strings of 1–64 characters,
+and present `_type` is exactly `identityAlias`. Only these validated metadata
+fields are removed before the core's canonical digest/count/256 KiB checks.
+Unknown authored/system keys are rejected, not hidden by a query projection.
+
+The alias client explicitly opts into duplicate decoded JSON-key rejection.
+Existing clients retain native JSON parsing by default; the opt-in requires a
+valid streaming bound. The decoder limits nesting to 64 and values/containers
+to 100,000 nodes, treats escaped-equivalent keys as duplicates and leaves numeric
+semantics native. Fatal UTF-8 decoding happens first; existing leading UTF-8 BOM
+handling remains unchanged. The fresh Doc reader does not offer this query-only
+flag. Config, transport, record shape, metadata and alias-payload failures have
+static classifications; no table, provider metadata or arbitrary cause escapes.
+
+Concurrent loads share one promise and failures remain sticky. The future caller
+owns generation lifetime: explicit factory recreation or process replacement is
+required for recovery, with the same accepted pins unless a new generation is
+approved. There is no retry/fallback loop or global cache invalidation manager.
+The first separately approved live read must verify actual provider metadata and
+wire-size fit; current proof uses synthetic responses only. Sanity's
+[schema-independent document store](https://www.sanity.io/docs/content-lake/documents)
+and [published Query API](https://www.sanity.io/docs/http-reference/query) support
+the operator-managed record; no schema or record is created by this slice.
+
+Public reader/environment wiring, coordinated generation/cache activation,
+legacy-write guard, maintenance gate, operational writer/receipts and named
+rehearsal/Production operations remain separately gated. The adapter itself grants
+no media, language, container or visibility authorization and is unused by deployed
+request paths. Existing strict AB#258/259 artifacts and accepted ADR history remain
+unchanged.
 
 ### Offline reconciliation (AB#258)
 

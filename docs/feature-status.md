@@ -4262,7 +4262,7 @@ diff whitespace check and all three diagram renditions compiled/current. There
 are no runtime/dependency/diagram-source changes, so application tests/build,
 public journeys and Studio were not rerun for this documentation-only slice.
 
-### AB#261 — Pinned in-memory identity aliases (2026-10-12, Active)
+### AB#261 — Pinned in-memory identity aliases (2026-10-12, Closed)
 
 After PR #349 merged, AB#261 moved New → Active before source edits on the
 published `feature/261-identity-alias-resolver` branch, based on `046c350`.
@@ -4283,9 +4283,14 @@ public reader integration, legacy-write guard, maintenance boundary and operatio
 writer/receipts remain separate implementation slices. Dynamic/capture-sequence
 media identities, cursors, current deployed behavior and accepted ADR history
 remain unchanged. No CMS, asset, credential, restore or deployment operation was
-performed. AB#261 remains Active pending owner editor review, commit and accepted
-merge; named rehearsal targets and actual Production operations remain separately
-gated.
+performed. The owner committed the reviewed change as `7a265d8`;
+[PR #352](https://github.com/Alpine78/photosite-starter/pull/352) merged as `1614e90`
+after other-agent PRs #350/#351 and successful CI #829, including journeys and
+Studio. Integration was conflict-free and its exact tree was verified; only the
+two previously accepted audit documents differed from the CI merge. The push
+destination was already up to date, with no correction commit needed.
+AB#261's Active → Closed transition was verified. Named rehearsal targets and
+actual Production operations remain separately gated.
 
 Local validation passed: 68 new alias cases, all 234 browser-free test files /
 5,574 tests, lint, production build with synthetic mock settings and diagram
@@ -4293,3 +4298,38 @@ freshness. The first build hit Turbopack's outside-root dependency symlink limit
 an ignored local dependency copy resolved it without source/config changes or
 altering the retained archive. No public journey or Studio/schema change exists,
 so their local gates were not rerun; both remain required CI checks.
+
+### AB#263 — Bounded published identity alias loader (2026-10-12, Active)
+
+After PR #352 merged, six completed worktrees were retired into private archives
+`temp/worktree-retirement/20261012T131826Z/` and `20261012T140445Z/`.
+All 92,586 ignored files and all six branch refs were preserved; the other
+agent's active checkouts were kept. AB#259's three output artifacts moved with
+its checkout. The expanded 36-file critical evidence ledger retains every
+original hash. These local archives are preservation evidence, not CMS backups.
+
+AB#263 moved New → Active before edits on the published
+`feature/263-published-identity-alias-loader` branch from `1614e90`. The mandatory
+Claude plan review waited for the owner-reported 17:10 quota reset. Its feedback
+made shared request cancellation transport-owned, required an explicit byte
+bound for duplicate-key decoding and clarified metadata and generation recovery.
+The unconnected Node/server-only loader captures validated configuration and
+pins before IO. Default legacy needs no CMS settings; renamed/restored share one
+lazy, uncached, parameterized published full-record query capped at 1 MiB.
+Closed provider/row metadata validation precedes the core's canonical digest,
+count and 256 KiB checks. The opt-in decoder rejects nested escaped-equivalent
+duplicate keys and depth/node excess; existing reader defaults remain native.
+Each captured generation returns only a private resolver and keeps failed loads
+sticky until explicit factory recreation, without automatic retry or fallback.
+
+Local validation passed: 223 focused cases, all 236 browser-free test files /
+5,687 tests, lint, synthetic mock production build and diagram freshness.
+The first build found an invalid test-only TypeScript cast; the corrected cast
+passed the subsequent build. No public journey or Studio/schema behavior changed;
+their required CI checks remain pending the owner's commit and PR. New source
+stays uncommitted for editor review, and AB#263 remains Active until accepted merge.
+Only synthetic responses were used: actual provider metadata/wire fit needs the
+first separately approved live read. Public reader/environment and coordinated
+generation/cache wiring, legacy-write guard, maintenance, operational writer/
+receipts and named rehearsal/Production operations remain separate gates.
+No CMS, asset, credential, restore or deployment operation was performed.

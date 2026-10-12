@@ -43,6 +43,7 @@
 import "server-only";
 
 import { getSanityPublicCachePolicy } from "@/lib/sanity-cache";
+import { parseSanityJsonWithoutDuplicates } from "@/lib/sanity-json";
 import { ContentSourceConfigurationError } from "@/lib/content-source";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
@@ -154,6 +155,8 @@ export type SanityClientSettings = {
   readonly fetchImplementation?: typeof fetch;
   /** Optional streaming response bound for a narrowly projected adapter. */
   readonly maxResponseBytes?: number;
+  /** Opt-in only, with an explicit streaming bound; existing readers stay native. */
+  readonly rejectDuplicateJsonKeys?: boolean;
 };
 
 export const SANITY_DOCUMENT_MAX_RESPONSE_BYTES = 32 * 1024;
@@ -163,7 +166,11 @@ export type SanityDocumentReader = {
   read(documentId: string): Promise<unknown | null>;
 };
 
-async function readSanityJson(response: Response, limit?: number): Promise<unknown> {
+async function readSanityJson(
+  response: Response,
+  limit?: number,
+  rejectDuplicateJsonKeys = false,
+): Promise<unknown> {
   let bytes: Uint8Array;
   if (limit === undefined) {
     bytes = new Uint8Array(await response.arrayBuffer());
@@ -198,7 +205,10 @@ async function readSanityJson(response: Response, limit?: number): Promise<unkno
       offset += chunk.byteLength;
     }
   }
-  return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  return rejectDuplicateJsonKeys
+    ? parseSanityJsonWithoutDuplicates(text)
+    : JSON.parse(text);
 }
 
 function isAbortedRead(cause: unknown): boolean {
@@ -324,6 +334,12 @@ export function createSanityClient(
   const { config } = settings;
   const send = settings.fetchImplementation ?? fetch;
   const responseLimit = settings.maxResponseBytes;
+  const rejectDuplicateJsonKeys = settings.rejectDuplicateJsonKeys === undefined
+    ? false : settings.rejectDuplicateJsonKeys;
+  if (typeof rejectDuplicateJsonKeys !== "boolean" ||
+      (rejectDuplicateJsonKeys && responseLimit === undefined)) {
+    throw new TypeError("Invalid bounded JSON decoding configuration");
+  }
   if (responseLimit !== undefined &&
       (!Number.isSafeInteger(responseLimit) || responseLimit < 1 || responseLimit > 1024 * 1024)) {
     throw new TypeError("Invalid content response bound");
@@ -383,7 +399,7 @@ export function createSanityClient(
       try {
         // JSON is always UTF-8. Reject damaged bytes rather than changing
         // identifiers or authored text through replacement decoding.
-        body = await readSanityJson(response, responseLimit);
+        body = await readSanityJson(response, responseLimit, rejectDuplicateJsonKeys);
       } catch (cause) {
         if (responseLimit !== undefined && isAbortedRead(cause)) {
           return fail(request.tag, "timeout", true);
@@ -415,7 +431,7 @@ export function createSanityClient(
  * https://www.sanity.io/docs/http-reference/doc
  */
 export function createSanityDocumentReader(
-  settings: Omit<SanityClientSettings, "maxResponseBytes">,
+  settings: Omit<SanityClientSettings, "maxResponseBytes" | "rejectDuplicateJsonKeys">,
 ): SanityDocumentReader {
   const { config } = settings;
   const send = settings.fetchImplementation ?? fetch;

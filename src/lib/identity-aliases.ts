@@ -93,6 +93,25 @@ function sha256(value: unknown, rejection: Rejection): string {
   return value;
 }
 
+/** Validated scalar copy for a loader to reject bad pins before performing IO. */
+export function validateIdentityAliasPins(value: unknown): IdentityAliasPins {
+  const pins = closedRecord(
+    value,
+    ["sourceMapSha256", "payloadSha256", "expectedRowCount"],
+    "configuration",
+  );
+  const sourceMapSha256 = sha256(pins.sourceMapSha256, "configuration");
+  const payloadSha256 = sha256(pins.payloadSha256, "configuration");
+  const count = pins.expectedRowCount;
+  // A shortest valid row takes 45 bytes; reject impossible counts before IO.
+  const minimumRowBytes = '{"field":"contentId","newId":"b","oldId":"a"}'.length;
+  if (
+    typeof count !== "number" || !Number.isSafeInteger(count) || count < 1 ||
+    count > Math.floor(MAX_IDENTITY_ALIAS_PAYLOAD_BYTES / minimumRowBytes)
+  ) fail("configuration");
+  return Object.freeze({ sourceMapSha256, payloadSha256, expectedRowCount: count });
+}
+
 function buildResolver(
   configuration: IdentityAliasConfiguration,
 ): IdentityAliasResolver {
@@ -110,21 +129,8 @@ function buildResolver(
   }
 
   const config = closedRecord(configRecord, ["mode", "pins", "payload"], "configuration");
-  const pins = closedRecord(
-    config.pins,
-    ["sourceMapSha256", "payloadSha256", "expectedRowCount"],
-    "configuration",
-  );
-  const sourceMapSha256 = sha256(pins.sourceMapSha256, "configuration");
-  const payloadSha256 = sha256(pins.payloadSha256, "configuration");
-  const count = pins.expectedRowCount;
-  // Even the shortest valid row takes 45 bytes; this is a size-derived bound,
-  // not a second configurable mapping limit. Reject before scanning an array.
-  const minimumRowBytes = '{"field":"contentId","newId":"b","oldId":"a"}'.length;
-  if (
-    typeof count !== "number" || !Number.isSafeInteger(count) || count < 1 ||
-    count > Math.floor(MAX_IDENTITY_ALIAS_PAYLOAD_BYTES / minimumRowBytes)
-  ) fail("configuration");
+  const pins = validateIdentityAliasPins(config.pins);
+  const { sourceMapSha256, payloadSha256, expectedRowCount: count } = pins;
 
   const payload = closedRecord(
     config.payload,
