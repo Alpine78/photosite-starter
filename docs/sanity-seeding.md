@@ -652,6 +652,70 @@ in the private report. Runtime route/order/media validation, accepted deltas,
 source freeze, reader/import/writer implementation and restore/migration/rollback
 rehearsal remain ADR-0030 gates before separately approved Production writing.
 
+### Offline field-change batches (AB#259)
+
+`npm run plan:identity-changes` turns the same approved local inputs into bounded
+change data. It runs reconciliation again and refuses every blocker, including
+already-new fields, revision drift and affected drafts/releases. It does not
+consume an editable reconciliation report or refresh approved revisions.
+
+```bash
+npm run plan:identity-changes -- \
+  --map <unchanged-candidate-map.json> \
+  --approval <owner-approval-receipt.json> \
+  --baseline <original-raw-snapshot.ndjson> \
+  --snapshot <current-complete-raw-snapshot.ndjson> \
+  --approved-digest <accepted-candidate-file-sha256> \
+  --max-documents-per-batch 50 \
+  --out temp/identity-change-plan/<new-private-run>
+```
+
+The optional document limit defaults to 50 and accepts canonical decimal integers
+from 1 to 100; leading zeroes, signs and exponent notation are rejected. Each batch
+also bounds its canonical document-data array to 256 KiB. These are conservative
+local planning budgets, not Sanity service limits. Output is bounded to 64 MiB.
+All input/file/privacy rules from reconciliation above apply. Exit 0 produces
+`identity-change-plan.json`; exit 1 reports a static error. A refused plan writes
+no artifact, and an existing output is never replaced.
+
+Each retained document appears once with its type, original pre-write revision,
+approved top-level before/after pairs and rollback's original selected values.
+Documents sharing an old identity form indivisible connected groups, including
+language siblings, multi-field links and `featuredGalleryId`. The grouping key is
+the old value alone; reconciliation rejects cross-family identity collisions.
+An oversized group refuses the whole plan. Members sort by Unicode scalar
+document ID; groups sort by their minimum member ID. Sequential next-fit packing
+keeps each complete group together. Batch sequences and hashes are deterministic;
+group metadata uses hashes of sorted member IDs. This does not establish coherent
+public reading between transactions that span different batches.
+
+`untouchedValuesSha256` covers the full document except approved selected fields,
+`_rev` and `_updatedAt`. It includes retained `_id`, `_ref`, `_key`, `_createdAt`,
+language/URLs, media/bindings, array ordering and other authored values. Canonical
+JSON sorts object keys by ordinal UTF-16 order, preserves array order, uses native
+JSON number spelling and applies no Unicode normalization. Strict input validation
+rejects duplicate keys, unsafe numbers and invalid JSON; JSON has no `undefined`.
+`null` is retained. A future writer must re-verify this hash; the planner cannot
+enforce a later write or protect documents created after the supplied export.
+Sanity manages the update metadata on writes; see its
+[document system attributes](https://www.sanity.io/docs/studio/document-type).
+
+The versioned plan binds raw input digests and the reconciliation version/digest.
+Batch digests cover sequence, group digests and document data; `planSha256` covers
+the canonical complete body excluding itself. The file ends in one newline, which
+is excluded from these body digests. Full document IDs/values stay in the private
+plan; console output and tracked evidence carry only counts/digests.
+
+Rollback requires a **verified future post-write receipt revision** for each
+document. The template contains no fabricated revision or executable rollback
+request; its recorded sequence policy is reverse batch order after receipts are
+verified. Ordinary publication validators still prohibit identity editing.
+The planner constructs no Sanity mutation request and resolves no credentials.
+It always records `writable: false`, `cutoverReady: false` and ADR-0030's remaining
+freeze, accepted-delta, reader/import/writer, route/order/media, backup/recovery
+rehearsal and separate cutover-approval gates. No snapshot is proven fresh or
+complete by this offline tool. Review this artifact as input to those later gates.
+
 ## Migrating approved content from an existing site (AB#137)
 
 `npm run seed:sanity` writes the fixed demo fixture described above. It is

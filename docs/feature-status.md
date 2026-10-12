@@ -4120,7 +4120,7 @@ Future implementation/live write needs its separately accepted plan, refreshed
 inventory and reconciliation against the approved map. Changed mappings require
 renewed acceptance. The document export is not a verified asset backup.
 
-### AB#258 — Offline approved identity reconciliation (2026-10-12, Active)
+### AB#258 — Offline approved identity reconciliation (2026-10-12, Closed)
 
 After PRs #341 and #342 merged, the owner requested continuation. AB#258 was
 created and moved New → Active before the first edit on the published
@@ -4144,10 +4144,45 @@ worktree `temp/identity-reconciliation-evidence/`; original AB#257 artifacts sta
 unchanged in their retained worktree. This is read evidence, not a source freeze,
 binary backup or migration rehearsal. Actual writing remains a separate phase.
 
-AB#258 stays Active pending owner editor review, commit and accepted merge.
+The owner committed the reviewed patch as `1857fad`. [PR #344](https://github.com/Alpine78/photosite-starter/pull/344)
+merged as `ad3a29b` after Azure CI #814 passed, including public Playwright and
+standalone Studio gates. AB#258's Active → Closed transition was verified.
 
 Local validation passed: lint, all 231 browser-free test files / 5,479 tests
 (31 new reconciliation/CLI cases), diagram freshness and the production build
 with synthetic CI settings. The final private report retains the same counts
 and no blockers. Playwright and standalone Studio gates were not rerun locally:
 this slice changes neither public journeys nor Studio code/schemas.
+
+### AB#259 — Offline identity change batches (2026-10-12, Active)
+
+The owner requested continuation after PR #344. AB#259 moved New → Active before
+the first edit on the published `feature/259-identity-change-plan` branch. Its
+separate worktree first fast-forwarded to merged PR #344; no other checkout was
+changed. `npm run plan:identity-changes` revalidates the immutable map, approval,
+baseline and supplied raw snapshot, then prepares deterministic bounded change
+data with retained document IDs, original revisions and selected before/after
+values. Shared old identities form indivisible groups across language versions
+and multi-field documents. Rollback requires future post-write receipt revisions;
+none is guessed. Untouched values are hashed, excluding selected fields and
+managed update metadata. The existing reconciliation CLI retains its behavior
+through shared bounded private-file IO.
+
+The supplied AB#258 snapshot produces 48 batches at the default 50-document limit:
+1,521 groups (largest: two documents), all 2,368 approved documents / 2,393 fields
+and 1,541 identities, with zero reconciliation blockers. The private 0600 artifact
+stays under ignored `temp/identity-change-plan-evidence/` in this worktree; the
+16 original private evidence files retain their recorded hashes. The canonical
+plan body SHA-256 is
+`93dfcedbb97e4e30e9499affee7cf917c5bc9d2c7d6f928bbc69658bdec60c31`.
+This is non-executable local planning data, always non-writable and not cutover-ready.
+Source freeze, reader/import/writer acceptance, runtime route/order/media checks,
+backup/restore/migration/rollback rehearsal and separate Production approval remain
+ADR-0030 gates. AB#259 stays Active pending owner editor review, commit and merge.
+
+Local validation passed: lint, 233 browser-free files / 5,506 tests (27 new planner
+cases), production build with synthetic CI settings and diagram freshness.
+The shared-IO refactor preserves the existing private reconciliation report byte
+for byte, and a second private planning run matches the first artifact exactly.
+Public Playwright and standalone Studio were not rerun locally because this
+slice changes neither public journeys nor Studio/schema code.
