@@ -4020,6 +4020,21 @@ owner review of image meaning/translation quality and pending drafts remains.
 records exact scope, receipts and limits. Local detail stays ignored. No image
 bytes, CMS writes, publication or deployment occurred; broader AB#255 stays Active.
 
+**Home/contact copy inventory, 2026-10-12:** PR #343 merged as `d321b70` after
+required CI #812; owner commit `3e30bdf`, its tested tree and the merged tree match.
+The owner chose published home/contact content and any missing-English drafts.
+Two matching narrow reads find FI/EN in all 16 authored shared-settings and nine
+home text fields, including all four privacy fields; four referenced media have
+both alt languages and no captions. Two equal logo alt pairs are personal-name
+branding. Optional address/services intro/CTA blocks remain absent in both languages.
+No English copy was missing, so no new text or CMS draft was created. A separate
+matching metadata read confirms only three English service identities against
+eight default-language identities; five service counterparts remain open.
+[The dated content inventory](audits/ab255-home-contact-content-inventory-2026-10-12.md)
+links the ignored full FI/EN workbook and receipt. Field presence does not accept
+translation/image meaning, prove complete page/destination/form journeys or
+authorize Production activation. No CMS write or deployment occurred; AB#255 stays Active.
+
 ### AB#256 — Readable Studio names (2026-10-12, Closed)
 
 The owner reported Joomla-derived category/image-placement titles and apparent
