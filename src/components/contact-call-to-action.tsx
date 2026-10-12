@@ -5,10 +5,11 @@ type Props = {
   content: ContactCallToActionContent;
   contactLabel: string;
   headingId: string;
+  contactHref?: string;
 };
 
 /** Shared presentation; each page decides independently whether it has copy. */
-export function ContactCallToAction({ content, contactLabel, headingId }: Props) {
+export function ContactCallToAction({ content, contactLabel, headingId, contactHref = "/contact" }: Props) {
   return (
     <section aria-labelledby={headingId} className="border-t border-border bg-surface">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-14 sm:px-6 md:flex-row md:items-center md:justify-between md:gap-10">
@@ -19,7 +20,7 @@ export function ContactCallToAction({ content, contactLabel, headingId }: Props)
           <p className="mt-2 max-w-2xl text-body">{content.text}</p>
         </div>
         <Link
-          href="/contact"
+          href={contactHref}
           className="inline-flex min-h-11 shrink-0 items-center justify-center self-start rounded-full bg-accent px-6 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 md:self-auto"
         >
           {contactLabel}

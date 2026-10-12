@@ -49,6 +49,7 @@ export type SanityHomeContentRejection =
   | "missing-document"
   | "ambiguous-document"
   | "incomplete-document"
+  | "missing-translation"
   | "invalid-navigation"
   | "malformed-result";
 
@@ -82,11 +83,11 @@ export function projectHomeContent(
     readonly featuredGalleryHref?: string;
   },
 ): HomeContent {
-  const rejectIncomplete: (detail: string) => never = (detail) => {
-    throw new SanityHomeContentError("incomplete-document", detail);
+  const rejectIncomplete: (detail: string, missingTranslation?: boolean) => never = (detail, missingTranslation = false) => {
+    throw new SanityHomeContentError(missingTranslation ? "missing-translation" : "incomplete-document", detail);
   };
-  const rejectNavigation: (detail: string) => never = (detail) => {
-    throw new SanityHomeContentError("invalid-navigation", detail);
+  const rejectNavigation: (detail: string, missingTranslation?: boolean) => never = (detail, missingTranslation = false) => {
+    throw new SanityHomeContentError(missingTranslation ? "missing-translation" : "invalid-navigation", detail);
   };
 
   if (!isRecord(document.heroMedia)) {

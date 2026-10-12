@@ -80,7 +80,9 @@ async function expectedSitemapUrls(): Promise<Set<string>> {
       ] as const),
     ),
   );
-  const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes });
+  const paths = buildSitemapPaths({ localeRoutes, trees, serviceRoutes,
+    staticPaths: localeRoutes.locales.flatMap((route) => [route.basePath || "/", `${route.basePath}/contact`]),
+  });
 
   return new Set(
     paths.map(

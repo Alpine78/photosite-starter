@@ -14,7 +14,7 @@
  * calls; like `content.ts`'s own accessors, it is exercised through the
  * production build rather than unit-tested directly.
  *
- * Home and contact still exist only in the unprefixed default-locale space.
+ * Home and contact contribute only their complete authored locale versions.
  * Services are different: each configured locale contributes its own service
  * namespace and only its published service documents. The public content tree
  * is likewise authored per locale, so it is walked once per configured locale
@@ -38,6 +38,7 @@
  * intended place to catch, not a per-read sitemap check.
  */
 
+import { getStaticPageVersions } from "@/lib/static-pages";
 import { getContentTrees } from "@/lib/content";
 import { hasPublicStoryRoot, listPublicRoutePaths } from "@/lib/content-tree";
 import { getDeploymentConfig } from "@/lib/deployment-config";
@@ -50,7 +51,7 @@ import {
 import { getServiceRoutes } from "@/lib/services";
 import type { ResolvedService } from "@/lib/service-routes";
 
-/** Static pages that exist only in the unprefixed default-locale route space. */
+/** Compatibility default for pure callers; the live loader supplies verified versions. */
 const STATIC_PATHS: readonly string[] = ["/", "/contact"];
 
 export class SitemapPathCollisionError extends Error {
@@ -61,6 +62,7 @@ export class SitemapPathCollisionError extends Error {
 }
 
 export type SitemapSourceData = {
+  readonly staticPaths?: readonly string[];
   readonly localeRoutes: LocaleRouteConfig;
   readonly trees: LocalizedContentTrees;
   /** Resolved, same-language service paths by configured locale. */
@@ -79,7 +81,7 @@ export type SitemapSourceData = {
 export function buildSitemapPaths(
   data: SitemapSourceData,
 ): readonly string[] {
-  const paths: string[] = [...STATIC_PATHS];
+  const paths: string[] = [...(data.staticPaths ?? STATIC_PATHS)];
 
   for (const route of data.localeRoutes.locales) {
     const services = data.serviceRoutes.get(route.locale) ?? [];
@@ -120,7 +122,7 @@ export function buildSitemapPaths(
 
 export async function loadSitemapPaths(): Promise<readonly string[]> {
   const { localeRoutes } = getDeploymentConfig();
-  const [trees, serviceEntries] = await Promise.all([
+  const [trees, serviceEntries, homeVersions, contactVersions] = await Promise.all([
     getContentTrees(),
     Promise.all(
       localeRoutes.locales.map(async (route) => [
@@ -128,9 +130,12 @@ export async function loadSitemapPaths(): Promise<readonly string[]> {
         await getServiceRoutes(route.locale),
       ] as const),
     ),
+    getStaticPageVersions("home"),
+    getStaticPageVersions("contact"),
   ]);
 
   return buildSitemapPaths({
+    staticPaths: [...homeVersions, ...contactVersions].map((version) => version.path),
     localeRoutes,
     trees,
     serviceRoutes: new Map(serviceEntries),

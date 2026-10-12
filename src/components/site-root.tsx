@@ -15,6 +15,8 @@ import {
   resolveSiteName,
   type SiteSettings,
 } from "@/lib/site-settings";
+import { buildStaticPagePath, type StaticPageKind } from "@/lib/static-page-routes";
+import { getStaticPageData } from "@/lib/static-pages";
 import { DocumentRoot } from "@/components/document-root";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
@@ -39,17 +41,23 @@ type SiteRootProps = Readonly<{
  * not have a same-language public page yet.
  *
  * The menu and the footer links are composed here, on the server, from the
- * configured static links and this locale's category tree — the tree is read as
- * a category projection and carries no page body, cover, or listing row, so
- * putting the menu on every page costs the categories and nothing else. A
- * featured-page entry resolves against the same projection, which already holds
- * every placement's slug and canonical category.
+ * configured static links and this locale's category tree, which carries no
+ * page body, cover, or listing row. Static availability also reads the localized
+ * settings/home projections, deduplicated with the page by React's request cache.
+ * A featured-page entry resolves against the tree's placement and canonical category.
  */
 export async function SiteRoot({ children, locale }: SiteRootProps) {
-  const [settings, trees] = await Promise.all([
-    getSiteSettings(),
+  const [contactPage, homePage, trees] = await Promise.all([
+    getStaticPageData("contact", locale),
+    getStaticPageData("home", locale),
     getContentTrees(),
   ]);
+  // Story pages remain readable while shared copy is awaiting translation.
+  const settings = contactPage?.settings ?? await getSiteSettings();
+  const staticPages: StaticPageKind[] = [
+    ...(homePage === undefined ? [] : ["home" as const]),
+    ...(contactPage === undefined ? [] : ["contact" as const]),
+  ];
   const labels = getBuiltInLabels(locale);
   const config = getDeploymentConfig().localeRoutes;
   const tree = trees.get(locale);
@@ -64,11 +72,13 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
         {...(settings.logo === undefined ? {} : { logo: settings.logo.rendition })}
         {...(settings.logoDark === undefined ? {} : { logoDark: settings.logoDark.rendition })}
         {...brandDescriptorProps(settings, locale)}
-        {...(route.isDefault ? { homeHref: "/" } : {})}
+        {...(homePage === undefined ? {} : { homeHref: buildStaticPagePath(config, locale, "home") })}
+        contactHref={buildStaticPagePath(config, locale, "contact")}
         navigation={buildSiteNavigation({
           staticLinks: settings.navigation,
           config,
           locale,
+          staticPages,
           tree,
           ...(settings.featuredGalleryId === undefined
             ? {}
@@ -96,6 +106,7 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
           links: settings.footerLinks,
           config,
           locale,
+          staticPages,
           tree,
           ...(settings.featuredGalleryId === undefined
             ? {}

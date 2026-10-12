@@ -30,6 +30,7 @@ const stubLabels = {
 vi.mock("@/lib/deployment-config", () => ({
   getDeploymentConfig: () => deploymentConfig,
   getDefaultLocaleLabels: () => stubLabels,
+  getBuiltInLabels: () => stubLabels,
 }));
 
 const contentModule = vi.hoisted(() => ({
@@ -159,6 +160,18 @@ describe("getHomeContent", () => {
     // Both start before either finishes — proof they ran concurrently rather
     // than the href being awaited to completion before the document read began.
     expect(order).toEqual(["document-start", "settings-start", "document-end", "settings-end"]);
+  });
+
+  it("builds English home content without reading Finnish shared copy", async () => {
+    siteSettingsModule.getSiteSettings.mockImplementation(async (locale: string) => {
+      if (locale !== "en-GB") throw new Error("Finnish shared copy is unavailable");
+      return noFeaturedGallerySettings;
+    });
+
+    const content = await getHomeContent("en-GB");
+
+    expect(content.photographerIntroduction?.heading).toBe("Hello, I am the person behind the camera");
+    expect(content.sections[0].href).toBe("/en/services");
   });
 
   it("propagates a classified Sanity failure rather than falling back to the fixture", async () => {

@@ -73,9 +73,12 @@ import {
   getServiceListingLocaleVersions,
   getServiceRoute,
   getServiceRoutes,
-  getServicesIntro,
 } from "@/lib/services";
 import { REQUEST_PATH_HEADER, readRequestPath } from "@/lib/request-path";
+import { HomePage, homeMetadata } from "@/components/home-page";
+import { ContactPage, contactMetadata } from "@/components/contact-page";
+import { buildStaticPagePath, resolveStaticPageRequest } from "@/lib/static-page-routes";
+import { getStaticPageData } from "@/lib/static-pages";
 
 /**
  * The locale-prefixed route space and everything the unprefixed static routes
@@ -164,7 +167,7 @@ async function serviceMetadata(
     return getPageMetadata({
       path,
       title: labels.pages.services,
-      description: await getServicesIntro(),
+      description: (await getStaticPageData("contact", request.locale))?.settings.servicesIntro,
       locale: request.locale,
       localeVersions: await getServiceListingLocaleVersions(),
     });
@@ -185,17 +188,20 @@ async function renderService(request: ServiceRequest) {
   const labels = getBuiltInLabels(request.locale);
   const serviceRootPath = buildServicePath(request.config, request.locale);
   const routes = await getServiceRoutes(request.locale);
+  const contactHref = await getStaticPageData("contact", request.locale) === undefined
+    ? undefined : buildStaticPagePath(request.config, request.locale, "contact");
   if (request.segments.length === 0) {
     return (
       <ServiceListing
         title={labels.pages.services}
-        intro={await getServicesIntro()}
+        intro={(await getStaticPageData("contact", request.locale))?.settings.servicesIntro}
         serviceRootPath={serviceRootPath}
         routes={routes}
         languages={await serviceListingLanguageLinks(request.locale)}
         languageLabel={labels.contentTree.languages}
-        contactCallToAction={await getServicesContactCallToAction(request.locale)}
+        contactCallToAction={contactHref === undefined ? undefined : await getServicesContactCallToAction(request.locale)}
         contactLabel={labels.pages.contact}
+        contactHref={contactHref}
       />
     );
   }
@@ -218,7 +224,7 @@ async function renderService(request: ServiceRequest) {
         routes={routes}
         languages={await serviceLanguageLinks(route.service.serviceId, request.locale)}
         labels={labels}
-        contactHref="/contact"
+        contactHref={contactHref}
       />
     </>
   );
@@ -592,6 +598,13 @@ function buildBreadcrumbs(
 export async function generateMetadata(
   props: LocalePrefixPageProps,
 ): Promise<Metadata> {
+  const { localePrefix, segments } = await props.params;
+  const staticPage = resolveStaticPageRequest(getDeploymentConfig().localeRoutes, localePrefix, segments);
+  if (staticPage !== undefined) {
+    return staticPage.kind === "home"
+      ? homeMetadata({ locale: staticPage.locale, searchParams: props.searchParams })
+      : contactMetadata(staticPage.locale);
+  }
   const service = await resolveServiceRequest(props.params);
   if (service !== undefined) return serviceMetadata(service);
   const { config, trees, resolution } = await resolveRequest(props);
@@ -739,6 +752,23 @@ export async function generateMetadata(
 }
 
 export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
+  const { localePrefix, segments = [] } = await props.params;
+  const staticPage = resolveStaticPageRequest(getDeploymentConfig().localeRoutes, localePrefix, segments);
+  if (staticPage !== undefined) {
+    if (await getStaticPageData(staticPage.kind, staticPage.locale) === undefined) notFound();
+    if (`/${[localePrefix, ...segments].join("/")}` !== staticPage.canonicalPath) {
+      const params = await props.searchParams;
+      const query = new URLSearchParams();
+      for (const key of staticPage.kind === "contact" ? ["service"] : ["topic", "legacy-notice"]) {
+        const value = params[key];
+        for (const entry of Array.isArray(value) ? value : value === undefined ? [] : [value]) query.append(key, entry);
+      }
+      permanentRedirect(`${staticPage.canonicalPath}${query.size === 0 ? "" : `?${query}`}`);
+    }
+    return staticPage.kind === "home"
+      ? <HomePage locale={staticPage.locale} searchParams={props.searchParams} />
+      : <ContactPage locale={staticPage.locale} searchParams={props.searchParams} />;
+  }
   const service = await resolveServiceRequest(props.params);
   if (service !== undefined) return renderService(service);
   const { config, trees, resolution } = await resolveRequest(props);

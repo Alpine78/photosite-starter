@@ -536,3 +536,15 @@ was preserved. Direct signed receiver tests passed, with all 3,593 raw document
 IDs/revisions/types unchanged. Automatic Sanity delivery on a genuine CMS event
 and complete historical-key revocation remain unverified. No new form submission,
 mail delivery, CMS document write, billing or DNS change occurred during maintenance.
+
+### Localized contact pages (AB#255 first slice, 2026-10-11)
+
+The route selects its built-in labels, status messages, authored privacy notice,
+portrait text and service names in the requested configured locale. Home/contact
+language links point to equivalent available pages (ADR-0029). Requests still
+post to the fixed `/api/contact` endpoint with the existing closed field set;
+no locale is added to the submission. The server validates service identities
+against the deployment-default catalog and produces the owner's email in that
+locale. The page offers only local service identities also accepted by that
+catalog; Other remains available. No provider, storage, log or throttle boundary
+changes. Fixture journeys cover successful submission in both language spaces.

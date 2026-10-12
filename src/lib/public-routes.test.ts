@@ -19,7 +19,8 @@ const deploymentConfig = vi.hoisted(() => ({
   localeRoutes: undefined as unknown as ReturnType<typeof buildLocaleRouteConfig>,
 }));
 
-vi.mock("@/lib/deployment-config", () => ({
+vi.mock("@/lib/deployment-config", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/deployment-config")>(),
   getDeploymentConfig: () => deploymentConfig,
 }));
 

@@ -2,11 +2,12 @@
 
 import "server-only";
 
-import { buildStoryPath, type LocaleRouteConfig } from "@/lib/locale-routes";
+import { buildServicePath, buildStoryPath, type LocaleRouteConfig } from "@/lib/locale-routes";
+import { localizeStaticPageLink } from "@/lib/static-page-routes";
 import { isRecord, toLanguageSubtag } from "@/lib/sanity-values";
 import type { NavigationItem } from "@/lib/site-settings";
 
-export type RejectSanitySiteValue = (detail: string) => never;
+export type RejectSanitySiteValue = (detail: string, missingTranslation?: boolean) => never;
 
 const LANGUAGE_SUBTAG = /^[a-z]{2,3}$/;
 
@@ -79,7 +80,7 @@ export function readLocalizedText(
     toLanguageSubtag(language),
   );
   if (value === undefined || value.trim().length === 0) {
-    reject(`${field} has no text in language "${toLanguageSubtag(language)}"`);
+    reject(`${field} has no text in language "${toLanguageSubtag(language)}"`, true);
   }
   return value.trim();
 }
@@ -103,7 +104,7 @@ export function readLocalizedTextByLanguage(
   }
   const required = toLanguageSubtag(requiredLanguage);
   if (byLanguage[required] === undefined) {
-    reject(`${field} has no text in language "${required}"`);
+    reject(`${field} has no text in language "${required}"`, true);
   }
   return byLanguage;
 }
@@ -173,7 +174,12 @@ function readLinkTarget(
       if (typeof link.href !== "string" || !STATIC_PATH.test(link.href)) {
         reject(`${field} has an invalid static route path`);
       }
-      return link.href;
+      // These are fixed page identities authored once in the default space.
+      // Service roots likewise resolve through the configured namespace.
+      if (link.href === "/services" || link.href === buildServicePath(config, config.defaultLocale)) {
+        return buildServicePath(config, locale);
+      }
+      return localizeStaticPageLink(config, locale, link.href);
     case "story-root":
       if (link.href !== undefined && link.href !== null && link.href !== "") {
         reject(`${field} stores a path for the generated story root`);

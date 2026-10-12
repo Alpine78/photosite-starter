@@ -6,6 +6,8 @@ type Props = {
   introduction: HomePhotographerIntroduction;
   contactLabel: string;
   servicesLabel: string;
+  contactHref: string;
+  servicesHref: string;
 };
 
 /** The optional home introduction follows the hero in document order. */
@@ -13,6 +15,8 @@ export function HomePhotographerIntroduction({
   introduction,
   contactLabel,
   servicesLabel,
+  contactHref,
+  servicesHref,
 }: Props) {
   return (
     <section
@@ -49,13 +53,13 @@ export function HomePhotographerIntroduction({
         )}
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href="/contact"
+            href={contactHref}
             className="inline-flex min-h-11 items-center rounded-full bg-accent px-6 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             {contactLabel}
           </Link>
           <Link
-            href="/services"
+            href={servicesHref}
             className="inline-flex min-h-11 items-center rounded-full border border-border-control px-6 text-sm font-medium transition-colors hover:border-border-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             {servicesLabel}

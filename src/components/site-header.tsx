@@ -37,8 +37,9 @@ type SiteHeaderProps = {
    */
   brandDescriptor?: BrandDescriptor;
   brandName?: string;
-  /** Omitted where this locale has no public home route yet. */
+  /** Omitted where this locale's home copy is incomplete. */
   homeHref?: string;
+  contactHref?: string;
   /** Composed by `buildSiteNavigation`, never a hand-written link list. */
   navigation: readonly SiteNavigationItem[];
   labels: BuiltInLabels["navigation"];
@@ -46,7 +47,7 @@ type SiteHeaderProps = {
   languageMenuLabels: BuiltInLabels["languageMenu"];
   /**
    * The menu's language links on a page that publishes none of its own — the
-   * home page, contact, a 404: each other language's story root, with the
+   * an untranslated content page or a 404: each other language's story root, with the
    * visible note that it is not this page's translation.
    */
   fallbackLanguageLinks: readonly LanguageLink[];
@@ -154,6 +155,7 @@ export function SiteHeader({
   brandDescriptor,
   brandName,
   homeHref,
+  contactHref,
   navigation,
   labels,
   themeLabels,
@@ -206,7 +208,7 @@ export function SiteHeader({
   // The bar shows a configured link to the contact route as the proposal's
   // contact button, last in the row; the compact panel keeps it in the list.
   const contactItem = navigation.find(
-    (item) => item.href === CONTACT_PATH && item.children.length === 0,
+    (item) => item.href === (contactHref ?? CONTACT_PATH) && item.children.length === 0,
   );
   const barItems =
     contactItem === undefined ? navigation : navigation.filter((item) => item !== contactItem);

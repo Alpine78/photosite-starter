@@ -12,7 +12,7 @@ export function languageName(locale: string): string {
 
 /**
  * The site menu's language links for a page that has no translation of its own
- * to offer — the home page, contact, a 404.
+ * to offer — an untranslated content page or a 404.
  *
  * Each other language opens its story root, the same defensive target
  * ADR-0003 decision 7 names for a switch with nothing nearer, and says so in

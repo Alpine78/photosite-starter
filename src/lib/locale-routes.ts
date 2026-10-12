@@ -175,6 +175,9 @@ export function buildLocaleRouteConfig({
         `story namespace "${entry.storyNamespace}" for locale "${locale}" collides with a localized static route`,
       );
     }
+    if (serviceNamespace !== "services" && reservedInsideLocale.has(serviceNamespace)) {
+      fail(`service namespace "${serviceNamespace}" for locale "${locale}" collides with a localized static route`);
+    }
 
     if (entry.prefix !== null) {
       if (!SEGMENT_PATTERN.test(entry.prefix)) {

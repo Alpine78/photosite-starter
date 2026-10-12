@@ -45,6 +45,7 @@
  */
 
 import { getPublicContentRoute } from "@/lib/content-routes";
+import { buildStaticPagePath, type StaticPageKind } from "@/lib/static-page-routes";
 import {
   getCategoryPath,
   getPublicChildCategories,
@@ -126,6 +127,7 @@ export type SiteNavigationInput = {
   /** Names the section when no configured link marks its place. */
   readonly storyLabel: string;
   readonly maxCategoryDepth?: number;
+  readonly staticPages?: readonly StaticPageKind[];
 };
 
 function assertCategoryDepth(depth: number): void {
@@ -236,11 +238,13 @@ function resolveLinkTarget(
     locale,
     tree,
     featuredContentId,
+    staticPages = ["home", "contact"],
   }: {
     readonly config: LocaleRouteConfig;
     readonly locale: string;
     readonly tree: ContentTree | undefined;
     readonly featuredContentId: string | undefined;
+    readonly staticPages?: readonly StaticPageKind[];
   },
 ): { readonly href: string; readonly key: string } | undefined {
   if (link.featured === undefined) {
@@ -258,6 +262,7 @@ function resolveLinkTarget(
     // has already chosen `/palvelut` or another service namespace.
     if (
       href === "/services" ||
+      href === buildServicePath(config, locale) ||
       href === buildServicePath(config, defaultRoute.locale)
     ) {
       const localized = buildServicePath(config, locale);
@@ -268,10 +273,14 @@ function resolveLinkTarget(
       return { href: localized, key: localized };
     }
 
-    // Home and contact have no localized public routes yet. A non-default
-    // shell therefore omits them rather than sending a visitor to another
-    // language space. When either route gains its own localized contract, it
-    // belongs beside the two mappings above.
+    for (const kind of ["home", "contact"] as const) {
+      if (href === buildStaticPagePath(config, defaultRoute.locale, kind) ||
+          href === buildStaticPagePath(config, locale, kind)) {
+        if (!staticPages.includes(kind)) return undefined;
+        const localized = buildStaticPagePath(config, locale, kind);
+        return { href: localized, key: localized };
+      }
+    }
     if (!route.isDefault) return undefined;
     return { href, key: href };
   }
@@ -305,7 +314,9 @@ export function resolveStaticNavigationLinks({
   locale,
   tree,
   featuredContentId,
+  staticPages,
 }: {
+  readonly staticPages?: readonly StaticPageKind[];
   readonly links: readonly StaticNavigationLink[];
   readonly config: LocaleRouteConfig;
   readonly locale: string;
@@ -321,6 +332,7 @@ export function resolveStaticNavigationLinks({
       locale,
       tree,
       featuredContentId,
+      staticPages,
     });
     if (target === undefined) return [];
     if (!hasStories && isInsideStoryNamespace(target.href, storyRoot)) return [];
@@ -347,6 +359,7 @@ export function buildSiteNavigation({
   featuredContentId,
   storyLabel,
   maxCategoryDepth = MAX_NAVIGATION_CATEGORY_DEPTH,
+  staticPages,
 }: SiteNavigationInput): readonly SiteNavigationItem[] {
   assertCategoryDepth(maxCategoryDepth);
 
@@ -362,6 +375,7 @@ export function buildSiteNavigation({
       locale,
       tree,
       featuredContentId,
+      staticPages,
     });
     if (target === undefined) continue;
 

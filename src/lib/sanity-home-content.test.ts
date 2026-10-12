@@ -108,6 +108,21 @@ const project = (
     ...(featuredGalleryHref === null ? {} : { featuredGalleryHref }),
   });
 
+it("projects English home copy and service targets without changing native media dimensions", () => {
+  const result = projectHomeContent(documentOf(), {
+    language: "en", fallbackLanguage: "fi", locale: "en-GB", routeConfig, sanityConfig,
+  });
+  expect(result.intro).toBe("A short introduction.");
+  expect(result.hero.media).toMatchObject({ alt: "A calm coastal landscape", rendition: {width: 1600, height: 1067} });
+  expect(result.sections[0]).toMatchObject({title:"Services",href:"/en/services"});
+});
+
+it("classifies missing prose separately from malformed home data", () => {
+  try { project(documentOf({intro:[{language:"en",value:"English only"}]})); }
+  catch (error) { expect(error).toMatchObject({rejection:"missing-translation"}); return; }
+  throw new Error("missing translation was accepted");
+});
+
 function fakeClient(answer: unknown): {
   client: SanityClient;
   requests: SanityQueryRequest[];

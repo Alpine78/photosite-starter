@@ -20,12 +20,12 @@ import { getContentTrees } from "@/lib/content";
 import { getPublicContentRoute } from "@/lib/content-routes";
 import { dispatchContentSource } from "@/lib/content-source";
 import {
-  getDefaultLocaleLabels,
+  getBuiltInLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
-import { buildStoryPath, type LocaleRouteConfig } from "@/lib/locale-routes";
+import { buildServicePath, buildStoryPath, type LocaleRouteConfig } from "@/lib/locale-routes";
 import type { ImageMedia, Media } from "@/lib/media";
-import { getMockImages, mockImages } from "@/lib/mock-media";
+import { getMockImages } from "@/lib/mock-media";
 import { getSiteSettings } from "@/lib/site-settings";
 
 export type HomeSectionLink = {
@@ -78,7 +78,7 @@ export async function resolveFeaturedGalleryHref(
   locale: string,
 ): Promise<string | undefined> {
   const [settings, trees] = await Promise.all([
-    getSiteSettings(),
+    getSiteSettings(locale),
     getContentTrees(),
   ]);
 
@@ -109,12 +109,12 @@ async function buildMockHomeContent(
     localeRoutes,
     locale,
   );
-  const labels = getDefaultLocaleLabels();
+  const labels = getBuiltInLabels(locale);
   const language = new Intl.Locale(locale).language;
 
   return {
     hero: {
-      media: mockImages.coastalLandscape,
+      media: getMockImages(new Intl.Locale(locale).language).coastalLandscape,
       ...(featuredGalleryHref === undefined
         ? {}
         : {
@@ -124,7 +124,7 @@ async function buildMockHomeContent(
             },
           }),
     },
-    intro:
+    intro: language === "fi" ? "Lyhyt esittely kuvaajasta ja hänen työstään — esimerkkiteksti korvataan CMS:n sisällöllä." :
       "A short introduction to the studio and the work — replaced with real copy from the CMS. Structure and responsiveness first, visual polish later.",
     photographerIntroduction: {
       portrait: getMockImages(language).photographerIntroduction,
@@ -155,9 +155,9 @@ async function buildMockHomeContent(
       : { heading: "Planning a photo session?", text: "Tell me about your idea and we can plan the session together." },
     sections: [
       {
-        title: "Services",
-        href: "/services",
-        description:
+        title: labels.pages.services,
+        href: buildServicePath(localeRoutes, locale),
+        description: language === "fi" ? "Tutustu palveluihini ja yhteistyön mahdollisuuksiin." :
           "An overview of what I offer and how we can work together.",
       },
       ...(featuredGalleryHref === undefined
@@ -166,13 +166,13 @@ async function buildMockHomeContent(
             {
               title: labels.pages.portfolio,
               href: featuredGalleryHref,
-              description: "Selected work across recent projects.",
+              description: language === "fi" ? "Valittuja kuvia viimeaikaisista projekteista." : "Selected work across recent projects.",
             },
           ]),
       {
-        title: "Stories",
+        title: labels.pages.stories,
         href: buildStoryPath(localeRoutes, locale),
-        description:
+        description: language === "fi" ? "Kuvasarjoja ja kirjoituksia välineistä, tekniikasta ja työn vaiheista." :
           "Photographic series and notes on gear, technique, and work in progress.",
       },
     ],
@@ -180,13 +180,12 @@ async function buildMockHomeContent(
 }
 
 /**
- * Home is unprefixed-default-locale-only today, matching the mock's existing
- * behavior, so both sources resolve against `localeRoutes.defaultLocale`
- * regardless of which route space rendered it.
+ * Resolve authored content in the requested configured locale. Omitted locale
+ * keeps the default-locale behavior for existing callers.
  */
-export async function getHomeContent(): Promise<HomeContent> {
+export async function getHomeContent(locale = getDeploymentConfig().localeRoutes.defaultLocale): Promise<HomeContent> {
   const { contentSource, localeRoutes } = getDeploymentConfig();
-  const locale = localeRoutes.defaultLocale;
+  if (!localeRoutes.byLocale.has(locale)) throw new TypeError(`home locale "${locale}" is not configured`);
 
   return dispatchContentSource(contentSource, {
     // See dispatchContentSource's own doc comment for why these imports are dynamic.
@@ -211,7 +210,7 @@ export async function getHomeContent(): Promise<HomeContent> {
 
       return projectHomeContent(document, {
         language,
-        fallbackLanguage: language,
+        fallbackLanguage: new Intl.Locale(localeRoutes.defaultLocale).language,
         locale,
         routeConfig: localeRoutes,
         sanityConfig: getSanityConfig(),

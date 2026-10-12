@@ -127,9 +127,12 @@ describe("buildSiteNavigation", () => {
     });
 
     expect(hrefs(build({ config: localized, locale: "en", storyLabel: "Stories" }))).toEqual([
+      "/en",
       "/en/services",
       "/en/stories",
+      "/en/contact",
     ]);
+    expect(hrefs(build({ config: localized, locale: "en", storyLabel: "Stories", staticPages: [] }))).toEqual(["/en/services", "/en/stories"]);
   });
 
   it("replaces a configured story link with the tree-driven section", () => {
