@@ -37,6 +37,7 @@
     "summarize:contact-failures": "node scripts/summarize-contact-failures.mts",
     "recompute:shuffled-order": "node scripts/recompute-shuffled-order.mts",
     "audit:sanity": "node scripts/audit-sanity-content.mts",
+    "reconcile:identities": "node scripts/reconcile-legacy-identities.mts",
     "verify:sanity-live": "vitest run --config vitest.live.config.mts",
     "verify:sanity-adapters": "vitest run --config vitest.live-adapters.config.mts",
     "benchmark:keywords": "node scripts/keyword-benchmark.mts",

@@ -4090,3 +4090,35 @@ transition was confirmed after merge.
 Future implementation/live write needs its separately accepted plan, refreshed
 inventory and reconciliation against the approved map. Changed mappings require
 renewed acceptance. The document export is not a verified asset backup.
+
+### AB#258 — Offline approved identity reconciliation (2026-10-12, Active)
+
+After PRs #341 and #342 merged, the owner requested continuation. AB#258 was
+created and moved New → Active before the first edit on the published
+`feature/258-identity-reconciliation` branch. The first implementation slice is
+`npm run reconcile:identities`: bounded local IO with an adjacent deterministic
+module and synthetic tests. It verifies the original map/baseline/approval
+digests and scope, reports old/already-new/conflicting states, revision drift,
+new affected variants/fields, collisions, unknown consumers and reference closure.
+Inputs remain unchanged and every report is non-writable and not cutover-ready.
+No CMS writer, schema relaxation, compatibility alias or dependency was added.
+
+A separate authenticated single-request export at
+2026-10-12 08:26:11.456–08:26:19.601 UTC contains 16,947 documents; a subsequent
+complete raw revision index matches. Its SHA-256 is byte-identical to AB#257's
+baseline. The current dataset therefore introduces no snapshot delta in this
+observed window, consistent with AB#255's local-only copy suggestions. The initial
+CLI run classified all 2,368 approved documents / 2,393 fields as old, covering
+the 1,541 mapped identities with 19,063 resolving references and no blockers.
+Private export, revision index, provenance receipt and report stay in the ignored
+worktree `temp/identity-reconciliation-evidence/`; original AB#257 artifacts stay
+unchanged in their retained worktree. This is read evidence, not a source freeze,
+binary backup or migration rehearsal. Actual writing remains a separate phase.
+
+AB#258 stays Active pending owner editor review, commit and accepted merge.
+
+Local validation passed: lint, all 231 browser-free test files / 5,479 tests
+(31 new reconciliation/CLI cases), diagram freshness and the production build
+with synthetic CI settings. The final private report retains the same counts
+and no blockers. Playwright and standalone Studio gates were not rerun locally:
+this slice changes neither public journeys nor Studio code/schemas.
