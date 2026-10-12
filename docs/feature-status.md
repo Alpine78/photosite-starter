@@ -4006,6 +4006,22 @@ writer freeze and refresh mapped source identities/revisions after cutover.
 to the ignored FI/EN workbook and structured suggestions. AB#255 stays Active;
 the 18 article counterparts and other page families remain unfinished.
 
+**English article copy, batch 1, 2026-10-12:** after PR #345 merged as
+`883f87b` with required CI #816, the owner selected article drafts and a separate
+public-gallery text inventory. Current published counts remain 28 FI / 10 EN,
+with 18 missing-English identities. Every candidate has additional block kinds,
+so the first local proposal covers the shortest complete article-owned body:
+15 paragraphs, five headings and seven per-version media captions, plus title
+and first EN slug. All 28 blocks and non-text fields/references remain; the
+FI poll is preserved with an explicit English publication gate. Matching raw
+article metadata sees no associated EN or unpublished FI variant for this source.
+Its category proposal still matches the current revision. Seven shared images
+need EN alt; the poll, 41 FI end-gallery occurrences and historical UI instructions
+need editorial reconciliation. Seventeen other article proposals remain open.
+[The dated copy receipt](audits/ab255-english-article-drafts-batch-1-2026-10-12.md)
+points to the ignored full FI/EN workbook and non-writable suggestions. No CMS
+draft, publication, deployment or runtime change occurred; AB#255 stays Active.
+
 **Service-cover language inventory, 2026-10-12:** the owner selected FI/EN alt
 and caption coverage after PR #342 merged as `26b906b`. Its integration commit
 `c7cfe6a` passed full required CI #810; the reviewed, tested and merged trees match.
