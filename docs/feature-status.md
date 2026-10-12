@@ -4136,6 +4136,28 @@ The owner directed this continuation to proceed without Claude on 2026-10-12;
 Codex completed the source review and applicable checks. Earlier reviews remain
 history; no session-reset wait remains for this slice.
 
+**Service locale journeys, 2026-10-12:** the services suite adds seven cases
+across the configured English and Finnish route spaces, retaining the original
+six. It now checks localized pricing/form labels, complete image frames and real
+dimensions/alt, stable-ID contact prefill, nested-service breadcrumbs, canonical
+and actual alternates, real 404 statuses, and scriptless equivalent nested-service
+switching in both directions. The unchanged production-build harness passes all
+26 desktop Chromium/mobile WebKit cases without retries; lint and all 5,720 tests
+in 239 files pass. [The dated receipt](audits/ab255-service-locale-journeys-2026-10-12.md)
+separates fixture assertions from authored translation/deployment acceptance and
+records the remaining legacy default-service language-link/metadata parity.
+No app runtime, fixture, dependency or CMS data changed; AB#255 remains Active.
+
+PRs #360, #361 and #362 merged externally as `8674d47`, `d347dd0` and `3da712b`
+after CI #846–#848; their source bytes match the previous review. They merged in
+that order while #358/#359 were still open. This continuation ran no merge
+command for those PRs and did not need conflict corrections or new commits.
+ADR-0032 remains Proposed. Seven completed AB#255 worktrees were retired with
+all 703 ignored local files preserved and verified; branch refs, unfinished
+Studio core locale work and other-agent checkouts remain. The two new worktrees
+are published with same-name upstreams; the owner directed continuation without
+Claude, and source review/applicable checks are complete.
+
 **Standalone Studio language discovery, 2026-10-12:** PR #353 merged as
 `f0d3e50` after required CI #835; owner commit `91b3baf`, three reviewed files,
 25 private evidence hashes and the tested/candidate/merged trees match. No merge
