@@ -4368,7 +4368,7 @@ an ignored local dependency copy resolved it without source/config changes or
 altering the retained archive. No public journey or Studio/schema change exists,
 so their local gates were not rerun; both remain required CI checks.
 
-### AB#263 — Bounded published identity alias loader (2026-10-12, Active)
+### AB#263 — Bounded published identity alias loader (2026-10-12, Closed)
 
 After PR #352 merged, six completed worktrees were retired into private archives
 `temp/worktree-retirement/20261012T131826Z/` and `20261012T140445Z/`.
@@ -4394,9 +4394,14 @@ sticky until explicit factory recreation, without automatic retry or fallback.
 Local validation passed: 223 focused cases, all 236 browser-free test files /
 5,687 tests, lint, synthetic mock production build and diagram freshness.
 The first build found an invalid test-only TypeScript cast; the corrected cast
-passed the subsequent build. No public journey or Studio/schema behavior changed;
-their required CI checks remain pending the owner's commit and PR. New source
-stays uncommitted for editor review, and AB#263 remains Active until accepted merge.
+passed the subsequent build. No public journey or Studio/schema behavior changed.
+The owner committed the exact reviewed change as `669396d`.
+[PR #354](https://github.com/Alpine78/photosite-starter/pull/354) merged as `42bc730`
+after waiting for the other agent's PR #353 (`f0d3e50`) and successful CI #836,
+including public journeys and standalone Studio. Integration was conflict-free;
+its final tree matched the inspected composition, differing from the CI test
+merge only by #353's accepted documentation. Push was already up to date, with
+no correction commit needed. AB#263's Active → Closed transition was verified.
 Only synthetic responses were used: actual provider metadata/wire fit needs the
 first separately approved live read. Public reader/environment and coordinated
 generation/cache wiring, legacy-write guard, maintenance, operational writer/
@@ -4455,3 +4460,51 @@ Post-integration validation passed against main after PR #354: lint, all 237
 browser-free test files / 5,696 tests, all three diagram renditions, the production
 build and the same 140 focused Chromium/WebKit journeys (eight intentional mobile
 skips). The required full Azure PR pipeline remains the final merge gate.
+
+
+### AB#265 — Offline canonical identity alias plan (2026-10-12, Active)
+
+The owner requested identity and gallery continuation in separate worktrees.
+AB#265 moved New → Active before edits on the published
+`feature/265-identity-alias-plan` branch from merged PR #355 (`4382537`).
+Ready uncommitted AB#264 and the other agent's AB#262 checkout are preserved.
+One Claude plan review led to an extracted-payload interop check, one canonical
+writer for both hashes, repeated injectivity/disjointness checks and an explicit
+supplied-snapshot limitation. No accepted ADR or existing reconciliation/file
+helper changed.
+
+The offline `plan:identity-aliases` command produces a private non-executable
+`identity-alias-plan-v1` wrapper. Strict approval/coverage/revision reconciliation
+precedes allow-listed, map-ordered alias rows. The payload preserves only the
+four domain identity families, format and approved source-map digest; emitted
+pins work with the existing resolver in renamed/restored modes. Canonical limits
+are inclusive 256 KiB for the payload and 1 MiB including LF for the wrapper.
+The wrapper records separate input/reconciliation evidence and body hash;
+`writable` and `cutoverReady` remain false. No source, record, credential,
+mutation, execution flag or deployed reader integration is introduced.
+
+A private read-only archived-input proof produced all 1,541 approved rows at
+169,598 canonical bytes, with payload SHA-256
+`eb971f432f8cdcfa041eb94ab47771892c16218a7ce9fdb64f595f9ea80226cc`.
+The original 38 evidence hashes stayed unchanged. Its baseline-equal historical
+snapshot proves only supplied local data; current target/freeze, named record,
+provider metadata, restore, cutover and each actual operation remain gates.
+Source stays uncommitted for editor review; AB#265 remains Active until accepted
+merge. See [the operator contract](sanity-seeding.md#offline-canonical-alias-payload-ab265).
+
+
+Validation passed: 24 new synthetic planner/CLI cases, 149 focused interop cases,
+all 239 browser-free test files / 5,720 tests, lint, the synthetic mock production
+build and all three diagram renditions. Test-only imports pin the format, grammar
+and real default limits to the application; exact 256 KiB and 256-character
+boundaries, wrapper LF/digest, private no-overwrite output and direct pinned-Node
+execution are covered. No runtime default, public journey or Studio/schema change
+exists, so local journey/Studio gates were not rerun; required CI still applies.
+
+
+The final Claude diff review attempt hit the session limit before substantive
+review. The owner subsequently explicitly waived this review for AB#265 and
+AB#266 on 2026-10-12. The one-time plan review and Codex gates are complete;
+no final Claude verdict is claimed. This waiver applies to these two changes
+only, not future reviews. AB#265 remains Active and the source is ready for
+owner editor review and commit; required CI and accepted merge still apply.
