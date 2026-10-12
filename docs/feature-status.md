@@ -4111,6 +4111,31 @@ CMS draft/write/publication, schema/runtime or production deployment changed.
 Application gates are not rerun for copy/documentation alone; source observations
 do not establish actual route or image-semantic acceptance. AB#255 stays Active.
 
+**Localized-content authoring preflight, 2026-10-12:** both PR #355 and #356
+are merged on source baseline `4382537`. PR #356 merged externally as `13d9eab`
+before #355; CI #839's tested and merged trees match. PR #355 then merged after
+CI #840. This continuation began after both; AB#255 remains Active.
+
+[The bounded offline receipt](audits/ab255-content-authoring-preflight-2026-10-12.md)
+joins one category, five services and two article proposals, all owner-pending.
+Input hashes and eight non-writable/non-executable/non-publication-ready rows
+match. Existing category/service creators use createIfNotExists; the existing
+shared category needs a manual accepted edit and service coverMedia is outside
+the CLI's closed field set. AB#125 currently rejects any source poll block and
+has no target-only override, so batch 2 is not plannable as-is; never change its
+FI source to bypass this guard. Current source/draft/release reconciliation,
+category/media/placement/poll review and owner copy/publication acceptance remain
+gates. AB#260's first three implementation policies are accepted; actual target,
+freeze, asset-copy, restore/cutover/write/deploy are still separately gated.
+
+Parallel public-journey, restricted-locale-contract and Studio core-UI branches
+own separate work. This source/offline documentation slice creates no writer,
+target ID, live CMS request/write, dependency/schema/runtime change or deployment;
+application/Studio builds and journeys are not rerun for it.
+The owner directed this continuation to proceed without Claude on 2026-10-12;
+Codex completed the source review and applicable checks. Earlier reviews remain
+history; no session-reset wait remains for this slice.
+
 **Standalone Studio language discovery, 2026-10-12:** PR #353 merged as
 `f0d3e50` after required CI #835; owner commit `91b3baf`, three reviewed files,
 25 private evidence hashes and the tested/candidate/merged trees match. No merge
