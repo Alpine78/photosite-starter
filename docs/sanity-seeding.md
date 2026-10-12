@@ -579,6 +579,79 @@ handling, partial-run classification and rollback guarded by post-write revision
 AB#257 discovery performs no CMS mutation or backup restore and does not relax the
 normal publication validators. Its document snapshot is not an asset backup.
 
+### Offline reconciliation (AB#258)
+
+`npm run reconcile:identities` compares the immutable approved map with supplied
+raw document snapshots. Its entrypoint imports local filesystem/Git tooling and
+the adjacent pure reconciliation module; it has no HTTP or CMS transport and
+reads no credentials. Obtain a complete authenticated raw export separately,
+including drafts, releases and system/asset documents; preserve its provenance
+and compare a subsequent raw revision index. Sanity's
+[Export API contract](https://www.sanity.io/docs/http-reference/export) distinguishes
+single-request state from cursor-mode exports. This command cannot prove that
+supplied NDJSON is complete, current, frozen or from the intended target.
+
+```bash
+npm run reconcile:identities -- \
+  --map <unchanged-candidate-map.json> \
+  --approval <owner-approval-receipt.json> \
+  --baseline <original-raw-snapshot.ndjson> \
+  --snapshot <fresh-raw-snapshot.ndjson> \
+  --approved-digest <owner-approved-map-sha256> \
+  --out temp/identity-reconciliation/<new-private-run>
+```
+
+The caller's digest must come from the accepted decision, independently of the
+input files. It binds exact map bytes; the map and receipt must also bind the
+original snapshot bytes and agree on scope counts. The receipt is local checksum/
+scope evidence, not proof of owner identity or permission to write. Historical
+AB#257 implementation flags remain unchanged; AB#258 authorizes this offline tool.
+
+Only the original map format `ab257-private-proposal-v1` is supported. Mapped
+fields are top-level `contentId`, `categoryId`, `endGalleryId` and `placementId`,
+plus mapped `siteSettings.featuredGalleryId` consumers. Names are never regenerated.
+The tool checks field/type correspondence, injectivity, baseline coverage,
+reserved targets and complete selected-field states. It reports missing records,
+revision drift, changed mapped-document metadata, additional mapped fields/docs,
+affected drafts/releases and unidentified old-ID string consumers. Published IDs
+follow the same draft/release normalization as Studio; a reference still requires
+its exact target, without substituting a draft for a missing published document.
+
+Reference closure is conservative: missing weak targets, missing asset documents,
+draft/release-only targets and external-dataset references get distinct blockers.
+Resolving weak-reference/strengthening metadata stays intact. This does not assert
+that a weak reference is invalid in Sanity; it requests review before migration.
+Baseline reference closure is required. Snapshot additions/removals/changes are
+reported at document granularity; removed baseline records block reconciliation.
+
+Limits: 128 MiB per input, 100,000 snapshot documents, five million JSON/traversal
+nodes per snapshot, depth 64 and a 64 MiB report. Input digests precede strict UTF-8
+decoding; BOM, duplicate decoded JSON keys, internal blank NDJSON records,
+non-finite/unsafe-integer numbers and negative zero are rejected. LF/CRLF and one
+final newline are accepted. Object-key order does not affect semantic comparison;
+array order remains significant. Prototype-shaped keys remain ordinary own data.
+
+The deterministic `identity-reconciliation-report.json` contains counts, private
+document IDs/paths, classifications, snapshot delta and a digest of its canonical
+body excluding `reportSha256`. It includes no timestamp or absolute file path.
+The output directory must differ from the input directories, be private (0700 on
+POSIX), and be ignored when inside a Git checkout. The file is created exclusively
+as 0600 and never replaces an existing file or symlink/hardlink. Windows owners
+must supply a suitably private directory ACL; POSIX modes do not establish it.
+Preserve all private inputs/reports before retiring their worktree.
+
+Exit 0 means identity consistency for the supplied unchanged domain fields;
+exit 2 writes a blocked report; exit 1 means usage, input or IO failure.
+Any `already-new` field requires writer receipts, including partial document
+changes, and therefore blocks this first slice. Private classifications include
+each approved field's state alongside the complete document state.
+Every result remains `writable: false` and `cutoverReady: false`. A byte-identical
+baseline/current export is flagged as information, not evidence of its freshness.
+The script's console prints counts/digests/static error codes; full details stay
+in the private report. Runtime route/order/media validation, accepted deltas,
+source freeze, reader/import/writer implementation and restore/migration/rollback
+rehearsal remain ADR-0030 gates before separately approved Production writing.
+
 ## Migrating approved content from an existing site (AB#137)
 
 `npm run seed:sanity` writes the fixed demo fixture described above. It is
