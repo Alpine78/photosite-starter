@@ -4433,7 +4433,7 @@ generation/cache wiring, legacy-write guard, maintenance, operational writer/
 receipts and named rehearsal/Production operations remain separate gates.
 No CMS, asset, credential, restore or deployment operation was performed.
 
-### AB#262 — gallery and story presentation corrections (2026-10-12)
+### AB#262 — gallery and story presentation corrections (2026-10-12, Closed)
 
 The owner reviewed and committed the source changes as `787deac` on
 `fix/262-gallery-story-presentation`, then opened
@@ -4487,7 +4487,11 @@ build and the same 140 focused Chromium/WebKit journeys (eight intentional mobil
 skips). The required full Azure PR pipeline remains the final merge gate.
 
 
-### AB#265 — Offline canonical identity alias plan (2026-10-12, Active)
+PR #355 subsequently merged as `4382537b6be57fa903dfdb39e9e2c4fec87b438e`;
+AB#262's Active → Closed transition was verified before the follow-up below.
+The other agent's original checkout remains untouched.
+
+### AB#265 — Offline canonical identity alias plan (2026-10-12, Closed)
 
 The owner requested identity and gallery continuation in separate worktrees.
 AB#265 moved New → Active before edits on the published
@@ -4514,8 +4518,9 @@ A private read-only archived-input proof produced all 1,541 approved rows at
 The original 38 evidence hashes stayed unchanged. Its baseline-equal historical
 snapshot proves only supplied local data; current target/freeze, named record,
 provider metadata, restore, cutover and each actual operation remain gates.
-Source stays uncommitted for editor review; AB#265 remains Active until accepted
-merge. See [the operator contract](sanity-seeding.md#offline-canonical-alias-payload-ab265).
+The owner committed the reviewed slice as `d2cd187` and PR #357 merged as
+`ce43481939438f75136621f30b1aa16b77c05136` after successful full PR run 843.
+AB#265's Active → Closed transition was verified after merge. See [the operator contract](sanity-seeding.md#offline-canonical-alias-payload-ab265).
 
 
 Validation passed: 24 new synthetic planner/CLI cases, 149 focused interop cases,
@@ -4531,5 +4536,55 @@ The final Claude diff review attempt hit the session limit before substantive
 review. The owner subsequently explicitly waived this review for AB#265 and
 AB#266 on 2026-10-12. The one-time plan review and Codex gates are complete;
 no final Claude verdict is claimed. This waiver applies to these two changes
-only, not future reviews. AB#265 remains Active and the source is ready for
-owner editor review and commit; required CI and accepted merge still apply.
+only, not future reviews. The accepted PR #357 merge and AB#265 closure are
+verified above; no live CMS or deployment operation was performed.
+
+
+### AB#266 — Terminal gallery headings at every supported level (2026-10-12, Active)
+
+The owner requested gallery and identity continuation in separate worktrees.
+AB#266 moved New → Active before edits on the published
+`fix/266-terminal-gallery-heading` branch from merged PR #355 (`4382537`).
+The existing end-gallery helper reused only terminal h2 headings even though
+the content model, renderer and table of contents support h2/h3/h4. It now reuses
+all three supported levels when the existing localized-label normalization
+matches. No body block is removed or relevelled; the exact `buildHeadingIds`
+fragment names the gallery region and the `article-end-gallery` anchor stays.
+H2 reservations in fragment disambiguation remain intact. Nonmatching and
+nonterminal headings, including a trailing blank paragraph, keep the existing
+generated-heading behavior; unsupported runtime levels are refused.
+
+One Claude plan review preserved Finnish h2 production-journey coverage while
+English uses h3; units cover both languages/all supported levels and cross-level
+collisions. All 44 focused production-build desktop Chromium/mobile WebKit
+journeys passed, including JS/scriptless TOC jumps and server continuation.
+Continuation pages retain their existing single h1, article-qualified region
+name and six remaining images; returning to the article restores its single
+localized gallery heading. The first added continuation assertion incorrectly
+expected a repeated gallery heading; inspection of the unchanged component
+corrected the test to its actual contract without altering runtime behavior.
+All 237 browser-free test files / 5,707 tests, lint and diagram freshness passed.
+The journey harness's production build passed. Full required CI still applies.
+No CSS, typography, media framing, CMS data, dependency or deployment changed.
+The owner committed the reviewed slice as `72e781c` and authorized PR #358
+merge after CI, including the documentation conflict correction. AB#266 remains
+Active until the accepted merge is verified. AB#264 and the independent AB#265
+branch remain separate.
+
+
+The final Claude diff review attempt hit the session limit before substantive
+review. The owner subsequently explicitly waived this review for AB#265 and
+AB#266 on 2026-10-12. The one-time plan review and Codex gates are complete;
+no final Claude verdict is claimed. This waiver applies to these two changes
+only, not future reviews. The owner reviewed and committed the source and
+authorized integration corrections; required CI and accepted merge still apply.
+
+
+Integrating the accepted PR #357 main into PR #358 required one documentation
+conflict resolution. Both complete story sections and their owner-waived review
+records remain; all code/test blobs match their original accepted commits.
+Combined local validation passed: 239 browser-free files / 5,731 tests, lint,
+synthetic mock production build and all three diagram renditions. The original
+44 focused browser journeys remain applicable; the updated PR's required full
+CI must pass before its accepted merge. All 38 prior evidence hashes and the
+separate ready AB#264 source remain unchanged.
