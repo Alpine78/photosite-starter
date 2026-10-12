@@ -3988,6 +3988,24 @@ not accepted body/SEO/media translations or HTTP/deployment verification.
 scope, reproducible queries, receipts and remaining ownership. AB#255 remains
 Active; no CMS write, deployment or customer/admin change was made.
 
+**English copy preparation, 2026-10-12:** PR #340 merged as `e91e185` after
+#339 and required CI #804, preserving both status-history sections. The owner
+selected the missing English category and service copy drafts as the next slice.
+Two matching current published source reads still show 8 FI / 3 EN services and
+one category missing English label/slug. Local proposals cover that category's
+label, first slug and description, and all five missing services' names, slugs,
+short descriptions, 14 body paragraphs and pricing wording. They preserve
+source prices/durations, stable identities, parents, order, cover references
+and price-row keys. The existing pure service-route builder accepts the proposed
+English graph; this does not change published coverage. Owner wording/slug and
+shared-media text review, FI/EN draft reconciliation and fresh revision checks
+remain open. No CMS drafts were created and no copy was published.
+Later CMS authoring must coordinate with [ADR-0030](adr/0030-legacy-identity-retirement.md)'s
+writer freeze and refresh mapped source identities/revisions after cutover.
+[The preparation receipt](audits/ab255-english-copy-drafts-2026-10-12.md) points
+to the ignored FI/EN workbook and structured suggestions. AB#255 stays Active;
+the 18 article counterparts and other page families remain unfinished.
+
 ### AB#256 — Readable Studio names (2026-10-12, Closed)
 
 The owner reported Joomla-derived category/image-placement titles and apparent
@@ -4030,7 +4048,7 @@ reviewed source as `6aed214978e6da5e2d76bcf577a453b0178162f5` and approved the m
 Verify and Studio gate. AB#256's Active → Closed transition was confirmed after
 merge. Studio deployment and the authenticated editor checks above remain separate.
 
-### AB#257 — Legacy identity retirement discovery (2026-10-12, Active)
+### AB#257 — Legacy identity retirement discovery (2026-10-12, Closed)
 
 AB#257 moved New → Active after PR #339 merged and before the first change on
 `chore/257-identity-retirement-plan`. [ADR-0030](adr/0030-legacy-identity-retirement.md)
@@ -4065,8 +4083,10 @@ retained-document mapping before cutover.
 
 This is discovery and review evidence. No reusable migration tool, writer, schema
 relaxation, CMS rewrite, asset change, deployment or restore rehearsal was performed.
-Mapping/scope acceptance (AC2) is recorded in the work-item discussion; AB#257
-stays Active until owner editor review, commit and merge of the planning documents.
+Mapping/scope acceptance (AC2) is recorded in the work-item discussion. The owner
+committed the accepted plan as `535006b`; [PR #341](https://github.com/Alpine78/photosite-starter/pull/341)
+merged as `53bc148` after required Azure CI #807 passed. AB#257's Active → Closed
+transition was confirmed after merge.
 Future implementation/live write needs its separately accepted plan, refreshed
 inventory and reconciliation against the approved map. Changed mappings require
 renewed acceptance. The document export is not a verified asset backup.

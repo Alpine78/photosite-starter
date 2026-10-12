@@ -232,5 +232,5 @@ are future implementation requirements, not evidence that a writer exists.
 - [ ] Separately scope and review reader/import compatibility and guarded writer.
 - [ ] Perform a separately approved cutover and verify recovery/retirement records.
 
-AB#257 remains Active until the owner reviews and commits these documents and
-the planning change merges. Accepted planning scope does not authorize a live write.
+The owner committed these documents and PR #341 merged on 2026-10-12; AB#257 is
+Closed. Accepted planning scope does not authorize implementation or a live write.
