@@ -4051,6 +4051,22 @@ links the ignored full FI/EN workbook and receipt. Field presence does not accep
 translation/image meaning, prove complete page/destination/form journeys or
 authorize Production activation. No CMS write or deployment occurred; AB#255 stays Active.
 
+**Public-gallery document text inventory, 2026-10-12:** PR #345 merged as
+`883f87b` after required CI #816; its reviewed/tested and merged trees match.
+The owner selected this inventory alongside a separate article-copy batch.
+Two matching published graphs contain 32 FI/EN gallery pairs, with matching
+presence for all optional summaries (19 pairs) and bodies (30 pairs). Titles
+are identical in 12 pairs; slugs in 15. Among 208 section versions, 103 identities
+pair across languages: 68 labels are identical and 35 differ. One gallery has
+one unmatched section identity per language. No section introductions or tags
+are authored. Body structure differences and identical names are review signals,
+not automatic translation defects. The narrow slug/category metadata checks
+found no missing placement-language field or collision. Shared-media and
+placement text, semantic acceptance and live journeys remain open.
+[The dated inventory](audits/ab255-gallery-text-language-inventory-2026-10-12.md)
+points to the ignored complete FI/EN comparison workbook. No CMS write,
+publication, deployment or runtime change occurred; AB#255 stays Active.
+
 ### AB#256 — Readable Studio names (2026-10-12, Closed)
 
 The owner reported Joomla-derived category/image-placement titles and apparent
