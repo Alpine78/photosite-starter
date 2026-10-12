@@ -3988,6 +3988,22 @@ not accepted body/SEO/media translations or HTTP/deployment verification.
 scope, reproducible queries, receipts and remaining ownership. AB#255 remains
 Active; no CMS write, deployment or customer/admin change was made.
 
+**English copy preparation, 2026-10-12:** PR #340 merged as `e91e185` after
+#339 and required CI #804, preserving both status-history sections. The owner
+selected the missing English category and service copy drafts as the next slice.
+Two matching current published source reads still show 8 FI / 3 EN services and
+one category missing English label/slug. Local proposals cover that category's
+label, first slug and description, and all five missing services' names, slugs,
+short descriptions, 14 body paragraphs and pricing wording. They preserve
+source prices/durations, stable identities, parents, order, cover references
+and price-row keys. The existing pure service-route builder accepts the proposed
+English graph; this does not change published coverage. Owner wording/slug and
+shared-media text review, FI/EN draft reconciliation and fresh revision checks
+remain open. No CMS drafts were created and no copy was published.
+[The preparation receipt](audits/ab255-english-copy-drafts-2026-10-12.md) points
+to the ignored FI/EN workbook and structured suggestions. AB#255 stays Active;
+the 18 article counterparts and other page families remain unfinished.
+
 ### AB#256 — Readable Studio names (2026-10-12, Active)
 
 The owner reported Joomla-derived category/image-placement titles and apparent
