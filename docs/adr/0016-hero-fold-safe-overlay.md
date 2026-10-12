@@ -52,10 +52,16 @@ overlay is measured against and where it's anchored:
 
   ```
   height: min(
-    calc(100vw * <intrinsicHeight> / <intrinsicWidth>),
+    calc(100cqw * <intrinsicHeight> / <intrinsicWidth>),
     calc(100dvh - <HERO_CHROME_RESERVE_PX>px)
   )
   ```
+
+  AB#262 corrects the width basis to the figure's inline-size query container.
+  The band and attribution are descendants of that container, so `100cqw`
+  matches the image's actual width even with a classic scrollbar gutter.
+  Viewport width included that gutter and could expose a black strip below
+  an otherwise complete native-ratio image.
 
 - **Anchored to the TOP of the hero**, not the image's bottom edge. Anchoring to the
   bottom is exactly the mechanism that let the overlay drift off-screen as the window

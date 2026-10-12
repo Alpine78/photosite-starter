@@ -609,7 +609,7 @@ test("a localized article keeps localized media and article metadata", async ({
   // end-gallery results and comparison images are excluded from this
   // loose-image assertion; their own block journeys verify localization.
   const imageAlts = await page
-    .locator('main figure img:not([data-mini-gallery] img):not([aria-labelledby="article-end-gallery"] img):not([data-comparison-view] img)')
+    .locator('main figure img:not([data-mini-gallery] img):not([data-article-end-gallery] img):not([data-comparison-view] img)')
     .evaluateAll((images) => images.map((image) => image.getAttribute("alt")));
   expect(imageAlts).toEqual(LOCALIZED_ARTICLE.imageAlts);
   await expect(page.locator("meta[property='og:image:alt']")).toHaveAttribute(

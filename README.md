@@ -446,7 +446,7 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   rule (AB#166, [ADR-0022](docs/adr/0022-capture-sequence-rally-galleries.md)) serves a
   large gallery straight from its photographs' own media documents, in file-name order
   and with a media-owned section, without per-item placement documents, for both
-  sources. Named section controls are
+  sources. Named section controls appear only with at least two declared sections (AB#262) and are
   URL-driven and keyboard-operable, restoring the selected section across reload, shared
   link, and browser history, with the grid and lightbox reading the same filtered ordered
   set (AB#115). Zoom animation and level tuning remain, as does one physical-device

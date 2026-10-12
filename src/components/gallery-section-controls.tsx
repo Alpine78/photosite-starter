@@ -38,7 +38,7 @@ function optionClassName(isActive: boolean): string {
  * A gallery's section controls: real links, one per declared section plus
  * `All`, that select ADR-0003's gallery-local filter.
  *
- * Renders nothing when the gallery declares no sections — the one condition
+ * Renders nothing when the gallery declares fewer than two sections — the condition
  * that has to hold everywhere a gallery renders, so it lives here rather than
  * being duplicated at every call site.
  *
@@ -70,10 +70,11 @@ export function GallerySectionControls({
   galleryPath,
   labels,
 }: GallerySectionControlsProps) {
-  const { ref: navRef, hidden } = useScrollReveal({ enabled: sections.length > 0 });
+  const showControls = sections.length > 1;
+  const { ref: navRef, hidden } = useScrollReveal({ enabled: showControls });
   useLayoutEffect(() => {
     const nav = navRef.current;
-    if (sections.length === 0 || nav === null) return;
+    if (!showControls || nav === null) return;
     const root = document.documentElement;
     const measure = () => root.style.setProperty(
       "--gallery-section-height", `${nav.getBoundingClientRect().height}px`,
@@ -85,9 +86,9 @@ export function GallerySectionControls({
       observer.disconnect();
       root.style.removeProperty("--gallery-section-height");
     };
-  }, [navRef, sections.length]);
+  }, [navRef, showControls]);
 
-  if (sections.length === 0) return null;
+  if (!showControls) return null;
 
   return (
     <nav

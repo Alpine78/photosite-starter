@@ -48,7 +48,7 @@ type SiteHeaderProps = {
   /**
    * The menu's language links on a page that publishes none of its own — the
    * an untranslated content page or a 404: each other language's story root, with the
-   * visible note that it is not this page's translation.
+   * screen-reader note that it is not this page's translation (AB#262).
    */
   fallbackLanguageLinks: readonly LanguageLink[];
 };

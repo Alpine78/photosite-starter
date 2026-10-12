@@ -38,16 +38,18 @@ type HeroOverlayProps = {
   description?: string;
   action?: HeroOverlayAction;
   /**
-   * Overrides the title's own size classes. Home keeps its original, larger
-   * scale (unchanged from before AB#149); a content-page hero (AB#149) passes
-   * the same scale its non-hero title already used, so the type doesn't
-   * change size just because a photograph moved behind it.
+   * Overrides the title's own size classes. Article/gallery overlays use
+   * CONTENT_HERO_TITLE_CLASSNAME (AB#262); home uses the default scale.
    */
   titleClassName?: string;
 };
 
 const DEFAULT_TITLE_CLASSNAME =
   "text-4xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-6xl lg:text-7xl";
+
+/** Shared enlarged article/gallery overlay title, with wrapping on narrow screens. */
+export const CONTENT_HERO_TITLE_CLASSNAME =
+  "text-4xl font-semibold leading-tight tracking-tight text-white drop-shadow-sm sm:text-5xl lg:text-6xl";
 
 /**
  * Shared full-bleed hero mechanism (ADR-0016, extracted for AB#149 per that
@@ -76,10 +78,12 @@ export function HeroOverlay({
   titleClassName = DEFAULT_TITLE_CLASSNAME,
 }: HeroOverlayProps) {
   const { caption, credit } = media;
-  const imageHeight = `calc(100vw * ${media.rendition.height} / ${media.rendition.width})`;
+  // Use the figure's actual width: viewport width includes classic scrollbars
+  // and otherwise leaves a strip of the black figure below the native frame.
+  const imageHeight = `calc(100cqw * ${media.rendition.height} / ${media.rendition.width})`;
 
   return (
-    <figure className="relative grid bg-black">
+    <figure className="@container relative grid w-full bg-black">
       <Image
         src={media.rendition.src}
         alt={media.alt}

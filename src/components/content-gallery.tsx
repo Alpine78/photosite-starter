@@ -5,7 +5,7 @@ import { ContentPageJumpNav } from "@/components/content-page-jump-nav";
 import { GallerySectionControls } from "@/components/gallery-section-controls";
 import { GallerySectionIntro } from "@/components/gallery-section-intro";
 import { GalleryGrid } from "@/components/gallery-grid";
-import { HeroOverlay } from "@/components/hero-overlay";
+import { CONTENT_HERO_TITLE_CLASSNAME, HeroOverlay } from "@/components/hero-overlay";
 import {
   LanguageSwitch,
   type LanguageLink,
@@ -49,8 +49,8 @@ type ContentGalleryProps = {
    * reaches the browser and no route knowledge is duplicated into a component.
    */
   galleryPath: string;
-  /** The gallery's declared section catalog, already ordered. Empty for a
-   * gallery with no sections, which renders no section controls at all. */
+  /** The ordered declared catalog. Controls render only with at least two
+   * sections; direct section URLs and their introductions remain valid. */
   sections: readonly GallerySectionSummary[];
   /**
    * The active named section, resolved from the request's slug against
@@ -181,7 +181,7 @@ export function ContentGallery({
           title={page.title}
           meta={{ dateTime: eventDate, label: formatDate(eventDate, locale) }}
           description={leadSummary}
-          titleClassName="text-3xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-4xl"
+          titleClassName={CONTENT_HERO_TITLE_CLASSNAME}
         />
       )}
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">

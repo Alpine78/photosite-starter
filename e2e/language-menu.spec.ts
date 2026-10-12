@@ -74,16 +74,36 @@ test("the menu carries the page's other language and the in-page switch steps as
   await expect(page.locator("html")).toHaveAttribute("lang", new RegExp(`^${PREFIXED_LOCALE.prefix}`));
 });
 
-test("a nearer-page fallback says so visibly in the menu", async ({ page, isMobile }) => {
+async function expectScreenReaderNote(page: Page, link: ReturnType<typeof menuLanguageLink>) {
+  const noteId = await link.getAttribute("aria-describedby");
+  expect(noteId).toBeTruthy();
+  const note = page.locator(`[id="${noteId}"]`);
+  const text = (await note.textContent())?.trim();
+  expect(text).toBeTruthy();
+  await expect(link).toHaveAccessibleDescription(text!);
+  // A clipped sr-only box is still "visible" by Playwright's box heuristic.
+  const treatment = await note.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const box = element.getBoundingClientRect();
+    return { width: box.width, height: box.height, clipPath: style.clipPath, overflow: style.overflow };
+  });
+  expect(treatment.width).toBeLessThanOrEqual(1);
+  expect(treatment.height).toBeLessThanOrEqual(1);
+  expect(treatment.clipPath).toBe("inset(50%)");
+  expect(treatment.overflow).toBe("hidden");
+}
+
+test("a nearer-page fallback keeps its description without a visible action beside the menu link", async ({ page, isMobile }) => {
   await page.goto(UNTRANSLATED);
   await openCompactMenu(page, isMobile);
 
   const link = menuLanguageLink(page);
   await expect(link).toBeVisible();
-  const noteId = await link.getAttribute("aria-describedby");
-  expect(noteId).toBeTruthy();
-  await expect(page.locator(`[id="${noteId}"]`)).toBeVisible();
-  await expect(page.locator(`[id="${noteId}"]`)).toHaveText(/\S/);
+  await expectScreenReaderNote(page, link);
+  const href = await link.getAttribute("href");
+  expect(href).toBeTruthy();
+  await link.click();
+  await expect(page).toHaveURL(new RegExp(`${href}$`));
 });
 
 test("home and contact offer their exact other-language page", async ({ page, isMobile }) => {
@@ -133,5 +153,15 @@ test.describe("without JavaScript", () => {
     await expect(
       page.getByRole("banner").locator(`a[hreflang="${PREFIXED_LOCALE.prefix}"]`),
     ).toHaveCount(0);
+  });
+
+  test("the in-page fallback note is available to screen readers without visible extra text", async ({ page }) => {
+    await page.goto(UNTRANSLATED);
+    const link = pageLanguageLink(page);
+    await expect(link).toBeVisible();
+    await expectScreenReaderNote(page, link);
+    const href = await link.getAttribute("href");
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(`${href}$`));
   });
 });
