@@ -4067,6 +4067,48 @@ placement text, semantic acceptance and live journeys remain open.
 points to the ignored complete FI/EN comparison workbook. No CMS write,
 publication, deployment or runtime change occurred; AB#255 stays Active.
 
+**Shared-media language inventory, 2026-10-12:** PR #350 merged as `504f05a`
+after full required CI #830. Its exact merged tree matches the tested candidate.
+The owner's committed audit and nine private evidence hashes matched the prior
+clean review; the integration correction acknowledges AB#260's accepted policy
+without inferring CMS-write or freeze approval. Both policy corrections passed
+one joint Claude review without findings. The published record inventory covers
+5,272 eligible media, with 687 FI-only alt records and 679 one-language captions.
+Actual consumers, occurrence overrides, image meaning and draft/release state
+remain separate. [The dated inventory](audits/ab255-shared-media-language-inventory-2026-10-12.md)
+contains counts, scope and owner-only receipt location. No CMS write occurred.
+
+**Category-description inventory, 2026-10-12:** PR #351 merged as `9fb9631`
+after full required CI #831. The candidate and actual merged trees match;
+the only addition to its tested tree is PR #350's already reviewed/merged audit,
+with all runtime and other tracked files unchanged. No merge conflict occurred.
+The 12 categories have 8 both-language, 1 FI-only, 1 EN-only and 2 absent optional
+description pairs. The missing category label/slug still blocks dependent EN
+articles; optional absence is not automatically a gap. Shared-category changes
+require their own authoring path: AB#125 does not update them and the category
+writer's `createIfNotExists` does not patch an existing document.
+[The dated inventory](audits/ab255-category-description-language-inventory-2026-10-12.md)
+keeps real wording, identities and revisions in owner-only local evidence.
+
+**English article copy, batch 2, 2026-10-12:** the next local proposal covers
+18 paragraphs, six headings, five quotes and eight per-version captions, plus
+title and first EN slug. All 38 blocks and non-text references remain unchanged.
+Four model/name captions deliberately match the source pending owner review;
+source numeric/fraction literals are retained pending formatting review. Fresh
+count-bound published and associated raw-metadata reads match; no associated EN,
+draft or release variant was observed for the selected source. Its category
+still lacks EN label/slug. Thirty-six referenced public media need EN alt/caption
+review; 36 visible end-gallery occurrences and the inherited closed FI poll
+remain publication gates. Across batches 1 and 2, two distinct articles have
+complete local article-owned proposals and 16 remain unprepared in those packets.
+Published counts remain 28 FI / 10 EN, with 18 missing EN versions.
+[The dated copy receipt](audits/ab255-english-article-drafts-batch-2-2026-10-12.md)
+points to the ignored complete FI/EN workbook, non-writable suggestions and
+source/structure/reference/numeric/heading/slug validation. No source metadata,
+CMS draft/write/publication, schema/runtime or production deployment changed.
+Application gates are not rerun for copy/documentation alone; source observations
+do not establish actual route or image-semantic acceptance. AB#255 stays Active.
+
 ### AB#256 — Readable Studio names (2026-10-12, Closed)
 
 The owner reported Joomla-derived category/image-placement titles and apparent
