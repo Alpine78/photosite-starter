@@ -4109,6 +4109,31 @@ CMS draft/write/publication, schema/runtime or production deployment changed.
 Application gates are not rerun for copy/documentation alone; source observations
 do not establish actual route or image-semantic acceptance. AB#255 stays Active.
 
+**Standalone Studio language discovery, 2026-10-12:** PR #353 merged as
+`f0d3e50` after required CI #835; owner commit `91b3baf`, three reviewed files,
+25 private evidence hashes and the tested/candidate/merged trees match. No merge
+conflict or source correction was needed. AB#255 stays Active after this partial
+slice; copy acceptance and publication dependencies remain pending.
+
+The next independently planned worktree compares core UI, project interface and
+authored content. Studio pins Sanity 6.18.0 and configures no Finnish locale.
+The candidate `@sanity/locale-fi-fi@1.1.40` declares a compatible peer range, but
+runtime compatibility is untested. Exact archives match published integrity;
+inert source parsing compares 2,151 English keys in 13 core-package namespaces
+against 1,992 matching Finnish literals. Missing: 159, including all 108 keys in
+the absent `variants` namespace and 51 elsewhere. Twenty-six paired values match
+verbatim; package-key presence and equality are not wording or UI acceptance.
+
+A coarse 39-file project-source inventory finds 321 literal title and 135
+description properties, one literal structure-title call, plus 54 literal-return
+and 58 template-return candidates. These are source occurrences, not exhaustive
+rendered labels or unique validation messages. Core locale resources do not
+translate schema, structure, preview or custom validation source strings.
+[The dated discovery](audits/ab255-studio-language-inventory-2026-10-12.md)
+records bounds, primary sources, private evidence and remaining API/runtime/owner
+journey gates. No package/config/schema/CMS/deployment change or application/Studio
+gate rerun occurred. This slice establishes no fully bilingual Studio.
+
 ### AB#256 — Readable Studio names (2026-10-12, Closed)
 
 The owner reported Joomla-derived category/image-placement titles and apparent
