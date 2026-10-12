@@ -11,7 +11,7 @@ Neither proves accepted translation quality or deployment of the merged code.
 | --- | --- | --- |
 | Home | Merged source adds requested-locale copy, portfolio/latest sections, exact static switches and canonical/alternate metadata. Available versions only enter navigation/sitemap. | AB#255: audit actual authored FI/EN copy, then activate separately. |
 | Contact | Merged source adds localized privacy notice, portrait text, fields/status, service names and exact switches. The fixed endpoint and owner-facing delivery stay unchanged. | AB#255: audit live copy and review authored localized service options against the owner catalog. |
-| Services / packages | Existing locale routes and stable identity pairs; merged source keeps intro and contact links in the selected language. The 2026-10-12 census finds 8 FI / 3 EN documents: 5 identities lack EN. Local editing suggestions now cover all five, including body and price wording. | AB#255: owner copy/slug/media review, live FI/EN draft reconciliation, then author counterparts; published counts remain unchanged. |
+| Services / packages | Existing locale routes and stable identity pairs; merged source keeps intro and contact links in the selected language. The 2026-10-12 census finds 8 FI / 3 EN documents: 5 identities lack EN. Local suggestions cover all five, including body and price wording. The cover audit finds FI/EN alt on all eight shared covers; optional captions are absent in both languages. | AB#255: owner copy/slug and image-text meaning review, live FI/EN draft reconciliation, then author counterparts; published counts remain unchanged. |
 | Story root / categories | Existing locale trees and identity switching; census finds 12 FI / 11 EN label-and-slug pairs. Local suggestions cover the missing category's English label, first slug and description. | AB#255: accept/reconcile and author the shared category's English fields before its 18 dependent articles; other descriptions still need audit. |
 | Articles | Existing independently published documents and identity-based links; census finds 28 FI / 10 EN documents: 18 identities lack EN. | AB#255: complete the shared category's English placement, then author/review counterparts. AB#125 supplies linked draft creation; copied source text is not an accepted translation. |
 | Public galleries / continuations / filters | Existing locale documents and switches; census finds both languages for all 32 stable identities. Continuation state does not transfer across languages. | AB#255: audit actual body/SEO/caption/alt translation quality, including historical content; declared-language pairs alone do not establish completion. |
@@ -43,6 +43,11 @@ not saved CMS drafts, publication or accepted translations. Before authoring,
 inspect newer FI and existing EN drafts and recompare source revisions.
 Coordinate CMS authoring with [ADR-0030](adr/0030-legacy-identity-retirement.md)'s
 freeze and approved mapping; after cutover refresh mapped identities and revisions.
+
+[The service-cover inventory](audits/ab255-service-media-language-inventory-2026-10-12.md)
+observes no missing FI/EN alt or source-only caption on current covers. Presence
+does not accept translation quality or image semantics; pending media drafts and
+changes to cover references remain outside this dated published observation.
 
 The owner's standing Claude context-sharing authorization is recorded in
 [AGENTS.md](../AGENTS.md#standing-authorization-for-claude-review), imported by
