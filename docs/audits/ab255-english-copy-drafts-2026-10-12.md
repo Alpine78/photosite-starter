@@ -30,6 +30,19 @@ service writer's field allow-list omits `coverMedia`/`hideFromListing`, and the
 category writer cannot update this already-published category by creating it.
 The preparation introduces no new authoring tool or translation engine.
 
+[ADR-0030](../adr/0030-legacy-identity-retirement.md), accepted and merged in
+[PR #341](https://github.com/Alpine78/photosite-starter/pull/341), maps the selected
+category's `categoryId` while retaining its Sanity document identity/references;
+`serviceId` and media identities are outside that map. Local copy preparation can
+continue. Coordinate later CMS editing with the migration: its required editorial/
+import writer freeze begins before rehearsal and lasts through cutover. Editing
+before that freeze requires refreshed inventory and reconciliation against the
+immutable approved map; added mapped fields/documents or changed targets require
+a reviewed delta and renewed owner acceptance. After cutover, refresh the source
+category identity and revision and reconcile FI/EN drafts before saving; never
+reuse an obsolete mapped identity for a new counterpart. The planning merge
+does not perform or authorize the cutover.
+
 ## Verified source and limits
 
 Two identical scoped, tokenless `published` GET reads from the same locally

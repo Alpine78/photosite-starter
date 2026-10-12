@@ -2,8 +2,27 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
+**Amended:** 2026-10-12 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#64
+
+## Amendments
+
+### 2026-10-12 — Conditional one-time legacy placement identity retirement (AB#257)
+
+Decision 1 makes a placement's identity independent of reordering and presentation
+edits, and preserves its media/container binding. The owner accepted the complete
+private mapping in [ADR-0030](0030-legacy-identity-retirement.md), including 1,485
+legacy-derived `placementId` values, while retaining Sanity document IDs and
+references. This permits one operator migration of those mapped identities to
+descriptive names only after ADR-0030's implementation and cutover gates pass,
+including separate approval of the writer and Production write.
+
+The original rule below remains the contract for ordinary authoring and all later
+changes. Media identities, occurrence equivalence, media/container binding and
+native-ratio delivery remain unchanged. This exception covers only the exact
+candidate-file digest recorded in ADR-0030; it authorizes no current CMS write,
+schema relaxation or other identity migration.
 
 ## Context
 

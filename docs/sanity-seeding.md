@@ -550,6 +550,35 @@ See Sanity's [export guide](https://www.sanity.io/docs/content-lake/exporting-da
 and [CLI reference](https://www.sanity.io/docs/cli-reference/cli-datasets) for
 current flags and behavior.
 
+## Retiring imported identity names (AB#257)
+
+Readable Studio labels can be updated independently of stored identities (AB#256).
+The [Accepted ADR-0030](adr/0030-legacy-identity-retirement.md) records owner
+acceptance on 2026-10-12 of all 1,541 mapped content/category/end-gallery/placement
+IDs while retaining Sanity document IDs and references. Its complete candidate map and dataset/order
+evidence are private under the worktree's ignored `temp/identity-retirement/`.
+The original artifact remains explicitly non-writable and is not accepted by an
+importer. A separate private approval receipt binds its unchanged SHA-256 digest;
+acceptance applies to the mapping and conditional policy, not a Production write.
+
+Before a future write, reconcile a fresh complete inventory against the immutable
+approved map; changed targets or additional mapped fields/documents require a
+reviewed delta and renewed owner acceptance. Freeze editorial/import writers,
+establish a current backup with asset binaries and restore proof, and review the reader/import transition
+and revision-guarded writer. Apply the accepted map on the restored isolated copy,
+then verify references, routes, languages, media/order and guarded rollback there;
+bind that rehearsal's receipts/evidence digest to the cutover approval.
+
+Current import manifests derive provider document IDs from domain IDs: replacing
+`content_id` alone can create duplicates; replaying an
+old plan can restore legacy fields. Retire these write paths or adapt them using
+the accepted retained-document mapping. Historical approved files/digests remain
+history; changed inputs need new approval. The ADR specifies stale cursor/enquiry
+handling, partial-run classification and rollback guarded by post-write revisions.
+
+AB#257 discovery performs no CMS mutation or backup restore and does not relax the
+normal publication validators. Its document snapshot is not an asset backup.
+
 ## Migrating approved content from an existing site (AB#137)
 
 `npm run seed:sanity` writes the fixed demo fixture described above. It is

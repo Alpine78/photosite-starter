@@ -41,6 +41,8 @@ part of these source and census slices. AB#255 remains Active after the first sl
 the next owner-selected slice. Its local suggestions are proposed editing copy,
 not saved CMS drafts, publication or accepted translations. Before authoring,
 inspect newer FI and existing EN drafts and recompare source revisions.
+Coordinate CMS authoring with [ADR-0030](adr/0030-legacy-identity-retirement.md)'s
+freeze and approved mapping; after cutover refresh mapped identities and revisions.
 
 The owner's standing Claude context-sharing authorization is recorded in
 [AGENTS.md](../AGENTS.md#standing-authorization-for-claude-review), imported by

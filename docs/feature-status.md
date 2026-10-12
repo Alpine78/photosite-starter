@@ -4000,11 +4000,13 @@ and price-row keys. The existing pure service-route builder accepts the proposed
 English graph; this does not change published coverage. Owner wording/slug and
 shared-media text review, FI/EN draft reconciliation and fresh revision checks
 remain open. No CMS drafts were created and no copy was published.
+Later CMS authoring must coordinate with [ADR-0030](adr/0030-legacy-identity-retirement.md)'s
+writer freeze and refresh mapped source identities/revisions after cutover.
 [The preparation receipt](audits/ab255-english-copy-drafts-2026-10-12.md) points
 to the ignored FI/EN workbook and structured suggestions. AB#255 stays Active;
 the 18 article counterparts and other page families remain unfinished.
 
-### AB#256 — Readable Studio names (2026-10-12, Active)
+### AB#256 — Readable Studio names (2026-10-12, Closed)
 
 The owner reported Joomla-derived category/image-placement titles and apparent
 duplicate content in Studio. AB#256 moved New → Active before the first file
@@ -4027,7 +4029,7 @@ or removed, and no Studio deployment was performed. Authenticated list, document
 heading and reference-picker checks remain owner-run after publishing the Studio.
 
 [AB#257](https://dev.azure.com/ilkkarytkonen/photosite-starter/_workitems/edit/257)
-remains New and tracks a separate plan for replacing Joomla-derived persistent
+was created New to track a separate plan for replacing Joomla-derived persistent
 identities after migration/reimport and recovery acceptance. Readable labels can
 ship now; identity replacement requires a complete mapping, consumer/reference
 inventory, rehearsal, restorable snapshot and reimport/rollback policy. Joomla
@@ -4039,5 +4041,52 @@ browser-free test files / 5,448 tests, the public production build and Studio
 typecheck/schema validation/static build with synthetic CI configuration. The
 installed Sanity preview preparer also accepted localized label arrays and a
 resolved public-image selection. No public journey changed, so Playwright was
-not rerun for this presentation-only slice. Source remains uncommitted for owner
-review, and AB#256 remains Active until acceptance and merge.
+not rerun locally for this presentation-only slice. The owner committed the
+reviewed source as `6aed214978e6da5e2d76bcf577a453b0178162f5` and approved the merge.
+[PR #339](https://github.com/Alpine78/photosite-starter/pull/339) merged at
+`48f8971791a960686ba40bfb2b7508b86cd5e673` after Azure CI #801 passed the complete
+Verify and Studio gate. AB#256's Active → Closed transition was confirmed after
+merge. Studio deployment and the authenticated editor checks above remain separate.
+
+### AB#257 — Legacy identity retirement discovery (2026-10-12, Closed)
+
+AB#257 moved New → Active after PR #339 merged and before the first change on
+`chore/257-identity-retirement-plan`. [ADR-0030](adr/0030-legacy-identity-retirement.md)
+is now Accepted: on 2026-10-12 the owner approved all 1,541 mapped domain IDs,
+retaining Sanity document IDs/references. The candidate-file SHA-256 is
+`ee799ba63ea453749f2715f7ed6f6e2e65ca4389c47825f3963f5433d0b46e41`.
+The original non-writable artifact remains unchanged; a separate private receipt
+records the acceptance. Dated amendments to ADR-0002/0003 record the conditional
+one-time exception without changing ordinary publication validators.
+
+The authenticated single-request export at 2026-10-12 05:20:51–05:21:00 UTC contains
+16,947 documents, including the settings draft and system records. A subsequent
+complete raw revision index matches it; all 19,063 references resolve in this
+snapshot. Private evidence under the ignored
+worktree `temp/identity-retirement/` includes the full snapshot, 99 source/recovery
+artifact locations, a complete candidate map and verification summaries. No real
+slugs, source paths or full mapping are committed.
+
+The map covers 24 content, 12 category, 20 end-gallery and 1,485 placement
+identities: 2,393 proposed fields in 2,368 documents, retaining Sanity `_id`/`_ref`.
+It has no collisions, swap chains or unknown old-identity string consumers.
+Offline substitution changes only proposed fields. Complete manual occurrence
+orders (27 containers), content listings and category sibling groups (five groups)
+remain equal. No affected container is seeded. Old/already-new/conflicting state
+checks use the same map; no fresh proposal is claimed as a safe resume plan.
+
+The owner accepted both the smaller page/category scope and occurrence renaming.
+The ADR records cursor/enquiry compatibility, source freeze, import retirement, transaction
+and post-write rollback guards. Existing writers can restore old fields or remint
+provider IDs if only a manifest is changed; they need retirement or an accepted
+retained-document mapping before cutover.
+
+This is discovery and review evidence. No reusable migration tool, writer, schema
+relaxation, CMS rewrite, asset change, deployment or restore rehearsal was performed.
+Mapping/scope acceptance (AC2) is recorded in the work-item discussion. The owner
+committed the accepted plan as `535006b`; [PR #341](https://github.com/Alpine78/photosite-starter/pull/341)
+merged as `53bc148` after required Azure CI #807 passed. AB#257's Active → Closed
+transition was confirmed after merge.
+Future implementation/live write needs its separately accepted plan, refreshed
+inventory and reconciliation against the approved map. Changed mappings require
+renewed acceptance. The document export is not a verified asset backup.
