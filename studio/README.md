@@ -45,14 +45,28 @@ and the [Finnish package](https://github.com/sanity-io/locales/tree/main/locales
 This is partial core-UI localization. Against pinned Sanity 6.18.0, the package
 lacks 159 of 2,151 English resource keys; fallback display and Finnish wording
 still need authenticated owner review. Project schema titles/descriptions,
-structure/preview labels and custom validation text remain project-owned source
-strings. Authored FI/EN content is independent. Login/hosted chrome and language
+preview fallbacks and custom validation text remain project-owned source
+strings; the structure-title resources are described below. Authored FI/EN content is independent. Login/hosted chrome and language
 preference persistence are not established by the static build.
 
 See [the checked build receipt](../docs/audits/ab255-studio-core-locale-build-2026-10-12.md).
 Before deploying, verify actual FI/EN switching, persistence, applicable missing
 messages, wording, and normal editor/action/validation behavior with agreed test
 content. This registration does not establish a fully bilingual Studio.
+
+## Project-owned interface titles
+
+The content root, home/settings panes and editorial lists use English (`en-US`)
+and Finnish (`fi-FI`) resources in `studio/locales/`, registered in the separate
+`photosite-editorial` namespace. Structure nodes keep their original English
+fallback titles and stable IDs. Change the resource values to refine wording;
+keep both dictionaries' keys aligned.
+
+The pinned Finnish core plugin above makes `fi-FI` available for these title
+resources. Bundle registration itself does not add a core locale.
+Authored document language, schema field text, preview fallbacks and custom
+validation messages are independent. Verify actual authenticated FI/EN rendering
+and wording before publishing Studio. See the [build/source receipt](../docs/audits/ab255-studio-structure-locales-2026-10-12.md).
 
 ## Editing content
 

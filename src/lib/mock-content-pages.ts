@@ -894,7 +894,7 @@ function compose(
           { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems.slice(0, 2) },
           // AB#262: the authored heading must follow the complete body,
           // including these independently viewed inline media fixtures.
-          { type: "heading", level: 2, text: language === "fi" ? "Galleria" : "Gallery" },
+          { type: "heading", level: language === "fi" ? 2 : 3, text: language === "fi" ? "Galleria" : "Gallery" },
         ]
         : language === "fi" && contentId === "content-coastal-mornings"
           ? [

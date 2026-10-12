@@ -21,7 +21,7 @@ export function ArticleEndGallery({
   labels,
   headingId,
 }: SharedProps & {
-  /** An existing terminal body h2 names this region instead of a second h2. */
+  /** An existing terminal body heading names this region instead of a generated h2. */
   readonly headingId?: string;
 }) {
   return (

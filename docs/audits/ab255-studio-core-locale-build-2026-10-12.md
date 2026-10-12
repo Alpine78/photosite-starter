@@ -52,3 +52,21 @@ The ignored owner packet retains one plan review/dispositions, exact release
 metadata, lock/audit delta, build logs, compiled-asset/notices checks and review
 snapshots. The application keeps the existing build/notices tooling; this slice
 adds no committed helper or source-text mirror test.
+
+## Sequential integration, 2026-10-13
+
+After PRs #359, #363 and #364 merged in that order, four integration conflicts
+were resolved in the Studio configuration and documentation. The combined
+configuration keeps both `fiFILocale()` and #364's `editorialLocaleBundles`;
+its structure implementation and both title dictionaries match main exactly.
+The README and coverage inventory describe both partial localization slices.
+
+Local verification passed all 5,741 root tests in 239 files, lint, all three
+diagrams, Studio typecheck, zero-error schema validation, static build/notices
+and the mock Next.js production build. Compiled assets contain both the Finnish
+core plugin and the project-title namespace/resources. Existing lock entries
+remain unchanged. Local dependency and sandbox build failures were retained;
+matching dependencies were copied while preserving caches, and the successful
+production build ran with the existing synthetic harness. Updated full CI,
+including Playwright, must pass before merge. Authenticated UI and hosted
+publication remain separate; AB#255 remains Active.
