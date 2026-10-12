@@ -59,7 +59,8 @@ add English entries to this already-existing category.
 Refresh retained Sanity identity/revision bindings and coordinate
 [ADR-0030](../adr/0030-legacy-identity-retirement.md)'s operational gates before
 any later edit; a domain-ID rewrite or changed revision invalidates the old
-proposal binding. AB#260's Proposed policy is not writing or freeze approval.
+proposal binding. AB#260's accepted implementation policy is not CMS writing or
+freeze approval.
 No CMS write, accepted translation, publication or runtime change occurred.
 Matching sources, restricted shapes/bounds, proposal fidelity, private-value
 exclusion, local links and whitespace are checked. Application tests/build were
