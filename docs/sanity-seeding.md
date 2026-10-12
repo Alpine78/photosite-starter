@@ -2701,3 +2701,58 @@ Intro-summary recovery records are read as strict UTF-8 JSON with the existing n
 ### AB#232 — input and diagnostic integrity
 
 The curated-gallery offline planner reads both the content input and owner-approval file as strict UTF-8 JSON before opening its output. Damaged bytes, a leading BOM and malformed JSON receive fixed role-specific diagnostics; their contents are not echoed. Valid Unicode and literal U+FFFD preserve the existing review-digest computation and approval binding. An invalid input or approval leaves any existing output untouched. This parser check is not a new content approval or CMS write.
+
+
+### Offline canonical alias payload (AB#265)
+
+`npm run plan:identity-aliases` produces the compatibility payload and its three
+pins from the approved local inputs. It reuses strict reconciliation unchanged,
+requires `consistent-old` with no issues, and projects only the four approved
+identity families. It neither consumes an editable reconciliation report nor
+selects a CMS target, record ID or deployment configuration.
+
+```bash
+npm run plan:identity-aliases -- \
+  --map <unchanged-candidate-map.json> \
+  --approval <owner-approval-receipt.json> \
+  --baseline <original-raw-snapshot.ndjson> \
+  --snapshot <current-complete-raw-snapshot.ndjson> \
+  --approved-digest <accepted-candidate-file-sha256> \
+  --out temp/identity-alias-plan/<new-private-run>
+```
+
+These six flags are mandatory; no write, target, record ID or budget flags exist.
+The existing private, ignored-directory, input-alias and no-overwrite rules apply.
+Exit 0 creates `identity-alias-plan.json` in a 0700 directory, with file mode 0600
+on POSIX. Exit 1 prints a static error. Console success contains only family
+counts, byte count, digests, expected row count and the two false readiness flags.
+
+The `identity-alias-plan-v1` wrapper is private planning evidence, **never the
+published alias record**. Its `payload` contains exactly `aliases`,
+`formatVersion: identity-aliases-v1` and `sourceMapSha256`. Each ordered row contains
+exactly `field`, `newId` and `oldId`; approved map row order remains intact. The
+source-map digest comes from the exact bytes validated against the approval
+receipt. Public identity grammar and the 256-character bound are pinned against
+the application through synthetic interop tests. The canonical payload is capped
+at 262,144 UTF-8 bytes inclusively; the private wrapper, including its final LF,
+is independently capped at 1,048,576 bytes.
+
+Canonical JSON sorts object keys by ordinal UTF-16 order, preserves array order
+and emits no whitespace or newline. All identities and payload keys are ASCII.
+`pins` contains `sourceMapSha256`, `payloadSha256` and `expectedRowCount` for the
+existing resolver. Re-canonicalize the extracted payload before using its digest;
+the wrapper's bytes are not the payload's bytes. `planSha256` covers the canonical
+wrapper body excluding its own field. The output file ends in one LF, excluded
+from both hashes. Payload and pins depend only on the unchanged approved map;
+reconciliation/input evidence and the plan digest may change with the supplied
+snapshot. Every wrapper retains `writable: false` and `cutoverReady: false`.
+
+The archived-input proof produced 1,541 rows (24 content, 12 category, 20 end
+gallery and 1,485 placement identities) at 169,598 canonical bytes. Payload SHA-256
+is `eb971f432f8cdcfa041eb94ab47771892c16218a7ce9fdb64f595f9ea80226cc`.
+All 38 preceding evidence hashes stayed unchanged. This run used a historical
+snapshot identical to its approved baseline: it proves these supplied inputs
+only, **not** current target state, source freeze, provider metadata/wire fit,
+backup/restore, rollout readiness or permission to write. A named record/source
+and each actual operation still need their separately reviewed bindings and
+approvals under [ADR-0031](adr/0031-identity-migration-operational-plan.md).

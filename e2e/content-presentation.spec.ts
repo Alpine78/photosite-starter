@@ -55,7 +55,10 @@ for (const javaScriptEnabled of [true, false]) {
       test(`the authored end-gallery heading and its table-of-contents anchor are reused in ${locale}`, async ({ page }) => {
         const labels = getBuiltInLabels(locale);
         await page.goto(contentPath(locale, prefix, "content-reading-coastal-light"));
-        const heading = page.getByRole("main").getByRole("heading", { level: 2, name: labels.article.endGallery, exact: true });
+        const main = page.getByRole("main");
+        const level = new Intl.Locale(locale).language === "fi" ? 2 : 3;
+        const heading = main.getByRole("heading", { level, name: labels.article.endGallery, exact: true });
+        await expect(main.getByRole("heading", { name: labels.article.endGallery, exact: true })).toHaveCount(1);
         await expect(heading).toHaveCount(1);
         const id = await heading.getAttribute("id");
         expect(id).toBeTruthy();
@@ -67,6 +70,21 @@ for (const javaScriptEnabled of [true, false]) {
         await jump.click();
         await expect.poll(() => new URL(page.url()).hash).toBe(`#${id}`);
         await expect(heading).toBeInViewport();
+        const next = await gallery.getByRole("link", { name: labels.gallery.showMore }).getAttribute("href");
+        expect(next).toBeTruthy();
+        // Follow the actual server continuation even when JS would append in place.
+        await page.goto(next!);
+        const continuation = page.getByRole("main");
+        // Continuations omit the article body and retain their existing H1
+        // and article-title-qualified region name; no authored heading is repeated.
+        await expect(continuation.getByRole("heading", { level: 1 })).toHaveCount(1);
+        await expect(continuation.getByRole("heading", { name: labels.article.endGallery, exact: true })).toHaveCount(0);
+        await expect(continuation.getByRole("region")).toHaveAccessibleName(new RegExp(`: ${labels.article.endGallery}$`));
+        await expect(continuation.locator("img")).toHaveCount(6);
+        await continuation.getByRole("link", { name: labels.article.backToArticle }).click();
+        await expect(heading).toHaveCount(1);
+        await expect(main.getByRole("heading", { name: labels.article.endGallery, exact: true })).toHaveCount(1);
+        await expect(page.locator("#article-end-gallery")).toHaveCount(1);
       });
     }
   });
