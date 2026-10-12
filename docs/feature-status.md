@@ -3936,8 +3936,9 @@ AB#18/117/137/250 remain Active; AB#118 remains New. See the
 The owner confirmed coverage includes historical articles/galleries and customer/
 administrator pages, and requested home/contact as the first slice. The story
 moved New → Active before the first edit. The owner committed the first slice
-as `65a0cd9`; PR #338 is being integrated with main on
-`feature/255-bilingual-pages` under the owner's 2026-10-12 merge/commit authorization.
+as `65a0cd9`; PR #338 merged as `2fc58f7` on 2026-10-12 after
+the owner's conflict/integration commit authorization, a clean final review and
+successful mandatory Azure Pipeline #799.
 
 Shared home/contact Server Components now accept the route locale. Configured
 non-default locale bases serve a real home and `/contact`, including native-ratio
@@ -3972,6 +3973,20 @@ than claimed fixed. After self-review and review corrections, a fresh production
 44 affected home/contact/navigation/sitemap journeys passed. The bounded Claude diff review
 is recorded in the local handoff evidence. AB#255 stays Active: this first source
 slice does not fulfill the whole story.
+
+**Public-language census, 2026-10-12:** the owner chose published services,
+articles and galleries as the next slice. Two identical narrow published reads
+and independent counts cover 125 rows: 38 article versions, 64 gallery versions,
+11 service versions and 12 shared categories. Stable identities show 28 FI /
+10 EN articles (18 missing EN), 32 FI / 32 EN galleries (all paired), and 8 FI /
+3 EN services (5 missing EN). No English-only identity lacks its Finnish version.
+One category lacks its English label/slug; it is the source canonical category
+of all 18 missing English articles, so its localization comes first. Currently
+published versions pass the narrow ancestry checks. This is metadata presence,
+not accepted body/SEO/media translations or HTTP/deployment verification.
+[The dated inventory](audits/ab255-public-language-inventory-2026-10-12.md) records
+scope, reproducible queries, receipts and remaining ownership. AB#255 remains
+Active; no CMS write, deployment or customer/admin change was made.
 
 ### AB#256 — Readable Studio names (2026-10-12, Active)
 
