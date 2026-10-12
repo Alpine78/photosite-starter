@@ -4403,7 +4403,7 @@ generation/cache wiring, legacy-write guard, maintenance, operational writer/
 receipts and named rehearsal/Production operations remain separate gates.
 No CMS, asset, credential, restore or deployment operation was performed.
 
-### AB#262 — gallery and story presentation corrections (2026-10-12)
+### AB#262 — gallery and story presentation corrections (2026-10-12, Closed)
 
 The owner reviewed and committed the source changes as `787deac` on
 `fix/262-gallery-story-presentation`, then opened
@@ -4455,3 +4455,45 @@ Post-integration validation passed against main after PR #354: lint, all 237
 browser-free test files / 5,696 tests, all three diagram renditions, the production
 build and the same 140 focused Chromium/WebKit journeys (eight intentional mobile
 skips). The required full Azure PR pipeline remains the final merge gate.
+
+
+PR #355 subsequently merged as `4382537b6be57fa903dfdb39e9e2c4fec87b438e`;
+AB#262's Active → Closed transition was verified before the follow-up below.
+The other agent's original checkout remains untouched.
+
+### AB#266 — Terminal gallery headings at every supported level (2026-10-12, Active)
+
+The owner requested gallery and identity continuation in separate worktrees.
+AB#266 moved New → Active before edits on the published
+`fix/266-terminal-gallery-heading` branch from merged PR #355 (`4382537`).
+The existing end-gallery helper reused only terminal h2 headings even though
+the content model, renderer and table of contents support h2/h3/h4. It now reuses
+all three supported levels when the existing localized-label normalization
+matches. No body block is removed or relevelled; the exact `buildHeadingIds`
+fragment names the gallery region and the `article-end-gallery` anchor stays.
+H2 reservations in fragment disambiguation remain intact. Nonmatching and
+nonterminal headings, including a trailing blank paragraph, keep the existing
+generated-heading behavior; unsupported runtime levels are refused.
+
+One Claude plan review preserved Finnish h2 production-journey coverage while
+English uses h3; units cover both languages/all supported levels and cross-level
+collisions. All 44 focused production-build desktop Chromium/mobile WebKit
+journeys passed, including JS/scriptless TOC jumps and server continuation.
+Continuation pages retain their existing single h1, article-qualified region
+name and six remaining images; returning to the article restores its single
+localized gallery heading. The first added continuation assertion incorrectly
+expected a repeated gallery heading; inspection of the unchanged component
+corrected the test to its actual contract without altering runtime behavior.
+All 237 browser-free test files / 5,707 tests, lint and diagram freshness passed.
+The journey harness's production build passed. Full required CI still applies.
+No CSS, typography, media framing, CMS data, dependency or deployment changed.
+Source stays uncommitted for editor review; AB#266 remains Active until accepted
+merge. AB#264 and the independent AB#265 branch remain separate.
+
+
+The final Claude diff review attempt hit the session limit before substantive
+review. The owner subsequently explicitly waived this review for AB#265 and
+AB#266 on 2026-10-12. The one-time plan review and Codex gates are complete;
+no final Claude verdict is claimed. This waiver applies to these two changes
+only, not future reviews. AB#266 remains Active and the source is ready for
+owner editor review and commit; required CI and accepted merge still apply.

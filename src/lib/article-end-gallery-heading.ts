@@ -8,7 +8,7 @@ export function articleEndGalleryHeadingId(
 ): string | undefined {
   const last = blocks.at(-1);
   if (
-    last?.type !== "heading" || last.level !== 2 ||
+    last?.type !== "heading" || ![2, 3, 4].includes(last.level) ||
     last.text.trim().toLowerCase() !== galleryLabel.trim().toLowerCase()
   ) return undefined;
 
