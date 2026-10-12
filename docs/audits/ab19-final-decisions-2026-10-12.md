@@ -2,8 +2,10 @@
 
 Status: eleven source-backed decisions prepared; 37 paths remain pending.
 AB#19 stays Active. Source baseline is main `5262def`; the actual serving
-Production artifact remains `14b1af0` / `dpl_6e4xtTvbq7Zd39g3mmp9AVNL7KYF`.
-These are separate identities. New branch rows are not claimed deployed.
+Production artifact remains `dpl_6e4xtTvbq7Zd39g3mmp9AVNL7KYF`, tagged with base
+`14b1af0` and `gitDirty=1`. That base does not prove the complete deployed patch;
+its uncommitted source delta is not established by this readback. The deployment
+ID binds live observations. New branch rows are not claimed deployed.
 
 ## Verified decisions
 
