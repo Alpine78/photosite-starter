@@ -4588,3 +4588,18 @@ synthetic mock production build and all three diagram renditions. The original
 44 focused browser journeys remain applicable; the updated PR's required full
 CI must pass before its accepted merge. All 38 prior evidence hashes and the
 separate ready AB#264 source remain unchanged.
+
+
+### AB#250 — exact CDN byte verification and real release blocker (2026-10-12)
+
+The owner-requested continuation adds an offline-by-default, credential-free CDN
+verifier for the existing retained source/document contract. Live reads stream
+exact bytes with SHA-1/SHA-256, length/media/attachment checks, no redirects and
+a total deadline; absent and mismatched assets remain distinct. The real packet
+contains 21 galleries, 1,792 JPEGs and 12 ZIPs. Offline recompilation passed;
+Production currently exposes no published legacy types or ZIP assets, and the
+first exact CDN asset is absent. The owner confirms no large-ZIP Support assurance.
+[The release receipt](audits/ab250-release-verification-2026-10-12.md) gives the
+concrete provider question and remaining import/publication gates. Full tests,
+lint and the synthetic production build pass. AB#250 stays Active; no import,
+publication, adapter activation or full customer continuity is claimed.
