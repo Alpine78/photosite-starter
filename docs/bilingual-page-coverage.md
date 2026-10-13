@@ -96,3 +96,5 @@ General album-image alt/caption authoring is deferred until after MVP. This does
 not remove existing descriptions or alter image/media contracts. AB#255 remains
 Active until all applicable page families, accepted content and live journeys
 meet the owner's bilingual requirement.
+
+2026-10-12 continuation: [Finnish Studio core resource additions](audits/ab255-studio-core-locale-additions-2026-10-12.md).

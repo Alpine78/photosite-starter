@@ -39,3 +39,10 @@ pipeline. No image descriptions, derivatives or assets are generated or rewritte
 Final committed-head CI and normal PR/wording review remain. Source/UI readiness
 does not deploy Studio or publish accepted article drafts. General album-image
 caption/alt authoring stays deferred after MVP. AB#255 remains Active.
+
+## Ordered integration
+
+The branch includes #371 head 8d141e5 and resolves their one shared Studio
+configuration conflict with both features retained. Merge #371 first, then
+#370. The exact combined source passes all 5,842 tests, lint, Studio typecheck,
+zero-error schema validation and Studio/Next.js production builds.

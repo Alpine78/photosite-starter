@@ -1,4 +1,6 @@
 import { defineConfig, type SchemaTypeDefinition } from "sanity";
+import { coreLocaleAdditions } from "./core-locale-additions";
+import { LocaleNavbar, LocaleToolMenu } from "./locale-navbar";
 import { fiFILocale } from "@sanity/locale-fi-fi";
 import { structureTool } from "sanity/structure";
 import { defineSchemaTypes } from "../sanity/schemas";
@@ -26,11 +28,12 @@ const schemaTypes = defineSchemaTypes(studioSettings)
     : type) as SchemaTypeDefinition[];
 
 export default defineConfig({
+  studio: { components: { navbar: LocaleNavbar, toolMenu: LocaleToolMenu } },
   name: "default",
   title: studioSettings.title,
   projectId: studioSettings.projectId,
   dataset: studioSettings.dataset,
-  i18n: { bundles: editorialLocaleBundles },
+  i18n: { bundles: [...editorialLocaleBundles, ...coreLocaleAdditions] },
   plugins: [structureTool({ structure: editorialStructure }), fiFILocale(), localizedPresentation()],
   form: { components: { field: LocalizedField, input: LocalizedInput } },
   schema: {
