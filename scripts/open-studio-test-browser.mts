@@ -26,7 +26,7 @@ process.once("SIGTERM", close);
 try {
   await (context.pages()[0] ?? await context.newPage()).goto(url.href);
   console.log("Test browser opened. Sign in yourself; close its window when finished.");
-  await new Promise<void>((done) => context.once("close", done));
+  await new Promise<void>((done) => context.once("close", () => done()));
 } finally {
   process.removeListener("SIGINT", close);
   process.removeListener("SIGTERM", close);

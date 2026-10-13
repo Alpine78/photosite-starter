@@ -21,3 +21,23 @@ actual SDK/translation-engine tests remain mandatory; no test, assertion, timeou
 or quality gate is bypassed. Runtime code, package manifests/locks, credentials
 and deployment permissions are unchanged. Full fresh-install validation is
 recorded in the local CI-fix logs.
+
+CI build correction, 2026-10-13: build #880 reached the application build but
+failed TypeScript in the owner-operated browser helper. Its Promise resolver
+was passed directly as the BrowserContext `close` listener, which receives a
+BrowserContext argument rather than a void Promise result. An explicit
+zero-argument callback resolves the Promise without changing browser lifetime
+or cleanup. The exact error was reproduced with the pinned Playwright 1.63.0
+types before the correction. The missing Playwright-report artifact was a
+secondary failure after the build stopped, not a translation-test failure.
+Current main `212c5a2` integrates cleanly on this branch. The draft still requires
+authenticated FI/EN Studio journeys and wording acceptance; source checks do
+not establish those outcomes.
+
+The corrected integration passes all 5,805 unit tests, lint and the production
+application build after a fresh locked root install. Studio typecheck, schema
+validation (zero errors) and static build also pass. The existing shared root
+dependency symlink was preserved locally before installation: Turbopack rejected
+its outside-root location, an independent local setup issue absent from CI's
+fresh installs. No package manifest, lockfile, type-check exclusion, timeout,
+translation assertion or quality gate was weakened.
