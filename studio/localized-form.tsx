@@ -26,6 +26,7 @@ export function LocalizedInput(props: InputProps) {
   return props.renderDefault({ ...props, schemaType: {
     ...type,
     title: studioInterfaceText(type.title, id),
+    description: studioInterfaceText(type.description, id),
     ...(list ? { options: { ...options, list } } : {}),
     ...("of" in type && Array.isArray(type.of) ? { of: titles(type.of) } : {}),
     ...("to" in type && Array.isArray(type.to) ? { to: titles(type.to) } : {}),
