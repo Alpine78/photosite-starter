@@ -70,3 +70,10 @@ The owner's standing Claude context-sharing authorization is recorded in
 [AGENTS.md](../AGENTS.md#standing-authorization-for-claude-review), imported by
 CLAUDE.md, referenced by the Claude review-loop skill, and in the existing local
 Claude project memory and memory index.
+
+
+2026-10-12 continuation: [Studio schema interface localization](audits/ab255-studio-schema-locales-2026-10-12.md).
+General album-image alt/caption authoring is deferred until after MVP. This does
+not remove existing descriptions or alter image/media contracts. AB#255 remains
+Active until all applicable page families, accepted content and live journeys
+meet the owner's bilingual requirement.

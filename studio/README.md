@@ -70,6 +70,18 @@ and wording before publishing Studio. See the [build/source receipt](../docs/aud
 
 ## Editing content
 
+Project-owned form titles, help text, option labels, preview fallbacks and custom
+validation messages have Finnish presentation adapters. They use the active
+Studio locale; canonical schemas, stored values and identifiers stay unchanged.
+The Finnish locale choice is supplied by the core locale plugin.
+Unknown future strings retain their source text. Actual authored preview titles
+and slugs are never translated as interface fallbacks.
+
+Source validation is recorded in [the schema locale audit](../docs/audits/ab255-studio-schema-locales-2026-10-12.md).
+Authenticated visual verification and translation-wording acceptance remain
+pending. General album-image captions and alt authoring are deferred until after
+MVP; this adapter does not generate them.
+
 Home page and Site settings open the existing document identity, including an
 imported document whose ID differs from its type name. A successful empty query
 opens a conventional initial ID. A transport/permission error, malformed result,
