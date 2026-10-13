@@ -4046,6 +4046,10 @@ and canonical-category prerequisites. Fresh GET-only evidence records 18 English
 article gaps (18 drafts), five service gaps and one category gap. No CMS write or
 translation acceptance occurred. [Evidence](audits/ab269-publication-locale-census-2026-10-13.md).
 
+### AB#276 — actual article publication preparation (2026-10-13)
+
+[The actual eighteen-article plan](audits/ab276-actual-article-publication-plan-2026-10-13.md) now builds against the published English Blog category and current stable Production raw state, without simulation or changed copy. Owner workbook/packet provenance matches; eighteen atomic article/placement batches create 662 published documents and delete their 662 editing drafts. Complete current local recovery rehashes all 5,158 assets and the 17,614-document sidecar. The exact private operation request is ready for separate publication approval, with partial-write reconciliation, fresh post-credential recovery and writer cleanup specified. No CMS write, provider dry run or writer creation occurred. AB#276 stays Active pending preparation PR merge; AB#255 and remaining launch gates stay open.
+
 ### AB#255 — Finnish and English on every page (2026-10-11, Active)
 
 The owner confirmed coverage includes historical articles/galleries and customer/
