@@ -1,16 +1,21 @@
 import { notFound } from "next/navigation";
 import { GalleryLightbox, GalleryLightboxTrigger } from "@/components/gallery-lightbox";
-import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
+import { getRestrictedPageLocale } from "@/lib/restricted-page-locale-request";
+import { RestrictedPageLanguages } from "@/components/restricted-page-languages";
+import { getBuiltInLabels } from "@/lib/deployment-config";
 import { getLegacyGallery } from "@/lib/legacy-gallery-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function LegacyGalleryPage({ params }: { params: Promise<{ handle: string }> }) {
-  const gallery = await getLegacyGallery((await params).handle);
+  const { handle } = await params;
+  const gallery = await getLegacyGallery(handle);
   if (gallery === undefined) notFound();
-  const labels = getBuiltInLabels(getDeploymentConfig().localeRoutes.defaultLocale);
+  const locale = await getRestrictedPageLocale();
+  const labels = getBuiltInLabels(locale);
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
+      <RestrictedPageLanguages pathname={`/client-gallery/${handle}`} locale={locale} />
       <h1 className="mb-6 text-2xl">{gallery.title || labels.legacyGallery.title}</h1>
       {gallery.zipUrl && <a href={gallery.zipUrl} className="mb-8 inline-block underline focus-visible:outline-2 focus-visible:outline-focus" referrerPolicy="no-referrer">{labels.legacyGallery.download}</a>}
       <GalleryLightbox slides={gallery.images} labels={labels.lightbox}>

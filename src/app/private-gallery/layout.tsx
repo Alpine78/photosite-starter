@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 
 import { DocumentRoot } from "@/components/document-root";
-import { getDeploymentConfig } from "@/lib/deployment-config";
+import { getRestrictedPageLocale } from "@/lib/restricted-page-locale-request";
 
 import "../globals.css";
 
@@ -22,11 +22,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function PrivateGalleryLayout({
+export default async function PrivateGalleryLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <DocumentRoot locale={getDeploymentConfig().localeRoutes.defaultLocale}>
+    <DocumentRoot locale={await getRestrictedPageLocale()}>
       {/* Scrub before the router captures the initial URL, including its hash. */}
       <Script src="/private-gallery-bootstrap.js" strategy="beforeInteractive" />
       {children}
