@@ -1,6 +1,6 @@
 # Finnish and English page coverage — AB#255
 
-2026-10-13 continuation: [Authenticated Windows/WSL Studio check](audits/ab255-authenticated-studio-locales-2026-10-13.md). FI/EN switching and ten editorial forms were exercised; root schema-header text, list preview localization/full-frame thumbnails and array screen-reader instructions remain explicit gaps. This is not complete Studio coverage.
+2026-10-13 Studio completion: the [initial authenticated check](audits/ab255-authenticated-studio-locales-2026-10-13.md) identified type-header, list-preview and drag-instruction gaps. [Drag localization](audits/ab255-studio-drag-localization-2026-10-13.md) merged in #371; [presentation corrections](audits/ab255-studio-presentation-completion-2026-10-13.md) are complete in #370, with final CI/review pending. Local/source verification is separate from deployed Studio acceptance.
 
 Owner requirement confirmed on 2026-10-11: every page family, including historical
 articles/galleries and customer/administrator pages, needs Finnish and English.
@@ -92,6 +92,8 @@ Claude project memory and memory index.
 2026-10-12 continuation: [Public bilingual editing proposals completed](audits/ab255-public-copy-completion-2026-10-12.md).
 
 2026-10-12 continuation: [Restricted page UI locale implementation](audits/ab255-restricted-page-locales-2026-10-12.md).
+
+2026-10-12 continuation: [Studio schema interface localization](audits/ab255-studio-schema-locales-2026-10-12.md).
 
 2026-10-12 continuation: [Default service aliases expose actual language siblings](audits/ab255-default-service-language-links-2026-10-12.md).
 General album-image alt/caption authoring is deferred until after MVP. This does
