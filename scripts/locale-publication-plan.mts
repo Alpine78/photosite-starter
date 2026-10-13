@@ -109,6 +109,7 @@ export function planReviewedArticlePublication(bytes: Buffer, packet: unknown, t
     for (const k of new Set([...Object.keys(sourceContent), ...Object.keys(draftContent)])) if (!allowedDifferences.has(k) && !same(sourceContent[k], draftContent[k])) throw new Error("UNREVIEWED_DRAFT_FIELD_CHANGE");
     for (const k of ["contentId", "canonicalCategory", "secondaryCategories", "cover", "summaryListingOnly", "endGalleryId"]) if (!same(source[k] ?? null, draft[k] ?? null)) throw new Error("ARTICLE_UNRELATED_FIELD_CHANGE");
     const categoryRef = record(draft.canonicalCategory) ? draft.canonicalCategory._ref : undefined;
+    if (!identity(draft.slug) || documents.some(d => d._id !== draft._id && ["article", "gallery"].includes(d._type) && d.language === "en" && d.slug === draft.slug && record(d.canonicalCategory) && d.canonicalCategory._ref === categoryRef)) throw new Error("ARTICLE_ROUTE_COLLISION");
     let category = typeof categoryRef === "string" ? byId.get(categoryRef) : undefined; const ancestors = new Set<string>(), categorySources: Document[] = [];
     for (;;) {
       if (!category || category._type !== "category" || root(category._id) !== category._id || ancestors.has(category._id) || ancestors.size >= 5) throw new Error("ARTICLE_CATEGORY_UNPUBLISHED_OR_CYCLIC");

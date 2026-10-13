@@ -56,3 +56,7 @@ it("refuses malformed category blocks and an unapproved draft pending field", ()
   expect(() => planLocaleAdditions(encode([category, service]), malformed, target)).toThrow("INVALID_CATEGORY_DESCRIPTION");
   expect(() => planReviewedArticlePublication(encode([publishedCategory, article, { ...draft, localizationReview: { sourceLanguage: "fi", pendingFields: ["cover"] } }]), articles, target)).toThrow("UNAPPROVED_PENDING_FIELD");
 });
+
+it("refuses a canonical English route already used by another article or gallery", () => {
+  for (const type of ["article", "gallery"]) expect(() => planReviewedArticlePublication(encode([publishedCategory, article, draft, { ...draft, _id: "other-content", _type: type, contentId: "different" }]), articles, target)).toThrow("ARTICLE_ROUTE_COLLISION");
+});
