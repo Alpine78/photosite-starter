@@ -6,6 +6,7 @@ import {
   PUBLISHED_CONTENT_REDIRECT_ENTRIES,
   PUBLISHED_SERVICE_REDIRECT_ENTRIES,
   RETIRED_TAG_PATHS,
+  RETIRED_PROFILE_PATHS,
   RETIRED_SITEMAP_ALIAS_PATHS,
   STRUCTURAL_REDIRECT_ENTRIES,
 } from "@/lib/legacy-redirects-data";
@@ -28,6 +29,21 @@ import {
  */
 const KNOWN_STRUCTURAL_TARGETS = new Set(["/", "/services", "/contact"]);
 
+describe("numeric camera-review legacy decision", () => {
+  it("preserves source 370's exact article while retiring the distinct focus-speed sitemap alias", () => {
+    // Literal source/target pairs independently guard the identity distinction.
+    // A clone with an empty migration registry has neither source decision.
+    if (inventory.records.length === 0) return;
+    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/blogi/370-fujifilm-x-pro2")).toMatchObject({
+      kind: "redirect", target: "/tarinat/blogi/fujifilm-x-pro2",
+    });
+    expect(PENDING_LEGACY_PATHS).not.toContain("/blogi/370-fujifilm-x-pro2");
+    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/sivustokartta/fujifilm-x-pro2-tarkennusnopeus")).toMatchObject({
+      kind: "gone",
+    });
+  });
+});
+
 /**
  * These content routes exist only after first-site content is imported, so
  * the mock-only harness cannot prove them by enumerating its fixture. Each
@@ -35,6 +51,8 @@ const KNOWN_STRUCTURAL_TARGETS = new Set(["/", "/services", "/contact"]);
  * legacy source is moved out of `PENDING_LEGACY_PATHS`.
  */
 const KNOWN_PUBLISHED_CONTENT_TARGETS = new Set([
+  "/tarinat/yleinen",
+  "/en/stories/common",
   "/tarinat/moottoriurheilu",
   "/en/stories/motorsport",
   "/tarinat/moottoriurheilu/wrc",
@@ -218,6 +236,7 @@ describe("AB#19 legacy redirect completeness", () => {
     const buckets: Record<string, readonly string[]> = {
       decided: [
         ...RETIRED_TAG_PATHS,
+        ...RETIRED_PROFILE_PATHS,
         ...RETIRED_SITEMAP_ALIAS_PATHS,
         ...STRUCTURAL_REDIRECT_ENTRIES.map((entry) => entry.source),
         ...PUBLISHED_CONTENT_REDIRECT_ENTRIES.map((entry) => entry.source),
@@ -258,6 +277,7 @@ describe("AB#19 legacy redirect completeness", () => {
     }
     expect(LEGACY_REDIRECTS.size).toBe(
       RETIRED_TAG_PATHS.length +
+        RETIRED_PROFILE_PATHS.length +
         RETIRED_SITEMAP_ALIAS_PATHS.length +
         STRUCTURAL_REDIRECT_ENTRIES.length +
         PUBLISHED_SERVICE_REDIRECT_ENTRIES.length +
@@ -410,6 +430,7 @@ describe("AB#19 legacy redirect completeness", () => {
   it("never records a legacy row (decided or pending) that shadows an already-live route or a reserved namespace", () => {
     for (const path of [
       ...RETIRED_TAG_PATHS,
+      ...RETIRED_PROFILE_PATHS,
       ...RETIRED_SITEMAP_ALIAS_PATHS,
       ...STRUCTURAL_REDIRECT_ENTRIES.map((entry) => entry.source),
       ...PUBLISHED_CONTENT_REDIRECT_ENTRIES.map((entry) => entry.source),

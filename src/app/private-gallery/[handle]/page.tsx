@@ -1,4 +1,6 @@
 import { headers } from "next/headers";
+import { getRestrictedPageLocale } from "@/lib/restricted-page-locale-request";
+import { RestrictedPageLanguages } from "@/components/restricted-page-languages";
 import { notFound } from "next/navigation";
 
 import {
@@ -59,19 +61,21 @@ export default async function PrivateGalleryPage({
   params: Promise<{ handle: string }>;
 }) {
   const { handle } = await params;
-  const { privateGallery, localeRoutes } = getDeploymentConfig();
+  const { privateGallery } = getDeploymentConfig();
 
   // A deployment with the feature off serves nothing here at all.
   if (privateGallery.store === "off") notFound();
   // A malformed handle cannot name any gallery, so refusing it reveals nothing.
   if (!isPrivateGalleryHandle(handle)) notFound();
 
-  const allLabels = getBuiltInLabels(localeRoutes.defaultLocale);
+  const locale = await getRestrictedPageLocale();
+  const allLabels = getBuiltInLabels(locale);
   const labels = allLabels.privateGallery;
   const authorized = await resolveAuthorizedGallery(handle);
 
   return (
     <>
+      {authorized !== undefined && <RestrictedPageLanguages pathname={`/${privateGallery.routePrefix}/${handle}`} locale={locale} requireCleanUrl />}
       {authorized === undefined ? (
         <PrivateGalleryBootstrap labels={labels} />
       ) : authorized.kind === "proof" ? (
@@ -80,7 +84,7 @@ export default async function PrivateGalleryPage({
           proofLabels={allLabels.privateGalleryProof}
           gallery={authorized.gallery}
           view={authorized.view}
-          locale={localeRoutes.defaultLocale}
+          locale={locale}
           proofPath={`/${privateGallery.routePrefix}/${handle}/proof`}
           assetPath={`/${privateGallery.routePrefix}/${handle}/asset`}
         />
@@ -89,7 +93,7 @@ export default async function PrivateGalleryPage({
           labels={labels}
           gallery={authorized.gallery}
           items={authorized.items}
-          locale={localeRoutes.defaultLocale}
+          locale={locale}
         />
       )}
     </>

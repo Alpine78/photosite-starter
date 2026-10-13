@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { DocumentRoot } from "@/components/document-root";
-import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
+import { getBuiltInLabels } from "@/lib/deployment-config";
+import { getRestrictedPageLocale } from "@/lib/restricted-page-locale-request";
 import "../globals.css";
 
-export function generateMetadata(): Metadata {
-  return { title: getBuiltInLabels(getDeploymentConfig().localeRoutes.defaultLocale).legacyGallery.title,
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: getBuiltInLabels(await getRestrictedPageLocale()).legacyGallery.title,
     robots: { index: false, follow: false }, referrer: "no-referrer" };
 }
 
-export default function LegacyGalleryLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <DocumentRoot locale={getDeploymentConfig().localeRoutes.defaultLocale}>{children}</DocumentRoot>;
+export default async function LegacyGalleryLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <DocumentRoot locale={await getRestrictedPageLocale()}>{children}</DocumentRoot>;
 }

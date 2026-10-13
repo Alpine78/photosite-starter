@@ -73,6 +73,8 @@ Claude project memory and memory index.
 
 
 2026-10-12 continuation: [Public bilingual editing proposals completed](audits/ab255-public-copy-completion-2026-10-12.md).
+
+2026-10-12 continuation: [Restricted page UI locale implementation](audits/ab255-restricted-page-locales-2026-10-12.md).
 General album-image alt/caption authoring is deferred until after MVP. This does
 not remove existing descriptions or alter image/media contracts. AB#255 remains
 Active until all applicable page families, accepted content and live journeys

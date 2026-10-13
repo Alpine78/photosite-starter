@@ -12,6 +12,7 @@
  * imports this file. A clone with no Joomla migration empties all three
  * lists below to `[]` — the same way it empties `legacy-redirects-data.ts`'s
  * `RETIRED_TAG_PATHS`, `STRUCTURAL_REDIRECT_ENTRIES`,
+ * `RETIRED_PROFILE_PATHS`,
  * `PUBLISHED_SERVICE_REDIRECT_ENTRIES`, `PUBLISHED_CONTENT_REDIRECT_ENTRIES`, and
  * `legacy-redirects-inventory.json`'s `records` — rather than deleting this
  * file, which would break the completeness test and owner-run mapping report
@@ -63,8 +64,8 @@ export const EXCLUDED_LEGACY_PATHS: readonly string[] = [
  * retains only undecided static/service and source-identity rows.
  *
  * Remaining system-shaped sources are not classified by their spelling:
- * Komento profile intent needs evidence; the Fujifilm focus-speed sitemap
- * alias is a different article from the camera review already mapped. English
+ * Komento profile and Common-category article decisions were resolved from the
+ * October 9 backup on October 12; their exact rows now live in the registry. English
  * static/service replacements, unpublished source pages and category ancestry
  * need their own source/target verification. No pending path is an implicit
  * 410, home redirect or accepted launch omission.
@@ -75,13 +76,8 @@ export const EXCLUDED_LEGACY_PATHS: readonly string[] = [
  * the historical removal of the template's unpublished scaffold.
  */
 export const PENDING_LEGACY_PATHS: readonly string[] = [
-  "/blogi/370-fujifilm-x-pro2",
-  "/component/komento/profile",
-  "/component/komento/profile/138",
   "/en/",
   "/en/blog",
-  "/en/component/komento/profile",
-  "/en/gear",
   "/en/photography",
   "/en/photography/business",
   "/en/photography/event",
@@ -91,7 +87,6 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/en/photography/real-estate",
   "/en/photos",
   "/en/photos/misc",
-  "/en/site",
   "/en/wedding-portfolio",
   "/en/wedding/ceremony",
   "/en/wedding/ceremony-portraits",
@@ -100,8 +95,6 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/en/wedding/whole-day",
   "/fi/haakuvaus/aamusta-iltaan",
   "/fi/haakuvaus/vihkiseremonia",
-  "/fi/kalusto",
-  "/fi/sivusto",
   "/fi/valokuvat",
   "/fi/valokuvat/sekalaiset",
   "/fi/valokuvaus/asuntokuvaus",
@@ -112,8 +105,6 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/fi/valokuvaus/yrityskuvaus",
   "/haakuvaus/aamusta-iltaan",
   "/haakuvaus/vihkiseremonia",
-  "/kalusto",
-  "/sivusto",
   "/valokuvat",
   "/valokuvat/sekalaiset",
   "/valokuvaus/asuntokuvaus",
