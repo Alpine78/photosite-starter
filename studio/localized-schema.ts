@@ -1,6 +1,7 @@
-import type { Schema } from "sanity";
+import type { PrepareViewOptions, Schema } from "sanity";
 import { studioInterfaceText } from "./interface-locales";
 import { localizedEditorialPreview } from "./localized-preview";
+import { EDITORIAL_PREVIEWS } from "./editorial-preview";
 
 /** Project compiled presentation metadata; never mutate schemas or stored values. */
 export function localizedSchema(schema: Schema, locale: string): Schema {
@@ -15,8 +16,8 @@ export function localizedSchema(schema: Schema, locale: string): Schema {
       ...type,
       title: studioInterfaceText(type.title, locale),
       description: studioInterfaceText(type.description, locale),
-      ...(prepare ? { preview: { ...type.preview, prepare(selection: Readonly<Record<string, unknown>>) {
-        const original = prepare(selection);
+      ...(prepare && Object.hasOwn(EDITORIAL_PREVIEWS, name) ? { preview: { ...type.preview, prepare(selection: Readonly<Record<string, unknown>>, options?: PrepareViewOptions) {
+        const original = prepare.call(type.preview, selection, options);
         const localized = localizedEditorialPreview(name, selection, locale);
         return { ...original, ...(localized ? { title: localized.title, subtitle: localized.subtitle } : {}) };
       } } } : {}),

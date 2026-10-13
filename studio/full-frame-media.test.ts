@@ -8,6 +8,16 @@ import { localizedSchema } from "./localized-schema";
 import { Schema } from "@sanity/schema";
 
 describe("document-list full-frame media", () => {
+  it.each(["media", "service", "homePage"])("also covers the %s photo preview without a custom prepare", (name) => {
+    const source = defineSchemaTypes({ datasetVisibility: "public", storyRootPaths: ["/stories"] }).find(x => x.name === name)!;
+    const adapted = withFullFrameMedia(source);
+    const selected = { title: "Authored title", subtitle: "Authored subtitle", media: { asset: { _ref: "image-abc123-200x300-webp" } } };
+    const value = adapted.preview!.prepare!(selected);
+    expect(value.title).toBe(selected.title);
+    expect(value.subtitle).toBe(selected.subtitle);
+    expect(isValidElement(value.media)).toBe(true);
+    expect(source.preview).not.toBe(adapted.preview);
+  });
   it("projects supported React media through the compiled, localized preview pipeline", () => {
     const source = defineSchemaTypes({ datasetVisibility: "public", storyRootPaths: ["/stories"] });
     const prepared = source.map(withEditorialPreview).map(withLocalizedPreview).map(withFullFrameMedia);

@@ -44,5 +44,13 @@ caption/alt authoring stays deferred after MVP. AB#255 remains Active.
 
 The branch includes #371 head 8d141e5 and resolves their one shared Studio
 configuration conflict with both features retained. Merge #371 first, then
-#370. The exact combined source passes all 5,842 tests, lint, Studio typecheck,
+#370. The exact combined source passes all 5,846 tests, lint, Studio typecheck,
 zero-error schema validation and Studio/Next.js production builds.
+
+The final photo-preview pass also covers default media/service/home previews
+without custom prepare functions. Compiled regressions preserve selected authored
+text and unrelated SDK/plugin preview functions with their view options. An
+authenticated media-library list additionally shows 31 fit=max images and zero
+fit=crop requests. The photographic selectors currently select scalar title and
+subtitle fields; keep that contract or supply an explicit prepare for a future
+portable-text title.

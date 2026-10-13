@@ -3,10 +3,11 @@ import { useClient } from "sanity";
 import { STUDIO_VALIDATION_API_VERSION } from "../sanity/schemas/validation";
 import { previewImageId } from "./preview-image";
 import type { SchemaTypeDefinition } from "../sanity/schemas/schema-types";
+import type { PrepareViewOptions } from "sanity";
 
 type PreparedSchema = SchemaTypeDefinition & { preview?: {
   select: Readonly<Record<string, string>>;
-  prepare?: (selection: Readonly<Record<string, unknown>>) => { title: string; subtitle: string; media?: unknown };
+  prepare?: (selection: Readonly<Record<string, unknown>>, options?: PrepareViewOptions) => Readonly<Record<string, unknown>>;
 } };
 
 /** React media is supported by preview.prepare, including document-list previews. */
@@ -21,10 +22,12 @@ export function FullFrameMedia({ assetId }: { assetId: string }) {
 }
 
 export function withFullFrameMedia(type: PreparedSchema): PreparedSchema {
-  const prepare = type.preview?.prepare;
-  if (!prepare) return type;
-  return { ...type, preview: { ...type.preview!, prepare(selection) {
-    const preview = prepare(selection);
+  if (!type.preview?.select.media) return type;
+  // Project default photo previews select scalar title/subtitle plus media.
+  // Keep those selected values intact when no custom prepare was supplied.
+  const prepare = type.preview.prepare;
+  return { ...type, preview: { ...type.preview, prepare(selection, options) {
+    const preview = prepare ? prepare.call(type.preview, selection, options) : selection;
     const id = previewImageId(preview.media);
     return id ? { ...preview, media: <FullFrameMedia assetId={id} /> } : preview;
   } } };

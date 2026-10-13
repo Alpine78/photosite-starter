@@ -5,6 +5,15 @@ import { withEditorialPreview } from "./editorial-preview";
 import { localizedSchema } from "./localized-schema";
 
 describe("compiled Studio presentation projection", () => {
+  it("preserves other SDK/plugin preview functions and their view options", () => {
+    const schema = Schema.compile({ name: "plugin", types: [{
+      name: "pluginDocument", type: "document", fields: [{ name: "title", type: "string" }],
+      preview: { select: { title: "title" }, prepare: (selection: { title: string }, options?: { ordering?: { title?: string } }) => ({ title: options?.ordering?.title ?? selection.title }) },
+    }] });
+    const projected = localizedSchema(schema, "fi-FI").get("pluginDocument")!;
+    expect(projected.preview).toBe(schema.get("pluginDocument")!.preview);
+    expect(projected.preview!.prepare!({ title: "Authored value" }, { ordering: { name: "custom", title: "Sort title", by: [] } }).title).toBe("Sort title");
+  });
   it("localizes document headers and placement lists without changing the canonical schema", () => {
     const schema = Schema.compile({ name: "editorial", types: defineSchemaTypes({ datasetVisibility: "public", storyRootPaths: ["/stories"] }).map(withEditorialPreview) });
     const article = schema.get("article")!;
