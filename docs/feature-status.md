@@ -1107,6 +1107,22 @@ open. [Audit and limits](audits/ab19-service-redirects-2026-10-09.md).
 **Published package follow-up, 2026-10-09 (AB#19, Active):**
 Two additional owner-requested FI wedding services were separately published and verified on the activated renderer after the original import audits and a fresh complete baseline. Four matching legacy source rows, including their redundant Finnish aliases, are now prepared as direct permanent redirects. Source menu/article identities and an independent literal pair guard keep the two offerings distinct; canonical/language, prices, listing, sitemap and contact prefills were verified separately from the generic test harness. The prepared registry has 51 redirects and 186 pending paths among the same 415. These rows are not yet deployed; AB#19 and the wider AB#137 launch remain Active. The original 9,918-document / 3,512-image import passed independent byte/data verification and 494 public route/gallery GET cases before the separate service operation. The temporary migration writer has been revoked with a confirmed 401 denial. All old service content and timestamps stayed unchanged; the createIfNotExists parent wave changed only that one parent revision, recorded separately in the private audit.
 
+### AB#19 — eleven verified final decisions and raw-query correction (2026-10-12)
+
+The owner-requested continuation resolves one numeric camera-review alias, seven
+explicit Common-category article fallbacks and three justified Komento-profile
+410s from fresh backup/menu/category and current target evidence. All 415 sources
+remain accounted for: 197 redirect / 177 gone / 37 pending / three excluded / one
+live. Production's previous 367 decided rows all passed live expectations; new
+rows are not claimed deployed. `pending <origin>` observes unresolved responses
+without making decisions or approving omissions. A production-build regression
+exposed Next's reconstruction of a bare numeric query flag; the documented
+`skipProxyUrlNormalize` setting preserves the original URL, with the complete
+895-pass / 38-skip journey matrix after the boundary correction. Final row-specific
+checks accompany the PR. [The decision receipt](audits/ab19-final-decisions-2026-10-12.md)
+records all 37 remaining paths, source identity distinctions and deployment limits.
+AB#19 stays Active; no CMS, DNS or alias write and no complete launch acceptance.
+
 **Mapping verification tooling, 2026-10-02 (AB#19, still Active):** the full Boards
 attachment contains 442 URL records; the committed inventory projects them to 415
 path/status observations. That checkpoint had **39 redirects** (three structural,

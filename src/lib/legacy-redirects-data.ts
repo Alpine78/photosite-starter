@@ -3,6 +3,7 @@
  * decide without guessing at a not-yet-migrated content target.
  *
  * A clone with no Joomla migration empties {@link RETIRED_TAG_PATHS},
+ * {@link RETIRED_PROFILE_PATHS},
  * {@link STRUCTURAL_REDIRECT_ENTRIES},
  * {@link PUBLISHED_SERVICE_REDIRECT_ENTRIES}, and
  * {@link PUBLISHED_CONTENT_REDIRECT_ENTRIES} to `[]` — the same way a clone edits
@@ -39,8 +40,10 @@
  * reviewed, rather than silently reclassifying an unreviewed row — the same
  * mistake this AB#19 pass caught and corrected for `component/komento/*`
  * (unresolved profile routes) and `sivustokartta/*` (real content reached through a
- * Joomla-minted alias, not a generic sitemap page). Both stay `pending` in
- * `legacy-redirects-tracking.ts`, not here.
+ * Joomla-minted alias, not a generic sitemap page). The 2026-10-12 source
+ * inspection establishes Komento's commenter profile/statistics intent;
+ * its three exact paths now have separate justified gone decisions below.
+ * The focus-speed article uses its verified canonical-category fallback.
  *
  * {@link STRUCTURAL_REDIRECT_ENTRIES} is redirect-kind data whose canonical target
  * does not depend on any not-yet-migrated content, decided instead of left
@@ -115,6 +118,13 @@ import {
 
 const GONE_REASON =
   "Joomla tag/keyword browsing page with no current-site replacement (ADR-0003 decision 9; a future replacement is AB#66's, not yet built).";
+
+/** Source router, profile view and model confirm commenter identity/statistics. */
+export const RETIRED_PROFILE_PATHS: readonly string[] = [
+  "/component/komento/profile",
+  "/component/komento/profile/138",
+  "/en/component/komento/profile",
+];
 
 function buildSafely(entries: readonly LegacyRedirectEntry[]): LegacyRedirects {
   try {
@@ -465,6 +475,34 @@ export const PUBLISHED_SERVICE_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
  * or across languages.
  */
 export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
+  // Unmigrated public article menu identities in the accepted Common category.
+  // Source category 133, and its verified English peer 163, resolve to the
+  // existing shared category. Both notice views passed live canonical/noindex/
+  // semantic checks; source articles 451–454 and 450 are not substituted for
+  // another article merely because a title happens to resemble it.
+  ...[
+    ["/kalusto", "/tarinat/yleinen"],
+    ["/fi/kalusto", "/tarinat/yleinen"],
+    ["/sivusto", "/tarinat/yleinen"],
+    ["/fi/sivusto", "/tarinat/yleinen"],
+    ["/en/gear", "/en/stories/common"],
+    ["/en/site", "/en/stories/common"],
+    ["/sivustokartta/fujifilm-x-pro2-tarkennusnopeus", "/tarinat/yleinen"],
+  ].map(([source, target]): LegacyRedirectEntry => ({ source, outcome: {
+    kind: "redirect", target, reservedQueryParams: "strip", fallbackNotice: "content-unavailable",
+  } })),
+  {
+    // AB#19, 2026-10-12: the ID and alias name the imported FI camera review.
+    // Joomla formerly sent this numeric spelling to its error page; preserve
+    // the requested article identity instead of treating it as a gone page.
+    // The distinct focus-speed article (source 450) uses its category notice above.
+    source: "/blogi/370-fujifilm-x-pro2",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/tarinat/blogi/fujifilm-x-pro2",
+      reservedQueryParams: "strip" as const,
+    },
+  },
   {
     source: "/valokuvat/moottoriurheilu",
     outcome: {
@@ -1867,6 +1905,11 @@ export const LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
   ...RETIRED_TAG_PATHS.map((source) => ({
     source,
     outcome: { kind: "gone" as const, reason: GONE_REASON },
+  })),
+  ...RETIRED_PROFILE_PATHS.map((source) => ({
+    source,
+    outcome: { kind: "gone" as const,
+      reason: "Joomla Komento commenter profile and interaction statistics have no same-intent public replacement (ADR-0003 decision 9; source router/view/model verified)." },
   })),
   ...STRUCTURAL_REDIRECT_ENTRIES,
   ...PUBLISHED_SERVICE_REDIRECT_ENTRIES,
