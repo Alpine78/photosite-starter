@@ -6,6 +6,7 @@ import {
   PUBLISHED_CONTENT_REDIRECT_ENTRIES,
   PUBLISHED_SERVICE_REDIRECT_ENTRIES,
   RETIRED_TAG_PATHS,
+  RETIRED_SITEMAP_ALIAS_PATHS,
   STRUCTURAL_REDIRECT_ENTRIES,
 } from "@/lib/legacy-redirects-data";
 import inventory from "@/lib/legacy-redirects-inventory.json";
@@ -136,7 +137,6 @@ const KNOWN_PUBLISHED_CONTENT_TARGETS = new Set([
   "/tarinat/haakuvat/pirjo-ville",
   "/tarinat/haakuvat/salla-vesa",
   "/tarinat/haakuvat/tiia-maria-jouni",
-  "/tarinat/haaportfolio",
   "/tarinat/matkailu",
   "/tarinat/matkailu/alppimatkat",
   "/tarinat/matkailu/alppimatkat/chamonix-2006",
@@ -200,10 +200,25 @@ function inventoryPaths(): readonly string[] {
  * as it does for this deployment's real 415-path inventory.
  */
 describe("AB#19 legacy redirect completeness", () => {
+  it("retires exactly the inventoried sitemap aliases while retaining real blog redirects", () => {
+    const known = inventoryPaths().filter((path) => path.startsWith("/sivustokartta/"));
+    expect(new Set(RETIRED_SITEMAP_ALIAS_PATHS)).toEqual(new Set(known));
+    for (const path of RETIRED_SITEMAP_ALIAS_PATHS) {
+      expect(resolveLegacyRedirect(LEGACY_REDIRECTS, path)?.kind).toBe("gone");
+    }
+    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/sivustokartta/not-in-inventory")).toBeUndefined();
+    if (PUBLISHED_CONTENT_REDIRECT_ENTRIES.length) {
+      expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/blogi/fujifilm-x-pro2")).toMatchObject({
+        kind: "redirect", target: "/tarinat/blogi/fujifilm-x-pro2",
+      });
+    }
+  });
+
   it("places every distinct inventory path in exactly one bucket", () => {
     const buckets: Record<string, readonly string[]> = {
       decided: [
         ...RETIRED_TAG_PATHS,
+        ...RETIRED_SITEMAP_ALIAS_PATHS,
         ...STRUCTURAL_REDIRECT_ENTRIES.map((entry) => entry.source),
         ...PUBLISHED_CONTENT_REDIRECT_ENTRIES.map((entry) => entry.source),
         ...PUBLISHED_SERVICE_REDIRECT_ENTRIES.map((entry) => entry.source),
@@ -243,6 +258,7 @@ describe("AB#19 legacy redirect completeness", () => {
     }
     expect(LEGACY_REDIRECTS.size).toBe(
       RETIRED_TAG_PATHS.length +
+        RETIRED_SITEMAP_ALIAS_PATHS.length +
         STRUCTURAL_REDIRECT_ENTRIES.length +
         PUBLISHED_SERVICE_REDIRECT_ENTRIES.length +
         PUBLISHED_CONTENT_REDIRECT_ENTRIES.length,
@@ -290,7 +306,6 @@ describe("AB#19 legacy redirect completeness", () => {
       ["/fi/valokuvat/haakuvat/laura-jukka", "/tarinat/haakuvat/laura-jukka"],
       ["/blogi", "/tarinat/blogi"],
       ["/blogi/fujifilm-x-pro2", "/tarinat/blogi/fujifilm-x-pro2"],
-      ["/sivustokartta/haaportfolio", "/tarinat/haaportfolio"],
       ["/en/portfolio-en", "/en/stories/portfolio"],
       ["/valokuvat/matkailu/f1/italia-monza-f1-2008", "/tarinat/matkailu/formulamatkat/italian-grand-prix-2008"],
     ];
@@ -395,6 +410,7 @@ describe("AB#19 legacy redirect completeness", () => {
   it("never records a legacy row (decided or pending) that shadows an already-live route or a reserved namespace", () => {
     for (const path of [
       ...RETIRED_TAG_PATHS,
+      ...RETIRED_SITEMAP_ALIAS_PATHS,
       ...STRUCTURAL_REDIRECT_ENTRIES.map((entry) => entry.source),
       ...PUBLISHED_CONTENT_REDIRECT_ENTRIES.map((entry) => entry.source),
       ...PUBLISHED_SERVICE_REDIRECT_ENTRIES.map((entry) => entry.source),

@@ -114,7 +114,6 @@ export const PENDING_LEGACY_PATHS: readonly string[] = [
   "/haakuvaus/vihkiseremonia",
   "/kalusto",
   "/sivusto",
-  "/sivustokartta/fujifilm-x-pro2-tarkennusnopeus",
   "/valokuvat",
   "/valokuvat/sekalaiset",
   "/valokuvaus/asuntokuvaus",

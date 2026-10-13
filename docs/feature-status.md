@@ -7,6 +7,8 @@ The always-applicable agent rules remain in [`AGENTS.md`](../AGENTS.md).
 
 AB#255 continuation, 2026-10-12: [Public bilingual editing proposals completed](audits/ab255-public-copy-completion-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
 
+AB#19 owner decision, 2026-10-13: the two inventoried `/sivustokartta/…` aliases now have explicit HTTP 410 rows in `fix/19-retire-sitemap-aliases`. The former hääportfolio redirect is removed and the focus-speed alias moves out of pending; canonical content and ordinary blog redirects remain. This is prepared source, not a production activation. Validation: lint, all 5765 unit tests and all 48 production-build legacy browser cases passed. The separate open PR #367 must retain this later retirement decision rather than restore its earlier Fuji category fallback. AB#19 remains Active.
+
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
 configuration, responsive header and footer, home page, services listing and detail
 pages, a semantic design-token layer (AB#36) — the brand-sensitive colours, text
