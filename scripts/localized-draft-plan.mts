@@ -186,7 +186,17 @@ export function planLocalizedDraft(input: {
     assertSourceReviewed(sourcePlacement, `source placement ${placementId}`);
     const next = cloneDocument(sourcePlacement);
     next._id = `drafts.${deterministicId(placementType, contentId, targetLanguage, placementId)}`;
-    next[refField] = { _type: "reference", _ref: publishedId(draftId) };
+    // The new parent has never been published. A strong reference to its
+    // published ID makes Content Lake reject the entire draft transaction.
+    // Use Studio's temporary weak reference; its strong schema field restores
+    // referential integrity on publication after the parent is published.
+    // https://www.sanity.io/docs/studio/reference-type
+    next[refField] = {
+      _type: "reference",
+      _ref: publishedId(draftId),
+      _weak: true,
+      _strengthenOnPublish: { type },
+    };
     const localPaths: string[] = [];
     textPaths(next, "", localPaths);
     next.localizedFrom = sourceLanguage;

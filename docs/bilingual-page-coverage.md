@@ -7,6 +7,17 @@ This is a source-code inventory supplemented by a dated, narrow
 [published-language census](audits/ab255-public-language-inventory-2026-10-12.md).
 Neither proves accepted translation quality or deployment of the merged code.
 
+2026-10-13 accepted article drafts: the owner approved the complete 18-article
+FI/EN workbook and CMS editing-draft creation, with historical polls retained
+only on FI versions. [Verified authoring](audits/ab255-approved-article-draft-authoring-2026-10-13.md)
+created all 18 EN article drafts and 644 linked end-gallery placement drafts.
+The 23 poll blocks were omitted only from EN drafts. Existing FI content,
+polls/votes, shared media, categories and asset counts remain unchanged.
+Published coverage still lacks these 18 EN articles: editing drafts are not
+publication. EN canonical category and editor/media review remain publication
+gates. This approval does not cover category/service/gallery proposals or new
+image caption/alt authoring. AB#255 remains Active.
+
 | Page family | Verified source behavior | Remaining work / responsible work item |
 | --- | --- | --- |
 | Home | Merged source adds requested-locale copy, portfolio/latest sections, exact switches and metadata. Published inventory finds FI/EN on all nine authored home text fields and all 16 shared-settings text fields; referenced image alt also has both languages. | AB#255: owner wording/image review, actual locale destination and journey checks, then activate separately; field presence is not full page acceptance. |
