@@ -43,3 +43,10 @@ rollback or owner launch approval. Continue using `verify:preview`, existing
 release probes and the deployment runbook independently.
 
 See [the current read-only exercise](audits/ab268-release-source-verification-2026-10-13.md).
+
+The AB#272 Preview pipeline supplies affirmative cleanliness metadata only after
+`node scripts/assert-deployment-source.mts <expected-sha>` checks the exact clean
+checkout before building and immediately before uploading. This fills the
+missing provider field for future reviewed pipeline deployments. It attests
+only those checkout observations and leaves artifact/configuration and live
+publication gates independent. Older deployment receipts are unchanged.
