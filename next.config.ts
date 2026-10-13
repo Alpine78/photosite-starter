@@ -339,6 +339,10 @@ const nextConfig: NextConfig = {
   // Next.js redirects first and a malformed cursor creates the cached 308 that
   // ADR-0003 decision 8 explicitly forbids.
   skipTrailingSlashRedirect: true,
+  // AB#19: the default Proxy URL reconstruction changes a bare numeric flag
+  // (?4738) into ?4738= before our byte-preserving redirect policy sees it.
+  // Keep the original URL; Proxy still carries only bounded path/presence bits.
+  skipProxyUrlNormalize: true,
   images: {
     // Only the project-owned public derivative directory is eligible for local
     // optimization. Filename versioning is enforced by the domain projection;

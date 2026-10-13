@@ -30,3 +30,11 @@ and failed capability scrubbing have production-build evidence. The full final
 restricted regression then passed with no failures.
 
 Main integration, 2026-10-13: updated to `534dada` without conflicts. Final lint and all 5765 unit tests passed. The new production-build restricted regression passed 157 tests with the same 21 documented WebKit HTTP-cookie skips. No failed tests in this integrated restricted run.
+
+Conflict repair, 2026-10-13: integrated main `212c5a2` after the independent
+legacy-delivery, redirect and contact-verification merges. Only the shared
+coverage/status documents conflicted; both work histories are retained. The
+combined branch passes lint and all 5,827 unit tests. Its production-build
+restricted-locale, private-route-hygiene and legacy-redirect journeys pass
+90 cases with four documented WebKit HTTP-cookie skips. No authentication,
+locale-parser, media or deployment contract was changed by conflict resolution.

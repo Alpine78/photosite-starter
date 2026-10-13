@@ -87,6 +87,7 @@ describe("public image Next.js configuration", () => {
     const nextConfig = await configuredWith(FIXTURE_DEPLOYMENT);
 
     expect(nextConfig.skipTrailingSlashRedirect).toBe(true);
+    expect(nextConfig.skipProxyUrlNormalize).toBe(true);
   });
 
   it("bounds current optimizer candidates to the 2048px presentation ceiling", async () => {
