@@ -3916,6 +3916,10 @@ alias was changed. A new Production build and live edge/header checks are needed
 before this preparation can resolve the reference alias-indexing gate. Both
 items remain Active.
 
+### AB#278 — Studio formatter exposure evidence (2026-10-13)
+
+[The scoped sprintf-js investigation](audits/ab278-studio-sprintf-exposure-2026-10-13.md) reproduces the installed precision RangeError while tracing its CLI/YAML-formatter dependency path. Fresh audit retains eight moderate affected nodes and no patched release. The normal YAML import excludes argparse/sprintf; the actual compiled Studio's 321 maps (2,115 sources) and all four unmapped helper scripts contain no affected-package source. No browser call path was found in this observed build. No dependency was changed, alert dismissed or risk accepted. AB#278 remains Active pending evidence PR merge; AB#117 and final hosted-release/risk acceptance remain open.
+
 ### AB#254 — Standalone Sanity Studio (2026-10-11, Closed)
 
 The optional `studio/` package reuses the canonical `sanity/schemas` without copies
