@@ -1,3 +1,4 @@
+import { isLegacyFallbackNotice, LEGACY_FALLBACK_NOTICE_PARAM } from "@/lib/legacy-redirects";
 import { effectiveGalleryPresentation } from "@/lib/gallery-presentation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
@@ -160,6 +161,7 @@ async function serviceListingLanguageLinks(
 
 async function serviceMetadata(
   request: ServiceRequest,
+  legacyFallbackNotice: boolean,
 ): Promise<Metadata> {
   const labels = getBuiltInLabels(request.locale);
   const path = buildServicePath(request.config, request.locale, request.segments);
@@ -169,7 +171,8 @@ async function serviceMetadata(
       title: labels.pages.services,
       description: (await getStaticPageData("contact", request.locale))?.settings.servicesIntro,
       locale: request.locale,
-      localeVersions: await getServiceListingLocaleVersions(),
+      localeVersions: legacyFallbackNotice ? undefined : await getServiceListingLocaleVersions(),
+      noindex: legacyFallbackNotice,
     });
   }
   const route = await getServiceRoute(request.segments, request.locale);
@@ -180,11 +183,12 @@ async function serviceMetadata(
     description: route.service.shortDescription,
     image: route.service.coverMedia,
     locale: request.locale,
-    localeVersions: await getServiceLocaleVersions(route.service.serviceId),
+    localeVersions: legacyFallbackNotice ? undefined : await getServiceLocaleVersions(route.service.serviceId),
+    noindex: legacyFallbackNotice,
   });
 }
 
-async function renderService(request: ServiceRequest) {
+async function renderService(request: ServiceRequest, legacyFallbackNotice: boolean) {
   const labels = getBuiltInLabels(request.locale);
   const serviceRootPath = buildServicePath(request.config, request.locale);
   const routes = await getServiceRoutes(request.locale);
@@ -202,6 +206,7 @@ async function renderService(request: ServiceRequest) {
         contactCallToAction={contactHref === undefined ? undefined : await getServicesContactCallToAction(request.locale)}
         contactLabel={labels.pages.contact}
         contactHref={contactHref}
+        legacyFallbackNotice={legacyFallbackNotice ? labels.contentTree.legacyFallbackNotice : undefined}
       />
     );
   }
@@ -225,6 +230,7 @@ async function renderService(request: ServiceRequest) {
         languages={await serviceLanguageLinks(route.service.serviceId, request.locale)}
         labels={labels}
         contactHref={contactHref}
+        legacyFallbackNotice={legacyFallbackNotice ? labels.contentTree.legacyFallbackNotice : undefined}
       />
     </>
   );
@@ -606,7 +612,7 @@ export async function generateMetadata(
       : contactMetadata(staticPage.locale);
   }
   const service = await resolveServiceRequest(props.params);
-  if (service !== undefined) return serviceMetadata(service);
+  if (service !== undefined) return serviceMetadata(service, isLegacyFallbackNotice((await props.searchParams)[LEGACY_FALLBACK_NOTICE_PARAM]));
   const { config, trees, resolution } = await resolveRequest(props);
   // A redirect or an unknown path claims no canonical URL of its own and keeps
   // the site-level defaults.
@@ -770,7 +776,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
       : <ContactPage locale={staticPage.locale} searchParams={props.searchParams} />;
   }
   const service = await resolveServiceRequest(props.params);
-  if (service !== undefined) return renderService(service);
+  if (service !== undefined) return renderService(service, isLegacyFallbackNotice((await props.searchParams)[LEGACY_FALLBACK_NOTICE_PARAM]));
   const { config, trees, resolution } = await resolveRequest(props);
 
   if (resolution.kind === "redirect") {

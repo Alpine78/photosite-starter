@@ -53,9 +53,9 @@ describe("ServicesPage", () => {
       { slug: "long-session", name: "Long session", hideFromListing: false },
     ]);
     siteSettingsModule.getSiteSettings.mockResolvedValue({});
-    const page = (await ServicesPage()) as unknown as ReactElementLike;
+    const page = (await ServicesPage({ searchParams: Promise.resolve({}) })) as unknown as ReactElementLike;
     const [body] = childrenOf(page);
-    const [, list] = childrenOf(body);
+    const list = childrenOf(body).find(child => child?.type === "ul")!;
     const items = list.props.children as readonly ReactElementLike[];
     expect(items.map((item) => (item.props.children as ReactElementLike).props.href))
       .toEqual(["/services/short-session", "/services/long-session"]);
@@ -71,9 +71,10 @@ describe("ServicesPage", () => {
     ]);
     siteSettingsModule.getSiteSettings.mockResolvedValue({ servicesIntro: "An intro from Sanity." });
 
-    const page = (await ServicesPage()) as unknown as ReactElementLike;
+    const page = (await ServicesPage({ searchParams: Promise.resolve({}) })) as unknown as ReactElementLike;
     const [body] = childrenOf(page);
-    const [header, list] = childrenOf(body);
+    const [header] = childrenOf(body);
+    const list = childrenOf(body).find(child => child?.type === "ul")!;
 
     const introParagraph = childrenOf(header)[1] as ReactElementLike;
     expect(introParagraph.props.children).toBe("An intro from Sanity.");
@@ -87,7 +88,7 @@ describe("ServicesPage", () => {
     servicesModule.getServices.mockResolvedValue([]);
     siteSettingsModule.getSiteSettings.mockResolvedValue({});
 
-    const page = (await ServicesPage()) as unknown as ReactElementLike;
+    const page = (await ServicesPage({ searchParams: Promise.resolve({}) })) as unknown as ReactElementLike;
     const [body, band] = childrenOf(page);
     const [header] = childrenOf(body);
 
@@ -100,7 +101,7 @@ describe("ServicesPage", () => {
     servicesModule.getServices.mockRejectedValue(new Error("classified sanity failure"));
     siteSettingsModule.getSiteSettings.mockResolvedValue({});
 
-    await expect(ServicesPage()).rejects.toThrow("classified sanity failure");
+    await expect(ServicesPage({ searchParams: Promise.resolve({}) })).rejects.toThrow("classified sanity failure");
   });
 });
 
@@ -108,7 +109,7 @@ describe("generateMetadata", () => {
   it("passes the Sanity-authored intro through as the page description", async () => {
     servicesModule.getServicesIntro.mockResolvedValue("An intro from Sanity.");
 
-    const metadata = await generateMetadata();
+    const metadata = await generateMetadata({ searchParams: Promise.resolve({}) });
 
     expect(metadata).toMatchObject({
       title: "Palvelut",
@@ -119,7 +120,7 @@ describe("generateMetadata", () => {
   it("passes no description when none was authored, letting the site default apply", async () => {
     servicesModule.getServicesIntro.mockResolvedValue(undefined);
 
-    const metadata = await generateMetadata();
+    const metadata = await generateMetadata({ searchParams: Promise.resolve({}) });
 
     expect(metadata.description).toBeUndefined();
   });

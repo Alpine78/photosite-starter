@@ -24,6 +24,7 @@ type ServiceListingProps = {
   readonly contactCallToAction?: ContactCallToActionContent;
   readonly contactLabel: string;
   readonly contactHref?: string;
+  readonly legacyFallbackNotice?: string;
 };
 
 /** The localized service catalog. Route resolution supplies every card URL. */
@@ -37,6 +38,7 @@ export function ServiceListing({
   contactCallToAction,
   contactLabel,
   contactHref,
+  legacyFallbackNotice,
 }: ServiceListingProps) {
   return (
     <main>
@@ -51,6 +53,9 @@ export function ServiceListing({
           )}
         </header>
 
+        {legacyFallbackNotice !== undefined && (
+          <p role="status" className="mt-6 rounded border border-border-control px-4 py-3 text-body">{legacyFallbackNotice}</p>
+        )}
         <ul className="mt-12 grid items-start gap-x-10 gap-y-14 sm:mt-16 sm:grid-cols-2">
           {routes.filter((route) => route.service.hideFromListing !== true).map((route) => (
             <li key={route.service.serviceId}>
@@ -138,6 +143,7 @@ type ServiceDetailProps = {
   readonly labels: BuiltInLabels;
   /** Omitted until this locale publishes a same-language contact route. */
   readonly contactHref?: string;
+  readonly legacyFallbackNotice?: string;
 };
 
 /**
@@ -152,6 +158,7 @@ export function ServiceDetail({
   languages,
   labels,
   contactHref,
+  legacyFallbackNotice,
 }: ServiceDetailProps) {
   const ancestors = routes
     .filter(
@@ -174,6 +181,9 @@ export function ServiceDetail({
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <Breadcrumbs label={labels.navigation.breadcrumb} steps={breadcrumbs} />
 
+      {legacyFallbackNotice !== undefined && (
+        <p role="status" className="mt-6 rounded border border-border-control px-4 py-3 text-body">{legacyFallbackNotice}</p>
+      )}
       <div className="mt-6 grid gap-12 lg:grid-cols-[1fr_20rem]">
         <article>
           <h1 className="text-4xl font-semibold leading-none tracking-tight sm:text-6xl">

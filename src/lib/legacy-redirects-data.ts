@@ -6,7 +6,8 @@
  * {@link RETIRED_PROFILE_PATHS},
  * {@link RETIRED_SITEMAP_ALIAS_PATHS},
  * {@link STRUCTURAL_REDIRECT_ENTRIES},
- * {@link PUBLISHED_SERVICE_REDIRECT_ENTRIES}, and
+ * {@link PUBLISHED_SERVICE_REDIRECT_ENTRIES},
+ * {@link REMAINING_LEGACY_REDIRECT_ENTRIES}, and
  * {@link PUBLISHED_CONTENT_REDIRECT_ENTRIES} to `[]` — the same way a clone edits
  * `mock-content-tree.ts`'s own fixture content to be its own, rather than
  * deleting that file — leaving {@link LEGACY_REDIRECTS} an empty map with
@@ -21,7 +22,7 @@
  * (`legacy-redirects.ts`) stays either way; only this row data is
  * first-site-specific.
  *
- * Six kinds of decided row live here, kept in separate lists because their
+ * Seven kinds of decided row live here, kept in separate lists because their
  * evidence and validation differ:
  *
  * {@link RETIRED_TAG_PATHS} is every Joomla tag/keyword-browsing page
@@ -65,27 +66,10 @@
  * the "blanket locale-root redirect" ADR-0003 decision 9 forbids for
  * unrelated content with no real equivalent.
  *
- * `/en/`, the parallel English locale-root alias, was investigated and
- * deliberately left in `PENDING_LEGACY_PATHS` instead: measured against a
- * production build with this deployment's real locale configuration
- * (`SITE_LOCALE=fi`, `SITE_LOCALE_ROUTES=fi||tarinat,en|en|stories`), the
- * bare `/en` this row would target answers `404` — no English home page
- * exists yet (localized static routes remain later work; see
- * `docs/feature-status.md`) — and neither `/` (a cross-language redirect) nor
- * `/en/stories` (a story-root redirect) is an allowed substitute under
- * ADR-0003 decision 9's explicit "never use a blanket home, locale-root,
- * story-root, or cross-language redirect" rule. Revisit once a real English
- * home page exists. `/valokuvaus`
- * and `/fi/valokuvaus` (the bare Joomla services-category root, and its
- * redundant-prefixed duplicate) redirect to this site's own generic
- * `/services` listing — an owner-confirmed equivalence (2026-09-13), not an
- * inference from the source string, since both are top-level listing pages
- * for the same photography-services offering rather than migrated content
- * with its own slug. Each `/fi/`-prefixed source resolves directly to the
- * final target per ADR-0003 decision 9's "aliases resolve directly to the
- * final target, never through another legacy URL" — `/fi/valokuvaus` targets
- * `/services` itself, not `/valokuvaus`, so it never chains through that
- * other decided row.
+ * The English home alias is now verified on the current merged source. It
+ * belongs to REMAINING_LEGACY_REDIRECT_ENTRIES with the other final decisions.
+ * The owner-confirmed service-listing aliases now use the configured Finnish
+ * canonical /palvelut target, in PUBLISHED_SERVICE_REDIRECT_ENTRIES.
  *
  * {@link PUBLISHED_CONTENT_REDIRECT_ENTRIES} holds a different class of
  * redirect: a source whose target is an imported, published content page.
@@ -348,22 +332,7 @@ export const STRUCTURAL_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
       reservedQueryParams: "strip" as const,
     },
   },
-  {
-    source: "/valokuvaus",
-    outcome: {
-      kind: "redirect" as const,
-      target: "/services",
-      reservedQueryParams: "strip" as const,
-    },
-  },
-  {
-    source: "/fi/valokuvaus",
-    outcome: {
-      kind: "redirect" as const,
-      target: "/services",
-      reservedQueryParams: "strip" as const,
-    },
-  },
+
 ];
 
 /**
@@ -374,6 +343,22 @@ export const STRUCTURAL_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
  * resolve straight to the same target. Other unreviewed wedding-package URLs stay pending.
  */
 export const PUBLISHED_SERVICE_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
+  {
+    source: "/valokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut",
+      reservedQueryParams: "strip" as const,
+    },
+  },
+  {
+    source: "/fi/valokuvaus",
+    outcome: {
+      kind: "redirect" as const,
+      target: "/palvelut",
+      reservedQueryParams: "strip" as const,
+    },
+  },
   {
     source: "/haakuvaus",
     outcome: {
@@ -1899,6 +1884,342 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
   },
 ];
 
+/**
+ * Final source-bound static/service/category decisions (AB#271).
+ * Direct targets and ancestry fallbacks were checked on the current-source
+ * local production build against the real published CMS. This is deployment
+ * data, not a blanket unknown-URL rule. English copy awaiting approval is
+ * treated as unpublished; revisit those explicit fallbacks after publication.
+ * The 12+ hour wedding offer never aliases the distinct eight-hour package.
+ * See docs/audits/ab271-remaining-legacy-decisions-2026-10-13.md.
+ * A clone empties this list alongside the other migration lists.
+ */
+export const REMAINING_LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
+  {
+    "source": "/en/",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en",
+      "reservedQueryParams": "strip"
+    }
+  },
+  {
+    "source": "/en/photography",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services",
+      "reservedQueryParams": "strip"
+    }
+  },
+  {
+    "source": "/en/wedding-portfolio",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/stories/wedding-portfolio",
+      "reservedQueryParams": "strip"
+    }
+  },
+  {
+    "source": "/en/wedding/ceremony-portraits",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services/wedding-photography/ceremony-and-portraits",
+      "reservedQueryParams": "strip"
+    }
+  },
+  {
+    "source": "/haakuvaus/vihkiseremonia",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut/haakuvaus/vihkiseremonia",
+      "reservedQueryParams": "strip"
+    }
+  },
+  {
+    "source": "/fi/haakuvaus/vihkiseremonia",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut/haakuvaus/vihkiseremonia",
+      "reservedQueryParams": "strip"
+    }
+  },
+  {
+    "source": "/valokuvaus/asuntokuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut/asuntokuvaus",
+      "reservedQueryParams": "strip"
+    }
+  },
+  {
+    "source": "/fi/valokuvaus/asuntokuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut/asuntokuvaus",
+      "reservedQueryParams": "strip"
+    }
+  },
+  {
+    "source": "/valokuvaus/hautajaiskuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut/hautajaiskuvaus",
+      "reservedQueryParams": "strip"
+    }
+  },
+  {
+    "source": "/fi/valokuvaus/hautajaiskuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut/hautajaiskuvaus",
+      "reservedQueryParams": "strip"
+    }
+  },
+  {
+    "source": "/valokuvat",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/fi/valokuvat",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/valokuvat/sekalaiset",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/fi/valokuvat/sekalaiset",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/blog",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/photos",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/photos/misc",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/valokuvaus/juhlakuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/fi/valokuvaus/juhlakuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/valokuvaus/perhe-ja-lapsikuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/fi/valokuvaus/perhe-ja-lapsikuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/valokuvaus/valmistujaiskuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/fi/valokuvaus/valmistujaiskuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/valokuvaus/yrityskuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/fi/valokuvaus/yrityskuvaus",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/photography/business",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/photography/event",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/photography/funeral",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/photography/graduation",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/photography/kid-family",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/photography/real-estate",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/wedding/ceremony",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services/wedding-photography",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/wedding/from-morning",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services/wedding-photography",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/wedding/half-day",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services/wedding-photography",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/en/wedding/whole-day",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/en/services/wedding-photography",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/haakuvaus/aamusta-iltaan",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut/haakuvaus",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  },
+  {
+    "source": "/fi/haakuvaus/aamusta-iltaan",
+    "outcome": {
+      "kind": "redirect",
+      "target": "/palvelut/haakuvaus",
+      "reservedQueryParams": "strip",
+      "fallbackNotice": "content-unavailable"
+    }
+  }
+];
+
 /** Raw configuration lets owner-run verification fail on invalid rows. */
 export const LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
   ...RETIRED_TAG_PATHS.map((source) => ({
@@ -1917,6 +2238,7 @@ export const LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
   ...STRUCTURAL_REDIRECT_ENTRIES,
   ...PUBLISHED_SERVICE_REDIRECT_ENTRIES,
   ...PUBLISHED_CONTENT_REDIRECT_ENTRIES,
+  ...REMAINING_LEGACY_REDIRECT_ENTRIES,
 ];
 
 export const LEGACY_REDIRECTS: LegacyRedirects = buildSafely(LEGACY_REDIRECT_ENTRIES);
