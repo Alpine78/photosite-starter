@@ -52,6 +52,7 @@
     "audit:publication-locales": "node scripts/audit-publication-locales.mts",
     "plan:locale-publication": "node scripts/plan-locale-publication.mts",
     "write:locale-publication": "node scripts/write-locale-publication.mts",
+    "verify:legacy-candidate": "node scripts/verify-legacy-candidate.mts",
     "verify:legacy-delivery-assets": "node scripts/verify-legacy-delivery-assets.mts",
     "verify:contact-delivery": "node scripts/verify-contact-delivery.mts",
     "verify:cms-publication": "node scripts/verify-cms-publication.mts"
