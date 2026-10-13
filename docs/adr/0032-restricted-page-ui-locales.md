@@ -1,8 +1,8 @@
 # ADR-0032: Locale selection on restricted and retained legacy pages
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-12
-**Deciders:** Project owner (decision pending)
+**Deciders:** Project owner (explicit approval, 2026-10-12)
 **Work item:** AB#255
 
 ## Context
@@ -13,7 +13,7 @@ Verified code: private-gallery/layout.tsx and page.tsx use defaultLocale; privat
 
 ## Decision
 
-Propose one optional GET UI selector, `locale`, on the existing restricted/legacy page namespace, using an exact configured full locale tag. It never proves authorization, chooses a session, changes a capability, or authorizes an image/ZIP. When absent, empty, repeated, overlong, malformed, or unsupported, select the deployment default without reflecting input, redirecting, adding cookies, or changing existing refusal/status/header behavior. Do not infer browser language or redirect from Accept-Language. Full configured tags are a closed allowlist; case/region variants that are not the exact configured spelling are unsupported.
+Use one optional GET UI selector, `locale`, on the existing restricted/legacy page namespace, using an exact configured full locale tag. It never proves authorization, chooses a session, changes a capability, or authorizes an image/ZIP. When absent, empty, repeated, overlong, malformed, or unsupported, select the deployment default without reflecting input, redirecting, adding cookies, or changing existing refusal/status/header behavior. Do not infer browser language or redirect from Accept-Language. Full configured tags are a closed allowlist; case/region variants that are not the exact configured spelling are unsupported.
 
 Switch with a plain same-origin anchor that performs a document navigation on the current canonical page path and sets only a validated locale. Do not append fragments, credentials, arbitrary return URLs or unrelated query values. Root html.lang, labels and date formatting must select the same request locale. Next layouts do not receive fresh search parameters on client navigation; therefore a future implementation needs one bounded proxy-owned request-locale value, overwritten on every relevant matched request and validated again at the layout/page boundary. A caller-provided header cannot supply a preference. No content lookup belongs in Proxy. The existing bounded path/cursor header contract stays unchanged; the new value would be separate and non-sensitive. No runtime header is added by this proposal.
 
@@ -39,11 +39,11 @@ Locale-selectable labels are a first bounded slice, not complete bilingual autho
 
 ## Consequences
 
-This proposal changes no route, request header, auth/session/cookie, API body, schema, data, image, manifest, storage, deployment or diagram. Accepted ADRs remain unchanged. Implementation is pending owner decision on the selector plus separate authored-text compatibility work. All-pages AB#255 remains Active.
+This proposal changes no route, request header, auth/session/cookie, API body, schema, data, image, manifest, storage, deployment or diagram. Accepted ADRs remain unchanged. The owner accepted the selector on 2026-10-12. Separate authored-text compatibility work remains; general album-image captions and alt text are deferred until after MVP under the same continuation. All-pages AB#255 remains Active.
 
 ## Action Items
 
-- Obtain the owner's decision on this concrete GET selector and authored-text separation.
+- Owner selector approval received on 2026-10-12; keep authored-text separation explicit.
 - Implement a pure bounded configured-tag parser and validated header/page/layout adapter in a small slice; keep raw cookie rejection and capability bootstrap ordering.
 - Verify FI/EN html.lang, built-in labels, dates, switch/reload/back-forward and disabled-JavaScript UI where supported; preserve noindex/no-store/referrer rules under configured and literal namespace aliases.
 - Exercise repeated/unsupported/overlong locale, spoofed request headers, unsrubbable capability, unauthorized/revoked sessions, login failures/logout, proof actions and dirty edits with synthetic production-build fixtures.
@@ -53,5 +53,20 @@ This proposal changes no route, request header, auth/session/cookie, API body, s
 Primary framework facts checked against [layouts](https://nextjs.org/docs/app/api-reference/file-conventions/layout), [page search parameters](https://nextjs.org/docs/app/api-reference/file-conventions/page) and [request headers](https://nextjs.org/docs/app/api-reference/functions/headers). Project pins Next16.3.8; current documentation is a design reference, not a completed project-specific runtime test. Required production-build behavior remains an implementation gate.
 
 The owner instructed this continuation to proceed without Claude on 2026-10-12.
-Codex completed the final source review. This changes the review workflow, not
-the Proposed status or the implementation and authored-text action items above.
+The final source review at the proposal stage changed the review workflow, not
+the decision status. The later explicit owner acceptance is recorded below.
+
+
+Owner acceptance, 2026-10-12: "Hyväksyn ADR-0032:n kielivalinnan."
+Configured full tags remain authoritative: for example a configured `en-GB`
+requires `?locale=en-GB`, not its unconfigured `en` shorthand. The owner also
+explicitly deferred general album-image alt/caption authoring until after MVP.
+This deferral does not remove existing image descriptions or change retained
+legacy manifests, media references, bytes, authorization or download semantics.
+
+Implementation checkpoint: the restricted-page locale branch implements the
+proxy-owned selector, plain document switches, localized labels/dates, clean
+login/logout reload and generic error boundaries. The context above describes
+the proposal's original baseline. Source validation and production-build fixture
+journeys are recorded in [the implementation audit](../audits/ab255-restricted-page-locales-2026-10-12.md).
+Authored-title acceptance and production activation remain separate.

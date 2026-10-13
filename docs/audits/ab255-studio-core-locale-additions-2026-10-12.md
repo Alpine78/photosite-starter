@@ -41,3 +41,6 @@ dependency symlink was preserved locally before installation: Turbopack rejected
 its outside-root location, an independent local setup issue absent from CI's
 fresh installs. No package manifest, lockfile, type-check exclusion, timeout,
 translation assertion or quality gate was weakened.
+
+Integration after PR #372, 2026-10-13: both coverage/status histories are retained against main `1e63b7e`. All 11 original runtime/test files and 27 incoming runtime/test files remain byte-identical to their reviewed source commits. Lint and all 5,829 unit tests pass. Earlier required CI #890 passed; this newer merge requires its own CI. No authored content or runtime behavior changed by conflict resolution.
+Authenticated FI/EN/wording acceptance remains pending: the owner reported login, but the separate test window still showed the provider selector after reload, so the intended session is being clarified.

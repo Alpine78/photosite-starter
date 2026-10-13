@@ -7,6 +7,8 @@ The always-applicable agent rules remain in [`AGENTS.md`](../AGENTS.md).
 
 AB#255 continuation, 2026-10-12: [Public bilingual editing proposals completed](audits/ab255-public-copy-completion-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
 
+AB#255 continuation, 2026-10-12: [Restricted page UI locale implementation](audits/ab255-restricted-page-locales-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
+
 AB#255 continuation, 2026-10-12: [Finnish Studio core resource additions](audits/ab255-studio-core-locale-additions-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. CI installation fix, 2026-10-13: the root test job installs locked Studio dependencies before the SDK contract tests. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
 
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
