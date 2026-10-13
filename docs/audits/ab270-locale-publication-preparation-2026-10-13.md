@@ -1,5 +1,30 @@
 # AB#270 — guarded locale publication preparation, 2026-10-13
 
+## Owner continuation: copy accepted with two pricing additions
+
+The owner accepted the six-item workbook below with one specific addition: two funeral
+service pricing options in Finnish and English. Existing pricing rows, starting price,
+descriptions, identifiers, slugs and media remain unchanged. The exact requested additions
+and translations are retained in the private packet and updated review workbook. Its
+SHA-256 is `8b933436af828518e1c11499508df5900fe7f7b823689cb74d049db01db46c3a`.
+The private approval record binds the prior accepted workbook and the owner's requested
+delta. This is editorial acceptance, not acceptance of an unreviewed mutation plan.
+
+The planner now accepts only additive source pricing rows and requires their keys/prices
+to match the reviewed English target. Source revision guards and exact post-write source
+readback remain mandatory; no source text replacement is enabled. A new stable complete
+raw scan at 17:12:41 UTC still matches the recoverable snapshot hash below. The resulting
+category/service plan preserves the other approved text and remains an offline plan.
+No CMS write or temporary credential creation has occurred. The final operator approval,
+provider validation, publication, full-dataset audit and writer revocation remain separate.
+
+Validation after integrating merged #382: lint, 6,058 browser-free tests, TypeScript and
+synthetic production build. New tests cover append-only preservation, key/price mismatch,
+duplicate source keys and rejection of unrelated post-write source edits. AB#270 remains
+Active; the earlier preparation notes below retain their original pre-acceptance context.
+
+## Initial preparation
+
 The owner requested remaining launch work in separate published worktrees after merging
 #378–#381. AB#270 is Active under AB#255. This change provides the offline planner and
 explicitly approved owner-run publication operator; no CMS mutation or launch acceptance

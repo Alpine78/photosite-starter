@@ -42,3 +42,16 @@ it("bounds a streamed upstream read and cancels its reader", async () => {
   try { await expect(boundedPublicationFetch("https://fixture.api.sanity.io/read")).rejects.toThrow("LIVE_RESPONSE_LIMIT"); expect(cancelled).toBe(true); }
   finally { vi.unstubAllGlobals(); }
 });
+
+it("reads back the approved source pricing append and refuses an unrelated source edit", async () => {
+  const source = { _id: "service-fi", _rev: "r", _type: "service", serviceId: "sessions", language: "fi", name: "Source", shortDescription: "Source", slug: "source", order: 1, description: ["Source"], pricing: [{ _key: "base", _type: "object", name: "Source", price: "100" }] };
+  const addition = { _key: "extra", _type: "object", name: "Extra", price: "250" };
+  const copy = { ...packet, services: [{ sourceDocument: source, sourcePricingAdditions: [addition], targetEditingFields: { ...source, _id: undefined, _rev: undefined, language: "en", slug: "reviewed", pricing: [...source.pricing, addition] } }] };
+  delete copy.services[0].targetEditingFields._id; delete copy.services[0].targetEditingFields._rev;
+  const p = planLocaleAdditions(Buffer.from([category, source].map(d => JSON.stringify(d)).join("\n") + "\n"), copy, { projectId: "fixture", dataset: "production", apiVersion: "v2026-03-01" });
+  const tx = p.transactions[0], firstPatch = tx.mutations[0]; if (!("patch" in firstPatch)) throw new Error("fixture");
+  const after = [{ ...category, ...firstPatch.patch.set }, { ...source, pricing: [...source.pricing, addition], _rev: "new" }, ...tx.created];
+  const run = (result: Record<string, unknown>[]) => runLocalePublication(p, { apply: true, approvedDigest: p.digest }, { read: vi.fn().mockResolvedValueOnce([category, source]).mockResolvedValueOnce(result), mutate: vi.fn(), persist: vi.fn() });
+  expect((await run(after)).applied).toBe(true);
+  await expect(run(after.map(d => d._id === source._id ? { ...d, description: ["Unapproved"] } : d))).rejects.toThrow("PUBLICATION_READBACK_FAILED");
+});

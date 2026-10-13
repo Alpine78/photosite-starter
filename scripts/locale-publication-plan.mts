@@ -84,7 +84,15 @@ export function planLocaleAdditions(bytes: Buffer, packet: unknown, target: Publ
     if (fields.parentServiceId && !documents.some(d => d._type === "service" && d.serviceId === fields.parentServiceId && d.language === "en" && root(d._id) === d._id)) throw new Error("SERVICE_PARENT_UNPUBLISHED");
     const created = { ...publicationContent(original), ...structuredClone(fields), _id: `localized-service-${sha256(`${original._id}\0en`)}` };
     if (documents.some(d => root(d._id) === created._id)) throw new Error("TARGET_DOCUMENT_EXISTS");
-    plannedPairs.add(pair); plannedSlugs.add(slugKey); tx.sources.push(original); tx.created.push(created); tx.mutations.push(languageGuard(original), { create: created });
+    let sourceGuard = languageGuard(original);
+    if (value.sourcePricingAdditions !== undefined) {
+      if (!Array.isArray(value.sourcePricingAdditions) || !value.sourcePricingAdditions.length || !Array.isArray(original.pricing)) throw new Error("INVALID_SOURCE_PRICING_ADDITIONS");
+      const pricing = [...original.pricing, ...structuredClone(value.sourcePricingAdditions)];
+      validateServiceCopy({ ...original, pricing });
+      if (!Array.isArray(fields.pricing) || value.sourcePricingAdditions.some(addition => !record(addition) || (fields.pricing as unknown[]).filter(p => record(p) && p._key === addition._key && p.price === addition.price).length !== 1)) throw new Error("SOURCE_TARGET_PRICE_MISMATCH");
+      sourceGuard = { patch: { id: original._id, ifRevisionID: original._rev, set: { pricing } } };
+    }
+    plannedPairs.add(pair); plannedSlugs.add(slugKey); tx.sources.push(original); tx.created.push(created); tx.mutations.push(sourceGuard, { create: created });
   }
   return finish(target, bytes, packet, [tx]);
 }

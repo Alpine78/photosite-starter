@@ -38,11 +38,11 @@ export async function runLocalePublication(plan: LocalePublicationPlan, options:
       for (const source of tx.sources.filter(d => !tx.removedDraftIds.includes(d._id))) {
         const actual = byId.get(source._id);
         if (!actual) throw new Error("PUBLICATION_SOURCE_MISSING");
-        if (tx.kind === "category-services" && source._type === "category") {
-          const mutation = tx.mutations.find(m => "patch" in m && m.patch.id === source._id);
-          if (!mutation || !("patch" in mutation)) throw new Error("CATEGORY_PATCH_MISSING");
-          if (canonicalJson(publicationContent(actual)) !== canonicalJson({ ...publicationContent(source), ...mutation.patch.set })) throw new Error("CATEGORY_READBACK_FAILED");
-        } else if (canonicalJson(publicationContent(actual)) !== canonicalJson(publicationContent(source))) throw new Error("UNEXPECTED_SOURCE_CONTENT_CHANGE");
+        const patch = tx.mutations.find(m => "patch" in m && m.patch.id === source._id);
+        const intended = patch && "patch" in patch
+          ? { ...publicationContent(source), ...patch.patch.set }
+          : publicationContent(source);
+        if (canonicalJson(publicationContent(actual)) !== canonicalJson(intended)) throw new Error("UNEXPECTED_SOURCE_CONTENT_CHANGE");
       }
     }
     catch {

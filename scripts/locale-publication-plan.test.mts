@@ -60,3 +60,18 @@ it("refuses malformed category blocks and an unapproved draft pending field", ()
 it("refuses a canonical English route already used by another article or gallery", () => {
   for (const type of ["article", "gallery"]) expect(() => planReviewedArticlePublication(encode([publishedCategory, article, draft, { ...draft, _id: "other-content", _type: type, contentId: "different" }]), articles, target)).toThrow("ARTICLE_ROUTE_COLLISION");
 });
+
+it("appends explicitly reviewed source prices without replacing existing entries or unrelated content", () => {
+  const copy = packet();
+  const addition = { _key: "extra", _type: "object", name: "Source option", price: "250" };
+  Object.assign(copy.services[0], { sourcePricingAdditions: [addition] });
+  copy.services[0].targetEditingFields.pricing.push({ ...addition, name: "Translated option" });
+  const tx = planLocaleAdditions(encode([category, service]), copy, target).transactions[0];
+  expect(tx.mutations[1]).toEqual({ patch: { id: service._id, ifRevisionID: service._rev, set: { pricing: [...service.pricing, addition] } } });
+  expect(tx.created[0].coverMedia).toEqual(service.coverMedia);
+  expect(tx.created[0].pricing).toEqual(copy.services[0].targetEditingFields.pricing);
+  const wrongPrice = structuredClone(copy); wrongPrice.services[0].targetEditingFields.pricing[1].price = "999";
+  expect(() => planLocaleAdditions(encode([category, service]), wrongPrice, target)).toThrow("SOURCE_TARGET_PRICE_MISMATCH");
+  Object.assign(copy.services[0], { sourcePricingAdditions: [{ ...addition, _key: "package" }] });
+  expect(() => planLocaleAdditions(encode([category, service]), copy, target)).toThrow("INVALID_SERVICE_PRICING");
+});

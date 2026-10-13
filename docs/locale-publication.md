@@ -65,8 +65,12 @@ never replacement. Each article and its complete end-gallery placement set are o
 transaction: guarded draft patches, strict published creates and editing-draft deletes.
 Only approved text review markers are cleared, and only placement parent references are
 strengthened. Finnish source guards write their existing language/order values unchanged;
-Sanity may advance their revision/update metadata. Authored Finnish content and media stay
-equivalent. Operator limits (50 batches, 500 mutations and 2 MiB per batch, 16 MiB read
+Sanity may advance their revision/update metadata. An explicitly reviewed service packet
+may also contain `sourcePricingAdditions`: these append price rows to its Finnish source,
+retain every existing row, require matching keys/prices in the English target and use the
+same source revision guard. This grants no source-text rewrite or pricing replacement.
+Readback checks the exact planned source delta and rejects unrelated changes. All other
+authored Finnish content and media stay equivalent. Operator limits (50 batches, 500 mutations and 2 MiB per batch, 16 MiB read
 responses) are conservative bounds, not claimed provider entitlements.
 
 The implementation uses the documented [Mutation API](https://www.sanity.io/docs/http-reference/mutation),
