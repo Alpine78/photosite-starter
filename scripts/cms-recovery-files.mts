@@ -8,10 +8,20 @@ import { privateInput, readPrivateBytes, newPrivateDirectory, writePrivateBytes 
 import { digest, recoveryPlan, RECOVERY_LIMITS, safeArchiveEntry, type RecoveryAsset } from "./cms-recovery-plan.mts";
 
 type Source = AsyncIterable<Buffer>;
+export async function* boundedRecoverySource(input: Awaited<ReturnType<typeof privateInput>>): AsyncGenerator<Buffer> {
+  if (input.before.size === 0) throw new Error("EMPTY_RECOVERY_INPUT");
+  let read = 0;
+  // Bind the stream's end to the opened file's original size. A growing file
+  // cannot extend hashing/parsing work beyond the admitted byte bound.
+  for await (const chunk of input.handle.createReadStream({ autoClose: false, start: 0, end: input.before.size - 1 })) {
+    read += chunk.length; yield chunk;
+  }
+  if (read !== input.before.size) throw new Error("RECOVERY_INPUT_TRUNCATED");
+}
 async function hashInput(filename: string, maximum: number): Promise<string> {
   const input = await privateInput(filename, maximum), hash = createHash("sha256");
   try {
-    for await (const chunk of input.handle.createReadStream({ autoClose: false })) hash.update(chunk);
+    for await (const chunk of boundedRecoverySource(input)) hash.update(chunk);
     await input.unchanged(); return hash.digest("hex");
   } finally { await input.handle.close(); }
 }
@@ -104,7 +114,7 @@ export async function rehearseRecovery(options: { manifest: string; snapshot: st
   };
   const archive = await privateInput(plan.archivePath, RECOVERY_LIMITS.totalBytes), archiveHash = createHash("sha256");
   async function* archiveSource() {
-    for await (const chunk of archive.handle.createReadStream({ autoClose: false })) { archiveHash.update(chunk); yield chunk; }
+    for await (const chunk of boundedRecoverySource(archive)) { archiveHash.update(chunk); yield chunk; }
   }
   try {
     await parseArchive(archiveSource(), async entry => {
@@ -121,7 +131,7 @@ export async function rehearseRecovery(options: { manifest: string; snapshot: st
   for (const addition of plan.additions) {
     const asset = plan.assets.find(a => a.id === addition.assetId)!;
     const source = await privateInput(addition.path, RECOVERY_LIMITS.assetBytes);
-    try { restored.set(asset.id, await restoreAsset(source.handle.createReadStream({ autoClose: false }), asset, objects, addition.sha256)); await source.unchanged(); }
+    try { restored.set(asset.id, await restoreAsset(boundedRecoverySource(source), asset, objects, addition.sha256)); await source.unchanged(); }
     finally { await source.handle.close(); }
   }
   if (restored.size !== plan.assets.length) throw new Error("MISSING_ASSETS");

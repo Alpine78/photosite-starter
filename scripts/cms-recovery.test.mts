@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
-import { mkdtemp, writeFile, readFile, rm, stat, symlink } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, rm, stat, symlink, appendFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { Header } from "tar";
 import { recoveryAsset, recoveryPlan, safeArchiveEntry, RECOVERY_LIMITS } from "./cms-recovery-plan.mts";
-import { rehearseRecovery } from "./cms-recovery-files.mts";
+import { boundedRecoverySource, rehearseRecovery } from "./cms-recovery-files.mts";
+import { privateInput } from "./private-operation-files.mts";
 const hash = (bytes: Buffer, algorithm = "sha256") => createHash(algorithm).update(bytes).digest("hex");
 const bytes = Buffer.from("synthetic original asset bytes"), sha1 = hash(bytes, "sha1");
 const asset = { _id: `image-${sha1}-32x24-jpg`, _rev: "rev", _type: "sanity.imageAsset", size: bytes.length, sha1hash: sha1, extension: "jpg" };
@@ -95,4 +96,13 @@ describe("offline CMS recovery", () => {
   it("matches the pinned official export fallback for numeric file extensions", () => {
     expect(recoveryAsset({ ...asset, _id: `file-${sha1}-mp3`, _type: "sanity.fileAsset", extension: "mp3" }).member).toBe(`files/${sha1}-mp3.bin`);
   });
+  it("never extends an admitted stream bound when its opened source grows", () => exercise(async (_folder, _manifest, save) => {
+    const filename = await save("growing-original", bytes), input = await privateInput(filename, 100);
+    try {
+      await appendFile(filename, Buffer.alloc(1000));
+      const chunks: Buffer[] = []; for await (const chunk of boundedRecoverySource(input)) chunks.push(chunk);
+      expect(Buffer.concat(chunks)).toEqual(bytes);
+      await expect(input.unchanged()).rejects.toThrow("INPUT_CHANGED");
+    } finally { await input.handle.close(); }
+  }));
 });
