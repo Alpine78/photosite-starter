@@ -394,4 +394,4 @@ text again. The command always leaves `visibleUpdateVerified`,
 `genuineWebhookVerified` and `canonicalLaunchVerified` false: CMS readback alone
 cannot establish any of them. A fabricated webhook POST or old successful hook
 history cannot substitute for the genuine event. See the
-[dated preparation receipt](audits/ab117-cms-publication-smoke-2026-10-13.md).
+[dated live publication and restoration record](audits/ab117-cms-publication-smoke-2026-10-13.md).

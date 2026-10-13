@@ -1,77 +1,94 @@
-# AB#117 — CMS publication operator preparation, 2026-10-13
+# AB#117 — CMS publication and one-field restoration, 2026-10-13
 
-Status: guarded operator and private review packet prepared. AB#117 remains Active.
-The source branch starts at main `f58be98`, then incorporates merged #376, #371 and #377
-through main `f657891`. Concurrent #370 covers Studio wording and #377 covers bilingual
-release preparation. Both merge cleanly with this branch in Git's merge-tree
-check. This slice changes no Studio, alias
-settings, public route, schema or application cache boundary.
+Status: owner-approved live publication, visible update and exact one-field
+restoration verified on the existing Production alias. AB#117 remains Active.
+
+This branch starts at main `f58be98` and incorporates merged #376/#371/#377
+through `f657891`. Git merge-tree checks found no conflict with the concurrent
+Studio/bilingual patches. The change adds an operator; it changes no application
+route, Studio schema, alias settings or cache boundary.
+
+## Guarded operator
 
 The [publication command](../cache-revalidation.md#approved-one-field-publication-check-ab117)
-prepares an offline one-field home-text marker plan, verifies an approved live
-source/recovery binding, durably journals before one revision-guarded patch, and
-reads back every content field. It separately restores the exact intro using the
-observed post-write revision; concurrent edits refuse both phases. Uncertain
-writes can be reconciled read-only; no retry or automatic restoration is implied.
+binds one existing home translation in `intro` or explicitly selected
+`photographerIntroduction.text` to the complete source, revision, recovery
+material and owner approval digest. It preserves all other fields, translations
+and asset references. A separate immutable prepared receipt, fsynced with its
+directory, precedes one revision-guarded patch. Complete-content readback checks
+the result. Restoration requires the observed post-write revision; subsequent
+editor changes refuse it. Uncertain outcomes have read-only reconciliation and
+no automatic second write. CLI receipts alone never claim external delivery.
 
-## Actual read-only evidence
+## Recovery material and preflight
 
-The current authenticated read finds exactly one raw home source and supplies a
-concrete private FI intro proposal. A fresh complete raw dataset capture has
-17,609 documents and 5,158 assets. Its identity/revision/type manifest matched the
-before scan, after scan and a final recheck after backup verification. Current
-asset documents match the preserved complete prior asset inventory.
+The stable authenticated raw capture contains 17,609 documents and 5,158 assets;
+identity/revision/type manifests matched before, after and following verification.
+Asset documents match the preserved inventory. The existing archive covering
+5,145 assets was rehashed to its verified digest. Thirteen later original additions
+were rehashed, copied into this worktree's private packet and reverified. Snapshot
+and asset-manifest hashes are bound to the plan. This verifies material coverage;
+a full dataset restore and independent off-machine recovery were not exercised.
 
-The existing before-service-price archive covering 5,145 assets was rehashed to
-its previously verified digest. All 13 later original additions were found in
-the preserved checkout, rehashed against their size/SHA-256 receipts, copied into
-this worktree's private recovery packet and reverified. The new raw snapshot and
-asset manifest are hash-bound; old receipts and archives are preserved. These
-steps establish current local material coverage, not an exercised full dataset
-restore, independent provider permission audit or customer handoff.
+The initial approved intro plan failed browser preflight: the current home layout
+shows the photographer introduction instead. No credential or CMS write occurred.
+The owner then approved the replacement visible-field digest and restoration;
+the prior temporary-writer authorization remained valid. Both plans and the failed
+preflight are retained. No content selection or translation was inferred.
 
-The CLI compiled the real private plan and its default apply as `plan-only`.
-The initial source-only packet retained explicit false recovery flags; the
-verified current packet is a separate artifact, never an overwritten receipt.
-No CMS write, asset upload, new writer credential or revalidation request occurred.
-No new hook attempt or visible publication success is claimed.
+Two credential-creation calls returned 403 and created no robot; the captured
+second refusal states `Cannot skip token notification`. Existing token IDs and
+source revisions were unchanged. Normal creation succeeded with the provider's
+mandatory owner notification. Exactly one temporary Editor credential was created,
+with a one-hour expiry; its secret stayed in process memory and child environment.
+No existing credential was rotated or deleted.
 
-The owner approved the initial intro proposal and a temporary editor credential.
-Browser preflight found that the current photographer-introduction layout does not
-display `intro`; it displays `photographerIntroduction.text`. No credential was
-created and no CMS patch was issued. The operator now binds that explicitly selected
-visible field, preserving the intro, portrait and every other field. Browser preflight
-confirms the current FI introduction text is visible. The replacement private digest
-requires renewed content approval; the original proposal and failed preflight are
-retained. The credential authorization is unchanged.
+## Live result (UTC)
 
-## Remaining exact operation
+- **13:17:36:** one guarded update appended the synthetic marker to the existing FI
+  photographer-introduction text. Raw readback matched every proposed content field.
+- **13:17:45:** Chromium observed the marker as visible on the public home page.
+  Fresh genuine Production and Preview hook messages each had an accepted HTTP 200
+  attempt for the exact home identity and update operation.
+- **13:17:48:** one guarded restoration used the observed apply revision and restored
+  the original localized text. No concurrent revision or content drift occurred.
+- **13:17:49:** Chromium observed the original text with the marker absent. Separate
+  genuine Production and Preview hook messages each had an accepted HTTP 200 attempt.
 
-Review the original/proposed intro, target, source revision, baseline evidence,
-selected serving deployment and frozen approval digest. The actual one-field
-apply/restore and any temporary writer require exact owner approval. Then bind
-real hook attempts and visible marker/original-text observations to that deployment
-for each operation; preserve failures and revoke/verify any temporary writer.
-Current source or broader baseline drift requires reconciliation before a new
-approval, and an ambiguous write requires observation before any next mutation.
+| Event | Production acknowledgement correlation | Preview acknowledgement correlation |
+| --- | --- | --- |
+| Apply | `2760f0d6-3168-441e-a749-83f981adfaba` | `1212cb17-cfe8-4242-82ba-e78e4b2b9424` |
+| Restore | `e0c1836e-908f-4c97-a85a-3cd8a443f91f` | `f28fadfc-f5d4-4ae1-881a-69d6c22466d4` |
 
-The operator preserves every asset reference and other language. It does not
-publish English drafts, prepare customer ZIPs, remove historical content, promote
-an artifact, modify DNS or complete the remaining AB#117/18/118/250 gates.
+The temporary credential was deleted, absent from the token list, and its key
+returned HTTP 401. All six preceding token IDs remained. Post-exercise raw audit
+at 13:19:08 confirms the same 17,609 identities/types and 5,158 assets. The home
+content is exactly original; only its revision/update time changed. Eleven system
+groups also changed revision/update time through credential lifecycle, with every
+content/permission/member field restored. All other document revisions are
+unchanged, and the final manifest recheck is stable.
+
+Private immutable plans, approvals, prepared/final receipts, genuine hook
+messages/attempts, browser screenshots and post-audit evidence remain in the
+ignored owner-only packet. No fabricated webhook or manual cache recovery was
+used. The same provider deployment/project/team/source served before and after.
+
+## Limits and remaining launch gates
+
+This proves the current serving chain. Its existing provider source is `14b1af0`
+with `gitDirty: 1`; it is not a newly accepted immutable launch artifact. The final
+release candidate and canonical-domain behavior still need their own verification.
+No deployment promotion or DNS change occurred. Full backup restoration, ownership
+handoff, retained customer ZIP transport/import and final security/privacy
+acceptance remain separate. AB#117/18/137/250 remain Active.
 
 ## Validation
 
-Deterministic tests cover malformed/oversized plans, source/digest changes, recovery
-bindings, draft/release collisions, unrelated and concurrent edits, durable-journal
-failure (including final-receipt failure after the write), lost acknowledgements,
-ambiguous readback, exact restoration, private
-inputs/outputs and mocked end-to-end CLI apply/restore/read-only reconciliation.
-The private capsule and backup evidence are ignored and cannot enter CI artifacts.
-After incorporating #376/#371/#377 and the visible-field correction, lint,
-TypeScript checking, all 250 browser-free files / 5,939 tests (34 new focused cases),
-the synthetic mock production build and the
-three architecture diagram checks passed. Relative documentation links and diff
-checks passed. Public journeys are unchanged and were not rerun locally; they
-remain a required CI gate. No security finding remains in the changed operator;
-live source permissions, genuine hook delivery and visible apply/restore remain
-unverified. Live publication remains unperformed.
+After integrating #376/#371/#377 and the visible-field correction: lint,
+TypeScript, all 250 browser-free files / 5,939 tests (34 new focused cases),
+synthetic mock production build, three diagrams, documentation links and diff
+checks passed. Studio dependencies were installed before rerunning its added tests;
+the earlier missing-dependency failure is retained. Public journeys are unchanged
+and were not rerun locally; full CI remains required. No security finding remains
+in the changed operator; older credential disposition, the existing moderate
+Studio advisory and the broader launch acceptance are not resolved by this probe.

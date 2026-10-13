@@ -3453,22 +3453,25 @@ the exact source, evidence limits, private one-field publication proposal and
 separate recovery gates. AB#117/18/137/250 remain Active; no DNS, CMS, alias,
 rollback, customer import, full approval or handoff was performed.
 
-**Publication operator preparation, 2026-10-13 (AB#117, Active):** a new offline-by-default
-command binds one existing home text translation (`intro` or explicitly selected
-`photographerIntroduction.text`) to its complete source revision,
-owner-reviewed recovery evidence and approval digest. One CAS patch and exact-content
-readback precede a separately intended restoration against the observed post-write
-revision; a later editor change refuses restoration. Uncertain writes have read-only
-reconciliation and no automatic retry. A fresh stable raw snapshot contains 17,609
-documents and 5,158 assets; existing asset coverage was renewed by rehashing the
-existing archive and 13 preserved original additions, which are copied into the current
-private recovery packet. No CMS write, writer creation, genuine webhook/visible
-update proof, full restore exercise or launch acceptance was performed.
-[Preparation and remaining operation](audits/ab117-cms-publication-smoke-2026-10-13.md)
-are recorded separately from the source-gated live exercise.
-Browser preflight refused the initially approved intro proposal because the current
-layout displays the photographer introduction instead. The corrected visible-field
-plan is prepared for renewed content approval; no writer was created or CMS patch issued.
+**CMS publication and one-field restoration, 2026-10-13 (AB#117, Active):**
+the offline-by-default operator binds `intro` or the explicitly selected
+`photographerIntroduction.text` translation to complete source/recovery/approval
+hashes. Separate durable preparation, one CAS patch, exact-content readback,
+observed-revision restoration and read-only uncertainty reconciliation are tested.
+Browser preflight caught the initially hidden intro field before any write; the
+owner approved the corrected visible field and exact restoration. On the existing
+Production alias the marker became visible, then the original FI text returned.
+Both phases have fresh genuine Production and Preview hook HTTP 200 acknowledgements.
+The one temporary Editor key was deleted, absent and rejected with 401; all six
+prior token IDs remained. Post-audit confirms 17,609 identities / 5,158 assets,
+exact original home content, eleven system groups with only revision/update-time
+deltas, and unchanged revisions everywhere else. Current local recovery coverage
+includes the rehashed archive and 13 preserved/copied original additions.
+[The dated record](audits/ab117-cms-publication-smoke-2026-10-13.md) preserves
+failed preflights/credential calls, approvals, source limits and remaining gates.
+The serving artifact retains `gitDirty: 1`; final immutable/canonical verification,
+full restore, customer continuity and launch acceptance remain open. No DNS or
+promotion change occurred, and AB#117/18/137/250 remain Active.
 
 ### AB#240 — validate image upload metadata
 
