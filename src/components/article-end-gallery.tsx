@@ -19,19 +19,27 @@ export function ArticleEndGallery({
   slice,
   initialSliceKey,
   labels,
-}: SharedProps) {
+  headingId,
+}: SharedProps & {
+  /** An existing terminal body heading names this region instead of a generated h2. */
+  readonly headingId?: string;
+}) {
   return (
     <section
-      aria-labelledby="article-end-gallery"
-      className="mx-auto mt-12 max-w-6xl"
+      id={headingId === undefined ? undefined : "article-end-gallery"}
+      aria-labelledby={headingId ?? "article-end-gallery"}
+      data-article-end-gallery=""
+      className={`mx-auto max-w-6xl ${headingId === undefined ? "mt-12" : "mt-6"}`}
     >
-      <h2 id="article-end-gallery" className="text-2xl font-semibold tracking-tight">
-        {labels.article.endGallery}
-      </h2>
+      {headingId === undefined && (
+        <h2 id="article-end-gallery" className="text-2xl font-semibold tracking-tight">
+          {labels.article.endGallery}
+        </h2>
+      )}
       {slice.items.length === 0 ? (
         <p className="mt-6 text-muted">{labels.gallery.empty}</p>
       ) : (
-        <div className="mt-6">
+        <div className={headingId === undefined ? "mt-6" : undefined}>
           <GalleryGrid
             key={initialSliceKey}
             label={`${articleTitle}: ${labels.article.endGallery}`}

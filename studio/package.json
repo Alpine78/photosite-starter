@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@sanity/image-url": "2.1.1",
+    "@sanity/locale-fi-fi": "1.1.40",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "sanity": "6.18.0",

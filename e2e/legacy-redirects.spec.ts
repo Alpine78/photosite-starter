@@ -14,6 +14,8 @@ import {
   PUBLISHED_CONTENT_REDIRECT_ENTRIES,
   PUBLISHED_SERVICE_REDIRECT_ENTRIES,
   RETIRED_TAG_PATHS,
+  RETIRED_PROFILE_PATHS,
+  RETIRED_SITEMAP_ALIAS_PATHS,
   STRUCTURAL_REDIRECT_ENTRIES,
 } from "../src/lib/legacy-redirects-data";
 import { buildLocaleRouteConfig } from "../src/lib/locale-routes";
@@ -110,6 +112,35 @@ const SAMPLE_GONE_PATHS = [
   RETIRED_TAG_PATHS[RETIRED_TAG_PATHS.length - 1],
   RETIRED_TAG_PATHS.find((path) => path.startsWith("/en/")),
 ].filter((path): path is string => path !== undefined);
+
+test("the numeric camera-review alias preserves its exact target and ordinary query state", async ({ request, baseURL }) => {
+  const entry = PUBLISHED_CONTENT_REDIRECT_ENTRIES.find((row) => row.source === "/blogi/370-fujifilm-x-pro2");
+  test.skip(entry === undefined, "no numeric camera-review legacy row in this clone");
+  if (!entry || entry.outcome.kind !== "redirect") return;
+  const response = await request.get(`${entry.source}?4738&utm_source=legacy`, { maxRedirects: 0 });
+  expect(response.status()).toBe(301);
+  const destination = new URL(response.headers().location, baseURL);
+  expect(destination.pathname).toBe("/tarinat/blogi/fujifilm-x-pro2");
+  expect(destination.search).toBe("?4738&utm_source=legacy");
+});
+
+test("retired commenter profiles are gone and unavailable articles use explicit category notices", async ({ request, baseURL }) => {
+  test.skip(RETIRED_PROFILE_PATHS.length === 0, "no retired profile migration rows in this clone");
+  for (const source of RETIRED_PROFILE_PATHS) {
+    const response = await request.get(source, { maxRedirects: 0 });
+    expect(response.status()).toBe(410);
+    expect(response.headers().location).toBeUndefined();
+  }
+  const rows = PUBLISHED_CONTENT_REDIRECT_ENTRIES.filter((row) => row.outcome.kind === "redirect" && row.outcome.fallbackNotice !== undefined);
+  for (const row of rows) {
+    if (row.outcome.kind !== "redirect") continue;
+    const response = await request.get(`${row.source}?cursor=stale&legacy-notice=wrong&4738`, { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    const destination = new URL(response.headers().location, baseURL);
+    expect(destination.pathname).toBe(row.outcome.target);
+    expect(destination.search).toBe("?4738&legacy-notice=content-unavailable");
+  }
+});
 
 test("a decided legacy tag page answers 410 with an accessible body in the request's own locale", async ({
   page,
@@ -266,7 +297,8 @@ test("a decided published-content redirect answers 301 with its direct declared 
     expect(location, entry.source).toBeDefined();
     const destination = new URL(location!, "https://e2e.photosite-starter.test");
     expect(destination.pathname, entry.source).toBe(entry.outcome.target);
-    expect(destination.search, entry.source).toBe("");
+    expect(destination.search, entry.source).toBe(entry.outcome.fallbackNotice === undefined
+      ? "" : "?legacy-notice=content-unavailable");
   }
 });
 
@@ -298,7 +330,7 @@ test("a decided published-content redirect retains unrelated query parameters an
   request,
 }) => {
   const entry = PUBLISHED_CONTENT_REDIRECT_ENTRIES.find(
-    (candidate) => candidate.outcome.kind === "redirect",
+    (candidate) => candidate.outcome.kind === "redirect" && candidate.outcome.fallbackNotice === undefined,
   );
   test.skip(
     entry === undefined,
@@ -378,12 +410,16 @@ test("a decided structural redirect's trailing-slash variant still resolves to t
 test("a pending legacy path has no decided outcome yet and answers the ordinary 404", async ({
   page,
 }) => {
-  test.skip(
-    PENDING_LEGACY_PATHS.length === 0,
-    "no pending legacy rows in this clone's data",
-  );
+  // The first site's /en/ is pending on the old Production artifact, but the
+  // inverted synthetic locale table already normalizes it to its live home.
+  // Choose a genuinely unknown fixture page; the owner-run checker still
+  // treats every pending source, including that alias, as incomplete.
+  const source = PENDING_LEGACY_PATHS.find((path) => path.replace(/\/+$/u, "") !==
+    `/${harnessLocaleRoutes.defaultLocale.split("-")[0]}`);
+  test.skip(source === undefined, "no pending unknown fixture page in this clone");
+  if (source === undefined) return;
 
-  const response = await page.goto(PENDING_LEGACY_PATHS[0], {
+  const response = await page.goto(source, {
     waitUntil: "domcontentloaded",
   });
 
@@ -435,4 +471,21 @@ test("the owner-run checker reports all decisions and cannot approve a mapping w
   expect(report.verification.status).not.toBe("passed");
   expect(report.verification.results).toHaveLength(report.distinctPathCount - report.counts.pending);
   expect(report.verification.results.some((row: { issues: string[] }) => row.issues.includes("probe-failed"))).toBe(false);
+});
+
+
+test("owner-retired sitemap aliases answer 410 without redirecting", async ({ page, request }) => {
+  test.skip(RETIRED_SITEMAP_ALIAS_PATHS.length === 0, "no retired sitemap aliases in this clone");
+  for (const path of RETIRED_SITEMAP_ALIAS_PATHS) {
+    const response = await page.goto(`${path}?legacy-notice=content-unavailable#retained`, { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(410);
+    expect(response?.headers()["location"]).toBeUndefined();
+    const route = resolveLegacyGoneRoute(harnessLocaleRoutes, path);
+    const language = resolveLegacyGoneLanguage(route.locale);
+    await expect(page.getByRole("heading", { name: GONE_COPY_BY_LANGUAGE[language].heading })).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe(path);
+    expect(new URL(page.url()).hash).toBe("#retained");
+  }
+  const unknown = await request.get("/sivustokartta/not-in-inventory", { maxRedirects: 0 });
+  expect(unknown.status()).toBe(404);
 });

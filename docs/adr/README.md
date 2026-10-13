@@ -72,6 +72,7 @@ Two conventions on top of the template:
 | [0029](0029-localized-home-and-contact-pages.md) | AB#255 (first slice) | Locale-owned home/contact routes, authored-copy availability and exact static language switching | Accepted |
 | [0030](0030-legacy-identity-retirement.md) | AB#257 | Accepted full domain identity mapping, retained Sanity identities and future owner-gated cutover/recovery | Accepted |
 | [0031](0031-identity-migration-operational-plan.md) | AB#260 | Accepted identity-alias, legacy-writer retirement and maintenance implementation policy; isolated rehearsal and Production operations remain gated | Accepted |
+| [0032](0032-restricted-page-ui-locales.md) | AB#255 | Accepted bounded GET UI locale selection inside existing protected client, administrator and retained legacy namespaces; authored-text acceptance remains separate | Accepted |
 
 Expected further entries:
 

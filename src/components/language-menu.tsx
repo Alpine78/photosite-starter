@@ -22,8 +22,8 @@ type LanguageMenuProps = {
  *
  * The bar shows the proposal's short code ("EN") and the stacked panel the
  * language's own name. Either way the link's accessible name is that own name,
- * in its own language (`lang`), and a link that opens a nearer page instead of
- * an exact translation says so in visible text, bound with `aria-describedby`.
+ * in its own language (`lang`). A nearer-page target keeps its screen-reader
+ * description without printing a misleading action beside the language link.
  */
 export function LanguageMenu({ links, layout, label }: LanguageMenuProps) {
   const id = useId();
@@ -33,7 +33,7 @@ export function LanguageMenu({ links, layout, label }: LanguageMenuProps) {
   const items = links.map((language) => {
     const noteId = language.note ? `${id}-${language.locale}-note` : undefined;
     return (
-      <li key={language.locale} className={isBar ? "flex items-baseline gap-2" : undefined}>
+      <li key={language.locale} className="relative">
         <Link
           href={language.href}
           hrefLang={language.locale}
@@ -55,7 +55,7 @@ export function LanguageMenu({ links, layout, label }: LanguageMenuProps) {
           )}
         </Link>
         {language.note && (
-          <span id={noteId} className="text-sm text-muted">
+          <span id={noteId} className="sr-only">
             {isBar ? language.note : ` (${language.note})`}
           </span>
         )}

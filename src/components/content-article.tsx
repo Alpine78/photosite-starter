@@ -2,13 +2,14 @@ import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
 import { ContentBody } from "@/components/content-body";
 import { ContentPageJumpNav } from "@/components/content-page-jump-nav";
-import { HeroOverlay } from "@/components/hero-overlay";
+import { CONTENT_HERO_TITLE_CLASSNAME, HeroOverlay } from "@/components/hero-overlay";
 import { ArticleEndGallery } from "@/components/article-end-gallery";
 import {
   LanguageSwitch,
   type LanguageLink,
 } from "@/components/language-switch";
 import { listContentHeadings } from "@/lib/content-headings";
+import { articleEndGalleryHeadingId } from "@/lib/article-end-gallery-heading";
 import {
   effectiveEventDate,
   onPageSummary,
@@ -93,6 +94,9 @@ export function ContentArticle({
   endGallery,
 }: ContentArticleProps) {
   const headings = listContentHeadings(page.body);
+  const endGalleryHeadingId = endGallery === undefined
+    ? undefined
+    : articleEndGalleryHeadingId(page.body, labels.article.endGallery);
   const eventDate = effectiveEventDate(page);
   // AB#172: a listing-only lead stays off the page itself.
   const leadSummary = onPageSummary(page);
@@ -109,10 +113,9 @@ export function ContentArticle({
           `max-w-3xl` reading-width constraint entirely. A page with no
           cover renders its title in the constrained column instead, exactly
           as before (AC10: no empty band, no placeholder, no borrowed
-          image). The title keeps this page's own non-hero scale
-          (`titleClassName`) rather than the home hero's larger one — the
-          type shouldn't change size just because a photograph moved behind
-          it. AB#150/ADR-0017: the in-flow `<time>` this header used to render
+          image). AB#262 gives article and gallery overlays one shared,
+          larger responsive title scale. AB#150/ADR-0017: the in-flow `<time>`
+          this header used to render
           moves onto the hero (`meta`) — never `publishedAt`, always the
           effective event date. AB#151: the byline joins it as one meta line
           rather than a second, independent addition to the hero. */}
@@ -121,7 +124,7 @@ export function ContentArticle({
           media={page.cover}
           title={page.title}
           meta={{ dateTime: eventDate, label: formatDate(eventDate, locale), byline }}
-          titleClassName="text-3xl font-semibold tracking-tight text-white drop-shadow-sm sm:text-4xl"
+          titleClassName={CONTENT_HERO_TITLE_CLASSNAME}
         />
       )}
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
@@ -178,6 +181,7 @@ export function ContentArticle({
               slice={endGallery.slice}
               initialSliceKey={endGallery.initialSliceKey}
               labels={labels}
+              headingId={endGalleryHeadingId}
             />
           )}
 

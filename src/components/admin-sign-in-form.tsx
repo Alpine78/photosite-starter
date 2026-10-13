@@ -24,6 +24,7 @@ const subscribeToNothing = () => () => {};
  */
 export function AdminSignInForm({
   action,
+  reloadPath,
   headingText,
   secretLabel,
   submitLabel,
@@ -31,6 +32,7 @@ export function AdminSignInForm({
   javascriptRequiredText,
 }: {
   readonly action: string;
+  readonly reloadPath?: string;
   readonly headingText: string;
   readonly secretLabel: string;
   readonly submitLabel: string;
@@ -59,7 +61,7 @@ export function AdminSignInForm({
         // A full navigation rather than a client-side transition: the session
         // cookie has just been set, and the page must be re-rendered by the
         // server with it.
-        window.location.assign(window.location.pathname);
+        window.location.assign(reloadPath ?? window.location.pathname);
         return;
       }
     } catch {
@@ -123,11 +125,18 @@ export function AdminSignInForm({
  */
 export function AdminSignOutButton({
   action,
+  reloadPath,
   label,
 }: {
   readonly action: string;
+  readonly reloadPath?: string;
   readonly label: string;
 }) {
+  const hydrated = useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
   const [sending, setSending] = useState(false);
 
   async function signOut() {
@@ -142,14 +151,14 @@ export function AdminSignOutButton({
       // Reload regardless: the session is either gone or was never usable, and
       // the server-rendered page is what decides which state to show.
     }
-    window.location.assign(window.location.pathname);
+    window.location.assign(reloadPath ?? window.location.pathname);
   }
 
   return (
     <button
       type="button"
       onClick={signOut}
-      disabled={sending}
+      disabled={!hydrated || sending}
       className="rounded-md border border-border-strong px-4 py-2 text-strong"
     >
       {label}

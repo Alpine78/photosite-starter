@@ -15,7 +15,7 @@ test("legacy delivery has full frames, direct sources, one ZIP and keyboard view
   for (const [name, value] of Object.entries(hygiene)) expect(response?.headers()[name]).toBe(value);
   expect(response?.headers()["cache-control"]).toContain("no-store");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(labels.legacyGallery.title);
-  await expect(page.getByRole("navigation")).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: labels.contentTree.languages })).toHaveCount(1);
   const images = page.getByRole("main").getByRole("img");
   await expect(images).toHaveCount(2);
   for (const image of await images.all()) {
@@ -25,7 +25,7 @@ test("legacy delivery has full frames, direct sources, one ZIP and keyboard view
     expect(await image.evaluate((node: HTMLImageElement) => Math.abs(node.getBoundingClientRect().width / node.getBoundingClientRect().height - node.naturalWidth / node.naturalHeight))).toBeLessThan(0.01);
     expect(await image.evaluate((node: HTMLImageElement) => node.getBoundingClientRect().width <= node.naturalWidth)).toBe(true);
   }
-  await expect(page.getByRole("link")).toHaveCount(1);
+  await expect(page.getByRole("link")).toHaveCount(2);
   await expect(page.getByRole("link", { name: labels.legacyGallery.download })).toHaveAttribute("href", /^\/gallery\/legacy-fixture\.[a-f0-9]{12}\.zip$/);
   const opener = page.getByRole("main").getByRole("button").first();
   await opener.focus(); await openLightbox(page.getByRole("dialog"), () => page.keyboard.press("Enter"));

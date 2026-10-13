@@ -446,7 +446,7 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   rule (AB#166, [ADR-0022](docs/adr/0022-capture-sequence-rally-galleries.md)) serves a
   large gallery straight from its photographs' own media documents, in file-name order
   and with a media-owned section, without per-item placement documents, for both
-  sources. Named section controls are
+  sources. Named section controls appear only with at least two declared sections (AB#262) and are
   URL-driven and keyboard-operable, restoring the selected section across reload, shared
   link, and browser history, with the grid and lightbox reading the same filtered ordered
   set (AB#115). Zoom animation and level tuning remain, as does one physical-device
@@ -568,6 +568,11 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   `check <origin> [<canonical-origin>]` checks decided responses and canonical target
   availability against a production build. Pending decisions prevent a passing check.
   See [deployment verification](docs/deployment.md#legacy-url-mapping-verification-ab19)*
+
+Identity retirement has separate offline tools: `npm run reconcile:identities`,
+`npm run plan:identity-changes` and `npm run plan:identity-aliases`. The alias
+planner produces a private canonical payload and pins from approved local inputs;
+it performs no CMS write or deployment. See [the operator contract](docs/sanity-seeding.md#offline-canonical-alias-payload-ab265).
 
 Legacy customer-link continuity has a separate, default-off runtime under
 ADR-0028 (AB#250), using byte-preserved Sanity assets and a whole-ZIP link.

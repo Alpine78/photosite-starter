@@ -5,6 +5,13 @@ code and decisions. Read the part relevant to the task; the current code and the
 Azure Boards work item are authoritative for scope, acceptance criteria and state.
 The always-applicable agent rules remain in [`AGENTS.md`](../AGENTS.md).
 
+AB#255 continuation, 2026-10-12: [Public bilingual editing proposals completed](audits/ab255-public-copy-completion-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
+
+AB#255 continuation, 2026-10-12: [Restricted page UI locale implementation](audits/ab255-restricted-page-locales-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
+AB#19 owner decision, 2026-10-13: the two inventoried `/sivustokartta/…` aliases now have explicit HTTP 410 rows in `fix/19-retire-sitemap-aliases`. The former hääportfolio redirect is removed; canonical content and ordinary blog redirects remain. Integration with merged PR #367 removes its earlier Fuji category fallback in favor of the owner's later explicit 410 decision, while retaining its Komento retirements, other route decisions and numeric-query tests. This is prepared source, not a production activation. Updated integration validation: lint, all 5828 unit tests, production build and 52 legacy/fallback Chromium/WebKit cases passed. Exact registry comparison preserves every non-sitemap decision from main `1e63b7e`. AB#19 remains Active.
+
+AB#255 continuation, 2026-10-12: [Default service aliases expose actual language siblings](audits/ab255-default-service-language-links-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
+
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
 configuration, responsive header and footer, home page, services listing and detail
 pages, a semantic design-token layer (AB#36) — the brand-sensitive colours, text
@@ -1104,6 +1111,22 @@ open. [Audit and limits](audits/ab19-service-redirects-2026-10-09.md).
 
 **Published package follow-up, 2026-10-09 (AB#19, Active):**
 Two additional owner-requested FI wedding services were separately published and verified on the activated renderer after the original import audits and a fresh complete baseline. Four matching legacy source rows, including their redundant Finnish aliases, are now prepared as direct permanent redirects. Source menu/article identities and an independent literal pair guard keep the two offerings distinct; canonical/language, prices, listing, sitemap and contact prefills were verified separately from the generic test harness. The prepared registry has 51 redirects and 186 pending paths among the same 415. These rows are not yet deployed; AB#19 and the wider AB#137 launch remain Active. The original 9,918-document / 3,512-image import passed independent byte/data verification and 494 public route/gallery GET cases before the separate service operation. The temporary migration writer has been revoked with a confirmed 401 denial. All old service content and timestamps stayed unchanged; the createIfNotExists parent wave changed only that one parent revision, recorded separately in the private audit.
+
+### AB#19 — eleven verified final decisions and raw-query correction (2026-10-12)
+
+The owner-requested continuation resolves one numeric camera-review alias, seven
+explicit Common-category article fallbacks and three justified Komento-profile
+410s from fresh backup/menu/category and current target evidence. All 415 sources
+remain accounted for: 197 redirect / 177 gone / 37 pending / three excluded / one
+live. Production's previous 367 decided rows all passed live expectations; new
+rows are not claimed deployed. `pending <origin>` observes unresolved responses
+without making decisions or approving omissions. A production-build regression
+exposed Next's reconstruction of a bare numeric query flag; the documented
+`skipProxyUrlNormalize` setting preserves the original URL, with the complete
+895-pass / 38-skip journey matrix after the boundary correction. Final row-specific
+checks accompany the PR. [The decision receipt](audits/ab19-final-decisions-2026-10-12.md)
+records all 37 remaining paths, source identity distinctions and deployment limits.
+AB#19 stays Active; no CMS, DNS or alias write and no complete launch acceptance.
 
 **Mapping verification tooling, 2026-10-02 (AB#19, still Active):** the full Boards
 attachment contains 442 URL records; the committed inventory projects them to 415
@@ -3085,7 +3108,9 @@ constant inline `<head>` script (`THEME_BOOTSTRAP_SCRIPT`) applies it before fir
 without JavaScript the device decides. The language choice is in the menu too: a page's
 `LanguageSwitch` publishes its identity-based links to the header through an
 owner-scoped store (`language-menu-store.ts`). The bar shows a short code (EN), and the
-compact panel shows the language's own name, with a nearer-page note visible in both.
+compact panel shows the language's own name. AB#262 removes the visible nearer-page
+note from both layouts and the in-page switch; the description remains available
+to screen readers through `aria-describedby`.
 The in-page switch stays as the fallback and is hidden only once the header has rendered
 the links (`data-language-menu` on `<html>`). The contact route (`CONTACT_PATH`) shows as
 a pill at the end of the bar. The wide layout switches on at `lg`, not `sm`: the
@@ -3402,6 +3427,25 @@ IDs/revisions/types were unchanged. These probes do not establish automatic Sani
 delivery; that requires a genuine CMS event. Full revocation and CMS-triggered
 delivery remain unverified. AB#117 stays Active; no
 compatible-renderer activation, content import, billing or DNS change is claimed.
+
+### AB#117 — one real contact attempt and current launch evidence (2026-10-12)
+
+The new `verify:contact-delivery` command defaults to plan-only and requires `--send`
+for one bounded synthetic application POST, with a durable pre-send identity, no
+automatic retry and a non-overwriting private receipt. One authorized test on the
+verified Production deployment tagged with base `14b1af0` and `gitDirty=1`
+returned a valid delivered acknowledgement; the full deployed source delta is unverified;
+its correlation has accepted/delivered log events. On October 13 the owner's mailbox
+screenshot matched the exact synthetic submission identity and expected reply address,
+confirming mailbox arrival and displayed Reply-To for that attempt. A fresh
+authenticated raw audit and complete revision-rechecked raw snapshot cover
+16,947 records / 5,158 assets, preserving the existing settings draft; the root
+audit is clean and Studio's separate moderate chain remains. Configured genuine
+hook history predates this artifact, so fresh visible publication is not claimed.
+[The dated release checks](audits/ab117-final-release-checks-2026-10-12.md) record
+the exact source, evidence limits, private one-field publication proposal and
+separate recovery gates. AB#117/18/137/250 remain Active; no DNS, CMS, alias,
+rollback, customer import, full approval or handoff was performed.
 
 ### AB#240 — validate image upload metadata
 
@@ -4109,6 +4153,113 @@ CMS draft/write/publication, schema/runtime or production deployment changed.
 Application gates are not rerun for copy/documentation alone; source observations
 do not establish actual route or image-semantic acceptance. AB#255 stays Active.
 
+**Localized-content authoring preflight, 2026-10-12:** both PR #355 and #356
+are merged on source baseline `4382537`. PR #356 merged externally as `13d9eab`
+before #355; CI #839's tested and merged trees match. PR #355 then merged after
+CI #840. This continuation began after both; AB#255 remains Active.
+
+[The bounded offline receipt](audits/ab255-content-authoring-preflight-2026-10-12.md)
+joins one category, five services and two article proposals, all owner-pending.
+Input hashes and eight non-writable/non-executable/non-publication-ready rows
+match. Existing category/service creators use createIfNotExists; the existing
+shared category needs a manual accepted edit and service coverMedia is outside
+the CLI's closed field set. AB#125 currently rejects any source poll block and
+has no target-only override, so batch 2 is not plannable as-is; never change its
+FI source to bypass this guard. Current source/draft/release reconciliation,
+category/media/placement/poll review and owner copy/publication acceptance remain
+gates. AB#260's first three implementation policies are accepted; actual target,
+freeze, asset-copy, restore/cutover/write/deploy are still separately gated.
+
+Parallel public-journey, restricted-locale-contract and Studio core-UI branches
+own separate work. This source/offline documentation slice creates no writer,
+target ID, live CMS request/write, dependency/schema/runtime change or deployment;
+application/Studio builds and journeys are not rerun for it.
+The owner directed this continuation to proceed without Claude on 2026-10-12;
+Codex completed the source review and applicable checks. Earlier reviews remain
+history; no session-reset wait remains for this slice.
+
+**Service locale journeys, 2026-10-12:** the services suite adds seven cases
+across the configured English and Finnish route spaces, retaining the original
+six. It now checks localized pricing/form labels, complete image frames and real
+dimensions/alt, stable-ID contact prefill, nested-service breadcrumbs, canonical
+and actual alternates, real 404 statuses, and scriptless equivalent nested-service
+switching in both directions. The unchanged production-build harness passes all
+26 desktop Chromium/mobile WebKit cases without retries; lint and all 5,720 tests
+in 239 files pass. [The dated receipt](audits/ab255-service-locale-journeys-2026-10-12.md)
+separates fixture assertions from authored translation/deployment acceptance and
+records the remaining legacy default-service language-link/metadata parity.
+No app runtime, fixture, dependency or CMS data changed; AB#255 remains Active.
+
+PRs #360, #361 and #362 merged externally as `8674d47`, `d347dd0` and `3da712b`
+after CI #846–#848; their source bytes match the previous review. They merged in
+that order while #358/#359 were still open. This continuation ran no merge
+command for those PRs and did not need conflict corrections or new commits.
+ADR-0032 remains Proposed. Seven completed AB#255 worktrees were retired with
+all 703 ignored local files preserved and verified; branch refs, unfinished
+Studio core locale work and other-agent checkouts remain. The two new worktrees
+are published with same-name upstreams; the owner directed continuation without
+Claude, and source review/applicable checks are complete.
+
+**Standalone Studio language discovery, 2026-10-12:** PR #353 merged as
+`f0d3e50` after required CI #835; owner commit `91b3baf`, three reviewed files,
+25 private evidence hashes and the tested/candidate/merged trees match. No merge
+conflict or source correction was needed. AB#255 stays Active after this partial
+slice; copy acceptance and publication dependencies remain pending.
+
+The next independently planned worktree compares core UI, project interface and
+authored content. Studio pins Sanity 6.18.0 and configures no Finnish locale.
+The candidate `@sanity/locale-fi-fi@1.1.40` declares a compatible peer range, but
+runtime compatibility is untested. Exact archives match published integrity;
+inert source parsing compares 2,151 English keys in 13 core-package namespaces
+against 1,992 matching Finnish literals. Missing: 159, including all 108 keys in
+the absent `variants` namespace and 51 elsewhere. Twenty-six paired values match
+verbatim; package-key presence and equality are not wording or UI acceptance.
+
+A coarse 39-file project-source inventory finds 321 literal title and 135
+description properties, one literal structure-title call, plus 54 literal-return
+and 58 template-return candidates. These are source occurrences, not exhaustive
+rendered labels or unique validation messages. Core locale resources do not
+translate schema, structure, preview or custom validation source strings.
+[The dated discovery](audits/ab255-studio-language-inventory-2026-10-12.md)
+records bounds, primary sources, private evidence and remaining API/runtime/owner
+journey gates. No package/config/schema/CMS/deployment change or application/Studio
+gate rerun occurred. This slice establishes no fully bilingual Studio.
+
+**Standalone Studio core locale choice, 2026-10-12:** the separately planned
+`feature/255-studio-core-locale` slice registers `@sanity/locale-fi-fi@1.1.40`
+next to structureTool, retaining the English core choice and existing project
+schemas/editorial/full-frame/auth/content/deployment contracts. One exact
+locale dependency is added; all existing lock entries remain unchanged.
+Studio typecheck, zero-error schema validation and synthetic static build pass;
+the compiled plugin/fi-FI ID and original MIT artifact notice are present among
+896 package notices. Audit retains the same eight moderate advisories, adding
+none. [The bounded build receipt](audits/ab255-studio-core-locale-build-2026-10-12.md)
+records actual proof and pending authenticated switching/persistence/wording,
+159 missing keys, and separate project interface/authored text. No live CMS
+request/write, login, deployment or public Next.js behavior change. AB#255 stays
+Active; this source feature does not complete the Studio/all-pages story.
+The owner directed this continuation to proceed without Claude on 2026-10-12;
+Codex completed the source review and applicable checks. Earlier reviews remain
+history; no session-reset wait remains for this slice.
+
+**Studio structure titles, 2026-10-12:** the project-owned `photosite-editorial`
+namespace supplies 11 English/Finnish title resources for the content root,
+home/settings singleton entries and document panes, and eight editorial lists
+and their child panes. Original English fallback titles, schema types, document
+identities, queries, sorting, menus and editorial controls remain. Root lint,
+Studio typecheck, zero-error schema validation, static build and all 55 focused
+editorial tests pass. An actual pinned-Sanity synthetic builder check verifies
+21 localized nodes, matching dictionaries and preserved whole-type counts.
+[The dated receipt](audits/ab255-studio-structure-locales-2026-10-12.md) records
+exact scope and build/source evidence; no dependency, canonical schema, content,
+auth policy, live CMS request/write or deployment changes.
+
+This bundle registration does not enable a Finnish core locale choice: the
+separate core-locale branch remains uncommitted at this receipt. Authenticated
+rendering/switching/wording and schema/preview/validation text remain pending.
+The owner directed continuation without Claude; source review and applicable
+checks are complete. AB#255 stays Active after this partial source slice.
+
 ### AB#256 — Readable Studio names (2026-10-12, Closed)
 
 The owner reported Joomla-derived category/image-placement titles and apparent
@@ -4402,8 +4553,9 @@ browser settings, request integration, deployment or operational record was adde
 The Claude plan review clarified complete namespace enumeration, whitespace,
 fetch defaults, native environment compatibility and independent generations.
 Existing AB#263 loader tests stay unchanged after the pure root-ID validator
-extraction. Source remains uncommitted for owner review; AB#264 stays Active until
-accepted merge. Actual document/source/pins selection, first approved live read,
+extraction. The owner requested commit, push and PR publication on 2026-10-13;
+AB#264 stays Active until accepted merge. Actual document/source/pins selection,
+first approved live read,
 public-reader/coordinated-cache wiring, legacy-write guard, maintenance and
 operational writer/rehearsal/Production gates remain separate. No live operation
 was performed, and accepted ADR history and strict offline evidence are unchanged.
@@ -4411,5 +4563,249 @@ was performed, and accepted ADR history and strict offline evidence are unchange
 Local validation passed: 73 new synthetic cases, 198 focused tests, all 237
 browser-free test files / 5,760 tests, lint, synthetic mock production build and
 diagram freshness. Local public journeys and Studio were not rerun because no
-deployed caller/default behavior or schema changed; their required CI checks
-remain pending the owner's commit and PR.
+deployed caller/default behavior or schema changed; both remain required CI gates.
+
+Publication validation on 2026-10-13 after integrating current main passed:
+198 focused cases, all 246 browser-free files / 5,901 tests, lint, synthetic mock
+production build, three diagrams and 94 relative documentation file links.
+The only merge conflict was the history append in this file; both histories were
+preserved. All three source files match the original reviewed patch, and all
+38 private evidence hashes remain unchanged. No additional Claude review was run,
+as requested by the owner; CI journeys and Studio validation remain pending.
+
+### AB#262 — gallery and story presentation corrections (2026-10-12, Closed)
+
+The owner reviewed and committed the source changes as `787deac` on
+`fix/262-gallery-story-presentation`, then opened
+[PR #355](https://github.com/Alpine78/photosite-starter/pull/355). The selector is
+absent for zero or one **declared**
+gallery section on every slice, including scriptless and direct filtered pages.
+Two or more declared sections retain the selector even on a filtered or empty
+result. The selector's section count disappears with it; the separate photograph
+count and an explicitly selected section's introduction remain available.
+
+The shared hero computes its band and attribution position from the figure's
+actual inline-size query-container width. The original `100vw` formula reproduced
+a 10px black strip on the owner's 3:2 image with a 15px scrollbar gutter; `100cqw`
+keeps the complete native frame and the overlay aligned. Dynamic viewport bounds,
+long-text growth and contrast, attribution, no-cover and continuation behavior
+remain covered. The owner clarified that the cover-overlay story title should
+be larger. Article and gallery heroes now share a 2.25rem mobile, 3rem small-screen
+and 3.75rem large-screen title scale (previously 1.875rem / 2.25rem), with tight
+line spacing and responsive wrapping. The long-title pale-image integration
+journeys use this same shared scale to verify contrast and text containment.
+
+Language fallback notes are screen-reader descriptions rather than visible text
+beside the language link, in the wide menu, compact menu and scriptless in-page
+switch. Destinations and actual translation metadata are unchanged. An article's
+terminal authored h2 matching its localized end-gallery label supplies the gallery
+region's accessible name, so a second h2 is omitted. The authored heading and its
+TOC fragment remain intact; the existing `article-end-gallery` anchor also remains.
+Other body headings, distinct terminal text and articles without an end gallery
+retain authored content. No CMS data is modified.
+
+The one-time Claude plan review completed after the owner's 17:10 availability
+reset. Verified feedback preserved the stable gallery anchor, explicit container
+ancestry, declared-section semantics and proper clipping assertions for screen-reader
+notes. Codex self-review and the React quality checklist covered hook order and
+cleanup, derived visibility, existing server/client boundaries and accessible
+labelling. Lint, all 5,515 deterministic tests, the production build and 140
+desktop Chromium/mobile WebKit journeys passed with the enlarged titles
+(eight desktop-only viewport cases are intentionally skipped on mobile).
+The anchor journey awaits the router's hash update rather than reading the URL
+immediately after a click. The earlier Claude diff round omitted test/documentation
+coverage; the final review covered all 19 changed/new files and reported no
+findings. The owner subsequently authorized committing integration corrections,
+pushing and merging PR #355 after PRs #353/#354. Integrating their merged main
+required only a feature-status conflict resolution; all incoming history and
+the reviewed presentation code were preserved. The work item closes after the
+authorized merge is verified.
+
+Post-integration validation passed against main after PR #354: lint, all 237
+browser-free test files / 5,696 tests, all three diagram renditions, the production
+build and the same 140 focused Chromium/WebKit journeys (eight intentional mobile
+skips). The required full Azure PR pipeline remains the final merge gate.
+
+
+PR #355 subsequently merged as `4382537b6be57fa903dfdb39e9e2c4fec87b438e`;
+AB#262's Active → Closed transition was verified before the follow-up below.
+The other agent's original checkout remains untouched.
+
+### AB#265 — Offline canonical identity alias plan (2026-10-12, Closed)
+
+The owner requested identity and gallery continuation in separate worktrees.
+AB#265 moved New → Active before edits on the published
+`feature/265-identity-alias-plan` branch from merged PR #355 (`4382537`).
+Ready uncommitted AB#264 and the other agent's AB#262 checkout are preserved.
+One Claude plan review led to an extracted-payload interop check, one canonical
+writer for both hashes, repeated injectivity/disjointness checks and an explicit
+supplied-snapshot limitation. No accepted ADR or existing reconciliation/file
+helper changed.
+
+The offline `plan:identity-aliases` command produces a private non-executable
+`identity-alias-plan-v1` wrapper. Strict approval/coverage/revision reconciliation
+precedes allow-listed, map-ordered alias rows. The payload preserves only the
+four domain identity families, format and approved source-map digest; emitted
+pins work with the existing resolver in renamed/restored modes. Canonical limits
+are inclusive 256 KiB for the payload and 1 MiB including LF for the wrapper.
+The wrapper records separate input/reconciliation evidence and body hash;
+`writable` and `cutoverReady` remain false. No source, record, credential,
+mutation, execution flag or deployed reader integration is introduced.
+
+A private read-only archived-input proof produced all 1,541 approved rows at
+169,598 canonical bytes, with payload SHA-256
+`eb971f432f8cdcfa041eb94ab47771892c16218a7ce9fdb64f595f9ea80226cc`.
+The original 38 evidence hashes stayed unchanged. Its baseline-equal historical
+snapshot proves only supplied local data; current target/freeze, named record,
+provider metadata, restore, cutover and each actual operation remain gates.
+The owner committed the reviewed slice as `d2cd187` and PR #357 merged as
+`ce43481939438f75136621f30b1aa16b77c05136` after successful full PR run 843.
+AB#265's Active → Closed transition was verified after merge. See [the operator contract](sanity-seeding.md#offline-canonical-alias-payload-ab265).
+
+
+Validation passed: 24 new synthetic planner/CLI cases, 149 focused interop cases,
+all 239 browser-free test files / 5,720 tests, lint, the synthetic mock production
+build and all three diagram renditions. Test-only imports pin the format, grammar
+and real default limits to the application; exact 256 KiB and 256-character
+boundaries, wrapper LF/digest, private no-overwrite output and direct pinned-Node
+execution are covered. No runtime default, public journey or Studio/schema change
+exists, so local journey/Studio gates were not rerun; required CI still applies.
+
+
+The final Claude diff review attempt hit the session limit before substantive
+review. The owner subsequently explicitly waived this review for AB#265 and
+AB#266 on 2026-10-12. The one-time plan review and Codex gates are complete;
+no final Claude verdict is claimed. This waiver applies to these two changes
+only, not future reviews. The accepted PR #357 merge and AB#265 closure are
+verified above; no live CMS or deployment operation was performed.
+
+
+### AB#266 — Terminal gallery headings at every supported level (2026-10-12, Closed)
+
+The owner requested gallery and identity continuation in separate worktrees.
+AB#266 moved New → Active before edits on the published
+`fix/266-terminal-gallery-heading` branch from merged PR #355 (`4382537`).
+The existing end-gallery helper reused only terminal h2 headings even though
+the content model, renderer and table of contents support h2/h3/h4. It now reuses
+all three supported levels when the existing localized-label normalization
+matches. No body block is removed or relevelled; the exact `buildHeadingIds`
+fragment names the gallery region and the `article-end-gallery` anchor stays.
+H2 reservations in fragment disambiguation remain intact. Nonmatching and
+nonterminal headings, including a trailing blank paragraph, keep the existing
+generated-heading behavior; unsupported runtime levels are refused.
+
+One Claude plan review preserved Finnish h2 production-journey coverage while
+English uses h3; units cover both languages/all supported levels and cross-level
+collisions. All 44 focused production-build desktop Chromium/mobile WebKit
+journeys passed, including JS/scriptless TOC jumps and server continuation.
+Continuation pages retain their existing single h1, article-qualified region
+name and six remaining images; returning to the article restores its single
+localized gallery heading. The first added continuation assertion incorrectly
+expected a repeated gallery heading; inspection of the unchanged component
+corrected the test to its actual contract without altering runtime behavior.
+All 237 browser-free test files / 5,707 tests, lint and diagram freshness passed.
+The journey harness's production build passed. Full required CI still applies.
+No CSS, typography, media framing, CMS data, dependency or deployment changed.
+The owner committed the reviewed slice as `72e781c` and authorized PR #358
+merge after CI, including the documentation conflict correction. AB#264 and
+the independent AB#265 branch remained separate during integration.
+
+
+The final Claude diff review attempt hit the session limit before substantive
+review. The owner subsequently explicitly waived this review for AB#265 and
+AB#266 on 2026-10-12. The one-time plan review and Codex gates are complete;
+no final Claude verdict is claimed. This waiver applies to these two changes
+only, not future reviews. The owner reviewed and committed the source and
+authorized integration corrections; required CI and accepted merge still apply.
+
+
+Integrating the accepted PR #357 main into PR #358 required one documentation
+conflict resolution. Both complete story sections and their owner-waived review
+records remain; all code/test blobs match their original accepted commits.
+Combined local validation passed: 239 browser-free files / 5,731 tests, lint,
+synthetic mock production build and all three diagram renditions. The original
+44 focused browser journeys remain applicable; the updated PR's required full
+CI must pass before its accepted merge. All 38 prior evidence hashes and the
+separate ready AB#264 source remain unchanged.
+
+PR #358 subsequently merged as `5262def6063beebb4d1fd0e5d6ae60f2a022f89e`
+after required Azure CI #850 passed for integration head `5a8bd18`. The source
+head ancestry and final merged tree were verified; AB#266's Active → Closed
+transition was confirmed. This completion record supersedes the pending-merge
+checkpoint above.
+
+### AB#137 — Restore omitted Joomla import guards (2026-10-12, Active)
+
+The owner requested a separate worktree after the remote-branch audit found three
+guards still present only in `feature/137-story-root-content` at `bf55aeb`.
+`fix/137-restore-import-guards` starts from current main `4382537`; AB#137 was
+already Active before edits and remains Active for its wider operational scope.
+
+Document validation requires an article cover to resolve to a public image in
+the plan, and each body poll to resolve to an included historical poll with the
+page's language or `und`. Gallery rerun preflight reads and refuses editor-owned
+`galleryLayout`, `galleryCaptionPlacement` and section `intro` before uploads,
+restoring the existing seeding guide's stated behavior. Valid public covers,
+historical poll pairs and unchanged gallery reruns remain supported.
+
+Only those guards are restored. AB#185's revision-guarded media patches, current
+calendar validation, plan digests and format versions remain intact. Synthetic
+regressions demonstrated the omissions before the fix; all 245 focused tests,
+all 237 test files / 5,706 browser-free tests, lint, the production build with
+mock harness settings, all three diagram renditions and 79 relative documentation
+file links pass. Playwright and the Studio build were not rerun locally because
+browser and Studio source are unchanged; their required CI gates remain.
+The owner committed the reviewed source as `c53e5a8` and authorized integration
+with main after PRs #357/#358. The feature-status conflict preserves both
+implementation histories; the restored source guards are unchanged. Required
+CI remains the final merge gate. No live CMS write or launch acceptance is implied.
+
+Post-integration validation passed against main after PR #358: all 245 focused
+import tests, 239 browser-free files / 5,741 tests, lint, the mock production
+build, all three diagram renditions and 201 relative documentation file links.
+The first sandboxed focused run could not capture child-command output; its
+unsandboxed retry and the complete test suite both passed. AB#185's media writer
+and all five restored code/test blobs match owner commit `c53e5a8`.
+
+
+**Sequential PR integration, 2026-10-13 (AB#255, Active):** PR #359 merged as
+`6a7d714` after full CI #859; PR #363 as `c29ac72` after CI #855; PR #364 as
+`7e47904` after CI #856. Every final merged tree and source-head ancestry was
+verified. #363/#364 needed no conflict correction or new commit; their relevant
+application/Studio inputs matched the tested trees. AB#137 and AB#255 remain
+Active for their wider operational/content acceptance criteria.
+
+The owner requested sequential handling without Claude, authorizing conflict
+corrections, commits and pushes. Integrating those three merges into #365
+resolved four conflicts: retain both core Finnish plugin registration and the
+11-key project-title bundles, both README sections and all implementation/
+coverage history. Authenticated UI/wording, hosted Studio publication and
+all-pages acceptance remain separate; this integration performs no CMS write.
+The earlier structure-only receipt's uncommitted-core checkpoint is superseded
+by this combined configuration. Required updated CI remains the merge gate.
+
+Post-integration local checks passed: all 239 browser-free files / 5,741 tests,
+root lint and all three diagram renditions; Studio typecheck, zero-error schema
+validation and static build with 896 package notices; mock Next.js production
+build. Compiled Studio includes the Finnish core plugin and custom-title
+namespace/resources, and all main structure files remain byte-identical. Every
+existing lock entry is unchanged; the locale package is the only dependency add.
+The initial Next.js attempt lacked worktree-local dependencies; existing caches
+were preserved and matching dependencies copied locally. A sandboxed retry
+stalled during compilation and was stopped; the unrestricted synthetic retry
+passed. Full Playwright remains the updated required CI gate.
+
+
+### AB#250 — exact CDN byte verification and real release blocker (2026-10-12)
+
+The owner-requested continuation adds an offline-by-default, credential-free CDN
+verifier for the existing retained source/document contract. Live reads stream
+exact bytes with SHA-1/SHA-256, length/media/attachment checks, no redirects and
+a total deadline; absent and mismatched assets remain distinct. The real packet
+contains 21 galleries, 1,792 JPEGs and 12 ZIPs. Offline recompilation passed;
+Production currently exposes no published legacy types or ZIP assets, and the
+first exact CDN asset is absent. The owner confirms no large-ZIP Support assurance.
+[The release receipt](audits/ab250-release-verification-2026-10-12.md) gives the
+concrete provider question and remaining import/publication gates. Full tests,
+lint and the synthetic production build pass. AB#250 stays Active; no import,
+publication, adapter activation or full customer continuity is claimed.
