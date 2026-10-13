@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseLegacyPollResults, validateHistoricalPollDocuments } from "./joomla-polls.mts";
 import { convertJoomlaBody, resolvedConversionDigest } from "./joomla-html-conversion.mts";
-import { buildImportPlan } from "./joomla-import-plan.mts";
+import { buildImportPlan, validateMigrationDocuments } from "./joomla-import-plan.mts";
 import { splitIntoWaves, validatePlanContract } from "./write-joomla-content.mts";
 import { CONVERSION_POLICY_VERSION } from "./joomla-html-conversion.mts";
 const header = "poll_id\tquestion\ttotal_votes\tlanguage\toption_title\toption_votes\n";
@@ -40,6 +40,17 @@ describe("historical poll import", () => {
     expect(plan.documents).toHaveLength(3);
     expect(validatePlanContract(plan).issues).toEqual([]);
     expect(splitIntoWaves(plan.documents).map((wave) => wave.map((d) => d._type))).toEqual([[], ["poll", "pollTally"], ["article"]]);
+    const article = plan.documents.find(d => d._type === "article")!;
+    expect(validateMigrationDocuments([article]).join(" ")).toContain("poll block must resolve");
+    expect(validateMigrationDocuments(plan.documents.map(d => d._type === "article" ? {
+      ...d, body: [{ _key: "poll", _type: "contentPollBlock", poll: { _type: "reference", _ref: article._id } }],
+    } : d)).join(" ")).toContain("poll block must resolve");
+    expect(validateMigrationDocuments(plan.documents.map(d => d._type === "poll" ? {
+      ...d, language: "en",
+    } : d)).join(" ")).toContain("poll block must use the article language");
+    expect(validateMigrationDocuments(plan.documents.map(d => d._type === "poll" ? {
+      ...d, language: "und",
+    } : d))).toEqual([]);
   });
   it("refuses historical totals which do not match their option counts", () => {
     expect(() => parseLegacyPollResults(data.replace(/\t4\t/g, "\t5\t"))).toThrow();
