@@ -1975,6 +1975,12 @@ owner-run public GET probe enforces total timeout/body limits and semantic marke
 Synthetic fetch tests need no live service. AB#158 monitoring/notification setup stays
 open; cached content success does not prove live CMS reads or mail delivery.
 
+**Clean checkout release source, 2026-10-13 (AB#272, Active):** CI now validates
+expected commit/tree and a clean checkout before building and before upload,
+then supplies affirmative source metadata. Existing release protections and
+cleanup remain mandatory; artifact provenance and final launch approval remain
+separate. [Evidence](audits/ab272-release-source-attestation-2026-10-13.md).
+
 **Frozen release-source gate, 2026-10-13 (AB#268, Active):** an offline, private
 receipt verifier binds source SHA, deployment/project/team and readiness. Dirty
 Production and unknown-cleanliness Preview receipts are refused. Artifact,
