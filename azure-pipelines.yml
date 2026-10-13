@@ -56,7 +56,11 @@ stages:
             displayName: "Use pinned Node.js"
 
           - script: |
+              set -e
               npm ci
+              # Root Vitest also checks Studio adapters against the actual SDK.
+              # This job cannot use dependencies installed by the separate Studio job.
+              npm ci --prefix studio
             displayName: "Install dependencies"
 
           - script: |
