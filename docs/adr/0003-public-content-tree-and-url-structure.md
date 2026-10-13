@@ -89,6 +89,16 @@ or partially published.
 
 ### 2026-09-18 — Legacy content falls back through its category ancestry (AB#19)
 
+Owner-accepted exception, 2026-10-13: the first site's two inventoried
+`/sivustokartta/…` aliases are retired with direct `410 Gone`, even when their
+content remains available at a current canonical route. The owner explicitly
+rejected category/article redirects for those old sitemap-derived addresses.
+This retires those exact aliases, not the article/gallery content, `/blogi/…`
+redirects or the current XML sitemap. Keep the deployment-specific alias list
+separate from tag retirement. Uninventoried paths retain normal not-found behavior;
+there is no wildcard rule for the namespace. This scoped exception supersedes
+the replacement/fallback order below only for those accepted retired aliases.
+
 Decision 9 originally required a retired Joomla content page without a genuine successor
 to return `410 Gone` and prohibited a redirect to a category or home page. The owner has
 changed that policy for the first site's **verified legacy content and category routes**:

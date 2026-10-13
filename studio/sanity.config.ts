@@ -11,12 +11,15 @@ import { LocalizedField, LocalizedInput } from "./localized-form";
 import { withLocalizedValidation } from "./localized-validation";
 import { withEditorialPreview } from "./editorial-preview";
 import { editorialLocaleBundles } from "./editorial-locales";
+import { localizedPresentation } from "./localized-layout";
+import { withFullFrameMedia } from "./full-frame-media";
 
 // The shared schemas use a readonly, dependency-free subset of Sanity's types.
 // This boundary asserts that subset; `schemas validate` checks the actual objects.
 const schemaTypes = defineSchemaTypes(studioSettings)
   .map(withEditorialPreview)
   .map(withLocalizedPreview)
+  .map(withFullFrameMedia)
   .map(withLocalizedValidation)
   .map((type) => type.type === "document" || type.type === "object"
     ? { ...type, components: { preview: FullFramePreview } }
@@ -28,7 +31,7 @@ export default defineConfig({
   projectId: studioSettings.projectId,
   dataset: studioSettings.dataset,
   i18n: { bundles: editorialLocaleBundles },
-  plugins: [structureTool({ structure: editorialStructure }), fiFILocale()],
+  plugins: [structureTool({ structure: editorialStructure }), fiFILocale(), localizedPresentation()],
   form: { components: { field: LocalizedField, input: LocalizedInput } },
   schema: {
     types: schemaTypes,
