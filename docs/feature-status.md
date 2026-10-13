@@ -4005,6 +4005,12 @@ contact/webhook delivery and genuine recovery/handoff gates remain open.
 AB#18/117/137/250 remain Active; AB#118 remains New. See the
 [bounded activation audit](audits/ab18-compatible-alias-activation-2026-10-11.md).
 
+**Publication census, 2026-10-13 (AB#269, Active):** a revision-bound offline
+metadata tool separates published coverage, drafts/releases, pending editor review
+and canonical-category prerequisites. Fresh GET-only evidence records 18 English
+article gaps (18 drafts), five service gaps and one category gap. No CMS write or
+translation acceptance occurred. [Evidence](audits/ab269-publication-locale-census-2026-10-13.md).
+
 ### AB#255 — Finnish and English on every page (2026-10-11, Active)
 
 The owner confirmed coverage includes historical articles/galleries and customer/
