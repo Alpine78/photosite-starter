@@ -13,6 +13,7 @@ import {
 import {
   PUBLISHED_CONTENT_REDIRECT_ENTRIES,
   PUBLISHED_SERVICE_REDIRECT_ENTRIES,
+  REMAINING_LEGACY_REDIRECT_ENTRIES,
   RETIRED_TAG_PATHS,
   RETIRED_PROFILE_PATHS,
   RETIRED_SITEMAP_ALIAS_PATHS,
@@ -372,40 +373,30 @@ test("a decided structural redirect's query string rides through unexamined", as
   expect(landedUrl.searchParams.get("start")).toBe("20");
 });
 
-test("a decided structural redirect's trailing-slash variant still resolves to the same target in one extra hop, not a chain", async ({
-  page,
-}) => {
-  // "/valokuvaus" itself carries no trailing slash, so its slash-bearing
-  // variant is not itself a registry row and must fall through the generic
-  // trailing-slash normalization first — the same shape already proven for
-  // a decided `gone` row above, now proven for a decided `redirect` row.
-  const entry = STRUCTURAL_REDIRECT_ENTRIES.find(
-    (candidate) =>
-      candidate.outcome.kind === "redirect" && !candidate.source.endsWith("/"),
-  );
-  test.skip(
-    entry === undefined,
-    "no decided structural redirect row without a trailing slash in this clone's data",
-  );
-  if (entry === undefined || entry.outcome.kind !== "redirect") return;
-
-  const navigationStatuses: number[] = [];
-  page.on("response", (response) => {
-    if (response.request().isNavigationRequest()) {
-      navigationStatuses.push(response.status());
-    }
-  });
-
-  const response = await page.goto(`${entry.source}/`, {
-    waitUntil: "domcontentloaded",
-  });
-
-  expect(response?.status()).toBe(200);
-  expect(new URL(page.url()).pathname).toBe(entry.outcome.target);
-  // The generic trailing-slash normalization redirect, then this row's own
-  // decided 301 — never a redirect landing on another redirect's source.
-  expect(navigationStatuses).toEqual([308, 301, 200]);
+test("a slash variant normalizes before its exact published-service redirect", async ({ request, baseURL }) => {
+  const entry = PUBLISHED_SERVICE_REDIRECT_ENTRIES.find(row => !row.source.endsWith("/"));
+  test.skip(entry === undefined, "no migration service rows in this clone");
+  if (!entry || entry.outcome.kind !== "redirect") return;
+  const normalized = await request.get(`${entry.source}/`, { maxRedirects: 0 });
+  expect(normalized.status()).toBe(308);
+  expect(new URL(normalized.headers().location, baseURL).pathname).toBe(entry.source);
+  const redirected = await request.get(entry.source, { maxRedirects: 0 });
+  expect(redirected.status()).toBe(301);
+  expect(new URL(redirected.headers().location, baseURL).pathname).toBe(entry.outcome.target);
 });
+
+for (const entry of REMAINING_LEGACY_REDIRECT_ENTRIES) {
+  test(`the final source decision resolves directly from ${entry.source}`, async ({ request, baseURL }) => {
+    if (entry.outcome.kind !== "redirect") throw new Error("expected reviewed redirect");
+    const response = await request.get(`${entry.source}?4738&topic=retained&legacy-notice=untrusted`, { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    const location = new URL(response.headers().location, baseURL);
+    expect(location.pathname).toBe(entry.outcome.target);
+    expect(location.searchParams.has("4738")).toBe(true);
+    expect(location.searchParams.get("topic")).toBe("retained");
+    expect(location.searchParams.getAll("legacy-notice")).toEqual(entry.outcome.fallbackNotice ? ["content-unavailable"] : ["untrusted"]);
+  });
+}
 
 test("a pending legacy path has no decided outcome yet and answers the ordinary 404", async ({
   page,

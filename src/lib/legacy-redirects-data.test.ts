@@ -5,6 +5,7 @@ import {
   LEGACY_REDIRECTS,
   PUBLISHED_CONTENT_REDIRECT_ENTRIES,
   PUBLISHED_SERVICE_REDIRECT_ENTRIES,
+  REMAINING_LEGACY_REDIRECT_ENTRIES,
   RETIRED_TAG_PATHS,
   RETIRED_PROFILE_PATHS,
   RETIRED_SITEMAP_ALIAS_PATHS,
@@ -241,6 +242,7 @@ describe("AB#19 legacy redirect completeness", () => {
         ...STRUCTURAL_REDIRECT_ENTRIES.map((entry) => entry.source),
         ...PUBLISHED_CONTENT_REDIRECT_ENTRIES.map((entry) => entry.source),
         ...PUBLISHED_SERVICE_REDIRECT_ENTRIES.map((entry) => entry.source),
+        ...REMAINING_LEGACY_REDIRECT_ENTRIES.map((entry) => entry.source),
       ],
       "already-live": ALREADY_LIVE_LEGACY_PATHS,
       excluded: EXCLUDED_LEGACY_PATHS,
@@ -281,7 +283,8 @@ describe("AB#19 legacy redirect completeness", () => {
         RETIRED_SITEMAP_ALIAS_PATHS.length +
         STRUCTURAL_REDIRECT_ENTRIES.length +
         PUBLISHED_SERVICE_REDIRECT_ENTRIES.length +
-        PUBLISHED_CONTENT_REDIRECT_ENTRIES.length,
+        PUBLISHED_CONTENT_REDIRECT_ENTRIES.length +
+        REMAINING_LEGACY_REDIRECT_ENTRIES.length,
     );
   });
 
@@ -370,6 +373,7 @@ describe("AB#19 legacy redirect completeness", () => {
     // the availability gate; this allowlist is an independent typo guard.
     const targets = new Set([
       "/palvelut/haakuvaus",
+      "/palvelut",
       "/palvelut/haakuvaus/miljoomuotokuvaus",
       "/palvelut/haakuvaus/vihkiseremonia-ja-miljoomuotokuvat",
       "/palvelut/haakuvaus/puoli-paivaa",
@@ -435,6 +439,7 @@ describe("AB#19 legacy redirect completeness", () => {
       ...STRUCTURAL_REDIRECT_ENTRIES.map((entry) => entry.source),
       ...PUBLISHED_CONTENT_REDIRECT_ENTRIES.map((entry) => entry.source),
       ...PUBLISHED_SERVICE_REDIRECT_ENTRIES.map((entry) => entry.source),
+        ...REMAINING_LEGACY_REDIRECT_ENTRIES.map((entry) => entry.source),
       ...PENDING_LEGACY_PATHS,
     ]) {
       expect(
@@ -442,5 +447,29 @@ describe("AB#19 legacy redirect completeness", () => {
         `"${path}" collides with a live route or a reserved namespace`,
       ).toBe(false);
     }
+  });
+});
+
+// These literal identities are independent of the mapping generator.
+describe("final source-bound legacy decisions", () => {
+  it("does not confuse wedding portfolio, 12+ hours or unavailable English offers", () => {
+    if (!REMAINING_LEGACY_REDIRECT_ENTRIES.length) return;
+    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/en/wedding-portfolio")).toMatchObject({ target: "/en/stories/wedding-portfolio" });
+    for (const path of ["/haakuvaus/aamusta-iltaan", "/fi/haakuvaus/aamusta-iltaan"]) expect(resolveLegacyRedirect(LEGACY_REDIRECTS, path)).toMatchObject({ target: "/palvelut/haakuvaus", fallbackNotice: "content-unavailable" });
+    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/en/wedding/from-morning")).toMatchObject({ target: "/en/services/wedding-photography", fallbackNotice: "content-unavailable" });
+    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/en/photography/funeral")).toMatchObject({ target: "/en/services", fallbackNotice: "content-unavailable" });
+    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/valokuvaus")).toMatchObject({ target: "/palvelut" });
+  });
+  it("keeps exact fallbacks same-language, flattened and explicit", () => {
+    const allowed = new Set(["/", "/en", "/en/services", "/en/services/wedding-photography", "/palvelut", "/palvelut/asuntokuvaus", "/palvelut/hautajaiskuvaus", "/palvelut/haakuvaus", "/palvelut/haakuvaus/vihkiseremonia", "/en/stories/wedding-portfolio", "/en/services/wedding-photography/ceremony-and-portraits"]);
+    for (const entry of REMAINING_LEGACY_REDIRECT_ENTRIES) {
+      expect(resolveLegacyRedirect(LEGACY_REDIRECTS, entry.source)).toEqual(entry.outcome);
+      expect(entry.outcome.kind).toBe("redirect");
+      if (entry.outcome.kind !== "redirect") continue;
+      expect(allowed.has(entry.outcome.target)).toBe(true);
+      expect(entry.outcome.target === "/en" || entry.outcome.target.startsWith("/en/")).toBe(entry.source.startsWith("/en/"));
+      expect(resolveLegacyRedirect(LEGACY_REDIRECTS, entry.outcome.target)).toBeUndefined();
+    }
+    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/en/photography/unknown")).toBeUndefined();
   });
 });

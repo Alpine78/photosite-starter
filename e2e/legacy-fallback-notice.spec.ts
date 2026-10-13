@@ -6,6 +6,8 @@ import { appUnderTestEnvironment, DEFAULT_STORY_NAMESPACE, PREFIXED_LOCALE } fro
 
 const targets = [
   { locale: appUnderTestEnvironment.SITE_LOCALE, root: "/", category: false },
+  { locale: appUnderTestEnvironment.SITE_LOCALE, root: "/services", category: false },
+  { locale: PREFIXED_LOCALE.prefix, root: `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.serviceNamespace}`, category: false },
   { locale: appUnderTestEnvironment.SITE_LOCALE, root: `/${DEFAULT_STORY_NAMESPACE}`, category: true },
   { locale: PREFIXED_LOCALE.prefix, root: `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.storyNamespace}`, category: true },
 ];
@@ -83,4 +85,13 @@ test.describe("legacy fallback without JavaScript", () => {
   test("home and both languages' category targets still explain the fallback", async ({ page }) => {
     for (const target of targets) await assertNotice(page, await targetPath(page, target), target.locale);
   });
+});
+
+test("a published service ancestor explains unavailable legacy packages", async ({ page }) => {
+  const root = `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.serviceNamespace}`;
+  await page.goto(root, { waitUntil: "domcontentloaded" });
+  const href = await page.locator(`main a[href^="${root}/"]`).first().getAttribute("href");
+  expect(href).toBeTruthy();
+  expect(href!.startsWith(`${root}/`)).toBe(true);
+  await assertNotice(page, href!, PREFIXED_LOCALE.prefix);
 });
