@@ -11,7 +11,7 @@ ignored mode-700 directory. Asset original bytes total **2,436,624,774**. All as
 sizes and SHA-1 identities matched, additions matched frozen SHA-256, and every
 written asset plus the exact raw snapshot was re-read and SHA-256 verified.
 
-The final implementation repeated the successful local run at `2026-10-13T14:30:55.169Z`:
+The final implementation repeated the successful local run at `2026-10-13T14:37:42.783Z`:
 
 | Bound evidence | SHA-256 |
 | --- | --- |
@@ -28,7 +28,7 @@ Synthetic tests cover plain/wrapped recovery and output readback, additions,
 corruption, missing/duplicate/unexpected assets, traversal, symbolic/hard links,
 truncation, mismatched frozen hashes, source links, bounds and asset inventory.
 Private IO tests cover permissions, Git visibility and evidence preservation.
-Local lint, strict TypeScript, all 5,974 browser-free tests and a synthetic
+Local lint, strict TypeScript, all 5,976 browser-free tests and a synthetic
 production build passed. No public journey changed; the mandatory PR CI still
 runs the full journey and Studio gates. Security self-review checked untrusted
 input bounds, private evidence and fail-closed projection; no unresolved finding
@@ -40,5 +40,12 @@ occurred. Provider recovery, candidate rollback and owner handoff remain open;
 AB#18 remains Active and AB#118 remains New. AB#267 stays Active until reviewed
 acceptance and merge. See [the operator contract](../cms-recovery-rehearsal.md).
 
-The final locked dependency audit reported zero vulnerabilities; declaring the
+The final root locked dependency audit reported zero vulnerabilities; declaring the
 existing tar version changed no installed package or integrity.
+
+Final stream review added deterministic incomplete-asset and synchronous gzip
+expansion refusal cases. Parser errors now terminate active readers and never
+wait for a drain event after a synchronous refusal. The complete tests, build
+and real local recovery were repeated successfully after this correction.
+The separate Studio audit still reports eight moderate findings in its existing
+CLI dependency chain; this slice does not change or approve that tree.

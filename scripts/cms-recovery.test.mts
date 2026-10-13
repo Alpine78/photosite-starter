@@ -70,6 +70,15 @@ describe("offline CMS recovery", () => {
   it("rejects truncated archive input", () => exercise(async (folder, manifest, save) => {
     await save("manifest.json", JSON.stringify(manifest)); await expect(rehearseRecovery(options(folder))).rejects.toThrow();
   }, Buffer.from("invalid archive")));
+  it("terminates a parser refusal during an active incomplete asset", () => exercise(async (folder, manifest, save) => {
+    await save("manifest.json", JSON.stringify(manifest));
+    await expect(rehearseRecovery(options(folder))).rejects.toThrow();
+    await expect(readFile(path.join(folder, "out", "receipt.json"))).rejects.toThrow();
+  }, gzipSync(tar(normal()).subarray(0, 2560 + 5))));
+  it("terminates a synchronous gzip expansion refusal without waiting for drain", () => exercise(async (folder, manifest, save) => {
+    await save("manifest.json", JSON.stringify(manifest));
+    await expect(rehearseRecovery(options(folder))).rejects.toThrow();
+  }, gzipSync(tar([{ name: "export/data.ndjson", bytes: Buffer.alloc(4 * 1024 * 1024) }]))));
   it("refuses symlink original sources", () => exercise(async (folder, manifest, save) => {
     const original = await save("original.jpg", bytes); await symlink(original, path.join(folder, "linked.jpg"));
     manifest.originalAdditions = [{ assetId: asset._id, bytes: bytes.length, path: path.join(folder, "linked.jpg"), sha256: hash(bytes) }];

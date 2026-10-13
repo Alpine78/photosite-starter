@@ -16,15 +16,17 @@ async function hashInput(filename: string, maximum: number): Promise<string> {
   } finally { await input.handle.close(); }
 }
 async function parseArchive(source: Source, visit: (entry: ReadEntry) => Promise<void>): Promise<void> {
-  const tasks: Promise<void>[] = [], seen = new Set<string>(); let bytes = 0, metadataEntries = 0, failure: Error | undefined;
+  const tasks: Promise<void>[] = [], seen = new Set<string>(), active = new Set<ReadEntry>(); let bytes = 0, metadataEntries = 0, failure: Error | undefined;
   const parser = new Parser({ strict: true, maxMetaEntrySize: 64 * 1024, maxDecompressionRatio: 200,
     onReadEntry(entry) {
+      active.add(entry);
+      entry.on("error", () => {}); // also handled by the consuming async iterator
       const task = (async () => {
         safeArchiveEntry(entry.path, entry.type, entry.size, seen);
         bytes += entry.size;
         if (bytes > RECOVERY_LIMITS.totalBytes) throw new Error("ARCHIVE_TOTAL_LIMIT");
         await visit(entry);
-      })().catch(() => { failure ??= new Error("ARCHIVE_ENTRY_REJECTED"); parser.abort(failure); });
+      })().catch(() => { failure ??= new Error("ARCHIVE_ENTRY_REJECTED"); parser.abort(failure); }).finally(() => { active.delete(entry); });
       tasks.push(task);
     },
   });
@@ -33,13 +35,20 @@ async function parseArchive(source: Source, visit: (entry: ReadEntry) => Promise
     metadataEntries++; bytes += Buffer.byteLength(metadata);
     if (metadataEntries > RECOVERY_LIMITS.entries || bytes > RECOVERY_LIMITS.totalBytes) { failure ??= new Error("ARCHIVE_METADATA_LIMIT"); parser.abort(failure); }
   });
-  parser.on("error", () => { failure ??= new Error("INVALID_ARCHIVE"); });
+  parser.on("error", () => {
+    failure ??= new Error("INVALID_ARCHIVE");
+    for (const entry of active) entry.destroy(failure);
+  });
   // Register completion before feeding bytes; strict parser errors never echo paths.
   const completed = once(parser, "end").catch(() => { failure ??= new Error("INVALID_ARCHIVE"); });
   try {
     for await (const chunk of source) {
       if (failure) throw failure;
-      if (!parser.write(chunk)) await once(parser, "drain");
+      const writable = parser.write(chunk);
+      // A synchronous parser error can occur inside write, before a future
+      // drain listener exists. Do not wait for an event that will never arrive.
+      if (failure) throw failure;
+      if (!writable) await once(parser, "drain");
     }
     parser.end(); await completed; await Promise.all(tasks);
     if (failure) throw failure;
