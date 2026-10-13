@@ -54,3 +54,10 @@ authenticated media-library list additionally shows 31 fit=max images and zero
 fit=crop requests. The photographic selectors currently select scalar title and
 subtitle fields; keep that contract or supply an explicit prepare for a future
 portable-text title.
+
+Latest-main integration: after #376 merged as 94c9816, #371 was reconciled as
+dd0732c and included in this combined branch. The Studio runtime inputs from
+that integration are unchanged; the combined 252-file / 5,919-test suite and
+Next.js production build pass against the new main. The final gallery URL-rule
+wording correction passes its focused translation/Rule tests. New final-head CI
+is required; earlier green statuses do not validate this newly published head.
