@@ -3449,6 +3449,19 @@ the exact source, evidence limits, private one-field publication proposal and
 separate recovery gates. AB#117/18/137/250 remain Active; no DNS, CMS, alias,
 rollback, customer import, full approval or handoff was performed.
 
+**Publication operator preparation, 2026-10-13 (AB#117, Active):** a new offline-by-default
+command binds one existing home intro translation to its complete source revision,
+owner-reviewed recovery evidence and approval digest. One CAS patch and exact-content
+readback precede a separately intended restoration against the observed post-write
+revision; a later editor change refuses restoration. Uncertain writes have read-only
+reconciliation and no automatic retry. A fresh stable raw snapshot contains 17,609
+documents and 5,158 assets; existing asset coverage was renewed by rehashing the
+existing archive and 13 preserved original additions, which are copied into the current
+private recovery packet. No CMS write, writer creation, genuine webhook/visible
+update proof, full restore exercise or launch acceptance was performed.
+[Preparation and remaining operation](audits/ab117-cms-publication-smoke-2026-10-13.md)
+are recorded separately from the source-gated live exercise.
+
 ### AB#240 — validate image upload metadata
 
 The owner-run Sanity image uploader rejects malformed acknowledgement objects, blank IDs and dimensions that are not positive safe integers before the filename-clearing mutation. Format and public-size guards retain their policy and use fixed diagnostics rather than echoing provider fields. Synthetic malformed-response tests verify that no follow-up mutation runs; the existing valid upload/filename-removal test remains. A refused acknowledgement can still mean the provider stored an asset: reconcile its identity and filename in the live import audit rather than assuming the upload was rolled back. This local repair does not perform a CMS write or complete AB#137.
