@@ -13,6 +13,13 @@ The [2026-10-05 operational checkpoint](#2026-10-05-operational-checkpoint-ab137
 supersedes historical claims below that Resend is unprovisioned or the remaining
 migration bundle is unapproved. It is scoped preparation, not the final AB#117 verdict.
 
+The [2026-10-13 CMS publication/restoration record](audits/ab117-cms-publication-smoke-2026-10-13.md)
+verifies one owner-approved visible home-text change and exact restoration, genuine
+Production/Preview hook delivery, temporary-writer revocation/401 denial and unchanged
+unrelated dataset revisions. It establishes the current serving chain; the existing
+artifact retains `gitDirty: 1`. Final immutable/canonical release verification,
+full recovery and the broader launch verdict remain open.
+
 ## How this review was run
 
 A plan for this review was sent to Codex (OpenAI's CLI, `codex-review-loop` skill,

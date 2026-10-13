@@ -3457,6 +3457,26 @@ the exact source, evidence limits, private one-field publication proposal and
 separate recovery gates. AB#117/18/137/250 remain Active; no DNS, CMS, alias,
 rollback, customer import, full approval or handoff was performed.
 
+**CMS publication and one-field restoration, 2026-10-13 (AB#117, Active):**
+the offline-by-default operator binds `intro` or the explicitly selected
+`photographerIntroduction.text` translation to complete source/recovery/approval
+hashes. Separate durable preparation, one CAS patch, exact-content readback,
+observed-revision restoration and read-only uncertainty reconciliation are tested.
+Browser preflight caught the initially hidden intro field before any write; the
+owner approved the corrected visible field and exact restoration. On the existing
+Production alias the marker became visible, then the original FI text returned.
+Both phases have fresh genuine Production and Preview hook HTTP 200 acknowledgements.
+The one temporary Editor key was deleted, absent and rejected with 401; all six
+prior token IDs remained. Post-audit confirms 17,609 identities / 5,158 assets,
+exact original home content, eleven system groups with only revision/update-time
+deltas, and unchanged revisions everywhere else. Current local recovery coverage
+includes the rehashed archive and 13 preserved/copied original additions.
+[The dated record](audits/ab117-cms-publication-smoke-2026-10-13.md) preserves
+failed preflights/credential calls, approvals, source limits and remaining gates.
+The serving artifact retains `gitDirty: 1`; final immutable/canonical verification,
+full restore, customer continuity and launch acceptance remain open. No DNS or
+promotion change occurred, and AB#117/18/137/250 remain Active.
+
 ### AB#240 — validate image upload metadata
 
 The owner-run Sanity image uploader rejects malformed acknowledgement objects, blank IDs and dimensions that are not positive safe integers before the filename-clearing mutation. Format and public-size guards retain their policy and use fixed diagnostics rather than echoing provider fields. Synthetic malformed-response tests verify that no follow-up mutation runs; the existing valid upload/filename-removal test remains. A refused acknowledgement can still mean the provider stored an asset: reconcile its identity and filename in the live import audit rather than assuming the upload was rolled back. This local repair does not perform a CMS write or complete AB#137.

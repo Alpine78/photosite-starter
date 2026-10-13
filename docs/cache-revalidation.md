@@ -335,3 +335,63 @@ and unprotected. It has been deleted.
 The recovery CLI decodes response bytes as strict UTF-8 (a response BOM is tolerated) and prints a correlation reference only when a successful HTTP response contains `status: accepted` and a canonical lowercase UUID v4. An unusable acknowledgement leaves the purge outcome unverified; it does not prove the purge was refused. Arbitrary transport exceptions are withheld, including native header-validation errors that can echo a bypass value. Fixed project-owned Vercel errors remain actionable. This validates retained output; it adds no response-size cap or live invalidation proof.
 
 During bypass-host verification, ordinary identity-validation `Error` messages share a catch with untrusted transport failures and are deliberately withheld. The fixed refusal identifies that the endpoint could not be verified before supplying the bypass; inspect the endpoint and configured project/team locally. Missing configuration names and timeout cues use fixed diagnostics. An HTTP failure response remains distinct from an unverified success acknowledgement, and does not establish that no tag was expired before a server-side failure.
+
+## Approved one-field publication check (AB#117)
+
+`verify:cms-publication` prepares a private, digest-bound plan for one existing
+published `homePage`. It appends a synthetic UUID marker to one existing translation
+in `intro` (default) or `photographerIntroduction.text` (`--field`), preserving the
+other translations, references and every other field. Confirm the selected field
+is actually visible before approving: the photographer introduction replaces the
+fallback intro in the current home layout.
+It does not create or publish a draft. All plans and receipts stay in ignored
+owner-only storage; no credential or content body is printed.
+
+```bash
+npm run verify:cms-publication -- plan --source <home.json> --baseline <evidence.json> --project <project> --dataset <dataset> --api-version <version> --language <authored-language> --field <visible-field> --out <new-plan.json>
+npm run verify:cms-publication -- apply --plan <plan.json> --baseline <evidence.json> --out <new-apply-receipt.json>
+```
+
+`plan` and `apply` without `--yes` are offline. A real apply requires the exact
+reviewed `--approved-digest <sha256> --yes`, current recovery evidence, and a
+separately approved owner-controlled `SANITY_PUBLICATION_TOKEN`. The environment's
+`SANITY_PROJECT_ID`, `SANITY_DATASET` and `SANITY_API_VERSION` must exactly match
+the plan. Never use a `NEXT_PUBLIC_` credential. Keep the editing freeze and check
+the intended deployment, baseline and credential permissions before approval.
+
+The baseline JSON must bind `version: 1`, the same `target`,
+`sourceDocumentSha256` (canonical JSON of the complete original home document),
+`documentSnapshotSha256` and `assetManifestSha256`, with `documentsComplete`,
+`assetsComplete` and `restoreReady` true. These are hash-bound owner-reviewed
+attestations, not a tool-generated guarantee of dataset recovery. Verify the named
+artifacts and freshness separately. `restoreReady` means the recovery material and
+procedure are available; it never claims an exercised full dataset restore.
+
+Live preflight reads the raw source and its draft/release identities. A missing,
+changed or conflicting source refuses the request. The private prepared receipt
+is saved as `<out>.prepared.json`, with file and directory fsynced, before the one
+`ifRevisionID`-guarded text patch. It survives failure to save the separate final
+receipt; use that prepared record for read-only reconciliation. Readback checks every
+content field, tolerating only the expected revision/update timestamp changes.
+A lost acknowledgement is reconciled by a read, never an automatic second write.
+
+```bash
+npm run verify:cms-publication -- reconcile --plan <plan.json> --baseline <evidence.json> --receipt <uncertain-receipt.json> --out <new-observation.json>
+npm run verify:cms-publication -- restore --plan <plan.json> --baseline <evidence.json> --receipt <applied-receipt.json> --out <new-restore-receipt.json> --approved-digest <sha256> --yes
+```
+
+`reconcile` uses `SANITY_AUDIT_TOKEN` and only reads. Restoration requires a verified
+applied receipt and the **observed post-write revision**, then checks the current
+complete content against the proposed document. A later editor revision or content
+change refuses restoration. Receipts are never overwritten, and no operation
+retries or silently repairs an unexpected state. Revoke a temporary writer and
+verify its denial separately after the approved exercise.
+
+For the actual launch proof, capture the current rendered home before the change,
+then bind a genuine Sanity hook attempt, exact deployment identity and visible
+marker to the apply. Restore, and capture the genuine hook and visible original
+text again. The command always leaves `visibleUpdateVerified`,
+`genuineWebhookVerified` and `canonicalLaunchVerified` false: CMS readback alone
+cannot establish any of them. A fabricated webhook POST or old successful hook
+history cannot substitute for the genuine event. See the
+[dated live publication and restoration record](audits/ab117-cms-publication-smoke-2026-10-13.md).
