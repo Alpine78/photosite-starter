@@ -1,5 +1,6 @@
 import { Geist_Mono, Instrument_Sans } from "next/font/google";
-import { getDeploymentConfig } from "@/lib/deployment-config";
+import { PageErrorLabelsProvider } from "./page-error-context";
+import { getBuiltInLabels, getDeploymentConfig } from "@/lib/deployment-config";
 import { getLocaleRoute } from "@/lib/locale-routes";
 import { THEME_BOOTSTRAP_SCRIPT } from "@/lib/theme-preference";
 
@@ -49,7 +50,7 @@ export function DocumentRoot({ children, locale }: DocumentRootProps) {
       <body
         className="flex min-h-screen flex-col font-sans antialiased"
       >
-        {children}
+        <PageErrorLabelsProvider labels={getBuiltInLabels(locale).pageError}>{children}</PageErrorLabelsProvider>
       </body>
     </html>
   );

@@ -72,3 +72,8 @@ private local directories. The completed public-copy worktree was retired on
 ignored local worktree-preservation archive; the authoring worktree retains the
 write plans and verification. Credentials remain solely in the local ignored
 credential file and process memory; they are absent from Git and receipts.
+
+After reconciliation with main on 2026-10-13, all 5,828 browser-free tests, lint
+and the application production build passed. The initial sandboxed test run
+blocked CLI child processes with EPERM; the unrestricted repeat passed without
+changing tests or assertions. No new CMS operation was performed for PR preparation.

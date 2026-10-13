@@ -401,3 +401,28 @@ describe("private namespace rewrite (ADR-0014 §9)", () => {
     expect(proxy(request("/private-gallery/handle")).status).toBe(404);
   });
 });
+
+
+describe("restricted UI locale header ownership", () => {
+  it.each(["/private/fixture", "/admin", "/client-gallery/11111111111111111111111111111111"])("overwrites spoofed headers from configured query on %s", async (path) => {
+    const { proxy, request } = await loadProxy({ SITE_LOCALE_ROUTES: "en-GB||stories,fi|fi|tarinat" });
+    const response = proxy(request(`${path}?locale=fi`, { "x-photosite-restricted-ui-locale": "en-GB" }));
+    expect(response.headers.get("x-middleware-request-x-photosite-restricted-ui-locale")).toBe("fi");
+    expect(headersOf(response)).toMatchObject(HYGIENE);
+  });
+  it("defaults a repeated query instead of trusting a header", async () => {
+    const { proxy, request } = await loadProxy({ SITE_LOCALE_ROUTES: "en-GB||stories,fi|fi|tarinat" });
+    const response = proxy(request("/admin?locale=fi&locale=fi", { "x-photosite-restricted-ui-locale": "fi" }));
+    expect(response.headers.get("x-middleware-request-x-photosite-restricted-ui-locale")).toBe("en-GB");
+  });
+  it("removes client preferences outside the restricted namespace", async () => {
+    const { proxy, request } = await loadProxy();
+    const response = proxy(request("/stories", { "x-photosite-restricted-ui-locale": "fi" }));
+    expect(response.headers.get("x-middleware-request-x-photosite-restricted-ui-locale")).toBeNull();
+  });
+  it("recomputes on the internal rewrite pass", async () => {
+    const { proxy, request } = await loadProxy({ SITE_LOCALE_ROUTES: "en-GB||stories,fi|fi|tarinat" });
+    const response = proxy(request("/private-gallery/fixture?locale=fi", { [REQUEST_PATH_HEADER]: "/private/fixture", "x-photosite-restricted-ui-locale": "en-GB" }));
+    expect(response.headers.get("x-middleware-request-x-photosite-restricted-ui-locale")).toBe("fi");
+  });
+});

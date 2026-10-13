@@ -1,3 +1,5 @@
+import { LanguageSwitch } from "@/components/language-switch";
+import { serviceLanguageLinks } from "@/lib/service-language-links";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,7 +13,7 @@ import {
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import { getPageMetadata } from "@/lib/page-metadata";
 import { buildServicePath } from "@/lib/locale-routes";
-import { getService, getServiceRoutes, getServices } from "@/lib/services";
+import { getService, getServiceRoutes, getServices, getServiceLocaleVersions } from "@/lib/services";
 import { buildServiceJsonLd } from "@/lib/structured-data";
 
 type ServicePageProps = {
@@ -55,8 +57,13 @@ export async function generateMetadata({
   // its own and keeps the site-level defaults.
   if (!service) return {};
 
+  const { localeRoutes } = getDeploymentConfig();
+  const own = (await getServiceRoutes()).find((route) => route.service.serviceId === service.serviceId);
+  if (own === undefined) return {};
   return getPageMetadata({
-    path: `/services/${service.slug}`,
+    path: buildServicePath(localeRoutes, localeRoutes.defaultLocale, own.path),
+    locale: localeRoutes.defaultLocale,
+    localeVersions: await getServiceLocaleVersions(service.serviceId),
     title: service.name,
     description: service.shortDescription,
     image: service.coverMedia,
@@ -74,6 +81,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
   const own = routes.find((route) => route.service.serviceId === service.serviceId);
   const packages = own === undefined ? [] : listDirectChildServices(routes, own.path);
 
+  const versions = await getServiceLocaleVersions(service.serviceId);
   const { name, description, coverMedia, pricing } = service;
 
   return (
@@ -84,7 +92,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
         data={buildServiceJsonLd({
           service,
           deployment: getDeploymentConfig(),
-          canonicalPath: `/services/${service.slug}`,
+          canonicalPath: own === undefined ? `/services/${service.slug}` : buildServicePath(localeRoutes, localeRoutes.defaultLocale, own.path),
         })}
       />
 
@@ -113,6 +121,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             {name}
           </h1>
+          <LanguageSwitch label={labels.contentTree.languages} links={serviceLanguageLinks(versions, localeRoutes.defaultLocale)} />
           <div className="mt-6 space-y-4 text-body">
             {description.map((paragraph, index) => (
               <p key={index} className="leading-7">

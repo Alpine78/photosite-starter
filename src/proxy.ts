@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { REQUEST_UI_LOCALE_HEADER, restrictedLocaleFromSearch } from "@/lib/restricted-page-locale";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
   buildLegacyGoneHtml,
@@ -119,6 +120,15 @@ export function proxy(request: NextRequest) {
   const hasTrailingSlash = pathname.length > 1 && pathname.endsWith("/");
 
   const routes = getDeploymentConfig().localeRoutes;
+  const privateConfig = getDeploymentConfig().privateGallery;
+  // Always replace a client value, including on the rewrite's second pass.
+  requestHeaders.delete(REQUEST_UI_LOCALE_HEADER);
+  if (isLegacyGalleryNamespace(pathname, []) ||
+    isPrivateRequestPath(pathname, privateConfig.routePrefix) ||
+    isPrivateAdminRequestPath(pathname, privateConfig.adminRoutePrefix) ||
+    isPrivateGalleryInternalPath(pathname) || isPrivateGalleryAdminInternalPath(pathname)) {
+    requestHeaders.set(REQUEST_UI_LOCALE_HEADER, restrictedLocaleFromSearch(request.nextUrl.searchParams, routes));
+  }
   const galleryPrefixes = routes.locales.flatMap((route) => [route.prefix, route.locale.split("-")[0]]).filter((value): value is string => typeof value === "string" && value.length > 0);
   if (isLegacyGalleryNamespace(pathname, galleryPrefixes)) {
     if (legacyGalleryHandleFromPath(pathname) === undefined) {

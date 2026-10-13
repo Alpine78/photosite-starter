@@ -12,15 +12,17 @@ import {
 
 import { probeLegacyRedirect as probe } from "./legacy-redirect-probe.mts";
 import { verifyLegacyMappingRows } from "./legacy-target-probe.mts";
+import { observePendingLegacyPaths } from "./legacy-pending-probe.mts";
 
 async function main() {
   const argumentsList = process.argv.slice(2);
   const csv = argumentsList.length === 2 && argumentsList[0] === "report" && argumentsList[1] === "--csv";
   const [mode, originArgument, canonicalArgument, ...extra] = csv ? ["report"] : argumentsList;
-  if ((mode !== "report" && mode !== "check") || extra.length > 0 ||
+  if ((mode !== "report" && mode !== "check" && mode !== "pending") || extra.length > 0 ||
       (mode === "report" && originArgument !== undefined) ||
+      (mode === "pending" && (originArgument === undefined || canonicalArgument !== undefined)) ||
       (mode === "check" && originArgument === undefined)) {
-    throw new Error("Usage: npm run verify:legacy-redirects -- report | check <origin> [<canonical-origin>]");
+    throw new Error("Usage: npm run verify:legacy-redirects -- report | pending <origin> | check <origin> [<canonical-origin>]");
   }
   const report = buildMappingReport({
     inventory,
@@ -35,6 +37,12 @@ async function main() {
     return;
   }
   const origin = parseVerificationOrigin(originArgument!);
+  if (mode === "pending") {
+    console.log(JSON.stringify(await observePendingLegacyPaths(report.rows, origin), null, 2));
+    // Observation never completes an undecided release inventory.
+    process.exitCode = 1;
+    return;
+  }
   const canonicalOrigin = parseVerificationOrigin(canonicalArgument ?? origin);
   const results = await verifyLegacyMappingRows(report.rows, origin, canonicalOrigin, probe);
   const status = verificationStatus(report.counts.pending, results);
@@ -43,6 +51,6 @@ async function main() {
 }
 
 main().catch(() => {
-  console.error("Legacy mapping verification failed: invalid arguments or mapping. Use report [--csv] | check <origin> [<canonical-origin>]; inspect the committed mapping and inventory.");
+  console.error("Legacy mapping verification failed: invalid arguments or mapping. Use report [--csv] | pending <origin> | check <origin> [<canonical-origin>]; inspect the committed mapping and inventory.");
   process.exitCode = 1;
 });
