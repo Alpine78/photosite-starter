@@ -156,6 +156,12 @@ Fully covered by ADR-0011, which is the authoritative record for this criterion.
 
 ## AC3 — Secrets, least privilege, customer ownership, recovery access, log redaction
 
+2026-10-13 rotation preparation: [AB#285's private-operation inventory](audits/ab285-bypass-rotation-readiness-2026-10-13.md)
+identifies current CI and native Preview-hook consumers before replacing exposed
+automation bypasses. Four entries exist; three still lack a confirmed consumer.
+No key/header/CI-secret mutation or residual-risk acceptance was performed.
+
+
 **Verified now, from code and this repository's own provisioned accounts:**
 
 - **No secret ever reaches the browser bundle.** `next.config.ts` throws at build time
