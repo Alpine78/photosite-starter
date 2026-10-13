@@ -20,6 +20,7 @@
     "revalidate:public-cache": "node scripts/revalidate-public-cache.mts",
     "verify:preview": "node scripts/verify-preview-deployment.mts",
     "verify:release-source": "node scripts/verify-release-source.mts",
+    "verify:rollback-readiness": "node scripts/verify-rollback-readiness.mts",
     "check:dns-cutover": "node scripts/check-dns-cutover.mts",
     "verify:legacy-redirects": "node scripts/verify-legacy-redirects.mts",
     "verify:preview-alias": "node scripts/verify-preview-alias.mts",

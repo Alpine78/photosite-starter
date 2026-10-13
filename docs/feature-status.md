@@ -2025,6 +2025,13 @@ waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
 see above — with 48 of 415 distinct crawled paths still pending reviewed targets after
 content migration (including `component/komento/*` and `sivustokartta/*`).
 
+**Rollback readiness preflight, 2026-10-13 (AB#282, Active):**
+[Offline evidence binding](audits/ab282-rollback-readiness-2026-10-13.md) checks two
+frozen clean Production builds, fresh source-bound CMS/media compatibility, matching
+recoverable snapshot, runtime access, plan eligibility and alias/cache preparation.
+It emits only hashes, expected identities and fixed refusals; it performs or authorizes
+no recovery and grants no launch acceptance. AB#118 still needs the actual exercise.
+
 **Local CMS recovery exercised, 2026-10-13 (AB#267, Active):** a bounded offline
 operator restored 17,609 raw documents and all 5,158 current original assets
 (2,436,624,774 bytes), then rehashed every written file from disk. The retained

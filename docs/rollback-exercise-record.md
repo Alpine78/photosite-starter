@@ -5,6 +5,32 @@ prepares AB#118; no rollback or successful recovery is claimed. Use the existing
 [promotion and rollback commands](deployment.md#promotion-and-rollback).
 Never record credentials, customer data, signed links or raw provider responses.
 
+Before an exercise, run the offline AB#282 preflight with two frozen Production
+provider responses and recent private observations. A pass validates evidence bindings;
+it performs and authorizes no rollback. The observation fields and refusal boundaries
+are described in [the readiness audit](audits/ab282-rollback-readiness-2026-10-13.md).
+
+```sh
+npm run verify:rollback-readiness -- \
+  --current temp/rollback/current.json --rollback temp/rollback/known-good.json \
+  --observations temp/rollback/observations.json \
+  --current-source-sha <sha> --current-deployment-id <dpl_id> \
+  --rollback-source-sha <sha> --rollback-deployment-id <dpl_id> \
+  --project-id <prj_id> --team-id <team_id> --out temp/rollback/check-1
+```
+
+The observation JSON has `schemaVersion: 1`, an ISO UTC `capturedAt` with milliseconds,
+`currentReceiptSha256`, `rollbackReceiptSha256`, `snapshotSha256` and
+`recoverySnapshotSha256`. Record actual evidence for each boolean:
+`fullSnapshotCaptured`, `localAssetBytesVerified`, `rollbackPreviouslyProduction`,
+`hostingRollbackEligible`, `runtimeReadAccessVerified`, `runtimeSecretsVerified`,
+`machineAliasesInventoried`, `cacheRecoveryPlanned`. `compatibility` is exactly two
+rows (current, then known-good), each with `deploymentId`, `sourceSha`,
+`snapshotSha256`, `routesVerified`, `mediaVerified`. Do not fill unverified checks
+with `true`; missing or false observations correctly refuse the preflight. Refresh all
+observations together if over an hour old or if content/settings/aliases changed.
+
+
 | Field | Recorded value / evidence |
 | --- | --- |
 | Date UTC, authorized operator, incident or controlled exercise | Pending |
