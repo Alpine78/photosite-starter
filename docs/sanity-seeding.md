@@ -609,6 +609,12 @@ The original 28 critical hashes match at relocated paths; the expanded 36-file
 ledger includes the new preservation receipts/indexes. No archived file was
 disposed of, and these archives still do not constitute live backup/restore proof.
 
+**PR #354 retirement:** after PR #353 and then #354 merged, the completed AB#263
+checkout was archived at `temp/worktree-retirement/20261012T162207Z/`.
+All 30,778 ignored files and the branch remain; other-agent checkouts were kept.
+The prior 36 critical hashes still match. Its receipt/index extend the preservation
+ledger to 38 files, without modifying prior evidence or establishing CMS restore proof.
+
 [Accepted ADR-0031](adr/0031-identity-migration-operational-plan.md) provides the
 next compatibility/operational plan and an
 [owner decision packet](adr/0031-identity-migration-operational-plan.md#owner-decision-packet).
@@ -645,7 +651,7 @@ carry static classifications rather than payloads. This is a decoded-data
 boundary: raw transport byte limits, duplicate JSON keys, provider document
 metadata and CMS publication checks still require their own adapter.
 
-The module is not connected to deployed readers. CMS/schema/loader, generation
+The module is not connected to deployed readers. CMS record provisioning, generation
 cache/invalidation, public reader integration, legacy-write guard, maintenance
 boundary and operational writer/receipts remain separate implementation slices.
 Future integration must preserve request/locale validation, public-container and
@@ -700,6 +706,48 @@ rehearsal/Production operations remain separately gated. The adapter itself gran
 no media, language, container or visibility authorization and is unused by deployed
 request paths. Existing strict AB#258/259 artifacts and accepted ADR history remain
 unchanged.
+
+### Deployment-owned alias settings (AB#264)
+
+[`readIdentityAliasDeployment`](../src/lib/identity-alias-deployment.ts) reads only
+the supplied environment and returns a frozen, server-only settings tuple.
+[`createDeploymentIdentityAliasLoader`](../src/lib/identity-alias-deployment.ts)
+composes those settings with the existing Sanity configuration and lazy loader.
+Neither helper has a deployed caller yet: setting these values alone activates
+no routing or migration behavior. No settings are added to browser-facing
+`DeploymentConfig`, and no actual target, document or deployment is configured.
+
+| Server-only setting | Accepted value |
+| --- | --- |
+| `SITE_IDENTITY_ALIAS_MODE` | Missing/blank defaults to `legacy`; otherwise exactly `legacy`, `renamed` or `restored` |
+| `SITE_IDENTITY_ALIAS_DOCUMENT_ID` | In active modes, the selected published root ID using AB#263's existing grammar and 128-character bound |
+| `SITE_IDENTITY_ALIAS_SOURCE_MAP_SHA256` | In active modes, the accepted source-map digest, exactly 64 lowercase hexadecimal characters |
+| `SITE_IDENTITY_ALIAS_PAYLOAD_SHA256` | In active modes, the canonical alias-payload digest, exactly 64 lowercase hexadecimal characters |
+| `SITE_IDENTITY_ALIAS_ROW_COUNT` | In active modes, canonical positive decimal digits, no sign/leading zero/decimal/exponent; at most 16 digits and within the core's existing size-derived count bound |
+
+Alias setting strings are capped at 512 characters **before** native Unicode
+whitespace trimming. Legacy rejects nonblank alias data settings; cleared blank
+values are allowed. Unknown names in this namespace, including blank or hidden
+properties and case variants, fail closed. Nonblank `NEXT_PUBLIC_` mirrors are
+rejected; these settings belong only on the server. Supplied accessors, proxy
+objects/prototypes, inherited alias settings and symbol environment keys are
+rejected without invoking their callbacks. Unrelated environment keys are allowed
+and their getters are not read. Legacy never consults CMS configuration or tokens.
+
+Active composition captures the existing validated Sanity source and read token
+before IO, preserving private-dataset and public-secret-mirror checks. Public
+datasets may omit the token. Returned settings contain no credentials; the
+composer returns only the existing frozen loader. An omitted/undefined fetch
+argument uses the existing default for active modes; an explicitly invalid fetch
+is rejected even in legacy mode. Configuration errors expose no supplied value
+or arbitrary cause.
+
+Each composition call creates an independent generation. Hold that returned
+loader for the intended generation lifetime: its concurrent/repeated loads share
+one request, and failure remains sticky. Explicit recreation captures fresh
+accepted settings; there is no global cache, retry or automatic generation
+activation. Actual source/record/pins selection, first approved live read and
+coordinated public-reader/cache activation remain separate operational gates.
 
 ### Offline reconciliation (AB#258)
 

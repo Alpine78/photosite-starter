@@ -4341,7 +4341,7 @@ an ignored local dependency copy resolved it without source/config changes or
 altering the retained archive. No public journey or Studio/schema change exists,
 so their local gates were not rerun; both remain required CI checks.
 
-### AB#263 — Bounded published identity alias loader (2026-10-12, Active)
+### AB#263 — Bounded published identity alias loader (2026-10-12, Closed)
 
 After PR #352 merged, six completed worktrees were retired into private archives
 `temp/worktree-retirement/20261012T131826Z/` and `20261012T140445Z/`.
@@ -4367,11 +4367,49 @@ sticky until explicit factory recreation, without automatic retry or fallback.
 Local validation passed: 223 focused cases, all 236 browser-free test files /
 5,687 tests, lint, synthetic mock production build and diagram freshness.
 The first build found an invalid test-only TypeScript cast; the corrected cast
-passed the subsequent build. No public journey or Studio/schema behavior changed;
-their required CI checks remain pending the owner's commit and PR. New source
-stays uncommitted for editor review, and AB#263 remains Active until accepted merge.
+passed the subsequent build. No public journey or Studio/schema behavior changed.
+The owner committed the exact reviewed change as `669396d`.
+[PR #354](https://github.com/Alpine78/photosite-starter/pull/354) merged as `42bc730`
+after waiting for the other agent's PR #353 (`f0d3e50`) and successful CI #836,
+including public journeys and standalone Studio. Integration was conflict-free;
+its final tree matched the inspected composition, differing from the CI test
+merge only by #353's accepted documentation. Push was already up to date, with
+no correction commit needed. AB#263's Active → Closed transition was verified.
 Only synthetic responses were used: actual provider metadata/wire fit needs the
 first separately approved live read. Public reader/environment and coordinated
 generation/cache wiring, legacy-write guard, maintenance, operational writer/
 receipts and named rehearsal/Production operations remain separate gates.
 No CMS, asset, credential, restore or deployment operation was performed.
+
+### AB#264 — Deployment-owned identity alias settings (2026-10-12, Active)
+
+The completed PR #354 checkout was retired after preserving all 30,778 ignored
+files and its branch in `temp/worktree-retirement/20261012T162207Z/`.
+Other-agent checkouts were kept. All prior 36 critical hashes remain unchanged;
+the receipt/index extend the ledger to 38 files. AB#264 moved New → Active before
+edits on the published `feature/264-identity-alias-settings` branch from `42bc730`.
+
+The unconnected Node/server-only settings reader validates five deployment-owned
+`SITE_IDENTITY_ALIAS_` values and captures a closed frozen mode/document/pins
+tuple. Default legacy consults no CMS settings; stale nonblank alias data,
+unknown/case-variant names, public mirrors, accessors/proxies, inherited settings
+and malformed counts/pins/IDs fail with static errors. Composition captures the
+existing validated Sanity source before IO and returns the existing lazy loader.
+Each call owns an independent generation; concurrent/repeated loads share its
+request, and explicit recreation is needed for recovery. No global process cache,
+browser settings, request integration, deployment or operational record was added.
+
+The Claude plan review clarified complete namespace enumeration, whitespace,
+fetch defaults, native environment compatibility and independent generations.
+Existing AB#263 loader tests stay unchanged after the pure root-ID validator
+extraction. Source remains uncommitted for owner review; AB#264 stays Active until
+accepted merge. Actual document/source/pins selection, first approved live read,
+public-reader/coordinated-cache wiring, legacy-write guard, maintenance and
+operational writer/rehearsal/Production gates remain separate. No live operation
+was performed, and accepted ADR history and strict offline evidence are unchanged.
+
+Local validation passed: 73 new synthetic cases, 198 focused tests, all 237
+browser-free test files / 5,760 tests, lint, synthetic mock production build and
+diagram freshness. Local public journeys and Studio were not rerun because no
+deployed caller/default behavior or schema changed; their required CI checks
+remain pending the owner's commit and PR.
