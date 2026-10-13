@@ -4713,3 +4713,18 @@ The initial Next.js attempt lacked worktree-local dependencies; existing caches
 were preserved and matching dependencies copied locally. A sandboxed retry
 stalled during compilation and was stopped; the unrestricted synthetic retry
 passed. Full Playwright remains the updated required CI gate.
+
+
+### AB#250 — exact CDN byte verification and real release blocker (2026-10-12)
+
+The owner-requested continuation adds an offline-by-default, credential-free CDN
+verifier for the existing retained source/document contract. Live reads stream
+exact bytes with SHA-1/SHA-256, length/media/attachment checks, no redirects and
+a total deadline; absent and mismatched assets remain distinct. The real packet
+contains 21 galleries, 1,792 JPEGs and 12 ZIPs. Offline recompilation passed;
+Production currently exposes no published legacy types or ZIP assets, and the
+first exact CDN asset is absent. The owner confirms no large-ZIP Support assurance.
+[The release receipt](audits/ab250-release-verification-2026-10-12.md) gives the
+concrete provider question and remaining import/publication gates. Full tests,
+lint and the synthetic production build pass. AB#250 stays Active; no import,
+publication, adapter activation or full customer continuity is claimed.
