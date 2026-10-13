@@ -40,9 +40,13 @@ npm run verify:contact-delivery -- --origin <verified-origin> --out <new-private
 One authorized live attempt on the public Production alias at 19:54 UTC returned HTTP
 200, a valid delivered acknowledgement and no-store. The exact deployment's logs contain
 both accepted and delivered events for its correlation ID. This proves application/provider
-acceptance. The owner was asked to confirm arrival in the independent Infomaniak mailbox
-and the expected Reply-To; that confirmation is pending. The canonical Joomla-domain
-form was not tested as if it already served this application.
+acceptance. On October 13 the owner supplied a mailbox screenshot showing the exact
+preserved synthetic submission identity and the expected Reply-To
+`release-verification@example.com`. This confirms mailbox arrival and the displayed
+reply address for that same attempt; its displayed October 12 time is 22:54. The
+recipient's identity and screenshot stay outside the public repository. A separate
+private confirmation receipt supplements the original immutable send/log receipts.
+The canonical Joomla-domain form was not tested as if it already served this application.
 
 ## CMS publication and privacy
 
@@ -89,9 +93,9 @@ remain required before the full release is accepted.
 Final AB#117 acceptance still depends on the remaining exact legacy decisions and their
 serving-source verification, supported retained-customer ZIP transport/import/runtime,
 current notice and processor/credential residual reconciliation, exact-candidate scriptless
-404 residual review, physical-device completion, fresh contact/mailbox and publication
-proof, and recovery/ownership evidence. These are existing launch requirements, not new
-roadmap work. No pending result or old deployment test is counted as a fresh pass.
+404 residual review, physical-device completion, publication proof and any required
+contact recheck on the final candidate, and recovery/ownership evidence. These are
+existing launch requirements, not new roadmap work. No pending result or old deployment test is counted as a fresh pass.
 
 ## Validation and review scope
 

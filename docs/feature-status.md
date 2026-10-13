@@ -5,6 +5,8 @@ code and decisions. Read the part relevant to the task; the current code and the
 Azure Boards work item are authoritative for scope, acceptance criteria and state.
 The always-applicable agent rules remain in [`AGENTS.md`](../AGENTS.md).
 
+AB#255 continuation, 2026-10-12: [Public bilingual editing proposals completed](audits/ab255-public-copy-completion-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
+
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
 configuration, responsive header and footer, home page, services listing and detail
 pages, a semantic design-token layer (AB#36) — the brand-sensitive colours, text
@@ -4720,8 +4722,10 @@ for one bounded synthetic application POST, with a durable pre-send identity, no
 automatic retry and a non-overwriting private receipt. One authorized test on the
 verified Production deployment tagged with base `14b1af0` and `gitDirty=1`
 returned a valid delivered acknowledgement; the full deployed source delta is unverified;
-its correlation has accepted/delivered log events. Mailbox arrival and Reply-To
-are still awaiting owner confirmation. A fresh authenticated raw audit and complete revision-rechecked raw snapshot cover
+its correlation has accepted/delivered log events. On October 13 the owner's mailbox
+screenshot matched the exact synthetic submission identity and expected reply address,
+confirming mailbox arrival and displayed Reply-To for that attempt. A fresh
+authenticated raw audit and complete revision-rechecked raw snapshot cover
 16,947 records / 5,158 assets, preserving the existing settings draft; the root
 audit is clean and Studio's separate moderate chain remains. Configured genuine
 hook history predates this artifact, so fresh visible publication is not claimed.

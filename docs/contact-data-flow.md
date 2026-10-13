@@ -557,8 +557,11 @@ artifact tagged with base `14b1af0` and `gitDirty=1`; the full local source delt
 is unverified. Historical Hobby-preference rows above describe their
 dated checkpoints and do not establish today's serving tier. One explicitly
 requested synthetic contact POST returned delivered and produced the same
-correlation's accepted/delivered application logs. Receipt in the independent
-Infomaniak inbox and Reply-To confirmation are pending. The new plan-only-by-default
+correlation's accepted/delivered application logs. On October 13 the owner's mailbox
+screenshot showed the exact synthetic submission identity and expected Reply-To
+`release-verification@example.com`, confirming arrival and the displayed reply address
+for that attempt. The recipient's identity and screenshot are kept private.
+The new plan-only-by-default
 operator command is documented in the [dated release checks](audits/ab117-final-release-checks-2026-10-12.md).
 It sends no customer information and does not make a broader retention/erasure
 promise, change tracking settings or complete the final launch privacy gate.
