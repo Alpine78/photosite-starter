@@ -19,3 +19,5 @@ combined branch passes lint and all 5,803 unit tests. The production build and
 60 service/legacy-redirect Chromium/WebKit journey cases pass. Language-sibling
 selection, canonical paths, original frames and authored content are unchanged
 by conflict resolution. No CMS write, publication or deployment occurred.
+
+Integration after PR #372, 2026-10-13: both coverage/status histories are retained against main `1e63b7e`. All 5 original runtime/test files and 27 incoming runtime/test files remain byte-identical to their reviewed source commits. Lint and all 5,827 unit tests pass. Earlier required CI #889 passed; this newer merge requires its own CI. No authored content or runtime behavior changed by conflict resolution.
