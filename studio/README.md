@@ -37,8 +37,16 @@ new project or dataset.
 
 The Studio registers the pinned `@sanity/locale-fi-fi@1.1.40` plugin alongside the
 existing structure tool. It adds **Suomi (`fi-FI`)** to Sanity's core interface
-locale choices while retaining English (`en-US`). Use Sanity's user-menu language
-control after signing in; no project default or site-content locale is changed.
+locale choices while retaining English (`en-US`). After signing in, use the
+labelled **Interface language / Käyttöliittymän kieli** selector below the toolbar.
+Sanity 6.18.0 disables its built-in language menu; `locale-navbar.tsx` supplies
+this control through the configured navbar extension. The SDK stores the choice
+in its existing per-project preference store. No site-content locale is changed.
+The bridge uses the SDK's exported, internally marked `useLocale` hook: keep the
+version pinned and repeat the authenticated switch/reload check on SDK upgrades.
+The same wrapper translates the default Structure/Releases menu titles while
+preserving custom tool titles and all default menu behavior. The HTML language
+also follows the selected interface language.
 The registration API is documented by [Sanity](https://www.sanity.io/docs/studio/localizing-studio-ui)
 and the [Finnish package](https://github.com/sanity-io/locales/tree/main/locales/fi-FI).
 
@@ -67,6 +75,41 @@ resources. Bundle registration itself does not add a core locale.
 Authored document language, schema field text, preview fallbacks and custom
 validation messages are independent. Verify actual authenticated FI/EN rendering
 and wording before publishing Studio. See the [build/source receipt](../docs/audits/ab255-studio-structure-locales-2026-10-12.md).
+
+## Checking Finnish interface text
+
+The project's seven additional core resource bundles fill the 159 missing keys
+observed in the pinned Finnish package. The Finnish core plugin registers the
+language; the navbar above exposes its selection. Adding resource text enables
+no new Studio tool.
+See [the source and engine checks](../docs/audits/ab255-studio-core-locale-additions-2026-10-12.md).
+The owner must still check the views actually used while signed in.
+
+Run the headed test browser from the repository/worktree root:
+
+```bash
+npx playwright install chromium
+node scripts/open-studio-test-browser.mts "http://localhost:3333/"
+```
+
+Start the local Studio first, or supply the intended deployed HTTPS Studio URL.
+The computer needs a graphical browser session. Sign in yourself using the
+project's normal login provider. Never send a password, token or exported cookie
+file to the agent. The separate profile stays in ignored
+`temp/studio-browser/profile`; local debugging uses `127.0.0.1:9222`.
+Close the test window when done. Do not copy its profile, recordings or network
+responses into repository or CI artifacts.
+
+With the repository in WSL, a headed Linux browser may have no visible Windows
+window. The VS Code embedded browser has a separate login session. For the
+authenticated check on 2026-10-13, the owner used a native Windows Chrome window
+with a separate temporary profile and the local Studio at `http://localhost:3333`.
+That check verified switching, native select keyboard operation and preference
+persistence after reload. It also found remaining upstream/editor metadata and
+screen-reader text gaps; see the [authenticated UI receipt](../docs/audits/ab255-authenticated-studio-locales-2026-10-13.md).
+
+General album-image alt/caption authoring remains deferred until after MVP.
+
 
 ## Editing content
 
@@ -180,3 +223,12 @@ separately against the site's configured environment. A static build alone prove
 none of those live checks. See [Sanity installation](https://www.sanity.io/docs/studio/installation),
 [public environment settings](https://www.sanity.io/docs/studio/environment-variables)
 and [hosting](https://www.sanity.io/docs/studio/deployment).
+
+### Localized array accessibility
+
+The Sanity 6.18.0 array renderer does not forward accessibility options to its
+DndContext. The exact Vite alias in sanity.cli.ts supplies localized instructions
+and announcements through that API, re-exporting the native module so sortable
+consumers share its contexts. @dnd-kit/core 6.3.1 was already installed; its direct
+dependency declaration adds no package version. Recheck this bridge on SDK upgrades.
+The finalization receipt is [here](../docs/audits/ab255-studio-drag-localization-2026-10-13.md).

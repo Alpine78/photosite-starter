@@ -1,5 +1,7 @@
 # Feature implementation status
 
+AB#255 authenticated check, 2026-10-13: [Windows/WSL Studio FI/EN verification](audits/ab255-authenticated-studio-locales-2026-10-13.md) verifies ten editorial form families, native select keyboard operation and preference persistence. A disabled upstream language menu and boolean-input help were corrected in the two Studio worktrees. Root schema-header text, list preview localization/full-frame thumbnails and array screen-reader instructions still require work; both PRs remain Draft. Main 27d7252 integration and these corrections are published sequentially under the owner-confirmed PR repair exception; final-head CI is required. AB#255 remains Active; no CMS write or deployment.
+
 This is a running implementation history and a starting point for finding relevant
 code and decisions. Read the part relevant to the task; the current code and the
 Azure Boards work item are authoritative for scope, acceptance criteria and state.
@@ -4824,3 +4826,7 @@ first exact CDN asset is absent. The owner confirms no large-ZIP Support assuran
 concrete provider question and remaining import/publication gates. Full tests,
 lint and the synthetic production build pass. AB#250 stays Active; no import,
 publication, adapter activation or full customer continuity is claimed.
+
+AB#255 continuation, 2026-10-12: [Finnish Studio core resource additions](audits/ab255-studio-core-locale-additions-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. CI installation fix, 2026-10-13: the root test job installs locked Studio dependencies before the SDK contract tests. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
+
+AB#255 Studio drag accessibility completion, 2026-10-13: [Localized keyboard-drag instructions and announcements](audits/ab255-studio-drag-localization-2026-10-13.md) close the observed English array-instruction gap in #371. A documented Vite alias wraps the pinned DndContext API while retaining handlers and native contexts. All installed versions/integrities remain unchanged. Authenticated FI/EN instructions and browser-event activation/cancellation were checked without moving, dropping or changing content. Full tests/lint/Studio and Next builds pass; final-head CI and PR review remain. Hosted activation and all-page acceptance are separate; AB#255 remains Active.
