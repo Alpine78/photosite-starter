@@ -1,5 +1,11 @@
 # AB#19 — final-decision continuation, 2026-10-12
 
+Superseding owner decision, 2026-10-13: the two inventoried sitemap aliases
+are retired with direct HTTP 410. The focus-speed fallback recorded below is
+historical evidence and no longer the implemented decision. The current registry
+keeps that alias separate from source 370's camera-review redirect and retains
+the other decisions in this audit, including Komento 410s and numeric-query handling.
+
 Status: eleven source-backed decisions prepared; 37 paths remain pending.
 AB#19 stays Active. Source baseline is main `5262def`; the actual serving
 Production artifact remains `dpl_6e4xtTvbq7Zd39g3mmp9AVNL7KYF`, tagged with base

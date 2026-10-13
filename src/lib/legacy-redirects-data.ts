@@ -4,6 +4,7 @@
  *
  * A clone with no Joomla migration empties {@link RETIRED_TAG_PATHS},
  * {@link RETIRED_PROFILE_PATHS},
+ * {@link RETIRED_SITEMAP_ALIAS_PATHS},
  * {@link STRUCTURAL_REDIRECT_ENTRIES},
  * {@link PUBLISHED_SERVICE_REDIRECT_ENTRIES}, and
  * {@link PUBLISHED_CONTENT_REDIRECT_ENTRIES} to `[]` — the same way a clone edits
@@ -20,7 +21,7 @@
  * (`legacy-redirects.ts`) stays either way; only this row data is
  * first-site-specific.
  *
- * Four kinds of decided row live here, kept in separate lists because their
+ * Six kinds of decided row live here, kept in separate lists because their
  * evidence and validation differ:
  *
  * {@link RETIRED_TAG_PATHS} is every Joomla tag/keyword-browsing page
@@ -40,10 +41,11 @@
  * reviewed, rather than silently reclassifying an unreviewed row — the same
  * mistake this AB#19 pass caught and corrected for `component/komento/*`
  * (unresolved profile routes) and `sivustokartta/*` (real content reached through a
- * Joomla-minted alias, not a generic sitemap page). The 2026-10-12 source
- * inspection establishes Komento's commenter profile/statistics intent;
- * its three exact paths now have separate justified gone decisions below.
- * The focus-speed article uses its verified canonical-category fallback.
+ * Joomla-minted alias, not a generic sitemap page). The source inspection
+ * establishes Komento's commenter profile/statistics intent; its three exact
+ * paths retain their separate justified gone decisions. The owner explicitly
+ * retired the two known sitemap aliases on 2026-10-13; they now have a
+ * separate gone list, not a tag classification or category fallback.
  *
  * {@link STRUCTURAL_REDIRECT_ENTRIES} is redirect-kind data whose canonical target
  * does not depend on any not-yet-migrated content, decided instead of left
@@ -115,6 +117,12 @@ import {
   type LegacyRedirectEntry,
   type LegacyRedirects,
 } from "./legacy-redirects.ts";
+
+/** Owner-retired exact legacy aliases; canonical content remains available. */
+export const RETIRED_SITEMAP_ALIAS_PATHS: readonly string[] = [
+  "/sivustokartta/fujifilm-x-pro2-tarkennusnopeus",
+  "/sivustokartta/haaportfolio",
+];
 
 const GONE_REASON =
   "Joomla tag/keyword browsing page with no current-site replacement (ADR-0003 decision 9; a future replacement is AB#66's, not yet built).";
@@ -478,7 +486,7 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
   // Unmigrated public article menu identities in the accepted Common category.
   // Source category 133, and its verified English peer 163, resolve to the
   // existing shared category. Both notice views passed live canonical/noindex/
-  // semantic checks; source articles 451–454 and 450 are not substituted for
+  // semantic checks; source articles 451–454 are not substituted for
   // another article merely because a title happens to resemble it.
   ...[
     ["/kalusto", "/tarinat/yleinen"],
@@ -487,7 +495,6 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
     ["/fi/sivusto", "/tarinat/yleinen"],
     ["/en/gear", "/en/stories/common"],
     ["/en/site", "/en/stories/common"],
-    ["/sivustokartta/fujifilm-x-pro2-tarkennusnopeus", "/tarinat/yleinen"],
   ].map(([source, target]): LegacyRedirectEntry => ({ source, outcome: {
     kind: "redirect", target, reservedQueryParams: "strip", fallbackNotice: "content-unavailable",
   } })),
@@ -495,7 +502,7 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
     // AB#19, 2026-10-12: the ID and alias name the imported FI camera review.
     // Joomla formerly sent this numeric spelling to its error page; preserve
     // the requested article identity instead of treating it as a gone page.
-    // The distinct focus-speed article (source 450) uses its category notice above.
+    // The distinct focus-speed sitemap alias is retired by the owner decision.
     source: "/blogi/370-fujifilm-x-pro2",
     outcome: {
       kind: "redirect" as const,
@@ -1595,14 +1602,6 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
     },
   },
   {
-    source: "/sivustokartta/haaportfolio",
-    outcome: {
-      kind: "redirect" as const,
-      target: "/tarinat/haaportfolio",
-      reservedQueryParams: "strip" as const,
-    },
-  },
-  {
     source: "/valokuvat/haakuvat",
     outcome: {
       kind: "redirect" as const,
@@ -1910,6 +1909,10 @@ export const LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
     source,
     outcome: { kind: "gone" as const,
       reason: "Joomla Komento commenter profile and interaction statistics have no same-intent public replacement (ADR-0003 decision 9; source router/view/model verified)." },
+  })),
+  ...RETIRED_SITEMAP_ALIAS_PATHS.map((source) => ({
+    source,
+    outcome: { kind: "gone" as const, reason: "Owner retired this legacy sitemap alias (2026-10-13); canonical content remains available." },
   })),
   ...STRUCTURAL_REDIRECT_ENTRIES,
   ...PUBLISHED_SERVICE_REDIRECT_ENTRIES,
