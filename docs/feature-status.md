@@ -5,6 +5,8 @@ code and decisions. Read the part relevant to the task; the current code and the
 Azure Boards work item are authoritative for scope, acceptance criteria and state.
 The always-applicable agent rules remain in [`AGENTS.md`](../AGENTS.md).
 
+AB#255 continuation, 2026-10-12: [Public bilingual editing proposals completed](audits/ab255-public-copy-completion-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
+
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
 configuration, responsive header and footer, home page, services listing and detail
 pages, a semantic design-token layer (AB#36) — the brand-sensitive colours, text
@@ -1104,6 +1106,22 @@ open. [Audit and limits](audits/ab19-service-redirects-2026-10-09.md).
 
 **Published package follow-up, 2026-10-09 (AB#19, Active):**
 Two additional owner-requested FI wedding services were separately published and verified on the activated renderer after the original import audits and a fresh complete baseline. Four matching legacy source rows, including their redundant Finnish aliases, are now prepared as direct permanent redirects. Source menu/article identities and an independent literal pair guard keep the two offerings distinct; canonical/language, prices, listing, sitemap and contact prefills were verified separately from the generic test harness. The prepared registry has 51 redirects and 186 pending paths among the same 415. These rows are not yet deployed; AB#19 and the wider AB#137 launch remain Active. The original 9,918-document / 3,512-image import passed independent byte/data verification and 494 public route/gallery GET cases before the separate service operation. The temporary migration writer has been revoked with a confirmed 401 denial. All old service content and timestamps stayed unchanged; the createIfNotExists parent wave changed only that one parent revision, recorded separately in the private audit.
+
+### AB#19 — eleven verified final decisions and raw-query correction (2026-10-12)
+
+The owner-requested continuation resolves one numeric camera-review alias, seven
+explicit Common-category article fallbacks and three justified Komento-profile
+410s from fresh backup/menu/category and current target evidence. All 415 sources
+remain accounted for: 197 redirect / 177 gone / 37 pending / three excluded / one
+live. Production's previous 367 decided rows all passed live expectations; new
+rows are not claimed deployed. `pending <origin>` observes unresolved responses
+without making decisions or approving omissions. A production-build regression
+exposed Next's reconstruction of a bare numeric query flag; the documented
+`skipProxyUrlNormalize` setting preserves the original URL, with the complete
+895-pass / 38-skip journey matrix after the boundary correction. Final row-specific
+checks accompany the PR. [The decision receipt](audits/ab19-final-decisions-2026-10-12.md)
+records all 37 remaining paths, source identity distinctions and deployment limits.
+AB#19 stays Active; no CMS, DNS or alias write and no complete launch acceptance.
 
 **Mapping verification tooling, 2026-10-02 (AB#19, still Active):** the full Boards
 attachment contains 442 URL records; the committed inventory projects them to 415
@@ -4713,18 +4731,16 @@ stalled during compilation and was stopped; the unrestricted synthetic retry
 passed. Full Playwright remains the updated required CI gate.
 
 
-### AB#19 — eleven verified final decisions and raw-query correction (2026-10-12)
+### AB#250 — exact CDN byte verification and real release blocker (2026-10-12)
 
-The owner-requested continuation resolves one numeric camera-review alias, seven
-explicit Common-category article fallbacks and three justified Komento-profile
-410s from fresh backup/menu/category and current target evidence. All 415 sources
-remain accounted for: 197 redirect / 177 gone / 37 pending / three excluded / one
-live. Production's previous 367 decided rows all passed live expectations; new
-rows are not claimed deployed. `pending <origin>` observes unresolved responses
-without making decisions or approving omissions. A production-build regression
-exposed Next's reconstruction of a bare numeric query flag; the documented
-`skipProxyUrlNormalize` setting preserves the original URL, with the complete
-895-pass / 38-skip journey matrix after the boundary correction. Final row-specific
-checks accompany the PR. [The decision receipt](audits/ab19-final-decisions-2026-10-12.md)
-records all 37 remaining paths, source identity distinctions and deployment limits.
-AB#19 stays Active; no CMS, DNS or alias write and no complete launch acceptance.
+The owner-requested continuation adds an offline-by-default, credential-free CDN
+verifier for the existing retained source/document contract. Live reads stream
+exact bytes with SHA-1/SHA-256, length/media/attachment checks, no redirects and
+a total deadline; absent and mismatched assets remain distinct. The real packet
+contains 21 galleries, 1,792 JPEGs and 12 ZIPs. Offline recompilation passed;
+Production currently exposes no published legacy types or ZIP assets, and the
+first exact CDN asset is absent. The owner confirms no large-ZIP Support assurance.
+[The release receipt](audits/ab250-release-verification-2026-10-12.md) gives the
+concrete provider question and remaining import/publication gates. Full tests,
+lint and the synthetic production build pass. AB#250 stays Active; no import,
+publication, adapter activation or full customer continuity is claimed.
