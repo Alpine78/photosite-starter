@@ -1,0 +1,32 @@
+import { readPrivateBytes, newPrivateDirectory, writePrivateBytes } from "./private-operation-files.mts";
+import { parseLocalArguments } from "./identity-artifact-files.mts";
+import { snapshotDocuments } from "./publication-locale-census.mts";
+import { planLocaleAdditions, planReviewedArticlePublication, type LocalePublicationPlan } from "./locale-publication-plan.mts";
+import { parseReadConnection, runReadQuery } from "./sanity-read-http.mts";
+import { canonicalJson } from "./joomla-intro-summary.mts";
+import { boundedPublicationFetch, publicationHttp, runLocalePublication } from "./locale-publication-run.mts";
+async function main() {
+  const input = process.argv.slice(2), apply = input.includes("--apply");
+  if (input.filter(v => v === "--apply").length > 1) throw new Error("INVALID_ARGUMENTS");
+  const args = parseLocalArguments(input.filter(v => v !== "--apply"), ["plan", "kind", "snapshot", "review-packet", "recovery-receipt", "out"], ["approved-digest"]);
+  if (!["category-services", "articles"].includes(args.kind)) throw new Error("INVALID_KIND");
+  const json = async (name: string, maximum = 16 * 1024 * 1024) => JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await readPrivateBytes(name, maximum)));
+  const recorded = await json(args.plan) as LocalePublicationPlan, packet = await json(args["review-packet"]), snapshot = await readPrivateBytes(args.snapshot, 256 * 1024 * 1024);
+  const plan = (args.kind === "articles" ? planReviewedArticlePublication : planLocaleAdditions)(snapshot, packet, recorded.target);
+  if (JSON.stringify(plan) !== JSON.stringify(recorded)) throw new Error("PLAN_REBUILD_MISMATCH");
+  const recovery = await json(args["recovery-receipt"]), documents = snapshotDocuments(snapshot), assets = documents.filter(d => d._type === "sanity.imageAsset" || d._type === "sanity.fileAsset");
+  if (recovery.snapshotSha256 !== plan.snapshotSha256 || recovery.documentCount !== documents.length || recovery.assetCount !== assets.length || recovery.localBytesRecoveredAndReadBack !== true || !Array.isArray(recovery.assets) || recovery.assets.length !== assets.length || new Set(recovery.assets.map((a: { assetId?: unknown }) => a.assetId)).size !== assets.length) throw new Error("RECOVERY_BASELINE_MISMATCH");
+  const recovered = new Map<string, { bytes: number; sha256: string }>(recovery.assets.map((a: { assetId: string; bytes: number; sha256: string }) => [a.assetId, a]));
+  if (assets.some(d => recovered.get(d._id)?.bytes !== d.size || !/^[a-f0-9]{64}$/.test(recovered.get(d._id)?.sha256 ?? ""))) throw new Error("RECOVERY_ASSET_COVERAGE_MISMATCH");
+  const connection = parseReadConnection({ ...plan.target, token: process.env.SANITY_LOCALIZATION_TOKEN ?? "" });
+  if (apply && args["approved-digest"] !== plan.digest) throw new Error("PUBLICATION_NOT_APPROVED");
+  const manifest = await runReadQuery(connection, { query: "*[] | order(_id) {_id,_rev,_type}", perspective: "raw" }, { fetchImplementation: boundedPublicationFetch });
+  const expected = documents.map(({ _id, _rev, _type }) => ({ _id, _rev, _type })).sort((a, b) => a._id < b._id ? -1 : a._id > b._id ? 1 : 0);
+  if (canonicalJson(manifest) !== canonicalJson(expected)) throw new Error("COMPLETE_LIVE_BASELINE_CHANGED");
+  const folder = await newPrivateDirectory(args.out);
+  await writePrivateBytes(folder, "intent.json", JSON.stringify({ version: 1, planDigest: plan.digest, apply, dryRun: !apply, sourceSnapshotSha256: plan.snapshotSha256 }, null, 2) + "\n");
+  const result = await runLocalePublication(plan, { apply, approvedDigest: args["approved-digest"] }, { ...publicationHttp(connection), async persist(index, value) { await writePrivateBytes(folder, `transaction-${index}.json`, JSON.stringify(value, null, 2) + "\n"); } });
+  await writePrivateBytes(folder, "receipt.json", JSON.stringify(result, null, 2) + "\n");
+  console.log(JSON.stringify({ digest: result.digest, applied: result.applied, transactions: result.transactions, fullDatasetAuditPerformed: false, credentialRevocationVerified: false, launchApproved: false }));
+}
+main().catch(() => { console.error("[write-locale-publication] Publication stopped. Preserve private intent/receipts and reconcile live state before any retry."); process.exitCode = 1; });
