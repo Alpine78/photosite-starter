@@ -36,6 +36,15 @@ describe("publication CLI offline/private boundaries", () => {
     const result = await run(["apply", "--plan", f.out, "--baseline", f.baseline, "--out", out]);
     expect(JSON.parse(result.stdout)).toMatchObject({ status: "plan-only", phase: "apply" });
   });
+  it("binds the optional visible introduction field and refuses arbitrary patch paths", async () => {
+    const f = await fixture(), source = JSON.parse(await readFile(f.input, "utf8"));
+    await writeFile(f.input, JSON.stringify({ ...source, photographerIntroduction: { portrait: { _ref: "synthetic-portrait" }, text: source.intro } }));
+    const result = await run([...f.args, "--field", "photographerIntroduction.text"]);
+    expect(JSON.parse(result.stdout)).toMatchObject({ field: "photographerIntroduction.text" });
+    const p = JSON.parse(await readFile(f.out, "utf8")); expect(p.proposed.intro).toEqual(p.source.intro);
+    await expect(run([...f.args.map(v => v === f.out ? path.join(f.dir, "unsafe.json") : v), "--field", "hero.heading"])).rejects.toThrow();
+    await expect(readFile(path.join(f.dir, "unsafe.json"))).rejects.toThrow();
+  });
   it("rejects --yes with missing approval and incomplete recovery before credentials/network", async () => {
     const f = await fixture(); await run(f.args); const plan = JSON.parse(await readFile(f.out, "utf8"));
     for (const approval of [[], ["--approved-digest", plan.digest]]) {
@@ -60,12 +69,14 @@ describe("publication CLI offline/private boundaries", () => {
     await expect(run(["apply", "--plan", f.out, "--baseline", f.baseline, "--out", path.join(f.dir, "receipt.json")])).rejects.toThrow();
     await expect(readFile(path.join(f.dir, "receipt.json"))).rejects.toThrow();
   });
-  it("executes exactly one approved mocked CAS and restores against its observed revision", async () => {
+  it.each(["intro", "photographerIntroduction.text"])("executes one approved mocked CAS for %s and restores against its observed revision", async (field) => {
     const f = await fixture(), source = JSON.parse(await readFile(f.input, "utf8"));
+    if (field === "photographerIntroduction.text") source.photographerIntroduction = { portrait: { _ref: "synthetic-portrait" }, text: source.intro };
+    await writeFile(f.input, JSON.stringify(source));
     const target = { projectId: "synthetic-project", dataset: "production", apiVersion: "v2026-03-01" };
     await writeFile(f.baseline, JSON.stringify({ version: 1, target, documentsComplete: true, assetsComplete: true, restoreReady: true,
       sourceDocumentSha256: sha256(canonicalJson(source)), documentSnapshotSha256: "a".repeat(64), assetManifestSha256: "b".repeat(64) }));
-    await run(f.args); const p = JSON.parse(await readFile(f.out, "utf8"));
+    await run([...f.args, "--field", field]); const p = JSON.parse(await readFile(f.out, "utf8"));
     const applyOut = path.join(f.dir, "applied.json"), restoreOut = path.join(f.dir, "restored.json");
     for (const phase of ["apply", "restore"]) {
       const out = phase === "apply" ? applyOut : restoreOut;
@@ -76,7 +87,8 @@ describe("publication CLI offline/private boundaries", () => {
           if(++writes!==1)throw Error('RETRY'); const receipt=JSON.parse(await readFile(${JSON.stringify(out + ".prepared.json")},'utf8'));
           if(receipt.status!=='prepared')throw Error('NO_DURABLE_PREPARE');
           const mutation=JSON.parse(init.body).mutations; if(mutation.length!==1||mutation[0].patch.ifRevisionID!==doc._rev)throw Error('BAD_CAS');
-          doc={...doc,intro:mutation[0].patch.set.intro,_rev:${JSON.stringify(phase === "apply" ? "source-post" : "source-restored")}};
+          const set=mutation[0].patch.set;if(JSON.stringify(Object.keys(set))!==${JSON.stringify(JSON.stringify([field]))})throw Error('BAD_FIELD');
+          doc={...doc,...${JSON.stringify(field)}==='intro'?{intro:set.intro}:{photographerIntroduction:{...doc.photographerIntroduction,text:set['photographerIntroduction.text']}},_rev:${JSON.stringify(phase === "apply" ? "source-post" : "source-restored")}};
           return new Response(JSON.stringify({transactionId:'synthetic-transaction'}));};`;
       const args = [phase, "--plan", f.out, "--baseline", f.baseline, "--out", out, ...(phase === "restore" ? ["--receipt", applyOut] : []), "--approved-digest", p.digest, "--yes"];
       const result = await exec(process.execPath, ["--import", "data:text/javascript," + encodeURIComponent(script), path.resolve("scripts/verify-cms-publication.mts"), ...args], {

@@ -1,4 +1,4 @@
-/** AB#117: one existing home intro value; never creates/publishes a draft or asset. */
+/** AB#117: one existing home text value; never creates/publishes a draft or asset. */
 import { createHash } from "node:crypto";
 import { canonicalJson } from "./joomla-intro-summary.mts";
 import { parsePublicReadTarget, type PublicReadTarget } from "./sanity-read-http.mts";
@@ -7,6 +7,10 @@ type ObjectValue = Record<string, unknown>;
 const HEX = /^[0-9a-f]{64}$/u;
 const ID = /^[A-Za-z0-9_-]{1,128}$/u;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+export type PublicationField = "intro" | "photographerIntroduction.text";
+function textRows(doc: ObjectValue, field: PublicationField): unknown {
+  return field === "intro" ? doc.intro : object(doc.photographerIntroduction).text;
+}
 export const sha256 = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 export function object(value: unknown): ObjectValue {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("SMOKE_OBJECT");
@@ -33,11 +37,13 @@ export function sourceDocument(value: unknown): ObjectValue {
 export function contentDigest(doc: ObjectValue): string {
   return sha256(canonicalJson(Object.fromEntries(Object.entries(doc).filter(([key]) => !["_rev", "_updatedAt"].includes(key)))));
 }
-export function compilePublicationPlan(source: unknown, targetInput: PublicReadTarget, language: string, nonce: string, baselineDigest: string) {
+export function compilePublicationPlan(source: unknown, targetInput: PublicReadTarget, language: string, nonce: string, baselineDigest: string, field: PublicationField = "intro") {
   const doc = sourceDocument(source), target = parsePublicReadTarget(targetInput);
+  if (!["intro", "photographerIntroduction.text"].includes(field)) throw new Error("SMOKE_FIELD");
   if (!/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u.test(language) || !UUID.test(nonce) || !HEX.test(baselineDigest)) throw new Error("SMOKE_ARGUMENT");
-  if (!Array.isArray(doc.intro) || doc.intro.length < 1 || doc.intro.length > 8) throw new Error("SMOKE_INTRO");
-  const intro = doc.intro.map((entry) => {
+  const rows = textRows(doc, field);
+  if (!Array.isArray(rows) || rows.length < 1 || rows.length > 8) throw new Error("SMOKE_INTRO");
+  const intro = rows.map((entry) => {
     const row = object(entry);
     if (row._type !== "localizedText" || typeof row._key !== "string" || row._key.length < 1 || row._key.length > 96 ||
       typeof row.language !== "string" || typeof row.value !== "string" || !row.value.trim() || row.value.length > 10_000) throw new Error("SMOKE_INTRO");
@@ -48,9 +54,11 @@ export function compilePublicationPlan(source: unknown, targetInput: PublicReadT
   const marker = `[Publication verification ${nonce}]`;
   if (String(intro.find((r) => r.language === language)!.value).length + marker.length + 2 > 10_000) throw new Error("SMOKE_INTRO_BOUND");
   if (canonicalJson(doc).includes(nonce)) throw new Error("SMOKE_NONCE_ALREADY_PRESENT");
-  const proposed = { ...doc, intro: intro.map((r) => r.language === language ? { ...r, value: `${r.value}\n\n${marker}` } : { ...r }) };
+  const changed = intro.map((r) => r.language === language ? { ...r, value: `${r.value}\n\n${marker}` } : { ...r });
+  const proposed: ObjectValue = field === "intro" ? { ...doc, intro: changed }
+    : { ...doc, photographerIntroduction: { ...object(doc.photographerIntroduction), text: changed } };
   sourceDocument(proposed);
-  const body = { version: 1, target, language, nonce, baselineDigest, source: doc, proposed, marker } as const;
+  const body = { version: 1, target, field, language, nonce, baselineDigest, source: doc, proposed, marker } as const;
   jsonValue(body);
   return { ...body, digest: sha256(canonicalJson(body)) };
 }
@@ -59,7 +67,7 @@ export function validatePublicationPlan(value: unknown, approvedDigest?: string)
   const p = object(value);
   jsonValue(p);
   const t = object(p.target);
-  const compiled = compilePublicationPlan(p.source, { projectId: String(t.projectId), dataset: String(t.dataset), apiVersion: String(t.apiVersion) }, String(p.language), String(p.nonce), String(p.baselineDigest));
+  const compiled = compilePublicationPlan(p.source, { projectId: String(t.projectId), dataset: String(t.dataset), apiVersion: String(t.apiVersion) }, String(p.language), String(p.nonce), String(p.baselineDigest), String(p.field) as PublicationField);
   if (canonicalJson(p) !== canonicalJson(compiled) || (approvedDigest !== undefined && compiled.digest !== approvedDigest)) throw new Error("SMOKE_PLAN_DIGEST");
   return compiled;
 }
@@ -83,7 +91,7 @@ export function smokeMutation(plan: PublicationPlan, current: ObjectValue, phase
   const revision = phase === "apply" ? plan.source._rev : appliedRevision;
   if (typeof revision !== "string" || !ID.test(revision) || (phase === "restore" && revision === plan.source._rev) ||
     current._rev !== revision || contentDigest(current) !== contentDigest(expected)) throw new Error("SMOKE_STALE_SOURCE");
-  return { patch: { id: String(plan.source._id), ifRevisionID: revision, set: { intro: phase === "apply" ? plan.proposed.intro : plan.source.intro } } };
+  return { patch: { id: String(plan.source._id), ifRevisionID: revision, set: { [plan.field]: textRows(phase === "apply" ? plan.proposed : plan.source, plan.field) } } };
 }
 export function restoreRevision(plan: PublicationPlan, receipt: unknown): string {
   const r = object(receipt);

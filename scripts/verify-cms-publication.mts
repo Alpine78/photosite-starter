@@ -6,7 +6,7 @@ import { lstat, open, realpath, type FileHandle } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
-import { compilePublicationPlan, object, reconcilePublication, requireRecoveryEvidence, restoreRevision, sha256, validatePublicationPlan } from "./publication-smoke-plan.mts";
+import { compilePublicationPlan, object, reconcilePublication, requireRecoveryEvidence, restoreRevision, sha256, validatePublicationPlan, type PublicationField } from "./publication-smoke-plan.mts";
 import { runPublicationSmoke } from "./publication-smoke-run.mts";
 import { parseReadConnection, runReadQuery } from "./sanity-read-http.mts";
 import { runSeedMutationBatches } from "./sanity-seed-http.mts";
@@ -59,7 +59,7 @@ async function main() {
   const yes = args.at(-1) === "--yes"; if (yes) args.pop();
   if (yes && (phase === "plan" || phase === "reconcile")) throw new Error("SMOKE_ARGUMENTS");
   const required = phase === "plan" ? ["--source", "--baseline", "--project", "--dataset", "--api-version", "--language", "--out"] : ROOT_KEYS;
-  const allowed = phase === "plan" ? [...required, "--nonce"] : [...required, ...(phase === "apply" ? [] : ["--receipt"]), ...(phase === "reconcile" ? [] : ["--approved-digest"])];
+  const allowed = phase === "plan" ? [...required, "--nonce", "--field"] : [...required, ...(phase === "apply" ? [] : ["--receipt"]), ...(phase === "reconcile" ? [] : ["--approved-digest"])];
   const values = new Map<string, string>();
   for (let i = 0; i < args.length; i += 2) {
     if (!allowed.includes(args[i]) || !args[i + 1] || args[i + 1].startsWith("--") || values.has(args[i])) throw new Error("SMOKE_ARGUMENTS");
@@ -69,7 +69,7 @@ async function main() {
     ((yes || values.has("--approved-digest")) && !/^[a-f0-9]{64}$/u.test(values.get("--approved-digest") ?? ""))) throw new Error("SMOKE_ARGUMENTS");
   const baseline = await privateJson(values.get("--baseline")!);
   const plan = phase === "plan"
-    ? compilePublicationPlan((await privateJson(values.get("--source")!)).value, { projectId: values.get("--project")!, dataset: values.get("--dataset")!, apiVersion: values.get("--api-version")! }, values.get("--language")!, values.get("--nonce") ?? randomUUID(), baseline.digest)
+    ? compilePublicationPlan((await privateJson(values.get("--source")!)).value, { projectId: values.get("--project")!, dataset: values.get("--dataset")!, apiVersion: values.get("--api-version")! }, values.get("--language")!, values.get("--nonce") ?? randomUUID(), baseline.digest, (values.get("--field") ?? "intro") as PublicationField)
     : validatePublicationPlan((await privateJson(values.get("--plan")!)).value, yes ? values.get("--approved-digest") : undefined);
   if (plan.baselineDigest !== baseline.digest) throw new Error("SMOKE_BASELINE_DIGEST");
   const receipt = values.has("--receipt") ? (await privateJson(values.get("--receipt")!)).value : undefined;
@@ -77,7 +77,7 @@ async function main() {
   if (yes) requireRecoveryEvidence(plan, baseline.value);
   const fd = await reserveOutput(values.get("--out")!);
   try {
-    if (phase === "plan") { await save(fd, plan); console.log(JSON.stringify({ status: "plan-only", digest: plan.digest, language: plan.language, field: "intro", documents: 1 })); return; }
+    if (phase === "plan") { await save(fd, plan); console.log(JSON.stringify({ status: "plan-only", digest: plan.digest, language: plan.language, field: plan.field, documents: 1 })); return; }
     if (!yes && phase !== "reconcile") { await save(fd, { status: "plan-only", phase, planDigest: plan.digest, automaticRetry: false }); console.log(JSON.stringify({ status: "plan-only", phase, digest: plan.digest })); return; }
     // Resolve credentials only after local validation and reserving private output.
     if (process.env.SANITY_PROJECT_ID !== plan.target.projectId || process.env.SANITY_DATASET !== plan.target.dataset || process.env.SANITY_API_VERSION !== plan.target.apiVersion) throw new Error("SMOKE_ENV_TARGET");

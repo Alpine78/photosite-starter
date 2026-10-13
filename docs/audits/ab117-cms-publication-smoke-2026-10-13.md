@@ -1,13 +1,14 @@
 # AB#117 — CMS publication operator preparation, 2026-10-13
 
 Status: guarded operator and private review packet prepared. AB#117 remains Active.
-The source branch starts at main `f58be98`, then incorporates merged #376 at
-`94c9816`. Open #370/#371 cover Studio wording and #377 covers bilingual release
-preparation. This slice changes no Studio, alias
+The source branch starts at main `f58be98`, then incorporates merged #376, #371 and #377
+through main `f657891`. Concurrent #370 covers Studio wording and #377 covers bilingual
+release preparation. Both merge cleanly with this branch in Git's merge-tree
+check. This slice changes no Studio, alias
 settings, public route, schema or application cache boundary.
 
 The [publication command](../cache-revalidation.md#approved-one-field-publication-check-ab117)
-prepares an offline one-field home-intro marker plan, verifies an approved live
+prepares an offline one-field home-text marker plan, verifies an approved live
 source/recovery binding, durably journals before one revision-guarded patch, and
 reads back every content field. It separately restores the exact intro using the
 observed post-write revision; concurrent edits refuse both phases. Uncertain
@@ -35,6 +36,15 @@ verified current packet is a separate artifact, never an overwritten receipt.
 No CMS write, asset upload, new writer credential or revalidation request occurred.
 No new hook attempt or visible publication success is claimed.
 
+The owner approved the initial intro proposal and a temporary editor credential.
+Browser preflight found that the current photographer-introduction layout does not
+display `intro`; it displays `photographerIntroduction.text`. No credential was
+created and no CMS patch was issued. The operator now binds that explicitly selected
+visible field, preserving the intro, portrait and every other field. Browser preflight
+confirms the current FI introduction text is visible. The replacement private digest
+requires renewed content approval; the original proposal and failed preflight are
+retained. The credential authorization is unchanged.
+
 ## Remaining exact operation
 
 Review the original/proposed intro, target, source revision, baseline evidence,
@@ -57,8 +67,9 @@ failure (including final-receipt failure after the write), lost acknowledgements
 ambiguous readback, exact restoration, private
 inputs/outputs and mocked end-to-end CLI apply/restore/read-only reconciliation.
 The private capsule and backup evidence are ignored and cannot enter CI artifacts.
-After incorporating #376, lint, TypeScript checking, all 248 browser-free files /
-5,932 tests (31 new focused cases), the synthetic mock production build and the
+After incorporating #376/#371/#377 and the visible-field correction, lint,
+TypeScript checking, all 250 browser-free files / 5,939 tests (34 new focused cases),
+the synthetic mock production build and the
 three architecture diagram checks passed. Relative documentation links and diff
 checks passed. Public journeys are unchanged and were not rerun locally; they
 remain a required CI gate. No security finding remains in the changed operator;

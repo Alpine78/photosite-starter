@@ -3454,7 +3454,8 @@ separate recovery gates. AB#117/18/137/250 remain Active; no DNS, CMS, alias,
 rollback, customer import, full approval or handoff was performed.
 
 **Publication operator preparation, 2026-10-13 (AB#117, Active):** a new offline-by-default
-command binds one existing home intro translation to its complete source revision,
+command binds one existing home text translation (`intro` or explicitly selected
+`photographerIntroduction.text`) to its complete source revision,
 owner-reviewed recovery evidence and approval digest. One CAS patch and exact-content
 readback precede a separately intended restoration against the observed post-write
 revision; a later editor change refuses restoration. Uncertain writes have read-only
@@ -3465,6 +3466,9 @@ private recovery packet. No CMS write, writer creation, genuine webhook/visible
 update proof, full restore exercise or launch acceptance was performed.
 [Preparation and remaining operation](audits/ab117-cms-publication-smoke-2026-10-13.md)
 are recorded separately from the source-gated live exercise.
+Browser preflight refused the initially approved intro proposal because the current
+layout displays the photographer introduction instead. The corrected visible-field
+plan is prepared for renewed content approval; no writer was created or CMS patch issued.
 
 ### AB#240 — validate image upload metadata
 

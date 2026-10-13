@@ -14,8 +14,9 @@ const applied = () => ({ version: 1, phase: "apply", status: "applied", planDige
 
 describe("one-field publication plan and recovery guards", () => {
   it("preserves references, other fields and every unselected translation", () => {
-    const p = plan(); expect(p.proposed.intro[0].value).toBe(source().intro[0].value + "\n\n" + p.marker);
-    expect(p.proposed.intro[1]).toEqual(source().intro[1]);
+    const p = plan(), rows = p.proposed.intro as ReturnType<typeof source>["intro"];
+    expect(rows[0].value).toBe(source().intro[0].value + "\n\n" + p.marker);
+    expect(rows[1]).toEqual(source().intro[1]);
     expect({ ...p.proposed, intro: p.source.intro }).toEqual(p.source);
     expect(validatePublicationPlan(JSON.parse(JSON.stringify(p)), p.digest)).toEqual(p);
   });
@@ -46,6 +47,20 @@ describe("one-field publication plan and recovery guards", () => {
     expect(() => validatePublicationPlan({ ...p, target: { ...target, dataset: "preview" } })).toThrow();
     expect(() => validatePublicationPlan({ ...p, source: { ...p.source, extra: "changed" } })).toThrow();
     expect(() => validatePublicationPlan({ ...p, extra: true })).toThrow();
+    expect(() => validatePublicationPlan({ ...p, field: "photographerIntroduction.text" })).toThrow();
+  });
+  it("patches only the selected introduction text, preserving intro, portrait and other languages", () => {
+    const doc = { ...source(), photographerIntroduction: { _type: "homePhotographerIntroduction", portrait: { _type: "reference", _ref: "synthetic-portrait" }, text: source().intro } };
+    const p = compilePublicationPlan(doc, target, "fi", nonce, "a".repeat(64), "photographerIntroduction.text");
+    const proposed = p.proposed as typeof doc;
+    expect(p.proposed.intro).toEqual(doc.intro);
+    expect(proposed.photographerIntroduction.portrait).toEqual(doc.photographerIntroduction.portrait);
+    expect(proposed.photographerIntroduction.text[1]).toEqual(doc.photographerIntroduction.text[1]);
+    expect(smokeMutation(p, doc, "apply").patch.set).toEqual({ "photographerIntroduction.text": proposed.photographerIntroduction.text });
+    expect(smokeMutation(p, { ...p.proposed, _rev: "nested-post" }, "restore", "nested-post").patch.set).toEqual({ "photographerIntroduction.text": doc.photographerIntroduction.text });
+    expect(validatePublicationPlan(p)).toEqual(p);
+    expect(() => compilePublicationPlan(source(), target, "fi", nonce, "a".repeat(64), "photographerIntroduction.text")).toThrow();
+    expect(() => compilePublicationPlan(doc, target, "fi", nonce, "a".repeat(64), "hero.heading" as "intro")).toThrow();
   });
   it("requires exact, complete, owner-reviewed recovery attestations", () => {
     const p = plan(), evidence = { version: 1, target, documentsComplete: true, assetsComplete: true, restoreReady: true,

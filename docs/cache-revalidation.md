@@ -339,13 +339,16 @@ During bypass-host verification, ordinary identity-validation `Error` messages s
 ## Approved one-field publication check (AB#117)
 
 `verify:cms-publication` prepares a private, digest-bound plan for one existing
-published `homePage`. It appends a synthetic UUID marker to one existing intro
-translation, preserving the other translations, references and every other field.
+published `homePage`. It appends a synthetic UUID marker to one existing translation
+in `intro` (default) or `photographerIntroduction.text` (`--field`), preserving the
+other translations, references and every other field. Confirm the selected field
+is actually visible before approving: the photographer introduction replaces the
+fallback intro in the current home layout.
 It does not create or publish a draft. All plans and receipts stay in ignored
 owner-only storage; no credential or content body is printed.
 
 ```bash
-npm run verify:cms-publication -- plan --source <home.json> --baseline <evidence.json> --project <project> --dataset <dataset> --api-version <version> --language <authored-language> --out <new-plan.json>
+npm run verify:cms-publication -- plan --source <home.json> --baseline <evidence.json> --project <project> --dataset <dataset> --api-version <version> --language <authored-language> --field <visible-field> --out <new-plan.json>
 npm run verify:cms-publication -- apply --plan <plan.json> --baseline <evidence.json> --out <new-apply-receipt.json>
 ```
 
@@ -367,7 +370,7 @@ procedure are available; it never claims an exercised full dataset restore.
 Live preflight reads the raw source and its draft/release identities. A missing,
 changed or conflicting source refuses the request. The private prepared receipt
 is saved as `<out>.prepared.json`, with file and directory fsynced, before the one
-`ifRevisionID`-guarded intro patch. It survives failure to save the separate final
+`ifRevisionID`-guarded text patch. It survives failure to save the separate final
 receipt; use that prepared record for read-only reconciliation. Readback checks every
 content field, tolerating only the expected revision/update timestamp changes.
 A lost acknowledgement is reconciled by a read, never an automatic second write.
