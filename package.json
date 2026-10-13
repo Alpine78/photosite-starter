@@ -37,6 +37,7 @@
     "summarize:contact-failures": "node scripts/summarize-contact-failures.mts",
     "recompute:shuffled-order": "node scripts/recompute-shuffled-order.mts",
     "audit:sanity": "node scripts/audit-sanity-content.mts",
+    "rehearse:cms-recovery": "node scripts/rehearse-cms-recovery.mts",
     "reconcile:identities": "node scripts/reconcile-legacy-identities.mts",
     "plan:identity-aliases": "node scripts/plan-identity-aliases.mts",
     "plan:identity-changes": "node scripts/plan-identity-changes.mts",
@@ -72,6 +73,7 @@
     "parse5": "^8.0.1",
     "sharp": "^0.35.5",
     "tailwindcss": "^4",
+    "tar": "7.5.22",
     "typescript": "^5",
     "vercel": "61.0.0",
     "vitest": "^4.1.11"

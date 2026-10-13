@@ -1995,6 +1995,13 @@ waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
 see above — with 48 of 415 distinct crawled paths still pending reviewed targets after
 content migration (including `component/komento/*` and `sivustokartta/*`).
 
+**Local CMS recovery exercised, 2026-10-13 (AB#267, Active):** a bounded offline
+operator restored 17,609 raw documents and all 5,158 current original assets
+(2,436,624,774 bytes), then rehashed every written file from disk. The retained
+archive and thirteen preserved additions were verified; private bytes remain ignored.
+No provider restore or launch rollback is claimed.
+[Evidence](audits/ab267-cms-recovery-rehearsal-2026-10-13.md).
+
 **Rollback record preparation, 2026-10-06 (AB#208, Active):** the
 [blank exercise record](rollback-exercise-record.md) separates code, CMS, shared assets,
 cache, credentials and mail. AB#118 still needs actual post-promotion recovery and

@@ -149,6 +149,13 @@ SVGs contain diagram geometry and an embedded font subset, not D2. MPL-2.0 is fi
 copyleft over D2's own source files, which this project neither modifies nor
 redistributes.
 
+`tar@7.5.22` (BlueOak-1.0.0, Isaac Z. Schlueter) is explicitly declared for
+AB#267's owner-run offline recovery parser. The same pinned package was already
+present transitively through the Vercel CLI; installed packages/versions are
+unchanged. It handles streaming TAR/PAX/gzip without filesystem extraction.
+It is development tooling, is not copied into this repository or served to browsers,
+and no application code imports it. Its dependency tree remains lockfile-controlled.
+
 `parse5` (MIT) and its one dependency `entities` (BSD-2-Clause) were added in AB#137 and
 are not reflected in the counts below. They are development dependencies used only by the
 owner-run Joomla migration and legacy target verification tooling
