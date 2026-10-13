@@ -20,6 +20,12 @@ unrelated dataset revisions. It establishes the current serving chain; the exist
 artifact retains `gitDirty: 1`. Final immutable/canonical release verification,
 full recovery and the broader launch verdict remain open.
 
+The [2026-10-13 Studio formatter investigation](audits/ab278-studio-sprintf-exposure-2026-10-13.md)
+narrows GHSA-hp3w-g68c-fv3c to the observed local tooling path: the installed formatter
+still reproduces RangeError, but the current compiled Studio graph and normal YAML
+library import do not load it. The advisory remains open and unpatched; owner residual
+risk acceptance and final hosted-release review are not inferred.
+
 ## How this review was run
 
 A plan for this review was sent to Codex (OpenAI's CLI, `codex-review-loop` skill,
