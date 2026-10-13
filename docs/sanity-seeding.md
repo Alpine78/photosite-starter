@@ -2638,6 +2638,17 @@ The existing ordering rule and seed must also match the plan exactly: a rerun is
 not a seed-rotation operation. Use the established recompute workflow for a later
 editorial rotation rather than silently changing it during a migration retry.
 
+**Import guard restoration, 2026-10-12 (AB#137):** the gallery preflight above
+is restored from the unmerged `feature/137-story-root-content` branch. Document
+validation also requires an article cover to resolve to a publicly renderable
+image in the same plan, and a body poll reference to resolve to a historical
+poll in that plan with the page's language or `und`. These checks run before
+local asset processing; gallery preflight refusals occur before uploads.
+Existing media still uses AB#185's revision-guarded patches; the old branch's
+replacement-based media merge is not restored.
+Synthetic regression tests cover refusal and valid reruns. No CMS operation or
+new content approval is performed, and AB#137 remains Active.
+
 ## Text links in the migration (conversion v9 / plan v6)
 
 Safe external HTTP(S) links survive in bounded `contentInlineSpan` runs. A
