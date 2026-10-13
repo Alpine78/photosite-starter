@@ -1,15 +1,21 @@
+import { LanguageSwitch } from "@/components/language-switch";
+import { serviceLanguageLinks } from "@/lib/service-language-links";
+import { buildServicePath } from "@/lib/locale-routes";
 import type { Metadata } from "next";
 import { ContactCallToAction } from "@/components/contact-call-to-action";
 import { ServiceCard } from "@/components/service-card";
-import { getDefaultLocaleLabels } from "@/lib/deployment-config";
+import { getDefaultLocaleLabels, getDeploymentConfig } from "@/lib/deployment-config";
 import { getPageMetadata } from "@/lib/page-metadata";
-import { getServices, getServicesIntro } from "@/lib/services";
+import { getServices, getServicesIntro, getServiceListingLocaleVersions } from "@/lib/services";
 import { getSiteSettings } from "@/lib/site-settings";
 
 /** Unprefixed default-locale services listing. */
 export async function generateMetadata(): Promise<Metadata> {
+  const { localeRoutes } = getDeploymentConfig();
   return getPageMetadata({
-    path: "/services",
+    path: buildServicePath(localeRoutes, localeRoutes.defaultLocale),
+    locale: localeRoutes.defaultLocale,
+    localeVersions: await getServiceListingLocaleVersions(),
     title: getDefaultLocaleLabels().pages.services,
     description: await getServicesIntro(),
   });
@@ -18,6 +24,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ServicesPage() {
   const [services, settings] = await Promise.all([getServices(), getSiteSettings()]);
   const labels = getDefaultLocaleLabels();
+  const locale = getDeploymentConfig().localeRoutes.defaultLocale;
+  const versions = await getServiceListingLocaleVersions();
 
   return (
     <main>
@@ -29,6 +37,7 @@ export default async function ServicesPage() {
           {settings.servicesIntro !== undefined && (
             <p className="mt-3 text-muted">{settings.servicesIntro}</p>
           )}
+          <LanguageSwitch label={labels.contentTree.languages} links={serviceLanguageLinks(versions, locale)} />
         </header>
 
         {/* 1 / 2 / 3 columns. items-start lets each card keep its natural height
