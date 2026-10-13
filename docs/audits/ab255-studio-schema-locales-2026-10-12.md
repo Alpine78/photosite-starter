@@ -21,3 +21,6 @@ actual SDK/translation-engine tests remain mandatory; no test, assertion, timeou
 or quality gate is bypassed. Runtime code, package manifests/locks, credentials
 and deployment permissions are unchanged. Full fresh-install validation is
 recorded in the local CI-fix logs.
+
+Integration after PR #372, 2026-10-13: both coverage/status histories are retained against main `1e63b7e`. All 14 original runtime/test files and 45 incoming runtime/test files remain byte-identical to their reviewed source commits. Lint and all 5,835 unit tests pass. Earlier required CI #879 passed; this newer merge requires its own CI. No authored content or runtime behavior changed by conflict resolution.
+Authenticated FI/EN/wording acceptance remains pending: the owner reported login, but the separate test window still showed the provider selector after reload, so the intended session is being clarified.

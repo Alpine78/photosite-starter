@@ -2756,3 +2756,15 @@ only, **not** current target state, source freeze, provider metadata/wire fit,
 backup/restore, rollout readiness or permission to write. A named record/source
 and each actual operation still need their separately reviewed bindings and
 approvals under [ADR-0031](adr/0031-identity-migration-operational-plan.md).
+
+
+### Exact retained-delivery CDN byte check (AB#250)
+
+After the existing source/document review, `npm run verify:legacy-delivery-assets --
+--plan <private-plan.json> --bindings <private-bindings.json> --approved-digest
+<source-review-digest> --out <new-private-receipt.json>` recompiles the declarations
+without network access. `--live` checks the fixed CDN bytes and whole attachment
+URL, stopping at the first absent or failed asset. The receipt neither authorizes
+a write nor proves supported upload, asset metadata or published gallery behavior.
+See the [dated release verification](audits/ab250-release-verification-2026-10-12.md)
+for permissions, observed absence and the provider gate before real import.

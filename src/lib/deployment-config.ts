@@ -339,6 +339,10 @@ export type BuiltInLabels = {
       readonly invalidSubject: string;
     };
   };
+  readonly pageError: { readonly title: string; readonly message: string; readonly retry: string };
+  readonly restrictedLocale: {
+    readonly changeWarning: string;
+  };
   readonly contentTree: {
     /** Short orientation copy on the story root. */
     readonly storyRootIntroduction: string;
@@ -775,6 +779,10 @@ const englishLabels = {
       invalidSubject: "Please choose an available subject.",
     },
   },
+  pageError: { title: "Page unavailable", message: "Please try again later.", retry: "Try again" },
+  restrictedLocale: {
+    changeWarning: "Changing language reloads this page. Changes you have made may be lost. Continue?",
+  },
   contentTree: {
     storyRootIntroduction:
       "Browse the latest stories or explore the collection by category.",
@@ -1072,6 +1080,10 @@ const finnishLabels = {
       invalidDate: "Anna kelvollinen päivämäärä.",
       invalidSubject: "Valitse käytettävissä oleva aihe.",
     },
+  },
+  pageError: { title: "Sivu ei ole saatavilla", message: "Yritä myöhemmin uudelleen.", retry: "Yritä uudelleen" },
+  restrictedLocale: {
+    changeWarning: "Kielen vaihtaminen lataa sivun uudelleen. Tekemäsi muutokset voivat kadota. Jatketaanko?",
   },
   contentTree: {
     storyRootIntroduction:

@@ -46,7 +46,9 @@
     "summarize:audit": "node scripts/summarize-npm-audit.mts",
     "write:categories": "node scripts/write-sanity-categories.mts",
     "write:foundation": "node scripts/write-sanity-foundation.mts",
-    "create:localized-draft": "node scripts/create-localized-draft.mts"
+    "create:localized-draft": "node scripts/create-localized-draft.mts",
+    "verify:legacy-delivery-assets": "node scripts/verify-legacy-delivery-assets.mts",
+    "verify:contact-delivery": "node scripts/verify-contact-delivery.mts"
   },
   "dependencies": {
     "@sanity/webhook": "4.0.4",
