@@ -11,3 +11,13 @@ The Finnish locale selector and navigation titles are supplied by merged PRs #36
 General album-image alt/caption authoring is explicitly deferred until after MVP. Existing authored image text, references and full-frame previews remain intact. Review translation wording before accepting the interface.
 
 Main integration, 2026-10-13: updated to `534dada` after PRs #359/#363/#364/#365. The config conflict retains fiFILocale, editorialLocaleBundles and the new form adapters. Final lint and all 5749 unit tests passed; Studio typecheck, zero-error schemas and static build passed, with 896 installed-package notices. No dependency delta against current main. Authenticated verification remains pending; the previous local test browser is no longer available.
+
+CI installation correction, 2026-10-13: build #871 failed in the root unit
+job because `@sanity/schema` was not installed there. The separate Studio job's
+dependencies are not shared with that job. Removing the local Studio dependency
+symlink reproduced the same missing-package failure. The root install step now
+installs both locked dependency trees and stops on either install failure. The
+actual SDK/translation-engine tests remain mandatory; no test, assertion, timeout
+or quality gate is bypassed. Runtime code, package manifests/locks, credentials
+and deployment permissions are unchanged. Full fresh-install validation is
+recorded in the local CI-fix logs.
