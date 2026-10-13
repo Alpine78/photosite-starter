@@ -6,6 +6,7 @@ import { studioSettings } from "./environment";
 import { allowAction, allowTemplate } from "./editorial-policy";
 import { editorialStructure } from "./structure";
 import { FullFramePreview } from "./full-frame-preview";
+import { coreLocaleAdditions } from "./core-locale-additions";
 import { withEditorialPreview } from "./editorial-preview";
 import { editorialLocaleBundles } from "./editorial-locales";
 
@@ -22,7 +23,7 @@ export default defineConfig({
   title: studioSettings.title,
   projectId: studioSettings.projectId,
   dataset: studioSettings.dataset,
-  i18n: { bundles: editorialLocaleBundles },
+  i18n: { bundles: [...editorialLocaleBundles, ...coreLocaleAdditions] },
   plugins: [structureTool({ structure: editorialStructure }), fiFILocale()],
   schema: {
     types: schemaTypes,

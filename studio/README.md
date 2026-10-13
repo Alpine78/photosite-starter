@@ -68,6 +68,32 @@ Authored document language, schema field text, preview fallbacks and custom
 validation messages are independent. Verify actual authenticated FI/EN rendering
 and wording before publishing Studio. See the [build/source receipt](../docs/audits/ab255-studio-structure-locales-2026-10-12.md).
 
+## Checking Finnish interface text
+
+The project's seven additional core resource bundles fill the 159 missing keys
+observed in the pinned Finnish package. The merged Finnish core locale plugin supplies the language choice; adding
+resource text enables no new Studio tool.
+See [the source and engine checks](../docs/audits/ab255-studio-core-locale-additions-2026-10-12.md).
+The owner must still check the views actually used while signed in.
+
+Run the headed test browser from the repository/worktree root:
+
+```bash
+npx playwright install chromium
+node scripts/open-studio-test-browser.mts "http://localhost:3333/"
+```
+
+Start the local Studio first, or supply the intended deployed HTTPS Studio URL.
+The computer needs a graphical browser session. Sign in yourself using the
+project's normal login provider. Never send a password, token or exported cookie
+file to the agent. The separate profile stays in ignored
+`temp/studio-browser/profile`; local debugging uses `127.0.0.1:9222`.
+Close the test window when done. Do not copy its profile, recordings or network
+responses into repository or CI artifacts.
+
+General album-image alt/caption authoring remains deferred until after MVP.
+
+
 ## Editing content
 
 Home page and Site settings open the existing document identity, including an

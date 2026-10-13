@@ -373,3 +373,13 @@ CLI formatting path, outside the public-site dependency tree and the editor's
 content request path. The formatter has no patched release in the audited range;
 do not apply audit's proposed Sanity downgrade as a fix. The scheduled pipeline
 audits the Studio lock independently and will still report this moderate chain.
+
+
+### Pinned Studio core locale additions (AB#255)
+
+`studio/core-locales-source.ts` retains 159 English strings from Sanity 6.18.0
+for interpolation and key-coverage verification. Copyright (c) 2016–2026
+Sanity.io, MIT; the complete notice is retained in
+[`licenses/MIT-sanity-core-locales.txt`](../licenses/MIT-sanity-core-locales.txt).
+The matching Finnish additions use the existing Studio resource-bundle API;
+no package or dependency version changes in this slice.
