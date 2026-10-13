@@ -2025,6 +2025,12 @@ waiting on provisioning. Legacy URL redirects (AB#19) are partially built —
 see above — with 48 of 415 distinct crawled paths still pending reviewed targets after
 content migration (including `component/komento/*` and `sivustokartta/*`).
 
+**Launch worktree retirement, 2026-10-13 (AB#281, Active):**
+[Nine exact-head merged checkouts were retired](audits/ab281-worktree-preservation-2026-10-13.md)
+after preserving 10,568 private files (5,293,992,766 bytes) with verified hashes,
+modes and timestamps. Open and unmatched local heads remain. Historical packets
+and branch refs are retained; this cleanup proves no Production recovery.
+
 **Local CMS recovery exercised, 2026-10-13 (AB#267, Active):** a bounded offline
 operator restored 17,609 raw documents and all 5,158 current original assets
 (2,436,624,774 bytes), then rehashed every written file from disk. The retained
