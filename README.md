@@ -264,9 +264,15 @@ in it names a team, project, token, or domain.
 
 Two layers, with no overlap between them.
 
+Before running the full browser-free suite, also install the locked standalone
+Studio dependencies with `npm ci --prefix studio`. Studio SDK contract tests
+use that separate tree; the public application does not acquire those packages.
+CI installs both trees in its test job, independently of the Studio build job.
+
 **[Vitest](https://vitest.dev)** is the single browser-free runner for deterministic
 domain, query, adapter, and server-validation tests. `npm test` runs
-`src/**/*.test.ts` and `scripts/**/*.test.mts` in Node and exits after one run. Tests must not depend on a browser,
+`src/**/*.test.ts`, `sanity/**/*.test.ts`, `studio/**/*.test.ts` and
+`scripts/**/*.test.mts` in Node and exits after one run. Tests must not depend on a browser,
 external network, live CMS or email services, secrets, or production/personal fixture
 content.
 

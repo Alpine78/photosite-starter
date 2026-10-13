@@ -11,3 +11,13 @@ An owner-operated headed Chromium helper opens a separate ignored profile and ex
 No Studio deployment, CMS content write or production activation occurred. General album-image alt/caption authoring is deferred until after MVP.
 
 Main integration, 2026-10-13: updated to `534dada` after PRs #359/#363/#364/#365. Config/README conflicts preserve the core Finnish plugin, navigation bundles and the new resource additions together. Lint, Studio typecheck, zero-error schemas and static build passed, with 896 package notices. A parallel unit run timed out in one existing Proxy test under concurrent build load; an unrestricted full rerun with unchanged timeouts passed all 5743 tests. No dependency delta against current main. Authenticated verification remains pending; the previous local browser is no longer available.
+
+CI installation correction, 2026-10-13: build #872 failed in the root unit
+job because `i18next` was not installed there. The separate Studio job's
+dependencies are not shared with that job. Removing the local Studio dependency
+symlink reproduced the same missing-package failure. The root install step now
+installs both locked dependency trees and stops on either install failure. The
+actual SDK/translation-engine tests remain mandatory; no test, assertion, timeout
+or quality gate is bypassed. Runtime code, package manifests/locks, credentials
+and deployment permissions are unchanged. Full fresh-install validation is
+recorded in the local CI-fix logs.
