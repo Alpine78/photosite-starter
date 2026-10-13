@@ -1,3 +1,4 @@
+import { buildLocaleRouteConfig } from "@/lib/locale-routes";
 import { describe, expect, it, vi } from "vitest";
 
 /**
@@ -11,12 +12,14 @@ import { describe, expect, it, vi } from "vitest";
  * pre-existing behavior this story does not touch.
  */
 vi.mock("@/lib/deployment-config", () => ({
-  getDefaultLocaleLabels: () => ({ pages: { services: "Palvelut", contact: "Ota yhteyttä" } }),
+  getDefaultLocaleLabels: () => ({ pages: { services: "Palvelut", contact: "Ota yhteyttä" }, contentTree: { languages: "Kieli" } }),
+  getDeploymentConfig: () => ({ localeRoutes }),
 }));
 
 const servicesModule = vi.hoisted(() => ({
   getServices: vi.fn(),
   getServicesIntro: vi.fn(),
+  getServiceListingLocaleVersions: vi.fn().mockResolvedValue([]),
 }));
 vi.mock("@/lib/services", () => servicesModule);
 
@@ -30,6 +33,8 @@ const pageMetadataModule = vi.hoisted(() => ({
   })),
 }));
 vi.mock("@/lib/page-metadata", () => pageMetadataModule);
+
+const localeRoutes = buildLocaleRouteConfig({ locales: [{ locale: "fi", prefix: null, storyNamespace: "tarinat", serviceNamespace: "services" }], reservedRootSegments: [], reservedLocaleRouteSegments: [] });
 
 import ServicesPage, { generateMetadata } from "@/app/(default)/services/page";
 

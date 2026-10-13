@@ -9,6 +9,7 @@ import { FullFramePreview } from "./full-frame-preview";
 import { coreLocaleAdditions } from "./core-locale-additions";
 import { withEditorialPreview } from "./editorial-preview";
 import { editorialLocaleBundles } from "./editorial-locales";
+import { LocaleNavbar, LocaleToolMenu } from "./locale-navbar";
 
 // The shared schemas use a readonly, dependency-free subset of Sanity's types.
 // This boundary asserts that subset; `schemas validate` checks the actual objects.
@@ -25,6 +26,7 @@ export default defineConfig({
   dataset: studioSettings.dataset,
   i18n: { bundles: [...editorialLocaleBundles, ...coreLocaleAdditions] },
   plugins: [structureTool({ structure: editorialStructure }), fiFILocale()],
+  studio: { components: { navbar: LocaleNavbar, toolMenu: LocaleToolMenu } },
   schema: {
     types: schemaTypes,
     templates: (templates) => templates.filter(({ schemaType }) => allowTemplate(schemaType)),

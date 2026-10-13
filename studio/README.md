@@ -37,8 +37,16 @@ new project or dataset.
 
 The Studio registers the pinned `@sanity/locale-fi-fi@1.1.40` plugin alongside the
 existing structure tool. It adds **Suomi (`fi-FI`)** to Sanity's core interface
-locale choices while retaining English (`en-US`). Use Sanity's user-menu language
-control after signing in; no project default or site-content locale is changed.
+locale choices while retaining English (`en-US`). After signing in, use the
+labelled **Interface language / Käyttöliittymän kieli** selector below the toolbar.
+Sanity 6.18.0 disables its built-in language menu; `locale-navbar.tsx` supplies
+this control through the configured navbar extension. The SDK stores the choice
+in its existing per-project preference store. No site-content locale is changed.
+The bridge uses the SDK's exported, internally marked `useLocale` hook: keep the
+version pinned and repeat the authenticated switch/reload check on SDK upgrades.
+The same wrapper translates the default Structure/Releases menu titles while
+preserving custom tool titles and all default menu behavior. The HTML language
+also follows the selected interface language.
 The registration API is documented by [Sanity](https://www.sanity.io/docs/studio/localizing-studio-ui)
 and the [Finnish package](https://github.com/sanity-io/locales/tree/main/locales/fi-FI).
 
@@ -71,8 +79,9 @@ and wording before publishing Studio. See the [build/source receipt](../docs/aud
 ## Checking Finnish interface text
 
 The project's seven additional core resource bundles fill the 159 missing keys
-observed in the pinned Finnish package. The merged Finnish core locale plugin supplies the language choice; adding
-resource text enables no new Studio tool.
+observed in the pinned Finnish package. The Finnish core plugin registers the
+language; the navbar above exposes its selection. Adding resource text enables
+no new Studio tool.
 See [the source and engine checks](../docs/audits/ab255-studio-core-locale-additions-2026-10-12.md).
 The owner must still check the views actually used while signed in.
 
@@ -90,6 +99,14 @@ file to the agent. The separate profile stays in ignored
 `temp/studio-browser/profile`; local debugging uses `127.0.0.1:9222`.
 Close the test window when done. Do not copy its profile, recordings or network
 responses into repository or CI artifacts.
+
+With the repository in WSL, a headed Linux browser may have no visible Windows
+window. The VS Code embedded browser has a separate login session. For the
+authenticated check on 2026-10-13, the owner used a native Windows Chrome window
+with a separate temporary profile and the local Studio at `http://localhost:3333`.
+That check verified switching, native select keyboard operation and preference
+persistence after reload. It also found remaining upstream/editor metadata and
+screen-reader text gaps; see the [authenticated UI receipt](../docs/audits/ab255-authenticated-studio-locales-2026-10-13.md).
 
 General album-image alt/caption authoring remains deferred until after MVP.
 

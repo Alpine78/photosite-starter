@@ -1,5 +1,7 @@
 # Finnish and English page coverage — AB#255
 
+2026-10-13 continuation: [Authenticated Windows/WSL Studio check](audits/ab255-authenticated-studio-locales-2026-10-13.md). FI/EN switching and ten editorial forms were exercised; root schema-header text, list preview localization/full-frame thumbnails and array screen-reader instructions remain explicit gaps. This is not complete Studio coverage.
+
 Owner requirement confirmed on 2026-10-11: every page family, including historical
 articles/galleries and customer/administrator pages, needs Finnish and English.
 The owner requested starting with home/contact, merged in PR #338 on 2026-10-12.
@@ -77,6 +79,8 @@ Claude project memory and memory index.
 2026-10-12 continuation: [Restricted page UI locale implementation](audits/ab255-restricted-page-locales-2026-10-12.md).
 
 2026-10-12 continuation: [Finnish Studio core resource additions](audits/ab255-studio-core-locale-additions-2026-10-12.md).
+
+2026-10-12 continuation: [Default service aliases expose actual language siblings](audits/ab255-default-service-language-links-2026-10-12.md).
 General album-image alt/caption authoring is deferred until after MVP. This does
 not remove existing descriptions or alter image/media contracts. AB#255 remains
 Active until all applicable page families, accepted content and live journeys

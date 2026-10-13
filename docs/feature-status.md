@@ -1,5 +1,7 @@
 # Feature implementation status
 
+AB#255 authenticated check, 2026-10-13: [Windows/WSL Studio FI/EN verification](audits/ab255-authenticated-studio-locales-2026-10-13.md) verifies ten editorial form families, native select keyboard operation and preference persistence. A disabled upstream language menu and boolean-input help were corrected in the two Studio worktrees. Root schema-header text, list preview localization/full-frame thumbnails and array screen-reader instructions still require work; both PRs remain Draft. Main 27d7252 integration and these corrections are prepared without commits for owner review. AB#255 remains Active; no CMS write or deployment.
+
 This is a running implementation history and a starting point for finding relevant
 code and decisions. Read the part relevant to the task; the current code and the
 Azure Boards work item are authoritative for scope, acceptance criteria and state.
@@ -10,6 +12,8 @@ AB#255 continuation, 2026-10-12: [Public bilingual editing proposals completed](
 AB#255 continuation, 2026-10-12: [Restricted page UI locale implementation](audits/ab255-restricted-page-locales-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
 
 AB#255 continuation, 2026-10-12: [Finnish Studio core resource additions](audits/ab255-studio-core-locale-additions-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. CI installation fix, 2026-10-13: the root test job installs locked Studio dependencies before the SDK contract tests. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
+
+AB#255 continuation, 2026-10-12: [Default service aliases expose actual language siblings](audits/ab255-default-service-language-links-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
 
 Current state: **MVP in progress.** Built: site settings mock layer, typed deployment
 configuration, responsive header and footer, home page, services listing and detail
