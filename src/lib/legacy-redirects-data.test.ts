@@ -457,7 +457,8 @@ describe("final source-bound legacy decisions", () => {
     expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/en/wedding-portfolio")).toMatchObject({ target: "/en/stories/wedding-portfolio" });
     for (const path of ["/haakuvaus/aamusta-iltaan", "/fi/haakuvaus/aamusta-iltaan"]) expect(resolveLegacyRedirect(LEGACY_REDIRECTS, path)).toMatchObject({ target: "/palvelut/haakuvaus", fallbackNotice: "content-unavailable" });
     expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/en/wedding/from-morning")).toMatchObject({ target: "/en/services/wedding-photography", fallbackNotice: "content-unavailable" });
-    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/en/blog")).toMatchObject({ target: "/en", fallbackNotice: "content-unavailable" });
+    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/en/blog")).toEqual({ kind: "redirect", target: "/en/stories/blog", reservedQueryParams: "strip" });
+    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/en/photography/business")).toMatchObject({ target: "/en/services", fallbackNotice: "content-unavailable" });
     expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/valokuvaus")).toMatchObject({ target: "/palvelut" });
   });
   it("routes newly published English service variants directly without an unavailable notice", () => {
@@ -477,7 +478,7 @@ describe("final source-bound legacy decisions", () => {
     }
   });
   it("keeps exact fallbacks same-language, flattened and explicit", () => {
-    const allowed = new Set(["/", "/en", "/en/services", "/en/services/wedding-photography", "/palvelut", "/palvelut/asuntokuvaus", "/palvelut/hautajaiskuvaus", "/palvelut/haakuvaus", "/palvelut/haakuvaus/vihkiseremonia", "/en/stories/wedding-portfolio", "/en/services/wedding-photography/ceremony-and-portraits", "/en/services/funeral-photography", "/en/services/property-photography", "/en/services/wedding-photography/ceremony", "/en/services/wedding-photography/half-day", "/en/services/wedding-photography/full-day"]);
+    const allowed = new Set(["/", "/en", "/en/services", "/en/services/wedding-photography", "/palvelut", "/palvelut/asuntokuvaus", "/palvelut/hautajaiskuvaus", "/palvelut/haakuvaus", "/palvelut/haakuvaus/vihkiseremonia", "/en/stories/wedding-portfolio", "/en/stories/blog", "/en/services/wedding-photography/ceremony-and-portraits", "/en/services/funeral-photography", "/en/services/property-photography", "/en/services/wedding-photography/ceremony", "/en/services/wedding-photography/half-day", "/en/services/wedding-photography/full-day"]);
     for (const entry of REMAINING_LEGACY_REDIRECT_ENTRIES) {
       expect(resolveLegacyRedirect(LEGACY_REDIRECTS, entry.source)).toEqual(entry.outcome);
       expect(entry.outcome.kind).toBe("redirect");
