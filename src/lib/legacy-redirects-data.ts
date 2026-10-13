@@ -2132,9 +2132,8 @@ export const REMAINING_LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] =
     "source": "/en/photography/funeral",
     "outcome": {
       "kind": "redirect",
-      "target": "/en/services",
-      "reservedQueryParams": "strip",
-      "fallbackNotice": "content-unavailable"
+      "target": "/en/services/funeral-photography",
+      "reservedQueryParams": "strip"
     }
   },
   {
@@ -2159,18 +2158,16 @@ export const REMAINING_LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] =
     "source": "/en/photography/real-estate",
     "outcome": {
       "kind": "redirect",
-      "target": "/en/services",
-      "reservedQueryParams": "strip",
-      "fallbackNotice": "content-unavailable"
+      "target": "/en/services/property-photography",
+      "reservedQueryParams": "strip"
     }
   },
   {
     "source": "/en/wedding/ceremony",
     "outcome": {
       "kind": "redirect",
-      "target": "/en/services/wedding-photography",
-      "reservedQueryParams": "strip",
-      "fallbackNotice": "content-unavailable"
+      "target": "/en/services/wedding-photography/ceremony",
+      "reservedQueryParams": "strip"
     }
   },
   {
@@ -2186,18 +2183,16 @@ export const REMAINING_LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] =
     "source": "/en/wedding/half-day",
     "outcome": {
       "kind": "redirect",
-      "target": "/en/services/wedding-photography",
-      "reservedQueryParams": "strip",
-      "fallbackNotice": "content-unavailable"
+      "target": "/en/services/wedding-photography/half-day",
+      "reservedQueryParams": "strip"
     }
   },
   {
     "source": "/en/wedding/whole-day",
     "outcome": {
       "kind": "redirect",
-      "target": "/en/services/wedding-photography",
-      "reservedQueryParams": "strip",
-      "fallbackNotice": "content-unavailable"
+      "target": "/en/services/wedding-photography/full-day",
+      "reservedQueryParams": "strip"
     }
   },
   {
