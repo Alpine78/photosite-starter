@@ -223,3 +223,12 @@ separately against the site's configured environment. A static build alone prove
 none of those live checks. See [Sanity installation](https://www.sanity.io/docs/studio/installation),
 [public environment settings](https://www.sanity.io/docs/studio/environment-variables)
 and [hosting](https://www.sanity.io/docs/studio/deployment).
+
+### Localized array accessibility
+
+The Sanity 6.18.0 array renderer does not forward accessibility options to its
+DndContext. The exact Vite alias in sanity.cli.ts supplies localized instructions
+and announcements through that API, re-exporting the native module so sortable
+consumers share its contexts. @dnd-kit/core 6.3.1 was already installed; its direct
+dependency declaration adds no package version. Recheck this bridge on SDK upgrades.
+The finalization receipt is [here](../docs/audits/ab255-studio-drag-localization-2026-10-13.md).

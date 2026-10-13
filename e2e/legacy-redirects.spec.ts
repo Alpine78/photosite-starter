@@ -15,6 +15,7 @@ import {
   PUBLISHED_SERVICE_REDIRECT_ENTRIES,
   RETIRED_TAG_PATHS,
   RETIRED_PROFILE_PATHS,
+  RETIRED_SITEMAP_ALIAS_PATHS,
   STRUCTURAL_REDIRECT_ENTRIES,
 } from "../src/lib/legacy-redirects-data";
 import { buildLocaleRouteConfig } from "../src/lib/locale-routes";
@@ -470,4 +471,21 @@ test("the owner-run checker reports all decisions and cannot approve a mapping w
   expect(report.verification.status).not.toBe("passed");
   expect(report.verification.results).toHaveLength(report.distinctPathCount - report.counts.pending);
   expect(report.verification.results.some((row: { issues: string[] }) => row.issues.includes("probe-failed"))).toBe(false);
+});
+
+
+test("owner-retired sitemap aliases answer 410 without redirecting", async ({ page, request }) => {
+  test.skip(RETIRED_SITEMAP_ALIAS_PATHS.length === 0, "no retired sitemap aliases in this clone");
+  for (const path of RETIRED_SITEMAP_ALIAS_PATHS) {
+    const response = await page.goto(`${path}?legacy-notice=content-unavailable#retained`, { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(410);
+    expect(response?.headers()["location"]).toBeUndefined();
+    const route = resolveLegacyGoneRoute(harnessLocaleRoutes, path);
+    const language = resolveLegacyGoneLanguage(route.locale);
+    await expect(page.getByRole("heading", { name: GONE_COPY_BY_LANGUAGE[language].heading })).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe(path);
+    expect(new URL(page.url()).hash).toBe("#retained");
+  }
+  const unknown = await request.get("/sivustokartta/not-in-inventory", { maxRedirects: 0 });
+  expect(unknown.status()).toBe(404);
 });

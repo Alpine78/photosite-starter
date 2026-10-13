@@ -64,7 +64,10 @@ describe("planLocalizedDraft", () => {
     expect(plan.placementDrafts[0].placementId).toBe("beach-photo");
     expect(plan.placementDrafts[0].order).toBe(7);
     expect(plan.placementDrafts[0].media).toEqual(placement.media);
-    expect(plan.placementDrafts[0].gallery).toEqual({ _type: "reference", _ref: String(plan.draft._id).slice(7) });
+    expect(plan.placementDrafts[0].gallery).toEqual({
+      _type: "reference", _ref: String(plan.draft._id).slice(7),
+      _weak: true, _strengthenOnPublish: { type: "gallery" },
+    });
     expect(plan.reviewPaths).toContain("placements[beach-photo].altOverride");
     expect((plan.draft.localizationReview as { pendingFields: string[] }).pendingFields).not.toContain("placements[beach-photo].altOverride");
     expect((plan.placementDrafts[0].localizationReview as { pendingFields: string[] }).pendingFields).toContain("altOverride");
@@ -141,7 +144,10 @@ describe("planLocalizedDraft", () => {
     };
     expect(() => planLocalizedDraft(input(article, [sourcePlacement]))).toThrow(/source placement beach-photo/);
     const plan = planLocalizedDraft(input(article, [{ ...sourcePlacement, localizationReview: { pendingFields: [] } }]));
-    expect(plan.placementDrafts[0].article).toEqual({ _type: "reference", _ref: String(plan.draft._id).slice(7) });
+    expect(plan.placementDrafts[0].article).toEqual({
+      _type: "reference", _ref: String(plan.draft._id).slice(7),
+      _weak: true, _strengthenOnPublish: { type: "article" },
+    });
     expect(plan.placementDrafts[0].localizedFrom).toBe("fi");
   });
 
