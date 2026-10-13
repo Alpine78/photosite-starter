@@ -1,4 +1,6 @@
 import { defineConfig, type SchemaTypeDefinition } from "sanity";
+import { coreLocaleAdditions } from "./core-locale-additions";
+import { LocaleNavbar, LocaleToolMenu } from "./locale-navbar";
 import { fiFILocale } from "@sanity/locale-fi-fi";
 import { structureTool } from "sanity/structure";
 import { defineSchemaTypes } from "../sanity/schemas";
@@ -6,10 +8,8 @@ import { studioSettings } from "./environment";
 import { allowAction, allowTemplate } from "./editorial-policy";
 import { editorialStructure } from "./structure";
 import { FullFramePreview } from "./full-frame-preview";
-import { coreLocaleAdditions } from "./core-locale-additions";
 import { withEditorialPreview } from "./editorial-preview";
 import { editorialLocaleBundles } from "./editorial-locales";
-import { LocaleNavbar, LocaleToolMenu } from "./locale-navbar";
 
 // The shared schemas use a readonly, dependency-free subset of Sanity's types.
 // This boundary asserts that subset; `schemas validate` checks the actual objects.
@@ -20,13 +20,13 @@ const schemaTypes = defineSchemaTypes(studioSettings)
     : type) as SchemaTypeDefinition[];
 
 export default defineConfig({
+  studio: { components: { navbar: LocaleNavbar, toolMenu: LocaleToolMenu } },
   name: "default",
   title: studioSettings.title,
   projectId: studioSettings.projectId,
   dataset: studioSettings.dataset,
   i18n: { bundles: [...editorialLocaleBundles, ...coreLocaleAdditions] },
   plugins: [structureTool({ structure: editorialStructure }), fiFILocale()],
-  studio: { components: { navbar: LocaleNavbar, toolMenu: LocaleToolMenu } },
   schema: {
     types: schemaTypes,
     templates: (templates) => templates.filter(({ schemaType }) => allowTemplate(schemaType)),

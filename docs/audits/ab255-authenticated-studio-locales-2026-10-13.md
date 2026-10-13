@@ -70,8 +70,10 @@ Both Studio PRs stay Draft.
 - After #373 merged, main 27d7252 was integrated with `--no-commit` in the three
   existing worktrees. The two Studio documentation conflicts retain both histories;
   the sitemap branch integrates cleanly. There are no unresolved conflict entries.
-  The owner reviews and commits these prepared merges and corrections under the
-  current repository commit rule before pushing them to their same-name upstreams.
+  On the owner's renewed request, the previously confirmed, task-specific commit/push
+  exception applies to the #370/#371 correction batch (AB#255 discussion 62254/62299).
+  Publish these two repairs one at a time. The default editor-only commit rule
+  remains in force for other work; no PR merge or deployment is inferred.
 
 No merge, Studio deployment, public-site activation or authoring approval is
 inferred from signing in or from these checks.
