@@ -59,6 +59,7 @@ export function publicationLocaleCensus(bytes: Buffer, languages: readonly strin
     return row;
   });
   const byId = new Map(documents.map(d => [d._id, d]));
+  const rowById = new Map(rows.map(row => [row.id, row]));
   const groups = new Map<string, CensusRow[]>();
   for (const row of rows) {
     const key = JSON.stringify([row.type, row.identity, row.language ?? null]);
@@ -80,7 +81,7 @@ export function publicationLocaleCensus(bytes: Buffer, languages: readonly strin
       ancestors.add(category._id);
       if (!categoryHas(category, "label", row.language!)) row.blockers.push("CATEGORY_LABEL_MISSING");
       if (!categoryHas(category, "slug", row.language!)) row.blockers.push("CATEGORY_SLUG_MISSING");
-      if (rows.find(r => r.id === category._id)?.blockers.includes("DUPLICATE_IDENTITY")) row.blockers.push("CATEGORY_IDENTITY_AMBIGUOUS");
+      if (rowById.get(category._id)?.blockers.includes("DUPLICATE_IDENTITY")) row.blockers.push("CATEGORY_IDENTITY_AMBIGUOUS");
       if (category.parent === undefined || category.parent === null) break;
       ref = category.parent;
     }
@@ -91,7 +92,7 @@ export function publicationLocaleCensus(bytes: Buffer, languages: readonly strin
     const missing: { identity: string; language: string; draftIds: string[] }[] = [];
     const published: Record<string, number> = Object.fromEntries(languages.map(language => [language, 0]));
     for (const identity of identities) for (const language of languages) {
-      const matches = family.filter(r => r.identity === identity && (type === "category" || r.language === language));
+      const matches = groups.get(JSON.stringify([type, identity, type === "category" ? null : language])) ?? [];
       const available = matches.filter(r => r.state === "published").some(r => type !== "category" || (categoryHas(byId.get(r.id)!, "label", language) && categoryHas(byId.get(r.id)!, "slug", language)));
       if (available) published[language]++;
       else missing.push({ identity, language, draftIds: matches.filter(r => r.state === "draft").map(r => r.id).sort() });

@@ -54,4 +54,9 @@ describe("revision-bound publication census", () => {
   it("records a fresh raw snapshot hash when only a revision changes", () => {
     expect(census([category, article()]).snapshotSha256).not.toBe(census([category, { ...article(), _rev: "rev-2" }]).snapshotSha256);
   });
+  it("keeps independently keyed large language families separate", () => {
+    const services = Array.from({ length: 1000 }, (_, i) => ({ _id: `service-${i}`, _rev: "r", _type: "service", serviceId: `service-${i}`, language: i % 2 ? "en" : "fi" }));
+    expect(census(services).coverage[2]).toMatchObject({ identities: 1000, published: { fi: 500, en: 500 }, drafts: 0 });
+    expect(census(services).coverage[2].missing).toHaveLength(1000);
+  });
 });
