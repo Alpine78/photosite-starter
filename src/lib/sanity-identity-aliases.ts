@@ -41,6 +41,12 @@ export class SanityIdentityAliasError extends Error {
 }
 function fail(rejection: Rejection): never { throw new SanityIdentityAliasError(rejection); }
 
+/** Shared deployment/loader check; only bounded published root IDs are accepted. */
+export function validateIdentityAliasDocumentId(value: unknown): string {
+  if (typeof value !== "string" || !ROOT_ID.test(value)) fail("configuration");
+  return value;
+}
+
 function record(
   value: unknown,
   required: readonly string[],
@@ -113,8 +119,7 @@ function buildLoader(configuration: SanityIdentityAliasConfiguration): SanityIde
   if (mode !== "renamed" && mode !== "restored") fail("configuration");
   if (!Object.hasOwn(config, "pins") || !Object.hasOwn(config, "documentId") || !Object.hasOwn(config, "sanityConfig")) fail("configuration");
   const pins = validateIdentityAliasPins(config.pins);
-  const documentId = config.documentId;
-  if (typeof documentId !== "string" || !ROOT_ID.test(documentId)) fail("configuration");
+  const documentId = validateIdentityAliasDocumentId(config.documentId);
   const source = record(config.sanityConfig, ["projectId", "dataset", "datasetVisibility", "apiVersion"], ["readToken"], "configuration");
   if (Object.values(source).some((v) => v !== undefined && typeof v !== "string")) fail("configuration");
   const sanityConfig = Object.freeze(loadSanityConfig({
