@@ -57,4 +57,10 @@ failure (including final-receipt failure after the write), lost acknowledgements
 ambiguous readback, exact restoration, private
 inputs/outputs and mocked end-to-end CLI apply/restore/read-only reconciliation.
 The private capsule and backup evidence are ignored and cannot enter CI artifacts.
-Final lint/unit/build results accompany the PR; live publication remains unperformed.
+After incorporating #376, lint, TypeScript checking, all 248 browser-free files /
+5,932 tests (31 new focused cases), the synthetic mock production build and the
+three architecture diagram checks passed. Relative documentation links and diff
+checks passed. Public journeys are unchanged and were not rerun locally; they
+remain a required CI gate. No security finding remains in the changed operator;
+live source permissions, genuine hook delivery and visible apply/restore remain
+unverified. Live publication remains unperformed.
