@@ -1973,6 +1973,12 @@ owner-run public GET probe enforces total timeout/body limits and semantic marke
 Synthetic fetch tests need no live service. AB#158 monitoring/notification setup stays
 open; cached content success does not prove live CMS reads or mail delivery.
 
+**Frozen release-source gate, 2026-10-13 (AB#268, Active):** an offline, private
+receipt verifier binds source SHA, deployment/project/team and readiness. Dirty
+Production and unknown-cleanliness Preview receipts are refused. Artifact,
+protection, canonical and launch gates remain independent; no provider mutation
+occurred. [Evidence](audits/ab268-release-source-verification-2026-10-13.md).
+
 The deployment itself: AB#116 is **closed** — the Preview environment is fully provisioned
 and proven working by a real, verified, fully-automated pipeline run (build 144, `main`,
 2026-08-24). `DeployPreview` built, deployed to Preview, bound the deployment identity to
