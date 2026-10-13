@@ -4536,6 +4536,47 @@ generation/cache wiring, legacy-write guard, maintenance, operational writer/
 receipts and named rehearsal/Production operations remain separate gates.
 No CMS, asset, credential, restore or deployment operation was performed.
 
+### AB#264 — Deployment-owned identity alias settings (2026-10-12, Active)
+
+The completed PR #354 checkout was retired after preserving all 30,778 ignored
+files and its branch in `temp/worktree-retirement/20261012T162207Z/`.
+Other-agent checkouts were kept. All prior 36 critical hashes remain unchanged;
+the receipt/index extend the ledger to 38 files. AB#264 moved New → Active before
+edits on the published `feature/264-identity-alias-settings` branch from `42bc730`.
+
+The unconnected Node/server-only settings reader validates five deployment-owned
+`SITE_IDENTITY_ALIAS_` values and captures a closed frozen mode/document/pins
+tuple. Default legacy consults no CMS settings; stale nonblank alias data,
+unknown/case-variant names, public mirrors, accessors/proxies, inherited settings
+and malformed counts/pins/IDs fail with static errors. Composition captures the
+existing validated Sanity source before IO and returns the existing lazy loader.
+Each call owns an independent generation; concurrent/repeated loads share its
+request, and explicit recreation is needed for recovery. No global process cache,
+browser settings, request integration, deployment or operational record was added.
+
+The Claude plan review clarified complete namespace enumeration, whitespace,
+fetch defaults, native environment compatibility and independent generations.
+Existing AB#263 loader tests stay unchanged after the pure root-ID validator
+extraction. The owner requested commit, push and PR publication on 2026-10-13;
+AB#264 stays Active until accepted merge. Actual document/source/pins selection,
+first approved live read,
+public-reader/coordinated-cache wiring, legacy-write guard, maintenance and
+operational writer/rehearsal/Production gates remain separate. No live operation
+was performed, and accepted ADR history and strict offline evidence are unchanged.
+
+Local validation passed: 73 new synthetic cases, 198 focused tests, all 237
+browser-free test files / 5,760 tests, lint, synthetic mock production build and
+diagram freshness. Local public journeys and Studio were not rerun because no
+deployed caller/default behavior or schema changed; both remain required CI gates.
+
+Publication validation on 2026-10-13 after integrating current main passed:
+198 focused cases, all 246 browser-free files / 5,901 tests, lint, synthetic mock
+production build, three diagrams and 94 relative documentation file links.
+The only merge conflict was the history append in this file; both histories were
+preserved. All three source files match the original reviewed patch, and all
+38 private evidence hashes remain unchanged. No additional Claude review was run,
+as requested by the owner; CI journeys and Studio validation remain pending.
+
 ### AB#262 — gallery and story presentation corrections (2026-10-12, Closed)
 
 The owner reviewed and committed the source changes as `787deac` on
