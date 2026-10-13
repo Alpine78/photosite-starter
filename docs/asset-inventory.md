@@ -321,6 +321,7 @@ dependency tree. Direct dependencies and verified package license declarations:
 | --- | --- | --- | --- |
 | `sanity` | 6.18.0 | MIT | Studio framework, native forms, authenticated editing and CLI |
 | `@sanity/image-url` | 2.1.1 | MIT | Bounded full-frame editor thumbnails; already present transitively |
+| `@sanity/locale-fi-fi` | 1.1.40 | MIT | Optional Finnish core-UI language choice (AB#255); authored content and project interface text remain separate |
 | `react`, `react-dom` | 19.3.0 | MIT | Sanity's required compatible React runtime |
 | `styled-components` | 6.5.3 | MIT | Sanity's required styling peer |
 | `typescript` | 7.0.2 | Apache-2.0 | Independent Studio type check |
@@ -339,6 +340,14 @@ The MPL declarations belong to `@vercel/stega`, `lightningcss` and its Linux nat
 package; `dompurify` declares an MPL/Apache choice. The CC-BY declaration belongs
 to `caniuse-lite`'s build-time browser-support data. Upstream packages are unmodified
 except the already inventoried braces fork.
+
+The 2026-10-12 AB#255 core-locale slice adds only the exact
+[`@sanity/locale-fi-fi@1.1.40` release](https://registry.npmjs.org/@sanity/locale-fi-fi/-/locale-fi-fi-1.1.40.tgz).
+Its peer range accepts pinned Sanity 6.18.0; the lockfile keeps every existing
+package entry unchanged. The synthetic Linux build now includes 896 installed
+package notices, including the package's original MIT license and artifact URL.
+The before/after audit retains the same eight moderate advisories, with no new
+advisory introduced; existing CLI/security limitations below remain visible.
 
 Every Studio build runs `scripts/write-studio-notices.mts`, including original
 root LICENSE/LICENCE/NOTICE/COPYING text, exact release artifact URLs and declared

@@ -1,5 +1,8 @@
 import type { Locator, Page } from "@playwright/test";
-import { getServices, type Service } from "../src/lib/services";
+import { getBuiltInLabels, getDeploymentConfig } from "../src/lib/deployment-config";
+import { buildServicePath } from "../src/lib/locale-routes";
+import { getServiceRoutes, getServices, type Service } from "../src/lib/services";
+import { buildStaticPagePath } from "../src/lib/static-page-routes";
 import { expect, test } from "./support/fixtures";
 import {
   DEFAULT_STORY_NAMESPACE,
@@ -334,4 +337,109 @@ test("the chrome carries a visitor between the services and story sections", asy
     `a[href="${SERVICES_PATH}"]`,
   );
   await expect(currentLink).toHaveAttribute("aria-current", "page");
+});
+
+const deployment = getDeploymentConfig();
+const localeRoutes = deployment.localeRoutes;
+
+for (const localeRoute of localeRoutes.locales) {
+  const locale = localeRoute.locale;
+  const labels = getBuiltInLabels(locale);
+  const listingPath = buildServicePath(localeRoutes, locale);
+  const contactPath = buildStaticPagePath(localeRoutes, locale, "contact");
+
+  test(`service labels, media and contact prefill retain ${locale}`, async ({ page }) => {
+    const routes = await getServiceRoutes(locale);
+    const priced = routes.find(({ service, path }) =>
+      path.length === 1 && service.coverMedia?.type === "image" && service.pricing?.length,
+    );
+    if (!priced || priced.service.coverMedia?.type !== "image") {
+      throw new Error("[e2e] A top-level priced service with a cover is required.");
+    }
+    const { service } = priced;
+    const coverMedia = service.coverMedia;
+    if (coverMedia?.type !== "image") throw new Error("[e2e] An image cover is required.");
+    const path = buildServicePath(localeRoutes, locale, priced.path);
+    await page.goto(path, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(service.name);
+    await expect(page.getByRole("heading", { name: labels.services.pricing, exact: true })).toBeVisible();
+    await expect(page.getByRole("main").getByRole("term")).toHaveText(service.pricing!.map(({ name }) => name));
+    const cover = page.getByRole("article").getByRole("img");
+    await expectImageDelivered(cover);
+    await expect(cover).toHaveAttribute("alt", coverMedia.alt);
+    await expect(cover).toHaveAttribute("width", String(coverMedia.rendition.width));
+    await expect(cover).toHaveAttribute("height", String(coverMedia.rendition.height));
+    const frame = await cover.evaluate((element) => {
+      const image = element as HTMLImageElement;
+      const box = image.getBoundingClientRect();
+      return {
+        renderedRatio: box.width / box.height,
+        intrinsicRatio: image.naturalWidth / image.naturalHeight,
+        objectFit: getComputedStyle(image).objectFit,
+      };
+    });
+    expect(frame.objectFit).not.toBe("cover");
+    expect(frame.renderedRatio).toBeCloseTo(frame.intrinsicRatio, 1);
+    const breadcrumb = page.getByRole("main").getByRole("navigation", { name: labels.navigation.breadcrumb });
+    await expect(breadcrumb.getByRole("link").first()).toHaveAttribute("href", listingPath);
+    const enquiry = page.getByRole("main").locator(`a[href="${contactPath}?service=${encodeURIComponent(service.serviceId)}"]`);
+    await expect(enquiry).toContainText(labels.actions.contactAboutService);
+    await enquiry.click();
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(page.getByRole("combobox", { name: labels.contact.subjectLabel })).toHaveValue(service.serviceId);
+    await expect(page.getByRole("option", { name: service.name, exact: true })).toBeAttached();
+  });
+
+  test(`nested service breadcrumbs and real alternates retain ${locale}`, async ({ page }) => {
+    const routes = await getServiceRoutes(locale);
+    const nested = routes.find(({ path }) => path.length > 1);
+    if (!nested) throw new Error("[e2e] A nested service is required.");
+    const path = buildServicePath(localeRoutes, locale, nested.path);
+    await page.goto(path, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(nested.service.name);
+    const breadcrumb = page.getByRole("main").getByRole("navigation", { name: labels.navigation.breadcrumb });
+    await expect(breadcrumb.getByRole("link").first()).toHaveAttribute("href", listingPath);
+    const parent = routes.find(({ path: candidate }) => candidate.length === nested.path.length - 1 && candidate.every((segment, index) => segment === nested.path[index]));
+    if (!parent) throw new Error("[e2e] The nested service's parent is required.");
+    await expect(breadcrumb.getByRole("link", { name: parent.service.name, exact: true })).toHaveAttribute("href", buildServicePath(localeRoutes, locale, parent.path));
+    await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new URL(path, deployment.canonicalBaseUrl).toString());
+    for (const target of localeRoutes.locales) {
+      const counterpart = (await getServiceRoutes(target.locale)).find(({ service }) => service.serviceId === nested.service.serviceId);
+      if (!counterpart) throw new Error("[e2e] Each fixture locale needs the same nested service identity.");
+      const targetPath = buildServicePath(localeRoutes, target.locale, counterpart.path);
+      await expect(page.locator(`link[rel="alternate"][hreflang="${target.locale}"]`)).toHaveAttribute("href", new URL(targetPath, deployment.canonicalBaseUrl).toString());
+    }
+  });
+
+  test(`an unknown service keeps its 404 response in ${locale}`, async ({ request }) => {
+    const path = `${listingPath}/no-such-service`;
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status()).toBe(404);
+    expect(new URL(response.url()).pathname).toBe(path);
+  });
+}
+
+test.describe("nested service language navigation without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("the equivalent service opens in both directions", async ({ page }) => {
+    const [first, second] = localeRoutes.locales;
+    if (!second) throw new Error("[e2e] Two fixture locales are required.");
+    const nested = (await getServiceRoutes(first.locale)).find(({ path }) => path.length > 1);
+    if (!nested) throw new Error("[e2e] A nested service is required.");
+    await page.goto(buildServicePath(localeRoutes, first.locale, nested.path));
+    for (const target of [second, first]) {
+      const counterpart = (await getServiceRoutes(target.locale)).find(({ service }) => service.serviceId === nested.service.serviceId);
+      if (!counterpart) throw new Error("[e2e] A nested service counterpart is required.");
+      const path = buildServicePath(localeRoutes, target.locale, counterpart.path);
+      await page.getByRole("main").locator(`a[hreflang="${target.locale}"]`).click();
+      await expect(page).toHaveURL(new URL(path, page.url()).toString());
+      await expect(page.locator("html")).toHaveAttribute("lang", target.locale);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(counterpart.service.name);
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new URL(path, deployment.canonicalBaseUrl).toString());
+    }
+  });
 });
