@@ -1,3 +1,6 @@
+import { getRestrictedPageLocale } from "@/lib/restricted-page-locale-request";
+import { restrictedLocaleHref } from "@/lib/restricted-page-locale";
+import { RestrictedPageLanguages } from "@/components/restricted-page-languages";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 
@@ -12,7 +15,7 @@ import {
   getPrivateGalleryAdminStores,
 } from "@/lib/private-gallery-access";
 import {
-  getDefaultLocaleLabels,
+  getBuiltInLabels,
   getDeploymentConfig,
 } from "@/lib/deployment-config";
 
@@ -33,10 +36,13 @@ export const dynamic = "force-dynamic";
 
 export default async function PrivateGalleryAdminPage() {
   const { privateGallery } = getDeploymentConfig();
-  const text = getDefaultLocaleLabels().privateGalleryAdmin;
-  const proofText = getDefaultLocaleLabels().privateGalleryProofAdmin;
-  const draftText = getDefaultLocaleLabels().privateGalleryProofCreation;
-  const locale = getDeploymentConfig().locale;
+  const locale = await getRestrictedPageLocale();
+  const allLabels = getBuiltInLabels(locale);
+  const text = allLabels.privateGalleryAdmin;
+  const proofText = allLabels.privateGalleryProofAdmin;
+  const draftText = allLabels.privateGalleryProofCreation;
+  const pathname = `/${privateGallery.adminRoutePrefix}`;
+  const reloadPath = restrictedLocaleHref(pathname, locale);
 
   // The namespace is reserved whether the feature is on or off; the *routes*
   // exist only when it is on.
@@ -54,6 +60,7 @@ export default async function PrivateGalleryAdminPage() {
     // a sign-in form that could never succeed.
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 p-6">
+        <RestrictedPageLanguages pathname={pathname} locale={locale} />
         <h1 className="text-2xl font-semibold text-strong">{text.title}</h1>
         <p className="text-muted">{text.signInUnavailable}</p>
       </main>
@@ -68,8 +75,10 @@ export default async function PrivateGalleryAdminPage() {
   if (!authorization.ok) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-6">
+        <RestrictedPageLanguages pathname={pathname} locale={locale} />
         <h1 className="text-2xl font-semibold text-strong">{text.title}</h1>
         <AdminSignInForm
+          reloadPath={reloadPath}
           action={loginPath}
           headingText={text.signInHeading}
           secretLabel={text.secretLabel}
@@ -83,11 +92,12 @@ export default async function PrivateGalleryAdminPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-8 p-6 py-16">
+      <RestrictedPageLanguages pathname={pathname} locale={locale} />
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold text-strong">
           {text.signedInHeading}
         </h1>
-        <AdminSignOutButton action={logoutPath} label={text.signOut} />
+        <AdminSignOutButton reloadPath={reloadPath} action={logoutPath} label={text.signOut} />
       </div>
       <p className="text-muted">{text.administrationPending}</p>
       <PrivateGalleryProofDraftCreator
