@@ -5081,6 +5081,15 @@ The focused source/component regression set passed 202/202 tests in three files
 with one worker; targeted ESLint and TypeScript checking passed. The complete
 PR pipeline and deployed FI/EN behavior remain to be verified.
 
+CI #997 passed lint, unit tests and build, but its three browser projects found
+that an older cursor-boundary journey still expected an enquiry link on every
+fixture photograph. The journey now checks each placement's permission across
+pagination: allowed items link to the exact selected occurrence, while denied
+items keep the action hidden without an href. It also checks the permission
+when reopening an appended item. Targeted ESLint and TypeScript checking passed;
+the local Playwright build stopped before tests because this environment denied
+Turbopack's process/port creation. The updated PR CI remains the browser gate.
+
 ### AB#293 — bounded CI test concurrency (2026-10-14)
 
 The shared self-hosted agent runs Vitest and Playwright with one worker each.
