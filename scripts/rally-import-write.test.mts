@@ -95,6 +95,24 @@ describe("validateRallyPlanContract", () => {
     expect(validateRallyPlanContract(clone(plan))).toEqual({ plan: clone(plan), issues: [] });
   });
 
+  it.each([undefined, false, true])("keeps the approved enquiry setting unchanged: %s", (enquiryEligible) => {
+    const plan = clone(makePlan());
+    for (const document of plan.documents) {
+      if (document._type !== "media") continue;
+      if (enquiryEligible === undefined) delete (document as Record<string, unknown>).enquiryEligible;
+      else (document as Record<string, unknown>).enquiryEligible = enquiryEligible;
+    }
+    const before = JSON.stringify(plan);
+    expect(validateRallyPlanContract(plan).issues).toEqual([]);
+    expect(JSON.stringify(plan)).toBe(before);
+  });
+
+  it.each([null, "true", 1])("rejects malformed enquiry permission %s", (enquiryEligible) => {
+    const plan = clone(makePlan());
+    (plan.documents[0] as Record<string, unknown>).enquiryEligible = enquiryEligible;
+    expect(validateRallyPlanContract(plan).issues).toContainEqual(expect.stringMatching(/enquiryEligible must be boolean/));
+  });
+
   it("refuses a hand-edited plan", () => {
     type Key = string | number;
     const setAt = (root: unknown, keys: readonly Key[], value: unknown): void => {
@@ -263,6 +281,7 @@ describe("buildRallyWriteMutations", () => {
     expect(mutations.mediaWave).toHaveLength(3);
     expect(mutations.galleryWave).toHaveLength(2);
     const first = mutations.mediaWave[0] as { createIfNotExists: Record<string, unknown> };
+    expect(first.createIfNotExists.enquiryEligible).toBe(true);
     expect(first.createIfNotExists.image).toEqual({
       _type: "image",
       asset: { _type: "reference", _ref: "image-1-1600x1067-jpg" },

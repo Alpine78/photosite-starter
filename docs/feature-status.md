@@ -5037,11 +5037,66 @@ AB#250/117/18 stay Active.
   confirmed the scoped CSP/optimizer separation. Final deployed customer proof
   remains separate.
 
+### AB#289 — gallery enquiry controls and imported opt-in diagnosis (2026-10-14)
+
+Active, awaiting PR acceptance and the exact Production content operation. Public
+galleries gain an FI/EN Studio switch that defaults on; explicit off hides the action,
+rejects a direct enquiry page, and is checked again by the server before reading media.
+The lightbox also hides actions for photographs without media opt-in, including when
+moving between slides. Per-item action hints stay outside the public media projection.
+Protected client and retained legacy galleries receive no enquiry entry point.
+
+A read-only Production lookup reproduced the owner's reported capture-sequence context:
+the photograph was public and in the correct gallery but its `enquiryEligible` field was
+unset. Code deployment alone cannot opt that content in. The private revision-bound plan
+covers 40 wedding gallery documents off, 24 ordinary gallery documents on, and 1,927
+public ordinary-gallery media with missing opt-ins; explicit media denials are preserved.
+The operation requires the exact content approval, recovery/readback, and temporary-key
+cleanup. No Production content write or real message was performed for this change.
+
+Validation: 6,169 unit tests across 265 files, lint, production build, and 31
+Chromium/WebKit enquiry/customer journeys passed. One pre-existing WebKit private-session
+journey is skipped because Secure cookies are not stored on the harness HTTP loopback.
+Security review found no remaining issue in the changed request/media boundaries; real
+CMS activation and mailbox receipt remain operational checks. AB#289 remains Active.
+
+Follow-up default-on correction: new ordinary Studio media and newly generated public
+rally/Joomla plans explicitly initialize media enquiry permission to true. Existing false
+or missing permissions remain fail-closed, existing-media write patches leave permission
+untouched, and historical approved plans are not rewritten. A Joomla rerun refuses to
+erase an authored gallery enquiry setting. Targeted regression tests cover the new
+creation defaults, old-plan preservation, malformed permissions and rerun boundaries.
+The focused follow-up tests passed 376/376 in eight files with one worker and
+serial file execution; targeted ESLint passed. The first sandboxed run could not
+execute 19 CLI subprocess cases, and the complete focused rerun passed with
+normal process access. The earlier production build and public journeys precede
+this follow-up; the PR pipeline will validate the final merged source.
+
+Review follow-up: the home page's featured-gallery lightbox now reads the same
+gallery-wide enquiry permission as the gallery page, from the existing bounded
+gallery-basics query. A disabled featured gallery shows no enquiry action on
+the home page; the server still rejects direct submissions. The mock source
+shares its fixture permission across the detail and featured-gallery reads.
+The focused source/component regression set passed 202/202 tests in three files
+with one worker; targeted ESLint and TypeScript checking passed. The complete
+PR pipeline and deployed FI/EN behavior remain to be verified.
+
+CI #997 passed lint, unit tests and build, but its three browser projects found
+that an older cursor-boundary journey still expected an enquiry link on every
+fixture photograph. The journey now checks each placement's permission across
+pagination: allowed items link to the exact selected occurrence, while denied
+items keep the action hidden without an href. It also checks the permission
+when reopening an appended item. Targeted ESLint and TypeScript checking passed;
+the local Playwright build stopped before tests because this environment denied
+Turbopack's process/port creation. The updated PR CI remains the browser gate.
+
 ### AB#293 — bounded CI test concurrency (2026-10-14)
 
 The shared self-hosted agent runs Vitest and Playwright with one worker each.
 All existing gates, test selections and assertion timeouts remain in place.
 PR #405's first two CI attempts lost agent contact during browser testing; their
-logs do not establish a comparison-component failure. Local heavy operations
-wait while the replacement CI run executes. The installed command-line tools
-accept both worker options; validation of the integrated tree awaits CI.
+logs did not establish a comparison-component failure. CI #986 passed lint,
+unit tests, build and the public journeys with bounded workers. One existing
+mobile-WebKit retained-gallery gesture passed only on retry and is tracked
+separately by AB#292. The owner merged PR #405 on 2026-10-14; AB#291 and
+AB#293 are Closed in Azure Boards.

@@ -13,6 +13,7 @@ type HomePortfolioProps = {
   readonly activeSlug?: string;
   readonly topicCounts?: CuratedGalleryPage["topicCounts"];
   readonly slice: GallerySlice;
+  readonly enquiriesEnabled: boolean;
   readonly locale: string;
   readonly labels: BuiltInLabels;
 };
@@ -24,6 +25,7 @@ export function HomePortfolio({
   activeSlug,
   topicCounts,
   slice,
+  enquiriesEnabled,
   locale,
   labels,
 }: HomePortfolioProps) {
@@ -87,7 +89,11 @@ export function HomePortfolio({
         {slice.items.length === 0 ? (
           <p className="text-muted">{labels.gallery.empty}</p>
         ) : (
-          <GalleryLightbox slides={slice.slides} labels={labels.lightbox} enquiryBasePath={galleryPath}>
+          <GalleryLightbox
+            slides={slice.slides}
+            labels={labels.lightbox}
+            {...(enquiriesEnabled ? { enquiryBasePath: galleryPath } : {})}
+          >
             <GalleryMasonryList
               label={labels.homePortfolio.heading}
               items={slice.items}

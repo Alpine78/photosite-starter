@@ -173,10 +173,11 @@ describe("whether a photograph may receive enquiries (AB#60)", () => {
     expect(fieldNames(privateMedia)).toContain("enquiryEligible");
   });
 
-  it("is a boolean that is off until an editor opts in (ADR-0002 §4)", () => {
+  it("initializes new public media with enquiries enabled (AB#289)", () => {
     const field = fieldOf(publicMedia, "enquiryEligible");
     expect(field.type).toBe("boolean");
-    expect(field.initialValue).toBe(false);
+    expect(field.initialValue).toBe(true);
+    expect(fieldOf(privateMedia, "enquiryEligible").initialValue).toBe(true);
   });
 });
 

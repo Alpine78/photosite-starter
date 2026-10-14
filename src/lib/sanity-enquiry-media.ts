@@ -111,7 +111,7 @@ export const ENQUIRY_MEDIA_PROJECTION = `{
   caption[]{language, value}
 }`;
 
-const GALLERY_ID_QUERY = `*[_type == "${GALLERY_DOCUMENT_TYPE}" && contentId == $contentId && language == $language][0...2]{ _id, orderingRule }`;
+const GALLERY_ID_QUERY = `*[_type == "${GALLERY_DOCUMENT_TYPE}" && contentId == $contentId && language == $language][0...2]{ _id, orderingRule, allowPhotoEnquiries }`;
 
 /** `gallery.orderingRule` for a gallery with no placements (ADR-0022). */
 const CAPTURE_SEQUENCE_ORDERING_RULE = "capture-sequence";
@@ -207,6 +207,9 @@ async function resolveGalleryDocument(
   if (id === undefined) {
     throw new EnquiryResolutionError("malformed-source");
   }
+  const permission = rows[0].allowPhotoEnquiries;
+  if (permission != null && typeof permission !== "boolean") throw new EnquiryResolutionError("malformed-source");
+  if (permission === false) throw new EnquiryResolutionError("not-enquirable");
   return {
     id,
     captureSequence: rows[0].orderingRule === CAPTURE_SEQUENCE_ORDERING_RULE,
@@ -243,6 +246,10 @@ function projectEnquiryMedia(
 
   const mediaId = readString(media.mediaId);
   if (mediaId === undefined || !PUBLIC_IDENTITY.test(mediaId)) {
+    throw new EnquiryResolutionError("malformed-source");
+  }
+
+  if (media.privateOnly != null && typeof media.privateOnly !== "boolean") {
     throw new EnquiryResolutionError("malformed-source");
   }
 

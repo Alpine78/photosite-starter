@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import {
   buildContentTree,
@@ -9,6 +10,7 @@ import { mockContentTreeInputs } from "../src/lib/mock-content-tree";
 import {
   appUnderTestEnvironment,
   DEFAULT_STORY_NAMESPACE,
+  HARNESS_BASE_URL,
 } from "./support/harness-environment";
 import { openLightbox } from "./support/lightbox";
 import { expect, test } from "./support/fixtures";
@@ -208,4 +210,39 @@ test("?enquire= combined with a cursor is a 404", async ({ page }) => {
     `${GALLERY_PATH}?enquire=${FIRST_ITEM}&cursor=not-a-real-token`,
   );
   expect(response?.status()).toBe(404);
+});
+
+
+for (const [locale, prefix, namespace] of [["en-GB", "", DEFAULT_STORY_NAMESPACE], ["fi", "/fi", "tarinat"]] as const) {
+  test(`a disabled gallery hides enquiries and refuses a crafted request (${locale})`, async ({ page, request }) => {
+    const language = new Intl.Locale(locale).language;
+    const path = getCanonicalContentPath(buildContentTree(mockContentTreeInputs[language]), "content-layout-single");
+    expect(path).not.toBeNull();
+    const galleryPath = `${prefix}/${namespace}/${path!.join("/")}`;
+    await page.goto(galleryPath);
+    const dialog = page.getByRole("dialog");
+    await openLightbox(dialog, () => page.getByRole("main").getByRole("button").first().click());
+    await expect(dialog.locator("[data-gallery-enquire]")).toHaveCount(0);
+    const response = await request.post("/api/enquiry", {
+      headers: { origin: HARNESS_BASE_URL },
+      data: { ...SYNTHETIC, company: "", submissionId: randomUUID(), kind: "curated", locale,
+        contentId: "content-layout-single", itemId: "layout-single-1" },
+    });
+    expect(response.status()).toBe(404);
+    const direct = await page.goto(`${galleryPath}?enquire=layout-single-1`);
+    expect(direct?.status()).toBe(404);
+  });
+}
+
+test("the lightbox removes an unavailable photograph's enquiry action", async ({ page }) => {
+  await page.goto(GALLERY_PATH);
+  const dialog = page.getByRole("dialog");
+  await openLightbox(dialog, () => page.getByRole("main").getByRole("button").first().click());
+  await expect(dialog.getByRole("link", { name: labels.lightbox.enquire })).toBeVisible();
+  await dialog.getByRole("button", { name: labels.lightbox.next }).click();
+  await expect(dialog.getByRole("link", { name: labels.lightbox.enquire })).toBeVisible();
+  await dialog.getByRole("button", { name: labels.lightbox.next }).click();
+  await expect(dialog.getByRole("link", { name: labels.lightbox.enquire })).toHaveCount(0);
+  await dialog.getByRole("button", { name: labels.lightbox.previous }).click();
+  await expect(dialog.getByRole("link", { name: labels.lightbox.enquire })).toHaveAttribute("href", `${GALLERY_PATH}?enquire=${SECOND_ITEM}`);
 });

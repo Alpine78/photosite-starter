@@ -138,6 +138,7 @@ export const GALLERY_PLACEMENT_PROJECTION = `{
 }`;
 
 export const GALLERY_DETAIL_PROJECTION = `{
+  allowPhotoEnquiries,
   galleryLayout,
   galleryCaptionPlacement,
   contentId,
@@ -199,6 +200,7 @@ export type RawGalleryPlacementDocument = {
 };
 
 export type RawGalleryDetailDocument = {
+  readonly allowPhotoEnquiries?: unknown;
   readonly galleryLayout?: unknown;
   readonly galleryCaptionPlacement?: unknown;
   readonly contentId?: unknown;
@@ -817,6 +819,9 @@ export function projectGalleryContentPage(
       contentId,
     );
   }
+  if (document.allowPhotoEnquiries != null && typeof document.allowPhotoEnquiries !== "boolean") {
+    throw new SanityGalleryError("malformed-result", "the gallery enquiry setting is not boolean", contentId);
+  }
   const cover = isRecord(document.cover)
     ? projectPublicMedia(document.cover as RawPublicMediaDocument, options)
     : undefined;
@@ -826,6 +831,7 @@ export function projectGalleryContentPage(
   return {
     contentId,
     variant: "gallery",
+    ...(document.allowPhotoEnquiries == null ? {} : { allowPhotoEnquiries: document.allowPhotoEnquiries }),
     ...readGalleryPresentationFields(document, (detail) => {
       throw new SanityGalleryError("incomplete-document", detail, contentId);
     }),
@@ -1088,6 +1094,7 @@ export function projectGallerySectionIntro(
 // ---------------------------------------------------------------------------
 
 export type RawGalleryPlacementItem = {
+  readonly enquiryAllowed?: unknown;
   readonly placementId?: unknown;
   readonly order?: unknown;
   readonly media?: unknown;
@@ -1192,6 +1199,9 @@ export function projectGalleryPlacement(
   const altOverride = readString(raw.altOverride);
   const captionOverride = readString(raw.captionOverride);
 
+  if (raw.enquiryAllowed != null && typeof raw.enquiryAllowed !== "boolean") {
+    throw new SanityGalleryError("malformed-result", "the enquiry action hint is not boolean");
+  }
   const seeded =
     options.ordering !== undefined && options.ordering.kind === "seeded-random"
       ? projectSeededOrderingFields(raw, placementId, options.ordering.seed)
@@ -1201,6 +1211,7 @@ export function projectGalleryPlacement(
     placementId,
     order,
     visible: raw.visible === true,
+    ...(raw.enquiryAllowed == null ? {} : { enquiryAllowed: raw.enquiryAllowed }),
     media,
     ...(sectionId !== undefined ? { sectionId } : {}),
     ...(altOverride !== undefined ? { altOverride } : {}),
@@ -1266,6 +1277,7 @@ const GALLERY_PLACEMENT_ITEM_PROJECTION = `{
   "pinned": coalesce(pinned, false),
   shuffledOrder,
   shuffledOrderSeed,
+  "enquiryAllowed": media->enquiryEligible == true,
   "media": media->${PUBLIC_MEDIA_PROJECTION}
 }`;
 
@@ -1526,6 +1538,7 @@ const CAPTURE_SEQUENCE_ITEM_PROJECTION = `{
   "order": captureSequence.sequence,
   "sectionId": captureSequence.sectionId,
   "visible": true,
+  "enquiryAllowed": enquiryEligible == true,
   "media": @${PUBLIC_MEDIA_PROJECTION}
 }`;
 
@@ -1809,6 +1822,7 @@ function readGallerySections(value: unknown, contentId: string): readonly Galler
 
 type RawGalleryPaginationBasicsDocument = {
   readonly _id?: unknown;
+  readonly allowPhotoEnquiries?: unknown;
   readonly orderingRule?: unknown;
   readonly orderingSeed?: unknown;
   readonly sections?: unknown;
@@ -1847,6 +1861,7 @@ type RawGalleryPaginationBasicsDocument = {
  */
 const GALLERY_PAGINATION_BASICS_QUERY = `*[${GALLERY_FILTER} && contentId == $contentId][0...2]{
   _id,
+  allowPhotoEnquiries,
   orderingRule,
   orderingSeed,
   sections[]{sectionId, slug, label, intro},
@@ -1972,6 +1987,13 @@ export async function readSanityCuratedGalleryPage(
   const basics = resolveUniqueDocument<RawGalleryPaginationBasicsDocument>(raw, contentId);
   if (basics === undefined) return undefined;
 
+  if (basics.allowPhotoEnquiries != null && typeof basics.allowPhotoEnquiries !== "boolean") {
+    throw new SanityGalleryError("malformed-result", "the gallery enquiry setting is not boolean", contentId);
+  }
+  const enquiryPermission = basics.allowPhotoEnquiries == null
+    ? {}
+    : { allowPhotoEnquiries: basics.allowPhotoEnquiries };
+
   const galleryDocumentId = readGalleryDocumentId(basics._id, contentId);
   const ordering = resolveOrdering(basics.orderingRule, basics.orderingSeed, contentId);
 
@@ -2042,9 +2064,10 @@ export async function readSanityCuratedGalleryPage(
     source,
     ...(options.cursorCodec === undefined ? {} : { cursorCodec: options.cursorCodec }),
   });
-  if (!options.includeTopicCounts || sections.length === 0) return page;
+  if (!options.includeTopicCounts || sections.length === 0) return { ...page, ...enquiryPermission };
   return {
     ...page,
+    ...enquiryPermission,
     topicCounts: await readSanityGalleryTopicCounts(
       client,
       galleryDocumentId,

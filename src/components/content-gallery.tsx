@@ -310,6 +310,7 @@ export function ContentGallery({
                 key={initialSliceKey}
                 label={page.title}
                 initialSlice={slice}
+                enquiriesEnabled={page.allowPhotoEnquiries !== false}
                 galleryPath={galleryPath}
                 activeSection={activeSection?.slug}
                 presentation={presentation}

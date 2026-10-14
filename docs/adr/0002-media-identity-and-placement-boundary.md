@@ -554,3 +554,38 @@ ADR-0022 records the measurements.
   through ordinary placements, each with its own `placementId`.
 - **Cost:** a capture-sequence occurrence cannot subtract visibility or override text on
   its own. Its media record is the only place those live.
+
+
+## Scoped amendment — 2026-10-14: gallery enquiry permission (AB#289)
+
+The owner requested a gallery-level enquiry switch, enabled by default, and no enquiry
+controls on customer delivery galleries. Section 4's media-owned opt-in remains: public
+visibility alone grants no enquiry or sales permission. A public gallery now owns
+`allowPhotoEnquiries`; absent/null means enabled, explicit `false` subtracts permission.
+Malformed non-boolean values are rejected at the CMS boundary. This is a public-gallery
+setting; protected client and retained legacy delivery galleries never use it.
+
+A permitted curated or capture-sequence enquiry therefore requires both the gallery
+permission and the existing media opt-in/public/private checks. The server reads the
+gallery permission afresh before resolving the selected media. Public result items may
+carry one derived boolean `enquiryAllowed` for rendering the action; it carries no archive
+or provider information and is not authorization. The media projection remains unchanged.
+The lightbox offers the action only when this hint is true and the gallery allows it.
+
+Existing imported media may lack the opt-in. Enabling a gallery does not modify those
+media records: an exact owner-approved CMS plan must opt in the chosen public photographs.
+Before this amendment, Studio initialized media enquiry permission to false, while the
+rally/Joomla planners omitted it. Keeping those authoring defaults would leave a newly
+created public gallery without enquiry actions despite the owner's requested default-on
+behavior. For newly authored ordinary public `media`, Studio now initializes the separate
+permission to true; newly generated public rally/Joomla plans explicitly include true.
+This applies to ordinary public media in either dataset-visibility mode, not to protected
+client or retained legacy delivery documents. The value remains editable and is neither
+inferred from publication at read time nor shared with sales eligibility.
+
+Existing false or missing media permissions remain fail-closed. The writers preserve
+existing media permissions on rerun; historical approved plans are validated without
+injecting the new field or changing their approval digest. A Joomla gallery replacement
+refuses an editor-owned gallery enquiry setting instead of erasing it. Wedding choices
+are authored CMS values, never category-name rules in application code. Sales,
+dynamic-gallery permissions, and delivery boundaries remain separately governed.

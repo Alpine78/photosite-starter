@@ -27,6 +27,7 @@ type GalleryGridProps = {
    * identically and never learns which it was given.
    */
   initialSlice: GallerySlice;
+  enquiriesEnabled?: boolean;
   /**
    * This gallery's canonical, parameter-free path. It addresses the
    * continuation endpoint and rebuilds the next link, so a content id never
@@ -103,6 +104,7 @@ type ContinuationOutcome = {
 export function GalleryGrid({
   label,
   initialSlice,
+  enquiriesEnabled = true,
   galleryPath,
   activeSection,
   continuationKind = "curated-gallery",
@@ -383,7 +385,7 @@ export function GalleryGrid({
     <GalleryLightbox
       slides={slice.slides}
       labels={labels.lightbox}
-      {...(continuationKind === "curated-gallery" ? { enquiryBasePath: galleryPath } : {})}
+      {...(continuationKind === "curated-gallery" && enquiriesEnabled ? { enquiryBasePath: galleryPath } : {})}
       {...(nextCursor === null
         ? {}
         : {

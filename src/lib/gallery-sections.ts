@@ -428,6 +428,8 @@ export function assertGallerySectionsSlugStable(
 // --- Bounded query/source contract ---
 
 export type CuratedGalleryPage = GalleryPage<CuratedGalleryResultItem> & {
+  /** Gallery-wide enquiry permission; absence keeps existing galleries enabled. */
+  readonly allowPhotoEnquiries?: boolean;
   /** The gallery's full ordered section catalog. Always present, possibly empty. */
   readonly sections: readonly GallerySectionSummary[];
   /** The filtered section's own identity and intro — only on its first, uncursored slice. */
