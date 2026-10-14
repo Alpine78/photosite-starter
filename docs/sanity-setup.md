@@ -563,3 +563,22 @@ the gallery document, does. `siteSettings.featuredGalleryId` names the gallery
 shown as the home portfolio and used by the hero button and menu entry. A service
 page lists its child services (those whose `parentServiceId` is its `serviceId`) as
 packages, each with its `coverMedia` when set.
+
+
+#### Retained customer source-link configuration (AB#250)
+
+`LEGACY_GALLERY_REDIRECTS` is an optional owner-local JSON array of exact
+`[sourcePath, opaqueHandle]` pairs. Keep real sources out of Git, Preview and CI.
+The server parses at most 64 KiB / 256 pairs; each source is a bounded local path
+without percent encodings, query/fragment syntax, traversal or reserved roots.
+Targets must occur in the enabled adapter's handle allowlist. Fixture mapping is
+limited to the existing explicit local-development fixture policy; real Sanity
+mapping inherits the Preview refusal. An off adapter serves no source mapping.
+
+Reserved route namespaces and the public legacy registry take precedence.
+GET/HEAD redirect in one 301 to the served gallery path, including one source
+trailing slash, with no-store/noindex/nofollow/no-referrer. Historical query data
+is discarded; only a validated non-default UI locale is carried. Unsupported
+methods return 405 without reading their body. This mapping grants no access
+control and proves no customer import or publication; verify all actual source
+and target routes after the separately approved Production import/configuration.

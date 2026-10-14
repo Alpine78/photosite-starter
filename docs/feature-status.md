@@ -4939,3 +4939,21 @@ cover four project entries, one current CI/local value and the enabled native Pr
 hook. Three entry consumers still need identification. Replacement, coordinated
 consumer changes and per-old-key revocation are planned; none was executed and
 AB#117's final security/privacy acceptance remains open.
+
+
+### AB#250 — Owner-local retained customer source links (2026-10-14)
+
+A bounded deployment-only `LEGACY_GALLERY_REDIRECTS` array maps owner-approved
+legacy source paths to the enabled adapter's allowlisted opaque handles. The
+cached parser keeps request lookup free of CMS/credential IO, refuses malformed,
+duplicate, excessive, reserved and undeclared mappings, and refuses real Sanity
+selection in Preview. Actual customer paths remain outside Git and test fixtures.
+Reserved namespaces and ordinary legacy mappings keep precedence. GET/HEAD use
+one 301 including a single trailing-slash source variant; only a validated
+non-default UI locale survives, while historical passwords/cursors/query values
+are dropped. Other methods return 405; retained-source responses have no-store,
+noindex/nofollow and no-referrer. The 21 actual private sources passed local
+parser validation without being printed. 6,159 deterministic tests, lint and
+34 production-built Chromium/WebKit journeys pass, with four existing skips.
+Customer import, activation and deployed old-link checks remain separate gates;
+AB#250/117/18 stay Active.

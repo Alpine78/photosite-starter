@@ -10,6 +10,7 @@ import {
 } from "@/lib/legacy-redirects";
 import { LEGACY_REDIRECTS } from "@/lib/legacy-redirects-data";
 import { isLegacyGalleryNamespace, legacyGalleryHandleFromPath } from "@/lib/legacy-gallery-path";
+import { createLegacyGalleryRedirectResolver } from "@/lib/legacy-gallery-redirects";
 import {
   REQUEST_HAS_CURSOR_HEADER,
   REQUEST_HAS_CURSOR_VALUE,
@@ -112,6 +113,8 @@ function withReservedNamespaceHygieneHeaders(
  * validates it a second time, because paths excluded by the matcher below never
  * pass through here at all.
  */
+const retainedGalleryRedirect = createLegacyGalleryRedirectResolver();
+
 export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const { pathname } = request.nextUrl;
@@ -248,6 +251,21 @@ export function proxy(request: NextRequest) {
         "cache-control": "public, max-age=3600, must-revalidate",
       },
     });
+  }
+
+  // Owner-local retained links follow reserved namespaces and the public registry.
+  // Drop all historical query values; only the validated UI locale can survive.
+  const retainedTarget = reservedNamespacePath ? undefined : retainedGalleryRedirect(pathname, process.env);
+  if (retainedTarget !== undefined) {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return withReservedNamespaceHygieneHeaders(new NextResponse(null, { status: 405, headers: { allow: "GET, HEAD" } }));
+    }
+    const locale = restrictedLocaleFromSearch(request.nextUrl.searchParams, routes);
+    const search = request.nextUrl.searchParams.has("locale") && locale !== routes.defaultLocale
+      ? `?locale=${encodeURIComponent(locale)}` : "";
+    const destination = new URL(retainedTarget, request.url);
+    destination.search = search;
+    return withReservedNamespaceHygieneHeaders(NextResponse.redirect(destination, 301));
   }
 
   // Next's built-in slash redirect runs before the route can validate a cursor.

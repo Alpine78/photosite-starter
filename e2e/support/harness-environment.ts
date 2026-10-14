@@ -121,7 +121,8 @@ export const appUnderTestEnvironment: Record<string, string> = {
   VERCEL_ENV: "",
   LEGACY_GALLERY_ADAPTER: "fixture",
   LEGACY_GALLERY_IMPORT_BATCH: "",
-  LEGACY_GALLERY_HANDLES: "",
+  LEGACY_GALLERY_HANDLES: "11111111111111111111111111111111",
+  LEGACY_GALLERY_REDIRECTS: JSON.stringify([["/retained-delivery-source", "11111111111111111111111111111111"]]),
   // The contact endpoint's delivery boundary, resolved to the adapter that
   // accepts a message and sends nothing. The suite therefore exercises the real
   // route, the real validation, and the real response contract without a
