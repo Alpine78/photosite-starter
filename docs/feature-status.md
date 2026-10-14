@@ -2269,6 +2269,12 @@ real third-party signup only the site owner can perform, not something this
 repository's tooling does — so the item stays open, now with a decided owner rather
 than an unresolved circularity.
 
+**Launch worktree retirement, 2026-10-13 (AB#281, Active):**
+[Nine exact-head merged checkouts were retired](audits/ab281-worktree-preservation-2026-10-13.md)
+after preserving 10,568 private files (5,293,992,766 bytes) with verified hashes,
+modes and timestamps. Open and unmatched local heads remain. Historical packets
+and branch refs are retained; this cleanup proves no Production recovery.
+
 **Mailbox recovery preparation, 2026-10-06 (AB#202, Active):** the
 [blank recovery worksheet](mail-recovery-evidence.md) separates two independent
 accounts, local message copies, full DNS exports and exercised recovery. Actual restore,
