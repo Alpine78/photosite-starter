@@ -259,7 +259,7 @@ metadata, through public Sanity delivery for the retained migration galleries.
 The original Decision above granted only the configured image-CDN path. The
 Production byte check found that the ordinary image-CDN body differed from its
 uploaded source; Sanity's authenticated `dlRaw` original-image endpoint cannot
-be used as an anonymous image source. AB#250 therefore adds an explicitly
+be used as an anonymous image source. AB#250 therefore adds an explicit
 JPEG file-asset binding and direct file-CDN presentation.
 
 For a configured Sanity deployment, extend **only `img-src`** with
