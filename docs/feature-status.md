@@ -4919,3 +4919,10 @@ publication, adapter activation or full customer continuity is claimed.
 AB#255 continuation, 2026-10-12: [Finnish Studio core resource additions](audits/ab255-studio-core-locale-additions-2026-10-12.md). This work is prepared on a separate branch; the story remains Active. CI installation fix, 2026-10-13: the root test job installs locked Studio dependencies before the SDK contract tests. General album-image captions and alt authoring are deferred until after MVP by the owner's explicit scope decision. Existing image text is preserved. Pending CMS copy acceptance, authenticated Studio checks and production activation must not be inferred from source validation.
 
 AB#255 Studio drag accessibility completion, 2026-10-13: [Localized keyboard-drag instructions and announcements](audits/ab255-studio-drag-localization-2026-10-13.md) close the observed English array-instruction gap in #371. A documented Vite alias wraps the pinned DndContext API while retaining handlers and native contexts. All installed versions/integrities remain unchanged. Authenticated FI/EN instructions and browser-event activation/cancellation were checked without moving, dropping or changing content. Full tests/lint/Studio and Next builds pass; final-head CI and PR review remain. Hosted activation and all-page acceptance are separate; AB#255 remains Active.
+
+**Automation bypass rotation preparation, 2026-10-13 (AB#285, Active):**
+[Fresh consumer inventory and private operation](audits/ab285-bypass-rotation-readiness-2026-10-13.md)
+cover four project entries, one current CI/local value and the enabled native Preview
+hook. Three entry consumers still need identification. Replacement, coordinated
+consumer changes and per-old-key revocation are planned; none was executed and
+AB#117's final security/privacy acceptance remains open.
