@@ -2015,9 +2015,8 @@ export const REMAINING_LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] =
     "source": "/en/blog",
     "outcome": {
       "kind": "redirect",
-      "target": "/en",
-      "reservedQueryParams": "strip",
-      "fallbackNotice": "content-unavailable"
+      "target": "/en/stories/blog",
+      "reservedQueryParams": "strip"
     }
   },
   {

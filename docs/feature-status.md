@@ -1134,6 +1134,8 @@ Two additional owner-requested FI wedding services were separately published and
 
 ### AB#275 — published English service replacements (2026-10-13)
 
+**AB#280 continuation, 2026-10-13:** [The old English Blog path](audits/ab280-published-blog-alias-2026-10-13.md) now resolves directly to `/en/stories/blog` after the explicitly approved eighteen-article publication made that category public. Only `/en/blog` changes; all other mapping bytes, query policies and 415 classifications remain. Lint, 6,061 tests, production build and 132 Chromium/WebKit cases pass (four data-dependent skips); actual-CMS local probes verify direct 301/200 and canonical agreement. AB#280 remains Active pending PR review/merge; parent AB#19 and final deployed/launch checks remain open. No CMS, DNS or deployment mutation in this branch.
+
 [Five direct service replacements](audits/ab275-published-service-aliases-2026-10-13.md) promote the funeral, property, ceremony, half-day and full-day English legacy aliases from ancestry fallbacks to now-published canonical service targets. All other source bytes and 415 classifications are preserved; the English Blog and distinct over-twelve-hour package fallbacks remain. Actual-CMS local production probes verify five direct 301/200 pairs and canonicals; lint, 6,061 tests, production build and 132 Chromium/WebKit redirect/notice cases pass (four data-dependent skips). AB#275 remains Active pending PR review/merge; merged AB#271 is verified Closed and parent AB#19 remains Active. Final deployed verification and remaining launch gates are open; no CMS, DNS or deployment mutation in this branch.
 
 ### AB#271 — remaining legacy decisions and service fallback notices (2026-10-13)
