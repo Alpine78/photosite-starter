@@ -2,6 +2,18 @@
 
 2026-10-13 Studio completion: the [initial authenticated check](audits/ab255-authenticated-studio-locales-2026-10-13.md) identified type-header, list-preview and drag-instruction gaps. [Drag localization](audits/ab255-studio-drag-localization-2026-10-13.md) merged in #371; [presentation corrections](audits/ab255-studio-presentation-completion-2026-10-13.md) are complete in #370, with final CI/review pending. Local/source verification is separate from deployed Studio acceptance.
 
+2026-10-13 current publication update: [AB#284's stable complete census and hosted
+verification](audits/ab284-current-integrated-preview-2026-10-13.md) supersede the
+earlier draft-only publication counts below. Production now has all 28 article,
+32 gallery, eight service and 12 category FI/EN pairs, with no missing published
+counterpart. The 18 newly approved EN articles and 644 placements were verified
+on clean current-main protected Preview, including no-JS pagination. Category/
+service and article execution approvals remain their own dated receipts. These
+counts do not accept translation quality of every earlier pair, prove hosted
+restricted sessions or authorize final Production activation. #397 corrects only
+the offline census's four story-root category false positives. Earlier entries
+below are historical checkpoints, not today's unpublished-content inventory.
+
 Owner requirement confirmed on 2026-10-11: every page family, including historical
 articles/galleries and customer/administrator pages, needs Finnish and English.
 The owner requested starting with home/contact, merged in PR #338 on 2026-10-12.
@@ -14,7 +26,8 @@ Neither proves accepted translation quality or deployment of the merged code.
 2026-10-13 accepted article drafts: the owner approved the complete 18-article
 FI/EN workbook and CMS editing-draft creation, with historical polls retained
 only on FI versions. [Verified authoring](audits/ab255-approved-article-draft-authoring-2026-10-13.md)
-created all 18 EN article drafts and 644 linked end-gallery placement drafts.
+created all 18 EN article drafts and 644 linked end-gallery placement drafts;
+their later owner-approved publication and hosted checks are recorded above.
 The 23 poll blocks were omitted only from EN drafts. Existing FI content,
 polls/votes, shared media, categories and asset counts remain unchanged.
 Published coverage still lacks these 18 EN articles: editing drafts are not

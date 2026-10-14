@@ -3217,6 +3217,17 @@ contact column (AB#178). Its privacy notice is a native disclosure, and the
 direct email link remains usable without JavaScript. Related work item:
 AB#176 portfolio topic filter.
 
+**Current integrated release evidence, 2026-10-13 (AB#284, Active):**
+[Current-main Preview and fresh recovery](audits/ab284-current-integrated-preview-2026-10-13.md)
+bind successful CI951 and clean source 8932116 to an owned protected deployment:
+all 415 legacy rows plus 18 published EN articles/644 placements/39 pages pass.
+The stable complete 17,614-document snapshot retains all FI/EN pairs; #397 removes
+four audit false positives. Current local 5,158-asset byte recovery passes. Pro is
+now observed; old Production remains dirty. Seven open works combine without
+conflicts after #395's status fix and pass 6,121 tests, lint, build and all 415 local
+legacy rows with the new direct Blog alias. ZIP support, actual final Production
+checks/recovery, coordinated key replacement and owner acceptance remain open.
+
 **Offline web DNS guard, 2026-10-06 (AB#200, Active):** an owner-run normalized
 snapshot comparator preserves full protected-record multisets and refuses CNAME
 conflicts. It emits counts/digests only. Current zone export, live propagation and
