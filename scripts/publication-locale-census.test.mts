@@ -35,6 +35,30 @@ describe("revision-bound publication census", () => {
     expect(census([category, { ...article(), localizedFrom: "en" }]).rows.find(r => r.type === "article")?.blockers).toContain("REVIEW_STATE_MISSING");
     expect(census([category, { ...article(), localizedFrom: "en", localizationReview: { pendingFields: [], sourceLanguage: "fi" } }]).rows.find(r => r.type === "article")?.blockers).toContain("REVIEW_SOURCE_MISMATCH");
   });
+  it.each(["article", "gallery"])("accepts explicit category-less %s at story root", type => {
+    for (const canonicalCategory of [undefined, null]) {
+      const pages = ["fi", "en"].map(language => ({ ...article(language, `${type}-${language}`), _type: type, canonicalAtStoryRoot: true, canonicalCategory }));
+      const result = census(pages);
+      expect(result.hasBlockers).toBe(false);
+      expect(result.rows.every(row => row.blockers.length === 0)).toBe(true);
+      expect(result.translationAcceptanceVerified).toBe(false);
+    }
+  });
+  it.each([undefined, null, false, "true", 1, {}])("never infers category-less root placement from %j", canonicalAtStoryRoot => {
+    expect(census([{ ...article(), canonicalAtStoryRoot, canonicalCategory: undefined }]).rows[0].blockers).toContain("PUBLISHED_CATEGORY_MISSING");
+  });
+  it("reports malformed root flags even when a category is valid", () => {
+    expect(census([category, { ...article(), canonicalAtStoryRoot: "true" }]).rows.find(row => row.type === "article")?.blockers).toContain("MALFORMED_ROOT_PLACEMENT");
+  });
+  it.each([{ _ref: "cat" }, {}, { _ref: "absent" }, "invalid"])("keeps explicit root/category conflict blocked: %j", canonicalCategory => {
+    expect(census([category, { ...article(), canonicalAtStoryRoot: true, canonicalCategory }]).rows.find(row => row.type === "article")?.blockers).toContain("ROOT_CATEGORY_CONFLICT");
+  });
+  it("preserves review and identity blockers on root-level content", () => {
+    const root = { ...article(), canonicalAtStoryRoot: true, canonicalCategory: undefined, localizationReview: { pendingFields: ["title"] } };
+    const result = census([root, { ...root, _id: "duplicate" }]);
+    expect(result.rows[0].blockers).toContain("EDITOR_REVIEW_PENDING");
+    expect(result.rows[0].blockers).toContain("DUPLICATE_IDENTITY");
+  });
   it("uses serviceId for per-language services", () => expect(census([{ _id: "service-fi", _rev: "r", _type: "service", serviceId: "portraits", language: "fi" }]).coverage[2].missing).toEqual([{ identity: "portraits", language: "en", draftIds: [] }]));
   it("checks ancestor language prerequisites and detects category cycles", () => {
     const parent = { ...category, _id: "parent", categoryId: "parent-category", label: category.label.slice(0, 1) };

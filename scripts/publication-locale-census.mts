@@ -72,7 +72,13 @@ export function publicationLocaleCensus(bytes: Buffer, languages: readonly strin
   }
   for (const row of rows) {
     if (row.type !== "article" && row.type !== "gallery") continue;
-    let ref = byId.get(row.id)?.canonicalCategory;
+    const document = byId.get(row.id)!;
+    const root = document.canonicalAtStoryRoot;
+    let ref = document.canonicalCategory;
+    if (root != null && typeof root !== "boolean") row.blockers.push("MALFORMED_ROOT_PLACEMENT");
+    // ADR-0003: explicit story-root placement has no canonical category.
+    if (root === true && ref == null) continue;
+    if (root === true) row.blockers.push("ROOT_CATEGORY_CONFLICT");
     const ancestors = new Set<string>();
     for (;;) {
       const category = object(ref) && documentId(ref._ref) ? byId.get(ref._ref) : undefined;
