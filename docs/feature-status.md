@@ -3601,6 +3601,17 @@ The compatible Production renderer is active on the existing Vercel aliases and 
 The owner supplied a fresh Joomla backup and the new private K2 gallery's separate files. Archive CRC checks pass; the database contains the new gallery and the exact paths of all 34 JPEGs and its delivery ZIP, which also passes CRC and holds 34 images. Hash receipts cover both the backup and separate files; the Joomla ZIP does not embed these images, and no live restore is claimed. Customer-access continuity still needs a decision before DNS cutover/October 15 retirement. The private gallery is absent from the approved public import. No custom-domain cutover, complete AB#137 acceptance or launch-parent closure is claimed. AB#137, AB#19, AB#117, AB#132 and AB#18 remain Active.
 
 
+### AB#288 — service price wrapping (2026-10-14)
+
+Service listing prices and both default/prefixed detail-page pricing rows keep
+preformatted amounts and currency on one line. Long package names wrap independently
+within the remaining space, including unbroken words; approved CMS copy is unchanged.
+Production-build geometry checks cover FI/EN at 320 and 1280 px in Chromium and WebKit,
+including the 250/450 fixture price shapes, grouped prices, long labels and viewport
+bounds. All 38 affected service journeys, five focused rendering tests and lint pass.
+No CMS or dependency change. AB#288 moved New → Active and remains Active pending PR
+review/merge.
+
 ### AB#137 — optional prices in owner-run service plans (2026-10-09)
 
 The service writer now accepts the existing CMS model's optional listing price and keyed pricing entries. Validation, normalized approval digests, exact preflight and readback include these fields; malformed prices and edits to existing documents refuse the create-only run. No-price plan digests are unchanged. Synthetic tests cover malformed fields, duplicate keys, changed prices, both mismatch directions and dropped readback fields. This work adds no owner-specific service fixtures or application model changes and does not perform a live CMS write. Production migration audits, separate owner-content publication and temporary-credential revocation remain operational work; AB#137 stays Active.
