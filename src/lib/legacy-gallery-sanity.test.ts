@@ -16,6 +16,7 @@ function fixture(count = 2, archive = true, alt = "Photograph") {
     _id: `legacyDeliveryImage-${i.id}`, _type: "legacyDeliveryImage", imageId: i.id,
     migrationBatch: batch, position: i.position, displayWidth: i.width, displayHeight: i.height,
     sourceOrientation: 1, alt: i.alt, galleryId, galleryReferenceType: "reference",
+    sourcePresent: true, originalFilePresent: false, sourceType: "image",
     sourceAssetId: i.assetId, sourceReferenceType: "reference",
     asset: { _id: i.assetId, _type: "sanity.imageAsset", sha1hash: "d".repeat(40), size: i.bytes, mimeType: "image/jpeg" },
   }));
@@ -36,6 +37,23 @@ function setup(options: { first?: unknown; last?: unknown; data?: unknown; clock
   const reader = createLegacyGalleryReader({ config: { projectId: "fixture1", dataset: "production" }, batch, documents: { read }, query: { query }, now: options.clock ?? (() => deadline - 1) });
   return { reader, read, query };
 }
+function fileFixture(count = 2, alt = "Photograph") {
+  const f = fixture(count, true, alt);
+  const manifest: LegacyManifestImage[] = f.data.images.map((row) => ({
+    id: row.imageId, position: row.position, assetId: `file-${row.asset.sha1hash}-jpg`,
+    bytes: row.asset.size, width: row.displayWidth, height: row.displayHeight, orientation: 1, alt: row.alt,
+  }));
+  const images = f.data.images.map((row, index) => ({ ...row,
+    sourcePresent: false, originalFilePresent: true,
+    sourceType: "file", sourceAssetId: manifest[index].assetId,
+    asset: { ...row.asset, _id: manifest[index].assetId, _type: "sanity.fileAsset" },
+  }));
+  const metadata = { ...f.metadata,
+    manifestDigest: createHash("sha256").update(legacyGalleryManifestString(galleryId, batch, manifest,
+      { assetId: zipId, bytes: f.data.zip!.size })).digest("hex"),
+  };
+  return { metadata, data: { images, zip: f.data.zip } };
+}
 describe("legacy delivery read boundary", () => {
   it("serves direct byte-versioned full-frame JPEGs and one whole ZIP after two fresh reads", async () => {
     const { reader, read, query } = setup();
@@ -45,6 +63,47 @@ describe("legacy delivery read boundary", () => {
     expect(value?.images[0]).toEqual({ itemId: "0".repeat(32), mediaId: "0".repeat(32), src: `https://cdn.sanity.io/images/fixture1/production/${"d".repeat(40)}-3000x2000.jpg`, width: 3000, height: 2000, alt: "Photograph" });
     expect(value?.zipUrl).toBe(`https://cdn.sanity.io/files/fixture1/production/${"c".repeat(40)}.zip?dl=photographs.zip`);
     expect(JSON.stringify(value)).not.toMatch(/_rev|migrationBatch|sourceAssetId|sha1hash|manifestDigest/);
+  });
+  it("serves original JPEG file URLs with source-manifest dimensions and no image pipeline", async () => {
+    const f = fileFixture();
+    const value = await setup({ first: f.metadata, last: f.metadata, data: f.data }).reader.read(handle);
+    expect(value?.images[0]).toEqual({ itemId: "0".repeat(32), mediaId: "0".repeat(32),
+      src: `https://cdn.sanity.io/files/fixture1/production/${"d".repeat(40)}.jpg`, width: 3000, height: 2000, alt: "Photograph" });
+    expect(value?.images.every((i) => !/[?]|\/images\/|_next/.test(i.src))).toBe(true);
+    expect(value?.zipUrl).toBe(`https://cdn.sanity.io/files/fixture1/production/${"c".repeat(40)}.zip?dl=photographs.zip`);
+    expect(JSON.stringify(value)).not.toMatch(/originalFile|_rev|migrationBatch|sourceAssetId|sha1hash|manifestDigest/);
+  });
+  it.each([
+    { sourcePresent: true }, { originalFilePresent: false }, { sourcePresent: "false" }, { originalFilePresent: null },
+    { sourceType: "image" }, { sourceReferenceType: "weak" }, { sourceAssetId: `file-${"e".repeat(40)}-jpg` },
+    { asset: null }, { sourceType: null }, { sourceAssetId: `image-${"d".repeat(40)}-3000x2000-jpg` },
+    { asset: fixture().data.images[0].asset },
+    { displayWidth: 0 }, { displayWidth: 32769 }, { displayHeight: 0.5 }, { displayWidth: 32768, displayHeight: 32768 },
+    { sourceOrientation: 6 },
+  ])("rejects ambiguous or malformed original-file sources %j", async (change) => {
+    const f = fileFixture(); Object.assign(f.data.images[0], change);
+    await expect(setup({ first: f.metadata, last: f.metadata, data: f.data }).reader.read(handle)).rejects.toBeInstanceOf(LegacyGalleryDataError);
+  });
+  it.each([
+    { _id: zipId, mimeType: "application/zip" }, { _id: `file-${"d".repeat(40)}-jpeg` },
+    { _id: `image-${"d".repeat(40)}-3000x2000-jpg` }, { _type: "sanity.imageAsset" },
+    { sha1hash: "e".repeat(40) }, { mimeType: "image/png" }, { mimeType: "application/octet-stream" },
+    { size: 0 }, { size: 100_000_001 }, { size: 1000.5 },
+  ])("rejects original-file assets with contradictory identity or metadata %j", async (change) => {
+    const f = fileFixture(); Object.assign(f.data.images[0].asset, change);
+    await expect(setup({ first: f.metadata, last: f.metadata, data: f.data }).reader.read(handle)).rejects.toBeInstanceOf(LegacyGalleryDataError);
+  });
+  it("binds original file dimensions and byte counts to the approved ordered manifest", async () => {
+    for (const change of [{ displayWidth: 2999 }, { displayHeight: 1999 }]) {
+      const f = fileFixture(); Object.assign(f.data.images[0], change);
+      await expect(setup({ first: f.metadata, last: f.metadata, data: f.data }).reader.read(handle)).rejects.toBeInstanceOf(LegacyGalleryDataError);
+    }
+    const f = fileFixture(); f.data.images[0].asset.size = 999;
+    await expect(setup({ first: f.metadata, last: f.metadata, data: f.data }).reader.read(handle)).rejects.toBeInstanceOf(LegacyGalleryDataError);
+  });
+  it("rejects an empty secondary originalFile object alongside a legacy image source", async () => {
+    const f = fixture(); f.data.images[0].originalFilePresent = true;
+    await expect(setup({ data: f.data }).reader.read(handle)).rejects.toBeInstanceOf(LegacyGalleryDataError);
   });
   it.each(["bad", "A".repeat(32), "a".repeat(31), "a".repeat(33), "a/../b"])("refuses invalid handle before provider IO: %s", async (input) => {
     const { reader, read, query } = setup(); expect(await reader.read(input)).toBeUndefined(); expect(read).not.toHaveBeenCalled(); expect(query).not.toHaveBeenCalled();
@@ -78,6 +137,7 @@ describe("legacy delivery read boundary", () => {
   });
   it.each([
     { sourceOrientation: 6 }, { displayWidth: 2000 }, { displayHeight: 3000 }, { galleryId: "other-gallery" },
+    { sourcePresent: false }, { originalFilePresent: "false" }, { sourceType: "file" }, { sourceType: null },
     { migrationBatch: "e".repeat(64) }, { sourceReferenceType: "weak" }, { position: 1 }, { alt: "\u0000" },
     { sourceAssetId: `image-${"e".repeat(40)}-3000x2000-jpg` },
   ])("rejects malformed image %j", async (change) => {
@@ -105,6 +165,11 @@ describe("legacy delivery read boundary", () => {
     expect(Buffer.byteLength(JSON.stringify({ result: f.data }))).toBeLessThan(LEGACY_QUERY_MAX_RESPONSE_BYTES);
     expect(await setup({ first: f.metadata, last: f.metadata, data: f.data }).reader.read(handle)).toHaveProperty("images.length", 256);
     expect(LEGACY_IMAGE_QUERY).toContain("[0...257]");
+  });
+  it("keeps the original-file projection at the maximum image and alt bounds below the HTTP ceiling", async () => {
+    const f = fileFixture(256, "漢".repeat(400));
+    expect(Buffer.byteLength(JSON.stringify({ result: f.data }))).toBeLessThan(LEGACY_QUERY_MAX_RESPONSE_BYTES);
+    expect(await setup({ first: f.metadata, last: f.metadata, data: f.data }).reader.read(handle)).toHaveProperty("images.length", 256);
   });
   it("preserves typed transport failures without an empty-gallery fallback", async () => {
     const { reader, query } = setup(); const error = new SanityQueryError({ errorClass: "unavailable", retryable: true, correlationId: "fixture" });

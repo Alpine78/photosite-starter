@@ -4961,3 +4961,32 @@ parser validation without being printed. 6,159 deterministic tests, lint and
 34 production-built Chromium/WebKit journeys pass, with four existing skips.
 Customer import, activation and deployed old-link checks remain separate gates;
 AB#250/117/18 stay Active.
+
+### AB#250 — original JPEG file-delivery correction (2026-10-14)
+
+- A live Production check rejected an ordinary image-CDN response because its
+  bytes differed from the unchanged uploaded source; gallery publication stays
+  gated. The native asset SHA-1 alone cannot establish delivered metadata or bytes.
+- The offline compiler now accepts an explicit JPEG `kind: "file"` binding with
+  exact `file-<sha1>-jpg` identity and unchanged source dimensions, hashes and
+  byte count. Its read-only `originalFile` reference is exclusive with the
+  previous `source` image reference. Historical image-binding digests and the
+  ordered manifest contract remain unchanged.
+- The legacy reader and byte verifier use the plain file-CDN JPEG URL, validate
+  exact MIME/hash/size and bind intrinsic dimensions to the source manifest.
+  JPEG files cannot be confused with delivery ZIPs. Public/protected media,
+  gallery identities, deadlines, positions and ZIP references keep their contracts.
+- CSP permits only the configured project/dataset file path in `img-src`, alongside
+  its image path. The public optimizer still rejects file assets; other directives
+  and the protected-gallery object-store policy retain their boundaries. ADR-0011
+  records this scoped implementation of the already accepted legacy exception.
+- The new binding needs fresh concrete CMS approval, anonymous complete CDN byte
+  checks and browser evidence before actual customer publication. This change
+  performs no provider writes and does not claim the launch or AB#250 complete.
+- Validation: 6,216 deterministic tests, lint and the synthetic production build
+  pass; 26 Chromium/WebKit journeys pass with four existing cookie-related skips.
+  The separate synthetic file-asset experiment preserved all source bytes and
+  rendered its full frame in both engines; that fixture was removed and Preview
+  restored. Independent source review closed the secondary-object ambiguity and
+  confirmed the scoped CSP/optimizer separation. Final deployed customer proof
+  remains separate.

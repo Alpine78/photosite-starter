@@ -11,8 +11,12 @@ export const LEGACY_IMAGE_QUERY = `{
   "images": *[_type == "legacyDeliveryImage" && gallery._ref == $galleryId && migrationBatch == $batch]
     | order(position asc)[0...257]{_id, _type, imageId, migrationBatch, position, displayWidth, displayHeight, sourceOrientation, alt,
       "galleryId": gallery._ref, "galleryReferenceType": gallery._type,
-      "sourceAssetId": source.asset._ref, "sourceReferenceType": source.asset._type,
-      "asset": source.asset->{_id,_type,sha1hash,size,mimeType}},
+      "sourcePresent": defined(source), "originalFilePresent": defined(originalFile),
+      "sourceType": coalesce(originalFile._type, source._type),
+      "sourceAssetId": coalesce(originalFile.asset._ref, source.asset._ref),
+      "sourceReferenceType": coalesce(originalFile.asset._type, source.asset._type),
+      "asset": select(defined(originalFile) => originalFile.asset->{_id,_type,sha1hash,size,mimeType},
+        source.asset->{_id,_type,sha1hash,size,mimeType})},
   "zip": *[_id == $zipId && _type == "sanity.fileAsset"][0]{_id,_type,sha1hash,size,mimeType}
 }`;
 
@@ -75,16 +79,33 @@ function image(value: unknown, galleryId: string, batch: string): LegacyManifest
   if (typeof row.imageId !== "string" || !isLegacyGalleryHandle(row.imageId) ||
       row._id !== `legacyDeliveryImage-${row.imageId}` || row._type !== "legacyDeliveryImage" ||
       row.galleryId !== galleryId || row.galleryReferenceType !== "reference" || row.migrationBatch !== batch ||
-      row.sourceReferenceType !== "reference" || row.sourceOrientation !== 1) return invalid();
+      row.sourceOrientation !== 1) return invalid();
+  // Presence flags also detect empty/malformed secondary objects whose
+  // projected reference properties would otherwise all be null.
+  if (typeof row.sourcePresent !== "boolean" || typeof row.originalFilePresent !== "boolean" ||
+    row.sourcePresent === row.originalFilePresent) return invalid();
+  const originalFile = row.originalFilePresent;
   const asset = record(row.asset);
-  if (typeof asset._id !== "string" || asset._id !== row.sourceAssetId) return invalid();
-  const parts = /^image-([a-f0-9]{40})-([1-9]\d{0,4})x([1-9]\d{0,4})-(jpg|jpeg)$/.exec(asset._id);
-  if (!parts || asset._type !== "sanity.imageAsset" || asset.sha1hash !== parts[1] || asset.mimeType !== "image/jpeg") return invalid();
-  const width = integer(Number(parts[2]), 32768), height = integer(Number(parts[3]), 32768);
-  if (width * height > 256_000_000 || row.displayWidth !== width || row.displayHeight !== height) return invalid();
+  if (typeof asset._id !== "string" || asset._id !== row.sourceAssetId || row.sourceReferenceType !== "reference") return invalid();
+  let width: number, height: number;
+  if (originalFile) {
+    // Exactly one source. Dimensions come from the reviewed source manifest,
+    // not a file asset's absent image-pipeline metadata.
+    const parts = /^file-([a-f0-9]{40})-jpg$/.exec(asset._id);
+    if (!parts || row.sourceType !== "file" || asset._type !== "sanity.fileAsset" ||
+      asset.sha1hash !== parts[1] || asset.mimeType !== "image/jpeg") return invalid();
+    width = integer(row.displayWidth, 32768); height = integer(row.displayHeight, 32768);
+  } else {
+    if (row.sourceType !== "image") return invalid();
+    const parts = /^image-([a-f0-9]{40})-([1-9]\d{0,4})x([1-9]\d{0,4})-(jpg|jpeg)$/.exec(asset._id);
+    if (!parts || asset._type !== "sanity.imageAsset" || asset.sha1hash !== parts[1] || asset.mimeType !== "image/jpeg") return invalid();
+    width = integer(Number(parts[2]), 32768); height = integer(Number(parts[3]), 32768);
+    if (row.displayWidth !== width || row.displayHeight !== height) return invalid();
+  }
+  if (width * height > 256_000_000) return invalid();
   return {
     id: row.imageId, position: integer(row.position, MAX_LEGACY_GALLERY_IMAGES - 1, 0),
-    assetId: asset._id, bytes: integer(asset.size, 100_000_000), width, height, orientation: 1,
+    assetId: asset._id as string, bytes: integer(asset.size, 100_000_000), width, height, orientation: 1,
     alt: text(row.alt, 400),
   };
 }
@@ -117,9 +138,11 @@ export function createLegacyGalleryReader(settings: {
       if (digest !== first.manifestDigest) return invalid();
       const last = metadata(await settings.documents.read(galleryId), galleryId, handle, settings.batch, now());
       if (last === undefined || last.revision !== first.revision || last.manifestDigest !== digest) return undefined;
-      const prefix = `https://cdn.sanity.io/images/${settings.config.projectId}/${settings.config.dataset}/`;
       const slides = images.map((i): LightboxSlide => ({
-        itemId: i.id, mediaId: i.id, src: prefix + i.assetId.slice(6).replace(/-(jpg|jpeg)$/, ".$1"),
+        itemId: i.id, mediaId: i.id,
+        src: i.assetId.startsWith("file-")
+          ? `https://cdn.sanity.io/files/${settings.config.projectId}/${settings.config.dataset}/${i.assetId.slice(5, -4)}.jpg`
+          : `https://cdn.sanity.io/images/${settings.config.projectId}/${settings.config.dataset}/${i.assetId.slice(6).replace(/-(jpg|jpeg)$/, ".$1")}`,
         width: i.width, height: i.height, alt: i.alt,
       }));
       return {
