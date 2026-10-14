@@ -5,6 +5,9 @@ import { legacyDeliveryImageType } from "./legacy-delivery-image";
 describe("legacy continuity schema boundary", () => {
   it("separates byte-preserved images from ordinary public media", () => {
     expect(legacyDeliveryImageType.fields?.find((f) => f.name === "source")?.options).toEqual({ accept: "image/jpeg", hotspot: false, storeOriginalFilename: false });
+    expect(legacyDeliveryImageType.fields?.find((f) => f.name === "originalFile")).toMatchObject({
+      type: "file", readOnly: true, options: { accept: "image/jpeg", storeOriginalFilename: false },
+    });
     expect(legacyDeliveryImageType.fields?.find((f) => f.name === "gallery")?.to).toEqual([{ type: "legacyDeliveryGallery" }]);
     expect(legacyDeliveryGalleryType.fields?.find((f) => f.name === "deliveryZip")?.options).toEqual({ accept: "application/zip", storeOriginalFilename: false });
   });

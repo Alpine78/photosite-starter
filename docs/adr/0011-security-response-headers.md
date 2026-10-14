@@ -251,3 +251,34 @@ nothing to conflict, override, or drift from Vercel's own value over time.
   ADR only establishes that no application-level header exists that could conflict with
   Vercel's own `Strict-Transport-Security` default, sidestepping the question rather
   than answering it definitively.
+
+## Scoped amendment — 2026-10-14: original legacy JPEG file delivery (AB#250)
+
+ADR-0028 already permits unchanged processed JPEG bytes, including embedded
+metadata, through public Sanity delivery for the retained migration galleries.
+The original Decision above granted only the configured image-CDN path. The
+Production byte check found that the ordinary image-CDN body differed from its
+uploaded source; Sanity's authenticated `dlRaw` original-image endpoint cannot
+be used as an anonymous image source. AB#250 therefore adds an explicit
+JPEG file-asset binding and direct file-CDN presentation.
+
+For a configured Sanity deployment, extend **only `img-src`** with
+`https://cdn.sanity.io/files/{projectId}/{dataset}/`, alongside the existing
+image path. Both paths use the same validated public build settings. No legacy
+runtime credential or customer mapping is needed to build the policy. The
+trailing-slash path grants are limited to that project/dataset; no bare CDN
+host or wildcard is added. All other directives and response headers retain
+their previous behavior.
+
+This is the browser-side implementation of ADR-0028's existing exception.
+`images.remotePatterns` still permits only the image path: legacy JPEG files
+never enter the public optimizer, and ordinary public-media projection remains
+restricted to its versioned web derivatives. Protected-gallery authorization
+and object-store policy remain separate. The system's provider and delivery
+topology is unchanged, so its existing D2 boundary map remains applicable.
+
+The offline compiler, reader and verifier validate the closed JPEG file shape,
+source-bound dimensions and ordered manifest. Actual customer publication still
+requires renewed exact mutation approval, complete anonymous CDN byte checks
+and a browser check under the deployed policy. This amendment does not establish
+provider support, completed customer publication or final launch acceptance.

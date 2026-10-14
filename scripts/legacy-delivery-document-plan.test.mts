@@ -21,7 +21,7 @@ function fixture(): Mutable<LegacySource> {
       ], zip: { sourceLocator: "packages/one.zip", sha1: "3".repeat(40), sha256: "3".repeat(64), bytes: 2032617616 } }] };
 }
 type Binding = { sourceSha256: string; assetId: string; sha1: string; bytes: number; mimeType: string;
-  width?: number; height?: number; orientation?: number };
+  width?: number; height?: number; orientation?: number; kind?: "file" };
 function isImage(file: LegacyFile | LegacyImage): file is LegacyImage { return "width" in file; }
 function bindingFixture(source = fixture()) {
   const p = buildLegacyImportPlan(source, now), files = new Map<string, Binding>();
@@ -38,6 +38,13 @@ function bindingFixture(source = fixture()) {
 }
 function compile(source = fixture(), bindings = bindingFixture(source), clock = now) {
   return buildLegacyDocumentPlan(source, bindings.reviewDigest, bindings, clock);
+}
+function originalBindings(source = fixture()) {
+  const bindings = bindingFixture(source);
+  for (const row of bindings.assets) if (row.mimeType === "image/jpeg") {
+    row.kind = "file"; row.assetId = `file-${row.sha1}-jpg`;
+  }
+  return bindings;
 }
 
 describe("offline legacy document candidates", () => {
@@ -119,6 +126,37 @@ describe("offline legacy document candidates", () => {
     const changed = compile(source); expect(changed.reviewDigest).not.toBe(first.reviewDigest);
     expect(changed.candidateDigest).not.toBe(first.candidateDigest);
   });
+  it("requires explicit file bindings and preserves reviewed dimensions, batch and source identity", () => {
+    const source = fixture(), old = compile(source), bindings = originalBindings(source);
+    const next = compile(source, bindings);
+    expect(next.reviewDigest).toBe(old.reviewDigest);
+    expect(next.candidateDigest).not.toBe(old.candidateDigest);
+    expect(next.candidateDocuments.map((d) => d._id)).toEqual(old.candidateDocuments.map((d) => d._id));
+    expect(next.candidateDocuments[0]).toMatchObject({ published: false, imageCount: 2, expiryInstant: "2027-01-07T22:00:00Z" });
+    expect(next.candidateDocuments.slice(1)).toMatchObject([
+      { originalFile: { _type: "file", asset: { _type: "reference", _ref: `file-${"1".repeat(40)}-jpg` } }, displayWidth: 3000, displayHeight: 2000, position: 0 },
+      { originalFile: { _type: "file", asset: { _type: "reference", _ref: `file-${"2".repeat(40)}-jpg` } }, displayWidth: 2000, displayHeight: 3000, position: 1 },
+    ]);
+    expect(next.candidateDocuments.slice(1).every((d) => !("source" in d))).toBe(true);
+    delete bindings.assets[0].kind;
+    expect(() => compile(source, bindings)).toThrow("BINDING_IMAGE_MISMATCH");
+  });
+  it.each([
+    { assetId: `file-${"f".repeat(40)}-jpg` }, { assetId: `file-${"1".repeat(40)}-jpeg` },
+    { assetId: `file-${"1".repeat(40)}-zip` }, { assetId: `image-${"1".repeat(40)}-3000x2000-jpg` },
+    { width: 0 }, { width: 32769 }, { width: 2000 }, { height: 3000 }, { height: 2000.1 },
+    { orientation: 6 }, { mimeType: "application/zip" }, { mimeType: "image/png" }, { bytes: 501 },
+    { kind: "image" }, { kind: null }, { kind: true },
+  ])("rejects contradictory original-file JPEG binding %j", (change) => {
+    const b = originalBindings(); Object.assign(b.assets[0], change);
+    expect(() => compile(fixture(), b)).toThrow();
+  });
+  it("rejects file-kind declarations on ZIPs and accessor kinds without exposing input", () => {
+    const zip = originalBindings(); zip.assets[2].kind = "file";
+    expect(() => compile(fixture(), zip)).toThrow("BINDING_FIELDS");
+    const getter = originalBindings(); Object.defineProperty(getter.assets[0], "kind", { get() { throw new Error("sensitive"); } });
+    expect(() => compile(fixture(), getter)).toThrow("BINDING_FIELDS");
+  });
   it.each([null, [], { version: 1 }, { ...bindingFixture(), extra: true }, { ...bindingFixture(), __proto__: {} }])
     ("rejects malformed or open binding roots", (bindings) => {
       expect(() => buildLegacyDocumentPlan(fixture(), bindingFixture().reviewDigest, bindings, now)).toThrow();
@@ -196,7 +234,7 @@ describe("offline legacy document candidates", () => {
   it("projects only declared schema fields, covering every optional variant", () => {
     const withOptional = compile(), s = fixture(); s.galleries[0].availability = { mode: "indefinite" }; s.galleries[0].zip = null;
     delete s.galleries[0].displayTitle;
-    const docs = [...withOptional.candidateDocuments, ...compile(s).candidateDocuments];
+    const docs = [...withOptional.candidateDocuments, ...compile(s).candidateDocuments, ...compile(fixture(), originalBindings()).candidateDocuments];
     for (const schema of [legacyDeliveryGalleryType, legacyDeliveryImageType]) {
       const declared = new Set(schema.fields.map((f) => f.name));
       const seen = new Set(docs.filter((d) => d._type === schema.name).flatMap((d) => Object.keys(d).filter((k) => !k.startsWith("_"))));
@@ -212,9 +250,10 @@ describe("offline legacy document candidates", () => {
       const assets = new Map(p.candidateAssets.map((a) => [a.assetId, a]));
       const data = { images: candidates.map((d) => ({ ...d,
         galleryId: d.gallery._ref, galleryReferenceType: d.gallery._type,
-        sourceAssetId: d.source.asset._ref, sourceReferenceType: d.source.asset._type,
-        asset: { _id: d.source.asset._ref, _type: "sanity.imageAsset", sha1hash: assets.get(d.source.asset._ref)!.sha1,
-          size: assets.get(d.source.asset._ref)!.bytes, mimeType: "image/jpeg" } })),
+        sourcePresent: true, originalFilePresent: false, sourceType: "image",
+        sourceAssetId: d.source!.asset._ref, sourceReferenceType: d.source!.asset._type,
+        asset: { _id: d.source!.asset._ref, _type: "sanity.imageAsset", sha1hash: assets.get(d.source!.asset._ref)!.sha1,
+          size: assets.get(d.source!.asset._ref)!.bytes, mimeType: "image/jpeg" } })),
         zip: { _id: b.assets[2].assetId, _type: "sanity.fileAsset", sha1hash: b.assets[2].sha1,
           size: b.assets[2].bytes, mimeType } };
       const document = { ...gallery, _rev: "synthetic-revision" }, query = vi.fn().mockResolvedValue(data);
@@ -229,5 +268,28 @@ describe("offline legacy document candidates", () => {
       expect(gallery.published).toBe(false);
       expect(await createLegacyGalleryReader({ ...settings, documents: { read: vi.fn().mockResolvedValue(readable) }, now: () => deadline }).read(gallery.handle)).toBeUndefined();
     }
+  });
+  it("round-trips original JPEG file references through the reader without image transformations", async () => {
+    const s = fixture(), b = originalBindings(s), p = compile(s, b);
+    const gallery = p.candidateDocuments.find((d) => d._type === "legacyDeliveryGallery")!;
+    const assets = new Map(p.candidateAssets.map((a) => [a.assetId, a]));
+    const images = p.candidateDocuments.filter((d) => d._type === "legacyDeliveryImage").map((d) => {
+      const ref = d.originalFile!.asset, asset = assets.get(ref._ref)!;
+      return { ...d, galleryId: d.gallery._ref, galleryReferenceType: "reference",
+        sourcePresent: false, originalFilePresent: true,
+        sourceType: "file", sourceAssetId: ref._ref, sourceReferenceType: "reference",
+        asset: { _id: ref._ref, _type: "sanity.fileAsset", sha1hash: asset.sha1, size: asset.bytes, mimeType: "image/jpeg" } };
+    });
+    const zip = assets.get(b.assets[2].assetId)!;
+    const query = { query: vi.fn().mockResolvedValue({ images, zip: { _id: zip.assetId, _type: "sanity.fileAsset", sha1hash: zip.sha1, size: zip.bytes, mimeType: zip.mimeType } }) };
+    const document = { ...gallery, _rev: "synthetic-revision", published: true };
+    const reader = createLegacyGalleryReader({ config: p.target, batch: p.reviewDigest, query,
+      documents: { read: vi.fn().mockResolvedValue(document) }, now: () => deadline - 1 });
+    const view = await reader.read(gallery.handle);
+    expect(view?.images.map((i) => [i.src, i.width, i.height])).toEqual([
+      [`https://cdn.sanity.io/files/synthetic-project/production/${"1".repeat(40)}.jpg`, 3000, 2000],
+      [`https://cdn.sanity.io/files/synthetic-project/production/${"2".repeat(40)}.jpg`, 2000, 3000],
+    ]);
+    expect(view?.zipUrl).toBe(`https://cdn.sanity.io/files/synthetic-project/production/${"3".repeat(40)}.zip?dl=photographs.zip`);
   });
 });
