@@ -229,7 +229,9 @@ describe('existing curated gallery contents', () => {
  it.each([
   ['galleryLayout', 'masonry'],
   ['galleryCaptionPlacement', 'below'],
- ])('refuses erasing editor-owned %s on a rerun', async (field, value) => {
+  ['allowPhotoEnquiries', false],
+  ['allowPhotoEnquiries', true],
+ ] as const)('refuses erasing editor-owned %s on a rerun', async (field, value) => {
   const queries: string[] = [];
   const result = await runCollisionPreflight(connection,documents(),new Map([['travel','real-travel']]),mockRows(q => {
    queries.push(q);

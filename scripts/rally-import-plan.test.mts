@@ -229,6 +229,7 @@ describe("buildRallyImportPlan", () => {
       mediaId: "rally-example-2024-0000000000000001",
       mediaType: "image",
       publiclyRenderable: true,
+      enquiryEligible: true,
       captureSequence: { galleryContentId: "rally-example-2024", sequence: 1, sectionId: "ss1-harju-1" },
       image: { _type: "image", asset: { _type: "reference", _ref: "pending-asset:rally-example-2024-0000000000000001" } },
     });

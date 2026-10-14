@@ -391,6 +391,7 @@ describe("the plan is never writable from here", () => {
     });
     const media = result.documents.find((document) => document._type === "media");
     const articleDocument = result.documents.find((document) => document._type === "article");
+    expect(media).toMatchObject({ publiclyRenderable: true, enquiryEligible: true });
     expect(JSON.stringify(media)).toContain(PENDING_ASSET_PREFIX);
     expect(JSON.stringify(articleDocument?.canonicalCategory)).toContain(PENDING_CATEGORY_PREFIX);
     expect(result.writable).toBe(false);

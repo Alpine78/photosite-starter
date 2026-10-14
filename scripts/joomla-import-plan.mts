@@ -627,6 +627,7 @@ export function buildImportPlan(input: {
       mediaType: "image",
       alt: altEntries,
       publiclyRenderable: true,
+      enquiryEligible: true,
       // Resolved by the write step from the real derivative's bytes. A guessed
       // asset reference would publish a broken image; a guessed dimension would
       // break the no-crop contract, which needs the photograph's true shape.

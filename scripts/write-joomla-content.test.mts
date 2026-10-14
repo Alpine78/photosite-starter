@@ -126,6 +126,21 @@ function goodPlan(overrides: Partial<Record<string, unknown>> = {}): Record<stri
 }
 
 describe("validatePlanContract", () => {
+  it.each([undefined, false, true])("preserves an approved media enquiry setting %s", (enquiryEligible) => {
+    const documents = goodDocuments().map(document => document._type === "media" && enquiryEligible !== undefined
+      ? { ...document, enquiryEligible } : document);
+    const plan = goodPlan({ documents });
+    const before = JSON.stringify(plan);
+    expect(validatePlanContract(plan).issues).toEqual([]);
+    expect(JSON.stringify(plan)).toBe(before);
+  });
+
+  it.each([null, "true", 1])("rejects malformed media enquiry setting %s", (enquiryEligible) => {
+    const documents = goodDocuments().map(document => document._type === "media" ? { ...document, enquiryEligible } : document);
+    expect(validatePlanContract(goodPlan({ documents })).issues)
+      .toContainEqual(expect.stringMatching(/enquiryEligible must be boolean/));
+  });
+
   it("validates linked body text recursively before any write", () => {
     const spans = [{_type: "contentInlineSpan", _key: "s1", text: "Guide", href: "/stories/guide"}];
     const check = (body: unknown[]) => validatePlanContract(goodPlan({documents: goodDocuments().map(d => d._type === "article" ? {...d, body} : d)}));
@@ -1411,6 +1426,7 @@ describe("mergeExistingMediaFields and media mutations", () => {
       mediaId: "photo-1",
       mediaType: "image",
       publiclyRenderable: true,
+      enquiryEligible: true,
       alt: alt.map((entry, index) => ({ _key: `alt-${String(index + 1).padStart(2, "0")}`, _type: "localizedText", ...entry })),
       image: { _type: "image", asset: { _type: "reference", _ref: "image-new" } },
     };
@@ -1461,6 +1477,7 @@ describe("mergeExistingMediaFields and media mutations", () => {
     expect(merge.documents[0]).toEqual(original);
     const mutations = buildMediaMutations(merge.documents, merge.existingRevisionById);
     expect(mutations).toEqual([{ create: original }]);
+    expect(original.enquiryEligible).toBe(true);
 
     current = { _id: original._id, _type: "media", mediaId: "different-editor-photo" };
     await expect(runSeedMutationBatches(fakeConnection(), mutations, {

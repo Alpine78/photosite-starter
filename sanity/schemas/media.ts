@@ -389,8 +389,8 @@ export function defineMediaType(
         title: "May receive enquiries",
         type: "boolean",
         description:
-          "Turn this on to let a visitor start an enquiry about buying or licensing this photograph from a gallery. Off by default and never assumed from publication — an image can be public without being for sale.",
-        initialValue: false,
+          "Allow visitors to ask about this photograph from a public gallery. On for newly created photographs; turn it off to prevent enquiries everywhere. The gallery must also allow enquiries. This does not authorize sales or delivery.",
+        initialValue: true,
       },
       ...(options.datasetVisibility === "private" ? [archiveLocatorField] : []),
     ],

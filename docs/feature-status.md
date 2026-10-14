@@ -5034,3 +5034,15 @@ Chromium/WebKit enquiry/customer journeys passed. One pre-existing WebKit privat
 journey is skipped because Secure cookies are not stored on the harness HTTP loopback.
 Security review found no remaining issue in the changed request/media boundaries; real
 CMS activation and mailbox receipt remain operational checks. AB#289 remains Active.
+
+Follow-up default-on correction: new ordinary Studio media and newly generated public
+rally/Joomla plans explicitly initialize media enquiry permission to true. Existing false
+or missing permissions remain fail-closed, existing-media write patches leave permission
+untouched, and historical approved plans are not rewritten. A Joomla rerun refuses to
+erase an authored gallery enquiry setting. Targeted regression tests cover the new
+creation defaults, old-plan preservation, malformed permissions and rerun boundaries.
+The focused follow-up tests passed 376/376 in eight files with one worker and
+serial file execution; targeted ESLint passed. The first sandboxed run could not
+execute 19 CLI subprocess cases, and the complete focused rerun passed with
+normal process access. The earlier production build and public journeys precede
+this follow-up; the PR pipeline will validate the final merged source.

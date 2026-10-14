@@ -574,7 +574,18 @@ The lightbox offers the action only when this hint is true and the gallery allow
 
 Existing imported media may lack the opt-in. Enabling a gallery does not modify those
 media records: an exact owner-approved CMS plan must opt in the chosen public photographs.
-New Studio media retain the existing explicit opt-in default; the gallery field's help
-text explains both controls. Wedding choices are authored CMS values, never category-name
-rules in application code. Sales, dynamic-gallery permissions, and delivery boundaries
-remain separately governed.
+Before this amendment, Studio initialized media enquiry permission to false, while the
+rally/Joomla planners omitted it. Keeping those authoring defaults would leave a newly
+created public gallery without enquiry actions despite the owner's requested default-on
+behavior. For newly authored ordinary public `media`, Studio now initializes the separate
+permission to true; newly generated public rally/Joomla plans explicitly include true.
+This applies to ordinary public media in either dataset-visibility mode, not to protected
+client or retained legacy delivery documents. The value remains editable and is neither
+inferred from publication at read time nor shared with sales eligibility.
+
+Existing false or missing media permissions remain fail-closed. The writers preserve
+existing media permissions on rerun; historical approved plans are validated without
+injecting the new field or changing their approval digest. A Joomla gallery replacement
+refuses an editor-owned gallery enquiry setting instead of erasing it. Wedding choices
+are authored CMS values, never category-name rules in application code. Sales,
+dynamic-gallery permissions, and delivery boundaries remain separately governed.
