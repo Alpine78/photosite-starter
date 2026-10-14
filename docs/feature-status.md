@@ -379,6 +379,21 @@ a complete-image toggle, and stacked full-frame fallback for incompatible ratios
 image failures, and visitors without JavaScript. They join no viewer sequence.
 Sanity schema/projection and approval-bound Joomla comparison-module conversion
 ship together; conversion policy v3 retires earlier conversion approvals.
+
+AB#291 (2026-10-14) moves the native comparison slider onto the photograph: a
+48-pixel circular thumb with opposing arrows follows the full-height divider at
+the image's vertical midpoint. The narrow transparent track preserves native
+mouse/touch and keyboard operation, localized labels/value text and visible
+focus. Native ratios, full-frame/complete-image and scriptless/error/unequal-ratio
+fallbacks, captions and credits remain intact. ADR-0019 records the scoped
+placement amendment. The isolated branch adds production journeys for on-image
+geometry, native Chromium touch dragging and a 320-pixel viewport alongside the
+existing FI/EN article/gallery, WebKit touch, keyboard and fallback coverage.
+Validation: lint, all 6,159 deterministic tests and a fresh production build passed;
+all 33 comparison journeys passed without retries in desktop Chromium, mobile
+WebKit and mobile Chromium. AB#291 remains Active pending PR review and merge;
+no production activation is claimed by this source change.
+
 Inline mini-galleries (AB#24) are the seventh shared body-block kind: 1–12 public images,
 an optional title, a one/two-column uncropped row-major list, and a separate lightbox
 sequence per block. They enter neither the curated result nor the body's loose-image

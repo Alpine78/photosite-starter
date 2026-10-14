@@ -1,0 +1,83 @@
+/* Native thumb travel excludes its own width. Extend the transparent track by
+   one thumb width so the thumb centre and reveal boundary both reach 0–100%.
+   Only this 48px strip intercepts input; the photograph still scrolls normally. */
+.slider {
+  position: absolute;
+  top: 50%;
+  left: -24px;
+  width: calc(100% + 48px);
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  transform: translateY(-50%);
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: ew-resize;
+}
+
+.slider:focus-visible {
+  outline: none;
+}
+
+.handle {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  color: var(--color-accent-foreground);
+  pointer-events: none;
+}
+
+.slider:focus-visible + .handle {
+  border-radius: 50%;
+  outline: 2px solid var(--color-focus);
+  outline-offset: 6px;
+  box-shadow: 0 0 0 4px var(--color-accent-foreground);
+}
+
+.slider::-webkit-slider-runnable-track {
+  height: 48px;
+  background: transparent;
+}
+
+.slider::-moz-range-track {
+  height: 48px;
+  background: transparent;
+}
+
+.slider::-webkit-slider-thumb {
+  box-sizing: border-box;
+  width: 48px;
+  height: 48px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 3px solid var(--color-accent-foreground);
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.slider::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--color-accent-foreground);
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+
+.divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--color-accent-foreground);
+  box-shadow: 1px 0 var(--color-accent), -1px 0 var(--color-accent);
+  pointer-events: none;
+}
