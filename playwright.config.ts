@@ -168,6 +168,13 @@ export default defineConfig({
       use: { ...devices["iPhone 15"] },
     },
     {
+      // AB#291 verifies a real native touch drag in Blink as well as WebKit's
+      // mobile touch tap, without duplicating unrelated public journeys.
+      name: "mobile-chromium-comparison",
+      testMatch: "**/image-comparison.spec.ts",
+      use: { ...devices["Pixel 7"] },
+    },
+    {
       // AB#251 also checks mobile Blink without duplicating the full matrix.
       name: "mobile-chromium-lightbox",
       testMatch: "**/gallery-lightbox-continuity.spec.ts",
