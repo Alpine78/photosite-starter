@@ -38,6 +38,22 @@ describe("legacy CDN byte verification", () => {
     expect(report.limitations).toContain("does-not-establish-supported-upload");
     expect(JSON.stringify(report)).not.toContain("sourceLocator");
   });
+  it("verifies explicit original JPEG files with no image pipeline or ZIP attachment requirement", async () => {
+    const f = fixture(false);
+    Object.assign(f.bindings.assets[0], { kind: "file", assetId: `file-${sha1}-jpg` });
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response(data, { "content-length": String(data.length) }));
+    const report = await verify(fetcher, 1000, f);
+    expect(report.status).toBe("matched");
+    expect(fetcher.mock.calls[0][0]).toBe(`https://cdn.sanity.io/files/synthetic-project/production/${sha1}.jpg`);
+    expect(fetcher.mock.calls[0][1]).toMatchObject({ method: "GET", redirect: "manual", credentials: "omit" });
+    expect(JSON.stringify(fetcher.mock.calls)).not.toMatch(/dl=|dlRaw|authorization|token/iu);
+  });
+  it("refuses altered original JPEG file bytes even when its asset identity is declared correctly", async () => {
+    const f = fixture(false);
+    Object.assign(f.bindings.assets[0], { kind: "file", assetId: `file-${sha1}-jpg` });
+    expect((await verify(vi.fn<typeof fetch>().mockResolvedValue(response(Buffer.alloc(data.length))), 1000, f)).results[0].code).toBe("digest");
+    expect((await verify(vi.fn<typeof fetch>().mockResolvedValue(response(data, { "content-type": "application/zip" })), 1000, f)).results[0].code).toBe("headers");
+  });
   it("checks the runtime whole-ZIP link and attachment without splitting or recompression", async () => {
     const f = fixture(true);
     // Make image bytes/hash genuine too, and keep ZIP a distinct byte sequence.

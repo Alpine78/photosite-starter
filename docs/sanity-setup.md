@@ -542,6 +542,46 @@ never transformed. Image URLs have no transformation parameters. The direct ZIP
 URL uses the documented [`dl` parameter](https://www.sanity.io/docs/content-lake/manage-assets);
 live attachment/byte verification remains an import gate.
 
+### Original JPEG file delivery (2026-10-14)
+
+The Production byte check found that an unchanged uploaded JPEG's ordinary
+image-CDN response did not retain the original bytes. An upload response's
+`sha1hash` is therefore insufficient delivery evidence. Sanity's
+[image transformation reference](https://www.sanity.io/docs/apis-and-sdks/image-urls)
+distinguishes `dl` download headers from authenticated `dlRaw` original retrieval;
+the anonymous original-image request returned 401. Never send a CMS token to the
+browser to work around that boundary.
+
+An explicitly reviewed JPEG binding can instead declare `kind: "file"` and the
+exact `file-<sha1>-jpg` asset identity with MIME `image/jpeg`. It still carries the
+source-verified byte count, SHA-256, width, height and orientation 1. The compiler
+places its reference in the read-only `originalFile` field; older image bindings
+keep `source`. The reader rejects documents containing both, and validates the
+file identity, MIME and size before checking the ordered manifest. File assets
+have no image-pipeline dimensions: the reviewed dimensions remain bound to that
+manifest and cannot be inferred from provider metadata.
+
+Both thumbnails and the viewer use the direct `/files/…/<sha1>.jpg` URL, without
+transformation or download parameters and without the public image optimizer.
+The browser policy grants that configured project/dataset file path only to
+`img-src`; the public optimizer's allow-list remains image assets only
+([ADR-0011's scoped amendment](adr/0011-security-response-headers.md#scoped-amendment--2026-10-14-original-legacy-jpeg-file-delivery-ab250)).
+The original image binding grammar and manifest remain available for existing
+fixtures and reviewed history. A new file binding changes the document/asset
+candidate digest and requires a new exact import approval; it does not change the
+source review digest, gallery identities, order, deadlines or ZIPs. Complete
+anonymous CDN byte verification and browser rendering remain publication gates.
+This implementation is not evidence of a completed customer import or a provider
+support commitment. ADR-0028's existing public-asset and expiry disclosures apply.
+
+An isolated Preview experiment on 2026-10-14 uploaded one synthetic JPEG as a
+file asset. All 4,597 source bytes, SHA-1/SHA-256 and nonce EXIF were preserved
+through the anonymous file-CDN response. Chromium and WebKit rendered its native
+160 × 100 frame at 128 × 80. Only that owned fixture was deleted afterwards and
+the original twelve-document Preview baseline was restored. This proves the
+tested synthetic path; every real Production source still needs its own complete
+byte proof before publication.
+
 Before importing, independently verify the approved batch/source inventory,
 fresh baseline, quota/usage, recovery, notice and project webhook filters. The
 inspected production document hooks select ordinary types and exclude these

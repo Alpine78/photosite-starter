@@ -220,9 +220,10 @@ function permissionsPolicy(): string {
  * self-hosted Next.js app with no client-side third-party requests: images
  * come from this origin (plus this deployment's own validated Sanity project
  * and dataset *path* on the asset CDN when configured — not the bare host,
- * the same `/images/{projectId}/{dataset}/` prefix
- * `sanityImageRemotePatterns` scopes the image optimizer's own allow-list to,
- * so this grant cannot reach another Sanity customer's project on the same
+ * `/images/{projectId}/{dataset}/` for public renditions and
+ * `/files/{projectId}/{dataset}/` for ADR-0028's unchanged legacy JPEG files.
+ * The optimizer still allows only the images prefix; this browser image grant
+ * cannot reach another Sanity customer's project on the same
  * shared CDN host), the one opt-in video embed frames from its known origin,
  * and nothing else is ever fetched, framed, or submitted cross-origin.
  *
@@ -254,10 +255,10 @@ function contentSecurityPolicy(
   settings: SanityBuildSettings | null,
   privateObjectStoreOrigin?: string,
 ): string {
-  const sanityImageOrigin =
+  const sanityImageOrigins =
     settings === null
       ? ""
-      : ` https://${SANITY_ASSET_CDN_HOST}/images/${settings.projectId}/${settings.dataset}/`;
+      : ` https://${SANITY_ASSET_CDN_HOST}/images/${settings.projectId}/${settings.dataset}/ https://${SANITY_ASSET_CDN_HOST}/files/${settings.projectId}/${settings.dataset}/`;
   const scriptSrc =
     process.env.NODE_ENV === "development"
       ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
@@ -271,7 +272,7 @@ function contentSecurityPolicy(
     "frame-ancestors 'none'",
     scriptSrc,
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data:${sanityImageOrigin}${
+    `img-src 'self' data:${sanityImageOrigins}${
       privateObjectStoreOrigin === undefined ? "" : ` ${privateObjectStoreOrigin}`
     }`,
     `frame-src ${YOUTUBE_NOCOOKIE_ORIGIN}`,

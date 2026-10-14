@@ -979,3 +979,20 @@ AB#117 stays Active. The protected historical old-key receivers, pre-DNS alias
 indexing, remaining legacy mapping and private-customer continuity remain explicit
 residuals alongside final launch controls. No new CMS mutation, credential
 retirement, contact POST or DNS change was performed by this documentation follow-up.
+
+## Original legacy JPEG file delivery — 2026-10-14 (AB#250 / AB#117)
+
+The retained-gallery byte gate rejected an ordinary image-CDN response because
+its bytes differed from the unchanged uploaded JPEG. Upload metadata alone does
+not prove public delivery preserves embedded metadata. The explicit alternative
+JPEG file binding is validated in the importer/compiler, legacy reader and byte
+verifier; it renders through the file CDN with no optimizer or transforms.
+
+The effective browser policy must permit that same configured project/dataset
+file path in `img-src`; otherwise valid file bytes are blocked at presentation.
+The scoped amendment to ADR-0011 adds this path without granting a bare CDN host,
+other projects/datasets, script/connect access or file access through the public
+optimizer. Ordinary public media and protected-gallery delivery contracts are
+unchanged. The import approval and complete live byte/browser checks are separate
+gates. This source correction does not claim customer publication, provider
+support, completed credential retirement or the final AB#117 acceptance.
