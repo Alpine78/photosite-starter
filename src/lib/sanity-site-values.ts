@@ -159,6 +159,7 @@ export type RawSiteLink = {
   readonly description?: unknown;
   readonly target?: unknown;
   readonly href?: unknown;
+  readonly categoryId?: unknown;
 };
 
 function readLinkTarget(
@@ -224,6 +225,24 @@ export function projectNavigationItems(
       `${field}.label`,
       options.reject,
     );
+
+    if (link.target === "category") {
+      if (typeof link.categoryId !== "string" || link.categoryId.length > 200 ||
+          !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(link.categoryId)) {
+        options.reject(`${field} has an invalid stable category identity`);
+      }
+      if (link.href !== undefined && link.href !== null && link.href !== "") {
+        options.reject(`${field} stores a path for a category`);
+      }
+      const identity = `category:${link.categoryId}`;
+      if (identities.has(identity)) options.reject(`${options.field} repeats a category`);
+      identities.add(identity);
+      result.push({ label, categoryId: link.categoryId });
+      continue;
+    }
+    if (link.categoryId !== undefined && link.categoryId !== null && link.categoryId !== "") {
+      options.reject(`${field} stores a category identity for another target`);
+    }
 
     if (link.target === "featured-gallery") {
       if (link.href !== undefined && link.href !== null && link.href !== "") {

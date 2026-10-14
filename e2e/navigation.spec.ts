@@ -9,6 +9,7 @@ import { expect, test } from "./support/fixtures";
 import {
   appUnderTestEnvironment,
   DEFAULT_STORY_NAMESPACE,
+  PREFIXED_LOCALE,
 } from "./support/harness-environment";
 import { headerMenuToggle, openHeaderNavigation } from "./support/public-page";
 
@@ -431,3 +432,36 @@ test("the wide header layout fits the viewport at its own breakpoint, with no pa
     expect(usingCompact).toBe(width < 1024);
   }
 });
+
+
+for (const locale of ["en", "fi"] as const) {
+  test(`ordered featured, services, stories and category shortcuts use actual ${locale} destinations`, async ({ page, request }) => {
+    const prefix = locale === "fi" ? `/${PREFIXED_LOCALE.prefix}` : "";
+    const namespace = locale === "fi" ? PREFIXED_LOCALE.storyNamespace : DEFAULT_STORY_NAMESPACE;
+    const input = mockContentTreeInputs[locale];
+    const tree = buildContentTree(input);
+    const shortcut = `${prefix}/${namespace}/${getCategoryPath(tree, "cat-landscape").join("/")}`;
+    await page.goto(prefix || "/", { waitUntil: "domcontentloaded" });
+    const navigation = await openHeaderNavigation(page);
+    const topLinks = navigation.locator(":scope > ul > li > a, :scope > ul > li > div > a");
+    const destinations = await topLinks.evaluateAll(links => links.map(link => link.getAttribute("href")));
+    expect(destinations.slice(1,4)).toEqual([
+      `${prefix}/${locale === "fi" ? PREFIXED_LOCALE.serviceNamespace : "services"}`,
+      `${prefix}/${namespace}`,
+      shortcut,
+    ]);
+    expect(destinations[0]).toMatch(new RegExp(`^${prefix}/${namespace}/`));
+    for (const href of destinations.slice(0,4)) {
+      const response = await request.get(href!);
+      expect(response.status()).toBe(200);
+    }
+    const link = topLinks.filter({ hasText: /./ }).nth(3);
+    await link.focus();
+    await expect(link).toBeFocused();
+    await page.keyboard.press("Enter");
+    await page.waitForURL(`**${shortcut}`);
+    await expect(page.getByRole("heading", {level:1})).toBeVisible();
+    const current = (await openHeaderNavigation(page)).locator(`:scope > ul > li > div > a[href="${shortcut}"]`);
+    await expect(current).toHaveAttribute("aria-current","page");
+  });
+}

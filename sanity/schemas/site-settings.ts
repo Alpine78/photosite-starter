@@ -105,6 +105,7 @@ function httpsUrl(value: string | undefined): SchemaValidationResult {
 type RawNavigationItem = {
   readonly target?: unknown;
   readonly href?: unknown;
+  readonly categoryId?: unknown;
 };
 
 export function validateNavigationList(
@@ -123,7 +124,9 @@ export function validateNavigationList(
         ? [String(item.href)]
         : item.target === "story-root"
           ? ["story-root", ...storyRootPaths]
-          : [String(item.target)];
+          : item.target === "category"
+            ? [`category:${String(item.categoryId)}`]
+            : [String(item.target)];
     const repeated = destinations.find((destination) => claimed.has(destination));
     if (repeated !== undefined) {
       return `Navigation contains the destination "${repeated}" more than once`;

@@ -2,7 +2,8 @@
  * Shared link targets for site chrome and the home page.
  *
  * A link may name an application-owned static route, the generated story root,
- * or the one gallery selected in site settings. Category paths never live here:
+ * or the one gallery selected in site settings. Navigation alone can also name
+ * a stable category identity. Category paths never live here:
  * ADR-0003 makes the public category tree their only owner.
  */
 
@@ -35,6 +36,7 @@ export const ROOT_RELATIVE_PATH = /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(
 type RawSiteLink = {
   readonly target?: unknown;
   readonly href?: unknown;
+  readonly categoryId?: unknown;
 };
 
 export function isStaticSitePath(value: unknown): value is string {
@@ -47,6 +49,9 @@ export function validateSiteLinkTarget(
   if (value === undefined) return true;
 
   const target = value.target;
+  if (value.categoryId !== undefined && value.categoryId !== "") {
+    return "This target must not store a category identity";
+  }
   if (!SITE_LINK_TARGETS.includes(target as SiteLinkTarget)) {
     return "Choose a static route, the generated story root, or the featured gallery";
   }
@@ -89,11 +94,21 @@ const targetFields = [
   },
 ] as const;
 
+export function validateNavigationTarget(value: RawSiteLink | undefined): SchemaValidationResult {
+  if (value?.target !== "category") return validateSiteLinkTarget(value);
+  if (typeof value.categoryId !== "string" || value.categoryId.length > 200 ||
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value.categoryId)) {
+    return "A category shortcut needs its stable category ID";
+  }
+  return value.href === undefined || value.href === ""
+    ? true : "A category shortcut must not store a path";
+}
+
 export const navigationItemType: SchemaTypeDefinition = {
   name: NAVIGATION_ITEM_TYPE_NAME,
   title: "Navigation item",
   type: "object",
-  validation: (rule) => rule.custom<RawSiteLink>(validateSiteLinkTarget),
+  validation: (rule) => rule.custom<RawSiteLink>(validateNavigationTarget),
   fields: [
     {
       name: "label",
@@ -102,7 +117,20 @@ export const navigationItemType: SchemaTypeDefinition = {
       of: [{ type: LOCALIZED_TEXT_TYPE_NAME }],
       validation: (rule) => uniqueLanguages(rule.required().min(1)),
     },
-    ...targetFields,
+    {
+      ...targetFields[0],
+      options: {
+        ...targetFields[0].options,
+        list: [...targetFields[0].options.list, { title: "Category shortcut", value: "category" }],
+      },
+    },
+    targetFields[1],
+    {
+      name: "categoryId",
+      title: "Category ID",
+      type: "string",
+      description: "Only for a category shortcut. Use its stable category ID; the public content tree supplies each language’s current path.",
+    },
   ],
   preview: { select: { title: "label.0.value", subtitle: "target" } },
 };

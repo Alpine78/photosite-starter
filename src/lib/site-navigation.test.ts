@@ -477,3 +477,30 @@ it('links the story root with only root-placed content', () => {
   expect(items.map(item=>item.href)).toContain('/tarinat');
   expect(resolveStaticNavigationLinks({links:[{label:'Tarinat',href:'/tarinat'}],config,locale:'fi',tree})).toEqual([{label:'Tarinat',href:'/tarinat'}]);
 });
+
+
+describe("stable category shortcuts", () => {
+  it("keeps a category after the generated story section and derives its current locale path", () => {
+    for (const locale of ["fi", "en"]) {
+      const items = build({ locale, staticLinks: [
+        { label: "Services", href: "/services" },
+        { label: "Stories", href: "/tarinat" },
+        { label: "Journal", categoryId: "cat-landscape" },
+      ] });
+      expect(items.map(item => item.label)).toEqual(["Services", "Stories", "Journal"]);
+      expect(items[2]).toMatchObject({ key: "category:cat-landscape", href: `${locale === "fi" ? "/tarinat" : "/en/stories"}/landscape`, children: [] });
+      expect(items[1].children.length).toBeGreaterThan(0);
+    }
+  });
+  it("follows translated and moved category slugs without storing any path", () => {
+    const moved = buildContentTree({ ...treeInput, categories: treeInput.categories.map(category =>
+      category.categoryId === "cat-landscape" ? { ...category, slug: "maisemat", parentId: "cat-travel" } : category) });
+    expect(build({ tree: moved, staticLinks: [{label:"Journal", categoryId:"cat-landscape"}] })[0].href).toBe("/tarinat/travel/maisemat");
+  });
+  it("omits missing, empty and unpublished categories in both menu and footer", () => {
+    const links = [{label:"Missing", categoryId:"cat-missing"}, {label:"Empty", categoryId:"cat-archive"}];
+    expect(build({ staticLinks: links })).toHaveLength(1);
+    expect(resolveStaticNavigationLinks({ links, config, locale:"fi", tree })).toEqual([]);
+    expect(build({ staticLinks: links, tree: undefined })).toEqual([]);
+  });
+});

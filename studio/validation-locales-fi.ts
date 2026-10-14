@@ -1,5 +1,8 @@
 /** {{pN}} placeholders retain the original validation values verbatim. */
 export const validationFinnish = {
+  "A category shortcut needs its stable category ID": "Kategorian pikalinkki tarvitsee kategorian pysyvän tunnisteen",
+  "A category shortcut must not store a path": "Kategorian pikalinkki ei saa tallentaa polkua",
+  "This target must not store a category identity": "Tämä kohde ei saa tallentaa kategorian tunnistetta",
   "An image media needs an uploaded image": "Kuvamedia vaatii ladatun kuvan",
   "Choose a canonical category or select Place at story root.": "Valitse kanoninen kategoria tai valitse Sijoita tarinajuureen.",
   "Choose a static route, the generated story root, or the featured gallery": "Valitse staattinen reitti, luotu tarinajuuri tai esittelygalleria",

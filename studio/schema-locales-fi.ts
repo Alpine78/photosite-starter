@@ -77,6 +77,8 @@ export const schemaFinnish = {
   "Explicitly indefinite": "Nimenomaisesti toistaiseksi voimassa",
   "Eyebrow": "Ylätunniste",
   "Facts": "Tiedot",
+  "Category shortcut": "Kategorian pikalinkki",
+  "Only for a category shortcut. Use its stable category ID; the public content tree supplies each language’s current path.": "Vain kategorian pikalinkille. Käytä kategorian pysyvää tunnistetta; julkinen sisältöpuu määrittää kunkin kielen nykyisen polun.",
   "Featured gallery": "Esittelygalleria",
   "Featured gallery ID": "Esittelygallerian tunniste",
   "Fields awaiting review": "Tarkistusta odottavat kentät",

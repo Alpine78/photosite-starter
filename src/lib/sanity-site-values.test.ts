@@ -103,3 +103,20 @@ describe("readSingletonDocument", () => {
 function fail(...args: readonly unknown[]): never {
   throw new Error(`unexpected rejection: ${JSON.stringify(args)}`);
 }
+
+
+describe("category navigation projection", () => {
+  const options = { language:"fi", locale:"fi-FI", config, field:"navigation", reject:fail };
+  const category = { label:localized("Journal"), target:"category", categoryId:"cat-journal" };
+  it("projects only the label and stable identity", () => {
+    expect(projectNavigationItems([{...category, internal:"not public"}],options)).toEqual([{label:"Journal",categoryId:"cat-journal"}]);
+  });
+  it.each([undefined, null, "", "../private", "cat_unsafe", "a".repeat(201), 42])("rejects malformed category identity %s", categoryId => {
+    expect(() => projectNavigationItems([{...category, categoryId}],options)).toThrow();
+  });
+  it("refuses paths, duplicate identities and category IDs on other target kinds", () => {
+    expect(() => projectNavigationItems([{...category, href:"/tarinat/journal"}],options)).toThrow();
+    expect(() => projectNavigationItems([category,category],options)).toThrow();
+    expect(() => projectNavigationItems([{...category,target:"static",href:"/contact"}],options)).toThrow();
+  });
+});
