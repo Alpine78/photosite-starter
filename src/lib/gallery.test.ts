@@ -967,6 +967,12 @@ describe("selectCuratedGalleryCover", () => {
 });
 
 describe("curated gallery fixtures", () => {
+  it("carries an authored disabled gallery permission to the home portfolio read", async () => {
+    expect((await getMockGalleryResult("en", "content-layout-single"))?.allowPhotoEnquiries).toBe(false);
+    expect((await getMockGalleryResult("fi", "content-layout-single"))?.allowPhotoEnquiries).toBe(false);
+    expect((await getMockGalleryResult("en", MOCK_FEATURED_GALLERY_ID))?.allowPhotoEnquiries).toBeUndefined();
+  });
+
   it("keeps the featured gallery's authored order and captions", async () => {
     const result = await mockPage("en", MOCK_FEATURED_GALLERY_ID);
 

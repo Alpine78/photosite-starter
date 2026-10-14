@@ -1,4 +1,4 @@
-import { mockMediaAllowsEnquiries } from "@/lib/mock-enquiry-policy";
+import { mockGalleryEnquiryPermission, mockMediaAllowsEnquiries } from "@/lib/mock-enquiry-policy";
 import {
   getGalleryBoundaryImages,
   type GalleryBoundaryImages,
@@ -701,6 +701,10 @@ export async function getMockGalleryResult(
   const language = new Intl.Locale(locale).language;
   const gallery = getOrBuildGallery(language, contentId);
   if (gallery === undefined) return undefined;
+  const permission = mockGalleryEnquiryPermission(contentId);
+  const enquiryPermission = permission === undefined
+    ? {}
+    : { allowPhotoEnquiries: permission };
 
   // The section predicate is applied before `selectGalleryWindow` ever sees a
   // row — the seam a store-backed adapter (AB#114) would turn into a `WHERE
@@ -743,12 +747,13 @@ export async function getMockGalleryResult(
     source,
     ...(cursorCodec === undefined ? {} : { cursorCodec }),
   });
-  if (!includeTopicCounts || gallery.sections.length === 0) return page;
+  if (!includeTopicCounts || gallery.sections.length === 0) return { ...page, ...enquiryPermission };
   const publicPlacements = gallery.placements.filter(
     (placement) => placement.visible && placement.privateOnly !== true,
   );
   return {
     ...page,
+    ...enquiryPermission,
     topicCounts: {
       all: publicPlacements.length,
       sections: Object.fromEntries(

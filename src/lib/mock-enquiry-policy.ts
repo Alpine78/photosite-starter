@@ -6,3 +6,8 @@ const allowedFixtureMedia = new Set([
 export function mockMediaAllowsEnquiries(mediaId: string): boolean {
   return allowedFixtureMedia.has(mediaId);
 }
+
+/** One fixture gallery is disabled in both locales; others use the enabled default. */
+export function mockGalleryEnquiryPermission(contentId: string): boolean | undefined {
+  return contentId === "content-layout-single" ? false : undefined;
+}

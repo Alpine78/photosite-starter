@@ -662,6 +662,7 @@ describe("readSanityCuratedGalleryPage", () => {
    */
   function fakeGalleryStore(options: {
     readonly placements: readonly FixturePlacement[];
+    readonly allowPhotoEnquiries?: unknown;
     readonly sections?: readonly { readonly sectionId: string; readonly slug: string; readonly label: string }[];
     readonly orderingRule?: string;
     readonly orderingSeed?: string;
@@ -725,6 +726,7 @@ describe("readSanityCuratedGalleryPage", () => {
           return [
             {
               _id: galleryDocumentId,
+              allowPhotoEnquiries: options.allowPhotoEnquiries,
               orderingRule: options.orderingRule ?? "manual",
               ...(seed === undefined ? {} : { orderingSeed: seed }),
               sections: (options.sections ?? []).map((section) => ({
@@ -942,6 +944,18 @@ describe("readSanityCuratedGalleryPage", () => {
       "gallery.placements.basics",
       "gallery.placements.window",
     ]);
+  });
+
+  it.each([undefined, true, false])("carries the gallery enquiry permission %s through the bounded page", async (allowPhotoEnquiries) => {
+    const { client, requests } = fakeGalleryStore({ placements: [], allowPhotoEnquiries });
+    const page = await readPage(client);
+    expect(page?.allowPhotoEnquiries).toBe(allowPhotoEnquiries);
+    expect(requests[0]?.query).toContain("allowPhotoEnquiries");
+  });
+
+  it("rejects a malformed gallery enquiry permission before serving a page", async () => {
+    const { client } = fakeGalleryStore({ placements: [], allowPhotoEnquiries: "false" });
+    await expect(readPage(client)).rejects.toMatchObject({ rejection: "malformed-result" });
   });
 
   it(`reaches every one of ${LARGE_ARCHIVE_SIZE} items without duplicates or gaps across page boundaries`, async () => {

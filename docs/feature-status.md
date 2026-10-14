@@ -5061,6 +5061,15 @@ execute 19 CLI subprocess cases, and the complete focused rerun passed with
 normal process access. The earlier production build and public journeys precede
 this follow-up; the PR pipeline will validate the final merged source.
 
+Review follow-up: the home page's featured-gallery lightbox now reads the same
+gallery-wide enquiry permission as the gallery page, from the existing bounded
+gallery-basics query. A disabled featured gallery shows no enquiry action on
+the home page; the server still rejects direct submissions. The mock source
+shares its fixture permission across the detail and featured-gallery reads.
+The focused source/component regression set passed 202/202 tests in three files
+with one worker; targeted ESLint and TypeScript checking passed. The complete
+PR pipeline and deployed FI/EN behavior remain to be verified.
+
 ### AB#293 — bounded CI test concurrency (2026-10-14)
 
 The shared self-hosted agent runs Vitest and Playwright with one worker each.

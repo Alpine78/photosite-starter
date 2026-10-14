@@ -1822,6 +1822,7 @@ function readGallerySections(value: unknown, contentId: string): readonly Galler
 
 type RawGalleryPaginationBasicsDocument = {
   readonly _id?: unknown;
+  readonly allowPhotoEnquiries?: unknown;
   readonly orderingRule?: unknown;
   readonly orderingSeed?: unknown;
   readonly sections?: unknown;
@@ -1860,6 +1861,7 @@ type RawGalleryPaginationBasicsDocument = {
  */
 const GALLERY_PAGINATION_BASICS_QUERY = `*[${GALLERY_FILTER} && contentId == $contentId][0...2]{
   _id,
+  allowPhotoEnquiries,
   orderingRule,
   orderingSeed,
   sections[]{sectionId, slug, label, intro},
@@ -1985,6 +1987,13 @@ export async function readSanityCuratedGalleryPage(
   const basics = resolveUniqueDocument<RawGalleryPaginationBasicsDocument>(raw, contentId);
   if (basics === undefined) return undefined;
 
+  if (basics.allowPhotoEnquiries != null && typeof basics.allowPhotoEnquiries !== "boolean") {
+    throw new SanityGalleryError("malformed-result", "the gallery enquiry setting is not boolean", contentId);
+  }
+  const enquiryPermission = basics.allowPhotoEnquiries == null
+    ? {}
+    : { allowPhotoEnquiries: basics.allowPhotoEnquiries };
+
   const galleryDocumentId = readGalleryDocumentId(basics._id, contentId);
   const ordering = resolveOrdering(basics.orderingRule, basics.orderingSeed, contentId);
 
@@ -2055,9 +2064,10 @@ export async function readSanityCuratedGalleryPage(
     source,
     ...(options.cursorCodec === undefined ? {} : { cursorCodec: options.cursorCodec }),
   });
-  if (!options.includeTopicCounts || sections.length === 0) return page;
+  if (!options.includeTopicCounts || sections.length === 0) return { ...page, ...enquiryPermission };
   return {
     ...page,
+    ...enquiryPermission,
     topicCounts: await readSanityGalleryTopicCounts(
       client,
       galleryDocumentId,

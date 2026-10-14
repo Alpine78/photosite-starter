@@ -208,6 +208,7 @@ export async function HomePage({ searchParams, locale }: HomePageProps) {
           activeSlug={portfolioPage.selectedSection?.slug}
           topicCounts={portfolioPage.topicCounts}
           slice={projectGallerySlice(portfolioPage)}
+          enquiriesEnabled={portfolioPage.allowPhotoEnquiries !== false}
           locale={locale}
           labels={labels}
         />
