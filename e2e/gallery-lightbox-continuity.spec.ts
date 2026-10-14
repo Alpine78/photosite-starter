@@ -30,6 +30,20 @@ async function expectPosition(dialog: Locator, position: number, total: number) 
   await expect(dialog.getByText(`${position}${labels.lightbox.indexSeparator}${total}`, { exact: true })).toBeVisible();
 }
 
+async function expectEnquiryAction(page: Page, dialog: Locator, itemId: string, allowed: boolean) {
+  const enquiry = dialog.locator("[data-gallery-enquire]");
+  if (!allowed) {
+    await expect(enquiry).toBeHidden();
+    await expect(enquiry).not.toHaveAttribute("href", /.+/);
+    return;
+  }
+  await expect(enquiry).toBeVisible();
+  await expect.poll(async () => {
+    const href = await enquiry.getAttribute("href");
+    return href === null ? null : new URL(href, page.url()).searchParams.get("enquire");
+  }).toBe(itemId);
+}
+
 async function openAt(page: Page, index: number) {
   const dialog = page.getByRole("dialog");
   await openLightbox(dialog, () => triggers(page).nth(index).click());
@@ -351,13 +365,17 @@ test("a request started from the grid shares its pending and failed state with t
 test("crosses several cursor boundaries in order and stops at an exact-multiple end", async ({ page }) => {
   test.slow();
   const expectedIds: string[] = [];
+  const expectedEnquiryAllowed: boolean[] = [];
   let cursor: string | undefined;
   for (let slice = 0; slice < 3; slice += 1) {
     const result = await getMockGalleryResult(language, archive.contentId, { cursor, cursorCodec: codec });
     if (!result) throw new Error("[e2e] Missing archive slice");
     expectedIds.push(...result.items.map((item) => item.itemId));
+    expectedEnquiryAllowed.push(...result.items.map((item) => item.enquiryAllowed === true));
     cursor = result.page.endCursor ?? undefined;
   }
+  expect(expectedEnquiryAllowed).toContain(true);
+  expect(expectedEnquiryAllowed).toContain(false);
   await page.goto(archive.path, { waitUntil: "load" });
   let requests = 0;
   await page.route("**/api/gallery**", async (route) => {
@@ -373,8 +391,7 @@ test("crosses several cursor boundaries in order and stops at an exact-multiple 
       : position >= archive.count - 5 ? archive.count * 2 : archive.count;
     if (position > 1) await page.keyboard.press("ArrowRight");
     await expectPosition(dialog, position, total);
-    const enquiry = dialog.getByRole("link", { name: labels.lightbox.enquire, exact: true });
-    await expect.poll(async () => new URL((await enquiry.getAttribute("href"))!, page.url()).searchParams.get("enquire")).toBe(expectedIds[position - 1]);
+    await expectEnquiryAction(page, dialog, expectedIds[position - 1], expectedEnquiryAllowed[position - 1]);
   }
   await expect(dialog.getByRole("status")).toHaveText(labels.lightbox.lastImage);
   await page.keyboard.press("ArrowRight");
@@ -423,20 +440,25 @@ test("a section stays scoped through every page and its true terminal item", asy
 
 for (const contentId of ["content-large-archive", "content-masonry-below"]) {
   test(`closing an appended item restores its viewport and occurrence: ${contentId}`, async ({ page }) => {
+    const first = await getMockGalleryResult(language, contentId, { cursorCodec: codec });
+    if (!first?.page.endCursor) throw new Error("[e2e] Missing continuation cursor");
+    const second = await getMockGalleryResult(language, contentId, { cursor: first.page.endCursor, cursorCodec: codec });
+    const appended = second?.items[0];
+    if (!appended) throw new Error("[e2e] Missing appended photograph");
     await page.goto(pathFor(contentId), { waitUntil: "load" });
     const dialog = await openAt(page, archive.count - 1);
     await expect.poll(() => triggers(page).count()).toBeGreaterThan(archive.count);
     await nextButton(dialog).click();
     const target = triggers(page).nth(archive.count);
     const itemId = await target.getAttribute("data-item-id");
+    expect(itemId).toBe(appended.itemId);
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
     await expectPreviewVisible(target);
     // Opening again reads the grown list; repeating media may never select
     // another occurrence with the same mediaId.
     await openLightbox(dialog, () => target.press("Enter"));
-    const enquiry = dialog.getByRole("link", { name: labels.lightbox.enquire, exact: true });
-    await expect.poll(async () => new URL((await enquiry.getAttribute("href"))!, page.url()).searchParams.get("enquire")).toBe(itemId);
+    await expectEnquiryAction(page, dialog, appended.itemId, appended.enquiryAllowed === true);
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
     await expectPreviewVisible(target);

@@ -187,6 +187,16 @@ first; an unknown, unpublished, private, or non-enquirable item, or a dynamic
 enquiry the content source cannot yet authorize, all resolve to one generic
 `404` so a probe cannot tell which check failed.
 
+**Gallery permission (AB#289).** Public galleries have a default-on
+`allowPhotoEnquiries` switch. An explicit `false` hides the lightbox action and
+refuses direct enquiry pages; the POST resolver checks it again before looking
+up the photograph. The photograph must still have its own `enquiryEligible`
+opt-in, be public, and not be private-only. A derived result-item boolean controls
+lightbox visibility without exposing the media permission record or archive data.
+Customer galleries (protected and retained legacy delivery) have no enquiry entry
+point and cannot acquire one through this public-gallery switch. Imported public
+photographs without an opt-in need a separately reviewed CMS content operation.
+
 **Where the resolved facts go.** Into the body of the email the site owner
 receives, and nowhere else. The `archiveLocator` in particular appears **only**
 in that email — never in the HTTP response, never in an operational-log line,

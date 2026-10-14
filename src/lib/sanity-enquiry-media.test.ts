@@ -135,6 +135,33 @@ describe("the enquiry media projection stays apart from the public one", () => {
 });
 
 describe("resolveSanityEnquiryTarget — curated", () => {
+  it.each([undefined, null, true])("allows the default-on gallery permission %s", async (allowPhotoEnquiries) => {
+    const { client } = fakeClient(twoStep({
+      galleryRowsByLanguage: { en: [{ _id: "gallery-en", allowPhotoEnquiries }] },
+    }));
+    expect(await resolveSanityEnquiryTarget(CURATED, "en", { client, config: PUBLIC_CONFIG }))
+      .toMatchObject({ mediaId: "northern-coast" });
+  });
+
+  it.each([
+    [false, "not-enquirable"], ["true", "malformed-source"], [0, "malformed-source"],
+  ])("rejects gallery permission %s before reading media", async (allowPhotoEnquiries, code) => {
+    const { client, requests } = fakeClient(twoStep({
+      galleryRowsByLanguage: { en: [{ _id: "gallery-en", allowPhotoEnquiries }] },
+    }));
+    const error = await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PUBLIC_CONFIG }));
+    expect(error.rejection).toBe(code);
+    expect(requests).toHaveLength(1);
+  });
+
+  it.each([undefined, null, false])("gallery permission cannot opt a photograph in: %s", async (enquiryEligible) => {
+    const { client } = fakeClient(twoStep({
+      placementRows: [placementRow({ media: mediaRow({ enquiryEligible }) })],
+    }));
+    const error = await rejectionOf(() => resolveSanityEnquiryTarget(CURATED, "en", { client, config: PUBLIC_CONFIG }));
+    expect(error.rejection).toBe("not-enquirable");
+  });
+
   it("resolves the placement scoped to this language's gallery document", async () => {
     const { client, requests } = fakeClient(twoStep({}));
 

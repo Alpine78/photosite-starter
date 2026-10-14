@@ -813,6 +813,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
       // `/api/enquiry` — so it renders for any syntactically valid `itemId`
       // and a gallery being reordered does not block it.
       if (resolution.enquire !== undefined) {
+        if (page.allowPhotoEnquiries === false) notFound();
         return (
           <GalleryItemEnquiry
             locale={locale}

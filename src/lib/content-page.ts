@@ -231,6 +231,8 @@ export type ArticleContentPage = ContentPageBase & {
  */
 export type GalleryContentPage = ContentPageBase & GalleryPresentationFields & {
   readonly variant: "gallery";
+  /** Gallery may subtract enquiry permission; unset means enabled. */
+  readonly allowPhotoEnquiries?: boolean;
 };
 
 /**

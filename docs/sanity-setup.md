@@ -357,12 +357,22 @@ Verify which one you have during provisioning rather than assuming — a dataset
 public and later filled with archive paths is a disclosure, not a misconfiguration to fix
 later.
 
-**Enquiries are opt-in per photograph.** The media document carries a *May receive
-enquiries* switch (`enquiryEligible`), off by default in every dataset. A photograph can
-be public without being one a visitor may ask to buy or license, so this is never inferred
-from publication — turn it on only for work you are willing to field enquiries about
-(AB#60). It is a plain yes/no the site acts on, not sensitive data, so it exists whether
-the dataset is public or private.
+**Enquiries have separate photograph and gallery controls (AB#289).** Newly created
+ordinary public media initialize *May receive enquiries* (`enquiryEligible`) to `true`,
+and newly generated public rally/Joomla import plans record that value explicitly.
+Turn it off to prevent enquiries about that photograph in every gallery. The public
+gallery's *Allow photograph enquiries* switch also defaults on; turning it off blocks
+all photograph enquiries from that gallery. These controls exist in public and private
+Content Lake datasets; dataset visibility is separate from client-gallery authorization.
+
+Existing photographs with a missing or false media permission remain unavailable for
+enquiries. Schema defaults do not update them, and import reruns preserve their existing
+permission. Activating selected imported photographs needs an exact reviewed CMS operation.
+An approved historical plan is never rewritten to inject the new default. A Joomla rerun
+refuses to replace a gallery with an editor-owned enquiry setting, preserving its choice.
+Public visibility, `privateOnly`, and gallery authorization are still checked independently;
+this enquiry default grants no sales or delivery permission and does not apply to protected
+client or retained legacy delivery documents.
 
 **Visibility never applies to assets.** Uploaded files are served from public CDN URLs in
 both cases. That is what the export rules below exist for.

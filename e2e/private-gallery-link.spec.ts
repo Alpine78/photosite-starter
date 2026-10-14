@@ -475,6 +475,7 @@ test.describe("private gallery session in a browser", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       GALLERY_HEADING,
     );
+    await expect(page.locator('[data-gallery-enquire], a[href*="enquire="]')).toHaveCount(0);
     // The bootstrap's status region belongs to the unauthorized document only.
     await expect(page.getByRole("status")).toHaveCount(0);
   });

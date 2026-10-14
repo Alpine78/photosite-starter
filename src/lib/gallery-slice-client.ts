@@ -34,6 +34,7 @@ function isGalleryItem(value: unknown): value is Record<string, unknown> {
 
   return (
     isNonEmptyString(value.itemId) &&
+    (value.enquiryAllowed === undefined || typeof value.enquiryAllowed === "boolean") &&
     isNonEmptyString(value.mediaId) &&
     isOptionalString(value.placementId) &&
     isOptionalString(value.sectionId) &&
@@ -53,6 +54,7 @@ function isLightboxSlide(value: unknown): value is Record<string, unknown> {
   return (
     isRecord(value) &&
     isNonEmptyString(value.itemId) &&
+    (value.enquiryAllowed === undefined || typeof value.enquiryAllowed === "boolean") &&
     isNonEmptyString(value.mediaId) &&
     isNonEmptyString(value.src) &&
     isOptionalString(value.srcset) &&
@@ -110,6 +112,7 @@ function isGallerySlice(value: unknown): value is GallerySlice {
     // lightbox source separately, but the public subject must stay the same.
     if (
       item.itemId !== slide.itemId ||
+      item.enquiryAllowed !== slide.enquiryAllowed ||
       item.mediaId !== slide.mediaId ||
       media.alt !== slide.alt ||
       media.caption !== slide.caption ||

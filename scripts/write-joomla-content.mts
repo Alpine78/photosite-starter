@@ -453,6 +453,10 @@ function checkNestedDocumentShapes(document: Record<string, unknown>, path: stri
     }
   }
   if (document._type === MEDIA_TYPE_NAME) {
+    // New plans opt in new public media; approved historical plans stay unchanged.
+    if (document.enquiryEligible !== undefined && typeof document.enquiryEligible !== "boolean") {
+      issues.push(`${path}.enquiryEligible must be boolean when present`);
+    }
     if (isPlainObject(document.image)) {
       checkFieldSet(document.image, IMAGE_FIELDS, `${path}.image`, issues);
       const ownMediaId = typeof document.mediaId === "string" ? document.mediaId : undefined;
@@ -550,7 +554,7 @@ export function validatePlanContract(raw: unknown): { readonly issues: readonly 
     galleryPlacement: CURATED_PLACEMENT_FIELDS,
     poll: new Set(["_id", "_type", "pollId", "language", "question", "options", "closeDate"]),
     pollTally: new Set(["_id", "_type", "pollId", "counts"]),
-    [MEDIA_TYPE_NAME]: new Set(["_id", "_type", "mediaId", "mediaType", "alt", "caption", "credit", "publiclyRenderable", "image"]),
+    [MEDIA_TYPE_NAME]: new Set(["_id", "_type", "mediaId", "mediaType", "alt", "caption", "credit", "publiclyRenderable", "enquiryEligible", "image"]),
     [ARTICLE_TYPE_NAME]: new Set([
       "_id",
       "_type",
@@ -1347,7 +1351,7 @@ export async function runCollisionPreflight(
   const articleIds = articles.map((document) => document._id);
   for (const idsChunk of chunkIdsByByteBudget(articleIds)) {
     const rows = await runQuery({
-      query: `*[_id in $ids]{_id, language, slug, canonicalAtStoryRoot, orderingRule, orderingSeed, sections, galleryLayout, galleryCaptionPlacement, "canonicalCategoryId": canonicalCategory->categoryId}`,
+      query: `*[_id in $ids]{_id, language, slug, canonicalAtStoryRoot, orderingRule, orderingSeed, sections, galleryLayout, galleryCaptionPlacement, allowPhotoEnquiries, "canonicalCategoryId": canonicalCategory->categoryId}`,
       params: { ids: idsChunk },
     });
     for (const row of rows) {
@@ -1361,7 +1365,7 @@ export async function runCollisionPreflight(
       if (planned._type === "gallery") {
         // These editor-owned fields are outside the importer's allow-list.
         // A whole-document replacement would erase them even on an exact rerun.
-        for (const field of ["galleryLayout", "galleryCaptionPlacement"] as const) {
+        for (const field of ["galleryLayout", "galleryCaptionPlacement", "allowPhotoEnquiries"] as const) {
           if (row[field] != null) {
             collisions.push(`gallery "${row._id}" has an editor-owned ${field} — refusing to erase it`);
           }

@@ -730,6 +730,7 @@ export function buildRallyImportPlan(input: {
       mediaType: "image",
       alt: localizedTextArray(alt, manifest.languages),
       publiclyRenderable: true,
+      enquiryEligible: true,
       captureSequence: {
         galleryContentId: manifest.contentId,
         sequence,

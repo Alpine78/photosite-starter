@@ -235,8 +235,15 @@ export function GalleryLightbox({
     const refreshEnquireHref = () => {
       if (enquireElement === null || enquiryBasePath === undefined) return;
       const itemId = identitiesOf(lightbox.pswp?.currSlide?.data)?.itemId;
-      if (itemId === undefined) return;
-      enquireElement.href = `${enquiryBasePath}?enquire=${encodeURIComponent(itemId)}`;
+      const allowed = itemId !== undefined &&
+        slidesRef.current.find((slide) => slide.itemId === itemId)?.enquiryAllowed === true;
+      enquireElement.hidden = !allowed;
+      enquireElement.style.display = allowed ? "" : "none";
+      if (allowed && itemId !== undefined) {
+        enquireElement.href = `${enquiryBasePath}?enquire=${encodeURIComponent(itemId)}`;
+      } else {
+        enquireElement.removeAttribute("href");
+      }
     };
     // The library's own zoom button, resolved from the dialog the first time it
     // is needed rather than in `uiRegister` — that event fires while the UI is
@@ -542,6 +549,8 @@ export function GalleryLightbox({
             anchor.dataset.galleryEnquire = "";
             anchor.setAttribute("aria-label", enquire);
             anchor.title = enquire;
+            anchor.hidden = true;
+            anchor.style.display = "none";
             enquireElement = anchor;
             refreshEnquireHref();
           },

@@ -29,6 +29,8 @@ test("legacy delivery has full frames, direct sources, one ZIP and keyboard view
   await expect(page.getByRole("link", { name: labels.legacyGallery.download })).toHaveAttribute("href", /^\/gallery\/legacy-fixture\.[a-f0-9]{12}\.zip$/);
   const opener = page.getByRole("main").getByRole("button").first();
   await opener.focus(); await openLightbox(page.getByRole("dialog"), () => page.keyboard.press("Enter"));
+  await expect(page.getByRole("dialog").locator("[data-gallery-enquire]")).toHaveCount(0);
+  await expect(page.locator('a[href*="enquire="]')).toHaveCount(0);
   await page.keyboard.press("ArrowRight");
   await expect.poll(async () => (await presentedImage(page.getByRole("dialog")))?.alt).toBe("Geometric portrait");
   await page.keyboard.press("Escape");

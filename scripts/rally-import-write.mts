@@ -36,7 +36,7 @@ const CONTENT_HASH = /^[0-9a-f]{64}$/u;
 
 /** Exactly the fields the planner emits, per document type. */
 const MEDIA_FIELDS = new Set([
-  "_id", "_type", "mediaId", "mediaType", "alt", "publiclyRenderable", "captureSequence", "image",
+  "_id", "_type", "mediaId", "mediaType", "alt", "publiclyRenderable", "enquiryEligible", "captureSequence", "image",
 ]);
 const GALLERY_FIELDS = new Set([
   "_id", "_type", "contentId", "language", "title", "slug", "summary", "publishedAt", "eventDate",
@@ -145,6 +145,10 @@ export function validateRallyPlanContract(raw: unknown): {
     if (!isReference(isPlainObject(document.image) ? document.image.asset : undefined, `${PENDING_ASSET_PREFIX}${mediaId}`)
       || !isPlainObject(document.image) || document.image._type !== "image" || Object.keys(document.image).length !== 2) {
       issues.push(`${at} must reference its own pending asset`);
+    }
+    // Existing approved plans may omit the field; never infer or inject it here.
+    if (document.enquiryEligible !== undefined && typeof document.enquiryEligible !== "boolean") {
+      issues.push(`${at} enquiryEligible must be boolean when present`);
     }
     const alt = document.alt;
     if (
