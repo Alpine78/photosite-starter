@@ -386,6 +386,13 @@ export const galleryType: SchemaTypeDefinition = {
         ),
     },
     {
+      name: "allowPhotoEnquiries",
+      title: "Allow photograph enquiries",
+      type: "boolean",
+      initialValue: true,
+      description: "Allow enquiries from this public gallery. Each photograph must also be opted in. Client galleries never use this action.",
+    },
+    {
       name: "summary",
       title: "Short lead",
       type: "text",

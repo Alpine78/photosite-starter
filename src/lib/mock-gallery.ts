@@ -1,3 +1,4 @@
+import { mockMediaAllowsEnquiries } from "@/lib/mock-enquiry-policy";
 import {
   getGalleryBoundaryImages,
   type GalleryBoundaryImages,
@@ -525,6 +526,7 @@ function buildPlacements(
       order: index,
       visible: input.visible ?? true,
       media: images[input.image],
+      enquiryAllowed: mockMediaAllowsEnquiries(images[input.image].mediaId),
       ...(caption === undefined ? {} : { captionOverride: caption }),
       ...(input.sectionId === undefined ? {} : { sectionId: input.sectionId }),
       ...(pinned ? { pinned: true } : {}),
@@ -558,6 +560,7 @@ function buildCaptureSequenceRow(
     order: input.sequence,
     visible: true,
     media: { ...images[input.image], mediaId: input.placementId },
+    enquiryAllowed: mockMediaAllowsEnquiries(input.placementId),
     ...(input.sectionId === undefined ? {} : { sectionId: input.sectionId }),
   };
 }

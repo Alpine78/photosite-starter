@@ -145,6 +145,8 @@ export type CuratedGalleryPlacement = {
   readonly placementId: string;
   readonly order: number;
   readonly visible: boolean;
+  /** Server-derived enquiry action permission; absence grants nothing. */
+  readonly enquiryAllowed?: boolean;
   readonly media: Media;
   /**
    * The media record's `privateOnly` flag (ADR-0002), surfaced on the placement
@@ -423,6 +425,9 @@ export function assertPlacements(
     if (!Number.isSafeInteger(placement.order) || placement.order < 0) {
       throw new TypeError("placement.order must be a non-negative safe integer");
     }
+    if (placement.enquiryAllowed !== undefined && typeof placement.enquiryAllowed !== "boolean") {
+      throw new TypeError("placement.enquiryAllowed must be boolean when provided");
+    }
     if (typeof placement.visible !== "boolean") {
       throw new TypeError("placement.visible must be a boolean");
     }
@@ -501,6 +506,7 @@ function projectCuratedItem(
 
   return {
     itemId: placement.placementId,
+    ...(placement.enquiryAllowed === undefined ? {} : { enquiryAllowed: placement.enquiryAllowed }),
     mediaId: media.mediaId,
     placementId: placement.placementId,
     media,

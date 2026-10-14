@@ -280,6 +280,22 @@ describe("projectGalleryContentPage", () => {
     ...overrides,
   });
 
+  it("preserves explicit gallery enquiry choices and defaults unset galleries on", () => {
+    for (const allowPhotoEnquiries of [true, false]) {
+      expect(projectGalleryContentPage(detailOf({ allowPhotoEnquiries }), languages))
+        .toMatchObject({ allowPhotoEnquiries });
+    }
+    for (const allowPhotoEnquiries of [undefined, null]) {
+      expect(projectGalleryContentPage(detailOf({ allowPhotoEnquiries }), languages))
+        .not.toHaveProperty("allowPhotoEnquiries");
+    }
+    for (const allowPhotoEnquiries of ["true", 1, {}]) {
+      expect(() => projectGalleryContentPage(detailOf({ allowPhotoEnquiries }), languages))
+        .toThrow(SanityGalleryError);
+    }
+    expect(galleryType.fields.find((field) => field.name === "allowPhotoEnquiries")?.initialValue).toBe(true);
+  });
+
   it("validates authored presentation overrides without injecting defaults", () => {
     expect(projectGalleryContentPage(detailOf(), languages)).not.toHaveProperty("galleryLayout");
     expect(projectGalleryContentPage(detailOf({ galleryLayout: "justified", galleryCaptionPlacement: "overlay" }), languages))

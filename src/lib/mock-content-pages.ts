@@ -42,6 +42,7 @@ import { getMockImages, mockImages } from "@/lib/mock-media";
 
 /** What a page adds to the record a card already carries. */
 type AuthoredPage = GalleryPresentationFields & {
+  readonly allowPhotoEnquiries?: boolean;
   readonly variant: ContentVariant;
   readonly endGalleryId?: string;
   /**
@@ -272,7 +273,7 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-grid-overlay": { variant: "gallery", galleryLayout: "grid", galleryCaptionPlacement: "overlay", summaryListingOnly: true, body: [] },
   "content-justified-below": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
-  "content-layout-single": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
+  "content-layout-single": { variant: "gallery", allowPhotoEnquiries: false, galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-capture-sequence": { variant: "gallery", body: [] },
   "content-reading-coastal-light": {
@@ -715,7 +716,7 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
   "content-grid-overlay": { variant: "gallery", galleryLayout: "grid", galleryCaptionPlacement: "overlay", summaryListingOnly: true, body: [] },
   "content-justified-below": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-justified-overlay": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
-  "content-layout-single": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
+  "content-layout-single": { variant: "gallery", allowPhotoEnquiries: false, galleryLayout: "justified", galleryCaptionPlacement: "below", body: [] },
   "content-layout-pair": { variant: "gallery", galleryLayout: "justified", galleryCaptionPlacement: "overlay", body: [] },
   "content-capture-sequence": { variant: "gallery", body: [] },
   "content-reading-coastal-light": {

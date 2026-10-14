@@ -554,3 +554,27 @@ ADR-0022 records the measurements.
   through ordinary placements, each with its own `placementId`.
 - **Cost:** a capture-sequence occurrence cannot subtract visibility or override text on
   its own. Its media record is the only place those live.
+
+
+## Scoped amendment — 2026-10-14: gallery enquiry permission (AB#289)
+
+The owner requested a gallery-level enquiry switch, enabled by default, and no enquiry
+controls on customer delivery galleries. Section 4's media-owned opt-in remains: public
+visibility alone grants no enquiry or sales permission. A public gallery now owns
+`allowPhotoEnquiries`; absent/null means enabled, explicit `false` subtracts permission.
+Malformed non-boolean values are rejected at the CMS boundary. This is a public-gallery
+setting; protected client and retained legacy delivery galleries never use it.
+
+A permitted curated or capture-sequence enquiry therefore requires both the gallery
+permission and the existing media opt-in/public/private checks. The server reads the
+gallery permission afresh before resolving the selected media. Public result items may
+carry one derived boolean `enquiryAllowed` for rendering the action; it carries no archive
+or provider information and is not authorization. The media projection remains unchanged.
+The lightbox offers the action only when this hint is true and the gallery allows it.
+
+Existing imported media may lack the opt-in. Enabling a gallery does not modify those
+media records: an exact owner-approved CMS plan must opt in the chosen public photographs.
+New Studio media retain the existing explicit opt-in default; the gallery field's help
+text explains both controls. Wedding choices are authored CMS values, never category-name
+rules in application code. Sales, dynamic-gallery permissions, and delivery boundaries
+remain separately governed.

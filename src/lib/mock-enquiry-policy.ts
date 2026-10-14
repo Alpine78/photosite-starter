@@ -1,0 +1,8 @@
+/** Synthetic public action hints; no archive/provider records are exposed. */
+const allowedFixtureMedia = new Set([
+  "coastal-landscape", "forest-stream", "open-marsh", "misty-birch",
+  "capture-sequence-0002", "boundary-portrait",
+]);
+export function mockMediaAllowsEnquiries(mediaId: string): boolean {
+  return allowedFixtureMedia.has(mediaId);
+}

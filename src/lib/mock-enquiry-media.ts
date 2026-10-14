@@ -18,6 +18,7 @@
 
 import "server-only";
 
+import { mockContentPages } from "@/lib/mock-content-pages";
 import {
   assertEnquiryEligible,
   EnquiryResolutionError,
@@ -52,6 +53,7 @@ type MockEnquiryRecord = {
  * - `lichen-stones`: private-only — `not-public`, which wins over everything.
  */
 const MOCK_ENQUIRY_RECORDS: Readonly<Record<string, MockEnquiryRecord>> = {
+  "boundary-portrait": { enquiryEligible: true, dynamicallyDiscoverable: false },
   "coastal-landscape": {
     enquiryEligible: true,
     dynamicallyDiscoverable: true,
@@ -127,6 +129,11 @@ export function resolveMockEnquiryTarget(
       ...(media.caption === undefined ? {} : { caption: media.caption }),
       ...(media.credit === undefined ? {} : { credit: media.credit }),
     };
+  }
+
+  const gallery = mockContentPages[language]?.get(request.contentId);
+  if (gallery?.variant === "gallery" && gallery.allowPhotoEnquiries === false) {
+    throw new EnquiryResolutionError("not-enquirable");
   }
 
   const placement = findMockCuratedPlacement(

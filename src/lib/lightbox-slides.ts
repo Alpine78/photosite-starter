@@ -19,6 +19,8 @@ import type { ImageMedia, Media } from "@/lib/media";
 export type LightboxSlide = {
   /** Result identity: which trigger opened this slide, and returns focus. */
   readonly itemId: string;
+  /** Server-derived enquiry action permission; absence grants nothing. */
+  readonly enquiryAllowed?: boolean;
   /** Media identity: which photo this is, independent of its placement. */
   readonly mediaId: string;
   /** Full-frame presentation source: public derivative, or ADR-0028's bounded legacy exception. */
@@ -81,6 +83,7 @@ export function buildLightboxSlides(
 
     return {
       itemId: item.itemId,
+      ...(item.enquiryAllowed === undefined ? {} : { enquiryAllowed: item.enquiryAllowed }),
       mediaId: item.mediaId,
       src,
       ...(srcset === undefined ? {} : { srcset }),

@@ -1,5 +1,8 @@
 /** Studio interface copy only; English keys and stored content are unchanged. */
 export const schemaFinnish = {
+  "Allow photograph enquiries": "Salli valokuvatiedustelut",
+  "Allow enquiries from this public gallery. Each photograph must also be opted in. Client galleries never use this action.": "Salli tiedustelut tästä julkisesta galleriasta. Myös kunkin valokuvan tiedustelujen on oltava sallittuja. Asiakasgallerioissa tätä toimintoa ei ole.",
+
   "A bounded set of named tabs, each holding one data table. Every tab's table renders, stacked and labelled, without JavaScript.": "Rajattu joukko nimettyjä välilehtiä, joista jokainen sisältää yhden taulukon. Jokaisen välilehden taulukko näytetään ilman JavaScriptiä päällekkäin ja nimettyinä.",
   "A content placement, separate from a gallery's curated result set: it never enters the image grid, lightbox sequence, sections, or pagination (ADR-0003 decision 2).": "Sisältösijoitus, joka on erillään gallerian kuratoidusta tulosjoukosta: se ei koskaan päädy kuvaruudukkoon, lightbox-järjestykseen, osioihin tai sivutukseen (ADR-0003, päätös 2).",
   "A public portrait image shown at its native ratio, without cropping.": "Julkinen muotokuva, joka näytetään alkuperäisessä kuvasuhteessaan rajaamatta.",

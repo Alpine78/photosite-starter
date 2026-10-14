@@ -13,6 +13,8 @@ export type GalleryCursor = string & {
 export type GalleryResultItem<TMedia extends Media = ImageMedia> = {
   /** Result identity used by UI selection, navigation, and focus restoration. */
   readonly itemId: string;
+  /** Server-derived enquiry action permission; absence grants nothing. */
+  readonly enquiryAllowed?: boolean;
   /** Stable media identity used by media-level enquiry and later sales flows. */
   readonly mediaId: string;
   /** Curated placement identity; dynamic adapters omit it. */

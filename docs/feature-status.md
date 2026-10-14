@@ -4961,3 +4961,27 @@ parser validation without being printed. 6,159 deterministic tests, lint and
 34 production-built Chromium/WebKit journeys pass, with four existing skips.
 Customer import, activation and deployed old-link checks remain separate gates;
 AB#250/117/18 stay Active.
+
+
+### AB#289 — gallery enquiry controls and imported opt-in diagnosis (2026-10-14)
+
+Active, awaiting PR acceptance and the exact Production content operation. Public
+galleries gain an FI/EN Studio switch that defaults on; explicit off hides the action,
+rejects a direct enquiry page, and is checked again by the server before reading media.
+The lightbox also hides actions for photographs without media opt-in, including when
+moving between slides. Per-item action hints stay outside the public media projection.
+Protected client and retained legacy galleries receive no enquiry entry point.
+
+A read-only Production lookup reproduced the owner's reported capture-sequence context:
+the photograph was public and in the correct gallery but its `enquiryEligible` field was
+unset. Code deployment alone cannot opt that content in. The private revision-bound plan
+covers 40 wedding gallery documents off, 24 ordinary gallery documents on, and 1,927
+public ordinary-gallery media with missing opt-ins; explicit media denials are preserved.
+The operation requires the exact content approval, recovery/readback, and temporary-key
+cleanup. No Production content write or real message was performed for this change.
+
+Validation: 6,169 unit tests across 265 files, lint, production build, and 31
+Chromium/WebKit enquiry/customer journeys passed. One pre-existing WebKit private-session
+journey is skipped because Secure cookies are not stored on the harness HTTP loopback.
+Security review found no remaining issue in the changed request/media boundaries; real
+CMS activation and mailbox receipt remain operational checks. AB#289 remains Active.
