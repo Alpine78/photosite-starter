@@ -5,7 +5,9 @@
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#18; security/privacy gate AB#117
 
-The access/storage direction is accepted; ZIP transport remains unresolved.
+The original 2026-10-10 decision accepted the access/storage direction while
+ZIP transport remained unresolved. The dated 2026-10-14 amendment below records
+the owner-approved exception to the written-support prerequisite.
 
 ## Context
 
@@ -156,3 +158,44 @@ customer publication. Keep real customer content out of Preview and test traces.
 5. Review implementation/continuity readiness before the **2026-10-15** legacy
    host retirement. This is a checkpoint, not a new end date for indefinite
    galleries. Future customer galleries require a separate scope decision.
+
+
+## Scoped amendment — 2026-10-14 whole-ZIP support exception
+
+The owner requires the site to launch on 2026-10-14 despite the unanswered Sanity
+Discord inquiry. In response to the explicit question about using the current
+file-upload path for the twelve whole customer packages without written Sanity
+support, the owner answered: “Hyväksyn tämän poikkeuksen”. AB#250 records the
+same changed acceptance condition.
+
+This amendment replaces **only** Decision 4's supported-method prerequisite and
+Action Item 1's support-confirmation prerequisite for the twelve packages in the
+existing twenty-one-gallery retained set. Their original sizes remain
+128,872,189–2,032,617,616 bytes. The private source-review digest remains
+`0aa373c67a3dee45619c22cf525a17ec55991541802fdf9ebbce5f5c0c3a4814`.
+It grants no exception for new customer galleries or a different asset set.
+
+The owner accepts the previously observed upload path with no provider support
+commitment: a later enforcement or change of the documented request limit could
+break future uploads. The earlier successful synthetic Preview transfer is
+feasibility evidence; neither it nor this owner decision proves a supported
+Production guarantee. The Discord answer remains absent at this decision.
+
+Before each gallery is published, verify its original source bytes and **every
+complete Production CDN response**, including the intact single ZIP attachment
+where present, against the expected lengths and SHA-1/SHA-256 digests. An upload
+or verification failure stops that gallery's publication. Preserve one whole
+package; splitting, recompression, omission, Vercel byte proxying and additional
+paid products remain unauthorized. Preserve receipts and reconcile ambiguous
+requests before any retry.
+
+All other conditions remain: the exact owner-reviewed mutation scope, fresh
+complete recoverable baseline, preserved deadlines and exclusions, original
+JPEG dimensions/metadata, current usage/capacity evidence, data-flow/visitor
+notice reconciliation, temporary least-privilege writer cleanup, and actual
+deployed gallery/download verification. Unlisted public delivery and the
+non-revocation/cache limitations remain as accepted above.
+
+This is an accepted risk decision, not an import receipt, a successful download,
+a privacy approval, or completion of AB#250/117/18. The application and provider
+boundaries remain unchanged; the amendment introduces no new processor or store.
