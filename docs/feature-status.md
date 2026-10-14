@@ -4937,6 +4937,15 @@ AB#255 continuation, 2026-10-12: [Finnish Studio core resource additions](audits
 
 AB#255 Studio drag accessibility completion, 2026-10-13: [Localized keyboard-drag instructions and announcements](audits/ab255-studio-drag-localization-2026-10-13.md) close the observed English array-instruction gap in #371. A documented Vite alias wraps the pinned DndContext API while retaining handlers and native contexts. All installed versions/integrities remain unchanged. Authenticated FI/EN instructions and browser-event activation/cancellation were checked without moving, dropping or changing content. Full tests/lint/Studio and Next builds pass; final-head CI and PR review remain. Hosted activation and all-page acceptance are separate; AB#255 remains Active.
 
+**Automation bypass rotation execution, 2026-10-14 (AB#287, Active):**
+[The redacted execution record](audits/ab287-launch-bypass-rotation-2026-10-14.md)
+confirms the owner-approved replacement of the CI/local/Preview-hook consumers,
+fresh successful main CI 977, four HTTP-200 revocations without regeneration and
+SSO refusal of all four old values. Native readback contains one default replacement;
+Preview access/noindex, both hook signing configurations and other protection
+settings are preserved. AB#287 remains Active pending review/merge. AB#117's final
+security/privacy acceptance and final serving-version evidence remain open.
+
 **Automation bypass rotation preparation, 2026-10-13 (AB#285, Active):**
 [Fresh consumer inventory and private operation](audits/ab285-bypass-rotation-readiness-2026-10-13.md)
 cover four project entries, one current CI/local value and the enabled native Preview

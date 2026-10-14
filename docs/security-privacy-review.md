@@ -161,6 +161,14 @@ identifies current CI and native Preview-hook consumers before replacing exposed
 automation bypasses. Four entries exist; three still lack a confirmed consumer.
 No key/header/CI-secret mutation or residual-risk acceptance was performed.
 
+2026-10-14 execution: [AB#287’s owner-approved rotation](audits/ab287-launch-bypass-rotation-2026-10-14.md)
+updated the existing CI/local/Preview-hook consumers to one verified replacement.
+Fresh main CI 977 succeeded before all four exposed entries were revoked; native
+readback contains one default replacement and each old value now receives the SSO
+challenge. Hook signing and other protection settings are preserved. The owner
+explicitly accepted retirement of the three entries with unconfirmed consumers.
+AB#287 remains Active pending its evidence PR; AB#117’s final acceptance stays open.
+
 
 **Verified now, from code and this repository's own provisioned accounts:**
 
