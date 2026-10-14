@@ -33,6 +33,10 @@ for (const locale of locales) {
     expect(after?.headers()["cache-control"]).toContain("no-store");
     expect(after?.headers()["x-robots-tag"]).toBe("noindex, nofollow");
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    const notice = page.getByRole("region", { name: labels.legacyGallery.noticeTitle });
+    await expect(notice).toBeVisible();
+    await expect(notice).toContainText(labels.legacyGallery.publicAccessNotice);
+    await expect(notice).toContainText(labels.legacyGallery.fileRetentionNotice);
     await expect(page.getByRole("link", { name: labels.legacyGallery.download })).toBeVisible();
     const beforeHTML = await before.text();
     const images = await page.getByRole("main").getByRole("img").evaluateAll((nodes) => nodes.map((node) => ({ src: (node as HTMLImageElement).getAttribute("src"), alt: (node as HTMLImageElement).alt })));
