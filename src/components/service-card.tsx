@@ -63,7 +63,7 @@ export function ServiceCard({
           </p>
         )}
         {!compact && startingPrice && (
-          <p className="mt-3 text-sm font-medium text-body">
+          <p className="mt-3 whitespace-nowrap text-sm font-medium text-body">
             {startingPrice}
           </p>
         )}

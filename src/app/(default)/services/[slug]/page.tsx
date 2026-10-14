@@ -157,8 +157,8 @@ export default async function ServicePage({ params }: ServicePageProps) {
                 {pricing.map((pkg) => (
                   <div key={pkg.name}>
                     <div className="flex items-baseline justify-between gap-4">
-                      <dt className="text-sm font-medium">{pkg.name}</dt>
-                      <dd className="text-sm font-medium text-body">
+                      <dt className="min-w-0 flex-1 text-sm font-medium wrap-anywhere">{pkg.name}</dt>
+                      <dd className="shrink-0 whitespace-nowrap text-sm font-medium text-body">
                         {pkg.price}
                       </dd>
                     </div>
