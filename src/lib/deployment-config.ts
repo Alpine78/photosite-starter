@@ -104,7 +104,7 @@ export type BuiltInLabels = {
    * closed access window, and a wrong capability are deliberately
    * indistinguishable, so the page never reveals whether a handle exists.
    */
-  readonly legacyGallery: { readonly title: string; readonly unavailable: string; readonly download: string };
+  readonly legacyGallery: { readonly title: string; readonly unavailable: string; readonly download: string; readonly noticeTitle: string; readonly publicAccessNotice: string; readonly fileRetentionNotice: string };
   readonly privateGallery: {
     readonly title: string;
     readonly opening: string;
@@ -602,7 +602,12 @@ const englishLabels = {
     pricing: "Pricing",
     packages: "Packages",
   },
-  legacyGallery: { title: "Your gallery", unavailable: "This gallery is unavailable.", download: "Download all photographs (ZIP)" },
+  legacyGallery: {
+    title: "Your gallery", unavailable: "This gallery is unavailable.", download: "Download all photographs (ZIP)",
+    noticeTitle: "Sharing this gallery and its files",
+    publicAccessNotice: "This retained delivery gallery and its files are publicly accessible without signing in. The gallery link can be shared. Gallery information and file references can also be read from the public dataset; exclusion from listings and search engines does not restrict access.",
+    fileRetentionNotice: "Photographs retain their original size and embedded metadata. Any delivery ZIP is one complete package. Closing or expiring the gallery page does not revoke direct file links or remove downloaded or cached copies. Contact the website owner to request removal; immediate removal from every cache or recipient’s copies cannot be promised.",
+  },
   privateGallery: {
     title: "Private gallery",
     opening: "Opening your gallery…",
@@ -910,7 +915,12 @@ const finnishLabels = {
     pricing: "Hinnoittelu",
     packages: "Paketit",
   },
-  legacyGallery: { title: "Galleriasi", unavailable: "Galleria ei ole saatavilla.", download: "Lataa kaikki kuvat (ZIP)" },
+  legacyGallery: {
+    title: "Galleriasi", unavailable: "Galleria ei ole saatavilla.", download: "Lataa kaikki kuvat (ZIP)",
+    noticeTitle: "Gallerian ja tiedostojen jakaminen",
+    publicAccessNotice: "Tämä säilytetty toimitusgalleria ja sen tiedostot ovat julkisesti saatavilla ilman kirjautumista. Gallerialinkin voi välittää toiselle. Gallerian tiedot ja tiedostoviittaukset ovat luettavissa myös julkisesta aineistosta; piilottaminen listauksista ja hakukoneilta ei rajoita pääsyä.",
+    fileRetentionNotice: "Kuvat säilyttävät alkuperäisen kokonsa ja metatietonsa. Mahdollinen toimitus-ZIP on yksi kokonainen paketti. Galleriasivun sulkeminen tai määräajan päättyminen ei estä suoria tiedostolinkkejä eikä poista ladattuja tai välimuistissa olevia kopioita. Poistopyynnöt voi lähettää sivuston omistajalle; välitöntä poistumista kaikista välimuisteista tai vastaanottajien omista kopioista ei voida luvata.",
+  },
   privateGallery: {
     title: "Yksityinen galleria",
     opening: "Avataan galleriaasi…",

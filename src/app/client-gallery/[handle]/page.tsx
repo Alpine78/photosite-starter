@@ -17,6 +17,11 @@ export default async function LegacyGalleryPage({ params }: { params: Promise<{ 
     <main className="mx-auto max-w-7xl px-4 py-8">
       <RestrictedPageLanguages pathname={`/client-gallery/${handle}`} locale={locale} />
       <h1 className="mb-6 text-2xl">{gallery.title || labels.legacyGallery.title}</h1>
+      <section aria-labelledby="legacy-delivery-notice" className="mb-6 space-y-2 text-sm text-muted">
+        <h2 id="legacy-delivery-notice" className="font-semibold">{labels.legacyGallery.noticeTitle}</h2>
+        <p>{labels.legacyGallery.publicAccessNotice}</p>
+        <p>{labels.legacyGallery.fileRetentionNotice}</p>
+      </section>
       {gallery.zipUrl && <a href={gallery.zipUrl} className="mb-8 inline-block underline focus-visible:outline-2 focus-visible:outline-focus" referrerPolicy="no-referrer">{labels.legacyGallery.download}</a>}
       <GalleryLightbox slides={gallery.images} labels={labels.lightbox}>
         <ul className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">

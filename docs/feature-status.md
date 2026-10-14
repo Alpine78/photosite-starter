@@ -4917,6 +4917,8 @@ stalled during compilation and was stopped; the unrestricted synthetic retry
 passed. Full Playwright remains the updated required CI gate.
 
 
+AB#250 legacy visitor notice, 2026-10-14: retained delivery pages now display FI/EN text describing public unauthenticated gallery/files, public dataset enumeration, sharing, original dimensions/metadata, whole ZIPs and the limits of page expiry/removal. The semantic labelled section appears before the download and photographs. Ordinary public and protected-gallery surfaces retain their existing policy. Customer import and deployment remain gated; AB#250/117/18 remain Active.
+
 ### AB#250 — exact CDN byte verification and real release blocker (2026-10-12)
 
 The owner-requested continuation adds an offline-by-default, credential-free CDN
