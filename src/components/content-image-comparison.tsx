@@ -7,6 +7,7 @@ import {
   type ImageComparisonBlock,
 } from "@/lib/content-image-comparison";
 import type { BuiltInLabels } from "@/lib/deployment-config";
+import styles from "./content-image-comparison.module.css";
 
 const subscribeToNothing = () => () => {};
 
@@ -39,8 +40,8 @@ export function ContentImageComparison({
     <section role="region" aria-label={name} className="space-y-3">
       {block.title && <p className="font-semibold text-foreground">{block.title}</p>}
       <div
-        className={reveal ? "grid gap-y-2" : "space-y-4"}
-        style={reveal ? { maxWidth: Math.min(block.first.rendition.width, block.second.rendition.width) } : undefined}
+        className={reveal ? "grid gap-y-2 px-6" : "space-y-4"}
+        style={reveal ? { maxWidth: Math.min(block.first.rendition.width, block.second.rendition.width) + 48 } : undefined}
         data-comparison-view={reveal ? "reveal" : "complete"}
       >
         {sides.map(({ image, label }, side) => (
@@ -68,8 +69,34 @@ export function ContentImageComparison({
           </figure>
         ))}
         {reveal && (
-          <div aria-hidden="true" className="pointer-events-none relative" style={{ gridArea: "1 / 1" }}>
-            <span className="absolute top-0 bottom-0 w-1 bg-accent" style={{ left: `${position}%`, transform: "translateX(-50%)" }} />
+          <div className="relative" style={{ gridArea: "1 / 1" }}>
+            <span
+              aria-hidden="true"
+              className={styles.divider}
+              style={{ left: `${position}%` }}
+            />
+            <label htmlFor={`${id}-position`} className="sr-only">{labels.position}</label>
+            <input
+              id={`${id}-position`}
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={position}
+              onChange={(event) => setPosition(Number(event.target.value))}
+              aria-valuetext={`${block.firstLabel} ${position}%, ${block.secondLabel} ${100 - position}%`}
+              className={styles.slider}
+            />
+            <span
+              aria-hidden="true"
+              data-comparison-handle
+              className={styles.handle}
+              style={{ left: `${position}%` }}
+            >
+              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
+                <path d="M9 6 3 12l6 6V6Zm6 0v12l6-6-6-6Z" />
+              </svg>
+            </span>
           </div>
         )}
       </div>
@@ -83,21 +110,6 @@ export function ContentImageComparison({
           >
             {labels.showComplete}
           </button>
-          {!complete && (
-            <label className="block text-sm text-body">
-              {labels.position}
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={position}
-                onChange={(event) => setPosition(Number(event.target.value))}
-                aria-valuetext={`${block.firstLabel} ${position}%, ${block.secondLabel} ${100 - position}%`}
-                className="block min-h-11 w-full accent-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-              />
-            </label>
-          )}
         </div>
       )}
       {failed && <p role="status" className="text-sm text-muted">{labels.unavailable}</p>}

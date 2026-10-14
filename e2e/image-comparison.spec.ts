@@ -21,8 +21,16 @@ for (const route of routes) {
       await comparison.scrollIntoViewIfNeeded();
       const slider = comparison.getByRole("slider", { name: labels.position });
       await expect(slider).toBeVisible();
+      const imageBounds = (await comparison.locator("img").first().boundingBox())!;
+      const sliderBounds = (await slider.boundingBox())!;
+      expect(sliderBounds.height).toBeGreaterThanOrEqual(44);
+      expect(sliderBounds.y).toBeGreaterThanOrEqual(imageBounds.y);
+      expect(sliderBounds.y + sliderBounds.height).toBeLessThanOrEqual(imageBounds.y + imageBounds.height);
+      expect(sliderBounds.y + sliderBounds.height / 2).toBeCloseTo(imageBounds.y + imageBounds.height / 2, 1);
       await slider.focus();
-      await expect(slider).toHaveCSS("outline-width", "2px");
+      const handle = comparison.locator("[data-comparison-handle]");
+      await expect(handle).toHaveCSS("outline-width", "2px");
+      await expect(handle).toHaveCSS("outline-style", "solid");
       await slider.press("ArrowRight");
       await expect(slider).toHaveValue("51");
       await expect(slider).toHaveAttribute("aria-valuetext", /51%.*49%/);
@@ -31,18 +39,39 @@ for (const route of routes) {
       await expect(comparison.locator("img").nth(1)).toHaveCSS("clip-path", "inset(0px 0px 0px 0%)");
       await slider.press("End");
       await expect(slider).toHaveValue("100");
+      await expect(comparison.locator("img").nth(1)).toHaveCSS("clip-path", "inset(0px 0px 0px 100%)");
+      await slider.press("Home");
+      await slider.press("ArrowRight");
+      await expect(slider).toHaveValue("1");
       const bounds = (await slider.boundingBox())!;
-      if (info.project.name === "mobile-webkit") {
+      if (info.project.name.startsWith("mobile-")) {
         await page.touchscreen.tap(bounds.x + bounds.width / 3, bounds.y + bounds.height / 2);
       } else {
         await page.mouse.click(bounds.x + bounds.width / 3, bounds.y + bounds.height / 2);
       }
-      await expect.poll(async () => Number(await slider.inputValue())).toBeLessThan(100);
+      await expect.poll(async () => Number(await slider.inputValue())).toBeGreaterThan(10);
+      await expect.poll(async () => Number(await slider.inputValue())).toBeLessThan(60);
       if (info.project.name === "desktop-chromium") {
         await page.mouse.move(bounds.x + bounds.width / 3, bounds.y + bounds.height / 2);
         await page.mouse.down();
         await page.mouse.move(bounds.x + bounds.width * 0.8, bounds.y + bounds.height / 2, { steps: 8 });
         await page.mouse.up();
+        await expect.poll(async () => Number(await slider.inputValue())).toBeGreaterThan(60);
+      }
+      if (info.project.name === "mobile-chromium-comparison") {
+        // Native touch events exercise the browser's range drag, not a scripted
+        // value change or synthetic DOM pointer handler.
+        const session = await page.context().newCDPSession(page);
+        const position = Number(await slider.inputValue());
+        const y = bounds.y + bounds.height / 2;
+        const startX = imageBounds.x + imageBounds.width * position / 100;
+        await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: startX, y, id: 1 }] });
+        for (let step = 1; step <= 8; step++) {
+          const x = startX + (imageBounds.x + imageBounds.width * 0.8 - startX) * step / 8;
+          await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y, id: 1 }] });
+        }
+        await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        await session.detach();
         await expect.poll(async () => Number(await slider.inputValue())).toBeGreaterThan(60);
       }
       const images = comparison.locator("img");
@@ -72,6 +101,9 @@ for (const route of routes) {
       await toggle.click();
       await expect(slider).toBeVisible();
       await expect(toggle).toBeFocused();
+      await slider.focus();
+      await slider.press("ArrowLeft");
+      await expect(slider).toBeFocused();
       const incompatible = page.locator("[data-comparison-view]").nth(1);
       await expect(incompatible).toHaveAttribute("data-comparison-view", "complete");
       await expect(incompatible.locator("img")).toHaveCount(2);
@@ -95,6 +127,23 @@ for (const route of routes) {
       });
     });
   }
+  test(`${route.language}: overlay remains reachable at 320px without horizontal overflow`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.goto(pathFor("content-reading-coastal-light", route.language, route.root));
+    const comparison = page.locator("section[role=region]").filter({ has: page.locator("[data-comparison-view]") }).first();
+    await comparison.scrollIntoViewIfNeeded();
+    const slider = comparison.getByRole("slider", { name: labels.position });
+    await expect(slider).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    const bounds = (await slider.boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(320);
+    await slider.focus();
+    await slider.press("End");
+    await expect(slider).toHaveValue("100");
+    await slider.press("Home");
+    await expect(slider).toHaveValue("0");
+  });
 }
 
 test("a failed comparison image keeps the other full image and removes inactive controls", async ({ page }) => {
