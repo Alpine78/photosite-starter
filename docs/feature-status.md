@@ -5102,3 +5102,20 @@ unit tests, build and the public journeys with bounded workers. One existing
 mobile-WebKit retained-gallery gesture passed only on retry and is tracked
 separately by AB#292. The owner merged PR #405 on 2026-10-14; AB#291 and
 AB#293 are Closed in Azure Boards.
+
+### AB#294 — lightbox opening and loaded-slide navigation (2026-10-14)
+
+PhotoSwipe's previous/next controls now wait for the same completed opening
+boundary as its keyboard listener. An early activation could otherwise recycle
+a still-hidden neighbouring holder into the centre, leaving a blank photograph.
+The failed-preload attachment repair now requires an observed error state and
+does not rebuild content that is awaiting an ordinary image decode; lazy errors
+without an associated slide are recognized when their native retry starts.
+
+The production-build Chromium and mobile-WebKit checks pass six focused journeys:
+early activation stays on the first photograph, enabled next plus Enter reaches
+the second, previous and ArrowRight return to the expected full image, delayed
+decode preserves finite navigation, and a failed adjacent preload recovers.
+The existing hosted candidate also navigated successfully after its opening
+completed. The exact corrected hosted release candidate remains the final
+runtime gate; AB#294 moved New → Active and stays Active pending merge.

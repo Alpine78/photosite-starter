@@ -616,6 +616,24 @@ export function GalleryLightbox({
     // handler; the `zoomedIn` cache keeps this per-frame event cheap.
     lightbox.on("zoomPanUpdate", syncZoomedState);
 
+    // PhotoSwipe keeps its adjacent holders hidden until the opening
+    // animation finishes, but creates working arrow buttons beforehand.
+    // Early navigation can recycle a hidden holder into the centre and
+    // permanently leave the photograph empty. Match the keyboard listener's
+    // own bindEvents boundary before enabling pointer or Enter navigation.
+    const syncNavigationReady = () => {
+      const pswp = lightbox.pswp;
+      const root = pswp?.element;
+      if (!pswp || !root) return;
+      const ready = pswp.opener.isOpen;
+      const previousButton = root.querySelector<HTMLButtonElement>(".pswp__button--arrow--prev");
+      const nextButton = root.querySelector<HTMLButtonElement>(".pswp__button--arrow--next");
+      if (previousButton) previousButton.disabled = !ready || pswp.currIndex === 0;
+      if (nextButton) nextButton.disabled = !ready || pswp.currIndex === pswp.getNumItems() - 1;
+    };
+    lightbox.on("afterInit", syncNavigationReady);
+    lightbox.on("bindEvents", syncNavigationReady);
+
     // A slide whose own preload failed and is later revisited: the library's
     // own recovery (content.js `activate()`, on finding a slide in its error
     // state) refetches correctly but then never attaches what it fetched. An
@@ -625,15 +643,18 @@ export function GalleryLightbox({
     // the library's own source (still true in 5.4.4, its latest release):
     // the request succeeds, the photograph is simply never shown.
     //
-    // Gated on `isAttached` already being `true`, not merely on the element
-    // being unattached, because those two conditions mean different things.
-    // An ordinary first load also reaches `loadComplete` with nothing
-    // attached yet whenever the opening transition is still running (the
-    // library's own `appendHeavy` defers attaching until it ends) — there,
-    // `isAttached` itself is still `false`: attaching is pending, not
-    // attempted-and-lost. `isAttached` true with nothing on screen is
-    // specific to the stale-flag bug this exists for; treating "nothing on
-    // screen" alone as the signal fights the opening transition instead.
+    // Remember an actual load error. A successful load can also have
+    // isAttached=true before its asynchronous image decode has appended it;
+    // rebuilding that normal slide races the library's own lifecycle.
+    const failedContent = new WeakSet<object>();
+    lightbox.on("loadError", ({ content }) => {
+      failedContent.add(content);
+    });
+    // A lazy preload can fail before it has a slide, when PhotoSwipe emits
+    // no loadError. Its retry still enters contentLoad in the error state.
+    lightbox.on("contentLoad", ({ content }) => {
+      if (content.isError()) failedContent.add(content);
+    });
     //
     // Deferred a tick, because this event fires from inside that same append
     // attempt's call stack — rebuilding the slide synchronously here would
@@ -645,15 +666,23 @@ export function GalleryLightbox({
     // appended slide, above — sidesteps the stale flag entirely rather than
     // working around it in place.
     lightbox.on("loadComplete", ({ content, slide, isError }) => {
-      if (isError || !slide.isActive || !content.isAttached) return;
+      if (
+        isError ||
+        !failedContent.has(content) ||
+        !slide.isActive ||
+        !content.isAttached ||
+        content.isDecoding
+      ) return;
       queueMicrotask(() => {
         if (
           lightbox.pswp?.currSlide !== slide ||
           slide.content !== content ||
+          content.isDecoding ||
           content.element?.parentNode
         ) {
           return;
         }
+        failedContent.delete(content);
         lightbox.pswp.refreshSlideContent(slide.index);
       });
     });
