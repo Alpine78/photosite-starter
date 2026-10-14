@@ -1158,6 +1158,14 @@ checks accompany the PR. [The decision receipt](audits/ab19-final-decisions-2026
 records all 37 remaining paths, source identity distinctions and deployment limits.
 AB#19 stays Active; no CMS, DNS or alias write and no complete launch acceptance.
 
+**Protected candidate legacy verification, 2026-10-13 (AB#283, Active):**
+[The separate source-bound check](audits/ab283-protected-legacy-verification-2026-10-13.md)
+reuses the full registry/target verifier after ownership, clean-source, protection
+and noindex checks. The bypass is resolved only after identity/source acceptance
+and remains on the exact HTTPS origin with manual redirects and bounded reads.
+Mapping/engine bytes must match the frozen Git source; private receipts reserve
+final Production and owner acceptance. No mapping or provider mutation.
+
 **Mapping verification tooling, 2026-10-02 (AB#19, still Active):** the full Boards
 attachment contains 442 URL records; the committed inventory projects them to 415
 path/status observations. That checkpoint had **39 redirects** (three structural,

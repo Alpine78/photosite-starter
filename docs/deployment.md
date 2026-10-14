@@ -1605,3 +1605,23 @@ crawler to retrieve pages to observe noindex. This is crawl guidance, not access
 control or immediate removal of already indexed content; it changes neither
 canonical links nor domain DNS. A rollback to an older artifact without the rule
 restores its previous indexing behavior and requires its own release assessment.
+
+## Checking legacy URLs on the protected candidate (AB#283)
+
+Capture fresh deployment metadata privately with authenticated Vercel tooling. Keep
+protection and noindex enabled; send no bypass through a redirect or in a URL. Run
+from a checkout whose mapping/engine bytes match the frozen source, after that
+source's full CI succeeds. Use the existing environment-only automation bypass:
+
+```sh
+npm run verify:legacy-candidate -- \
+  --receipt temp/candidate/deployment.json --url https://<deployment>.vercel.app \
+  --source-sha <frozen-sha> --deployment-id <dpl_id> \
+  --project-id <prj_id> --team-id <team_id> \
+  --canonical-origin https://<intended-canonical-host> --out temp/candidate/legacy-1
+```
+
+The [candidate verification audit](audits/ab283-protected-legacy-verification-2026-10-13.md)
+explains the source/ownership/bypass boundaries and private receipt. Exit 1 is a
+refusal or mapping failure, never permission to weaken protection. Final public
+Production verification still uses `verify:legacy-redirects -- check` without a bypass.
