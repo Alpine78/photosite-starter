@@ -132,6 +132,12 @@ see or report. Add a custom header to the Sanity webhook:
   splitting credentials by who holds them (`SANITY_BUILD_READ_TOKEN` vs.
   `SANITY_READ_TOKEN` in `docs/deployment.md`).
 
+2026-10-14 operational record: the owner approved updating the existing shared
+CI/local/Preview-hook bypass to one replacement. [AB#287's execution
+record](audits/ab287-launch-bypass-rotation-2026-10-14.md) confirms successful fresh CI,
+native header/signing readback and retirement of all four exposed old entries.
+The native Production webhook and its signing configuration were preserved.
+
 Production is not expected to need this: `ssoProtection.deploymentType` is
 `all_except_custom_domains`, and AB#18's production promotion puts Production
 on a real custom domain, which Vercel's own SSO protection exempts.
