@@ -322,6 +322,8 @@ export const schemaFinnish = {
   "Two full-frame public images. Use matching aspect ratios for the interactive reveal; incompatible ratios remain complete images. Separate from all lightbox sequences.": "Kaksi kokokuvaista julkista kuvaa. Käytä vastaavia kuvasuhteita interaktiiviseen paljastukseen; yhteensopimattomat kuvasuhteet pysyvät kokonaisina kuvina. Erillään kaikista lightbox-järjestyksistä.",
   "URL": "URL-osoite",
   "Unchanged JPEG": "Muuttamaton JPEG",
+  "Original JPEG file": "Alkuperäinen JPEG-tiedosto",
+  "Byte-verified JPEG delivered without the image pipeline. An approved import uses this or source, never both.": "Tavuiltaan varmennettu JPEG toimitetaan ilman kuvaputkea. Hyväksytty tuonti käyttää tätä tai lähdekuvaa, ei molempia.",
   "Unlisted public legacy delivery. Direct assets are public; this is not authenticated private storage. Imported fields are read-only.": "Listaamaton julkinen vanha toimitus. Suorat tiedostot ovat julkisia; tämä ei ole todennettu yksityinen tallennustila. Tuodut kentät ovat vain luku -tilassa.",
   "Until a deadline": "Määräaikaan asti",
   "Up to three short title-and-detail pairs.": "Enintään kolme lyhyttä otsikko–lisätieto-paria.",

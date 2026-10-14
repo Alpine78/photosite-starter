@@ -3601,6 +3601,17 @@ The compatible Production renderer is active on the existing Vercel aliases and 
 The owner supplied a fresh Joomla backup and the new private K2 gallery's separate files. Archive CRC checks pass; the database contains the new gallery and the exact paths of all 34 JPEGs and its delivery ZIP, which also passes CRC and holds 34 images. Hash receipts cover both the backup and separate files; the Joomla ZIP does not embed these images, and no live restore is claimed. Customer-access continuity still needs a decision before DNS cutover/October 15 retirement. The private gallery is absent from the approved public import. No custom-domain cutover, complete AB#137 acceptance or launch-parent closure is claimed. AB#137, AB#19, AB#117, AB#132 and AB#18 remain Active.
 
 
+### AB#288 — service price wrapping (2026-10-14)
+
+Service listing prices and both default/prefixed detail-page pricing rows keep
+preformatted amounts and currency on one line. Long package names wrap independently
+within the remaining space, including unbroken words; approved CMS copy is unchanged.
+Production-build geometry checks cover FI/EN at 320 and 1280 px in Chromium and WebKit,
+including the 250/450 fixture price shapes, grouped prices, long labels and viewport
+bounds. All 38 affected service journeys, five focused rendering tests and lint pass.
+No CMS or dependency change. AB#288 moved New → Active and remains Active pending PR
+review/merge.
+
 ### AB#137 — optional prices in owner-run service plans (2026-10-09)
 
 The service writer now accepts the existing CMS model's optional listing price and keyed pricing entries. Validation, normalized approval digests, exact preflight and readback include these fields; malformed prices and edits to existing documents refuse the create-only run. No-price plan digests are unchanged. Synthetic tests cover malformed fields, duplicate keys, changed prices, both mismatch directions and dropped readback fields. This work adds no owner-specific service fixtures or application model changes and does not perform a live CMS write. Production migration audits, separate owner-content publication and temporary-credential revocation remain operational work; AB#137 stays Active.
@@ -4937,6 +4948,15 @@ AB#255 continuation, 2026-10-12: [Finnish Studio core resource additions](audits
 
 AB#255 Studio drag accessibility completion, 2026-10-13: [Localized keyboard-drag instructions and announcements](audits/ab255-studio-drag-localization-2026-10-13.md) close the observed English array-instruction gap in #371. A documented Vite alias wraps the pinned DndContext API while retaining handlers and native contexts. All installed versions/integrities remain unchanged. Authenticated FI/EN instructions and browser-event activation/cancellation were checked without moving, dropping or changing content. Full tests/lint/Studio and Next builds pass; final-head CI and PR review remain. Hosted activation and all-page acceptance are separate; AB#255 remains Active.
 
+**Automation bypass rotation execution, 2026-10-14 (AB#287, Active):**
+[The redacted execution record](audits/ab287-launch-bypass-rotation-2026-10-14.md)
+confirms the owner-approved replacement of the CI/local/Preview-hook consumers,
+fresh successful main CI 977, four HTTP-200 revocations without regeneration and
+SSO refusal of all four old values. Native readback contains one default replacement;
+Preview access/noindex, both hook signing configurations and other protection
+settings are preserved. AB#287 remains Active pending review/merge. AB#117's final
+security/privacy acceptance and final serving-version evidence remain open.
+
 **Automation bypass rotation preparation, 2026-10-13 (AB#285, Active):**
 [Fresh consumer inventory and private operation](audits/ab285-bypass-rotation-readiness-2026-10-13.md)
 cover four project entries, one current CI/local value and the enabled native Preview
@@ -4961,6 +4981,35 @@ parser validation without being printed. 6,159 deterministic tests, lint and
 34 production-built Chromium/WebKit journeys pass, with four existing skips.
 Customer import, activation and deployed old-link checks remain separate gates;
 AB#250/117/18 stay Active.
+
+### AB#250 — original JPEG file-delivery correction (2026-10-14)
+
+- A live Production check rejected an ordinary image-CDN response because its
+  bytes differed from the unchanged uploaded source; gallery publication stays
+  gated. The native asset SHA-1 alone cannot establish delivered metadata or bytes.
+- The offline compiler now accepts an explicit JPEG `kind: "file"` binding with
+  exact `file-<sha1>-jpg` identity and unchanged source dimensions, hashes and
+  byte count. Its read-only `originalFile` reference is exclusive with the
+  previous `source` image reference. Historical image-binding digests and the
+  ordered manifest contract remain unchanged.
+- The legacy reader and byte verifier use the plain file-CDN JPEG URL, validate
+  exact MIME/hash/size and bind intrinsic dimensions to the source manifest.
+  JPEG files cannot be confused with delivery ZIPs. Public/protected media,
+  gallery identities, deadlines, positions and ZIP references keep their contracts.
+- CSP permits only the configured project/dataset file path in `img-src`, alongside
+  its image path. The public optimizer still rejects file assets; other directives
+  and the protected-gallery object-store policy retain their boundaries. ADR-0011
+  records this scoped implementation of the already accepted legacy exception.
+- The new binding needs fresh concrete CMS approval, anonymous complete CDN byte
+  checks and browser evidence before actual customer publication. This change
+  performs no provider writes and does not claim the launch or AB#250 complete.
+- Validation: 6,216 deterministic tests, lint and the synthetic production build
+  pass; 26 Chromium/WebKit journeys pass with four existing cookie-related skips.
+  The separate synthetic file-asset experiment preserved all source bytes and
+  rendered its full frame in both engines; that fixture was removed and Preview
+  restored. Independent source review closed the secondary-object ambiguity and
+  confirmed the scoped CSP/optimizer separation. Final deployed customer proof
+  remains separate.
 
 
 ### AB#289 — gallery enquiry controls and imported opt-in diagnosis (2026-10-14)

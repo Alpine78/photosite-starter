@@ -15,8 +15,8 @@ function assetUrl(target: Candidate["target"], asset: Asset): string {
   const image = asset.assetId.startsWith("image-");
   const filename = image
     ? asset.assetId.slice(6).replace(/-(jpg|jpeg)$/u, ".$1")
-    : `${asset.sha1}.zip`;
-  return `https://cdn.sanity.io/${image ? "images" : "files"}/${target.projectId}/${target.dataset}/${filename}${image ? "" : "?dl=photographs.zip"}`;
+    : `${asset.sha1}.${asset.kind === "file" ? "jpg" : "zip"}`;
+  return `https://cdn.sanity.io/${image ? "images" : "files"}/${target.projectId}/${target.dataset}/${filename}${asset.mimeType === "image/jpeg" ? "" : "?dl=photographs.zip"}`;
 }
 
 function observeCleanup(cancel: () => Promise<unknown> | undefined): void {
@@ -45,7 +45,7 @@ async function verifyAsset(target: Candidate["target"], asset: Asset, fetcher: t
     const encoding = response.headers.get("content-encoding");
     const length = response.headers.get("content-length");
     const mime = response.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
-    const zip = asset.assetId.startsWith("file-");
+    const zip = asset.mimeType !== "image/jpeg";
     const mimeMatches = zip ? ["application/zip", "application/x-zip-compressed"].includes(mime ?? "") : mime === "image/jpeg";
     if (!mimeMatches || (encoding !== null && encoding !== "identity") ||
       (length !== null && (!/^[1-9]\d*$/u.test(length) || Number(length) !== asset.bytes)) ||

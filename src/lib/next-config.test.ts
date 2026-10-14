@@ -143,6 +143,17 @@ describe("public image Next.js configuration", () => {
       },
     ]);
   });
+  it("keeps legacy JPEG files outside the public optimizer even when the browser policy permits them", async () => {
+    const config = await configuredWith(PUBLIC_SANITY_DEPLOYMENT);
+    const { hasRemoteMatch } = await import("next/dist/shared/lib/match-remote-pattern");
+    const patterns = config.images?.remotePatterns ?? [];
+    expect(hasRemoteMatch([], patterns, new URL(`https://${SANITY_ASSET_CDN_HOST}/images/zp7mbokg/production/${"a".repeat(40)}-3x2.jpg`))).toBe(true);
+    for (const path of [
+      `/files/zp7mbokg/production/${"a".repeat(40)}.jpg`,
+      `/images/zp7mbokg/preview/${"a".repeat(40)}-3x2.jpg`,
+      `/images/other123/production/${"a".repeat(40)}-3x2.jpg`,
+    ]) expect(hasRemoteMatch([], patterns, new URL(`https://${SANITY_ASSET_CDN_HOST}${path}`))).toBe(false);
+  });
 
   it("fails the build when a CMS deployment cannot name its own assets", async () => {
     await expect(
@@ -412,11 +423,24 @@ describe("security response headers", () => {
     const csp = response.headers.get("content-security-policy") ?? "";
 
     expect(csp).toContain(
-      `img-src 'self' data: https://${SANITY_ASSET_CDN_HOST}/images/${PUBLIC_SANITY_DEPLOYMENT.SANITY_PROJECT_ID}/${PUBLIC_SANITY_DEPLOYMENT.SANITY_DATASET}/;`,
+      `img-src 'self' data: https://${SANITY_ASSET_CDN_HOST}/images/${PUBLIC_SANITY_DEPLOYMENT.SANITY_PROJECT_ID}/${PUBLIC_SANITY_DEPLOYMENT.SANITY_DATASET}/ https://${SANITY_ASSET_CDN_HOST}/files/${PUBLIC_SANITY_DEPLOYMENT.SANITY_PROJECT_ID}/${PUBLIC_SANITY_DEPLOYMENT.SANITY_DATASET}/;`,
     );
     // The bare host with no path must never appear as its own source — that
     // would grant every other Sanity customer's project on the same CDN host.
     expect(csp).not.toContain(`img-src 'self' data: https://${SANITY_ASSET_CDN_HOST};`);
+  });
+  it("limits the legacy JPEG file grant to img-src without any legacy runtime credential or setting", async () => {
+    const response = await getConfigResponse("/client-gallery/synthetic-handle", PUBLIC_SANITY_DEPLOYMENT);
+    const fixture = await getConfigResponse("/client-gallery/synthetic-handle", FIXTURE_DEPLOYMENT);
+    const directives = (r: { headers: Headers }) => (r.headers.get("content-security-policy") ?? "")
+      .split(";").map((part) => part.trim()).filter((part) => !part.startsWith("img-src "));
+    expect(directives(response)).toEqual(directives(fixture));
+    const imageSources = (response.headers.get("content-security-policy") ?? "").split(";")
+      .find((part) => part.trim().startsWith("img-src "))!.trim().split(" ").slice(1);
+    expect(imageSources).toEqual(["'self'", "data:",
+      `https://${SANITY_ASSET_CDN_HOST}/images/zp7mbokg/production/`,
+      `https://${SANITY_ASSET_CDN_HOST}/files/zp7mbokg/production/`,
+    ]);
   });
 });
 

@@ -12,6 +12,7 @@ export const MAX_LEGACY_BINDINGS = MAX_TOTAL_IMAGES + 256;
 type CandidateAsset = Readonly<{
   sourceSha256: string; assetId: string; sha1: string; bytes: number; mimeType: string;
   width?: number; height?: number; orientation?: 1;
+  kind?: "file";
 }>;
 type Reference = Readonly<{ _type: "reference"; _ref: string }>;
 export type LegacyGalleryCandidate = Readonly<{
@@ -22,9 +23,12 @@ export type LegacyGalleryCandidate = Readonly<{
 }>;
 export type LegacyImageCandidate = Readonly<{
   _id: string; _type: "legacyDeliveryImage"; imageId: string; migrationBatch: string;
-  gallery: Reference; position: number; source: Readonly<{ _type: "image"; asset: Reference }>;
+  gallery: Reference; position: number;
   displayWidth: number; displayHeight: number; sourceOrientation: 1; alt: string;
-}>;
+}> & (
+  | Readonly<{ source: Readonly<{ _type: "image"; asset: Reference }>; originalFile?: never }>
+  | Readonly<{ originalFile: Readonly<{ _type: "file"; asset: Reference }>; source?: never }>
+);
 
 // Private subtype separates our fixed codes from exceptions thrown by input objects.
 class DocumentPlanError extends LegacyPlanError {}
@@ -96,8 +100,11 @@ function compile(source: unknown, expectedReviewDigest: unknown, candidateBindin
     const sourceSha256 = hash(declaredHash.value), file = expected.get(sourceSha256);
     if (file === undefined) fail("BINDING_EXTRA");
     const image = isImage(file);
+    const declaredKind = Object.getOwnPropertyDescriptor(raw, "kind");
+    if (declaredKind !== undefined && (!image || !Object.hasOwn(declaredKind, "value") || declaredKind.value !== "file")) fail("BINDING_FIELDS");
+    const originalFile = declaredKind !== undefined;
     const row = object(raw, ["sourceSha256", "assetId", "sha1", "bytes", "mimeType",
-      ...(image ? ["width", "height", "orientation"] : [])]);
+      ...(image ? ["width", "height", "orientation"] : []), ...(originalFile ? ["kind"] : [])]);
     if (bound.has(sourceSha256)) fail("BINDING_DUPLICATE");
     if (typeof row.assetId !== "string" || row.assetId.length > 128 ||
       row.sha1 !== file.sha1 || row.bytes !== file.bytes) fail("BINDING_SOURCE_MISMATCH");
@@ -107,11 +114,13 @@ function compile(source: unknown, expectedReviewDigest: unknown, candidateBindin
     if (image) {
       // Exact runtime grammar. Round-trip tests guard against reader/compiler drift.
       const parts = /^image-([a-f0-9]{40})-([1-9]\d{0,4})x([1-9]\d{0,4})-(jpg|jpeg)$/u.exec(assetId);
-      if (!parts || parts[1] !== file.sha1 || Number(parts[2]) !== file.width || Number(parts[3]) !== file.height ||
+      const identityMatches = originalFile ? assetId === `file-${file.sha1}-jpg`
+        : parts !== null && parts[1] === file.sha1 && Number(parts[2]) === file.width && Number(parts[3]) === file.height;
+      if (!identityMatches ||
         row.mimeType !== "image/jpeg" || row.width !== file.width || row.height !== file.height ||
         row.orientation !== 1) fail("BINDING_IMAGE_MISMATCH");
       candidate = { sourceSha256, assetId, sha1: file.sha1, bytes: file.bytes, mimeType: "image/jpeg",
-        width: file.width, height: file.height, orientation: 1 };
+        width: file.width, height: file.height, orientation: 1, ...(originalFile ? { kind: "file" as const } : {}) };
     } else {
       if (assetId !== `file-${file.sha1}-zip` ||
         (row.mimeType !== "application/zip" && row.mimeType !== "application/x-zip-compressed")) fail("BINDING_ZIP_MISMATCH");
@@ -135,7 +144,9 @@ function compile(source: unknown, expectedReviewDigest: unknown, candidateBindin
       const imageId = placements.images[position].imageId;
       images.push({ _id: uniqueId(`legacyDeliveryImage-${imageId}`), _type: "legacyDeliveryImage",
         imageId, migrationBatch: plan.reviewDigest, gallery: { _type: "reference", _ref: galleryId },
-        position, source: { _type: "image", asset: { _type: "reference", _ref: asset.assetId } },
+        position, ...(asset.kind === "file"
+          ? { originalFile: { _type: "file" as const, asset: { _type: "reference" as const, _ref: asset.assetId } } }
+          : { source: { _type: "image" as const, asset: { _type: "reference" as const, _ref: asset.assetId } } }),
         displayWidth: image.width, displayHeight: image.height, sourceOrientation: 1, alt: image.alt });
       return { id: imageId, position, assetId: asset.assetId, bytes: image.bytes,
         width: image.width, height: image.height, orientation: 1, alt: image.alt };
@@ -155,7 +166,8 @@ function compile(source: unknown, expectedReviewDigest: unknown, candidateBindin
   const candidateDocuments = [...galleries, ...images];
   const candidateDigest = createHash("sha256").update(JSON.stringify([
     LEGACY_DOCUMENT_PLAN_VERSION, plan.reviewDigest, plan.source.target.projectId, plan.source.target.dataset,
-    assets.map((a) => [a.sourceSha256, a.assetId, a.sha1, a.bytes, a.mimeType, a.width ?? null, a.height ?? null, a.orientation ?? null]),
+    assets.map((a) => [a.sourceSha256, a.assetId, a.sha1, a.bytes, a.mimeType, a.width ?? null, a.height ?? null, a.orientation ?? null,
+      ...(a.kind === "file" ? ["file"] : [])]),
     candidateDocuments,
   ])).digest("hex");
   return freeze({ version: LEGACY_DOCUMENT_PLAN_VERSION, status: "offline-document-candidate" as const,
