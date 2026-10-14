@@ -146,3 +146,43 @@ but preserve the existing public-media and approval boundaries.
   reports and approvals with conversion policy v3 before launch import.
 - Confirm the decision's acceptance during PR review; no real-device screen-reader
   verification or production CMS import is claimed by fixture browser results.
+
+## Scoped amendment — visible on-image control (2026-10-14, AB#291)
+
+The owner reported that the separate below-image range was difficult to notice and
+requested a divider with a circular drag handle on the photograph, supplying the
+existing Joomla interaction as a visual reference. This replaces the control's
+placement described in **Native interaction and complete-image fallback** and its
+corresponding **Trade-off Analysis**; the rest of this decision remains in force.
+
+The native range now crosses the image's vertical midpoint with a transparent
+track and a 48-pixel circular thumb. A decorative divider and two arrows make its
+purpose visible. The track extends by one thumb width, keeping the native thumb's
+centre aligned with the reveal boundary all the way from 0 to 100. At either
+endpoint the handle straddles the image edge. The reveal reserves a 24-pixel gutter
+on each side inside the comparison so the entire target remains reachable even
+at a 320-pixel viewport, without creating page overflow. The cap adds these
+gutters to the smaller derivative's width; the photograph itself never upscales.
+Semantic accent, accent-foreground and focus tokens supply the colours.
+Its localized accessible name, value text, keyboard controls and visible focus
+remain native. Only the narrow control strip intercepts pointer input; there is
+no custom gesture recognizer or new dependency.
+
+Both full-frame images, their native ratios and bounded delivery, captions,
+credits, complete-image toggle, incompatible-ratio presentation, image-error
+fallback and scriptless presentation remain as described above. No CMS content,
+schema, migration approval or copied reference asset changes with this amendment.
+Browser verification covers mouse drag, mobile WebKit touch tap, native Chromium
+touch drag, keyboard/endpoints, both locales and content variants, and a 320-pixel
+viewport. These are harness results, not a claim of physical-device or
+screen-reader verification.
+
+CSS thumb selectors are engine-specific. The implementation styles both WebKit/
+Blink and Firefox selectors; the existing journey matrix verifies WebKit and
+Blink, with a comparison-only mobile Blink project for native touch dragging.
+The HTML range remains the accessible control. References checked 2026-10-14:
+
+- [HTML range state](https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range)).
+- [WebKit/Blink thumb selector](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/::-webkit-slider-thumb).
+- [Firefox thumb selector](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/::-moz-range-thumb).
+- [Chromium native touch events](https://chromedevtools.github.io/devtools-protocol/tot/Input/#method-dispatchTouchEvent).

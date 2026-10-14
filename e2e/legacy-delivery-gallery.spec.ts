@@ -78,18 +78,34 @@ test("ordinary sitemap and home do not discover legacy delivery", async ({ reque
 test.describe("touch legacy delivery", () => {
   test.use({ hasTouch: true });
   test("legacy viewer supports tap opening and reopening on a touch viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 }); await page.goto(route);
-  const opener = page.getByRole("main").getByRole("button").first();
-  await openLightbox(page.getByRole("dialog"), () => opener.tap());
-  // Emulated horizontal drag of the visible image, plus real touchscreen taps.
-  const visible = await presentedImage(page.getByRole("dialog"));
-  expect(visible).not.toBeNull();
-  await page.mouse.move(300, 420); await page.mouse.down();
-  await page.mouse.move(60, 420, { steps: 15 }); await page.mouse.up();
-  await expect.poll(async () => (await presentedImage(page.getByRole("dialog")))?.alt).toBe("Geometric portrait");
-  await page.getByRole("button", { name: labels.lightbox.close, exact: true }).tap();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await openLightbox(page.getByRole("dialog"), () => opener.tap());
-  await page.keyboard.press("Escape");
+    await page.setViewportSize({ width: 390, height: 844 }); await page.goto(route);
+    const opener = page.getByRole("main").getByRole("button").first();
+    const dialog = page.getByRole("dialog");
+    await openLightbox(dialog, () => opener.tap());
+    await expect.poll(async () => (await presentedImage(dialog))?.alt).toBe("Rocky shoreline beside calm water");
+
+    // PhotoSwipe applies drag movement in requestAnimationFrame and cancels
+    // that loop on pointer-up. Yield a frame after each move so the gesture
+    // cannot finish before the viewer renders its displacement. This exercises
+    // its pointer path; physical-device finger swipes remain a manual check.
+    const bounds = await dialog.boundingBox();
+    if (!bounds) throw new Error("[e2e] No legacy viewer bounds for drag");
+    const startX = bounds.x + bounds.width * 0.85;
+    const endX = bounds.x + bounds.width * 0.15;
+    const y = bounds.y + bounds.height / 2;
+    await page.mouse.move(startX, y); await page.mouse.down();
+    for (let step = 1; step <= 12; step += 1) {
+      await page.mouse.move(startX + (endX - startX) * step / 12, y);
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    }
+    await page.mouse.up();
+
+    await expect.poll(async () => (await presentedImage(dialog))?.alt).toBe("Geometric portrait");
+    await dialog.getByRole("button", { name: labels.lightbox.close, exact: true }).tap();
+    await expect(dialog).toHaveCount(0);
+    await openLightbox(dialog, () => opener.tap());
+    await expect.poll(async () => (await presentedImage(dialog))?.alt).toBe("Rocky shoreline beside calm water");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
   });
 });
