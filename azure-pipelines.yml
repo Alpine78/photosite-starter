@@ -68,7 +68,7 @@ stages:
             displayName: "Lint"
 
           - script: |
-              npm test
+              npm test -- --maxWorkers=1
             displayName: "Test"
 
           # The committed architecture diagrams, checked against their
@@ -116,7 +116,7 @@ stages:
           # step before is the deployment build gate, this one is the journey gate. No
           # pipeline secret is passed in: the suite must reach no external service.
           - script: |
-              npm run test:e2e
+              npm run test:e2e -- --workers=1
             displayName: "End-to-end smoke tests"
 
           - task: PublishTestResults@2
