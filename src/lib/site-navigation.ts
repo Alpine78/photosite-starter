@@ -11,7 +11,10 @@
  * route it leads to and everything beneath it come from the route config and
  * the tree. Two entries can therefore never claim the same route space.
  *
- * The featured gallery is the one exception, and it is a different thing: an
+ * Featured galleries and category shortcuts name stable identities rather than
+ * authored paths. A category shortcut resolves only when that locale publishes
+ * the category; the tree remains the sole owner of its hierarchy and URL.
+ * The featured gallery is another such shortcut: an
  * entry marked `featured` is a shortcut to the one gallery the deployment shows
  * as its portfolio, rather than a second claim on a branch. It owns no route
  * space, so it survives that rule, and its href is derived per locale from the
@@ -79,11 +82,19 @@ export type StaticNavigationLink =
       readonly label: string;
       readonly href: string;
       readonly featured?: never;
+      readonly categoryId?: never;
     }
   | {
       readonly label: string;
       readonly featured: true;
       readonly href?: never;
+      readonly categoryId?: never;
+    }
+  | {
+      readonly label: string;
+      readonly categoryId: string;
+      readonly href?: never;
+      readonly featured?: never;
     };
 
 /** A menu entry with its route resolved, which is what a component renders. */
@@ -247,6 +258,13 @@ function resolveLinkTarget(
     readonly staticPages?: readonly StaticPageKind[];
   },
 ): { readonly href: string; readonly key: string } | undefined {
+  if (link.categoryId !== undefined) {
+    if (tree === undefined || !tree.publicCategoryIds.has(link.categoryId)) return undefined;
+    return {
+      href: buildStoryPath(config, locale, getCategoryPath(tree, link.categoryId)),
+      key: `category:${link.categoryId}`,
+    };
+  }
   if (link.featured === undefined) {
     const href = normalizePath(link.href);
     const defaultRoute = config.byLocale.get(config.defaultLocale);
@@ -384,7 +402,7 @@ export function buildSiteNavigation({
     // Only a configured *path* competes with the tree for a route space. A
     // featured page names one address inside it and claims no branch, so it is
     // rendered rather than absorbed into the section marker.
-    if (link.featured === undefined && isInsideStoryNamespace(href, storyRoot)) {
+    if (link.featured === undefined && link.categoryId === undefined && isInsideStoryNamespace(href, storyRoot)) {
       // The first such link marks the section's place and supplies its name; a
       // second one is the hand-maintained list ADR-0003 rules out.
       if (storyIndex === undefined) {

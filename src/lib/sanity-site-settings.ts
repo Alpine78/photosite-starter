@@ -80,7 +80,7 @@ export const SITE_SETTINGS_PROJECTION = `{
   featuredGalleryId,
   galleryLayout,
   galleryCaptionPlacement,
-  navigation[]{label[]{language, value}, target, href},
+  navigation[]{label[]{language, value}, target, href, categoryId},
   contact{
     "portrait": portrait->${PUBLIC_MEDIA_PROJECTION},
     email,
@@ -95,7 +95,7 @@ export const SITE_SETTINGS_PROJECTION = `{
     }
   },
   socialLinks[]{platform, url, label[]{language, value}},
-  footerLinks[]{label[]{language, value}, target, href},
+  footerLinks[]{label[]{language, value}, target, href, categoryId},
   copyrightHolder,
   defaultSeo{
     titleTemplate[]{language, value},

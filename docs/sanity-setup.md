@@ -186,6 +186,16 @@ tree. No category list or category path is copied into settings. If that gallery
 published canonical route, the home action and section are omitted rather than pointed at
 a 404; malformed or duplicated navigation is rejected.
 
+Header/footer navigation also supports a **category shortcut** (`target: "category"`,
+`categoryId`: the category’s stable identity). Its localized label and position belong
+to settings; its current canonical path and public visibility come only from the
+locale’s content tree. The generated Stories submenu remains available. Category
+shortcuts store no `href` and are omitted for locales where their category is not
+public. Home actions and home sections keep the three target kinds above. Deploy
+the compatible adapter before publishing this new navigation target. If a settings
+draft already exists, reconcile its navigation explicitly so later publication does
+not restore the previous menu.
+
 The home page's **Selected photographs** section reads the first bounded page of this
 featured gallery. Its authored gallery sections become the topic links: create sections
 on the gallery and assign each photograph's placement to one to offer filters. Counts

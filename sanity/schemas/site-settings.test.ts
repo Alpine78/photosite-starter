@@ -20,6 +20,7 @@ import {
   NAVIGATION_ITEM_TYPE_NAME,
   SITE_LINK_TARGETS,
   validateSiteLinkTarget,
+  validateNavigationTarget,
 } from "./site-link";
 
 const fieldNames = (type: { readonly fields: readonly { readonly name: string }[] }) =>
@@ -205,4 +206,22 @@ describe("the site settings and home schemas", () => {
       validateSocialLinks([{ platform: "instagram" }, { platform: "instagram" }]),
     ).toEqual(expect.any(String));
   });
+});
+
+
+describe("navigation category shortcuts", () => {
+  it("allows separate category identities and rejects duplicates", () => {
+    expect(validateNavigationList([{target:"category",categoryId:"cat-one"},{target:"category",categoryId:"cat-two"}], ["/stories"])).toBe(true);
+    expect(validateNavigationList([{target:"category",categoryId:"cat-one"},{target:"category",categoryId:"cat-one"}], ["/stories"])).not.toBe(true);
+  });
+});
+
+
+it("limits stable category targets to navigation and refuses authored paths", () => {
+  const target = {target:"category",categoryId:"cat-journal"};
+  expect(validateNavigationTarget(target)).toBe(true);
+  expect(validateSiteLinkTarget(target)).not.toBe(true);
+  expect(validateNavigationTarget({...target,href:"/stories/journal"})).not.toBe(true);
+  expect(validateNavigationTarget({...target,categoryId:"../journal"})).not.toBe(true);
+  expect(validateNavigationTarget({target:"story-root",categoryId:"cat-journal"})).not.toBe(true);
 });

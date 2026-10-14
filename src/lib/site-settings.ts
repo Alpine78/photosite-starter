@@ -251,10 +251,10 @@ function buildMockSiteSettings(locale: string): SiteSettings {
     // beneath it come from the route config and the tree (ADR-0003). A clone
     // that drops the entry still gets the section — at the end of the menu.
     navigation: [
-      { label: labels.pages.home, href: "/" },
-      { label: labels.pages.services, href: serviceRoot },
       { label: labels.pages.portfolio, featured: true },
+      { label: labels.pages.services, href: serviceRoot },
       { label: labels.pages.stories, href: storyRoot },
+      { label: defaultLanguage === "fi" ? "Maisemat" : "Landscape", categoryId: "cat-landscape" },
       { label: labels.pages.contact, href: "/contact" },
     ],
     contact: {

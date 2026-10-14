@@ -2269,3 +2269,19 @@ mutually exclusive plain and linked fields and a standalone Studio validator.
 Acceptance and deployment are pending review; this proposal grants no content or
 Production-write approval. The exact final plan and its rights/privacy decisions
 remain part of AB#137's owner review.
+
+
+## Scoped amendment — 2026-10-14: authored category shortcuts (AB#290)
+
+The earlier rule that site settings own only static links is extended for the
+owner-requested top-level Blog shortcut. Header/footer navigation may select a
+category by its stable `categoryId` and localized label. The public content tree
+still supplies its current locale path and visibility; no category slug, URL or
+hierarchy is duplicated in settings. Missing or nonpublic locale categories omit
+the shortcut. The existing generated Stories section and bounded submenu remain.
+
+This follows the existing featured-gallery identity shortcut. It is narrower than
+allowing literal category paths (which become stale on moves and translations),
+and avoids hardcoding a Blog category into a clonable template. The field is
+navigation-only; home actions and home sections retain their existing targets.
+Publishing a particular menu remains a revision-bound site-settings operation.
