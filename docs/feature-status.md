@@ -3757,6 +3757,17 @@ public activation remain open. AB#250 moved New → Active before edits and stay
 Active; AB#18/117 remain Active. Validation and review scope are recorded in
 [the preparation audit](audits/ab250-legacy-gallery-runtime-2026-10-10.md).
 
+### AB#292 — retained-gallery gesture verification (2026-10-14)
+
+CI #983 failed the mobile WebKit retained-gallery drag twice. The journey now
+waits for the first photograph, derives the drag from rendered viewer bounds,
+and yields an animation frame after each pointer move, matching PhotoSwipe's
+frame-driven drag handling. The next-photograph assertion and tap close/reopen
+coverage remain. Application behavior is unchanged. AB#292 moved New → Active;
+the focused production-build journey passed three times each on desktop Chromium
+and mobile WebKit with one Playwright worker (6/6). The interrupted earlier
+local reproduction produced no browser result.
+
 ### AB#250 — offline retained-source import plan
 
 The separate `plan:legacy-delivery` command produces a private, digest-bound
