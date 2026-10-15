@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildContentTree, type ContentTreeInput } from "@/lib/content-tree";
 import { buildLocaleRouteConfig } from "@/lib/locale-routes";
+import { projectNavigationItems } from "@/lib/sanity-site-values";
 import {
   buildCategoryNavigation,
   buildSiteNavigation,
@@ -133,6 +134,106 @@ describe("buildSiteNavigation", () => {
       "/en/contact",
     ]);
     expect(hrefs(build({ config: localized, locale: "en", storyLabel: "Stories", staticPages: [] }))).toEqual(["/en/services", "/en/stories"]);
+  });
+
+  it("keeps a Sanity-projected story root between services and a category in both locales", () => {
+    const localized = buildLocaleRouteConfig({
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", serviceNamespace: "palvelut" },
+        { locale: "en", prefix: "en", storyNamespace: "stories", serviceNamespace: "services" },
+      ],
+      reservedRootSegments: ["contact", "services"],
+      reservedLocaleRouteSegments: ["services"],
+    });
+    const withFeatured = buildContentTree({
+      ...treeInput,
+      placements: [
+        ...treeInput.placements,
+        { contentId: "featured-work", variant: "gallery", slug: "featured-work", published: true, canonicalCategoryId: "cat-coastal" },
+      ],
+    });
+    const label = (fi: string, en: string) => [
+      { language: "fi", value: fi },
+      { language: "en", value: en },
+    ];
+    const authored = [
+      { label: label("Portfolio", "Portfolio"), target: "featured-gallery" },
+      { label: label("Palvelut", "Services"), target: "static", href: "/services" },
+      { label: label("Tarinat", "Stories"), target: "story-root" },
+      { label: label("Blogi", "Blog"), target: "category", categoryId: "cat-landscape" },
+    ];
+
+    for (const locale of ["fi", "en"] as const) {
+      const projected = projectNavigationItems(authored, {
+        language: locale,
+        locale,
+        config: localized,
+        field: "navigation",
+        reject: (detail) => { throw new Error(detail); },
+      });
+      const storyRoot = locale === "fi" ? "/tarinat" : "/en/stories";
+      expect(projected[2]).toEqual({ label: locale === "fi" ? "Tarinat" : "Stories", href: storyRoot });
+
+      const items = buildSiteNavigation({
+        staticLinks: projected,
+        config: localized,
+        locale,
+        tree: withFeatured,
+        featuredContentId: "featured-work",
+        storyLabel: locale === "fi" ? "Tarinat" : "Stories",
+      });
+      expect(hrefs(items)).toEqual([
+        `${storyRoot}/landscape/coastal/featured-work`,
+        locale === "fi" ? "/palvelut" : "/en/services",
+        storyRoot,
+        `${storyRoot}/landscape`,
+      ]);
+      expect(items.map((item) => item.label)).toEqual(
+        locale === "fi"
+          ? ["Portfolio", "Palvelut", "Tarinat", "Blogi"]
+          : ["Portfolio", "Services", "Stories", "Blog"],
+      );
+      expect(items[2]?.children.length).toBeGreaterThan(0);
+      expect(items.filter((item) => item.href === storyRoot)).toHaveLength(1);
+
+      const blogBeforeStories = buildSiteNavigation({
+        staticLinks: [projected[0]!, projected[1]!, projected[3]!, projected[2]!],
+        config: localized,
+        locale,
+        tree: withFeatured,
+        featuredContentId: "featured-work",
+        storyLabel: locale === "fi" ? "Tarinat" : "Stories",
+      });
+      expect(blogBeforeStories.map((item) => item.label)).toEqual(
+        locale === "fi"
+          ? ["Portfolio", "Palvelut", "Blogi", "Tarinat"]
+          : ["Portfolio", "Services", "Blog", "Stories"],
+      );
+    }
+  });
+
+  it("does not treat another locale's story path as this locale's section marker", () => {
+    const localized = buildLocaleRouteConfig({
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat" },
+        { locale: "en", prefix: "en", storyNamespace: "stories" },
+        { locale: "sv", prefix: "sv", storyNamespace: "berattelser" },
+      ],
+      reservedRootSegments: ["contact", "services"],
+      reservedLocaleRouteSegments: ["services"],
+    });
+    const items = buildSiteNavigation({
+      staticLinks: [
+        { label: "Foreign stories", href: "/sv/berattelser" },
+        { label: "Journal", categoryId: "cat-landscape" },
+      ],
+      config: localized,
+      locale: "en",
+      tree,
+      storyLabel: "Stories",
+    });
+    expect(items.map((item) => item.label)).toEqual(["Journal", "Stories"]);
+    expect(hrefs(items)).toEqual(["/en/stories/landscape", "/en/stories"]);
   });
 
   it("replaces a configured story link with the tree-driven section", () => {
