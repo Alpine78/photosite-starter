@@ -5113,6 +5113,17 @@ mobile-WebKit retained-gallery gesture passed only on retry and is tracked
 separately by AB#292. The owner merged PR #405 on 2026-10-14; AB#291 and
 AB#293 are Closed in Azure Boards.
 
+### AB#296 — restore bounded CI parallelism (2026-10-15)
+
+The owner requested faster launch validation after freeing disk space. A
+single `ciTestWorkers` pipeline variable raises both Vitest and Playwright
+from one to two workers while retaining every gate, timeout and assertion.
+The prior one-worker successful run #1007 took 24m06s end to end (unit tests
+66.5s; E2E 18m55s). The two-worker PR run #1011 passed without agent loss in
+13m42s (unit tests 34.6s; E2E 10m38s), a 10m24s overall improvement. The
+documentation follow-up needs its own exact-head CI check before AB#296 can
+be merged or closed; an agent disconnect or test failure requires investigation.
+
 ### AB#294 — lightbox opening and loaded-slide navigation (2026-10-14)
 
 PhotoSwipe's previous/next controls now wait for the same completed opening
