@@ -466,3 +466,17 @@ This fulfills today's recorded candidate/upstream recheck. The owner's October 7
 bounded acceptance is preserved without a new acceptance, permanent waiver or
 GO decision. AB#132 remains Active for the fix; AB#18 still needs its actual
 promotion decision and the other launch gates.
+
+## Scriptless 404 recheck — 2026-10-15 (AB#132)
+
+[A fresh local production-build check](../audits/ab132-nojs-recheck-2026-10-15.md)
+reproduced the unknown-path and refused-gallery-cursor empty shell in Chromium and
+mobile WebKit on Next.js 16.3.8: HTTP 404, zero rendered h1/return links and
+`__next_error__`. The four marked expected failures are not passing accessibility
+journeys. Upstream issue #62228 and both inspected candidate fixes #98455/#98583
+were still open/unmerged. No supported remedy was identified by that bounded check.
+
+The O(1), adapter-read-free Proxy is unchanged. The October 7 temporary residual
+acceptance's October 8 review date has passed; this evidence does not renew it
+or claim an unrecorded later owner decision. Exact-candidate acceptance and a
+verified semantic fix remain separate; AB#132 stays Active.
