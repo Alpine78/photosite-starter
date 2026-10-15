@@ -27,6 +27,10 @@ variables:
   # gate if this file and package.json drift apart.
   - name: nodeVersion
     value: "24.x"
+  # Shared agent: restore bounded parallelism after the AB#293 one-worker
+  # stabilization. Keep both test gates on the same small, reversible limit.
+  - name: ciTestWorkers
+    value: "2"
 
 stages:
   - stage: Verify
@@ -68,7 +72,7 @@ stages:
             displayName: "Lint"
 
           - script: |
-              npm test -- --maxWorkers=1
+              npm test -- --maxWorkers=$(ciTestWorkers)
             displayName: "Test"
 
           # The committed architecture diagrams, checked against their
@@ -116,7 +120,7 @@ stages:
           # step before is the deployment build gate, this one is the journey gate. No
           # pipeline secret is passed in: the suite must reach no external service.
           - script: |
-              npm run test:e2e -- --workers=1
+              npm run test:e2e -- --workers=$(ciTestWorkers)
             displayName: "End-to-end smoke tests"
 
           - task: PublishTestResults@2
