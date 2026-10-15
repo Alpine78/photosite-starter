@@ -35,8 +35,8 @@ async function loadProxy(extraEnv: Record<string, string> = {}) {
   const { NextRequest } = await import("next/server");
   return {
     proxy,
-    request: (path: string, headers?: Record<string, string>) =>
-      new NextRequest(new URL(path, "https://proxy.test"), { headers }),
+    request: (path: string, headers?: Record<string, string>, method = "GET") =>
+      new NextRequest(new URL(path, "https://proxy.test"), { headers, method }),
   };
 }
 
@@ -48,6 +48,49 @@ afterEach(() => {
 function headersOf(response: { headers: Headers }) {
   return Object.fromEntries(response.headers.entries());
 }
+
+describe("retained-gallery redirect deployment failure (AB#295)", () => {
+  const handle = "a".repeat(32);
+  const fixtureEnv = {
+    LEGACY_GALLERY_ADAPTER: "fixture",
+    LEGACY_GALLERY_HANDLES: handle,
+    LEGACY_GALLERY_REDIRECTS: JSON.stringify([["/retained-source", handle]]),
+  };
+
+  it("serves ordinary routes and issues no retained redirect from a malformed map", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { proxy, request } = await loadProxy({
+        ...fixtureEnv,
+        LEGACY_GALLERY_REDIRECTS: '{"private-path":"/retained-source"}',
+      });
+      for (const path of ["/", "/contact", "/retained-source"]) {
+        const response = proxy(request(path));
+        expect(response.status).toBe(200);
+        expect(response.headers.get("location")).toBeNull();
+      }
+      expect(proxy(request("/retained-source", undefined, "POST")).status).not.toBe(405);
+      expect(warning).toHaveBeenCalledTimes(1);
+      expect(warning.mock.calls.flat().join(" ")).not.toContain("private-path");
+      expect(warning.mock.calls.flat().join(" ")).not.toContain("retained-source");
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it("uses a non-cacheable temporary redirect for valid GET and HEAD links", async () => {
+    const { proxy, request } = await loadProxy(fixtureEnv);
+    for (const method of ["GET", "HEAD"]) {
+      const response = proxy(request("/retained-source?password=obsolete&locale=fi", undefined, method));
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(`https://proxy.test/client-gallery/${handle}`);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+    }
+    const post = proxy(request("/retained-source", undefined, "POST"));
+    expect(post.status).toBe(405);
+    expect(post.headers.get("allow")).toBe("GET, HEAD");
+  });
+});
 
 describe("legacy category-ancestry fallback notice (AB#19)", () => {
   it("adds its one fixed notice value without accepting a caller-supplied replacement", async () => {

@@ -4,7 +4,10 @@ import { isLegacyGalleryHandle, MAX_LEGACY_GALLERY_IMAGES } from "./legacy-galle
 const MAX_CONFIG_BYTES = 64 * 1024;
 const MAX_PATH_BYTES = 1024;
 const ENV_KEYS = ["LEGACY_GALLERY_REDIRECTS", "LEGACY_GALLERY_HANDLES", "LEGACY_GALLERY_ADAPTER", "LEGACY_GALLERY_IMPORT_BATCH", "SITE_CONTENT_SOURCE", "SITE_DEPLOYMENT_STAGE", "VERCEL_ENV", "NODE_ENV"] as const;
-function fail(): never { throw new Error("Invalid retained-gallery redirect configuration"); }
+export class InvalidLegacyGalleryRedirectConfiguration extends Error {
+  constructor() { super("Invalid retained-gallery redirect configuration"); }
+}
+function fail(): never { throw new InvalidLegacyGalleryRedirectConfiguration(); }
 
 /** Deployment-only pairs; no customer paths belong in the repository. */
 export function parseLegacyGalleryRedirects(raw: string, allowedHandles: ReadonlySet<string>): ReadonlyMap<string, string> {
@@ -31,6 +34,7 @@ export function parseLegacyGalleryRedirects(raw: string, allowedHandles: Readonl
 export function createLegacyGalleryRedirectResolver() {
   let previous: Record<string, string | undefined> | undefined;
   let mapping: ReadonlyMap<string, string> = new Map();
+  let invalid = false;
   return (pathname: string, environment: Record<string, string | undefined>): string | undefined => {
     const raw = environment.LEGACY_GALLERY_REDIRECTS;
     if (!raw?.trim()) return undefined;
@@ -41,9 +45,15 @@ export function createLegacyGalleryRedirectResolver() {
         if (config.adapter !== "off" && [...handles].some((handle) => !isLegacyGalleryHandle(handle))) fail();
         const parsed = config.adapter === "off" ? new Map<string, string>() : parseLegacyGalleryRedirects(raw, handles);
         mapping = parsed;
+        invalid = false;
         previous = Object.fromEntries(ENV_KEYS.map((key) => [key, environment[key]]));
-      } catch { return fail(); }
+      } catch {
+        mapping = new Map();
+        invalid = true;
+        previous = Object.fromEntries(ENV_KEYS.map((key) => [key, environment[key]]));
+      }
     }
+    if (invalid) fail();
     if (Buffer.byteLength(pathname) > MAX_PATH_BYTES * 3) return undefined;
     let decoded: string;
     try { decoded = decodeURI(pathname); } catch { return undefined; }

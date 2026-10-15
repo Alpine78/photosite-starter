@@ -21,6 +21,19 @@ describe("retained-gallery source mapping", () => {
       expect(resolve("/retained-source", { ...env, LEGACY_GALLERY_ADAPTER: "off" })).toBeUndefined();
     } finally { parse.mockRestore(); }
   });
+  it("caches an invalid map without reparsing and recovers when configuration changes", () => {
+    const resolve = createLegacyGalleryRedirectResolver();
+    const parse = vi.spyOn(JSON, "parse");
+    try {
+      expect(resolve("/retained-source", env)).toBe(`/client-gallery/${handle}`);
+      const invalid = { ...env, LEGACY_GALLERY_REDIRECTS: '{"private-path":"/retained-source"}' };
+      expect(() => resolve("/retained-source", invalid)).toThrow(error);
+      expect(() => resolve("/unmapped", invalid)).toThrow(error);
+      expect(parse).toHaveBeenCalledTimes(2);
+      expect(resolve("/retained-source", env)).toBe(`/client-gallery/${handle}`);
+      expect(parse).toHaveBeenCalledTimes(3);
+    } finally { parse.mockRestore(); }
+  });
   it.each([{}, { ...env, LEGACY_GALLERY_REDIRECTS: "" }, { ...env, LEGACY_GALLERY_ADAPTER: "off" }])("leaves no mapping while absent or off", (value) => expect(createLegacyGalleryRedirectResolver()("/retained-source", value)).toBeUndefined());
   it.each([{ ...env, SITE_DEPLOYMENT_STAGE: "preview" }, { ...env, VERCEL_ENV: "preview" }, { ...env, LEGACY_GALLERY_ADAPTER: "fixture" }, { ...env, LEGACY_GALLERY_IMPORT_BATCH: "invalid" }])("refuses real/fixture scope drift with a fixed diagnostic", (value) => expect(() => createLegacyGalleryRedirectResolver()("/retained-source", value)).toThrow(error));
   it("allows only explicit local fixture mapping", () => {
