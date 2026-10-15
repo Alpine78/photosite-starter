@@ -1,6 +1,8 @@
 # Dependency vulnerability monitoring (AB#160)
 
-The dependency inventory is the committed `package-lock.json`. GitHub Dependabot
+The dependency inventories are the committed root and `studio/package-lock.json` files. The [2026-10-15 read-only evidence](audits/ab160-current-audit-evidence-2026-10-15.md) verifies current Dependabot feature settings and three recent scheduled executions; run #1009 passed its root audit and failed its Studio audit. Maintainer notification receipt remains open.
+
+The root inventory is `package-lock.json`. GitHub Dependabot
 alerts and security update pull requests remain enabled; the scheduled Azure
 Pipelines audit adds a check when `main` has not changed. Neither channel merges
 a dependency update automatically.
@@ -10,7 +12,7 @@ a dependency update automatically.
 - The `Daily dependency audit` schedule in `azure-pipelines.yml` runs at
   **06:00 UTC**, every day, on `main`, with `always: true`. Its separate job
   runs `npm audit --include=prod --include=dev --audit-level=low` on the
-  committed lockfile. A finding or registry error fails the job, and the log
+  committed root lockfile. A separate `npm audit --prefix studio --include=prod --include=dev --audit-level=low` step audits the Studio lock even after root failure. A finding or registry error fails the job, and the log
   gives the advisory detail. A scheduled run skips the normal quality gates and
   Preview deployment; push and PR runs retain them.
   The audit uses the `Default` self-hosted pool, so it does not consume the
