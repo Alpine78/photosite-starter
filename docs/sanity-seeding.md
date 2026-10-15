@@ -2857,3 +2857,12 @@ between the CMS move and the code deployment; keep that interval short and
 verify both old and new Finnish/English URLs after deployment. The 56-page
 Blog/Motorsport intro correction has its separate `fix:joomla-intro` digest and
 writer above; it can run before this five-document transaction.
+
+AB#297's owner-approved run completed on 2026-10-15. The approved intro digest
+was `8497617d93ce37bca4e77a2b882960f871637a7100ee8afda3f0a08454c910d8`:
+56 applied, zero pending or unexpected. The five-document plan above read back
+as applied with zero draft/release conflicts. The local migration token returned
+HTTP 401 before any write; the existing localization token was used for both
+guarded transactions. Do not rerun an already applied plan merely because the
+example command still names the migration credential; refresh that credential
+before future migration work.
