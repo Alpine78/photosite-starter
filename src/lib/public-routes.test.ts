@@ -138,6 +138,12 @@ describe("defaultLocaleRouteExists", () => {
     ).resolves.toBe(false);
   });
 
+  it("resolves the search page, which has no sub-paths (ADR-0033)", async () => {
+    // The fixture config leaves the default `search` namespace in place.
+    await expect(defaultLocaleRouteExists("/search")).resolves.toBe(true);
+    await expect(defaultLocaleRouteExists("/search/extra")).resolves.toBe(false);
+  });
+
   it("does not treat a public asset directory as a route", async () => {
     await expect(defaultLocaleRouteExists("/gallery")).resolves.toBe(false);
   });

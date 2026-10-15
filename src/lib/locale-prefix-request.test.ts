@@ -87,6 +87,45 @@ describe("resolveLocalePrefixRequest", () => {
     );
   });
 
+  describe("the search page behind a redundant default prefix (ADR-0033)", () => {
+    const search = (searchParams: Record<string, string | string[] | undefined>) =>
+      resolveLocalePrefixRequest({
+        config,
+        trees,
+        redirects,
+        prefix: "fi",
+        segments: ["search"],
+        searchParams,
+        defaultLocaleRouteExists: vi.fn().mockResolvedValue(true),
+      });
+
+    it("redirects a plain query once, carrying it", async () => {
+      await expect(search({ q: "rally" })).resolves.toEqual({
+        kind: "redirect",
+        location: "/search?q=rally",
+      });
+      await expect(search({})).resolves.toEqual({
+        kind: "redirect",
+        location: "/search",
+      });
+    });
+
+    it("never redirects a non-empty keywords selection, which wins over q", async () => {
+      await expect(search({ keywords: "unknown", q: "rally" })).resolves.toEqual({
+        kind: "not-found",
+      });
+      await expect(search({ keywords: ["a", "b"] })).resolves.toEqual({
+        kind: "not-found",
+      });
+    });
+
+    it("treats an empty keywords selection as text mode", async () => {
+      await expect(search({ keywords: " , ", q: "rally" })).resolves.toMatchObject({
+        kind: "redirect",
+      });
+    });
+  });
+
   it("redirects a redundant default prefix on a category the tree owns", async () => {
     await expect(
       resolveLocalePrefixRequest({

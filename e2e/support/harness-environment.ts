@@ -85,10 +85,15 @@ export const HARNESS_BASE_URL = `http://${HARNESS_HOSTNAME}:${HARNESS_PORT}`;
  */
 export const DEFAULT_STORY_NAMESPACE = "stories";
 
+/** The site-search namespace of the default locale (ADR-0033). */
+export const DEFAULT_SEARCH_NAMESPACE = "search";
+
 export const PREFIXED_LOCALE = {
   prefix: "fi",
   storyNamespace: "tarinat",
   serviceNamespace: "palvelut",
+  /** Localized, so the suite proves the namespace is configuration, not a constant. */
+  searchNamespace: "haku",
 } as const;
 
 /** The default locale's own language subtag, which its routes never carry. */
@@ -107,7 +112,7 @@ export const appUnderTestEnvironment: Record<string, string> = {
   SITE_LOCALE: "en-GB",
   // Two route spaces, so the suite exercises the unprefixed default and a
   // prefixed locale the way a bilingual deployment publishes them.
-  SITE_LOCALE_ROUTES: `en-GB||${DEFAULT_STORY_NAMESPACE}|services,${PREFIXED_LOCALE.prefix}|${PREFIXED_LOCALE.prefix}|${PREFIXED_LOCALE.storyNamespace}|${PREFIXED_LOCALE.serviceNamespace}`,
+  SITE_LOCALE_ROUTES: `en-GB||${DEFAULT_STORY_NAMESPACE}|services|${DEFAULT_SEARCH_NAMESPACE},${PREFIXED_LOCALE.prefix}|${PREFIXED_LOCALE.prefix}|${PREFIXED_LOCALE.storyNamespace}|${PREFIXED_LOCALE.serviceNamespace}|${PREFIXED_LOCALE.searchNamespace}`,
   SITE_CANONICAL_BASE_URL: "https://e2e.photosite-starter.test",
   SITE_DEFAULT_SOCIAL_IMAGE: "/gallery/coastal-landscape.1683eecb7e65.webp",
   SITE_DEFAULT_SOCIAL_IMAGE_WIDTH: "1536",

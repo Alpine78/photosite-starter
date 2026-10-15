@@ -97,6 +97,10 @@ export async function defaultLocaleRouteExists(path: string): Promise<boolean> {
     );
   }
 
+  // The search page (ADR-0033) is a fixed page with no sub-paths: it exists
+  // for exactly its own namespace, whatever the query string says.
+  if (first === defaultRoute.searchNamespace) return segments.length === 1;
+
   if (segments.length > 2) return false;
 
   switch (first) {

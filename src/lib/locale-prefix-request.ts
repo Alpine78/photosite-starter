@@ -9,7 +9,9 @@ import {
   isLegacyFallbackNotice,
 } from "@/lib/legacy-redirects";
 import { isPublicIdentity } from "@/lib/public-identity";
+import { readSearchRequest } from "@/lib/site-search-query";
 import {
+  buildSearchPath,
   buildStoryPath,
   resolvePrefixedRoute,
   type LocaleRoute,
@@ -658,9 +660,20 @@ export async function resolveLocalePrefixRequest({
       return redirectTo(historical.path, historical.route);
     }
 
-    return (await defaultLocaleRouteExists(toPath(canonical)))
-      ? redirectTo(toPath(canonical))
-      : NOT_FOUND;
+    const target = toPath(canonical);
+    if (!(await defaultLocaleRouteExists(target))) return NOT_FOUND;
+
+    // The search page (ADR-0033 §1, ADR-0012 §8) refuses an invalid keyword
+    // selection *instead of* redirecting it: a redirect would only move the
+    // request to a URL that answers 404 anyway, and an invalid selection is never
+    // redirected. No taxonomy exists yet, so every non-empty `keywords` is one.
+    if (
+      target === buildSearchPath(config, defaultRoute.locale) &&
+      readSearchRequest(searchParams).mode === "keywords"
+    ) {
+      return NOT_FOUND;
+    }
+    return redirectTo(target);
   }
 
   // Anything that is not a locale prefix belongs to the unprefixed route space,

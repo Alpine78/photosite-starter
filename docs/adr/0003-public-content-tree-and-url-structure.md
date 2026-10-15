@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18, 2026-09-19, 2026-10-12 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18, 2026-09-19, 2026-10-12, 2026-10-15 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -12,6 +12,19 @@ This broad record remains accepted as a whole. A scoped clause is amended in pla
 when implementation produces evidence the original text did not have, and each partial
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
+
+### 2026-10-15 — Search namespace also serves free-text search (AB#299)
+
+Decision 6 reserved `/haku` and `/en/search` "for later virtual keyword queries" and
+described them as not identifying persisted category nodes. That remains true. The
+reservation is **widened by one use**: the same localized route also serves the site's
+free-text search results and its empty search landing state, with the mode rule, corpus
+and privacy contract in [ADR-0033](0033-unified-site-search.md) and the keyword mode left
+to [ADR-0012](0012-dynamic-keyword-gallery-query-contract.md). The namespace segment
+becomes a deployment-owned `searchNamespace` beside `storyNamespace` and
+`serviceNamespace`, collision-checked the same way and resolved inside the shared locale
+catch-all route, never a separate generic route. Search pages are `noindex`, carry no
+canonical link and are not in the sitemap. Affected: Decision 6 only.
 
 ### 2026-10-12 — Conditional one-time legacy domain identity retirement (AB#257)
 

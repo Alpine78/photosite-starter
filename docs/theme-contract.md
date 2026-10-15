@@ -38,6 +38,13 @@ separate role from `--surface-muted` on purpose — in dark mode the hover wash 
 heavier (`/0.1` vs `/0.05`), and folding them together would erase the hover
 affordance.
 
+**A modal's veil is not an exception (AB#299).** The search dialog dims the page
+with `bg-background/75` and a 2px blur, not a raw black scrim: it fades the page
+toward its own canvas in both palettes, so a preset needs no override and the
+dialog adds no entry to "What stays explicit". The panel on top is `bg-surface`,
+and result thumbnails sit on `bg-surface-muted` inside a fixed box that shows
+the whole image (`object-contain`).
+
 ### Text roles
 
 | Utility | Custom property | Role | Value (both palettes) |

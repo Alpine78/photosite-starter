@@ -42,6 +42,11 @@ const QUERY_CACHE_TAGS: Readonly<
   "home-page": [T.home, T.media, T.metadata, T.sitemap],
   "service.list": [T.services, T.media, T.metadata, T.sitemap],
   "service.detail": [T.services, T.media, T.metadata, T.sitemap],
+  // The site search's whole-language story read (ADR-0033): every article and
+  // gallery's searched fields plus the cover media, so any of them changing
+  // must invalidate it. Its eligibility decision (the content tree) is a
+  // separate, already-tagged read.
+  "site-search.stories": [T.articles, T.galleries, T.categories, T.media],
   "article.listing": [T.articles, T.categories, T.media, T.metadata, T.sitemap],
   // The home page's latest-stories read (AB#252): the same dependencies as the
   // listing it mirrors, since it reads the same documents and cover media.

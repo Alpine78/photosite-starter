@@ -317,6 +317,14 @@ time; the Production set is never fetched by the Preview job.
 | `SANITY_READ_TOKEN`                            | a Preview runtime token in Vercel, required if private | a separate Production runtime token in Vercel, required if private |
 | `SANITY_WEBHOOK_SECRET`                        | one stable Preview secret                            | a separate, stable Production secret    |
 
+**Site-search route (AB#299, ADR-0033).** The fifth field of a `SITE_LOCALE_ROUTES` entry
+is the locale's search namespace and defaults to `search`, so a deployment whose value
+lacks it publishes `/search` and `/en/search`. The launch contract is
+`fi||tarinat|palvelut|haku,en|en|stories|services|search`, which publishes the Finnish page
+at `/haku` as ADR-0003 reserved. The setting is read at build time: changing it in the Vercel
+project is an owner-run operation that takes effect on the next build, for both Preview and
+Production, and the Production value is not changed by this repository's pull request.
+
 Two of these are safeguards rather than preferences. `SITE_CONTENT_SOURCE=mock` is
 **refused outright** in a production deployment, and so is `CONTACT_DELIVERY_ADAPTER=sink`:
 publishing the project's demo photographs as a photographer's own work, or accepting an

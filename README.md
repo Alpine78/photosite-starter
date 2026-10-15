@@ -70,7 +70,7 @@ or invalid.
 | Setting | Purpose |
 | --- | --- |
 | `SITE_LOCALE` | BCP 47 default locale with a concrete language subtag, for the document language and date formatting |
-| `SITE_LOCALE_ROUTES` | Public route space per supported locale: `locale\|prefix\|story-namespace[\|service-namespace]` entries |
+| `SITE_LOCALE_ROUTES` | Public route space per supported locale: `locale\|prefix\|story-namespace[\|service-namespace[\|search-namespace]]` entries |
 | `SITE_CANONICAL_BASE_URL` | Public origin every canonical and Open Graph URL is built from |
 | `SITE_DEFAULT_SOCIAL_IMAGE` | Versioned public derivative used as the default social preview |
 | `SITE_DEFAULT_SOCIAL_IMAGE_VERSION` | Byte version of that image; required only for a remote URL |
@@ -97,9 +97,13 @@ image's real rendition dimensions instead.
 as comma-separated `locale|prefix|namespace` entries. The default locale leaves
 the prefix empty because its routes carry none, and must be the locale named by
 `SITE_LOCALE`. A single-locale English clone reads `en-GB||stories`; the
-bilingual first production deployment reads `fi||tarinat|palvelut,en|en|stories|services`. That
-assigns the unprefixed route space and `/tarinat/…` namespace to Finnish, and
-the `/en` route space and `/en/stories/…` namespace to English. Every configured
+bilingual first production deployment reads
+`fi||tarinat|palvelut|haku,en|en|stories|services|search`. That
+assigns the unprefixed route space, `/tarinat/…` namespace and `/haku` search page to
+Finnish, and the `/en` route space, `/en/stories/…` namespace and `/en/search` search page
+to English. The optional fifth field is the locale's site-search namespace and defaults
+to `search`; like the story and service namespaces it is reserved against root routes,
+locale prefixes and static routes at startup. Every configured
 prefix is reserved against the root routes the application already owns, and
 every story namespace is reserved against static routes inside its locale
 space. A redundant
@@ -471,6 +475,15 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   (AB#60) is a separate story*
   - Contact email subjects show the selected published service and optional preferred
     date; Other uses the localized generic contact label (AB#188).
+- [ ] Site search (AB#299) — *free-text search of published stories and services in the
+  visitor's own language: a header control that opens an accessible dialog (native modal
+  `<dialog>`, `POST /api/search`) and upgrades a server-rendered, no-JavaScript results page
+  at the locale's search route (`/haku`, `/en/search`). Matching runs in memory over a cached,
+  webhook-invalidated story index, so keystrokes make no CMS request and a search term never
+  reaches the CMS ([data flow](docs/search-data-flow.md)); results are `noindex` and thumbnails
+  keep their native ratio. [ADR-0033](docs/adr/0033-unified-site-search.md) is proposed and
+  decides how this shares its route with the keyword-gallery contract of ADR-0012. Image and
+  keyword search wait for the taxonomy chain (AB#55 and its dependants)*
 - [x] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
   canonical URLs, and Open Graph output done for every current public page; `sitemap.xml`
   and `robots.txt` done (AB#85) — every published, public, indexable category, article,

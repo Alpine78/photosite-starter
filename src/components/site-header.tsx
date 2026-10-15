@@ -7,6 +7,7 @@ import { BrandMarks } from "@/components/brand-mark";
 import { LanguageMenu } from "@/components/language-menu";
 import type { LanguageLink } from "@/components/language-switch";
 import { SiteNavigation } from "@/components/site-navigation";
+import { SiteSearchDialog } from "@/components/site-search-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import type { PublicImageRendition } from "@/lib/media";
@@ -51,6 +52,16 @@ type SiteHeaderProps = {
    * screen-reader note that it is not this page's translation (AB#262).
    */
   fallbackLanguageLinks: readonly LanguageLink[];
+  /**
+   * The site search (ADR-0033): this locale's results page, its UI copy, and
+   * the locale the dialog searches in. The control is a link to that page that
+   * script upgrades to the dialog, so it works with no JavaScript.
+   */
+  search: {
+    readonly href: string;
+    readonly locale: string;
+    readonly labels: BuiltInLabels["search"];
+  };
 };
 
 const subscribeNever = () => () => {};
@@ -76,6 +87,62 @@ const brandClass =
  * rebranding cannot rename.
  */
 const COMPACT_PANEL_ID = "mobile-nav";
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 shrink-0">
+      <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M15.5 15.5L21 21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/**
+ * The search control. A real link to the results page, so a visitor without
+ * script — or one who opens it in a new tab — gets the page; a plain primary
+ * click is taken over to open the dialog in place. The opening element is
+ * handed back so focus can return to it on close, because WebKit does not
+ * focus a link or button a pointer activated.
+ */
+function SearchTrigger({
+  href,
+  label,
+  showLabel,
+  onOpen,
+  className,
+}: {
+  readonly href: string;
+  readonly label: string;
+  readonly showLabel: boolean;
+  readonly onOpen: (opener: HTMLElement) => void;
+  readonly className: string;
+}) {
+  return (
+    <a
+      href={href}
+      aria-haspopup="dialog"
+      {...(showLabel ? {} : { "aria-label": label })}
+      onClick={(event) => {
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
+          return;
+        }
+        event.preventDefault();
+        onOpen(event.currentTarget);
+      }}
+      className={className}
+    >
+      <SearchIcon />
+      {showLabel && <span>{label}</span>}
+    </a>
+  );
+}
 
 /**
  * The brand text: one line of site name, or — where this locale has a
@@ -161,6 +228,7 @@ export function SiteHeader({
   themeLabels,
   languageMenuLabels,
   fallbackLanguageLinks,
+  search,
 }: SiteHeaderProps) {
   const pathname = usePathname();
   const lines = brandLines(siteName, brandName, brandDescriptor);
@@ -224,6 +292,20 @@ export function SiteHeader({
   const [menuOpen, setMenuOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchOpenerRef = useRef<HTMLElement | null>(null);
+
+  const openSearch = (opener: HTMLElement) => {
+    searchOpenerRef.current = opener;
+    // One overlay at a time: the compact menu would otherwise stay open behind
+    // the dialog and take the next Escape from it.
+    setMenuOpen(false);
+    setSearchOpen(true);
+  };
+  const closeSearch = () => {
+    setSearchOpen(false);
+    searchOpenerRef.current?.focus();
+  };
 
   // Navigating ends the interaction that opened the panel. Keyed on the route
   // rather than only on a link click, so a browser Back closes it too, and
@@ -232,6 +314,7 @@ export function SiteHeader({
   if (renderedPathname !== pathname) {
     setRenderedPathname(pathname);
     setMenuOpen(false);
+    setSearchOpen(false);
   }
 
   useEffect(() => {
@@ -310,6 +393,13 @@ export function SiteHeader({
             navigation and overflows the header (Codex review). */}
         <div className="hidden items-center gap-6 lg:flex">
           <SiteNavigation items={barItems} layout="bar" labels={labels} />
+          <SearchTrigger
+            href={search.href}
+            label={search.labels.open}
+            showLabel
+            onOpen={openSearch}
+            className={`inline-flex min-h-11 items-center gap-2 text-[0.9375rem] transition-colors hover:text-link-hover ${focusRing}`}
+          />
           <ThemeToggle labels={themeLabels} className="-mx-2" />
           <LanguageMenu
             links={languageLinks}
@@ -330,6 +420,13 @@ export function SiteHeader({
         </div>
 
         <div className="flex items-center gap-2 lg:hidden">
+          <SearchTrigger
+            href={search.href}
+            label={search.labels.open}
+            showLabel={false}
+            onOpen={openSearch}
+            className={`inline-flex h-11 w-11 items-center justify-center transition-colors hover:text-link-hover ${focusRing}`}
+          />
           <ThemeToggle labels={themeLabels} />
           <button
             type="button"
@@ -363,6 +460,15 @@ export function SiteHeader({
           label={languageMenuLabels.label}
         />
       </div>
+
+      <SiteSearchDialog
+        open={searchOpen}
+        onClose={closeSearch}
+        onNavigate={() => setSearchOpen(false)}
+        locale={search.locale}
+        searchHref={search.href}
+        labels={search.labels}
+      />
     </header>
   );
 }

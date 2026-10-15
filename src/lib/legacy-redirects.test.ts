@@ -302,6 +302,7 @@ describe("buildLegacyGoneHtml", () => {
       prefix: "sv",
       storyNamespace: "stories",
       serviceNamespace: "services",
+      searchNamespace: "search",
       basePath: "/sv",
       isDefault: false,
     });

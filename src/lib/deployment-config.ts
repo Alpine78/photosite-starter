@@ -93,6 +93,40 @@ export type BuiltInLabels = {
     /** Names the menu's group of language links. */
     readonly label: string;
   };
+  /**
+   * The site search (ADR-0033): the header control, the dialog, and the
+   * results page share this copy. `{query}` and `{count}` are the only
+   * placeholders; a count is rendered by the one-or-other string so a language
+   * with a different plural rule never needs a branch in the markup.
+   */
+  readonly search: {
+    /** Page heading and the dialog's accessible name. */
+    readonly title: string;
+    /** The header control's visible name. */
+    readonly open: string;
+    readonly close: string;
+    /** The field's accessible name (it also has a placeholder). */
+    readonly fieldLabel: string;
+    readonly placeholder: string;
+    readonly submit: string;
+    /** Prompt shown before a usable query: the empty and too-short states. */
+    readonly prompt: string;
+    readonly searching: string;
+    readonly storiesHeading: string;
+    readonly servicesHeading: string;
+    /** The result row's kind line. */
+    readonly storyKind: string;
+    readonly serviceKind: string;
+    /** Announced when a search settles. */
+    readonly resultsOne: string;
+    readonly resultsOther: string;
+    readonly noResults: string;
+    readonly unavailable: string;
+    /** The dialog's link to the full results page. */
+    readonly showAll: string;
+    /** Shown when a group on the results page is cut at its cap. */
+    readonly narrowSearch: string;
+  };
   readonly services: {
     readonly pricing: string;
     /** Heading of the list of a service's own sub-services, e.g. its packages. */
@@ -608,6 +642,26 @@ const englishLabels = {
   languageMenu: {
     label: "Language",
   },
+  search: {
+    title: "Search",
+    open: "Search",
+    close: "Close",
+    fieldLabel: "Search the site",
+    placeholder: "Search stories and services",
+    submit: "Search",
+    prompt: "Type at least two letters to search.",
+    searching: "Searching…",
+    storiesHeading: "Stories",
+    servicesHeading: "Services",
+    storyKind: "Story",
+    serviceKind: "Service",
+    resultsOne: "{count} result",
+    resultsOther: "{count} results",
+    noResults: "No results for “{query}”.",
+    unavailable: "Search is temporarily unavailable. Please try again shortly.",
+    showAll: "Show all results for “{query}”",
+    narrowSearch: "Showing the first {count} in this group. Narrow your search to see the rest.",
+  },
   services: {
     pricing: "Pricing",
     packages: "Packages",
@@ -926,6 +980,26 @@ const finnishLabels = {
   },
   languageMenu: {
     label: "Kieli",
+  },
+  search: {
+    title: "Haku",
+    open: "Hae",
+    close: "Sulje",
+    fieldLabel: "Hae sivustolta",
+    placeholder: "Hae tarinoita ja palveluita",
+    submit: "Hae",
+    prompt: "Kirjoita vähintään kaksi kirjainta hakeaksesi.",
+    searching: "Haetaan…",
+    storiesHeading: "Tarinat",
+    servicesHeading: "Palvelut",
+    storyKind: "Tarina",
+    serviceKind: "Palvelu",
+    resultsOne: "{count} tulos",
+    resultsOther: "{count} tulosta",
+    noResults: "Ei tuloksia haulle ”{query}”.",
+    unavailable: "Haku ei ole hetkellisesti käytettävissä. Yritä hetken kuluttua uudelleen.",
+    showAll: "Näytä kaikki tulokset haulle ”{query}”",
+    narrowSearch: "Näytetään tämän ryhmän {count} ensimmäistä. Tarkenna hakua nähdäksesi loput.",
   },
   services: {
     pricing: "Hinnoittelu",
@@ -1339,11 +1413,11 @@ function legacyRedirectRootSegments(): ReadonlySet<string> {
 
 /**
  * Reads the deployment's locale routing: one
- * `locale|prefix|story-namespace|service-namespace` entry
+ * `locale|prefix|story-namespace[|service-namespace[|search-namespace]]` entry
  * per supported locale, separated by commas. The default locale leaves the
  * prefix field empty, because its routes carry no prefix:
  *
- *     fi||tarinat|palvelut,en|en|stories|services
+ *     fi||tarinat|palvelut|haku,en|en|stories|services|search
  *
  * Every rule the entries must satisfy — one unprefixed default, unique
  * prefixes, no collision with a root route or localized static route — is the
@@ -1410,17 +1484,18 @@ function parseLocaleRoutes(
     .filter((entry) => entry.length > 0)
     .map((entry) => {
       const fields = entry.split("|").map((field) => field.trim());
-      if (fields.length !== 3 && fields.length !== 4) {
+      if (fields.length < 3 || fields.length > 5) {
         throw new Error(
-          `[deployment-config] Invalid ${settingName}: expected comma-separated "locale|prefix|story-namespace[|service-namespace]" entries, received "${entry}"`,
+          `[deployment-config] Invalid ${settingName}: expected comma-separated "locale|prefix|story-namespace[|service-namespace[|search-namespace]]" entries, received "${entry}"`,
         );
       }
-      const [locale, prefix, storyNamespace, serviceNamespace] = fields;
+      const [locale, prefix, storyNamespace, serviceNamespace, searchNamespace] = fields;
       return {
         locale,
         prefix: prefix.length === 0 ? null : prefix,
         storyNamespace,
         ...(serviceNamespace === undefined ? {} : { serviceNamespace }),
+        ...(searchNamespace === undefined ? {} : { searchNamespace }),
       };
     });
 
@@ -1439,6 +1514,16 @@ function parseLocaleRoutes(
       );
     }
     throw cause;
+  }
+
+  // The default locale's search namespace is an unprefixed root path, and the
+  // Proxy answers the legacy-redirect registry before any route runs, so a
+  // namespace the registry already redirects would be unreachable (ADR-0033).
+  const defaultSearchNamespace = config.byLocale.get(config.defaultLocale)?.searchNamespace;
+  if (defaultSearchNamespace !== undefined && legacyRedirectRootSegments().has(defaultSearchNamespace)) {
+    throw new Error(
+      `[deployment-config] Invalid ${settingName}: search namespace "${defaultSearchNamespace}" is the root of a legacy-redirect path`,
+    );
   }
 
   // Which locale is default decides the whole unprefixed route space, so the

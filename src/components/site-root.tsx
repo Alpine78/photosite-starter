@@ -5,6 +5,7 @@ import {
 import { getContentTrees } from "@/lib/content";
 import { listStoryRootVersions } from "@/lib/content-routes";
 import { buildFallbackLanguageLinks } from "@/lib/language-fallback";
+import { buildSearchPath } from "@/lib/locale-routes";
 import {
   buildSiteNavigation,
   resolveStaticNavigationLinks,
@@ -91,6 +92,11 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
         labels={labels.navigation}
         themeLabels={labels.theme}
         languageMenuLabels={labels.languageMenu}
+        search={{
+          href: buildSearchPath(config, locale),
+          locale,
+          labels: labels.search,
+        }}
         fallbackLanguageLinks={buildFallbackLanguageLinks(
           listStoryRootVersions(config, trees),
           locale,

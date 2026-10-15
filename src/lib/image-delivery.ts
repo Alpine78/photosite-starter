@@ -140,6 +140,14 @@ export const imageRenderProfiles = {
   serviceGrid: {
     sizes: contentCardGridSizes,
   },
+  /**
+   * A site-search result's thumbnail (ADR-0033): a fixed 80px-wide box at every
+   * viewport, so no container arithmetic is needed. The image keeps its native
+   * ratio inside the box (`object-contain`); it is never cropped.
+   */
+  searchResultThumbnail: {
+    sizes: "80px",
+  },
   /** The category branch listing: the same container, two columns (AB#173). */
   contentListingGrid: {
     sizes: contentCardGridSizes,

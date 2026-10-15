@@ -1004,3 +1004,57 @@ optimizer. Ordinary public media and protected-gallery delivery contracts are
 unchanged. The import approval and complete live byte/browser checks are separate
 gates. This source correction does not claim customer publication, provider
 support, completed credential retirement or the final AB#117 acceptance.
+
+## Site search — 2026-10-15 (AB#299 / AB#117)
+
+Scoped review of the new untrusted-input surface: `POST /api/search`, the
+`?q=` results page and the story index read. [ADR-0033](adr/0033-unified-site-search.md)
+(Proposed) and [`search-data-flow.md`](search-data-flow.md) hold the decisions and
+the processing record. This is a source review with fixture-based tests, not a
+live-infrastructure check.
+
+**Checked and held:**
+
+- *Request boundary.* The endpoint exports `POST` only, rejects a foreign or
+  missing `Origin` and a non-JSON body before reading the body, bounds the body
+  to 1 KiB, accepts exactly two string fields, and validates `lang` against the
+  configured locales. Responses are `no-store` with no CORS headers. Covered by
+  `src/app/api/search/route.test.ts` and `e2e/site-search.spec.ts`.
+- *Query as data.* Input is truncated to 100 characters and 8 tokens of at least
+  two characters; `*`, quotes and `-` are separators; a query with no usable word
+  matches nothing. No visitor text reaches GROQ at all — matching is in memory —
+  so the injection and "match everything" classes of a CMS query do not arise.
+- *Output.* No `dangerouslySetInnerHTML`: highlights are text nodes in `<mark>`,
+  and the echoed query is rendered by React. A hostile query is asserted to
+  appear as text only.
+- *Projection.* The story read names its fields, shares the audited public-media
+  projection for covers, is capped at the client's 1 MiB response ceiling and
+  fails closed on a malformed or oversized answer. A hit carries a title, lead,
+  date, public route and a cover's public `src` with true dimensions; the
+  contract test pins the exact key set, so no media identity, caption, credit or
+  provider field crosses to the browser.
+- *Eligibility.* A hit exists only when the locale's content tree gives the page a
+  canonical path (services: resolved and not hidden), so drafts, unpublished,
+  ended, secondary-only, private-gallery and retained delivery pages cannot be
+  found, and the link is the public route itself.
+- *Privacy.* No cookie, storage, analytics or third party; the term is in a POST
+  body from the dialog, never in a URL, and is never logged or sent to the CMS.
+  The no-JavaScript results page keeps it in the URL by design, recorded as an
+  accepted, documented exposure.
+- *Browser policy.* No CSP change: the dialog's `fetch` is same-origin
+  (`connect-src 'self'`), the veil uses a background token, and nothing inline is
+  added beyond the CSSOM scroll lock the header already uses elsewhere.
+
+**Residual and open (not findings):**
+
+- No application rate limit. A warm search makes no upstream call, so distinct
+  terms cost bounded CPU rather than quota; the platform firewall is the defence
+  in depth (ADR-0004 §5). ADR-0033 names the trigger for adding one.
+- The index's size, record count and search latency are **unmeasured on Preview**
+  (ADR-0033 §4); a very large archive would approach the response ceiling and
+  the design's revisit trigger.
+- A hosting provider may record the results-page query string in its request
+  log; its retention is not this deployment's to state and belongs in the launch
+  review's provider checklist.
+- Manual keyboard and screen-reader passes, and a hosted check of `/haku` after
+  the owner updates `SITE_LOCALE_ROUTES`, are still to be recorded.
