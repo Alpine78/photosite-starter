@@ -1,5 +1,37 @@
 # Finnish and English page coverage — AB#255
 
+## Current acceptance ledger — reconciled 2026-10-15
+
+Source baseline `eabbc5d` includes #370–#373, #397, #413 and #415. This is a
+reconciliation of dated evidence, **not a new CMS census or hosted acceptance**.
+The October 13 [AB#284 census](audits/ab284-current-integrated-preview-2026-10-13.md)
+reported all 28 article, 32 gallery, eight service and 12 category FI/EN pairs
+published. Earlier missing-counterpart counts below are historical. Owner-approved
+18-article English copy/publication does not accept every older translation.
+AB#255 remains Active; each row names the remaining owner/work-item responsibility.
+
+| Page family | Latest evidenced implementation/content | Remaining acceptance and owner |
+| --- | --- | --- |
+| Home | Requested-locale source, exact switches and metadata; earlier published home/settings text inventory plus #413's locale-resolved photographer-story link. | AB#255 / owner: wording/image acceptance and current hosted FI/EN destinations; #413's local real-content check is not its deployed check. |
+| Contact | Localized form/privacy/services and locale routes; October 13 service census now has all eight FI/EN pairs. | AB#255 / owner: current requested-language choices, validation and delivery journey; provider acceptance and mailbox arrival are separate evidence. |
+| Services / packages | All eight FI/EN published service pairs in AB#284; #373 default-service sibling links and existing native-ratio covers/packages are merged. #413 records later approved price changes. | AB#255 / owner: actual wording/media acceptance and current hosted links/pricing; no five-service translation backlog is inferred from the old table. |
+| Story root / categories | All 12 FI/EN category pairs reported published; #397 fixes root-only census false positives. | AB#255 / owner: optional one-language descriptions, actual routes, metadata and accepted copy. Root/category exception is not permission to invent translations. |
+| Articles | All 28 FI/EN pairs reported published. The 18 approved EN articles and 644 placements were published/read back and Preview-checked; 23 historical poll blocks omitted from EN only by owner decision. | AB#255 / owner: acceptance of older pairs and current deployed route/media semantics. Existing FI polls remain; no new translation or album-image text is authorized. |
+| Shared public media | The dated October 12 text inventory remains the available field-presence evidence. | AB#255 / owner: distinguish page-owned hero/service text from general album-image text. General album-image caption/alt authoring remains deferred after MVP; preserve existing text and documented fallback. |
+| Public galleries / continuations / filters | All 32 FI/EN document pairs in the published census; shared public gallery/UI source is merged. | AB#255 / owner: section-identity/wording differences and actual hosted filter, continuation, metadata and switching checks. Pair existence is not editorial acceptance. |
+| Retained legacy deliveries | FI/EN query-locale UI is merged; #416 reports 21 retained pages reachable. | AB#255 / owner: actual FI/EN hosted UI; AB#250 separately owns unchanged bytes, ZIPs, redirects, headers and recovery. Availability readback is not a bilingual browser check. |
+| Protected client / proofing | #372 supplies configured query-locale UI without a preference cookie or a public prefix. | AB#255 / owner: authorized hosted sessions, actions and failures after provisioning/activation; locale cannot grant access. |
+| Private administrator | #372 localizes login/admin UI and preserves selected locale through authentication. | AB#255 / owner: authorized hosted FI/EN operations and refusals, preserving ADR-0015. |
+| Not-found / error / unavailable | Public/restricted source labels are localized; AB#132 remains a separate scriptless semantic defect. | AB#255 / owner: actual hosted language/error behavior. AB#132 / owner: exact-candidate retest and its explicit residual-risk decision. |
+| Standalone Studio | #370/#371 are merged, including localized headings/lists/full-frame previews and drag instructions. Authenticated local observations are recorded in their audits. | AB#255 / owner: hosted Studio activation and final wording/live acceptance. Earlier Draft/merge blockers below are historical. |
+| Site search | #415 is merged: FI/EN dialog and GET page, localized route namespace and source journeys. | AB#299 / owner: Preview corpus/query/latency evidence, ADR-0033 acceptance and manual accessibility checks identified by its PR; AB#255 retains all-pages acceptance. |
+
+## Historical checkpoints and original metadata inventory
+
+The following dated notes and original table preserve the earlier authoring state.
+Their missing-service/category/article counts are superseded by the October 13
+publication/census evidence above, and do not define today's remaining work.
+
 2026-10-13 Studio completion: the [initial authenticated check](audits/ab255-authenticated-studio-locales-2026-10-13.md) identified type-header, list-preview and drag-instruction gaps. [Drag localization](audits/ab255-studio-drag-localization-2026-10-13.md) merged in #371; [presentation corrections](audits/ab255-studio-presentation-completion-2026-10-13.md) are complete in #370, with final CI/review pending. Local/source verification is separate from deployed Studio acceptance.
 
 2026-10-13 current publication update: [AB#284's stable complete census and hosted
@@ -30,8 +62,8 @@ created all 18 EN article drafts and 644 linked end-gallery placement drafts;
 their later owner-approved publication and hosted checks are recorded above.
 The 23 poll blocks were omitted only from EN drafts. Existing FI content,
 polls/votes, shared media, categories and asset counts remain unchanged.
-Published coverage still lacks these 18 EN articles: editing drafts are not
-publication. EN canonical category and editor/media review remain publication
+At this draft-authoring checkpoint, published coverage still lacked these 18 EN
+articles: editing drafts were not publication. The later publication above supersedes this state. EN canonical category and editor/media review remain publication
 gates. This approval does not cover category/service/gallery proposals or new
 image caption/alt authoring. AB#255 remains Active.
 
