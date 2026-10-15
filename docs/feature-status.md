@@ -5110,9 +5110,11 @@ AB#293 are Closed in Azure Boards.
 The owner requested faster launch validation after freeing disk space. A
 single `ciTestWorkers` pipeline variable raises both Vitest and Playwright
 from one to two workers while retaining every gate, timeout and assertion.
-The prior one-worker successful run #1007 took 24m06s end to end. The new
-setting awaits exact-commit Azure CI evidence before AB#296 can be closed;
-an agent disconnect or test failure requires investigation before merge.
+The prior one-worker successful run #1007 took 24m06s end to end (unit tests
+66.5s; E2E 18m55s). The two-worker PR run #1011 passed without agent loss in
+13m42s (unit tests 34.6s; E2E 10m38s), a 10m24s overall improvement. The
+documentation follow-up needs its own exact-head CI check before AB#296 can
+be merged or closed; an agent disconnect or test failure requires investigation.
 
 ### AB#294 — lightbox opening and loaded-slide navigation (2026-10-14)
 
