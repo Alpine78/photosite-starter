@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildLocaleRouteConfig } from "@/lib/locale-routes";
+import { buildContentTree } from "@/lib/content-tree";
 import { getHomeContent } from "@/lib/home-content";
 import type { SiteSettings } from "@/lib/site-settings";
 
@@ -160,6 +161,37 @@ describe("getHomeContent", () => {
     // Both start before either finishes — proof they ran concurrently rather
     // than the href being awaited to completion before the document read began.
     expect(order).toEqual(["document-start", "settings-start", "document-end", "settings-end"]);
+  });
+
+  it("resolves an authored photographer reference to each locale's canonical article route", async () => {
+    deploymentConfig.contentSource = "sanity";
+    sanityHomeContent.readSanityHomeDocument.mockResolvedValue({
+      photographerIntroduction: { storyLink: { contentId: "photographer" } },
+    });
+    const makeTree = (slug: string, articleSlug: string) => buildContentTree({
+      categories: [{ categoryId: "blog", parentId: null, slug, label: "Blog", order: 0 }],
+      placements: [{ contentId: "photographer", variant: "article", slug: articleSlug,
+        published: true, canonicalCategoryId: "blog" }],
+    });
+    contentModule.getContentTrees.mockResolvedValue(new Map([
+      ["fi-FI", makeTree("blogi", "kuvaaja")],
+      ["en-GB", makeTree("blog", "photographer")],
+    ]));
+    for (const [locale, href] of [
+      ["fi-FI", "/tarinat/blogi/kuvaaja"],
+      ["en-GB", "/en/stories/blog/photographer"],
+    ]) {
+      await getHomeContent(locale);
+      expect(sanityHomeContent.projectHomeContent).toHaveBeenLastCalledWith(
+        expect.anything(), expect.objectContaining({ photographerStoryHref: href }),
+      );
+    }
+    expect(contentModule.getContentTrees).toHaveBeenCalledTimes(2);
+    contentModule.getContentTrees.mockResolvedValue(new Map());
+    await getHomeContent("fi-FI");
+    expect(sanityHomeContent.projectHomeContent).toHaveBeenLastCalledWith(
+      expect.anything(), expect.not.objectContaining({ photographerStoryHref: expect.anything() }),
+    );
   });
 
   it("builds English home content without reading Finnish shared copy", async () => {

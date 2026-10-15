@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { resolveLegacyRedirect } from "@/lib/legacy-redirects";
 import {
   LEGACY_REDIRECTS,
+  MOVED_CONTENT_REDIRECT_ENTRIES,
   PUBLISHED_CONTENT_REDIRECT_ENTRIES,
   PUBLISHED_SERVICE_REDIRECT_ENTRIES,
   REMAINING_LEGACY_REDIRECT_ENTRIES,
@@ -45,6 +46,21 @@ describe("numeric camera-review legacy decision", () => {
   });
 });
 
+it("sends retired photographer and empty Common URLs directly to their Blog successors", () => {
+  for (const entry of MOVED_CONTENT_REDIRECT_ENTRIES) {
+    expect(resolveLegacyRedirect(LEGACY_REDIRECTS, entry.source)).toEqual(entry.outcome);
+    if (entry.outcome.kind === "redirect") {
+      expect(resolveLegacyRedirect(LEGACY_REDIRECTS, entry.outcome.target)).toBeUndefined();
+    }
+  }
+  expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/kuvaaja")).toMatchObject({
+    target: "/tarinat/blogi/valokuvaaja-ilkka-rytkonen",
+  });
+  expect(resolveLegacyRedirect(LEGACY_REDIRECTS, "/en/about")).toMatchObject({
+    target: "/en/stories/blog/ilkka-rytkonen-photographer",
+  });
+});
+
 /**
  * These content routes exist only after first-site content is imported, so
  * the mock-only harness cannot prove them by enumerating its fixture. Each
@@ -52,8 +68,7 @@ describe("numeric camera-review legacy decision", () => {
  * legacy source is moved out of `PENDING_LEGACY_PATHS`.
  */
 const KNOWN_PUBLISHED_CONTENT_TARGETS = new Set([
-  "/tarinat/yleinen",
-  "/en/stories/common",
+  "/en/stories/blog",
   "/tarinat/moottoriurheilu",
   "/en/stories/motorsport",
   "/tarinat/moottoriurheilu/wrc",
@@ -78,7 +93,7 @@ const KNOWN_PUBLISHED_CONTENT_TARGETS = new Set([
   "/en/stories/motorsport/wrc/secto-rally-finland-2022",
   "/tarinat/moottoriurheilu/wrc/rally-estonia-2023",
   "/en/stories/motorsport/wrc/rally-estonia-2023",
-  "/en/stories/common/ilkka-rytkonen-photographer",
+  "/en/stories/blog/ilkka-rytkonen-photographer",
   "/en/stories/motorsport/formula-1",
   "/en/stories/motorsport/formula-1/austrian-grand-prix-2021",
   "/en/stories/motorsport/other-motorsport",
@@ -174,7 +189,7 @@ const KNOWN_PUBLISHED_CONTENT_TARGETS = new Set([
   "/tarinat/vat-portfolio/kaupallinen",
   "/tarinat/vat-portfolio/miljoo",
   "/tarinat/vat-portfolio/studio",
-  "/tarinat/yleinen/valokuvaaja-ilkka-rytkonen",
+  "/tarinat/blogi/valokuvaaja-ilkka-rytkonen",
 ]);
 
 /**
@@ -284,7 +299,8 @@ describe("AB#19 legacy redirect completeness", () => {
         STRUCTURAL_REDIRECT_ENTRIES.length +
         PUBLISHED_SERVICE_REDIRECT_ENTRIES.length +
         PUBLISHED_CONTENT_REDIRECT_ENTRIES.length +
-        REMAINING_LEGACY_REDIRECT_ENTRIES.length,
+        REMAINING_LEGACY_REDIRECT_ENTRIES.length +
+        MOVED_CONTENT_REDIRECT_ENTRIES.length,
     );
   });
 

@@ -8,7 +8,7 @@ import {
   reconcileIntroSummaries,
   type IntroSummarySourceDocument,
 } from "./joomla-intro-summary.mts";
-import { parseArguments } from "./write-joomla-intro-summary.mts";
+import { inCategoryScope, parseArguments } from "./write-joomla-intro-summary.mts";
 
 const target = { projectId: "abc123", dataset: "production" };
 const intro = { _key: "k1", _type: "contentParagraphBlock", text: "  The intro.  " };
@@ -159,6 +159,16 @@ describe("canonicalJson", () => {
 });
 
 describe("parseArguments", () => {
+  it("limits a plan to explicit published category references", () => {
+    const options = parseArguments(["--out", "o", "--category-refs", "category-a,category-b"]);
+    expect(options.categoryRefs).toEqual(["category-a", "category-b"]);
+    expect(inCategoryScope([
+      gallery({ _id: "a", categoryRef: "category-a" }),
+      gallery({ _id: "b", categoryRef: "category-b" }),
+      gallery({ _id: "c", categoryRef: "category-c" }),
+    ], options.categoryRefs).map((document) => document._id)).toEqual(["a", "b"]);
+    expect(() => parseArguments(["--out", "o", "--category-refs", "drafts.category-a"])).toThrow(/category-refs/);
+  });
   const digest = "a".repeat(64);
 
   it("is a dry run unless --yes is given, and --yes needs an approved digest", () => {

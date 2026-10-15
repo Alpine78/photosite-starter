@@ -5140,3 +5140,32 @@ decode preserves finite navigation, and a failed adjacent preload recovers.
 The existing hosted candidate also navigated successfully after its opening
 completed. The exact corrected hosted release candidate remains the final
 runtime gate; AB#294 moved New → Active and stays Active pending merge.
+
+### AB#297 — favicon and missing story intros (2026-10-15, Active)
+
+The browser icon now uses the published `SiteSettings.logo` public derivative in
+both locale shells. A direct `/favicon.ico` request redirects to that same
+versioned image; a brand-free local mark is the fallback. The previous static
+favicon was removed so it cannot override the setting.
+
+The existing revision-guarded Joomla intro planner now accepts optional
+published category document IDs. Its read-only Production plan for Blogi and
+Moottoriurheilu's WRC/Muu moottoriurheilu children selects 56 published pages
+(36 blog, 20 motorsport), in Finnish and English. It moves each authored first
+paragraph into a listing-only summary and removes that duplicate paragraph from
+the body. No content has been written yet. The owner then chose to move the
+Finnish and English photographer article from Yleinen/Common into Blogi/Blog.
+A revised revision-bound plan covers the category move, a homepage introduction
+link that resolves the article's canonical route in each language, the existing
+first introductory paragraph as the Blog listing summary, and the correction
+of English "Ii" to Kuopio. The earlier Yleinen summary plan is superseded.
+The homepage heading becomes the link when the referenced article is public;
+the now-empty Common category and former article URLs have direct same-language
+redirects. Joomla aliases now target live Blog pages. These content changes
+still await a reviewed CMS write. A digest-checked writer now guards the five
+funeral, photographer and home-page revisions in one transaction; the existing
+intro writer guards the separate 56-page batch. Content must be written before
+the redirect-bearing branch is deployed, with a short interval when the former
+Common URLs may return 404. The funeral change removes the redundant general
+200 € row in both languages, while each card's independent `startingPrice`
+remains 200 €.
