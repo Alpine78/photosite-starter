@@ -404,6 +404,35 @@ Vercel. The first would make archive locations impossible in Preview, and the se
 would abandon the prebuilt artifact and its Azure build log. Phase-scoped credentials
 preserve both boundaries at the cost of provisioning and rotating two read-only tokens.
 
+### Retained legacy customer galleries (ADR-0028)
+
+The first production site's 21 retained legacy galleries are available through
+direct `/client-gallery/<handle>` links without authentication. They use the
+separate `LEGACY_GALLERY_ADAPTER=sanity` path, not the protected private-gallery
+store or its `/admin` page. The adapter remains off by default for clones.
+These galleries are intentionally excluded from ordinary listings, search and
+the sitemap; use the customer's direct link or the owner-local approved mapping.
+Keep real customer titles, handles and old paths outside the public repository.
+
+On 2026-10-15, an anonymous published-perspective read of the configured Production
+dataset found 21 gallery documents with `published == true`, 1,792 legacy image
+placement documents and 12 ZIP asset documents. Anonymous GETs to all 21 handles
+on the canonical production origin returned HTTP 200; each response contained
+image markup and a Sanity asset URL. This establishes page availability, not
+successful image/ZIP downloads or byte integrity. See the
+[dated verification record](audits/ab250-release-verification-2026-10-12.md#production-readback--2026-10-15).
+
+To check current access, read the Production dataset for published
+`legacyDeliveryGallery` documents, use their `handle` values to open
+`<canonical-origin>/client-gallery/<handle>`, and check the actual response and
+viewer. Verify old customer URLs separately against `LEGACY_GALLERY_REDIRECTS`.
+For source-byte and complete ZIP validation, use the approved private source plan
+and bindings with `verify:legacy-delivery-assets --live`; an asset count or HTTP
+200 page alone is insufficient. No ZIP downloads, browser interactions, old-link
+redirects, response-policy headers or full launch acceptance were rechecked in
+the October 15 availability pass. Public file URLs and cached bytes remain
+accessible independently of page expiry as described in ADR-0028.
+
 ### Private client galleries (ADR-0014, not yet provisioned)
 
 Post-MVP and **off on every environment today**. The feature is a separate service
