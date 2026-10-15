@@ -4,6 +4,8 @@ Audit of everything non-original that ships in this project, per AB#43. Records 
 source, author, license, attribution requirement, and commercial-use status of each
 item so the Free Core / Premium boundary (AB#42) can be decided on facts.
 
+**Metadata census, 2026-10-15 (AB#43):** the [current two-lock census](audits/ab43-license-metadata-2026-10-15.md) records 841 root and 940 Studio lock entries, preserving platform/nested entries and expressions. These are not the historical installed-tree counts below or a fresh browser-bundle audit. AB#43 remains Active pending the distribution decision and final shipped-artifact review.
+
 **Amended 2026-10-11 (AB#254):** the optional standalone Studio has its own
 dependency lock and published notice artifact; see "Standalone Studio" below.
 
@@ -268,6 +270,8 @@ This project does not accept external contributions — see `README.md`. This ke
 relicensing (AB#42) unencumbered without the overhead of a CLA.
 
 ## Default scaffold favicon (AB#43, found and fixed 2026-09-13)
+
+**Current source, 2026-10-15 (AB#297 / #413):** the static `.ico` described below was removed. `src/app/favicon.ico/route.ts` now redirects to the settings-owned logo derivative, falling back to the existing project-authored `public/gallery/site-mark.924ff9b1d397.png`. The September replacement below is historical; no new third-party icon ships.
 
 `src/app/favicon.ico` was still `create-next-app`'s own scaffold default: Vercel's
 triangle wordmark (verified by extracting and viewing the icon's embedded 256×256
