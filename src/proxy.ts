@@ -10,7 +10,7 @@ import {
 } from "@/lib/legacy-redirects";
 import { LEGACY_REDIRECTS } from "@/lib/legacy-redirects-data";
 import { isLegacyGalleryNamespace, legacyGalleryHandleFromPath } from "@/lib/legacy-gallery-path";
-import { createLegacyGalleryRedirectResolver } from "@/lib/legacy-gallery-redirects";
+import { createLegacyGalleryRedirectResolver, InvalidLegacyGalleryRedirectConfiguration } from "@/lib/legacy-gallery-redirects";
 import {
   REQUEST_HAS_CURSOR_HEADER,
   REQUEST_HAS_CURSOR_VALUE,
@@ -114,6 +114,8 @@ function withReservedNamespaceHygieneHeaders(
  * pass through here at all.
  */
 const retainedGalleryRedirect = createLegacyGalleryRedirectResolver();
+const RETAINED_GALLERY_REDIRECT_STATUS = 307;
+let warnedInvalidRetainedRedirects = false;
 
 export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
@@ -255,7 +257,18 @@ export function proxy(request: NextRequest) {
 
   // Owner-local retained links follow reserved namespaces and the public registry.
   // Drop all historical query values; only the validated UI locale can survive.
-  const retainedTarget = reservedNamespacePath ? undefined : retainedGalleryRedirect(pathname, process.env);
+  let retainedTarget: string | undefined;
+  if (!reservedNamespacePath) {
+    try {
+      retainedTarget = retainedGalleryRedirect(pathname, process.env);
+    } catch (error) {
+      if (!(error instanceof InvalidLegacyGalleryRedirectConfiguration)) throw error;
+      if (!warnedInvalidRetainedRedirects) {
+        console.warn("Retained-gallery redirects disabled: invalid deployment configuration");
+        warnedInvalidRetainedRedirects = true;
+      }
+    }
+  }
   if (retainedTarget !== undefined) {
     if (request.method !== "GET" && request.method !== "HEAD") {
       return withReservedNamespaceHygieneHeaders(new NextResponse(null, { status: 405, headers: { allow: "GET, HEAD" } }));
@@ -265,7 +278,7 @@ export function proxy(request: NextRequest) {
       ? `?locale=${encodeURIComponent(locale)}` : "";
     const destination = new URL(retainedTarget, request.url);
     destination.search = search;
-    return withReservedNamespaceHygieneHeaders(NextResponse.redirect(destination, 301));
+    return withReservedNamespaceHygieneHeaders(NextResponse.redirect(destination, RETAINED_GALLERY_REDIRECT_STATUS));
   }
 
   // Next's built-in slash redirect runs before the route can validate a cursor.

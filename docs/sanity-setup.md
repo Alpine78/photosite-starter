@@ -636,9 +636,15 @@ limited to the existing explicit local-development fixture policy; real Sanity
 mapping inherits the Preview refusal. An off adapter serves no source mapping.
 
 Reserved route namespaces and the public legacy registry take precedence.
-GET/HEAD redirect in one 301 to the served gallery path, including one source
+GET/HEAD redirect in one temporary 307 to the served gallery path, including one source
 trailing slash, with no-store/noindex/nofollow/no-referrer. Historical query data
 is discarded; only a validated non-default UI locale is carried. Unsupported
 methods return 405 without reading their body. This mapping grants no access
 control and proves no customer import or publication; verify all actual source
 and target routes after the separately approved Production import/configuration.
+During launch validation, the temporary status avoids teaching browsers a
+permanent destination before the mapping is confirmed. Revisit a permanent
+status only after the Production source inventory and targets are verified.
+An invalid map disables all retained-source redirects until configuration is
+corrected; ordinary public pages continue to load, and the server logs one
+sanitized warning per process without customer paths.

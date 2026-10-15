@@ -5012,6 +5012,14 @@ parser validation without being printed. 6,159 deterministic tests, lint and
 Customer import, activation and deployed old-link checks remain separate gates;
 AB#250/117/18 stay Active.
 
+**AB#295 launch correction, 2026-10-15:** Retained-source GET/HEAD links now
+use a non-cacheable temporary 307 while the Production mapping is verified.
+The parser still rejects the whole malformed map, but Proxy lets ordinary
+public routes continue and logs one path-free warning per process. Invalid
+configuration issues no retained-source redirect; it is reparsed only when
+the relevant deployment settings change. Reconsider a permanent redirect only
+after the actual Production source inventory and destinations are confirmed.
+
 ### AB#250 — original JPEG file-delivery correction (2026-10-14)
 
 - A live Production check rejected an ordinary image-CDN response because its
