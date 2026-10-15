@@ -8,7 +8,8 @@
  * {@link STRUCTURAL_REDIRECT_ENTRIES},
  * {@link PUBLISHED_SERVICE_REDIRECT_ENTRIES},
  * {@link REMAINING_LEGACY_REDIRECT_ENTRIES}, and
- * {@link PUBLISHED_CONTENT_REDIRECT_ENTRIES} to `[]` — the same way a clone edits
+ * {@link PUBLISHED_CONTENT_REDIRECT_ENTRIES}, and
+ * {@link MOVED_CONTENT_REDIRECT_ENTRIES} to `[]` — the same way a clone edits
  * `mock-content-tree.ts`'s own fixture content to be its own, rather than
  * deleting that file — leaving {@link LEGACY_REDIRECTS} an empty map with
  * zero edits needed anywhere else, `src/proxy.ts`'s import included:
@@ -468,18 +469,17 @@ export const PUBLISHED_SERVICE_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
  * or across languages.
  */
 export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
-  // Unmigrated public article menu identities in the accepted Common category.
-  // Source category 133, and its verified English peer 163, resolve to the
-  // existing shared category. Both notice views passed live canonical/noindex/
-  // semantic checks; source articles 451–454 are not substituted for
-  // another article merely because a title happens to resemble it.
+  // Unmigrated public article menu identities formerly used Common. After
+  // AB#297 moves its sole article to Blog, the fallback goes to the live Blog
+  // category with the same unavailable-content notice. Source articles
+  // 451–454 are not substituted for an unrelated article.
   ...[
-    ["/kalusto", "/tarinat/yleinen"],
-    ["/fi/kalusto", "/tarinat/yleinen"],
-    ["/sivusto", "/tarinat/yleinen"],
-    ["/fi/sivusto", "/tarinat/yleinen"],
-    ["/en/gear", "/en/stories/common"],
-    ["/en/site", "/en/stories/common"],
+    ["/kalusto", "/tarinat/blogi"],
+    ["/fi/kalusto", "/tarinat/blogi"],
+    ["/sivusto", "/tarinat/blogi"],
+    ["/fi/sivusto", "/tarinat/blogi"],
+    ["/en/gear", "/en/stories/blog"],
+    ["/en/site", "/en/stories/blog"],
   ].map(([source, target]): LegacyRedirectEntry => ({ source, outcome: {
     kind: "redirect", target, reservedQueryParams: "strip", fallbackNotice: "content-unavailable",
   } })),
@@ -942,7 +942,7 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
     source: "/en/about",
     outcome: {
       kind: "redirect" as const,
-      target: "/en/stories/common/ilkka-rytkonen-photographer",
+      target: "/en/stories/blog/ilkka-rytkonen-photographer",
       reservedQueryParams: "strip" as const,
     },
   },
@@ -1270,7 +1270,7 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
     source: "/fi/kuvaaja",
     outcome: {
       kind: "redirect" as const,
-      target: "/tarinat/yleinen/valokuvaaja-ilkka-rytkonen",
+      target: "/tarinat/blogi/valokuvaaja-ilkka-rytkonen",
       reservedQueryParams: "strip" as const,
     },
   },
@@ -1574,7 +1574,7 @@ export const PUBLISHED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] 
     source: "/kuvaaja",
     outcome: {
       kind: "redirect" as const,
-      target: "/tarinat/yleinen/valokuvaaja-ilkka-rytkonen",
+      target: "/tarinat/blogi/valokuvaaja-ilkka-rytkonen",
       reservedQueryParams: "strip" as const,
     },
   },
@@ -2235,4 +2235,17 @@ export const LEGACY_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
   ...REMAINING_LEGACY_REDIRECT_ENTRIES,
 ];
 
-export const LEGACY_REDIRECTS: LegacyRedirects = buildSafely(LEGACY_REDIRECT_ENTRIES);
+/** Public URLs retired by AB#297's article move; these are not Joomla inventory rows. */
+export const MOVED_CONTENT_REDIRECT_ENTRIES: readonly LegacyRedirectEntry[] = [
+  ...[
+    ["/tarinat/yleinen/valokuvaaja-ilkka-rytkonen", "/tarinat/blogi/valokuvaaja-ilkka-rytkonen"],
+    ["/en/stories/common/ilkka-rytkonen-photographer", "/en/stories/blog/ilkka-rytkonen-photographer"],
+    ["/tarinat/yleinen", "/tarinat/blogi"],
+    ["/en/stories/common", "/en/stories/blog"],
+  ] as const,
+].map(([source, target]) => ({ source, outcome: { kind: "redirect", target, reservedQueryParams: "strip" } }));
+
+export const LEGACY_REDIRECTS: LegacyRedirects = buildSafely([
+  ...LEGACY_REDIRECT_ENTRIES,
+  ...MOVED_CONTENT_REDIRECT_ENTRIES,
+]);

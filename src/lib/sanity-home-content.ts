@@ -39,6 +39,7 @@ export const HOME_PAGE_PROJECTION = `{
     eyebrow[]{language, value},
     heading[]{language, value},
     text[]{language, value},
+    "storyLink": storyLink->{contentId},
     facts[]{title[]{language, value}, detail[]{language, value}}
   },
   contactCallToAction{heading[]{language, value}, text[]{language, value}},
@@ -81,6 +82,7 @@ export function projectHomeContent(
     readonly routeConfig: LocaleRouteConfig;
     readonly sanityConfig: SanityConfig;
     readonly featuredGalleryHref?: string;
+    readonly photographerStoryHref?: string;
   },
 ): HomeContent {
   const rejectIncomplete: (detail: string, missingTranslation?: boolean) => never = (detail, missingTranslation = false) => {
@@ -148,6 +150,7 @@ export function projectHomeContent(
         title: readLocalizedText(fact.title, options.language, `photographerIntroduction.facts[${index}].title`, rejectIncomplete),
         detail: readLocalizedText(fact.detail, options.language, `photographerIntroduction.facts[${index}].detail`, rejectIncomplete),
       })),
+      ...(options.photographerStoryHref === undefined ? {} : { storyHref: options.photographerStoryHref }),
     };
   }
 

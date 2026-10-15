@@ -3,6 +3,7 @@
 import { contactCallToActionFields } from "./contact-call-to-action";
 import { LOCALIZED_TEXT_TYPE_NAME, uniqueLanguages } from "./localized-text";
 import { MEDIA_TYPE_NAME } from "./media";
+import { ARTICLE_TYPE_NAME } from "./article";
 import { HOME_ACTION_TYPE_NAME, HOME_SECTION_TYPE_NAME } from "./site-link";
 import type { SchemaTypeDefinition } from "./schema-types";
 
@@ -45,6 +46,13 @@ export const homePageType: SchemaTypeDefinition = {
           to: [{ type: MEDIA_TYPE_NAME }],
           description: "A public portrait image shown at its native ratio, without cropping.",
           validation: (rule) => rule.required(),
+        },
+        {
+          name: "storyLink",
+          title: "Photographer story",
+          type: "reference",
+          to: [{ type: ARTICLE_TYPE_NAME }],
+          description: "Optional article linked from the introduction heading. The link appears only where the article is published in that language.",
         },
         ...(["eyebrow", "heading", "text"] as const).map((name) => ({
           name,

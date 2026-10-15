@@ -175,6 +175,16 @@ describe("projecting Sanity home content", () => {
     expect(JSON.stringify(home)).not.toContain("media-doc");
   });
 
+  it("links the introduction heading only to a resolved public article", () => {
+    const document = documentOf({ photographerIntroduction: { ...introduction, storyLink: { contentId: "photographer" } } });
+    expect(projectHomeContent(document, {
+      language: "fi", fallbackLanguage: "fi", locale: "fi-FI", routeConfig, sanityConfig,
+      photographerStoryHref: "/tarinat/blogi/kuvaaja",
+    }).photographerIntroduction?.storyHref).toBe("/tarinat/blogi/kuvaaja");
+    expect(project(document).photographerIntroduction?.storyHref).toBeUndefined();
+    expect(HOME_PAGE_PROJECTION).toContain('"storyLink": storyLink->{contentId}');
+  });
+
   it("rejects incomplete or oversized introductions", () => {
     expect(() => project(documentOf({ photographerIntroduction: { ...introduction, portrait: null } }))).toThrow(SanityHomeContentError);
     expect(() => project(documentOf({ photographerIntroduction: { ...introduction, portrait: { ...introduction.portrait, privateOnly: true } } }))).toThrow();

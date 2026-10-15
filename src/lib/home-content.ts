@@ -62,6 +62,8 @@ export type HomePhotographerIntroduction = {
   heading: string;
   text: string;
   facts: readonly { title: string; detail: string }[];
+  /** Canonical article route in this locale, when the referenced story is public. */
+  storyHref?: string;
 };
 
 /**
@@ -197,16 +199,25 @@ export async function getHomeContent(locale = getDeploymentConfig().localeRoutes
         ]);
       const language = new Intl.Locale(locale).language;
 
-      // The home document's own fetch and the featured-gallery href (which
-      // reads siteSettings and the content tree — two unrelated Sanity
-      // documents) are independent: the href is only spliced in during
-      // projection, after this document has already arrived. Reading both
-      // concurrently, rather than awaiting the href first purely to have a
-      // value ready, halves the critical path (AB#139).
-      const [document, featuredGalleryHref] = await Promise.all([
+      // The home document, settings and content tree are independent reads.
+      // Resolve both optional links from the same locale tree after they arrive.
+      const [document, settings, trees] = await Promise.all([
         readSanityHomeDocument({}),
-        resolveFeaturedGalleryHref(localeRoutes, locale),
+        getSiteSettings(locale),
+        getContentTrees(),
       ]);
+      const featuredGalleryHref = settings.featuredGalleryId === undefined
+        ? undefined
+        : getPublicContentRoute(localeRoutes, trees.get(locale), locale, settings.featuredGalleryId, "gallery");
+
+      const introduction = document.photographerIntroduction;
+      const storyLink = introduction && typeof introduction === "object" &&
+        "storyLink" in introduction ? introduction.storyLink : undefined;
+      const storyContentId = storyLink && typeof storyLink === "object" &&
+        "contentId" in storyLink ? storyLink.contentId : undefined;
+      const photographerStoryHref = typeof storyContentId === "string"
+        ? getPublicContentRoute(localeRoutes, trees.get(locale), locale, storyContentId, "article")
+        : undefined;
 
       return projectHomeContent(document, {
         language,
@@ -215,6 +226,7 @@ export async function getHomeContent(locale = getDeploymentConfig().localeRoutes
         routeConfig: localeRoutes,
         sanityConfig: getSanityConfig(),
         ...(featuredGalleryHref === undefined ? {} : { featuredGalleryHref }),
+        ...(photographerStoryHref === undefined ? {} : { photographerStoryHref }),
       });
     },
     mock: async () => buildMockHomeContent(localeRoutes, locale),

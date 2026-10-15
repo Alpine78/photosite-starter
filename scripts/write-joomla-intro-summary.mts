@@ -70,12 +70,22 @@ export type Options = {
   readonly project?: string;
   readonly dataset?: string;
   readonly apiVersion?: string;
+  readonly categoryRefs?: readonly string[];
 };
 
-const KNOWN_OPTIONS = new Set(["out", "approved-digest", "project", "dataset", "api-version"]);
+const KNOWN_OPTIONS = new Set(["out", "approved-digest", "project", "dataset", "api-version", "category-refs"]);
 
-const DOCUMENTS_QUERY = `*[_type in $types]{_id, _rev, _type, contentId, language, summary, summaryListingOnly, body}`;
+const DOCUMENTS_QUERY = `*[_type in $types]{_id, _rev, _type, contentId, language, summary, summaryListingOnly, body, "categoryRef": canonicalCategory._ref}`;
 const IDS_QUERY = `*[_type in $types]._id`;
+
+export function inCategoryScope(
+  documents: readonly IntroSummarySourceDocument[],
+  categoryRefs?: readonly string[],
+): readonly IntroSummarySourceDocument[] {
+  if (categoryRefs === undefined) return documents;
+  const allowed = new Set(categoryRefs);
+  return documents.filter((document) => allowed.has(document.categoryRef ?? ""));
+}
 
 export function parseArguments(argv: readonly string[]): Options {
   const values = new Map<string, string>();
@@ -106,6 +116,10 @@ export function parseArguments(argv: readonly string[]): Options {
   if (apply && approvedDigest === undefined) {
     fail("--yes needs --approved-digest <sha256> — the digest of the plan you reviewed");
   }
+  const categoryRefs = values.get("category-refs")?.split(",");
+  if (categoryRefs?.some((ref) => !/^[a-z0-9][a-z0-9-]*$/u.test(ref))) {
+    fail("--category-refs requires comma-separated published category document IDs");
+  }
   return {
     out,
     apply,
@@ -113,6 +127,7 @@ export function parseArguments(argv: readonly string[]): Options {
     ...(values.get("project") === undefined ? {} : { project: values.get("project") as string }),
     ...(values.get("dataset") === undefined ? {} : { dataset: values.get("dataset") as string }),
     ...(values.get("api-version") === undefined ? {} : { apiVersion: values.get("api-version") as string }),
+    ...(categoryRefs === undefined ? {} : { categoryRefs }),
   };
 }
 
@@ -228,7 +243,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       params: { types: [...INTRO_SUMMARY_DOCUMENT_TYPES] },
     });
     if (!Array.isArray(rows)) fail("The published read returned an unexpected shape");
-    const plan = planIntroSummaries(rows as IntroSummarySourceDocument[], target);
+    const plan = planIntroSummaries(inCategoryScope(rows as IntroSummarySourceDocument[], options.categoryRefs), target);
     const planPath = await writeReport(options.out, "intro-summary-plan.json", plan);
     console.log(`Planned ${plan.changes.length} page(s); excluded ${plan.excluded.length}. Plan: ${planPath}`);
     console.log(`Digest to approve: ${plan.digest}`);
@@ -262,7 +277,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     }
   }
 
-  const plan = planIntroSummaries(await readRaw(connection), target);
+  const plan = planIntroSummaries(inCategoryScope(await readRaw(connection), options.categoryRefs), target);
   if (plan.digest !== approvedDigest) {
     const planPath = await writeReport(options.out, "intro-summary-plan.json", plan);
     fail(`The current content no longer matches the approved plan (digest ${plan.digest}); nothing was written. Review ${planPath}.`);

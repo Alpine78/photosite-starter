@@ -44,6 +44,7 @@ export type IntroSummarySourceDocument = {
   readonly summary?: unknown;
   readonly summaryListingOnly?: unknown;
   readonly body?: unknown;
+  readonly categoryRef?: string;
 };
 
 export type IntroSummaryChange = {

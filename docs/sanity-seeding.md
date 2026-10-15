@@ -2145,6 +2145,10 @@ npm run fix:joomla-intro -- --out <report folder> --approved-digest <digest> --y
 
 `SANITY_PROJECT_ID`, `SANITY_DATASET` and `SANITY_API_VERSION` come from the environment or
 `--project`/`--dataset`/`--api-version`.
+To limit a plan and its matching write to selected published category documents, pass
+`--category-refs <id-a,id-b>` on **both** commands. The filter uses each page's
+canonical category reference; it does not include descendants automatically.
+Review the resulting plan and its digest for that exact scope before writing.
 
 **Planning** reads the published articles and galleries without a token and writes
 `intro-summary-plan.json`. It changes a page only when all of these hold:
@@ -2816,3 +2820,49 @@ URL, stopping at the first absent or failed asset. The receipt neither authorize
 a write nor proves supported upload, asset metadata or published gallery behavior.
 See the [dated release verification](audits/ab250-release-verification-2026-10-12.md)
 for permissions, observed absence and the provider gate before real import.
+
+### Reviewed small content corrections (AB#297)
+
+`node scripts/write-reviewed-content-plan.mts --plan <private-plan.json>`
+validates a canonical SHA-256 digest and shows the document IDs and revisions
+without reading a credential or writing to Sanity. The plan contains complete
+before/after snapshots. Its only permitted changes are service `pricing`,
+article `body`, `canonicalCategory`, `summary` and `summaryListingOnly`, or the
+home-page `photographerIntroduction`. A changed identity, revision, document
+type or any other field fails validation. The reviewed five-document plan for
+AB#297 is stored locally at `/tmp/ab297-reviewed-content-plan.json` with digest
+`9417d6e0c1d2a958f7eb0838d2e2c0432ff69ea21f9ef2af99795ebb57d6dd4a`.
+
+After explicit owner approval, run with the private `SANITY_MIGRATION_TOKEN`:
+
+```bash
+node --env-file=.env.sanity-live-production.local \
+  --env-file=.env.sanity-migration.local \
+  scripts/write-reviewed-content-plan.mts \
+  --plan /tmp/ab297-reviewed-content-plan.json \
+  --approved-digest 9417d6e0c1d2a958f7eb0838d2e2c0432ff69ea21f9ef2af99795ebb57d6dd4a \
+  --out <private-recovery-directory> --yes
+```
+
+The writer checks the raw documents against every reviewed byte, refuses a
+draft or release version, saves a mode-0600 recovery copy, and applies all five
+revision-guarded patches in one transaction. It reads back the result even
+after an uncertain write response. Re-run the same command only after reviewing
+its result; a changed source refuses another write. Keep editing frozen while
+the write runs.
+
+Publish the AB#297 CMS corrections **before** deploying the source branch with
+the new Blog redirects. The old Yleinen/Common article URL may return 404
+between the CMS move and the code deployment; keep that interval short and
+verify both old and new Finnish/English URLs after deployment. The 56-page
+Blog/Motorsport intro correction has its separate `fix:joomla-intro` digest and
+writer above; it can run before this five-document transaction.
+
+AB#297's owner-approved run completed on 2026-10-15. The approved intro digest
+was `8497617d93ce37bca4e77a2b882960f871637a7100ee8afda3f0a08454c910d8`:
+56 applied, zero pending or unexpected. The five-document plan above read back
+as applied with zero draft/release conflicts. The local migration token returned
+HTTP 401 before any write; the existing localization token was used for both
+guarded transactions. Do not rerun an already applied plan merely because the
+example command still names the migration credential; refresh that credential
+before future migration work.

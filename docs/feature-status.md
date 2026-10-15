@@ -5140,3 +5140,44 @@ decode preserves finite navigation, and a failed adjacent preload recovers.
 The existing hosted candidate also navigated successfully after its opening
 completed. The exact corrected hosted release candidate remains the final
 runtime gate; AB#294 moved New → Active and stays Active pending merge.
+
+### AB#297 — favicon and missing story intros (2026-10-15, Active)
+
+The browser icon now uses the published `SiteSettings.logo` public derivative in
+both locale shells. A direct `/favicon.ico` request redirects to that same
+versioned image; a brand-free local mark is the fallback. The previous static
+favicon was removed so it cannot override the setting.
+
+The existing revision-guarded Joomla intro planner now accepts optional
+published category document IDs. Its approved Production plan for Blogi and
+Moottoriurheilu's WRC/Muu moottoriurheilu children selects 56 published pages
+(36 blog, 20 motorsport), in Finnish and English. It moves each authored first
+paragraph into a listing-only summary and removes that duplicate paragraph from
+the body. The owner then chose to move the
+Finnish and English photographer article from Yleinen/Common into Blogi/Blog.
+A revised revision-bound plan covers the category move, a homepage introduction
+link that resolves the article's canonical route in each language, the existing
+first introductory paragraph as the Blog listing summary, and the correction
+of English "Ii" to Kuopio. The earlier Yleinen summary plan is superseded.
+The homepage heading becomes the link when the referenced article is public;
+the now-empty Common category and former article URLs have direct same-language
+redirects. Joomla aliases now target live Blog pages. On 2026-10-15, after the
+owner approved both digests, the intro writer applied and verified all 56 pages
+(zero pending or unexpected). The five-document writer then applied and read
+back both funeral prices, both photographer articles and the home singleton in
+one transaction, with zero draft/release conflicts. The configured migration
+token returned HTTP 401 before any write; the existing localization token
+completed both guarded transactions. Published-perspective reads confirm the
+funeral panel now has only the 200 € and 250 € options in both languages, while
+the service cards still show `Alkaen 200 €` and `From 200 €` from their
+independent `startingPrice` fields. Both articles now belong to Blog and the
+English summary says Kuopio; the home story reference is published. The code
+deployment remains open. A local production build using the live Sanity data
+returned HTTP 200 for both home pages, both new article URLs, both Blog listings
+and the Finnish funeral detail; its homepage links and listing summaries were
+present in the correct language. The former Finnish/English article and Common
+category URLs, plus `/kuvaaja` and `/en/about`, returned direct 301 responses
+to the new canonical Blog routes. `/favicon.ico` returned 307 to the published
+256×249 logo. The deployed site's HTTP verification remains open.
+The CMS write preceded deployment, leaving a short interval when the former
+Common URLs may return 404.

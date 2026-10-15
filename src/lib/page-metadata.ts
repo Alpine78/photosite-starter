@@ -25,6 +25,7 @@ import {
 } from "@/lib/deployment-config";
 import { getLocaleRoute, type LocaleVersion } from "@/lib/locale-routes";
 import type { ImageMedia, Media } from "@/lib/media";
+import { FALLBACK_SITE_ICON } from "@/lib/site-icon";
 import {
   getSiteSettings,
   resolveSiteName,
@@ -207,6 +208,7 @@ export function buildSiteMetadata({
       template: settings.defaultSeo.titleTemplate,
     },
     description: settings.defaultSeo.description,
+    icons: { icon: settings.logo?.rendition.src ?? FALLBACK_SITE_ICON },
     openGraph: {
       type: "website",
       siteName: settings.siteName,
@@ -239,6 +241,7 @@ export function buildLocaleShellMetadata(
       default: siteName,
       template: resolveTitleTemplate(settings, resolvedLocale),
     },
+    icons: { icon: settings.logo?.rendition.src ?? FALLBACK_SITE_ICON },
     openGraph: {
       type: "website",
       siteName,

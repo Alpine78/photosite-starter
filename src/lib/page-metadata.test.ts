@@ -121,6 +121,17 @@ function openGraphOf(metadata: { openGraph?: unknown }): EmittedOpenGraph {
 }
 
 describe("buildSiteMetadata", () => {
+  it("uses the published site mark for the browser icon in both locale shells", () => {
+    const branded = { ...context, settings: { ...settings, logo: coverImage } };
+    expect(buildSiteMetadata(branded).icons).toEqual({ icon: coverImage.rendition.src });
+    expect(buildLocaleShellMetadata(branded, "en-GB").icons).toEqual({
+      icon: coverImage.rendition.src,
+    });
+    expect(buildSiteMetadata(context).icons).toEqual({
+      icon: "/gallery/site-mark.924ff9b1d397.png",
+    });
+  });
+
   it("composes site-wide defaults from settings and deployment values", () => {
     const metadata = buildSiteMetadata(context);
 

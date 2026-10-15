@@ -36,7 +36,11 @@ export function HomePhotographerIntroduction({
           id="photographer-introduction-heading"
           className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl"
         >
-          {introduction.heading}
+          {introduction.storyHref ? (
+            <Link href={introduction.storyHref} className="rounded-sm underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+              {introduction.heading}
+            </Link>
+          ) : introduction.heading}
         </h2>
         <p className="mt-5 max-w-2xl text-base leading-relaxed text-body sm:text-lg">
           {introduction.text}
