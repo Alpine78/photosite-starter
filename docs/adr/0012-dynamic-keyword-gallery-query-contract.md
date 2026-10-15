@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-08-27
+**Amended:** 2026-10-15 — see Scoped amendment
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#66 (remainder, after ADR-0009 split off the ordering-rule clauses)
 
@@ -727,3 +728,18 @@ forever, only as an honest starting position.
   default (no); revisiting it is named as a migration trigger, not decided here.
 - **Nothing here was measured.** Like ADR-0002, ADR-0003, and ADR-0009 before
   implementation, this is a design decision recorded ahead of AB#58/65's own evidence.
+
+## Scoped amendment — 2026-10-15: the namespace also serves free-text search (AB#299)
+
+[ADR-0033](0033-unified-site-search.md) places a free-text site search at this ADR's
+reserved route. §8's rules are **unchanged** for any request that names a non-empty
+`keywords` selection; only the statement that the namespace carries *one query
+parameter* is amended. A request is in keyword mode — and `q` is ignored and appears in
+no redirect or canonical link — whenever `keywords` parses (first occurrence, split,
+trimmed, empty elements dropped) to at least one element. Otherwise a non-empty `q` is
+text mode (`noindex`, no canonical link, no sitemap entry, no cursor), and anything else
+is §8's empty-selection landing state, which now carries the search form.
+
+Until the taxonomy and AB#58/AB#71 exist no token resolves to a keyword, so a non-empty
+`keywords` is the existing **unknown-keyword** `noindex` 404. This amendment adds no
+keyword feature and changes none of §3–§7 or §9.

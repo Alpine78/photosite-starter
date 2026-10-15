@@ -47,6 +47,12 @@ export type LocaleRouteInput = {
    * contract until the deployment opts into a localized segment.
    */
   readonly serviceNamespace?: string;
+  /**
+   * The locale's site-search namespace, e.g. `haku` or `search` (ADR-0033,
+   * which widens ADR-0003's reserved `/haku` and `/en/search`). Omitted, it is
+   * `search`.
+   */
+  readonly searchNamespace?: string;
 };
 
 export type LocaleRouteConfigInput = {
@@ -72,6 +78,7 @@ export type LocaleRoute = {
   readonly prefix: string | null;
   readonly storyNamespace: string;
   readonly serviceNamespace: string;
+  readonly searchNamespace: string;
   /** `""` for the default locale, `"/en"` for a prefixed one. */
   readonly basePath: string;
   readonly isDefault: boolean;
@@ -175,6 +182,27 @@ export function buildLocaleRouteConfig({
         `story namespace "${entry.storyNamespace}" for locale "${locale}" collides with a localized static route`,
       );
     }
+    const searchNamespace = entry.searchNamespace ?? "search";
+    if (!SEGMENT_PATTERN.test(searchNamespace)) {
+      fail(
+        `invalid search namespace "${searchNamespace}" for locale "${locale}": expected lowercase segments with hyphens between words`,
+      );
+    }
+    if (searchNamespace === entry.storyNamespace) {
+      fail(
+        `search namespace "${searchNamespace}" for locale "${locale}" collides with its story namespace`,
+      );
+    }
+    if (searchNamespace === serviceNamespace) {
+      fail(
+        `search namespace "${searchNamespace}" for locale "${locale}" collides with its service namespace`,
+      );
+    }
+    if (reservedInsideLocale.has(searchNamespace)) {
+      fail(
+        `search namespace "${searchNamespace}" for locale "${locale}" collides with a localized static route`,
+      );
+    }
     if (serviceNamespace !== "services" && reservedInsideLocale.has(serviceNamespace)) {
       fail(`service namespace "${serviceNamespace}" for locale "${locale}" collides with a localized static route`);
     }
@@ -204,6 +232,7 @@ export function buildLocaleRouteConfig({
       prefix: entry.prefix,
       storyNamespace: entry.storyNamespace,
       serviceNamespace,
+      searchNamespace,
       basePath: entry.prefix === null ? "" : `/${entry.prefix}`,
       isDefault: entry.prefix === null,
     };
@@ -242,6 +271,14 @@ export function buildLocaleRouteConfig({
     );
   }
 
+  // The default locale's search namespace is a root segment as well, so it may
+  // not shadow a route the application already owns (ADR-0033).
+  if (reservedAtRoot.has(defaultRoute.searchNamespace)) {
+    fail(
+      `search namespace "${defaultRoute.searchNamespace}" of default locale "${defaultRoute.locale}" collides with a root route the application already owns`,
+    );
+  }
+
   const redundantDefaultPrefix = defaultLanguage;
 
   for (const route of byPrefix.values()) {
@@ -253,6 +290,11 @@ export function buildLocaleRouteConfig({
     if (route.prefix === defaultRoute.serviceNamespace) {
       fail(
         `locale prefix "${route.prefix}" collides with the default locale's service namespace`,
+      );
+    }
+    if (route.prefix === defaultRoute.searchNamespace) {
+      fail(
+        `locale prefix "${route.prefix}" collides with the default locale's search namespace`,
       );
     }
     if (route.prefix === redundantDefaultPrefix) {
@@ -275,6 +317,11 @@ export function buildLocaleRouteConfig({
   if (redundantDefaultPrefix === defaultRoute.serviceNamespace) {
     fail(
       `redundant default-locale prefix "${redundantDefaultPrefix}" collides with the default locale's service namespace`,
+    );
+  }
+  if (redundantDefaultPrefix === defaultRoute.searchNamespace) {
+    fail(
+      `redundant default-locale prefix "${redundantDefaultPrefix}" collides with the default locale's search namespace`,
     );
   }
 
@@ -357,6 +404,18 @@ export function buildServicePath(
 ): string {
   const route = requireLocaleRoute(config, locale);
   return joinPath(route.basePath, [route.serviceNamespace, ...segments]);
+}
+
+/**
+ * The site-search page of one locale: `/haku` or `/en/search` (ADR-0033). It
+ * has no sub-paths, so there is no segments parameter.
+ */
+export function buildSearchPath(
+  config: LocaleRouteConfig,
+  locale: string,
+): string {
+  const route = requireLocaleRoute(config, locale);
+  return joinPath(route.basePath, [route.searchNamespace]);
 }
 
 // ---------------------------------------------------------------------------
@@ -501,6 +560,69 @@ export function resolveServiceRoute(
             serviceSegments,
           ),
         }
+      : {}),
+  };
+}
+
+export type SearchRouteResolution = {
+  readonly locale: string;
+  /** Present when the incoming locale prefix or namespace needs normalizing. */
+  readonly canonicalPath?: string;
+};
+
+/**
+ * Resolves a site-search request entering the shared locale catch-all
+ * (ADR-0033), exactly as {@link resolveServiceRoute} does for services and for
+ * the same reason: one route owns every namespace, so a separate generic
+ * `[localePrefix]/[searchNamespace]` route cannot capture story paths.
+ *
+ * The search page has no sub-paths, so a request with segments beyond the
+ * namespace resolves to `undefined` and falls through to the story resolver's
+ * not-found handling. The redundant default-locale prefix returns `undefined`
+ * as well; the whole-path resolver redirects it once it has verified the
+ * unprefixed target exists.
+ */
+export function resolveSearchRoute(
+  config: LocaleRouteConfig,
+  prefix: string,
+  segments: readonly string[] = [],
+): SearchRouteResolution | undefined {
+  const defaultRoute = config.byLocale.get(config.defaultLocale);
+  if (defaultRoute === undefined) {
+    throw new TypeError("the locale configuration has no default route");
+  }
+
+  if (normalizedRouteSegment(prefix) === defaultRoute.searchNamespace) {
+    if (segments.length > 0) return undefined;
+    return {
+      locale: defaultRoute.locale,
+      ...(prefix === defaultRoute.searchNamespace
+        ? {}
+        : { canonicalPath: buildSearchPath(config, defaultRoute.locale) }),
+    };
+  }
+
+  const prefixed = resolvePrefixedRoute(config, prefix, segments);
+  if (prefixed.kind !== "localized") return undefined;
+  const route = config.byLocale.get(prefixed.locale);
+  if (route === undefined) {
+    throw new TypeError("a resolved locale route was not configured");
+  }
+  const [namespace, ...rest] = prefixed.segments;
+  if (
+    namespace === undefined ||
+    rest.length > 0 ||
+    normalizedRouteSegment(namespace) !== route.searchNamespace
+  ) {
+    return undefined;
+  }
+
+  const needsNormalization =
+    !prefixed.prefixIsCanonical || namespace !== route.searchNamespace;
+  return {
+    locale: route.locale,
+    ...(needsNormalization
+      ? { canonicalPath: buildSearchPath(config, route.locale) }
       : {}),
   };
 }

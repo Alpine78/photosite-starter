@@ -37,6 +37,10 @@ describe("published Sanity query cache policy", () => {
     ["gallery.listing", "galleries"],
     ["gallery.listing.by-category", "galleries"],
     ["media.detail", "media"],
+    ["site-search.stories", "articles"],
+    ["site-search.stories", "galleries"],
+    ["site-search.stories", "categories"],
+    ["site-search.stories", "media"],
   ] as const)("maps %s into the %s public family", (queryTag, family) => {
     const policy = getSanityPublicCachePolicy(queryTag);
 

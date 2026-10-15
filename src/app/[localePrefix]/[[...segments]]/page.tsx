@@ -10,6 +10,7 @@ import { ContentGallery } from "@/components/content-gallery";
 import { GalleryItemEnquiry } from "@/components/gallery-item-enquiry";
 import { JsonLd } from "@/components/json-ld";
 import { ServiceDetail, ServiceListing } from "@/components/service-pages";
+import { SiteSearchPage } from "@/components/site-search-page";
 import type { BreadcrumbStep } from "@/components/breadcrumbs";
 import type { LanguageLink } from "@/components/language-switch";
 import {
@@ -59,6 +60,7 @@ import {
   buildServicePath,
   listPublishedLocaleVersions,
   resolveLanguageSwitch,
+  resolveSearchRoute,
   resolveServiceRoute,
   type LocaleRouteConfig,
   type LocaleVersion,
@@ -76,6 +78,7 @@ import {
   getServiceRoutes,
 } from "@/lib/services";
 import { REQUEST_PATH_HEADER, readRequestPath } from "@/lib/request-path";
+import { readSearchRequest } from "@/lib/site-search-query";
 import { HomePage, homeMetadata } from "@/components/home-page";
 import { ContactPage, contactMetadata } from "@/components/contact-page";
 import { buildStaticPagePath, resolveStaticPageRequest } from "@/lib/static-page-routes";
@@ -135,6 +138,53 @@ async function resolveServiceRequest(
     locale: resolved.locale,
     segments: resolved.segments,
     config: localeRoutes,
+  };
+}
+
+/**
+ * The site-search page (ADR-0033), dispatched in this same catch-all for the
+ * reason services are: one route owns every namespace, so the search namespace
+ * cannot capture a story path.
+ *
+ * The mode is decided here, once, before anything else (ADR-0033 §1). A
+ * non-empty `keywords` selection is ADR-0012's mode and wins over `q`; no
+ * keyword taxonomy exists yet, so every selection names an unknown keyword and
+ * answers the accessible 404 ADR-0012 §8 prescribes — before any redirect,
+ * because an invalid selection is never redirected. Otherwise a casing variant
+ * of the namespace or locale prefix redirects once to the canonical spelling,
+ * carrying the first `q` unchanged: the value is never normalized, only the path.
+ */
+async function resolveSearchRequest(
+  props: LocalePrefixPageProps,
+): Promise<{ readonly locale: string; readonly rawQuery: string | undefined } | undefined> {
+  const { localePrefix, segments = [] } = await props.params;
+  const { localeRoutes } = getDeploymentConfig();
+  const resolved = resolveSearchRoute(localeRoutes, localePrefix, segments);
+  if (resolved === undefined) return undefined;
+
+  const request = readSearchRequest(await props.searchParams);
+  if (request.mode === "keywords") notFound();
+
+  if (resolved.canonicalPath !== undefined) {
+    permanentRedirect(
+      request.rawQuery === undefined
+        ? resolved.canonicalPath
+        : `${resolved.canonicalPath}?${new URLSearchParams({ q: request.rawQuery })}`,
+    );
+  }
+  return { locale: resolved.locale, rawQuery: request.rawQuery };
+}
+
+/**
+ * Search results are never indexed and name no canonical page of their own
+ * (ADR-0033 §1): `noindex` still lets a crawler follow the links, and no
+ * `canonical` or alternate-language link is emitted, because a canonical URL
+ * for an open-ended set of queries would claim a page that does not exist.
+ */
+function searchMetadata(locale: string): Metadata {
+  return {
+    title: getBuiltInLabels(locale).search.title,
+    robots: { index: false, follow: true },
   };
 }
 
@@ -611,6 +661,8 @@ export async function generateMetadata(
       ? homeMetadata({ locale: staticPage.locale, searchParams: props.searchParams })
       : contactMetadata(staticPage.locale);
   }
+  const search = await resolveSearchRequest(props);
+  if (search !== undefined) return searchMetadata(search.locale);
   const service = await resolveServiceRequest(props.params);
   if (service !== undefined) return serviceMetadata(service, isLegacyFallbackNotice((await props.searchParams)[LEGACY_FALLBACK_NOTICE_PARAM]));
   const { config, trees, resolution } = await resolveRequest(props);
@@ -774,6 +826,10 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
     return staticPage.kind === "home"
       ? <HomePage locale={staticPage.locale} searchParams={props.searchParams} />
       : <ContactPage locale={staticPage.locale} searchParams={props.searchParams} />;
+  }
+  const search = await resolveSearchRequest(props);
+  if (search !== undefined) {
+    return <SiteSearchPage locale={search.locale} rawQuery={search.rawQuery} />;
   }
   const service = await resolveServiceRequest(props.params);
   if (service !== undefined) return renderService(service, isLegacyFallbackNotice((await props.searchParams)[LEGACY_FALLBACK_NOTICE_PARAM]));

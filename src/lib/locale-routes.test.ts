@@ -4,6 +4,7 @@ import { buildContentTree, type ContentTreeInput } from "@/lib/content-tree";
 import {
   buildLocaleRouteConfig,
   buildLocalePath,
+  buildSearchPath,
   buildServicePath,
   buildStoryPath,
   getLocaleRoute,
@@ -11,6 +12,7 @@ import {
   resolveLanguageSwitch,
   resolvePrefixedRoute,
   resolveRouteShell,
+  resolveSearchRoute,
   resolveServiceRoute,
   type ContentLocation,
   type LocalizedContentTrees,
@@ -484,6 +486,141 @@ describe("resolveServiceRoute", () => {
     expect(
       resolveServiceRoute(localized, "fi", ["palvelut", "haakuvaus"]),
     ).toBeUndefined();
+  });
+});
+
+describe("site-search namespace (ADR-0033)", () => {
+  const localized = buildLocaleRouteConfig({
+    locales: [
+      {
+        locale: "fi",
+        prefix: null,
+        storyNamespace: "tarinat",
+        serviceNamespace: "palvelut",
+        searchNamespace: "haku",
+      },
+      {
+        locale: "en",
+        prefix: "en",
+        storyNamespace: "stories",
+        serviceNamespace: "services",
+        searchNamespace: "search",
+      },
+    ],
+    reservedRootSegments: ["api", "gallery"],
+    reservedLocaleRouteSegments: ["services", "contact"],
+  });
+
+  it("defaults to `search` when a locale configures none", () => {
+    expect(getLocaleRoute(config, "fi")?.searchNamespace).toBe("search");
+    expect(buildSearchPath(config, "fi")).toBe("/search");
+    expect(buildSearchPath(config, "en")).toBe("/en/search");
+  });
+
+  it("builds each locale's own search path", () => {
+    expect(buildSearchPath(localized, "fi")).toBe("/haku");
+    expect(buildSearchPath(localized, "en")).toBe("/en/search");
+  });
+
+  it("resolves the default and prefixed namespaces in the shared catch-all", () => {
+    expect(resolveSearchRoute(localized, "haku")).toEqual({ locale: "fi" });
+    expect(resolveSearchRoute(localized, "en", ["search"])).toEqual({
+      locale: "en",
+    });
+  });
+
+  it("owns no sub-paths and leaves story and service paths alone", () => {
+    expect(resolveSearchRoute(localized, "haku", ["extra"])).toBeUndefined();
+    expect(resolveSearchRoute(localized, "en", ["search", "extra"])).toBeUndefined();
+    expect(resolveSearchRoute(localized, "tarinat")).toBeUndefined();
+    expect(resolveSearchRoute(localized, "palvelut")).toBeUndefined();
+    expect(resolveSearchRoute(localized, "en", ["stories"])).toBeUndefined();
+    expect(resolveSearchRoute(localized, "en")).toBeUndefined();
+    // The English namespace is not served in the default (Finnish) space.
+    expect(resolveSearchRoute(localized, "search")).toBeUndefined();
+  });
+
+  it("normalizes casing in one redirect", () => {
+    expect(resolveSearchRoute(localized, "HAKU")).toEqual({
+      locale: "fi",
+      canonicalPath: "/haku",
+    });
+    expect(resolveSearchRoute(localized, "EN", ["SEARCH"])).toEqual({
+      locale: "en",
+      canonicalPath: "/en/search",
+    });
+  });
+
+  it("leaves the redundant default prefix to exact whole-path normalization", () => {
+    expect(resolveSearchRoute(localized, "fi", ["haku"])).toBeUndefined();
+  });
+
+  it.each([
+    {
+      name: "a story namespace",
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", searchNamespace: "tarinat" },
+      ],
+      reserved: [],
+      message: 'search namespace "tarinat" for locale "fi" collides with its story namespace',
+    },
+    {
+      name: "a service namespace",
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", serviceNamespace: "haku", searchNamespace: "haku" },
+      ],
+      reserved: [],
+      message: 'search namespace "haku" for locale "fi" collides with its service namespace',
+    },
+    {
+      name: "a localized static route",
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", searchNamespace: "contact" },
+      ],
+      reserved: [],
+      message: 'search namespace "contact" for locale "fi" collides with a localized static route',
+    },
+    {
+      name: "a root route the application owns",
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", searchNamespace: "api" },
+      ],
+      reserved: [],
+      message: 'search namespace "api" of default locale "fi" collides with a root route the application already owns',
+    },
+    {
+      name: "a locale prefix",
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", searchNamespace: "haku" },
+        { locale: "en", prefix: "haku", storyNamespace: "stories" },
+      ],
+      reserved: [],
+      message: 'locale prefix "haku" collides with the default locale\'s search namespace',
+    },
+    {
+      name: "the redundant default-locale prefix",
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", searchNamespace: "fi" },
+      ],
+      reserved: [],
+      message: 'redundant default-locale prefix "fi" collides with the default locale\'s search namespace',
+    },
+    {
+      name: "an invalid segment",
+      locales: [
+        { locale: "fi", prefix: null, storyNamespace: "tarinat", searchNamespace: "Haku Sivu" },
+      ],
+      reserved: [],
+      message: 'invalid search namespace "Haku Sivu" for locale "fi"',
+    },
+  ])("rejects a search namespace that collides with $name", ({ locales, reserved, message }) => {
+    expect(() =>
+      buildLocaleRouteConfig({
+        locales,
+        reservedRootSegments: ["api", ...reserved],
+        reservedLocaleRouteSegments: ["services", "contact"],
+      }),
+    ).toThrow(message);
   });
 });
 

@@ -33,6 +33,9 @@ describe("bounded image render profiles", () => {
         sizes:
           "(min-width: 1152px) 532px, (min-width: 640px) calc(50vw - 44px), calc(100vw - 32px)",
       },
+      searchResultThumbnail: {
+        sizes: "80px",
+      },
       contentListingGrid: {
         sizes:
           "(min-width: 1152px) 532px, (min-width: 640px) calc(50vw - 44px), calc(100vw - 32px)",

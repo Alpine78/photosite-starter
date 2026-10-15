@@ -5210,3 +5210,52 @@ so whether their cards get a count, has not been checked against live content.
 The listing projection was tested against its GROQ text and a fake client, not a
 live Sanity dataset; a published-perspective read should confirm the `count()`
 subqueries before release.
+
+### AB#299 — site search, stories and services (2026-10-15, Active)
+
+A header search control opens a native modal `<dialog>` and searches published
+stories (articles and galleries) and routable services in the visitor's own
+language; the same search is a server-rendered results page at the locale's
+search route (`/haku`, `/en/search`), reached by a plain GET form with no
+JavaScript. [ADR-0033](adr/0033-unified-site-search.md) (**Proposed**, owner
+acceptance pending) records the decisions, including how this shares its
+route with ADR-0012's keyword galleries: a non-empty `keywords` selects the
+keyword mode (every request is currently the unknown-keyword 404, since no
+taxonomy exists), otherwise a usable `q` selects the text mode, otherwise the
+empty landing state.
+
+Matching is in memory and pure (`site-search-query.ts`): every query token must
+start a word in some searched field (title, free tags, short lead), folded by
+case and diacritics, scored title > tag > lead. Eligibility is the public
+route's: a story is searchable only when the locale's content tree gives it a
+canonical path, and a service when it resolves and is not hidden from listings,
+so hits link to exactly the public page. The story candidate set is one tagged
+Sanity read per language (`sanity-site-search-index.ts`, cache tag
+`site-search.stories`, invalidated by the existing webhook), bounded in bytes by
+the client's 1 MiB ceiling. The dialog posts to `POST /api/search` so the term
+is never in a URL; the results page uses `?q=`, which
+[`search-data-flow.md`](search-data-flow.md) records. Thumbnails render at their
+native ratio inside a fixed box (`object-contain`) and the term is highlighted
+with text nodes only. Results are `noindex`, with no canonical link, and not in
+the sitemap.
+
+The independent Codex review loop (gpt-6.1-sol, medium; four rounds) found and
+the branch fixed: `keywords` precedence missing from the route and from the
+redundant-prefix redirect (an invalid selection is never redirected), a dialog left
+modal after a query-only navigation, and framework prefetch of the query-bearing
+"show all" link leaking the term; the last round reported no defects.
+
+**Not built (by decision):** image and keyword search (waits for AB#55 and its
+chain; AB#59/AB#58/AB#71 ship the keyword group and its gallery together),
+article-body search, categories as results, pagination (50 per group, then a
+"narrow your search" notice), the "popular searches" chips from the design
+(owner decision, 2026-10-15), and any application rate limit.
+
+**Not verified:** the index query was tested against its GROQ text and a fake
+client, not a live Sanity dataset, and **its byte size, record count and p50/p95
+search time have not been measured on Preview**; ADR-0033's 512 KiB target and
+75 % revisit trigger are untested proposals. The deployment's `SITE_LOCALE_ROUTES`
+needs its fifth field (`…|haku`) in the Vercel project to publish `/haku`; that
+owner-run change is not part of the pull request (see
+[deployment](deployment.md)). Manual screen-reader and keyboard checks, and the
+`/security-review`, are still to be run and recorded.

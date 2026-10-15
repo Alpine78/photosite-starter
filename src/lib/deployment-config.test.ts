@@ -368,8 +368,48 @@ describe("loadDeploymentConfig", () => {
         SITE_LOCALE_ROUTES: "en-GB|stories",
       }),
     ).toThrow(
-      'expected comma-separated "locale|prefix|story-namespace[|service-namespace]" entries',
+      'expected comma-separated "locale|prefix|story-namespace[|service-namespace[|search-namespace]]" entries',
     );
+    expect(() =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_LOCALE_ROUTES: "en-GB||stories|services|search|extra",
+      }),
+    ).toThrow("expected comma-separated");
+  });
+
+  it("reads an optional fifth search-namespace field and defaults it to `search`", () => {
+    const config = loadDeploymentConfig({
+      ...validEnvironment,
+      SITE_LOCALE: "fi",
+      SITE_LOCALE_ROUTES: "fi||tarinat|palvelut|haku,en|en|stories|services|search",
+    });
+    expect(config.localeRoutes.byLocale.get("fi")?.searchNamespace).toBe("haku");
+    expect(config.localeRoutes.byLocale.get("en")?.searchNamespace).toBe("search");
+
+    const defaulted = loadDeploymentConfig({
+      ...validEnvironment,
+      SITE_LOCALE_ROUTES: "en-GB||stories",
+    });
+    expect(defaulted.localeRoutes.byLocale.get("en-GB")?.searchNamespace).toBe("search");
+  });
+
+  it("rejects a default-locale search namespace the application already owns", () => {
+    expect(() =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_LOCALE_ROUTES: "en-GB||stories|services|api",
+      }),
+    ).toThrow(/search namespace "api"/);
+  });
+
+  it("rejects a default-locale search namespace that is a legacy-redirect root", () => {
+    expect(() =>
+      loadDeploymentConfig({
+        ...validEnvironment,
+        SITE_LOCALE_ROUTES: "en-GB||stories|services|component",
+      }),
+    ).toThrow(/search namespace "component" is the root of a legacy-redirect path/);
   });
 
   // The reservation is checked against this application's own root routes, so
