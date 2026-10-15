@@ -5193,8 +5193,20 @@ Hover and keyboard focus underline the title, darken the CTA rule and slide the
 arrow 4 px; the arrow motion is `motion-safe` only. The design proposal's fixed
 3:2 `object-cover` image crop is deliberately not adopted (never-crop rule).
 
-**Not done:** the "N kuvaa" image count from the design. Listing records carry
-no count, and galleries are built from placements, capture-sequence media
-documents or legacy-delivery manifests, so a bounded per-adapter projection and
-a definition of what is counted need an owner decision. AB#298 stays open until
-that is decided or its acceptance criterion is changed.
+**Image count (slice 2):** a gallery card names its photograph count ("Katso 86
+kuvaa →", "View 1 photo →"). `ContentListingRecord.imageCount` is counted in the
+store by `GALLERY_LISTING_PROJECTION` beside the card's other fields, with the
+same visibility clauses as the gallery's bounded window (`visible`, publicly
+renderable, not `privateOnly`) shared through `PUBLIC_PLACEMENT_CLAUSES` /
+`PUBLIC_CAPTURE_MEDIA_CLAUSES`; capture-sequence galleries count their media
+documents instead of placements. An empty gallery keeps the count-free "Katso
+kuvat" wording, and an article never carries a count. The fixture counts the same
+way (`getMockGalleryImageCount`). The listing card cover also zooms 1.03× on
+hover; AGENTS.md records this as a scoped exception to the never-crop rule.
+
+**Not verified:** the 21 retained legacy-delivery galleries (ADR-0028) keep
+their own manifest `imageCount`; whether they appear in category listings, and
+so whether their cards get a count, has not been checked against live content.
+The listing projection was tested against its GROQ text and a fake client, not a
+live Sanity dataset; a published-perspective read should confirm the `count()`
+subqueries before release.

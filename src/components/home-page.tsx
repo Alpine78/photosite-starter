@@ -97,6 +97,7 @@ export async function HomePage({ searchParams, locale }: HomePageProps) {
     contentId: entry.contentId,
     title: entry.title,
     variant: entry.variant,
+    ...(entry.imageCount === undefined ? {} : { imageCount: entry.imageCount }),
     ...(entry.summary === undefined ? {} : { summary: entry.summary }),
     eventDate: entry.eventDate,
     author: entry.variant === "article"

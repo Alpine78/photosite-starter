@@ -384,6 +384,10 @@ export type BuiltInLabels = {
   readonly storyCard: {
     /** Call-to-action on a gallery card; the arrow is drawn by the card, not this label. */
     readonly viewPhotos: string;
+    /** Gallery call-to-action with its photograph count; `{count}` is replaced. */
+    readonly viewPhotosCount: string;
+    /** The same for a gallery of exactly one photograph. */
+    readonly viewOnePhoto: string;
     /** Call-to-action on an article card. */
     readonly readStory: string;
   };
@@ -813,6 +817,8 @@ const englishLabels = {
   },
   storyCard: {
     viewPhotos: "View photos",
+    viewPhotosCount: "View {count} photos",
+    viewOnePhoto: "View 1 photo",
     readStory: "Read the story",
   },
   homeLatestStories: {
@@ -1124,6 +1130,8 @@ const finnishLabels = {
   },
   storyCard: {
     viewPhotos: "Katso kuvat",
+    viewPhotosCount: "Katso {count} kuvaa",
+    viewOnePhoto: "Katso 1 kuva",
     readStory: "Lue tarina",
   },
   homeLatestStories: {

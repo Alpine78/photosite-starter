@@ -42,6 +42,12 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   It never crops a derivative or stretches an image, offers a complete-image view,
   and shows both full frames without an overlay when ratios differ or JavaScript
   is unavailable.
+  **Listing-card hover zoom (AB#298) is a second scoped exception:** a story or
+  gallery card's cover may scale to 1.03 on pointer hover inside
+  an `overflow-hidden` frame, trimming at most about 1.5% per edge for the duration
+  of the hover only. The rendered derivative stays complete, native-ratio and
+  unstretched at rest, the scale is `motion-safe` only, and the full frame returns
+  when the hover ends.
 - **Hero convention.** Heroes display at the image's _native_ ratio — whatever it is
   (16:9, 3:2, 4:5, …) — via `h-auto w-full` plus the asset's real `width`/`height`; the
   code imposes no aspect ratio and never crops. The "full-width banner" look comes from

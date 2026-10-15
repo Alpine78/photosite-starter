@@ -827,3 +827,20 @@ export function getMockGalleryCover(
   covers.set(key, cover);
   return cover;
 }
+
+/**
+ * How many public photographs a gallery serves (AB#298): visible placements
+ * whose media is not private-client-only, the same rule the gallery page's
+ * section counts apply. `undefined` for a content page that is not a fixture
+ * gallery; `0` for a gallery with nothing public yet. A store-backed adapter
+ * answers this with a `count()` beside the listing row.
+ */
+export function getMockGalleryImageCount(
+  language: string,
+  contentId: string,
+): number | undefined {
+  const gallery = getOrBuildGallery(language, contentId);
+  return gallery?.placements.filter(
+    (placement) => placement.visible && placement.privateOnly !== true,
+  ).length;
+}

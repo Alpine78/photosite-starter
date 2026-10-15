@@ -4,12 +4,15 @@ import { formatDate } from "@/lib/date-format";
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import type { ImageMedia } from "@/lib/media";
+import { storyCardCallToAction } from "@/lib/story-card-cta";
 
 export type StoryCardEntry = {
   readonly contentId: string;
   readonly title: string;
   /** Decides the call-to-action wording: a gallery opens photographs, an article a story. */
   readonly variant: "article" | "gallery";
+  /** A gallery's public photograph count (AB#298); absent means count-free wording. */
+  readonly imageCount?: number;
   readonly summary?: string;
   /**
    * ISO 8601 date: the page's effective event date (`eventDate ?? publishedAt`,
@@ -48,14 +51,16 @@ export function StoryCard({
   return (
     <Link href={entry.href} className={`group flex h-full flex-col gap-4 ${focusRing}`}>
       {entry.cover && (
-        <Image
-          src={entry.cover.rendition.src}
-          alt={entry.cover.alt}
-          width={entry.cover.rendition.width}
-          height={entry.cover.rendition.height}
-          sizes={imageRenderProfiles.contentListingGrid.sizes}
-          className="h-auto w-full rounded-sm bg-surface-muted"
-        />
+        <div className="overflow-hidden rounded-sm bg-surface-muted">
+          <Image
+            src={entry.cover.rendition.src}
+            alt={entry.cover.alt}
+            width={entry.cover.rendition.width}
+            height={entry.cover.rendition.height}
+            sizes={imageRenderProfiles.contentListingGrid.sizes}
+            className="h-auto w-full motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover:scale-[1.03]"
+          />
+        </div>
       )}
       <div className="flex flex-1 flex-col">
         <h3 className="text-xl font-semibold leading-snug tracking-tight transition-colors group-hover:text-link-hover group-hover:underline group-hover:decoration-1 group-hover:underline-offset-4 group-focus-visible:underline group-focus-visible:decoration-1 group-focus-visible:underline-offset-4 sm:text-2xl">
@@ -72,7 +77,7 @@ export function StoryCard({
           <time dateTime={entry.eventDate}>{formatDate(entry.eventDate, locale)}</time>
         </p>
         <span className="mt-4 inline-flex items-center gap-2.5 self-start border-b border-border pb-0.5 text-base font-medium transition-colors group-hover:border-foreground group-focus-visible:border-foreground">
-          {entry.variant === "gallery" ? labels.storyCard.viewPhotos : labels.storyCard.readStory}
+          {storyCardCallToAction(entry, labels)}
           <span
             aria-hidden="true"
             className="motion-safe:transition-transform motion-safe:group-hover:translate-x-1 motion-safe:group-focus-visible:translate-x-1"

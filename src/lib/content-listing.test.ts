@@ -24,6 +24,7 @@ import {
 } from "@/lib/content-listing";
 import { buildContentTree, type ContentTreeInput } from "@/lib/content-tree";
 import { mockContentListingRecords } from "@/lib/mock-content-listing";
+import { getMockGalleryImageCount } from "@/lib/mock-gallery";
 import { mockContentTreeInputs } from "@/lib/mock-content-tree";
 import {
   FIELDNOTE_NUMBERS,
@@ -292,6 +293,8 @@ describe("buildCategoryListing", () => {
       summary: expect.any(String),
       eventDate: "2024-06-18",
       cover: mockImages.coastalLandscape,
+      // AB#298: the gallery's public photograph count rides on its card.
+      imageCount: getMockGalleryImageCount("en", "content-coastal-mornings"),
       path: ["landscape", "coastal", "coastal-mornings"],
     });
   });
