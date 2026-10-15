@@ -5181,3 +5181,20 @@ to the new canonical Blog routes. `/favicon.ico` returned 307 to the published
 256×249 logo. The deployed site's HTTP verification remains open.
 The CMS write preceded deployment, leaving a short interval when the former
 Common URLs may return 404.
+
+### AB#298 — listing card call-to-action (2026-10-15, Active)
+
+Every story/gallery listing card (category branches and the home latest
+stories, both through `StoryCard`) now ends in a text call-to-action inside the
+single card link: "Katso kuvat →" / "View photos →" for a gallery and "Lue
+tarina →" / "Read the story →" for an article, chosen by the entry's `variant`
+and localized through `BuiltInLabels.storyCard`. The arrow is `aria-hidden`.
+Hover and keyboard focus underline the title, darken the CTA rule and slide the
+arrow 4 px; the arrow motion is `motion-safe` only. The design proposal's fixed
+3:2 `object-cover` image crop is deliberately not adopted (never-crop rule).
+
+**Not done:** the "N kuvaa" image count from the design. Listing records carry
+no count, and galleries are built from placements, capture-sequence media
+documents or legacy-delivery manifests, so a bounded per-adapter projection and
+a definition of what is counted need an owner decision. AB#298 stays open until
+that is decided or its acceptance criterion is changed.

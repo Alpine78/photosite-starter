@@ -50,6 +50,17 @@ test("the home page lists the most recently updated stories, not the newest by e
   );
   expect(titles).toEqual(expectedLatestTitles());
 
+  // Every card is one link with a decorative-arrow call-to-action (AB#298):
+  // no nested interactive element, and the arrow stays out of the name.
+  for (const card of await cards.all()) {
+    await expect(card.locator("a, button")).toHaveCount(0);
+    const arrow = card.locator('[aria-hidden="true"]', { hasText: "→" });
+    await expect(arrow).toHaveCount(1);
+    const cta = arrow.locator("..");
+    expect(((await cta.textContent()) ?? "").replace("→", "").trim().length).toBeGreaterThan(0);
+    expect(await card.getAttribute("aria-label")).toBeNull();
+  }
+
   // Each card leads to a real story page, and the section links to the root.
   const firstHref = await cards.first().getAttribute("href");
   const allStories = section.getByRole("link").first();

@@ -2,11 +2,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatDate } from "@/lib/date-format";
 import { imageRenderProfiles } from "@/lib/image-delivery";
+import type { BuiltInLabels } from "@/lib/deployment-config";
 import type { ImageMedia } from "@/lib/media";
 
 export type StoryCardEntry = {
   readonly contentId: string;
   readonly title: string;
+  /** Decides the call-to-action wording: a gallery opens photographs, an article a story. */
+  readonly variant: "article" | "gallery";
   readonly summary?: string;
   /**
    * ISO 8601 date: the page's effective event date (`eventDate ?? publishedAt`,
@@ -36,9 +39,11 @@ const focusRing =
 export function StoryCard({
   entry,
   locale,
+  labels,
 }: {
   readonly entry: StoryCardEntry;
   readonly locale: string;
+  readonly labels: BuiltInLabels;
 }) {
   return (
     <Link href={entry.href} className={`group flex h-full flex-col gap-4 ${focusRing}`}>
@@ -53,7 +58,7 @@ export function StoryCard({
         />
       )}
       <div className="flex flex-1 flex-col">
-        <h3 className="text-xl font-semibold leading-snug tracking-tight transition-colors group-hover:text-link-hover sm:text-2xl">
+        <h3 className="text-xl font-semibold leading-snug tracking-tight transition-colors group-hover:text-link-hover group-hover:underline group-hover:decoration-1 group-hover:underline-offset-4 group-focus-visible:underline group-focus-visible:decoration-1 group-focus-visible:underline-offset-4 sm:text-2xl">
           {entry.title}
         </h3>
         {entry.summary && (
@@ -66,6 +71,15 @@ export function StoryCard({
           <span className="mx-1.5">·</span>
           <time dateTime={entry.eventDate}>{formatDate(entry.eventDate, locale)}</time>
         </p>
+        <span className="mt-4 inline-flex items-center gap-2.5 self-start border-b border-border pb-0.5 text-base font-medium transition-colors group-hover:border-foreground group-focus-visible:border-foreground">
+          {entry.variant === "gallery" ? labels.storyCard.viewPhotos : labels.storyCard.readStory}
+          <span
+            aria-hidden="true"
+            className="motion-safe:transition-transform motion-safe:group-hover:translate-x-1 motion-safe:group-focus-visible:translate-x-1"
+          >
+            →
+          </span>
+        </span>
       </div>
     </Link>
   );
