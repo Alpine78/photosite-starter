@@ -286,7 +286,10 @@ function resolveLinkTarget(
       const localized = buildServicePath(config, locale);
       return { href: localized, key: localized };
     }
-    if (href === buildStoryPath(config, defaultRoute.locale)) {
+    if (
+      href === buildStoryPath(config, defaultRoute.locale) ||
+      href === buildStoryPath(config, locale)
+    ) {
       const localized = buildStoryPath(config, locale);
       return { href: localized, key: localized };
     }
