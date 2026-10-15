@@ -593,10 +593,16 @@ Identity retirement has separate offline tools: `npm run reconcile:identities`,
 planner produces a private canonical payload and pins from approved local inputs;
 it performs no CMS write or deployment. See [the operator contract](docs/sanity-seeding.md#offline-canonical-alias-payload-ab265).
 
-Legacy customer-link continuity has a separate, default-off runtime under
-ADR-0028 (AB#250), using byte-preserved Sanity assets and a whole-ZIP link.
-Customer import, notice/usage/recovery checks and old-link deployment remain
-launch gates; this preparation does not activate the protected roadmap below.
+Legacy customer-link continuity uses a separate, default-off runtime under
+ADR-0028 (AB#250). The first production site's retained galleries are live:
+on 2026-10-15, all 21 published gallery routes returned HTTP 200 with image markup;
+the published dataset contained 1,792 image placements and 12 ZIP assets.
+Customers use their direct `/client-gallery/<handle>` links without signing in;
+`/admin` belongs to the separate protected-gallery workflow below.
+This check did not download or hash the images/ZIPs or verify old-link redirects,
+browser interactions or the remaining launch acceptance evidence. See the
+[access and verification instructions](docs/deployment.md#retained-legacy-customer-galleries-adr-0028)
+and [dated verification record](docs/audits/ab250-release-verification-2026-10-12.md#production-readback--2026-10-15).
 
 ## Later roadmap (not in MVP)
 

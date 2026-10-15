@@ -1,6 +1,43 @@
 # AB#250 — retained delivery release verification, 2026-10-12
 
-Status: byte-verification tooling implemented; real import and publication blocked.
+## Production readback — 2026-10-15
+
+The October 12 absence/blocker observations below are historical. A read-only
+availability check on October 15 found the retained galleries published and
+reachable on the first site's canonical production origin:
+
+| Observation | Result |
+| --- | --- |
+| Published-perspective `legacyDeliveryGallery` documents | 21 |
+| Those gallery documents with `published == true` | 21 |
+| Published-perspective `legacyDeliveryImage` placements | 1,792 |
+| Published-perspective ZIP asset documents | 12 |
+| Anonymous GETs to the 21 direct gallery routes | 21 HTTP 200 |
+| Responses containing image markup and a Sanity asset URL | 21 |
+
+The counts came from the configured Production Sanity dataset's direct query API
+with `perspective=published`, without credentials. The page probes used each
+published document's handle at `/client-gallery/<handle>` on the canonical
+production origin. Customer titles, handles and link lists remain outside Git.
+Vercel project inspection confirmed the linked PhotoSite Starter project, and
+Production environment metadata listed the adapter, batch, handle allowlist and
+old-link mapping settings. Their presence alone is not evidence of deployed
+values; the live page responses establish availability.
+
+Customers access these pages through their direct gallery links without logging
+in. `/admin` belongs to the separate ADR-0014/ADR-0015 protected workflow.
+The runtime remains default-off for a new clone.
+
+This pass did not download or hash image/ZIP bytes, exercise attachment delivery
+or browser interactions, inspect response-policy headers, or test old-link
+redirects. It does not establish the import date, the exact serving deployment,
+full acceptance-criteria completion or final privacy/usage/recovery acceptance.
+No CMS, deployment or environment setting was changed. The authoritative AB#250
+item was Active and remains Active; no closure is inferred.
+
+## Historical checkpoint — 2026-10-12
+
+Status at this checkpoint: byte-verification tooling implemented; real import and publication blocked.
 AB#250 remains Active. The owner requested this continuation and confirmed that
 no Sanity Support assurance for the large ZIP workflow has been obtained.
 

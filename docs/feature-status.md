@@ -1,5 +1,20 @@
 # Feature implementation status
 
+AB#250 Production availability readback, 2026-10-15: all 21 retained legacy
+customer galleries are now observed published and reachable. An anonymous
+published-perspective Production dataset query returned 21 `legacyDeliveryGallery`
+documents (all `published == true`), 1,792 `legacyDeliveryImage` placements and
+12 ZIP assets. Anonymous GETs to all 21 canonical `/client-gallery/<handle>`
+routes returned HTTP 200 with image markup and Sanity asset URLs. Customers use
+these direct links without `/admin` authentication. This supersedes earlier
+not-yet-imported/not-yet-activated statements as current status; those dated
+entries remain historical checkpoints. Image/ZIP byte integrity, attachment
+delivery, old-link redirects, browser interactions, response-policy headers and
+the remaining launch/privacy/recovery gates were not reverified by this pass.
+No CMS, deployment or configuration mutation occurred. AB#250 was read as Active
+and remains Active; page availability alone does not close the story. See the
+[dated readback and its limits](audits/ab250-release-verification-2026-10-12.md#production-readback--2026-10-15).
+
 AB#290 localized menu follow-up, 2026-10-15: the owner-approved two revision-bound Production SiteSettings navigation patches are published and verified against a complete post-revocation dataset snapshot; the temporary Editor was removed and rejected. The staged release renders the requested Portfolio, Palvelut, Tarinat, Blogi order in Finnish. Its English Stories entry instead appeared after Blog because the menu resolver recognized only the default-locale story-root path, while the Sanity projection supplied the current locale's path. This branch corrects that resolver contract and tests the Sanity projection through menu composition in both languages. AB#290 remains Active until the correction is merged, deployed and its desktop/mobile FI/EN destinations and controls pass the final browser check.
 
 AB#290 navigation preparation, 2026-10-14: navigation can select a public category by stable identity, resolving its canonical destination independently for each locale. This supports the owner-requested Portfolio, Services, Stories, Blog order through SiteSettings while preserving the generated Stories submenu. Studio and adapter validation reject duplicate identities, invalid IDs and authored category paths. A revision-bound Production navigation plan is prepared separately; no CMS publication or hosted activation is implied. Validation passed: lint, 6,230 unit tests, production build and 23 Chromium/WebKit navigation journeys (three existing viewport-specific skips). The four destinations and keyboard activation were checked in FI/EN on desktop and mobile. AB#290 remains Active pending review, merge and approved configuration publication.
