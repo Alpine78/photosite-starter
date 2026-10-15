@@ -96,6 +96,8 @@ export async function HomePage({ searchParams, locale }: HomePageProps) {
   const latestStories = latest.map((entry) => ({
     contentId: entry.contentId,
     title: entry.title,
+    variant: entry.variant,
+    ...(entry.imageCount === undefined ? {} : { imageCount: entry.imageCount }),
     ...(entry.summary === undefined ? {} : { summary: entry.summary }),
     eventDate: entry.eventDate,
     author: entry.variant === "article"

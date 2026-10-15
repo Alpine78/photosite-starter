@@ -101,6 +101,13 @@ export type ContentListingRecord = {
    */
   readonly eventDate: string;
   readonly cover?: ImageMedia;
+  /**
+   * Gallery pages only (AB#298): how many public photographs the gallery
+   * serves, counted by the adapter with the same visibility rule as the
+   * gallery page. Omitted for an article and for a gallery with none, so a
+   * card never promises "0 photos".
+   */
+  readonly imageCount?: number;
 };
 
 export type ContentListingEntry = ContentListingRecord & {

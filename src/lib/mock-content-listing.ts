@@ -27,7 +27,7 @@ import {
   fieldnoteContentId,
   fieldnotePublishedAt,
 } from "@/lib/mock-fieldnotes";
-import { getMockGalleryCover } from "@/lib/mock-gallery";
+import { getMockGalleryCover, getMockGalleryImageCount } from "@/lib/mock-gallery";
 import { getMockImages } from "@/lib/mock-media";
 
 const englishImages = getMockImages("en");
@@ -64,6 +64,8 @@ type AuthoredContentRecord = {
   /** A permanently-past date on the one fixture that exercises the auto-hide. */
   readonly endDate?: string;
   readonly cover?: ImageMedia;
+  /** AB#298: a gallery's public photograph count, derived from its fixture. */
+  readonly imageCount?: number;
 };
 
 /** Cards for the generated Gear field notes — see `mock-fieldnotes.ts`. */
@@ -356,10 +358,13 @@ function withGalleryCovers(
   records: readonly AuthoredContentRecord[],
 ): readonly AuthoredContentRecord[] {
   return records.map((record) => {
-    if (record.cover !== undefined) return record;
+    const imageCount = getMockGalleryImageCount(language, record.contentId);
+    const counted =
+      imageCount === undefined || imageCount === 0 ? record : { ...record, imageCount };
+    if (counted.cover !== undefined) return counted;
 
     const cover = getMockGalleryCover(language, record.contentId);
-    return cover === undefined ? record : { ...record, cover };
+    return cover === undefined ? counted : { ...counted, cover };
   });
 }
 
@@ -379,6 +384,7 @@ function toListingRecord(record: AuthoredContentRecord): ContentListingRecord {
     ...(record.author === undefined ? {} : { author: record.author }),
     eventDate: effectiveEventDate(record),
     ...(record.cover === undefined ? {} : { cover: record.cover }),
+    ...(record.imageCount === undefined ? {} : { imageCount: record.imageCount }),
   };
 }
 

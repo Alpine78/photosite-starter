@@ -104,6 +104,23 @@ export const GALLERY_DOCUMENT_TYPE = "gallery";
 /** The identity form `gallery.ts`'s Studio validation enforces, enforced again here. */
 const CONTENT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** The document type AB#114's placements live in — see gallery-placement.ts. */
+export const GALLERY_PLACEMENT_DOCUMENT_TYPE = "galleryPlacement";
+
+export const MEDIA_DOCUMENT_TYPE = "media";
+
+/**
+ * What makes a placement publicly countable and servable: visible, with media
+ * that renders publicly and is not private-client-only (ADR-0002 / ADR-0014 §2,
+ * fail-closed). One definition for the bounded window filter and the listing
+ * card's image count (AB#298), so a card can never promise a different number
+ * of photographs than the gallery page serves.
+ */
+const PUBLIC_PLACEMENT_CLAUSES = `visible == true && media->publiclyRenderable == true && (media->privateOnly == false || !defined(media->privateOnly))`;
+
+/** The capture-sequence counterpart: the media document is the photograph itself. */
+const PUBLIC_CAPTURE_MEDIA_CLAUSES = `publiclyRenderable == true && (privateOnly == false || !defined(privateOnly))`;
+
 export const GALLERY_FILTER = `_type == "${GALLERY_DOCUMENT_TYPE}" && language == $language`;
 
 /**
@@ -477,7 +494,15 @@ const GALLERY_LISTING_FIELDS = `
   summary,
   publishedAt,
   eventDate,
-  "cover": cover->${PUBLIC_MEDIA_PROJECTION}
+  "cover": cover->${PUBLIC_MEDIA_PROJECTION},
+  "imageCount": select(
+    orderingRule == "capture-sequence" => count(*[
+      _type == "${MEDIA_DOCUMENT_TYPE}" && captureSequence.galleryContentId == ^.contentId && ${PUBLIC_CAPTURE_MEDIA_CLAUSES}
+    ]),
+    count(*[
+      _type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == ^._id && ${PUBLIC_PLACEMENT_CLAUSES}
+    ])
+  )
 `;
 
 export const GALLERY_LISTING_PROJECTION = `{${GALLERY_LISTING_FIELDS}}`;
@@ -496,6 +521,8 @@ export type RawGalleryListingDocument = {
   readonly publishedAt?: unknown;
   readonly eventDate?: unknown;
   readonly cover?: unknown;
+  /** AB#298: the gallery's public photograph count, counted in the store. */
+  readonly imageCount?: unknown;
 };
 
 type ListingProjectionOptions = {
@@ -530,6 +557,7 @@ export function projectGalleryListingRecord(
   const cover = isRecord(document.cover)
     ? projectPublicMedia(document.cover as RawPublicMediaDocument, options)
     : undefined;
+  const imageCount = readCount(document.imageCount);
 
   return {
     contentId,
@@ -540,6 +568,9 @@ export function projectGalleryListingRecord(
     eventDate: effectiveEventDate({ publishedAt, eventDate }),
     ...(summary === undefined ? {} : { summary }),
     ...(cover === undefined ? {} : { cover }),
+    // Only a countable gallery carries a count; an empty one keeps the card's
+    // count-free call-to-action rather than promising "0 photos".
+    ...(imageCount > 0 ? { imageCount } : {}),
   };
 }
 
@@ -1264,9 +1295,6 @@ function projectSeededOrderingFields(
 // galleryPlacement documents, composed with readCuratedGallerySectionPage.
 // ---------------------------------------------------------------------------
 
-/** The document type AB#114's placements live in — see gallery-placement.ts. */
-export const GALLERY_PLACEMENT_DOCUMENT_TYPE = "galleryPlacement";
-
 const GALLERY_PLACEMENT_ITEM_PROJECTION = `{
   placementId,
   order,
@@ -1309,7 +1337,7 @@ function buildPlacementFilter(sectionId: string | undefined): string {
   // hidden placement or a non-renderable one, so a returned row is already
   // within `CuratedGallerySectionSource`'s contract and `buildCuratedGalleryPage`
   // never has to drop one after the fetch.
-  return `_type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == $galleryDocumentId && visible == true && media->publiclyRenderable == true && (media->privateOnly == false || !defined(media->privateOnly))${sectionClause}`;
+  return `_type == "${GALLERY_PLACEMENT_DOCUMENT_TYPE}" && gallery._ref == $galleryDocumentId && ${PUBLIC_PLACEMENT_CLAUSES}${sectionClause}`;
 }
 
 function sectionIdOf(filter: GallerySectionFilter): string | undefined {
@@ -1523,8 +1551,6 @@ function planSeededWindowQuery(
 // `media` documents instead of placements.
 // ---------------------------------------------------------------------------
 
-export const MEDIA_DOCUMENT_TYPE = "media";
-
 /**
  * A capture-sequence row in the manual placement shape `buildCuratedGalleryPage`
  * already consumes (ADR-0022 §2): the identity slot carries `mediaId`, `order`
@@ -1551,7 +1577,7 @@ const CAPTURE_SEQUENCE_ITEM_PROJECTION = `{
 function buildCaptureSequenceFilter(sectionId: string | undefined): string {
   const sectionClause =
     sectionId === undefined ? "" : " && captureSequence.sectionId == $sectionId";
-  return `_type == "${MEDIA_DOCUMENT_TYPE}" && captureSequence.galleryContentId == $contentId && publiclyRenderable == true && (privateOnly == false || !defined(privateOnly))${sectionClause}`;
+  return `_type == "${MEDIA_DOCUMENT_TYPE}" && captureSequence.galleryContentId == $contentId && ${PUBLIC_CAPTURE_MEDIA_CLAUSES}${sectionClause}`;
 }
 
 /**

@@ -381,6 +381,16 @@ export type BuiltInLabels = {
     /** Explains an explicit legacy-content fallback without exposing its source URL. */
     readonly legacyFallbackNotice: string;
   };
+  readonly storyCard: {
+    /** Call-to-action on a gallery card; the arrow is drawn by the card, not this label. */
+    readonly viewPhotos: string;
+    /** Gallery call-to-action with its photograph count; `{count}` is replaced. */
+    readonly viewPhotosCount: string;
+    /** The same for a gallery of exactly one photograph. */
+    readonly viewOnePhoto: string;
+    /** Call-to-action on an article card. */
+    readonly readStory: string;
+  };
   readonly homeLatestStories: {
     /** The link from the home page's latest stories to the whole story root. */
     readonly allStories: string;
@@ -805,6 +815,12 @@ const englishLabels = {
     legacyFallbackNotice:
       "The page you requested is no longer available. You have been redirected to the closest available content.",
   },
+  storyCard: {
+    viewPhotos: "View photos",
+    viewPhotosCount: "View {count} photos",
+    viewOnePhoto: "View 1 photo",
+    readStory: "Read the story",
+  },
   homeLatestStories: {
     allStories: "All stories",
   },
@@ -1111,6 +1127,12 @@ const finnishLabels = {
     backToStart: "Takaisin alkuun",
     legacyFallbackNotice:
       "Hakemaasi sivua ei ole enää saatavilla. Sinut ohjattiin lähimpään saatavilla olevaan sisältöön.",
+  },
+  storyCard: {
+    viewPhotos: "Katso kuvat",
+    viewPhotosCount: "Katso {count} kuvaa",
+    viewOnePhoto: "Katso 1 kuva",
+    readStory: "Lue tarina",
   },
   homeLatestStories: {
     allStories: "Kaikki tarinat",

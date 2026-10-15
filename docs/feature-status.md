@@ -5181,3 +5181,32 @@ to the new canonical Blog routes. `/favicon.ico` returned 307 to the published
 256×249 logo. The deployed site's HTTP verification remains open.
 The CMS write preceded deployment, leaving a short interval when the former
 Common URLs may return 404.
+
+### AB#298 — listing card call-to-action (2026-10-15, Active)
+
+Every story/gallery listing card (category branches and the home latest
+stories, both through `StoryCard`) now ends in a text call-to-action inside the
+single card link: "Katso kuvat →" / "View photos →" for a gallery and "Lue
+tarina →" / "Read the story →" for an article, chosen by the entry's `variant`
+and localized through `BuiltInLabels.storyCard`. The arrow is `aria-hidden`.
+Hover and keyboard focus underline the title, darken the CTA rule and slide the
+arrow 4 px; the arrow motion is `motion-safe` only. The design proposal's fixed
+3:2 `object-cover` image crop is deliberately not adopted (never-crop rule).
+
+**Image count (slice 2):** a gallery card names its photograph count ("Katso 86
+kuvaa →", "View 1 photo →"). `ContentListingRecord.imageCount` is counted in the
+store by `GALLERY_LISTING_PROJECTION` beside the card's other fields, with the
+same visibility clauses as the gallery's bounded window (`visible`, publicly
+renderable, not `privateOnly`) shared through `PUBLIC_PLACEMENT_CLAUSES` /
+`PUBLIC_CAPTURE_MEDIA_CLAUSES`; capture-sequence galleries count their media
+documents instead of placements. An empty gallery keeps the count-free "Katso
+kuvat" wording, and an article never carries a count. The fixture counts the same
+way (`getMockGalleryImageCount`). The listing card cover also zooms 1.03× on
+hover; AGENTS.md records this as a scoped exception to the never-crop rule.
+
+**Not verified:** the 21 retained legacy-delivery galleries (ADR-0028) keep
+their own manifest `imageCount`; whether they appear in category listings, and
+so whether their cards get a count, has not been checked against live content.
+The listing projection was tested against its GROQ text and a fake client, not a
+live Sanity dataset; a published-perspective read should confirm the `count()`
+subqueries before release.

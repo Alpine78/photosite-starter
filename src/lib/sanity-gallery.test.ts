@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   GALLERY_DETAIL_PROJECTION,
+  GALLERY_LISTING_PROJECTION,
   GALLERY_DOCUMENT_TYPE,
   GALLERY_PAGE_SIZE,
   GALLERY_PLACEMENT_DOCUMENT_TYPE,
@@ -1429,6 +1430,7 @@ describe("projectGalleryListingRecord", () => {
       summary: "First light along the shoreline.",
       publishedAt: "2024-06-18",
       cover: mediaDocumentOf(),
+      imageCount: 86,
     };
 
     expect(projectGalleryListingRecord(document, languages)).toMatchObject({
@@ -1436,7 +1438,39 @@ describe("projectGalleryListingRecord", () => {
       title: "Coastal mornings",
       summary: "First light along the shoreline.",
       eventDate: "2024-06-18",
+      imageCount: 86,
     });
+  });
+
+  it("omits the image count of an empty gallery rather than promising zero photographs (AB#298)", () => {
+    const record = projectGalleryListingRecord(
+      { contentId: "content-x", title: "X", publishedAt: "2024-01-01", imageCount: 0 },
+      languages,
+    );
+    expect(record).not.toHaveProperty("imageCount");
+  });
+
+  it("rejects a store answer whose image count is not a non-negative integer (AB#298)", () => {
+    for (const imageCount of [undefined, -1, 1.5, "12", null]) {
+      const error = rejectionOf(() =>
+        projectGalleryListingRecord(
+          { contentId: "content-x", title: "X", publishedAt: "2024-01-01", imageCount },
+          languages,
+        ),
+      );
+      expect(error.rejection).toBe("malformed-result");
+    }
+  });
+
+  it("counts a capture-sequence gallery's media and a placement gallery's placements with the public window's clauses (AB#298)", () => {
+    expect(GALLERY_LISTING_PROJECTION).toContain(
+      'orderingRule == "capture-sequence" => count(*[',
+    );
+    expect(GALLERY_LISTING_PROJECTION).toContain("captureSequence.galleryContentId == ^.contentId");
+    expect(GALLERY_LISTING_PROJECTION).toContain("gallery._ref == ^._id");
+    expect(GALLERY_LISTING_PROJECTION).toContain("visible == true && media->publiclyRenderable == true");
+    expect(GALLERY_LISTING_PROJECTION).toContain("(media->privateOnly == false || !defined(media->privateOnly))");
+    expect(GALLERY_LISTING_PROJECTION).toContain("(privateOnly == false || !defined(privateOnly))");
   });
 
   it("omits summary and cover when the gallery has none", () => {
@@ -1444,6 +1478,7 @@ describe("projectGalleryListingRecord", () => {
       contentId: "content-awaiting-selection",
       title: "Awaiting selection",
       publishedAt: "2024-01-08",
+      imageCount: 0,
     };
 
     expect(projectGalleryListingRecord(document, languages)).toEqual({
@@ -1469,6 +1504,7 @@ describe("projectGalleryListingRecord", () => {
       title: "X",
       publishedAt: "2024-12-05",
       eventDate: "2024-01-15",
+      imageCount: 1,
     };
     expect(projectGalleryListingRecord(document, languages).eventDate).toBe(
       "2024-01-15",
@@ -1550,11 +1586,13 @@ describe("readPublicGalleryListingRecords", () => {
       contentId: "content-older",
       title: "Older",
       publishedAt: "2024-01-01",
+      imageCount: 2,
     };
     const newerRecord: RawGalleryListingDocument = {
       contentId: "content-newer",
       title: "Newer",
       publishedAt: "2024-06-01",
+      imageCount: 2,
     };
 
     let call = 0;
@@ -1609,7 +1647,7 @@ describe("readPublicGalleryListingRecordsInCategories", () => {
     const { client, requests } = fakeClient({
       "category.ids": [{ _id: "doc-formula" }, { _id: "doc-rally" }],
       "gallery.listing.by-category": [
-        { contentId: "content-rally-gallery", title: "Rally", publishedAt: "2024-05-01" },
+        { contentId: "content-rally-gallery", title: "Rally", publishedAt: "2024-05-01", imageCount: 4 },
       ],
     });
 
@@ -1729,6 +1767,7 @@ describe("reading latest records (AB#252)", () => {
     contentId,
     title: contentId,
     publishedAt: "2024-01-01",
+    imageCount: 1,
     updatedAt,
   });
 

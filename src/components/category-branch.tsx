@@ -163,7 +163,7 @@ export function CategoryBranch({
           <ul className="mt-7 grid items-start gap-x-10 gap-y-14 sm:grid-cols-2">
             {content.map((entry) => (
               <li key={entry.contentId}>
-                <StoryCard entry={entry} locale={locale} />
+                <StoryCard entry={entry} locale={locale} labels={labels} />
               </li>
             ))}
           </ul>
