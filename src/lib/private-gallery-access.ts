@@ -129,17 +129,19 @@ import {
 import { checkContactRequestHeaders, readBoundedBody } from "@/lib/contact-request";
 import {
   PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY,
+  PRIVATE_GALLERY_DEFAULT_MAX_PAGE_SIZE,
   PRIVATE_GALLERY_DEFAULT_MAX_PROOF_SELECTION_BODY_BYTES,
 } from "@/lib/private-gallery-limits";
 import {
-  PRIVATE_GALLERY_ITEM_LIMITS,
-  projectPrivateGalleryItems,
-  type PrivateGalleryItem,
-} from "@/lib/private-gallery-item";
+  projectPrivateGalleryDeliveryPage,
+  type PrivateGalleryDeliveryPage,
+  type PrivateGalleryDeliveryPageStore,
+} from "@/lib/private-gallery-delivery-page";
 
 export type { PrivateGallerySessionCookie } from "@/lib/private-gallery-session";
 export type { PrivateGallery, PrivateGallerySession } from "@/lib/private-gallery";
 export type { PrivateGalleryItem } from "@/lib/private-gallery-item";
+export type { PrivateGalleryDeliveryPage } from "@/lib/private-gallery-delivery-page";
 export type { PrivateGalleryProofView } from "@/lib/private-gallery-proof-view";
 export type { PrivateGalleryMintRequest } from "@/lib/private-gallery-delivery";
 export { createPrivateGalleryExchangeIpLimiter };
@@ -302,6 +304,7 @@ export type PrivateGalleryStores = {
   readonly exchangeStore: PrivateGalleryExchangeStore;
   readonly sessionStore: PrivateGallerySessionStore;
   readonly viewStore: PrivateGalleryViewStore;
+  readonly deliveryPageStore: PrivateGalleryDeliveryPageStore;
   readonly deliveryStore: PrivateGalleryDeliveryStore;
   readonly proofStore: PrivateGalleryProofStore;
   readonly proofNotification: () => PrivateGalleryProofNotificationContext;
@@ -337,6 +340,7 @@ export function getPrivateGalleryStores(): PrivateGalleryStores {
       exchangeStore: memory.exchangeStore,
       sessionStore: memory.sessionStore,
       viewStore: memory.viewStore,
+      deliveryPageStore: memory.deliveryPageStore,
       deliveryStore: memory.deliveryStore,
       proofStore: memory.proofStore,
       proofNotification: memory.proofNotification,
@@ -514,28 +518,23 @@ export async function authorizePrivateGalleryView(
   }
 }
 
-/**
- * This gallery's items, projected into what a page may render.
- *
- * Separate from {@link authorizePrivateGalleryView} rather than folded into it,
- * because the two answer different questions and a page that is not authorized
- * must never reach this at all — a caller has to hold an authorized gallery
- * before it can ask, and the type is what says so.
- *
- * The bound is applied twice: once as the store's `limit`, and again by
- * `projectPrivateGalleryItems`, which refuses an over-long page rather than
- * truncating it. A store that ignored the limit would be a defect, and a
- * silently short gallery is precisely what must not happen.
- */
-export async function listPrivateGalleryItems(
-  viewStore: PrivateGalleryViewStore,
-  gallery: PrivateGallery,
-): Promise<readonly PrivateGalleryItem[]> {
-  const placements = await viewStore.listPlacements(
-    gallery.galleryId,
-    PRIVATE_GALLERY_ITEM_LIMITS.maxPageSize,
-  );
-  return projectPrivateGalleryItems(placements);
+/** Every page turn rechecks the session and current gallery before any item read. */
+export async function readAuthorizedPrivateGalleryDeliveryPage(
+  deps: PrivateGalleryViewDeps & { readonly deliveryPageStore: PrivateGalleryDeliveryPageStore },
+  request: PrivateGalleryViewRequest & { readonly pageIndex: number },
+): Promise<PrivateGalleryDeliveryPage | undefined> {
+  const authorized = await authorizePrivateGalleryView(deps, request);
+  if (!authorized.authorized || authorized.gallery.kind !== "delivery") return undefined;
+  if (!Number.isSafeInteger(request.pageIndex) || request.pageIndex < 0 ||
+    request.pageIndex >= Math.ceil(PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY / PRIVATE_GALLERY_DEFAULT_MAX_PAGE_SIZE)) return undefined;
+  try {
+    const snapshot = await deps.deliveryPageStore.readPage(
+      authorized.gallery.galleryId, request.pageIndex, PRIVATE_GALLERY_DEFAULT_MAX_PAGE_SIZE,
+    );
+    return projectPrivateGalleryDeliveryPage(authorized.gallery.galleryId, request.pageIndex, snapshot);
+  } catch {
+    return undefined;
+  }
 }
 
 /**
