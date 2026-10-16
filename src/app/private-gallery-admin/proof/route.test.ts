@@ -108,6 +108,24 @@ describe("GET/POST/PATCH <admin-prefix>/proof", () => {
     expect(editText).not.toContain("objectKey");
     expect(editText).not.toContain(plan.objects[0].objectKey);
     expect(editText).not.toContain("galleryId");
+
+    const completed = await getPrivateGalleryMemoryStore().proofDraftStore.completeFirstPreparation({
+      handle: draft.handle, expectedRevision: 2,
+      preparationId: plan.preparation.preparationId, receipts: [],
+      observations: plan.objects.map(object => ({ objectKey: object.objectKey, sizeBytes: object.nominalBytes })),
+      now: new Date(),
+    });
+    expect(completed.ready).toBe(true);
+    const readyList = await GET(request("GET", cookie));
+    expect(readyList.status).toBe(200);
+    const readyText = await readyList.text();
+    for (const field of ["preparation", "readyProof", "pricingSnapshot", "verifiedObjects", "placements", "objectKey", "galleryId"]) {
+      expect(readyText).not.toContain(field);
+    }
+    expect(readyText).not.toContain(plan.objects[0].objectKey);
+    expect(readyText).not.toContain("IMG_0001.JPG");
+    expect((await PATCH(request("PATCH", cookie, { handle: draft.handle,
+      expectedRevision: 3, pricing: PRICING }))).status).toBe(409);
   });
 
   it("refuses unauthenticated, cross-origin, malformed and disabled edits", async () => {

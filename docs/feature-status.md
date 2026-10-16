@@ -1518,15 +1518,23 @@ A separate
 administrator-only `PATCH` now replaces a prepublication draft's complete
 pricing candidate through a revision-guarded memory-store update; stale tabs
 receive a conflict and refresh the bounded list. The candidate remains mutable
-until the later ready/publication transaction freezes it. Abandoned-draft
-cleanup, ready/publication and production persistence remain.
+until the first ready transaction freezes it. Abandoned-draft
+cleanup, publication and production persistence remain.
 The development proof draft store now has a server-only first-upload preparation
 operation. It validates a complete watermarked-proof manifest with the existing bounded
 planner, assigns opaque object keys and placement identities, and commits that plan with
 `draft → preparing` and a revision bump in one process-local synchronous mutation.
 Stale or repeated opens fail without a partial plan. The plan holds no pricing; the
-candidate remains editable while `preparing`, and a later `ready` transaction must freeze
-the current value. The existing admin JSON projection excludes the plan and object keys.
+candidate remains editable while `preparing`. A server-only completion operation now
+reconciles bounded server-side metadata observations against that exact stored plan,
+checks its preparation deadline and revision, and commits `preparing → ready` with the
+current pricing snapshot, permanent filename-ordered references, reference high-water mark
+and verified metadata in one process-local mutation. Missing/mismatched objects leave the
+whole row unchanged; stale or repeated completion conflicts without refreezing references.
+The stored prefix cannot be broadened at completion. Receipts alone establish nothing;
+checksum comparison applies only when both receipt and provider metadata name the same
+algorithm, so live provider checksum/version semantics remain a separate verification gate.
+The existing admin JSON projection excludes the plan, keys and frozen internal records.
 This has no HTTP or owner-CLI upload path, no object writes and no customer access.
 `preparing → draft` is not an ADR-0014 transition; the story's reopen operation applies
 to a confirmed customer selection after publication. An incorrect/abandoned preparation
