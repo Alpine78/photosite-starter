@@ -1367,6 +1367,12 @@ it** — AB#132 owns the related but distinct 404 initial-HTML limitation) — a
 (a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
 and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
 build it), lightbox zoom tuning, and the dynamic-result enquiry entry point (AB#58/AB#71).
+**AB#29 retention workflow, 2026-10-16:** provider-free bounded orchestration now
+reuses the existing lifecycle policy, claims cleanup through revision/lease CAS,
+resumes manifest slices and verifies whole-prefix absence before completion.
+Expired-session reaping and backstop-policy checks have independent ports. No
+production adapter, scheduler, object deletion or enablement is introduced.
+
 Private client galleries are **partially built**: a link can be opened and exchanged for a
 session, an authorized customer sees their gallery's frames, an operator can sign in to the
 administrator boundary, and the delivery path is composed end to end — but all of it only
