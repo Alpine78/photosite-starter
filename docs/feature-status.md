@@ -3299,6 +3299,18 @@ resolved for each locale's header and metadata (`resolveSiteName`,
 back to another language. A pre-AB#187 single-string `siteName` is still read as the
 default name until re-authored. The proposal's footer brand block is not built.
 
+**Studio language-version action, 2026-10-16 (AB#125, Active):** the article/gallery
+editor now offers a configured missing target language, previews copied review fields
+and category/shared-media notices, then explicitly creates linked drafts in one
+strict-create transaction. It uses the existing authenticated Studio client; no new
+endpoint or credential is introduced. Node and native browser crypto share one
+planner policy and preserve deterministic IDs/ordering. Saved-source/preview changes,
+release editing, bounded-read overflow, duplicate IDs and provider failures refuse
+without source or media writes. No automatic translation/publication occurs.
+Synthetic authoring/parity tests and Studio typecheck/schema/static build cover the
+implementation; authenticated real-content creation and owner editorial acceptance
+remain unexercised, and the story stays Active pending review/merge and acceptance.
+
 **Localized draft source review, 2026-10-05 (AB#125, Active):** the pure planner
 now checks selected gallery and article end-gallery source placements as well as
 the source page. Pending or malformed localization reviews refuse another derived
@@ -5283,3 +5295,15 @@ there is no load measurement; the only latency evidence is three warm API calls 
 0.16–0.26 s through `vercel curl`, which includes the tool's own overhead. ADR-0033's
 512 KiB target and 75 % revisit trigger are untested proposals, and ADR-0033 is still
 **Proposed**. Manual screen-reader and keyboard checks are not recorded.
+
+
+### AB#300 — Studio search namespace configuration (2026-10-16, Active)
+
+Studio now accepts the optional fifth search namespace in the shared locale
+routing declaration introduced by #415, while retaining three/four-field input.
+It validates provided search segments and same-row story/service collisions;
+story roots are unchanged. Empty/malformed extra fields and six-field rows still
+refuse. The public route compiler remains responsible for global routing collisions.
+The Studio example now uses the complete FI/en-GB declaration. No public route,
+CMS content, dependency, authentication or deployment setting was changed.
+AB#300 moved New → Active before edits and remains Active pending review/merge.

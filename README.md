@@ -622,10 +622,13 @@ and [dated verification record](docs/audits/ab250-release-verification-2026-10-1
   still pending.
 - Optional image sales and fulfilment (enquiry first; checkout and cart only
   after a separate product, legal, security, and delivery decision)
-- Multilingual authoring workflow: an owner-run linked-draft creation command is available
-  for articles and galleries, with source page/placement review checked before copying;
-  its Studio action UI and optional provider-neutral AI
-  translation assistance remain later work. The public
+- Multilingual authoring workflow: articles and galleries have an owner-run linked-draft
+  command and a Studio **Create language version** action. The action previews copied
+  fields/notices and explicitly creates only linked drafts through the editor's existing
+  permissions; source review, bounded reads and strict IDs guard copying. See the
+  [Studio workflow](docs/sanity-setup.md#create-a-linked-language-draft-in-studio-ab125).
+  Live creation and editorial acceptance remain separate checks. Optional provider-neutral
+  AI translation assistance remains later work. The public
   locale-aware routing itself is in the MVP above, not here.
   The [editorial provider boundary](docs/adr/0026-editorial-assistant-provider-boundary.md)
   is proposed; no AI inference or suggestion UI is implemented.
