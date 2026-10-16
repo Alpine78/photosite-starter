@@ -33,6 +33,8 @@ import {
 import { PRIVATE_GALLERY_MAX_OBJECT_KEY_LENGTH } from "@/lib/private-gallery-object-key";
 
 export const PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT = 100;
+/** Per-store development memory guard; reset/restart releases these rows. */
+export const PRIVATE_GALLERY_PROOF_DRAFT_CAPACITY = 1000;
 
 /** Server-only records committed together on the first ready transition. */
 export type PrivateGalleryProofDraftReadyData = {
@@ -122,6 +124,7 @@ export type PrivateGalleryProofDraftStoreErrorReason =
   | "invalid-time"
   | "invalid-limit"
   | "identity-collision"
+  | "capacity"
   | "preparation-expired"
   | "readiness-failed"
   | "not-found"
@@ -221,6 +224,8 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
       // Validate before generating an identity or changing state.
       const validated = validatedInput(input);
       if (!(now instanceof Date) || !Number.isFinite(now.getTime())) fail("invalid-time");
+      // The bound and insertion share this synchronous critical section.
+      if (byId.size >= PRIVATE_GALLERY_PROOF_DRAFT_CAPACITY) fail("capacity");
       const galleryId = randomUUID();
       const galleryHandle = generateGalleryHandle();
       if (byId.has(galleryId) || byHandle.has(galleryHandle)) fail("identity-collision");

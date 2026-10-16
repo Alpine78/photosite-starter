@@ -1524,7 +1524,13 @@ identity and handle, and exposes no capability or customer access link. The
 reauthorizes the administrator; `POST` checks same-origin JSON and a streamed
 1 KiB body bound before parsing. The draft store is separate from the
 published fixture's customer exchange, view, and proof stores, so creating a
-draft cannot give a customer access. This is not yet relational customer/job
+draft cannot give a customer access. The development proof store now caps its own
+lifetime at 1,000 setup rows before generating a new identity. Concurrent final
+creates cannot exceed it, and a full store refuses creation with the existing
+redacted 503 response without evicting drafts or blocking preparation/completion.
+Reset/restart releases these process-local rows; this is a memory guard, not a
+production retention policy or the separate per-gallery file ceiling.
+This is not yet relational customer/job
 association: no customer or job domain records exist (AB#28).
 AB#196 adds a [single-photographer operations worksheet](photographer-operations.md)
 for AB#28. It maps the parent criteria into decisions and unapproved slices;
