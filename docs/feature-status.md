@@ -7,6 +7,20 @@ It reuses unchanged bounded inspection, streams ZIP hashes and produces only a
 redacted summary. It writes no files or remote objects and grants no upload lease;
 watermarks and ZIP contents retain their explicit existing verification limits.
 
+AB#301 Studio identity presentation, 2026-10-16 (partial, Active): the actual
+Studio configuration now groups permanent technical identifiers at the end of
+the form using native, initially expanded FI/EN-labelled controls. Shared-media
+previews use authored captions/alternative text and show the actual language,
+with explicit missing-description fallbacks and complete-frame thumbnails.
+Canonical field names, validators, references and stored IDs are unchanged.
+The application registry's active deployment is dated 2026-10-11, older than
+PR #339's 2026-10-12 readable-preview merge. Hosted publication and authenticated
+editor verification remain separate. Accepted AB#257/260 identity retirement still
+needs current source reconciliation and the remaining alias/read/write/maintenance
+and rehearsal integration; existing helper modules are inventoried in the
+[Studio guide](../studio/README.md#editing-content). This partial change does not
+close the stored-identity retirement outcome or modify the CMS.
+
 AB#250 Production availability readback, 2026-10-15: all 21 retained legacy
 customer galleries are now observed published and reachable. An anonymous
 published-perspective Production dataset query returned 21 `legacyDeliveryGallery`
@@ -1523,6 +1537,20 @@ references in the replacement object clear the previous value. A stale edit retu
 409 and preserves the entered text until the operator explicitly refreshes the list.
 Each successful save advances the revision once, including an identical replacement.
 This reversible development-memory operation does not publish or grant customer access.
+A server-only AB#29 first-delivery workflow now commits the complete preview/ZIP
+plan with `draft → preparing`, then verifies its exact metadata set before one
+revision-guarded `preparing → ready` mutation. That commit stores native-ratio
+preview placements, verified metadata and the active immutable ZIP pointer together.
+The first plan requires previews and exactly one ZIP; its 1,000-object bound includes
+the ZIP. Missing/mismatched objects, stale revisions and expired preparations leave
+the whole setup unchanged. A returned plan or row cannot mutate the stored snapshot.
+The shared bounded evidence copier also serves the existing proof completion path.
+This is development-memory coordination only: no HTTP/CLI upload, object write,
+capability, publication or email is added. Dimensions and ZIP membership remain
+owner-attested; live checksum/version semantics and immutable-write guarantees still
+need the approved provider gate. Expired preparations follow retention rather than an
+unapproved `preparing → draft` transition. Both AB#29 and AB#145 remain Active.
+
 A server-only FI/EN delivery-notification builder now creates customer access
 instructions from a currently published delivery record and its encrypted capability.
 The envelope is authenticated against gallery, handle and current generation before
@@ -1576,6 +1604,27 @@ whole row unchanged; stale or repeated completion conflicts without refreezing r
 The stored prefix cannot be broadened at completion. Receipts alone establish nothing;
 checksum comparison applies only when both receipt and provider metadata name the same
 algorithm, so live provider checksum/version semantics remain a separate verification gate.
+A shared server-only metadata collector now reads only the committed preparation's
+exact object keys through a read-only `head` port. It snapshots and scopes the plan,
+binds observations to requested keys, runs at most eight reads concurrently, and
+bounds each read and the entire pass. Abort, transport uncertainty, malformed data
+or expiry refuses the whole pass; only definitive not-found is omitted, leaving
+store completion unready. Late uncooperative responses cannot admit further reads
+or become unhandled rejections. Results are detached/frozen and remain internal;
+store completion still rechecks revision and deadline. No S3 adapter or live provider
+is connected, and HEAD does not prove immutable bytes, ZIP membership or pixels.
+The existing admin JSON projection excludes the plan, keys and frozen internal records.
+
+Administrator proof drafts now support complete replacement or clearing of their
+external customer/job references through an authenticated, bounded PUT (AB#130).
+Draft and preparing rows remain editable; ready rows are frozen. FI/EN editors
+share a per-row mutation lock with pricing, keep typed references through a
+pricing save, and preserve conflicting text until an explicit list refresh.
+This uses the existing external identifiers, not customer/job domain records.
+The CI follow-up preserves the conflict response when the process-wide memory
+store throws an error from another route bundle's module instance. A module-reload
+regression and explicit browser HTTP-409 assertions cover this boundary.
+
 The administrator projection now adds only the prepublication state and a bounded
 upload summary (object count, opening time, deadline and expiry at response time).
 The FI/EN list distinguishes draft, preparing and prepared-but-unshared proofs;

@@ -1,4 +1,4 @@
-import { EDITORIAL_PREVIEWS } from "./editorial-preview";
+import { EDITORIAL_PREVIEWS, mediaEditorialPreview, selectMediaDescription } from "./editorial-preview";
 import { studioInterfaceText } from "./interface-locales";
 import type { SchemaTypeDefinition } from "../sanity/schemas/schema-types";
 
@@ -10,10 +10,20 @@ type EditorialSchema = SchemaTypeDefinition & { preview?: { select: Readonly<Rec
 export function localizedEditorialPreview(type: string, selection: Selection, locale: string): Preview | undefined {
   const prepare = EDITORIAL_PREVIEWS[type]?.prepare;
   if (!prepare) return undefined;
-  const original = prepare(selection);
+  const original = type === "media" ? mediaEditorialPreview(selection, locale) : prepare(selection);
   if (!/^fi(?:-|$)/.test(locale)) return original;
   const translate = (value: string) => studioInterfaceText(value, locale) ?? value;
   const missing = (value: unknown) => typeof value !== "string" || !value.trim();
+  if (type === "media") {
+    const selected = selectMediaDescription(selection, locale);
+    const preview = mediaEditorialPreview(selection, locale);
+    const tag = selected?.language;
+    const credit = typeof selection.credit === "string" ? selection.credit.trim() : undefined;
+    return { ...preview,
+      title: selected ? selected.value : translate("Media description missing"),
+      subtitle: [tag ? tag.replace(/^[a-z]{2,3}(?=-|$)/, (primary) => primary.toUpperCase()) : translate("Language missing"), credit].filter(Boolean).join(" · "),
+    };
+  }
   if (type === "article" || type === "gallery") {
     return {
       ...original,

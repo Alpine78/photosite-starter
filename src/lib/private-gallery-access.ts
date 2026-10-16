@@ -1419,6 +1419,32 @@ export async function createPrivateGalleryProofDraftAsAdmin(
   }
 }
 
+/** Replace external references on a pre-ready proof; pricing PATCH remains separate. */
+export async function updatePrivateGalleryProofDraftReferencesAsAdmin(
+  deps: PrivateGalleryAdminRequestDeps & { readonly proofDraftStore: PrivateGalleryProofDraftStore },
+  request: Request, now: Date,
+): Promise<PrivateGalleryProofDraftAdminOutcome<PrivateGalleryProofDraftAdminItem>> {
+  if (request.method !== "PUT" || checkPrivateGalleryAdminLoginRequestHeaders(request) !== undefined) return { ok: false, reason: "invalid-input" };
+  const authorization = await authorizePrivateGalleryAdministrator(deps, { cookieHeader: request.headers.get("cookie"), now });
+  if (!authorization.ok) return { ok: false, reason: "unauthorized" };
+  try {
+    const raw = await readBoundedBody(request, 1024);
+    if (raw === undefined) return { ok: false, reason: "invalid-input" };
+    let input: Parameters<PrivateGalleryProofDraftStore["updateReferences"]>[0];
+    try {
+      const value: unknown = JSON.parse(raw);
+      if (!value || typeof value !== "object" || Array.isArray(value) ||
+          Object.keys(value).sort().join(",") !== "expectedRevision,handle,references") return { ok: false, reason: "invalid-input" };
+      input = value as typeof input;
+    } catch { return { ok: false, reason: "invalid-input" }; }
+    return { ok: true, value: projectProofDraft(await deps.proofDraftStore.updateReferences(input), now) };
+  } catch (error) {
+    if (error instanceof PrivateGalleryProofDraftStoreError &&
+        (error.reason === "invalid-input" || error.reason === "not-found" || error.reason === "conflict")) return { ok: false, reason: error.reason };
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
 function parseProofDraftPricingUpdate(raw: string): {
   readonly handle: string;
   readonly expectedRevision: number;

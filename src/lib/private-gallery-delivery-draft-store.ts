@@ -2,8 +2,17 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { generateGalleryHandle } from "@/lib/private-gallery-capability";
-import type { PrivateGallery } from "@/lib/private-gallery";
+import type { PrivateGallery, PrivateGalleryPlacement } from "@/lib/private-gallery";
 import { isPrivateGalleryProofBusinessReference } from "@/lib/private-gallery-proof";
+
+import { openPrivateGalleryUploadPreparation, isPrivateGalleryPreparationExpired,
+  type PrivateGalleryManifestEntry, type PrivateGalleryUploadPlan } from "@/lib/private-gallery-upload";
+import { verifyPrivateGalleryUpload, type PrivateGalleryVerifiedObject,
+  type PrivateGalleryVerificationFailure } from "@/lib/private-gallery-upload-completion";
+import { snapshotPrivateGalleryUploadCompletionEvidence, type PrivateGalleryUploadCompletionEvidence } from "@/lib/private-gallery-upload-evidence";
+import { buildVerifiedFirstDeliveryData } from "@/lib/private-gallery-delivery-upload";
+import { evaluatePrivateGalleryReadiness } from "@/lib/private-gallery-readiness";
+import { PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY } from "@/lib/private-gallery-limits";
 
 export const PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT = 100;
 /** Process-local development guard, not a production storage policy. */
@@ -15,15 +24,31 @@ export type PrivateGalleryDeliveryDraftInput = {
 export type PrivateGalleryDeliveryDraft = PrivateGalleryDeliveryDraftInput & {
   readonly gallery: PrivateGallery;
   readonly revision: number;
+  readonly preparation?: PrivateGalleryUploadPlan;
+  readonly preparationKeyPrefix?: string;
+  readonly readyDelivery?: {
+    readonly placements: readonly PrivateGalleryPlacement[];
+    readonly verifiedObjects: readonly PrivateGalleryVerifiedObject[];
+  };
 };
+export type PrivateGalleryDeliveryDraftCompletionInput = PrivateGalleryUploadCompletionEvidence & {
+  readonly handle: string; readonly expectedRevision: number; readonly preparationId: string; readonly now: Date;
+};
+export type PrivateGalleryDeliveryDraftCompletion =
+  | { readonly ready: true; readonly setup: PrivateGalleryDeliveryDraft }
+  | { readonly ready: false; readonly failures: readonly PrivateGalleryVerificationFailure[]; readonly truncated: boolean };
 export type PrivateGalleryDeliveryDraftStore = {
   create(input: PrivateGalleryDeliveryDraftInput, now: Date): Promise<PrivateGalleryDeliveryDraft>;
   updateReferences(input: { readonly handle: string; readonly expectedRevision: number;
     readonly references: PrivateGalleryDeliveryDraftInput }): Promise<PrivateGalleryDeliveryDraft>;
+  openFirstPreparation(input: { readonly handle: string; readonly expectedRevision: number; readonly keyPrefix: string;
+    readonly manifest: readonly PrivateGalleryManifestEntry[]; readonly now: Date }): Promise<PrivateGalleryUploadPlan>;
+  /** Server-only observations must come from metadata reads, never browser assertions. */
+  completeFirstPreparation(input: PrivateGalleryDeliveryDraftCompletionInput): Promise<PrivateGalleryDeliveryDraftCompletion>;
   list(limit: number): Promise<{ readonly items: readonly PrivateGalleryDeliveryDraft[]; readonly hasMore: boolean }>;
 };
 export class PrivateGalleryDeliveryDraftStoreError extends Error {
-  constructor(readonly reason: "invalid-input" | "invalid-time" | "invalid-limit" | "identity-collision" | "capacity" | "not-found" | "conflict") {
+  constructor(readonly reason: "invalid-input" | "invalid-time" | "invalid-limit" | "identity-collision" | "capacity" | "not-found" | "conflict" | "preparation-expired" | "readiness-failed") {
     super("[private-gallery-delivery-draft-store] " + reason);
     this.name = "PrivateGalleryDeliveryDraftStoreError";
   }
@@ -78,6 +103,72 @@ export function createPrivateGalleryDeliveryDraftMemoryStore(): PrivateGalleryDe
       const updated = { gallery: current.gallery, revision: current.revision + 1, ...references };
       rows.set(current.gallery.galleryId, updated);
       return structuredClone(updated);
+    },
+    async openFirstPreparation(input) {
+      if (!input || typeof input.handle !== "string" || !/^[A-Za-z0-9_-]{22}$/.test(input.handle) ||
+          !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) throw new PrivateGalleryDeliveryDraftStoreError("invalid-input");
+      if (!(input.now instanceof Date) || !Number.isFinite(input.now.getTime())) throw new PrivateGalleryDeliveryDraftStoreError("invalid-time");
+      const now = new Date(input.now);
+      const id = handles.get(input.handle);
+      const current = id === undefined ? undefined : rows.get(id);
+      if (!current) throw new PrivateGalleryDeliveryDraftStoreError("not-found");
+      if (current.gallery.state !== "draft" || current.preparation !== undefined ||
+          current.revision !== input.expectedRevision || current.revision === Number.MAX_SAFE_INTEGER) throw new PrivateGalleryDeliveryDraftStoreError("conflict");
+      if (now < current.gallery.createdAt) throw new PrivateGalleryDeliveryDraftStoreError("invalid-time");
+      // Both classes must be in the first committed plan. No ZIP-only partial ready path.
+      if (!Array.isArray(input.manifest) || input.manifest.length < 2 ||
+          input.manifest.length > PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY) throw new PrivateGalleryDeliveryDraftStoreError("invalid-input");
+      let zips = 0;
+      for (const entry of input.manifest) {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new PrivateGalleryDeliveryDraftStoreError("invalid-input");
+        if (entry.kind === "zip" && Object.keys(entry).sort().join(",") === "kind,nominalBytes") zips++;
+        else if (entry.kind !== "derivative" || entry.derivativeKind !== "delivery-preview" ||
+            Object.keys(entry).sort().join(",") !== "derivativeKind,height,kind,nominalBytes,width") throw new PrivateGalleryDeliveryDraftStoreError("invalid-input");
+      }
+      if (zips !== 1) throw new PrivateGalleryDeliveryDraftStoreError("invalid-input");
+      const keyPrefix = input.keyPrefix;
+      let plan;
+      try { plan = openPrivateGalleryUploadPreparation({ galleryId: current.gallery.galleryId, galleryKind: "delivery",
+        state: current.gallery.state, keyPrefix, preparationId: randomUUID(), manifest: input.manifest, now }); }
+      catch { throw new PrivateGalleryDeliveryDraftStoreError("invalid-input"); }
+      if (rows.get(current.gallery.galleryId) !== current) throw new PrivateGalleryDeliveryDraftStoreError("conflict");
+      rows.set(current.gallery.galleryId, { ...current, gallery: { ...current.gallery, state: "preparing" },
+        preparation: plan, preparationKeyPrefix: keyPrefix, revision: current.revision + 1 });
+      return structuredClone(plan);
+    },
+    async completeFirstPreparation(input) {
+      if (!input || typeof input.handle !== "string" || !/^[A-Za-z0-9_-]{22}$/.test(input.handle) ||
+          !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0 ||
+          typeof input.preparationId !== "string" || input.preparationId.length < 1 || input.preparationId.length > 128) throw new PrivateGalleryDeliveryDraftStoreError("invalid-input");
+      if (!(input.now instanceof Date) || !Number.isFinite(input.now.getTime())) throw new PrivateGalleryDeliveryDraftStoreError("invalid-time");
+      const now = new Date(input.now);
+      const id = handles.get(input.handle);
+      const current = id === undefined ? undefined : rows.get(id);
+      if (!current) throw new PrivateGalleryDeliveryDraftStoreError("not-found");
+      const plan = current.preparation;
+      if (current.gallery.state !== "preparing" || current.readyDelivery !== undefined || current.revision !== input.expectedRevision ||
+          current.revision === Number.MAX_SAFE_INTEGER || !plan || plan.preparation.preparationId !== input.preparationId) throw new PrivateGalleryDeliveryDraftStoreError("conflict");
+      if (plan.galleryKind !== "delivery" || plan.preparation.galleryId !== current.gallery.galleryId ||
+          current.preparationKeyPrefix === undefined) throw new PrivateGalleryDeliveryDraftStoreError("readiness-failed");
+      if (now < plan.preparation.openedAt) throw new PrivateGalleryDeliveryDraftStoreError("invalid-time");
+      if (isPrivateGalleryPreparationExpired(plan.preparation, now)) throw new PrivateGalleryDeliveryDraftStoreError("preparation-expired");
+      let completion;
+      try {
+        completion = verifyPrivateGalleryUpload({ preparation: plan.preparation, expected: plan.objects,
+          ...snapshotPrivateGalleryUploadCompletionEvidence(input, plan), keyPrefix: current.preparationKeyPrefix, now });
+      } catch { throw new PrivateGalleryDeliveryDraftStoreError("invalid-input"); }
+      if (!completion.verified) return { ready: false, failures: completion.failures, truncated: completion.truncated };
+      let ready;
+      try { ready = buildVerifiedFirstDeliveryData(plan, completion); }
+      catch { throw new PrivateGalleryDeliveryDraftStoreError("readiness-failed"); }
+      const gallery = { ...current.gallery, state: "ready" as const, activeZipObjectKey: ready.activeZipObjectKey };
+      if (!evaluatePrivateGalleryReadiness({ gallery, verifiedObjects: completion.objects }).ready) throw new PrivateGalleryDeliveryDraftStoreError("readiness-failed");
+      const updated: PrivateGalleryDeliveryDraft = { ...current, gallery, revision: current.revision + 1,
+        readyDelivery: { placements: ready.placements, verifiedObjects: completion.objects } };
+      // Reentrant adapter getters cannot overwrite an intervening revision.
+      if (rows.get(current.gallery.galleryId) !== current) throw new PrivateGalleryDeliveryDraftStoreError("conflict");
+      rows.set(current.gallery.galleryId, updated);
+      return { ready: true, setup: structuredClone(updated) };
     },
     async list(limit) {
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT) throw new PrivateGalleryDeliveryDraftStoreError("invalid-limit");
