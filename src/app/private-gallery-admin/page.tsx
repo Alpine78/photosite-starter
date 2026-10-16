@@ -8,6 +8,7 @@ import {
   AdminSignInForm,
   AdminSignOutButton,
 } from "@/components/admin-sign-in-form";
+import { PrivateGalleryDeliveryDraftCreator } from "@/components/private-gallery-delivery-draft-creator";
 import { PrivateGalleryProofDraftCreator } from "@/components/private-gallery-proof-draft-creator";
 import { PrivateGalleryProofAdminPanel } from "@/components/private-gallery-proof-admin-panel";
 import {
@@ -100,6 +101,10 @@ export default async function PrivateGalleryAdminPage() {
         <AdminSignOutButton reloadPath={reloadPath} action={logoutPath} label={text.signOut} />
       </div>
       <p className="text-muted">{text.administrationPending}</p>
+      <PrivateGalleryDeliveryDraftCreator key={locale}
+        apiPath={`/${privateGallery.adminRoutePrefix}/delivery`} locale={locale}
+        labels={allLabels.privateGalleryDeliveryCreation}
+      />
       <PrivateGalleryProofDraftCreator
         apiPath={proofApiPrefix}
         locale={locale}

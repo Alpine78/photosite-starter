@@ -97,6 +97,7 @@ async function mockProofAdminApi(page: import("@playwright/test").Page) {
 
 test.describe("private gallery proof administration", () => {
   test("creates and lists a private draft without showing a customer access link", async ({ page }) => {
+    const creator = page.locator("section").filter({ has: page.getByRole("heading", { name: draftLabels.heading, exact: true }) });
     const drafts: Array<{
       handle: string; createdAt: string; revision: number;
       pricing: typeof PRICING; customerReference: string;
@@ -128,16 +129,16 @@ test.describe("private gallery proof administration", () => {
         body: JSON.stringify({ ok: true, draft }) });
     });
     await page.reload();
-    await page.getByLabel(draftLabels.includedCount).fill("2");
-    await page.getByLabel(draftLabels.extraUnitPriceMinor).fill("1200");
-    await page.getByLabel(draftLabels.currency).fill("EUR");
-    await page.getByLabel(draftLabels.customerReference).fill("customer-1");
+    await creator.getByLabel(draftLabels.includedCount).fill("2");
+    await creator.getByLabel(draftLabels.extraUnitPriceMinor).fill("1200");
+    await creator.getByLabel(draftLabels.currency).fill("EUR");
+    await creator.getByLabel(draftLabels.customerReference).fill("customer-1");
     await page.getByRole("button", { name: draftLabels.create }).click();
-    await expect(page.getByRole("status")).toContainText(HANDLE);
+    await expect(creator.getByRole("status")).toContainText(HANDLE);
     await expect(page.getByText(draftLabels.hasMore)).toBeVisible();
     await expect(page.getByText("customer-1", { exact: false })).toBeVisible();
     await expect(page.locator(`a[href*="${HANDLE}"]`)).toHaveCount(0);
-    await expect(page.getByRole("status")).not.toContainText("#");
+    await expect(creator.getByRole("status")).not.toContainText("#");
 
     const row = page.getByRole("listitem").filter({ hasText: HANDLE });
     await row.locator("summary").click();
