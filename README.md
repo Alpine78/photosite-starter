@@ -617,8 +617,11 @@ and [dated verification record](docs/audits/ab250-release-verification-2026-10-1
   administration), and AB#130 (proof selection and extra-photo pricing) have partial
   implementation. The feature is off by default; the development fixture exercises
   proof selection, while production private stores, uploads, delivery-gallery image/ZIP
-  controls, the retention worker, and remaining delivery-administration operations are
-  still pending.
+  controls, scheduled retention adapters, and remaining delivery-administration operations
+  are still pending. AB#29 now has bounded provider-free retention orchestration with
+  lease/CAS cleanup, independent session reaping and a backstop-policy check; no
+  production worker or private storage is activated. Its future scheduler must drain
+  enough bounded passes for the original deletion deadlines, beyond the daily minimum.
 - Optional image sales and fulfilment (enquiry first; checkout and cart only
   after a separate product, legal, security, and delivery decision)
 - Multilingual authoring workflow: an owner-run linked-draft creation command is available
