@@ -149,12 +149,15 @@ export type BuiltInLabels = {
     readonly galleryHeading: string;
     /** Names the access window's end. `{date}` is the only placeholder. */
     readonly accessUntil: string;
-    /**
-     * The delivery surface is a later slice, so the authorized view says so
-     * rather than implying an empty gallery. Replaced, not extended, when the
-     * photographs land.
-     */
-    readonly deliveryPending: string;
+    readonly photograph: string;
+    readonly loadingImage: string;
+    readonly unavailableImage: string;
+    readonly retryImage: string;
+    readonly downloadZip: string;
+    readonly downloadPreparing: string;
+    readonly downloadRequested: string;
+    readonly downloadUnavailable: string;
+    readonly deliveryJavascriptRequired: string;
     /** A published gallery that genuinely holds nothing — a real state, not an error. */
     readonly noPhotographs: string;
   };
@@ -682,8 +685,15 @@ const englishLabels = {
       "This gallery needs JavaScript to open your link.",
     galleryHeading: "Your gallery",
     accessUntil: "This gallery stays available until {date}.",
-    deliveryPending:
-      "Your photographs are not available for viewing here yet.",
+    photograph: "Photograph {number}",
+    loadingImage: "Loading photograph…",
+    unavailableImage: "Photograph unavailable. Try again or reload the gallery.",
+    retryImage: "Retry image",
+    downloadZip: "Download all photographs (ZIP)",
+    downloadPreparing: "Preparing your download…",
+    downloadRequested: "Download requested. If it does not start, return to the gallery and try again.",
+    downloadUnavailable: "Download unavailable. Try again or reload the gallery.",
+    deliveryJavascriptRequired: "Enable JavaScript to view the photographs and download the gallery ZIP.",
     noPhotographs: "This gallery does not contain any photographs.",
   },
   proofConfirmationEmail: {
@@ -1019,7 +1029,15 @@ const finnishLabels = {
     javascriptRequired: "Tämä galleria tarvitsee JavaScriptin linkin avaamiseen.",
     galleryHeading: "Galleriasi",
     accessUntil: "Galleria on käytettävissä {date} asti.",
-    deliveryPending: "Valokuvasi eivät ole vielä katseltavissa täällä.",
+    photograph: "Valokuva {number}",
+    loadingImage: "Valokuvaa ladataan…",
+    unavailableImage: "Valokuva ei ole saatavilla. Yritä uudelleen tai lataa galleriasivu uudelleen.",
+    retryImage: "Yritä kuvan latausta uudelleen",
+    downloadZip: "Lataa kaikki valokuvat (ZIP)",
+    downloadPreparing: "Latausta valmistellaan…",
+    downloadRequested: "Latausta pyydetty. Jos lataus ei ala, palaa galleriaan ja yritä uudelleen.",
+    downloadUnavailable: "Lataus ei ole saatavilla. Yritä uudelleen tai lataa galleriasivu uudelleen.",
+    deliveryJavascriptRequired: "Ota JavaScript käyttöön nähdäksesi valokuvat ja ladataksesi gallerian ZIP-paketin.",
     noPhotographs: "Tässä galleriassa ei ole valokuvia.",
   },
   proofConfirmationEmail: {

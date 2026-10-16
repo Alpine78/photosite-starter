@@ -81,6 +81,17 @@ fresh session authorization and a per-session 60-per-minute rate check, but no
 deployed object store or private database can
 serve one yet.
 
+The authorized delivery page now uses the same bounded, lazy preview component as
+proofs. Signed URLs enter only native `<img>` requests, with complete-frame
+`object-contain` rendering and one automatic remint before explicit retry. The
+whole-gallery ZIP control mints only on a deliberate click, then follows a native
+attachment navigation with `no-referrer`; it never fetches object bytes in script.
+The server's signed `Content-Disposition: attachment` governs the download.
+URLs stay out of server markup, application storage and history. Without JavaScript,
+the page explains the requirement and leaves download disabled. Browser journeys
+use separate synthetic gallery metadata and local asset stubs; live object storage,
+Range/response headers, expiry and production delivery remain unverified.
+
 AB#130 now defines proof-selection values, pure server-side rules and a first-ready
 transition plan checked against verified proof objects. A separate first-publication
 plan rechecks the complete proof set and frozen pricing, refuses an expired upload
