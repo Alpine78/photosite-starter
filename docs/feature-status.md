@@ -1607,6 +1607,16 @@ primitives (#103); the session model and its per-gallery-path `__Secure-` cookie
 lookup, and the constant-time verification of a submitted capability, behind
 `src/lib/private-gallery-access.ts` — the one facade a route may import, since it owns an
 ordering a route must not reassemble (#105).
+An owner-run offline upload-source planner now reads bounded local JPEG exports and
+streams the complete delivery ZIP to prepare a private source manifest and byte
+hash report. It preserves bytes, true dimensions, proof filenames/stable media IDs
+and declared order; the output is contract-tested against the server upload planner.
+Filesystem/path/alias checks and owner-private exclusive artifacts keep source data
+out of Git and public payloads. Watermarks remain owner-attested; ZIP signature is
+not archive/CRC/membership verification. It assigns no object keys, uploads nothing
+and grants no customer access. Direct Node execution shares the existing policy and
+field validators without a build step. AB#29 and AB#130 remain Active.
+
 The link and its exchange are now routes: the Proxy rewrites the deployment-configured
 prefix onto a reserved internal segment (`/private-gallery`, `request-path.ts`) so a
 file-system route can serve a configurable public path, and refuses a direct request to
