@@ -3,8 +3,9 @@
  * (ADR-0014 §7).
  *
  * Pure, and deliberately so. The worker itself is a scheduled `scripts/*.mts`
- * job the ADR names as its own action item, and it cannot be written until the
- * private store and object store exist — but *what it decides* is fixed now, in
+ * job the ADR names as its own action item. Provider-free orchestration now lives
+ * in scripts/private-gallery-retention-workflow.mts; concrete store adapters
+ * and scheduling remain unbuilt. Its policy stays here, in
  * a module with no IO, no clock of its own, and no store. That is the same
  * split `evaluatePrivateGalleryExchangeRate` already uses for the persistent
  * exchange counter: the policy is testable today and the adapter later has an
@@ -37,7 +38,7 @@
 import {
   canTransitionPrivateGalleryState,
   type PrivateGalleryState,
-} from "@/lib/private-gallery";
+} from "./private-gallery-state.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

@@ -96,6 +96,28 @@ async function mockProofAdminApi(page: import("@playwright/test").Page) {
 }
 
 test.describe("private gallery proof administration", () => {
+  test("a failed initial list leaves draft creation usable", async ({ page }) => {
+    await page.route("**/admin/proof", async (route) => {
+      if (route.request().method() === "GET") {
+        return route.fulfill({ status: 503, body: "" });
+      }
+      expect(route.request().method()).toBe("POST");
+      return route.fulfill({ status: 201, contentType: "application/json",
+        body: JSON.stringify({ ok: true, draft: {
+          handle: HANDLE, createdAt: "2026-01-01T12:00:00Z", revision: 0,
+          pricing: PRICING,
+        } }) });
+    });
+    await page.reload();
+    await expect(page.getByRole("alert").filter({ hasText: draftLabels.unavailable })).toBeVisible();
+    await page.getByLabel(draftLabels.includedCount).fill(String(PRICING.includedCount));
+    await page.getByLabel(draftLabels.extraUnitPriceMinor).fill(String(PRICING.extraUnitPriceMinor));
+    await page.getByLabel(draftLabels.currency).fill(PRICING.currency);
+    await page.getByRole("button", { name: draftLabels.create }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: HANDLE })).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: draftLabels.unavailable })).toHaveCount(0);
+  });
+
   test("creates and lists a private draft without showing a customer access link", async ({ page }) => {
     const drafts: Array<{
       handle: string; createdAt: string; revision: number;
