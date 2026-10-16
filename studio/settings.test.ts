@@ -42,8 +42,32 @@ describe("Studio configuration", () => {
     "", "fi", "fi|fi|tarinat", "fi||tarinat,en-GB||stories", "fi||tarinat,fi|en|stories",
     "fi||tarinat,en-GB|en|stories,de|en|berichte", "invalid!||stories", "und||stories",
     "fi||../stories", "fi||stories?query", "fi||stories|", "fi||stories|stories",
-    "fi||stories|services|extra", ", , ", "fi||stories" + " ".repeat(4096),
+    "fi||stories|services|search|extra", ", , ", "fi||stories" + " ".repeat(4096),
   ])("rejects malformed routing declarations: %s", (value) => {
+    expect(() => studioStoryRoots(value)).toThrow("SANITY_STUDIO_LOCALE_ROUTES");
+  });
+});
+
+
+describe("Studio search namespace configuration (AB#300)", () => {
+  it.each([
+    "fi||tarinat|palvelut|haku,en|en|stories|services|search",
+    "fi||tarinat|palvelut|haku,en-GB|en|stories|services|search",
+    "fi||tarinat,en-GB|en|stories|services|search",
+    "fi||tarinat|palvelut|haku,en-GB|en|stories|services",
+  ])("accepts optional search namespaces without changing story roots: %s", (value) => {
+    expect(studioStoryRoots(value)).toEqual(["/tarinat", "/en/stories"]);
+    expect(loadStudioSettings({ ...environment, SANITY_STUDIO_LOCALE_ROUTES: value }).storyRootPaths)
+      .toEqual(["/tarinat", "/en/stories"]);
+  });
+
+  it.each([
+    "fi||stories|services|", "fi||stories|services|Search", "fi||stories|services|two words",
+    "fi||stories|services|../search", "fi||stories|services|search/path",
+    "fi||stories|services|stories", "fi||stories|services|services",
+    "fi||stories||search", "fi||stories|services|search|extra",
+    "fi||stories|services|search,en|en|stories|services|services",
+  ])("refuses malformed or conflicting optional fields: %s", (value) => {
     expect(() => studioStoryRoots(value)).toThrow("SANITY_STUDIO_LOCALE_ROUTES");
   });
 });
