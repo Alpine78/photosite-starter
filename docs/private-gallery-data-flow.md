@@ -288,7 +288,24 @@ and no object store is connected. The plan contains no pricing: the current cand
 still change while preparing, and only the later `ready` transaction freezes it. Existing
 admin `GET`/`PATCH` responses project an allow-list and do not include the preparation,
 object keys or internal gallery ID. A repeated or invalid preparation does not mutate
-that row. The confirmed-selection `reopen` action is separate from upload preparation;
+that row.
+A server-only metadata collector now scopes read-only HEAD operations to a detached
+snapshot of the complete committed preparation, never listing the bucket or reading
+object bytes. It admits at most eight reads, with 5-second individual and 30-second
+whole-pass budgets, shortened by the preparation deadline. A slow large plan fails
+without acceptance; these are bounded development defaults, not measured provider
+performance. Caller cancellation, invalid/backward clock samples, transport errors
+and malformed metadata abort the pass and return only a closed error class. Only a
+definitive not-found may be omitted; 403/5xx/throttle/uncertainty must throw. Missing
+observations still fail the store's full-set verification. The returned exact-key
+observations are frozen snapshots; the store's revision/deadline CAS remains final.
+The port must honour cancellation, and an uncooperative read makes the pass terminal
+without releasing capacity for further reads. Late settlements are consumed safely.
+This adds no live object adapter, endpoint or ready/publication write. Provenance
+rests on the privileged server-only/import boundary; never accept observations from
+a browser. ETag is not a content digest, and provider immutability/checksum/version
+semantics remain a separate gate.
+The confirmed-selection `reopen` action is separate from upload preparation;
 ADR-0014 has no `preparing → draft` transition.
 The status panel above continues to address only the existing published proof
 fixture by a handle the administrator already holds.
