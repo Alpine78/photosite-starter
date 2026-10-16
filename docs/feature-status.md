@@ -1,5 +1,19 @@
 # Feature implementation status
 
+AB#301 Studio identity presentation, 2026-10-16 (partial, Active): the actual
+Studio configuration now groups permanent technical identifiers at the end of
+the form using native, initially expanded FI/EN-labelled controls. Shared-media
+previews use authored captions/alternative text and show the actual language,
+with explicit missing-description fallbacks and complete-frame thumbnails.
+Canonical field names, validators, references and stored IDs are unchanged.
+The application registry's active deployment is dated 2026-10-11, older than
+PR #339's 2026-10-12 readable-preview merge. Hosted publication and authenticated
+editor verification remain separate. Accepted AB#257/260 identity retirement still
+needs current source reconciliation and the remaining alias/read/write/maintenance
+and rehearsal integration; existing helper modules are inventoried in the
+[Studio guide](../studio/README.md#editing-content). This partial change does not
+close the stored-identity retirement outcome or modify the CMS.
+
 AB#250 Production availability readback, 2026-10-15: all 21 retained legacy
 customer galleries are now observed published and reachable. An anonymous
 published-perspective Production dataset query returned 21 `legacyDeliveryGallery`

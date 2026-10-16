@@ -158,19 +158,41 @@ pages. FI/EN occurrences share one image asset and occurrence identity but can
 carry different captions. Equal page titles likewise can represent language
 siblings. A matching title alone is not evidence of duplicate content.
 
-Content, category and placement IDs are permanent technical identities. An
-imported `joomla-…` value records its origin; it does not require a running Joomla
-installation. Readable previews do not rename these fields or Sanity `_id` values.
-Keep them intact during source import/reimport and recovery verification. After
-migration acceptance, [AB#257](https://dev.azure.com/ilkkarytkonen/photosite-starter/_workitems/edit/257)
-tracks planning their replacement: inventory consumers, agree on stable names,
-check collisions and every language/reference, rehearse against a restorable
-snapshot, and update or retire reimport tooling before an approved write.
-Sanity document `_id` cannot be patched; replacing documents also requires
-rewriting references and assessing history/recovery consequences. See
-[Sanity's ID contract](https://www.sanity.io/docs/content-lake/ids).
-New readable identities must still be minted once and remain stable after later
-title, slug or translation edits.
+Shared-media names use an existing authored caption, falling back to alternative
+text. The interface language is preferred, then FI/EN and stable language order;
+the subtitle names the language actually used and retains any credit. Missing
+descriptions are marked explicitly. Filenames and internal identifiers never
+become substitute titles. This changes no image bytes or authored text.
+
+Permanent identifiers live at the end of the form in the native **Tekniset
+tunnisteet / Technical identifiers** group. It starts expanded because new
+documents need manually entered identifiers; existing-content editors can
+collapse it. Field names, uniqueness/immutability validators and reference
+bindings remain unchanged. Titles and URLs are edited in their ordinary fields.
+
+The accepted [identity-retirement decision](../docs/adr/0030-legacy-identity-retirement.md)
+and [operational policy](../docs/adr/0031-identity-migration-operational-plan.md)
+rename domain identifiers while preserving Sanity document `_id`/`_ref` and
+history. [AB#301](https://dev.azure.com/ilkkarytkonen/photosite-starter/_workitems/edit/301)
+tracks the remaining outcome alongside AB#257/260. This presentation slice does
+not rename stored values, public references or document URLs.
+
+| Existing implementation | Still required before retirement |
+| --- | --- |
+| Offline reconciliation and revision-bound change/alias planners (AB#258/259/265) | Fresh source reconciliation, approved current inputs and restore evidence |
+| Pinned alias resolver, bounded published loader and deployment-settings validator (AB#261/263/264) | Alias schema/write path, reader integration and pinned payload activation |
+| Accepted legacy-writer retirement and maintenance policy (AB#260) | Writer guards, tested maintenance boundary, conditional writer/receipts/rollback and isolated rehearsal |
+
+These helper modules do not establish a completed live migration. Preserve the
+historical import plans and recovery records. New readable identifiers must still
+be minted once and remain stable after later title, slug or translation edits.
+
+The application-registry read on 2026-10-16 reports an active Studio deployment
+from 2026-10-11 (6.18.0), before [PR #339](https://github.com/Alpine78/photosite-starter/pull/339)
+merged the existing readable placement/category previews on 2026-10-12.
+Updating repository code alone cannot update that hosted editor: a separately
+reviewed Studio publication and authenticated list/header/picker/creation check
+remain necessary. This branch performs neither publication nor a CMS write.
 
 Upload only prepared public web derivatives, at most 2048 pixels on the longest
 edge. Assets have public URLs from upload, including in a private dataset. Never
