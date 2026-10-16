@@ -1501,6 +1501,21 @@ as `GET`/`POST` JSON, re-authorizing the administrator session on every call;
 `e2e/private-gallery-proof-admin.spec.ts` exercises a real administrator
 sign-in against a `page.route`-mocked status/action surface, for the same
 shared-fixture-mutation reason the customer flow spec mocks its mutations.
+A separate AB#145 development-memory flow now creates private delivery drafts and
+lists the latest 100, with an explicit more-results indicator and a bounded total
+store capacity. Every call rechecks administrator authorization; the create path
+validates same-origin JSON before authorization and reads at most 1 KiB after it.
+Optional bounded customer/job references do not create AB#28 records. The FI/EN
+form creates no capability, notification or customer access, and the list omits
+internal IDs and storage keys. Production persistence, uploads/readiness,
+publication/outbox, notification/resend and revoke/replace remain unfinished;
+this non-destructive creation slice does not exercise the re-authentication gate.
+AB#145 was verified Active before edits and remains Active pending acceptance.
+CI #1047 exposed a shared test login budget: gallery-management journeys now
+reuse a real administrator session per Playwright worker. Each test retains its
+own browser context, client address and gallery state. Sign-in/sign-out journeys
+still exercise the actual authentication flow, and the application retains its
+unchanged 30-attempt deployment limit and per-client limit.
 A separate development-memory administrator flow now creates and lists
 prepublication proof drafts. It accepts validated, nonnegative pricing and
 optional bounded customer/job external references, mints an internal gallery

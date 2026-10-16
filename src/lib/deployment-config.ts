@@ -232,6 +232,14 @@ export type BuiltInLabels = {
     readonly administrationPending: string;
     readonly signOut: string;
   };
+  /** Development-only delivery draft creation and listing (AB#145). */
+  readonly privateGalleryDeliveryCreation: {
+    readonly heading: string; readonly description: string; readonly customerReference: string;
+    readonly jobReference: string; readonly referenceHelp: string; readonly create: string;
+    readonly refresh: string; readonly creating: string; readonly created: string; readonly listHeading: string;
+    readonly empty: string; readonly hasMore: string; readonly unavailable: string;
+    readonly invalid: string; readonly handle: string; readonly javascriptRequired: string;
+  };
   /** Development-only administrator proof setup (AB#130). */
   readonly privateGalleryProofCreation: {
     readonly heading: string;
@@ -749,6 +757,24 @@ const englishLabels = {
       "Draft creation is available in this development store. Publishing and revoking galleries still need persistent private stores.",
     signOut: "Sign out",
   },
+  privateGalleryDeliveryCreation: {
+    refresh: "Refresh delivery drafts",
+    heading: "Create delivery gallery draft",
+    description: "Private drafts in this development store are not published and give no customer access.",
+    customerReference: "Customer reference (optional)",
+    jobReference: "Job reference (optional)",
+    referenceHelp: "Use an external reference, not a name or email address.",
+    create: "Create delivery draft",
+    creating: "Creating…",
+    created: "Delivery draft created.",
+    listHeading: "Recent delivery drafts",
+    empty: "No delivery drafts yet.",
+    hasMore: "Showing the latest 100 delivery drafts.",
+    unavailable: "The delivery draft request failed. Refresh the list before trying again.",
+    invalid: "Enter valid single-line references of at most 128 UTF-8 bytes.",
+    handle: "Handle",
+    javascriptRequired: "Creating delivery drafts needs JavaScript.",
+  },
   privateGalleryProofCreation: {
     heading: "Create proof gallery draft",
     description: "Drafts are private. Publishing and customer access are not available yet. Prices are in minor currency units.",
@@ -1081,6 +1107,24 @@ const finnishLabels = {
     administrationPending:
       "Luonnoksia voi luoda tässä kehitysympäristön muistivarastossa. Gallerioiden julkaisu ja peruuttaminen tarvitsevat vielä pysyvän yksityisen tietovaraston.",
     signOut: "Kirjaudu ulos",
+  },
+  privateGalleryDeliveryCreation: {
+    refresh: "Päivitä toimitusluonnokset",
+    heading: "Luo toimitusgallerian luonnos",
+    description: "Tämän kehitysympäristön yksityisiä luonnoksia ei julkaista, eivätkä ne anna asiakkaalle pääsyä.",
+    customerReference: "Asiakasviite (valinnainen)",
+    jobReference: "Työviite (valinnainen)",
+    referenceHelp: "Käytä ulkoista viitettä, älä nimeä tai sähköpostiosoitetta.",
+    create: "Luo toimitusluonnos",
+    creating: "Luodaan…",
+    created: "Toimitusluonnos luotu.",
+    listHeading: "Uusimmat toimitusluonnokset",
+    empty: "Toimitusluonnoksia ei vielä ole.",
+    hasMore: "Näytetään 100 uusinta toimitusluonnosta.",
+    unavailable: "Toimitusluonnoksen käsittely epäonnistui. Päivitä lista ennen uutta yritystä.",
+    invalid: "Anna kelvolliset yksiriviset viitteet, enintään 128 UTF-8-tavua.",
+    handle: "Tunniste",
+    javascriptRequired: "Toimitusluonnosten luominen tarvitsee JavaScriptin.",
   },
   privateGalleryProofCreation: {
     heading: "Luo vedosgallerian luonnos",

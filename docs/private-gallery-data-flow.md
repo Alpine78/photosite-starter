@@ -201,7 +201,23 @@ draft for a new round of edits without touching any earlier confirmation or
 outbox row; resend queues a fresh delivery attempt under the same confirmation
 version, repeatably — two clicks queue two attempts rather than colliding.
 Both re-authorize the administrator session on every call, exactly as the
-customer mutation endpoint re-authorizes the customer session. A separate authenticated `GET`/`POST` at the administrator proof root now lists
+customer mutation endpoint re-authorizes the customer session.
+
+A separate administrator `GET`/`POST` delivery root now creates and lists
+prepublication delivery drafts in the development fixture. It authorizes each call,
+validates same-origin JSON before reading at most 1 KiB, and returns at most 100 rows.
+The complete development store is capped at 1,000 drafts. Optional external customer/job
+references share the existing 128-byte single-line bound; they are not CRM records.
+The form asks for references rather than names or email addresses. Browser projection
+contains only handle, creation time, revision and supplied references; the handle is a
+non-secret identifier, not the separate capability. No capability, customer session,
+object key or access URL is created. Drafts remain outside all customer read/exchange
+stores, public projections and notification queues. Resetting the fixture also resets
+these process-local drafts. No production adapter or service is provisioned.
+Publishing, delivery notifications/resend and revoke/replace remain separate work;
+creation is non-destructive and does not call the irreversible-operation re-auth gate.
+
+A separate authenticated `GET`/`POST` at the administrator proof root now lists
 up to 100 recent prepublication proof drafts (with an explicit `hasMore` flag)
 and creates one in the development memory store. The submitted included count,
 integer extra-photo unit price and currency form an editable pricing candidate;
