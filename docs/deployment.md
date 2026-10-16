@@ -919,6 +919,28 @@ The npm command suppresses only Node's module-type detection notice for shared
 TypeScript policy imports. Validation failures print a fixed code and optional
 item ordinal, without native filesystem/Sharp errors or private filenames.
 
+Revalidate a selected saved plan immediately before later upload tooling:
+
+```bash
+npm run verify:private-upload-sources --silent -- --plan <private-output/upload-source-plan.json> --source-root <export-folder> --expected-digest <selected-digest>
+```
+
+The verifier reads a private report of at most 4 MiB, reconstructs its complete
+closed contract and checks the selected digest before touching a source path.
+It reuses the planner's unchanged path/open/stat guards and complete JPEG decode;
+ZIPs are streamed again. Sizes, hashes, dimensions, metadata-presence flags and
+the ordered manifest must still match. Identical copied/restored files remain
+valid: inode identity detects aliases within one run, not changes across runs.
+The tool writes no artifact and emits only counts, digest and fixed caveats.
+`--silent` suppresses npm's command echo, which otherwise repeats local arguments.
+
+This checks the selected bytes, not authenticity, watermarks or archive contents.
+Files can change after any preflight; a later uploader must verify/stream its own
+open handles rather than reopening files and treating this as a lock. Intermediate
+path components can also change between the component walk and open: this is
+offline operator tooling, not an adversarial-filesystem isolation boundary.
+No credential, remote metadata, object key or upload is provided by this command.
+
 ### The Sanity webhook signing secret
 
 `SANITY_WEBHOOK_SECRET` is a Sensitive, runtime-only value shared with exactly one
