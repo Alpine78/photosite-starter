@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useClient, useCurrentLocale, type DocumentActionComponent, type DocumentActionProps } from "sanity";
 import { createLocalizedDraftPort } from "./localized-draft-port";
 import { studioSettings } from "./environment";
@@ -14,7 +14,6 @@ function LanguageDraftDialog({ props, onClose }: { props: DocumentActionProps; o
   const client = useClient({ apiVersion: "2025-02-19" });
   const source = props.draft ?? props.published;
   const sourceRef = useRef(source);
-  sourceRef.current = source;
   const [targets, setTargets] = useState<string[]>([]);
   const [target, setTarget] = useState("");
   const [prepared, setPrepared] = useState<PreparedLocalizedDraft>();
@@ -29,16 +28,21 @@ function LanguageDraftDialog({ props, onClose }: { props: DocumentActionProps; o
   const sourceSnapshot = documentSnapshot(source);
   const available = !!source && !props.version && !props.release && !props.transactionSyncLock && props.ready;
   const availableRef = useRef(available);
-  availableRef.current = available;
-  const port = createLocalizedDraftPort(client, () => ({ available: availableRef.current, source: sourceRef.current }), sourceSnapshot);
-  const portRef = useRef(port);
-  portRef.current = port;
+  const portRef = useRef<ReturnType<typeof createLocalizedDraftPort> | null>(null);
+  // Imperative guards must observe committed editor props, never a render
+  // that React may abandon. Update before passive loading or user interaction.
+  useLayoutEffect(() => {
+    sourceRef.current = source;
+    availableRef.current = available;
+    portRef.current = createLocalizedDraftPort(client, () => ({ available: availableRef.current, source: sourceRef.current }), sourceSnapshot);
+  }, [client, source, sourceSnapshot, available]);
 
   useEffect(() => {
     const current = new AbortController();
     controller.current = current;
-    if (sourceRef.current && available) {
-      loadLocalizedDraftSource(portRef.current, sourceRef.current, current.signal).then(({ source: saved, versions }) => {
+    const port = portRef.current;
+    if (sourceRef.current && available && port) {
+      loadLocalizedDraftSource(port, sourceRef.current, current.signal).then(({ source: saved, versions }) => {
         if (current.signal.aborted) return;
         setTargets(studioSettings.authoringLanguages.filter((language) => language !== saved.language && !versions.some((row) => row.language === language)));
         setLoaded(true);
@@ -48,7 +52,8 @@ function LanguageDraftDialog({ props, onClose }: { props: DocumentActionProps; o
   }, [sourceSnapshot, available]);
 
   async function run(create: boolean) {
-    if (inFlight.current || !sourceRef.current || !available || !target || !targets.includes(target)) return;
+    const port = portRef.current;
+    if (!port || inFlight.current || !sourceRef.current || !available || !target || !targets.includes(target)) return;
     inFlight.current = true;
     setBusy(true);
     setError(undefined);
@@ -59,10 +64,10 @@ function LanguageDraftDialog({ props, onClose }: { props: DocumentActionProps; o
     try {
       if (create && prepared) {
         if (documentSnapshot(editor) !== prepared.sourceSnapshot) throw new Error("source-changed");
-        await createPreparedLocalizedDraft(portRef.current, prepared, editor, target, studioSettings.authoringLanguages, current.signal);
+        await createPreparedLocalizedDraft(port, prepared, editor, target, studioSettings.authoringLanguages, current.signal);
         if (!current.signal.aborted) setCreated(true);
       } else {
-        const result = await prepareLocalizedDraft(portRef.current, editor, target, studioSettings.authoringLanguages, current.signal);
+        const result = await prepareLocalizedDraft(port, editor, target, studioSettings.authoringLanguages, current.signal);
         if (!availableRef.current || documentSnapshot(sourceRef.current) !== result.sourceSnapshot) throw new Error("source-changed");
         if (!current.signal.aborted) setPrepared(result);
       }

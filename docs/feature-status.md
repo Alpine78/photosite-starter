@@ -2094,6 +2094,25 @@ No provider restore or launch rollback is claimed.
 cache, credentials and mail. AB#118 still needs actual post-promotion recovery and
 owner handoff; no Production mutation was performed.
 
+**Next maintenance candidate, 2026-10-16 (AB#160, Active):** Next.js and its
+ESLint configuration are pinned to 16.4.2 for the upstream Turbopack fixes.
+The updated Hooks rules prompted small corrections: gallery focus requests no
+longer clear state from an effect, proof-list state updates run in settled
+request callbacks, and the Studio language action updates its imperative guards
+from committed props in a layout effect. The original Studio action PR is not
+rewritten. `next dev` also refreshed its generated AGENTS heading.
+Clean lockfile installation, lint, 6,384 unit tests, production builds, Studio
+typecheck/static build, diagrams and synthetic dev smoke passed; root audit stayed
+at zero findings. The full upgrade browser matrix completed with 1,113 passes,
+46 existing skips and one WebKit section-navigation case passing on retry.
+After component corrections, 138 focused journeys passed (five existing
+WebKit Secure-cookie harness skips); 18 additional zero-retry probes passed,
+including six repeats of the section check. The AB#132 probes remain explicitly
+expected failures: 16.4.2 still returns the empty initial 404 shell.
+This is maintenance, not a claimed security remediation. CI/Preview deployment,
+maintainer notification receipt and the broader monitoring acceptance remain
+separate gates; AB#160 stays Active and no Production setting was changed.
+
 **Ongoing dependency monitoring, 2026-10-02 (AB#160, still Active):** the
 existing daily audit and Dependabot settings were checked without replacing
 their configuration. Scheduled run #497 audited the same source revision as
