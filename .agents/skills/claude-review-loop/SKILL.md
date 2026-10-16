@@ -19,8 +19,26 @@ diff review starts one round; the Codex- or Claude-authored corrections it produ
 to that same round. The user may choose another limit or base branch. The plan review is
 separate and does not consume a post-implementation round.
 
-Every Claude invocation defaults to the pinned `claude-sonnet-5-5` model with `medium`
-effort. The user may explicitly request a different model or effort level for a run.
+Use the pinned `claude-sonnet-5-5` model and select effort separately before each
+plan review, diff review, and correction call. The owner authorizes this selection
+without asking for confirmation:
+
+| Effort | Use when |
+| --- | --- |
+| `low` | The change is small and clearly bounded, such as text, styling, or a local component change with no complex behavior or sensitive boundary. |
+| `medium` | A normal feature or multi-file change needs requirement checks and tracing behavior across files. Use this when the appropriate level is uncertain. |
+| `high` | The change involves complex dependencies, access control, private galleries, signed URLs, migrations, CI/CD, or other behavior where an error has substantial impact. |
+
+Judge complexity and impact from the actual requirements and affected behavior,
+not diff size alone. Reassess each call as findings reveal more complexity; a
+recurring-finding correction uses at least `medium`. Before every call, tell the
+user the selected model and effort with a brief reason.
+
+The command examples below show `--effort medium` as an illustration. Replace
+that value with the level selected for the current call; it is not a fixed default
+for every phase or round. An explicit user choice of model or effort takes
+precedence. Use Haiku only for an experiment explicitly agreed with the user;
+do not substitute it automatically.
 
 If the skill is invoked only after a change already exists, do not manufacture a
 retroactive plan review. Start with Codex's self-review and the post-implementation loop.
