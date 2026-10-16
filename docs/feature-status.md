@@ -1716,6 +1716,17 @@ unverified and disabled. The item read happens strictly **after** authorization 
 an unauthorized request never reaches a placement row — and a projection or store defect
 falls back to the unauthorized document rather than rendering a gallery quietly missing
 photographs.
+AB#29 delivery pagination (2026-10-16): the authorized delivery document now reads a
+bounded page with its total count instead of silently stopping at the first 100 items.
+A separate session-authorized `/items?page=N` API returns at most 100 safe item DTOs;
+the development memory adapter includes a separate 205-item synthetic gallery. Native
+FI/EN controls keep keyboard focus while loading and at the first/last page, and a
+failed or malformed response retains the current photographs for retry. The document
+URL stays unchanged: reload and language switching return to the first page, with no
+page history or shareable page selector (ADR-0032). JavaScript is required for later
+pages. The store remains memory-only; production storage and AB#29's remaining
+workflow still need their own accepted implementation. AB#29 remains Active.
+
 Objects now have an assigned shape (`src/lib/private-gallery-object-key.ts`):
 `<keyPrefix>/g/<galleryId>/<preview|proof|zip>/<128-bit CSPRNG token>`. The token is not a
 counter, which is what makes the runtime credential's deliberate _absence_ of `ListBucket`

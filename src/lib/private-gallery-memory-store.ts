@@ -36,6 +36,9 @@
 
 import "server-only";
 
+import { PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY as MAX_FILES, PRIVATE_GALLERY_DEFAULT_MAX_PAGE_SIZE as PAGE_SIZE } from "@/lib/private-gallery-limits";
+import type { PrivateGalleryDeliveryPageStore } from "@/lib/private-gallery-delivery-page";
+
 import { randomBytes } from "node:crypto";
 
 import type {
@@ -191,12 +194,16 @@ const MEMORY_PLACEMENTS: readonly Omit<PrivateGalleryPlacement, "galleryId">[] =
     height: 1200,
   },
 ];
+/** Public synthetic credentials, only available in the refused-in-production memory adapter. */
+export const MEMORY_PAGED_GALLERY_HANDLE = Buffer.alloc(16, 0x66).toString("base64url");
+export const MEMORY_PAGED_GALLERY_CAPABILITY = Buffer.alloc(32, 0x77).toString("base64url");
 const MEMORY_GALLERY_GENERATION = 1;
 
 export type PrivateGalleryMemoryStore = {
   readonly exchangeStore: PrivateGalleryExchangeStore;
   readonly sessionStore: PrivateGallerySessionStore;
   readonly viewStore: PrivateGalleryViewStore;
+  readonly deliveryPageStore: PrivateGalleryDeliveryPageStore;
   /** Stage 2 reads and budget state; the fixture has no object-store bytes. */
   readonly deliveryStore: PrivateGalleryDeliveryStore;
   /** Kept for focused budget tests. */
@@ -423,12 +430,25 @@ function build(now: Date): PrivateGalleryMemoryStore {
     envelope: deliveryViewMaterial.envelope,
     createdAt: now,
   };
+  const pagedGallery: PrivateGallery = {
+    ...gallery, galleryId: "memory-paged-delivery", galleryHandle: MEMORY_PAGED_GALLERY_HANDLE,
+  };
+  const pagedMaterial = sealCapability(keyring, {
+    galleryId: pagedGallery.galleryId, handle: pagedGallery.galleryHandle,
+    generation: pagedGallery.capabilityGeneration,
+  }, MEMORY_PAGED_GALLERY_CAPABILITY);
+  const pagedCapability: PrivateGalleryCapability = {
+    galleryId: pagedGallery.galleryId, capabilityGeneration: pagedGallery.capabilityGeneration,
+    keyId: pagedMaterial.keyId, envelope: pagedMaterial.envelope, createdAt: now,
+  };
   const byHandle = new Map([
+    [pagedGallery.galleryHandle, { gallery: pagedGallery, capability: pagedCapability }],
     [gallery.galleryHandle, { gallery, capability }],
     [proofGallery.galleryHandle, { gallery: proofGallery, capability: proofCapability }],
     [deliveryViewGallery.galleryHandle, { gallery: deliveryViewGallery, capability: deliveryViewCapability }],
   ]);
   const byId = new Map([
+    [pagedGallery.galleryId, pagedGallery],
     [gallery.galleryId, gallery],
     [proofGallery.galleryId, proofGallery],
     [deliveryViewGallery.galleryId, deliveryViewGallery],
@@ -513,14 +533,33 @@ function build(now: Date): PrivateGalleryMemoryStore {
     labels: getBuiltInLabels("en-GB").proofConfirmationEmail,
   });
   const placementsByGalleryId = new Map<string, readonly PrivateGalleryPlacement[]>([
+    [pagedGallery.galleryId, Array.from({ length: 205 }, (_, index) => ({
+      ...placements[index % placements.length],
+      galleryId: pagedGallery.galleryId, placementId: `paged-delivery-${index + 1}`,
+      order: index + 1, derivativeKind: "delivery-preview" as const,
+      alt: `Synthetic delivery photograph ${index + 1}`,
+    }))],
     [gallery.galleryId, placements],
     [proofGallery.galleryId, proofPlacements],
     [deliveryViewGallery.galleryId, placements.map(placement => ({ ...placement, galleryId: deliveryViewGallery.galleryId }))],
   ]);
 
   // Point reads by id, matching the seam's contract. They answer only for the
-  // fixture galleries — a handle a visitor invented resolves to nothing here
+  // registered fixture galleries — an invented handle resolves to nothing here
   // just as it would resolve to no row in Postgres.
+  const comparePlacements = (a: PrivateGalleryPlacement, b: PrivateGalleryPlacement) => a.order - b.order;
+  const deliveryPageStore: PrivateGalleryDeliveryPageStore = {
+    async readPage(galleryId, pageIndex, limit) {
+      if (!Number.isSafeInteger(pageIndex) || pageIndex < 0 || pageIndex >= Math.ceil(MAX_FILES / PAGE_SIZE) || limit !== PAGE_SIZE) return undefined;
+      const rows = placementsByGalleryId.get(galleryId);
+      if (rows === undefined || rows.length > MAX_FILES) return undefined;
+      const ordered = [...rows].sort(comparePlacements);
+      return {
+        placements: ordered.slice(pageIndex * limit, (pageIndex + 1) * limit).map((row) => ({ ...row })),
+        totalCount: rows.length,
+      };
+    },
+  };
   const viewStore: PrivateGalleryViewStore = {
     async findGalleryById(galleryId) {
       return byId.get(galleryId);
@@ -531,7 +570,7 @@ function build(now: Date): PrivateGalleryMemoryStore {
       // Ordered by the photographer's authored `order`, and bounded by the
       // caller's limit — the two properties a Postgres adapter has to reproduce.
       return [...rows]
-        .sort((a, b) => a.order - b.order)
+        .sort(comparePlacements)
         .slice(0, limit);
     },
   };
@@ -595,6 +634,7 @@ function build(now: Date): PrivateGalleryMemoryStore {
     exchangeStore,
     sessionStore,
     viewStore,
+    deliveryPageStore,
     deliveryStore,
     budgetStore,
     keyring,

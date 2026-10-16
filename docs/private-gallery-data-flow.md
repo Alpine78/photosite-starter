@@ -92,6 +92,16 @@ the page explains the requirement and leaves download disabled. Browser journeys
 use separate synthetic gallery metadata and local asset stubs; live object storage,
 Range/response headers, expiry and production delivery remain unverified.
 
+The development delivery read uses the same fresh session and gallery checks for
+its first server-rendered page and every subsequent `/items?page=N` request.
+One store snapshot supplies a total count (at most 1,000) and at most 100 ordered
+placements. Projection refuses inconsistent counts or foreign/malformed rows,
+and exposes only safe item DTOs plus paging metadata. Failed reads all return
+one generic refusal; they set neither cookies nor CORS permissions. Page turns
+stay in the authorized document without changing its URL. Reload or a native
+FI/EN language switch starts at page one. JavaScript is required for later pages;
+there is no persistent browser cache or new public discovery surface.
+
 AB#130 now defines proof-selection values, pure server-side rules and a first-ready
 transition plan checked against verified proof objects. A separate first-publication
 plan rechecks the complete proof set and frozen pricing, refuses an expired upload

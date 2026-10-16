@@ -15,13 +15,14 @@ import {
   authorizePrivateGalleryView,
   getPrivateGalleryStores,
   isPrivateGalleryHandle,
-  listPrivateGalleryItems,
+  readAuthorizedPrivateGalleryDeliveryPage,
+  type PrivateGalleryDeliveryPage,
   readAuthorizedPrivateGalleryProofPage,
   type PrivateGallery,
   type PrivateGalleryItem,
 } from "@/lib/private-gallery-access";
-import { PrivateGalleryGrid } from "@/components/private-gallery-grid";
 import { PrivateGalleryZipDownload } from "@/components/private-gallery-zip-download";
+import { PrivateGalleryDeliveryPager } from "@/components/private-gallery-delivery-pager";
 import { PrivateGalleryProofPanel } from "@/components/private-gallery-proof-panel";
 
 /**
@@ -93,9 +94,12 @@ export default async function PrivateGalleryPage({
         <PrivateGalleryView
           labels={labels}
           gallery={authorized.gallery}
-          items={authorized.items}
-          locale={locale}
+          items={authorized.view.items}
+          deliveryPage={authorized.view}
+          pagingLabels={allLabels.privateGalleryDeliveryPaging}
+          readPath={`/${privateGallery.routePrefix}/${handle}/items`}
           assetPath={`/${privateGallery.routePrefix}/${handle}/asset`}
+          locale={locale}
         />
       )}
     </>
@@ -116,13 +120,13 @@ export default async function PrivateGalleryPage({
  *
  * A proof gallery reads its selection state instead of plain placements: the
  * customer needs references, filenames, the current draft and pricing, none
- * of which `listPrivateGalleryItems` carries.
+ * of which the delivery item DTO carries.
  */
 async function resolveAuthorizedGallery(handle: string): Promise<
   | {
       readonly kind: "delivery";
       readonly gallery: PrivateGallery;
-      readonly items: readonly PrivateGalleryItem[];
+      readonly view: PrivateGalleryDeliveryPage;
     }
   | {
       readonly kind: "proof";
@@ -185,11 +189,10 @@ async function resolveAuthorizedGallery(handle: string): Promise<
       }
       return { kind: "proof", gallery: outcome.gallery, view };
     }
-    return {
-      kind: "delivery",
-      gallery: outcome.gallery,
-      items: await listPrivateGalleryItems(stores.viewStore, outcome.gallery),
-    };
+    const view = await readAuthorizedPrivateGalleryDeliveryPage(stores, {
+      handle, cookieHeader: (await headers()).get("cookie"), now: new Date(), pageIndex: 0,
+    });
+    return view === undefined ? undefined : { kind: "delivery", gallery: outcome.gallery, view };
   } catch {
     logPrivateGalleryViewEvent({
       correlationId: createCorrelationId(),
@@ -242,14 +245,20 @@ function PrivateGalleryView({
   labels,
   gallery,
   items,
-  locale,
+  deliveryPage,
+  pagingLabels,
+  readPath,
   assetPath,
+  locale,
 }: {
   labels: Labels;
   gallery: PrivateGallery;
   items: readonly PrivateGalleryItem[];
-  locale: string;
+  deliveryPage: PrivateGalleryDeliveryPage;
+  pagingLabels: ReturnType<typeof getBuiltInLabels>["privateGalleryDeliveryPaging"];
+  readPath: string;
   assetPath: string;
+  locale: string;
 }) {
   const expiresAt = gallery.accessExpiresAt;
 
@@ -272,7 +281,7 @@ function PrivateGalleryView({
       )}
       <noscript><p className="text-danger">{labels.deliveryJavascriptRequired}</p></noscript>
       {items.length > 0 && <PrivateGalleryZipDownload key={assetPath} assetPath={assetPath} labels={labels} />}
-      <PrivateGalleryGrid key={assetPath} items={items} assetPath={assetPath} labels={labels} />
+      <PrivateGalleryDeliveryPager key={`${readPath}:${assetPath}:${locale}`} initialView={{ ...deliveryPage, items }} readPath={readPath} assetPath={assetPath} labels={labels} pagingLabels={pagingLabels} />
     </main>
   );
 }

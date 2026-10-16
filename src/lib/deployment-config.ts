@@ -161,6 +161,16 @@ export type BuiltInLabels = {
     /** A published gallery that genuinely holds nothing — a real state, not an error. */
     readonly noPhotographs: string;
   };
+  /** Delivery paging controls; never document URL selectors (ADR-0032). */
+  readonly privateGalleryDeliveryPaging: {
+    readonly navigation: string;
+    readonly previousPage: string;
+    readonly nextPage: string;
+    readonly range: string;
+    readonly loading: string;
+    readonly refused: string;
+    readonly javascriptRequired: string;
+  };
   /** Photographer-facing AB#130 confirmation notice, in the owner locale. */
   readonly proofConfirmationEmail: {
     readonly subject: string;
@@ -704,6 +714,15 @@ const englishLabels = {
     deliveryJavascriptRequired: "Enable JavaScript to view the photographs and download the gallery ZIP.",
     noPhotographs: "This gallery does not contain any photographs.",
   },
+  privateGalleryDeliveryPaging: {
+    navigation: "Gallery pages",
+    previousPage: "Previous photographs",
+    nextPage: "Next photographs",
+    range: "Photographs {from}–{to} of {total}",
+    loading: "Loading photographs…",
+    refused: "Photographs could not be loaded. Try again or reopen the gallery link.",
+    javascriptRequired: "JavaScript is needed to view the remaining photographs.",
+  },
   proofConfirmationEmail: {
     subject: "Proof selection confirmed",
     galleryReference: "Gallery reference",
@@ -1065,6 +1084,15 @@ const finnishLabels = {
     downloadUnavailable: "Lataus ei ole saatavilla. Yritä uudelleen tai lataa galleriasivu uudelleen.",
     deliveryJavascriptRequired: "Ota JavaScript käyttöön nähdäksesi valokuvat ja ladataksesi gallerian ZIP-paketin.",
     noPhotographs: "Tässä galleriassa ei ole valokuvia.",
+  },
+  privateGalleryDeliveryPaging: {
+    navigation: "Gallerian sivut",
+    previousPage: "Edelliset valokuvat",
+    nextPage: "Seuraavat valokuvat",
+    range: "Valokuvat {from}–{to} / {total}",
+    loading: "Ladataan valokuvia…",
+    refused: "Valokuvia ei voitu ladata. Yritä uudelleen tai avaa gallerialinkki uudelleen.",
+    javascriptRequired: "Loppujen valokuvien katselu vaatii JavaScriptin.",
   },
   proofConfirmationEmail: {
     subject: "Vedosvalinta vahvistettu",
