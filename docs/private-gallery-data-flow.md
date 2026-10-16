@@ -242,6 +242,20 @@ non-secret identifier, not the separate capability. No capability, customer sess
 object key or access URL is created. Drafts remain outside all customer read/exchange
 stores, public projections and notification queues. Resetting the fixture also resets
 these process-local drafts. No production adapter or service is provisioned.
+The development delivery store now has a privileged first-preparation/completion
+workflow. It records one bounded complete preview/ZIP plan and its configured prefix
+before returning any keys. Completion checks the exact preparation, deadline, revision,
+receipts and independent server metadata; it commits ready placements, verified metadata
+and the active ZIP pointer together only when every object matches. Failures leave the
+entire preparing row unchanged. Preview order follows the plan; placement identities
+are domain-separated SHA-256 of the gallery and opaque immutable key. The browser still
+receives only the earlier delivery draft projection; no plan, key or failure-key list
+is exposed by an HTTP route. No customer access or publication date is created.
+The common bounded evidence snapshotter is also used by proof completion. This proves
+metadata agreement, not decoded image dimensions or ZIP membership. A production
+adapter needs independent metadata reads, verified checksum/version and immutable-write
+semantics, and one database CAS commit; no such adapter or service is provisioned.
+
 A separate server-only delivery-notification builder can render FI/EN customer
 instructions immediately before a future send. It authenticates the encrypted
 capability with the current gallery/handle/generation, checks published state and

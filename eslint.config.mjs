@@ -107,6 +107,8 @@ const eslintConfig = defineConfig([
                 "@/lib/private-gallery-proof-outbox",
                 "@/lib/private-gallery-proof-view",
                 "@/lib/private-gallery-proof-upload",
+                "@/lib/private-gallery-delivery-upload",
+                "@/lib/private-gallery-upload-evidence",
                 "@/lib/private-gallery-proof-draft-status",
                 "@/lib/private-gallery-object-key",
                 "@/lib/private-gallery-upload",
