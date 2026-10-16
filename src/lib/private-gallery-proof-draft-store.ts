@@ -30,9 +30,11 @@ import {
   type PrivateGalleryVerifiedObject,
   type PrivateGalleryVerificationFailure,
 } from "@/lib/private-gallery-upload-completion";
-import { PRIVATE_GALLERY_MAX_OBJECT_KEY_LENGTH } from "@/lib/private-gallery-object-key";
+import { snapshotPrivateGalleryUploadCompletionEvidence } from "@/lib/private-gallery-upload-evidence";
 
 export const PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT = 100;
+/** Per-store development memory guard; reset/restart releases these rows. */
+export const PRIVATE_GALLERY_PROOF_DRAFT_CAPACITY = 1000;
 
 /** Server-only records committed together on the first ready transition. */
 export type PrivateGalleryProofDraftReadyData = {
@@ -94,6 +96,11 @@ export type PrivateGalleryProofDraftStore = {
     now: Date,
   ): Promise<PrivateGalleryProofDraftSetup>;
   list(limit: number, afterHandle?: string): Promise<PrivateGalleryProofDraftList>;
+  /** Atomic revision CAS; replace both references. Ready data is frozen. */
+  updateReferences(input: {
+    readonly handle: string; readonly expectedRevision: number;
+    readonly references: { readonly customerReference?: string; readonly jobReference?: string };
+  }): Promise<PrivateGalleryProofDraftSetup>;
   updatePricing(input: {
     readonly handle: string;
     readonly expectedRevision: number;
@@ -123,16 +130,27 @@ export type PrivateGalleryProofDraftStoreErrorReason =
   | "invalid-limit"
   | "invalid-cursor"
   | "identity-collision"
+  | "capacity"
   | "preparation-expired"
   | "readiness-failed"
   | "not-found"
   | "conflict";
+
+// The memory store survives across independently loaded Next.js route bundles.
+// Its method closures can throw another bundle's copy of this error class.
+const PROOF_DRAFT_ERROR = Symbol.for("photosite-starter.private-gallery.proof-draft-error.v1");
 
 export class PrivateGalleryProofDraftStoreError extends Error {
   constructor(readonly reason: PrivateGalleryProofDraftStoreErrorReason) {
     // The input, its external references and the generated handle stay out of errors.
     super("[private-gallery-proof-draft-store] " + reason);
     this.name = "PrivateGalleryProofDraftStoreError";
+    Object.defineProperty(this, PROOF_DRAFT_ERROR, { value: true });
+  }
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return value instanceof Error && value.name === "PrivateGalleryProofDraftStoreError" &&
+      Object.getOwnPropertyDescriptor(value, PROOF_DRAFT_ERROR)?.value === true;
   }
 }
 
@@ -163,55 +181,6 @@ function validatedInput(input: PrivateGalleryProofDraftSetupInput): PrivateGalle
   };
 }
 
-function boundedMetadataString(value: unknown, maximum: number): value is string {
-  return typeof value === "string" && value.length > 0 &&
-    value.length <= maximum && /^[\x20-\x7e]+$/.test(value);
-}
-
-/** Copy only bounded provider metadata; helpers must not retain caller objects. */
-function snapshotCompletionEvidence(
-  input: PrivateGalleryProofDraftCompletionInput,
-  plan: PrivateGalleryUploadPlan,
-): Pick<PrivateGalleryProofDraftCompletionInput, "receipts" | "observations"> {
-  const { receipts, observations } = input;
-  if (!Array.isArray(receipts) || receipts.length > plan.objects.length ||
-      !Array.isArray(observations) || observations.length > plan.objects.length + 1) {
-    fail("invalid-input");
-  }
-  const checksum = (value: PrivateGalleryObjectObservation["checksum"]) => {
-    if (value === undefined) return undefined;
-    if (typeof value !== "object" || value === null) fail("invalid-input");
-    const { algorithm, value: digest } = value;
-    if ((algorithm !== "sha256" && algorithm !== "crc32c") ||
-        !boundedMetadataString(digest, 256)) fail("invalid-input");
-    // Encoding is provider-owned. Never treat an ETag as a content digest.
-    return { algorithm, value: digest };
-  };
-  const receiptKeys = new Set<string>();
-  const plannedKeys = new Set(plan.preparation.objectKeys);
-  return {
-    receipts: receipts.map((item: PrivateGalleryUploadReceipt) => {
-      if (typeof item !== "object" || item === null) fail("invalid-input");
-      const { objectKey, checksum: digest } = item;
-      if (!plannedKeys.has(objectKey) || receiptKeys.has(objectKey)) fail("invalid-input");
-      receiptKeys.add(objectKey);
-      const copied = checksum(digest);
-      return { objectKey, ...(copied === undefined ? {} : { checksum: copied }) };
-    }),
-    observations: observations.map((item: PrivateGalleryObjectObservation) => {
-      if (typeof item !== "object" || item === null) fail("invalid-input");
-      const { objectKey, sizeBytes, etag, checksum: digest } = item;
-      if (!boundedMetadataString(objectKey, PRIVATE_GALLERY_MAX_OBJECT_KEY_LENGTH) ||
-          !Number.isSafeInteger(sizeBytes) ||
-          (etag !== undefined && !boundedMetadataString(etag, 512))) fail("invalid-input");
-      const copied = checksum(digest);
-      return { objectKey, sizeBytes,
-        ...(etag === undefined ? {} : { etag }),
-        ...(copied === undefined ? {} : { checksum: copied }) };
-    }),
-  };
-}
-
 /** One-process reference with atomic synchronous mutations inside async methods. */
 export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProofDraftStore {
   const byId = new Map<string, PrivateGalleryProofDraftSetup>();
@@ -222,6 +191,8 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
       // Validate before generating an identity or changing state.
       const validated = validatedInput(input);
       if (!(now instanceof Date) || !Number.isFinite(now.getTime())) fail("invalid-time");
+      // The bound and insertion share this synchronous critical section.
+      if (byId.size >= PRIVATE_GALLERY_PROOF_DRAFT_CAPACITY) fail("capacity");
       const galleryId = randomUUID();
       const galleryHandle = generateGalleryHandle();
       if (byId.has(galleryId) || byHandle.has(galleryHandle)) fail("identity-collision");
@@ -240,6 +211,34 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
       byId.set(galleryId, row);
       byHandle.set(galleryHandle, galleryId);
       return structuredClone(row);
+    },
+    async updateReferences(input) {
+      if (!input || typeof input !== "object" || Array.isArray(input) ||
+          Object.keys(input).sort().join(",") !== "expectedRevision,handle,references" ||
+          typeof input.handle !== "string" || !/^[A-Za-z0-9_-]{22}$/.test(input.handle) ||
+          !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) fail("invalid-input");
+      const refs = input.references;
+      if (!refs || typeof refs !== "object" || Array.isArray(refs) ||
+          Object.keys(refs).some((key) => !["customerReference", "jobReference"].includes(key)) ||
+          (refs.customerReference !== undefined && !isPrivateGalleryProofBusinessReference(refs.customerReference)) ||
+          (refs.jobReference !== undefined && !isPrivateGalleryProofBusinessReference(refs.jobReference))) fail("invalid-input");
+      // Snapshot validated scalars before the synchronous conditional mutation.
+      const references = {
+        ...(refs.customerReference === undefined ? {} : { customerReference: refs.customerReference }),
+        ...(refs.jobReference === undefined ? {} : { jobReference: refs.jobReference }),
+      };
+      const id = byHandle.get(input.handle);
+      const current = id === undefined ? undefined : byId.get(id);
+      if (!current) fail("not-found");
+      if ((current.gallery.state !== "draft" && current.gallery.state !== "preparing") ||
+          current.revision !== input.expectedRevision || current.revision === Number.MAX_SAFE_INTEGER) fail("conflict");
+      const updated = { ...current, customerReference: undefined, jobReference: undefined,
+        ...references, revision: current.revision + 1 };
+      // Omission clears stored fields, not only the HTTP projection.
+      if (updated.customerReference === undefined) delete updated.customerReference;
+      if (updated.jobReference === undefined) delete updated.jobReference;
+      byId.set(current.gallery.galleryId, updated);
+      return structuredClone(updated);
     },
     async updatePricing(input) {
       if (typeof input !== "object" || input === null ||
@@ -335,7 +334,9 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
 
       // No await from lookup through replacement: pricing and preparation cannot
       // change between verification and their single revision-guarded commit.
-      const evidence = snapshotCompletionEvidence(input, plan);
+      let evidence;
+      try { evidence = snapshotPrivateGalleryUploadCompletionEvidence(input, plan); }
+      catch { fail("invalid-input"); }
       let completion;
       try {
         completion = verifyPrivateGalleryUpload({

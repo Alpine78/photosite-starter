@@ -151,3 +151,56 @@ test("a saved delivery revision cancels an older page read and creation preserve
   await expect(section.getByRole("listitem").last()).toContainText("draft-tail");
   await expect(section.getByRole("listitem").first()).toContainText("draft-new");
 });
+
+for (const locale of ["fi", "en-GB"]) for (const kind of ["proof", "delivery"] as const) {
+  test(`${kind} page overlaps preserve unsaved fields and their original revision in ${locale}`, async ({ page, browserName, administratorCookies }) => {
+    test.skip(browserName === "webkit", "WebKit does not store Secure cookies on HTTP loopback.");
+    await page.context().addCookies(administratorCookies);
+    const labels = getBuiltInLabels(locale);
+    const copy = kind === "proof" ? labels.privateGalleryProofCreation : labels.privateGalleryDeliveryCreation;
+    const original = { handle: "overlap-draft", revision: 0, createdAt: "2026-10-16T12:00:00Z", state: "draft",
+      customerReference: "original-reference", pricing: { includedCount: 2, extraUnitPriceMinor: 100, currency: "EUR" } };
+    const newer = { ...original, revision: 1, customerReference: "remote-reference", pricing: { ...original.pricing, includedCount: 9 } };
+    let reads = 0;
+    const mutations: number[] = [];
+    await page.route(new RegExp("/admin/" + kind + "(\\?|$)"), async (route) => {
+      const request = route.request();
+      if (request.method() !== "GET") {
+        mutations.push(request.postDataJSON().expectedRevision);
+        return route.fulfill({ status: 409, json: { ok: false } });
+      }
+      if (new URL(request.url()).searchParams.has("cursor")) return route.fulfill({ json: { ok: true, hasMore: false,
+        items: [newer, { ...original, handle: "older-overlap-draft" }] } });
+      return route.fulfill({ json: ++reads === 1
+        ? { ok: true, hasMore: true, nextCursor: "overlap-page", items: [original] }
+        : { ok: true, hasMore: false, items: [newer] } });
+    });
+    await page.goto("/admin?locale=" + locale);
+    const section = page.getByRole("region", { name: copy.heading, exact: true });
+    const row = section.getByRole("listitem").first();
+    await row.getByText(copy.editReferences, { exact: true }).click();
+    await row.getByLabel(copy.customerReference, { exact: true }).fill("unsaved-reference");
+    if (kind === "proof") {
+      await row.getByText(labels.privateGalleryProofCreation.editPricing, { exact: true }).click();
+      await row.getByLabel(labels.privateGalleryProofCreation.includedCount, { exact: true }).fill("4");
+    }
+    await section.getByRole("button", { name: copy.loadMore, exact: true }).click();
+    await expect(section.getByRole("listitem")).toHaveCount(2);
+    await expect(row.getByLabel(copy.customerReference, { exact: true })).toHaveValue("unsaved-reference");
+    if (kind === "proof") {
+      await expect(row.getByLabel(labels.privateGalleryProofCreation.includedCount, { exact: true })).toHaveValue("4");
+      await row.getByRole("button", { name: labels.privateGalleryProofCreation.savePricing, exact: true }).click();
+      await expect(section.getByRole("alert").filter({ hasText: labels.privateGalleryProofCreation.conflictPricing })).toBeVisible();
+    }
+    await row.getByRole("button", { name: copy.saveReferences, exact: true }).click();
+    await expect(row.getByRole("alert").filter({ hasText: copy.conflictReferences })).toBeVisible();
+    expect(mutations).toEqual(kind === "proof" ? [0, 0] : [0]);
+    await expect(row.getByLabel(copy.customerReference, { exact: true })).toHaveValue("unsaved-reference");
+    await section.getByRole("button", { name: copy.refresh, exact: true }).click();
+    await expect(section.getByRole("listitem")).toHaveCount(1);
+    const refreshed = section.getByRole("listitem");
+    await expect(refreshed).toContainText("remote-reference");
+    await refreshed.getByText(copy.editReferences, { exact: true }).click();
+    await expect(refreshed.getByLabel(copy.customerReference, { exact: true })).toHaveValue("remote-reference");
+  });
+}

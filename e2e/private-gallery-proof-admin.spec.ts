@@ -165,7 +165,7 @@ test.describe("private gallery proof administration", () => {
     await expect(creator.getByRole("status")).not.toContainText("#");
 
     const row = page.getByRole("listitem").filter({ hasText: HANDLE });
-    await row.locator("summary").click();
+    await row.getByText(draftLabels.editPricing, { exact: true }).click();
     await row.getByLabel(draftLabels.includedCount).fill("3");
     await row.getByRole("button", { name: draftLabels.savePricing }).click();
     await expect(row).toContainText(`${draftLabels.includedCount}: 3`);
@@ -174,10 +174,12 @@ test.describe("private gallery proof administration", () => {
     // Another administrator tab has already saved a later revision.
     drafts[0].revision += 1;
     drafts[0].pricing = { ...drafts[0].pricing, includedCount: 4 };
-    await row.locator("summary").click();
+    await row.getByText(draftLabels.editPricing, { exact: true }).click();
     await row.getByLabel(draftLabels.includedCount).fill("5");
     await row.getByRole("button", { name: draftLabels.savePricing }).click();
     await expect(page.getByText(draftLabels.conflictPricing)).toBeVisible();
+    await expect(row.getByLabel(draftLabels.includedCount)).toHaveValue("5");
+    await creator.getByRole("button", { name: draftLabels.refresh, exact: true }).click();
     await expect(row).toContainText(`${draftLabels.includedCount}: 4`);
   });
 

@@ -1,5 +1,19 @@
 # Feature implementation status
 
+AB#301 Studio identity presentation, 2026-10-16 (partial, Active): the actual
+Studio configuration now groups permanent technical identifiers at the end of
+the form using native, initially expanded FI/EN-labelled controls. Shared-media
+previews use authored captions/alternative text and show the actual language,
+with explicit missing-description fallbacks and complete-frame thumbnails.
+Canonical field names, validators, references and stored IDs are unchanged.
+The application registry's active deployment is dated 2026-10-11, older than
+PR #339's 2026-10-12 readable-preview merge. Hosted publication and authenticated
+editor verification remain separate. Accepted AB#257/260 identity retirement still
+needs current source reconciliation and the remaining alias/read/write/maintenance
+and rehearsal integration; existing helper modules are inventoried in the
+[Studio guide](../studio/README.md#editing-content). This partial change does not
+close the stored-identity retirement outcome or modify the CMS.
+
 AB#250 Production availability readback, 2026-10-15: all 21 retained legacy
 customer galleries are now observed published and reachable. An anonymous
 published-perspective Production dataset query returned 21 `legacyDeliveryGallery`
@@ -1516,6 +1530,28 @@ references in the replacement object clear the previous value. A stale edit retu
 409 and preserves the entered text until the operator explicitly refreshes the list.
 Each successful save advances the revision once, including an identical replacement.
 This reversible development-memory operation does not publish or grant customer access.
+A server-only AB#29 first-delivery workflow now commits the complete preview/ZIP
+plan with `draft → preparing`, then verifies its exact metadata set before one
+revision-guarded `preparing → ready` mutation. That commit stores native-ratio
+preview placements, verified metadata and the active immutable ZIP pointer together.
+The first plan requires previews and exactly one ZIP; its 1,000-object bound includes
+the ZIP. Missing/mismatched objects, stale revisions and expired preparations leave
+the whole setup unchanged. A returned plan or row cannot mutate the stored snapshot.
+The shared bounded evidence copier also serves the existing proof completion path.
+This is development-memory coordination only: no HTTP/CLI upload, object write,
+capability, publication or email is added. Dimensions and ZIP membership remain
+owner-attested; live checksum/version semantics and immutable-write guarantees still
+need the approved provider gate. Expired preparations follow retention rather than an
+unapproved `preparing → draft` transition. Both AB#29 and AB#145 remain Active.
+
+A server-only FI/EN delivery-notification builder now creates customer access
+instructions from a currently published delivery record and its encrypted capability.
+The envelope is authenticated against gallery, handle and current generation before
+a fragment-only HTTPS link is rendered. The message includes shareability, one ZIP
+and an explicit UTC expiry; invalid, expired or retired-generation material is refused.
+This is a transient message builder only: no publication, outbox activation, provider
+send or production enablement is added. A future dispatcher must re-read live metadata
+and keep only encrypted capability material at rest, never the rendered email body.
 AB#145 was verified Active before edits and remains Active pending acceptance.
 CI #1047 exposed a shared test login budget: gallery-management journeys now
 reuse a real administrator session per Playwright worker. Each test retains its
@@ -1530,7 +1566,13 @@ identity and handle, and exposes no capability or customer access link. The
 reauthorizes the administrator; `POST` checks same-origin JSON and a streamed
 1 KiB body bound before parsing. The draft store is separate from the
 published fixture's customer exchange, view, and proof stores, so creating a
-draft cannot give a customer access. This is not yet relational customer/job
+draft cannot give a customer access. The development proof store now caps its own
+lifetime at 1,000 setup rows before generating a new identity. Concurrent final
+creates cannot exceed it, and a full store refuses creation with the existing
+redacted 503 response without evicting drafts or blocking preparation/completion.
+Reset/restart releases these process-local rows; this is a memory guard, not a
+production retention policy or the separate per-gallery file ceiling.
+This is not yet relational customer/job
 association: no customer or job domain records exist (AB#28).
 AB#196 adds a [single-photographer operations worksheet](photographer-operations.md)
 for AB#28. It maps the parent criteria into decisions and unapproved slices;
@@ -1555,6 +1597,27 @@ whole row unchanged; stale or repeated completion conflicts without refreezing r
 The stored prefix cannot be broadened at completion. Receipts alone establish nothing;
 checksum comparison applies only when both receipt and provider metadata name the same
 algorithm, so live provider checksum/version semantics remain a separate verification gate.
+A shared server-only metadata collector now reads only the committed preparation's
+exact object keys through a read-only `head` port. It snapshots and scopes the plan,
+binds observations to requested keys, runs at most eight reads concurrently, and
+bounds each read and the entire pass. Abort, transport uncertainty, malformed data
+or expiry refuses the whole pass; only definitive not-found is omitted, leaving
+store completion unready. Late uncooperative responses cannot admit further reads
+or become unhandled rejections. Results are detached/frozen and remain internal;
+store completion still rechecks revision and deadline. No S3 adapter or live provider
+is connected, and HEAD does not prove immutable bytes, ZIP membership or pixels.
+The existing admin JSON projection excludes the plan, keys and frozen internal records.
+
+Administrator proof drafts now support complete replacement or clearing of their
+external customer/job references through an authenticated, bounded PUT (AB#130).
+Draft and preparing rows remain editable; ready rows are frozen. FI/EN editors
+share a per-row mutation lock with pricing, keep typed references through a
+pricing save, and preserve conflicting text until an explicit list refresh.
+This uses the existing external identifiers, not customer/job domain records.
+The CI follow-up preserves the conflict response when the process-wide memory
+store throws an error from another route bundle's module instance. A module-reload
+regression and explicit browser HTTP-409 assertions cover this boundary.
+
 Administrator proof and delivery draft lists now continue beyond the first 100 rows
 with authenticated, uncached cursor pages and FI/EN load-older controls (AB#130,
 AB#145). Each response is bounded to 100 rows. The shared browser loader ignores
@@ -1564,7 +1627,9 @@ identifiers; they grant no customer access. This is a development-memory slice;
 neither story is complete.
 Creation before the first successful list read also recovers older drafts without
 discarding acknowledged rows. Pagination keeps keyboard focus on a stable control
-and announces the loaded count in Finnish and English.
+and announces the loaded count in Finnish and English. Overlapping pages keep
+already-visible fields and their original revision; an explicit refresh loads remote
+changes without silently discarding an unfinished edit.
 
 The administrator projection now adds only the prepublication state and a bounded
 upload summary (object count, opening time, deadline and expiry at response time).
@@ -1578,6 +1643,16 @@ This has no HTTP or owner-CLI upload path, no object writes and no customer acce
 `preparing → draft` is not an ADR-0014 transition; the story's reopen operation applies
 to a confirmed customer selection after publication. An incorrect/abandoned preparation
 must follow the deletion and recreation path when durable storage exists.
+A separate first-delivery publication planner now checks the ready gallery's entire
+private placement/object set, active ZIP, preparation window and first-publication
+metadata before proposing its publication time and six-calendar-month expiry. It
+returns only a redacted first blocker or a server-only metadata plan. Preview order
+values must be positive and unique; gaps do not imply a missing object because every
+placement must join the complete verified preparation set. The future adapter must
+lock/re-read that full set in its publication transaction with the sealed capability
+and unique initial outbox insert; state/generation alone are insufficient. This pure
+planner adds no administrator route, state write, notification or customer access.
+AB#145 and AB#29 remain Active.
 No PostgreSQL proof store, durable outbox worker, runtime mail wiring or
 production customer workflow exists yet.
 
@@ -1594,6 +1669,16 @@ primitives (#103); the session model and its per-gallery-path `__Secure-` cookie
 lookup, and the constant-time verification of a submitted capability, behind
 `src/lib/private-gallery-access.ts` — the one facade a route may import, since it owns an
 ordering a route must not reassemble (#105).
+An owner-run offline upload-source planner now reads bounded local JPEG exports and
+streams the complete delivery ZIP to prepare a private source manifest and byte
+hash report. It preserves bytes, true dimensions, proof filenames/stable media IDs
+and declared order; the output is contract-tested against the server upload planner.
+Filesystem/path/alias checks and owner-private exclusive artifacts keep source data
+out of Git and public payloads. Watermarks remain owner-attested; ZIP signature is
+not archive/CRC/membership verification. It assigns no object keys, uploads nothing
+and grants no customer access. Direct Node execution shares the existing policy and
+field validators without a build step. AB#29 and AB#130 remain Active.
+
 The link and its exchange are now routes: the Proxy rewrites the deployment-configured
 prefix onto a reserved internal segment (`/private-gallery`, `request-path.ts`) so a
 file-system route can serve a configurable public path, and refuses a direct request to

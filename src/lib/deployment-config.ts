@@ -171,6 +171,11 @@ export type BuiltInLabels = {
     readonly refused: string;
     readonly javascriptRequired: string;
   };
+  /** AB#145 customer notice; only the transient server-side body holds a link. */
+  readonly deliveryNotificationEmail: {
+    readonly subject: string; readonly ready: string; readonly openGallery: string;
+    readonly download: string; readonly sharing: string; readonly expiresAt: string; readonly replace: string;
+  };
   /** Photographer-facing AB#130 confirmation notice, in the owner locale. */
   readonly proofConfirmationEmail: {
     readonly subject: string;
@@ -260,7 +265,9 @@ export type BuiltInLabels = {
   readonly privateGalleryProofCreation: {
     readonly draftState: string; readonly preparingState: string; readonly readyState: string;
     readonly statusSnapshot: string; readonly objects: string; readonly deadline: string; readonly windowExpired: string;
-    readonly refresh: string;
+    readonly referenceHelp: string; readonly editReferences: string; readonly saveReferences: string;
+    readonly savingReferences: string; readonly savedReferences: string; readonly conflictReferences: string;
+    readonly invalid: string; readonly refresh: string;
     readonly heading: string;
     readonly description: string;
     readonly includedCount: string;
@@ -730,6 +737,15 @@ const englishLabels = {
     refused: "Photographs could not be loaded. Try again or reopen the gallery link.",
     javascriptRequired: "JavaScript is needed to view the remaining photographs.",
   },
+  deliveryNotificationEmail: {
+    subject: "Your photographs are ready",
+    ready: "Your delivery gallery is ready.",
+    openGallery: "Open your private gallery:",
+    download: "View the web previews and download all delivered photographs together as one ZIP package.",
+    sharing: "You may share this link with your family. Anyone holding the link can view the gallery and download the package; no password is needed.",
+    expiresAt: "Access expires at",
+    replace: "The photographer can revoke or replace the link. Save your download before access expires.",
+  },
   proofConfirmationEmail: {
     subject: "Proof selection confirmed",
     galleryReference: "Gallery reference",
@@ -847,13 +863,20 @@ const englishLabels = {
     savePricing: "Save pricing",
     savingPricing: "Saving…",
     savedPricing: "Pricing saved.",
-    conflictPricing: "This draft changed elsewhere. The list has been refreshed; review the current price and try again.",
+    conflictPricing: "This draft changed elsewhere. Your entries have been kept. Refresh the list to discard them and load the current draft.",
     invalidPricing: "Enter a non-negative whole number and a three-letter uppercase currency code.",
     loadMore: "Load older drafts",
     loadingMore: "Loading drafts…",
     allLoaded: "All drafts loaded",
     loadedCount: "Drafts loaded",
-    refresh: "Refresh list",
+    referenceHelp: "Use an external reference, not a name or email address.",
+    editReferences: "Edit references",
+    saveReferences: "Save references",
+    savingReferences: "Saving references…",
+    savedReferences: "References saved.",
+    conflictReferences: "The draft changed elsewhere. Your entries have been kept. Refresh the list to discard them and load the latest references.",
+    invalid: "Enter valid single-line references of at most 128 UTF-8 bytes.",
+    refresh: "Refresh proof drafts",
   },
   privateGalleryProofAdmin: {
     heading: "Proof gallery status",
@@ -1122,6 +1145,15 @@ const finnishLabels = {
     refused: "Valokuvia ei voitu ladata. Yritä uudelleen tai avaa gallerialinkki uudelleen.",
     javascriptRequired: "Loppujen valokuvien katselu vaatii JavaScriptin.",
   },
+  deliveryNotificationEmail: {
+    subject: "Valokuvasi ovat valmiit",
+    ready: "Toimitusgalleriasi on valmis.",
+    openGallery: "Avaa yksityinen galleriasi:",
+    download: "Katsele verkkokokoisia esikatselukuvia ja lataa kaikki toimitetut valokuvat yhtenä ZIP-pakettina.",
+    sharing: "Voit jakaa linkin perheellesi. Jokainen linkin haltija voi katsella galleriaa ja ladata paketin ilman salasanaa.",
+    expiresAt: "Pääsy vanhenee",
+    replace: "Valokuvaaja voi peruuttaa tai vaihtaa linkin. Tallenna lataamasi kuvat ennen pääsyn vanhenemista.",
+  },
   proofConfirmationEmail: {
     subject: "Vedosvalinta vahvistettu",
     galleryReference: "Gallerian viite",
@@ -1236,13 +1268,20 @@ const finnishLabels = {
     savePricing: "Tallenna hinnoittelu",
     savingPricing: "Tallennetaan…",
     savedPricing: "Hinnoittelu tallennettu.",
-    conflictPricing: "Luonnos muuttui muualla. Lista on päivitetty; tarkista nykyinen hinta ja yritä uudelleen.",
+    conflictPricing: "Luonnos muuttui muualla. Kirjoittamasi arvot säilyivät. Päivitä lista, jos haluat hylätä ne ja ladata nykyisen luonnoksen.",
     invalidPricing: "Anna ei-negatiivinen kokonaisluku ja kolmikirjaiminen isoilla kirjaimilla kirjoitettu valuuttakoodi.",
     loadMore: "Näytä vanhempia luonnoksia",
     loadingMore: "Ladataan luonnoksia…",
     allLoaded: "Kaikki luonnokset ladattu",
     loadedCount: "Luonnoksia ladattu",
-    refresh: "Päivitä lista",
+    referenceHelp: "Käytä ulkoista viitettä, älä nimeä tai sähköpostiosoitetta.",
+    editReferences: "Muokkaa viitteitä",
+    saveReferences: "Tallenna viitteet",
+    savingReferences: "Tallennetaan viitteitä…",
+    savedReferences: "Viitteet tallennettu.",
+    conflictReferences: "Luonnos muuttui muualla. Kirjoittamasi viitteet säilyivät. Päivitä lista, jos haluat hylätä ne ja ladata uusimmat viitteet.",
+    invalid: "Anna kelvolliset yksiriviset viitteet, enintään 128 UTF-8-tavua.",
+    refresh: "Päivitä vedosluonnokset",
   },
   privateGalleryProofAdmin: {
     heading: "Vedosgallerian tila",

@@ -3,11 +3,10 @@
  *
  * These are the ADR's **default** ceilings — a deployment may lower any of them
  * in its private configuration, but never raise one to "unbounded" (ADR-0014
- * §8e). Nothing consumes them yet: the private-gallery routes, the owner-run
- * upload CLI, the signed-URL minting path, and the retention worker are later
- * slices of AB#29. They live here, pinned by their own test to the exact
- * numbers in the ADR, so those later slices inherit one agreed boundary instead
- * of each re-deriving it.
+ * §8e). The private-gallery routes, owner-run source planner, signed-URL
+ * minting path and development workflows share these values, pinned by a test
+ * to the exact numbers in the ADR. The relative import also permits direct
+ * execution on the pinned Node major without an application alias loader.
  *
  * This module is **static policy, not a credential or a store adapter**, so it
  * carries no `server-only` marker and no ESLint import boundary: request-body
@@ -24,7 +23,7 @@
  * reader cannot silently reinterpret them.
  */
 
-import { MAX_PUBLIC_DELIVERY_DIMENSION } from "@/lib/image-delivery";
+import { MAX_PUBLIC_DELIVERY_DIMENSION } from "./image-delivery.ts";
 
 const KIB = 1024;
 const MIB = 1024 * KIB;

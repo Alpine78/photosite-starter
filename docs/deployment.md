@@ -856,6 +856,53 @@ step here is derived from the ADR and the providers' documented capabilities rat
 from a run. The first owner to follow it should correct it where it is wrong — that is more
 useful than leaving it aspirational.
 
+#### Offline private upload source check
+
+This development tool runs before storage upload and needs no provider credential.
+It never changes images, writes to Sanity/object storage, assigns object keys or
+publishes a gallery. Input and output contain private local paths/filenames: use
+owner-owned `0700` directories and a `0600` input JSON. Inside a checkout, both
+artifacts must be untracked and Git-ignored. Symlink components are refused.
+Native Windows ACL handling is unverified and refused; filesystems that do not
+honour the required POSIX permissions also fail closed.
+
+For externally watermarked proof exports, the input shape is:
+
+```json
+{"mode":"proof","externallyWatermarked":true,"images":[{"relativePath":"proofs/IMG_0001.JPG","mediaId":"media-1"}]}
+```
+
+The watermark flag is the operator's declaration, **not watermark detection**.
+Every proof needs its existing stable media identity; filenames do not create it.
+For delivery, use `{"mode":"delivery","images":[{"relativePath":"previews/IMG_0001.JPG"}],"zipPath":"delivery.zip"}`.
+Paths are relative to the source root; ambiguous case/NFC aliases, hardlink aliases,
+traversal and duplicate media identities are refused. Delivery requires its one ZIP.
+
+```bash
+npm run plan:private-gallery-upload -- --input <private.json> --source-root <export-folder> --out <private-output>
+```
+
+The tool checks JPEG metadata and a complete pixel decode at native ratio, one page, upright orientation,
+≤ 2,048 pixels on the longest edge and ≤ 8 MiB per preview; it changes no bytes.
+The existing 1,000-object plan limit permits 1,000 proofs or 999 previews plus ZIP.
+The ZIP is streamed and capped at 20 GiB, with a 25 GiB gallery total. Only its
+local-file signature is recognized: archive entries, CRC and full-JPEG membership
+remain unchecked. The local report flags EXIF/ICC presence without copying their
+contents. Review private export metadata before upload.
+
+`upload-source-plan.json` is written exclusively at `0600`; an existing result is
+never overwritten. Its digest covers the versioned manifest, local asset paths,
+sizes/hashes and declared checks, excluding the digest itself. It detects change,
+not authenticity. This is a planning-time snapshot: the future uploader must rehash
+before writing and obtain/obey the server-committed preparation and opaque keys.
+Only the report's `manifest` is input for future preparation; the local paths and
+hash report never belong in a browser payload. Server coordination, upload,
+provider checksum semantics and actual publication remain separate work.
+
+The npm command suppresses only Node's module-type detection notice for shared
+TypeScript policy imports. Validation failures print a fixed code and optional
+item ordinal, without native filesystem/Sharp errors or private filenames.
+
 ### The Sanity webhook signing secret
 
 `SANITY_WEBHOOK_SECRET` is a Sensitive, runtime-only value shared with exactly one

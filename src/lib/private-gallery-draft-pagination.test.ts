@@ -36,6 +36,14 @@ for (const kind of ["proof", "delivery"] as const) {
   });
 }
 describe("page overlap merge", () => {
+  it("keeps the visible revision and fields during a page overlap, then accepts an explicit acknowledgement", () => {
+    const visible = { handle: "one", revision: 0, customerReference: "original" };
+    const remote = { handle: "one", revision: 2, customerReference: "remote" };
+    const next = appendPrivateDraftRows([visible], [remote, { handle: "two", revision: 0 }], { preserveExisting: true });
+    expect(next).toEqual([visible, { handle: "two", revision: 0 }]);
+    expect(next[0]).toBe(visible);
+    expect(appendPrivateDraftRows(next, [remote])[0]).toBe(remote);
+  });
   it("deduplicates by handle without replacing newer acknowledged revisions", () => {
     const first = { handle: "one", revision: 2, customerReference: "saved" };
     const next = appendPrivateDraftRows([first], [{ handle: "one", revision: 1, customerReference: "stale" }, { handle: "two", revision: 0 }]);

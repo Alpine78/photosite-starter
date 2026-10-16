@@ -242,6 +242,31 @@ non-secret identifier, not the separate capability. No capability, customer sess
 object key or access URL is created. Drafts remain outside all customer read/exchange
 stores, public projections and notification queues. Resetting the fixture also resets
 these process-local drafts. No production adapter or service is provisioned.
+The development delivery store now has a privileged first-preparation/completion
+workflow. It records one bounded complete preview/ZIP plan and its configured prefix
+before returning any keys. Completion checks the exact preparation, deadline, revision,
+receipts and independent server metadata; it commits ready placements, verified metadata
+and the active ZIP pointer together only when every object matches. Failures leave the
+entire preparing row unchanged. Preview order follows the plan; placement identities
+are domain-separated SHA-256 of the gallery and opaque immutable key. The browser still
+receives only the earlier delivery draft projection; no plan, key or failure-key list
+is exposed by an HTTP route. No customer access or publication date is created.
+The common bounded evidence snapshotter is also used by proof completion. This proves
+metadata agreement, not decoded image dimensions or ZIP membership. A production
+adapter needs independent metadata reads, verified checksum/version and immutable-write
+semantics, and one database CAS commit; no such adapter or service is provisioned.
+
+A separate server-only delivery-notification builder can render FI/EN customer
+instructions immediately before a future send. It authenticates the encrypted
+capability with the current gallery/handle/generation, checks published state and
+absolute expiry, then constructs a canonical HTTPS link whose secret exists only in
+the fragment. The message contains no customer/job reference or filename. The
+recipient and explicit outbox attempt key use the existing notification contract.
+The returned message is transient: do not persist its bearer-bearing body in an
+outbox or log it. A future dispatcher must load fresh gallery/generation data before
+each send and discard retired attempts. The provider and recipient necessarily
+receive the access link in email; tracking and URL rewriting must stay disabled.
+No dispatcher, provider call, public endpoint or publication is added here.
 Publishing, delivery notifications/resend and revoke/replace remain separate work;
 creation is non-destructive and does not call the irreversible-operation re-auth gate.
 
@@ -257,11 +282,31 @@ out of the customer exchange, view and proof stores. The administrator API
 checks JSON provenance, authorizes the session before reading a bounded body,
 and returns only a safe projection with no internal ID or secret. The draft
 form and list are localized; this is still a process-local development aid.
+Each development proof store is capped at 1,000 setup rows for its lifetime. The
+capacity check and insertion are synchronous; a full store returns the existing
+redacted unavailable response without evicting earlier drafts. Existing preparation,
+pricing and completion operations still work. Reset/restart releases the rows.
+This does not bound production storage or replace retention/the per-gallery file cap.
+An authenticated PUT to the proof root replaces both external references on a
+draft/preparing row with an expected revision. Omitted references clear the fields.
+A no-op replacement also increments the revision; ready rows and stale revisions
+refuse unchanged. The same same-origin JSON, session-before-body and streamed 1KiB
+bounds apply, and the response uses the existing allow-list. The production port
+must implement this as an atomic conditional update. The shared FI/EN reference
+editor has no native input names and stays disabled without JavaScript. Per-row
+pricing and reference mutations share a lock; an acknowledged pricing save updates
+the revision without discarding a typed reference. Conflicts preserve input until
+the administrator explicitly refreshes the list.
+Proof-store errors carry a non-enumerable process-wide symbol brand so that
+independently loaded route bundles recognize the shared store's errors. Arbitrary
+provider errors and JSON-shaped lookalikes still produce the unavailable response.
 An authenticated `PATCH` to that root can replace the entire pricing candidate
 before publication, guarded by a per-draft revision. It validates request
 provenance and the full pricing tuple before one atomic memory-store compare
 and swap. A stale revision or a draft that is no longer editable returns a
-conflict; the administrator interface refreshes the list before another try.
+conflict; the administrator explicitly refreshes the list before another try.
+Pricing conflicts also keep typed references and prices, rather than implicitly
+rebasing a pending reference edit onto another administrator's revision.
 The revision and safe terms appear in the administrator projection, never an
 internal gallery ID or customer access link. This edit cannot alter the
 published proof fixture or a frozen confirmation. Abandoned-draft cleanup,
@@ -295,8 +340,34 @@ list labels prepared proofs as unshared and hides their frozen pricing editor.
 Malformed status data refuses the entire list with a redacted unavailable response.
 These responses still project an allow-list and do not include the preparation,
 object keys or internal gallery ID. A repeated or invalid preparation does not mutate
-that row. The confirmed-selection `reopen` action is separate from upload preparation;
+that row.
+A server-only metadata collector now scopes read-only HEAD operations to a detached
+snapshot of the complete committed preparation, never listing the bucket or reading
+object bytes. It admits at most eight reads, with 5-second individual and 30-second
+whole-pass budgets, shortened by the preparation deadline. A slow large plan fails
+without acceptance; these are bounded development defaults, not measured provider
+performance. Caller cancellation, invalid/backward clock samples, transport errors
+and malformed metadata abort the pass and return only a closed error class. Only a
+definitive not-found may be omitted; 403/5xx/throttle/uncertainty must throw. Missing
+observations still fail the store's full-set verification. The returned exact-key
+observations are frozen snapshots; the store's revision/deadline CAS remains final.
+The port must honour cancellation, and an uncooperative read makes the pass terminal
+without releasing capacity for further reads. Late settlements are consumed safely.
+This adds no live object adapter, endpoint or ready/publication write. Provenance
+rests on the privileged server-only/import boundary; never accept observations from
+a browser. ETag is not a content digest, and provider immutability/checksum/version
+semantics remain a separate gate.
+The confirmed-selection `reopen` action is separate from upload preparation;
 ADR-0014 has no `preparing → draft` transition.
+A separate first-delivery publication planner checks the complete ready placement,
+verified object and preparation-key sets, the active ZIP pointer and the unexpired
+preparation deadline before proposing immutable publication/expiry dates. Refusals
+contain only a closed blocker class. Its output is server-only metadata, never a
+browser access grant. A future adapter must lock/re-read the full validated child set
+inside the transaction that persists state, sealed capability and one unique initial
+notification. Repeated publication returns the existing record; the planner neither
+publishes nor sends. It relies on the provider's separately verified immutable-object
+and checksum/version contract rather than claiming fresh byte verification.
 The status panel above continues to address only the existing published proof
 fixture by a handle the administrator already holds.
 

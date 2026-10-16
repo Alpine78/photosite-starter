@@ -11,7 +11,7 @@ vi.mock("@/lib/private-gallery-deployment", async (importOriginal) => {
   return { ...actual, getPrivateGalleryDeployment: () => ({ store: settings.store, routePrefix: "private" }) };
 });
 
-import { GET, PATCH, POST } from "@/app/private-gallery-admin/proof/route";
+import { GET, PATCH, POST, PUT } from "@/app/private-gallery-admin/proof/route";
 import { attemptPrivateGalleryAdminLogin } from "@/lib/private-gallery-access";
 import {
   getPrivateGalleryMemoryStore,
@@ -35,7 +35,7 @@ async function adminCookie() {
   return `${outcome.cookie.name}=${outcome.cookie.value}`;
 }
 
-function request(method: "GET" | "POST" | "PATCH", cookie?: string, body?: unknown, origin = ORIGIN) {
+function request(method: "GET" | "POST" | "PATCH" | "PUT", cookie?: string, body?: unknown, origin = ORIGIN) {
   return new Request(`${ORIGIN}/admin/proof`, {
     method,
     headers: {
@@ -52,6 +52,20 @@ beforeEach(() => {
 });
 
 describe("GET/POST/PATCH <admin-prefix>/proof", () => {
+  it("returns the existing generic uncached unavailable response at development capacity", async () => {
+    const cookie = await adminCookie();
+    const store = getPrivateGalleryMemoryStore().proofDraftStore;
+    for (let index = 0; index < 1000; index++) await store.create({ pricing: PRICING }, new Date());
+    const full = await POST(request("POST", cookie, { pricing: PRICING, customerReference: "private-capacity-canary" }));
+    expect(full.status).toBe(503);
+    expect(full.headers.get("cache-control")).toBe("no-store");
+    expect(full.headers.get("access-control-allow-origin")).toBeNull();
+    expect(await full.text()).toBe('{"ok":false}');
+    vi.spyOn(store, "create").mockRejectedValueOnce(new Error("unavailable secret-canary"));
+    const unavailable = await POST(request("POST", cookie, { pricing: PRICING }));
+    expect(unavailable.status).toBe(503);
+    expect(await unavailable.text()).toBe('{"ok":false}');
+  });
   it("creates and updates only a prepublication draft through the shared memory store", async () => {
     const cookie = await adminCookie();
     const created = await POST(request("POST", cookie, { pricing: PRICING, customerReference: "customer-1" }));
@@ -154,5 +168,55 @@ describe("GET/POST/PATCH <admin-prefix>/proof", () => {
     expect(response.status).toBe(503);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual({ ok: false });
+  });
+});
+
+describe("PUT proof draft references", () => {
+  it("reauthorizes, safely replaces and clears refs and refuses stale updates", async () => {
+    const cookie = await adminCookie();
+    const { draft } = await (await POST(request("POST", cookie, { pricing: PRICING, customerReference: "old" }))).json();
+    const value = { handle: draft.handle, expectedRevision: 0, references: { jobReference: "edited" } };
+    const changed = await PUT(request("PUT", cookie, value));
+    expect(changed.status).toBe(200); expect(changed.headers.get("cache-control")).toBe("no-store");
+    const result = await changed.json();
+    expect(result.draft).toEqual({ ...draft, customerReference: undefined, jobReference: "edited", revision: 1 });
+    expect(JSON.stringify(result)).not.toContain("galleryId");
+    expect((await PUT(request("PUT", cookie, value))).status).toBe(409);
+    expect((await PUT(request("PUT", cookie, { ...value, handle: "A".repeat(22) }))).status).toBe(404);
+    const cleared = await PUT(request("PUT", cookie, { ...value, expectedRevision: 1, references: {} }));
+    expect((await cleared.json()).draft).not.toHaveProperty("jobReference");
+  });
+  it.each([undefined, "__Secure-pg_session=customer"])("does not read unauthorized body %s", async (auth) => {
+    const req = request("PUT", auth, {});
+    const reader = vi.spyOn(req.body!, "getReader");
+    expect((await PUT(req)).status).toBe(401); expect(reader).not.toHaveBeenCalled();
+  });
+  it("checks provenance before body IO and hides all malformed/private data", async () => {
+    const auth = await adminCookie();
+    const invalidOrigin = request("PUT", auth, {}, "https://other.test");
+    const reader = vi.spyOn(invalidOrigin.body!, "getReader");
+    expect((await PUT(invalidOrigin)).status).toBe(400); expect(reader).not.toHaveBeenCalled();
+    const canary = "PRIVATE-REF-CANARY";
+    for (const raw of ["{", "[]", "null", JSON.stringify({ handle: "A".repeat(22), expectedRevision: 0, references: { extra: canary } }),
+      '{"handle":"' + "A".repeat(22) + '","expectedRevision":0,"references":{"__proto__":"' + canary + '"}}',
+      " ".repeat(1025)]) {
+      const response = await PUT(new Request(ORIGIN + "/admin/proof", { method: "PUT",
+        headers: { cookie: auth, origin: ORIGIN, host: "private.test", "content-type": "application/json; charset=utf-8" }, body: raw }));
+      expect(response.status).toBe(400); expect(await response.json()).toEqual({ ok: false });
+      expect(response.headers.get("cache-control")).toBe("no-store");
+    }
+  });
+  it("accepts worst-case valid escaped refs within streamed 1KiB and honors off/adapter gates", async () => {
+    const auth = await adminCookie();
+    const { draft } = await (await POST(request("POST", auth, { pricing: PRICING }))).json();
+    const input = { handle: draft.handle, expectedRevision: 0, references: { customerReference: '"'.repeat(128), jobReference: "\\".repeat(128) } };
+    const raw = JSON.stringify(input); expect(Buffer.byteLength(raw)).toBeLessThan(1024);
+    const response = await PUT(new Request(ORIGIN + "/admin/proof", { method: "PUT", headers: {
+      cookie: auth, host: "private.test", origin: ORIGIN, "content-type": "application/json" },
+      body: new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode(raw)); controller.close(); } }), duplex: "half",
+    } as RequestInit));
+    expect(response.status).toBe(200);
+    settings.store = "off"; expect((await PUT(request("PUT", auth, input))).status).toBe(404);
+    settings.store = "enabled"; expect((await PUT(request("PUT", auth, input))).status).toBe(401);
   });
 });

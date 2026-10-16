@@ -42,8 +42,10 @@ export function usePrivateGalleryDraftList<T extends PrivateDraftListRow>(apiPat
     try {
       const page = await readPage<T>(apiPath, abort.signal, cursor);
       if (!active.current || epoch.current !== version) return;
+      // Loading another page must not reset typed fields or silently advance
+      // their expected revision. Only an explicit refresh replaces visible rows.
       const next = append || preserveAcknowledged
-        ? { ...page, items: appendPrivateDraftRows(listRef.current?.items ?? [], page.items) } : page;
+        ? { ...page, items: appendPrivateDraftRows(listRef.current?.items ?? [], page.items, { preserveExisting: true }) } : page;
       if (!append) { firstPageLoaded.current = true; setFirstPageReady(true); }
       listRef.current = next; setList(next);
     } catch {
