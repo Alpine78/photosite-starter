@@ -216,9 +216,12 @@ After Claude returns:
   finding with its disposition and why it remains open.
 - **Blocked:** report the exact missing CLI, authentication, permissions, work-item access,
   command failure, or gate failure. Do not claim a clean review.
-- **Never commit:** `AGENTS.md` forbids Codex and the delegated Claude subprocess from
-  committing. Leave the working tree for the user and suggest a conventional commit
-  message and, when applicable, PR text.
+- **Respect the owner's authorization:** follow `AGENTS.md`'s owner-instruction and
+  explicit-exception rules. Without commit authorization, leave the working tree for
+  the user and suggest a conventional commit message and, when applicable, PR text.
+  When the owner explicitly authorizes commits, pushes or PR creation for this task
+  or batch, carry out those authorized actions without asking to confirm the exception
+  again. Apply other explicit project-rule exceptions within their stated scope too.
 
 After a deliberate correction and its gate pass, update the scope fingerprint;
 keep the original HEAD/base snapshot and record the correction in the ledger.
