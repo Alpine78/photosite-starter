@@ -81,6 +81,17 @@ fresh session authorization and a per-session 60-per-minute rate check, but no
 deployed object store or private database can
 serve one yet.
 
+The authorized delivery page now uses the same bounded, lazy preview component as
+proofs. Signed URLs enter only native `<img>` requests, with complete-frame
+`object-contain` rendering and one automatic remint before explicit retry. The
+whole-gallery ZIP control mints only on a deliberate click, then follows a native
+attachment navigation with `no-referrer`; it never fetches object bytes in script.
+The server's signed `Content-Disposition: attachment` governs the download.
+URLs stay out of server markup, application storage and history. Without JavaScript,
+the page explains the requirement and leaves download disabled. Browser journeys
+use separate synthetic gallery metadata and local asset stubs; live object storage,
+Range/response headers, expiry and production delivery remain unverified.
+
 The development delivery read uses the same fresh session and gallery checks for
 its first server-rendered page and every subsequent `/items?page=N` request.
 One store snapshot supplies a total count (at most 1,000) and at most 100 ordered

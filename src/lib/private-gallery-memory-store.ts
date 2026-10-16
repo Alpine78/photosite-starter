@@ -105,6 +105,10 @@ export const MEMORY_GALLERY_HANDLE = Buffer.alloc(16, 0x11).toString("base64url"
 export const MEMORY_GALLERY_CAPABILITY =
   Buffer.alloc(32, 0x2d).toString("base64url");
 
+/** Independent allowance for delivery browser journeys; never a real secret. */
+export const MEMORY_DELIVERY_VIEW_GALLERY_HANDLE = Buffer.alloc(16, 0x44).toString("base64url");
+export const MEMORY_DELIVERY_VIEW_GALLERY_CAPABILITY = Buffer.alloc(32, 0x55).toString("base64url");
+
 /** A second, equally public development-only link for the proof workflow. */
 export const MEMORY_PROOF_GALLERY_HANDLE = Buffer.alloc(16, 0x22).toString("base64url");
 export const MEMORY_PROOF_GALLERY_CAPABILITY =
@@ -406,6 +410,26 @@ function build(now: Date): PrivateGalleryMemoryStore {
     envelope: proofMaterial.envelope,
     createdAt: now,
   };
+  // The delivery UI journeys must not spend the link/bootstrap journey's
+  // fixed per-gallery exchange allowance. This is another synthetic gallery,
+  // sealed under the same ephemeral development key, with no object bytes.
+  const deliveryViewGallery: PrivateGallery = {
+    ...gallery,
+    galleryId: "memory-delivery-view-gallery",
+    galleryHandle: MEMORY_DELIVERY_VIEW_GALLERY_HANDLE,
+  };
+  const deliveryViewMaterial = sealCapability(keyring, {
+    galleryId: deliveryViewGallery.galleryId,
+    handle: deliveryViewGallery.galleryHandle,
+    generation: deliveryViewGallery.capabilityGeneration,
+  }, MEMORY_DELIVERY_VIEW_GALLERY_CAPABILITY);
+  const deliveryViewCapability: PrivateGalleryCapability = {
+    galleryId: deliveryViewGallery.galleryId,
+    capabilityGeneration: deliveryViewGallery.capabilityGeneration,
+    keyId: deliveryViewMaterial.keyId,
+    envelope: deliveryViewMaterial.envelope,
+    createdAt: now,
+  };
   const pagedGallery: PrivateGallery = {
     ...gallery, galleryId: "memory-paged-delivery", galleryHandle: MEMORY_PAGED_GALLERY_HANDLE,
   };
@@ -421,11 +445,13 @@ function build(now: Date): PrivateGalleryMemoryStore {
     [pagedGallery.galleryHandle, { gallery: pagedGallery, capability: pagedCapability }],
     [gallery.galleryHandle, { gallery, capability }],
     [proofGallery.galleryHandle, { gallery: proofGallery, capability: proofCapability }],
+    [deliveryViewGallery.galleryHandle, { gallery: deliveryViewGallery, capability: deliveryViewCapability }],
   ]);
   const byId = new Map([
     [pagedGallery.galleryId, pagedGallery],
     [gallery.galleryId, gallery],
     [proofGallery.galleryId, proofGallery],
+    [deliveryViewGallery.galleryId, deliveryViewGallery],
   ]);
 
   // Keyed by galleryId, never by a caller-supplied handle: an unknown handle
@@ -515,6 +541,7 @@ function build(now: Date): PrivateGalleryMemoryStore {
     }))],
     [gallery.galleryId, placements],
     [proofGallery.galleryId, proofPlacements],
+    [deliveryViewGallery.galleryId, placements.map(placement => ({ ...placement, galleryId: deliveryViewGallery.galleryId }))],
   ]);
 
   // Point reads by id, matching the seam's contract. They answer only for the
