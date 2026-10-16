@@ -1,5 +1,12 @@
 # ADR-0014: Private client gallery security, delivery, and retention boundary
 
+**Scoped amendment — 2026-10-16:** [ADR-0034](0034-ongoing-unlisted-client-delivery.md)
+replaces this record's protected-storage/access/lifecycle implementation target
+for the reference deployment. The owner selects existing Sanity and unlisted
+client delivery for ongoing work. The protected contract below remains history
+and an alternative for separately approved deployments, not a prerequisite for
+this owner's workflow. Legacy file-import exceptions remain separately scoped.
+
 **Status:** Accepted
 **Date:** 2026-08-31
 **Deciders:** Project owner (Ilkka Rytkönen)

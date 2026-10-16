@@ -1,5 +1,12 @@
 # ADR-0028: Legacy unlisted gallery continuity in the existing CMS
 
+**Scoped amendment — 2026-10-16:** [ADR-0034](0034-ongoing-unlisted-client-delivery.md)
+extends the owner's choice of existing Sanity/unlisted delivery to ongoing
+client work, including future galleries. The 21-gallery file-import, preserved
+JPEG/metadata and whole-ZIP exceptions below remain accepted and limited to
+that retained set; they are not superseded or extended to new batches. New
+authoring and delivery-file eligibility remain implementation follow-ups.
+
 **Status:** Accepted
 **Date:** 2026-10-10
 **Deciders:** Project owner (Ilkka Rytkönen)

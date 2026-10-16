@@ -439,7 +439,14 @@ redirects, response-policy headers or full launch acceptance were rechecked in
 the October 15 availability pass. Public file URLs and cached bytes remain
 accessible independently of page expiry as described in ADR-0028.
 
-### Private client galleries (ADR-0014, not yet provisioned)
+### Private client galleries (ADR-0014, deferred alternative)
+
+**Owner decision, 2026-10-16:** [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
+selects existing Sanity/unlisted delivery for ongoing customer work, including
+future galleries. Do not provision the S3/Postgres services below for this owner
+or enable the protected runtime. These instructions remain an inactive
+alternative, not prerequisites for the current deployment. Existing legacy
+configuration remains unchanged; new-gallery authoring is a separate follow-up.
 
 Post-MVP and **off on every environment today**. The feature is a separate service
 boundary — a private S3-compatible object store and a private PostgreSQL-family database
@@ -629,7 +636,11 @@ posture, and `sink` is refused outright in a production deployment, exactly as
 anything: no scheduled worker yet claims a queued proof-confirmation attempt
 and calls this transport (`docs/feature-status.md`).
 
-#### Provisioning the two private services — owner-run, before the delivery slices
+#### Provisioning the two private services — deferred alternative
+
+**Not part of the owner's selected deployment (ADR-0034).** The historical
+procedure below requires a separately approved protected-gallery scope before
+any service order or credential/configuration change.
 
 **Nothing in this repository can do this part.** The object store and the database are
 accounts in the site owner's own name (ADR-0014 §8), the same way the Resend account is

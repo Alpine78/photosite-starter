@@ -1,5 +1,15 @@
 # Feature implementation status
 
+Current owner decision, 2026-10-16: [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
+selects existing Sanity/unlisted delivery for ongoing client work, including
+future galleries. Protected S3/Postgres work is no longer the deployment target;
+PRs #446–#451 were closed unmerged, with branches retained. AB#29 remains
+Active for the revised delivery scope; AB#145 and AB#130 return to New for the
+Sanity administration audit and a compatible proof-selection design. Existing
+protected code stays disabled pending a separate removal audit. New-gallery
+creation/publication is not implemented by this decision. Earlier entries below
+record history under the superseded protected target.
+
 AB#29 offline source revalidation, 2026-10-16 (partial, Active): the owner tool
 revalidates a selected saved upload-source report and its digest before reading
 source files, then compares current JPEG/ZIP bytes and metadata with that plan.
