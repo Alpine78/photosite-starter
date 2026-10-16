@@ -5296,8 +5296,7 @@ there is no load measurement; the only latency evidence is three warm API calls 
 512 KiB target and 75 % revisit trigger are untested proposals, and ADR-0033 is still
 **Proposed**. Manual screen-reader and keyboard checks are not recorded.
 
-
-### AB#300 — Studio search namespace configuration (2026-10-16, Active)
+### AB#300 — Studio search namespace configuration (2026-10-16, Closed)
 
 Studio now accepts the optional fifth search namespace in the shared locale
 routing declaration introduced by #415, while retaining three/four-field input.
@@ -5306,4 +5305,6 @@ story roots are unchanged. Empty/malformed extra fields and six-field rows still
 refuse. The public route compiler remains responsible for global routing collisions.
 The Studio example now uses the complete FI/en-GB declaration. No public route,
 CMS content, dependency, authentication or deployment setting was changed.
-AB#300 moved New → Active before edits and remains Active pending review/merge.
+AB#300 moved New → Active before edits. The owner accepted #424; CI #1038
+passed and merge `6be2669` landed on 2026-10-16. The work-item link first moved
+the item to Resolved; the accepted, merged bug was then explicitly Closed.
