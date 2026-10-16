@@ -18,10 +18,12 @@ export type PrivateGalleryDeliveryDraft = PrivateGalleryDeliveryDraftInput & {
 };
 export type PrivateGalleryDeliveryDraftStore = {
   create(input: PrivateGalleryDeliveryDraftInput, now: Date): Promise<PrivateGalleryDeliveryDraft>;
+  updateReferences(input: { readonly handle: string; readonly expectedRevision: number;
+    readonly references: PrivateGalleryDeliveryDraftInput }): Promise<PrivateGalleryDeliveryDraft>;
   list(limit: number): Promise<{ readonly items: readonly PrivateGalleryDeliveryDraft[]; readonly hasMore: boolean }>;
 };
 export class PrivateGalleryDeliveryDraftStoreError extends Error {
-  constructor(readonly reason: "invalid-input" | "invalid-time" | "invalid-limit" | "identity-collision" | "capacity") {
+  constructor(readonly reason: "invalid-input" | "invalid-time" | "invalid-limit" | "identity-collision" | "capacity" | "not-found" | "conflict") {
     super("[private-gallery-delivery-draft-store] " + reason);
     this.name = "PrivateGalleryDeliveryDraftStoreError";
   }
@@ -41,7 +43,7 @@ export function validateDeliveryDraftInput(value: unknown): PrivateGalleryDelive
 }
 export function createPrivateGalleryDeliveryDraftMemoryStore(): PrivateGalleryDeliveryDraftStore {
   const rows = new Map<string, PrivateGalleryDeliveryDraft>();
-  const handles = new Set<string>();
+  const handles = new Map<string, string>();
   return {
     async create(input, now) {
       const validated = validateDeliveryDraftInput(input);
@@ -55,8 +57,27 @@ export function createPrivateGalleryDeliveryDraftMemoryStore(): PrivateGalleryDe
         galleryId, galleryHandle, kind: "delivery", state: "draft", capabilityGeneration: 0, createdAt: new Date(now),
       } };
       rows.set(galleryId, row);
-      handles.add(galleryHandle);
+      handles.set(galleryHandle, galleryId);
       return structuredClone(row);
+    },
+    async updateReferences(input) {
+      if (!input || typeof input !== "object" || Array.isArray(input) ||
+          Object.keys(input).sort().join(",") !== "expectedRevision,handle,references" ||
+          typeof input.handle !== "string" || !/^[A-Za-z0-9_-]{22}$/.test(input.handle) ||
+          !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) {
+        throw new PrivateGalleryDeliveryDraftStoreError("invalid-input");
+      }
+      const references = validateDeliveryDraftInput(input.references);
+      const id = handles.get(input.handle);
+      const current = id === undefined ? undefined : rows.get(id);
+      if (!current) throw new PrivateGalleryDeliveryDraftStoreError("not-found");
+      if (current.gallery.state !== "draft" || current.revision !== input.expectedRevision ||
+          current.revision === Number.MAX_SAFE_INTEGER) throw new PrivateGalleryDeliveryDraftStoreError("conflict");
+      // Replace the whole references object; omitted references are cleared.
+      // No await between lookup and commit. A production adapter needs a DB CAS.
+      const updated = { gallery: current.gallery, revision: current.revision + 1, ...references };
+      rows.set(current.gallery.galleryId, updated);
+      return structuredClone(updated);
     },
     async list(limit) {
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT) throw new PrivateGalleryDeliveryDraftStoreError("invalid-limit");
