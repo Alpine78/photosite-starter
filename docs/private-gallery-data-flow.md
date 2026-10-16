@@ -287,6 +287,15 @@ These responses still project an allow-list and do not include the preparation,
 object keys or internal gallery ID. A repeated or invalid preparation does not mutate
 that row. The confirmed-selection `reopen` action is separate from upload preparation;
 ADR-0014 has no `preparing → draft` transition.
+A separate first-delivery publication planner checks the complete ready placement,
+verified object and preparation-key sets, the active ZIP pointer and the unexpired
+preparation deadline before proposing immutable publication/expiry dates. Refusals
+contain only a closed blocker class. Its output is server-only metadata, never a
+browser access grant. A future adapter must lock/re-read the full validated child set
+inside the transaction that persists state, sealed capability and one unique initial
+notification. Repeated publication returns the existing record; the planner neither
+publishes nor sends. It relies on the provider's separately verified immutable-object
+and checksum/version contract rather than claiming fresh byte verification.
 The status panel above continues to address only the existing published proof
 fixture by a handle the administrator already holds.
 
