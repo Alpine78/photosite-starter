@@ -36,6 +36,7 @@ test("legacy delivery has full frames, direct sources, one ZIP and keyboard view
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("main").getByRole("button").nth(1)).toBeFocused();
+  await expect(page.locator("main time")).toHaveCount(0);
   expect(externalRequests).toEqual([]);
 });
 

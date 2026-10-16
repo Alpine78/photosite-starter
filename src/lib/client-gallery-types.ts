@@ -5,6 +5,6 @@ export type ClientGalleryView = Readonly<{
   title?: string;
   images: readonly LightboxSlide[];
 }> & Readonly<
-  { kind: "web"; zipUrl?: never } |
+  { kind: "web"; zipUrl?: never; availableUntil?: string } |
   { kind: "legacy"; zipUrl?: string }
 >;
