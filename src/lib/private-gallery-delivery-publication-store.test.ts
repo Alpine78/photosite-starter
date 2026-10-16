@@ -19,6 +19,20 @@ async function setup(now = NOW, factory = createPrivateGalleryDeliveryDraftMemor
   return { store, input, ready: complete.setup, plan };
 }
 describe("atomic development-memory delivery publication", () => {
+  it("continues a draft page when its cursor row was published between reads", async () => {
+    const { store, input, ready } = await setup();
+    const older = await store.create({}, new Date(NOW.getTime() - 1000));
+    const newer = await store.create({}, new Date(NOW.getTime() + 1000));
+    const first = await store.list(2);
+    expect(first.items.map((row) => row.gallery.galleryHandle)).toEqual([newer.gallery.galleryHandle, ready.gallery.galleryHandle]);
+    expect(first.hasMore).toBe(true);
+    await store.publishFirstDelivery(input);
+    const next = await store.list(2, ready.gallery.galleryHandle);
+    expect(next.items.map((row) => row.gallery.galleryHandle)).toEqual([older.gallery.galleryHandle]);
+    expect(next.hasMore).toBe(false);
+    expect((await store.list(2)).items.map((row) => row.gallery.galleryHandle)).toEqual([newer.gallery.galleryHandle, older.gallery.galleryHandle]);
+    expect(await store.list(2, older.gallery.galleryHandle)).toEqual({ items: [], hasMore: false });
+  });
   it("commits published state, the current encrypted capability and exactly one initial pending record", async () => {
     const { store, input, ready } = await setup();
     const render = vi.spyOn(notification, "buildPrivateGalleryDeliveryNotification");
