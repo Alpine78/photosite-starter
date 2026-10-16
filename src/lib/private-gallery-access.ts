@@ -32,7 +32,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { getPrivateGalleryDeliveryDraftMemoryStore, type PrivateGalleryDeliveryDraftStore } from "@/lib/private-gallery-delivery-draft-store";
-import { createDeliveryDraftAsAdmin, listDeliveryDraftsAsAdmin } from "@/lib/private-gallery-delivery-draft-admin";
+import { createDeliveryDraftAsAdmin, listDeliveryDraftsAsAdmin, updateDeliveryDraftReferencesAsAdmin } from "@/lib/private-gallery-delivery-draft-admin";
 
 import {
   PrivateGalleryExchangeError,
@@ -1325,6 +1325,13 @@ export function listPrivateGalleryDeliveryDraftsAsAdmin(
   return listDeliveryDraftsAsAdmin({ store: deps.deliveryDraftStore,
     authorize: async (cookieHeader, at) => (await authorizePrivateGalleryAdministrator(deps, { cookieHeader, now: at })).ok,
   }, request);
+}
+export function updatePrivateGalleryDeliveryDraftReferencesAsAdmin(
+  deps: PrivateGalleryAdminRequestDeps & { readonly deliveryDraftStore: PrivateGalleryDeliveryDraftStore }, request: Request, now: Date,
+) {
+  return updateDeliveryDraftReferencesAsAdmin({ store: deps.deliveryDraftStore,
+    authorize: async (cookieHeader, at) => (await authorizePrivateGalleryAdministrator(deps, { cookieHeader, now: at })).ok,
+  }, request, now);
 }
 
 // ---------------------------------------------------------------------------

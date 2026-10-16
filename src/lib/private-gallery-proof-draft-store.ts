@@ -30,7 +30,7 @@ import {
   type PrivateGalleryVerifiedObject,
   type PrivateGalleryVerificationFailure,
 } from "@/lib/private-gallery-upload-completion";
-import { PRIVATE_GALLERY_MAX_OBJECT_KEY_LENGTH } from "@/lib/private-gallery-object-key";
+import { snapshotPrivateGalleryUploadCompletionEvidence } from "@/lib/private-gallery-upload-evidence";
 
 export const PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT = 100;
 
@@ -162,55 +162,6 @@ function validatedInput(input: PrivateGalleryProofDraftSetupInput): PrivateGalle
   };
 }
 
-function boundedMetadataString(value: unknown, maximum: number): value is string {
-  return typeof value === "string" && value.length > 0 &&
-    value.length <= maximum && /^[\x20-\x7e]+$/.test(value);
-}
-
-/** Copy only bounded provider metadata; helpers must not retain caller objects. */
-function snapshotCompletionEvidence(
-  input: PrivateGalleryProofDraftCompletionInput,
-  plan: PrivateGalleryUploadPlan,
-): Pick<PrivateGalleryProofDraftCompletionInput, "receipts" | "observations"> {
-  const { receipts, observations } = input;
-  if (!Array.isArray(receipts) || receipts.length > plan.objects.length ||
-      !Array.isArray(observations) || observations.length > plan.objects.length + 1) {
-    fail("invalid-input");
-  }
-  const checksum = (value: PrivateGalleryObjectObservation["checksum"]) => {
-    if (value === undefined) return undefined;
-    if (typeof value !== "object" || value === null) fail("invalid-input");
-    const { algorithm, value: digest } = value;
-    if ((algorithm !== "sha256" && algorithm !== "crc32c") ||
-        !boundedMetadataString(digest, 256)) fail("invalid-input");
-    // Encoding is provider-owned. Never treat an ETag as a content digest.
-    return { algorithm, value: digest };
-  };
-  const receiptKeys = new Set<string>();
-  const plannedKeys = new Set(plan.preparation.objectKeys);
-  return {
-    receipts: receipts.map((item: PrivateGalleryUploadReceipt) => {
-      if (typeof item !== "object" || item === null) fail("invalid-input");
-      const { objectKey, checksum: digest } = item;
-      if (!plannedKeys.has(objectKey) || receiptKeys.has(objectKey)) fail("invalid-input");
-      receiptKeys.add(objectKey);
-      const copied = checksum(digest);
-      return { objectKey, ...(copied === undefined ? {} : { checksum: copied }) };
-    }),
-    observations: observations.map((item: PrivateGalleryObjectObservation) => {
-      if (typeof item !== "object" || item === null) fail("invalid-input");
-      const { objectKey, sizeBytes, etag, checksum: digest } = item;
-      if (!boundedMetadataString(objectKey, PRIVATE_GALLERY_MAX_OBJECT_KEY_LENGTH) ||
-          !Number.isSafeInteger(sizeBytes) ||
-          (etag !== undefined && !boundedMetadataString(etag, 512))) fail("invalid-input");
-      const copied = checksum(digest);
-      return { objectKey, sizeBytes,
-        ...(etag === undefined ? {} : { etag }),
-        ...(copied === undefined ? {} : { checksum: copied }) };
-    }),
-  };
-}
-
 /** One-process reference with atomic synchronous mutations inside async methods. */
 export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProofDraftStore {
   const byId = new Map<string, PrivateGalleryProofDraftSetup>();
@@ -334,7 +285,9 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
 
       // No await from lookup through replacement: pricing and preparation cannot
       // change between verification and their single revision-guarded commit.
-      const evidence = snapshotCompletionEvidence(input, plan);
+      let evidence;
+      try { evidence = snapshotPrivateGalleryUploadCompletionEvidence(input, plan); }
+      catch { fail("invalid-input"); }
       let completion;
       try {
         completion = verifyPrivateGalleryUpload({

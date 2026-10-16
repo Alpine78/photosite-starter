@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const settings = vi.hoisted(() => ({ store: "memory" as "memory" | "off" | "enabled" }));
 vi.mock("@/lib/deployment-config", async (original) => ({ ...await original<typeof import("@/lib/deployment-config")>(), getDeploymentConfig: () => ({ privateGallery: { store: settings.store } }) }));
 vi.mock("@/lib/private-gallery-deployment", async (original) => ({ ...await original<typeof import("@/lib/private-gallery-deployment")>(), getPrivateGalleryDeployment: () => ({ store: settings.store, routePrefix: "private" }) }));
-import { GET, POST } from "./route";
+import { GET, POST, PATCH } from "./route";
 import { attemptPrivateGalleryAdminLogin, createPrivateGalleryDeliveryDraftAsAdmin, getPrivateGalleryAdminStores,
   exchangePrivateGalleryCapability, createPrivateGalleryExchangeIpLimiter } from "@/lib/private-gallery-access";
 import { getPrivateGalleryMemoryStore, resetPrivateGalleryMemoryStore, MEMORY_ADMIN_SECRET } from "@/lib/private-gallery-memory-store";
@@ -15,13 +15,48 @@ async function cookie() {
   if (!result.ok) throw new Error("fixture login failed");
   return `${result.cookie.name}=${result.cookie.value}`;
 }
-function req(method: "GET" | "POST", auth?: string, body = "{}", headers: Record<string, string> = {}) {
+function req(method: "GET" | "POST" | "PATCH", auth?: string, body = "{}", headers: Record<string, string> = {}) {
   return new Request(`${ORIGIN}/admin/delivery`, { method,
     headers: { host: "private.test", origin: ORIGIN, "content-type": "application/json", ...(auth ? { cookie: auth } : {}), ...headers },
-    ...(method === "POST" ? { body } : {}) });
+    ...(method !== "GET" ? { body } : {}) });
 }
 beforeEach(() => { settings.store = "memory"; resetPrivateGalleryMemoryStore(); });
 describe("administrator delivery draft route", () => {
+  it("edits and clears external references with a closed uncached projection and revision guard", async () => {
+    const auth = await cookie();
+    const { draft } = await (await POST(req("POST", auth, '{"customerReference":"original"}'))).json();
+    const input = { handle: draft.handle, expectedRevision: 0, references: { jobReference: "job-edited" } };
+    const response = await PATCH(req("PATCH", auth, JSON.stringify(input)));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    expect(await response.json()).toEqual({ ok: true, draft: { handle: draft.handle, createdAt: draft.createdAt, revision: 1, jobReference: "job-edited" } });
+    const conflict = await PATCH(req("PATCH", auth, JSON.stringify(input)));
+    expect(conflict.status).toBe(409); expect(await conflict.json()).toEqual({ ok: false });
+    const cleared = await PATCH(req("PATCH", auth, JSON.stringify({ ...input, expectedRevision: 1, references: {} })));
+    expect(await cleared.json()).toEqual({ ok: true, draft: { handle: draft.handle, createdAt: draft.createdAt, revision: 2 } });
+    const missing = await PATCH(req("PATCH", auth, JSON.stringify({ ...input, handle: "Z".repeat(22) })));
+    expect(missing.status).toBe(404);
+  });
+  it.each([undefined, "__Secure-pg_session=customer"])("refuses unauthorized updates before reading %s", async (auth) => {
+    const request = req("PATCH", auth);
+    const reader = vi.spyOn(request.body!, "getReader");
+    const response = await PATCH(request);
+    expect(response.status).toBe(401); expect(reader).not.toHaveBeenCalled();
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+  it.each([{ origin: "https://other.test" }, { "content-type": "text/plain" }, { "sec-fetch-site": "cross-site" }] as Record<string, string>[])("checks update provenance before body reads %j", async (headers) => {
+    const request = req("PATCH", await cookie(), "{}", headers);
+    const reader = vi.spyOn(request.body!, "getReader");
+    expect((await PATCH(request)).status).toBe(400); expect(reader).not.toHaveBeenCalled();
+  });
+  it.each(["null", "[]", "{", " ".repeat(1025), '{"handle":"A","expectedRevision":0,"references":{}}',
+    JSON.stringify({ handle: "A".repeat(22), expectedRevision: 0, references: {}, state: "published" }),
+    JSON.stringify({ handle: "A".repeat(22), expectedRevision: 0, references: { jobReference: 3 } })])("refuses malformed PATCH %s", async (body) => {
+    const response = await PATCH(req("PATCH", await cookie(), body));
+    expect(response.status).toBe(400); expect(await response.json()).toEqual({ ok: false });
+    expect((await getPrivateGalleryAdminStores().deliveryDraftStore.list(100)).items).toEqual([]);
+  });
   it("creates and lists a safe projection while leaving the gallery customer-inaccessible", async () => {
     const auth = await cookie();
     const response = await POST(req("POST", auth, JSON.stringify({ customerReference: "client-1", jobReference: "job-1" })));
@@ -76,7 +111,7 @@ describe("administrator delivery draft route", () => {
     expect((await getPrivateGalleryAdminStores().deliveryDraftStore.list(100)).items).toEqual([]);
     for (const store of ["off", "enabled"] as const) {
       settings.store = store;
-      for (const response of [await POST(req("POST", auth)), await GET(req("GET", auth))]) {
+      for (const response of [await POST(req("POST", auth)), await GET(req("GET", auth)), await PATCH(req("PATCH", auth))]) {
         expect(response.status).toBe(store === "off" ? 404 : 401);
         expect(response.headers.get("cache-control")).toBe("no-store");
         expect(response.headers.get("access-control-allow-origin")).toBeNull();

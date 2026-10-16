@@ -229,12 +229,32 @@ prepublication delivery drafts in the development fixture. It authorizes each ca
 validates same-origin JSON before reading at most 1 KiB, and returns at most 100 rows.
 The complete development store is capped at 1,000 drafts. Optional external customer/job
 references share the existing 128-byte single-line bound; they are not CRM records.
-The form asks for references rather than names or email addresses. Browser projection
+The form asks for references rather than names or email addresses. Authenticated
+`PATCH` replaces both references with the same validation and 1 KiB request bound;
+omitted fields clear the old values. Every accepted replacement increments the
+revision; stale revisions return 409 without mutation. The inline FI/EN editor keeps
+unsaved text on conflict until an explicit list refresh. The process-local store
+checks and replaces without an await; a future PostgreSQL adapter must implement
+one conditional update over handle, revision and draft state. This reversible edit
+needs no irreversible-operation re-authentication and adds no change audit trail. Browser projection
 contains only handle, creation time, revision and supplied references; the handle is a
 non-secret identifier, not the separate capability. No capability, customer session,
 object key or access URL is created. Drafts remain outside all customer read/exchange
 stores, public projections and notification queues. Resetting the fixture also resets
 these process-local drafts. No production adapter or service is provisioned.
+The development delivery store now has a privileged first-preparation/completion
+workflow. It records one bounded complete preview/ZIP plan and its configured prefix
+before returning any keys. Completion checks the exact preparation, deadline, revision,
+receipts and independent server metadata; it commits ready placements, verified metadata
+and the active ZIP pointer together only when every object matches. Failures leave the
+entire preparing row unchanged. Preview order follows the plan; placement identities
+are domain-separated SHA-256 of the gallery and opaque immutable key. The browser still
+receives only the earlier delivery draft projection; no plan, key or failure-key list
+is exposed by an HTTP route. No customer access or publication date is created.
+The common bounded evidence snapshotter is also used by proof completion. This proves
+metadata agreement, not decoded image dimensions or ZIP membership. A production
+adapter needs independent metadata reads, verified checksum/version and immutable-write
+semantics, and one database CAS commit; no such adapter or service is provisioned.
 Publishing, delivery notifications/resend and revoke/replace remain separate work;
 creation is non-destructive and does not call the irreversible-operation re-auth gate.
 
