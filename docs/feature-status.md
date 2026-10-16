@@ -1637,6 +1637,19 @@ The CI follow-up preserves the conflict response when the process-wide memory
 store throws an error from another route bundle's module instance. A module-reload
 regression and explicit browser HTTP-409 assertions cover this boundary.
 
+Administrator proof and delivery draft lists now continue beyond the first 100 rows
+with authenticated, uncached cursor pages and FI/EN load-older controls (AB#130,
+AB#145). Each response is bounded to 100 rows. The shared browser loader ignores
+canceled reads, deduplicates overlaps and preserves acknowledged edits/creations;
+refresh deliberately returns to the first page. Handles in cursors are non-secret
+identifiers; they grant no customer access. This is a development-memory slice;
+neither story is complete.
+Creation before the first successful list read also recovers older drafts without
+discarding acknowledged rows. Pagination keeps keyboard focus on a stable control
+and announces the loaded count in Finnish and English. Overlapping pages keep
+already-visible fields and their original revision; an explicit refresh loads remote
+changes without silently discarding an unfinished edit.
+
 The administrator projection now adds only the prepublication state and a bounded
 upload summary (object count, opening time, deadline and expiry at response time).
 The FI/EN list distinguishes draft, preparing and prepared-but-unshared proofs;

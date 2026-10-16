@@ -14,7 +14,7 @@ test("a simultaneous reference save cannot hide an acknowledged draft creation",
   const first = (await (await creation).json()).draft as { handle: string };
   const firstItem = section.getByRole("listitem").filter({ hasText: first.handle });
   await expect(firstItem).toBeVisible();
-  // Wait for the first post-create refresh to finish before intercepting the next.
+  // Creation now prepends locally and preserves any loaded older pages.
   await expect(create).toHaveAttribute("aria-disabled", "false");
   let release!: () => void;
   const held = new Promise<void>((resolve) => { release = resolve; });
@@ -30,6 +30,7 @@ test("a simultaneous reference save cannot hide an acknowledged draft creation",
     creation = page.waitForResponse((response) => new URL(response.url()).pathname === "/admin/delivery" && response.request().method() === "POST");
     await create.click();
     const second = (await (await creation).json()).draft as { handle: string };
+    await section.getByRole("button", { name: copy.refresh, exact: true }).click();
     await refreshing;
     await firstItem.getByText(copy.editReferences, { exact: true }).click();
     await firstItem.getByLabel(copy.jobReference).fill("parallel-edit-fixture");
@@ -55,7 +56,7 @@ for (const locale of ["fi", "en-GB"]) {
     await page.context().addCookies(administratorCookies);
     await page.goto(`/admin?locale=${locale}`);
     const section = page.getByRole("region", { name: copy.heading });
-    await expect(section.getByRole("status")).toHaveText(copy.unavailable);
+    await expect(section.getByRole("alert")).toHaveText(copy.unavailable);
     const create = section.getByRole("button", { name: copy.create, exact: true });
     await expect(create).toBeEnabled();
     const created = page.waitForResponse((response) => new URL(response.url()).pathname === "/admin/delivery" && response.request().method() === "POST");

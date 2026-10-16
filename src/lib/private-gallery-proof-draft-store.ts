@@ -95,7 +95,7 @@ export type PrivateGalleryProofDraftStore = {
     input: PrivateGalleryProofDraftSetupInput,
     now: Date,
   ): Promise<PrivateGalleryProofDraftSetup>;
-  list(limit: number): Promise<PrivateGalleryProofDraftList>;
+  list(limit: number, afterHandle?: string): Promise<PrivateGalleryProofDraftList>;
   /** Atomic revision CAS; replace both references. Ready data is frozen. */
   updateReferences(input: {
     readonly handle: string; readonly expectedRevision: number;
@@ -128,6 +128,7 @@ export type PrivateGalleryProofDraftStoreErrorReason =
   | "invalid-input"
   | "invalid-time"
   | "invalid-limit"
+  | "invalid-cursor"
   | "identity-collision"
   | "capacity"
   | "preparation-expired"
@@ -379,16 +380,16 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
       byId.set(galleryId, updated);
       return { ready: true, setup: structuredClone(updated) };
     },
-    async list(limit) {
+    async list(limit, afterHandle) {
       if (!Number.isSafeInteger(limit) || limit < 1 ||
           limit > PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT) fail("invalid-limit");
       const rows = [...byId.values()].sort((left, right) =>
         right.gallery.createdAt.getTime() - left.gallery.createdAt.getTime() ||
         (left.gallery.galleryId < right.gallery.galleryId ? -1 : left.gallery.galleryId > right.gallery.galleryId ? 1 : 0));
-      return {
-        items: structuredClone(rows.slice(0, limit)),
-        hasMore: rows.length > limit,
-      };
+      const anchor = afterHandle === undefined ? -1 : rows.findIndex((row) => row.gallery.galleryHandle === afterHandle);
+      if (afterHandle !== undefined && (typeof afterHandle !== "string" || !/^[A-Za-z0-9_-]{22}$/.test(afterHandle) || anchor < 0)) fail("invalid-cursor");
+      const start = anchor + 1;
+      return { items: structuredClone(rows.slice(start, start + limit)), hasMore: rows.length > start + limit };
     },
   };
 }

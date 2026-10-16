@@ -45,10 +45,10 @@ export type PrivateGalleryDeliveryDraftStore = {
     readonly manifest: readonly PrivateGalleryManifestEntry[]; readonly now: Date }): Promise<PrivateGalleryUploadPlan>;
   /** Server-only observations must come from metadata reads, never browser assertions. */
   completeFirstPreparation(input: PrivateGalleryDeliveryDraftCompletionInput): Promise<PrivateGalleryDeliveryDraftCompletion>;
-  list(limit: number): Promise<{ readonly items: readonly PrivateGalleryDeliveryDraft[]; readonly hasMore: boolean }>;
+  list(limit: number, afterHandle?: string): Promise<{ readonly items: readonly PrivateGalleryDeliveryDraft[]; readonly hasMore: boolean }>;
 };
 export class PrivateGalleryDeliveryDraftStoreError extends Error {
-  constructor(readonly reason: "invalid-input" | "invalid-time" | "invalid-limit" | "identity-collision" | "capacity" | "not-found" | "conflict" | "preparation-expired" | "readiness-failed") {
+  constructor(readonly reason: "invalid-input" | "invalid-time" | "invalid-limit" | "invalid-cursor" | "identity-collision" | "capacity" | "not-found" | "conflict" | "preparation-expired" | "readiness-failed") {
     super("[private-gallery-delivery-draft-store] " + reason);
     this.name = "PrivateGalleryDeliveryDraftStoreError";
   }
@@ -170,11 +170,14 @@ export function createPrivateGalleryDeliveryDraftMemoryStore(): PrivateGalleryDe
       rows.set(current.gallery.galleryId, updated);
       return { ready: true, setup: structuredClone(updated) };
     },
-    async list(limit) {
+    async list(limit, afterHandle) {
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT) throw new PrivateGalleryDeliveryDraftStoreError("invalid-limit");
       const sorted = [...rows.values()].sort((a, b) => b.gallery.createdAt.getTime() - a.gallery.createdAt.getTime() ||
         (a.gallery.galleryId < b.gallery.galleryId ? -1 : a.gallery.galleryId > b.gallery.galleryId ? 1 : 0));
-      return { items: structuredClone(sorted.slice(0, limit)), hasMore: sorted.length > limit };
+      const anchor = afterHandle === undefined ? -1 : sorted.findIndex((row) => row.gallery.galleryHandle === afterHandle);
+      if (afterHandle !== undefined && (typeof afterHandle !== "string" || !/^[A-Za-z0-9_-]{22}$/.test(afterHandle) || anchor < 0)) throw new PrivateGalleryDeliveryDraftStoreError("invalid-cursor");
+      const start = anchor + 1;
+      return { items: structuredClone(sorted.slice(start, start + limit)), hasMore: sorted.length > start + limit };
     },
   };
 }

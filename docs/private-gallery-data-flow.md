@@ -318,6 +318,21 @@ with the `draft → preparing` transition in a single process-local change, befo
 object bytes are written. There is no route that hands this plan to a browser or CLI yet,
 and no object store is connected. The plan contains no pricing: the current candidate may
 still change while preparing, and only the later `ready` transaction freezes it. Existing
+admin draft lists accept an optional versioned, kind-scoped cursor only after session
+authorization. Each response exposes at most 100 safe rows and a non-secret next anchor.
+Empty, duplicate, malformed, cross-kind and missing anchors refuse with uncached 400;
+unauthorized callers get 401 before cursor validation, and disabled routes get 404.
+Ordering stays descending creation time with the existing internal-ID tie break.
+Existing rows traverse once; concurrent insertions may appear later or require refresh
+depending on that ordering. This is not a snapshot of concurrently created rows.
+The process-local store never deletes list anchors; a future deletion-capable adapter
+must preserve its keyset semantics without relying on an extant anchor row. Refresh
+resets to page one; creation preserves the loaded tail and cursor. Before the first
+successful read, an acknowledged creation starts a recovery read that merges its rows;
+another creation restarts that read. If recovery fails, the list error remains visible.
+The older-page control stays focusable through loading and the last page, with a polite
+loaded-count announcement. No new credential,
+gallery capability or public media contract is introduced. Existing
 admin `GET`/`PATCH` responses add only the state and an upload summary: bounded object
 count, opening time, absolute deadline and expiry at the response time. This is a
 snapshot, not a browser authority; the server checks the deadline again. The FI/EN
