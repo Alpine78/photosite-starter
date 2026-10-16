@@ -295,18 +295,23 @@ For a new document:
    any other change. Native unpublished documents are always unavailable.
 
 The schema checks handle collisions against both new and legacy types, preserves
-published handles, and validates measured image metadata. The whole document
-is limited to 256 KiB of UTF-8 JSON so a later fresh reader can bound its response; shorter translated texts may be needed at the
-256-image limit. Shared assets marked private-only are refused. These are editorial
+published handles, and validates measured image metadata. Authored document
+content is limited to 256 KiB of UTF-8 JSON, excluding Sanity-managed identity,
+revision, timestamps and system metadata. Shorter translated texts may be needed
+at the 256-image limit. Shared assets marked private-only are refused. These are editorial
 checks, not a security boundary against direct API writes. The customer reader
 must validate everything again and refuse ambiguous handles. Duplicate/restore
 schema actions are excluded for these new documents; API tools still require
 appropriately scoped credentials. Legacy creation/templates/actions remain blocked.
 
-This first slice adds authoring only. Customer runtime integration is **AB#303**;
-until it lands and is deliberately enabled, creating/publishing a new document
-does not expose a working customer page. The eventual customer URL family is
-`/client-gallery/<handle>`, using the same FI/EN interface as existing deliveries.
+The **AB#303** source reader is off by default. After its accepted merge and
+[deliberate runtime configuration](../docs/deployment.md#ongoing-unlisted-client-galleries-adr-0034),
+copy the read-only identifier into `<canonical-origin>/client-gallery/<handle>`.
+Append `?locale=fi` or `?locale=en` for the interface language. Titles are shown
+only in their authored language; alternative text falls back to the site's
+language and then the first authored entry. Missing titles use a generic label.
+Neither the page nor Studio invents translations. Pausing/unpublishing or passing
+the deadline removes the page on fresh reads; it does not remove files.
 The currently hosted Studio is not changed by this source PR. Real editor,
 keyboard, permission and deployment verification remain open under AB#145.
 

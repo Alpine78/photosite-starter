@@ -66,6 +66,10 @@ const eslintConfig = defineConfig([
         {
           patterns: [
             {
+              group: ["@/lib/client-gallery-sanity", "@/lib/client-gallery-model", "@/lib/client-gallery-deployment"],
+              message: "Use client-gallery-access; CMS records and deployment settings stay server-only (ADR-0034).",
+            },
+            {
               group: ["@/lib/legacy-gallery-sanity", "@/lib/legacy-gallery-deployment", "@/lib/legacy-gallery-manifest"],
               message: "Use the legacy-gallery-access facade; CMS identities and publication settings stay server-only (ADR-0028).",
             },

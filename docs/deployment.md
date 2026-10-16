@@ -439,6 +439,65 @@ redirects, response-policy headers or full launch acceptance were rechecked in
 the October 15 availability pass. Public file URLs and cached bytes remain
 accessible independently of page expiry as described in ADR-0028.
 
+### Ongoing unlisted client galleries (ADR-0034)
+
+The selected implementation reuses existing Sanity and the native Studio login;
+no S3, PostgreSQL, custom `/admin` login or new dependency is required. New
+`clientDeliveryGallery` documents are separate from retained legacy imports.
+The new reader is **off by default**; this source change does not configure a
+production deployment or upload/publish customer content.
+
+| Setting | Meaning |
+| --- | --- |
+| `CLIENT_GALLERY_ADAPTER=off` / unset | No new galleries served; legacy adapter unchanged |
+| `CLIENT_GALLERY_ADAPTER=sanity` | Requires `SITE_CONTENT_SOURCE=sanity`, `SANITY_DATASET_VISIBILITY=public` and its existing `SANITY_*` settings; real content refused in Preview |
+| `CLIENT_GALLERY_ADAPTER=fixture` | Synthetic local development/CI only; refused by production/Preview deployment stages |
+
+After accepted source merges, deploy the Studio and verify actual author/editor
+permissions, FI/EN keyboard workflow and a synthetic published gallery before
+separately enabling the runtime on the intended environment. Use
+`<canonical-origin>/client-gallery/<handle>` (optional `?locale=fi` / `?locale=en`).
+Keep `LEGACY_GALLERY_ADAPTER` and its approved mapping unchanged. A handle owned
+by that mapping always follows the legacy result, including expiry or failure.
+The new adapter never rescues a missing or unavailable legacy page.
+
+Native publication, `available == true`, and either an explicit exclusive UTC
+deadline or explicit indefinite access are all required. Each successful read
+uses a bounded, non-CDN published GROQ snapshot with measured assets, then a
+fresh Doc API read as the publication/availability authority. A mismatched
+revision/snapshot is retried once within one 15-second budget; persistent index
+lag is a transient error, not a fabricated 404. No positive result, page body or
+availability state is cached. A bounded 128-entry, 10-second absent-discovery
+cache applies only to public datasets. Newly published pages can therefore be
+delayed by that cache plus Sanity index propagation. Unique unknown handles
+still query Sanity: this cache is not rate limiting. Each HTTP response is
+limited to 1 MiB with duplicate JSON keys rejected; authored content is limited
+to 256 KiB, and at most 256 complete public web images of 2048 px longest edge
+are accepted. Invalid/ambiguous content is unavailable; provider failures remain
+errors. Other Sanity readers keep their existing limits and decoding defaults.
+
+Verify no-store/noindex/nofollow/no-referrer headers, expiry/pause/unpublication,
+full-frame images, keyboard viewing, and existing legacy links after rollout.
+Monitor the existing provider's API/bandwidth quotas; using the same account
+still consumes its allowance. Real CDN reads, deployed headers, permissions and
+quota suitability have not been verified by the synthetic source tests.
+
+This model offers reduced discovery, **not confidentiality**. Public dataset
+metadata and files can be enumerated; GROQ request URLs include the handle and
+may appear in provider logs. Application malformed-content diagnostics contain
+only a fixed label. Do not put customer/contact/job information in fields or
+filenames; review embedded metadata before upload. Asset bytes are public even
+while the owning document is a draft, and page expiry/unpublication cannot revoke
+URLs or cached/downloaded copies. There is no new-gallery ZIP or individual
+full-resolution delivery: the legacy-only original-file exception is unchanged.
+See the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
+
+The selected gallery adapter supports public datasets only, matching its visitor
+notice and ADR-0034. A private dataset is a configuration error for this adapter;
+other site adapters retain their own visibility contract. This restriction does
+not make ordinary dataset assets private: Sanity documents that their CDN URLs
+are public even when dataset metadata is private. [Official asset visibility](https://www.sanity.io/docs/media-library/asset-visibility).
+
 ### Private client galleries (ADR-0014, deferred alternative)
 
 **Owner decision, 2026-10-16:** [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
@@ -446,7 +505,8 @@ selects existing Sanity/unlisted delivery for ongoing customer work, including
 future galleries. Do not provision the S3/Postgres services below for this owner
 or enable the protected runtime. These instructions remain an inactive
 alternative, not prerequisites for the current deployment. Existing legacy
-configuration remains unchanged; new-gallery authoring is a separate follow-up.
+configuration remains unchanged; new authoring and reads use the separate
+Sanity workflow above.
 
 Post-MVP and **off on every environment today**. The feature is a separate service
 boundary — a private S3-compatible object store and a private PostgreSQL-family database

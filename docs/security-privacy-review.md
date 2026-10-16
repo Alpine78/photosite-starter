@@ -368,6 +368,22 @@ harmless no-op.
 
 ## AC5 — Draft, private, non-discoverable, full-resolution data cannot leak
 
+**2026-10-17 scope reconciliation:** the owner selected existing Sanity/unlisted
+delivery for future client work too ([ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)).
+AB#117's authoritative AC5 now records the public metadata/file exception;
+its previous wording is preserved in discussion. S3/Postgres provisioning is no
+longer a prerequisite for this owner. Camera masters, archive locators, private
+and sales assets remain outside the public boundary. Original-JPEG/metadata/ZIP
+exceptions remain limited to ADR-0028's 21 retained galleries. New galleries use
+bounded public web derivatives and have no ZIP delivery yet. Their default-off
+AB#303 reader checks fresh publication, pause/deadline, identity and asset metadata;
+fixture gates do not establish deployed permissions, CDN behavior, quota
+suitability, customer notice acceptance or final launch approval. Native Studio
+drafts do not make their uploaded asset bytes private. The [runtime/data-flow
+contract](deployment.md#ongoing-unlisted-client-galleries-adr-0034) records those
+limits. AB#117 remains **Active**; all other findings and criteria are unchanged.
+Older dated checkpoints below describe their original scope and evidence.
+
 **2026-10-10 scoped owner decision:**
 [ADR-0028](adr/0028-legacy-unlisted-gallery-continuity.md) accepts unlisted public
 Sanity delivery for the 21 retained legacy galleries, separately from protected

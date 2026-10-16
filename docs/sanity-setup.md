@@ -685,7 +685,9 @@ list for new `clientDeliveryGallery` documents and their embedded
 no S3/PostgreSQL or custom site-administrator login is required. See the
 [schema contract](../sanity/README.md#ongoing-unlisted-client-delivery-ab302) and
 [editor workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
-Legacy imported fields/actions remain read-only. This source slice adds
-bounded web-image authoring, not the AB#303 reader or a hosted Studio deployment.
+Legacy imported fields/actions remain read-only. Bounded web-image authoring and
+the AB#303 reader are source implementations; the reader remains off by default.
+Its [runtime configuration](deployment.md#ongoing-unlisted-client-galleries-adr-0034)
+is separate from deploying the hosted Studio or verifying actual editor roles.
 All files and public dataset fields are public; unlisting and page expiry do not
 revoke direct asset URLs. No live upload, publication or deployment is performed.

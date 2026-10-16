@@ -12,7 +12,56 @@ const id = `legacyDeliveryGallery-${"a".repeat(32)}`;
 const reply = (body: unknown) => new Response(JSON.stringify(body));
 afterEach(() => vi.restoreAllMocks());
 
+describe("bounded caller-controlled document reads", () => {
+  it("preserves the legacy 32 KiB default and opts in to larger embedded documents", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const document = { _id: id, payload: "x".repeat(64 * 1024) };
+    const send = vi.fn<typeof fetch>(async () => reply({ documents: [document] }));
+    await expect(createSanityDocumentReader({ config, fetchImplementation: send }).read(id)).rejects.toMatchObject({ errorClass: "malformed-response" });
+    await expect(createSanityDocumentReader({ config, fetchImplementation: send, maxResponseBytes: 1024 * 1024, rejectDuplicateJsonKeys: true }).read(id)).resolves.toEqual(document);
+  });
+  it("keeps native duplicate-key decoding by default and refuses it in strict mode", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const send = vi.fn<typeof fetch>(async () => new Response(`{"documents":[{"_id":"${id}","value":1,"value":2}]}`));
+    expect(await createSanityDocumentReader({ config, fetchImplementation: send }).read(id)).toEqual({ _id: id, value: 2 });
+    await expect(createSanityDocumentReader({ config, fetchImplementation: send, rejectDuplicateJsonKeys: true }).read(id)).rejects.toMatchObject({ errorClass: "malformed-response" });
+  });
+  it.each([0, -1, 1.5, Number.NaN, 1024 * 1024 + 1])("refuses invalid response bound %j before fetching", (maxResponseBytes) => {
+    const send = vi.fn<typeof fetch>();
+    expect(() => createSanityDocumentReader({ config, fetchImplementation: send, maxResponseBytes })).toThrow("Invalid content response bound");
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("refuses pre-aborted caller signals without fetching or disclosing their reason", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {}), controller = new AbortController();
+    controller.abort(new Error("SENSITIVE")); const send = vi.fn<typeof fetch>();
+    await expect(createSanityDocumentReader({ config, fetchImplementation: send }).read(id, controller.signal)).rejects.toMatchObject({ errorClass: "timeout" });
+    await expect(createSanityClient({ config, fetchImplementation: send }).query({ query: "*[false]", tag: "client.gallery", signal: controller.signal })).rejects.toMatchObject({ errorClass: "timeout" });
+    expect(send).not.toHaveBeenCalled(); expect(JSON.stringify(log.mock.calls)).not.toContain("SENSITIVE");
+  });
+  it("combines the caller deadline with the transport bound and classifies body cancellation", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const controller = new AbortController();
+    const send = vi.fn<typeof fetch>(async (_url, options) => {
+      expect(options?.signal).not.toBe(controller.signal);
+      controller.abort(new Error("SENSITIVE"));
+      expect(options?.signal?.aborted).toBe(true);
+      return new Response(new ReadableStream({ start(stream) { stream.error(new Error("SENSITIVE")); } }));
+    });
+    await expect(createSanityDocumentReader({ config, fetchImplementation: send }).read(id, controller.signal)).rejects.toMatchObject({ errorClass: "timeout", retryable: true });
+  });
+});
+
 describe("fresh published document transport", () => {
+  it("keeps legacy diagnostics by default and distinguishes new-gallery failures", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const tag of [undefined, "client.gallery.document"] as const) {
+      const send = vi.fn<typeof fetch>().mockResolvedValue(new Response("PRIVATE provider detail", { status: 503 }));
+      await expect(createSanityDocumentReader({ config, fetchImplementation: send, tag }).read(id)).rejects.toBeInstanceOf(SanityQueryError);
+      expect(JSON.parse(String(log.mock.lastCall?.[0]))).toMatchObject({ tag: tag ?? "legacy.document", errorClass: "unavailable" });
+    }
+    expect(JSON.stringify(log.mock.calls)).not.toContain("PRIVATE");
+    expect(JSON.stringify(log.mock.calls)).not.toContain(id);
+  });
   it("does not put legacy image reads in the ordinary public cache", async () => {
     const send = vi.fn<typeof fetch>().mockResolvedValue(reply({ result: { images: [], zip: null } }));
     await createSanityClient({ config, fetchImplementation: send, maxResponseBytes: 512 * 1024 }).query({ query: "fixture", tag: "legacy.images" });

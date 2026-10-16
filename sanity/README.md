@@ -311,10 +311,12 @@ from the read-only `legacyDeliveryGallery` / `legacyDeliveryImage` import types.
 The new closed document contains a generated immutable handle, bounded localized
 title/alternative text, an editor-controlled pause flag, explicit finite or
 indefinite page availability and an ordered set of public web-image references.
-It permits at most 256 items and 256 KiB of UTF-8 document JSON. Measured asset
+It permits at most 256 items and 256 KiB of UTF-8 authored document JSON (excluding Sanity-managed
+identity, revision, timestamps and system metadata). Measured asset
 identity, format, dimensions (at most 2048 px), neutral crop, strong references
 and private-only media exclusions are checked before native Studio publication.
 No ZIP, category, shared-media, customer/contact/job or archive fields are added.
-Studio validation is an editorial check: the later AB#303 reader must validate
-fresh published data independently. The legacy batch/allowlist/manifest and
+Studio validation is an editorial check: the default-off AB#303 reader validates
+fresh published data independently, with bounded strict JSON transports and a
+revision-matched indexed snapshot for measured assets. The legacy batch/allowlist/manifest and
 original-file exceptions stay unchanged. See the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).

@@ -1,5 +1,19 @@
 # Feature implementation status
 
+AB#303 / AB#29 Sanity customer reads, 2026-10-17 (partial, Active): a separate,
+default-off `CLIENT_GALLERY_ADAPTER` now serves native client-delivery documents
+on `/client-gallery/<handle>`. Bounded strict non-CDN discovery plus a fresh Doc
+API authority enforce publication, pause, deadline, web-image metadata and
+schema parity, with one revision retry and no positive state cache. A bounded
+10-second public-dataset miss cache reduces repeated absent lookups. Existing
+legacy handles retain their own adapter/outcome and ZIP contract. New customer
+pages reuse FI/EN labels, complete-frame images and keyboard lightbox controls;
+new ZIP delivery remains unimplemented. No S3/Postgres, new dependency, live CMS
+write, hosted deployment or production activation. See the [runtime contract](deployment.md#ongoing-unlisted-client-galleries-adr-0034).
+AB#29/63/145/302/303 remain Active pending accepted merges/live follow-ups;
+AB#130 and the optional availability planner AB#304 remain New.
+
+
 AB#302 / AB#145 Sanity authoring, 2026-10-16 (partial, Active): a separate
 client-delivery document and ordered image-item schema now support native
 Studio editing with FI/EN labels, generated immutable 128-bit link identifiers,
@@ -10,16 +24,17 @@ read-only. The pause flag starts false and takes effect only through native
 publication. Studio validation does not enforce direct API writes; AB#303 must
 revalidate on fresh reads. No ZIP field, new service, production/CMS change or
 hosted Studio deployment. [Authoring instructions and remaining verification](../studio/README.md#ongoing-client-galleries-ab302--ab145).
-AB#145 and its parent feature AB#63 are Active; AB#302 is Active. New customer
-runtime and offline availability tooling remain AB#303/304. Earlier protected
+AB#145 and its parent feature AB#63 are Active; AB#302 is Active. The customer runtime is AB#303 below; optional offline availability tooling
+remains AB#304. Earlier protected
 work remains disabled under ADR-0034.
 
 Current owner decision, 2026-10-16: [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
 selects existing Sanity/unlisted delivery for ongoing client work, including
 future galleries. Protected S3/Postgres work is no longer the deployment target;
 PRs #446–#451 were closed unmerged, with branches retained. AB#29 remains
-Active for the revised delivery scope; AB#145 and AB#130 return to New for the
-Sanity administration audit and a compatible proof-selection design. Existing
+Active for the revised delivery scope; at that checkpoint AB#145 and AB#130
+returned to New for the Sanity administration audit and a compatible
+proof-selection design (later authoring progress is recorded above). Existing
 protected code stays disabled pending a separate removal audit. New-gallery
 creation/publication is not implemented by this decision. Earlier entries below
 record history under the superseded protected target.
