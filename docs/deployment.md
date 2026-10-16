@@ -320,10 +320,16 @@ time; the Production set is never fetched by the Preview job.
 **Site-search route (AB#299, ADR-0033).** The fifth field of a `SITE_LOCALE_ROUTES` entry
 is the locale's search namespace and defaults to `search`, so a deployment whose value
 lacks it publishes `/search` and `/en/search`. The launch contract is
-`fi||tarinat|palvelut|haku,en|en|stories|services|search`, which publishes the Finnish page
+`fi||tarinat|palvelut|haku,en-GB|en|stories|services|search` (the English entry's locale
+is `en-GB`, its prefix `en`), which publishes the Finnish page
 at `/haku` as ADR-0003 reserved. The setting is read at build time: changing it in the Vercel
 project is an owner-run operation that takes effect on the next build, for both Preview and
 Production, and the Production value is not changed by this repository's pull request.
+The owner set the Production value above on 2026-10-16 (previously
+`fi||tarinat|palvelut,en-GB|en|stories|services`), and the same day's release of merged
+source `6cdc231` published `/haku` and `/en/search`; that release was staged with
+`--skip-domain`, smoke-tested on its protected URL and then promoted, with the previous
+deployment `photosite-starter-35iy29v0b` as the rollback target.
 
 Two of these are safeguards rather than preferences. `SITE_CONTENT_SOURCE=mock` is
 **refused outright** in a production deployment, and so is `CONTACT_DELIVERY_ADAPTER=sink`:

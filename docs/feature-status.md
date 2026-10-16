@@ -5271,7 +5271,7 @@ The listing projection was tested against its GROQ text and a fake client, not a
 live Sanity dataset; a published-perspective read should confirm the `count()`
 subqueries before release.
 
-### AB#299 — site search, stories and services (2026-10-15, Active)
+### AB#299 — site search, stories and services (merged 2026-10-15, released 2026-10-16)
 
 A header search control opens a native modal `<dialog>` and searches published
 stories (articles and galleries) and routable services in the visitor's own
@@ -5311,17 +5311,25 @@ article-body search, categories as results, pagination (50 per group, then a
 "narrow your search" notice), the "popular searches" chips from the design
 (owner decision, 2026-10-15), and any application rate limit.
 
-**Not verified:** the index query was tested against its GROQ text and a fake
-client, not a live Sanity dataset, and **its byte size, record count and p50/p95
-search time have not been measured on Preview**; ADR-0033's 512 KiB target and
-75 % revisit trigger are untested proposals. The deployment's `SITE_LOCALE_ROUTES`
-needs its fifth field (`…|haku`) in the Vercel project to publish `/haku`; that
-owner-run change is not part of the pull request (see
-[deployment](deployment.md)). Manual screen-reader and keyboard checks, and the
-`/security-review`, are still to be run and recorded.
+**Released 2026-10-16:** merged source `6cdc231` (CI #1023) was staged with
+`--skip-domain` as `dpl_2MT9Myy1cXRFTFCVTpGhMdbaLGLo`, smoke-tested on its protected
+URL, then promoted; `ilkansivu.net`, `www.ilkansivu.net` and
+`photosite-starter.vercel.app` serve it, with `photosite-starter-35iy29v0b` as the
+rollback target. Production's `SITE_LOCALE_ROUTES` is now
+`fi||tarinat|palvelut|haku,en-GB|en|stories|services|search` (owner-run; see
+[deployment](deployment.md)). The staged smoke test read the live Production dataset:
+`/haku?q=rally` and `/en/search?q=rally` answered 200 with ten results, `/search` and
+`?keywords=` answered 404, a foreign-origin `POST /api/search` answered 403, and the
+sitemap names no search page. The `/security-review` is recorded in the
+[security/privacy review](security-privacy-review.md).
 
+**Not verified:** the index's **byte size and record count** have not been measured and
+there is no load measurement; the only latency evidence is three warm API calls of
+0.16–0.26 s through `vercel curl`, which includes the tool's own overhead. ADR-0033's
+512 KiB target and 75 % revisit trigger are untested proposals, and ADR-0033 is still
+**Proposed**. Manual screen-reader and keyboard checks are not recorded.
 
-### AB#300 — Studio search namespace configuration (2026-10-16, Active)
+### AB#300 — Studio search namespace configuration (2026-10-16, Closed)
 
 Studio now accepts the optional fifth search namespace in the shared locale
 routing declaration introduced by #415, while retaining three/four-field input.
@@ -5330,4 +5338,6 @@ story roots are unchanged. Empty/malformed extra fields and six-field rows still
 refuse. The public route compiler remains responsible for global routing collisions.
 The Studio example now uses the complete FI/en-GB declaration. No public route,
 CMS content, dependency, authentication or deployment setting was changed.
-AB#300 moved New → Active before edits and remains Active pending review/merge.
+AB#300 moved New → Active before edits. The owner accepted #424; CI #1038
+passed and merge `6be2669` landed on 2026-10-16. The work-item link first moved
+the item to Resolved; the accepted, merged bug was then explicitly Closed.
