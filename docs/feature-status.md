@@ -1516,6 +1516,19 @@ references in the replacement object clear the previous value. A stale edit retu
 409 and preserves the entered text until the operator explicitly refreshes the list.
 Each successful save advances the revision once, including an identical replacement.
 This reversible development-memory operation does not publish or grant customer access.
+A server-only AB#29 first-delivery workflow now commits the complete preview/ZIP
+plan with `draft → preparing`, then verifies its exact metadata set before one
+revision-guarded `preparing → ready` mutation. That commit stores native-ratio
+preview placements, verified metadata and the active immutable ZIP pointer together.
+The first plan requires previews and exactly one ZIP; its 1,000-object bound includes
+the ZIP. Missing/mismatched objects, stale revisions and expired preparations leave
+the whole setup unchanged. A returned plan or row cannot mutate the stored snapshot.
+The shared bounded evidence copier also serves the existing proof completion path.
+This is development-memory coordination only: no HTTP/CLI upload, object write,
+capability, publication or email is added. Dimensions and ZIP membership remain
+owner-attested; live checksum/version semantics and immutable-write guarantees still
+need the approved provider gate. Expired preparations follow retention rather than an
+unapproved `preparing → draft` transition. Both AB#29 and AB#145 remain Active.
 AB#145 was verified Active before edits and remains Active pending acceptance.
 CI #1047 exposed a shared test login budget: gallery-management journeys now
 reuse a real administrator session per Playwright worker. Each test retains its
