@@ -293,6 +293,34 @@ diff seam; it does not contain the customer's Studio application or pretend that
 into the ordinary field records history. Adding a category's first path in another
 language is allowed because it creates no previous URL to retain.
 
+### Create a linked language draft in Studio (AB#125)
+
+On a saved article or gallery, choose **Create language version** (Finnish:
+**Luo kieliversio**). The target-language select offers only configured language
+subtags without an existing draft, published or release version. Review the proposed
+field list and related-category/shared-media notices, then select **Create draft**.
+The action does not translate or publish. Find the created version in the ordinary
+article/gallery list and review each `localizationReview.pendingFields` entry before
+publishing. Existing schema validation still blocks pending review and invalid
+canonical category placement; shared media is not copied or edited by this action.
+
+The action uses the signed-in editor's existing permissions and a direct, raw,
+non-CDN Sanity client, with no extra token or website endpoint. Release versions
+cannot be sources. Wait for autosave; a changed source/placement/category/media
+snapshot invalidates the preview. Creation re-reads inputs and uses strict,
+deterministic IDs in one transaction; simultaneous action calls cannot overwrite
+an existing draft. Unrelated external writers using different IDs are outside this
+same-ID safeguard. The last recheck and source snapshot are not an atomic source
+lock, and the source is never patched.
+
+Limits are 64 raw content versions, 1,000 raw placement versions, 32 category
+records and 2,000 media records, with limit-plus-one reads and a 3.5 MB UTF-8
+mutation budget. Overflow refuses rather than truncating a copied gallery. A secure
+browser WebCrypto context is required. After a network/acknowledgement failure,
+check for an existing target draft before trying again; no automatic retry occurs.
+The operator CLI remains available separately. This source change does not authorize
+live CMS writes, Studio hosting or acceptance of translated content.
+
 **Authored text is language-keyed.** A field a visitor reads is an array of
 `{ language, value }` entries, keyed by language subtag — never fields named after your
 languages. Publishing in another language means adding entries and a locale route, not
