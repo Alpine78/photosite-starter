@@ -90,6 +90,7 @@ const eslintConfig = defineConfig([
                 "@/lib/private-gallery-delivery-revocation",
                 "@/lib/private-gallery-delivery-notification-status",
                 "@/lib/private-gallery-delivery-draft-admin",
+                "@/lib/private-gallery-delivery-draft-status",
                 "@/lib/private-gallery-config",
                 "@/lib/private-gallery-capability",
                 "@/lib/private-gallery-capability-rotation",

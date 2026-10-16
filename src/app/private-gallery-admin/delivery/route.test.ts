@@ -30,11 +30,11 @@ describe("administrator delivery draft route", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
-    expect(await response.json()).toEqual({ ok: true, draft: { handle: draft.handle, createdAt: draft.createdAt, revision: 1, jobReference: "job-edited" } });
+    expect(await response.json()).toEqual({ ok: true, draft: { handle: draft.handle, createdAt: draft.createdAt, revision: 1, state: "draft", jobReference: "job-edited" } });
     const conflict = await PATCH(req("PATCH", auth, JSON.stringify(input)));
     expect(conflict.status).toBe(409); expect(await conflict.json()).toEqual({ ok: false });
     const cleared = await PATCH(req("PATCH", auth, JSON.stringify({ ...input, expectedRevision: 1, references: {} })));
-    expect(await cleared.json()).toEqual({ ok: true, draft: { handle: draft.handle, createdAt: draft.createdAt, revision: 2 } });
+    expect(await cleared.json()).toEqual({ ok: true, draft: { handle: draft.handle, createdAt: draft.createdAt, revision: 2, state: "draft" } });
     const missing = await PATCH(req("PATCH", auth, JSON.stringify({ ...input, handle: "Z".repeat(22) })));
     expect(missing.status).toBe(404);
   });
@@ -64,7 +64,7 @@ describe("administrator delivery draft route", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     const created = await response.json();
     expect(created).toMatchObject({ ok: true, draft: { customerReference: "client-1", jobReference: "job-1", revision: 0 } });
-    expect(Object.keys(created.draft).sort()).toEqual(["createdAt", "customerReference", "handle", "jobReference", "revision"]);
+    expect(Object.keys(created.draft).sort()).toEqual(["createdAt", "customerReference", "handle", "jobReference", "revision", "state"]);
     const list = await GET(req("GET", auth));
     expect(list.status).toBe(200);
     expect(await list.json()).toEqual({ ok: true, items: [created.draft], hasMore: false });

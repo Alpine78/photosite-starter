@@ -109,7 +109,7 @@ test("a saved delivery revision cancels an older page read and creation preserve
   test.skip(browserName === "webkit", "WebKit does not store Secure cookies on HTTP loopback.");
   await page.context().addCookies(administratorCookies);
   const copy = getBuiltInLabels("en-GB").privateGalleryDeliveryCreation;
-  const first = { handle: "draft-first", revision: 0, createdAt: "2026-10-16T12:00:00Z", customerReference: "original" };
+  const first = { handle: "draft-first", state: "draft", revision: 0, createdAt: "2026-10-16T12:00:00Z", customerReference: "original" };
   let release: (() => void) | undefined;
   let started: (() => void) | undefined;
   const requested = new Promise<void>((resolve) => { started = resolve; });
@@ -117,7 +117,7 @@ test("a saved delivery revision cancels an older page read and creation preserve
   await page.route(/\/admin\/delivery(\?|$)/, async (route) => {
     const request = route.request();
     if (request.method() === "PATCH") return route.fulfill({ json: { ok: true, draft: { ...first, revision: 1, customerReference: "saved" } } });
-    if (request.method() === "POST") return route.fulfill({ status: 201, json: { ok: true, draft: { handle: "draft-new", revision: 0, createdAt: first.createdAt } } });
+    if (request.method() === "POST") return route.fulfill({ status: 201, json: { ok: true, draft: { handle: "draft-new", state: "draft", revision: 0, createdAt: first.createdAt } } });
     if (new URL(request.url()).searchParams.has("cursor")) {
       started!(); await held;
       return route.fulfill({ json: { ok: true, hasMore: false, items: [{ ...first, customerReference: "stale" }, { ...first, handle: "draft-tail" }] } }).catch(() => {});
@@ -141,7 +141,7 @@ test("a saved delivery revision cancels an older page read and creation preserve
     if (route.request().method() === "GET") return route.fulfill({ json: { ok: true, hasMore: false,
       items: [{ ...first, handle: "draft-tail" }] } });
     if (route.request().method() === "POST") return route.fulfill({ status: 201, json: { ok: true,
-      draft: { handle: "draft-new", revision: 0, createdAt: first.createdAt } } });
+      draft: { handle: "draft-new", state: "draft", revision: 0, createdAt: first.createdAt } } });
     return route.continue();
   });
   await section.getByRole("button", { name: copy.loadMore, exact: true }).click();

@@ -4,6 +4,8 @@ import { PrivateGalleryDraftReferencesEditor } from "@/components/private-galler
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 
 export type DeliveryDraftCreatorLabels = {
+  readonly draftState: string; readonly preparingState: string; readonly readyState: string;
+  readonly statusSnapshot: string; readonly plannedPreviews: string; readonly plannedZips: string; readonly deadline: string; readonly windowExpired: string;
   readonly heading: string; readonly description: string; readonly customerReference: string;
   readonly jobReference: string; readonly referenceHelp: string; readonly create: string;
   readonly refresh: string; readonly creating: string; readonly created: string; readonly listHeading: string;
@@ -14,7 +16,10 @@ export type DeliveryDraftCreatorLabels = {
   readonly savedReferences: string; readonly conflictReferences: string;
 };
 export type DeliveryDraftListItem = { readonly handle: string; readonly createdAt: string; readonly revision: number;
-  readonly customerReference?: string; readonly jobReference?: string };
+  readonly customerReference?: string; readonly jobReference?: string;
+  readonly state: "draft" | "preparing" | "ready";
+  readonly upload?: { readonly plannedPreviewCount: number; readonly plannedZipCount: 1; readonly openedAt: string; readonly deadline: string; readonly expired: boolean };
+};
 type Item = DeliveryDraftListItem;
 const subscribe = () => () => {};
 
@@ -92,13 +97,22 @@ export function PrivateGalleryDeliveryDraftCreator({ apiPath, locale, labels }: 
         <time dateTime={item.createdAt}>{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.createdAt))}</time>
         {item.customerReference !== undefined && <span className="block break-words">{labels.customerReference}: {item.customerReference}</span>}
         {item.jobReference !== undefined && <span className="block break-words">{labels.jobReference}: {item.jobReference}</span>}
-        <PrivateGalleryDraftReferencesEditor key={`${item.handle}-${item.revision}`} item={item} apiPath={apiPath} labels={labels}
+        <p className="mt-2 text-strong" role={["draft", "preparing", "ready"].includes(item.state) ? undefined : "alert"}>
+          {item.state === "draft" ? labels.draftState : item.state === "preparing" ? labels.preparingState : item.state === "ready" ? labels.readyState : labels.unavailable}
+        </p>
+        {item.upload && (item.state === "preparing" || item.state === "ready") && <div className="mt-1 text-muted">
+          <p>{labels.plannedPreviews}: {item.upload.plannedPreviewCount}{" · "}{labels.plannedZips}: {item.upload.plannedZipCount}</p>
+          <p>{labels.deadline}: <time dateTime={item.upload.deadline}>{item.upload.deadline}</time>{" (UTC)"}</p>
+          <p>{labels.statusSnapshot}</p>
+          {item.upload.expired && <p>{labels.windowExpired}</p>}
+        </div>}
+        {item.state === "draft" && <PrivateGalleryDraftReferencesEditor key={`${item.handle}-${item.revision}`} item={item} apiPath={apiPath} labels={labels}
           restoreFocus={savedHandle === item.handle}
           onSaved={(updated) => {
             acknowledge(updated);
             setSavedHandle(updated.handle);
             setNotice("savedReferences");
-          }} />
+          }} />}
       </li>)}
     </ul>
     {listError && <p role="alert" className="text-danger">{labels.unavailable}</p>}

@@ -385,6 +385,16 @@ encrypted material and must never be projected to a browser. This has no HTTP
 publish action, customer-store registration, durable persistence or transport.
 Production publication still requires authenticated orchestration, database
 atomicity and live provider verification; no new processor is contacted here.
+The delivery administrator projection also exposes only `draft`/`preparing`/`ready`
+state plus planned preview/ZIP counts, UTC opening/deadline strings and response-time
+expiry. These are committed plan counts, not observed upload progress. Summary checks
+bound counts/dates and require matching plan/frozen identities; actual byte/dimension
+verification and publication preconditions remain in their existing write paths.
+One malformed summary refuses the whole list with its existing closed unavailable
+response. No keys, preparation IDs, provider metadata or access material enter this
+projection. FI/EN controls freeze reference editing outside draft. A stale edit keeps
+its text on HTTP 409; only an explicit refresh discards it and loads the new state.
+
 The same memory store now supports single-row capability-envelope rotation for
 an unexpired published delivery. It authenticates the current envelope against
 the fresh gallery/handle/generation and reseals the same bearer under the active

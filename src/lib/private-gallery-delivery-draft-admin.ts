@@ -1,4 +1,5 @@
 import "server-only";
+import { projectPrivateGalleryDeliveryDraftStatus, type PrivateGalleryDeliveryDraftStatus } from "@/lib/private-gallery-delivery-draft-status";
 import { readPrivateDraftCursor, buildPrivateDraftCursor, PrivateDraftCursorError } from "@/lib/private-gallery-draft-cursor";
 import { readBoundedBody } from "@/lib/contact-request";
 import { checkPrivateGalleryAdminLoginRequestHeaders } from "@/lib/private-gallery-admin-login";
@@ -7,7 +8,7 @@ import {
   validateDeliveryDraftInput, type PrivateGalleryDeliveryDraft, type PrivateGalleryDeliveryDraftStore,
 } from "@/lib/private-gallery-delivery-draft-store";
 
-export type DeliveryDraftAdminItem = {
+export type DeliveryDraftAdminItem = PrivateGalleryDeliveryDraftStatus & {
   readonly handle: string;
   readonly createdAt: string;
   readonly revision: number;
@@ -20,8 +21,8 @@ type Deps = {
   readonly store: PrivateGalleryDeliveryDraftStore;
   authorize(cookieHeader: string | null | undefined, now: Date): Promise<boolean>;
 };
-function project(row: PrivateGalleryDeliveryDraft): DeliveryDraftAdminItem {
-  return { handle: row.gallery.galleryHandle, createdAt: row.gallery.createdAt.toISOString(), revision: row.revision,
+function project(row: PrivateGalleryDeliveryDraft, now: Date): DeliveryDraftAdminItem {
+  return { ...projectPrivateGalleryDeliveryDraftStatus(row, now), handle: row.gallery.galleryHandle, createdAt: row.gallery.createdAt.toISOString(), revision: row.revision,
     ...(row.customerReference === undefined ? {} : { customerReference: row.customerReference }),
     ...(row.jobReference === undefined ? {} : { jobReference: row.jobReference }) };
 }
@@ -34,7 +35,7 @@ export async function createDeliveryDraftAsAdmin(deps: Deps, request: Request, n
     let input;
     try { input = validateDeliveryDraftInput(JSON.parse(raw)); }
     catch { return { ok: false, reason: "invalid-input" }; }
-    return { ok: true, value: project(await deps.store.create(input, now)) };
+    return { ok: true, value: project(await deps.store.create(input, now), now) };
   } catch (error) {
     return { ok: false, reason: error instanceof PrivateGalleryDeliveryDraftStoreError && error.reason === "invalid-input" ? "invalid-input" : "unavailable" };
   }
@@ -44,7 +45,7 @@ export async function listDeliveryDraftsAsAdmin(deps: Deps, request: { readonly 
     if (!await deps.authorize(request.cookieHeader, request.now)) return { ok: false, reason: "unauthorized" };
     const after = readPrivateDraftCursor(request.listUrl, "delivery");
     const result = await deps.store.list(PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT, after);
-    const items = result.items.map(project);
+    const items = result.items.map((row) => project(row, request.now));
     return { ok: true, value: { items, hasMore: result.hasMore,
       ...(result.hasMore && items.length ? { nextCursor: buildPrivateDraftCursor("delivery", items.at(-1)!.handle) } : {}) } };
   } catch (error) {
@@ -71,7 +72,7 @@ export async function updateDeliveryDraftReferencesAsAdmin(deps: Deps, request: 
       input = { handle: row.handle, expectedRevision: row.expectedRevision as number,
         references: validateDeliveryDraftInput(row.references) };
     } catch { return { ok: false, reason: "invalid-input" }; }
-    return { ok: true, value: project(await deps.store.updateReferences(input)) };
+    return { ok: true, value: project(await deps.store.updateReferences(input), now) };
   } catch (error) {
     if (error instanceof PrivateGalleryDeliveryDraftStoreError &&
         ["invalid-input", "not-found", "conflict"].includes(error.reason)) {

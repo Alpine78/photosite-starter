@@ -1586,6 +1586,15 @@ other rows, expired/retired envelopes and backups may still need old keys.
 This privileged server-only method has no route, job registration or production
 activation. AB#145 remains Active.
 
+**AB#145 delivery setup status, 2026-10-16:** the administrator list now
+shows draft, preparing and prepared-but-unshared deliveries in FI/EN. A closed
+projection adds planned preview/ZIP counts and UTC preparation dates with an
+expiry snapshot. Planned counts describe the committed manifest, not upload
+progress. Preparing and ready rows have no draft-only reference controls;
+conflicting text remains until an explicit list refresh. Invalid summary metadata
+refuses the entire list. This is a presentation summary, not media verification
+or permission to publish. The development-only story remains Active.
+
 **AB#145 reauthenticated delivery revoke, 2026-10-16:** a server-only
 orchestrator now reuses the existing current administrator-session and five-minute
 reauthentication gates before touching a publication store. A revision/generation

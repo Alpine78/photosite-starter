@@ -252,6 +252,8 @@ export type BuiltInLabels = {
   };
   /** Development-only delivery draft creation and listing (AB#145). */
   readonly privateGalleryDeliveryCreation: {
+    readonly draftState: string; readonly preparingState: string; readonly readyState: string;
+    readonly statusSnapshot: string; readonly plannedPreviews: string; readonly plannedZips: string; readonly deadline: string; readonly windowExpired: string;
     readonly heading: string; readonly description: string; readonly customerReference: string;
     readonly jobReference: string; readonly referenceHelp: string; readonly create: string;
     readonly refresh: string; readonly creating: string; readonly created: string; readonly listHeading: string;
@@ -810,6 +812,14 @@ const englishLabels = {
     signOut: "Sign out",
   },
   privateGalleryDeliveryCreation: {
+    draftState: "Draft – not shared with customer",
+    preparingState: "Preparing delivery – not shared with customer",
+    readyState: "Delivery prepared – not shared with customer",
+    statusSnapshot: "Plan summary at the last response. Counts describe the plan, not upload progress. The server checks the deadline before publication.",
+    plannedPreviews: "Planned previews",
+    plannedZips: "Planned ZIP packages",
+    deadline: "Preparation deadline",
+    windowExpired: "The preparation window has expired.",
     editReferences: "Edit references",
     saveReferences: "Save references",
     savingReferences: "Saving references…",
@@ -1215,6 +1225,14 @@ const finnishLabels = {
     signOut: "Kirjaudu ulos",
   },
   privateGalleryDeliveryCreation: {
+    draftState: "Luonnos – ei jaettu asiakkaalle",
+    preparingState: "Toimitusta valmistellaan – ei jaettu asiakkaalle",
+    readyState: "Toimitus valmisteltu – ei jaettu asiakkaalle",
+    statusSnapshot: "Suunnitelman yhteenveto viimeisimmän vastauksen hetkellä. Määrät kuvaavat suunnitelmaa, eivät latausten edistymistä. Palvelin tarkistaa määräajan ennen julkaisua.",
+    plannedPreviews: "Suunniteltuja esikatselukuvia",
+    plannedZips: "Suunniteltuja ZIP-paketteja",
+    deadline: "Valmistelun määräaika",
+    windowExpired: "Valmistelun määräaika on ylittynyt.",
     editReferences: "Muokkaa viitteitä",
     saveReferences: "Tallenna viitteet",
     savingReferences: "Tallennetaan viitteitä…",
