@@ -287,11 +287,26 @@ capacity check and insertion are synchronous; a full store returns the existing
 redacted unavailable response without evicting earlier drafts. Existing preparation,
 pricing and completion operations still work. Reset/restart releases the rows.
 This does not bound production storage or replace retention/the per-gallery file cap.
+An authenticated PUT to the proof root replaces both external references on a
+draft/preparing row with an expected revision. Omitted references clear the fields.
+A no-op replacement also increments the revision; ready rows and stale revisions
+refuse unchanged. The same same-origin JSON, session-before-body and streamed 1KiB
+bounds apply, and the response uses the existing allow-list. The production port
+must implement this as an atomic conditional update. The shared FI/EN reference
+editor has no native input names and stays disabled without JavaScript. Per-row
+pricing and reference mutations share a lock; an acknowledged pricing save updates
+the revision without discarding a typed reference. Conflicts preserve input until
+the administrator explicitly refreshes the list.
+Proof-store errors carry a non-enumerable process-wide symbol brand so that
+independently loaded route bundles recognize the shared store's errors. Arbitrary
+provider errors and JSON-shaped lookalikes still produce the unavailable response.
 An authenticated `PATCH` to that root can replace the entire pricing candidate
 before publication, guarded by a per-draft revision. It validates request
 provenance and the full pricing tuple before one atomic memory-store compare
 and swap. A stale revision or a draft that is no longer editable returns a
-conflict; the administrator interface refreshes the list before another try.
+conflict; the administrator explicitly refreshes the list before another try.
+Pricing conflicts also keep typed references and prices, rather than implicitly
+rebasing a pending reference edit onto another administrator's revision.
 The revision and safe terms appear in the administrator projection, never an
 internal gallery ID or customer access link. This edit cannot alter the
 published proof fixture or a frozen confirmation. Abandoned-draft cleanup,

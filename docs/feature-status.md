@@ -1594,6 +1594,16 @@ store completion still rechecks revision and deadline. No S3 adapter or live pro
 is connected, and HEAD does not prove immutable bytes, ZIP membership or pixels.
 The existing admin JSON projection excludes the plan, keys and frozen internal records.
 
+Administrator proof drafts now support complete replacement or clearing of their
+external customer/job references through an authenticated, bounded PUT (AB#130).
+Draft and preparing rows remain editable; ready rows are frozen. FI/EN editors
+share a per-row mutation lock with pricing, keep typed references through a
+pricing save, and preserve conflicting text until an explicit list refresh.
+This uses the existing external identifiers, not customer/job domain records.
+The CI follow-up preserves the conflict response when the process-wide memory
+store throws an error from another route bundle's module instance. A module-reload
+regression and explicit browser HTTP-409 assertions cover this boundary.
+
 The administrator projection now adds only the prepublication state and a bounded
 upload summary (object count, opening time, deadline and expiry at response time).
 The FI/EN list distinguishes draft, preparing and prepared-but-unshared proofs;

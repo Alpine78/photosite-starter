@@ -96,6 +96,11 @@ export type PrivateGalleryProofDraftStore = {
     now: Date,
   ): Promise<PrivateGalleryProofDraftSetup>;
   list(limit: number): Promise<PrivateGalleryProofDraftList>;
+  /** Atomic revision CAS; replace both references. Ready data is frozen. */
+  updateReferences(input: {
+    readonly handle: string; readonly expectedRevision: number;
+    readonly references: { readonly customerReference?: string; readonly jobReference?: string };
+  }): Promise<PrivateGalleryProofDraftSetup>;
   updatePricing(input: {
     readonly handle: string;
     readonly expectedRevision: number;
@@ -130,11 +135,21 @@ export type PrivateGalleryProofDraftStoreErrorReason =
   | "not-found"
   | "conflict";
 
+// The memory store survives across independently loaded Next.js route bundles.
+// Its method closures can throw another bundle's copy of this error class.
+const PROOF_DRAFT_ERROR = Symbol.for("photosite-starter.private-gallery.proof-draft-error.v1");
+
 export class PrivateGalleryProofDraftStoreError extends Error {
   constructor(readonly reason: PrivateGalleryProofDraftStoreErrorReason) {
     // The input, its external references and the generated handle stay out of errors.
     super("[private-gallery-proof-draft-store] " + reason);
     this.name = "PrivateGalleryProofDraftStoreError";
+    Object.defineProperty(this, PROOF_DRAFT_ERROR, { value: true });
+  }
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return value instanceof Error && value.name === "PrivateGalleryProofDraftStoreError" &&
+      Object.getOwnPropertyDescriptor(value, PROOF_DRAFT_ERROR)?.value === true;
   }
 }
 
@@ -195,6 +210,34 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
       byId.set(galleryId, row);
       byHandle.set(galleryHandle, galleryId);
       return structuredClone(row);
+    },
+    async updateReferences(input) {
+      if (!input || typeof input !== "object" || Array.isArray(input) ||
+          Object.keys(input).sort().join(",") !== "expectedRevision,handle,references" ||
+          typeof input.handle !== "string" || !/^[A-Za-z0-9_-]{22}$/.test(input.handle) ||
+          !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) fail("invalid-input");
+      const refs = input.references;
+      if (!refs || typeof refs !== "object" || Array.isArray(refs) ||
+          Object.keys(refs).some((key) => !["customerReference", "jobReference"].includes(key)) ||
+          (refs.customerReference !== undefined && !isPrivateGalleryProofBusinessReference(refs.customerReference)) ||
+          (refs.jobReference !== undefined && !isPrivateGalleryProofBusinessReference(refs.jobReference))) fail("invalid-input");
+      // Snapshot validated scalars before the synchronous conditional mutation.
+      const references = {
+        ...(refs.customerReference === undefined ? {} : { customerReference: refs.customerReference }),
+        ...(refs.jobReference === undefined ? {} : { jobReference: refs.jobReference }),
+      };
+      const id = byHandle.get(input.handle);
+      const current = id === undefined ? undefined : byId.get(id);
+      if (!current) fail("not-found");
+      if ((current.gallery.state !== "draft" && current.gallery.state !== "preparing") ||
+          current.revision !== input.expectedRevision || current.revision === Number.MAX_SAFE_INTEGER) fail("conflict");
+      const updated = { ...current, customerReference: undefined, jobReference: undefined,
+        ...references, revision: current.revision + 1 };
+      // Omission clears stored fields, not only the HTTP projection.
+      if (updated.customerReference === undefined) delete updated.customerReference;
+      if (updated.jobReference === undefined) delete updated.jobReference;
+      byId.set(current.gallery.galleryId, updated);
+      return structuredClone(updated);
     },
     async updatePricing(input) {
       if (typeof input !== "object" || input === null ||
