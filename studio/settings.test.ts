@@ -13,7 +13,7 @@ describe("Studio configuration", () => {
   it("derives all locale roots with the default in any position", () => {
     expect(loadStudioSettings(environment)).toEqual({
       projectId: "example1", dataset: "example", datasetVisibility: "public",
-      title: "Example Studio", storyRootPaths: ["/tarinat", "/en/stories"],
+      title: "Example Studio", authoringLanguages: ["fi", "en"], storyRootPaths: ["/tarinat", "/en/stories"],
     });
     expect(studioStoryRoots("en-GB|en|stories,fi||tarinat")).toEqual(["/en/stories", "/tarinat"]);
   });
@@ -21,6 +21,11 @@ describe("Studio configuration", () => {
   it("accepts field whitespace and empty comma entries as the site's route parser does", () => {
     expect(studioStoryRoots(" , fi || tarinat | palvelut ,, en-GB | en | stories | services, "))
       .toEqual(["/tarinat", "/en/stories"]);
+  });
+
+  it("derives configured authoring subtags without hardcoding languages or duplicating region variants", () => {
+    expect(loadStudioSettings({ ...environment, SANITY_STUDIO_LOCALE_ROUTES: "sv||berattelser,en-GB|uk|stories,en-US|us|stories" }).authoringLanguages)
+      .toEqual(["sv", "en"]);
   });
 
   it.each(Object.keys(environment))("requires %s explicitly", (key) => {
