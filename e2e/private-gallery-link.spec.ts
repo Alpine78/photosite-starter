@@ -189,8 +189,11 @@ test.describe("private gallery link", () => {
   }) => {
     const exchanges: string[] = [];
     const hashesAtExchange: string[] = [];
+    const postUrls: string[] = [];
     page.on("request", (request) => {
       if (request.method() !== "POST") return;
+      postUrls.push(request.url());
+      if (new URL(request.url()).pathname !== `${GALLERY_PATH}/exchange`) return;
       exchanges.push(request.url());
       hashesAtExchange.push(new URL(page.url()).hash);
     });
@@ -217,6 +220,9 @@ test.describe("private gallery link", () => {
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(
         GALLERY_HEADING,
       );
+      // Preview minting is another POST; it must not count as an exchange.
+      await expect.poll(() => postUrls.some((url) =>
+        new URL(url).pathname === `${GALLERY_PATH}/asset`)).toBe(true);
     }
 
     // The capability is gone from the address bar, so it cannot be shoulder-read,
@@ -235,7 +241,7 @@ test.describe("private gallery link", () => {
     expectEarlyBootstrapQueue(await openingResponse!.text());
 
     // The capability never travelled in a URL, only in the request body.
-    for (const url of exchanges) expect(url).not.toContain(CAPABILITY);
+    for (const url of postUrls) expect(url).not.toContain(CAPABILITY);
   });
 
   test("exchanges a full link reached by hash-only navigation", async ({

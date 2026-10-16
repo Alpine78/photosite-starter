@@ -7,9 +7,9 @@ import { expect, test } from "./support/fixtures";
  * The administrator's proof-gallery status / reopen / resend journey (AB#130),
  * against the production build the harness serves.
  *
- * Signing in is real: the administrator login endpoint mutates only the admin
- * session store, never a gallery's proof state, so it carries no risk to the
- * suite's "tests share no state" contract. Every proof-status lookup and
+ * Each worker reuses a real administrator session from the harness fixture so
+ * management journeys do not exhaust the deployment-wide login budget. No
+ * journey here logs out or revokes that session. Every proof-status lookup and
  * action past that point is answered by a `page.route` interception holding
  * its own closure-local state, for the same reason
  * `private-gallery-proof-flow.spec.ts` intercepts the customer side: the
@@ -17,8 +17,6 @@ import { expect, test } from "./support/fixtures";
  * process, and a reopen or resend committed here would be visible, and wrong,
  * to every other spec and to a rerun of this one.
  */
-const ADMIN_SECRET =
-  "development-fixture-administrator-secret-not-for-any-real-deployment";
 const ADMIN_PATH = "/admin";
 const HANDLE = "IiIiIiIiIiIiIiIiIiIiIg";
 
@@ -119,6 +117,7 @@ test.describe("private gallery proof administration", () => {
   });
 
   test("creates and lists a private draft without showing a customer access link", async ({ page }) => {
+    const creator = page.locator("section").filter({ has: page.getByRole("heading", { name: draftLabels.heading, exact: true }) });
     const drafts: Array<{
       handle: string; createdAt: string; revision: number;
       pricing: typeof PRICING; customerReference: string;
@@ -150,16 +149,16 @@ test.describe("private gallery proof administration", () => {
         body: JSON.stringify({ ok: true, draft }) });
     });
     await page.reload();
-    await page.getByLabel(draftLabels.includedCount).fill("2");
-    await page.getByLabel(draftLabels.extraUnitPriceMinor).fill("1200");
-    await page.getByLabel(draftLabels.currency).fill("EUR");
-    await page.getByLabel(draftLabels.customerReference).fill("customer-1");
+    await creator.getByLabel(draftLabels.includedCount).fill("2");
+    await creator.getByLabel(draftLabels.extraUnitPriceMinor).fill("1200");
+    await creator.getByLabel(draftLabels.currency).fill("EUR");
+    await creator.getByLabel(draftLabels.customerReference).fill("customer-1");
     await page.getByRole("button", { name: draftLabels.create }).click();
-    await expect(page.getByRole("status")).toContainText(HANDLE);
+    await expect(creator.getByRole("status")).toContainText(HANDLE);
     await expect(page.getByText(draftLabels.hasMore)).toBeVisible();
     await expect(page.getByText("customer-1", { exact: false })).toBeVisible();
     await expect(page.locator(`a[href*="${HANDLE}"]`)).toHaveCount(0);
-    await expect(page.getByRole("status")).not.toContainText("#");
+    await expect(creator.getByRole("status")).not.toContainText("#");
 
     const row = page.getByRole("listitem").filter({ hasText: HANDLE });
     await row.locator("summary").click();
@@ -178,10 +177,10 @@ test.describe("private gallery proof administration", () => {
     await expect(row).toContainText(`${draftLabels.includedCount}: 4`);
   });
 
-  test.beforeEach(async ({ page, browserName }) => {
+  test.beforeEach(async ({ page, browserName, administratorCookies }) => {
     // WebKit does not store a Secure cookie over this harness's plain-HTTP
     // loopback origin (see `private-gallery-admin.spec.ts` and
-    // `private-gallery-link.spec.ts`), so the administrator sign-in below
+    // `private-gallery-link.spec.ts`), so the administrator session below
     // never lands on an authorized session there. A real deployment is HTTPS;
     // this is a harness limitation, not a product one, and desktop Chromium
     // already exercises this whole flow.
@@ -190,9 +189,8 @@ test.describe("private gallery proof administration", () => {
       "WebKit does not store a Secure cookie over the harness's plain-HTTP loopback origin.",
     );
 
+    await page.context().addCookies(administratorCookies);
     await page.goto(ADMIN_PATH);
-    await page.getByLabel(adminLabels.secretLabel).fill(ADMIN_SECRET);
-    await page.getByRole("button", { name: adminLabels.signIn }).click();
     await expect(
       page.getByRole("heading", { name: adminLabels.signedInHeading, level: 1 }),
     ).toBeVisible();

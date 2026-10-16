@@ -31,6 +31,8 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { getPrivateGalleryDeliveryDraftMemoryStore, type PrivateGalleryDeliveryDraftStore } from "@/lib/private-gallery-delivery-draft-store";
+import { createDeliveryDraftAsAdmin, listDeliveryDraftsAsAdmin } from "@/lib/private-gallery-delivery-draft-admin";
 
 import {
   PrivateGalleryExchangeError,
@@ -1246,6 +1248,7 @@ export function requirePrivateGalleryAdminReauthentication(
 
 /** The administrator dependency bundle a route needs, for this deployment. */
 export type PrivateGalleryAdminStores = {
+  readonly deliveryDraftStore: PrivateGalleryDeliveryDraftStore;
   readonly loginStore: PrivateGalleryAdminLoginStore;
   readonly sessionStore: PrivateGalleryAdminSessionStore;
   readonly proofStore: PrivateGalleryProofStore;
@@ -1285,6 +1288,7 @@ export function getPrivateGalleryAdminStores(): PrivateGalleryAdminStores {
       sessionStore: memory.adminSessionStore,
       proofStore: memory.proofStore,
       proofDraftStore: memory.proofDraftStore,
+      deliveryDraftStore: getPrivateGalleryDeliveryDraftMemoryStore(memory),
       async findProofGalleryIdByHandle(handle) {
         return handle === memory.proofGallery.galleryHandle
           ? memory.proofGallery.galleryId
@@ -1305,6 +1309,22 @@ export function getPrivateGalleryAdminStores(): PrivateGalleryAdminStores {
   throw new PrivateGalleryStoresUnavailableError(
     'PRIVATE_GALLERY_STORE is "off"; a route must answer notFound() before asking for stores.',
   );
+}
+
+/** Development-only delivery creation/listing; authorization stays at this facade. */
+export function createPrivateGalleryDeliveryDraftAsAdmin(
+  deps: PrivateGalleryAdminRequestDeps & { readonly deliveryDraftStore: PrivateGalleryDeliveryDraftStore }, request: Request, now: Date,
+) {
+  return createDeliveryDraftAsAdmin({ store: deps.deliveryDraftStore,
+    authorize: async (cookieHeader, at) => (await authorizePrivateGalleryAdministrator(deps, { cookieHeader, now: at })).ok,
+  }, request, now);
+}
+export function listPrivateGalleryDeliveryDraftsAsAdmin(
+  deps: PrivateGalleryAdminRequestDeps & { readonly deliveryDraftStore: PrivateGalleryDeliveryDraftStore }, request: PrivateGalleryAdminRequest,
+) {
+  return listDeliveryDraftsAsAdmin({ store: deps.deliveryDraftStore,
+    authorize: async (cookieHeader, at) => (await authorizePrivateGalleryAdministrator(deps, { cookieHeader, now: at })).ok,
+  }, request);
 }
 
 // ---------------------------------------------------------------------------

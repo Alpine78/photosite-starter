@@ -1501,6 +1501,21 @@ as `GET`/`POST` JSON, re-authorizing the administrator session on every call;
 `e2e/private-gallery-proof-admin.spec.ts` exercises a real administrator
 sign-in against a `page.route`-mocked status/action surface, for the same
 shared-fixture-mutation reason the customer flow spec mocks its mutations.
+A separate AB#145 development-memory flow now creates private delivery drafts and
+lists the latest 100, with an explicit more-results indicator and a bounded total
+store capacity. Every call rechecks administrator authorization; the create path
+validates same-origin JSON before authorization and reads at most 1 KiB after it.
+Optional bounded customer/job references do not create AB#28 records. The FI/EN
+form creates no capability, notification or customer access, and the list omits
+internal IDs and storage keys. Production persistence, uploads/readiness,
+publication/outbox, notification/resend and revoke/replace remain unfinished;
+this non-destructive creation slice does not exercise the re-authentication gate.
+AB#145 was verified Active before edits and remains Active pending acceptance.
+CI #1047 exposed a shared test login budget: gallery-management journeys now
+reuse a real administrator session per Playwright worker. Each test retains its
+own browser context, client address and gallery state. Sign-in/sign-out journeys
+still exercise the actual authentication flow, and the application retains its
+unchanged 30-attempt deployment limit and per-client limit.
 A separate development-memory administrator flow now creates and lists
 prepublication proof drafts. It accepts validated, nonnegative pricing and
 optional bounded customer/job external references, mints an internal gallery
@@ -1518,15 +1533,23 @@ A separate
 administrator-only `PATCH` now replaces a prepublication draft's complete
 pricing candidate through a revision-guarded memory-store update; stale tabs
 receive a conflict and refresh the bounded list. The candidate remains mutable
-until the later ready/publication transaction freezes it. Abandoned-draft
-cleanup, ready/publication and production persistence remain.
+until the first ready transaction freezes it. Abandoned-draft
+cleanup, publication and production persistence remain.
 The development proof draft store now has a server-only first-upload preparation
 operation. It validates a complete watermarked-proof manifest with the existing bounded
 planner, assigns opaque object keys and placement identities, and commits that plan with
 `draft → preparing` and a revision bump in one process-local synchronous mutation.
 Stale or repeated opens fail without a partial plan. The plan holds no pricing; the
-candidate remains editable while `preparing`, and a later `ready` transaction must freeze
-the current value. The existing admin JSON projection excludes the plan and object keys.
+candidate remains editable while `preparing`. A server-only completion operation now
+reconciles bounded server-side metadata observations against that exact stored plan,
+checks its preparation deadline and revision, and commits `preparing → ready` with the
+current pricing snapshot, permanent filename-ordered references, reference high-water mark
+and verified metadata in one process-local mutation. Missing/mismatched objects leave the
+whole row unchanged; stale or repeated completion conflicts without refreezing references.
+The stored prefix cannot be broadened at completion. Receipts alone establish nothing;
+checksum comparison applies only when both receipt and provider metadata name the same
+algorithm, so live provider checksum/version semantics remain a separate verification gate.
+The existing admin JSON projection excludes the plan, keys and frozen internal records.
 This has no HTTP or owner-CLI upload path, no object writes and no customer access.
 `preparing → draft` is not an ADR-0014 transition; the story's reopen operation applies
 to a confirmed customer selection after publication. An incorrect/abandoned preparation
@@ -5284,7 +5307,7 @@ The listing projection was tested against its GROQ text and a fake client, not a
 live Sanity dataset; a published-perspective read should confirm the `count()`
 subqueries before release.
 
-### AB#299 — site search, stories and services (2026-10-15, Active)
+### AB#299 — site search, stories and services (merged 2026-10-15, released 2026-10-16)
 
 A header search control opens a native modal `<dialog>` and searches published
 stories (articles and galleries) and routable services in the visitor's own
@@ -5324,17 +5347,25 @@ article-body search, categories as results, pagination (50 per group, then a
 "narrow your search" notice), the "popular searches" chips from the design
 (owner decision, 2026-10-15), and any application rate limit.
 
-**Not verified:** the index query was tested against its GROQ text and a fake
-client, not a live Sanity dataset, and **its byte size, record count and p50/p95
-search time have not been measured on Preview**; ADR-0033's 512 KiB target and
-75 % revisit trigger are untested proposals. The deployment's `SITE_LOCALE_ROUTES`
-needs its fifth field (`…|haku`) in the Vercel project to publish `/haku`; that
-owner-run change is not part of the pull request (see
-[deployment](deployment.md)). Manual screen-reader and keyboard checks, and the
-`/security-review`, are still to be run and recorded.
+**Released 2026-10-16:** merged source `6cdc231` (CI #1023) was staged with
+`--skip-domain` as `dpl_2MT9Myy1cXRFTFCVTpGhMdbaLGLo`, smoke-tested on its protected
+URL, then promoted; `ilkansivu.net`, `www.ilkansivu.net` and
+`photosite-starter.vercel.app` serve it, with `photosite-starter-35iy29v0b` as the
+rollback target. Production's `SITE_LOCALE_ROUTES` is now
+`fi||tarinat|palvelut|haku,en-GB|en|stories|services|search` (owner-run; see
+[deployment](deployment.md)). The staged smoke test read the live Production dataset:
+`/haku?q=rally` and `/en/search?q=rally` answered 200 with ten results, `/search` and
+`?keywords=` answered 404, a foreign-origin `POST /api/search` answered 403, and the
+sitemap names no search page. The `/security-review` is recorded in the
+[security/privacy review](security-privacy-review.md).
 
+**Not verified:** the index's **byte size and record count** have not been measured and
+there is no load measurement; the only latency evidence is three warm API calls of
+0.16–0.26 s through `vercel curl`, which includes the tool's own overhead. ADR-0033's
+512 KiB target and 75 % revisit trigger are untested proposals, and ADR-0033 is still
+**Proposed**. Manual screen-reader and keyboard checks are not recorded.
 
-### AB#300 — Studio search namespace configuration (2026-10-16, Active)
+### AB#300 — Studio search namespace configuration (2026-10-16, Closed)
 
 Studio now accepts the optional fifth search namespace in the shared locale
 routing declaration introduced by #415, while retaining three/four-field input.
@@ -5343,4 +5374,6 @@ story roots are unchanged. Empty/malformed extra fields and six-field rows still
 refuse. The public route compiler remains responsible for global routing collisions.
 The Studio example now uses the complete FI/en-GB declaration. No public route,
 CMS content, dependency, authentication or deployment setting was changed.
-AB#300 moved New → Active before edits and remains Active pending review/merge.
+AB#300 moved New → Active before edits. The owner accepted #424; CI #1038
+passed and merge `6be2669` landed on 2026-10-16. The work-item link first moved
+the item to Resolved; the accepted, merged bug was then explicitly Closed.

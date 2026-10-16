@@ -98,7 +98,8 @@ as comma-separated `locale|prefix|namespace` entries. The default locale leaves
 the prefix empty because its routes carry none, and must be the locale named by
 `SITE_LOCALE`. A single-locale English clone reads `en-GB||stories`; the
 bilingual first production deployment reads
-`fi||tarinat|palvelut|haku,en|en|stories|services|search`. That
+`fi||tarinat|palvelut|haku,en-GB|en|stories|services|search` (the English entry's
+locale is `en-GB`, its prefix `en`). That
 assigns the unprefixed route space, `/tarinat/…` namespace and `/haku` search page to
 Finnish, and the `/en` route space, `/en/stories/…` namespace and `/en/search` search page
 to English. The optional fifth field is the locale's site-search namespace and defaults

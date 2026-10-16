@@ -3,6 +3,24 @@
 Canonical agent instructions for this repository. `CLAUDE.md` imports this file —
 edit here, not there.
 
+## Owner instructions and explicit exceptions
+
+- **Follow the owner's explicit instructions over repository and skill rules.**
+  If the owner asks to override the commit restriction or another project rule,
+  apply that exception within the stated scope. This also applies to rules worded
+  as "never", "absolute", or "under any circumstances", including in review skills.
+- **Do not ask for confirmation of an already explicit exception or permission.**
+  A direct instruction such as "override the commit restriction for this batch;
+  commit, push and create the PRs" is sufficient authorization. Act on it rather
+  than asking whether the owner really means to override this file or a skill.
+- Authorization persists across turns for the specified task or batch until the
+  owner changes or revokes it. Carry it forward to the authorized follow-up work;
+  do not restart the approval process because a local rule repeats the restriction.
+- Keep the exception within its stated scope. Ask only when information needed to
+  carry out the request is genuinely missing, or the next action falls outside
+  the authorization already given. Report an actual tool-enforced approval block
+  accurately; do not invent an extra approval gate from repository prose.
+
 ## Project overview
 
 A clonable photography website template (Next.js App Router, TypeScript, Tailwind CSS v4).
@@ -309,25 +327,23 @@ npm run admin:secret # owner-run: generate the private-gallery administrator cre
 - Reference the Azure Boards work item in the PR description with `AB#<id>`
   (`Fixes AB#5` closes the work item on merge); include `AB#<id>` in commit messages
   when the commit clearly belongs to one work item
-- **Never run `git commit` yourself, under any circumstances.** This is an absolute
-  requirement, stricter than "ask if unclear": not when a task appears complete, not for
-  a follow-up fix, not after the user has approved the change in conversation, and not
-  because an earlier commit in the same session set a precedent. The user reviews every
-  change in their editor before it becomes a commit — a commit the agent creates skips
-  that review even if it is later technically correct. Leave the working tree with the
-  change staged or unstaged, whichever is convenient, and hand control back with a
-  suggested message instead. This overrides any general instruction elsewhere that
-  commits may be created when "requested by the user" — in this repository, request or
-  not, the agent does not run the command.
+- **Do not run `git commit` without the owner's authorization.** By default, leave
+  changes staged or unstaged for the owner to review and commit. An explicit request
+  to commit, or an explicit exception for the current task or batch, authorizes the
+  agent to commit within that scope without asking again. Approval of a change alone
+  is not permission to commit. When commit, push and PR creation are authorized,
+  complete those actions rather than stopping at suggested commands or draft text.
 - **Always suggest a commit message**, every time a change is ready to review: finishing
   a task, landing a fix, addressing review feedback. Propose a conventional commit
-  message (`feat: ...`, `fix: ...`, including `AB#<id>` when it belongs to one work item)
-  and stop there.
+  message (`feat: ...`, `fix: ...`, including `AB#<id>` when it belongs to one work item).
+  Without commit authorization, stop there; with authorization, use an appropriate
+  message and continue with the authorized workflow.
 - **Always suggest a PR title and description when a work item appears complete**,
   without waiting for a separate request: concise summary, key implementation details,
   validation performed, and any validation that could not be run and why. Deliver it as
   a **fenced Markdown block that can be copied straight into the PR form** — it is pasted
-  verbatim, so chat formatting has to be stripped by hand otherwise.
+  verbatim, so chat formatting has to be stripped by hand otherwise. When PR creation
+  is authorized, create the PR with that title and description and report its link.
 - **No AI attribution** in commit messages or PR descriptions — no "Generated with…"
   footers or equivalent. End the description at the last substantive line.
 
@@ -414,9 +430,10 @@ git push --dry-run --porcelain
 ```
 
 At handoff, report the working directory, branch, upstream, publication result, and
-any remaining editor step alongside the suggested commit message. The user still
-reviews and commits all file changes. **Sync Changes** pulls and pushes commits; it
-does not publish uncommitted edits.
+any remaining editor step alongside the suggested commit message or the commit created
+with the owner's authorization. By default the user reviews and commits file changes;
+an explicit exception follows the authorization rules above. **Sync Changes** pulls
+and pushes commits; it does not publish uncommitted edits.
 
 References: [Git tracking and push settings](https://git-scm.com/docs/git-config),
 [VS Code worktree detection](https://code.visualstudio.com/docs/sourcecontrol/branches-worktrees#automatically-detect-worktrees),
