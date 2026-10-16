@@ -31,6 +31,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { projectPrivateGalleryProofDraftStatus, type PrivateGalleryProofDraftStatus } from "@/lib/private-gallery-proof-draft-status";
 import { getPrivateGalleryDeliveryDraftMemoryStore, type PrivateGalleryDeliveryDraftStore } from "@/lib/private-gallery-delivery-draft-store";
 import { createDeliveryDraftAsAdmin, listDeliveryDraftsAsAdmin, updateDeliveryDraftReferencesAsAdmin } from "@/lib/private-gallery-delivery-draft-admin";
 
@@ -1338,7 +1339,7 @@ export function updatePrivateGalleryDeliveryDraftReferencesAsAdmin(
 // Administrator proof-gallery creation and listing (AB#130, draft only)
 // ---------------------------------------------------------------------------
 
-export type PrivateGalleryProofDraftAdminItem = {
+export type PrivateGalleryProofDraftAdminItem = PrivateGalleryProofDraftStatus & {
   readonly handle: string;
   readonly createdAt: string;
   readonly pricing: PrivateGalleryProofPricing;
@@ -1351,8 +1352,9 @@ export type PrivateGalleryProofDraftAdminOutcome<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly reason: "unauthorized" | "invalid-input" | "not-found" | "conflict" | "unavailable" };
 
-function projectProofDraft(row: PrivateGalleryProofDraftSetup): PrivateGalleryProofDraftAdminItem {
+function projectProofDraft(row: PrivateGalleryProofDraftSetup, now: Date): PrivateGalleryProofDraftAdminItem {
   return {
+    ...projectPrivateGalleryProofDraftStatus(row, now),
     handle: row.gallery.galleryHandle,
     createdAt: row.gallery.createdAt.toISOString(),
     pricing: row.pricing,
@@ -1408,7 +1410,7 @@ export async function createPrivateGalleryProofDraftAsAdmin(
     const raw = await readBoundedBody(request, 1024);
     const input = raw === undefined ? undefined : parseProofDraftInput(raw);
     if (input === undefined) return { ok: false, reason: "invalid-input" };
-    return { ok: true, value: projectProofDraft(await deps.proofDraftStore.create(input, now)) };
+    return { ok: true, value: projectProofDraft(await deps.proofDraftStore.create(input, now), now) };
   } catch (error) {
     if (error instanceof PrivateGalleryProofDraftStoreError && error.reason === "invalid-input") {
       return { ok: false, reason: "invalid-input" };
@@ -1467,7 +1469,7 @@ export async function updatePrivateGalleryProofDraftPricingAsAdmin(
     const raw = await readBoundedBody(request, 1024);
     const input = raw === undefined ? undefined : parseProofDraftPricingUpdate(raw);
     if (input === undefined) return { ok: false, reason: "invalid-input" };
-    return { ok: true, value: projectProofDraft(await deps.proofDraftStore.updatePricing(input)) };
+    return { ok: true, value: projectProofDraft(await deps.proofDraftStore.updatePricing(input), now) };
   } catch (error) {
     if (error instanceof PrivateGalleryProofDraftStoreError) {
       if (error.reason === "invalid-input") return { ok: false, reason: "invalid-input" };
@@ -1490,7 +1492,7 @@ export async function listPrivateGalleryProofDraftsAsAdmin(
   if (!authorization.ok) return { ok: false, reason: "unauthorized" };
   try {
     const result = await deps.proofDraftStore.list(PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT);
-    return { ok: true, value: { items: result.items.map(projectProofDraft), hasMore: result.hasMore } };
+    return { ok: true, value: { items: result.items.map((row) => projectProofDraft(row, request.now)), hasMore: result.hasMore } };
   } catch {
     return { ok: false, reason: "unavailable" };
   }
