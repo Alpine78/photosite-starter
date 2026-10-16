@@ -9,6 +9,7 @@ import { generateCapabilitySecret, sealCapability } from "@/lib/private-gallery-
 import { planPrivateGalleryFirstDeliveryPublication } from "@/lib/private-gallery-delivery-readiness";
 import { snapshotPrivateGalleryDeliveryNotificationContext, type PrivateGalleryDeliveryNotificationContext } from "@/lib/private-gallery-delivery-notification";
 import { isValidGalleryNotificationIdempotencyKey } from "@/lib/gallery-notification";
+import type { PrivateGalleryDeliveryRevokeInput } from "@/lib/private-gallery-delivery-revocation";
 
 export type PrivateGalleryDeliveryPublicationInput = PrivateGalleryDeliveryNotificationContext & {
   readonly handle: string;
@@ -30,6 +31,7 @@ export type PrivateGalleryDeliveryPublicationSnapshot = PrivateGalleryDeliveryPu
 export type PrivateGalleryDeliveryPublicationStore = {
   publishFirstDelivery(input: PrivateGalleryDeliveryPublicationInput): Promise<PrivateGalleryDeliveryPublicationSnapshot>;
   readPublication(handle: string): Promise<PrivateGalleryDeliveryPublicationSnapshot | undefined>;
+  revokeDeliveryAccess(input: PrivateGalleryDeliveryRevokeInput): Promise<PrivateGalleryDeliveryPublicationSnapshot>;
 };
 type Reason = "invalid-input" | "not-found" | "conflict" | "readiness-failed" | "capability-unavailable" | "outbox-unavailable" | "snapshot-unavailable";
 export class PrivateGalleryDeliveryPublicationError extends Error {

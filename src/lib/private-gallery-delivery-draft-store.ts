@@ -16,6 +16,7 @@ import { PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY } from "@/lib/private-gal
 import { buildFirstDeliveryPublicationCandidate, deliveryPublicationSnapshot, publicationFailure,
   sameDeliveryPublicationIntent, snapshotDeliveryPublicationInput, validPublicationHandle,
   type PrivateGalleryDeliveryPublication, type PrivateGalleryDeliveryPublicationStore } from "@/lib/private-gallery-delivery-publication-store";
+import { buildRevokedDeliveryCandidate, lifecycleFailure, snapshotDeliveryRevokeInput } from "@/lib/private-gallery-delivery-revocation";
 
 export const PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT = 100;
 /** Process-local development guard, not a production storage policy. */
@@ -193,6 +194,17 @@ export function createPrivateGalleryDeliveryDraftMemoryStore(): PrivateGalleryDe
         publicationFailure("conflict");
       }
       // No await between canonical reread and this one complete mutation.
+      rows.set(current.gallery.galleryId, candidate);
+      return result;
+    },
+    async revokeDeliveryAccess(value) {
+      const input = snapshotDeliveryRevokeInput(value);
+      const id = handles.get(input.handle);
+      const current = id === undefined ? undefined : rows.get(id);
+      if (!current) lifecycleFailure("not-found");
+      const candidate = buildRevokedDeliveryCandidate(current, input);
+      const result = deliveryPublicationSnapshot(candidate);
+      if (rows.get(current.gallery.galleryId) !== current) lifecycleFailure("conflict");
       rows.set(current.gallery.galleryId, candidate);
       return result;
     },

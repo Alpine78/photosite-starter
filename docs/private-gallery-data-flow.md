@@ -336,6 +336,28 @@ encrypted material and must never be projected to a browser. This has no HTTP
 publish action, customer-store registration, durable persistence or transport.
 Production publication still requires authenticated orchestration, database
 atomicity and live provider verification; no new processor is contacted here.
+Development delivery revocation now has a server-only administrator orchestrator
+that reloads the current credential/session and requires the existing five-minute
+reauthentication window before any publication-store call. Its raw request and
+server-selected time are copied before awaits, while operation-specific validation
+follows both gates. An anonymous malformed operation gets the same unauthorized
+refusal. The memory transaction uses expected revision and generation, suspends
+access and bumps both counters once. Publication/expiry, protected ZIP, previews
+and references are unchanged. The required publication record retains its encrypted
+retired capability at the old generation; this module never parses, decrypts or
+renders it. A future replace must create a new capability, never revive this one.
+The same mutation marks an unsent pending/failed notification `failed` with the
+closed `access-revoked` reason. A derived notification state labels it stopped and
+refuses dispatch for suspended, stale or expired access; an already-sent record
+remains historical sent status. The dispatcher must also check due time and claim
+ownership, then compare fresh state/generation again before send and completion.
+No worker is registered here. A future worker must discard a late provider result
+that lost its generation/revision claim; revocation cannot recall an in-flight email
+or an already-minted short-lived object URL. Fixture tests prove old link, live
+session and notification construction refuse fresh revoked metadata before key
+lookup. Production asset/ZIP/session adapters must each enforce the same fresh
+metadata boundary. HTTP wiring must supply server time and its origin/body guards;
+this slice adds no route, replace, delete, live customer operation or new processor.
 The status panel above continues to address only the existing published proof
 fixture by a handle the administrator already holds.
 

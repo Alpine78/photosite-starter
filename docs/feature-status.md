@@ -1553,6 +1553,21 @@ encrypted material only server-side. No HTTP/admin publish action, customer-stor
 registration, durable database transaction, dispatcher or production activation is
 added. AB#145 and AB#29 remain Active; notification delivery and the remaining
 administration criteria are still unfinished.
+**AB#145 reauthenticated delivery revoke, 2026-10-16:** a server-only
+orchestrator now reuses the existing current administrator-session and five-minute
+reauthentication gates before touching a publication store. A revision/generation
+CAS atomically changes a published memory delivery to `access-suspended`, bumps
+both counters once and preserves its original publication/expiry, ZIP and frozen
+children. Its encrypted retired capability stays at the old generation, never a
+current access grant. Pending/failed notification records stop with the closed
+`access-revoked` reason; historical sent status stays sent. A shared derived
+status refuses dispatch for revoked, stale, expired or unavailable metadata.
+Actual exchange/session/notification helpers refuse fresh revoked fixture metadata
+before capability decryption. This does not register new customer stores, asset or
+ZIP routes, an HTTP revoke action, a dispatcher, replace or delete. Already-issued
+short-lived URL and in-flight provider-send residuals remain. AB#145 and AB#29
+remain Active; production revocation still needs its durable/authenticated route
+integration and complete fresh-metadata enforcement.
 CI #1047 exposed a shared test login budget: gallery-management journeys now
 reuse a real administrator session per Playwright worker. Each test retains its
 own browser context, client address and gallery state. Sign-in/sign-out journeys
