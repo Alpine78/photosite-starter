@@ -229,7 +229,14 @@ prepublication delivery drafts in the development fixture. It authorizes each ca
 validates same-origin JSON before reading at most 1 KiB, and returns at most 100 rows.
 The complete development store is capped at 1,000 drafts. Optional external customer/job
 references share the existing 128-byte single-line bound; they are not CRM records.
-The form asks for references rather than names or email addresses. Browser projection
+The form asks for references rather than names or email addresses. Authenticated
+`PATCH` replaces both references with the same validation and 1 KiB request bound;
+omitted fields clear the old values. Every accepted replacement increments the
+revision; stale revisions return 409 without mutation. The inline FI/EN editor keeps
+unsaved text on conflict until an explicit list refresh. The process-local store
+checks and replaces without an await; a future PostgreSQL adapter must implement
+one conditional update over handle, revision and draft state. This reversible edit
+needs no irreversible-operation re-authentication and adds no change audit trail. Browser projection
 contains only handle, creation time, revision and supplied references; the handle is a
 non-secret identifier, not the separate capability. No capability, customer session,
 object key or access URL is created. Drafts remain outside all customer read/exchange
