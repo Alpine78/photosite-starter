@@ -83,6 +83,7 @@ const eslintConfig = defineConfig([
               group: [
                 "@/lib/private-gallery",
                 "@/lib/private-gallery-delivery-draft-store",
+                "@/lib/private-gallery-delivery-publication-store",
                 "@/lib/private-gallery-delivery-draft-admin",
                 "@/lib/private-gallery-config",
                 "@/lib/private-gallery-capability",

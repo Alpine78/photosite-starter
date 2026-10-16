@@ -36,6 +36,31 @@ function validDate(value: unknown): value is Date {
   return value instanceof Date && Number.isFinite(value.getTime());
 }
 
+export type PrivateGalleryDeliveryNotificationContext = {
+  readonly recipient: string;
+  readonly canonicalOrigin: string;
+  readonly routePrefix: string;
+  readonly locale: string;
+};
+/** Validate stored notification context without rendering any bearer-bearing text. */
+export function snapshotPrivateGalleryDeliveryNotificationContext(
+  input: PrivateGalleryDeliveryNotificationContext,
+): PrivateGalleryDeliveryNotificationContext {
+  const { recipient, canonicalOrigin, routePrefix, locale } = input;
+  if (!isValidGalleryNotificationRecipient(recipient)) fail("invalid-recipient");
+  try {
+    if (typeof locale !== "string" || locale.length > 128) fail("invalid-locale");
+    getBuiltInLabels(locale);
+  } catch { fail("invalid-locale"); }
+  if (typeof canonicalOrigin !== "string" || canonicalOrigin.length > 2048 ||
+      typeof routePrefix !== "string" || !/^[a-z](?:[a-z0-9-]{0,30}[a-z0-9])?$/.test(routePrefix)) fail("invalid-address");
+  try {
+    const url = new URL(canonicalOrigin);
+    if (url.protocol !== "https:" || url.origin !== canonicalOrigin || url.port === "0") fail("invalid-address");
+  } catch { fail("invalid-address"); }
+  return { recipient, canonicalOrigin, routePrefix, locale };
+}
+
 export function buildPrivateGalleryDeliveryNotification(input: {
   /** Fresh authoritative metadata, not a saved publication attempt snapshot. */
   readonly gallery: PrivateGallery;
@@ -58,21 +83,10 @@ export function buildPrivateGalleryDeliveryNotification(input: {
   if (!validDate(now) || !validDate(gallery.createdAt) || !validDate(gallery.publishedAt) ||
       !validDate(gallery.accessExpiresAt) || gallery.publishedAt < gallery.createdAt ||
       gallery.accessExpiresAt <= gallery.publishedAt || now < gallery.publishedAt || now >= gallery.accessExpiresAt) fail("invalid-time");
-  if (!isValidGalleryNotificationRecipient(recipient)) fail("invalid-recipient");
+  snapshotPrivateGalleryDeliveryNotificationContext({ recipient, canonicalOrigin, routePrefix, locale });
   if (!isValidGalleryNotificationIdempotencyKey(outboxIdempotencyKey)) fail("invalid-idempotency-key");
-  let labels: BuiltInLabels["deliveryNotificationEmail"];
-  try {
-    if (typeof locale !== "string" || locale.length > 128) fail("invalid-locale");
-    labels = getBuiltInLabels(locale).deliveryNotificationEmail;
-  } catch { fail("invalid-locale"); }
-  if (typeof canonicalOrigin !== "string" || canonicalOrigin.length > 2048 ||
-      typeof routePrefix !== "string" || !/^[a-z](?:[a-z0-9-]{0,30}[a-z0-9])?$/.test(routePrefix)) fail("invalid-address");
-  let url: URL;
-  try {
-    url = new URL(canonicalOrigin);
-    // Exact origin equality refuses normalization, userinfo, paths and controls.
-    if (url.protocol !== "https:" || url.origin !== canonicalOrigin || url.port === "0") fail("invalid-address");
-  } catch { fail("invalid-address"); }
+  const labels: BuiltInLabels["deliveryNotificationEmail"] = getBuiltInLabels(locale).deliveryNotificationEmail;
+  const url = new URL(canonicalOrigin);
   let secret: string;
   try {
     if (!input.capability || input.capability.keyId !== capabilityEnvelopeKeyId(input.capability.envelope)) fail("capability-unavailable");

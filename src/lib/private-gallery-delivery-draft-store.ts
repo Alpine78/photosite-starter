@@ -13,6 +13,9 @@ import { snapshotPrivateGalleryUploadCompletionEvidence, type PrivateGalleryUplo
 import { buildVerifiedFirstDeliveryData } from "@/lib/private-gallery-delivery-upload";
 import { evaluatePrivateGalleryReadiness } from "@/lib/private-gallery-readiness";
 import { PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY } from "@/lib/private-gallery-limits";
+import { buildFirstDeliveryPublicationCandidate, deliveryPublicationSnapshot, publicationFailure,
+  sameDeliveryPublicationIntent, snapshotDeliveryPublicationInput, validPublicationHandle,
+  type PrivateGalleryDeliveryPublication, type PrivateGalleryDeliveryPublicationStore } from "@/lib/private-gallery-delivery-publication-store";
 
 export const PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT = 100;
 /** Process-local development guard, not a production storage policy. */
@@ -26,6 +29,7 @@ export type PrivateGalleryDeliveryDraft = PrivateGalleryDeliveryDraftInput & {
   readonly revision: number;
   readonly preparation?: PrivateGalleryUploadPlan;
   readonly preparationKeyPrefix?: string;
+  readonly publication?: PrivateGalleryDeliveryPublication;
   readonly readyDelivery?: {
     readonly placements: readonly PrivateGalleryPlacement[];
     readonly verifiedObjects: readonly PrivateGalleryVerifiedObject[];
@@ -66,7 +70,7 @@ export function validateDeliveryDraftInput(value: unknown): PrivateGalleryDelive
     ...(input.jobReference === undefined ? {} : { jobReference: input.jobReference as string }),
   };
 }
-export function createPrivateGalleryDeliveryDraftMemoryStore(): PrivateGalleryDeliveryDraftStore {
+export function createPrivateGalleryDeliveryDraftMemoryStore(): PrivateGalleryDeliveryDraftStore & PrivateGalleryDeliveryPublicationStore {
   const rows = new Map<string, PrivateGalleryDeliveryDraft>();
   const handles = new Map<string, string>();
   return {
@@ -170,17 +174,45 @@ export function createPrivateGalleryDeliveryDraftMemoryStore(): PrivateGalleryDe
       rows.set(current.gallery.galleryId, updated);
       return { ready: true, setup: structuredClone(updated) };
     },
+    async publishFirstDelivery(value) {
+      const input = snapshotDeliveryPublicationInput(value);
+      const id = handles.get(input.handle);
+      const current = id === undefined ? undefined : rows.get(id);
+      if (!current) publicationFailure("not-found");
+      if (current.gallery.state === "published" && current.publication) {
+        if (!sameDeliveryPublicationIntent(current.publication, input)) publicationFailure("conflict");
+        return deliveryPublicationSnapshot(current);
+      }
+      const candidate = buildFirstDeliveryPublicationCandidate(current, input);
+      // Clone before commit too: failure cannot leave a partially accepted row.
+      const result = deliveryPublicationSnapshot(candidate);
+      const latest = rows.get(current.gallery.galleryId);
+      if (latest !== current) {
+        // A keyring callback may synchronously publish. Preserve its winner.
+        if (latest?.gallery.state === "published" && latest.publication && sameDeliveryPublicationIntent(latest.publication, input)) return deliveryPublicationSnapshot(latest);
+        publicationFailure("conflict");
+      }
+      // No await between canonical reread and this one complete mutation.
+      rows.set(current.gallery.galleryId, candidate);
+      return result;
+    },
+    async readPublication(handle) {
+      if (!validPublicationHandle(handle)) publicationFailure("invalid-input");
+      const id = handles.get(handle);
+      const row = id === undefined ? undefined : rows.get(id);
+      return row?.publication ? deliveryPublicationSnapshot(row) : undefined;
+    },
     async list(limit) {
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT) throw new PrivateGalleryDeliveryDraftStoreError("invalid-limit");
-      const sorted = [...rows.values()].sort((a, b) => b.gallery.createdAt.getTime() - a.gallery.createdAt.getTime() ||
+      const sorted = [...rows.values()].filter((row) => ["draft", "preparing", "ready"].includes(row.gallery.state)).sort((a, b) => b.gallery.createdAt.getTime() - a.gallery.createdAt.getTime() ||
         (a.gallery.galleryId < b.gallery.galleryId ? -1 : a.gallery.galleryId > b.gallery.galleryId ? 1 : 0));
       return { items: structuredClone(sorted.slice(0, limit)), hasMore: sorted.length > limit };
     },
   };
 }
-const stores = new WeakMap<object, PrivateGalleryDeliveryDraftStore>();
+const stores = new WeakMap<object, PrivateGalleryDeliveryDraftStore & PrivateGalleryDeliveryPublicationStore>();
 /** Scope lifetime to the existing development fixture, including its reset. */
-export function getPrivateGalleryDeliveryDraftMemoryStore(owner: object): PrivateGalleryDeliveryDraftStore {
+export function getPrivateGalleryDeliveryDraftMemoryStore(owner: object): PrivateGalleryDeliveryDraftStore & PrivateGalleryDeliveryPublicationStore {
   let store = stores.get(owner);
   if (!store) { store = createPrivateGalleryDeliveryDraftMemoryStore(); stores.set(owner, store); }
   return store;

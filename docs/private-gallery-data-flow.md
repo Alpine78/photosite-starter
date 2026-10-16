@@ -321,6 +321,21 @@ inside the transaction that persists state, sealed capability and one unique ini
 notification. Repeated publication returns the existing record; the planner neither
 publishes nor sends. It relies on the provider's separately verified immutable-object
 and checksum/version contract rather than claiming fresh byte verification.
+A separate development-memory transaction now uses that planner against its
+canonical ready row and commits published state, immutable UTC dates, an
+AES-GCM capability envelope and exactly one initial pending outbox row together.
+The outbox stores validated recipient/locale/origin/namespace context and gallery
+references, never a rendered message or plaintext bearer. Publication validates
+context without rendering access instructions. Same-intent retries return the
+original record; changing notification context is a conflict, not an implicit
+resend. All work, including a detached result, is built before the synchronous
+canonical-row compare-and-set; failures and reentrant keyring changes cannot
+partially commit. The prepublication list skips published rows, so no new state
+is mislabeled as an editable draft. The privileged publication read contains
+encrypted material and must never be projected to a browser. This has no HTTP
+publish action, customer-store registration, durable persistence or transport.
+Production publication still requires authenticated orchestration, database
+atomicity and live provider verification; no new processor is contacted here.
 The status panel above continues to address only the existing published proof
 fixture by a handle the administrator already holds.
 

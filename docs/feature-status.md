@@ -1539,6 +1539,20 @@ This is a transient message builder only: no publication, outbox activation, pro
 send or production enablement is added. A future dispatcher must re-read live metadata
 and keep only encrypted capability material at rest, never the rendered email body.
 AB#145 was verified Active before edits and remains Active pending acceptance.
+**AB#145 first-delivery publication transaction, 2026-10-16:** the development
+memory store can now publish an actually ready delivery row. It rechecks the full
+child set and revision, then commits published metadata, its once-computed UTC
+six-calendar-month expiry, one encrypted current-generation capability and one
+initial pending notification record in a single canonical-row mutation. Context
+validation renders no email. Same-intent retries return the original publication
+without new crypto, expiry or outbox attempts; changed intent is a conflict.
+Crypto, outbox and snapshot failures leave the ready row unchanged, and reentrant
+keyring callbacks cannot overwrite a winner. Published rows leave the prepublication
+list and refuse draft edits/preparation. Privileged reads are detached and expose
+encrypted material only server-side. No HTTP/admin publish action, customer-store
+registration, durable database transaction, dispatcher or production activation is
+added. AB#145 and AB#29 remain Active; notification delivery and the remaining
+administration criteria are still unfinished.
 CI #1047 exposed a shared test login budget: gallery-management journeys now
 reuse a real administrator session per Playwright worker. Each test retains its
 own browser context, client address and gallery state. Sign-in/sign-out journeys
