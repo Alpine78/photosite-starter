@@ -111,6 +111,7 @@ const eslintConfig = defineConfig([
                 "@/lib/private-gallery-upload-evidence",
                 "@/lib/private-gallery-upload-metadata",
                 "@/lib/private-gallery-proof-draft-status",
+                "@/lib/private-gallery-draft-cursor",
                 "@/lib/private-gallery-object-key",
                 "@/lib/private-gallery-upload",
                 "@/lib/private-gallery-upload-completion",

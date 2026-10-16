@@ -255,7 +255,8 @@ export type BuiltInLabels = {
     readonly heading: string; readonly description: string; readonly customerReference: string;
     readonly jobReference: string; readonly referenceHelp: string; readonly create: string;
     readonly refresh: string; readonly creating: string; readonly created: string; readonly listHeading: string;
-    readonly empty: string; readonly hasMore: string; readonly unavailable: string;
+    readonly empty: string; readonly hasMore: string;
+    readonly loadMore: string; readonly loadingMore: string; readonly allLoaded: string; readonly loadedCount: string; readonly unavailable: string;
     readonly invalid: string; readonly handle: string; readonly javascriptRequired: string;
     readonly editReferences: string; readonly saveReferences: string; readonly savingReferences: string;
     readonly savedReferences: string; readonly conflictReferences: string;
@@ -280,6 +281,7 @@ export type BuiltInLabels = {
     readonly listHeading: string;
     readonly empty: string;
     readonly hasMore: string;
+    readonly loadMore: string; readonly loadingMore: string; readonly allLoaded: string; readonly loadedCount: string;
     readonly unavailable: string;
     readonly handle: string;
     readonly editPricing: string;
@@ -829,6 +831,10 @@ const englishLabels = {
     invalid: "Enter valid single-line references of at most 128 UTF-8 bytes.",
     handle: "Handle",
     javascriptRequired: "Creating delivery drafts needs JavaScript.",
+    loadMore: "Load older drafts",
+    loadingMore: "Loading drafts…",
+    allLoaded: "All drafts loaded",
+    loadedCount: "Drafts loaded",
   },
   privateGalleryProofCreation: {
     draftState: "Draft – not shared with customer",
@@ -859,6 +865,10 @@ const englishLabels = {
     savedPricing: "Pricing saved.",
     conflictPricing: "This draft changed elsewhere. Your entries have been kept. Refresh the list to discard them and load the current draft.",
     invalidPricing: "Enter a non-negative whole number and a three-letter uppercase currency code.",
+    loadMore: "Load older drafts",
+    loadingMore: "Loading drafts…",
+    allLoaded: "All drafts loaded",
+    loadedCount: "Drafts loaded",
     referenceHelp: "Use an external reference, not a name or email address.",
     editReferences: "Edit references",
     saveReferences: "Save references",
@@ -1226,6 +1236,10 @@ const finnishLabels = {
     invalid: "Anna kelvolliset yksiriviset viitteet, enintään 128 UTF-8-tavua.",
     handle: "Tunniste",
     javascriptRequired: "Toimitusluonnosten luominen tarvitsee JavaScriptin.",
+    loadMore: "Näytä vanhempia luonnoksia",
+    loadingMore: "Ladataan luonnoksia…",
+    allLoaded: "Kaikki luonnokset ladattu",
+    loadedCount: "Luonnoksia ladattu",
   },
   privateGalleryProofCreation: {
     draftState: "Luonnos – ei jaettu asiakkaalle",
@@ -1256,6 +1270,10 @@ const finnishLabels = {
     savedPricing: "Hinnoittelu tallennettu.",
     conflictPricing: "Luonnos muuttui muualla. Kirjoittamasi arvot säilyivät. Päivitä lista, jos haluat hylätä ne ja ladata nykyisen luonnoksen.",
     invalidPricing: "Anna ei-negatiivinen kokonaisluku ja kolmikirjaiminen isoilla kirjaimilla kirjoitettu valuuttakoodi.",
+    loadMore: "Näytä vanhempia luonnoksia",
+    loadingMore: "Ladataan luonnoksia…",
+    allLoaded: "Kaikki luonnokset ladattu",
+    loadedCount: "Luonnoksia ladattu",
     referenceHelp: "Käytä ulkoista viitettä, älä nimeä tai sähköpostiosoitetta.",
     editReferences: "Muokkaa viitteitä",
     saveReferences: "Tallenna viitteet",

@@ -1,11 +1,13 @@
 "use client";
+import { usePrivateGalleryDraftList } from "@/components/use-private-gallery-draft-list";
 import { PrivateGalleryDraftReferencesEditor } from "@/components/private-gallery-draft-references-editor";
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 
 export type DeliveryDraftCreatorLabels = {
   readonly heading: string; readonly description: string; readonly customerReference: string;
   readonly jobReference: string; readonly referenceHelp: string; readonly create: string;
   readonly refresh: string; readonly creating: string; readonly created: string; readonly listHeading: string;
+  readonly loadMore: string; readonly loadingMore: string; readonly allLoaded: string; readonly loadedCount: string;
   readonly empty: string; readonly hasMore: string; readonly unavailable: string;
   readonly invalid: string; readonly handle: string; readonly javascriptRequired: string;
   readonly editReferences: string; readonly saveReferences: string; readonly savingReferences: string;
@@ -14,24 +16,14 @@ export type DeliveryDraftCreatorLabels = {
 export type DeliveryDraftListItem = { readonly handle: string; readonly createdAt: string; readonly revision: number;
   readonly customerReference?: string; readonly jobReference?: string };
 type Item = DeliveryDraftListItem;
-type List = { readonly items: readonly Item[]; readonly hasMore: boolean };
 const subscribe = () => () => {};
-
-async function fetchDeliveryDraftList(apiPath: string, signal: AbortSignal): Promise<List> {
-  const response = await fetch(apiPath, { signal, cache: "no-store", headers: { accept: "application/json" } });
-  if (!response.ok) throw new Error("unavailable");
-  const data = await response.json() as { ok?: boolean } & List;
-  if (data.ok !== true || !Array.isArray(data.items) || data.items.length > 100 || typeof data.hasMore !== "boolean") throw new Error("unavailable");
-  return { items: data.items, hasMore: data.hasMore };
-}
-
 
 export function PrivateGalleryDeliveryDraftCreator({ apiPath, locale, labels }: {
   readonly apiPath: string; readonly locale: string; readonly labels: DeliveryDraftCreatorLabels;
 }) {
   const id = useId();
   const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
-  const [list, setList] = useState<List>();
+  const { list, firstPageReady, loading, listError, refresh, loadMore, acknowledge, cancel } = usePrivateGalleryDraftList<Item>(apiPath);
   const [customer, setCustomer] = useState("");
   const [job, setJob] = useState("");
   const [pending, setPending] = useState(false);
@@ -39,27 +31,7 @@ export function PrivateGalleryDeliveryDraftCreator({ apiPath, locale, labels }: 
   const [savedHandle, setSavedHandle] = useState<string>();
   const active = useRef(false);
   const busy = useRef(false);
-  const epoch = useRef(0);
-  const controller = useRef<AbortController | undefined>(undefined);
-  const refresh = useCallback(() => {
-    controller.current?.abort();
-    const abort = new AbortController();
-    controller.current = abort;
-    const version = ++epoch.current;
-    // The effect subscribes; state changes only after the request settles.
-    // The async helper also turns a synchronous fetch failure into a rejection.
-    return fetchDeliveryDraftList(apiPath, abort.signal).then((data) => {
-      if (active.current && epoch.current === version) setList(data);
-    }, () => {
-      if (!abort.signal.aborted && active.current && epoch.current === version) setNotice("unavailable");
-    });
-  }, [apiPath]);
-  const stop = useCallback(() => { active.current = false; ++epoch.current; controller.current?.abort(); }, []);
-  useEffect(() => {
-    active.current = true;
-    void refresh();
-    return stop;
-  }, [refresh, stop]);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy.current || !hydrated) return;
@@ -68,8 +40,7 @@ export function PrivateGalleryDeliveryDraftCreator({ apiPath, locale, labels }: 
     setNotice(undefined);
     setSavedHandle(undefined);
     // A preceding list request may contain the state before this create.
-    ++epoch.current;
-    controller.current?.abort();
+    cancel();
     try {
       const response = await fetch(apiPath, { method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...(customer === "" ? {} : { customerReference: customer }), ...(job === "" ? {} : { jobReference: job }) }) });
@@ -78,13 +49,8 @@ export function PrivateGalleryDeliveryDraftCreator({ apiPath, locale, labels }: 
       const data = await response.json() as { ok?: boolean; draft?: Item };
       if (data.ok !== true || !data.draft || typeof data.draft.handle !== "string") throw new Error("unavailable");
       if (active.current) {
-        // Keep the acknowledged creation visible even if a reference save
-        // cancels the following refresh before it returns the new row.
-        const draft = data.draft;
-        setList((previous) => ({ items: [draft, ...(previous?.items ?? []).filter((row) => row.handle !== draft.handle)].slice(0, 100),
-          hasMore: (previous?.hasMore ?? false) || (previous?.items.length ?? 0) >= 100 }));
+        acknowledge(data.draft, true);
         setCustomer(""); setJob(""); setNotice("created");
-        await refresh();
       }
     } catch { if (active.current) setNotice("unavailable"); }
     finally { busy.current = false; if (active.current) setPending(false); }
@@ -129,13 +95,20 @@ export function PrivateGalleryDeliveryDraftCreator({ apiPath, locale, labels }: 
         <PrivateGalleryDraftReferencesEditor key={`${item.handle}-${item.revision}`} item={item} apiPath={apiPath} labels={labels}
           restoreFocus={savedHandle === item.handle}
           onSaved={(updated) => {
-            ++epoch.current; controller.current?.abort();
-            setList((previous) => previous && { ...previous, items: previous.items.map((row) => row.handle === updated.handle ? updated : row) });
+            acknowledge(updated);
             setSavedHandle(updated.handle);
             setNotice("savedReferences");
           }} />
       </li>)}
     </ul>
-    {list?.hasMore && <p className="text-sm text-muted">{labels.hasMore}</p>}
+    {listError && <p role="alert" className="text-danger">{labels.unavailable}</p>}
+    {list && <>
+      <p id={`${id}-count`} aria-live="polite" aria-atomic="true" className="text-muted">{labels.loadedCount}: {list.items.length}</p>
+      <button type="button" aria-disabled={pending || loading || !list.hasMore} aria-describedby={`${id}-count`}
+        onClick={() => { if (!pending && !loading && list.hasMore) void loadMore(); }}
+        className="rounded-md border border-border-strong px-3 py-1.5 text-strong aria-disabled:opacity-50">
+        {loading ? labels.loadingMore : !firstPageReady ? labels.unavailable : list.hasMore ? labels.loadMore : labels.allLoaded}
+      </button>
+    </>}
   </section>;
 }
