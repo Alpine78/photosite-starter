@@ -96,6 +96,11 @@ export type PrivateGalleryProofDraftStore = {
     now: Date,
   ): Promise<PrivateGalleryProofDraftSetup>;
   list(limit: number): Promise<PrivateGalleryProofDraftList>;
+  /** Atomic revision CAS; replace both references. Ready data is frozen. */
+  updateReferences(input: {
+    readonly handle: string; readonly expectedRevision: number;
+    readonly references: { readonly customerReference?: string; readonly jobReference?: string };
+  }): Promise<PrivateGalleryProofDraftSetup>;
   updatePricing(input: {
     readonly handle: string;
     readonly expectedRevision: number;
@@ -244,6 +249,34 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
       byId.set(galleryId, row);
       byHandle.set(galleryHandle, galleryId);
       return structuredClone(row);
+    },
+    async updateReferences(input) {
+      if (!input || typeof input !== "object" || Array.isArray(input) ||
+          Object.keys(input).sort().join(",") !== "expectedRevision,handle,references" ||
+          typeof input.handle !== "string" || !/^[A-Za-z0-9_-]{22}$/.test(input.handle) ||
+          !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) fail("invalid-input");
+      const refs = input.references;
+      if (!refs || typeof refs !== "object" || Array.isArray(refs) ||
+          Object.keys(refs).some((key) => !["customerReference", "jobReference"].includes(key)) ||
+          (refs.customerReference !== undefined && !isPrivateGalleryProofBusinessReference(refs.customerReference)) ||
+          (refs.jobReference !== undefined && !isPrivateGalleryProofBusinessReference(refs.jobReference))) fail("invalid-input");
+      // Snapshot validated scalars before the synchronous conditional mutation.
+      const references = {
+        ...(refs.customerReference === undefined ? {} : { customerReference: refs.customerReference }),
+        ...(refs.jobReference === undefined ? {} : { jobReference: refs.jobReference }),
+      };
+      const id = byHandle.get(input.handle);
+      const current = id === undefined ? undefined : byId.get(id);
+      if (!current) fail("not-found");
+      if ((current.gallery.state !== "draft" && current.gallery.state !== "preparing") ||
+          current.revision !== input.expectedRevision || current.revision === Number.MAX_SAFE_INTEGER) fail("conflict");
+      const updated = { ...current, customerReference: undefined, jobReference: undefined,
+        ...references, revision: current.revision + 1 };
+      // Omission clears stored fields, not only the HTTP projection.
+      if (updated.customerReference === undefined) delete updated.customerReference;
+      if (updated.jobReference === undefined) delete updated.jobReference;
+      byId.set(current.gallery.galleryId, updated);
+      return structuredClone(updated);
     },
     async updatePricing(input) {
       if (typeof input !== "object" || input === null ||

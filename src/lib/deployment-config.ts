@@ -259,6 +259,9 @@ export type BuiltInLabels = {
   readonly privateGalleryProofCreation: {
     readonly draftState: string; readonly preparingState: string; readonly readyState: string;
     readonly statusSnapshot: string; readonly objects: string; readonly deadline: string; readonly windowExpired: string;
+    readonly referenceHelp: string; readonly editReferences: string; readonly saveReferences: string;
+    readonly savingReferences: string; readonly savedReferences: string; readonly conflictReferences: string;
+    readonly invalid: string; readonly refresh: string;
     readonly heading: string;
     readonly description: string;
     readonly includedCount: string;
@@ -842,6 +845,14 @@ const englishLabels = {
     savedPricing: "Pricing saved.",
     conflictPricing: "This draft changed elsewhere. The list has been refreshed; review the current price and try again.",
     invalidPricing: "Enter a non-negative whole number and a three-letter uppercase currency code.",
+    referenceHelp: "Use an external reference, not a name or email address.",
+    editReferences: "Edit references",
+    saveReferences: "Save references",
+    savingReferences: "Saving references…",
+    savedReferences: "References saved.",
+    conflictReferences: "The draft changed elsewhere. Your entries have been kept. Refresh the list to discard them and load the latest references.",
+    invalid: "Enter valid single-line references of at most 128 UTF-8 bytes.",
+    refresh: "Refresh proof drafts",
   },
   privateGalleryProofAdmin: {
     heading: "Proof gallery status",
@@ -1222,6 +1233,14 @@ const finnishLabels = {
     savedPricing: "Hinnoittelu tallennettu.",
     conflictPricing: "Luonnos muuttui muualla. Lista on päivitetty; tarkista nykyinen hinta ja yritä uudelleen.",
     invalidPricing: "Anna ei-negatiivinen kokonaisluku ja kolmikirjaiminen isoilla kirjaimilla kirjoitettu valuuttakoodi.",
+    referenceHelp: "Käytä ulkoista viitettä, älä nimeä tai sähköpostiosoitetta.",
+    editReferences: "Muokkaa viitteitä",
+    saveReferences: "Tallenna viitteet",
+    savingReferences: "Tallennetaan viitteitä…",
+    savedReferences: "Viitteet tallennettu.",
+    conflictReferences: "Luonnos muuttui muualla. Kirjoittamasi viitteet säilyivät. Päivitä lista, jos haluat hylätä ne ja ladata uusimmat viitteet.",
+    invalid: "Anna kelvolliset yksiriviset viitteet, enintään 128 UTF-8-tavua.",
+    refresh: "Päivitä vedosluonnokset",
   },
   privateGalleryProofAdmin: {
     heading: "Vedosgallerian tila",

@@ -1,5 +1,6 @@
 "use client";
 
+import { PrivateGalleryDraftReferencesEditor, type PrivateGalleryDraftReferenceLabels } from "@/components/private-gallery-draft-references-editor";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 type PrivateGalleryProofDraftAdminItem = {
@@ -13,7 +14,8 @@ type PrivateGalleryProofDraftAdminItem = {
   readonly jobReference?: string;
 };
 
-export type PrivateGalleryProofDraftCreatorLabels = {
+export type PrivateGalleryProofDraftCreatorLabels = PrivateGalleryDraftReferenceLabels & {
+  readonly savedReferences: string; readonly refresh: string;
   readonly heading: string;
   readonly description: string;
   readonly includedCount: string;
@@ -52,13 +54,14 @@ async function fetchDraftList(apiPath: string): Promise<DraftList> {
 }
 
 function ProofDraftPricingEditor({
-  draft, apiPath, labels, onSaved, onConflict,
+  draft, apiPath, labels, onSaved, onConflict, blocked, mutationLockRef, onPending,
 }: {
   readonly draft: PrivateGalleryProofDraftAdminItem;
   readonly apiPath: string;
   readonly labels: PrivateGalleryProofDraftCreatorLabels;
   readonly onSaved: (updated: PrivateGalleryProofDraftAdminItem) => void;
   readonly onConflict: () => void;
+  readonly blocked: boolean; readonly mutationLockRef: { current: boolean }; readonly onPending: (pending: boolean) => void;
 }) {
   const id = useId();
   const [included, setIncluded] = useState(String(draft.pricing.includedCount));
@@ -69,6 +72,8 @@ function ProofDraftPricingEditor({
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (blocked || mutationLockRef.current) return;
+    mutationLockRef.current = true; onPending(true);
     setPending(true);
     setError(undefined);
     try {
@@ -100,6 +105,7 @@ function ProofDraftPricingEditor({
     } catch {
       setError("unavailable");
     } finally {
+      mutationLockRef.current = false; onPending(false);
       setPending(false);
     }
   }
@@ -126,7 +132,7 @@ function ProofDraftPricingEditor({
             onChange={(event) => setCurrency(event.target.value)}
             className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-strong" />
         </div>
-        <button type="submit" disabled={pending}
+        <button type="submit" aria-disabled={pending || blocked}
           className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50 sm:self-end">
           {pending ? labels.savingPricing : labels.savePricing}
         </button>
@@ -136,6 +142,23 @@ function ProofDraftPricingEditor({
       </p>}
     </details>
   );
+}
+
+function ProofDraftEditors({ draft, apiPath, labels, onSaved, onConflict, onReferencesSaved, reset, restoreFocus }: {
+  readonly draft: PrivateGalleryProofDraftAdminItem; readonly apiPath: string; readonly labels: PrivateGalleryProofDraftCreatorLabels;
+  readonly onSaved: (row: PrivateGalleryProofDraftAdminItem) => void; readonly onConflict: () => void;
+  readonly onReferencesSaved: (row: PrivateGalleryProofDraftAdminItem) => void;
+  readonly reset: number; readonly restoreFocus: boolean;
+}) {
+  const lock = useRef(false);
+  const [busy, setBusy] = useState(false);
+  return <>
+    <ProofDraftPricingEditor key={JSON.stringify([draft.pricing, reset])} draft={draft} apiPath={apiPath} labels={labels}
+      onSaved={onSaved} onConflict={onConflict} blocked={busy} mutationLockRef={lock} onPending={setBusy} />
+    <PrivateGalleryDraftReferencesEditor key={JSON.stringify([draft.customerReference, draft.jobReference, reset])}
+      item={draft} apiPath={apiPath} labels={labels} method="PUT" onSaved={onReferencesSaved}
+      restoreFocus={restoreFocus} blocked={busy} mutationLockRef={lock} onPending={setBusy} />
+  </>;
 }
 
 export function PrivateGalleryProofDraftCreator({
@@ -157,7 +180,9 @@ export function PrivateGalleryProofDraftCreator({
   const [jobReference, setJobReference] = useState("");
 
   const listEpoch = useRef(0);
-  const [editNotice, setEditNotice] = useState<"saved" | "conflict" | undefined>();
+  const [referenceReset, setReferenceReset] = useState(0);
+  const [savedReferenceHandle, setSavedReferenceHandle] = useState<string>();
+  const [editNotice, setEditNotice] = useState<"saved" | "references" | "conflict" | undefined>();
 
   const refresh = useCallback(() => {
     const epoch = ++listEpoch.current;
@@ -263,10 +288,14 @@ export function PrivateGalleryProofDraftCreator({
       </form>
       {error && <p role="alert" className="text-danger">{labels.unavailable}</p>}
       {editNotice && <p role={editNotice === "conflict" ? "alert" : "status"}>
-        {editNotice === "conflict" ? labels.conflictPricing : labels.savedPricing}
+        {editNotice === "conflict" ? labels.conflictPricing : editNotice === "references" ? labels.savedReferences : labels.savedPricing}
       </p>}
       {created && <p role="status">{labels.created} {labels.handle}: <span className="font-mono">{created}</span></p>}
-      <h3 className="font-medium text-strong">{labels.listHeading}</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-medium text-strong">{labels.listHeading}</h3>
+        <button type="button" onClick={() => { setReferenceReset((value) => value + 1); setSavedReferenceHandle(undefined); void refresh(); }}
+          className="rounded-md border border-border-strong px-3 py-1.5 text-strong">{labels.refresh}</button>
+      </div>
       {list && list.items.length === 0 && <p className="text-sm text-muted">{labels.empty}</p>}
       {list && list.items.length > 0 && (
         <ul className="flex flex-col gap-2">
@@ -284,9 +313,11 @@ export function PrivateGalleryProofDraftCreator({
               <div>{labels.includedCount}: {draft.pricing.includedCount} · {labels.extraUnitPriceMinor}: {draft.pricing.extraUnitPriceMinor} {draft.pricing.currency}</div>
               {draft.customerReference && <div>{labels.customerReference}: {draft.customerReference}</div>}
               {draft.jobReference && <div>{labels.jobReference}: {draft.jobReference}</div>}
-              {draft.state !== "ready" && <ProofDraftPricingEditor key={`${draft.handle}-${draft.revision}`}
-                draft={draft} apiPath={apiPath} labels={labels}
-                onSaved={savedPricing} onConflict={conflictedPricing} />}
+              {draft.state !== "ready" && <ProofDraftEditors key={draft.handle}
+                draft={draft} apiPath={apiPath} labels={labels} reset={referenceReset}
+                restoreFocus={savedReferenceHandle === draft.handle}
+                onSaved={savedPricing} onConflict={conflictedPricing}
+                onReferencesSaved={(updated) => { savedPricing(updated); setSavedReferenceHandle(updated.handle); setEditNotice("references"); }} /> }
             </li>
           ))}
         </ul>
