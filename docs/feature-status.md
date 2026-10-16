@@ -1510,6 +1510,12 @@ form creates no capability, notification or customer access, and the list omits
 internal IDs and storage keys. Production persistence, uploads/readiness,
 publication/outbox, notification/resend and revoke/replace remain unfinished;
 this non-destructive creation slice does not exercise the re-authentication gate.
+Delivery drafts also support revision-guarded replacement of external customer/job
+references through administrator-only `PATCH` and a FI/EN inline editor. Omitted
+references in the replacement object clear the previous value. A stale edit returns
+409 and preserves the entered text until the operator explicitly refreshes the list.
+Each successful save advances the revision once, including an identical replacement.
+This reversible development-memory operation does not publish or grant customer access.
 A server-only FI/EN delivery-notification builder now creates customer access
 instructions from a currently published delivery record and its encrypted capability.
 The envelope is authenticated against gallery, handle and current generation before
