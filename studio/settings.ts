@@ -28,11 +28,13 @@ export function studioStoryRoots(value: string): string[] {
   }
   for (const row of rows) {
     const parts = row.split("|").map((field) => field.trim());
-    const [locale, prefix, namespace, services] = parts;
+    if (![3, 4, 5].includes(parts.length)) throw new Error("Invalid SANITY_STUDIO_LOCALE_ROUTES");
+    const [locale, prefix, namespace, services, search] = parts;
     if (
-      (parts.length !== 3 && parts.length !== 4) || !locale ||
+      !locale ||
       !segment.test(namespace ?? "") || (prefix !== "" && !segment.test(prefix ?? "")) ||
-      (services !== undefined && (!segment.test(services) || services === namespace))
+      (services !== undefined && (!segment.test(services) || services === namespace)) ||
+      (search !== undefined && (!segment.test(search) || search === namespace || search === services))
     ) throw new Error("Invalid SANITY_STUDIO_LOCALE_ROUTES");
     let canonical: string;
     try {
