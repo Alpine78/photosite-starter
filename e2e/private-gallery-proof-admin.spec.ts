@@ -113,7 +113,11 @@ test.describe("private gallery proof administration", () => {
     await page.getByLabel(draftLabels.currency).fill(PRICING.currency);
     await page.getByRole("button", { name: draftLabels.create }).click();
     await expect(page.getByRole("listitem").filter({ hasText: HANDLE })).toBeVisible();
-    await expect(page.getByRole("alert").filter({ hasText: draftLabels.unavailable })).toHaveCount(0);
+    // The recovery read also fails: creation succeeds, while the list error stays honest.
+    await expect(page.getByRole("alert").filter({ hasText: draftLabels.unavailable })).toBeVisible();
+    // No authoritative page was ever read, so the list must not claim completion.
+    const proofCreator = page.locator("section").filter({ has: page.getByRole("heading", { name: draftLabels.heading, exact: true }) });
+    await expect(proofCreator.getByRole("button", { name: draftLabels.allLoaded, exact: true })).toHaveCount(0);
   });
 
   test("creates and lists a private draft without showing a customer access link", async ({ page }) => {
@@ -125,7 +129,7 @@ test.describe("private gallery proof administration", () => {
     await page.route("**/admin/proof", async (route) => {
       if (route.request().method() === "GET") {
         return route.fulfill({ status: 200, contentType: "application/json",
-          body: JSON.stringify({ ok: true, items: drafts, hasMore: true }) });
+          body: JSON.stringify({ ok: true, items: drafts, hasMore: false }) });
       }
       if (route.request().method() === "PATCH") {
         const input = JSON.parse(route.request().postData() ?? "{}") as {
@@ -155,13 +159,13 @@ test.describe("private gallery proof administration", () => {
     await creator.getByLabel(draftLabels.customerReference).fill("customer-1");
     await page.getByRole("button", { name: draftLabels.create }).click();
     await expect(creator.getByRole("status")).toContainText(HANDLE);
-    await expect(page.getByText(draftLabels.hasMore)).toBeVisible();
+    await expect(creator.getByRole("button", { name: draftLabels.loadMore, exact: true })).toHaveCount(0);
     await expect(page.getByText("customer-1", { exact: false })).toBeVisible();
     await expect(page.locator(`a[href*="${HANDLE}"]`)).toHaveCount(0);
     await expect(creator.getByRole("status")).not.toContainText("#");
 
     const row = page.getByRole("listitem").filter({ hasText: HANDLE });
-    await row.locator("summary").click();
+    await row.getByText(draftLabels.editPricing, { exact: true }).click();
     await row.getByLabel(draftLabels.includedCount).fill("3");
     await row.getByRole("button", { name: draftLabels.savePricing }).click();
     await expect(row).toContainText(`${draftLabels.includedCount}: 3`);
@@ -170,10 +174,12 @@ test.describe("private gallery proof administration", () => {
     // Another administrator tab has already saved a later revision.
     drafts[0].revision += 1;
     drafts[0].pricing = { ...drafts[0].pricing, includedCount: 4 };
-    await row.locator("summary").click();
+    await row.getByText(draftLabels.editPricing, { exact: true }).click();
     await row.getByLabel(draftLabels.includedCount).fill("5");
     await row.getByRole("button", { name: draftLabels.savePricing }).click();
     await expect(page.getByText(draftLabels.conflictPricing)).toBeVisible();
+    await expect(row.getByLabel(draftLabels.includedCount)).toHaveValue("5");
+    await creator.getByRole("button", { name: draftLabels.refresh, exact: true }).click();
     await expect(row).toContainText(`${draftLabels.includedCount}: 4`);
   });
 

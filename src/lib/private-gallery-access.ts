@@ -31,6 +31,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { readPrivateDraftCursor, buildPrivateDraftCursor, PrivateDraftCursorError } from "@/lib/private-gallery-draft-cursor";
 import { projectPrivateGalleryProofDraftStatus, type PrivateGalleryProofDraftStatus } from "@/lib/private-gallery-proof-draft-status";
 import { getPrivateGalleryDeliveryDraftMemoryStore, type PrivateGalleryDeliveryDraftStore } from "@/lib/private-gallery-delivery-draft-store";
 import { createDeliveryDraftAsAdmin, listDeliveryDraftsAsAdmin, updateDeliveryDraftReferencesAsAdmin } from "@/lib/private-gallery-delivery-draft-admin";
@@ -1321,7 +1322,7 @@ export function createPrivateGalleryDeliveryDraftAsAdmin(
   }, request, now);
 }
 export function listPrivateGalleryDeliveryDraftsAsAdmin(
-  deps: PrivateGalleryAdminRequestDeps & { readonly deliveryDraftStore: PrivateGalleryDeliveryDraftStore }, request: PrivateGalleryAdminRequest,
+  deps: PrivateGalleryAdminRequestDeps & { readonly deliveryDraftStore: PrivateGalleryDeliveryDraftStore }, request: PrivateGalleryAdminRequest & { readonly listUrl?: string },
 ) {
   return listDeliveryDraftsAsAdmin({ store: deps.deliveryDraftStore,
     authorize: async (cookieHeader, at) => (await authorizePrivateGalleryAdministrator(deps, { cookieHeader, now: at })).ok,
@@ -1419,6 +1420,32 @@ export async function createPrivateGalleryProofDraftAsAdmin(
   }
 }
 
+/** Replace external references on a pre-ready proof; pricing PATCH remains separate. */
+export async function updatePrivateGalleryProofDraftReferencesAsAdmin(
+  deps: PrivateGalleryAdminRequestDeps & { readonly proofDraftStore: PrivateGalleryProofDraftStore },
+  request: Request, now: Date,
+): Promise<PrivateGalleryProofDraftAdminOutcome<PrivateGalleryProofDraftAdminItem>> {
+  if (request.method !== "PUT" || checkPrivateGalleryAdminLoginRequestHeaders(request) !== undefined) return { ok: false, reason: "invalid-input" };
+  const authorization = await authorizePrivateGalleryAdministrator(deps, { cookieHeader: request.headers.get("cookie"), now });
+  if (!authorization.ok) return { ok: false, reason: "unauthorized" };
+  try {
+    const raw = await readBoundedBody(request, 1024);
+    if (raw === undefined) return { ok: false, reason: "invalid-input" };
+    let input: Parameters<PrivateGalleryProofDraftStore["updateReferences"]>[0];
+    try {
+      const value: unknown = JSON.parse(raw);
+      if (!value || typeof value !== "object" || Array.isArray(value) ||
+          Object.keys(value).sort().join(",") !== "expectedRevision,handle,references") return { ok: false, reason: "invalid-input" };
+      input = value as typeof input;
+    } catch { return { ok: false, reason: "invalid-input" }; }
+    return { ok: true, value: projectProofDraft(await deps.proofDraftStore.updateReferences(input), now) };
+  } catch (error) {
+    if (error instanceof PrivateGalleryProofDraftStoreError &&
+        (error.reason === "invalid-input" || error.reason === "not-found" || error.reason === "conflict")) return { ok: false, reason: error.reason };
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
 function parseProofDraftPricingUpdate(raw: string): {
   readonly handle: string;
   readonly expectedRevision: number;
@@ -1483,17 +1510,22 @@ export async function updatePrivateGalleryProofDraftPricingAsAdmin(
 /** Bounded, authorized listing; no internal ID, secret, or customer access URL. */
 export async function listPrivateGalleryProofDraftsAsAdmin(
   deps: PrivateGalleryAdminRequestDeps & { readonly proofDraftStore: PrivateGalleryProofDraftStore },
-  request: PrivateGalleryAdminRequest,
+  request: PrivateGalleryAdminRequest & { readonly listUrl?: string },
 ): Promise<PrivateGalleryProofDraftAdminOutcome<{
   readonly items: readonly PrivateGalleryProofDraftAdminItem[];
   readonly hasMore: boolean;
+  readonly nextCursor?: string;
 }>> {
   const authorization = await authorizePrivateGalleryAdministrator(deps, request);
   if (!authorization.ok) return { ok: false, reason: "unauthorized" };
   try {
-    const result = await deps.proofDraftStore.list(PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT);
-    return { ok: true, value: { items: result.items.map((row) => projectProofDraft(row, request.now)), hasMore: result.hasMore } };
-  } catch {
+    const after = readPrivateDraftCursor(request.listUrl, "proof");
+    const result = await deps.proofDraftStore.list(PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT, after);
+    const items = result.items.map((row) => projectProofDraft(row, request.now));
+    return { ok: true, value: { items, hasMore: result.hasMore,
+      ...(result.hasMore && items.length ? { nextCursor: buildPrivateDraftCursor("proof", items.at(-1)!.handle) } : {}) } };
+  } catch (error) {
+    if (error instanceof PrivateDraftCursorError || (error instanceof PrivateGalleryProofDraftStoreError && error.reason === "invalid-cursor")) return { ok: false, reason: "invalid-input" };
     return { ok: false, reason: "unavailable" };
   }
 }
