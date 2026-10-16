@@ -1,5 +1,5 @@
 /**
- * Per-proof-page admission for Stage 1 signed-preview URL requests.
+ * Per-private-page admission for Stage 1 signed-preview URL requests.
  * The server's per-session rate and byte budget remain authoritative. This
  * smaller per-tab window keeps fast scrolling from spending all 60 allowed
  * mint attempts in one minute before other tabs or retries have room.

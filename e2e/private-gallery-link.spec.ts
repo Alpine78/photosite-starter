@@ -477,7 +477,7 @@ test.describe("private gallery session in a browser", () => {
     );
     await expect(page.locator('[data-gallery-enquire], a[href*="enquire="]')).toHaveCount(0);
     // The bootstrap's status region belongs to the unauthorized document only.
-    await expect(page.getByRole("status")).toHaveCount(0);
+    await expect(page.locator("#private-gallery-status")).toHaveCount(0);
   });
 
   test("keeps the gallery on a later visit, without the link", async ({
@@ -494,7 +494,7 @@ test.describe("private gallery session in a browser", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       GALLERY_HEADING,
     );
-    await expect(page.getByRole("status")).toHaveCount(0);
+    await expect(page.locator("#private-gallery-status")).toHaveCount(0);
   });
 
   test("scrubs the original full link on a repeat visit without exchanging", async ({

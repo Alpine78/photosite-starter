@@ -8,6 +8,8 @@ import {
   MEMORY_ADMIN_SECRET,
   MEMORY_GALLERY_CAPABILITY,
   MEMORY_GALLERY_HANDLE,
+  MEMORY_DELIVERY_VIEW_GALLERY_HANDLE,
+  MEMORY_DELIVERY_VIEW_GALLERY_CAPABILITY,
   MEMORY_PROOF_GALLERY_CAPABILITY,
   MEMORY_PROOF_GALLERY_HANDLE,
   getPrivateGalleryMemoryStore,
@@ -58,6 +60,25 @@ afterEach(() => {
 });
 
 describe("the published fixture link", () => {
+  it("gives delivery UI journeys a separate real session and bounded placement lookup", async () => {
+    expect(MEMORY_DELIVERY_VIEW_GALLERY_HANDLE).toBe("RERERERERERERERERERERA");
+    expect(MEMORY_DELIVERY_VIEW_GALLERY_CAPABILITY).toBe("VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU");
+    const outcome = await exchangePrivateGalleryCapability(deps(), request({
+      handle: MEMORY_DELIVERY_VIEW_GALLERY_HANDLE, submittedSecret: MEMORY_DELIVERY_VIEW_GALLERY_CAPABILITY,
+    }));
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) throw new Error("expected fixture session");
+    const store = getPrivateGalleryMemoryStore();
+    expect(outcome.session.galleryId).not.toBe(store.gallery.galleryId);
+    const gallery = await store.viewStore.findGalleryById(outcome.session.galleryId);
+    expect(gallery).toMatchObject({ kind: "delivery", state: "published" });
+    expect(await store.viewStore.listPlacements(outcome.session.galleryId, 100)).toHaveLength(5);
+    const config = { maxAttempts: 1, windowMs: 3_600_000 };
+    expect(await store.exchangeStore.consumeExchangeAttempt(MEMORY_DELIVERY_VIEW_GALLERY_HANDLE, NOW, config))
+      .toMatchObject({ outcome: "rate-limited" });
+    expect(await store.exchangeStore.consumeExchangeAttempt(MEMORY_GALLERY_HANDLE, NOW, config))
+      .toMatchObject({ outcome: "ok" });
+  });
   it("exchanges for a session", async () => {
     const outcome = await exchangePrivateGalleryCapability(deps(), request());
 
