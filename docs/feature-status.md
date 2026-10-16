@@ -1529,6 +1529,15 @@ capability, publication or email is added. Dimensions and ZIP membership remain
 owner-attested; live checksum/version semantics and immutable-write guarantees still
 need the approved provider gate. Expired preparations follow retention rather than an
 unapproved `preparing → draft` transition. Both AB#29 and AB#145 remain Active.
+
+A server-only FI/EN delivery-notification builder now creates customer access
+instructions from a currently published delivery record and its encrypted capability.
+The envelope is authenticated against gallery, handle and current generation before
+a fragment-only HTTPS link is rendered. The message includes shareability, one ZIP
+and an explicit UTC expiry; invalid, expired or retired-generation material is refused.
+This is a transient message builder only: no publication, outbox activation, provider
+send or production enablement is added. A future dispatcher must re-read live metadata
+and keep only encrypted capability material at rest, never the rendered email body.
 AB#145 was verified Active before edits and remains Active pending acceptance.
 CI #1047 exposed a shared test login budget: gallery-management journeys now
 reuse a real administrator session per Playwright worker. Each test retains its
@@ -1586,6 +1595,16 @@ This has no HTTP or owner-CLI upload path, no object writes and no customer acce
 `preparing → draft` is not an ADR-0014 transition; the story's reopen operation applies
 to a confirmed customer selection after publication. An incorrect/abandoned preparation
 must follow the deletion and recreation path when durable storage exists.
+A separate first-delivery publication planner now checks the ready gallery's entire
+private placement/object set, active ZIP, preparation window and first-publication
+metadata before proposing its publication time and six-calendar-month expiry. It
+returns only a redacted first blocker or a server-only metadata plan. Preview order
+values must be positive and unique; gaps do not imply a missing object because every
+placement must join the complete verified preparation set. The future adapter must
+lock/re-read that full set in its publication transaction with the sealed capability
+and unique initial outbox insert; state/generation alone are insufficient. This pure
+planner adds no administrator route, state write, notification or customer access.
+AB#145 and AB#29 remain Active.
 No PostgreSQL proof store, durable outbox worker, runtime mail wiring or
 production customer workflow exists yet.
 
