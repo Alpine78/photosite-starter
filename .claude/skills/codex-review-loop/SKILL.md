@@ -41,6 +41,48 @@ separate planning step happened, or the change is small enough that no plan
 was drafted), skip straight to phase 3 — do not manufacture a retroactive
 plan just to have something to send Codex.
 
+## Model and effort selection
+
+Select the Codex model and reasoning effort separately before every call —
+plan review, each review round, and each Codex-authored correction. The owner
+authorizes this selection without asking for confirmation. Pass both
+explicitly with `-c model="<slug>" -c model_reasoning_effort="<level>"`, so a
+run never depends silently on the `~/.codex/config.toml` default:
+
+| Model | Effort | Use when |
+| --- | --- | --- |
+| `gpt-6-luna` | `low`–`medium` | The change is small and clearly bounded: documentation, copy, styling, or a local component change with no complex behavior or sensitive boundary. |
+| `gpt-6.1-sol` | `medium` | A normal feature or multi-file change needs requirement checks and tracing behavior across files. Use this when the appropriate level is uncertain. |
+| `gpt-6.1-sol` | `high`–`xhigh` | The change involves access control, private galleries, signed URLs, secrets, CMS writes or migrations, the data model, CI/CD, or other behavior where an error has substantial or hard-to-reverse impact. |
+
+- Judge complexity and impact from the actual requirements and affected
+  behavior, not diff size alone. A one-line change to a token check is a
+  `high` review.
+- Reassess before each call as findings reveal more complexity, and escalate
+  when they do. Do not downgrade within one loop for the same scope: a clean
+  report from a cheaper model does not answer a stronger reviewer's open
+  findings.
+- A Codex-authored correction of a recurring spot ("When a spot needs a
+  second correction") uses at least `gpt-6.1-sol` at `high`.
+- Do not select `gpt-6-astra` unless the user asks for it: it exhausts the
+  owner's Codex capacity quickly, and `gpt-6.1-sol` at `high`–`xhigh` is the
+  owner's chosen ceiling for complex reviews.
+- Do not select `max` or `ultra` effort, older-generation models, or models
+  hidden from the picker unless the user asks for them. `ultra` delegates
+  tasks automatically, which makes the cost of one round unpredictable.
+- Before every call, tell the user the selected model and effort with a
+  one-line reason.
+- An explicit user choice of model or effort takes precedence.
+
+The available slugs and their supported efforts are in
+`~/.codex/models_cache.json` (`slug`, `description`,
+`supported_reasoning_levels`). When the models change, re-check the table
+against that file. If a slug in this table is no longer listed, report it and
+ask the user rather than guessing a replacement.
+
+The command examples below show `gpt-6.1-sol` at `medium` as an illustration
+only. Replace both values with the selection made for that call.
+
 ## Phase 1: one-time plan sanity check (before implementation)
 
 Prerequisite 2 below (Codex CLI installed and authenticated) applies to this
@@ -58,7 +100,8 @@ phase too — check it before step 2's call, even though the rest of the
 
 2. Send the plan to Codex exactly once:
    ```bash
-   codex exec -s read-only --ephemeral - <<'EOF'
+   codex exec -s read-only --ephemeral \
+     -c model="gpt-6.1-sol" -c model_reasoning_effort="medium" - <<'EOF'
    Review this implementation plan before any code is written. Flag real
    risks, missing edge cases, or a simpler approach if one exists. Do not
    propose file edits — this is a plan review only.
@@ -224,10 +267,12 @@ For each round, up to the limit:
    doesn't):
    ```bash
    codex review --base <branch> \
+     -c model="gpt-6.1-sol" -c model_reasoning_effort="medium" \
      -c sandbox_mode="workspace-write" \
      -c sandbox_workspace_write.network_access=true \
      -c 'sandbox_workspace_write.writable_roots=["'"$HOME"'/.azure"]'
    # or --uncommitted instead of --base <branch> for working-tree changes
+   # model and effort: the selection for this round (see "Model and effort selection")
    ```
    Do not add flags from `codex exec --help` that `review` does not have —
    `review` has its own, smaller flag set (`--base`, `--uncommitted`,
@@ -274,6 +319,7 @@ instead:
 1. Ask Codex to fix it directly and non-interactively, with write access:
    ```bash
    codex exec -s workspace-write \
+     -c model="gpt-6.1-sol" -c model_reasoning_effort="high" \
      -c sandbox_workspace_write.network_access=true \
      -c 'sandbox_workspace_write.writable_roots=["'"$HOME"'/.azure"]' \
      "Fix exactly this finding: <finding text, file, and line>. Make the
