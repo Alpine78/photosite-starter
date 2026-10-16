@@ -1,5 +1,11 @@
 /** Studio interface copy only; English keys and stored content are unchanged. */
 export const schemaFinnish = {
+  "Content identifier": "Sisällön pysyvä tunniste",
+  "Article gallery identifier": "Artikkeligallerian pysyvä tunniste",
+  "Category identifier": "Kategorian pysyvä tunniste",
+  "Media identifier": "Median pysyvä tunniste",
+  "Image occurrence identifier": "Kuvasijoituksen pysyvä tunniste",
+  "Media description missing": "Median kuvaus puuttuu",
   "Allow photograph enquiries": "Salli valokuvatiedustelut",
   "Allow enquiries from this public gallery. Each photograph must also be opted in. Client galleries never use this action.": "Salli tiedustelut tästä julkisesta galleriasta. Myös kunkin valokuvan tiedustelujen on oltava sallittuja. Asiakasgallerioissa tätä toimintoa ei ole.",
 

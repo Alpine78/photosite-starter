@@ -1,6 +1,5 @@
 /** Bounded, detached upload receipt/provider metadata snapshots for private stores. */
 import "server-only";
-import type { PrivateGalleryUploadPlan } from "@/lib/private-gallery-upload";
 import type { PrivateGalleryUploadReceipt, PrivateGalleryObjectObservation } from "@/lib/private-gallery-upload-completion";
 import { PRIVATE_GALLERY_MAX_OBJECT_KEY_LENGTH } from "@/lib/private-gallery-object-key";
 
@@ -18,7 +17,7 @@ function boundedMetadataString(value: unknown, maximum: number): value is string
 /** Copy only bounded provider metadata; helpers must not retain caller objects. */
 export function snapshotPrivateGalleryUploadCompletionEvidence(
   input: PrivateGalleryUploadCompletionEvidence,
-  plan: PrivateGalleryUploadPlan,
+  plan: { readonly objects: readonly unknown[]; readonly preparation: { readonly objectKeys: readonly string[] } },
 ): Pick<PrivateGalleryUploadCompletionEvidence, "receipts" | "observations"> {
   const { receipts, observations } = input;
   if (!Array.isArray(receipts) || receipts.length > plan.objects.length ||

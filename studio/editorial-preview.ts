@@ -47,12 +47,46 @@ function placementPreview(container: "gallery" | "article"): EditorialPreview {
   };
 }
 
+/** Shared media has no document language. Prefer the interface language, then
+ * FI/EN, then a stable authored-language order, always reporting the used tag. */
+export function selectMediaDescription(selection: Selection, locale: string) {
+  const entries = (value: unknown) => Array.isArray(value) ? value.flatMap((entry: unknown) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const row = entry as Record<string, unknown>;
+    const value = text(row.value);
+    return value ? [{ value, language: text(row.language) }] : [];
+  }) : [];
+  const captions = entries(selection.captions);
+  const rows = (captions.length ? captions : entries(selection.alternatives)).sort((a, b) => {
+    const left = a.language?.toLowerCase() ?? "", right = b.language?.toLowerCase() ?? "";
+    return left < right ? -1 : left > right ? 1 : 0;
+  });
+  const tag = locale.toLowerCase(), primary = tag.split("-")[0];
+  return rows.find((row) => row.language?.toLowerCase() === tag) ??
+    rows.find((row) => row.language?.toLowerCase().split("-")[0] === primary) ??
+    rows.find((row) => row.language?.toLowerCase().split("-")[0] === "fi") ??
+    rows.find((row) => row.language?.toLowerCase().split("-")[0] === "en") ?? rows[0];
+}
+
+export function mediaEditorialPreview(selection: Selection, locale = "en-US"): PreviewValue {
+  const selected = selectMediaDescription(selection, locale);
+  return {
+    title: selected?.value ?? "Media description missing",
+    subtitle: [language(selected?.language), text(selection.credit)].filter(Boolean).join(" · "),
+    media: selection.media,
+  };
+}
+
 /** Studio-only labels: stored identities and the dependency-free canonical schemas stay intact. */
 export const EDITORIAL_PREVIEWS: Readonly<Partial<Record<string, EditorialPreview>>> = {
   article: pagePreview("title", "cover.image"),
   gallery: pagePreview("title", "cover.image"),
   galleryPlacement: placementPreview("gallery"),
   articleEndGalleryPlacement: placementPreview("article"),
+  media: {
+    select: { captions: "caption", alternatives: "alt", credit: "credit", media: "image" },
+    prepare: (selection) => mediaEditorialPreview(selection),
+  },
   category: {
     select: { labels: "label" },
     prepare({ labels }) {
