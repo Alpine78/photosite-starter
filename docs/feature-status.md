@@ -1549,7 +1549,14 @@ whole row unchanged; stale or repeated completion conflicts without refreezing r
 The stored prefix cannot be broadened at completion. Receipts alone establish nothing;
 checksum comparison applies only when both receipt and provider metadata name the same
 algorithm, so live provider checksum/version semantics remain a separate verification gate.
-The existing admin JSON projection excludes the plan, keys and frozen internal records.
+The administrator projection now adds only the prepublication state and a bounded
+upload summary (object count, opening time, deadline and expiry at response time).
+The FI/EN list distinguishes draft, preparing and prepared-but-unshared proofs;
+prepared terms have no pricing editor. The absolute UTC deadline remains visible,
+including after ready: first publication must still precede it. The displayed expiry
+is explicitly a response snapshot; server-side operations recheck the deadline.
+A malformed privileged record refuses the whole list with the existing unavailable
+response. The existing admin JSON projection excludes the plan, keys and frozen internal records.
 This has no HTTP or owner-CLI upload path, no object writes and no customer access.
 `preparing → draft` is not an ADR-0014 transition; the story's reopen operation applies
 to a confirmed customer selection after publication. An incorrect/abandoned preparation

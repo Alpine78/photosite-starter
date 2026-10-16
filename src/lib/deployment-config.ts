@@ -255,6 +255,8 @@ export type BuiltInLabels = {
   };
   /** Development-only administrator proof setup (AB#130). */
   readonly privateGalleryProofCreation: {
+    readonly draftState: string; readonly preparingState: string; readonly readyState: string;
+    readonly statusSnapshot: string; readonly objects: string; readonly deadline: string; readonly windowExpired: string;
     readonly heading: string;
     readonly description: string;
     readonly includedCount: string;
@@ -805,6 +807,13 @@ const englishLabels = {
     javascriptRequired: "Creating delivery drafts needs JavaScript.",
   },
   privateGalleryProofCreation: {
+    draftState: "Draft – not shared with customer",
+    preparingState: "Preparing proofs – not shared with customer",
+    readyState: "Proofs prepared – not shared with customer",
+    statusSnapshot: "Preparation status at the last response. The server checks the deadline again before publication.",
+    objects: "Planned proof objects",
+    deadline: "Preparation deadline",
+    windowExpired: "The preparation window has expired; publication is unavailable.",
     heading: "Create proof gallery draft",
     description: "Drafts are private. Publishing and customer access are not available yet. Prices are in minor currency units.",
     includedCount: "Included photographs",
@@ -1173,6 +1182,13 @@ const finnishLabels = {
     javascriptRequired: "Toimitusluonnosten luominen tarvitsee JavaScriptin.",
   },
   privateGalleryProofCreation: {
+    draftState: "Luonnos – ei jaettu asiakkaalle",
+    preparingState: "Vedoksia valmistellaan – ei jaettu asiakkaalle",
+    readyState: "Vedokset valmisteltu – ei jaettu asiakkaalle",
+    statusSnapshot: "Valmistelun tila viimeisimmän vastauksen hetkellä. Palvelin tarkistaa määräajan uudelleen ennen julkaisua.",
+    objects: "Suunnitellut vedosobjektit",
+    deadline: "Valmistelun määräaika",
+    windowExpired: "Valmisteluaika on umpeutunut; julkaisu ei ole käytettävissä.",
     heading: "Luo vedosgallerian luonnos",
     description: "Luonnokset ovat yksityisiä. Julkaisu ja asiakkaan pääsy eivät ole vielä käytettävissä. Hinnat annetaan valuutan pienimmässä yksikössä.",
     includedCount: "Hintaan kuuluvat valokuvat",

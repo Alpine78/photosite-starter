@@ -6,6 +6,8 @@ type PrivateGalleryProofDraftAdminItem = {
   readonly handle: string;
   readonly createdAt: string;
   readonly revision: number;
+  readonly state: "draft" | "preparing" | "ready";
+  readonly upload?: { readonly objectCount: number; readonly openedAt: string; readonly deadline: string; readonly expired: boolean };
   readonly pricing: { readonly includedCount: number; readonly extraUnitPriceMinor: number; readonly currency: string };
   readonly customerReference?: string;
   readonly jobReference?: string;
@@ -33,6 +35,8 @@ export type PrivateGalleryProofDraftCreatorLabels = {
   readonly savedPricing: string;
   readonly conflictPricing: string;
   readonly invalidPricing: string;
+  readonly draftState: string; readonly preparingState: string; readonly readyState: string;
+  readonly statusSnapshot: string; readonly objects: string; readonly deadline: string; readonly windowExpired: string;
 };
 
 type DraftList = { readonly items: readonly PrivateGalleryProofDraftAdminItem[]; readonly hasMore: boolean };
@@ -232,8 +236,8 @@ export function PrivateGalleryProofDraftCreator({
   ] as const;
 
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-lg font-medium text-strong">{labels.heading}</h2>
+    <section aria-labelledby={`${id}-heading`} className="flex flex-col gap-4">
+      <h2 id={`${id}-heading`} className="text-lg font-medium text-strong">{labels.heading}</h2>
       <p className="text-sm text-muted">{labels.description}</p>
       <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
         {fields.map((field) => (
@@ -270,12 +274,19 @@ export function PrivateGalleryProofDraftCreator({
             <li key={draft.handle} className="rounded-md border border-border-strong p-3 text-sm">
               <span className="font-mono text-strong">{draft.handle}</span>{" · "}
               <time dateTime={draft.createdAt}>{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(draft.createdAt))}</time>
+              <p>{draft.state === "ready" ? labels.readyState : draft.state === "preparing" ? labels.preparingState : labels.draftState}</p>
+              {draft.upload && <div className="text-muted">
+                <p>{labels.statusSnapshot}</p>
+                <p>{labels.objects}: {draft.upload.objectCount}</p>
+                <p>{labels.deadline}: <time dateTime={draft.upload.deadline}>{draft.upload.deadline} (UTC)</time></p>
+                {draft.upload.expired && <p className="text-danger">{labels.windowExpired}</p>}
+              </div>}
               <div>{labels.includedCount}: {draft.pricing.includedCount} · {labels.extraUnitPriceMinor}: {draft.pricing.extraUnitPriceMinor} {draft.pricing.currency}</div>
               {draft.customerReference && <div>{labels.customerReference}: {draft.customerReference}</div>}
               {draft.jobReference && <div>{labels.jobReference}: {draft.jobReference}</div>}
-              <ProofDraftPricingEditor key={`${draft.handle}-${draft.revision}`}
+              {draft.state !== "ready" && <ProofDraftPricingEditor key={`${draft.handle}-${draft.revision}`}
                 draft={draft} apiPath={apiPath} labels={labels}
-                onSaved={savedPricing} onConflict={conflictedPricing} />
+                onSaved={savedPricing} onConflict={conflictedPricing} />}
             </li>
           ))}
         </ul>
