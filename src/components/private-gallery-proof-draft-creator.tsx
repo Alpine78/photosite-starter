@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { usePrivateGalleryDraftList } from "@/components/use-private-gallery-draft-list";
+import { useId, useRef, useState } from "react";
 
 type PrivateGalleryProofDraftAdminItem = {
   readonly handle: string;
@@ -27,6 +28,7 @@ export type PrivateGalleryProofDraftCreatorLabels = {
   readonly listHeading: string;
   readonly empty: string;
   readonly hasMore: string;
+  readonly loadMore: string; readonly loadingMore: string; readonly refresh: string;
   readonly unavailable: string;
   readonly handle: string;
   readonly editPricing: string;
@@ -38,18 +40,6 @@ export type PrivateGalleryProofDraftCreatorLabels = {
   readonly draftState: string; readonly preparingState: string; readonly readyState: string;
   readonly statusSnapshot: string; readonly objects: string; readonly deadline: string; readonly windowExpired: string;
 };
-
-type DraftList = { readonly items: readonly PrivateGalleryProofDraftAdminItem[]; readonly hasMore: boolean };
-
-async function fetchDraftList(apiPath: string): Promise<DraftList> {
-  const response = await fetch(apiPath, { headers: { accept: "application/json" } });
-  if (!response.ok) throw new Error("unavailable");
-  const data = await response.json() as { ok?: boolean } & DraftList;
-  if (data.ok !== true || !Array.isArray(data.items) || typeof data.hasMore !== "boolean") {
-    throw new Error("unavailable");
-  }
-  return { items: data.items, hasMore: data.hasMore };
-}
 
 function ProofDraftPricingEditor({
   draft, apiPath, labels, onSaved, onConflict,
@@ -146,7 +136,7 @@ export function PrivateGalleryProofDraftCreator({
   readonly labels: PrivateGalleryProofDraftCreatorLabels;
 }) {
   const id = useId();
-  const [list, setList] = useState<DraftList | undefined>();
+  const { list, loading, listError, refresh, loadMore, acknowledge, cancel } = usePrivateGalleryDraftList<PrivateGalleryProofDraftAdminItem>(apiPath);
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
   const [created, setCreated] = useState<string | undefined>();
@@ -156,31 +146,10 @@ export function PrivateGalleryProofDraftCreator({
   const [customerReference, setCustomerReference] = useState("");
   const [jobReference, setJobReference] = useState("");
 
-  const listEpoch = useRef(0);
   const [editNotice, setEditNotice] = useState<"saved" | "conflict" | undefined>();
-
-  const refresh = useCallback(() => {
-    const epoch = ++listEpoch.current;
-    // The effect subscribes; only settled request callbacks update React state,
-    // including a synchronous fetch failure captured by the async helper.
-    return fetchDraftList(apiPath).then((data) => {
-      if (epoch === listEpoch.current) {
-        setList(data);
-        setError(false);
-      }
-    }, () => {
-      if (epoch === listEpoch.current) setError(true);
-    });
-  }, [apiPath]);
-
-  useEffect(() => { void refresh(); }, [refresh]);
-
+  const busy = useRef(false);
   function savedPricing(updated: PrivateGalleryProofDraftAdminItem) {
-    ++listEpoch.current;
-    setList((previous) => previous === undefined ? previous : {
-      ...previous,
-      items: previous.items.map((draft) => draft.handle === updated.handle ? updated : draft),
-    });
+    acknowledge(updated);
     setEditNotice("saved");
   }
 
@@ -191,6 +160,9 @@ export function PrivateGalleryProofDraftCreator({
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy.current) return;
+    busy.current = true;
+    cancel();
     setPending(true);
     setError(false);
     setCreated(undefined);
@@ -213,16 +185,13 @@ export function PrivateGalleryProofDraftCreator({
       if (data.ok !== true || data.draft === undefined) throw new Error("unavailable");
       const draft = data.draft;
       setCreated(draft.handle);
-      ++listEpoch.current;
-      setList((previous) => previous === undefined
-        ? { items: [draft], hasMore: false }
-        : { items: [draft, ...previous.items].slice(0, 100),
-            hasMore: previous.hasMore || previous.items.length >= 100 });
+      acknowledge(draft, true);
       setCustomerReference("");
       setJobReference("");
     } catch {
       setError(true);
     } finally {
+      busy.current = false;
       setPending(false);
     }
   }
@@ -266,7 +235,11 @@ export function PrivateGalleryProofDraftCreator({
         {editNotice === "conflict" ? labels.conflictPricing : labels.savedPricing}
       </p>}
       {created && <p role="status">{labels.created} {labels.handle}: <span className="font-mono">{created}</span></p>}
-      <h3 className="font-medium text-strong">{labels.listHeading}</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-medium text-strong">{labels.listHeading}</h3>
+        <button type="button" disabled={pending || loading} onClick={() => void refresh()}
+          className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50">{labels.refresh}</button>
+      </div>
       {list && list.items.length === 0 && <p className="text-sm text-muted">{labels.empty}</p>}
       {list && list.items.length > 0 && (
         <ul className="flex flex-col gap-2">
@@ -291,7 +264,11 @@ export function PrivateGalleryProofDraftCreator({
           ))}
         </ul>
       )}
-      {list?.hasMore && <p className="text-sm text-muted">{labels.hasMore}</p>}
+      {listError && <p role="alert" className="text-danger">{labels.unavailable}</p>}
+      {list?.hasMore && <button type="button" disabled={pending || loading} onClick={() => void loadMore()}
+        className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50">
+        {loading ? labels.loadingMore : labels.loadMore}
+      </button>}
     </section>
   );
 }

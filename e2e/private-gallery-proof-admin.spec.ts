@@ -125,7 +125,7 @@ test.describe("private gallery proof administration", () => {
     await page.route("**/admin/proof", async (route) => {
       if (route.request().method() === "GET") {
         return route.fulfill({ status: 200, contentType: "application/json",
-          body: JSON.stringify({ ok: true, items: drafts, hasMore: true }) });
+          body: JSON.stringify({ ok: true, items: drafts, hasMore: false }) });
       }
       if (route.request().method() === "PATCH") {
         const input = JSON.parse(route.request().postData() ?? "{}") as {
@@ -155,7 +155,7 @@ test.describe("private gallery proof administration", () => {
     await creator.getByLabel(draftLabels.customerReference).fill("customer-1");
     await page.getByRole("button", { name: draftLabels.create }).click();
     await expect(creator.getByRole("status")).toContainText(HANDLE);
-    await expect(page.getByText(draftLabels.hasMore)).toBeVisible();
+    await expect(creator.getByRole("button", { name: draftLabels.loadMore, exact: true })).toHaveCount(0);
     await expect(page.getByText("customer-1", { exact: false })).toBeVisible();
     await expect(page.locator(`a[href*="${HANDLE}"]`)).toHaveCount(0);
     await expect(creator.getByRole("status")).not.toContainText("#");

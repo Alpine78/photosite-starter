@@ -1555,6 +1555,14 @@ whole row unchanged; stale or repeated completion conflicts without refreezing r
 The stored prefix cannot be broadened at completion. Receipts alone establish nothing;
 checksum comparison applies only when both receipt and provider metadata name the same
 algorithm, so live provider checksum/version semantics remain a separate verification gate.
+Administrator proof and delivery draft lists now continue beyond the first 100 rows
+with authenticated, uncached cursor pages and FI/EN load-older controls (AB#130,
+AB#145). Each response is bounded to 100 rows. The shared browser loader ignores
+canceled reads, deduplicates overlaps and preserves acknowledged edits/creations;
+refresh deliberately returns to the first page. Handles in cursors are non-secret
+identifiers; they grant no customer access. This is a development-memory slice;
+neither story is complete.
+
 The administrator projection now adds only the prepublication state and a bounded
 upload summary (object count, opening time, deadline and expiry at response time).
 The FI/EN list distinguishes draft, preparing and prepared-but-unshared proofs;

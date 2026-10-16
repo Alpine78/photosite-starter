@@ -1,4 +1,5 @@
 import "server-only";
+import { readPrivateDraftCursor, buildPrivateDraftCursor, PrivateDraftCursorError } from "@/lib/private-gallery-draft-cursor";
 import { readBoundedBody } from "@/lib/contact-request";
 import { checkPrivateGalleryAdminLoginRequestHeaders } from "@/lib/private-gallery-admin-login";
 import {
@@ -38,12 +39,18 @@ export async function createDeliveryDraftAsAdmin(deps: Deps, request: Request, n
     return { ok: false, reason: error instanceof PrivateGalleryDeliveryDraftStoreError && error.reason === "invalid-input" ? "invalid-input" : "unavailable" };
   }
 }
-export async function listDeliveryDraftsAsAdmin(deps: Deps, request: { readonly cookieHeader: string | null | undefined; readonly now: Date }): Promise<DeliveryDraftAdminOutcome<{ readonly items: readonly DeliveryDraftAdminItem[]; readonly hasMore: boolean }>> {
+export async function listDeliveryDraftsAsAdmin(deps: Deps, request: { readonly cookieHeader: string | null | undefined; readonly now: Date; readonly listUrl?: string }): Promise<DeliveryDraftAdminOutcome<{ readonly items: readonly DeliveryDraftAdminItem[]; readonly hasMore: boolean; readonly nextCursor?: string }>> {
   try {
     if (!await deps.authorize(request.cookieHeader, request.now)) return { ok: false, reason: "unauthorized" };
-    const result = await deps.store.list(PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT);
-    return { ok: true, value: { items: result.items.map(project), hasMore: result.hasMore } };
-  } catch { return { ok: false, reason: "unavailable" }; }
+    const after = readPrivateDraftCursor(request.listUrl, "delivery");
+    const result = await deps.store.list(PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT, after);
+    const items = result.items.map(project);
+    return { ok: true, value: { items, hasMore: result.hasMore,
+      ...(result.hasMore && items.length ? { nextCursor: buildPrivateDraftCursor("delivery", items.at(-1)!.handle) } : {}) } };
+  } catch (error) {
+    if (error instanceof PrivateDraftCursorError || (error instanceof PrivateGalleryDeliveryDraftStoreError && error.reason === "invalid-cursor")) return { ok: false, reason: "invalid-input" };
+    return { ok: false, reason: "unavailable" };
+  }
 }
 
 /** Replace both external references on an unpublished draft, guarded by revision. */

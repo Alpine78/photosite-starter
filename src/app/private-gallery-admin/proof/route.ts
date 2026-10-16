@@ -27,9 +27,9 @@ export async function GET(request: Request): Promise<Response> {
   const stores = storesOrUndefined();
   if (stores === undefined) return refused(401);
   const outcome = await listPrivateGalleryProofDraftsAsAdmin(stores, {
-    cookieHeader: request.headers.get("cookie"), now: new Date(),
+    cookieHeader: request.headers.get("cookie"), now: new Date(), listUrl: request.url,
   });
-  if (!outcome.ok) return refused(outcome.reason === "unauthorized" ? 401 : 503);
+  if (!outcome.ok) return refused(outcome.reason === "unauthorized" ? 401 : outcome.reason === "invalid-input" ? 400 : 503);
   return jsonNoStore({ ok: true, ...outcome.value }, 200);
 }
 
