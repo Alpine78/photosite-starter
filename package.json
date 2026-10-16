@@ -30,6 +30,7 @@
     "write:joomla": "node scripts/write-joomla-content.mts",
     "plan:rally": "node scripts/plan-rally-import.mts",
     "plan:legacy-delivery": "node scripts/plan-legacy-delivery-import.mts",
+    "plan:private-gallery-upload": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/plan-private-gallery-upload.mts",
     "write:rally": "node scripts/write-rally-import.mts",
     "plan:rally-conversion": "node scripts/plan-rally-conversion.mts",
     "write:rally-conversion": "node scripts/write-rally-conversion.mts",

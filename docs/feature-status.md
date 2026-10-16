@@ -1529,6 +1529,15 @@ capability, publication or email is added. Dimensions and ZIP membership remain
 owner-attested; live checksum/version semantics and immutable-write guarantees still
 need the approved provider gate. Expired preparations follow retention rather than an
 unapproved `preparing → draft` transition. Both AB#29 and AB#145 remain Active.
+
+A server-only FI/EN delivery-notification builder now creates customer access
+instructions from a currently published delivery record and its encrypted capability.
+The envelope is authenticated against gallery, handle and current generation before
+a fragment-only HTTPS link is rendered. The message includes shareability, one ZIP
+and an explicit UTC expiry; invalid, expired or retired-generation material is refused.
+This is a transient message builder only: no publication, outbox activation, provider
+send or production enablement is added. A future dispatcher must re-read live metadata
+and keep only encrypted capability material at rest, never the rendered email body.
 AB#145 was verified Active before edits and remains Active pending acceptance.
 CI #1047 exposed a shared test login budget: gallery-management journeys now
 reuse a real administrator session per Playwright worker. Each test retains its
@@ -1543,7 +1552,13 @@ identity and handle, and exposes no capability or customer access link. The
 reauthorizes the administrator; `POST` checks same-origin JSON and a streamed
 1 KiB body bound before parsing. The draft store is separate from the
 published fixture's customer exchange, view, and proof stores, so creating a
-draft cannot give a customer access. This is not yet relational customer/job
+draft cannot give a customer access. The development proof store now caps its own
+lifetime at 1,000 setup rows before generating a new identity. Concurrent final
+creates cannot exceed it, and a full store refuses creation with the existing
+redacted 503 response without evicting drafts or blocking preparation/completion.
+Reset/restart releases these process-local rows; this is a memory guard, not a
+production retention policy or the separate per-gallery file ceiling.
+This is not yet relational customer/job
 association: no customer or job domain records exist (AB#28).
 AB#196 adds a [single-photographer operations worksheet](photographer-operations.md)
 for AB#28. It maps the parent criteria into decisions and unapproved slices;
@@ -1578,10 +1593,29 @@ or become unhandled rejections. Results are detached/frozen and remain internal;
 store completion still rechecks revision and deadline. No S3 adapter or live provider
 is connected, and HEAD does not prove immutable bytes, ZIP membership or pixels.
 The existing admin JSON projection excludes the plan, keys and frozen internal records.
+
+The administrator projection now adds only the prepublication state and a bounded
+upload summary (object count, opening time, deadline and expiry at response time).
+The FI/EN list distinguishes draft, preparing and prepared-but-unshared proofs;
+prepared terms have no pricing editor. The absolute UTC deadline remains visible,
+including after ready: first publication must still precede it. The displayed expiry
+is explicitly a response snapshot; server-side operations recheck the deadline.
+A malformed privileged record refuses the whole list with the existing unavailable
+response. The existing admin JSON projection excludes the plan, keys and frozen internal records.
 This has no HTTP or owner-CLI upload path, no object writes and no customer access.
 `preparing → draft` is not an ADR-0014 transition; the story's reopen operation applies
 to a confirmed customer selection after publication. An incorrect/abandoned preparation
 must follow the deletion and recreation path when durable storage exists.
+A separate first-delivery publication planner now checks the ready gallery's entire
+private placement/object set, active ZIP, preparation window and first-publication
+metadata before proposing its publication time and six-calendar-month expiry. It
+returns only a redacted first blocker or a server-only metadata plan. Preview order
+values must be positive and unique; gaps do not imply a missing object because every
+placement must join the complete verified preparation set. The future adapter must
+lock/re-read that full set in its publication transaction with the sealed capability
+and unique initial outbox insert; state/generation alone are insufficient. This pure
+planner adds no administrator route, state write, notification or customer access.
+AB#145 and AB#29 remain Active.
 No PostgreSQL proof store, durable outbox worker, runtime mail wiring or
 production customer workflow exists yet.
 
@@ -1598,6 +1632,16 @@ primitives (#103); the session model and its per-gallery-path `__Secure-` cookie
 lookup, and the constant-time verification of a submitted capability, behind
 `src/lib/private-gallery-access.ts` — the one facade a route may import, since it owns an
 ordering a route must not reassemble (#105).
+An owner-run offline upload-source planner now reads bounded local JPEG exports and
+streams the complete delivery ZIP to prepare a private source manifest and byte
+hash report. It preserves bytes, true dimensions, proof filenames/stable media IDs
+and declared order; the output is contract-tested against the server upload planner.
+Filesystem/path/alias checks and owner-private exclusive artifacts keep source data
+out of Git and public payloads. Watermarks remain owner-attested; ZIP signature is
+not archive/CRC/membership verification. It assigns no object keys, uploads nothing
+and grants no customer access. Direct Node execution shares the existing policy and
+field validators without a build step. AB#29 and AB#130 remain Active.
+
 The link and its exchange are now routes: the Proxy rewrites the deployment-configured
 prefix onto a reserved internal segment (`/private-gallery`, `request-path.ts`) so a
 file-system route can serve a configurable public path, and refuses a direct request to

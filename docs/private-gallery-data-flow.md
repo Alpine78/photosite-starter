@@ -255,6 +255,18 @@ The common bounded evidence snapshotter is also used by proof completion. This p
 metadata agreement, not decoded image dimensions or ZIP membership. A production
 adapter needs independent metadata reads, verified checksum/version and immutable-write
 semantics, and one database CAS commit; no such adapter or service is provisioned.
+
+A separate server-only delivery-notification builder can render FI/EN customer
+instructions immediately before a future send. It authenticates the encrypted
+capability with the current gallery/handle/generation, checks published state and
+absolute expiry, then constructs a canonical HTTPS link whose secret exists only in
+the fragment. The message contains no customer/job reference or filename. The
+recipient and explicit outbox attempt key use the existing notification contract.
+The returned message is transient: do not persist its bearer-bearing body in an
+outbox or log it. A future dispatcher must load fresh gallery/generation data before
+each send and discard retired attempts. The provider and recipient necessarily
+receive the access link in email; tracking and URL rewriting must stay disabled.
+No dispatcher, provider call, public endpoint or publication is added here.
 Publishing, delivery notifications/resend and revoke/replace remain separate work;
 creation is non-destructive and does not call the irreversible-operation re-auth gate.
 
@@ -270,6 +282,11 @@ out of the customer exchange, view and proof stores. The administrator API
 checks JSON provenance, authorizes the session before reading a bounded body,
 and returns only a safe projection with no internal ID or secret. The draft
 form and list are localized; this is still a process-local development aid.
+Each development proof store is capped at 1,000 setup rows for its lifetime. The
+capacity check and insertion are synchronous; a full store returns the existing
+redacted unavailable response without evicting earlier drafts. Existing preparation,
+pricing and completion operations still work. Reset/restart releases the rows.
+This does not bound production storage or replace retention/the per-gallery file cap.
 An authenticated `PATCH` to that root can replace the entire pricing candidate
 before publication, guarded by a per-draft revision. It validates request
 provenance and the full pricing tuple before one atomic memory-store compare
@@ -286,7 +303,12 @@ with the `draft → preparing` transition in a single process-local change, befo
 object bytes are written. There is no route that hands this plan to a browser or CLI yet,
 and no object store is connected. The plan contains no pricing: the current candidate may
 still change while preparing, and only the later `ready` transaction freezes it. Existing
-admin `GET`/`PATCH` responses project an allow-list and do not include the preparation,
+admin `GET`/`PATCH` responses add only the state and an upload summary: bounded object
+count, opening time, absolute deadline and expiry at the response time. This is a
+snapshot, not a browser authority; the server checks the deadline again. The FI/EN
+list labels prepared proofs as unshared and hides their frozen pricing editor.
+Malformed status data refuses the entire list with a redacted unavailable response.
+These responses still project an allow-list and do not include the preparation,
 object keys or internal gallery ID. A repeated or invalid preparation does not mutate
 that row.
 A server-only metadata collector now scopes read-only HEAD operations to a detached
@@ -307,6 +329,15 @@ a browser. ETag is not a content digest, and provider immutability/checksum/vers
 semantics remain a separate gate.
 The confirmed-selection `reopen` action is separate from upload preparation;
 ADR-0014 has no `preparing → draft` transition.
+A separate first-delivery publication planner checks the complete ready placement,
+verified object and preparation-key sets, the active ZIP pointer and the unexpired
+preparation deadline before proposing immutable publication/expiry dates. Refusals
+contain only a closed blocker class. Its output is server-only metadata, never a
+browser access grant. A future adapter must lock/re-read the full validated child set
+inside the transaction that persists state, sealed capability and one unique initial
+notification. Repeated publication returns the existing record; the planner neither
+publishes nor sends. It relies on the provider's separately verified immutable-object
+and checksum/version contract rather than claiming fresh byte verification.
 The status panel above continues to address only the existing published proof
 fixture by a handle the administrator already holds.
 

@@ -171,6 +171,11 @@ export type BuiltInLabels = {
     readonly refused: string;
     readonly javascriptRequired: string;
   };
+  /** AB#145 customer notice; only the transient server-side body holds a link. */
+  readonly deliveryNotificationEmail: {
+    readonly subject: string; readonly ready: string; readonly openGallery: string;
+    readonly download: string; readonly sharing: string; readonly expiresAt: string; readonly replace: string;
+  };
   /** Photographer-facing AB#130 confirmation notice, in the owner locale. */
   readonly proofConfirmationEmail: {
     readonly subject: string;
@@ -257,6 +262,8 @@ export type BuiltInLabels = {
   };
   /** Development-only administrator proof setup (AB#130). */
   readonly privateGalleryProofCreation: {
+    readonly draftState: string; readonly preparingState: string; readonly readyState: string;
+    readonly statusSnapshot: string; readonly objects: string; readonly deadline: string; readonly windowExpired: string;
     readonly heading: string;
     readonly description: string;
     readonly includedCount: string;
@@ -725,6 +732,15 @@ const englishLabels = {
     refused: "Photographs could not be loaded. Try again or reopen the gallery link.",
     javascriptRequired: "JavaScript is needed to view the remaining photographs.",
   },
+  deliveryNotificationEmail: {
+    subject: "Your photographs are ready",
+    ready: "Your delivery gallery is ready.",
+    openGallery: "Open your private gallery:",
+    download: "View the web previews and download all delivered photographs together as one ZIP package.",
+    sharing: "You may share this link with your family. Anyone holding the link can view the gallery and download the package; no password is needed.",
+    expiresAt: "Access expires at",
+    replace: "The photographer can revoke or replace the link. Save your download before access expires.",
+  },
   proofConfirmationEmail: {
     subject: "Proof selection confirmed",
     galleryReference: "Gallery reference",
@@ -812,6 +828,13 @@ const englishLabels = {
     javascriptRequired: "Creating delivery drafts needs JavaScript.",
   },
   privateGalleryProofCreation: {
+    draftState: "Draft – not shared with customer",
+    preparingState: "Preparing proofs – not shared with customer",
+    readyState: "Proofs prepared – not shared with customer",
+    statusSnapshot: "Preparation status at the last response. The server checks the deadline again before publication.",
+    objects: "Planned proof objects",
+    deadline: "Preparation deadline",
+    windowExpired: "The preparation window has expired; publication is unavailable.",
     heading: "Create proof gallery draft",
     description: "Drafts are private. Publishing and customer access are not available yet. Prices are in minor currency units.",
     includedCount: "Included photographs",
@@ -1101,6 +1124,15 @@ const finnishLabels = {
     refused: "Valokuvia ei voitu ladata. Yritä uudelleen tai avaa gallerialinkki uudelleen.",
     javascriptRequired: "Loppujen valokuvien katselu vaatii JavaScriptin.",
   },
+  deliveryNotificationEmail: {
+    subject: "Valokuvasi ovat valmiit",
+    ready: "Toimitusgalleriasi on valmis.",
+    openGallery: "Avaa yksityinen galleriasi:",
+    download: "Katsele verkkokokoisia esikatselukuvia ja lataa kaikki toimitetut valokuvat yhtenä ZIP-pakettina.",
+    sharing: "Voit jakaa linkin perheellesi. Jokainen linkin haltija voi katsella galleriaa ja ladata paketin ilman salasanaa.",
+    expiresAt: "Pääsy vanhenee",
+    replace: "Valokuvaaja voi peruuttaa tai vaihtaa linkin. Tallenna lataamasi kuvat ennen pääsyn vanhenemista.",
+  },
   proofConfirmationEmail: {
     subject: "Vedosvalinta vahvistettu",
     galleryReference: "Gallerian viite",
@@ -1185,6 +1217,13 @@ const finnishLabels = {
     javascriptRequired: "Toimitusluonnosten luominen tarvitsee JavaScriptin.",
   },
   privateGalleryProofCreation: {
+    draftState: "Luonnos – ei jaettu asiakkaalle",
+    preparingState: "Vedoksia valmistellaan – ei jaettu asiakkaalle",
+    readyState: "Vedokset valmisteltu – ei jaettu asiakkaalle",
+    statusSnapshot: "Valmistelun tila viimeisimmän vastauksen hetkellä. Palvelin tarkistaa määräajan uudelleen ennen julkaisua.",
+    objects: "Suunnitellut vedosobjektit",
+    deadline: "Valmistelun määräaika",
+    windowExpired: "Valmisteluaika on umpeutunut; julkaisu ei ole käytettävissä.",
     heading: "Luo vedosgallerian luonnos",
     description: "Luonnokset ovat yksityisiä. Julkaisu ja asiakkaan pääsy eivät ole vielä käytettävissä. Hinnat annetaan valuutan pienimmässä yksikössä.",
     includedCount: "Hintaan kuuluvat valokuvat",

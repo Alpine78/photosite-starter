@@ -556,6 +556,12 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   Its private plan is not approved or writable; asset binding, supported whole-ZIP
   transfer, recovery, notice reconciliation and customer publication remain gated.
   See [the operator contract](docs/sanity-seeding.md#offline-legacy-delivery-plan-ab250).
+  Protected client galleries have an independent offline source check:
+  `npm run plan:private-gallery-upload -- --input <private.json> --source-root
+  <local-export> --out <private-dir>`. It checks bounded JPEG bytes/dimensions and
+  hashes the complete delivery ZIP as a stream, writing only a private local plan.
+  Watermarks are owner-attested and ZIP contents are not validated. It performs no
+  upload, CMS write or publication; see [the operator contract](docs/deployment.md#offline-private-upload-source-check).
   Every route-facing seam (`site-settings.ts`, `home-content.ts`, `services.ts`, `content.ts`,
   `gallery.ts`) is now wired: `SITE_CONTENT_SOURCE=mock` keeps reading fixtures, and `sanity`
   reads every one of these adapters, never a mixed mock/Sanity page. Closing that wiring
