@@ -1530,6 +1530,18 @@ owner-attested; live checksum/version semantics and immutable-write guarantees s
 need the approved provider gate. Expired preparations follow retention rather than an
 unapproved `preparing → draft` transition. Both AB#29 and AB#145 remain Active.
 
+**AB#29 exact-object metadata adapter, 2026-10-16:** a server-only S3 HEAD
+reader now implements the bounded collector's port using the existing verifier
+credential and SigV4 helpers. It accepts only generated, prefix-scoped object
+keys, signs the normalized endpoint host and never lists, reads object bodies,
+follows redirects or writes objects. Only 200 projects bounded length/opaque ETag;
+only 404 means absent. A 403 remains unavailable, including missing objects under
+AWS's no-ListBucket policy. ETag is never a checksum. No checksum evidence is
+projected in this slice, so a completion requiring it still refuses. The adapter
+is available but unwired: provider compatibility, clock/credential scope,
+checksums, immutable writes and HEAD-to-use freshness still need live evidence.
+Production remains disabled and AB#29 remains Active.
+
 A server-only FI/EN delivery-notification builder now creates customer access
 instructions from a currently published delivery record and its encrypted capability.
 The envelope is authenticated against gallery, handle and current generation before

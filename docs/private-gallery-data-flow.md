@@ -323,10 +323,21 @@ observations still fail the store's full-set verification. The returned exact-ke
 observations are frozen snapshots; the store's revision/deadline CAS remains final.
 The port must honour cancellation, and an uncooperative read makes the pass terminal
 without releasing capacity for further reads. Late settlements are consumed safely.
-This adds no live object adapter, endpoint or ready/publication write. Provenance
+The collector adds no endpoint or ready/publication write. Provenance
 rests on the privileged server-only/import boundary; never accept observations from
 a browser. ETag is not a content digest, and provider immutability/checksum/version
 semantics remain a separate gate.
+An available, unwired S3 implementation now signs one exact generated key with
+the runtime/verifier credential through HTTPS HEAD. The caller's cancellation
+signal is mandatory; the collector supplies its existing finite budgets. The
+adapter follows no redirect, lists no keys and reads no body bytes; it cancels
+any unexpected response body. It projects only bounded Content-Length and an
+optional opaque ETag, with separate ZIP and derivative size ceilings. It does
+not request or infer checksums. Only 404 means absent; 403 remains an error,
+including AWS-style missing objects without ListBucket permission. Transport
+exceptions and provider refusals expose only closed error reasons. No production
+registration, live provider call or new processor is introduced. A HEAD result
+does not lock an object or prove unchanged bytes at a later use.
 The confirmed-selection `reopen` action is separate from upload preparation;
 ADR-0014 has no `preparing → draft` transition.
 A separate first-delivery publication planner checks the complete ready placement,

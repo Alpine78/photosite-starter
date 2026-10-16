@@ -183,3 +183,19 @@ export function isPrivateGalleryObjectKeyInPrefix(
     .split("/")
     .every((segment) => segment.length > 0 && segment !== "." && segment !== "..");
 }
+
+/** Exact generator grammar for adapters that must refuse arbitrary stored paths. */
+export function assignedPrivateGalleryObjectKind(
+  objectKey: string,
+  keyPrefix: string,
+): PrivateGalleryObjectKind | undefined {
+  if (!isPrivateGalleryObjectKeyInPrefix(objectKey, keyPrefix)) return undefined;
+  const parts = objectKey.slice(keyPrefix.length + 1).split("/");
+  if (parts.length !== 4 || parts[0] !== "g" || !KEY_SEGMENT.test(parts[1])) return undefined;
+  const [, , kind, token] = parts;
+  if (kind !== "preview" && kind !== "proof" && kind !== "zip") return undefined;
+  if (!/^[A-Za-z0-9_-]+$/.test(token)) return undefined;
+  const bytes = Buffer.from(token, "base64url");
+  if (bytes.length !== PRIVATE_GALLERY_OBJECT_TOKEN_BYTES || bytes.toString("base64url") !== token) return undefined;
+  return kind;
+}

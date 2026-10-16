@@ -241,6 +241,20 @@ function parseObjectStore(
   };
 }
 
+/** Revalidate and detach an adapter's configuration with the existing setting rules. */
+export function snapshotPrivateGalleryObjectStoreConfig(
+  input: PrivateGalleryObjectStoreConfig,
+): PrivateGalleryObjectStoreConfig {
+  return parseObjectStore({
+    [settingNames.s3Endpoint]: input.endpoint,
+    [settingNames.s3Region]: input.region,
+    [settingNames.s3Bucket]: input.bucket,
+    [settingNames.s3KeyPrefix]: input.keyPrefix,
+    [settingNames.s3VerifierAccessKeyId]: input.verifierAccessKeyId,
+    [settingNames.s3VerifierSecretAccessKey]: input.verifierSecretAccessKey,
+  });
+}
+
 /**
  * The grammar a capability keyring id must match: 1–64 characters, lowercase
  * letters/digits/inner hyphens. Exported because `private-gallery-capability.ts`

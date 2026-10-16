@@ -688,6 +688,22 @@ delete the bucket, or reach another bucket.
 | **Retention worker** | prefix-scoped enumeration and deletion of objects, versions, and incomplete multipart uploads. Nothing else. | The scheduled worker's own environment only (§7). Never the web deployment. |
 | **Owner-run upload CLI** | `PutObject` and the multipart create/upload/complete/abort operations on the prefix. **No read, delete, list, ACL, or policy.** | The photographer's machine only — the same posture as `SANITY_SEED_TOKEN`. Never any deployed environment, never CI. |
 
+The available `createPrivateGalleryS3MetadataReader` adapter uses only the
+existing runtime/verifier pair and path-style HTTPS HEAD with header SigV4
+authentication. It is intentionally not registered in production. It sends no
+query, object body, Range or checksum-mode header and accepts no arbitrary keys.
+The collector supplies cancellation and the individual/whole-pass deadlines.
+Only 404 is absence: under AWS's no-ListBucket policy a missing object is 403,
+which this adapter cannot distinguish from forbidden access. Clock skew and
+wrong-region/provider refusals also remain closed failures. This follows the
+[AWS HEAD contract](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html)
+and [header-signing protocol](https://docs.aws.amazon.com/AmazonS3/latest/developerguide/sig-v4-header-based-auth.html),
+not live provider acceptance. Check credential scope and clock synchronization
+at the live gate. The current credential contract has no session-token support.
+No checksum is projected: ETag stays opaque, and checksum-required completion
+still refuses unavailable evidence. Provider checksum/version semantics,
+immutable writes and HEAD-to-use freshness remain separate verification gates.
+
 **3. Private metadata store.** A PostgreSQL-family managed service. Before committing to a
 vendor, verify and record each of these — §8b makes them the decision criteria, not a
 wish list: EU region; encryption at rest and in transit; automated backup **and** a
