@@ -52,6 +52,20 @@ beforeEach(() => {
 });
 
 describe("GET/POST/PATCH <admin-prefix>/proof", () => {
+  it("returns the existing generic uncached unavailable response at development capacity", async () => {
+    const cookie = await adminCookie();
+    const store = getPrivateGalleryMemoryStore().proofDraftStore;
+    for (let index = 0; index < 1000; index++) await store.create({ pricing: PRICING }, new Date());
+    const full = await POST(request("POST", cookie, { pricing: PRICING, customerReference: "private-capacity-canary" }));
+    expect(full.status).toBe(503);
+    expect(full.headers.get("cache-control")).toBe("no-store");
+    expect(full.headers.get("access-control-allow-origin")).toBeNull();
+    expect(await full.text()).toBe('{"ok":false}');
+    vi.spyOn(store, "create").mockRejectedValueOnce(new Error("unavailable secret-canary"));
+    const unavailable = await POST(request("POST", cookie, { pricing: PRICING }));
+    expect(unavailable.status).toBe(503);
+    expect(await unavailable.text()).toBe('{"ok":false}');
+  });
   it("creates and updates only a prepublication draft through the shared memory store", async () => {
     const cookie = await adminCookie();
     const created = await POST(request("POST", cookie, { pricing: PRICING, customerReference: "customer-1" }));
@@ -59,6 +73,7 @@ describe("GET/POST/PATCH <admin-prefix>/proof", () => {
     expect(created.headers.get("cache-control")).toBe("no-store");
     const creation = await created.json();
     expect(creation).toMatchObject({ ok: true, draft: { revision: 0, pricing: PRICING } });
+    expect(creation.draft.state).toBe("draft");
     expect(JSON.stringify(creation)).not.toContain("galleryId");
     expect(JSON.stringify(creation)).not.toContain("capability");
 
@@ -95,6 +110,9 @@ describe("GET/POST/PATCH <admin-prefix>/proof", () => {
     const list = await GET(request("GET", cookie));
     expect(list.status).toBe(200);
     const listText = await list.text();
+    expect(JSON.parse(listText)).toMatchObject({ items: [{ state: "preparing", upload: {
+      objectCount: 1, openedAt: plan.preparation.openedAt.toISOString(), deadline: plan.preparation.deadline.toISOString(), expired: false,
+    } }] });
     expect(listText).not.toContain("preparation");
     expect(listText).not.toContain("objectKey");
     expect(listText).not.toContain(plan.objects[0].objectKey);
@@ -119,6 +137,7 @@ describe("GET/POST/PATCH <admin-prefix>/proof", () => {
     const readyList = await GET(request("GET", cookie));
     expect(readyList.status).toBe(200);
     const readyText = await readyList.text();
+    expect(JSON.parse(readyText)).toMatchObject({ items: [{ state: "ready", upload: { objectCount: 1 } }] });
     for (const field of ["preparation", "readyProof", "pricingSnapshot", "verifiedObjects", "placements", "objectKey", "galleryId"]) {
       expect(readyText).not.toContain(field);
     }
@@ -138,5 +157,16 @@ describe("GET/POST/PATCH <admin-prefix>/proof", () => {
     expect((await PATCH(request("PATCH", cookie, body))).status).toBe(404);
     settings.store = "enabled";
     expect((await PATCH(request("PATCH", cookie, body))).status).toBe(401);
+  });
+  it("refuses the entire list when one privileged record is malformed", async () => {
+    const cookie = await adminCookie();
+    await POST(request("POST", cookie, { pricing: PRICING }));
+    const store = getPrivateGalleryMemoryStore().proofDraftStore;
+    const row = (await store.list(1)).items[0];
+    vi.spyOn(store, "list").mockResolvedValueOnce({ items: [row, { ...row, gallery: { ...row.gallery, state: "published" } }], hasMore: false });
+    const response = await GET(request("GET", cookie));
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ ok: false });
   });
 });

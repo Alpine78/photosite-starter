@@ -270,6 +270,11 @@ out of the customer exchange, view and proof stores. The administrator API
 checks JSON provenance, authorizes the session before reading a bounded body,
 and returns only a safe projection with no internal ID or secret. The draft
 form and list are localized; this is still a process-local development aid.
+Each development proof store is capped at 1,000 setup rows for its lifetime. The
+capacity check and insertion are synchronous; a full store returns the existing
+redacted unavailable response without evicting earlier drafts. Existing preparation,
+pricing and completion operations still work. Reset/restart releases the rows.
+This does not bound production storage or replace retention/the per-gallery file cap.
 An authenticated `PATCH` to that root can replace the entire pricing candidate
 before publication, guarded by a per-draft revision. It validates request
 provenance and the full pricing tuple before one atomic memory-store compare
@@ -286,7 +291,12 @@ with the `draft → preparing` transition in a single process-local change, befo
 object bytes are written. There is no route that hands this plan to a browser or CLI yet,
 and no object store is connected. The plan contains no pricing: the current candidate may
 still change while preparing, and only the later `ready` transaction freezes it. Existing
-admin `GET`/`PATCH` responses project an allow-list and do not include the preparation,
+admin `GET`/`PATCH` responses add only the state and an upload summary: bounded object
+count, opening time, absolute deadline and expiry at the response time. This is a
+snapshot, not a browser authority; the server checks the deadline again. The FI/EN
+list labels prepared proofs as unshared and hides their frozen pricing editor.
+Malformed status data refuses the entire list with a redacted unavailable response.
+These responses still project an allow-list and do not include the preparation,
 object keys or internal gallery ID. A repeated or invalid preparation does not mutate
 that row. The confirmed-selection `reopen` action is separate from upload preparation;
 ADR-0014 has no `preparing → draft` transition.
