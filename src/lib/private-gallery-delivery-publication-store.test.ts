@@ -112,8 +112,8 @@ describe("atomic development-memory delivery publication", () => {
       return { ...actual, randomUUID: vi.fn(actual.randomUUID) };
     });
     try {
-      const module = await import("./private-gallery-delivery-draft-store");
-      const { store, input, ready } = await setup(NOW, module.createPrivateGalleryDeliveryDraftMemoryStore);
+      const draftStoreModule = await import("./private-gallery-delivery-draft-store");
+      const { store, input, ready } = await setup(NOW, draftStoreModule.createPrivateGalleryDeliveryDraftMemoryStore);
       const crypto = await import("node:crypto");
       vi.mocked(crypto.randomUUID).mockImplementationOnce(() => { throw new Error("private outbox canary"); });
       await expect(store.publishFirstDelivery(input)).rejects.toThrow("[private-gallery-delivery-publication] outbox-unavailable");
