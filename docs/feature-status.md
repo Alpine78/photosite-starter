@@ -1666,20 +1666,30 @@ be a crop-shaped decision made by the wrong layer. A malformed row throws rather
 being skipped, because a skipped item silently shortens a customer's gallery and nobody
 would know a delivered photograph is missing; a page over the 100-item bound is refused
 rather than truncated, and two placements sharing an identifier are a defect.
-The authorized view now renders those items as a **grid of reserved frames**
-(`src/components/private-gallery-grid.tsx`): row-major, one to three columns,
-top-aligned, each frame at its own native ratio via an inline `aspect-ratio` built from
-the derivative's true pixels — per-item data Tailwind cannot generate a class for, and
-rounding every photograph to the nearest available class would be cropping by another
-name. The frames hold **no bytes**: §5 Stage 2's signed preview URLs need the object
-store that is not provisioned, so what exists is the geometry, and the `<img>` a later
-slice drops in cannot reflow the page. The page says that in words, because a grid of
-empty boxes would otherwise read as "your gallery is empty" — a different and alarming
-claim that has its own separate wording. `e2e/private-gallery-link.spec.ts` measures the
-laid-out box of every frame in a real browser against the ratio the fixture declares, and
-asserts the fixture's shapes genuinely differ (landscape, portrait, square, panorama), so
-a cropping grid could actually fail it; a second case proves no object key reaches the
-document, RSC payload included. The item read happens strictly **after** authorization —
+The authorized delivery view now renders complete native-ratio previews through a shared
+lazy signed-preview component (`src/components/private-gallery-preview-image.tsx`), also
+used by the proof wrapper without changing its reference/filename contract. One queue per
+page admits at most four concurrent and fifty preview mints per minute. A failed image
+remints once, then offers an explicit retry; unmount aborts outstanding work. The image
+uses `object-contain` inside its reserved frame, so even a mismatched derivative ratio
+letterboxes rather than crops. Delivery fallback labels say “Photograph 1” in the selected
+UI language; they do not invent filenames. No private image uses the public optimizer.
+The whole-gallery ZIP control authorizes only on an explicit click, then uses a native
+signed attachment navigation with no referrer, object-byte fetch, proxy or individual
+full-resolution link. Concurrent clicks share one mint; a short cooldown prevents an
+accidental second large download. Failure remains generic, and a later deliberate click
+reauthorizes. No signed URL is rendered in the server response or saved in application
+storage/history; the no-JavaScript document explains the requirement and leaves the
+button disabled. The shared reply validator rejects malformed dates and unsafe URLs,
+using the server HTTP Date when available to avoid visitor-clock skew.
+Production-build journeys cover FI/EN desktop/mobile, uncropped mismatched-ratio images,
+expiry retry and native ZIP attachment using isolated local asset stubs. Their independent
+development gallery does not spend the link/bootstrap fixture's exchange allowance.
+Authorized WebKit navigation still needs hosted HTTPS: the HTTP harness refuses its
+Secure session cookie; the authorized no-JavaScript SSR markup is checked separately in
+both engines. This advances the client delivery flow only. Real private objects, ZIPs,
+provider headers/Range/expiry, durable persistence and Production activation remain
+unverified and disabled. The item read happens strictly **after** authorization —
 an unauthorized request never reaches a placement row — and a projection or store defect
 falls back to the unauthorized document rather than rendering a gallery quietly missing
 photographs.

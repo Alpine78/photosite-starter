@@ -21,6 +21,7 @@ import {
   type PrivateGalleryItem,
 } from "@/lib/private-gallery-access";
 import { PrivateGalleryGrid } from "@/components/private-gallery-grid";
+import { PrivateGalleryZipDownload } from "@/components/private-gallery-zip-download";
 import { PrivateGalleryProofPanel } from "@/components/private-gallery-proof-panel";
 
 /**
@@ -94,6 +95,7 @@ export default async function PrivateGalleryPage({
           gallery={authorized.gallery}
           items={authorized.items}
           locale={locale}
+          assetPath={`/${privateGallery.routePrefix}/${handle}/asset`}
         />
       )}
     </>
@@ -232,32 +234,27 @@ function PrivateGalleryBootstrap({ labels }: { labels: Labels }) {
 }
 
 /**
- * The authorized view: the access window, and the gallery's frames.
- *
- * The frames are reserved at each photograph's true ratio but hold no bytes —
- * §5 Stage 2's signed preview URLs need the object store this deployment has
- * not provisioned. The page says so in words rather than leaving a grid of
- * empty boxes to be read as "your gallery is empty", which is a different and
- * alarming claim; a genuinely empty gallery has its own separate wording.
- *
- * No handle, no session identifier, no internal gallery id, and no object key
- * is rendered — `projectPrivateGalleryItem` is what guarantees the last one.
+ * Authorized delivery: complete web previews and an explicit whole-gallery ZIP.
+ * Only projected items cross to the client; signed URLs are minted on demand.
+ * No capability, session, internal gallery id or raw object key is rendered.
  */
 function PrivateGalleryView({
   labels,
   gallery,
   items,
   locale,
+  assetPath,
 }: {
   labels: Labels;
   gallery: PrivateGallery;
   items: readonly PrivateGalleryItem[];
   locale: string;
+  assetPath: string;
 }) {
   const expiresAt = gallery.accessExpiresAt;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-16">
+    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">
         {labels.galleryHeading}
       </h1>
@@ -273,8 +270,9 @@ function PrivateGalleryView({
           </time>
         </p>
       )}
-      <p className="text-body">{labels.deliveryPending}</p>
-      <PrivateGalleryGrid items={items} emptyLabel={labels.noPhotographs} />
+      <noscript><p className="text-danger">{labels.deliveryJavascriptRequired}</p></noscript>
+      {items.length > 0 && <PrivateGalleryZipDownload key={assetPath} assetPath={assetPath} labels={labels} />}
+      <PrivateGalleryGrid key={assetPath} items={items} assetPath={assetPath} labels={labels} />
     </main>
   );
 }
