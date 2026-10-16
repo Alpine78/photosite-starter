@@ -8,8 +8,8 @@ export async function GET(request: Request): Promise<Response> {
   if (getDeploymentConfig().privateGallery.store === "off") return refused(404);
   const stores = storesOrUndefined();
   if (!stores) return refused(401);
-  const outcome = await listPrivateGalleryDeliveryDraftsAsAdmin(stores, { cookieHeader: request.headers.get("cookie"), now: new Date() });
-  if (!outcome.ok) return refused(outcome.reason === "unauthorized" ? 401 : 503);
+  const outcome = await listPrivateGalleryDeliveryDraftsAsAdmin(stores, { cookieHeader: request.headers.get("cookie"), now: new Date(), listUrl: request.url });
+  if (!outcome.ok) return refused(outcome.reason === "unauthorized" ? 401 : outcome.reason === "invalid-input" ? 400 : 503);
   return jsonNoStore({ ok: true, ...outcome.value }, 200);
 }
 export async function POST(request: Request): Promise<Response> {

@@ -287,11 +287,26 @@ capacity check and insertion are synchronous; a full store returns the existing
 redacted unavailable response without evicting earlier drafts. Existing preparation,
 pricing and completion operations still work. Reset/restart releases the rows.
 This does not bound production storage or replace retention/the per-gallery file cap.
+An authenticated PUT to the proof root replaces both external references on a
+draft/preparing row with an expected revision. Omitted references clear the fields.
+A no-op replacement also increments the revision; ready rows and stale revisions
+refuse unchanged. The same same-origin JSON, session-before-body and streamed 1KiB
+bounds apply, and the response uses the existing allow-list. The production port
+must implement this as an atomic conditional update. The shared FI/EN reference
+editor has no native input names and stays disabled without JavaScript. Per-row
+pricing and reference mutations share a lock; an acknowledged pricing save updates
+the revision without discarding a typed reference. Conflicts preserve input until
+the administrator explicitly refreshes the list.
+Proof-store errors carry a non-enumerable process-wide symbol brand so that
+independently loaded route bundles recognize the shared store's errors. Arbitrary
+provider errors and JSON-shaped lookalikes still produce the unavailable response.
 An authenticated `PATCH` to that root can replace the entire pricing candidate
 before publication, guarded by a per-draft revision. It validates request
 provenance and the full pricing tuple before one atomic memory-store compare
 and swap. A stale revision or a draft that is no longer editable returns a
-conflict; the administrator interface refreshes the list before another try.
+conflict; the administrator explicitly refreshes the list before another try.
+Pricing conflicts also keep typed references and prices, rather than implicitly
+rebasing a pending reference edit onto another administrator's revision.
 The revision and safe terms appear in the administrator projection, never an
 internal gallery ID or customer access link. This edit cannot alter the
 published proof fixture or a frozen confirmation. Abandoned-draft cleanup,
@@ -303,6 +318,23 @@ with the `draft → preparing` transition in a single process-local change, befo
 object bytes are written. There is no route that hands this plan to a browser or CLI yet,
 and no object store is connected. The plan contains no pricing: the current candidate may
 still change while preparing, and only the later `ready` transaction freezes it. Existing
+admin draft lists accept an optional versioned, kind-scoped cursor only after session
+authorization. Each response exposes at most 100 safe rows and a non-secret next anchor.
+Empty, duplicate, malformed, cross-kind and missing anchors refuse with uncached 400;
+unauthorized callers get 401 before cursor validation, and disabled routes get 404.
+Ordering stays descending creation time with the existing internal-ID tie break.
+Existing rows traverse once; concurrent insertions may appear later or require refresh
+depending on that ordering. This is not a snapshot of concurrently created rows.
+Publication hides a delivery row from prepublication results while preserving its
+immutable boundary for an already-issued cursor.
+The process-local store never deletes list anchors; a future deletion-capable adapter
+must preserve its keyset semantics without relying on an extant anchor row. Refresh
+resets to page one; creation preserves the loaded tail and cursor. Before the first
+successful read, an acknowledged creation starts a recovery read that merges its rows;
+another creation restarts that read. If recovery fails, the list error remains visible.
+The older-page control stays focusable through loading and the last page, with a polite
+loaded-count announcement. No new credential,
+gallery capability or public media contract is introduced. Existing
 admin `GET`/`PATCH` responses add only the state and an upload summary: bounded object
 count, opening time, absolute deadline and expiry at the response time. This is a
 snapshot, not a browser authority; the server checks the deadline again. The FI/EN
@@ -310,7 +342,24 @@ list labels prepared proofs as unshared and hides their frozen pricing editor.
 Malformed status data refuses the entire list with a redacted unavailable response.
 These responses still project an allow-list and do not include the preparation,
 object keys or internal gallery ID. A repeated or invalid preparation does not mutate
-that row. The confirmed-selection `reopen` action is separate from upload preparation;
+that row.
+A server-only metadata collector now scopes read-only HEAD operations to a detached
+snapshot of the complete committed preparation, never listing the bucket or reading
+object bytes. It admits at most eight reads, with 5-second individual and 30-second
+whole-pass budgets, shortened by the preparation deadline. A slow large plan fails
+without acceptance; these are bounded development defaults, not measured provider
+performance. Caller cancellation, invalid/backward clock samples, transport errors
+and malformed metadata abort the pass and return only a closed error class. Only a
+definitive not-found may be omitted; 403/5xx/throttle/uncertainty must throw. Missing
+observations still fail the store's full-set verification. The returned exact-key
+observations are frozen snapshots; the store's revision/deadline CAS remains final.
+The port must honour cancellation, and an uncooperative read makes the pass terminal
+without releasing capacity for further reads. Late settlements are consumed safely.
+This adds no live object adapter, endpoint or ready/publication write. Provenance
+rests on the privileged server-only/import boundary; never accept observations from
+a browser. ETag is not a content digest, and provider immutability/checksum/version
+semantics remain a separate gate.
+The confirmed-selection `reopen` action is separate from upload preparation;
 ADR-0014 has no `preparing → draft` transition.
 A separate first-delivery publication planner checks the complete ready placement,
 verified object and preparation-key sets, the active ZIP pointer and the unexpired
