@@ -1597,6 +1597,17 @@ whole row unchanged; stale or repeated completion conflicts without refreezing r
 The stored prefix cannot be broadened at completion. Receipts alone establish nothing;
 checksum comparison applies only when both receipt and provider metadata name the same
 algorithm, so live provider checksum/version semantics remain a separate verification gate.
+A shared server-only metadata collector now reads only the committed preparation's
+exact object keys through a read-only `head` port. It snapshots and scopes the plan,
+binds observations to requested keys, runs at most eight reads concurrently, and
+bounds each read and the entire pass. Abort, transport uncertainty, malformed data
+or expiry refuses the whole pass; only definitive not-found is omitted, leaving
+store completion unready. Late uncooperative responses cannot admit further reads
+or become unhandled rejections. Results are detached/frozen and remain internal;
+store completion still rechecks revision and deadline. No S3 adapter or live provider
+is connected, and HEAD does not prove immutable bytes, ZIP membership or pixels.
+The existing admin JSON projection excludes the plan, keys and frozen internal records.
+
 Administrator proof drafts now support complete replacement or clearing of their
 external customer/job references through an authenticated, bounded PUT (AB#130).
 Draft and preparing rows remain editable; ready rows are frozen. FI/EN editors
