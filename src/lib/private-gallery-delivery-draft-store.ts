@@ -16,6 +16,7 @@ import { PRIVATE_GALLERY_DEFAULT_MAX_FILES_PER_GALLERY } from "@/lib/private-gal
 import { buildFirstDeliveryPublicationCandidate, deliveryPublicationSnapshot, publicationFailure,
   sameDeliveryPublicationIntent, snapshotDeliveryPublicationInput, validPublicationHandle,
   type PrivateGalleryDeliveryPublication, type PrivateGalleryDeliveryPublicationStore } from "@/lib/private-gallery-delivery-publication-store";
+import { buildRotatedCapabilityCandidate, rotationFailure, snapshotCapabilityRotationInput } from "@/lib/private-gallery-capability-rotation";
 
 export const PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT = 100;
 /** Process-local development guard, not a production storage policy. */
@@ -194,6 +195,19 @@ export function createPrivateGalleryDeliveryDraftMemoryStore(): PrivateGalleryDe
       }
       // No await between canonical reread and this one complete mutation.
       rows.set(current.gallery.galleryId, candidate);
+      return result;
+    },
+    async rotateCapabilityEnvelope(value) {
+      const input = snapshotCapabilityRotationInput(value);
+      const id = handles.get(input.handle);
+      const current = id === undefined ? undefined : rows.get(id);
+      if (!current) rotationFailure("not-found");
+      const candidate = buildRotatedCapabilityCandidate(current, input);
+      const result = { rotated: candidate !== current, publication: deliveryPublicationSnapshot(candidate) };
+      // Captured row identity guards its revision, generation and full old
+      // ciphertext together. A durable adapter must CAS those fields in its DB.
+      if (rows.get(current.gallery.galleryId) !== current) rotationFailure("conflict");
+      if (candidate !== current) rows.set(current.gallery.galleryId, candidate);
       return result;
     },
     async readPublication(handle) {

@@ -87,6 +87,7 @@ const eslintConfig = defineConfig([
                 "@/lib/private-gallery-delivery-draft-admin",
                 "@/lib/private-gallery-config",
                 "@/lib/private-gallery-capability",
+                "@/lib/private-gallery-capability-rotation",
                 "@/lib/private-gallery-delivery",
                 "@/lib/private-gallery-session",
                 "@/lib/private-gallery-session-token",
