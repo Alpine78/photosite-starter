@@ -1417,7 +1417,7 @@ function legacyRedirectRootSegments(): ReadonlySet<string> {
  * per supported locale, separated by commas. The default locale leaves the
  * prefix field empty, because its routes carry no prefix:
  *
- *     fi||tarinat|palvelut|haku,en|en|stories|services|search
+ *     fi||tarinat|palvelut|haku,en-GB|en|stories|services|search
  *
  * Every rule the entries must satisfy — one unprefixed default, unique
  * prefixes, no collision with a root route or localized static route — is the
