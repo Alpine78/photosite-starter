@@ -5296,3 +5296,15 @@ needs its fifth field (`…|haku`) in the Vercel project to publish `/haku`; tha
 owner-run change is not part of the pull request (see
 [deployment](deployment.md)). Manual screen-reader and keyboard checks, and the
 `/security-review`, are still to be run and recorded.
+
+
+### AB#300 — Studio search namespace configuration (2026-10-16, Active)
+
+Studio now accepts the optional fifth search namespace in the shared locale
+routing declaration introduced by #415, while retaining three/four-field input.
+It validates provided search segments and same-row story/service collisions;
+story roots are unchanged. Empty/malformed extra fields and six-field rows still
+refuse. The public route compiler remains responsible for global routing collisions.
+The Studio example now uses the complete FI/en-GB declaration. No public route,
+CMS content, dependency, authentication or deployment setting was changed.
+AB#300 moved New → Active before edits and remains Active pending review/merge.
