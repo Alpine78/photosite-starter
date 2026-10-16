@@ -38,6 +38,40 @@ async function setup() {
   return { store, original, row, publish, request, admins, admin, deps: { sessionStore, environment: { ...environment }, publicationStore: store } };
 }
 describe("reauthenticated delivery access revocation", () => {
+  it("requires a fresh revision after envelope rotation and preserves the rotated envelope on revoke", async () => {
+    const { store, original, request, deps } = await setup();
+    const rotated = await store.rotateCapabilityEnvelope({ handle: request.handle, now: NOW,
+      keyring: { activeKeyId: "key-2", keyIds: ["key-1", "key-2"], getKey: (id) => Buffer.alloc(32, id === "key-1" ? 17 : 23) } });
+    expect(rotated.publication.revision).toBe(4);
+    expect(await revokeDeliveryAccessAsAdmin(deps, request)).toEqual({ ok: false, reason: "conflict" });
+    expect(await store.readPublication(request.handle)).toEqual(rotated.publication);
+    expect((await revokeDeliveryAccessAsAdmin(deps, { ...request, expectedRevision: 4 })).ok).toBe(true);
+    const revoked = (await store.readPublication(request.handle))!;
+    expect(revoked).toMatchObject({ revision: 5, gallery: { state: "access-suspended", capabilityGeneration: 1 } });
+    expect(revoked.capability).toEqual(rotated.publication.capability);
+    expect(revoked.gallery.accessExpiresAt).toEqual(original.gallery.accessExpiresAt);
+    const getKey = vi.fn(keyring.getKey);
+    await expect(store.rotateCapabilityEnvelope({ handle: request.handle, now: NOW, keyring: { ...keyring, getKey } }))
+      .rejects.toMatchObject({ reason: "unavailable" });
+    expect(getKey).not.toHaveBeenCalled();
+  });
+  it("discards an in-progress envelope rotation when the actual revoke transaction wins", async () => {
+    const { store, original, request } = await setup();
+    let winner: ReturnType<typeof store.revokeDeliveryAccess> | undefined;
+    let entered = false;
+    await expect(store.rotateCapabilityEnvelope({ handle: request.handle, now: NOW,
+      keyring: { activeKeyId: "key-2", keyIds: ["key-1", "key-2"], getKey(id) {
+        if (!entered) {
+          entered = true;
+          winner = store.revokeDeliveryAccess({ handle: request.handle, expectedRevision: 3, expectedGeneration: 0, now: NOW });
+        }
+        return Buffer.alloc(32, id === "key-1" ? 17 : 23);
+      } } })).rejects.toMatchObject({ reason: "conflict" });
+    const revoked = await winner;
+    expect(revoked).toMatchObject({ revision: 4, gallery: { state: "access-suspended", capabilityGeneration: 1 } });
+    expect(revoked!.capability).toEqual(original.capability);
+    expect(await store.readPublication(request.handle)).toEqual(revoked);
+  });
   it("atomically suspends access, retires the generation and stops an unsent notification with a safe DTO", async () => {
     const { store, original, request, deps, publish } = await setup();
     expect(privateGalleryDeliveryNotificationStatus(original, NOW)).toEqual({ state: "pending", dispatchable: true });

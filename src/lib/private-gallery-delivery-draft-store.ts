@@ -19,6 +19,7 @@ import { buildFirstDeliveryPublicationCandidate, deliveryPublicationSnapshot, pu
 import { buildRevokedDeliveryCandidate, lifecycleFailure, snapshotDeliveryRevokeInput } from "@/lib/private-gallery-delivery-revocation";
 import { claimDeliveryNotificationCandidate, completeDeliveryNotificationCandidate, deliveryNotificationClaimCurrent, deliveryNotificationDue,
   outboxFailure, snapshotDeliveryOutboxDiscovery, snapshotDeliveryOutboxIdentity, snapshotDeliveryOutboxToken } from "@/lib/private-gallery-delivery-outbox-state";
+import { buildRotatedCapabilityCandidate, rotationFailure, snapshotCapabilityRotationInput } from "@/lib/private-gallery-capability-rotation";
 
 export const PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT = 100;
 /** Process-local development guard, not a production storage policy. */
@@ -249,6 +250,19 @@ export function createPrivateGalleryDeliveryDraftMemoryStore(): PrivateGalleryDe
       if (rows.get(current.gallery.galleryId) !== current) outboxFailure("conflict");
       rows.set(current.gallery.galleryId, candidate);
       return state;
+    },
+    async rotateCapabilityEnvelope(value) {
+      const input = snapshotCapabilityRotationInput(value);
+      const id = handles.get(input.handle);
+      const current = id === undefined ? undefined : rows.get(id);
+      if (!current) rotationFailure("not-found");
+      const candidate = buildRotatedCapabilityCandidate(current, input);
+      const result = { rotated: candidate !== current, publication: deliveryPublicationSnapshot(candidate) };
+      // Captured row identity guards its revision, generation and full old
+      // ciphertext together. A durable adapter must CAS those fields in its DB.
+      if (rows.get(current.gallery.galleryId) !== current) rotationFailure("conflict");
+      if (candidate !== current) rows.set(current.gallery.galleryId, candidate);
+      return result;
     },
     async readPublication(handle) {
       if (!validPublicationHandle(handle)) publicationFailure("invalid-input");

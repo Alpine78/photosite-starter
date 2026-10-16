@@ -1574,6 +1574,18 @@ encrypted material only server-side. No HTTP/admin publish action, customer-stor
 registration, durable database transaction, dispatcher or production activation is
 added. AB#145 and AB#29 remain Active; notification delivery and the remaining
 administration criteria are still unfinished.
+**AB#145 capability-envelope rotation, 2026-10-16:** one unexpired published
+development-memory delivery row can now authenticate and reseal its existing
+capability under the active configured key. The store reads its own current
+revision/generation/ciphertext and refuses a changed row before committing.
+The bearer, original capability creation time, publication/expiry, ZIP, children
+and notification attempt remain unchanged; only key material and the row revision
+move. Already-active envelopes authenticate as a no-op. No key is removed, no
+batch scan is added and no operational key-retirement readiness is claimed:
+other rows, expired/retired envelopes and backups may still need old keys.
+This privileged server-only method has no route, job registration or production
+activation. AB#145 remains Active.
+
 **AB#145 reauthenticated delivery revoke, 2026-10-16:** a server-only
 orchestrator now reuses the existing current administrator-session and five-minute
 reauthentication gates before touching a publication store. A revision/generation

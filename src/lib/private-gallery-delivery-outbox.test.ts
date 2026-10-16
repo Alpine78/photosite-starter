@@ -27,6 +27,24 @@ async function setup(count = 1) {
 }
 afterEach(() => { vi.useRealTimers(); });
 describe("delivery notification claims and fresh dispatch", () => {
+  it("preserves a capability rotation made during delivery when acknowledging the same claim", async () => {
+    const { store, identities, published, transport, deliver } = await setup();
+    const original = published[0];
+    const rotatedKeys = { activeKeyId: "key-2", keyIds: ["key-1", "key-2"], getKey: (id: string) => Buffer.alloc(32, id === "key-1" ? 17 : 23) };
+    deliver.mockImplementation(async () => {
+      expect((await store.rotateCapabilityEnvelope({ handle: identities[0].handle, now: NOW, keyring: rotatedKeys })).rotated).toBe(true);
+      return { status: "delivered" };
+    });
+    expect(await dispatchPrivateGalleryDeliveryNotification({ store, identity: identities[0], transport, keyring, clock }))
+      .toEqual({ kind: "completed", state: "sent", timedOut: false });
+    const saved = (await store.readPublication(identities[0].handle))!;
+    expect(saved).toMatchObject({ revision: 6, capability: { keyId: "key-2" }, outbox: { state: "sent", attempts: 1, generation: 0 } });
+    expect(saved.dispatch?.claim).toBeUndefined();
+    const context = { galleryId: original.gallery.galleryId, handle: identities[0].handle, generation: 0 };
+    const originalSecret = openCapability(keyring, context, original.capability.envelope);
+    expect(openCapability(rotatedKeys, context, saved.capability.envelope)).toBe(originalSecret);
+    expect(deliver.mock.calls[0][0].text).toContain(`#${originalSecret}`);
+  });
   it("renders only transient instructions and commits a sent result with the original attempt identity", async () => {
     const { store, identities, published, transport, deliver } = await setup();
     const original = published[0];
