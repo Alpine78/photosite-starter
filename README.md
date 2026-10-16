@@ -562,6 +562,11 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   hashes the complete delivery ZIP as a stream, writing only a private local plan.
   Watermarks are owner-attested and ZIP contents are not validated. It performs no
   upload, CMS write or publication; see [the operator contract](docs/deployment.md#offline-private-upload-source-check).
+  Recheck a selected plan's current source bytes with
+  `npm run verify:private-upload-sources --silent -- --plan <upload-source-plan.json>
+  --source-root <local-export> --expected-digest <digest>`. It validates the complete
+  report before source reads and writes no artifact. This is a read-time check,
+  not a lock or upload authorization.
   Every route-facing seam (`site-settings.ts`, `home-content.ts`, `services.ts`, `content.ts`,
   `gallery.ts`) is now wired: `SITE_CONTENT_SOURCE=mock` keeps reading fixtures, and `sanity`
   reads every one of these adapters, never a mixed mock/Sanity page. Closing that wiring
