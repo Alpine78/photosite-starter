@@ -1,5 +1,12 @@
 # Feature implementation status
 
+AB#29 offline source revalidation, 2026-10-16 (partial, Active): the owner tool
+revalidates a selected saved upload-source report and its digest before reading
+source files, then compares current JPEG/ZIP bytes and metadata with that plan.
+It reuses unchanged bounded inspection, streams ZIP hashes and produces only a
+redacted summary. It writes no files or remote objects and grants no upload lease;
+watermarks and ZIP contents retain their explicit existing verification limits.
+
 AB#301 Studio identity presentation, 2026-10-16 (partial, Active): the actual
 Studio configuration now groups permanent technical identifiers at the end of
 the form using native, initially expanded FI/EN-labelled controls. Shared-media
