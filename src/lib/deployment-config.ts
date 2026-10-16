@@ -171,6 +171,11 @@ export type BuiltInLabels = {
     readonly refused: string;
     readonly javascriptRequired: string;
   };
+  /** AB#145 customer notice; only the transient server-side body holds a link. */
+  readonly deliveryNotificationEmail: {
+    readonly subject: string; readonly ready: string; readonly openGallery: string;
+    readonly download: string; readonly sharing: string; readonly expiresAt: string; readonly replace: string;
+  };
   /** Photographer-facing AB#130 confirmation notice, in the owner locale. */
   readonly proofConfirmationEmail: {
     readonly subject: string;
@@ -723,6 +728,15 @@ const englishLabels = {
     refused: "Photographs could not be loaded. Try again or reopen the gallery link.",
     javascriptRequired: "JavaScript is needed to view the remaining photographs.",
   },
+  deliveryNotificationEmail: {
+    subject: "Your photographs are ready",
+    ready: "Your delivery gallery is ready.",
+    openGallery: "Open your private gallery:",
+    download: "View the web previews and download all delivered photographs together as one ZIP package.",
+    sharing: "You may share this link with your family. Anyone holding the link can view the gallery and download the package; no password is needed.",
+    expiresAt: "Access expires at",
+    replace: "The photographer can revoke or replace the link. Save your download before access expires.",
+  },
   proofConfirmationEmail: {
     subject: "Proof selection confirmed",
     galleryReference: "Gallery reference",
@@ -1093,6 +1107,15 @@ const finnishLabels = {
     loading: "Ladataan valokuvia…",
     refused: "Valokuvia ei voitu ladata. Yritä uudelleen tai avaa gallerialinkki uudelleen.",
     javascriptRequired: "Loppujen valokuvien katselu vaatii JavaScriptin.",
+  },
+  deliveryNotificationEmail: {
+    subject: "Valokuvasi ovat valmiit",
+    ready: "Toimitusgalleriasi on valmis.",
+    openGallery: "Avaa yksityinen galleriasi:",
+    download: "Katsele verkkokokoisia esikatselukuvia ja lataa kaikki toimitetut valokuvat yhtenä ZIP-pakettina.",
+    sharing: "Voit jakaa linkin perheellesi. Jokainen linkin haltija voi katsella galleriaa ja ladata paketin ilman salasanaa.",
+    expiresAt: "Pääsy vanhenee",
+    replace: "Valokuvaaja voi peruuttaa tai vaihtaa linkin. Tallenna lataamasi kuvat ennen pääsyn vanhenemista.",
   },
   proofConfirmationEmail: {
     subject: "Vedosvalinta vahvistettu",

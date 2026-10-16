@@ -235,6 +235,17 @@ non-secret identifier, not the separate capability. No capability, customer sess
 object key or access URL is created. Drafts remain outside all customer read/exchange
 stores, public projections and notification queues. Resetting the fixture also resets
 these process-local drafts. No production adapter or service is provisioned.
+A separate server-only delivery-notification builder can render FI/EN customer
+instructions immediately before a future send. It authenticates the encrypted
+capability with the current gallery/handle/generation, checks published state and
+absolute expiry, then constructs a canonical HTTPS link whose secret exists only in
+the fragment. The message contains no customer/job reference or filename. The
+recipient and explicit outbox attempt key use the existing notification contract.
+The returned message is transient: do not persist its bearer-bearing body in an
+outbox or log it. A future dispatcher must load fresh gallery/generation data before
+each send and discard retired attempts. The provider and recipient necessarily
+receive the access link in email; tracking and URL rewriting must stay disabled.
+No dispatcher, provider call, public endpoint or publication is added here.
 Publishing, delivery notifications/resend and revoke/replace remain separate work;
 creation is non-destructive and does not call the irreversible-operation re-auth gate.
 

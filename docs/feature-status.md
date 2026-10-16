@@ -1510,6 +1510,14 @@ form creates no capability, notification or customer access, and the list omits
 internal IDs and storage keys. Production persistence, uploads/readiness,
 publication/outbox, notification/resend and revoke/replace remain unfinished;
 this non-destructive creation slice does not exercise the re-authentication gate.
+A server-only FI/EN delivery-notification builder now creates customer access
+instructions from a currently published delivery record and its encrypted capability.
+The envelope is authenticated against gallery, handle and current generation before
+a fragment-only HTTPS link is rendered. The message includes shareability, one ZIP
+and an explicit UTC expiry; invalid, expired or retired-generation material is refused.
+This is a transient message builder only: no publication, outbox activation, provider
+send or production enablement is added. A future dispatcher must re-read live metadata
+and keep only encrypted capability material at rest, never the rendered email body.
 AB#145 was verified Active before edits and remains Active pending acceptance.
 CI #1047 exposed a shared test login budget: gallery-management journeys now
 reuse a real administrator session per Playwright worker. Each test retains its
