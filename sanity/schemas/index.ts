@@ -16,6 +16,7 @@
 import { articleType } from "./article";
 import { articleEndGalleryPlacementType } from "./article-end-gallery-placement";
 import { categoryType } from "./category";
+import { clientDeliveryGalleryType, clientDeliveryItemType } from "./client-delivery-gallery";
 import { categoryDescriptionTypes } from "./category-description";
 import { contentBlockTypes, contentInlineTypes } from "./content-block";
 import { galleryType } from "./gallery";
@@ -65,5 +66,7 @@ export function defineSchemaTypes(
     pollType,
     legacyDeliveryGalleryType,
     legacyDeliveryImageType,
+    clientDeliveryItemType,
+    clientDeliveryGalleryType,
   ];
 }

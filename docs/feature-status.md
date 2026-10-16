@@ -1,5 +1,29 @@
 # Feature implementation status
 
+AB#302 / AB#145 Sanity authoring, 2026-10-16 (partial, Active): a separate
+client-delivery document and ordered image-item schema now support native
+Studio editing with FI/EN labels, generated immutable 128-bit link identifiers,
+explicit page availability and bounded localized text. Validation checks current
+asset metadata, web-derivative dimensions/formats, neutral crop values and link
+collisions across new/legacy records. Legacy importer fields and actions remain
+read-only. The pause flag starts false and takes effect only through native
+publication. Studio validation does not enforce direct API writes; AB#303 must
+revalidate on fresh reads. No ZIP field, new service, production/CMS change or
+hosted Studio deployment. [Authoring instructions and remaining verification](../studio/README.md#ongoing-client-galleries-ab302--ab145).
+AB#145 and its parent feature AB#63 are Active; AB#302 is Active. New customer
+runtime and offline availability tooling remain AB#303/304. Earlier protected
+work remains disabled under ADR-0034.
+
+Current owner decision, 2026-10-16: [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
+selects existing Sanity/unlisted delivery for ongoing client work, including
+future galleries. Protected S3/Postgres work is no longer the deployment target;
+PRs #446–#451 were closed unmerged, with branches retained. AB#29 remains
+Active for the revised delivery scope; AB#145 and AB#130 return to New for the
+Sanity administration audit and a compatible proof-selection design. Existing
+protected code stays disabled pending a separate removal audit. New-gallery
+creation/publication is not implemented by this decision. Earlier entries below
+record history under the superseded protected target.
+
 AB#29 offline source revalidation, 2026-10-16 (partial, Active): the owner tool
 revalidates a selected saved upload-source report and its digest before reading
 source files, then compares current JPEG/ZIP bytes and metadata with that plan.

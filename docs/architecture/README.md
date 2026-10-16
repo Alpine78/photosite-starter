@@ -1,5 +1,12 @@
 # Architecture diagrams
 
+**Client-delivery direction, 2026-10-16:** [ADR-0034](../adr/0034-ongoing-unlisted-client-delivery.md)
+selects ongoing Sanity/unlisted delivery for the reference deployment. The
+private S3/Postgres nodes are a deferred, unselected alternative; existing
+protected code stays disabled. The system-context map distinguishes the
+21 observed legacy galleries from new authoring still to implement. Other
+older deployment observations below remain dated background, not fresh evidence.
+
 Three pictures of this project at the level that changes slowly: the systems around
 it, the boundaries inside it, and the path from a commit to a deployment.
 

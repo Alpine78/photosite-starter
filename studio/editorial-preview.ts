@@ -79,6 +79,13 @@ export function mediaEditorialPreview(selection: Selection, locale = "en-US"): P
 
 /** Studio-only labels: stored identities and the dependency-free canonical schemas stay intact. */
 export const EDITORIAL_PREVIEWS: Readonly<Partial<Record<string, EditorialPreview>>> = {
+  clientDeliveryGallery: {
+    select: { titles: "title", media: "items.0.image" },
+    prepare(selection) {
+      const selected = selectMediaDescription({ alternatives: selection.titles }, "en-US");
+      return { title: selected?.value ?? "Client gallery", subtitle: "Unlisted public delivery", media: selection.media };
+    },
+  },
   article: pagePreview("title", "cover.image"),
   gallery: pagePreview("title", "cover.image"),
   galleryPlacement: placementPreview("gallery"),

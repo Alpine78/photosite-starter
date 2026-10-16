@@ -17,10 +17,12 @@ import { editorialLocaleBundles } from "./editorial-locales";
 import { localizedPresentation } from "./localized-layout";
 import { withFullFrameMedia } from "./full-frame-media";
 import { withTechnicalIdentifiers } from "./technical-identifiers";
+import { withClientGalleryDefaults } from "./client-gallery-defaults";
 
 // The shared schemas use a readonly, dependency-free subset of Sanity's types.
 // This boundary asserts that subset; `schemas validate` checks the actual objects.
 const schemaTypes = defineSchemaTypes(studioSettings)
+  .map(withClientGalleryDefaults)
   .map(withTechnicalIdentifiers)
   .map(withEditorialPreview)
   .map(withLocalizedPreview)

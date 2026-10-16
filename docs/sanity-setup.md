@@ -676,3 +676,16 @@ status only after the Production source inventory and targets are verified.
 An invalid map disables all retained-source redirects until configuration is
 corrected; ordinary public pages continue to load, and the server logs one
 sanitized warning per process without customer paths.
+
+### New unlisted client gallery authoring (AB#302)
+
+The standalone Studio now has a separate Client galleries / Asiakasgalleriat
+list for new `clientDeliveryGallery` documents and their embedded
+`clientDeliveryItem` objects. It reuses Sanity authentication and project roles;
+no S3/PostgreSQL or custom site-administrator login is required. See the
+[schema contract](../sanity/README.md#ongoing-unlisted-client-delivery-ab302) and
+[editor workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
+Legacy imported fields/actions remain read-only. This source slice adds
+bounded web-image authoring, not the AB#303 reader or a hosted Studio deployment.
+All files and public dataset fields are public; unlisting and page expiry do not
+revoke direct asset URLs. No live upload, publication or deployment is performed.

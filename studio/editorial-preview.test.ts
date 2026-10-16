@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defineSchemaTypes } from "../sanity/schemas";
-import type { SchemaFieldDefinition } from "../sanity/schemas/schema-types";
+import type { SchemaArrayMemberDefinition, SchemaFieldDefinition } from "../sanity/schemas/schema-types";
 import { EDITORIAL_PREVIEWS, withEditorialPreview } from "./editorial-preview";
 import { previewImageId } from "./preview-image";
 
@@ -102,9 +102,18 @@ describe("Studio adapter and selection boundary", () => {
       expect(schema?.type).toBe("document");
       for (const path of Object.values(preview!.select)) {
         let fields: readonly SchemaFieldDefinition[] = schema!.fields;
+        let arrayMembers: readonly SchemaArrayMemberDefinition[] | undefined;
         for (const part of path.split(".")) {
+          if (/^\d+$/u.test(part)) {
+            expect(arrayMembers, `${name}: ${path} requires an array`).toHaveLength(1);
+            const member = arrayMembers![0];
+            fields = member.fields ?? schemas.find(({ name }) => name === member.type)?.fields ?? [];
+            arrayMembers = undefined;
+            continue;
+          }
           const field = fields.find(({ name }) => name === part);
           expect(field, `${name}: ${path}`).toBeDefined();
+          arrayMembers = field!.type === "array" ? field!.of : undefined;
           fields = field!.type === "reference"
             ? schemas.find(({ name }) => name === field!.to?.[0].type)!.fields
             : field!.fields ?? [];

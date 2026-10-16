@@ -24,7 +24,7 @@ This is **not** a SaaS or multi-tenant system. Each photographer runs their own 
   content; playback via self-hosted MP4/WebM or click-to-load embeds (no auto-loading
   third-party players)
 - Generic by design: no hardcoded names, brand colors, or contact details in components or schemas — these come from site settings or the CMS
-- One gallery core serves the public portfolio, blog mini-galleries, and (later) private client galleries
+- Shared gallery presentation serves the public portfolio and blog mini-galleries; the reference deployment uses unlisted Sanity delivery for client work (ADR-0034)
 - Privacy-friendly: no tracking cookies, no cookie banner if avoidable
 - Accessibility target: WCAG 2.1 AA (where applicable)
 
@@ -616,6 +616,13 @@ browser interactions or the remaining launch acceptance evidence. See the
 [access and verification instructions](docs/deployment.md#retained-legacy-customer-galleries-adr-0028)
 and [dated verification record](docs/audits/ab250-release-verification-2026-10-12.md#production-readback--2026-10-15).
 
+The owner's final direction for **ongoing client work**, including new galleries,
+is this same Sanity/unlisted delivery model, with no separate S3 or PostgreSQL
+service ([ADR-0034](docs/adr/0034-ongoing-unlisted-client-delivery.md)). Public
+CMS metadata and direct file URLs remain discoverable without a shared link;
+page expiry does not revoke those files. The current migration-bound adapter
+and read-only Studio fields still need a new-gallery authoring workflow.
+
 ## Later roadmap (not in MVP)
 
 - Keyword-driven dynamic galleries generated from one or more hierarchical keywords
@@ -623,17 +630,12 @@ and [dated verification record](docs/audits/ab250-release-verification-2026-10-1
   curated galleries
 - Video showcase in galleries, articles, and service pages; video delivery/sharing
   in client galleries
-- Private client galleries follow the **accepted** security, delivery, and retention
-  boundary in [ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md)
-  (2026-08-31). AB#29 (delivery), AB#145 (administrator authentication and delivery-gallery
-  administration), and AB#130 (proof selection and extra-photo pricing) have partial
-  implementation. The feature is off by default; the development fixture exercises
-  proof selection, while production private stores, uploads, delivery-gallery image/ZIP
-  controls, scheduled retention adapters, and remaining delivery-administration operations
-  are still pending. AB#29 now has bounded provider-free retention orchestration with
-  lease/CAS cleanup, independent session reaping and a backstop-policy check; no
-  production worker or private storage is activated. Its future scheduler must drain
-  enough bounded passes for the original deletion deadlines, beyond the daily minimum.
+- Protected client galleries are an inactive alternative described by
+  [ADR-0014](docs/adr/0014-private-gallery-security-delivery-retention-boundary.md)
+  and ADR-0015. The reference-deployment owner has rejected their S3/Postgres
+  target; do not continue it under AB#29/145. Existing code stays off pending
+  a separate removal audit. AB#29/145 now track unlisted Sanity delivery and
+  administration. AB#130 proof selection awaits a compatible design.
 - Optional image sales and fulfilment (enquiry first; checkout and cart only
   after a separate product, legal, security, and delivery decision)
 - Multilingual authoring workflow: articles and galleries have an owner-run linked-draft
@@ -744,8 +746,9 @@ candidate deployment has run successfully (AB#116): pinned runtime and region, q
 gates, project/team ownership, access protection, and non-indexability are verified.
 That is Preview evidence; custom-domain Production promotion (AB#18), the launch
 security/privacy gate (AB#117), and exercised rollback and handoff (AB#118) remain open.
-Production content migration is partial (AB#137). Private client galleries remain
-partial development-fixture implementations with no production private stores.
+Production content migration is partial (AB#137). Protected client-gallery code
+remains an inactive development implementation, superseded for this deployment
+by ADR-0034's ongoing unlisted Sanity direction.
 Keyword-driven dynamic galleries remain post-MVP. See the MVP checklist above and
 [detailed implementation history](docs/feature-status.md).
 

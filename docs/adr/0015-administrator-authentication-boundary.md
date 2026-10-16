@@ -1,5 +1,12 @@
 # ADR-0015: Administrator authentication boundary for private client galleries
 
+**Scoped amendment — 2026-10-16:** [ADR-0034](0034-ongoing-unlisted-client-delivery.md)
+removes this custom protected-gallery administrator path as a requirement for
+the reference deployment. Ongoing unlisted Sanity delivery needs its own
+authenticated authoring workflow under AB#145; customer viewing has no login.
+The protected administrator contract below is preserved as an inactive
+alternative. This does not make any administrator mutation public.
+
 **Status:** Accepted
 **Date:** 2026-09-02
 **Accepted:** 2026-09-02

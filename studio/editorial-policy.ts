@@ -4,6 +4,7 @@ export const SINGLETON_TYPES = ["homePage", "siteSettings"] as const;
 export type SingletonType = (typeof SINGLETON_TYPES)[number];
 export const IMPORTER_TYPES = ["legacyDeliveryGallery", "legacyDeliveryImage"] as const;
 export const EDITORIAL_LISTS = [
+  { type: "clientDeliveryGallery", title: "Client galleries" },
   { type: "service", title: "Services" },
   { type: "article", title: "Articles" },
   { type: "gallery", title: "Galleries" },
@@ -30,6 +31,9 @@ export function allowTemplate(schemaType: string): boolean {
 
 export function allowAction(schemaType: string, action: string | undefined): boolean {
   if (isImporterType(schemaType)) return false;
+  if (schemaType === "clientDeliveryGallery") {
+    return action !== undefined && ["publish", "unpublish", "discardChanges", "delete"].includes(action);
+  }
   if (!isSingleton(schemaType)) return true;
   return action !== undefined && ["publish", "discardChanges", "restore"].includes(action);
 }
