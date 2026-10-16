@@ -9,7 +9,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { generateGalleryHandle } from "@/lib/private-gallery-capability";
-import type { PrivateGallery } from "@/lib/private-gallery";
+import type { PrivateGallery, PrivateGalleryProofPlacement } from "@/lib/private-gallery";
 import {
   isPrivateGalleryProofBusinessReference,
   validatePrivateGalleryProofPricing,
@@ -17,11 +17,30 @@ import {
 } from "@/lib/private-gallery-proof";
 import {
   openPrivateGalleryUploadPreparation,
+  isPrivateGalleryPreparationExpired,
   type PrivateGalleryManifestEntry,
   type PrivateGalleryUploadPlan,
 } from "@/lib/private-gallery-upload";
+import { buildVerifiedFirstProofPlacements } from "@/lib/private-gallery-proof-upload";
+import { planPrivateGalleryFirstProofReady } from "@/lib/private-gallery-readiness";
+import {
+  verifyPrivateGalleryUpload,
+  type PrivateGalleryObjectObservation,
+  type PrivateGalleryUploadReceipt,
+  type PrivateGalleryVerifiedObject,
+  type PrivateGalleryVerificationFailure,
+} from "@/lib/private-gallery-upload-completion";
+import { PRIVATE_GALLERY_MAX_OBJECT_KEY_LENGTH } from "@/lib/private-gallery-object-key";
 
 export const PRIVATE_GALLERY_PROOF_DRAFT_LIST_LIMIT = 100;
+
+/** Server-only records committed together on the first ready transition. */
+export type PrivateGalleryProofDraftReadyData = {
+  readonly pricingSnapshot: PrivateGalleryProofPricing;
+  readonly placements: readonly PrivateGalleryProofPlacement[];
+  readonly lastAssignedOrdinal: number;
+  readonly verifiedObjects: readonly PrivateGalleryVerifiedObject[];
+};
 
 export type PrivateGalleryProofDraftSetup = {
   readonly gallery: PrivateGallery;
@@ -31,6 +50,9 @@ export type PrivateGalleryProofDraftSetup = {
   readonly revision: number;
   /** Complete first upload plan, committed with draft -> preparing. Server-only. */
   readonly preparation?: PrivateGalleryUploadPlan;
+  /** Exact deployment prefix used when the stored preparation was opened. */
+  readonly preparationKeyPrefix?: string;
+  readonly readyProof?: PrivateGalleryProofDraftReadyData;
   /** Optional external identifiers until AB#28 supplies customer/job records. */
   readonly customerReference?: string;
   readonly jobReference?: string;
@@ -46,6 +68,25 @@ export type PrivateGalleryProofDraftList = {
   readonly items: readonly PrivateGalleryProofDraftSetup[];
   readonly hasMore: boolean;
 };
+
+export type PrivateGalleryProofDraftCompletionInput = {
+  readonly handle: string;
+  readonly expectedRevision: number;
+  readonly preparationId: string;
+  readonly receipts: readonly PrivateGalleryUploadReceipt[];
+  /** Server-side metadata reads, never browser assertions or upload receipts. */
+  readonly observations: readonly PrivateGalleryObjectObservation[];
+  readonly now: Date;
+};
+
+export type PrivateGalleryProofDraftCompletion =
+  | { readonly ready: true; readonly setup: PrivateGalleryProofDraftSetup }
+  | {
+      readonly ready: false;
+      /** Internal status only; object keys must not enter an HTTP response. */
+      readonly failures: readonly PrivateGalleryVerificationFailure[];
+      readonly truncated: boolean;
+    };
 
 export type PrivateGalleryProofDraftStore = {
   create(
@@ -65,6 +106,15 @@ export type PrivateGalleryProofDraftStore = {
     readonly manifest: readonly PrivateGalleryManifestEntry[];
     readonly now: Date;
   }): Promise<PrivateGalleryUploadPlan>;
+  /**
+   * Verify the stored first plan and atomically freeze pricing/references with
+   * preparing -> ready. Replays conflict; they never renumber or refreeze.
+   * A production adapter must obtain observations from its object adapter,
+   * then compare-and-swap the expected revision in its database transaction.
+   */
+  completeFirstPreparation(
+    input: PrivateGalleryProofDraftCompletionInput,
+  ): Promise<PrivateGalleryProofDraftCompletion>;
 };
 
 export type PrivateGalleryProofDraftStoreErrorReason =
@@ -72,6 +122,8 @@ export type PrivateGalleryProofDraftStoreErrorReason =
   | "invalid-time"
   | "invalid-limit"
   | "identity-collision"
+  | "preparation-expired"
+  | "readiness-failed"
   | "not-found"
   | "conflict";
 
@@ -107,6 +159,55 @@ function validatedInput(input: PrivateGalleryProofDraftSetupInput): PrivateGalle
       ? {} : { customerReference: input.customerReference }),
     ...(input.jobReference === undefined
       ? {} : { jobReference: input.jobReference }),
+  };
+}
+
+function boundedMetadataString(value: unknown, maximum: number): value is string {
+  return typeof value === "string" && value.length > 0 &&
+    value.length <= maximum && /^[\x20-\x7e]+$/.test(value);
+}
+
+/** Copy only bounded provider metadata; helpers must not retain caller objects. */
+function snapshotCompletionEvidence(
+  input: PrivateGalleryProofDraftCompletionInput,
+  plan: PrivateGalleryUploadPlan,
+): Pick<PrivateGalleryProofDraftCompletionInput, "receipts" | "observations"> {
+  const { receipts, observations } = input;
+  if (!Array.isArray(receipts) || receipts.length > plan.objects.length ||
+      !Array.isArray(observations) || observations.length > plan.objects.length + 1) {
+    fail("invalid-input");
+  }
+  const checksum = (value: PrivateGalleryObjectObservation["checksum"]) => {
+    if (value === undefined) return undefined;
+    if (typeof value !== "object" || value === null) fail("invalid-input");
+    const { algorithm, value: digest } = value;
+    if ((algorithm !== "sha256" && algorithm !== "crc32c") ||
+        !boundedMetadataString(digest, 256)) fail("invalid-input");
+    // Encoding is provider-owned. Never treat an ETag as a content digest.
+    return { algorithm, value: digest };
+  };
+  const receiptKeys = new Set<string>();
+  const plannedKeys = new Set(plan.preparation.objectKeys);
+  return {
+    receipts: receipts.map((item: PrivateGalleryUploadReceipt) => {
+      if (typeof item !== "object" || item === null) fail("invalid-input");
+      const { objectKey, checksum: digest } = item;
+      if (!plannedKeys.has(objectKey) || receiptKeys.has(objectKey)) fail("invalid-input");
+      receiptKeys.add(objectKey);
+      const copied = checksum(digest);
+      return { objectKey, ...(copied === undefined ? {} : { checksum: copied }) };
+    }),
+    observations: observations.map((item: PrivateGalleryObjectObservation) => {
+      if (typeof item !== "object" || item === null) fail("invalid-input");
+      const { objectKey, sizeBytes, etag, checksum: digest } = item;
+      if (!boundedMetadataString(objectKey, PRIVATE_GALLERY_MAX_OBJECT_KEY_LENGTH) ||
+          !Number.isSafeInteger(sizeBytes) ||
+          (etag !== undefined && !boundedMetadataString(etag, 512))) fail("invalid-input");
+      const copied = checksum(digest);
+      return { objectKey, sizeBytes,
+        ...(etag === undefined ? {} : { etag }),
+        ...(copied === undefined ? {} : { checksum: copied }) };
+    }),
   };
 }
 
@@ -184,12 +285,13 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
       // lookup, plan creation and replacement in this one-process store.
       // The production adapter needs a transaction and compare-and-swap.
       let plan: PrivateGalleryUploadPlan;
+      const keyPrefix = input.keyPrefix;
       try {
         plan = openPrivateGalleryUploadPreparation({
           galleryId,
           galleryKind: "proof",
           state: current.gallery.state,
-          keyPrefix: input.keyPrefix,
+          keyPrefix,
           preparationId: randomUUID(),
           manifest: input.manifest,
           now: input.now,
@@ -201,9 +303,80 @@ export function createPrivateGalleryProofDraftMemoryStore(): PrivateGalleryProof
         ...current,
         gallery: { ...current.gallery, state: "preparing" },
         preparation: plan,
+        preparationKeyPrefix: keyPrefix,
         revision: current.revision + 1,
       });
       return structuredClone(plan);
+    },
+    async completeFirstPreparation(input) {
+      if (typeof input !== "object" || input === null) fail("invalid-input");
+      const { handle, expectedRevision, preparationId, now } = input;
+      if (typeof handle !== "string" || handle.length === 0 ||
+          !Number.isSafeInteger(expectedRevision) || expectedRevision < 0 ||
+          typeof preparationId !== "string" || preparationId.length === 0) fail("invalid-input");
+      if (!(now instanceof Date) || !Number.isFinite(now.getTime())) fail("invalid-time");
+      const completionTime = new Date(now);
+      const galleryId = byHandle.get(handle);
+      if (galleryId === undefined) fail("not-found");
+      const current = byId.get(galleryId);
+      if (current === undefined) fail("not-found");
+      const plan = current.preparation;
+      if (current.gallery.kind !== "proof" || current.gallery.state !== "preparing" ||
+          current.readyProof !== undefined || current.revision !== expectedRevision ||
+          current.revision === Number.MAX_SAFE_INTEGER || plan === undefined ||
+          plan.preparation.preparationId !== preparationId) fail("conflict");
+      if (plan.galleryKind !== "proof" || plan.preparation.galleryId !== galleryId ||
+          current.preparationKeyPrefix === undefined) fail("readiness-failed");
+      if (completionTime.getTime() < plan.preparation.openedAt.getTime()) fail("invalid-time");
+      if (isPrivateGalleryPreparationExpired(plan.preparation, completionTime)) {
+        fail("preparation-expired");
+      }
+
+      // No await from lookup through replacement: pricing and preparation cannot
+      // change between verification and their single revision-guarded commit.
+      const evidence = snapshotCompletionEvidence(input, plan);
+      let completion;
+      try {
+        completion = verifyPrivateGalleryUpload({
+          preparation: plan.preparation,
+          expected: plan.objects,
+          ...evidence,
+          keyPrefix: current.preparationKeyPrefix,
+          now: completionTime,
+        });
+      } catch {
+        fail("invalid-input");
+      }
+      if (!completion.verified) {
+        return { ready: false, failures: completion.failures, truncated: completion.truncated };
+      }
+      let placements: readonly PrivateGalleryProofPlacement[];
+      try {
+        placements = buildVerifiedFirstProofPlacements(plan, completion);
+      } catch {
+        fail("readiness-failed");
+      }
+      const ready = planPrivateGalleryFirstProofReady({
+        gallery: current.gallery, placements, pricing: current.pricing,
+        verifiedObjects: completion.objects,
+      });
+      if (!ready.ready) fail("readiness-failed");
+      const updated: PrivateGalleryProofDraftSetup = {
+        ...current,
+        gallery: { ...current.gallery, state: "ready" },
+        revision: current.revision + 1,
+        readyProof: {
+          pricingSnapshot: ready.pricingSnapshot,
+          placements: ready.placements,
+          lastAssignedOrdinal: ready.lastAssignedOrdinal,
+          verifiedObjects: completion.objects,
+        },
+      };
+      // Retain CAS even if an in-process adapter supplied a reentrant getter
+      // while its metadata was copied. No intervening revision may be lost.
+      if (byId.get(galleryId) !== current) fail("conflict");
+      byId.set(galleryId, updated);
+      return { ready: true, setup: structuredClone(updated) };
     },
     async list(limit) {
       if (!Number.isSafeInteger(limit) || limit < 1 ||
