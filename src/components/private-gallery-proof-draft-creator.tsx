@@ -28,7 +28,7 @@ export type PrivateGalleryProofDraftCreatorLabels = {
   readonly listHeading: string;
   readonly empty: string;
   readonly hasMore: string;
-  readonly loadMore: string; readonly loadingMore: string; readonly refresh: string;
+  readonly loadMore: string; readonly loadingMore: string; readonly allLoaded: string; readonly loadedCount: string; readonly refresh: string;
   readonly unavailable: string;
   readonly handle: string;
   readonly editPricing: string;
@@ -136,7 +136,7 @@ export function PrivateGalleryProofDraftCreator({
   readonly labels: PrivateGalleryProofDraftCreatorLabels;
 }) {
   const id = useId();
-  const { list, loading, listError, refresh, loadMore, acknowledge, cancel } = usePrivateGalleryDraftList<PrivateGalleryProofDraftAdminItem>(apiPath);
+  const { list, firstPageReady, loading, listError, refresh, loadMore, acknowledge, cancel } = usePrivateGalleryDraftList<PrivateGalleryProofDraftAdminItem>(apiPath);
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
   const [created, setCreated] = useState<string | undefined>();
@@ -265,10 +265,14 @@ export function PrivateGalleryProofDraftCreator({
         </ul>
       )}
       {listError && <p role="alert" className="text-danger">{labels.unavailable}</p>}
-      {list?.hasMore && <button type="button" disabled={pending || loading} onClick={() => void loadMore()}
-        className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50">
-        {loading ? labels.loadingMore : labels.loadMore}
-      </button>}
+      {list && <>
+        <p id={`${id}-count`} aria-live="polite" aria-atomic="true" className="text-muted">{labels.loadedCount}: {list.items.length}</p>
+        <button type="button" aria-disabled={pending || loading || !list.hasMore} aria-describedby={`${id}-count`}
+          onClick={() => { if (!pending && !loading && list.hasMore) void loadMore(); }}
+          className="rounded-md border border-border-strong px-3 py-1.5 text-strong aria-disabled:opacity-50">
+          {loading ? labels.loadingMore : !firstPageReady ? labels.unavailable : list.hasMore ? labels.loadMore : labels.allLoaded}
+        </button>
+      </>}
     </section>
   );
 }

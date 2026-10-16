@@ -6,7 +6,7 @@ export type DeliveryDraftCreatorLabels = {
   readonly heading: string; readonly description: string; readonly customerReference: string;
   readonly jobReference: string; readonly referenceHelp: string; readonly create: string;
   readonly refresh: string; readonly creating: string; readonly created: string; readonly listHeading: string;
-  readonly loadMore: string; readonly loadingMore: string;
+  readonly loadMore: string; readonly loadingMore: string; readonly allLoaded: string; readonly loadedCount: string;
   readonly empty: string; readonly hasMore: string; readonly unavailable: string;
   readonly invalid: string; readonly handle: string; readonly javascriptRequired: string;
   readonly editReferences: string; readonly saveReferences: string; readonly savingReferences: string;
@@ -82,7 +82,7 @@ export function PrivateGalleryDeliveryDraftCreator({ apiPath, locale, labels }: 
 }) {
   const id = useId();
   const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
-  const { list, loading, listError, refresh, loadMore, acknowledge, cancel } = usePrivateGalleryDraftList<Item>(apiPath);
+  const { list, firstPageReady, loading, listError, refresh, loadMore, acknowledge, cancel } = usePrivateGalleryDraftList<Item>(apiPath);
   const [customer, setCustomer] = useState("");
   const [job, setJob] = useState("");
   const [pending, setPending] = useState(false);
@@ -161,9 +161,13 @@ export function PrivateGalleryDeliveryDraftCreator({ apiPath, locale, labels }: 
       </li>)}
     </ul>
     {listError && <p role="alert" className="text-danger">{labels.unavailable}</p>}
-    {list?.hasMore && <button type="button" disabled={!hydrated || pending || loading} onClick={() => void loadMore()}
-      className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50">
-      {loading ? labels.loadingMore : labels.loadMore}
-    </button>}
+    {list && <>
+      <p id={`${id}-count`} aria-live="polite" aria-atomic="true" className="text-muted">{labels.loadedCount}: {list.items.length}</p>
+      <button type="button" aria-disabled={pending || loading || !list.hasMore} aria-describedby={`${id}-count`}
+        onClick={() => { if (!pending && !loading && list.hasMore) void loadMore(); }}
+        className="rounded-md border border-border-strong px-3 py-1.5 text-strong aria-disabled:opacity-50">
+        {loading ? labels.loadingMore : !firstPageReady ? labels.unavailable : list.hasMore ? labels.loadMore : labels.allLoaded}
+      </button>
+    </>}
   </section>;
 }

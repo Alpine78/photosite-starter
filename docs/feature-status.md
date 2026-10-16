@@ -1562,6 +1562,9 @@ canceled reads, deduplicates overlaps and preserves acknowledged edits/creations
 refresh deliberately returns to the first page. Handles in cursors are non-secret
 identifiers; they grant no customer access. This is a development-memory slice;
 neither story is complete.
+Creation before the first successful list read also recovers older drafts without
+discarding acknowledged rows. Pagination keeps keyboard focus on a stable control
+and announces the loaded count in Finnish and English.
 
 The administrator projection now adds only the prepublication state and a bounded
 upload summary (object count, opening time, deadline and expiry at response time).

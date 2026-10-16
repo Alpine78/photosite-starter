@@ -20,6 +20,9 @@ export function usePrivateGalleryDraftList<T extends PrivateDraftListRow>(apiPat
   const [loading, setLoading] = useState(false);
   const [listError, setListError] = useState(false);
   const listRef = useRef<PrivateDraftPage<T> | undefined>(undefined);
+  const firstPageLoaded = useRef(false);
+  // Completion is only known after an authoritative first page was read.
+  const [firstPageReady, setFirstPageReady] = useState(false);
   const active = useRef(false);
   const epoch = useRef(0);
   const busy = useRef(false);
@@ -29,7 +32,7 @@ export function usePrivateGalleryDraftList<T extends PrivateDraftListRow>(apiPat
     ++epoch.current; controller.current?.abort(); busy.current = false;
     if (active.current) setLoading(false);
   }, []);
-  const load = useCallback(async (append: boolean) => {
+  const load = useCallback(async (append: boolean, preserveAcknowledged = false) => {
     if (append && (busy.current || !listRef.current?.nextCursor)) return;
     if (!append) { ++epoch.current; controller.current?.abort(); }
     const version = ++epoch.current;
@@ -39,7 +42,9 @@ export function usePrivateGalleryDraftList<T extends PrivateDraftListRow>(apiPat
     try {
       const page = await readPage<T>(apiPath, abort.signal, cursor);
       if (!active.current || epoch.current !== version) return;
-      const next = append ? { ...page, items: appendPrivateDraftRows(listRef.current?.items ?? [], page.items) } : page;
+      const next = append || preserveAcknowledged
+        ? { ...page, items: appendPrivateDraftRows(listRef.current?.items ?? [], page.items) } : page;
+      if (!append) { firstPageLoaded.current = true; setFirstPageReady(true); }
       listRef.current = next; setList(next);
     } catch {
       if (active.current && epoch.current === version && !abort.signal.aborted) setListError(true);
@@ -60,15 +65,18 @@ export function usePrivateGalleryDraftList<T extends PrivateDraftListRow>(apiPat
       : merged;
     const next = { ...old, items, hasMore: old?.hasMore ?? false };
     listRef.current = next; setList(next);
-  }, [cancel]);
+    // Creating before the first successful read must not hide existing drafts.
+    // A second acknowledgement restarts recovery while preserving both rows.
+    if (!firstPageLoaded.current) void load(false, true);
+  }, [cancel, load]);
   const stop = useCallback(() => {
     active.current = false; ++epoch.current; controller.current?.abort(); busy.current = false;
   }, []);
   useEffect(() => {
     active.current = true;
-    // Defer subscription work so StrictMode's rehearsal cleanup invalidates it.
+    // Defer subscription work; the epoch guard discards superseded reads.
     void Promise.resolve().then(() => { if (active.current) void refresh(); });
     return stop;
   }, [refresh, stop]);
-  return { list, loading, listError, refresh, loadMore, acknowledge, cancel };
+  return { list, firstPageReady, loading, listError, refresh, loadMore, acknowledge, cancel };
 }

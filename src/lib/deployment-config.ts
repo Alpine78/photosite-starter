@@ -251,7 +251,7 @@ export type BuiltInLabels = {
     readonly jobReference: string; readonly referenceHelp: string; readonly create: string;
     readonly refresh: string; readonly creating: string; readonly created: string; readonly listHeading: string;
     readonly empty: string; readonly hasMore: string;
-    readonly loadMore: string; readonly loadingMore: string; readonly unavailable: string;
+    readonly loadMore: string; readonly loadingMore: string; readonly allLoaded: string; readonly loadedCount: string; readonly unavailable: string;
     readonly invalid: string; readonly handle: string; readonly javascriptRequired: string;
     readonly editReferences: string; readonly saveReferences: string; readonly savingReferences: string;
     readonly savedReferences: string; readonly conflictReferences: string;
@@ -274,7 +274,7 @@ export type BuiltInLabels = {
     readonly listHeading: string;
     readonly empty: string;
     readonly hasMore: string;
-    readonly loadMore: string; readonly loadingMore: string;
+    readonly loadMore: string; readonly loadingMore: string; readonly allLoaded: string; readonly loadedCount: string;
     readonly unavailable: string;
     readonly handle: string;
     readonly editPricing: string;
@@ -817,6 +817,8 @@ const englishLabels = {
     javascriptRequired: "Creating delivery drafts needs JavaScript.",
     loadMore: "Load older drafts",
     loadingMore: "Loading drafts…",
+    allLoaded: "All drafts loaded",
+    loadedCount: "Drafts loaded",
   },
   privateGalleryProofCreation: {
     draftState: "Draft – not shared with customer",
@@ -849,6 +851,8 @@ const englishLabels = {
     invalidPricing: "Enter a non-negative whole number and a three-letter uppercase currency code.",
     loadMore: "Load older drafts",
     loadingMore: "Loading drafts…",
+    allLoaded: "All drafts loaded",
+    loadedCount: "Drafts loaded",
     refresh: "Refresh list",
   },
   privateGalleryProofAdmin: {
@@ -1202,6 +1206,8 @@ const finnishLabels = {
     javascriptRequired: "Toimitusluonnosten luominen tarvitsee JavaScriptin.",
     loadMore: "Näytä vanhempia luonnoksia",
     loadingMore: "Ladataan luonnoksia…",
+    allLoaded: "Kaikki luonnokset ladattu",
+    loadedCount: "Luonnoksia ladattu",
   },
   privateGalleryProofCreation: {
     draftState: "Luonnos – ei jaettu asiakkaalle",
@@ -1234,6 +1240,8 @@ const finnishLabels = {
     invalidPricing: "Anna ei-negatiivinen kokonaisluku ja kolmikirjaiminen isoilla kirjaimilla kirjoitettu valuuttakoodi.",
     loadMore: "Näytä vanhempia luonnoksia",
     loadingMore: "Ladataan luonnoksia…",
+    allLoaded: "Kaikki luonnokset ladattu",
+    loadedCount: "Luonnoksia ladattu",
     refresh: "Päivitä lista",
   },
   privateGalleryProofAdmin: {

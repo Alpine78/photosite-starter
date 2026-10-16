@@ -282,7 +282,11 @@ Existing rows traverse once; concurrent insertions may appear later or require r
 depending on that ordering. This is not a snapshot of concurrently created rows.
 The process-local store never deletes list anchors; a future deletion-capable adapter
 must preserve its keyset semantics without relying on an extant anchor row. Refresh
-resets to page one; creation preserves the loaded tail and cursor. No new credential,
+resets to page one; creation preserves the loaded tail and cursor. Before the first
+successful read, an acknowledged creation starts a recovery read that merges its rows;
+another creation restarts that read. If recovery fails, the list error remains visible.
+The older-page control stays focusable through loading and the last page, with a polite
+loaded-count announcement. No new credential,
 gallery capability or public media contract is introduced. Existing
 admin `GET`/`PATCH` responses add only the state and an upload summary: bounded object
 count, opening time, absolute deadline and expiry at the response time. This is a
