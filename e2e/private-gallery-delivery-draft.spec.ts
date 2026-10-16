@@ -1,11 +1,10 @@
 import { getBuiltInLabels } from "@/lib/deployment-config";
 import { expect, test } from "./support/fixtures";
 import { HARNESS_BASE_URL } from "./support/harness-environment";
-const SECRET = "development-fixture-administrator-secret-not-for-any-real-deployment";
 for (const locale of ["fi", "en-GB"]) {
   const labels = getBuiltInLabels(locale);
   const copy = labels.privateGalleryDeliveryCreation;
-  test(`a failed initial list leaves delivery creation usable in ${locale}`, async ({ page, browserName }) => {
+  test(`a failed initial list leaves delivery creation usable in ${locale}`, async ({ page, browserName, administratorCookies }) => {
     test.skip(browserName === "webkit", "WebKit does not store Secure cookies on this harness's HTTP loopback origin.");
     let refusedInitialList = false;
     await page.route("**/admin/delivery", async (route) => {
@@ -15,9 +14,8 @@ for (const locale of ["fi", "en-GB"]) {
       }
       return route.continue();
     });
+    await page.context().addCookies(administratorCookies);
     await page.goto(`/admin?locale=${locale}`);
-    await page.getByLabel(labels.privateGalleryAdmin.secretLabel).fill(SECRET);
-    await page.getByRole("button", { name: labels.privateGalleryAdmin.signIn }).click();
     const section = page.getByRole("region", { name: copy.heading });
     await expect(section.getByRole("status")).toHaveText(copy.unavailable);
     const create = section.getByRole("button", { name: copy.create, exact: true });
@@ -30,11 +28,10 @@ for (const locale of ["fi", "en-GB"]) {
     await expect(section.getByRole("status")).toHaveText(copy.created);
     await expect(section.getByRole("listitem").filter({ hasText: draft.handle })).toBeVisible();
   });
-  test(`creates and lists a private delivery draft in ${locale}`, async ({ page, browserName }) => {
+  test(`creates and lists a private delivery draft in ${locale}`, async ({ page, browserName, administratorCookies }) => {
     test.skip(browserName === "webkit", "WebKit does not store Secure cookies on this harness's HTTP loopback origin; route authorization is covered independently.");
+    await page.context().addCookies(administratorCookies);
     await page.goto(`/admin?locale=${locale}`);
-    await page.getByLabel(labels.privateGalleryAdmin.secretLabel).fill(SECRET);
-    await page.getByRole("button", { name: labels.privateGalleryAdmin.signIn }).click();
     const section = page.getByRole("region", { name: copy.heading });
     await expect(section).toBeVisible();
     const reference = `fixture-${locale}`;
@@ -64,12 +61,9 @@ for (const locale of ["fi", "en-GB"]) {
 
 test.describe("delivery draft without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
-  test("disables creation and never serializes external references into native submission", async ({ page, browserName }) => {
+  test("disables creation and never serializes external references into native submission", async ({ page, browserName, administratorCookies }) => {
     test.skip(browserName === "webkit", "WebKit does not store Secure cookies on this harness's HTTP loopback origin.");
-    const response = await page.request.post("/admin/login", {
-      headers: { origin: HARNESS_BASE_URL, "content-type": "application/json" }, data: { secret: SECRET },
-    });
-    expect(response.ok()).toBe(true);
+    await page.context().addCookies(administratorCookies);
     const labels = getBuiltInLabels("en-GB").privateGalleryDeliveryCreation;
     await page.goto("/admin?locale=en-GB");
     const section = page.getByRole("region", { name: labels.heading });

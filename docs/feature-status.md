@@ -1367,6 +1367,12 @@ it** — AB#132 owns the related but distinct 404 initial-HTML limitation) — a
 (a documented ADR-0009 migration trigger, not built), the dynamic keyword-driven gallery
 and archive search itself (ADR-0012 decides the query/cursor/route contract; AB#58/AB#71
 build it), lightbox zoom tuning, and the dynamic-result enquiry entry point (AB#58/AB#71).
+**AB#29 retention workflow, 2026-10-16:** provider-free bounded orchestration now
+reuses the existing lifecycle policy, claims cleanup through revision/lease CAS,
+resumes manifest slices and verifies whole-prefix absence before completion.
+Expired-session reaping and backstop-policy checks have independent ports. No
+production adapter, scheduler, object deletion or enablement is introduced.
+
 Private client galleries are **partially built**: a link can be opened and exchanged for a
 session, an authorized customer sees their gallery's frames, an operator can sign in to the
 administrator boundary, and the delivery path is composed end to end — but all of it only
@@ -1505,6 +1511,11 @@ internal IDs and storage keys. Production persistence, uploads/readiness,
 publication/outbox, notification/resend and revoke/replace remain unfinished;
 this non-destructive creation slice does not exercise the re-authentication gate.
 AB#145 was verified Active before edits and remains Active pending acceptance.
+CI #1047 exposed a shared test login budget: gallery-management journeys now
+reuse a real administrator session per Playwright worker. Each test retains its
+own browser context, client address and gallery state. Sign-in/sign-out journeys
+still exercise the actual authentication flow, and the application retains its
+unchanged 30-attempt deployment limit and per-client limit.
 A separate development-memory administrator flow now creates and lists
 prepublication proof drafts. It accepts validated, nonnegative pricing and
 optional bounded customer/job external references, mints an internal gallery
@@ -2103,6 +2114,25 @@ No provider restore or launch rollback is claimed.
 [blank exercise record](rollback-exercise-record.md) separates code, CMS, shared assets,
 cache, credentials and mail. AB#118 still needs actual post-promotion recovery and
 owner handoff; no Production mutation was performed.
+
+**Next maintenance candidate, 2026-10-16 (AB#160, Active):** Next.js and its
+ESLint configuration are pinned to 16.4.2 for the upstream Turbopack fixes.
+The updated Hooks rules prompted small corrections: gallery focus requests no
+longer clear state from an effect, proof-list state updates run in settled
+request callbacks, and the Studio language action updates its imperative guards
+from committed props in a layout effect. The original Studio action PR is not
+rewritten. `next dev` also refreshed its generated AGENTS heading.
+Clean lockfile installation, lint, 6,384 unit tests, production builds, Studio
+typecheck/static build, diagrams and synthetic dev smoke passed; root audit stayed
+at zero findings. The full upgrade browser matrix completed with 1,113 passes,
+46 existing skips and one WebKit section-navigation case passing on retry.
+After component corrections, 138 focused journeys passed (five existing
+WebKit Secure-cookie harness skips); 18 additional zero-retry probes passed,
+including six repeats of the section check. The AB#132 probes remain explicitly
+expected failures: 16.4.2 still returns the empty initial 404 shell.
+This is maintenance, not a claimed security remediation. CI/Preview deployment,
+maintainer notification receipt and the broader monitoring acceptance remain
+separate gates; AB#160 stays Active and no Production setting was changed.
 
 **Ongoing dependency monitoring, 2026-10-02 (AB#160, still Active):** the
 existing daily audit and Dependabot settings were checked without replacing

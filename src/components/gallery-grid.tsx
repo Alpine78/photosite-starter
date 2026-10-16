@@ -113,9 +113,11 @@ export function GalleryGrid({
 }: GalleryGridProps) {
   const [slice, setSlice] = useState(initialSlice);
   const [state, setState] = useState<ContinuationState>("idle");
-  const [pendingFocus, setPendingFocus] = useState<"control" | "completion" | null>(
-    null,
-  );
+  // A fresh request also repeats focus on the same target without a second
+  // render just to clear it after the effect has moved focus.
+  const [focusRequest, setFocusRequest] = useState<{
+    readonly target: "control" | "completion";
+  } | null>(null);
   const continueRef = useRef<HTMLAnchorElement | null>(null);
   const completionRef = useRef<HTMLParagraphElement | null>(null);
   // The request callback reads and advances the current slice synchronously.
@@ -188,7 +190,7 @@ export function GalleryGrid({
         // stale: focus stays on the control for as long as it exists, and
         // moves to the completion notice only once it doesn't.
         if (outcome === "success") {
-          setPendingFocus(sliceRef.current.nextCursor === null ? "completion" : "control");
+          setFocusRequest({ target: sliceRef.current.nextCursor === null ? "completion" : "control" });
         }
       }, STALE_RECOVERY_TIMEOUT_MS);
     };
@@ -337,15 +339,14 @@ export function GalleryGrid({
    * drops the visitor to `document.body` in a gallery that just grew.
    */
   useEffect(() => {
-    if (pendingFocus === null) return;
+    if (focusRequest === null) return;
 
-    if (pendingFocus === "completion") {
+    if (focusRequest.target === "completion") {
       completionRef.current?.focus();
     } else {
       continueRef.current?.focus();
     }
-    setPendingFocus(null);
-  }, [pendingFocus]);
+  }, [focusRequest]);
 
   const onContinue = useCallback(
     (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -372,7 +373,7 @@ export function GalleryGrid({
         // Focus is predictable: it stays on the control a visitor activated for
         // as long as that control exists, and moves to the completion notice
         // only when the control itself goes away — never to the document body.
-        setPendingFocus(outcome.complete ? "completion" : "control");
+        setFocusRequest({ target: outcome.complete ? "completion" : "control" });
       });
     },
     [loadNext],

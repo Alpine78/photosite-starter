@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 
-import { test as base, expect } from "@playwright/test";
+import { test as base, expect, type Cookie } from "@playwright/test";
+
+import { HARNESS_BASE_URL } from "./harness-environment";
 
 type HarnessFixtures = {
   /**
@@ -15,6 +17,11 @@ type HarnessFixtures = {
    * rarely necessary; the fixture applies it whether or not a test asks.
    */
   clientAddress: string;
+};
+
+type HarnessWorkerFixtures = {
+  /** Real session for gallery-management journeys that do not test sign-in. */
+  administratorCookies: Cookie[];
 };
 
 /**
@@ -50,7 +57,39 @@ function syntheticClientAddress(identity: string): string {
  * browser at all; its test adapter is selected through the harness environment
  * in `harness-environment.ts`.
  */
-export const test = base.extend<HarnessFixtures>({
+export const test = base.extend<HarnessFixtures, HarnessWorkerFixtures>({
+  administratorCookies: [
+    async ({ playwright }, use, workerInfo) => {
+      // The deployment-wide login budget also counts successful logins. Reuse
+      // one real session per worker for management journeys; authentication
+      // specs keep their own sign-in/sign-out assertions and the real limits.
+      const request = await playwright.request.newContext({
+        baseURL: HARNESS_BASE_URL,
+        extraHTTPHeaders: {
+          "x-forwarded-for": syntheticClientAddress(
+            `administrator session: ${workerInfo.project.name}: ${workerInfo.workerIndex}`,
+          ),
+        },
+      });
+      let cookies: Cookie[];
+      try {
+        const response = await request.post("/admin/login", {
+          headers: { origin: HARNESS_BASE_URL },
+          data: { secret: "development-fixture-administrator-secret-not-for-any-real-deployment" },
+        });
+        expect(response.status()).toBe(200);
+        cookies = (await request.storageState()).cookies.filter(
+          (cookie) => cookie.name === "__Host-pg_admin_session",
+        );
+        expect(cookies).toHaveLength(1);
+      } finally {
+        await request.dispose();
+      }
+      await use(cookies);
+    },
+    { scope: "worker" },
+  ],
+
   externalRequests: [
     async ({ context, baseURL }, use) => {
       if (!baseURL) {
