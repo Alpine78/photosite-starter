@@ -1554,6 +1554,16 @@ This has no HTTP or owner-CLI upload path, no object writes and no customer acce
 `preparing → draft` is not an ADR-0014 transition; the story's reopen operation applies
 to a confirmed customer selection after publication. An incorrect/abandoned preparation
 must follow the deletion and recreation path when durable storage exists.
+A separate first-delivery publication planner now checks the ready gallery's entire
+private placement/object set, active ZIP, preparation window and first-publication
+metadata before proposing its publication time and six-calendar-month expiry. It
+returns only a redacted first blocker or a server-only metadata plan. Preview order
+values must be positive and unique; gaps do not imply a missing object because every
+placement must join the complete verified preparation set. The future adapter must
+lock/re-read that full set in its publication transaction with the sealed capability
+and unique initial outbox insert; state/generation alone are insufficient. This pure
+planner adds no administrator route, state write, notification or customer access.
+AB#145 and AB#29 remain Active.
 No PostgreSQL proof store, durable outbox worker, runtime mail wiring or
 production customer workflow exists yet.
 
