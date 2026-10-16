@@ -1,3 +1,4 @@
+import { CreateLanguageVersionAction } from "./localized-draft-action";
 import { defineConfig, type SchemaTypeDefinition } from "sanity";
 import { coreLocaleAdditions } from "./core-locale-additions";
 import { LocaleNavbar, LocaleToolMenu } from "./locale-navbar";
@@ -41,6 +42,9 @@ export default defineConfig({
     templates: (templates) => templates.filter(({ schemaType }) => allowTemplate(schemaType)),
   },
   document: {
-    actions: (actions, { schemaType }) => actions.filter(({ action }) => allowAction(schemaType, action)),
+    actions: (actions, { schemaType }) => {
+      const allowed = actions.filter(({ action }) => allowAction(schemaType, action));
+      return ["article", "gallery"].includes(schemaType) ? [...allowed, CreateLanguageVersionAction] : allowed;
+    },
   },
 });

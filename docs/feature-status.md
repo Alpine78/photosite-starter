@@ -3299,6 +3299,18 @@ resolved for each locale's header and metadata (`resolveSiteName`,
 back to another language. A pre-AB#187 single-string `siteName` is still read as the
 default name until re-authored. The proposal's footer brand block is not built.
 
+**Studio language-version action, 2026-10-16 (AB#125, Active):** the article/gallery
+editor now offers a configured missing target language, previews copied review fields
+and category/shared-media notices, then explicitly creates linked drafts in one
+strict-create transaction. It uses the existing authenticated Studio client; no new
+endpoint or credential is introduced. Node and native browser crypto share one
+planner policy and preserve deterministic IDs/ordering. Saved-source/preview changes,
+release editing, bounded-read overflow, duplicate IDs and provider failures refuse
+without source or media writes. No automatic translation/publication occurs.
+Synthetic authoring/parity tests and Studio typecheck/schema/static build cover the
+implementation; authenticated real-content creation and owner editorial acceptance
+remain unexercised, and the story stays Active pending review/merge and acceptance.
+
 **Localized draft source review, 2026-10-05 (AB#125, Active):** the pure planner
 now checks selected gallery and article end-gallery source placements as well as
 the source page. Pending or malformed localization reviews refuse another derived

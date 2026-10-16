@@ -6,6 +6,7 @@ export type StudioSettings = {
   datasetVisibility: "public" | "private";
   title: string;
   storyRootPaths: string[];
+  authoringLanguages: string[];
 };
 
 function required(environment: StudioEnvironment, name: string): string {
@@ -73,5 +74,6 @@ export function loadStudioSettings(environment: StudioEnvironment): StudioSettin
   return {
     projectId, dataset, datasetVisibility, title,
     storyRootPaths: studioStoryRoots(required(environment, "SANITY_STUDIO_LOCALE_ROUTES")),
+    authoringLanguages: [...new Set(required(environment, "SANITY_STUDIO_LOCALE_ROUTES").split(",").map((row) => row.trim()).filter(Boolean).map((row) => new Intl.Locale(row.split("|")[0].trim()).language))],
   };
 }
