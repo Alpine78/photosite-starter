@@ -2,7 +2,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { types } from "node:util";
-import type { PrivateGallery, PrivateGalleryCapability, PrivateGalleryOutboxRecord } from "@/lib/private-gallery";
+import type { PrivateGallery, PrivateGalleryCapability } from "@/lib/private-gallery";
 import type { PrivateGalleryCapabilityKeyring } from "@/lib/private-gallery-config";
 import type { PrivateGalleryDeliveryDraft } from "@/lib/private-gallery-delivery-draft-store";
 import { generateCapabilitySecret, sealCapability } from "@/lib/private-gallery-capability";
@@ -10,6 +10,7 @@ import { planPrivateGalleryFirstDeliveryPublication } from "@/lib/private-galler
 import { snapshotPrivateGalleryDeliveryNotificationContext, type PrivateGalleryDeliveryNotificationContext } from "@/lib/private-gallery-delivery-notification";
 import { isValidGalleryNotificationIdempotencyKey } from "@/lib/gallery-notification";
 import type { PrivateGalleryDeliveryRevokeInput } from "@/lib/private-gallery-delivery-revocation";
+import type { PrivateGalleryDeliveryOutboxRecord, DeliveryNotificationDispatch, PrivateGalleryDeliveryOutboxStore } from "@/lib/private-gallery-delivery-outbox-state";
 
 export type PrivateGalleryDeliveryPublicationInput = PrivateGalleryDeliveryNotificationContext & {
   readonly handle: string;
@@ -21,14 +22,15 @@ export type PrivateGalleryDeliveryPublication = {
   readonly sourceRevision: number;
   readonly capability: PrivateGalleryCapability;
   readonly notification: PrivateGalleryDeliveryNotificationContext;
-  readonly outbox: PrivateGalleryOutboxRecord;
+  readonly outbox: PrivateGalleryDeliveryOutboxRecord;
+  readonly dispatch?: DeliveryNotificationDispatch;
 };
 /** Server-only snapshot: never pass this encrypted capability or recipient to a browser. */
 export type PrivateGalleryDeliveryPublicationSnapshot = PrivateGalleryDeliveryPublication & {
   readonly gallery: PrivateGallery;
   readonly revision: number;
 };
-export type PrivateGalleryDeliveryPublicationStore = {
+export type PrivateGalleryDeliveryPublicationStore = PrivateGalleryDeliveryOutboxStore & {
   publishFirstDelivery(input: PrivateGalleryDeliveryPublicationInput): Promise<PrivateGalleryDeliveryPublicationSnapshot>;
   readPublication(handle: string): Promise<PrivateGalleryDeliveryPublicationSnapshot | undefined>;
   revokeDeliveryAccess(input: PrivateGalleryDeliveryRevokeInput): Promise<PrivateGalleryDeliveryPublicationSnapshot>;
@@ -88,13 +90,13 @@ export function buildFirstDeliveryPublicationCandidate(
     capability = Object.freeze({ ...material, galleryId: current.gallery.galleryId,
       capabilityGeneration: current.gallery.capabilityGeneration, createdAt: new Date(input.now) });
   } catch { publicationFailure("capability-unavailable"); }
-  let outbox: PrivateGalleryOutboxRecord;
+  let outbox: PrivateGalleryDeliveryOutboxRecord;
   try {
     const outboxId = randomUUID();
     const idempotencyKey = `delivery-initial:${current.gallery.galleryId}:${current.gallery.capabilityGeneration}`;
     if (!/^[a-f0-9-]{36}$/.test(outboxId) || !isValidGalleryNotificationIdempotencyKey(idempotencyKey)) publicationFailure("outbox-unavailable");
     outbox = Object.freeze({ galleryId: current.gallery.galleryId, outboxId, kind: "delivery-notification" as const,
-      idempotencyKey, state: "pending" as const, attempts: 0, createdAt: new Date(input.now) });
+      idempotencyKey, generation: current.gallery.capabilityGeneration, state: "pending" as const, attempts: 0, createdAt: new Date(input.now) });
   } catch { publicationFailure("outbox-unavailable"); }
   return { ...current, revision: current.revision + 1,
     gallery: { ...current.gallery, state: "published", publishedAt: plan.publishedAt, accessExpiresAt: plan.accessExpiresAt },

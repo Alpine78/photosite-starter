@@ -358,6 +358,39 @@ session and notification construction refuse fresh revoked metadata before key
 lookup. Production asset/ZIP/session adapters must each enforce the same fresh
 metadata boundary. HTTP wiring must supply server time and its origin/body guards;
 this slice adds no route, replace, delete, live customer operation or new processor.
+The memory delivery outbox now binds its initial record to its original generation
+and supports bounded worker discovery/claim/fresh-read/completion. A claim stores
+only an opaque id, generation and dates; the snapshot holds the existing encrypted
+capability and validated recipient context. Claims last at most 30 seconds, bounded
+also by access expiry and the automatic retry window. A pass lists at most 100
+identifiers and sends sequentially. Every stage samples server time again; invalid
+or backward clocks fail closed. There are at most three claims, with 60 seconds
+between retryable failures and at most ten minutes from the first claim for any
+automatic retry. Configuration, request rejection and quota failures are terminal;
+availability, timeout and closed worker-read failures can retry within those limits.
+The current [Resend idempotency window is 24 hours](https://resend.com/changelog/idempotency-keys);
+the shorter automatic window limits delayed retries but does not prove exactly-once
+delivery after a lost response, timeout or abandoned lease. A later deliberate
+resend must create a new attempt; it is not implemented here.
+The worker builds the bearer-bearing email only in a local variable, then obtains
+a fresh claimed snapshot after crypto and checks generation, identity, recipient
+binding, expiry and lease before directly invoking the transport. No message body
+is persisted. Builder/keyring failures complete as closed configuration errors;
+store-read failures attempt a closed retryable worker outcome. If the clock or
+completion store is unusable, the lease expires for bounded recovery rather than
+being acknowledged with stale time. A worker-owned ten-second timeout consumes
+late settlements and stops further admission in that pass; it cannot abort an
+arbitrary custom transport. The existing real provider retains its own timeout.
+Revoke clears claims and retry eligibility. Late responses and expired claims are
+discarded without changing the winner. A revoke after the final read may still
+race the provider invocation: the link is dead, but an in-flight email cannot be
+recalled and the administrator may see stopped status with only a numeric discarded
+result in worker progress. This is not evidence that no email reached the recipient.
+Dates remain domain `Date` values and serialize to ISO strings; no durable schema
+or worker runtime is selected. A complete pass is count bounded, not a promise to
+fit a particular hosting function duration. No job, route, live transport or new
+processor is registered. Administrator status/resend UI and durable atomicity still
+need their separate integrations.
 The status panel above continues to address only the existing published proof
 fixture by a handle the administrator already holds.
 

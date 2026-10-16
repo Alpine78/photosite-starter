@@ -84,6 +84,8 @@ const eslintConfig = defineConfig([
                 "@/lib/private-gallery",
                 "@/lib/private-gallery-delivery-draft-store",
                 "@/lib/private-gallery-delivery-publication-store",
+                "@/lib/private-gallery-delivery-outbox-state",
+                "@/lib/private-gallery-delivery-outbox",
                 "@/lib/private-gallery-delivery-lifecycle",
                 "@/lib/private-gallery-delivery-revocation",
                 "@/lib/private-gallery-delivery-notification-status",

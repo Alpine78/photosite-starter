@@ -56,7 +56,7 @@ export function buildRevokedDeliveryCandidate(current: PrivateGalleryDeliveryDra
       publication.capability.galleryId !== gallery.galleryId || publication.capability.capabilityGeneration !== gallery.capabilityGeneration) lifecycleFailure("unavailable");
   return { ...current, revision: current.revision + 1,
     gallery: { ...gallery, state: "access-suspended", capabilityGeneration: gallery.capabilityGeneration + 1 },
-    publication: Object.freeze({ ...publication, outbox: publication.outbox.state === "sent" ? publication.outbox :
+    publication: Object.freeze({ ...publication, ...(publication.dispatch ? { dispatch: { ...publication.dispatch, claim: undefined, retryable: false, nextAttemptAt: undefined } } : {}), outbox: publication.outbox.state === "sent" ? publication.outbox :
       Object.freeze({ ...publication.outbox, state: "failed", lastError: "access-revoked" }) }) };
 }
 

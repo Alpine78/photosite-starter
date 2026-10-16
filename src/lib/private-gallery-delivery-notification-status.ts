@@ -10,9 +10,10 @@ export function privateGalleryDeliveryNotificationStatus(row: PrivateGalleryDeli
       row.outbox.kind !== "delivery-notification" || row.outbox.galleryId !== row.gallery.galleryId ||
       row.capability.galleryId !== row.gallery.galleryId || !["pending", "failed", "sent"].includes(row.outbox.state) ||
       !Number.isSafeInteger(row.gallery.capabilityGeneration) || row.gallery.capabilityGeneration < 0 ||
+      !Number.isSafeInteger(row.outbox.generation) || row.outbox.generation < 0 ||
       !Number.isSafeInteger(row.capability.capabilityGeneration) || row.capability.capabilityGeneration < 0) return { state: "unavailable", dispatchable: false };
   if (row.outbox.state === "sent") return { state: "sent", dispatchable: false };
-  if (row.gallery.state === "access-suspended" || row.capability.capabilityGeneration !== row.gallery.capabilityGeneration ||
+  if (row.gallery.state === "access-suspended" || row.outbox.generation !== row.gallery.capabilityGeneration || row.capability.capabilityGeneration !== row.gallery.capabilityGeneration ||
       row.outbox.lastError === "access-revoked") return { state: "stopped", dispatchable: false };
   if (row.gallery.state !== "published" || !(now instanceof Date) || !Number.isFinite(now.getTime()) ||
       !(row.gallery.publishedAt instanceof Date) || !(row.gallery.accessExpiresAt instanceof Date) ||

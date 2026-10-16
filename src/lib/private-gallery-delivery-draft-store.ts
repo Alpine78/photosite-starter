@@ -17,6 +17,8 @@ import { buildFirstDeliveryPublicationCandidate, deliveryPublicationSnapshot, pu
   sameDeliveryPublicationIntent, snapshotDeliveryPublicationInput, validPublicationHandle,
   type PrivateGalleryDeliveryPublication, type PrivateGalleryDeliveryPublicationStore } from "@/lib/private-gallery-delivery-publication-store";
 import { buildRevokedDeliveryCandidate, lifecycleFailure, snapshotDeliveryRevokeInput } from "@/lib/private-gallery-delivery-revocation";
+import { claimDeliveryNotificationCandidate, completeDeliveryNotificationCandidate, deliveryNotificationClaimCurrent, deliveryNotificationDue,
+  outboxFailure, snapshotDeliveryOutboxDiscovery, snapshotDeliveryOutboxIdentity, snapshotDeliveryOutboxToken } from "@/lib/private-gallery-delivery-outbox-state";
 
 export const PRIVATE_GALLERY_DELIVERY_DRAFT_LIST_LIMIT = 100;
 /** Process-local development guard, not a production storage policy. */
@@ -207,6 +209,46 @@ export function createPrivateGalleryDeliveryDraftMemoryStore(): PrivateGalleryDe
       if (rows.get(current.gallery.galleryId) !== current) lifecycleFailure("conflict");
       rows.set(current.gallery.galleryId, candidate);
       return result;
+    },
+    async listDueDeliveryNotifications(value) {
+      const { now, limit } = snapshotDeliveryOutboxDiscovery(value);
+      return [...rows.values()].filter((row) => deliveryNotificationDue(row, now)).sort((a, b) =>
+        a.publication!.outbox.createdAt.getTime() - b.publication!.outbox.createdAt.getTime() ||
+        (a.gallery.galleryHandle < b.gallery.galleryHandle ? -1 : a.gallery.galleryHandle > b.gallery.galleryHandle ? 1 : 0))
+        .slice(0, limit).map((row) => ({ handle: row.gallery.galleryHandle, outboxId: row.publication!.outbox.outboxId }));
+    },
+    async claimDeliveryNotification(value) {
+      const input = snapshotDeliveryOutboxIdentity(value);
+      const id = handles.get(input.handle);
+      const current = id === undefined ? undefined : rows.get(id);
+      if (!current || current.publication?.outbox.outboxId !== input.outboxId) return undefined;
+      const result = claimDeliveryNotificationCandidate(current, input.now);
+      if (!result) return undefined;
+      const snapshot = deliveryPublicationSnapshot(result.row);
+      const claimed = result.token ? { token: { ...result.token }, publication: snapshot } : undefined;
+      if (rows.get(current.gallery.galleryId) !== current) outboxFailure("conflict");
+      rows.set(current.gallery.galleryId, result.row);
+      return claimed;
+    },
+    async readClaimedDeliveryNotification(value) {
+      const input = snapshotDeliveryOutboxToken(value);
+      const id = handles.get(input.handle);
+      const current = id === undefined ? undefined : rows.get(id);
+      return current && deliveryNotificationClaimCurrent(current, input, input.now) ? deliveryPublicationSnapshot(current) : undefined;
+    },
+    async completeDeliveryNotification(value) {
+      const input = snapshotDeliveryOutboxToken(value, true);
+      const id = handles.get(input.handle);
+      const current = id === undefined ? undefined : rows.get(id);
+      if (!current) return undefined;
+      const candidate = completeDeliveryNotificationCandidate(current, input, input.now, input.outcome!);
+      if (!candidate) return undefined;
+      const snapshot = deliveryPublicationSnapshot(candidate);
+      const state = snapshot.outbox.state;
+      if (state !== "sent" && state !== "failed") outboxFailure("invalid-record");
+      if (rows.get(current.gallery.galleryId) !== current) outboxFailure("conflict");
+      rows.set(current.gallery.galleryId, candidate);
+      return state;
     },
     async readPublication(handle) {
       if (!validPublicationHandle(handle)) publicationFailure("invalid-input");

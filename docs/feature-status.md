@@ -1568,6 +1568,20 @@ ZIP routes, an HTTP revoke action, a dispatcher, replace or delete. Already-issu
 short-lived URL and in-flight provider-send residuals remain. AB#145 and AB#29
 remain Active; production revocation still needs its durable/authenticated route
 integration and complete fresh-metadata enforcement.
+**AB#145 delivery notification worker, 2026-10-16:** a provider-free memory
+outbox now supports bounded discovery, exclusive 30-second claims, fresh claimed
+reads and conditional completion. The generation belongs to the notification
+record. Automatic retries keep its identity, stop after three claims or ten minutes
+from the first claim, and use an explicit retryable-error policy. Abandoned claims
+and expired retry windows become terminal failures. The worker renders access text
+only transiently, then rechecks current claim/access before invoking the injected
+transport. Revocation clears a claim and stops the outbox; late provider results
+cannot overwrite it. Per-send timeout is ten seconds and a timed-out pass admits
+no further sends. Batch results contain numeric progress only. No plaintext
+instructions are stored, and no scheduler, durable database, live transport or
+production activation is registered. In-flight sends and finite provider
+idempotency remain residuals; resend and administrator status UI remain unfinished.
+AB#145 and AB#29 stay Active.
 CI #1047 exposed a shared test login budget: gallery-management journeys now
 reuse a real administrator session per Playwright worker. Each test retains its
 own browser context, client address and gallery state. Sign-in/sign-out journeys
