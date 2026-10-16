@@ -385,6 +385,22 @@ encrypted material and must never be projected to a browser. This has no HTTP
 publish action, customer-store registration, durable persistence or transport.
 Production publication still requires authenticated orchestration, database
 atomicity and live provider verification; no new processor is contacted here.
+The same memory store now supports single-row capability-envelope rotation for
+an unexpired published delivery. It authenticates the current envelope against
+the fresh gallery/handle/generation and reseals the same bearer under the active
+configured key. The original creation and access dates, current ZIP and outbox
+record are preserved. A final comparison against the captured canonical row
+protects its full ciphertext, revision and generation; a reentrant update wins
+and the rotation candidate is discarded. A durable adapter must provide the
+equivalent database CAS. Already-active material is authenticated without a
+write. Rotation advances the row revision once, so another in-flight change may
+receive a conflict and retry; it cannot be silently overwritten. Only encrypted
+snapshots leave the method. No key configuration is changed and no old key is
+retired: other rows, revoked/replaced/expired/unpublished material and backups
+are outside this single-row operation. A complete rotation inventory and old-key
+retirement procedure still need their own verification. No rotation route or
+scheduled job is introduced.
+
 Development delivery revocation now has a server-only administrator orchestrator
 that reloads the current credential/session and requires the existing five-minute
 reauthentication window before any publication-store call. Its raw request and
