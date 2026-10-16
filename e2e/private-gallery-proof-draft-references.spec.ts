@@ -39,7 +39,17 @@ for (const locale of ["fi", "en-GB"]) {
       cookie: administratorCookies.map((c) => c.name + "=" + c.value).join("; ") },
       data: { handle: draft.handle, expectedRevision: 2, references: { jobReference: "other-tab" } } });
     expect(other.status()).toBe(200);
+    await row.getByText(copy.editPricing, { exact: true }).click();
+    await row.getByLabel(copy.includedCount, { exact: true }).fill("4");
+    const pricingConflict = page.waitForResponse((r) => new URL(r.url()).pathname === "/admin/proof" && r.request().method() === "PATCH");
+    await row.getByRole("button", { name: copy.savePricing, exact: true }).click();
+    expect((await pricingConflict).status()).toBe(409);
+    await expect(section.getByRole("alert").filter({ hasText: copy.conflictPricing })).toBeVisible();
+    await expect(row.getByLabel(copy.customerReference, { exact: true })).toHaveValue("unsaved-local");
+    await expect(row.getByLabel(copy.includedCount, { exact: true })).toHaveValue("4");
+    const conflict = page.waitForResponse((r) => new URL(r.url()).pathname === "/admin/proof" && r.request().method() === "PUT");
     await row.getByRole("button", { name: copy.saveReferences, exact: true }).click();
+    expect((await conflict).status()).toBe(409);
     await expect(row.getByRole("alert").filter({ hasText: copy.conflictReferences })).toBeVisible();
     await expect(row.getByLabel(copy.customerReference, { exact: true })).toHaveValue("unsaved-local");
     await section.getByRole("button", { name: copy.refresh, exact: true }).click();

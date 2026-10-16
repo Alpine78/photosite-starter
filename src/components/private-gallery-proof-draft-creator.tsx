@@ -68,11 +68,11 @@ function ProofDraftPricingEditor({
   const [extra, setExtra] = useState(String(draft.pricing.extraUnitPriceMinor));
   const [currency, setCurrency] = useState(draft.pricing.currency);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<"invalid" | "unavailable" | undefined>();
+  const [error, setError] = useState<"invalid" | "unavailable" | "conflict" | undefined>();
 
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (blocked || mutationLockRef.current) return;
+    if (blocked || mutationLockRef.current || error === "conflict") return;
     mutationLockRef.current = true; onPending(true);
     setPending(true);
     setError(undefined);
@@ -91,6 +91,7 @@ function ProofDraftPricingEditor({
         }),
       });
       if (response.status === 409) {
+        setError("conflict");
         onConflict();
         return;
       }
@@ -132,12 +133,12 @@ function ProofDraftPricingEditor({
             onChange={(event) => setCurrency(event.target.value)}
             className="rounded-md border border-border-strong bg-surface px-3 py-1.5 text-strong" />
         </div>
-        <button type="submit" aria-disabled={pending || blocked}
-          className="rounded-md border border-border-strong px-3 py-1.5 text-strong disabled:opacity-50 sm:self-end">
+        <button type="submit" aria-disabled={pending || blocked || error === "conflict"}
+          className="rounded-md border border-border-strong px-3 py-1.5 text-strong aria-disabled:opacity-50 sm:self-end">
           {pending ? labels.savingPricing : labels.savePricing}
         </button>
       </form>
-      {error && <p role="alert" className="mt-2 text-danger">
+      {error && error !== "conflict" && <p role="alert" className="mt-2 text-danger">
         {error === "invalid" ? labels.invalidPricing : labels.unavailable}
       </p>}
     </details>
@@ -211,7 +212,6 @@ export function PrivateGalleryProofDraftCreator({
 
   function conflictedPricing() {
     setEditNotice("conflict");
-    void refresh();
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -293,7 +293,7 @@ export function PrivateGalleryProofDraftCreator({
       {created && <p role="status">{labels.created} {labels.handle}: <span className="font-mono">{created}</span></p>}
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-medium text-strong">{labels.listHeading}</h3>
-        <button type="button" onClick={() => { setReferenceReset((value) => value + 1); setSavedReferenceHandle(undefined); void refresh(); }}
+        <button type="button" onClick={() => { setReferenceReset((value) => value + 1); setSavedReferenceHandle(undefined); setEditNotice(undefined); void refresh(); }}
           className="rounded-md border border-border-strong px-3 py-1.5 text-strong">{labels.refresh}</button>
       </div>
       {list && list.items.length === 0 && <p className="text-sm text-muted">{labels.empty}</p>}

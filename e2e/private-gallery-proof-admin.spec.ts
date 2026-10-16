@@ -174,6 +174,8 @@ test.describe("private gallery proof administration", () => {
     await row.getByLabel(draftLabels.includedCount).fill("5");
     await row.getByRole("button", { name: draftLabels.savePricing }).click();
     await expect(page.getByText(draftLabels.conflictPricing)).toBeVisible();
+    await expect(row.getByLabel(draftLabels.includedCount)).toHaveValue("5");
+    await creator.getByRole("button", { name: draftLabels.refresh, exact: true }).click();
     await expect(row).toContainText(`${draftLabels.includedCount}: 4`);
   });
 

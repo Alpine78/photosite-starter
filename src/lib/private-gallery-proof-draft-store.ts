@@ -135,11 +135,21 @@ export type PrivateGalleryProofDraftStoreErrorReason =
   | "not-found"
   | "conflict";
 
+// The memory store survives across independently loaded Next.js route bundles.
+// Its method closures can throw another bundle's copy of this error class.
+const PROOF_DRAFT_ERROR = Symbol.for("photosite-starter.private-gallery.proof-draft-error.v1");
+
 export class PrivateGalleryProofDraftStoreError extends Error {
   constructor(readonly reason: PrivateGalleryProofDraftStoreErrorReason) {
     // The input, its external references and the generated handle stay out of errors.
     super("[private-gallery-proof-draft-store] " + reason);
     this.name = "PrivateGalleryProofDraftStoreError";
+    Object.defineProperty(this, PROOF_DRAFT_ERROR, { value: true });
+  }
+
+  static [Symbol.hasInstance](value: unknown): boolean {
+    return value instanceof Error && value.name === "PrivateGalleryProofDraftStoreError" &&
+      Object.getOwnPropertyDescriptor(value, PROOF_DRAFT_ERROR)?.value === true;
   }
 }
 
