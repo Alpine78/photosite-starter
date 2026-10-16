@@ -52,6 +52,20 @@ beforeEach(() => {
 });
 
 describe("GET/POST/PATCH <admin-prefix>/proof", () => {
+  it("returns the existing generic uncached unavailable response at development capacity", async () => {
+    const cookie = await adminCookie();
+    const store = getPrivateGalleryMemoryStore().proofDraftStore;
+    for (let index = 0; index < 1000; index++) await store.create({ pricing: PRICING }, new Date());
+    const full = await POST(request("POST", cookie, { pricing: PRICING, customerReference: "private-capacity-canary" }));
+    expect(full.status).toBe(503);
+    expect(full.headers.get("cache-control")).toBe("no-store");
+    expect(full.headers.get("access-control-allow-origin")).toBeNull();
+    expect(await full.text()).toBe('{"ok":false}');
+    vi.spyOn(store, "create").mockRejectedValueOnce(new Error("unavailable secret-canary"));
+    const unavailable = await POST(request("POST", cookie, { pricing: PRICING }));
+    expect(unavailable.status).toBe(503);
+    expect(await unavailable.text()).toBe('{"ok":false}');
+  });
   it("creates and updates only a prepublication draft through the shared memory store", async () => {
     const cookie = await adminCookie();
     const created = await POST(request("POST", cookie, { pricing: PRICING, customerReference: "customer-1" }));
