@@ -13,7 +13,7 @@ describe("Studio configuration", () => {
   it("derives all locale roots with the default in any position", () => {
     expect(loadStudioSettings(environment)).toEqual({
       projectId: "example1", dataset: "example", datasetVisibility: "public",
-      title: "Example Studio", storyRootPaths: ["/tarinat", "/en/stories"],
+      title: "Example Studio", authoringLanguages: ["fi", "en"], storyRootPaths: ["/tarinat", "/en/stories"],
     });
     expect(studioStoryRoots("en-GB|en|stories,fi||tarinat")).toEqual(["/en/stories", "/tarinat"]);
   });
@@ -21,6 +21,11 @@ describe("Studio configuration", () => {
   it("accepts field whitespace and empty comma entries as the site's route parser does", () => {
     expect(studioStoryRoots(" , fi || tarinat | palvelut ,, en-GB | en | stories | services, "))
       .toEqual(["/tarinat", "/en/stories"]);
+  });
+
+  it("derives configured authoring subtags without hardcoding languages or duplicating region variants", () => {
+    expect(loadStudioSettings({ ...environment, SANITY_STUDIO_LOCALE_ROUTES: "sv||berattelser,en-GB|uk|stories,en-US|us|stories" }).authoringLanguages)
+      .toEqual(["sv", "en"]);
   });
 
   it.each(Object.keys(environment))("requires %s explicitly", (key) => {
@@ -42,8 +47,32 @@ describe("Studio configuration", () => {
     "", "fi", "fi|fi|tarinat", "fi||tarinat,en-GB||stories", "fi||tarinat,fi|en|stories",
     "fi||tarinat,en-GB|en|stories,de|en|berichte", "invalid!||stories", "und||stories",
     "fi||../stories", "fi||stories?query", "fi||stories|", "fi||stories|stories",
-    "fi||stories|services|extra", ", , ", "fi||stories" + " ".repeat(4096),
+    "fi||stories|services|search|extra", ", , ", "fi||stories" + " ".repeat(4096),
   ])("rejects malformed routing declarations: %s", (value) => {
+    expect(() => studioStoryRoots(value)).toThrow("SANITY_STUDIO_LOCALE_ROUTES");
+  });
+});
+
+
+describe("Studio search namespace configuration (AB#300)", () => {
+  it.each([
+    "fi||tarinat|palvelut|haku,en|en|stories|services|search",
+    "fi||tarinat|palvelut|haku,en-GB|en|stories|services|search",
+    "fi||tarinat,en-GB|en|stories|services|search",
+    "fi||tarinat|palvelut|haku,en-GB|en|stories|services",
+  ])("accepts optional search namespaces without changing story roots: %s", (value) => {
+    expect(studioStoryRoots(value)).toEqual(["/tarinat", "/en/stories"]);
+    expect(loadStudioSettings({ ...environment, SANITY_STUDIO_LOCALE_ROUTES: value }).storyRootPaths)
+      .toEqual(["/tarinat", "/en/stories"]);
+  });
+
+  it.each([
+    "fi||stories|services|", "fi||stories|services|Search", "fi||stories|services|two words",
+    "fi||stories|services|../search", "fi||stories|services|search/path",
+    "fi||stories|services|stories", "fi||stories|services|services",
+    "fi||stories||search", "fi||stories|services|search|extra",
+    "fi||stories|services|search,en|en|stories|services|services",
+  ])("refuses malformed or conflicting optional fields: %s", (value) => {
     expect(() => studioStoryRoots(value)).toThrow("SANITY_STUDIO_LOCALE_ROUTES");
   });
 });
