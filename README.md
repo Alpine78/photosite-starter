@@ -461,7 +461,7 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   link, and browser history, with the grid and lightbox reading the same filtered ordered
   set (AB#115). Zoom animation and level tuning remain, as does one physical-device
   pinch/pan check that ADR-0001 records as an outstanding gap*
-- [ ] Scriptless 404 recovery (AB#132) — Next.js 16.3.8
+- [ ] Scriptless 404 recovery (AB#132) — Next.js 16.4.2
   still needs JavaScript to show the 404 heading and invalid-continuation return
   link. [ADR-0007](docs/adr/0007-proxy-request-path-boundary.md#2026-10-05-merged-release-build-check-ab132)
   records the checks and the owner-accepted temporary residual on 2026-10-07,

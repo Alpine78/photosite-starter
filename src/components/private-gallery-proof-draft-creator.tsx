@@ -37,6 +37,16 @@ export type PrivateGalleryProofDraftCreatorLabels = {
 
 type DraftList = { readonly items: readonly PrivateGalleryProofDraftAdminItem[]; readonly hasMore: boolean };
 
+async function fetchDraftList(apiPath: string): Promise<DraftList> {
+  const response = await fetch(apiPath, { headers: { accept: "application/json" } });
+  if (!response.ok) throw new Error("unavailable");
+  const data = await response.json() as { ok?: boolean } & DraftList;
+  if (data.ok !== true || !Array.isArray(data.items) || typeof data.hasMore !== "boolean") {
+    throw new Error("unavailable");
+  }
+  return { items: data.items, hasMore: data.hasMore };
+}
+
 function ProofDraftPricingEditor({
   draft, apiPath, labels, onSaved, onConflict,
 }: {
@@ -145,22 +155,18 @@ export function PrivateGalleryProofDraftCreator({
   const listEpoch = useRef(0);
   const [editNotice, setEditNotice] = useState<"saved" | "conflict" | undefined>();
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(() => {
     const epoch = ++listEpoch.current;
-    try {
-      const response = await fetch(apiPath, { headers: { accept: "application/json" } });
-      if (!response.ok) throw new Error("unavailable");
-      const data = await response.json() as { ok?: boolean } & DraftList;
-      if (data.ok !== true || !Array.isArray(data.items) || typeof data.hasMore !== "boolean") {
-        throw new Error("unavailable");
-      }
+    // The effect subscribes; only settled request callbacks update React state,
+    // including a synchronous fetch failure captured by the async helper.
+    return fetchDraftList(apiPath).then((data) => {
       if (epoch === listEpoch.current) {
-        setList({ items: data.items, hasMore: data.hasMore });
+        setList(data);
         setError(false);
       }
-    } catch {
+    }, () => {
       if (epoch === listEpoch.current) setError(true);
-    }
+    });
   }, [apiPath]);
 
   useEffect(() => { void refresh(); }, [refresh]);
