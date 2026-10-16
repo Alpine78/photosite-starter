@@ -252,6 +252,8 @@ export type BuiltInLabels = {
     readonly refresh: string; readonly creating: string; readonly created: string; readonly listHeading: string;
     readonly empty: string; readonly hasMore: string; readonly unavailable: string;
     readonly invalid: string; readonly handle: string; readonly javascriptRequired: string;
+    readonly editReferences: string; readonly saveReferences: string; readonly savingReferences: string;
+    readonly savedReferences: string; readonly conflictReferences: string;
   };
   /** Development-only administrator proof setup (AB#130). */
   readonly privateGalleryProofCreation: {
@@ -787,6 +789,11 @@ const englishLabels = {
     signOut: "Sign out",
   },
   privateGalleryDeliveryCreation: {
+    editReferences: "Edit references",
+    saveReferences: "Save references",
+    savingReferences: "Saving references…",
+    savedReferences: "References saved.",
+    conflictReferences: "The draft changed elsewhere. Your entries have been kept. Refresh the list to discard them and load the latest references.",
     refresh: "Refresh delivery drafts",
     heading: "Create delivery gallery draft",
     description: "Private drafts in this development store are not published and give no customer access.",
@@ -1155,6 +1162,11 @@ const finnishLabels = {
     signOut: "Kirjaudu ulos",
   },
   privateGalleryDeliveryCreation: {
+    editReferences: "Muokkaa viitteitä",
+    saveReferences: "Tallenna viitteet",
+    savingReferences: "Tallennetaan viitteitä…",
+    savedReferences: "Viitteet tallennettu.",
+    conflictReferences: "Luonnos muuttui muualla. Kirjoittamasi viitteet säilyivät. Päivitä lista, jos haluat hylätä ne ja ladata uusimmat viitteet.",
     refresh: "Päivitä toimitusluonnokset",
     heading: "Luo toimitusgallerian luonnos",
     description: "Tämän kehitysympäristön yksityisiä luonnoksia ei julkaista, eivätkä ne anna asiakkaalle pääsyä.",
