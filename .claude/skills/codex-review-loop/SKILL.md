@@ -308,9 +308,12 @@ reviewee is exactly the case an independent second opinion is for.
   genuinely hard to fix) rather than silently giving up.
 - **Codex blocked** (auth, work-item gate, network): report the exact
   blocker and stop; do not retry in a hot loop.
-- **Never commit.** This repository's `AGENTS.md` forbids the agent from
-  running `git commit` under any circumstances, in any workflow, including
-  this one. Leave the working tree ready and suggest a commit message, the
-  same as any other change. Compare HEAD with the pre-first-call value and
-  verify the base/scope snapshot before reporting; an unexpected change is a
-  blocker to report, never a reason to reset the owner's history.
+- **Respect the owner's authorization.** Follow `AGENTS.md`'s owner-instruction
+  and explicit-exception rules. Without commit authorization, leave the working
+  tree ready and suggest a commit message. When the owner explicitly authorizes
+  commits, pushes or PR creation for this task or batch, carry out those authorized
+  actions without asking to confirm the exception again. Apply other explicit
+  project-rule exceptions within their stated scope too. Before any authorized
+  commit, compare HEAD with the pre-first-call value and verify the base/scope
+  snapshot; an unexpected change is a blocker to report, never a reason to reset
+  the owner's history. Record any authorized commit when reporting the ending state.
