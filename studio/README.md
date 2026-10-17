@@ -342,6 +342,66 @@ role restrictions, keyboard focus and native clipboard permission behavior remai
 unverified under AB#145. No hosted deployment, customer communication or CMS
 mutation is performed by this source change.
 
+### Prepare one web image locally (AB#314)
+
+The owner-run command below prepares **one processed static export** with the
+existing encoder. It keeps the entire frame, normalizes EXIF orientation, never
+enlarges it, and limits the longest edge to 2048 pixels. JPEG, PNG, WebP and AVIF
+retain their format. Embedded EXIF, XMP, IPTC, ICC and PNG text payloads are removed
+from the web copy; Sharp converts embedded colour profiles to web sRGB first.
+Original exports, retained legacy files and full-resolution ZIP contents are not
+modified. An output is technical evidence only: it does not establish that an
+arbitrary JPEG is an eligible processed deliverable or suitable for publication.
+
+Use Node 24 on a filesystem with real POSIX permissions (for WSL, use the Linux
+filesystem). Create an owner-private workspace outside Git, or use locally
+ignored private storage. Every ancestor must resist other users' writes; sticky
+system temporary directories are supported. For example, after copying your
+processed export into the private workspace:
+
+```bash
+mkdir -m 700 /path/to/private-workspace
+# Copy the selected processed export there, then protect its local copy:
+chmod 600 /path/to/private-workspace/export.jpg
+npm run prepare:client-web-image -- \
+  --source /path/to/private-workspace/export.jpg \
+  --classification processed-export \
+  --out /path/to/private-workspace/prepared
+```
+
+The output directory must not already exist. It is created with mode `0700` and
+contains only `web-image.jpg` (or `.png`, `.webp`, `.avif`) and `receipt.json`, both
+`0600`. Both paths must be outside Git or untracked and covered by the repository's
+own ignore rules; a global ignore alone is insufficient. Never force-add them.
+Symlinks, hard-linked sources, unsafe permissions and overwritten evidence are
+refused. The receipt records bytes, SHA-256, display-oriented dimensions and
+format, without source names, paths or embedded metadata. The image is written
+and rehashed first; the receipt is written last. Interrupted/incomplete output
+must not be used as a successful preparation receipt.
+
+Local engineering bounds are 25,000,000 compressed input bytes and 100,000,000
+source pixels. These are this command's resource bounds, not a ZIP/package limit
+or a provider upload guarantee. Animation (including APNG), unsupported formats,
+invalid/truncated images and warning-grade decode corruption are refused rather
+than flattened or repaired. Review another clean processed export on refusal.
+
+| Diagnostic | Action |
+| --- | --- |
+| `SOURCE_CLASSIFICATION_REQUIRED`, `INVALID_ARGUMENTS`, `OUTPUT_ALIAS` | Supply the exact three flags and a new separate output directory. |
+| `INPUT_BYTE_LIMIT`, `PIXEL_LIMIT` | Export a smaller processed image within the local bounds. |
+| `UNSUPPORTED_FORMAT`, `ANIMATED_IMAGE`, `INVALID_IMAGE`, `IMAGE_PROCESSING_FAILED` | Use a complete static JPEG/PNG/WebP/AVIF export; do not bypass the decode refusal. |
+| `PRIVATE_PERMISSIONS_UNSUPPORTED`, `PRIVATE_PATH_REQUIRED`, `UNSAFE_PATH` | Use an owner-private POSIX workspace with the stated modes and no links. |
+| `GIT_VISIBLE_PATH`, `GIT_CHECK_FAILED` | Move the workspace outside Git or fix its local ignore/ownership checks. |
+| `SOURCE_CHANGED`, `OUTPUT_CHANGED`, `OUTPUT_CONTRACT_FAILED`, `LOCAL_IO_FAILED`, `INTERRUPTED` | Keep the evidence, inspect the local problem and rerun into a new directory. |
+
+The receipt always says `uploaded: false`, `published: false`,
+`sourceEligibilityApproved: false` and `metadataSuitabilityApproved: false`.
+Inspect the full image and its suitability before any separately authorized
+upload. Sanity files become public from upload, including while the gallery is a
+draft. This command makes no network request and changes no CMS or deployment.
+It neither accepts new full-resolution files/ZIPs nor completes AB#145's live
+role, keyboard, editor or publication checks. Batch preparation remains separate.
+
 No ZIP input is offered yet: new processed-file eligibility/whole-package delivery
 needs its own contract, without extending the 21 legacy galleries' file exceptions.
 Unlisting/noindex is reduced discovery, not confidentiality; public CMS records can

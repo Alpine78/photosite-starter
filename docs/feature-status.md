@@ -75,7 +75,9 @@ read-only. The pause flag starts false and takes effect only through native
 publication. Studio validation does not enforce direct API writes; the AB#303 runtime
 revalidates on fresh reads. No ZIP field, new service, production/CMS change or
 hosted Studio deployment. [Authoring instructions and remaining verification](../studio/README.md#ongoing-client-galleries-ab302--ab145).
-AB#145 and its parent feature AB#63 are Active; AB#302 is Active. The customer runtime is AB#303 above; optional offline availability tooling
+AB#314 adds an offline one-image preparation command with the existing Sharp encoder: complete static JPEG/PNG/WebP/AVIF exports become metadata-stripped web copies at most 2048 pixels, without enlargement or cropping. A new private local directory contains only a neutral filename and technical receipt; source bytes are unchanged. Animation, malformed input, unsafe/Git-visible paths and local 25 MB/100 MP input bounds fail closed. This neither approves source eligibility nor uploads/publishes anything; AB#314 is Active awaiting review/merge.
+
+AB#145 and its parent feature AB#63 are Active; AB#302 is Closed after its accepted merge. The customer runtime is AB#303 above; optional offline availability tooling
 remains AB#304. Earlier protected
 work remains disabled under ADR-0034.
 
