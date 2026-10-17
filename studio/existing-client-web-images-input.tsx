@@ -24,7 +24,7 @@ export function ExistingClientWebImagesInput(props: ArrayOfObjectsInputProps) {
       append: items => onChange(existingClientImagePatches(items)) };
     controller.bind({
       getScope: () => scope,
-      read: request => client.fetch(request.query, request.ids ? { ids: request.ids } : {}, {
+      read: request => client.fetch(request.query, request.ids ? { ids: request.ids } : request.before ? { before: request.before } : {}, {
         signal: request.signal, perspective: "raw", useCdn: false, timeout: 20_000,
       }),
     });
@@ -36,6 +36,7 @@ export function ExistingClientWebImagesInput(props: ArrayOfObjectsInputProps) {
     <ExistingClientWebImagesView id={id} locale={locale} state={state} value={props.value}
       readOnly={Boolean(props.readOnly) || typeof documentId !== "string"} openerRef={opener}
       thumbnail={row => <FullFrameMedia assetId={row._id} lazy />}
+      onCutoffChange={controller.changeCutoff} onSearch={() => { void controller.open(); }}
       onOpen={() => { void controller.open(); }} onClose={close} onRetry={() => { void controller.open(); }}
       onMore={controller.showMore} onClear={controller.clear} onToggle={controller.toggle}
       onAdd={() => { void controller.add().then(() => { if (controller.getSnapshot().phase === "closed") opener.current?.focus(); }); }} />

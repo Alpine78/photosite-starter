@@ -94,6 +94,17 @@ No uploader, new service, private-only reclassification, publication or runtime
 activation is added. AB#336 is Active pending owner review/merge; see the
 [Studio workflow](../studio/README.md#choose-several-existing-web-images-ab336).
 
+AB#343 extends the existing Studio chooser with an optional exclusive UTC
+upload-time cutoff and explicit Search action. Older already uploaded eligible
+web images can be selected as an ordered batch without uploading duplicates.
+Cutoff edits clear the previous result/selection, abort pending reads and await
+another deliberate search; invalid or incomplete dates cannot query. Fresh asset,
+scope and capacity checks still precede the single native append. The same
+257-row query / 256-image retention limit applies, with native-editor fallback
+for crowded same-minute uploads. No upload, new media policy, service or publication
+is added. AB#343 is Active; hosted role/hydration/live-query acceptance remains
+outside fixture evidence. See the [Studio instructions](../studio/README.md#choose-several-existing-web-images-ab336).
+
 AB#145 and its parent feature AB#63 are Active; AB#302 is Closed after its accepted merge. The customer runtime is AB#303 above; optional offline availability tooling
 remains AB#304. Earlier protected
 work remains disabled under ADR-0034.
