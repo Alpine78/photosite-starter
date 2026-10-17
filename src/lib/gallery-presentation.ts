@@ -12,7 +12,7 @@ export type GalleryPresentationFields = {
   readonly galleryCaptionPlacement?: GalleryCaptionPlacement;
 };
 export const DEFAULT_GALLERY_PRESENTATION: GalleryPresentation = {
-  layout: "grid",
+  layout: "justified",
   captionPlacement: "below",
 };
 

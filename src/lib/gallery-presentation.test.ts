@@ -7,7 +7,7 @@ import { inspectValidationRules } from "../../sanity/schemas/validation-test-hel
 
 describe("gallery presentation inheritance", () => {
   it("defaults old deployments and independently restores each cleared override", () => {
-    expect(effectiveGalleryPresentation({}, {})).toEqual({ layout: "grid", captionPlacement: "below" });
+    expect(effectiveGalleryPresentation({}, {})).toEqual({ layout: "justified", captionPlacement: "below" });
     const site = { galleryLayout: "masonry", galleryCaptionPlacement: "overlay" } as const;
     expect(effectiveGalleryPresentation({ galleryLayout: "justified" }, site))
       .toEqual({ layout: "justified", captionPlacement: "overlay" });
