@@ -3,6 +3,7 @@ import { GalleryLightbox, GalleryLightboxTrigger } from "@/components/gallery-li
 import { getRestrictedPageLocale } from "@/lib/restricted-page-locale-request";
 import { RestrictedPageLanguages } from "@/components/restricted-page-languages";
 import { getBuiltInLabels } from "@/lib/deployment-config";
+import { formatUtcDateTime } from "@/lib/date-format";
 import { getClientGallery } from "@/lib/client-gallery-access";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +15,13 @@ export default async function ClientGalleryPage({ params }: { params: Promise<{ 
   if (gallery === undefined) notFound();
   const labels = getBuiltInLabels(locale);
   const notice = gallery.kind === "legacy" ? labels.legacyGallery : labels.clientGallery;
+  const deadline = gallery.kind === "web" ? gallery.availableUntil : undefined;
+  const [beforeDate, afterDate] = labels.clientGallery.deadline.split("{date}");
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
       <RestrictedPageLanguages pathname={`/client-gallery/${handle}`} locale={locale} />
       <h1 className="mb-6 text-2xl">{gallery.title || labels.legacyGallery.title}</h1>
+      {deadline && <p className="mb-6 text-sm text-muted">{beforeDate}<time dateTime={deadline}>{formatUtcDateTime(deadline, locale)}</time>{afterDate}</p>}
       <section aria-labelledby="legacy-delivery-notice" className="mb-6 space-y-2 text-sm text-muted">
         <h2 id="legacy-delivery-notice" className="font-semibold">{notice.noticeTitle}</h2>
         <p>{notice.publicAccessNotice}</p>

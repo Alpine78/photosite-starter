@@ -462,7 +462,10 @@ by that mapping always follows the legacy result, including expiry or failure.
 The new adapter never rescues a missing or unavailable legacy page.
 
 Native publication, `available == true`, and either an explicit exclusive UTC
-deadline or explicit indefinite access are all required. Each successful read
+deadline or explicit indefinite access are all required. Finite new pages show
+the exact UTC cutoff, including seconds and any nonzero milliseconds; indefinite
+pages invent no deadline. The displayed cutoff does not promise continued access
+if an editor pauses earlier, and never revokes files. Each successful read
 uses a bounded, non-CDN published GROQ snapshot with measured assets, then a
 fresh Doc API read as the publication/availability authority. A mismatched
 revision/snapshot is retried once within one 15-second budget; persistent index

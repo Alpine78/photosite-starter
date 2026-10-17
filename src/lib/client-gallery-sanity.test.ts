@@ -30,6 +30,11 @@ function setup(options: { doc?: unknown; rows?: unknown; wall?: () => number; ti
 }
 
 describe("fresh unlisted Sanity client reading", () => {
+  it("projects only a validated finite deadline and invents none for indefinite delivery", async () => {
+    const doc = { ...document(), availabilityMode: "until", expiryInstant: "2026-10-17T00:00:01.123Z" };
+    expect(await setup({ doc, rows: [row(doc)] }).run()).toMatchObject({ kind: "web", availableUntil: doc.expiryInstant });
+    expect(await setup().run()).not.toHaveProperty("availableUntil");
+  });
   it("uses two bounded reads and projects only full-frame presentation data", async () => {
     const f = setup(), view = await f.run();
     expect(f.query).toHaveBeenCalledTimes(1); expect(f.read).toHaveBeenCalledTimes(1);

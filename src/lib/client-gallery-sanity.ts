@@ -116,6 +116,7 @@ export function createClientGalleryReader(settings: {
           const title = clientGalleryText(current.title, language);
           return {
             kind: "web",
+            ...(current.expiryInstant === undefined ? {} : { availableUntil: current.expiryInstant }),
             ...(title === undefined ? {} : { title }),
             images: current.items.map((item) => ({
               itemId: item.key,

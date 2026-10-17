@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getClientGallery, CLIENT_GALLERY_FIXTURE_HANDLE } from "@/lib/client-gallery-access";
+import { getClientGallery, CLIENT_GALLERY_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT } from "@/lib/client-gallery-access";
 import { ClientGalleryDataError, ClientGalleryChangedError } from "@/lib/client-gallery-model";
 
 const mocks = vi.hoisted(() => ({ legacy: vi.fn(), read: vi.fn(), factory: vi.fn() }));
@@ -31,6 +31,8 @@ describe("combined unlisted customer facade", () => {
     environment("fixture"); const fi = await getClientGallery(CLIENT_GALLERY_FIXTURE_HANDLE, "fi-FI");
     expect(fi?.title).toBe("Piilotettu toimitus"); expect(fi?.images).toHaveLength(2); expect(fi).not.toHaveProperty("zipUrl");
     expect(fi?.kind).toBe("web");
+    expect(fi).not.toHaveProperty("availableUntil");
+    expect(await getClientGallery(CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE, "fi")).toMatchObject({ kind: "web", availableUntil: CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT });
     expect((await getClientGallery(CLIENT_GALLERY_FIXTURE_HANDLE, "en"))?.title).toBe("Unlisted delivery");
     expect(await getClientGallery("7".repeat(32), "en")).toBeUndefined(); expect(mocks.factory).not.toHaveBeenCalled();
   });
