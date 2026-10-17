@@ -63,7 +63,7 @@ export function ContentBody({
   const slides = buildContentBodyLightboxSlides(blocks);
 
   const body = (
-    <div className="space-y-6">
+    <div className="space-y-6" data-content-body>
       {blocks.map((block, index) => {
         switch (block.type) {
           case "image-comparison":

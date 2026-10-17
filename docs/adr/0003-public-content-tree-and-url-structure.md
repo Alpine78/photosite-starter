@@ -13,6 +13,43 @@ when implementation produces evidence the original text did not have, and each p
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
 
+### 2026-10-17 — A reading address follows existing body headings (AB#321 / AB#330)
+
+Decision 3 and the AB#21 amendment derive native links to stable H2–H4 body
+headings. The original implementation deliberately excluded client-side scroll
+tracking. The owner's AB#321 request now adds one progressive enhancement on
+article and gallery first pages: deliberate reading scroll updates the current
+address to the latest existing heading crossing its native-fragment reading
+line (the root scroll padding plus that heading’s scroll margin), including H4.
+It replaces the current history entry, preserving its state,
+pathname and query bytes. It neither scrolls, moves focus, fetches content nor
+adds entries to history. Heading ids, native links, server rendering and thin
+cursor continuations are unchanged. No CMS field or new fragment identity is added.
+
+An initial deep link, a same-document link (also to the already-current hash),
+Back/Forward and browser page restoration take priority. Tracking resumes only
+after new deliberate wheel, touch, scroll-key or root-scrollbar input. Keyboard
+input consumed by a control and Space activating a native button do not resume
+reading tracking. Input in an active modal viewer locks tracking again. Outside the editorial body the
+current address is left alone. Before its first heading, only an address this
+mounted reader itself wrote may be cleared. A body with no headings is inert;
+a body with only H2/H3 uses those existing targets. A short final section that
+never reaches the reading line does not acquire a guessed bottom-of-page rule.
+
+Ownership of an automatic fragment exists only in memory. After reload that
+fragment is indistinguishable from a supplied direct link, so this enhancement
+does not clear it at the introduction. Once the visitor deliberately resumes
+reading inside the body, its current heading may replace a previously supplied
+non-heading fragment too. Assistive scrolling or overlay-scrollbar input that
+does not produce a recognized intent event safely leaves the URL unchanged.
+Denied History API access disables the enhancement without interrupting reading.
+
+This scoped change affects decision 3's progressive reading navigation only.
+It does not decide AB#20's local-storage key, retention, clear/disable controls,
+or restart-restoration policy, nor the still-unaccepted mobile contents design
+or a sticky sidebar. In particular the auto-fragment/direct-link distinction
+needed for persistent restoration remains an AB#20 decision.
+
 ### 2026-10-15 — Search namespace also serves free-text search (AB#299)
 
 Decision 6 reserved `/haku` and `/en/search` "for later virtual keyword queries" and
