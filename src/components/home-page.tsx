@@ -141,7 +141,7 @@ export async function HomePage({ searchParams, locale }: HomePageProps) {
   }
 
   return (
-    <main>
+    <main className="[overflow-wrap:anywhere]">
       {/* WebSite + Organization: the site's identity, from SiteSettings and
           deployment config only (AB#86). Emitted here rather than in the
           layout so it stays on the site root, not every default-locale page. */}

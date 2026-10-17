@@ -3698,6 +3698,19 @@ contact column (AB#178). Its privacy notice is a native disclosure, and the
 direct email link remains usable without JavaScript. Related work item:
 AB#176 portfolio topic filter.
 
+**Home and footer text reflow, 2026-10-17 (AB#339, Active):**
+
+The home main region and shared footer allow long words and the site host to wrap
+within available space. The introduction retains its 320px desktop portrait beside
+the copy when both fit, and wraps into its existing mobile order when enlarged text
+exhausts row capacity. The portrait keeps its complete native frame and bounded
+image-size hint; copy, links, semantic styles and server rendering remain. Measured controls preserve normal
+16px-root geometry and give the 768px/32px-root introduction a full-width text
+column and readable fact columns. Regression coverage measures actual visible
+text and region bounds at 16px and 32px CSS root sizes in both locales, including
+scriptless footer navigation. AB#339 remains Active pending owner review/merge;
+the separate header reflow is AB#338, and AB#252's broader acceptance remains open.
+
 **Current integrated release evidence, 2026-10-13 (AB#284, Active):**
 [Current-main Preview and fresh recovery](audits/ab284-current-integrated-preview-2026-10-13.md)
 bind successful CI951 and clean source 8932116 to an owned protected deployment:
