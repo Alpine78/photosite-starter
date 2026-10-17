@@ -5795,6 +5795,15 @@ was removed or activated. AB#313 moved New → Active before edits; actual
 deployment/operator/clone usage and each deletion patch's architecture/security
 review remain open. AB#29/145 stay Active and proof selection AB#130 stays New.
 
+### AB#325 — ordered offline client web-image batches
+
+An explicit owner-selected batch can now prepare up to 256 processed exports
+sequentially with the existing complete-frame, metadata-stripping web converter.
+Private neutral outputs and a final aggregate hash/dimension receipt are bound
+to unchanged selected sources. No CMS/upload, legacy/whole-ZIP mutation, new
+service or source/publication approval is included. See
+[the local batch workflow](client-web-image-batches.md). AB#325 is Active pending
+owner review and merge; parent AB#145's live editor/publication gates remain open.
 
 ### AB#324 — gallery section navigation position (2026-10-17)
 
