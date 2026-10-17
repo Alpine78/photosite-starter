@@ -1,5 +1,14 @@
 # Private client gallery data flow
 
+**Current scope, 2026-10-16:** [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
+selects Sanity/unlisted client delivery for this owner's continuing work, not
+just migration. The protected reference design below is deferred and remains
+disabled. The October 15 [availability readback](audits/ab250-release-verification-2026-10-12.md#production-readback--2026-10-15)
+records the 21 live unlisted galleries; older statements below about no customer
+publication are historical. Public Sanity metadata/files can be discovered
+without the page link, and page expiry does not revoke file access. No new
+customer data, credentials, publication or provisioning is introduced here.
+
 What a private delivery gallery holds, where it goes, who can see it, how long
 it lives, and what the access cookie is. Written for the person who has to
 answer those questions about a running deployment — the site owner, a customer

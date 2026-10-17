@@ -100,6 +100,15 @@ documentation, and project management practices (Azure DevOps, AZ-400 learning).
   archive locators, `privateOnly` reclassification, individual full-resolution
   download control or AB#95 sales assets. Future galleries require a separate
   scope decision; ADR-0014's protected workflow remains distinct.
+  **Current owner direction (2026-10-16, ADR-0034):** the reference deployment
+  chooses existing Sanity and unlisted galleries for ongoing client delivery,
+  including future work. Do not resume protected S3/Postgres development or
+  provisioning for this owner. Keep its existing implementation disabled pending
+  a separate removal audit. Public files and CMS metadata remain discoverable;
+  page expiry does not revoke them. This selects the workflow, not a new batch's
+  original-file/metadata exception or permission to publish. New authoring and
+  proof-selection boundaries require their own implementation. Other clones may
+  choose a separately approved protected model.
 - **Privacy by default.** No tracking cookies, no Google Analytics, no auto-loading
   third-party embeds. Goal: no cookie banner.
 - **Accessibility:** target WCAG 2.1 AA. Keyboard navigation matters, especially in galleries.
