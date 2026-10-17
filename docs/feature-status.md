@@ -5152,6 +5152,24 @@ generation/cache wiring, legacy-write guard, maintenance, operational writer/
 receipts and named rehearsal/Production operations remain separate gates.
 No CMS, asset, credential, restore or deployment operation was performed.
 
+### AB#340 — Curated enquiry identity compatibility (2026-10-17, Active)
+
+The existing pinned alias loader now serves the public curated-enquiry backend.
+Request grammar and full configured locale are validated first; content aliases
+precede public-tree authorization and placement aliases follow authoritative
+container-kind identification. Dynamic and capture media identities are unchanged,
+and all existing gallery/media permissions remain required. Default legacy performs
+no alias IO or CMS-setting read. Each lazy factory/module generation captures its
+configuration once and retains failures until explicit internal recreation or
+redeployment. Safe existing error classes keep provider details private.
+
+Synthetic integration covers renamed/restored inputs, shared loads and recovery,
+unchanged media identities, public/language/container eligibility and the existing
+no-result-read enquiry form. The harness pins legacy mode and clears known alias
+settings/mirrors for build and serve. No CMS read/write, alias record/pins activation,
+public cache cutover or migration operation was performed. AB#340 stays Active until
+owner review/merge; AB#301 and AB#60 retain their remaining acceptance criteria.
+
 ### AB#264 — Deployment-owned identity alias settings (2026-10-12, Active)
 
 The completed PR #354 checkout was retired after preserving all 30,778 ignored

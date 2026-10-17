@@ -1,4 +1,4 @@
-/** Unconnected, explicit-environment alias configuration (ADR-0031, AB#264). */
+/** Explicit-environment alias configuration (ADR-0031, AB#264). */
 import "server-only";
 
 import { isProxy } from "node:util/types";

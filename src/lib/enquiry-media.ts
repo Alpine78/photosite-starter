@@ -20,7 +20,8 @@
  *    assumed free of personal data, and ADR-0004 §5 keeps user-facing errors
  *    generic anyway.
  * 2. **The container is a supported public route.** A curated request's
- *    `contentId` must resolve, through the *public content tree* for that exact
+ *    `contentId` is canonicalized through the pinned alias generation, then must
+ *    resolve through the *public content tree* for that exact
  *    locale, to a published, canonically placed `gallery` — the same check
  *    `getPublicContentRoute` already makes for every other by-identity link.
  *    A published Sanity `gallery` document on its own does not establish this;
@@ -52,6 +53,9 @@ import { getPublicContentRoute } from "@/lib/content-routes";
 import { dispatchContentSource } from "@/lib/content-source";
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import { isPublicIdentity } from "@/lib/public-identity";
+import { createDeploymentIdentityAliasLoader } from "@/lib/identity-alias-deployment";
+import type { IdentityAliasResolver } from "@/lib/identity-aliases";
+import type { SanityIdentityAliasLoader } from "@/lib/sanity-identity-aliases";
 
 /**
  * What the browser submits. `kind` is stated by the caller, never inferred from
@@ -210,6 +214,20 @@ export function classifyEnquiryFailure(
   if (!(error instanceof Error)) {
     return undefined;
   }
+  // Alias failures are sticky for this captured generation: a request retry
+  // cannot recover its configuration or failed transport. Classify before the
+  // broad Sanity data-error branch and never copy a provider cause or value.
+  if (error.name === "IdentityAliasDeploymentError" || error.name === "IdentityAliasError") {
+    return new EnquiryResolutionError("source-error");
+  }
+  if (error.name === "SanityIdentityAliasError") {
+    const rejection = (error as { readonly rejection?: unknown }).rejection;
+    return new EnquiryResolutionError(
+      rejection === "record-shape" || rejection === "record-metadata" || rejection === "alias-payload"
+        ? "malformed-source"
+        : "source-error",
+    );
+  }
   if (error.name === "SanityQueryError") {
     const retryable = (error as { readonly retryable?: unknown }).retryable;
     if (typeof retryable === "boolean") {
@@ -307,11 +325,13 @@ function normalizeEnquiryRequest(request: unknown): EnquiryTargetRequest {
 export type EnquiryTargetSource = (
   request: EnquiryTargetRequest,
   language: string,
+  identityAliases?: IdentityAliasResolver,
 ) => Promise<ResolvedEnquiryTarget>;
 
 async function resolveViaContentSource(
   request: EnquiryTargetRequest,
   language: string,
+  identityAliases?: IdentityAliasResolver,
 ): Promise<ResolvedEnquiryTarget> {
   const { contentSource } = getDeploymentConfig();
   // Both source adapters are loaded dynamically, inside the branch that runs:
@@ -323,13 +343,13 @@ async function resolveViaContentSource(
       const { resolveMockEnquiryTarget } = await import(
         "@/lib/mock-enquiry-media"
       );
-      return resolveMockEnquiryTarget(request, language);
+      return resolveMockEnquiryTarget(request, language, identityAliases);
     },
     sanity: async () => {
       const { resolveSanityEnquiryTarget } = await import(
         "@/lib/sanity-enquiry-media"
       );
-      return resolveSanityEnquiryTarget(request, language);
+      return resolveSanityEnquiryTarget(request, language, { identityAliases });
     },
   });
 }
@@ -351,22 +371,40 @@ async function resolveViaContentSource(
  * (`source-unavailable` / `source-error`) rather than an unclassified error a
  * route would answer with a bare 500. A genuine, unclassifiable defect still
  * propagates.
+ *
+ * One private generation per factory/module instance, captured on the first
+ * valid curated lookup. Recreate the factory (or redeploy) to recover a failed
+ * generation; there is no request-triggered reset or deployment-wide cache.
  */
-export async function resolveEnquiryTarget(
-  request: unknown,
-  source: EnquiryTargetSource = resolveViaContentSource,
-): Promise<ResolvedEnquiryTarget> {
-  const normalized = normalizeEnquiryRequest(request);
+export function createEnquiryTargetResolver(
+  createAliasLoader: () => SanityIdentityAliasLoader = () =>
+    createDeploymentIdentityAliasLoader(process.env),
+): EnquiryTargetResolver {
+  let aliases: Promise<IdentityAliasResolver> | undefined;
+  return async (request, source = resolveViaContentSource) => {
+    let normalized = normalizeEnquiryRequest(request);
+    const { localeRoutes } = getDeploymentConfig();
+    const localeRoute = localeRoutes.byLocale.get(normalized.locale);
+    if (localeRoute === undefined) {
+      throw new EnquiryResolutionError("malformed-request");
+    }
+    const language = new Intl.Locale(localeRoute.locale).language;
 
-  const { localeRoutes } = getDeploymentConfig();
-  const localeRoute = localeRoutes.byLocale.get(normalized.locale);
-  if (localeRoute === undefined) {
-    throw new EnquiryResolutionError("malformed-request");
-  }
-  const language = new Intl.Locale(localeRoute.locale).language;
+    try {
+      // Media identity is outside the alias contract, even when its spelling
+      // happens to equal a placement alias. Dynamic Sanity stays unsupported.
+      if (normalized.kind === "dynamic") return await source(normalized, language);
 
-  try {
-    if (normalized.kind === "curated") {
+      // The async function starts capture immediately and also retains a
+      // synchronous construction error as the same rejected generation promise.
+      aliases ??= (async () => {
+        try { return await createAliasLoader().load(); }
+        catch (error) {
+          throw classifyEnquiryFailure(error) ?? new EnquiryResolutionError("source-error");
+        }
+      })();
+      const identityAliases = await aliases;
+      normalized = { ...normalized, contentId: identityAliases("contentId", normalized.contentId) };
       const trees = await getContentTrees();
       const route = getPublicContentRoute(
         localeRoutes,
@@ -378,14 +416,18 @@ export async function resolveEnquiryTarget(
       if (route === undefined) {
         throw new EnquiryResolutionError("container-unavailable");
       }
+      return await source(normalized, language, identityAliases);
+    } catch (error) {
+      const classified = classifyEnquiryFailure(error);
+      if (classified !== undefined) throw classified;
+      throw error;
     }
-
-    return await source(normalized, language);
-  } catch (error) {
-    const classified = classifyEnquiryFailure(error);
-    if (classified !== undefined) {
-      throw classified;
-    }
-    throw error;
-  }
+  };
 }
+
+type EnquiryTargetResolver = (
+  request: unknown,
+  source?: EnquiryTargetSource,
+) => Promise<ResolvedEnquiryTarget>;
+
+export const resolveEnquiryTarget = createEnquiryTargetResolver();

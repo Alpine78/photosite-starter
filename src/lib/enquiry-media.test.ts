@@ -480,6 +480,7 @@ describe("resolveEnquiryTarget — container check short-circuits the source", (
     expect(source).toHaveBeenCalledWith(
       expect.objectContaining({ kind: "curated" }),
       "en",
+      expect.any(Function),
     );
   });
 });
