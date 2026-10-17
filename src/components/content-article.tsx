@@ -173,7 +173,7 @@ export function ContentArticle({
             />
 
             <div className="mt-10">
-              <ContentBody blocks={page.body} labels={labels} />
+              <ContentBody blocks={page.body} labels={labels} standaloneImages />
             </div>
           </div>
           {endGallery !== undefined && (
