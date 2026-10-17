@@ -429,7 +429,12 @@ test("the wide header layout fits the viewport at its own breakpoint, with no pa
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
 
     const usingCompact = await headerMenuToggle(page).isVisible();
-    expect(usingCompact).toBe(width < 1024);
+    // A classic scrollbar consumes actual container space; unlike a viewport
+    // media query, the header must fit the width available to its own content.
+    const fitsWide = await page.getByRole("banner").evaluate((header) =>
+      header.clientWidth >= 64 * parseFloat(getComputedStyle(document.documentElement).fontSize),
+    );
+    expect(usingCompact).toBe(!fitsWide);
   }
 });
 
