@@ -36,6 +36,18 @@ function optionClassName(isActive: boolean): string {
   }`;
 }
 
+/** The reveal animation is not a change in the filter's document position. */
+function layoutTop(element: HTMLElement): number {
+  const rect = element.getBoundingClientRect();
+  // This row uses only Tailwind's native translate, with no rotation or scale.
+  const y = getComputedStyle(element).translate.split(/\s+/)[1];
+  const distance = y === undefined ? 0 : Number.parseFloat(y);
+  const offset = Number.isFinite(distance)
+    ? distance * (y?.endsWith("%") ? rect.height / 100 : 1)
+    : 0;
+  return rect.top - offset;
+}
+
 /**
  * A gallery's section controls: real links, one per declared section plus
  * `All`, that select ADR-0003's gallery-local filter.
@@ -86,6 +98,79 @@ export function GallerySectionControls({
   } | null>(null);
 
   useEffect(() => {
+    const nav = navRef.current;
+    if (!showControls || nav === null) return;
+    const properties = ["transition-property", "translate", "top"] as const;
+    let press: {
+      readonly pointerId: number;
+      readonly saved: readonly { name: typeof properties[number]; value: string; priority: string }[];
+    } | undefined;
+    let releaseFrame: number | undefined;
+
+    const release = () => {
+      if (releaseFrame !== undefined) window.cancelAnimationFrame(releaseFrame);
+      releaseFrame = undefined;
+      if (press !== undefined) {
+        // Restore the transition first so the normal reveal can resume.
+        for (const { name, value, priority } of press.saved) {
+          if (value) nav.style.setProperty(name, value, priority);
+          else nav.style.removeProperty(name);
+        }
+        press = undefined;
+      }
+      document.removeEventListener("pointerup", finish, true);
+      document.removeEventListener("pointercancel", finish, true);
+      document.removeEventListener("dragstart", release, true);
+      document.removeEventListener("click", release, true);
+      window.removeEventListener("blur", release);
+    };
+    const finish = (event: PointerEvent) => {
+      if (event.pointerId !== press?.pointerId) return;
+      if (event.type === "pointercancel") {
+        release();
+        return;
+      }
+      // Keep the pointerup target in place through native click targeting.
+      // A drag outside the link may produce no click, so release next frame too.
+      document.addEventListener("click", release, { capture: true, once: true });
+      releaseFrame = window.requestAnimationFrame(release);
+    };
+    const hold = (event: PointerEvent) => {
+      if (!event.isPrimary || event.button !== 0 || press !== undefined ||
+          !(event.target instanceof Element)) return;
+      const link = event.target.closest("a[href]");
+      if (link === null || !nav.contains(link)) return;
+      if (!nav.classList.contains("-translate-y-full") &&
+          !nav.getAnimations().some((animation) => animation.playState === "running")) return;
+      const computed = getComputedStyle(nav);
+      // Capture strings before writing: the computed declaration is live.
+      const translate = computed.translate;
+      const top = computed.top;
+      press = {
+        pointerId: event.pointerId,
+        saved: properties.map((name) => ({ name,
+          value: nav.style.getPropertyValue(name), priority: nav.style.getPropertyPriority(name) })),
+      };
+      // Hold only the current press's painted position. Native drag, panning,
+      // cancellation, modifiers and anchor activation remain browser-owned.
+      nav.style.setProperty("transition-property", "none");
+      nav.style.setProperty("translate", translate);
+      nav.style.setProperty("top", top);
+      document.addEventListener("pointerup", finish, true);
+      document.addEventListener("pointercancel", finish, true);
+      // Native link dragging may replace pointerup/cancel (notably WebKit).
+      // Once a drag starts, this gesture can no longer activate the link.
+      document.addEventListener("dragstart", release, true);
+      window.addEventListener("blur", release);
+    };
+    nav.addEventListener("pointerdown", hold);
+    return () => {
+      nav.removeEventListener("pointerdown", hold);
+      release();
+    };
+  }, [galleryPath, navRef, showControls]);
+
+  useEffect(() => {
     const clear = () => { pendingRef.current = null; };
     const rememberScroll = () => {
       const pending = pendingRef.current;
@@ -106,7 +191,7 @@ export function GallerySectionControls({
       pendingRef.current = null;
       return;
     }
-    pendingRef.current = { galleryPath, slug, top: nav.getBoundingClientRect().top,
+    pendingRef.current = { galleryPath, slug, top: layoutTop(nav),
       scrollY: window.scrollY, focusAtStart: document.activeElement, moved: false };
   };
 
@@ -128,7 +213,7 @@ export function GallerySectionControls({
     const selected = nav.querySelector<HTMLAnchorElement>('a[aria-current="true"]');
     if (selected === null) return;
     selected.focus({ preventScroll: true });
-    const delta = nav.getBoundingClientRect().top - pending.top;
+    const delta = layoutTop(nav) - pending.top;
     if (Math.abs(delta) > 1) window.scrollBy({ top: delta, behavior: "instant" });
     // A short/empty result may make the old scroll position impossible.
     // Use the closest native position, keeping the selected control visible.

@@ -5835,3 +5835,16 @@ Synthetic tests exercise total time, byte boundaries, tiny/empty chunks and
 redacted failures. No live benchmark, production taxonomy, schema or dependency
 changed; AB#55 acceptance and Feature AB#62 remain separate. AB#328 moved
 New → Active before implementation and awaits owner review/merge.
+
+### AB#342 — gallery section pointer activation (2026-10-17, Active)
+
+A press on a moving section link holds that row's painted position until the
+native gesture ends, so focus/reveal cannot move the link between pointerdown
+and pointerup. The row releases on click, cancellation, drag-away, window blur
+and teardown; native link modifiers and touch panning remain browser-owned.
+The header and shared keyboard/scroll-reveal rules remain independent. Section
+position restoration measures layout position without the reveal translation,
+preventing an animation from becoming a false scroll correction. The existing
+URL, selected state, counts, cursor reset and no-JavaScript links are preserved.
+The earlier count-test focus preparation in AB#338 is separate from this runtime
+repair. Owner review/merge and deployment acceptance remain pending.
