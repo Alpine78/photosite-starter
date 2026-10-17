@@ -155,9 +155,15 @@ bound of 1,000,000,000 archive/expanded bytes, with 64 KiB reads, bounded DEFLAT
 processing and exact same-pass archive SHA-256. The original 100 MB buffered API
 stays unchanged. An actual whole 105 MB synthetic archive and a high-ratio
 expansion refusal exercise the larger path; packages are never split. This source
-slice is Active pending owner review, not evidence of supported Sanity upload.
+slice is merged (AB#315 Closed), not evidence of supported Sanity upload.
 Per-read cancellation listeners are removed on settlement; a separate-process
 probe checks retained buffers during a whole 105 MB audit, before it returns.
+AB#332 (Active, awaiting review) makes its baseline and paused-read measurement
+use one fixed GC → event-loop turn → GC sequence. The 8 MiB assertion and audit
+runtime are unchanged. Current code retains 196,608 bytes in four concurrent
+loaded controls; the pre-AB#315 runtime retains 100,253,470 bytes and still fails
+the actual assertion. This corrects measurement timing, not a newly found runtime
+leak; a committed Azure run remains to verify the CI correction.
 See the [supported profiles](deployment.md#offline-whole-package-integrity-checks-ab310--ab315).
 
 AB#301 Studio identity presentation, 2026-10-16 (partial, Active): the actual
