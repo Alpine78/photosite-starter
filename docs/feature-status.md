@@ -2487,6 +2487,19 @@ the story's end-to-end notification demonstration remains open.
 include the run/PR links and the response policy for runtime exposure, severity,
 fix availability and Node.js/Next.js security releases.
 
+### AB#329 — offline lockfile-bound vulnerability triage (2026-10-17)
+
+A saved npm audit v2 envelope can now be paired with exact v3 lockfile bytes by
+an operator-recorded SHA-256. The offline CLI joins affected nodes to recorded
+versions and declared install flags, keeps advisory/entry counts separate and
+labels registry fix suggestions as unverified. It projects no raw provider
+prose or resolved URLs, bounds files and graph/output work, and refuses mismatched
+pairings. The digest does not attest audit freshness or capture provenance;
+install flags do not prove deployed code or exploitability. AB#329 moved New →
+Active before edits and awaits owner review/merge. No dependency update,
+registry operation, CI or notification configuration is performed by the tool;
+AB#160's operational acceptance remains open.
+
 **Saved audit summary preparation, 2026-10-06 (AB#204, Active):** an offline
 npm v2 reader validates the reference graph and separates affected package entries
 from unique numeric advisories. No dependency fixes or residual-risk acceptance

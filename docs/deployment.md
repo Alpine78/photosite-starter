@@ -1555,6 +1555,58 @@ skip Verify and DeployPreview, so the audit does not spend Microsoft-hosted
 minutes or deploy a release candidate. The [dependency response process](dependency-security.md)
 records actual runs and the outstanding notification-delivery check (AB#160).
 
+### Offline lockfile-bound audit triage (AB#329)
+
+`npm run triage:audit -- <paired-audit.json> <package-lock.json>` reads saved
+inputs only. It never queries a registry, installs or fixes packages. Exit codes
+are 0 (validated clean report), 1 (findings), and 2 (invalid input or IO).
+
+The closed pairing envelope is:
+
+```json
+{"schemaVersion":1,"lockfileSha256":"<64 lowercase hexadecimal characters>","audit":{}}
+```
+
+Replace `audit` with the complete saved npm audit v2 JSON, and record the SHA-256
+of the exact corresponding lockfile bytes **when capturing that report**. Copy
+both into private operational storage; retain the original audit separately.
+For a Node-only digest command:
+
+```bash
+node --input-type=module -e 'import {readFileSync} from "node:fs"; import {createHash} from "node:crypto"; console.log(createHash("sha256").update(readFileSync(process.argv[1])).digest("hex"))' package-lock.json
+```
+
+Record the lockfile hash before and after collecting the audit; if it changed,
+recapture the pair. Do not attach an old report to a newly computed digest.
+The helper verifies the supplied pairing, **not its capture provenance or report
+freshness**. An operator can supply the wrong pair; equal paths do not prove
+that the audit covered those versions. No advisory range or safe update is
+inferred. Exact-byte hashes change with CRLF conversion or `autocrlf`; copy the
+recorded file rather than regenerating it. A UTF-8 BOM counts toward the hash
+and is accepted during decoding.
+
+Supported inputs are v3 lockfiles and conventional lowercase npm package node
+paths, including nested and scoped packages. A referenced link, alias or invalid
+version is refused. Unreferenced lock entries are not interpreted. Regular-file
+symlinks may be read; directories, FIFOs and devices are refused. Inputs are
+bounded to 4 MiB for the envelope and 8 MiB for the lockfile, with 25,000 node
+occurrences, 200,000 audit edges, 32 nesting levels and a 16 MiB projected JSON
+budget. JSON uses native last-key-wins parsing; duplicate keys are not detected.
+
+The report retains affected package names, relative node paths, exact recorded
+versions, severity, inherited links, numeric advisory IDs and unverified registry
+fix proposals. Raw titles, resolved URLs and arbitrary provider error text are
+omitted. Lockfile `dev`, `optional` and `devOptional` flags are reported as
+[declared by npm](https://docs.npmjs.com/cli/v12/configuring-npm/package-lock-json/#packages),
+with absent flags shown as false; other flags are not interpreted. An all-false
+record means none of these three markers was declared, including conventional
+non-development dependencies; it is not an added `production` verdict. Optional
+and mixed development/optional markers remain separate raw flags. These flags
+say nothing about deployed bundle inclusion, request reachability or
+exploitability. A suggested version, including a major downgrade, remains an
+unverified proposal. AB#160's notification and live maintenance acceptance remain
+open; this tool neither approves risk nor changes dependency versions.
+
 ### Cancelling a run
 
 Both quality and scheduled-audit stages retain Azure's default `succeeded()`
