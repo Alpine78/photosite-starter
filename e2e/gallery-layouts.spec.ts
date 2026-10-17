@@ -69,7 +69,7 @@ for (const fixture of cases) {
         release();
         // Prove the page has hydrated rather than merely receiving its scripts.
         const dialog = page.getByRole("dialog");
-        await openLightbox(dialog, () => main.locator("[data-item-id]").first().click());
+        await openLightbox(dialog, () => main.locator("#gallery [data-item-id]").first().click());
         await page.keyboard.press("Escape");
         const after = await boxes(main);
         for (let i = 0; i < before.length; i += 1) {
@@ -105,7 +105,7 @@ for (const fixture of cases) {
             }
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
             if (javaScriptEnabled && browserName === "chromium") {
-              const triggers = main.locator("[data-item-id]");
+              const triggers = main.locator("#gallery [data-item-id]");
               await triggers.first().focus();
               for (let i = 1; i < 4; i += 1) {
                 await page.keyboard.press("Tab");
@@ -140,7 +140,7 @@ for (const fixture of cases) {
     test("lightbox continuation preserves the current image and focus returns by identity", async ({ page }) => {
       await page.goto(path(fixture.id), { waitUntil: "load" });
       const main = page.getByRole("main");
-      const triggers = main.locator("[data-item-id]");
+      const triggers = main.locator("#gallery [data-item-id]");
       const lastId = await triggers.nth(23).getAttribute("data-item-id");
       const dialog = page.getByRole("dialog");
       await openLightbox(dialog, () => triggers.nth(23).click());
@@ -330,8 +330,13 @@ test.describe("responsive image source at an enlarged root font size", () => {
 
         const main = page.getByRole("main");
         await expect(galleryItems(main)).toHaveCount(24);
+        // A narrative mini-gallery can put the curated result below the fold.
+        // Real lazy images select a source when the visitor reaches that result.
+        const first = galleryItems(main).first().locator("img");
+        await first.scrollIntoViewIfNeeded();
+        await expect.poll(() => first.evaluate(image => (image as HTMLImageElement).currentSrc)).not.toBe("");
 
-        const measured = await main.locator("img").evaluateAll((images) =>
+        const measured = await main.locator("#gallery img").evaluateAll((images) =>
           images
             .filter((image) => (image as HTMLImageElement).currentSrc)
             .map((image) => {

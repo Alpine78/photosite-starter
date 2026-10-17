@@ -5730,3 +5730,20 @@ Synthetic tests exercise total time, byte boundaries, tiny/empty chunks and
 redacted failures. No live benchmark, production taxonomy, schema or dependency
 changed; AB#55 acceptance and Feature AB#62 remain separate. AB#328 moved
 New → Active before implementation and awaits owner review/merge.
+
+
+### AB#334 — Justified inline mini-gallery inheritance (2026-10-17, Active)
+
+Article and gallery body mini-galleries now reuse the existing justified row
+compositor when the site's/page's resolved layout selects it, including articles
+without an end gallery. Explicit gallery overrides remain authoritative. Grid and
+masonry retain the existing one/two-column inline grid. Complete captions and
+credits remain below each picture; small/extreme native frames receive bounded
+single-image rows without shrinking their neighbours. SSR retains plain images,
+authored order, the 12-image bound and independent viewers. No CMS content was
+changed. ADR-0003 records the scoped historical grid-rule amendment. Lint, strict
+TypeScript, production build, 138 Chromium/WebKit journeys and all 7,477 deterministic
+tests across 326 files pass. The test gate includes the exact PR#475 prerequisite
+(AB#332); that PR must merge first. Independent review remains in progress. AB#334
+stays Active pending accepted merge; parent AB#321's actual content/design acceptance
+remains open.
