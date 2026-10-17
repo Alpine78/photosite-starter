@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getClientGallery, CLIENT_GALLERY_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT } from "@/lib/client-gallery-access";
-import { ClientGalleryDataError, ClientGalleryChangedError } from "@/lib/client-gallery-model";
+import { getClientGallery, CLIENT_GALLERY_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT, CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE } from "@/lib/client-gallery-access";
+import { CLIENT_GALLERY_MAX_ITEMS, ClientGalleryDataError, ClientGalleryChangedError } from "@/lib/client-gallery-model";
 
 const mocks = vi.hoisted(() => ({ legacy: vi.fn(), read: vi.fn(), factory: vi.fn() }));
 vi.mock("@/lib/legacy-gallery-access", () => ({ getLegacyGallery: mocks.legacy }));
@@ -13,6 +13,17 @@ function environment(adapter: string) {
   vi.stubEnv("SANITY_DATASET_VISIBILITY", "public");
 }
 describe("combined unlisted customer facade", () => {
+  it("bounds the large fixture and preserves distinct occurrences of two complete source images", async () => {
+    environment("off"); expect(await getClientGallery(CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE, "fi")).toBeUndefined();
+    environment("fixture");
+    const gallery = await getClientGallery(CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE, "fi");
+    expect(gallery?.images).toHaveLength(CLIENT_GALLERY_MAX_ITEMS);
+    expect(new Set(gallery?.images.map((image) => image.itemId)).size).toBe(CLIENT_GALLERY_MAX_ITEMS);
+    expect(new Set(gallery?.images.map((image) => image.mediaId)).size).toBe(2);
+    expect(gallery?.images.every((image) => image.enquiryAllowed === false && Math.max(image.width, image.height) <= 2048)).toBe(true);
+    expect(gallery).not.toHaveProperty("zipUrl"); expect(gallery).not.toHaveProperty("availableUntil");
+    expect(mocks.factory).not.toHaveBeenCalled();
+  });
   it("makes no provider/configuration read while new delivery is off", async () => {
     environment("off"); expect(await getClientGallery(CLIENT_GALLERY_FIXTURE_HANDLE, "fi")).toBeUndefined(); expect(mocks.factory).not.toHaveBeenCalled();
   });

@@ -59,6 +59,15 @@ date; fresh availability checks and the existing public-file notice are unchange
 No CMS fields, provider service, upload, timer or retention worker are added.
 This source slice remains Active pending accepted merge; no live activation.
 
+AB#307 / AB#29 maximum-viewer verification, 2026-10-17 (partial, Active): a
+development-only 256-occurrence fixture reuses two complete local web images
+with distinct item identities and stable shared-source aliases. FI/EN journeys
+exercise native-ratio rendering, middle/last-frame viewing, occurrence-specific
+focus return, stop-at-end and scriptless output. This verifies the bounded viewer,
+not 256 unique CDN files, provider latency/bandwidth or quota suitability. The
+supported maximum and real/legacy readers stay unchanged; no asset is uploaded.
+This source slice remains Active pending accepted merge and final review.
+
 AB#29 offline source revalidation, 2026-10-16 (partial, Active): the owner tool
 revalidates a selected saved upload-source report and its digest before reading
 source files, then compares current JPEG/ZIP bytes and metadata with that plan.
