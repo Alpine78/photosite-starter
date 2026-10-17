@@ -5640,3 +5640,14 @@ page availability and surviving public files are explained. Actual hosted
 authenticated roles, keyboard focus and native clipboard verification remain
 open under AB#145. No production activation, S3/Postgres or dependency change.
 AB#305 remains Active pending accepted merge; see the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
+
+### AB#313 — Inactive protected-gallery removal audit (2026-10-17, Active)
+
+The [removal-readiness audit](audits/protected-gallery-removal-2026-10-17.md)
+records the merged source tree, reproducible first-party import inventory,
+protected routes/CLI/worker/config/test dependencies and shared modules that
+must remain. It proposes bounded conditional removal slices and preserves
+privateOnly/sales, public/legacy media and URL boundaries. No code or service
+was removed or activated. AB#313 moved New → Active before edits; actual
+deployment/operator/clone usage and each deletion patch's architecture/security
+review remain open. AB#29/145 stay Active and proof selection AB#130 stays New.
