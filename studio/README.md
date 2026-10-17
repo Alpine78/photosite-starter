@@ -222,8 +222,11 @@ npm run build --prefix studio
 
 Schema validation and build need the public configuration but no CMS reads or
 write token. CI uses synthetic settings and disables telemetry with
-`DO_NOT_TRACK=1`; it never deploys Studio. The root tests cover settings, singleton
-resolution and editorial policies without installing Studio's packages.
+`DO_NOT_TRACK=1`; it never deploys Studio. The root test suite also covers native
+Studio SDK/schema and GROQ contracts, so install both locked dependency trees
+with `npm ci` and `npm ci --prefix studio` before `npm test`, as described in the
+[root README](../README.md). These tests use local synthetic fixtures, not a live
+CMS or credentials.
 
 Once the code is reviewed, select a unique hostname through the Sanity deploy
 prompt or `SANITY_STUDIO_HOSTNAME` in the local configuration. From `studio/`,
