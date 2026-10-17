@@ -40,6 +40,7 @@ import { mockAuthoredContentRecords } from "@/lib/mock-content-listing";
 import { FIELDNOTE_NUMBERS, fieldnoteContentId } from "@/lib/mock-fieldnotes";
 import { getMockImages, mockImages } from "@/lib/mock-media";
 import { mockGalleryEnquiryPermission } from "@/lib/mock-enquiry-policy";
+import { miniGalleryBoundaryBlock } from "@/lib/mock-mini-gallery-boundaries";
 
 /** What a page adds to the record a card already carries. */
 type AuthoredPage = GalleryPresentationFields & {
@@ -889,7 +890,10 @@ function compose(
         { media: { ...images.openMarsh, alt: "" } },
         { media: images.forestStream },
       ];
-      const body: readonly ContentBlock[] = contentId === "content-reading-coastal-light"
+      const body: readonly ContentBlock[] = ["content-grid-overlay", "content-masonry-below", "content-justified-below"].includes(contentId)
+        || contentId === fieldnoteContentId(FIELDNOTE_NUMBERS.at(-1)!)
+        ? [...page.body, miniGalleryBoundaryBlock(language)]
+        : contentId === "content-reading-coastal-light"
         ? [...page.body,
           { type: "media", media: images.forestStream },
           { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems },

@@ -163,10 +163,11 @@ export async function galleryImageAlts(triggers: Locator): Promise<string[]> {
  *
  * A gallery page carries other lists — the breadcrumb trail, the language
  * switch, the tags — so "every list item in main" would mix them in. The grid's
- * list is the one whose items open images.
+ * list belongs to `#gallery`; inline body mini-galleries have their own lists.
  */
 export function galleryItems(main: Locator): Locator {
   return main
+    .locator("#gallery")
     .getByRole("list")
     .filter({ has: main.page().getByRole("button") })
     .first()

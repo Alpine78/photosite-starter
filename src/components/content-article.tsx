@@ -18,6 +18,7 @@ import {
 import { formatDate } from "@/lib/date-format";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import type { GallerySlice } from "@/lib/gallery-slice";
+import type { GalleryLayout } from "@/lib/gallery-presentation";
 
 /** One neighbour in the global article sequence, at its canonical path. */
 export type AdjacentPageLink = {
@@ -37,6 +38,7 @@ type ContentArticleProps = {
    * optional one like `previous`/`next`.
    */
   authorName: string;
+  miniGalleryLayout: GalleryLayout;
   /** Canonical ancestry, story root first, ending at this page. */
   breadcrumbs: readonly BreadcrumbStep[];
   languages: readonly LanguageLink[];
@@ -86,6 +88,7 @@ export function ContentArticle({
   locale,
   page,
   authorName,
+  miniGalleryLayout,
   breadcrumbs,
   languages,
   previous,
@@ -171,7 +174,7 @@ export function ContentArticle({
             />
 
             <div className="mt-10">
-              <ContentBody blocks={page.body} labels={labels} />
+              <ContentBody blocks={page.body} labels={labels} miniGalleryLayout={miniGalleryLayout} />
             </div>
           </div>
           {endGallery !== undefined && (

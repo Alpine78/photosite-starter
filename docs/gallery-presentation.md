@@ -168,6 +168,31 @@ deliberate trade: AGENTS.md ranks image quality above bandwidth, and a
 masonry or justified thumbnail is a moderate download at any of these
 widths.
 
+## Inline mini-galleries (AB#334)
+
+Article body mini-galleries inherit the site's resolved layout. Gallery body
+mini-galleries use the gallery's resolved layout, including an explicit per-page
+override. These are the existing presentation fields; an article need not have an
+end gallery to inherit its site's layout. `justified` uses the shared native-ratio
+row compositor. `grid` and, deliberately, `masonry` retain the existing inline
+one/two-column grid. Curated masonry remains unchanged.
+
+These small sets always render whole, in authored order, with their own viewer.
+Their complete captions and credits stay below, without the curated caption clamp,
+overlay or popover. Long words wrap. Small native renditions get a separate row
+before grouping; a multi-image row that cannot reserve 3rem per picture at its
+band's narrow edge becomes ordered single-image rows. A singleton's caption can
+use the whole row even when its photograph is very narrow. The fitting policy is
+bounded to a root font of 32px; CSS native-size caps still prevent upscaling above
+that bound. Tiny source photographs can remain tiny viewer targets.
+
+Justified inline sets share the `calc(100vw - 32px)` source-size bound and preserve
+SSR geometry through hydration and image loading: each occurrence retains its source
+aspect ratio even if an optimized tiny image has integer-rounded dimensions. The
+old mini-gallery source-size profiles remain for the grid fallback. No layout changes the 12-image maximum, placement identity,
+viewer isolation, media contract, CMS content, or URL. See ADR-0003's dated AB#334
+amendment for the exact replacement of the historical AB#24 grid clause.
+
 ## Out of scope
 
 Presentation never changes a gallery's canonical result, cursor scope,

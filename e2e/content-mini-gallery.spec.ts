@@ -4,6 +4,7 @@ import { buildContentTree, getCanonicalContentPath } from "../src/lib/content-tr
 import { mockContentPages } from "../src/lib/mock-content-pages";
 import { mockContentTreeInputs } from "../src/lib/mock-content-tree";
 import { appUnderTestEnvironment, DEFAULT_STORY_NAMESPACE, PREFIXED_LOCALE } from "./support/harness-environment";
+import { DEFAULT_GALLERY_PRESENTATION } from "../src/lib/gallery-presentation";
 import { openLightbox, presentedImage } from "./support/lightbox";
 
 const labels = getBuiltInLabels(appUnderTestEnvironment.SITE_LOCALE).lightbox;
@@ -107,14 +108,22 @@ test("mini-gallery keeps full frames, row-major order, and bounded responsive si
     expect(box.width / box.height).toBeCloseTo(box.intrinsicWidth / box.intrinsicHeight, 2);
     expect(box.width).toBeLessThanOrEqual(box.intrinsicWidth);
     expect(box.fit).not.toBe("cover");
-    expect(box.sizes).toContain("348px");
+    if (DEFAULT_GALLERY_PRESENTATION.layout === "justified") expect(box.sizes).toBe("calc(100vw - 32px)");
+    else expect(box.sizes).toContain("348px");
   }
   await list.screenshot({ path: testInfo.outputPath("mini-gallery.png") });
   if (page.viewportSize()!.width >= 640) {
     expect(boxes[0].top).toBeCloseTo(boxes[1].top, 0);
     expect(boxes[0].left).toBeLessThan(boxes[1].left);
-    expect(boxes[2].top).toBeGreaterThan(boxes[0].top);
-    expect(boxes[2].left).toBeCloseTo(boxes[0].left, 0);
+    if (DEFAULT_GALLERY_PRESENTATION.layout === "justified") {
+      expect(boxes[2].top).toBeCloseTo(boxes[0].top, 0);
+      expect(boxes[1].height).toBeCloseTo(boxes[0].height, 0);
+      expect(boxes[2].height).toBeCloseTo(boxes[0].height, 0);
+      expect(boxes[2].left).toBeGreaterThan(boxes[1].left);
+    } else {
+      expect(boxes[2].top).toBeGreaterThan(boxes[0].top);
+      expect(boxes[2].left).toBeCloseTo(boxes[0].left, 0);
+    }
   } else {
     expect(boxes[1].top).toBeGreaterThan(boxes[0].top);
     expect(boxes[2].top).toBeGreaterThan(boxes[1].top);

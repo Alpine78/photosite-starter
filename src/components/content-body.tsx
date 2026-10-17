@@ -13,6 +13,7 @@ import type { ContentBlock } from "@/lib/content-page";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import { YoutubeEmbed } from "@/components/youtube-embed";
+import type { GalleryLayout } from "@/lib/gallery-presentation";
 
 type ContentBodyProps = {
   blocks: readonly ContentBlock[];
@@ -32,6 +33,8 @@ type ContentBodyProps = {
    */
   sizes?: string;
   miniGallerySizes?: string;
+  /** The page's already-resolved presentation; no CMS read per block. */
+  miniGalleryLayout: GalleryLayout;
 };
 
 /**
@@ -56,6 +59,7 @@ export function ContentBody({
   labels,
   sizes = imageRenderProfiles.contentBody.sizes,
   miniGallerySizes = imageRenderProfiles.contentMiniGallery.sizes,
+  miniGalleryLayout,
 }: ContentBodyProps) {
   const galleryNames = miniGalleryNames(blocks, labels.miniGallery.label);
   const headingIds = buildHeadingIds(blocks);
@@ -85,7 +89,8 @@ export function ContentBody({
                 block={block}
                 labels={labels}
                 name={galleryNames.get(index)!}
-                sizes={miniGallerySizes}
+                layout={miniGalleryLayout}
+                sizes={miniGalleryLayout === "justified" ? imageRenderProfiles.galleryJustified.sizes : miniGallerySizes}
               />
             );
           case "paragraph":
