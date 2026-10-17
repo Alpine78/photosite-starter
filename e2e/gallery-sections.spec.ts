@@ -196,11 +196,18 @@ test("the section row shows its section count and the active heading shows its p
   await expect(page.getByRole("heading", { level: 2, name: galleryLabels.allSections })).toBeVisible();
   await expect(page.getByText(`${new Intl.NumberFormat(appUnderTestEnvironment.SITE_LOCALE).format(GALLERY.totalPhotoCount)} ${galleryLabels.photoPlural}`, { exact: true })).toBeVisible();
 
-  await sectionsNav(page).getByRole("link", { name: GALLERY.multiPageSection.label, exact: true }).click();
+  // This case checks result counts. Focus pins the section row before its
+  // ordinary click, so auto-scrolling an off-screen link cannot move that row
+  // between pointerdown and pointerup. Scroll/reveal has its own journeys.
+  const early = sectionsNav(page).getByRole("link", { name: GALLERY.multiPageSection.label, exact: true });
+  await early.focus();
+  await early.click();
   await expect(page.getByRole("heading", { level: 2, name: GALLERY.multiPageSection.label })).toBeVisible();
   await expect(page.getByText(`${new Intl.NumberFormat(appUnderTestEnvironment.SITE_LOCALE).format(GALLERY.multiPagePhotoCount)} ${galleryLabels.photoPlural}`, { exact: true })).toBeVisible();
 
-  await sectionsNav(page).getByRole("link", { name: GALLERY.emptySection.label, exact: true }).click();
+  const unused = sectionsNav(page).getByRole("link", { name: GALLERY.emptySection.label, exact: true });
+  await unused.focus();
+  await unused.click();
   await expect(page.getByRole("heading", { level: 2, name: GALLERY.emptySection.label })).toBeVisible();
   await expect(page.getByText(`0 ${galleryLabels.photoPlural}`, { exact: true })).toBeVisible();
 });
