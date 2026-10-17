@@ -851,6 +851,15 @@ failures, never falls back to another source, and adds no CMS library. Sanity's 
 surface lives in `src/lib/sanity-config.ts` and `src/lib/sanity-client.ts`; ESLint stops
 `src/app` and `src/components` from importing either, and the `server-only` marker
 catches the indirect case ESLint cannot see (ADR-0006, `docs/sanity-setup.md`).
+AB#320 follow-up, 2026-10-17 (Active, awaiting review): query and fresh-document
+reads cancel unused error bodies without waiting for cleanup. The original
+10-second attempt deadline and caller abort also bound uncooperative fetch/body
+waits; late responses are cancelled and settled stream listeners are removed.
+Declared and streamed overflow retain the existing bounds and error classes;
+ordinary unbounded queries retain native decoding. Synthetic regressions cover
+cleanup failures, timeout races and listener lifetime. Cache policy, published
+perspective, response envelopes and provider settings are unchanged; no live CMS
+request or deployment operation was performed.
 The first schema and adapter sit on top of that connection: the shared media document
 (`sanity/schemas/`, plain objects a customer Studio consumes, no `sanity` package) and
 the server-only adapter (`src/lib/sanity-media.ts`) that projects it into the same

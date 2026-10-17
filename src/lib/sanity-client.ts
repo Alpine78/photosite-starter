@@ -168,37 +168,94 @@ export type SanityDocumentReader = {
   read(documentId: string, signal?: AbortSignal): Promise<unknown | null>;
 };
 
+/** Cleanup cannot replace a classified failure or extend its deadline. */
+function observeSanityCleanup(cleanup: () => unknown): void {
+  try {
+    void Promise.resolve(cleanup()).catch(() => {});
+  } catch {
+    // Cancellation is best effort, including an already locked/errored body.
+  }
+}
+
+/**
+ * One listener per pending operation, removed on settlement. Repeated chunks
+ * never attach reactions to a shared, still-pending deadline promise.
+ */
+function waitForSanityOperation<T>(
+  operation: () => Promise<T>,
+  signal: AbortSignal,
+  onLateValue?: (value: T) => void,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = () => {
+      settled = true;
+      signal.removeEventListener("abort", abort);
+    };
+    const abort = () => {
+      if (settled) return;
+      finish();
+      // Neither a caller's reason nor provider prose enters the error contract.
+      reject(new DOMException("Content read aborted", "AbortError"));
+    };
+    if (signal.aborted) { abort(); return; }
+    signal.addEventListener("abort", abort, { once: true });
+    try {
+      void operation().then(value => {
+        if (settled) { onLateValue?.(value); return; }
+        finish();
+        resolve(value);
+      }, cause => {
+        if (settled) return;
+        finish();
+        reject(cause);
+      });
+    } catch (cause) {
+      if (settled) return;
+      finish();
+      reject(cause);
+    }
+  });
+}
+
 async function readSanityJson(
   response: Response,
-  limit?: number,
-  rejectDuplicateJsonKeys = false,
+  limit: number | undefined,
+  rejectDuplicateJsonKeys: boolean,
+  signal: AbortSignal,
 ): Promise<unknown> {
   let bytes: Uint8Array;
   if (limit === undefined) {
-    bytes = new Uint8Array(await response.arrayBuffer());
+    try {
+      bytes = new Uint8Array(await waitForSanityOperation(() => response.arrayBuffer(), signal));
+    } catch (cause) {
+      observeSanityCleanup(() => response.body?.cancel());
+      throw cause;
+    }
   } else {
     const declared = response.headers.get("content-length");
     if (declared !== null && /^\d+$/.test(declared) && Number(declared) > limit) {
-      await response.body?.cancel();
+      observeSanityCleanup(() => response.body?.cancel());
       throw new TypeError("Oversized content response");
     }
     if (response.body === null) throw new TypeError("Missing content response");
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let length = 0;
+    let complete = false;
     try {
       for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        const { done, value } = await waitForSanityOperation(() => reader.read(), signal);
+        if (done) { complete = true; break; }
         length += value.byteLength;
         if (length > limit) {
-          await reader.cancel();
           throw new TypeError("Oversized content response");
         }
         chunks.push(value);
       }
     } finally {
-      reader.releaseLock();
+      if (!complete) observeSanityCleanup(() => reader.cancel());
+      observeSanityCleanup(() => reader.releaseLock());
     }
     bytes = new Uint8Array(length);
     let offset = 0;
@@ -352,10 +409,13 @@ export function createSanityClient(
       if (request.signal?.aborted) return fail(request.tag, "timeout", true);
       const url = buildSanityQueryUrl(config, request);
       const cachePolicy = getSanityPublicCachePolicy(request.tag);
+      const attemptSignal = request.signal
+        ? AbortSignal.any([request.signal, AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS)])
+        : AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS);
       let response: Response;
 
       try {
-        response = await send(url, {
+        response = await waitForSanityOperation(() => send(url, {
           method: "GET",
           redirect: "manual",
           headers: {
@@ -367,9 +427,7 @@ export function createSanityClient(
               ? {}
               : { Authorization: `Bearer ${config.readToken}` }),
           },
-          signal: request.signal
-            ? AbortSignal.any([request.signal, AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS)])
-            : AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS),
+          signal: attemptSignal,
           // One managed cache is authoritative. We deliberately keep the
           // uncached api.sanity.io origin instead of stacking Sanity's API CDN
           // ahead of Next's tagged Data Cache: a webhook invalidation then
@@ -383,9 +441,9 @@ export function createSanityClient(
                   tags: [...cachePolicy.tags],
                 },
               }),
-        });
+        }), attemptSignal, late => observeSanityCleanup(() => late.body?.cancel()));
       } catch (cause) {
-        const timedOut = request.signal?.aborted || isAbortedRead(cause);
+        const timedOut = attemptSignal.aborted || isAbortedRead(cause);
         return fail(
           request.tag,
           timedOut ? "timeout" : "unavailable",
@@ -393,7 +451,12 @@ export function createSanityClient(
         );
       }
 
+      if (attemptSignal.aborted) {
+        observeSanityCleanup(() => response.body?.cancel());
+        return fail(request.tag, "timeout", true);
+      }
       if (!response.ok) {
+        observeSanityCleanup(() => response.body?.cancel());
         const { errorClass, retryable } = classifyStatus(response.status);
         return fail(request.tag, errorClass, retryable);
       }
@@ -402,14 +465,14 @@ export function createSanityClient(
       try {
         // JSON is always UTF-8. Reject damaged bytes rather than changing
         // identifiers or authored text through replacement decoding.
-        body = await readSanityJson(response, responseLimit, rejectDuplicateJsonKeys);
+        body = await readSanityJson(response, responseLimit, rejectDuplicateJsonKeys, attemptSignal);
       } catch (cause) {
-        if (request.signal?.aborted || (responseLimit !== undefined && isAbortedRead(cause))) {
+        if (attemptSignal.aborted || (responseLimit !== undefined && isAbortedRead(cause))) {
           return fail(request.tag, "timeout", true);
         }
         return fail(request.tag, "malformed-response", false);
       }
-      if (request.signal?.aborted) return fail(request.tag, "timeout", true);
+      if (attemptSignal.aborted) return fail(request.tag, "timeout", true);
 
       // A 200 that is not the documented envelope is not a result worth
       // guessing at. Note that `result` may legitimately be `null` — a GROQ
@@ -453,33 +516,39 @@ export function createSanityDocumentReader(
       }
       if (signal?.aborted) return fail(tag, "timeout", true);
       const url = `https://${config.projectId}.api.sanity.io/${config.apiVersion}/data/doc/${config.dataset}/${documentId}?includeAllVersions=false`;
+      const attemptSignal = signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS)])
+        : AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS);
       let response: Response;
       try {
-        response = await send(url, {
+        response = await waitForSanityOperation(() => send(url, {
           method: "GET", redirect: "manual", cache: "no-store",
-          signal: signal
-            ? AbortSignal.any([signal, AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS)])
-            : AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS),
+          signal: attemptSignal,
           headers: {
             Accept: "application/json",
             ...(config.readToken === undefined ? {} : { Authorization: `Bearer ${config.readToken}` }),
           },
-        });
+        }), attemptSignal, late => observeSanityCleanup(() => late.body?.cancel()));
       } catch (cause) {
-        return fail(tag, signal?.aborted || isAbortedRead(cause) ? "timeout" : "unavailable", true);
+        return fail(tag, attemptSignal.aborted || isAbortedRead(cause) ? "timeout" : "unavailable", true);
+      }
+      if (attemptSignal.aborted) {
+        observeSanityCleanup(() => response.body?.cancel());
+        return fail(tag, "timeout", true);
       }
       if (!response.ok) {
+        observeSanityCleanup(() => response.body?.cancel());
         const { errorClass, retryable } = classifyStatus(response.status);
         return fail(tag, errorClass, retryable);
       }
       let body: unknown;
       try {
-        body = await readSanityJson(response, responseLimit, rejectDuplicates);
+        body = await readSanityJson(response, responseLimit, rejectDuplicates, attemptSignal);
       } catch (cause) {
-        const aborted = signal?.aborted || isAbortedRead(cause);
+        const aborted = attemptSignal.aborted || isAbortedRead(cause);
         return fail(tag, aborted ? "timeout" : "malformed-response", Boolean(aborted));
       }
-      if (signal?.aborted) return fail(tag, "timeout", true);
+      if (attemptSignal.aborted) return fail(tag, "timeout", true);
       if (typeof body !== "object" || body === null || Array.isArray(body) ||
           !("documents" in body) || !Array.isArray(body.documents) || body.documents.length > 1) {
         return fail(tag, "malformed-response", false);
