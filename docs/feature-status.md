@@ -5755,3 +5755,25 @@ Synthetic tests exercise total time, byte boundaries, tiny/empty chunks and
 redacted failures. No live benchmark, production taxonomy, schema or dependency
 changed; AB#55 acceptance and Feature AB#62 remain separate. AB#328 moved
 New → Active before implementation and awaits owner review/merge.
+
+
+### AB#338 — header reflow with enlarged root text (2026-10-17)
+
+The header now chooses its compact or wide arrangement from its actual
+root-relative container width, so a 1280px viewport with 32px root text keeps
+the compact controls instead of overflowing. Full brand words and controls
+wrap onto separate rows where needed; the original 320px layout was already
+painting the brand descriptor under the search control. Ordinary 390px and
+768px layouts retain their single row. Native logo dimensions, authored
+navigation order, labels, theme and language behavior remain intact.
+
+An unusually tall bar scrolls with the document in short enlarged viewports;
+its disclosure retains a usable internal scroll region, and fixed header
+scroll offsets are cleared while the bar flows. The search dialog retains its
+native modal top-layer behavior. Production journeys cover both locales,
+Chromium/WebKit, 16px/32px root text, container boundaries, complete text and
+logo bounds, short-screen keyboard access and the script-free search link.
+AB#338 moved New → Active before implementation and awaits owner review/merge.
+The branch includes the accepted AB#322 and AB#332 main updates; its tests use
+the existing synthetic harness rather than any live CMS data. No deployment is
+claimed.

@@ -78,7 +78,7 @@ const focusRing =
  * off a narrow bar.
  */
 const brandClass =
-  "inline-flex min-w-0 items-center gap-2.5 text-base font-semibold tracking-[-0.01em] sm:gap-3.5 sm:text-[1.1875rem]";
+  "site-header-brand inline-flex min-w-0 max-w-full items-center gap-2.5 text-base font-semibold tracking-[-0.01em] sm:gap-3.5 sm:text-[1.1875rem]";
 
 /**
  * DOM id of the compact-layout panel, named rather than generated because two
@@ -255,17 +255,25 @@ export function SiteHeader({
     const measure = () => {
       // Leave the rest of a short viewport to the disclosure's own scroll
       // region. A sticky header cannot scroll its off-screen bottom into view.
-      header.style.setProperty("--site-header-bar-height", `${bar?.getBoundingClientRect().height ?? 0}px`);
+      const barHeight = bar?.getBoundingClientRect().height ?? 0;
+      // A very tall bar must scroll with the page, otherwise its controls and
+      // the panel below it cannot all be reached in a short enlarged viewport.
+      const flows = barHeight > window.innerHeight / 2;
+      header.toggleAttribute("data-header-flow", flows);
+      header.style.setProperty("--site-header-bar-height", `${barHeight}px`);
       const height = `${header.getBoundingClientRect().height}px`;
-      root.style.setProperty("--site-header-height", height);
-      root.style.setProperty("--site-header-offset", headerHidden ? "0px" : height);
+      root.style.setProperty("--site-header-height", flows ? "0px" : height);
+      root.style.setProperty("--site-header-offset", headerHidden || flows ? "0px" : height);
     };
     measure();
     const observer = new ResizeObserver(measure);
+    window.addEventListener("resize", measure);
     observer.observe(header);
     if (bar !== null) observer.observe(bar);
     return () => {
       observer.disconnect();
+      window.removeEventListener("resize", measure);
+      header.removeAttribute("data-header-flow");
       header.style.removeProperty("--site-header-bar-height");
       root.style.removeProperty("--site-header-height");
       root.style.removeProperty("--site-header-offset");
@@ -368,9 +376,9 @@ export function SiteHeader({
     // the header and swallows taps on the menu button and the open menu panel.
     <header
       ref={headerRef}
-      className={`${hydrated ? "sticky top-0" : "relative"} z-20 border-b border-border bg-surface transition-transform duration-200 motion-reduce:transition-none ${headerHidden ? "-translate-y-full" : ""}`}
+      className={`site-header @container/site-header ${hydrated ? "sticky top-0" : "relative"} z-20 border-b border-border bg-surface transition-transform duration-200 motion-reduce:transition-none ${headerHidden ? "-translate-y-full" : ""}`}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 sm:py-6">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 sm:py-6">
         {homeHref === undefined ? (
           <span className={brandClass}>
             {logo !== undefined && <BrandMarks logo={logo} logoDark={logoDark} placement="header" />}
@@ -387,12 +395,10 @@ export function SiteHeader({
           </Link>
         )}
 
-        {/* The wide layout, in the proposal's order: navigation, theme,
-            language, then the contact button. Kept back to `lg`: at `sm` the
-            row (nav + toggle + language + pill) no longer fits the mock
-            navigation and overflows the header (Codex review). */}
-        <div className="hidden items-center gap-6 lg:flex">
-          <SiteNavigation items={barItems} layout="bar" labels={labels} />
+        {/* Root-relative container queries follow the space actually available
+            to enlarged text; viewport media queries use the initial font size. */}
+        <div className="ml-auto hidden max-w-full flex-wrap items-center gap-6 wrap-break-word @5xl/site-header:flex">
+          <SiteNavigation items={barItems} layout="bar" labels={labels} className="min-w-0 [&>ul]:flex-wrap" />
           <SearchTrigger
             href={search.href}
             label={search.labels.open}
@@ -419,7 +425,7 @@ export function SiteHeader({
           )}
         </div>
 
-        <div className="flex items-center gap-2 lg:hidden">
+        <div className="ml-auto flex max-w-full flex-wrap items-center gap-2 @5xl/site-header:hidden">
           <SearchTrigger
             href={search.href}
             label={search.labels.open}
@@ -445,7 +451,7 @@ export function SiteHeader({
         id={COMPACT_PANEL_ID}
         ref={panelRef}
         hidden={!menuOpen}
-        className="max-h-[min(70svh,calc(100svh-var(--site-header-bar-height,0px)))] overflow-y-auto border-t border-border px-4 pb-4 lg:hidden"
+        className="site-header-panel max-h-[min(70svh,calc(100svh-var(--site-header-bar-height,0px)))] overflow-y-auto border-t border-border px-4 pb-4 @5xl/site-header:hidden"
       >
         <SiteNavigation
           items={navigation}
