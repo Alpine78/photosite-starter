@@ -1,5 +1,10 @@
 /** {{pN}} placeholders retain the original validation values verbatim. */
 export const validationFinnish = {
+  "This gallery is too large. Use shorter texts or fewer images.": "Galleria on liian suuri. Lyhennä tekstejä tai vähennä kuvia.",
+  "Check the client gallery fields, image order and alternative texts.": "Tarkista asiakasgallerian kentät, kuvajärjestys ja vaihtoehtoiset tekstit.",
+  "The gallery link is missing, already used or different from the published link.": "Gallerian linkki puuttuu, on jo käytössä tai eroaa julkaistusta linkistä.",
+  "Use complete exported web images up to 2048 pixels; check their uploaded asset metadata.": "Käytä kokonaisia, enintään 2048 pikselin verkkokuvia ja tarkista ladattujen kuvatiedostojen metatiedot.",
+  "The gallery could not be validated. Try again before publishing.": "Galleriaa ei voitu tarkistaa. Yritä uudelleen ennen julkaisua.",
   "A category shortcut needs its stable category ID": "Kategorian pikalinkki tarvitsee kategorian pysyvän tunnisteen",
   "A category shortcut must not store a path": "Kategorian pikalinkki ei saa tallentaa polkua",
   "This target must not store a category identity": "Tämä kohde ei saa tallentaa kategorian tunnistetta",

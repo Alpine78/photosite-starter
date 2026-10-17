@@ -14,6 +14,10 @@ export function localizedEditorialPreview(type: string, selection: Selection, lo
   if (!/^fi(?:-|$)/.test(locale)) return original;
   const translate = (value: string) => studioInterfaceText(value, locale) ?? value;
   const missing = (value: unknown) => typeof value !== "string" || !value.trim();
+  if (type === "clientDeliveryGallery") {
+    const selected = selectMediaDescription({ alternatives: selection.titles }, locale);
+    return { title: selected?.value ?? translate("Client gallery"), subtitle: translate("Unlisted public delivery"), media: selection.media };
+  }
   if (type === "media") {
     const selected = selectMediaDescription(selection, locale);
     const preview = mediaEditorialPreview(selection, locale);

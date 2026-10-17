@@ -266,3 +266,53 @@ and announcements through that API, re-exporting the native module so sortable
 consumers share its contexts. @dnd-kit/core 6.3.1 was already installed; its direct
 dependency declaration adds no package version. Recheck this bridge on SDK upgrades.
 The finalization receipt is [here](../docs/audits/ab255-studio-drag-localization-2026-10-13.md).
+
+## Ongoing client galleries (AB#302 / AB#145)
+
+The reference owner selects existing Sanity and unlisted customer pages
+([ADR-0034](../docs/adr/0034-ongoing-unlisted-client-delivery.md)). The new
+**Client galleries / Asiakasgalleriat** list uses the existing Sanity login and
+project roles. It is separate from public portfolio galleries and the read-only
+legacy import types. No S3/PostgreSQL account, custom administrator credential or
+additional dependency is needed. Publishing permissions still depend on the
+project's actual role configuration; no live role/editor workflow is verified here.
+
+For a new document:
+
+1. Keep the automatically generated, read-only link identifier. Do not put
+   customer names or contact/job details in titles or other public fields.
+2. Add ordered images under **Client gallery images / Asiakasgallerian kuvat**.
+   Upload complete exported web copies no larger than 2048 pixels on the longest
+   edge. Use neutral filenames and review embedded metadata before uploading;
+   Sanity files are public immediately, including while their document is a draft.
+   Add real alternative text in at least one language; further language entries
+   are authored independently. The editor does not generate translations.
+3. Choose **Until a deadline / Määräaikaan asti** or **Explicitly indefinite /
+   Nimenomaisesti toistaiseksi voimassa**. A deadline is an exclusive UTC instant, not an
+   inferred six-month period. Clear the deadline when choosing indefinite access.
+4. **Available to link holders / Sivu käytettävissä linkillä** is an editor-controlled
+   pause setting, initially false. Publish the document to apply that setting or
+   any other change. Native unpublished documents are always unavailable.
+
+The schema checks handle collisions against both new and legacy types, preserves
+published handles, and validates measured image metadata. The whole document
+is limited to 256 KiB of UTF-8 JSON so a later fresh reader can bound its response; shorter translated texts may be needed at the
+256-image limit. Shared assets marked private-only are refused. These are editorial
+checks, not a security boundary against direct API writes. The customer reader
+must validate everything again and refuse ambiguous handles. Duplicate/restore
+schema actions are excluded for these new documents; API tools still require
+appropriately scoped credentials. Legacy creation/templates/actions remain blocked.
+
+This first slice adds authoring only. Customer runtime integration is **AB#303**;
+until it lands and is deliberately enabled, creating/publishing a new document
+does not expose a working customer page. The eventual customer URL family is
+`/client-gallery/<handle>`, using the same FI/EN interface as existing deliveries.
+The currently hosted Studio is not changed by this source PR. Real editor,
+keyboard, permission and deployment verification remain open under AB#145.
+
+No ZIP input is offered yet: new processed-file eligibility/whole-package delivery
+needs its own contract, without extending the 21 legacy galleries' file exceptions.
+Unlisting/noindex is reduced discovery, not confidentiality; public CMS records can
+be enumerated. Closing/unpublishing a page does not revoke direct asset URLs or
+copies already cached or downloaded. No live customer upload or publication is
+part of this implementation.

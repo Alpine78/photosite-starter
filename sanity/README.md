@@ -303,3 +303,18 @@ records. Their import-owned fields are read-only, and availability defaults
 false. The server validates manifest, ordering, dimensions and expiry independently.
 No customer import is performed by registering the types. See
 [`docs/sanity-setup.md`](../docs/sanity-setup.md) for activation and import gates.
+
+## Ongoing unlisted client delivery (AB#302)
+
+`clientDeliveryGallery` and its embedded `clientDeliveryItem` objects are separate
+from the read-only `legacyDeliveryGallery` / `legacyDeliveryImage` import types.
+The new closed document contains a generated immutable handle, bounded localized
+title/alternative text, an editor-controlled pause flag, explicit finite or
+indefinite page availability and an ordered set of public web-image references.
+It permits at most 256 items and 256 KiB of UTF-8 document JSON. Measured asset
+identity, format, dimensions (at most 2048 px), neutral crop, strong references
+and private-only media exclusions are checked before native Studio publication.
+No ZIP, category, shared-media, customer/contact/job or archive fields are added.
+Studio validation is an editorial check: the later AB#303 reader must validate
+fresh published data independently. The legacy batch/allowlist/manifest and
+original-file exceptions stay unchanged. See the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
