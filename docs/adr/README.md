@@ -75,6 +75,7 @@ Two conventions on top of the template:
 | [0032](0032-restricted-page-ui-locales.md) | AB#255 | Accepted bounded GET UI locale selection inside existing protected client, administrator and retained legacy namespaces; authored-text acceptance remains separate | Accepted |
 | [0033](0033-unified-site-search.md) | AB#299 | Unified site search: one reserved route with a fixed free-text/keyword mode rule, server-side matching over a cached per-language index of stories and services, POST dialog transport, `noindex` results; amends ADR-0003 decision 6 and ADR-0012 §8 | Proposed |
 | [0034](0034-ongoing-unlisted-client-delivery.md) | AB#29 / AB#145 / AB#130 | Final reference-deployment choice: ongoing unlisted client delivery in existing Sanity; protected S3/Postgres development deferred | Accepted |
+| [0035](0035-unlisted-delivery-zip-proposal.md) | AB#309 / AB#29 | Proposed whole processed-JPEG ZIP in existing Sanity; new-file exception, account capacity and upload verification remain pending | Proposed |
 
 Expected further entries:
 

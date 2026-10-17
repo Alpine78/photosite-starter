@@ -60,6 +60,14 @@ and rehearsal integration; existing helper modules are inventoried in the
 [Studio guide](../studio/README.md#editing-content). This partial change does not
 close the stored-identity retirement outcome or modify the CMS.
 
+AB#309 / AB#29 new ZIP contract, 2026-10-17 (proposal, Active):
+[ADR-0035](adr/0035-unlisted-delivery-zip-proposal.md) proposes one complete,
+public processed-JPEG ZIP in the existing Sanity dataset, separate from bounded
+web previews. It records metadata/filename exposure, local and remote integrity
+checks, shared-reference removal and verified provider limits. Owner acceptance
+of the new-file exception, account capacity and supported upload evidence remain
+open; no accepted hard rule, schema, runtime, legacy file or live service changes.
+
 AB#250 Production availability readback, 2026-10-15: all 21 retained legacy
 customer galleries are now observed published and reachable. An anonymous
 published-perspective Production dataset query returned 21 `legacyDeliveryGallery`
