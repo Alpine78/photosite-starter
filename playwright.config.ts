@@ -168,6 +168,16 @@ export default defineConfig({
       use: { ...devices["iPhone 15"] },
     },
     {
+      name: "desktop-webkit-reading-address",
+      testMatch: "**/content-reading-address.spec.ts",
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "mobile-chromium-reading-address",
+      testMatch: "**/content-reading-address.spec.ts",
+      use: { ...devices["Pixel 7"] },
+    },
+    {
       // AB#291 verifies a real native touch drag in Blink as well as WebKit's
       // mobile touch tap, without duplicating unrelated public journeys.
       name: "mobile-chromium-comparison",

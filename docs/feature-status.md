@@ -826,7 +826,21 @@ shared body-block set) and the rest of that record say nothing about a per-varia
 like this one, so nothing it states changes.
 AB#193 prepares AB#20's [reading-position worksheet](article-reading-position.md).
 Browser-local persistence and restoration decisions remain open; no reading-position
-feature is implemented.
+restoration feature is implemented.
+
+**Reading address, 2026-10-17 (AB#330, parent AB#321):** deliberate reading scroll
+can follow the existing shared H2–H4 body anchors in the address bar, using one
+bounded timer and `replaceState` with the current history state and raw path/query
+preserved. Direct links, same-fragment clicks, Back/Forward, modal viewing and
+native restoration take priority; URL updates do not fetch, scroll, move focus or
+add history entries. Original heading ids and scriptless table-of-contents links
+remain unchanged. The scoped ADR-0003 amendment records in-memory ownership and
+the short-tail/unrecognized-input limitations. No browser storage, restart restore,
+sidebar/mobile design or complete AB#321 acceptance is inferred. Owner review and
+real-content acceptance remain pending; AB#330 is Active until its PR is merged.
+Production verification separately exposed an existing tab-group hydration shift
+for cold direct article fragments after that block, tracked by AB#335; this
+non-scrolling address enhancement does not claim to correct that layout shift.
 The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
