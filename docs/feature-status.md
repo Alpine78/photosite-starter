@@ -46,6 +46,14 @@ It reuses unchanged bounded inspection, streams ZIP hashes and produces only a
 redacted summary. It writes no files or remote objects and grants no upload lease;
 watermarks and ZIP contents retain their explicit existing verification limits.
 
+AB#310 / AB#29 offline whole-package integrity, 2026-10-17 (partial, Active):
+a read-only owner CLI verifies a bounded ZIP32 entry set, local/central headers,
+STORE/DEFLATE data, CRC32 and exact ordered expected byte/SHA-256 manifest.
+Private inputs, constant diagnostics and no extraction/network keep this separate
+from any upload. JPEG eligibility/metadata, manifest authority, provider capacity,
+new-file approval and remote verification remain open; `readyToUpload` stays false.
+See the [supported profile](deployment.md#offline-whole-package-integrity-check-ab310).
+
 AB#301 Studio identity presentation, 2026-10-16 (partial, Active): the actual
 Studio configuration now groups permanent technical identifiers at the end of
 the form using native, initially expanded FI/EN-labelled controls. Shared-media
