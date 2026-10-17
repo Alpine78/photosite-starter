@@ -190,7 +190,7 @@ test("a gallery without sections renders no section controls", async ({
 
 test("the section row shows its section count and the active heading shows its photograph count", async ({ page }) => {
   await page.goto(GALLERY.path, { waitUntil: "domcontentloaded" });
-  await expect(sectionsNav(page).locator("p")).toHaveText(
+  await expect(sectionsNav(page).getByRole("paragraph")).toHaveText(
     `${galleryLabels.sectionsNav} · ${GALLERY.sectionCount}`,
   );
   await expect(page.getByRole("heading", { level: 2, name: galleryLabels.allSections })).toBeVisible();
@@ -752,7 +752,7 @@ test("an empty section renders its accessible empty state with controls present"
     { waitUntil: "domcontentloaded" },
   );
 
-  await expect(page.getByText(galleryLabels.empty)).toBeVisible();
+  await expect(page.getByText(galleryLabels.empty, { exact: true })).toBeVisible();
   await expect(sectionsNav(page)).toBeVisible();
   await expect(
     sectionsNav(page).getByRole("link", {
@@ -834,4 +834,126 @@ test.describe("an unknown gallery section", () => {
       page.getByRole("link", { name: galleryLabels.backToStart }),
     ).toHaveAttribute("href", GALLERY.path);
   });
+});
+
+
+test.describe("section changes preserve the reading position", () => {
+  test.use({ reducedMotion: "reduce" });
+
+  test("pointer or touch selection keeps a long result's filter position and focus", async ({ page, isMobile }) => {
+    await page.goto(GALLERY.path);
+    const nav = sectionsNav(page);
+    const target = nav.getByRole("link", { name: GALLERY.multiPageSection.label, exact: true });
+    await target.focus();
+    await expect(target).toBeFocused();
+    const top = await nav.evaluate((node) => node.getBoundingClientRect().top);
+    const scroll = await page.evaluate(() => scrollY);
+    expect(scroll).toBeGreaterThan(0);
+    if (isMobile) await target.tap();
+    else await target.click();
+    await expect(target).toHaveAttribute("aria-current", "true");
+    await expect(target).toBeFocused();
+    await expect.poll(async () => Math.abs(await nav.evaluate((node) => node.getBoundingClientRect().top) - top)).toBeLessThanOrEqual(2);
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+    await expect(nav.getByRole("status")).toContainText(GALLERY.multiPageSection.label);
+    await expect(nav.getByRole("status")).toContainText(String(GALLERY.multiPagePhotoCount));
+  });
+
+  test("keyboard selection of an empty section keeps its control usable after scroll clamping", async ({ page }) => {
+    await page.goto(GALLERY.path);
+    await page.addStyleTag({ content: "html { font-size: 150%; }" });
+    const nav = sectionsNav(page);
+    const target = nav.getByRole("link", { name: GALLERY.emptySection.label, exact: true });
+    await target.focus();
+    await target.press("Enter");
+    await expect(target).toHaveAttribute("aria-current", "true");
+    await expect(target).toBeFocused();
+    await expect(nav.getByRole("status")).toContainText(galleryLabels.empty);
+    await expect(target).toBeInViewport();
+    const rect = await target.boundingBox();
+    expect(rect!.y).toBeGreaterThanOrEqual(0);
+    expect(rect!.y + rect!.height).toBeLessThanOrEqual(page.viewportSize()!.height + 1);
+    // Every alternative remains reachable after a short result; no blank filler.
+    await nav.getByRole("link", { name: galleryLabels.allSections, exact: true }).press("Enter");
+    await expect(nav.getByRole("link", { name: galleryLabels.allSections, exact: true })).toHaveAttribute("aria-current", "true");
+  });
+
+  for (const destination of ["outside the filters", "another filter"] as const) {
+    test(`a slow section result does not pull focus back after the visitor moves to ${destination}`, async ({ page }) => {
+      await page.goto(GALLERY.path);
+      let release!: () => void;
+      let requested!: () => void;
+      const gate = new Promise<void>((resolve) => { release = resolve; });
+      const started = new Promise<void>((resolve) => { requested = resolve; });
+      await page.route((url) => url.pathname === GALLERY.path && url.searchParams.get("section") === GALLERY.multiPageSection.slug,
+        async (route) => { requested(); await gate; await route.fallback(); });
+      const target = sectionsNav(page).getByRole("link", { name: GALLERY.multiPageSection.label, exact: true });
+      try {
+        await target.focus();
+        await target.press("Enter");
+        await started;
+        const elsewhere = destination === "another filter"
+          ? sectionsNav(page).getByRole("link", { name: GALLERY.emptySection.label, exact: true })
+          : page.getByRole("banner").getByRole("link").first();
+        await elsewhere.focus();
+        release();
+        await expect(target).toHaveAttribute("aria-current", "true");
+        await expect(elsewhere).toBeFocused();
+      } finally { release(); }
+    });
+  }
+});
+
+test("a rapid second section choice wins over an older delayed response", async ({ page }) => {
+  await page.goto(GALLERY.path);
+  let release!: () => void;
+  let requested!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const started = new Promise<void>((resolve) => { requested = resolve; });
+  const firstUrl = (url: URL) => url.pathname === GALLERY.path && url.searchParams.get("section") === GALLERY.multiPageSection.slug;
+  await page.route(firstUrl, async (route) => { requested(); await gate; await route.fallback(); });
+  const oldSettled = Promise.race([
+    page.waitForEvent("requestfinished", (request) => firstUrl(new URL(request.url()))),
+    page.waitForEvent("requestfailed", (request) => firstUrl(new URL(request.url()))),
+  ]);
+  const nav = sectionsNav(page);
+  try {
+    const older = nav.getByRole("link", { name: GALLERY.multiPageSection.label, exact: true });
+    await older.focus();
+    await older.press("Enter");
+    await started;
+    const latest = nav.getByRole("link", { name: GALLERY.emptySection.label, exact: true });
+    await latest.focus();
+    await latest.press("Enter");
+    await expect(latest).toHaveAttribute("aria-current", "true");
+    release();
+    await oldSettled;
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect(latest).toHaveAttribute("aria-current", "true");
+    await expect(latest).toBeFocused();
+    await expect(nav.getByRole("status")).toContainText(galleryLabels.empty);
+    expect(new URL(page.url()).searchParams.get("section")).toBe(GALLERY.emptySection.slug);
+  } finally { release(); }
+});
+
+test("scrolling during a delayed section switch keeps the visitor's newer position", async ({ page }) => {
+  await page.goto(GALLERY.path);
+  let release!: () => void;
+  let requested!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const started = new Promise<void>((resolve) => { requested = resolve; });
+  await page.route((url) => url.pathname === GALLERY.path && url.searchParams.get("section") === GALLERY.multiPageSection.slug,
+    async (route) => { requested(); await gate; await route.fallback(); });
+  const target = sectionsNav(page).getByRole("link", { name: GALLERY.multiPageSection.label, exact: true });
+  try {
+    await target.focus();
+    await target.click();
+    await started;
+    await page.evaluate(() => window.scrollBy({ top: 40, behavior: "instant" }));
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    const newerPosition = await page.evaluate(() => scrollY);
+    release();
+    await expect(target).toHaveAttribute("aria-current", "true");
+    await expect.poll(async () => Math.abs(await page.evaluate(() => scrollY) - newerPosition)).toBeLessThanOrEqual(2);
+  } finally { release(); }
 });
