@@ -68,6 +68,20 @@ function assetReference(item: unknown): string | undefined {
   return asset._ref;
 }
 
+export type ClientDeliveryAsset = Readonly<{
+  _id: string; _type: "sanity.imageAsset"; sha1hash: string; extension: string;
+  mimeType: string; width: number; height: number; restricted: false;
+}>;
+/** The same technical asset boundary is used by publication and the native picker. */
+export function isClientDeliveryAsset(asset: unknown): asset is ClientDeliveryAsset {
+  if (!record(asset) || typeof asset._id !== "string") return false;
+  const parts = /^image-([a-f0-9]{40})-([1-9]\d{0,4})x([1-9]\d{0,4})-(avif|jpeg|jpg|png|webp)$/u.exec(asset._id);
+  return Boolean(parts && parts[0] === asset._id && Math.max(Number(parts[2]), Number(parts[3])) <= MAX_PUBLIC_DELIVERY_DIMENSION &&
+    asset._type === "sanity.imageAsset" && asset.restricted === false && asset.sha1hash === parts[1] &&
+    asset.width === Number(parts[2]) && asset.height === Number(parts[3]) && asset.extension === parts[4] &&
+    PUBLIC_DELIVERY_FORMATS[parts[4]] === asset.mimeType);
+}
+
 /** Editorial guard only. The runtime must independently validate API-written data. */
 export async function validateClientDeliveryGallery(value: unknown, context: SchemaValidationContext): Promise<true | string> {
   try {
@@ -108,10 +122,7 @@ export async function validateClientDeliveryGallery(value: unknown, context: Sch
     for (const asset of assets) {
       if (!record(asset) || typeof asset._id !== "string" || !ids.includes(asset._id) || seen.has(asset._id)) return CLIENT_DELIVERY_ERRORS.assets;
       seen.add(asset._id);
-      const parts = /^image-([a-f0-9]{40})-([1-9]\d{0,4})x([1-9]\d{0,4})-(avif|jpeg|jpg|png|webp)$/u.exec(asset._id)!;
-      if (asset._type !== "sanity.imageAsset" || asset.restricted !== false || asset.sha1hash !== parts[1] ||
-        asset.width !== Number(parts[2]) || asset.height !== Number(parts[3]) || asset.extension !== parts[4] ||
-        PUBLIC_DELIVERY_FORMATS[parts[4]] !== asset.mimeType) return CLIENT_DELIVERY_ERRORS.assets;
+      if (!isClientDeliveryAsset(asset)) return CLIENT_DELIVERY_ERRORS.assets;
     }
     return true;
   } catch {

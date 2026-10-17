@@ -342,6 +342,34 @@ role restrictions, keyboard focus and native clipboard permission behavior remai
 unverified under AB#145. No hosted deployment, customer communication or CMS
 mutation is performed by this source change.
 
+### Choose several existing web images (AB#336)
+
+In **Client gallery images**, choose **Choose existing web images / Valitse
+valmiita verkkokuvia** to load already uploaded eligible web-image assets. This
+control uploads nothing. It shows at most the newest 256 assets, initially 64
+thumbnails; use **Show more / Näytä lisää** or the unchanged native editor for
+older assets. Portfolio and other gallery images can appear: technical
+eligibility is not approval to reuse or publish any image.
+
+Select images in the intended order, then choose **Add selected images / Lisää
+valitut kuvat**. The list appends those references once and preserves existing
+items/reordering. Repeated source images are allowed and marked when already
+used. New entries deliberately have no invented alternative text: author it in
+the native editor before publication. Full-frame thumbnails are lazy and bounded.
+Selection capacity is advisory; concurrent edits and the document text-size limit
+are still checked by native publication validation. Selected assets are checked
+again before adding; later private-only changes still require publication/runtime
+validation. Role failures show a fixed message rather than an empty library.
+
+Retry, Show more, Clear selection and Add selected images remain focusable
+when temporarily unavailable, with `aria-disabled` and guarded actions, so an
+action does not disable or remove its focus anchor. The FI/EN native-control
+keyboard fixture verifies Tab/Space, distinct names and these unavailable
+anchors in Chromium/WebKit.
+It does not hydrate React or prove controlled-state updates, close-focus return or hosted Studio authorization.
+Those authenticated editor/role/keyboard checks remain under AB#145. No hosted
+Studio deployment, content publication or CMS write occurs during this change.
+
 ### Prepare one web image locally (AB#314)
 
 The owner-run command below prepares **one processed static export** with the

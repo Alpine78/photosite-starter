@@ -83,6 +83,17 @@ revalidates on fresh reads. No ZIP field, new service, production/CMS change or
 hosted Studio deployment. [Authoring instructions and remaining verification](../studio/README.md#ongoing-client-galleries-ab302--ab145).
 AB#314 adds an offline one-image preparation command with the existing Sharp encoder: complete static JPEG/PNG/WebP/AVIF exports become metadata-stripped web copies at most 2048 pixels, without enlargement or cropping. A new private local directory contains only a neutral filename and technical receipt; source bytes are unchanged. Animation, malformed input, unsafe/Git-visible paths and local 25 MB/100 MP input bounds fail closed. This neither approves source eligibility nor uploads/publishes anything; AB#314 is Active awaiting review/merge.
 
+AB#336 adds native Studio selection of already uploaded eligible web images:
+one bounded query, ordered explicit choices and one native append preserve
+existing editing/reordering and owner-authored alternative texts. The shared
+publication predicate, fresh selected-asset checks and current-scope guard
+refuse stale, read-only, restricted or changed additions. FI/EN native controls
+have synthetic controller/schema/SSR and Chromium/WebKit keyboard-fixture
+coverage; hosted roles, controlled React state and close focus remain unverified.
+No uploader, new service, private-only reclassification, publication or runtime
+activation is added. AB#336 is Active pending owner review/merge; see the
+[Studio workflow](../studio/README.md#choose-several-existing-web-images-ab336).
+
 AB#145 and its parent feature AB#63 are Active; AB#302 is Closed after its accepted merge. The customer runtime is AB#303 above; optional offline availability tooling
 remains AB#304. Earlier protected
 work remains disabled under ADR-0034.
