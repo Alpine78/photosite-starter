@@ -504,6 +504,87 @@ other site adapters retain their own visibility contract. This restriction does
 not make ordinary dataset assets private: Sanity documents that their CDN URLs
 are public even when dataset metadata is private. [Official asset visibility](https://www.sanity.io/docs/media-library/asset-visibility).
 
+### Build one whole delivery ZIP offline (AB#319)
+
+This owner-run tool creates one local package from an **explicitly selected** set
+of processed JPEG exports. It neither discovers photographs nor creates missing
+legacy packages. The required classification is an owner assertion; it grants no
+public-media exception and cannot reclassify camera masters, RAW, private-only or
+sales assets. No upload, CMS access, credential, publication or new service is
+involved. A complete package larger than a local bound is refused whole, never
+split, truncated or silently reduced.
+
+```bash
+npm run build:delivery-zip -- \
+  --selection /private/operator/selection.txt --root /private/operator/exports \
+  --out /private/operator/new-package --classification processed-jpeg-exports
+```
+
+The private UTF-8/LF selection has this exact header, ordered relative paths and
+a final newline. Paths are local owner information, not output/public metadata:
+
+```text
+processed-jpeg-selection-v1
+first-export.jpg
+subfolder/second-export.jpeg
+```
+
+Choose every file deliberately. No globbing, recursive scanning, absolute paths,
+traversal, aliases or duplicate sources are accepted. Canonical UTF-8/NFC paths
+are limited to 512 characters with individual components at most 255 bytes;
+control characters, backslashes and colon notation are refused. The selection is
+at most 65,536 bytes with 1–256 entries. Every source must have a `.jpg`/`.jpeg`
+extension and exact JPEG SOI/EOI boundary markers; trailing data after EOI is
+refused. This screen does **not** decode JPEGs or prove they are processed exports.
+
+The ZIP uses STORE, neutral `image-NNNN.jpg` entry names, signed ZIP32 data
+descriptors and fixed neutral container timestamps. JPEG bytes, including all
+embedded EXIF/GPS/IPTC/ICC metadata, remain unchanged. The tool performs no
+metadata review or stripping. Such metadata would remain exposed if a package
+were later uploaded to a public file URL. Owner review and publication approval
+remain separate.
+
+Local engineering bounds are 1,000,000,000 archive **and** expanded bytes,
+25,000,000 bytes per entry and 256 entries. Exact ZIP overhead counts toward the
+archive bound before output is created. Sources and output use sequential reads
+and writes of at most 65,536 bytes with backpressure; CRC32, member SHA-256 and
+whole-archive SHA-256 are calculated while copying. The copy-stage deadline is
+330 seconds. SIGINT/SIGTERM request cancellation and identity-safe cleanup.
+Filesystem syscalls themselves cannot be interrupted by this signal; a stalled
+filesystem can delay cancellation until the syscall returns. This is not proof
+of Sanity upload support, product size limits or permitted public-file delivery.
+
+On supported Linux/macOS POSIX filesystems, source directories, the selection's
+parent and the output's existing parent must be owner-owned `0700`; inputs must
+be owner-owned regular single-link `0600` files. Symlink components are refused.
+Inputs and **every** output inside Git must be ignored and untracked. The output
+directory is new and exclusively created, outside the source root. The tool
+holds source descriptors and checks their current paths, identity, size, modes,
+ownership, link counts and nanosecond change/modification timestamps before and
+after copying. These checks detect drift; they do not promise race-free operation
+against a malicious process with the same OS identity. Unsupported permissions
+or hosts fail closed.
+
+Only `delivery.zip`, `entries.tsv` and `receipt.json` are produced, all `0600` in
+the new `0700` directory. The TSV records **observed** neutral entry names, byte
+counts and SHA-256 for a later independent integrity audit; it does not establish
+owner approval of the intended set. The fixed receipt/stdout contains only
+technical counts, hashes and checks, always `readyToUpload: false`. JPEG decoding,
+processed-export classification, metadata suitability, manifest authority and
+provider compatibility remain unproven. The archive hash covers bytes written;
+it is not an independent on-disk readback.
+
+`receipt.json` is written last after ZIP/TSV sync and source/output checks. A
+successful receipt is the completion marker; ZIP existence alone is insufficient.
+Failure removes only still-identifiable files created by the current invocation,
+never overwrites existing data and never recursively deletes a directory.
+SIGKILL or power loss can leave incomplete files without a valid receipt; inspect
+and remove such private artifacts deliberately before retrying in a new output
+directory. Recheck the package independently before any separately authorized
+upload. The existing 100 MB audit covers small packages only; larger ones need a
+separately available whole-package verifier. ADR-0035 remains Proposed and actual
+whole-file provider transport remains unresolved.
+
 ### Optional offline availability plans (AB#304)
 
 Ordinary creation, pause and publication remain native Studio operations. The

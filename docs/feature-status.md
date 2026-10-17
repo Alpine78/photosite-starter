@@ -109,6 +109,16 @@ date; fresh availability checks and the existing public-file notice are unchange
 No CMS fields, provider service, upload, timer or retention worker are added.
 This source slice remains Active pending accepted merge; no live activation.
 
+AB#319 / AB#29 explicit whole-package preparation, 2026-10-17 (Active): a
+local owner CLI builds one ZIP32 STORE package from an explicit ordered private
+processed-JPEG selection. Original JPEG/metadata bytes stay unchanged and entries
+receive neutral names. Bounded IO, exact overhead limits, private source/output
+identity checks and a final receipt keep this separate from upload/publication.
+The local 1 GB bound is not a provider/product limit. JPEG decoding, classification,
+metadata approval and supported whole-file transport remain unproven; no legacy
+package is invented and `readyToUpload` stays false. This source slice awaits
+owner review. See the [local builder](deployment.md#build-one-whole-delivery-zip-offline-ab319).
+
 AB#307 / AB#29 maximum-viewer verification, 2026-10-17 (partial, Active): a
 development-only 256-occurrence fixture reuses two complete local web images
 with distinct item identities and stable shared-source aliases. FI/EN journeys
