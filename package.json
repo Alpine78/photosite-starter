@@ -33,6 +33,7 @@
     "plan:legacy-delivery": "node scripts/plan-legacy-delivery-import.mts",
     "plan:private-gallery-upload": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/plan-private-gallery-upload.mts",
     "verify:delivery-zip": "node scripts/verify-delivery-zip.mts",
+    "verify:delivery-zip-large": "node scripts/verify-delivery-zip-large.mts",
     "verify:private-upload-sources": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/verify-private-gallery-sources.mts",
     "write:rally": "node scripts/write-rally-import.mts",
     "plan:rally-conversion": "node scripts/plan-rally-conversion.mts",
