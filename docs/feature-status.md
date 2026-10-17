@@ -2525,6 +2525,20 @@ Active before edits and awaits owner review/merge. No dependency update,
 registry operation, CI or notification configuration is performed by the tool;
 AB#160's operational acceptance remains open.
 
+### AB#331 — lockfile-bound scheduled audit capture (2026-10-17)
+
+After owner merge of AB#329, a bounded POSIX wrapper now captures root and
+Studio JSON audits between exact lockfile digests and reuses the unchanged
+triage projection. Current build/attempt-specific artifacts contain only safe
+reports and a manifest committed last, with readiness/cancellation publication
+guards; raw paired data is private and temporary. Info-only stays findings with
+gate exit 0, preserving the existing low threshold. Synthetic subprocess,
+filesystem, privacy and pipeline tests exercise bounds and cleanup without a
+registry call. AB#331 moved New → Active before edits and awaits final review
+and accepted merge. No automatic dependency fix, new service or notification
+acceptance is implied; committed scheduled/live cancellation evidence and
+AB#160's operational acceptance remain open.
+
 **Saved audit summary preparation, 2026-10-06 (AB#204, Active):** an offline
 npm v2 reader validates the reference graph and separates affected package entries
 from unique numeric advisories. No dependency fixes or residual-risk acceptance
