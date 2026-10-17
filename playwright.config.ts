@@ -159,6 +159,8 @@ export default defineConfig({
   // Firefox is left out deliberately: it shares no rendering behaviour that the
   // other two would miss here, and it would cost install time on every run.
   projects: [
+    { name: "desktop-webkit-tab-fragment", use: { ...devices["Desktop Safari"] }, testMatch: "**/content-tab-fragment.spec.ts" },
+    { name: "mobile-chromium-tab-fragment", use: { ...devices["Pixel 7"] }, testMatch: "**/content-tab-fragment.spec.ts" },
     {
       name: "desktop-chromium",
       use: { ...devices["Desktop Chrome"] },
