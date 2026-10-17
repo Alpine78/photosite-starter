@@ -39,7 +39,7 @@ function family(field: string, type: string): boolean {
 /** Validate JSON before native parsing: duplicate decoded keys, depth and numbers.
  * Prototype-shaped keys remain ordinary own data; no assignment into prototypes.
  */
-function strictJson(source: string, limits: typeof LIMITS, budget = { nodes: 0 }): unknown {
+export function strictJson(source: string, limits: typeof LIMITS, budget = { nodes: 0 }): unknown {
   let offset = 0;
   const space = () => { while (/\s/u.test(source[offset] ?? "") && offset < source.length) offset++; };
   const string = (): string => {

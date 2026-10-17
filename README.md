@@ -628,6 +628,10 @@ hosted Studio, actual roles and deliberate production activation remain open.
 See the [new-gallery workflow](studio/README.md#ongoing-client-galleries-ab302--ab145)
 and [runtime configuration](docs/deployment.md#ongoing-unlisted-client-galleries-adr-0034).
 
+Optional [offline availability plans](docs/deployment.md#optional-offline-availability-plans-ab304)
+bind proposed page settings to a supplied snapshot and revision. They never write
+to Sanity; ordinary changes stay in Studio.
+
 ## Later roadmap (not in MVP)
 
 - Keyword-driven dynamic galleries generated from one or more hierarchical keywords

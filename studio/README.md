@@ -321,3 +321,9 @@ Unlisting/noindex is reduced discovery, not confidentiality; public CMS records 
 be enumerated. Closing/unpublishing a page does not revoke direct asset URLs or
 copies already cached or downloaded. No live customer upload or publication is
 part of this implementation.
+
+The optional [offline availability planner](../docs/deployment.md#optional-offline-availability-plans-ab304)
+prepares private revision-bound evidence for future operator changes; it does not
+replace native Studio editing or write to Sanity. A paused published document is
+still public metadata. No remote writer is provided, and later native publication
+can overwrite any separately applied root-document patch.
