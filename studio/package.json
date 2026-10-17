@@ -24,6 +24,7 @@
     "@types/node": "24.10.9",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "groq-js": "2.0.0",
     "typescript": "7.0.2",
     "braces": "file:../vendor/braces-3.0.4-photosite.1.tgz"
   },
