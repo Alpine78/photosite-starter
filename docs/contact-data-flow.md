@@ -187,6 +187,16 @@ first; an unknown, unpublished, private, or non-enquirable item, or a dynamic
 enquiry the content source cannot yet authorize, all resolve to one generic
 `404` so a probe cannot tell which check failed.
 
+**Identity compatibility (AB#340).** Curated submissions reuse the deployment's
+pinned server-only alias generation: content identity is resolved before public-tree
+authorization, and occurrence identity only after the container is known to use
+placements. Dynamic and capture-sequence media identities remain unchanged. The
+existing gallery and photograph checks still apply; an alias grants no access.
+Default legacy mode uses no alias query. Active modes require separately approved
+operational configuration; this source change activates none. Alias failures are
+static and disclose no table, pins or provider cause. The form itself still performs
+no result read, and the resolved target goes only into the existing email flow.
+
 **Gallery permission (AB#289).** Public galleries have a default-on
 `allowPhotoEnquiries` switch. An explicit `false` hides the lightbox action and
 refuses direct enquiry pages; the POST resolver checks it again before looking

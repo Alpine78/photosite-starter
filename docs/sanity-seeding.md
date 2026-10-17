@@ -651,18 +651,19 @@ carry static classifications rather than payloads. This is a decoded-data
 boundary: raw transport byte limits, duplicate JSON keys, provider document
 metadata and CMS publication checks still require their own adapter.
 
-The module is not connected to deployed readers. CMS record provisioning, generation
-cache/invalidation, public reader integration, legacy-write guard, maintenance
-boundary and operational writer/receipts remain separate implementation slices.
-Future integration must preserve request/locale validation, public-container and
+The curated enquiry facade now reaches this pure resolver through the pinned
+loader and deployment composer below. Other typed reader integration, CMS record
+provisioning, coordinated generation cache/invalidation, legacy-write guard,
+maintenance boundary and operational writer/receipts remain separately scoped.
+Every integration must preserve request/locale validation, public-container and
 media eligibility, dynamic/capture-sequence media IDs and signed cursor rejection.
 This resolver itself grants no authorization and supports no `mediaId` family.
-No deployment or CMS operation follows from this offline implementation.
+This work performs no deployment or CMS operation.
 
 ### Bounded published alias loading (AB#263)
 
 [`createSanityIdentityAliasLoader`](../src/lib/sanity-identity-aliases.ts) adds the
-unconnected Node/server-only adapter. Factory construction validates and captures
+Node/server-only adapter, now reused by the curated enquiry seam below. Factory construction validates and captures
 mode, pins, source and one published root document ID synchronously. Omitted
 configuration selects legacy; explicit legacy accepts only its mode and needs no
 CMS configuration. `load()` returns a promise of the same synchronous core
@@ -690,7 +691,7 @@ handling remains unchanged. The fresh Doc reader does not offer this query-only
 flag. Config, transport, record shape, metadata and alias-payload failures have
 static classifications; no table, provider metadata or arbitrary cause escapes.
 
-Concurrent loads share one promise and failures remain sticky. The future caller
+Concurrent loads share one promise and failures remain sticky. The caller
 owns generation lifetime: explicit factory recreation or process replacement is
 required for recovery, with the same accepted pins unless a new generation is
 approved. There is no retry/fallback loop or global cache invalidation manager.
@@ -700,11 +701,11 @@ wire-size fit; current proof uses synthetic responses only. Sanity's
 and [published Query API](https://www.sanity.io/docs/http-reference/query) support
 the operator-managed record; no schema or record is created by this slice.
 
-Public reader/environment wiring, coordinated generation/cache activation,
+Other public reader seams and coordinated generation/cache activation,
 legacy-write guard, maintenance gate, operational writer/receipts and named
 rehearsal/Production operations remain separately gated. The adapter itself grants
-no media, language, container or visibility authorization and is unused by deployed
-request paths. Existing strict AB#258/259 artifacts and accepted ADR history remain
+no media, language, container or visibility authorization. The curated enquiry
+facade now reuses it as described below; other reader seams remain separate. Existing strict AB#258/259 artifacts and accepted ADR history remain
 unchanged.
 
 ### Deployment-owned alias settings (AB#264)
@@ -713,9 +714,9 @@ unchanged.
 the supplied environment and returns a frozen, server-only settings tuple.
 [`createDeploymentIdentityAliasLoader`](../src/lib/identity-alias-deployment.ts)
 composes those settings with the existing Sanity configuration and lazy loader.
-Neither helper has a deployed caller yet: setting these values alone activates
-no routing or migration behavior. No settings are added to browser-facing
-`DeploymentConfig`, and no actual target, document or deployment is configured.
+The curated enquiry facade now composes this loader on its first valid request,
+as described below. No settings are added to browser-facing `DeploymentConfig`,
+and this implementation selects no actual target, document or deployment.
 
 | Server-only setting | Accepted value |
 | --- | --- |
@@ -748,6 +749,39 @@ one request, and failure remains sticky. Explicit recreation captures fresh
 accepted settings; there is no global cache, retry or automatic generation
 activation. Actual source/record/pins selection, first approved live read and
 coordinated public-reader/cache activation remain separate operational gates.
+
+### Curated enquiry compatibility (AB#340)
+
+The server-only enquiry facade holds one lazy alias generation per factory/module
+instance. It validates the request and configured full locale before capturing
+settings on the first curated lookup. In default `legacy` mode it performs no
+alias query or CMS configuration read; invalid or stale alias settings fail closed.
+In `renamed` and `restored` modes the same pinned resolver maps `contentId` before
+public-tree authorization, then maps `placementId` only after the adapter identifies
+a placement-based container. Unknown IDs still face normal source checks.
+
+Dynamic and capture-sequence `mediaId` values remain unchanged, including strings
+that happen to equal placement aliases. No enquiry input or query accepts category
+or article end-gallery identities. Existing gallery permission, exact language,
+container membership, visibility, publication and media eligibility remain required.
+The `?enquire=` page preserves its syntactically valid occurrence without reading a
+gallery result; its submitted POST uses this same authoritative resolver.
+
+Concurrent requests reuse a captured promise. Configuration and transport failures
+remain sticky until internal factory recreation or redeployment; request retries,
+webhooks and content revalidation do not reset it. There is no deployment-wide
+single-query guarantee. Configuration/transport failures use the existing static
+`source-error` response (nonretryable); malformed records/payloads use
+`malformed-source`. No alias table, credentials, pins or provider causes reach
+browser data or application logs. The journey harness explicitly pins legacy mode
+and clears known alias settings/mirrors for both build and serve.
+
+This code does not activate a real alias generation or select/create its record.
+Active-mode proof uses deterministic injected transport/source fixtures; ordinary
+legacy-mode browser journeys are separate from hosted active-mode acceptance.
+Fresh reconciliation, exact target/record/pins approval, live-read verification,
+coordinated reader/cache activation, guard/writer/rehearsal and Production cutover
+remain separately gated by Accepted ADR-0031. AB#301 and AB#60 remain open.
 
 ### Offline reconciliation (AB#258)
 
