@@ -2353,6 +2353,18 @@ offline emitter-NDJSON tool counts fixed state/class outcomes, deduplicates term
 events and reports invalid/incomplete evidence. It neither reads live logs nor
 configures notifications; AB#159 live exercise remains open.
 
+**Availability late-response cleanup, 2026-10-17 (AB#317, Active):** the existing
+AB#158 probe now cancels responses that arrive after its total deadline, including
+the allowed canonical request, without reading their bytes or following a late
+redirect. Redirect ownership is released before the second request, preventing a
+second cancellation of the first body on timeout. Cleanup failures cannot replace
+the redacted result or stall completion; the original shared deadline remains.
+Deterministic synthetic regressions first reproduced seven failures in the old
+implementation; all 65 focused tests, 7,165 unit tests in 315 files, lint and the
+fixture-configured production build now pass. AB#317 moved New → Active before
+edits; owner review/merge and AB#158's real monitor/notification exercise remain open. No live check, account,
+alert, deployment or dependency changed.
+
 **Production failure triage preparation, 2026-10-02 (AB#159, Active):** the
 [runbook](production-failure-triage.md) now gives concrete Production log filters,
 separate Sanity query/revalidation and contact/enquiry diagnosis, expected-refusal

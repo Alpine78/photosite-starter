@@ -7,20 +7,33 @@ class ProbeFailure extends Error {
   readonly code: Failure;
   constructor(code: Failure) { super(code); this.code = code; }
 }
+/** Cleanup is best effort and never delays or replaces a probe result. */
+function observeCleanup(cancel: () => unknown): void {
+  try { void Promise.resolve(cancel()).catch(() => {}); } catch { /* Keep the classified result. */ }
+}
 export async function probeAvailability(check: AvailabilityCheck, options: { fetch: typeof fetch; timeoutMs: number; maxBytes: number }) {
   const controller = new AbortController(); let reader: ReadableStreamDefaultReader<Uint8Array> | undefined, response: Response | undefined;
-  let stage: Failure = "request-failed";
+  let stage: Failure = "request-failed", finished = false;
   let timer!: ReturnType<typeof setTimeout>;
-  const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => { reject(new ProbeFailure("timeout")); controller.abort(); }, options.timeoutMs); });
+  const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => { finished = true; reject(new ProbeFailure("timeout")); controller.abort(); }, options.timeoutMs); });
+  void deadline.catch(() => {});
   const bounded = <T,>(promise: Promise<T>) => Promise.race([promise, deadline]);
+  const request = (url: string) => bounded(Promise.resolve(options.fetch(url, {
+    method: "GET", redirect: "manual", signal: controller.signal, headers: { accept: "text/html" },
+  })).then(saved => {
+    if (finished) observeCleanup(() => saved.body?.cancel());
+    return saved;
+  }));
   try {
-    response = await bounded(options.fetch(check.url, { method: "GET", redirect: "manual", signal: controller.signal, headers: { accept: "text/html" } }));
+    response = await request(check.url);
     if ([301, 308].includes(response.status)) {
       let target: string | undefined;
       try { const location = response.headers.get("location"); if (location) target = new URL(location, check.url).href; } catch { /* fixed refusal below */ }
       if (!check.canonicalUrl || target !== check.canonicalUrl) throw new ProbeFailure("unexpected-redirect");
-      void response.body?.cancel().catch(() => {});
-      response = await bounded(options.fetch(check.canonicalUrl, { method: "GET", redirect: "manual", signal: controller.signal, headers: { accept: "text/html" } }));
+      const redirectResponse = response;
+      response = undefined;
+      observeCleanup(() => redirectResponse.body?.cancel());
+      response = await request(check.canonicalUrl);
     }
     if (response.status >= 300 && response.status < 400) throw new ProbeFailure("unexpected-redirect");
     if (response.status !== 200) throw new ProbeFailure("not-200");
@@ -38,9 +51,11 @@ export async function probeAvailability(check: AvailabilityCheck, options: { fet
     return { status: "healthy", code: "markers-present" } as const;
   } catch (error) { return { status: "unhealthy", code: error instanceof ProbeFailure ? error.code : stage } as const; }
   finally {
+    finished = true;
     clearTimeout(timer); controller.abort();
-    // Cancellation may itself stall; do not let cleanup defeat the total deadline.
-    if (reader) void reader.cancel().catch(() => {}); else void response?.body?.cancel().catch(() => {});
+    // Cancel the reader if it owns the stream, otherwise the response body.
+    if (reader) observeCleanup(() => reader!.cancel());
+    else observeCleanup(() => response?.body?.cancel());
   }
 }
 async function main() {
