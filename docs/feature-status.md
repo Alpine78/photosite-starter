@@ -28,6 +28,18 @@ AB#145 and its parent feature AB#63 are Active; AB#302 is Active. The customer r
 remains AB#304. Earlier protected
 work remains disabled under ADR-0034.
 
+AB#308 / AB#29 actual-query contracts, 2026-10-17 (partial, Active): synthetic
+fixtures now execute both the exported runtime GROQ and native schema-validation
+queries with Sanity's official GROQ 1 interpreter. They verify dereference scope,
+private-only exclusions (including other assets/malformed flags), optional-field
+projection, bounded rows/items, repeated sources, raw draft/release identities,
+legacy collisions and fresh pause/expiry precedence. The existing locked
+`groq-js@2.0.0` is declared Studio dev-only; all 940 resolved package entries are
+unchanged. Network access is blocked. These are local semantics checks, not live
+perspective/permission/performance or CDN verification. No runtime service,
+asset upload, new media exception or production activation. AB#308 stays Active
+pending final review and accepted merge.
+
 Current owner decision, 2026-10-16: [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
 selects existing Sanity/unlisted delivery for ongoing client work, including
 future galleries. Protected S3/Postgres work is no longer the deployment target;
