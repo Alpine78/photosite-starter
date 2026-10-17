@@ -435,8 +435,8 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
   and optional long-form body content — *shared bounded result contract, the canonical
   gallery route inside the content tree with breadcrumbs, metadata, and a deterministic
-  cover, the default row-major grid that reads in the gallery's own order at one, two, and three
-  columns, the fullscreen lightbox (open, close, navigate, caption and credit)
+  cover, the gallery layouts that preserve the gallery's own order and native image frames,
+  the fullscreen lightbox (open, close, navigate, caption and credit)
   ([ADR-0001](docs/adr/0001-lightbox-library.md)), and server-rendered cursor
   continuation — a real `href` that pages through a large gallery with no JavaScript —
   and the in-place append — the same link enhanced to bring the next slice into the
@@ -733,7 +733,8 @@ seam now dispatches on `SITE_CONTENT_SOURCE`, so a deployment reads consistently
 source and never mixes them on one page.
 Gallery presentation offers `grid`, `masonry`, and `justified` layouts with `below` or
 `overlay` captions, authored site-wide and independently overridable per gallery (AB#157).
-The default remains the row-major grid. Every layout keeps the result's DOM, keyboard,
+The default is justified rows (AB#322); explicit grid and masonry settings remain
+available. Every layout keeps the result's DOM, keyboard,
 and lightbox order under its documented visual progression, and every frame keeps its
 native aspect ratio uncropped. It opens a fullscreen lightbox that navigates the loaded
 result by keyboard, control, and gesture, loads the next bounded page before reaching the

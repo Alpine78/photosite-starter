@@ -1005,6 +1005,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
           articleTitle={article.title}
           slice={projectGallerySlice(endGallery)}
           initialSliceKey={`cursor:${resolution.cursor}`}
+          presentation={effectiveGalleryPresentation({}, await getSiteSettings())}
           languages={languages}
           labels={labels}
         />
@@ -1075,6 +1076,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
                   slice: projectGallerySlice(endGallery),
                   articlePath,
                   initialSliceKey: `first:${articlePath}`,
+                  presentation: effectiveGalleryPresentation({}, settings),
                 },
               })}
         />

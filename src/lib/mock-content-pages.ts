@@ -243,6 +243,8 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
     body: [],
   },
   "content-large-archive": {
+    // This pagination/layout fixture explicitly exercises grid/below.
+    galleryLayout: "grid",
     variant: "gallery",
     // Deliberately minimal: this gallery's own job is exercising pagination
     // at scale (AB#114/AB#134), not editorial content. A short body still
@@ -695,6 +697,8 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
     body: [],
   },
   "content-large-archive": {
+    // This pagination/layout fixture explicitly exercises grid/below.
+    galleryLayout: "grid",
     variant: "gallery",
     body: [
       {
