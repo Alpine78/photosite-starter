@@ -155,9 +155,15 @@ bound of 1,000,000,000 archive/expanded bytes, with 64 KiB reads, bounded DEFLAT
 processing and exact same-pass archive SHA-256. The original 100 MB buffered API
 stays unchanged. An actual whole 105 MB synthetic archive and a high-ratio
 expansion refusal exercise the larger path; packages are never split. This source
-slice is Active pending owner review, not evidence of supported Sanity upload.
+slice is merged (AB#315 Closed), not evidence of supported Sanity upload.
 Per-read cancellation listeners are removed on settlement; a separate-process
 probe checks retained buffers during a whole 105 MB audit, before it returns.
+AB#332 (Active, awaiting review) makes its baseline and paused-read measurement
+use one fixed GC → event-loop turn → GC sequence. The 8 MiB assertion and audit
+runtime are unchanged. Current code retains 196,608 bytes in four concurrent
+loaded controls; the pre-AB#315 runtime retains 100,253,470 bytes and still fails
+the actual assertion. This corrects measurement timing, not a newly found runtime
+leak; a committed Azure run remains to verify the CI correction.
 See the [supported profiles](deployment.md#offline-whole-package-integrity-checks-ab310--ab315).
 
 AB#301 Studio identity presentation, 2026-10-16 (partial, Active): the actual
@@ -5704,3 +5710,15 @@ privateOnly/sales, public/legacy media and URL boundaries. No code or service
 was removed or activated. AB#313 moved New → Active before edits; actual
 deployment/operator/clone usage and each deletion patch's architecture/security
 review remain open. AB#29/145 stay Active and proof selection AB#130 stays New.
+
+
+### AB#328 — bounded keyword benchmark reads (2026-10-17)
+
+The existing AB#65 spike transport now limits successful decompressed replies
+to 16 MiB and bounds fetch plus body reads by one 30-second deadline, including
+IO that ignores abort. Byte counts retain BOM/Unicode accounting; reader, error
+and late-response cleanup is best effort and does not extend the deadline.
+Synthetic tests exercise total time, byte boundaries, tiny/empty chunks and
+redacted failures. No live benchmark, production taxonomy, schema or dependency
+changed; AB#55 acceptance and Feature AB#62 remain separate. AB#328 moved
+New → Active before implementation and awaits owner review/merge.

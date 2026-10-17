@@ -26,6 +26,8 @@
  * which number a row holds.
  */
 
+import { setImmediate as yieldToIO } from "node:timers/promises";
+
 import { parseReadConnection, type ReadConnection } from "./sanity-read-http.mts";
 
 export { parseReadConnection };
@@ -34,6 +36,7 @@ export type { ReadConnection };
 export type BenchmarkEndpoint = "api" | "apicdn";
 
 export const BENCHMARK_REQUEST_TIMEOUT_MS = 30_000;
+export const BENCHMARK_MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 const MAX_QUERY_URL_BYTES = 11 * 1024; // restates sanity-client.ts's documented GET cap
 
 export class BenchmarkHttpError extends Error {
@@ -115,6 +118,28 @@ function buildUrl(connection: ReadConnection, request: MeasuredQueryRequest): st
   return url;
 }
 
+/** Cleanup never delays a classified result or discloses provider errors. */
+function observeCleanup(action: () => unknown): void {
+  try { void Promise.resolve(action()).catch(() => {}); } catch { /* best effort */ }
+}
+
+/** One abort subscription per pending operation, removed on either settlement. */
+function waitForIO<T>(pending: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (action: () => void) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", abort);
+      action();
+    };
+    const abort = () => finish(() => reject(new DOMException("", "TimeoutError")));
+    pending.then(value => finish(() => resolve(value)), error => finish(() => reject(error)));
+    if (signal.aborted) abort();
+    else signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
 export async function runMeasuredQuery(
   connection: ReadConnection,
   request: MeasuredQueryRequest,
@@ -122,66 +147,96 @@ export async function runMeasuredQuery(
 ): Promise<MeasuredQueryResult> {
   const send = options?.fetchImplementation ?? fetch;
   const url = buildUrl(connection, request);
-
   const startedAt = performance.now();
-  let response: Response;
+  const controller = new AbortController();
+  let finished = false;
+  let response: Response | undefined;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  const timer = setTimeout(() => { finished = true; controller.abort(); }, BENCHMARK_REQUEST_TIMEOUT_MS);
   try {
-    response = await send(url, {
-      method: "GET",
-      headers: { Accept: "application/json", Authorization: `Bearer ${connection.token}` },
-      redirect: "error",
-      signal: AbortSignal.timeout(BENCHMARK_REQUEST_TIMEOUT_MS),
-    });
-  } catch (cause) {
-    const timedOut =
-      cause instanceof DOMException && (cause.name === "TimeoutError" || cause.name === "AbortError");
-    throw new BenchmarkHttpError(timedOut ? "Request timed out" : "Request failed before a response");
+    try {
+      const pending = Promise.resolve().then(() => send(url, {
+        method: "GET",
+        headers: { Accept: "application/json", Authorization: `Bearer ${connection.token}` },
+        redirect: "error",
+        signal: controller.signal,
+      })).then(saved => {
+        if (finished) observeCleanup(() => saved.body?.cancel());
+        return saved;
+      });
+      response = await waitForIO(pending, controller.signal);
+    } catch (cause) {
+      const timedOut = controller.signal.aborted ||
+        (cause instanceof DOMException && (cause.name === "TimeoutError" || cause.name === "AbortError"));
+      throw new BenchmarkHttpError(timedOut ? "Request timed out" : "Request failed before a response");
+    }
+    if (!response.ok) throw new BenchmarkHttpError(`Query failed with HTTP ${response.status}`, response.status);
+    let payloadBytes = 0;
+    // Geometric storage bounds both byte retention and metadata for tiny chunks.
+    let storage = new Uint8Array(0);
+    try {
+      reader = response.body?.getReader();
+      let reads = 0;
+      if (reader) for (;;) {
+        const { done, value } = await waitForIO(reader.read(), controller.signal);
+        if (done) break;
+        if (!(value instanceof Uint8Array)) throw new Error();
+        if (value.byteLength > BENCHMARK_MAX_RESPONSE_BYTES - payloadBytes) {
+          throw new BenchmarkHttpError("Response body exceeds byte limit");
+        }
+        const nextLength = payloadBytes + value.byteLength;
+        if (nextLength > storage.length) {
+          const next = new Uint8Array(Math.min(BENCHMARK_MAX_RESPONSE_BYTES,
+            Math.max(nextLength, 65_536, storage.length * 2)));
+          next.set(storage.subarray(0, payloadBytes)); storage = next;
+        }
+        storage.set(value, payloadBytes); payloadBytes = nextLength;
+        // Immediate/empty streams must yield so the total timer can actually fire.
+        if (++reads % 256 === 0) await waitForIO(yieldToIO(), controller.signal);
+      }
+    } catch (cause) {
+      if (cause instanceof BenchmarkHttpError) throw cause;
+      const timedOut = controller.signal.aborted ||
+        (cause instanceof DOMException && (cause.name === "TimeoutError" || cause.name === "AbortError"));
+      throw new BenchmarkHttpError(timedOut ? "Response body timed out" : "Response body could not be read");
+    }
+    const wallMs = performance.now() - startedAt;
+    clearTimeout(timer);
+    let text: string;
+    try { text = new TextDecoder("utf-8", { fatal: true }).decode(storage.subarray(0, payloadBytes)); }
+    catch { throw new BenchmarkHttpError("Query returned invalid UTF-8"); }
+    let body: unknown;
+    try { body = JSON.parse(text); }
+    catch { throw new BenchmarkHttpError("Query returned a non-JSON response"); }
+    if (typeof body !== "object" || body === null || !("result" in body)) {
+      throw new BenchmarkHttpError("Query returned an unexpected response shape");
+    }
+    const result = (body as { readonly result: unknown }).result;
+    const serverMsRaw = (body as { readonly ms?: unknown }).ms;
+    const cacheHeaders: Record<string, string> = {};
+    for (const name of CACHE_HEADER_NAMES) {
+      const value = response.headers.get(name);
+      if (value !== null) cacheHeaders[name] = value;
+    }
+    return {
+      endpoint: request.endpoint, wallMs,
+      serverMs: typeof serverMsRaw === "number" ? serverMsRaw : undefined,
+      payloadBytes, resultCount: Array.isArray(result) ? result.length : result === null ? 0 : 1,
+      result, cacheHeaders,
+    };
+  } finally {
+    finished = true;
+    clearTimeout(timer);
+    controller.abort();
+    if (reader) {
+      const owned = reader;
+      observeCleanup(() => owned.cancel());
+      try { owned.releaseLock(); } catch { /* a pending read is already observed */ }
+    } else if (response) {
+      const unused = response;
+      observeCleanup(() => unused.body?.cancel());
+    }
   }
-
-  if (!response.ok) {
-    // Observe cleanup without letting a stalled cancel delay the status error.
-    try { void response.body?.cancel().catch(() => {}); } catch { /* fixed status wins */ }
-    throw new BenchmarkHttpError(`Query failed with HTTP ${response.status}`, response.status);
-  }
-  let bytes: ArrayBuffer;
-  try { bytes = await response.arrayBuffer(); }
-  catch (cause) {
-    const timedOut = cause instanceof DOMException && (cause.name === "TimeoutError" || cause.name === "AbortError");
-    throw new BenchmarkHttpError(timedOut ? "Response body timed out" : "Response body could not be read");
-  }
-  const wallMs = performance.now() - startedAt;
-  let text: string;
-  try { text = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
-  catch { throw new BenchmarkHttpError("Query returned invalid UTF-8"); }
-
-  let body: unknown;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    throw new BenchmarkHttpError("Query returned a non-JSON response");
-  }
-  if (typeof body !== "object" || body === null || !("result" in body)) {
-    throw new BenchmarkHttpError("Query returned an unexpected response shape");
-  }
-
-  const result = (body as { readonly result: unknown }).result;
-  const serverMsRaw = (body as { readonly ms?: unknown }).ms;
-
-  const cacheHeaders: Record<string, string> = {};
-  for (const name of CACHE_HEADER_NAMES) {
-    const value = response.headers.get(name);
-    if (value !== null) cacheHeaders[name] = value;
-  }
-
-  return {
-    endpoint: request.endpoint,
-    wallMs,
-    serverMs: typeof serverMsRaw === "number" ? serverMsRaw : undefined,
-    payloadBytes: bytes.byteLength,
-    resultCount: Array.isArray(result) ? result.length : result === null ? 0 : 1,
-    result,
-    cacheHeaders,
-  };
 }
 
 // ---------------------------------------------------------------------------

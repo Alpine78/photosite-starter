@@ -481,6 +481,36 @@ open through the audit. Before reporting success, their current paths and open
 files must still agree on identity, size, ownership, permissions, link count and
 nanosecond modification/change timestamps. Source bytes are never changed.
 
+The separate-process regression guard samples process-local `arrayBuffers` while
+an adapter read is paused after 100 MB, before the audit and its cancellation
+controller finish. It uses the same fixed GC → one `setImmediate` turn → GC
+sequence for the baseline and the single asserted sample, with the original
+**8,388,608-byte** limit. It does not retry, select a minimum, or measure only
+after return. This lets collectible completed-read buffers settle while still
+catching their retention by a shared unresolved cancellation promise. No new
+runtime leak was found or fixed by AB#332. The original immediate-GC probe
+reported 10,223,616 bytes in main CI #1154 and 22,186,112 bytes in an independent
+full-suite run; both exceeded the guard despite the already-corrected runtime.
+
+Validation on Node **24.20.0** used the actual revised embedded probe: four
+concurrent current-runtime controls alongside two CPU workers each measured
+196,608 bytes; four pre-fix controls each measured 100,253,470 bytes. The actual
+105 MB test with only the probe's runtime import redirected to the old runtime
+also fails specifically at the unchanged retained-bytes assertion. The pipeline
+pins Node major 24; its failing run's patch version was not independently bound.
+A committed Azure run is still required to confirm the CI correction.
+
+The independent negative control uses source commit
+`dda3e9eb3ca41d09df6e92dbae40f1870acadb0d` (SHA-256
+`9a24b6b1acc2aae7ce6a3bad7bc91f3485d0c03ab6ce55107c2f84cb6eb73099`),
+with only its relative integrity-helper import rewritten to the existing local
+helper. The unchanged current streaming source hash is
+`a028bfd8b7feb6abcf153bd794ce4f41dcf2efa85dbf3410a6ad528f1092e9a0`.
+The synthetic 105,000,542-byte fixture hash is
+`417c755b561477f95c7f2e08a7261f9f40ede41ede1f22a9b70bc16213d8843f`.
+The old runtime and generated fixture remain private ignored test evidence,
+not shipped application code or customer files.
+
 The result fields `archiveBytes` and `archiveSha256` can be copied into a separately
 run remote-byte verification after an independently authorized upload. A successful
 local result always retains `readyToUpload: false`; it proves neither JPEG/master
