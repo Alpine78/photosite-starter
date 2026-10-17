@@ -483,7 +483,10 @@ Verify no-store/noindex/nofollow/no-referrer headers, expiry/pause/unpublication
 full-frame images, keyboard viewing, and existing legacy links after rollout.
 Monitor the existing provider's API/bandwidth quotas; using the same account
 still consumes its allowance. Real CDN reads, deployed headers, permissions and
-quota suitability have not been verified by the synthetic source tests.
+quota suitability have not been verified by the synthetic source tests. The
+maximum-viewer journey uses 256 occurrences of two complete local web fixtures;
+it checks navigation, end bounds and occurrence focus, not 256 unique CDN files
+or live provider performance. It adds no production fixture exposure.
 
 This model offers reduced discovery, **not confidentiality**. Public dataset
 metadata and files can be enumerated; GROQ request URLs include the handle and
