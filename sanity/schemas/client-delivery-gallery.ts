@@ -85,7 +85,9 @@ export async function validateClientDeliveryGallery(value: unknown, context: Sch
       if (!reference || keys.has(item._key)) return CLIENT_DELIVERY_ERRORS.structure;
       keys.add(item._key); references.push(reference);
     }
-    if (new TextEncoder().encode(JSON.stringify(value)).byteLength > CLIENT_DELIVERY_MAX_DOCUMENT_BYTES) return CLIENT_DELIVERY_ERRORS.size;
+    // Native publication adds metadata; it must not invalidate an admitted draft.
+    const authored = Object.fromEntries(Object.entries(value).filter(([name]) => !["_id", "_rev", "_createdAt", "_updatedAt", "_system"].includes(name)));
+    if (new TextEncoder().encode(JSON.stringify(authored)).byteLength > CLIENT_DELIVERY_MAX_DOCUMENT_BYTES) return CLIENT_DELIVERY_ERRORS.size;
     const ids = [...new Set(references)];
     const client = validationClientOf(context);
     const [identity, assets] = await Promise.all([

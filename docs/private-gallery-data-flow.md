@@ -9,6 +9,22 @@ publication are historical. Public Sanity metadata/files can be discovered
 without the page link, and page expiry does not revoke file access. No new
 customer data, credentials, publication or provisioning is introduced here.
 
+For new unlisted galleries, AB#302/303 use native Studio authentication and
+public Sanity documents/assets, with no separate customer identity or access
+session. The source reader is default-off. It reads published metadata and a
+fresh availability record, then sends only localized display text, opaque
+viewer identities, true dimensions and validated Sanity web-image URLs to the
+browser. No customer/contact/job, archive or original-file fields are supported.
+No positive/gallery-state cache or new tracking/IP store is introduced. A
+bounded 10-second cache can remember only absent public handles. Provider query
+URLs may contain handles; public dataset records remain enumerable. Asset URLs
+survive page closure. Review filenames/embedded metadata before upload; the
+[deployment contract](deployment.md#ongoing-unlisted-client-galleries-adr-0034)
+records read limits, publication delay and remaining live verification.
+
+The sections below describe the deferred protected alternative and historical
+implementation, not requirements for the selected Sanity workflow.
+
 What a private delivery gallery holds, where it goes, who can see it, how long
 it lives, and what the access cookie is. Written for the person who has to
 answer those questions about a running deployment — the site owner, a customer

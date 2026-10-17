@@ -620,8 +620,13 @@ The owner's final direction for **ongoing client work**, including new galleries
 is this same Sanity/unlisted delivery model, with no separate S3 or PostgreSQL
 service ([ADR-0034](docs/adr/0034-ongoing-unlisted-client-delivery.md)). Public
 CMS metadata and direct file URLs remain discoverable without a shared link;
-page expiry does not revoke those files. The current migration-bound adapter
-and read-only Studio fields still need a new-gallery authoring workflow.
+page expiry does not revoke those files. A separate native Studio list now
+supports new web-image deliveries; the default-off `CLIENT_GALLERY_ADAPTER=sanity`
+reader serves them at `/client-gallery/<handle>` without changing the legacy
+adapter. No new-gallery ZIP is offered yet. Source checks use synthetic content;
+hosted Studio, actual roles and deliberate production activation remain open.
+See the [new-gallery workflow](studio/README.md#ongoing-client-galleries-ab302--ab145)
+and [runtime configuration](docs/deployment.md#ongoing-unlisted-client-galleries-adr-0034).
 
 ## Later roadmap (not in MVP)
 

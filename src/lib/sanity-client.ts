@@ -135,6 +135,8 @@ export type SanityQueryRequest = {
   /** GROQ parameters by bare name, without the `$` prefix. */
   readonly params?: Readonly<Record<string, unknown>>;
   readonly tag: string;
+  /** Optional end-to-end deadline shared by a bounded multi-read operation. */
+  readonly signal?: AbortSignal;
 };
 
 export type SanityClient = {
@@ -163,7 +165,7 @@ export const SANITY_DOCUMENT_MAX_RESPONSE_BYTES = 32 * 1024;
 
 /** Fresh published-ID reads, separate from the indexed Query API. */
 export type SanityDocumentReader = {
-  read(documentId: string): Promise<unknown | null>;
+  read(documentId: string, signal?: AbortSignal): Promise<unknown | null>;
 };
 
 async function readSanityJson(
@@ -347,6 +349,7 @@ export function createSanityClient(
 
   return {
     async query(request: SanityQueryRequest): Promise<unknown> {
+      if (request.signal?.aborted) return fail(request.tag, "timeout", true);
       const url = buildSanityQueryUrl(config, request);
       const cachePolicy = getSanityPublicCachePolicy(request.tag);
       let response: Response;
@@ -364,7 +367,9 @@ export function createSanityClient(
               ? {}
               : { Authorization: `Bearer ${config.readToken}` }),
           },
-          signal: AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS),
+          signal: request.signal
+            ? AbortSignal.any([request.signal, AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS)])
+            : AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS),
           // One managed cache is authoritative. We deliberately keep the
           // uncached api.sanity.io origin instead of stacking Sanity's API CDN
           // ahead of Next's tagged Data Cache: a webhook invalidation then
@@ -380,9 +385,7 @@ export function createSanityClient(
               }),
         });
       } catch (cause) {
-        const timedOut =
-          cause instanceof DOMException &&
-          (cause.name === "TimeoutError" || cause.name === "AbortError");
+        const timedOut = request.signal?.aborted || isAbortedRead(cause);
         return fail(
           request.tag,
           timedOut ? "timeout" : "unavailable",
@@ -401,11 +404,12 @@ export function createSanityClient(
         // identifiers or authored text through replacement decoding.
         body = await readSanityJson(response, responseLimit, rejectDuplicateJsonKeys);
       } catch (cause) {
-        if (responseLimit !== undefined && isAbortedRead(cause)) {
+        if (request.signal?.aborted || (responseLimit !== undefined && isAbortedRead(cause))) {
           return fail(request.tag, "timeout", true);
         }
         return fail(request.tag, "malformed-response", false);
       }
+      if (request.signal?.aborted) return fail(request.tag, "timeout", true);
 
       // A 200 that is not the documented envelope is not a result worth
       // guessing at. Note that `result` may legitimately be `null` — a GROQ
@@ -431,29 +435,38 @@ export function createSanityClient(
  * https://www.sanity.io/docs/http-reference/doc
  */
 export function createSanityDocumentReader(
-  settings: Omit<SanityClientSettings, "maxResponseBytes" | "rejectDuplicateJsonKeys">,
+  settings: SanityClientSettings & { readonly tag?: "legacy.document" | "client.gallery.document" },
 ): SanityDocumentReader {
   const { config } = settings;
   const send = settings.fetchImplementation ?? fetch;
-  const tag = "legacy.document";
+  const tag = settings.tag ?? "legacy.document";
+  const responseLimit = settings.maxResponseBytes === undefined ? SANITY_DOCUMENT_MAX_RESPONSE_BYTES : settings.maxResponseBytes;
+  const rejectDuplicates = settings.rejectDuplicateJsonKeys === undefined ? false : settings.rejectDuplicateJsonKeys;
+  if (!Number.isSafeInteger(responseLimit) || responseLimit < 1 || responseLimit > 1024 * 1024) {
+    throw new TypeError("Invalid content response bound");
+  }
+  if (typeof rejectDuplicates !== "boolean") throw new TypeError("Invalid bounded JSON decoding configuration");
   return {
-    async read(documentId) {
-      if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(documentId)) {
+    async read(documentId, signal) {
+      if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(documentId) || documentId.trim() !== documentId) {
         throw new TypeError("Expected one published root document ID");
       }
+      if (signal?.aborted) return fail(tag, "timeout", true);
       const url = `https://${config.projectId}.api.sanity.io/${config.apiVersion}/data/doc/${config.dataset}/${documentId}?includeAllVersions=false`;
       let response: Response;
       try {
         response = await send(url, {
           method: "GET", redirect: "manual", cache: "no-store",
-          signal: AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS),
+          signal: signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS)])
+            : AbortSignal.timeout(SANITY_QUERY_TIMEOUT_MS),
           headers: {
             Accept: "application/json",
             ...(config.readToken === undefined ? {} : { Authorization: `Bearer ${config.readToken}` }),
           },
         });
       } catch (cause) {
-        return fail(tag, isAbortedRead(cause) ? "timeout" : "unavailable", true);
+        return fail(tag, signal?.aborted || isAbortedRead(cause) ? "timeout" : "unavailable", true);
       }
       if (!response.ok) {
         const { errorClass, retryable } = classifyStatus(response.status);
@@ -461,10 +474,12 @@ export function createSanityDocumentReader(
       }
       let body: unknown;
       try {
-        body = await readSanityJson(response, SANITY_DOCUMENT_MAX_RESPONSE_BYTES);
+        body = await readSanityJson(response, responseLimit, rejectDuplicates);
       } catch (cause) {
-        return fail(tag, isAbortedRead(cause) ? "timeout" : "malformed-response", isAbortedRead(cause));
+        const aborted = signal?.aborted || isAbortedRead(cause);
+        return fail(tag, aborted ? "timeout" : "malformed-response", Boolean(aborted));
       }
+      if (signal?.aborted) return fail(tag, "timeout", true);
       if (typeof body !== "object" || body === null || Array.isArray(body) ||
           !("documents" in body) || !Array.isArray(body.documents) || body.documents.length > 1) {
         return fail(tag, "malformed-response", false);
