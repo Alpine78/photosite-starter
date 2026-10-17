@@ -320,3 +320,12 @@ Studio validation is an editorial check: the default-off AB#303 reader validates
 fresh published data independently, with bounded strict JSON transports and a
 revision-matched indexed snapshot for measured assets. The legacy batch/allowlist/manifest and
 original-file exceptions stay unchanged. See the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
+
+AB#308's deterministic contract fixtures execute the actual runtime and native
+validation query strings with the first-party `groq-js/1` interpreter, pinned to
+the already locked `groq-js@2.0.0` as a Studio development dependency. They cover
+dereferenced asset identity, `privateOnly` parent scope, missing/repeated assets,
+query bounds, draft/release/legacy collisions and fresh availability precedence.
+No resolved package or application dependency changes. Every fetch is blocked;
+synthetic local interpretation does not establish deployed perspectives, roles,
+CDN behavior, quotas or provider latency.
