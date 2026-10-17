@@ -5704,3 +5704,12 @@ privateOnly/sales, public/legacy media and URL boundaries. No code or service
 was removed or activated. AB#313 moved New → Active before edits; actual
 deployment/operator/clone usage and each deletion patch's architecture/security
 review remain open. AB#29/145 stay Active and proof selection AB#130 stays New.
+
+### AB#322 — justified fallback and article-end presentation (2026-10-17)
+
+The absent public gallery layout now resolves to justified rows; explicit site and
+gallery choices still win independently for layout and caption placement. Article-end
+galleries receive the same resolved site settings on initial and direct continuation
+pages and retain them during append. Existing geometry, order, native image frames and
+public derivative boundaries are unchanged. This implements one source slice of AB#321;
+named production VAT overrides, other UI fixes and owner acceptance remain separate.

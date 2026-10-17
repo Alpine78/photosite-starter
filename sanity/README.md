@@ -247,7 +247,7 @@ are language-keyed arrays rather than fields named after this deployment's langu
 `galleryLayout` (`grid`, `masonry`, `justified`) and `galleryCaptionPlacement`
 (`below`, `overlay`). Both are independently clearable dropdowns. No initial value
 creates a gallery override: empty means inherit that field from site settings;
-empty site settings mean `grid` and `below`. Existing documents need no migration.
+empty site settings mean `justified` and `below` (AB#322). Existing documents need no migration.
 Unknown stored enum values are rejected as malformed content by their adapter,
 not converted to CSS or silently replaced. Both content sources use
 `effectiveGalleryPresentation` after projection. Presentation never enters a

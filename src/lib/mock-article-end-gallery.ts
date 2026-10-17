@@ -24,7 +24,11 @@ function placementsFor(locale: string): readonly CuratedGalleryPlacement[] {
     placementId: `article-end-gallery-${String(index + 1).padStart(2, "0")}`,
     order: index,
     visible: true,
-    media: images[index % images.length],
+    media: index % 3 === 0
+      ? { ...images[index % images.length], caption: languageOf(locale) === "fi"
+        ? "Pitkä esimerkkikuvateksti, joka jatkuu usealle riville ilman että kuvan korkeus muuttuu."
+        : "A longer example caption that wraps over several lines without changing the photograph height." }
+      : images[index % images.length],
   }));
 }
 

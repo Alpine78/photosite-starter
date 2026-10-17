@@ -73,7 +73,7 @@ type ContinuationOutcome = {
  * One gallery's items as a grid of full-frame thumbnails, each opening the
  * fullscreen lightbox at its own position, and the control that loads more.
  *
- * Grid (the default) and justified read left-to-right in rows. Masonry reads
+ * Grid and justified (the default) read left-to-right in rows. Masonry reads
  * by increasing top edge, ties within one CSS pixel left-to-right; its exact
  * placement rule lives in `gallery-masonry.ts`. All three keep DOM, keyboard,
  * and viewer order identical. Balanced CSS columns remain unsuitable because

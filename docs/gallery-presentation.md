@@ -10,26 +10,33 @@ see the Documentation table in `AGENTS.md`.
 
 Two independent, optional fields:
 
-- **Layout** — `grid` (the default), `masonry`, or `justified`.
+- **Layout** — `grid`, `masonry`, or `justified` (the default).
 - **Caption placement** — `below` (the default) or `overlay`.
 
 Both are authored site-wide on `SiteSettings` and may be overridden per
 gallery. Clearing a gallery's override restores inheritance for that field
 alone — the two fields never travel together. An absent site-wide value falls
-back to `grid` / `below`. All six combinations are offered; nothing about the
+back to `justified` / `below`. All six combinations are offered; nothing about the
 resolution is layout-specific, so a future seventh layout only has to extend
 `GALLERY_LAYOUTS`.
 
 `src/lib/gallery-presentation.ts` is the one resolution seam:
 `effectiveGalleryPresentation(gallery, settings)` composes the two
 `GalleryPresentationFields` (`gallery.galleryLayout ?? settings.galleryLayout
-?? "grid"`, and the same shape for caption placement) so the mock fixture
+?? "justified"`, and the same shape for caption placement) so the mock fixture
 layer and the Sanity adapters read one identical rule. An unknown stored
 value is rejected as malformed content at the adapter boundary
 (`readGalleryPresentationFields`'s `reject` callback), never silently
 downgraded to a default or passed through as an unrecognized CSS class —
 that would hide a real authoring mistake or a schema/runtime drift as if the
 gallery had simply been left unstyled.
+
+AB#321 / AB#322 supersede AB#157's original grid fallback: absent settings now
+use justified rows. Explicit stored grid or masonry choices remain authoritative;
+this source change does not rewrite production settings or gallery overrides.
+Article-end galleries inherit both site settings on their first page and direct
+continuation, with the same resolved presentation retained during an append.
+They have no per-article presentation field.
 
 Presentation is **purely a rendering choice** over an existing, unchanged
 result: it never enters the curated result set, a cursor's scope, a section
