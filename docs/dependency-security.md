@@ -11,9 +11,13 @@ a dependency update automatically.
 
 - The `Daily dependency audit` schedule in `azure-pipelines.yml` runs at
   **06:00 UTC**, every day, on `main`, with `always: true`. Its separate job
-  runs `npm audit --include=prod --include=dev --audit-level=low` on the
-  committed root lockfile. A separate `npm audit --prefix studio --include=prod --include=dev --audit-level=low` step audits the Studio lock even after root failure. A finding or registry error fails the job, and the log
-  gives the advisory detail. A scheduled run skips the normal quality gates and
+  runs the bounded `capture:audit` wrapper for the committed root and standalone
+  Studio lockfiles, including production and development dependencies. Both
+  checks run after ordinary findings or tooling errors; cancellation stops the
+  sequence. The existing `--audit-level=low` policy remains: info-only findings
+  pass the gate while staying labelled findings; low or higher fails with 1,
+  and tooling/input failure fails with 2. Logs contain fixed statuses only;
+  allowlisted details are in the current redacted audit artifact. A scheduled run skips the normal quality gates and
   Preview deployment; push and PR runs retain them.
   The audit uses the `Default` self-hosted pool, so it does not consume the
   Microsoft-hosted monthly minute allowance. It still needs an available agent
@@ -36,6 +40,40 @@ a dependency update automatically.
   existing pipeline definition showed only CI and pull-request triggers, with no
   UI schedule. The 2026-10-02 scheduled-run example is recorded below;
   failure-notification delivery remains unverified.
+
+## Lockfile-bound scheduled evidence (AB#331)
+
+Each scheduled invocation brackets one JSON audit per target with SHA-256 hashes
+of the exact corresponding lockfile bytes. The existing AB#329 triage verifies
+the pair and projects recorded versions, declared install flags, severities,
+separate entry/advisory counts and unverified fix proposals. Local capture is
+not registry attestation, protection against a malicious lockfile ABA change,
+proof of freshness beyond capture, deployed bundle inclusion or exploitability.
+
+The artifact `dependency-audit-<job attempt>` contains only fixed root/Studio
+triage reports and `capture-summary.json`. Its manifest records each target's
+status, gate exit, fixed refusal class, lockfile digest and each safe report's
+byte count/SHA-256. A target that fails validation has no invented triage report.
+The manifest is committed last in a newly created build/attempt-specific staging
+leaf, and readiness is emitted only afterward. Old leaves are never reused.
+Publication permits completed safe evidence after findings/tool errors, and
+skips cancellation or incomplete output. No raw advisory titles, registry URLs,
+provider error text, credentials or absolute local paths are published.
+
+Raw paired envelopes exist only in an exclusive 0700 temporary directory with
+0600 files outside the checkout and artifact roots. The wrapper removes that
+exact private directory at completion. Stderr is bounded, counted and discarded.
+It does not promise secure deletion, cleanup after SIGKILL, or isolation from
+another process with the same operating-system identity. Artifact visibility
+and retention use the pipeline's existing access controls; do not mistake a
+redacted report for a secret dependency inventory.
+
+Offline tests exercise the real wrapper with synthetic child processes,
+including signal/overflow/deadline cleanup and descendant pipe holders. They do
+not call the registry. The first committed scheduled capture/publication and
+cancellation forwarding through npm/Azure remain live acceptance work, as do
+AB#160's maintainer-notification receipts. No dependency update, automatic fix,
+notification configuration or residual-risk approval is performed by capture.
 
 ## Live evidence checked on 2026-10-02
 

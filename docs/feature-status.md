@@ -590,6 +590,16 @@ placement, so it shows no enquiry control — and the in-flow figure is enhanced
 trigger only after hydration (`ContentBodyFigure`), so a scriptless visitor keeps the
 plain image. The article **cover** has since become a full-bleed overlaid hero rather than
 a static image — AB#149, described below, alongside AB#148's own home hero.
+
+AB#323 (2026-10-17) applies the owner's explicit all-article decision: every
+loose article-body photograph now mounts a one-image viewer, with no navigation
+to other photographs. Gallery-body grouping remains as described above; inline
+mini-galleries and article-end galleries retain their own independent groups and
+continuation. Occurrence identities, captions, zoom, focus/reading-position return,
+public derivatives and scriptless plain figures remain. The dated ADR-0003 amendment
+supersedes only the article sequence clauses of AB#147/24. AB#323 stays Active
+pending owner review/merge; the rest of parent AB#321 is separate.
+
 Before/after image comparisons (AB#23, ADR-0019) are the tenth shared body-block
 kind, available in both article and gallery bodies: two public images and authored
 side labels, native range interaction after hydration and successful image loads,
@@ -2525,6 +2535,20 @@ Active before edits and awaits owner review/merge. No dependency update,
 registry operation, CI or notification configuration is performed by the tool;
 AB#160's operational acceptance remains open.
 
+### AB#331 — lockfile-bound scheduled audit capture (2026-10-17)
+
+After owner merge of AB#329, a bounded POSIX wrapper now captures root and
+Studio JSON audits between exact lockfile digests and reuses the unchanged
+triage projection. Current build/attempt-specific artifacts contain only safe
+reports and a manifest committed last, with readiness/cancellation publication
+guards; raw paired data is private and temporary. Info-only stays findings with
+gate exit 0, preserving the existing low threshold. Synthetic subprocess,
+filesystem, privacy and pipeline tests exercise bounds and cleanup without a
+registry call. AB#331 moved New → Active before edits and awaits final review
+and accepted merge. No automatic dependency fix, new service or notification
+acceptance is implied; committed scheduled/live cancellation evidence and
+AB#160's operational acceptance remain open.
+
 **Saved audit summary preparation, 2026-10-06 (AB#204, Active):** an offline
 npm v2 reader validates the reference graph and separates affected package entries
 from unique numeric advisories. No dependency fixes or residual-risk acceptance
@@ -3683,6 +3707,19 @@ subject with safe service-link prefill, and a settings-driven portrait and direc
 contact column (AB#178). Its privacy notice is a native disclosure, and the
 direct email link remains usable without JavaScript. Related work item:
 AB#176 portfolio topic filter.
+
+**Home and footer text reflow, 2026-10-17 (AB#339, Active):**
+
+The home main region and shared footer allow long words and the site host to wrap
+within available space. The introduction retains its 320px desktop portrait beside
+the copy when both fit, and wraps into its existing mobile order when enlarged text
+exhausts row capacity. The portrait keeps its complete native frame and bounded
+image-size hint; copy, links, semantic styles and server rendering remain. Measured controls preserve normal
+16px-root geometry and give the 768px/32px-root introduction a full-width text
+column and readable fact columns. Regression coverage measures actual visible
+text and region bounds at 16px and 32px CSS root sizes in both locales, including
+scriptless footer navigation. AB#339 remains Active pending owner review/merge;
+the separate header reflow is AB#338, and AB#252's broader acceptance remains open.
 
 **Current integrated release evidence, 2026-10-13 (AB#284, Active):**
 [Current-main Preview and fresh recovery](audits/ab284-current-integrated-preview-2026-10-13.md)

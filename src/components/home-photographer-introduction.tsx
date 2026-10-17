@@ -10,7 +10,7 @@ type Props = {
   servicesHref: string;
 };
 
-/** The optional home introduction follows the hero in document order. */
+/** The optional introduction keeps its mobile order when enlarged text exhausts row capacity. */
 export function HomePhotographerIntroduction({
   introduction,
   contactLabel,
@@ -21,14 +21,14 @@ export function HomePhotographerIntroduction({
   return (
     <section
       aria-labelledby="photographer-introduction-heading"
-      className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 sm:px-6 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] md:gap-12 lg:py-20"
+      className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 sm:px-6 md:flex md:flex-wrap md:gap-12 lg:py-20"
     >
       <MediaFigure
         image={introduction.portrait}
         sizes="(min-width: 1152px) 320px, (min-width: 768px) 320px, (min-width: 416px) 384px, calc(100vw - 32px)"
-        className="w-full max-w-sm"
+        className="w-full max-w-sm md:min-w-0 md:max-w-[320px] md:basis-[320px] md:shrink-0"
       />
-      <div className="min-w-0 [overflow-wrap:anywhere]">
+      <div className="min-w-0 [overflow-wrap:anywhere] md:basis-80 md:grow">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted">
           {introduction.eyebrow}
         </p>

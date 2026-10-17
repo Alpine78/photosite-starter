@@ -927,9 +927,12 @@ function compose(
         ? [...page.body, miniGalleryBoundaryBlock(language)]
         : contentId === "content-reading-coastal-light"
         ? [...page.body,
-          { type: "media", media: images.forestStream },
+          { type: "media", media: miniItems[0].media },
           { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems },
           { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems.slice(0, 2) },
+          // AB#323: the same loose photograph on both sides of mini-galleries
+          // has two independent controls; this occurrence has no description.
+          { type: "media", key: "standalone-repeat", media: { ...images.forestStream, caption: undefined, credit: undefined } },
           // AB#262: the authored heading must follow the complete body,
           // including these independently viewed inline media fixtures.
           { type: "heading", level: language === "fi" ? 2 : 3, text: language === "fi" ? "Galleria" : "Gallery" },
