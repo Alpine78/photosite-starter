@@ -2334,7 +2334,12 @@ separate Sanity query/revalidation and contact/enquiry diagnosis, expected-refus
 exclusions, request-counting rules, and rollback limitations. The alert-threshold
 decision is **Proposed**: availability probes alone cannot establish delivery health;
 native anomaly notifications need actual tier, payload, low-traffic coverage and cost
-verification. No alert path is configured/tested by this preparation. AC2's owner
+verification. No alert path is configured/tested by this preparation. AB#318 bounds
+shared Resend error-body reading to 16 KiB under one fetch/read deadline and
+requests cancellation of unused responses. Existing contact/gallery outcomes and
+redaction contracts remain. Synthetic resource/caller regressions verify this
+runtime correction; it configures no alert and exercises no live delivery.
+AB#318 is Active pending accepted merge. AC2's owner
 decision/notification evidence and AC3's controlled Production failure trace remain
 open **after AB#18**, before **AB#118** rollback rehearsal and customer handoff.
 
