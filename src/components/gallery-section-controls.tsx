@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { buildGalleryHref } from "@/lib/gallery-slice";
 import type { GallerySectionSummary } from "@/lib/gallery-sections";
@@ -15,6 +15,8 @@ type GallerySectionControlsProps = {
   /** This gallery's canonical, parameter-free path. */
   readonly galleryPath: string;
   readonly labels: BuiltInLabels;
+  /** A localized result summary, including an exact count or the empty state. */
+  readonly resultSummary: string;
 };
 
 const focusRing =
@@ -27,7 +29,7 @@ const focusRing =
  * single long label wraps within its own option.
  */
 function optionClassName(isActive: boolean): string {
-  return `${focusRing} -mb-px block max-w-full break-words border-b-2 px-4 py-3 text-base transition-colors ${
+  return `${focusRing} scroll-mt-[var(--site-header-offset,0px)] -mb-px block max-w-full break-words border-b-2 px-4 py-3 text-base transition-colors ${
     isActive
       ? "border-foreground font-medium text-foreground"
       : "border-transparent text-muted hover:text-foreground"
@@ -45,11 +47,12 @@ function optionClassName(isActive: boolean): string {
  * Each option is an ordinary link (`Link` with `prefetch={false}`, so merely
  * scrolling one into view never triggers a real gallery read the way the
  * framework's default viewport-prefetch would). Selecting a different section
- * is therefore a real navigation: the App Router replaces the page with a
+ * disables the router's default scroll reset while remaining a real navigation:
+ * the App Router replaces the page with a
  * freshly rendered result for the new `?section=`, which is what gives
  * "changing section replaces results, resets the cursor, and ignores stale
- * in-flight responses" for free — there is no client fetch to race, and no
- * abort logic to write, because there is no fetch at all. Keyboard operation
+ * in-flight responses" through the existing server navigation and grid guards.
+ * No custom client fetch is introduced. Keyboard operation
  * is the ordinary anchor contract: Tab to focus, Enter to activate.
  *
  * The active option carries `aria-current="true"` plus a visual treatment
@@ -69,9 +72,73 @@ export function GallerySectionControls({
   activeSlug,
   galleryPath,
   labels,
+  resultSummary,
 }: GallerySectionControlsProps) {
   const showControls = sections.length > 1;
   const { ref: navRef, hidden } = useScrollReveal({ enabled: showControls });
+  const pendingRef = useRef<{
+    readonly galleryPath: string;
+    readonly slug: string | undefined;
+    readonly top: number;
+    readonly scrollY: number;
+    readonly focusAtStart: Element | null;
+    moved: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const clear = () => { pendingRef.current = null; };
+    const rememberScroll = () => {
+      const pending = pendingRef.current;
+      if (pending && Math.abs(window.scrollY - pending.scrollY) > 2) pending.moved = true;
+    };
+    window.addEventListener("popstate", clear);
+    window.addEventListener("scroll", rememberScroll, { passive: true });
+    return () => {
+      clear();
+      window.removeEventListener("popstate", clear);
+      window.removeEventListener("scroll", rememberScroll);
+    };
+  }, []);
+
+  const rememberNavigation = (slug?: string) => {
+    const nav = navRef.current;
+    if (nav === null || slug === activeSlug) {
+      pendingRef.current = null;
+      return;
+    }
+    pendingRef.current = { galleryPath, slug, top: nav.getBoundingClientRect().top,
+      scrollY: window.scrollY, focusAtStart: document.activeElement, moved: false };
+  };
+
+  useLayoutEffect(() => {
+    const pending = pendingRef.current;
+    const nav = navRef.current;
+    if (pending === null || nav === null) return;
+    if (pending.galleryPath !== galleryPath) {
+      pendingRef.current = null;
+      return;
+    }
+    if (pending.slug !== activeSlug) return;
+    pendingRef.current = null;
+    // The visitor may have moved on while this server result was pending.
+    // Preserve that deliberate focus/scroll instead of pulling them back.
+    const focus = document.activeElement;
+    if (pending.moved || (focus !== document.body &&
+      (focus !== pending.focusAtStart || !nav.contains(focus)))) return;
+    const selected = nav.querySelector<HTMLAnchorElement>('a[aria-current="true"]');
+    if (selected === null) return;
+    selected.focus({ preventScroll: true });
+    const delta = nav.getBoundingClientRect().top - pending.top;
+    if (Math.abs(delta) > 1) window.scrollBy({ top: delta, behavior: "instant" });
+    // A short/empty result may make the old scroll position impossible.
+    // Use the closest native position, keeping the selected control visible.
+    const rect = selected.getBoundingClientRect();
+    const headerOffset = Number.parseFloat(getComputedStyle(document.documentElement)
+      .getPropertyValue("--site-header-offset")) || 0;
+    if (rect.top < headerOffset || rect.bottom > window.innerHeight) {
+      selected.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
+    }
+  }, [activeSlug, galleryPath, navRef]);
   useLayoutEffect(() => {
     const nav = navRef.current;
     if (!showControls || nav === null) return;
@@ -101,6 +168,7 @@ export function GallerySectionControls({
       <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-widest text-muted">
         {labels.gallery.sectionsNav} · {sections.length}
       </p>
+      <p role="status" aria-atomic="true" className="sr-only">{resultSummary}</p>
       <ul className="flex flex-wrap">
         {/* `min-w-0` overrides the flex item's automatic min-content floor:
             without it, a section label with one long unbroken word can widen
@@ -110,6 +178,8 @@ export function GallerySectionControls({
         <li className="min-w-0 max-w-full">
           <Link
             prefetch={false}
+            scroll={false}
+            onNavigate={() => rememberNavigation()}
             href={buildGalleryHref(galleryPath, {})}
             aria-current={activeSlug === undefined ? "true" : undefined}
             className={optionClassName(activeSlug === undefined)}
@@ -121,6 +191,8 @@ export function GallerySectionControls({
           <li key={section.sectionId} className="min-w-0 max-w-full">
             <Link
               prefetch={false}
+              scroll={false}
+              onNavigate={() => rememberNavigation(section.slug)}
               href={buildGalleryHref(galleryPath, { section: section.slug })}
               aria-current={activeSlug === section.slug ? "true" : undefined}
               className={optionClassName(activeSlug === section.slug)}

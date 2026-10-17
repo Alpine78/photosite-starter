@@ -5759,6 +5759,18 @@ was removed or activated. AB#313 moved New → Active before edits; actual
 deployment/operator/clone usage and each deletion patch's architecture/security
 review remain open. AB#29/145 stay Active and proof selection AB#130 stays New.
 
+
+### AB#324 — gallery section navigation position (2026-10-17)
+
+Hydrated section links retain the current scroll position and, after the selected
+server result commits, retain the activated control's focus and viewport position.
+A short or empty result uses the nearest achievable native scroll position rather
+than adding blank space. A visitor who scrolls or moves focus elsewhere while the
+response is pending keeps that choice. A persistent polite region announces the
+selected section and available count/empty state. Real links, URL/history, cursor
+reset and section-scoped continuation remain. This is a source slice of AB#321;
+other layout/reading requirements and owner acceptance remain separate.
+
 ### AB#322 — justified fallback and article-end presentation (2026-10-17)
 
 The absent public gallery layout now resolves to justified rows; explicit site and
