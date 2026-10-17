@@ -1621,6 +1621,54 @@ exploitability. A suggested version, including a major downgrade, remains an
 unverified proposal. AB#160's notification and live maintenance acceptance remain
 open; this tool neither approves risk nor changes dependency versions.
 
+### Scheduled audit capture and safe artifacts (AB#331)
+
+The scheduled `DependencyAudit` job now invokes `npm run --silent capture:audit`.
+The Node 24 POSIX wrapper executes the same npm CLI supplied by `npm_execpath`
+with `shell:false`, explicit `--prefix .` / `--prefix studio`, the existing
+`--include=prod --include=dev --audit-level=low` flags and `--json`. Explicit
+prefixes bind the command to the lockfile being hashed even if a prefix was
+inherited; registry and npm fetch/retry configuration are inherited unchanged.
+There is one invocation per target, no wrapper retry, install or automatic fix.
+Both fixed targets run after ordinary first-target findings or tool errors.
+
+`Agent.TempDirectory`, `Build.ArtifactStagingDirectory`, `Build.BuildId` and
+`System.JobAttempt` supply the CI-owned paths/identity. Raw paired envelopes go
+only to a private mkdtemp directory outside both checkout and artifact trees.
+Only the exact newly created `dependency-audit-<BuildId>-<JobAttempt>` leaf can
+be published as `dependency-audit-<JobAttempt>`. The two safe triage files are
+written exclusively, then the summary manifest is committed last. A false-by-
+default readiness variable becomes true only when current output and private
+cleanup complete. The artifact task additionally requires
+`succeededOrFailed()`, which excludes cancellation. Azure's documented
+[step variables and conditions](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/conditions?view=azure-devops#step-variables-used-in-subsequent-step-conditions)
+and [job-attempt identity](https://learn.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops)
+provide this wiring; actual committed service execution remains to be checked.
+
+Limits: stdout 4 MiB minus 512 bytes of envelope allowance, stderr 64 KiB,
+lockfile 8 MiB, each projected report at AB#329's 16 MiB bound, and a deliberate
+120-second deadline per audit plus at most two seconds of kill/pipe settlement.
+The raw cap also counts pretty-printing whitespace, so it is conservatively
+stricter than the triage helper's compact-JSON cap. Native process-group cleanup
+is POSIX-only; Windows refuses. Lockfiles must be regular non-symlink files;
+a symlinked Studio directory or alternate `npm-shrinkwrap.json` / `yarn.lock`
+profile is explicitly unsupported. This is not a claim about npm precedence.
+
+Gate exits preserve `--audit-level=low`: 0 for clean or info-only findings,
+1 for low-or-higher findings, 2 for tooling/input failure. The triage report's
+`findings` status remains independent; info-only is never relabelled clean.
+Safe manifests can record tooling failures without inventing target reports.
+No raw provider output is streamed, and errors use fixed classes only. Local
+same-operation digest bracketing preserves AB#329's false provenance/runtime
+flags. It does not prove registry attestation, capture beyond the local command,
+no lockfile ABA race, package reachability or that a suggested fix is safe.
+
+Synthetic tests verify wrapper-level cancellation, not actual forwarding by
+npm/Azure or queued-stage evaluation. First committed scheduled capture,
+publication/privacy/retention and cancellation evidence remain outstanding.
+The [dependency response process](dependency-security.md) retains AB#160's
+notification and operational acceptance checks.
+
 ### Cancelling a run
 
 Both quality and scheduled-audit stages retain Azure's default `succeeded()`
