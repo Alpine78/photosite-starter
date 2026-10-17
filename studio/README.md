@@ -306,14 +306,38 @@ appropriately scoped credentials. Legacy creation/templates/actions remain block
 
 The **AB#303** source reader is off by default. After its accepted merge and
 [deliberate runtime configuration](../docs/deployment.md#ongoing-unlisted-client-galleries-adr-0034),
-copy the read-only identifier into `<canonical-origin>/client-gallery/<handle>`.
-Append `?locale=fi` or `?locale=en` for the interface language. Titles are shown
+configure the optional public `SANITY_STUDIO_SITE_ORIGIN` with the canonical
+website origin (for example `https://example.com`) and rebuild the Studio. The
+**Copy client gallery link / Kopioi asiakasgallerian linkki** action shows a
+selectable URL for the published document and copies only that URL on request.
+Choose the site default or one of its declared full locale tags (for example
+`fi` / `en-GB`). A manual-copy fallback remains available when clipboard access
+is unsupported or refused. The action does not send email or verify page access.
+Unpublished, release/version or synchronizing documents cannot supply a link;
+pending draft fields are never used. Published paused/expired documents may
+still have a stable URL; their availability follows the published record.
+
+Blank/unset origin disables only this convenience action. A supplied invalid
+origin fails Studio configuration. Use a canonical bare ASCII HTTPS origin,
+optionally with one trailing slash; credentials, whitespace, noncanonical host
+spelling, path, query, fragment and HTTP targets are refused. A locally running
+Studio can still copy a configured HTTPS site URL; an HTTP local target is not
+supported. No origin is inferred from the Studio address or a Preview deployment.
+The selected action requires the public dataset supported by AB#303.
+Alternatively, assemble `<canonical-origin>/client-gallery/<handle>` yourself,
+appending `?locale=<configured-full-tag>` for the interface language. Titles are shown
 only in their authored language; alternative text falls back to the site's
 language and then the first authored entry. Missing titles use a generic label.
 Neither the page nor Studio invents translations. Pausing/unpublishing or passing
 the deadline removes the page on fresh reads; it does not remove files.
 The currently hosted Studio is not changed by this source PR. Real editor,
 keyboard, permission and deployment verification remain open under AB#145.
+
+AB#305 source validation covers URL/locale/identity guards, clipboard result
+handling and Studio SDK type/schema/build compatibility. Actual hosted login,
+role restrictions, keyboard focus and native clipboard permission behavior remain
+unverified under AB#145. No hosted deployment, customer communication or CMS
+mutation is performed by this source change.
 
 No ZIP input is offered yet: new processed-file eligibility/whole-package delivery
 needs its own contract, without extending the 21 legacy galleries' file exceptions.
