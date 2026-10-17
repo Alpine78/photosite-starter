@@ -64,6 +64,16 @@ evidence instead of concluding that no failure occurred.
 | Enquiry `source-unavailable` | 503 | Inspect Sanity read availability before mail delivery. |
 | Enquiry `source-error`, `malformed-source`, `internal` | 500 | Inspect CMS/configuration or runtime defect; these differ from an unavailable item's expected 4xx. |
 
+Implementation note (AB#318): the shared Resend transport now bounds a provider
+error body to 16 KiB and applies one attempt deadline across the POST and error
+reads. An oversized/malformed body falls back to the existing HTTP-status class;
+a stalled attempt returns the existing timeout class. Successful response bodies
+are not parsed; cancellation is requested for unused and late bodies without
+waiting for cleanup.
+The contact and retained gallery callers share this boundary. Synthetic tests
+prove only these resource/classification guards, not live mail, alerts or the
+controlled Production exercise below. No provider body enters an event.
+
 Contracts: [contact-log.ts](../src/lib/contact-log.ts),
 [sanity-client.ts](../src/lib/sanity-client.ts), the
 [revalidation route](../src/app/api/revalidate/route.ts),
