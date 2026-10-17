@@ -5687,6 +5687,17 @@ AB#300 moved New → Active before edits. The owner accepted #424; CI #1038
 passed and merge `6be2669` landed on 2026-10-16. The work-item link first moved
 the item to Resolved; the accepted, merged bug was then explicitly Closed.
 
+### AB#327 — offline full JPEG decode evidence for whole-package exports
+
+An owner-selected processed-JPEG set can now be fully decoded locally with the
+pinned Sharp implementation, unchanged source bytes, orientation-aware technical
+dimensions and an ordered neutral byte/SHA256 manifest matching the whole-ZIP
+builder. Corrupt/unsupported image data and changed private inputs fail closed.
+The result does not authorize metadata exposure, upload or publication; legacy
+files and whole packages are unchanged. See [the audit workflow](jpeg-export-audit.md).
+AB#327 is Active pending owner review/merge; AB#29's publication/provider gates
+and Proposed ADR-0035 remain open.
+
 ### AB#305 — Native Studio customer-link handoff (2026-10-17, Active)
 
 New client-delivery documents now offer an optional published-only URL action.
