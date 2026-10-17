@@ -994,6 +994,54 @@ step here is derived from the ADR and the providers' documented capabilities rat
 from a run. The first owner to follow it should correct it where it is wrong — that is more
 useful than leaving it aspirational.
 
+#### Offline whole-package integrity check (AB#310)
+
+`npm run verify:delivery-zip -- --zip /private/delivery.zip --manifest /private/entries.tsv`
+is read-only: it neither extracts/writes files nor contacts Sanity or another
+provider. On supported POSIX hosts the immediate parent must be owner-only
+`0700`, inputs owner-only `0600`, real regular files with one link; all parent
+symlinks are rejected. Inside Git, inputs must be ignored and untracked. The
+command emits only fixed status/check names, counts, byte totals and SHA-256
+hashes. It never prints the local paths or entry names. Keep any captured report
+private too. Windows permission enforcement is not implemented and fails closed.
+
+Supply a privately reviewed ASCII/LF TSV with this exact first line and then one
+ordered entry per intended processed JPEG (the placeholders below are notation,
+not literal manifest content):
+
+```text
+delivery-zip-v1
+image-0001.jpg<TAB>BYTE_COUNT<TAB>LOWERCASE_SHA256
+image-0002.jpg<TAB>BYTE_COUNT<TAB>LOWERCASE_SHA256
+```
+
+Use literal tab separators and a final newline. Neutral flat names are strictly
+sequential `image-0001.jpg` through the intended count (`.jpeg` also supported).
+The manifest is at most 65,536 bytes, with 1–256 entries. This closed syntax does
+not establish who approved the supplied set. Keep original names/job records out
+of the manifest and the public dataset. The tool does not rename/repackage
+anything, and never modifies source JPEG bytes.
+
+The supported container profile is deliberately narrow: single-volume ZIP32,
+STORE or DEFLATE, ZIP 1.0/2.0 entries, plain DOS/Unix regular files and optional
+standard signed/unsigned data descriptors. Local entries must be contiguous and
+in central-directory/manifest order. Encryption, ZIP64, extra fields, comments,
+paths/directories/symlinks, unknown flags/records, inconsistent headers, trailing
+bytes and missing/extra/reordered entries fail closed. A valid ZIP with unsupported
+extras may be refused; this is not a general-purpose ZIP reader. The archive and
+total expanded bytes are each limited to 100,000,000, each member to 25,000,000;
+these are local audit bounds, not measured provider or customer-package limits.
+Expansion is bounded before decoding; consumed DEFLATE input, entry CRC32 and
+exact expected byte lengths/SHA-256 are checked. Nothing is extracted to disk.
+
+A successful report always says `readyToUpload: false`. It verifies the container
+against the supplied byte set, **not** JPEG decoding, image/master classification,
+embedded metadata suitability, owner approval, provider capacity/transport or
+remote readback. Do those checks separately before a separately authorized
+operation. This offline tool grants no new full-resolution public-media exception,
+changes no legacy contract and adds no ZIP field/download to the current web-only
+new-gallery path. No S3/PostgreSQL service is involved.
+
 #### Offline private upload source check
 
 This development tool runs before storage upload and needs no provider credential.
