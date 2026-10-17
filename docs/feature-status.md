@@ -5546,6 +5546,16 @@ mobile-WebKit retained-gallery gesture passed only on retry and is tracked
 separately by AB#292. The owner merged PR #405 on 2026-10-14; AB#291 and
 AB#293 are Closed in Azure Boards.
 
+### AB#333 — existing browser failure diagnostics (2026-10-17, Active)
+
+Main CI #1154 failed its unit gate before Playwright ran, then added a missing
+`playwright-report` artifact error. Failure-only Bash discovery now admits the
+unchanged publisher only for an existing directory, using the publisher's own
+working-directory base. Missing paths and regular files skip with a fixed note;
+actual reports and publication errors retain their existing behavior. Quality,
+cancellation and stage conditions are unchanged. Local script/wiring fixtures
+verify these paths; live Azure validation awaits a committed run and owner merge.
+
 ### AB#296 — restore bounded CI parallelism (2026-10-15)
 
 The owner requested faster launch validation after freeing disk space. A

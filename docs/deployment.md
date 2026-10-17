@@ -1548,6 +1548,20 @@ its canonical home is one indexing accident away from competing with it.
 **Verify** runs on every push and pull request to `main`: lint, the browser-free test
 suite, the architecture-diagram check, the production build, and the Playwright journey suites.
 
+After a failed Verify step, browser diagnostics are published only when the
+`playwright-report` directory exists (AB#333). Discovery uses the artifact task's
+`System.DefaultWorkingDirectory`, so its relative path matches the unchanged
+publication target. An earlier unit/build failure with no report emits a fixed
+skip note and retains the original failure. Existing directories (including
+empty or linked directories) still reach the artifact task; actual publication
+errors remain visible. No report is created by discovery. The HTML reporter
+continues to collect its existing screenshot/trace attachments.
+Local Bash fixtures cover missing paths, regular files, reports with attachments,
+empty directories and directory links. Live Azure evaluation still needs a
+committed run: earlier gate failure without a report, browser failure with a
+report, and cancellation. Missing JUnit warnings remain a separate existing
+reporting behavior; this does not alter their task or the quality gates.
+
 **DependencyAudit** runs daily at 06:00 UTC on `main`, even without a source
 change, in the `Default` self-hosted pool. It audits the committed production
 and development dependency tree without installing packages. Scheduled runs
