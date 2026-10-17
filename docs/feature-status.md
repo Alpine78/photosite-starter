@@ -5715,6 +5715,16 @@ authenticated roles, keyboard focus and native clipboard verification remain
 open under AB#145. No production activation, S3/Postgres or dependency change.
 AB#305 remains Active pending accepted merge; see the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
 
+### AB#326 — offline observed gallery-removal impact
+
+A private raw-snapshot inventory now binds a selected gallery revision and
+owner-attested complete-snapshot evidence to observed asset/referrer identities,
+including draft/release and legacy image records. Shared/missing/ambiguous refs
+and public-file/cache limitations are reported without authorizing a mutation:
+readyToDelete and readyToWrite always remain false. See
+[the inventory workflow](gallery-removal-impact.md). AB#326 is Active pending
+owner review/merge; source/operator removal acceptance and AB#29 remain open.
+
 ### AB#313 — Inactive protected-gallery removal audit (2026-10-17, Active)
 
 The [removal-readiness audit](audits/protected-gallery-removal-2026-10-17.md)
