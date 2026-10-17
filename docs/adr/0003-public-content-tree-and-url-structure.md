@@ -13,6 +13,31 @@ when implementation produces evidence the original text did not have, and each p
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
 
+### 2026-10-17 — Loose article photographs open individually (AB#321 / AB#323)
+
+The owner explicitly selected “Kaikki artikkelikuvat avautuvat yksin” when asked
+whether this change should apply to every article or only travel stories. All
+`article` variants, including blogs, now open each standalone body photograph in
+its own one-slide viewer. No arrow, keyboard or horizontal swipe can advance to
+another photograph; unnecessary arrows and the one-slide counter are hidden by
+the existing viewer. Zoom, captions, close, per-occurrence focus and reading
+position return remain. The same photograph placed twice retains two occurrence
+identities and two opening controls.
+
+This supersedes only the article loose-image grouping in the **2026-09-04 AB#147**
+body-wide sequence clause and the **2026-09-12 AB#24** clause keeping loose images
+on both sides of a mini-gallery in one sequence. A `gallery` variant's loose body
+images still share their source-ordered sequence across mini-galleries. Every
+mini-gallery keeps its own group and the article end gallery keeps its independent
+ordered result and continuation. Neither gains an article's loose photographs.
+The historical clauses below remain evidence of the earlier decisions.
+
+**Sections affected:** decision 2's article loose-image viewer grouping and the
+two named amendments. No content/occurrence identity, source order, route, CMS
+model, enquiry permission, cursor or media-delivery contract changes. Covers and
+authored links keep their existing behavior; images remain full frame and plain
+figures without JavaScript. Decisions 1 and 3–9 otherwise remain unchanged.
+
 ### 2026-10-17 — A reading address follows existing body headings (AB#321 / AB#330)
 
 Decision 3 and the AB#21 amendment derive native links to stable H2–H4 body

@@ -379,9 +379,11 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   (AB#162; voting requires JavaScript, results do not)
 - [x] Blog / article content type (supports long story articles) — *articles are the
   `article` variant of the shared content page and live in the content tree; the
-  pre-launch `/blog` scaffold routes are gone. A photograph placed in an article or
-  gallery body opens the fullscreen lightbox in its own sequence (AB#147), separate
-  from a gallery's curated grid. An article's or curated gallery's explicit cover now
+  pre-launch `/blog` scaffold routes are gone. Each loose article-body photograph
+  opens alone (AB#323); gallery-body photographs
+  share their own source-ordered viewer (AB#147). Mini-galleries and article-end
+  galleries keep their groups, separate from loose photographs and the curated grid.
+  An article's or curated gallery's explicit cover now
   renders as a full-bleed, fold-safe hero with the title (and, for a gallery, the lead
   description) overlaid (AB#149); long hero text grows downward on a guaranteed
   contrast surface without cropping the image or truncating copy (AB#155). No authored

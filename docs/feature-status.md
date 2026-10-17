@@ -590,6 +590,16 @@ placement, so it shows no enquiry control — and the in-flow figure is enhanced
 trigger only after hydration (`ContentBodyFigure`), so a scriptless visitor keeps the
 plain image. The article **cover** has since become a full-bleed overlaid hero rather than
 a static image — AB#149, described below, alongside AB#148's own home hero.
+
+AB#323 (2026-10-17) applies the owner's explicit all-article decision: every
+loose article-body photograph now mounts a one-image viewer, with no navigation
+to other photographs. Gallery-body grouping remains as described above; inline
+mini-galleries and article-end galleries retain their own independent groups and
+continuation. Occurrence identities, captions, zoom, focus/reading-position return,
+public derivatives and scriptless plain figures remain. The dated ADR-0003 amendment
+supersedes only the article sequence clauses of AB#147/24. AB#323 stays Active
+pending owner review/merge; the rest of parent AB#321 is separate.
+
 Before/after image comparisons (AB#23, ADR-0019) are the tenth shared body-block
 kind, available in both article and gallery bodies: two public images and authored
 side labels, native range interaction after hydration and successful image loads,
