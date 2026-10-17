@@ -1,7 +1,8 @@
 import { createElement, type MouseEvent } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ContentFragmentLink, recordContentFragmentNavigation } from "./content-fragment-link";
+import { recordContentFragmentNavigation } from "./content-fragment-link";
+import { ContentPageJumpNav } from "./content-page-jump-nav";
 
 function activation(overrides: Record<string, unknown> = {}) {
   return { defaultPrevented: false, button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false,
@@ -35,7 +36,9 @@ describe("same-document fragment history registration", () => {
   it("renders a plain usable fragment anchor without a browser", () => {
     vi.stubGlobal("window", undefined);
     expect(() => recordContentFragmentNavigation(activation())).not.toThrow();
-    expect(renderToStaticMarkup(createElement(ContentFragmentLink, { href: "#authored", className: "focus-visible:outline", children: "Authored chapter" })))
-      .toBe('<a href="#authored" class="focus-visible:outline">Authored chapter</a>');
+    const html = renderToStaticMarkup(createElement(ContentPageJumpNav, {
+      label: "Contents", headings: [{ id: "authored", text: "Authored chapter", level: 2 }],
+    }));
+    expect(html).toMatch(/<a href="#authored" class="[^"]*focus-visible:outline[^"]*">Authored chapter<\/a>/);
   });
 });
