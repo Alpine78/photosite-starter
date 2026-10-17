@@ -17,6 +17,7 @@ import {
 } from "@/lib/content-page";
 import { formatDate } from "@/lib/date-format";
 import type { BuiltInLabels } from "@/lib/deployment-config";
+import type { GalleryPresentation } from "@/lib/gallery-presentation";
 import type { GallerySlice } from "@/lib/gallery-slice";
 
 /** One neighbour in the global article sequence, at its canonical path. */
@@ -49,6 +50,7 @@ type ContentArticleProps = {
     readonly slice: GallerySlice;
     readonly articlePath: string;
     readonly initialSliceKey: string;
+    readonly presentation: GalleryPresentation;
   };
 };
 
@@ -181,6 +183,7 @@ export function ContentArticle({
               slice={endGallery.slice}
               initialSliceKey={endGallery.initialSliceKey}
               labels={labels}
+              presentation={endGallery.presentation}
               headingId={endGalleryHeadingId}
             />
           )}

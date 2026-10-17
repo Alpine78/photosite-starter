@@ -7,7 +7,7 @@ export function galleryPresentationFields(inherit: boolean): readonly SchemaFiel
       name: "galleryLayout",
       title: "Gallery layout",
       type: "string",
-      description: inherit ? "Clear to inherit the site layout." : "When empty, uses Grid.",
+      description: inherit ? "Clear to inherit the site layout." : "When empty, uses Justified rows.",
       options: { list: [
         { title: "Grid", value: "grid" },
         { title: "Masonry", value: "masonry" },

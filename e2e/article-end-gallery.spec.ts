@@ -109,3 +109,55 @@ test("articles without an end gallery ignore incidental and repeated cursor valu
     expect(normalized.headers().location).toContain(plainPath);
   }
 });
+
+
+test("justified end-gallery rows preserve full frames and closed rows on append", async ({ page }) => {
+  await page.goto(path);
+  const gallery = page.locator('[data-article-end-gallery]');
+  await expect(gallery.locator(".gallery-justified")).toHaveCount(1);
+  const boxes = () => gallery.locator("img").evaluateAll((images) => images.map((image) => {
+    const rect = image.getBoundingClientRect();
+    const root = image.closest(".gallery-justified")!.getBoundingClientRect();
+    return { x: rect.x - root.x, y: rect.y - root.y, width: rect.width, height: rect.height,
+      ratio: Number(image.getAttribute("width")) / Number(image.getAttribute("height")) };
+  }));
+  const before = await boxes();
+  expect(before).toHaveLength(24);
+  for (const box of before) expect(box.width / box.height).toBeCloseTo(box.ratio, 1);
+  const lastTop = before.at(-1)!.y;
+  const closed = before.filter((box) => Math.abs(box.y - lastTop) > 1);
+  for (const box of closed) {
+    const row = before.filter((other) => Math.abs(other.y - box.y) < 1);
+    for (const other of row) expect(Math.abs(other.height - box.height)).toBeLessThan(1);
+  }
+  await gallery.getByRole("link", { name: labels.gallery.showMore }).click();
+  await expect(gallery.locator("img")).toHaveCount(30);
+  const after = await boxes();
+  for (let index = 0; index < closed.length; index++) {
+    expect(Math.abs(after[index].x - before[index].x)).toBeLessThan(1);
+    expect(Math.abs(after[index].y - before[index].y)).toBeLessThan(1);
+    expect(Math.abs(after[index].width - before[index].width)).toBeLessThan(1);
+    expect(Math.abs(after[index].height - before[index].height)).toBeLessThan(1);
+  }
+});
+
+test.describe("justified continuation without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+  test("the direct remaining slice retains row geometry and native ratios", async ({ page }) => {
+    await page.goto(path);
+    await page.locator('[data-article-end-gallery]').getByRole("link", { name: labels.gallery.showMore }).click();
+    const grid = page.getByRole("main").locator(".gallery-justified");
+    await expect(grid).toHaveCount(1);
+    const boxes = await grid.locator("img").evaluateAll((images) => images.map((image) => {
+      const rect = image.getBoundingClientRect();
+      return { top: rect.top, width: rect.width, height: rect.height,
+        ratio: Number(image.getAttribute("width")) / Number(image.getAttribute("height")) };
+    }));
+    expect(boxes).toHaveLength(6);
+    for (const box of boxes) {
+      expect(box.width / box.height).toBeCloseTo(box.ratio, 1);
+      for (const other of boxes.filter((other) => Math.abs(other.top - box.top) < 1))
+        expect(Math.abs(other.height - box.height)).toBeLessThan(1);
+    }
+  });
+});

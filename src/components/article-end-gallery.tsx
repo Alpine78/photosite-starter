@@ -2,7 +2,7 @@ import Link from "next/link";
 import { GalleryGrid } from "@/components/gallery-grid";
 import { LanguageSwitch, type LanguageLink } from "@/components/language-switch";
 import type { BuiltInLabels } from "@/lib/deployment-config";
-import { DEFAULT_GALLERY_PRESENTATION } from "@/lib/gallery-presentation";
+import type { GalleryPresentation } from "@/lib/gallery-presentation";
 import type { GallerySlice } from "@/lib/gallery-slice";
 
 type SharedProps = {
@@ -11,6 +11,7 @@ type SharedProps = {
   readonly slice: GallerySlice;
   readonly initialSliceKey: string;
   readonly labels: BuiltInLabels;
+  readonly presentation: GalleryPresentation;
 };
 
 export function ArticleEndGallery({
@@ -19,6 +20,7 @@ export function ArticleEndGallery({
   slice,
   initialSliceKey,
   labels,
+  presentation,
   headingId,
 }: SharedProps & {
   /** An existing terminal body heading names this region instead of a generated h2. */
@@ -46,7 +48,7 @@ export function ArticleEndGallery({
             initialSlice={slice}
             galleryPath={articlePath}
             continuationKind="article-end-gallery"
-            presentation={DEFAULT_GALLERY_PRESENTATION}
+            presentation={presentation}
             labels={labels}
           />
         </div>
@@ -62,6 +64,7 @@ export function ArticleEndGalleryContinuation({
   initialSliceKey,
   languages,
   labels,
+  presentation,
 }: SharedProps & { readonly languages: readonly LanguageLink[] }) {
   return (
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
@@ -79,7 +82,7 @@ export function ArticleEndGalleryContinuation({
             initialSlice={slice}
             galleryPath={articlePath}
             continuationKind="article-end-gallery"
-            presentation={DEFAULT_GALLERY_PRESENTATION}
+            presentation={presentation}
             labels={labels}
           />
         )}

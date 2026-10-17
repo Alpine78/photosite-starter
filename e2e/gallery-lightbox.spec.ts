@@ -682,6 +682,7 @@ test("the grid reads in the same order the lightbox navigates, at every column c
   // one, three, five and a visitor following the grid is not following the
   // sequence the lightbox will open.
   const main = page.getByRole("main");
+  const gridPath = await firstMixedRatioGalleryPath("grid");
 
   for (const [width, expectedColumns] of [
     [390, 1],
@@ -693,7 +694,7 @@ test("the grid reads in the same order the lightbox navigates, at every column c
     // real dimensions, so the geometry below is settled before any photograph
     // has decoded. Waiting for three full loads instead would buy nothing and
     // make this the slowest test in the suite.
-    await page.goto(GALLERY_PATH, { waitUntil: "domcontentloaded" });
+    await page.goto(gridPath, { waitUntil: "domcontentloaded" });
     await expect(galleryItems(main).first()).toBeVisible();
 
     const boxes = await galleryItems(main).evaluateAll((elements) =>
