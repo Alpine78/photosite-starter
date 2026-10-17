@@ -518,6 +518,61 @@ redirects, response-policy headers or full launch acceptance were rechecked in
 the October 15 availability pass. Public file URLs and cached bytes remain
 accessible independently of page expiry as described in ADR-0028.
 
+### Read-only whole-ZIP CDN byte check (AB#316)
+
+For an **already existing** Sanity file asset, the standalone Node 24 command
+checks complete remote bytes against the expected local package. Obtain
+`archiveBytes` and `archiveSha256` from the unchanged, privately inspected
+package (the offline ZIP audit uses those names), and the exact
+`file-<40 lowercase SHA1 hex digits>-zip` identity from the intended project's
+file asset. The project and dataset identifiers are public identifiers, not
+credentials. Retain the expected declaration privately; its authority and the
+file's suitability remain the owner's responsibility.
+
+```bash
+npm run verify:delivery-zip-remote -- \
+  --project-id "$project_id" --dataset "$dataset_name" \
+  --asset-id "$file_asset_id" --bytes "$archive_bytes" --sha256 "$archive_sha256"
+```
+
+The command makes one whole anonymous GET to the constructed own-project
+`cdn.sanity.io/files/...` URL with the fixed neutral attachment name
+`photographs.zip`. It accepts no arbitrary URL, credentials, custom headers,
+Range, redirects or optimizer; it saves no files and never retries. Expected
+SHA256 accepts either hex case and normalizes to lowercase. The new check has a
+**1,000,000,000-byte local engineering limit**, not a product or provider upload
+limit. Larger inputs are refused whole; packages are never split or truncated.
+Normal asset-download bandwidth is consumed even though nothing is saved.
+
+The total deadline is **330 seconds**, across response headers and body reads.
+A 1 GB package requires roughly 24.3 Mbit/s payload throughput (500 MB roughly
+12.2 Mbit/s), before latency and protocol overhead. A timeout/network error is
+an unverified observation, not proof of corruption. HTTP 200, identity encoding,
+ZIP MIME (`application/zip` or `application/x-zip-compressed`), attachment
+disposition and exact Content-Length when present are required. Other headers,
+including `application/octet-stream`, cause a `headers` refusal even if the
+bytes could be intact. Full byte count, asset SHA1 and expected SHA256 must all
+agree. A malformed declaration is refused before any request.
+
+Exit **0** means byte agreement, **1** means an unverified observation and **2**
+invalid arguments. JSON contains only a fixed result/status, limitations,
+`readyToPublish: false` and a `declarationDigest`; no URL, target identity,
+filename, provider body or timestamp is echoed. The digest is SHA256 of the
+JSON array `["remote-zip-v1", projectId, dataset, assetId, bytes, sha256]`, using
+the validated declaration and normalized SHA256. It binds supplied inputs, not
+their approval. `http`, `headers`, `bytes`, `digest` and `request` are bounded
+failure classes; 404 is separately absent. Do not interpret any result as ZIP
+structure/JPEG/metadata validation, manifest authority, supported upload,
+import approval or customer publication.
+
+The retained legacy workflow still uses its approved source plan, review digest
+and bindings with `verify:legacy-delivery-assets --live`; this standalone check
+cannot replace those gates. Its shared HTTP core keeps that compiler and the
+existing **3 GB** legacy declaration limit unchanged. No S3, PostgreSQL, new
+service, CMS write or runtime-gallery setting is read or introduced. Current
+new-gallery runtime remains web-preview-only while ADR-0035 is Proposed and
+whole-upload feasibility is unresolved.
+
 ### Ongoing unlisted client galleries (ADR-0034)
 
 The selected implementation reuses existing Sanity and the native Studio login;

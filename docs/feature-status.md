@@ -1,43 +1,49 @@
 # Feature implementation status
 
-AB#312, 2026-10-17 (verification, Active): HTTP-only synthetic contracts exercise
-the real unlisted-gallery facade, production configuration and Sanity transports
-without private-service settings. They cover FI/EN, fresh pause/resumption,
-unpublishing, exact expiry and classified provider failures. This is behavioral
-service-independence evidence, not an import-removal audit or live-provider test.
+Merged integration checkpoint, 2026-10-17 — AB#302–312 **Closed**: the owner
+accepted PRs [#453](https://github.com/Alpine78/photosite-starter/pull/453),
+[#454](https://github.com/Alpine78/photosite-starter/pull/454),
+[#455](https://github.com/Alpine78/photosite-starter/pull/455),
+[#457](https://github.com/Alpine78/photosite-starter/pull/457),
+[#456](https://github.com/Alpine78/photosite-starter/pull/456),
+[#458](https://github.com/Alpine78/photosite-starter/pull/458),
+[#462](https://github.com/Alpine78/photosite-starter/pull/462),
+[#459](https://github.com/Alpine78/photosite-starter/pull/459),
+[#460](https://github.com/Alpine78/photosite-starter/pull/460),
+[#461](https://github.com/Alpine78/photosite-starter/pull/461),
+[#463](https://github.com/Alpine78/photosite-starter/pull/463) and
+[#464](https://github.com/Alpine78/photosite-starter/pull/464), merged in that order
+with successful current-source CI checks. Main
+[6389a92](https://github.com/Alpine78/photosite-starter/commit/6389a9293a331142e7c71ed54c51b23eab4e5f3a)
+has exactly the tracked tree of previously verified integration source
+[f218aaf](https://github.com/Alpine78/photosite-starter/commit/f218aaf437100879d670a8b219dd5703df09d97f).
+The final source passed **7,150 tests in 315 files**, lint, production build and
+diagram checks; the unchanged runtime retained the **84 FI/EN Chromium/WebKit
+journeys**, four named established HTTP/Secure-cookie WebKit skips, and Studio
+schema/type/build evidence from AB#311. PR#463 required a normal merge-base
+refresh with no file changes; PR#464 then merged without another refresh.
 
-Integration checkpoint, 2026-10-17 — AB#311 (source only, Active): the
-`chore/311-unlisted-stack-verification` branch combines the exact reviewed heads
-of AB#302–310 and the ADR-0034 decision. Before this status-only edit, its source
-was [c4b43e0](https://github.com/Alpine78/photosite-starter/commit/c4b43e0d299453c423979299d7ecc7c0a783da2a).
-Every normal merge matched a separate `git merge-tree` replay of the entire
-tracked tree; there were no conflicts or manual resolutions. The combined tree
-passed lint, **7,142 tests in 314 files**, a production build and **84 FI/EN
-Chromium/WebKit journeys**. The four established WebKit HTTP/Secure-cookie skips
-were checked by name; no new skip or flaky result occurred. Studio type checking,
-schema validation (zero errors), builds with and without the optional share
-origin, and all three diagram checks passed. Sources and both lockfiles stayed
-unchanged after every gate; these are local integration results, not a claim
-that queued PR pipelines have finished.
+AB#29/63/145 remain **Active**, AB#130 **New**. Historical per-slice Active and
+pending-merge notes below describe preparation checkpoints, not their current
+board state. The selected path needs no S3 or separate PostgreSQL service.
+Merging the Proposed ADR-0035 does not accept its new-file exception or prove
+whole-upload support. New-gallery ZIP delivery, account capacity/transport
+verification, hosted Studio roles/editor verification and deliberate production
+activation remain open. Existing legacy bytes, deadlines and public-file limits
+are unchanged.
 
-At this checkpoint these source PRs awaited owner acceptance: [decision #453](https://github.com/Alpine78/photosite-starter/pull/453),
-[authoring #454](https://github.com/Alpine78/photosite-starter/pull/454),
-[reader #455](https://github.com/Alpine78/photosite-starter/pull/455),
-[offline availability #457](https://github.com/Alpine78/photosite-starter/pull/457),
-[Studio links #456](https://github.com/Alpine78/photosite-starter/pull/456),
-[deadline #458](https://github.com/Alpine78/photosite-starter/pull/458),
-[capacity journeys #462](https://github.com/Alpine78/photosite-starter/pull/462),
-[GROQ contracts #459](https://github.com/Alpine78/photosite-starter/pull/459),
-[ZIP proposal #460](https://github.com/Alpine78/photosite-starter/pull/460), and
-[offline ZIP integrity #461](https://github.com/Alpine78/photosite-starter/pull/461).
-Their final source reviews are complete; the earlier per-slice entries below
-record preparation checkpoints. AB#29/63/145 and tasks AB#302–311 were Active;
-AB#130 was New for the compatible proof-selection design. No parent feature
-or live workflow was declared complete. The selected path needs no S3 or separate
-PostgreSQL service. New-gallery ZIP delivery, owner acceptance of Proposed
-ADR-0035, account capacity/whole-upload evidence, hosted Studio roles/editor
-verification and deliberate production activation remain open. Existing legacy
-files, deadlines and public-file limits are unchanged.
+AB#316 / AB#29 remote whole-ZIP integrity, 2026-10-17 (**Active**, source only):
+`verify:delivery-zip-remote` streams one canonical anonymous Sanity file GET,
+checks the exact supplied byte count, SHA256 and asset SHA1, and never buffers
+or saves the package. Its separate **1 GB local verification bound** covers
+hundreds-of-MB objects without splitting and is no provider upload guarantee.
+A closed declaration digest binds the technical result without echoing target
+identities. The shared HTTP core preserves the existing legacy compiler,
+receipts, 330-second deadline and **3 GB legacy declaration ceiling**. New CLI
+results always state `readyToPublish: false`; ZIP format, eligible JPEG exports,
+metadata suitability and manifest authority remain unproven. See the
+[operator contract](deployment.md#read-only-whole-zip-cdn-byte-check-ab316).
+This task awaits owner review and merge; it performs no upload or activation.
 
 AB#304 / AB#145 optional offline availability planning, 2026-10-17 (partial, Active):
 a new Node command creates private revision/digest-bound plans and verifies them
