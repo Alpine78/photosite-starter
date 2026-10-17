@@ -113,4 +113,22 @@ describe("legacy CDN byte verification", () => {
     const report = await verify(vi.fn<typeof fetch>().mockRejectedValue(new Error("TOKEN_PRIVATE")));
     expect(JSON.stringify(report)).not.toContain("TOKEN_PRIVATE");
   });
+  it.each([1_000_000_001, 3_000_000_000])("retains the legacy whole-ZIP declaration ceiling at %s bytes", async (bytes) => {
+    const f = fixture(true);
+    // Sort the ZIP first so the request exercises its own transport, without a GB fixture.
+    Object.assign(f.source.galleries[0].zip!, { bytes, sha256: "0".repeat(64) });
+    Object.assign(f.bindings.assets.at(-1)!, { bytes, sourceSha256: "0".repeat(64) });
+    f.reviewDigest = buildLegacyImportPlan(f.source, now).reviewDigest;
+    f.bindings.reviewDigest = f.reviewDigest;
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 404 }));
+    const report = await verify(fetcher, 1000, f);
+    expect(report.results).toEqual([{ status: "absent", httpStatus: 404 }]);
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls[0][0]).toBe(`https://cdn.sanity.io/files/synthetic-project/production/${sha1}.zip?dl=photographs.zip`);
+  });
+  it.each([0, -1, 330_001, NaN, Infinity, 1.5])("retains the closed legacy deadline for %s", async (timeoutMs) => {
+    const fetcher = vi.fn<typeof fetch>();
+    await expect(verify(fetcher, timeoutMs)).rejects.toThrow("ASSET_TIMEOUT_INVALID");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
 });
