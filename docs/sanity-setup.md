@@ -691,3 +691,9 @@ Its [runtime configuration](deployment.md#ongoing-unlisted-client-galleries-adr-
 is separate from deploying the hosted Studio or verifying actual editor roles.
 All files and public dataset fields are public; unlisting and page expiry do not
 revoke direct asset URLs. No live upload, publication or deployment is performed.
+
+AB#305 adds an optional native customer-link action. Configure the public
+`SANITY_STUDIO_SITE_ORIGIN` and rebuild to show/copy the published gallery's URL;
+blank/unset configuration keeps copying disabled. It uses declared full locale
+tags, shows a selectable manual fallback, sends no message and makes no availability
+promise. See the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).

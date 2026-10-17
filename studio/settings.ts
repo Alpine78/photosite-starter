@@ -1,4 +1,5 @@
 /** Public Studio configuration; deliberately independent of server credentials. */
+import { clientGallerySiteOrigin, type ClientGallerySite } from "./client-gallery-share";
 export type StudioEnvironment = Readonly<Record<string, string | undefined>>;
 export type StudioSettings = {
   projectId: string;
@@ -7,6 +8,7 @@ export type StudioSettings = {
   title: string;
   storyRootPaths: string[];
   authoringLanguages: string[];
+  clientGallerySite?: ClientGallerySite;
 };
 
 function required(environment: StudioEnvironment, name: string): string {
@@ -73,9 +75,12 @@ export function loadStudioSettings(environment: StudioEnvironment): StudioSettin
     throw new Error("Invalid SANITY_STUDIO_DATASET_VISIBILITY");
   }
   if (title.length > 120) throw new Error("SANITY_STUDIO_TITLE exceeds 120 characters");
+  const siteOrigin = clientGallerySiteOrigin(environment.SANITY_STUDIO_SITE_ORIGIN);
+  const localeTable = required(environment, "SANITY_STUDIO_LOCALE_ROUTES");
   return {
     projectId, dataset, datasetVisibility, title,
     storyRootPaths: studioStoryRoots(required(environment, "SANITY_STUDIO_LOCALE_ROUTES")),
     authoringLanguages: [...new Set(required(environment, "SANITY_STUDIO_LOCALE_ROUTES").split(",").map((row) => row.trim()).filter(Boolean).map((row) => new Intl.Locale(row.split("|")[0].trim()).language))],
+    ...(siteOrigin ? { clientGallerySite: { origin: siteOrigin, locales: localeTable.split(",").map((row) => row.trim()).filter(Boolean).map((row) => new Intl.Locale(row.split("|")[0].trim()).toString()) } } : {}),
   };
 }
