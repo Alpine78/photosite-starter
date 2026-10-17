@@ -1,5 +1,17 @@
 # Feature implementation status
 
+AB#304 / AB#145 optional offline availability planning, 2026-10-17 (partial, Active):
+a new Node command creates private revision/digest-bound plans and verifies them
+against supplied snapshots. Only three availability fields can enter its fixed
+patch; ordered image membership and all other source content are hash-bound.
+Canonical dates, strict bounded JSON, no-op/refusal cases, native schema/runtime
+parity, private filesystem rules and actual Node CLI redaction are tested.
+No authentication, live freshness claim, image-eligibility approval or remote
+writer is implemented. Native Studio remains the ordinary editing workflow.
+The [operator contract](deployment.md#optional-offline-availability-plans-ab304)
+records explicit times and mandatory future-writer draft/revision checks.
+AB#304 remains Active pending accepted merge; no CMS/production change.
+
 AB#303 / AB#29 Sanity customer reads, 2026-10-17 (partial, Active): a separate,
 default-off `CLIENT_GALLERY_ADAPTER` now serves native client-delivery documents
 on `/client-gallery/<handle>`. Bounded strict non-CDN discovery plus a fresh Doc
@@ -11,7 +23,7 @@ pages reuse FI/EN labels, complete-frame images and keyboard lightbox controls;
 new ZIP delivery remains unimplemented. No S3/Postgres, new dependency, live CMS
 write, hosted deployment or production activation. See the [runtime contract](deployment.md#ongoing-unlisted-client-galleries-adr-0034).
 AB#29/63/145/302/303 remain Active pending accepted merges/live follow-ups;
-AB#130 and the optional availability planner AB#304 remain New.
+AB#130 remains New; optional availability planner AB#304 is Active.
 
 
 AB#302 / AB#145 Sanity authoring, 2026-10-16 (partial, Active): a separate
