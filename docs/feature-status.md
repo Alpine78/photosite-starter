@@ -5532,3 +5532,16 @@ CMS content, dependency, authentication or deployment setting was changed.
 AB#300 moved New → Active before edits. The owner accepted #424; CI #1038
 passed and merge `6be2669` landed on 2026-10-16. The work-item link first moved
 the item to Resolved; the accepted, merged bug was then explicitly Closed.
+
+### AB#305 — Native Studio customer-link handoff (2026-10-17, Active)
+
+New client-delivery documents now offer an optional published-only URL action.
+A public canonical HTTPS Studio setting enables it; existing settings retain
+their defaults when omitted. The modal uses exact configured full locale tags,
+FI/EN text, a selectable read-only URL and explicit clipboard/manual fallback.
+Draft-only/foreign/release/synchronizing state cannot supply a handle. Copying
+uses only the URL and performs no CMS mutation, email or automatic remote call;
+page availability and surviving public files are explained. Actual hosted
+authenticated roles, keyboard focus and native clipboard verification remain
+open under AB#145. No production activation, S3/Postgres or dependency change.
+AB#305 remains Active pending accepted merge; see the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
