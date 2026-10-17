@@ -1,5 +1,11 @@
 # Feature implementation status
 
+AB#312, 2026-10-17 (verification, Active): HTTP-only synthetic contracts exercise
+the real unlisted-gallery facade, production configuration and Sanity transports
+without private-service settings. They cover FI/EN, fresh pause/resumption,
+unpublishing, exact expiry and classified provider failures. This is behavioral
+service-independence evidence, not an import-removal audit or live-provider test.
+
 Integration checkpoint, 2026-10-17 — AB#311 (source only, Active): the
 `chore/311-unlisted-stack-verification` branch combines the exact reviewed heads
 of AB#302–310 and the ADR-0034 decision. Before this status-only edit, its source
