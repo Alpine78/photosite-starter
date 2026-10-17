@@ -172,7 +172,7 @@ test("a failed continuation keeps what is loaded and can be retried", async ({
 
   // The failure is announced, nothing already loaded is discarded, and the
   // control offers the retry rather than disappearing.
-  await expect(page.getByRole("status")).toHaveText(galleryLabels.loadFailed);
+  await expect(page.getByRole("status").filter({ hasText: galleryLabels.loadFailed })).toHaveText(galleryLabels.loadFailed);
   await expect(gridItems(page)).toHaveCount(GALLERY.pageSize);
 
   const retry = page.getByRole("link", { name: galleryLabels.retry });
@@ -343,8 +343,8 @@ test("reaching the end says so and keeps focus off the document body", async ({
   // Nothing left to continue to, and the page says so rather than simply
   // losing its control.
   await expect(continueControl(page)).toHaveCount(0);
-  await expect(page.getByRole("status")).toHaveText(galleryLabels.allLoaded);
-  await expect(page.getByRole("status")).toBeFocused();
+  await expect(page.getByRole("status").filter({ hasText: galleryLabels.allLoaded })).toHaveText(galleryLabels.allLoaded);
+  await expect(page.getByRole("status").filter({ hasText: galleryLabels.allLoaded })).toBeFocused();
 });
 
 test("a lightbox continuation failure offers its retry inside the dialog", async ({
@@ -657,5 +657,5 @@ test("a later failed attempt does not hide an earlier successful one reconciled 
   // the control offers a retry) — but the first attempt's real, already-
   // fetched items are visible, not hidden behind it.
   await expect(gridItems(page)).toHaveCount(GALLERY.pageSize * 2);
-  await expect(page.getByRole("status")).toHaveText(galleryLabels.loadFailed);
+  await expect(page.getByRole("status").filter({ hasText: galleryLabels.loadFailed })).toHaveText(galleryLabels.loadFailed);
 });

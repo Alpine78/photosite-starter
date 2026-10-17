@@ -83,6 +83,17 @@ revalidates on fresh reads. No ZIP field, new service, production/CMS change or
 hosted Studio deployment. [Authoring instructions and remaining verification](../studio/README.md#ongoing-client-galleries-ab302--ab145).
 AB#314 adds an offline one-image preparation command with the existing Sharp encoder: complete static JPEG/PNG/WebP/AVIF exports become metadata-stripped web copies at most 2048 pixels, without enlargement or cropping. A new private local directory contains only a neutral filename and technical receipt; source bytes are unchanged. Animation, malformed input, unsafe/Git-visible paths and local 25 MB/100 MP input bounds fail closed. This neither approves source eligibility nor uploads/publishes anything; AB#314 is Active awaiting review/merge.
 
+AB#336 adds native Studio selection of already uploaded eligible web images:
+one bounded query, ordered explicit choices and one native append preserve
+existing editing/reordering and owner-authored alternative texts. The shared
+publication predicate, fresh selected-asset checks and current-scope guard
+refuse stale, read-only, restricted or changed additions. FI/EN native controls
+have synthetic controller/schema/SSR and Chromium/WebKit keyboard-fixture
+coverage; hosted roles, controlled React state and close focus remain unverified.
+No uploader, new service, private-only reclassification, publication or runtime
+activation is added. AB#336 is Active pending owner review/merge; see the
+[Studio workflow](../studio/README.md#choose-several-existing-web-images-ab336).
+
 AB#145 and its parent feature AB#63 are Active; AB#302 is Closed after its accepted merge. The customer runtime is AB#303 above; optional offline availability tooling
 remains AB#304. Earlier protected
 work remains disabled under ADR-0034.
@@ -155,9 +166,15 @@ bound of 1,000,000,000 archive/expanded bytes, with 64 KiB reads, bounded DEFLAT
 processing and exact same-pass archive SHA-256. The original 100 MB buffered API
 stays unchanged. An actual whole 105 MB synthetic archive and a high-ratio
 expansion refusal exercise the larger path; packages are never split. This source
-slice is Active pending owner review, not evidence of supported Sanity upload.
+slice is merged (AB#315 Closed), not evidence of supported Sanity upload.
 Per-read cancellation listeners are removed on settlement; a separate-process
 probe checks retained buffers during a whole 105 MB audit, before it returns.
+AB#332 (Active, awaiting review) makes its baseline and paused-read measurement
+use one fixed GC → event-loop turn → GC sequence. The 8 MiB assertion and audit
+runtime are unchanged. Current code retains 196,608 bytes in four concurrent
+loaded controls; the pre-AB#315 runtime retains 100,253,470 bytes and still fails
+the actual assertion. This corrects measurement timing, not a newly found runtime
+leak; a committed Azure run remains to verify the CI correction.
 See the [supported profiles](deployment.md#offline-whole-package-integrity-checks-ab310--ab315).
 
 AB#301 Studio identity presentation, 2026-10-16 (partial, Active): the actual
@@ -820,7 +837,21 @@ shared body-block set) and the rest of that record say nothing about a per-varia
 like this one, so nothing it states changes.
 AB#193 prepares AB#20's [reading-position worksheet](article-reading-position.md).
 Browser-local persistence and restoration decisions remain open; no reading-position
-feature is implemented.
+restoration feature is implemented.
+
+**Reading address, 2026-10-17 (AB#330, parent AB#321):** deliberate reading scroll
+can follow the existing shared H2–H4 body anchors in the address bar, using one
+bounded timer and `replaceState` with the current history state and raw path/query
+preserved. Direct links, same-fragment clicks, Back/Forward, modal viewing and
+native restoration take priority; URL updates do not fetch, scroll, move focus or
+add history entries. Original heading ids and scriptless table-of-contents links
+remain unchanged. The scoped ADR-0003 amendment records in-memory ownership and
+the short-tail/unrecognized-input limitations. No browser storage, restart restore,
+sidebar/mobile design or complete AB#321 acceptance is inferred. Owner review and
+real-content acceptance remain pending; AB#330 is Active until its PR is merged.
+Production verification separately exposed an existing tab-group hydration shift
+for cold direct article fragments after that block, tracked by AB#335; this
+non-scrolling address enhancement does not claim to correct that layout shift.
 The pre-tree `/portfolio` route was removed rather than
 redirected, per ADR-0003's 2026-08-10 amendment. Site settings name the featured
 gallery once, as `featuredGalleryId`; header, footer, and home entries only mark where it
@@ -2481,6 +2512,19 @@ the story's end-to-end notification demonstration remains open.
 include the run/PR links and the response policy for runtime exposure, severity,
 fix availability and Node.js/Next.js security releases.
 
+### AB#329 — offline lockfile-bound vulnerability triage (2026-10-17)
+
+A saved npm audit v2 envelope can now be paired with exact v3 lockfile bytes by
+an operator-recorded SHA-256. The offline CLI joins affected nodes to recorded
+versions and declared install flags, keeps advisory/entry counts separate and
+labels registry fix suggestions as unverified. It projects no raw provider
+prose or resolved URLs, bounds files and graph/output work, and refuses mismatched
+pairings. The digest does not attest audit freshness or capture provenance;
+install flags do not prove deployed code or exploitability. AB#329 moved New →
+Active before edits and awaits owner review/merge. No dependency update,
+registry operation, CI or notification configuration is performed by the tool;
+AB#160's operational acceptance remains open.
+
 **Saved audit summary preparation, 2026-10-06 (AB#204, Active):** an offline
 npm v2 reader validates the reference graph and separates affected package entries
 from unique numeric advisories. No dependency fixes or residual-risk acceptance
@@ -3179,6 +3223,21 @@ stacked fallback with keyboard-reachable table regions, the hydrated tablist
 roles, click switching, and arrow-key navigation with wrapping and no focus
 trap, in both engines. AB#137's own review-mode findings, exception
 resolution, and manifest approval remain entirely open.
+
+**Native tab fragments, 2026-10-17 (AB#335, parent AB#321):** the first
+progressive tab enhancement preserves a currently visible H2–H4 native target
+after that group in the same editorial body. A before-mutation snapshot and
+layout-phase correction compensate at most that group's own height decrease;
+multiple groups share the actual remaining viewport displacement. There are no
+scroll listeners, timers, history writes, focus moves, storage or restoration
+loops. A target already outside the viewport stays with native navigation and
+restoration. Browser end-of-document clamping is accepted. This does not restore
+late-image/CMS changes, guarantee an in-progress touch momentum gesture, or
+repair a full client-render recovery that discarded the initial DOM. The stacked
+scriptless/unavailable-script content and ordinary ARIA tab interactions remain.
+This repairs the existing fragment behavior; ADR-0020's Proposed status and
+AB#20's open persistence policy are unchanged. Owner review and real-content
+acceptance remain pending; AB#335 and parent AB#321 remain Active.
 
 The converter also stopped hard-refusing an anchor's known-inert `rel` value
 (`joomla-conversion-v5`): `alternate`, `nofollow`, `tag`, and the rest of
@@ -5512,6 +5571,16 @@ mobile-WebKit retained-gallery gesture passed only on retry and is tracked
 separately by AB#292. The owner merged PR #405 on 2026-10-14; AB#291 and
 AB#293 are Closed in Azure Boards.
 
+### AB#333 — existing browser failure diagnostics (2026-10-17, Active)
+
+Main CI #1154 failed its unit gate before Playwright ran, then added a missing
+`playwright-report` artifact error. Failure-only Bash discovery now admits the
+unchanged publisher only for an existing directory, using the publisher's own
+working-directory base. Missing paths and regular files skip with a fixed note;
+actual reports and publication errors retain their existing behavior. Quality,
+cancellation and stage conditions are unchanged. Local script/wiring fixtures
+verify these paths; live Azure validation awaits a committed run and owner merge.
+
 ### AB#296 — restore bounded CI parallelism (2026-10-15)
 
 The owner requested faster launch validation after freeing disk space. A
@@ -5681,6 +5750,17 @@ AB#300 moved New → Active before edits. The owner accepted #424; CI #1038
 passed and merge `6be2669` landed on 2026-10-16. The work-item link first moved
 the item to Resolved; the accepted, merged bug was then explicitly Closed.
 
+### AB#327 — offline full JPEG decode evidence for whole-package exports
+
+An owner-selected processed-JPEG set can now be fully decoded locally with the
+pinned Sharp implementation, unchanged source bytes, orientation-aware technical
+dimensions and an ordered neutral byte/SHA256 manifest matching the whole-ZIP
+builder. Corrupt/unsupported image data and changed private inputs fail closed.
+The result does not authorize metadata exposure, upload or publication; legacy
+files and whole packages are unchanged. See [the audit workflow](jpeg-export-audit.md).
+AB#327 is Active pending owner review/merge; AB#29's publication/provider gates
+and Proposed ADR-0035 remain open.
+
 ### AB#305 — Native Studio customer-link handoff (2026-10-17, Active)
 
 New client-delivery documents now offer an optional published-only URL action.
@@ -5693,6 +5773,16 @@ page availability and surviving public files are explained. Actual hosted
 authenticated roles, keyboard focus and native clipboard verification remain
 open under AB#145. No production activation, S3/Postgres or dependency change.
 AB#305 remains Active pending accepted merge; see the [Studio workflow](../studio/README.md#ongoing-client-galleries-ab302--ab145).
+
+### AB#326 — offline observed gallery-removal impact
+
+A private raw-snapshot inventory now binds a selected gallery revision and
+owner-attested complete-snapshot evidence to observed asset/referrer identities,
+including draft/release and legacy image records. Shared/missing/ambiguous refs
+and public-file/cache limitations are reported without authorizing a mutation:
+readyToDelete and readyToWrite always remain false. See
+[the inventory workflow](gallery-removal-impact.md). AB#326 is Active pending
+owner review/merge; source/operator removal acceptance and AB#29 remain open.
 
 ### AB#313 — Inactive protected-gallery removal audit (2026-10-17, Active)
 
@@ -5714,3 +5804,34 @@ to unchanged selected sources. No CMS/upload, legacy/whole-ZIP mutation, new
 service or source/publication approval is included. See
 [the local batch workflow](client-web-image-batches.md). AB#325 is Active pending
 owner review and merge; parent AB#145's live editor/publication gates remain open.
+
+### AB#324 — gallery section navigation position (2026-10-17)
+
+Hydrated section links retain the current scroll position and, after the selected
+server result commits, retain the activated control's focus and viewport position.
+A short or empty result uses the nearest achievable native scroll position rather
+than adding blank space. A visitor who scrolls or moves focus elsewhere while the
+response is pending keeps that choice. A persistent polite region announces the
+selected section and available count/empty state. Real links, URL/history, cursor
+reset and section-scoped continuation remain. This is a source slice of AB#321;
+other layout/reading requirements and owner acceptance remain separate.
+
+### AB#322 — justified fallback and article-end presentation (2026-10-17)
+
+The absent public gallery layout now resolves to justified rows; explicit site and
+gallery choices still win independently for layout and caption placement. Article-end
+galleries receive the same resolved site settings on initial and direct continuation
+pages and retain them during append. Existing geometry, order, native image frames and
+public derivative boundaries are unchanged. This implements one source slice of AB#321;
+named production VAT overrides, other UI fixes and owner acceptance remain separate.
+
+### AB#328 — bounded keyword benchmark reads (2026-10-17)
+
+The existing AB#65 spike transport now limits successful decompressed replies
+to 16 MiB and bounds fetch plus body reads by one 30-second deadline, including
+IO that ignores abort. Byte counts retain BOM/Unicode accounting; reader, error
+and late-response cleanup is best effort and does not extend the deadline.
+Synthetic tests exercise total time, byte boundaries, tiny/empty chunks and
+redacted failures. No live benchmark, production taxonomy, schema or dependency
+changed; AB#55 acceptance and Feature AB#62 remain separate. AB#328 moved
+New → Active before implementation and awaits owner review/merge.

@@ -481,6 +481,36 @@ open through the audit. Before reporting success, their current paths and open
 files must still agree on identity, size, ownership, permissions, link count and
 nanosecond modification/change timestamps. Source bytes are never changed.
 
+The separate-process regression guard samples process-local `arrayBuffers` while
+an adapter read is paused after 100 MB, before the audit and its cancellation
+controller finish. It uses the same fixed GC → one `setImmediate` turn → GC
+sequence for the baseline and the single asserted sample, with the original
+**8,388,608-byte** limit. It does not retry, select a minimum, or measure only
+after return. This lets collectible completed-read buffers settle while still
+catching their retention by a shared unresolved cancellation promise. No new
+runtime leak was found or fixed by AB#332. The original immediate-GC probe
+reported 10,223,616 bytes in main CI #1154 and 22,186,112 bytes in an independent
+full-suite run; both exceeded the guard despite the already-corrected runtime.
+
+Validation on Node **24.20.0** used the actual revised embedded probe: four
+concurrent current-runtime controls alongside two CPU workers each measured
+196,608 bytes; four pre-fix controls each measured 100,253,470 bytes. The actual
+105 MB test with only the probe's runtime import redirected to the old runtime
+also fails specifically at the unchanged retained-bytes assertion. The pipeline
+pins Node major 24; its failing run's patch version was not independently bound.
+A committed Azure run is still required to confirm the CI correction.
+
+The independent negative control uses source commit
+`dda3e9eb3ca41d09df6e92dbae40f1870acadb0d` (SHA-256
+`9a24b6b1acc2aae7ce6a3bad7bc91f3485d0c03ab6ce55107c2f84cb6eb73099`),
+with only its relative integrity-helper import rewritten to the existing local
+helper. The unchanged current streaming source hash is
+`a028bfd8b7feb6abcf153bd794ce4f41dcf2efa85dbf3410a6ad528f1092e9a0`.
+The synthetic 105,000,542-byte fixture hash is
+`417c755b561477f95c7f2e08a7261f9f40ede41ede1f22a9b70bc16213d8843f`.
+The old runtime and generated fixture remain private ignored test evidence,
+not shipped application code or customer files.
+
 The result fields `archiveBytes` and `archiveSha256` can be copied into a separately
 run remote-byte verification after an independently authorized upload. A successful
 local result always retains `readyToUpload: false`; it proves neither JPEG/master
@@ -1518,12 +1548,78 @@ its canonical home is one indexing accident away from competing with it.
 **Verify** runs on every push and pull request to `main`: lint, the browser-free test
 suite, the architecture-diagram check, the production build, and the Playwright journey suites.
 
+After a failed Verify step, browser diagnostics are published only when the
+`playwright-report` directory exists (AB#333). Discovery uses the artifact task's
+`System.DefaultWorkingDirectory`, so its relative path matches the unchanged
+publication target. An earlier unit/build failure with no report emits a fixed
+skip note and retains the original failure. Existing directories (including
+empty or linked directories) still reach the artifact task; actual publication
+errors remain visible. No report is created by discovery. The HTML reporter
+continues to collect its existing screenshot/trace attachments.
+Local Bash fixtures cover missing paths, regular files, reports with attachments,
+empty directories and directory links. Live Azure evaluation still needs a
+committed run: earlier gate failure without a report, browser failure with a
+report, and cancellation. Missing JUnit warnings remain a separate existing
+reporting behavior; this does not alter their task or the quality gates.
+
 **DependencyAudit** runs daily at 06:00 UTC on `main`, even without a source
 change, in the `Default` self-hosted pool. It audits the committed production
 and development dependency tree without installing packages. Scheduled runs
 skip Verify and DeployPreview, so the audit does not spend Microsoft-hosted
 minutes or deploy a release candidate. The [dependency response process](dependency-security.md)
 records actual runs and the outstanding notification-delivery check (AB#160).
+
+### Offline lockfile-bound audit triage (AB#329)
+
+`npm run triage:audit -- <paired-audit.json> <package-lock.json>` reads saved
+inputs only. It never queries a registry, installs or fixes packages. Exit codes
+are 0 (validated clean report), 1 (findings), and 2 (invalid input or IO).
+
+The closed pairing envelope is:
+
+```json
+{"schemaVersion":1,"lockfileSha256":"<64 lowercase hexadecimal characters>","audit":{}}
+```
+
+Replace `audit` with the complete saved npm audit v2 JSON, and record the SHA-256
+of the exact corresponding lockfile bytes **when capturing that report**. Copy
+both into private operational storage; retain the original audit separately.
+For a Node-only digest command:
+
+```bash
+node --input-type=module -e 'import {readFileSync} from "node:fs"; import {createHash} from "node:crypto"; console.log(createHash("sha256").update(readFileSync(process.argv[1])).digest("hex"))' package-lock.json
+```
+
+Record the lockfile hash before and after collecting the audit; if it changed,
+recapture the pair. Do not attach an old report to a newly computed digest.
+The helper verifies the supplied pairing, **not its capture provenance or report
+freshness**. An operator can supply the wrong pair; equal paths do not prove
+that the audit covered those versions. No advisory range or safe update is
+inferred. Exact-byte hashes change with CRLF conversion or `autocrlf`; copy the
+recorded file rather than regenerating it. A UTF-8 BOM counts toward the hash
+and is accepted during decoding.
+
+Supported inputs are v3 lockfiles and conventional lowercase npm package node
+paths, including nested and scoped packages. A referenced link, alias or invalid
+version is refused. Unreferenced lock entries are not interpreted. Regular-file
+symlinks may be read; directories, FIFOs and devices are refused. Inputs are
+bounded to 4 MiB for the envelope and 8 MiB for the lockfile, with 25,000 node
+occurrences, 200,000 audit edges, 32 nesting levels and a 16 MiB projected JSON
+budget. JSON uses native last-key-wins parsing; duplicate keys are not detected.
+
+The report retains affected package names, relative node paths, exact recorded
+versions, severity, inherited links, numeric advisory IDs and unverified registry
+fix proposals. Raw titles, resolved URLs and arbitrary provider error text are
+omitted. Lockfile `dev`, `optional` and `devOptional` flags are reported as
+[declared by npm](https://docs.npmjs.com/cli/v12/configuring-npm/package-lock-json/#packages),
+with absent flags shown as false; other flags are not interpreted. An all-false
+record means none of these three markers was declared, including conventional
+non-development dependencies; it is not an added `production` verdict. Optional
+and mixed development/optional markers remain separate raw flags. These flags
+say nothing about deployed bundle inclusion, request reachability or
+exploitability. A suggested version, including a major downgrade, remains an
+unverified proposal. AB#160's notification and live maintenance acceptance remain
+open; this tool neither approves risk nor changes dependency versions.
 
 ### Cancelling a run
 
