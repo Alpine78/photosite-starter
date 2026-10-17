@@ -5713,3 +5713,14 @@ galleries receive the same resolved site settings on initial and direct continua
 pages and retain them during append. Existing geometry, order, native image frames and
 public derivative boundaries are unchanged. This implements one source slice of AB#321;
 named production VAT overrides, other UI fixes and owner acceptance remain separate.
+
+### AB#328 — bounded keyword benchmark reads (2026-10-17)
+
+The existing AB#65 spike transport now limits successful decompressed replies
+to 16 MiB and bounds fetch plus body reads by one 30-second deadline, including
+IO that ignores abort. Byte counts retain BOM/Unicode accounting; reader, error
+and late-response cleanup is best effort and does not extend the deadline.
+Synthetic tests exercise total time, byte boundaries, tiny/empty chunks and
+redacted failures. No live benchmark, production taxonomy, schema or dependency
+changed; AB#55 acceptance and Feature AB#62 remain separate. AB#328 moved
+New → Active before implementation and awaits owner review/merge.
