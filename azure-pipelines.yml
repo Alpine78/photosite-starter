@@ -132,10 +132,24 @@ stages:
               testRunTitle: "Playwright smoke tests"
               failTaskOnFailedTests: false
 
+          # A failure before Playwright starts produces no browser report. Discover
+          # it in the artifact task's own base directory without creating a report.
+          - bash: |
+              set -eu
+              if [ -d playwright-report ]; then
+                echo '##vso[task.setvariable variable=browserDiagnosticsAvailable]true'
+              else
+                echo '##vso[task.setvariable variable=browserDiagnosticsAvailable]false'
+                echo 'No browser report directory was produced; diagnostic publication is skipped.'
+              fi
+            condition: failed()
+            displayName: "Discover end-to-end failure diagnostics"
+            workingDirectory: "$(System.DefaultWorkingDirectory)"
+
           # Traces, screenshots, and server logs for a failed run only. They contain
           # mock content and harness settings, never credentials or personal data.
           - task: PublishPipelineArtifact@1
-            condition: failed()
+            condition: and(failed(), eq(variables['browserDiagnosticsAvailable'], 'true'))
             displayName: "Publish end-to-end failure diagnostics"
             inputs:
               targetPath: "playwright-report"
