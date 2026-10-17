@@ -47,7 +47,7 @@ Two conventions on top of the template:
 | [0004](0004-reference-production-host-and-ownership-boundary.md) | AB#109 | Reference production host and ownership boundary; [current Hobby preference and unresolved commercial suitability](0004-reference-production-host-and-ownership-boundary.md#amendment-2026-10-07-ab18-ab117--current-hobby-preference) | Accepted |
 | [0005](0005-public-image-rendition-boundary.md) | AB#108 | Public image rendition boundary | Accepted |
 | [0006](0006-sanity-data-access-boundary.md) | AB#39 | Sanity data-access boundary and client transport | Proposed |
-| [0007](0007-proxy-request-path-boundary.md) | AB#72, AB#132 | A Proxy request boundary carrying the requested path; [scriptless 404 temporary-risk acceptance](0007-proxy-request-path-boundary.md#2026-10-07-owner-accepted-temporary-residual-risk-ab132) | Proposed; temporary residual Accepted |
+| [0007](0007-proxy-request-path-boundary.md) | AB#72, AB#132, AB#341 | A Proxy request boundary carrying the requested path; [maintenance matcher amendment](0007-proxy-request-path-boundary.md#2026-10-18-maintenance-matcher-amendment-ab341); [scriptless 404 temporary-risk acceptance](0007-proxy-request-path-boundary.md#2026-10-07-owner-accepted-temporary-residual-risk-ab132) | Proposed; temporary residual Accepted |
 | [0008](0008-localized-authored-text.md) | AB#82 | Localized authored text in content schemas | Accepted |
 | [0009](0009-seeded-random-gallery-ordering.md) | AB#66 (ordering clauses only) | Seeded random gallery ordering contract | Accepted |
 | [0010](0010-lightbox-preload-window.md) | AB#79 | Bounded adjacent-image lightbox preload window | Accepted |

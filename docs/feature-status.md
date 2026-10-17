@@ -5112,6 +5112,24 @@ diff whitespace check and all three diagram renditions compiled/current. There
 are no runtime/dependency/diagram-source changes, so application tests/build,
 public journeys and Studio were not rerun for this documentation-only slice.
 
+### AB#341 — Default-disabled application maintenance boundary (2026-10-17, Active)
+
+The optional server-only deployment mode gates page/API/metadata requests before
+normal configuration and content reads, with503/no-store/Retry-After60, generic
+bilingual scriptless recovery and preserved security hygiene. A bounded Proxy
+request marker plus Next's afterFiles routing closes missing static-looking paths
+before the catch-all while leaving actual static bytes available. Incoming values
+cannot bypass the gate; malformed attempted settings fail closed. The production
+journey uses one build across off/on/invalid/off generations, a warmed generated
+response, invalid-content positive control and a genuinely prepared mock poll
+write. Verification is recorded with the PR; no hosted activation is implied.
+
+[The deployment instructions](deployment.md#application-maintenance-boundary-ab341)
+retain exact-host/CDN/content-cache verification, all deployed reader/writer
+generations, out-of-band invalidation before reopening and an explicit operator
+checkpoint as operational prerequisites. No flag activation, credential/CMS/asset
+operation, migration window or AB301 completion follows from this code slice.
+
 ### AB#261 — Pinned in-memory identity aliases (2026-10-12, Closed)
 
 After PR #349 merged, AB#261 moved New → Active before source edits on the
