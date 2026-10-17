@@ -3,7 +3,7 @@ import { getDeploymentConfig } from "@/lib/deployment-config";
 import { getLegacyGallery } from "@/lib/legacy-gallery-access";
 import { readLegacyGalleryDeployment } from "@/lib/legacy-gallery-deployment";
 import { readClientGalleryDeployment } from "@/lib/client-gallery-deployment";
-import { ClientGalleryDataError, isClientGalleryHandle } from "@/lib/client-gallery-model";
+import { CLIENT_GALLERY_MAX_ITEMS, ClientGalleryDataError, isClientGalleryHandle } from "@/lib/client-gallery-model";
 import { getClientGallerySanityReader } from "@/lib/client-gallery-sanity";
 import { SanityQueryError } from "@/lib/sanity-client";
 import type { ClientGalleryView } from "@/lib/client-gallery-types";
@@ -11,6 +11,7 @@ import type { ClientGalleryView } from "@/lib/client-gallery-types";
 export const CLIENT_GALLERY_FIXTURE_HANDLE = "6".repeat(32);
 export const CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE = "b".repeat(32);
 export const CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT = "2100-01-02T03:04:05.123Z";
+export const CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE = "c".repeat(32);
 
 export async function getClientGallery(handle: string, language: string): Promise<ClientGalleryView | undefined> {
   if (!isClientGalleryHandle(handle)) return undefined;
@@ -25,12 +26,19 @@ export async function getClientGallery(handle: string, language: string): Promis
   if (adapter === "off") return undefined;
   if (adapter === "fixture") {
     if (handle === "9".repeat(32)) throw new Error("Synthetic client gallery failure");
-    if (handle !== CLIENT_GALLERY_FIXTURE_HANDLE && handle !== CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE) return undefined;
+    if (![CLIENT_GALLERY_FIXTURE_HANDLE, CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE, CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE].includes(handle)) return undefined;
     const finnish = language.toLowerCase().split("-")[0] === "fi";
-    return { kind: "web", ...(handle === CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE ? { availableUntil: CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT } : {}), title: finnish ? "Piilotettu toimitus" : "Unlisted delivery", images: [
+    const gallery: ClientGalleryView = { kind: "web", ...(handle === CLIENT_GALLERY_DEADLINE_FIXTURE_HANDLE ? { availableUntil: CLIENT_GALLERY_DEADLINE_FIXTURE_INSTANT } : {}), title: finnish ? "Piilotettu toimitus" : "Unlisted delivery", images: [
       { itemId: "client-coast", mediaId: "client-coast", src: "/gallery/coastal-landscape.1683eecb7e65.webp", width: 1536, height: 1024, alt: finnish ? "Rantakallio ja tyyni meri" : "Rocky shoreline beside calm water", enquiryAllowed: false },
       { itemId: "client-portrait", mediaId: "client-portrait", src: "/gallery/layout-portrait.682a067b563a.webp", width: 256, height: 2048, alt: finnish ? "Geometrinen muotokuva" : "Geometric portrait", enquiryAllowed: false },
     ] };
+    return handle !== CLIENT_GALLERY_CAPACITY_FIXTURE_HANDLE ? gallery : {
+      ...gallery,
+      images: Array.from({ length: CLIENT_GALLERY_MAX_ITEMS }, (_, index) => {
+        const image = gallery.images[index % gallery.images.length];
+        return { ...image, itemId: `client-capacity-${index + 1}`, alt: `${image.alt} (${index + 1})` };
+      }),
+    };
   }
   try {
     return await getClientGallerySanityReader().read(handle, language, getDeploymentConfig().locale);
