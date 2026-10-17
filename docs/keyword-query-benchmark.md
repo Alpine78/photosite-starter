@@ -177,6 +177,14 @@ SANITY_BENCHMARK_TOKEN=… npm run benchmark:keywords -- \
   the dataset-emptiness preflight and the cleanup scan use `raw` (they must also
   see drafts and release versions).
 - **"Payload bytes" = decompressed JSON body length**, not compressed wire size.
+- **Transport bounds (AB#328):** one 30-second deadline covers fetch and the
+  complete body. Replies above 16 MiB of decompressed bytes fail with a fixed,
+  redacted error; unused and late bodies are cancelled best effort. Storage grows
+  geometrically, and immediate streams periodically yield to let the deadline
+  fire. A supplied chunk already exists before its size can be checked. The
+  current full 8,000-media `mediaId`/`capturedAt` projection serializes to
+  463,323 bytes offline, over 36 times below the cap; this is a fixture sizing
+  check, not a fresh live measurement or a production query limit.
 - **Server `ms`** (Sanity's own `ms` response field) is recorded alongside
   wall time so processing time and transport time are not conflated.
 - **Correctness gate.** Before any timing is trusted, `run` fetches the full
