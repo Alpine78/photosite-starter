@@ -24,13 +24,6 @@ export async function inspectLargeDeliveryZip(source: ZipReadPort, manifest: Uin
   options.signal?.addEventListener("abort", cancel, { once: true });
   if (options.signal?.aborted) cancel();
   const timer = setTimeout(cancel, timeoutMs);
-  let abortRead!: () => void;
-  const aborted = new Promise<never>((_resolve, reject) => {
-    abortRead = () => reject(new DeliveryZipError("AUDIT_CANCELLED"));
-    controller.signal.addEventListener("abort", abortRead, { once: true });
-    if (controller.signal.aborted) abortRead();
-  });
-  void aborted.catch(() => {});
   let readBytes = 0;
   const archiveHash = createHash("sha256");
   async function read(at: number, length: number): Promise<Buffer> {
@@ -38,9 +31,22 @@ export async function inspectLargeDeliveryZip(source: ZipReadPort, manifest: Uin
     if (!Number.isSafeInteger(at) || !Number.isSafeInteger(length) || at < 0 || length < 1 || length > limits.read || at + length > source.size) refuse("TRUNCATED_ARCHIVE");
     readBytes += length;
     if (readBytes > source.size) refuse("READ_BUDGET");
-    const data = await Promise.race([source.read(at, length), aborted]);
-    if (!(data instanceof Uint8Array) || data.byteLength !== length) refuse("TRUNCATED_ARCHIVE");
-    return Buffer.from(data);
+    // A shared pending abort promise retains every settled race's Buffer until
+    // the audit ends. Give each operation its own listener/promise and remove
+    // the listener on settlement, making that operation's promise graph collectible.
+    let cancelRead!: () => void;
+    const aborted = new Promise<never>((_resolve, reject) => {
+      cancelRead = () => reject(new DeliveryZipError("AUDIT_CANCELLED"));
+      controller.signal.addEventListener("abort", cancelRead, { once: true });
+    });
+    try {
+      const data = await Promise.race([Promise.resolve().then(() => {
+        if (controller.signal.aborted) refuse("AUDIT_CANCELLED");
+        return source.read(at, length);
+      }), aborted]);
+      if (!(data instanceof Uint8Array) || data.byteLength !== length) refuse("TRUNCATED_ARCHIVE");
+      return Buffer.from(data);
+    } finally { controller.signal.removeEventListener("abort", cancelRead); }
   }
   try {
     const end = source.size - 22, eocd = await read(end, 22);
@@ -134,6 +140,5 @@ export async function inspectLargeDeliveryZip(source: ZipReadPort, manifest: Uin
     refuse("LOCAL_READ_FAILED");
   } finally {
     clearTimeout(timer); options.signal?.removeEventListener("abort", cancel);
-    controller.signal.removeEventListener("abort", abortRead);
   }
 }

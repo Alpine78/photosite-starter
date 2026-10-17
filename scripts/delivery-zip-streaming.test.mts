@@ -180,6 +180,22 @@ describe("real private streaming CLI and stable inputs", () => {
     expect(command.status).toBe(0); expect(command.stderr).toBe(""); expect(JSON.parse(command.stdout)).toMatchObject({ archiveBytes: f.archiveBytes, archiveSha256: f.sha256 });
     expect(command.stdout).not.toContain(root); expect(command.stdout).not.toContain("image-0001"); expect(await readdir(root)).toEqual(["set.tsv", "whole.zip"]);
     const after = await lstat(zip, { bigint: true }); expect([after.size, after.mtimeNs, after.ctimeNs]).toEqual([before.size, before.mtimeNs, before.ctimeNs]);
+    const memoryProbe = `import {open,readFile} from 'node:fs/promises';
+      import {inspectLargeDeliveryZip} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/delivery-zip-streaming.mts")).href)};
+      const fd=await open(process.argv[1],'r');const size=Number((await fd.stat()).size);
+      const manifest=await readFile(process.argv[2]);global.gc();const baseline=process.memoryUsage().arrayBuffers;
+      let retainedBytes, measured=false;
+      try { await inspectLargeDeliveryZip({size,async read(at,length){
+        const buffer=Buffer.alloc(length);const result=await fd.read(buffer,0,length,at);
+        if(!measured&&at>100_000_000&&at<size-1000){global.gc();retainedBytes=process.memoryUsage().arrayBuffers-baseline;measured=true;}
+        return buffer.subarray(0,result.bytesRead);
+      }},manifest);console.log(JSON.stringify({measured,retainedBytes}));}finally{await fd.close();}`;
+    const memory = spawnSync(process.execPath, ["--expose-gc", "--input-type=module", "-e", memoryProbe, zip, manifest], { encoding: "utf8", timeout: 15_000 });
+    expect(memory.status).toBe(0); expect(memory.stderr).toBe("");
+    const memoryResult = JSON.parse(memory.stdout); expect(memoryResult.measured).toBe(true);
+    // Probe DURING the audit after100MB, while any shared pending abort promise
+    // would still retain its settled read races. A post-return probe misses that leak.
+    expect(memoryResult.retainedBytes).toBeLessThan(8 * 1024 * 1024);
   }, 30_000);
   it("refuses a sparse over1GB file without scanning it", async () => {
     const { zip, manifest } = await files(); await truncate(zip, 1_000_000_001);

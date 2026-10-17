@@ -138,6 +138,8 @@ processing and exact same-pass archive SHA-256. The original 100 MB buffered API
 stays unchanged. An actual whole 105 MB synthetic archive and a high-ratio
 expansion refusal exercise the larger path; packages are never split. This source
 slice is Active pending owner review, not evidence of supported Sanity upload.
+Per-read cancellation listeners are removed on settlement; a separate-process
+probe checks retained buffers during a whole 105 MB audit, before it returns.
 See the [supported profiles](deployment.md#offline-whole-package-integrity-checks-ab310--ab315).
 
 AB#301 Studio identity presentation, 2026-10-16 (partial, Active): the actual
