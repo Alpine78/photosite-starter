@@ -1,5 +1,38 @@
 # Feature implementation status
 
+Integration checkpoint, 2026-10-17 — AB#311 (source only, Active): the
+`chore/311-unlisted-stack-verification` branch combines the exact reviewed heads
+of AB#302–310 and the ADR-0034 decision. Before this status-only edit, its source
+was [c4b43e0](https://github.com/Alpine78/photosite-starter/commit/c4b43e0d299453c423979299d7ecc7c0a783da2a).
+Every normal merge matched a separate `git merge-tree` replay of the entire
+tracked tree; there were no conflicts or manual resolutions. The combined tree
+passed lint, **7,142 tests in 314 files**, a production build and **84 FI/EN
+Chromium/WebKit journeys**. The four established WebKit HTTP/Secure-cookie skips
+were checked by name; no new skip or flaky result occurred. Studio type checking,
+schema validation (zero errors), builds with and without the optional share
+origin, and all three diagram checks passed. Sources and both lockfiles stayed
+unchanged after every gate; these are local integration results, not a claim
+that queued PR pipelines have finished.
+
+At this checkpoint these source PRs awaited owner acceptance: [decision #453](https://github.com/Alpine78/photosite-starter/pull/453),
+[authoring #454](https://github.com/Alpine78/photosite-starter/pull/454),
+[reader #455](https://github.com/Alpine78/photosite-starter/pull/455),
+[offline availability #457](https://github.com/Alpine78/photosite-starter/pull/457),
+[Studio links #456](https://github.com/Alpine78/photosite-starter/pull/456),
+[deadline #458](https://github.com/Alpine78/photosite-starter/pull/458),
+[capacity journeys #462](https://github.com/Alpine78/photosite-starter/pull/462),
+[GROQ contracts #459](https://github.com/Alpine78/photosite-starter/pull/459),
+[ZIP proposal #460](https://github.com/Alpine78/photosite-starter/pull/460), and
+[offline ZIP integrity #461](https://github.com/Alpine78/photosite-starter/pull/461).
+Their final source reviews are complete; the earlier per-slice entries below
+record preparation checkpoints. AB#29/63/145 and tasks AB#302–311 were Active;
+AB#130 was New for the compatible proof-selection design. No parent feature
+or live workflow was declared complete. The selected path needs no S3 or separate
+PostgreSQL service. New-gallery ZIP delivery, owner acceptance of Proposed
+ADR-0035, account capacity/whole-upload evidence, hosted Studio roles/editor
+verification and deliberate production activation remain open. Existing legacy
+files, deadlines and public-file limits are unchanged.
+
 AB#304 / AB#145 optional offline availability planning, 2026-10-17 (partial, Active):
 a new Node command creates private revision/digest-bound plans and verifies them
 against supplied snapshots. Only three availability fields can enter its fixed
@@ -33,10 +66,10 @@ explicit page availability and bounded localized text. Validation checks current
 asset metadata, web-derivative dimensions/formats, neutral crop values and link
 collisions across new/legacy records. Legacy importer fields and actions remain
 read-only. The pause flag starts false and takes effect only through native
-publication. Studio validation does not enforce direct API writes; AB#303 must
-revalidate on fresh reads. No ZIP field, new service, production/CMS change or
+publication. Studio validation does not enforce direct API writes; the AB#303 runtime
+revalidates on fresh reads. No ZIP field, new service, production/CMS change or
 hosted Studio deployment. [Authoring instructions and remaining verification](../studio/README.md#ongoing-client-galleries-ab302--ab145).
-AB#145 and its parent feature AB#63 are Active; AB#302 is Active. The customer runtime is AB#303 below; optional offline availability tooling
+AB#145 and its parent feature AB#63 are Active; AB#302 is Active. The customer runtime is AB#303 above; optional offline availability tooling
 remains AB#304. Earlier protected
 work remains disabled under ADR-0034.
 
@@ -49,8 +82,7 @@ legacy collisions and fresh pause/expiry precedence. The existing locked
 `groq-js@2.0.0` is declared Studio dev-only; all 940 resolved package entries are
 unchanged. Network access is blocked. These are local semantics checks, not live
 perspective/permission/performance or CDN verification. No runtime service,
-asset upload, new media exception or production activation. AB#308 stays Active
-pending final review and accepted merge.
+asset upload, new media exception or production activation. AB#308 stays Active pending accepted merge; its final source review is complete.
 
 Current owner decision, 2026-10-16: [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
 selects existing Sanity/unlisted delivery for ongoing client work, including
@@ -78,7 +110,7 @@ exercise native-ratio rendering, middle/last-frame viewing, occurrence-specific
 focus return, stop-at-end and scriptless output. This verifies the bounded viewer,
 not 256 unique CDN files, provider latency/bandwidth or quota suitability. The
 supported maximum and real/legacy readers stay unchanged; no asset is uploaded.
-This source slice remains Active pending accepted merge and final review.
+This source slice remains Active pending accepted merge; final source review is complete.
 
 AB#29 offline source revalidation, 2026-10-16 (partial, Active): the owner tool
 revalidates a selected saved upload-source report and its digest before reading
