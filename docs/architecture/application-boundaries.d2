@@ -24,7 +24,7 @@ browser: "Visitor's browser" {
   class: built
 }
 
-proxy: "src/proxy.ts — the Proxy (ADR-0007)\nCopies the requested path and a single \"a cursor was present\" bit into project-owned\nheaders, overwriting anything the client sent, so a not-found boundary that App Router\ngives no props can still name a way back. Owns trailing-slash normalization, so a cursor\nis validated before a 308. No query values, no content reads, no secrets." {
+proxy: "src/proxy.ts — the Proxy (ADR-0007)\nCopies the requested path and a single \"a cursor was present\" bit into project-owned\nheaders, overwriting anything the client sent, so a not-found boundary that App Router\ngives no props can still name a way back. Owns trailing-slash normalization, so a cursor\nis validated before a 308. Optional default-off maintenance gate (ADR-0031):503 before\ncontent/API work; actual static files pass, missing candidates use a content-free\nafterFiles fallback. No query values, no content reads, no secrets." {
   class: built
 }
 

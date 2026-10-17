@@ -123,6 +123,8 @@ export const appUnderTestEnvironment: Record<string, string> = {
   // below is refused outright in one, because accepting a message and sending
   // nothing is silent data loss there.
   SITE_DEPLOYMENT_STAGE: "development",
+  SITE_MAINTENANCE_MODE: "off",
+  NEXT_PUBLIC_SITE_MAINTENANCE_MODE: "",
   VERCEL_ENV: "",
   LEGACY_GALLERY_ADAPTER: "fixture",
   CLIENT_GALLERY_ADAPTER: "fixture",
