@@ -74,3 +74,127 @@ describe("terminal DNS-dot host classification", () => {
   it.each(["https://example.test./", "https://EXAMPLE.test./", "http://localhost:3100/", "http://127.0.0.1:3100/", "http://[::1]:3100/"])
     ("retains the original parsed URL for %s", (url) => expect(publicProbeUrl(url)).toBe(new URL(url).href));
 });
+
+
+describe("late availability response ownership (AB#317)", () => {
+  function deferred<T>() {
+    let resolve!: (value: T) => void, reject!: (reason: unknown) => void;
+    const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+    return { promise, resolve, reject };
+  }
+  function watchedResponse(status = 200) {
+    const body = new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(new TextEncoder().encode(html)); } });
+    const saved = new Response(body, { status, headers: { "content-type": "text/html", ...(status === 308 ? { location: "/canonical" } : {}) } });
+    return { saved, cancel: vi.spyOn(body, "cancel"), getReader: vi.spyOn(body, "getReader") };
+  }
+  async function flush() { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); }
+
+  it.each([200, 308])("cancels late initial status %s without reading or following it", async status => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferred<Response>(), late = watchedResponse(status);
+      const fetcher = vi.fn().mockReturnValue(pending.promise);
+      const result = probeAvailability({ ...check, canonicalUrl: "https://example.test/canonical" }, options(fetcher));
+      await vi.advanceTimersByTimeAsync(100);
+      expect(await result).toEqual({ status: "unhealthy", code: "timeout" });
+      pending.resolve(late.saved); await flush();
+      expect(late.cancel).toHaveBeenCalledTimes(1);
+      expect(late.getReader).not.toHaveBeenCalled();
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("closes ownership before abort can synchronously resolve the fetch", async () => {
+    vi.useFakeTimers();
+    try {
+      const late = watchedResponse();
+      const fetcher = vi.fn<typeof fetch>((_url, init) => new Promise(resolve => {
+        init!.signal!.addEventListener("abort", () => resolve(late.saved), { once: true });
+      }));
+      const result = probeAvailability(check, options(fetcher));
+      await vi.advanceTimersByTimeAsync(100);
+      expect(await result).toEqual({ status: "unhealthy", code: "timeout" });
+      await flush(); expect(late.cancel).toHaveBeenCalledTimes(1);
+      expect(late.getReader).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("uses the original deadline for canonical fetch and cancels each response once", async () => {
+    vi.useFakeTimers();
+    try {
+      const first = deferred<Response>(), second = deferred<Response>();
+      const redirect = watchedResponse(308), late = watchedResponse();
+      const fetcher = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+      const result = probeAvailability({ ...check, canonicalUrl: "https://example.test/canonical" }, options(fetcher));
+      await vi.advanceTimersByTimeAsync(40); first.resolve(redirect.saved);
+      await vi.advanceTimersByTimeAsync(0); expect(fetcher).toHaveBeenCalledTimes(2);
+      const initialSignal = fetcher.mock.calls[0][1].signal;
+      expect(fetcher.mock.calls[1][1].signal).toBe(initialSignal);
+      await vi.advanceTimersByTimeAsync(60);
+      expect(await result).toEqual({ status: "unhealthy", code: "timeout" });
+      expect(initialSignal.aborted).toBe(true);
+      second.resolve(late.saved); await flush();
+      expect(redirect.cancel).toHaveBeenCalledTimes(1);
+      expect(late.cancel).toHaveBeenCalledTimes(1);
+      expect(late.getReader).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each(["throw", "reject", "stall"])("does not await or expose late cleanup %s", async failure => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferred<Response>(), late = watchedResponse();
+      late.cancel.mockImplementation(() => {
+        if (failure === "throw") throw new Error("SYNTHETIC_PRIVATE_DETAIL");
+        if (failure === "reject") return Promise.reject(new Error("SYNTHETIC_PRIVATE_DETAIL"));
+        return new Promise<void>(() => {});
+      });
+      const result = probeAvailability(check, options(vi.fn().mockReturnValue(pending.promise)));
+      await vi.advanceTimersByTimeAsync(100);
+      expect(await result).toEqual({ status: "unhealthy", code: "timeout" });
+      pending.resolve(late.saved); await flush();
+      expect(late.cancel).toHaveBeenCalledTimes(1);
+      expect(late.getReader).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each(["throw", "reject", "stall"])("keeps an HTTP refusal when current body cleanup %s", async failure => {
+    const current = watchedResponse(503);
+    current.cancel.mockImplementation(() => {
+      if (failure === "throw") throw new Error("SYNTHETIC_PRIVATE_DETAIL");
+      if (failure === "reject") return Promise.reject(new Error("SYNTHETIC_PRIVATE_DETAIL"));
+      return new Promise<void>(() => {});
+    });
+    expect(await probeAvailability(check, options(vi.fn().mockResolvedValue(current.saved)))).toEqual({ status: "unhealthy", code: "not-200" });
+    expect(current.cancel).toHaveBeenCalledTimes(1);
+    expect(current.getReader).not.toHaveBeenCalled();
+  });
+
+  it("keeps synchronous transport errors redacted", async () => {
+    const fetcher = vi.fn(() => { throw new Error("SYNTHETIC_PRIVATE_DETAIL"); });
+    expect(await probeAvailability(check, options(fetcher))).toEqual({ status: "unhealthy", code: "request-failed" });
+  });
+
+  it.each([false, true])("observes a late transport rejection, canonical=%s", async canonical => {
+    vi.useFakeTimers();
+    try {
+      const pending = deferred<Response>(), fetcher = vi.fn();
+      if (canonical) fetcher.mockResolvedValueOnce(new Response(null, { status: 308, headers: { location: "/canonical" } }));
+      fetcher.mockReturnValueOnce(pending.promise);
+      const result = probeAvailability({ ...check, canonicalUrl: "https://example.test/canonical" }, options(fetcher));
+      await vi.advanceTimersByTimeAsync(100);
+      expect(await result).toEqual({ status: "unhealthy", code: "timeout" });
+      pending.reject(new Error("SYNTHETIC_PRIVATE_DETAIL")); await flush();
+      expect(fetcher).toHaveBeenCalledTimes(canonical ? 2 : 1);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each([false, true])("still consumes timely successful responses, canonical=%s", async canonical => {
+    const fetcher = vi.fn(), saved = response();
+    const prematureCancel = vi.spyOn(saved.body!, "cancel");
+    if (canonical) fetcher.mockResolvedValueOnce(new Response(null, { status: 308, headers: { location: "/canonical" } }));
+    fetcher.mockResolvedValueOnce(saved);
+    expect(await probeAvailability({ ...check, canonicalUrl: "https://example.test/canonical" }, options(fetcher))).toEqual({ status: "healthy", code: "markers-present" });
+    expect(prematureCancel).not.toHaveBeenCalled();
+  });
+});
