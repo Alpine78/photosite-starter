@@ -36,7 +36,7 @@ async function readBounded(filename: string): Promise<Buffer> {
     return buffer.subarray(0, length);
   } finally { await handle.close(); }
 }
-async function assertPrivateOutput(folder: string, inputs: readonly string[], filename: string): Promise<string> {
+export async function assertPrivateOutput(folder: string, inputs: readonly string[], filename: string): Promise<string> {
   await mkdir(folder, { recursive: true, mode: 0o700 });
   const resolved = await realpath(folder), info = await stat(resolved);
   if (!info.isDirectory() || (process.platform !== "win32" && (info.mode & 0o777) !== 0o700)) throw new ReconciliationError("OUTPUT_NOT_PRIVATE");

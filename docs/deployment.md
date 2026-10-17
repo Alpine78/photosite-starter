@@ -498,6 +498,67 @@ other site adapters retain their own visibility contract. This restriction does
 not make ordinary dataset assets private: Sanity documents that their CDN URLs
 are public even when dataset metadata is private. [Official asset visibility](https://www.sanity.io/docs/media-library/asset-visibility).
 
+### Optional offline availability plans (AB#304)
+
+Ordinary creation, pause and publication remain native Studio operations. The
+optional `plan:client-gallery-availability` command prepares local evidence for
+one published `clientDeliveryGallery`, then can verify that plan against a
+separately supplied snapshot. It never connects to Sanity, loads a token,
+authenticates an operator, applies a mutation, sends mail or changes production.
+It writes private **local** JSON artifacts; there is no `--apply`, `--write` or
+credential flag. Keep real snapshots and plans outside the public repository.
+
+Inputs are private regular files (owner-only permissions, no symlinks/hardlinks):
+a root-document snapshot and a closed JSON intent. For example, an explicit pause
+with indefinite page availability is `{"available":false,"availabilityMode":"indefinite"}`.
+A finite intent instead includes `"availabilityMode":"until"` and a canonical UTC
+`expiryInstant` (seconds or three milliseconds, ending in `Z`). There is no default
+duration. A requested available page must have a deadline strictly after the
+explicit planning instant; pausing can retain an expired deadline. No-op requests
+are refused. This is an availability check, **not** full content/image eligibility
+validation: the native schema and fresh customer reader retain that responsibility.
+
+```bash
+npm run plan:client-gallery-availability -- plan \
+  --snapshot /private/operator/current.json --intent /private/operator/intent.json \
+  --at <current-UTC-instant> --out /private/operator/plan-01
+npm run plan:client-gallery-availability -- verify \
+  --snapshot /private/operator/new-current.json --plan /private/operator/plan-01/plan.json \
+  --approved-digest <reviewed-plan-SHA256> --at <current-UTC-instant> \
+  --out /private/operator/check-01
+```
+
+Replace the placeholders with actual current UTC instants and the reviewed
+identifier. The output directory must be new, under an existing owner-private
+0700 parent with no symlink path. Output is 0700/0600 and never overwrites evidence;
+inside Git, the existing artifact guard also requires the output to be ignored.
+Use a filesystem that enforces these permissions; source checks run on Linux,
+not Windows/DrvFS. Input JSON is strict UTF-8 without BOM or duplicate keys,
+bounded to 1 MiB, depth 32 and 20,000 nodes (intent file: 4 KiB).
+
+The plan binds the complete canonical snapshot, document ID, revision and ordered
+image membership. Its only possible patch fields are `available`,
+`availabilityMode` and `expiryInstant` (unset for indefinite access), with
+`ifRevisionID`. Verification replans and compares the complete artifact/digest;
+any revision, handle, image order/membership or other source change invalidates it,
+even if the revision was accidentally retained. Verification has its own explicit
+instant and refuses a deadline that has now passed or a clock earlier than the plan.
+Console output contains only fixed notices, mode and digest, never source text,
+IDs, handles or private paths. Native filesystem/JSON errors are redacted.
+
+A matching digest is integrity evidence, **not authentication or authorization**.
+The tool cannot tell whether a local snapshot is current, whether a Studio draft
+exists, or whether images are eligible. Both outputs state `readyToWrite:false`.
+There is no remote writer. Any future separately approved writer must refetch,
+validate content/metadata and the exact reviewed plan, **refuse an existing
+`drafts.<id>`**, and atomically compare-and-swap the published revision. Otherwise
+later Studio publication could undo a direct published-document change.
+
+Setting `available=false` pauses a page; it does not unpublish the document or
+remove it from a public dataset. Neither pause nor expiry revokes asset URLs,
+provider caches or downloaded copies. No legacy gallery, handle, image, ZIP,
+customer field or protected store is edited by this tool.
+
 ### Private client galleries (ADR-0014, deferred alternative)
 
 **Owner decision, 2026-10-16:** [ADR-0034](adr/0034-ongoing-unlisted-client-delivery.md)
