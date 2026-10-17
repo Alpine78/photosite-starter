@@ -51,6 +51,14 @@ protected code stays disabled pending a separate removal audit. New-gallery
 creation/publication is not implemented by this decision. Earlier entries below
 record history under the superseded protected target.
 
+AB#306 / AB#29 finite page deadlines, 2026-10-17 (partial, Active): new
+web-delivery pages now show their already validated deadline as a semantic
+FI/EN UTC timestamp, preserving seconds and nonzero milliseconds. Host/browser
+timezones do not change the cutoff. Indefinite and legacy pages gain no invented
+date; fresh availability checks and the existing public-file notice are unchanged.
+No CMS fields, provider service, upload, timer or retention worker are added.
+This source slice remains Active pending accepted merge; no live activation.
+
 AB#29 offline source revalidation, 2026-10-16 (partial, Active): the owner tool
 revalidates a selected saved upload-source report and its digest before reading
 source files, then compares current JPEG/ZIP bytes and metadata with that plan.

@@ -139,7 +139,7 @@ export type BuiltInLabels = {
    * indistinguishable, so the page never reveals whether a handle exists.
    */
   readonly legacyGallery: { readonly title: string; readonly unavailable: string; readonly download: string; readonly noticeTitle: string; readonly publicAccessNotice: string; readonly fileRetentionNotice: string };
-  readonly clientGallery: { readonly noticeTitle: string; readonly publicAccessNotice: string; readonly fileRetentionNotice: string };
+  readonly clientGallery: { readonly noticeTitle: string; readonly publicAccessNotice: string; readonly fileRetentionNotice: string; readonly deadline: string };
   readonly privateGallery: {
     readonly title: string;
     readonly opening: string;
@@ -704,6 +704,7 @@ const englishLabels = {
   },
   clientGallery: {
     noticeTitle: "Sharing this gallery and its web images",
+    deadline: "Page deadline: {date} (UTC).",
     publicAccessNotice: "This gallery and its web images are publicly accessible without signing in. The link can be shared. Gallery information and image references can also be read from the public dataset; exclusion from listings and search engines does not restrict access.",
     fileRetentionNotice: "This gallery shows exported web images. Closing or expiring the page does not revoke direct image links or remove downloaded or cached copies. Contact the website owner to request removal; immediate removal from every cache or recipient’s copies cannot be promised.",
   },
@@ -1119,6 +1120,7 @@ const finnishLabels = {
   },
   clientGallery: {
     noticeTitle: "Gallerian ja verkkokuvien jakaminen",
+    deadline: "Sivun määräaika: {date} (UTC).",
     publicAccessNotice: "Tämä galleria ja sen verkkokuvat ovat julkisesti saatavilla ilman kirjautumista. Linkin voi välittää toiselle. Gallerian tiedot ja kuvaviittaukset ovat luettavissa myös julkisesta aineistosta; piilottaminen listauksista ja hakukoneilta ei rajoita pääsyä.",
     fileRetentionNotice: "Galleriassa näytetään vietyjä verkkokuvia. Sivun sulkeminen tai vanheneminen ei estä suorien kuvalinkkien käyttöä eikä poista ladattuja tai välimuistiin tallennettuja kopioita. Voit pyytää poistamista sivuston omistajalta; välitöntä poistumista kaikista välimuisteista tai vastaanottajien kopioista ei voida luvata.",
   },
