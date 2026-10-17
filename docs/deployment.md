@@ -410,6 +410,85 @@ Vercel. The first would make archive locations impossible in Preview, and the se
 would abandon the prebuilt artifact and its Azure build log. Phase-scoped credentials
 preserve both boundaries at the cost of provisioning and rotating two read-only tokens.
 
+### Offline whole-package integrity checks (AB#310 / AB#315)
+
+`npm run verify:delivery-zip -- --zip /private/delivery.zip --manifest /private/entries.tsv`
+is read-only: it neither extracts/writes files nor contacts Sanity or another
+provider. On supported POSIX hosts the immediate parent must be owner-only
+`0700`, inputs owner-only `0600`, real regular files with one link; all parent
+symlinks are rejected. Inside Git, inputs must be ignored and untracked. The
+command emits only fixed status/check names, counts, byte totals and SHA-256
+hashes. It never prints the local paths or entry names. Keep any captured report
+private too. Windows permission enforcement is not implemented and fails closed.
+
+Supply a privately reviewed ASCII/LF TSV with this exact first line and then one
+ordered entry per intended processed JPEG (the placeholders below are notation,
+not literal manifest content):
+
+```text
+delivery-zip-v1
+image-0001.jpg<TAB>BYTE_COUNT<TAB>LOWERCASE_SHA256
+image-0002.jpg<TAB>BYTE_COUNT<TAB>LOWERCASE_SHA256
+```
+
+Use literal tab separators and a final newline. Neutral flat names are strictly
+sequential `image-0001.jpg` through the intended count (`.jpeg` also supported).
+The manifest is at most 65,536 bytes, with 1–256 entries. This closed syntax does
+not establish who approved the supplied set. Keep original names/job records out
+of the manifest and the public dataset. The tool does not rename/repackage
+anything, and never modifies source JPEG bytes.
+
+The supported container profile is deliberately narrow: single-volume ZIP32,
+STORE or DEFLATE, ZIP 1.0/2.0 entries, plain DOS/Unix regular files and optional
+standard signed/unsigned data descriptors. Local entries must be contiguous and
+in central-directory/manifest order. Encryption, ZIP64, extra fields, comments,
+paths/directories/symlinks, unknown flags/records, inconsistent headers, trailing
+bytes and missing/extra/reordered entries fail closed. A valid ZIP with unsupported
+extras may be refused; this is not a general-purpose ZIP reader. The archive and
+total expanded bytes are each limited to 100,000,000, each member to 25,000,000;
+these are local audit bounds, not measured provider or customer-package limits.
+Expansion is bounded before decoding; consumed DEFLATE input, entry CRC32 and
+exact expected byte lengths/SHA-256 are checked. Nothing is extracted to disk.
+
+A successful report always says `readyToUpload: false`. It verifies the container
+against the supplied byte set, **not** JPEG decoding, image/master classification,
+embedded metadata suitability, owner approval, provider capacity/transport or
+remote readback. Do those checks separately before a separately authorized
+operation. This offline tool grants no new full-resolution public-media exception,
+changes no legacy contract and adds no ZIP field/download to the current web-only
+new-gallery path. No S3/PostgreSQL service is involved.
+
+For whole packages in the hundreds of megabytes, use the separate streaming audit:
+
+```bash
+npm run verify:delivery-zip-large -- --zip /private/delivery.zip --manifest /private/entries.tsv
+```
+
+This command retains the same narrow ZIP32 profile, manifest syntax, private-file
+requirements and redacted report, but permits up to **1,000,000,000 archive and
+expanded bytes**. The 25,000,000-byte entry and 256-entry limits stay unchanged.
+These are local engineering bounds, **not** product requirements or evidence of
+Sanity upload support. Packages outside this profile are refused whole; neither
+command splits, truncates or partially approves a package. The original buffered
+`verify:delivery-zip` command and its 100,000,000-byte limits remain unchanged.
+
+The streaming audit requests at most 65,536 bytes at a time, retains only bounded
+central-directory metadata and uses backpressure during DEFLATE decoding. Every
+archive byte is read once; the whole-file SHA-256 covers the same header, member,
+descriptor, directory and EOCD bytes that were checked. A 330-second processing
+deadline cancels decoding and pending adapter reads. Both source descriptors stay
+open through the audit. Before reporting success, their current paths and open
+files must still agree on identity, size, ownership, permissions, link count and
+nanosecond modification/change timestamps. Source bytes are never changed.
+
+The result fields `archiveBytes` and `archiveSha256` can be copied into a separately
+run remote-byte verification after an independently authorized upload. A successful
+local result always retains `readyToUpload: false`; it proves neither JPEG/master
+classification nor metadata suitability, manifest approval, supported whole-file
+upload transport or remote integrity. The owner's largest packages have been
+hundreds of megabytes and must remain whole. Provider upload feasibility remains
+open in [ADR-0035](adr/0035-unlisted-delivery-zip-proposal.md).
+
 ### Retained legacy customer galleries (ADR-0028)
 
 The first production site's 21 retained legacy galleries are available through
@@ -993,54 +1072,6 @@ argument for telling them before it happens rather than after.
 step here is derived from the ADR and the providers' documented capabilities rather than
 from a run. The first owner to follow it should correct it where it is wrong — that is more
 useful than leaving it aspirational.
-
-#### Offline whole-package integrity check (AB#310)
-
-`npm run verify:delivery-zip -- --zip /private/delivery.zip --manifest /private/entries.tsv`
-is read-only: it neither extracts/writes files nor contacts Sanity or another
-provider. On supported POSIX hosts the immediate parent must be owner-only
-`0700`, inputs owner-only `0600`, real regular files with one link; all parent
-symlinks are rejected. Inside Git, inputs must be ignored and untracked. The
-command emits only fixed status/check names, counts, byte totals and SHA-256
-hashes. It never prints the local paths or entry names. Keep any captured report
-private too. Windows permission enforcement is not implemented and fails closed.
-
-Supply a privately reviewed ASCII/LF TSV with this exact first line and then one
-ordered entry per intended processed JPEG (the placeholders below are notation,
-not literal manifest content):
-
-```text
-delivery-zip-v1
-image-0001.jpg<TAB>BYTE_COUNT<TAB>LOWERCASE_SHA256
-image-0002.jpg<TAB>BYTE_COUNT<TAB>LOWERCASE_SHA256
-```
-
-Use literal tab separators and a final newline. Neutral flat names are strictly
-sequential `image-0001.jpg` through the intended count (`.jpeg` also supported).
-The manifest is at most 65,536 bytes, with 1–256 entries. This closed syntax does
-not establish who approved the supplied set. Keep original names/job records out
-of the manifest and the public dataset. The tool does not rename/repackage
-anything, and never modifies source JPEG bytes.
-
-The supported container profile is deliberately narrow: single-volume ZIP32,
-STORE or DEFLATE, ZIP 1.0/2.0 entries, plain DOS/Unix regular files and optional
-standard signed/unsigned data descriptors. Local entries must be contiguous and
-in central-directory/manifest order. Encryption, ZIP64, extra fields, comments,
-paths/directories/symlinks, unknown flags/records, inconsistent headers, trailing
-bytes and missing/extra/reordered entries fail closed. A valid ZIP with unsupported
-extras may be refused; this is not a general-purpose ZIP reader. The archive and
-total expanded bytes are each limited to 100,000,000, each member to 25,000,000;
-these are local audit bounds, not measured provider or customer-package limits.
-Expansion is bounded before decoding; consumed DEFLATE input, entry CRC32 and
-exact expected byte lengths/SHA-256 are checked. Nothing is extracted to disk.
-
-A successful report always says `readyToUpload: false`. It verifies the container
-against the supplied byte set, **not** JPEG decoding, image/master classification,
-embedded metadata suitability, owner approval, provider capacity/transport or
-remote readback. Do those checks separately before a separately authorized
-operation. This offline tool grants no new full-resolution public-media exception,
-changes no legacy contract and adds no ZIP field/download to the current web-only
-new-gallery path. No S3/PostgreSQL service is involved.
 
 #### Offline private upload source check
 

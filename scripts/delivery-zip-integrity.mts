@@ -12,6 +12,15 @@ type ExpectedEntry = Readonly<{ name: string; bytes: number; sha256: string }>;
 
 /** Closed LF/ASCII TSV avoids ambiguous duplicate JSON keys and private free text. */
 export function parseDeliveryZipManifest(bytes: Uint8Array): readonly ExpectedEntry[] {
+  return parseManifest(bytes, DELIVERY_ZIP_LIMITS.expanded);
+}
+
+/** Separate local audit profile; the existing buffered inspector retains its 100 MB bound. */
+export function parseLargeDeliveryZipManifest(bytes: Uint8Array): readonly ExpectedEntry[] {
+  return parseManifest(bytes, 1_000_000_000);
+}
+
+function parseManifest(bytes: Uint8Array, expandedMaximum: number): readonly ExpectedEntry[] {
   if (bytes.byteLength < 1 || bytes.byteLength > DELIVERY_ZIP_LIMITS.manifest) refuse("INVALID_MANIFEST");
   const text = Buffer.from(bytes).toString("ascii");
   if (!Buffer.from(text, "ascii").equals(Buffer.from(bytes)) || !text.endsWith("\n")) refuse("INVALID_MANIFEST");
@@ -22,7 +31,7 @@ export function parseDeliveryZipManifest(bytes: Uint8Array): readonly ExpectedEn
     const match = /^(image-[0-9]{4}\.jpe?g)\t([1-9][0-9]{0,7})\t([a-f0-9]{64})$/.exec(line);
     if (!match || !match[1].startsWith(`image-${String(index + 1).padStart(4, "0")}.`)) refuse("INVALID_MANIFEST");
     const size = Number(match[2]); total += size;
-    if (size > DELIVERY_ZIP_LIMITS.entry || total > DELIVERY_ZIP_LIMITS.expanded) refuse("EXPANSION_LIMIT");
+    if (size > DELIVERY_ZIP_LIMITS.entry || total > expandedMaximum) refuse("EXPANSION_LIMIT");
     return Object.freeze({ name: match[1], bytes: size, sha256: match[3] });
   });
 }

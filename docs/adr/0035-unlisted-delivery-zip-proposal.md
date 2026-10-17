@@ -62,6 +62,22 @@ add a ZIP schema field, grant a new full-resolution exception, authorize live
 uploads, select a paid plan or activate production features. Existing legacy
 files, URLs, metadata and deadlines are unchanged.
 
+## Owner follow-up — 2026-10-17
+
+The owner reports that the largest delivery packages have been **hundreds of
+megabytes** and requires each package to remain one complete ZIP. The original
+100,000,000-byte candidate in decision 5 is retained above as proposal history;
+it is **not a product size ceiling** and does not satisfy the owner's larger-file
+requirement. Do not split packages, omit photographs or silently drop downloads
+as a workaround. Supported whole-file transport must still be established.
+
+AB#315 supplies a separate bounded **offline** audit profile up to
+1,000,000,000 archive and expanded bytes, keeping the original 100 MB audit API
+unchanged. That local engineering ceiling neither raises a Sanity upload limit
+nor proves an accepted upload method, account capacity or provider compatibility.
+This clarification records the existing owner constraint; this ADR remains
+**Proposed**, with no new public-file exception, upload or publication approval.
+
 ## Options Considered
 
 - **Existing dataset, one processed-JPEG ZIP:** proposed; uses the owner's chosen

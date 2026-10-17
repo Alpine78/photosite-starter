@@ -127,13 +127,22 @@ It reuses unchanged bounded inspection, streams ZIP hashes and produces only a
 redacted summary. It writes no files or remote objects and grants no upload lease;
 watermarks and ZIP contents retain their explicit existing verification limits.
 
-AB#310 / AB#29 offline whole-package integrity, 2026-10-17 (partial, Active):
+AB#310 / AB#29 offline whole-package integrity, 2026-10-17 (AB#310 merged;
+parent AB#29 Active):
 a read-only owner CLI verifies a bounded ZIP32 entry set, local/central headers,
 STORE/DEFLATE data, CRC32 and exact ordered expected byte/SHA-256 manifest.
 Private inputs, constant diagnostics and no extraction/network keep this separate
 from any upload. JPEG eligibility/metadata, manifest authority, provider capacity,
 new-file approval and remote verification remain open; `readyToUpload` stays false.
-See the [supported profile](deployment.md#offline-whole-package-integrity-check-ab310).
+AB#315 adds a separate streaming CLI for whole packages up to a local engineering
+bound of 1,000,000,000 archive/expanded bytes, with 64 KiB reads, bounded DEFLATE
+processing and exact same-pass archive SHA-256. The original 100 MB buffered API
+stays unchanged. An actual whole 105 MB synthetic archive and a high-ratio
+expansion refusal exercise the larger path; packages are never split. This source
+slice is Active pending owner review, not evidence of supported Sanity upload.
+Per-read cancellation listeners are removed on settlement; a separate-process
+probe checks retained buffers during a whole 105 MB audit, before it returns.
+See the [supported profiles](deployment.md#offline-whole-package-integrity-checks-ab310--ab315).
 
 AB#301 Studio identity presentation, 2026-10-16 (partial, Active): the actual
 Studio configuration now groups permanent technical identifiers at the end of
