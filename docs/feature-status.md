@@ -3186,6 +3186,21 @@ roles, click switching, and arrow-key navigation with wrapping and no focus
 trap, in both engines. AB#137's own review-mode findings, exception
 resolution, and manifest approval remain entirely open.
 
+**Native tab fragments, 2026-10-17 (AB#335, parent AB#321):** the first
+progressive tab enhancement preserves a currently visible H2–H4 native target
+after that group in the same editorial body. A before-mutation snapshot and
+layout-phase correction compensate at most that group's own height decrease;
+multiple groups share the actual remaining viewport displacement. There are no
+scroll listeners, timers, history writes, focus moves, storage or restoration
+loops. A target already outside the viewport stays with native navigation and
+restoration. Browser end-of-document clamping is accepted. This does not restore
+late-image/CMS changes, guarantee an in-progress touch momentum gesture, or
+repair a full client-render recovery that discarded the initial DOM. The stacked
+scriptless/unavailable-script content and ordinary ARIA tab interactions remain.
+This repairs the existing fragment behavior; ADR-0020's Proposed status and
+AB#20's open persistence policy are unchanged. Owner review and real-content
+acceptance remain pending; AB#335 and parent AB#321 remain Active.
+
 The converter also stopped hard-refusing an anchor's known-inert `rel` value
 (`joomla-conversion-v5`): `alternate`, `nofollow`, `tag`, and the rest of
 MDN's confirmed no-behaviour set on `<a>` now drop as a new lossy

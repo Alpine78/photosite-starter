@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18, 2026-09-19, 2026-10-12, 2026-10-15 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18, 2026-09-19, 2026-10-12, 2026-10-15, 2026-10-17 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -292,6 +292,24 @@ are extended by this amendment; decision 3's page-jump navigation paragraphs are
 extended from a flat level-2 list to a nested three-level list. Decisions 1, 4, 5, 6, 7,
 8, and 9 are unchanged: no variant, category, placement, locale, slug, cursor, or
 legacy-redirect behavior is affected.
+
+### 2026-10-17 — Preserve a native heading target through tab enhancement (AB#335)
+
+The shared editorial body's H2–H4 fragment links keep their existing identity.
+When the first progressive tab enhancement collapses its stacked fallback tables,
+it preserves a currently visible native target after that group in the same body.
+The correction measures the same React commit before and after DOM mutation and
+is bounded by the group's own height decrease. Multiple groups use the remaining
+viewport displacement; native anchoring that already kept the target needs no
+correction. A target outside the viewport is left to native navigation/restoration.
+
+This repairs the initial layout transition only. It adds no history entry, address
+write, focus move, listener, timer, storage, ongoing restoration, reserved gap or
+new CMS field. Browser end-of-document clamping remains; later image/CMS changes,
+in-progress touch momentum and client-render recovery are not promised. All
+labelled tables remain readable when JavaScript is absent or unavailable.
+ADR-0020 remains Proposed and AB#20's persistence decision remains open. AB#335
+and its parent AB#321 still require owner review and real-content acceptance.
 
 ### 2026-09-12 — Inline mini-galleries join the shared body-block set (AB#24)
 
