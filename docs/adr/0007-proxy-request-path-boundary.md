@@ -482,6 +482,24 @@ or claim an unrecorded later owner decision. Exact-candidate acceptance and a
 verified semantic fix remain separate; AB#132 stays Active.
 
 
+## Scriptless 404 recheck — 2026-10-18 (AB#132)
+
+A production build of main at `0295671` on Next.js 16.4.2 (the npm `latest` tag; the
+`canary` tag, 16.5.0-canary.17, was not built) ran the four marked AB#132 probes in
+`e2e/gallery-continuation.spec.ts` in desktop Chromium and mobile WebKit with
+JavaScript disabled. All four still hit the expected-failure marker: the unknown path
+and the refused gallery cursor return the known empty `__next_error__` shell with no
+rendered h1 or return link. These are not passing accessibility journeys.
+
+Upstream on 2026-10-18: issue #62228 and the later reports #99287 and #99793 are open,
+and the candidate fixes #98455 and #98583 are open and unmerged. No supported remedy
+exists, so none was applied; the O(1) Proxy is unchanged.
+
+The October 8 review date of the October 7 owner acceptance has passed and this check
+does not renew it. A new owner decision with impact, reason, review date and follow-up
+item, or a released fix, is still needed before AB#18 promotion. AB#132 stays Active;
+no application code, Proxy or test marker changed.
+
 ## 2026-10-18 maintenance matcher amendment (AB#341)
 
 This scoped amendment implements [ADR-0031's accepted maintenance policy](0031-identity-migration-operational-plan.md#4-rehearsal-and-production-sequence).

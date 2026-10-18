@@ -6172,3 +6172,5 @@ preventing an animation from becoming a false scroll correction. The existing
 URL, selected state, counts, cursor reset and no-JavaScript links are preserved.
 The earlier count-test focus preparation in AB#338 is separate from this runtime
 repair. Owner review/merge and deployment acceptance remain pending.
+
+AB#132 recheck, 2026-10-18: a production build of main `0295671` on Next.js 16.4.2 (npm `latest`) still returns the empty `__next_error__` shell without JavaScript for an unknown public URL and a refused gallery cursor in desktop Chromium and mobile WebKit; the four expected-failure probes still fail as marked. Upstream #62228, #99287, #99793 and the candidate fixes #98455/#98583 are open. The October 7 owner acceptance's review date (October 8) has passed and remains unrenewed, so a new explicit owner decision or a released fix is still required before AB#18. Recorded in [ADR-0007](adr/0007-proxy-request-path-boundary.md#scriptless-404-recheck--2026-10-18-ab132). AB#132 remains Active; no code changed.
