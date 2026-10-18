@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 import { open } from "node:fs/promises";
+import { constants } from "node:fs";
 import { summarizeNpmAudit } from "./npm-audit-summary.mts";
 async function read(path: string) {
-  const file = await open(path, "r"), cap = 4 * 1024 * 1024;
+  const flags = constants.O_RDONLY | (constants.O_NONBLOCK ?? 0) | (constants.O_NOCTTY ?? 0);
+  const file = await open(path, flags), cap = 4 * 1024 * 1024;
   try {
+    const stat = await file.stat();
+    if (!stat.isFile() || stat.size > cap) throw new Error("input");
     const buffer = Buffer.alloc(cap + 1); let length = 0;
     while (length < buffer.length) { const result = await file.read(buffer, length, buffer.length - length); if (!result.bytesRead) break; length += result.bytesRead; }
     if (length > cap) throw new Error("limit");
