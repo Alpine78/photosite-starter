@@ -3477,6 +3477,16 @@ approval digest and malformed or stale plans. Production writes and post-import
 listing/page verification remain owner-run under AB#137; this code slice does not
 close the migration story or change AB#172's Resolved state.
 
+**Read-only intro diagnosis (AB#355):** `reconcile:joomla-intro` reads an approved
+recovery record and current raw document/version state using a Viewer credential;
+its runtime import path has no mutate/upload capability. Pending changes never
+trigger a resend. It refuses write flags, mismatched targets and invalid recovery
+records, preserves existing evidence with an exclusive private report, and reports
+observed applied/pending/unexpected states separately from read failures. The existing
+writer's explicit retry, approval, revision and recovery contracts remain unchanged.
+This tooling slice performs no CMS write and establishes no AB#172/137 operational
+acceptance; content operations and owner acceptance are tracked separately.
+
 **Rally conversion plan integrity, 2026-10-07 (AB#218):** `write:rally-conversion`
 rejects malformed UTF-8 before parsing, backup inspection or credential resolution.
 Valid localized caption text retains its exact approved digest and existing JSON BOM

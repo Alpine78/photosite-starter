@@ -40,6 +40,7 @@
     "write:rally-conversion": "node scripts/write-rally-conversion.mts",
     "build:delivery-zip": "node scripts/build-delivery-zip.mts",
     "fix:joomla-intro": "node scripts/write-joomla-intro-summary.mts",
+    "reconcile:joomla-intro": "node scripts/reconcile-joomla-intro-summary.mts",
     "write:services": "node scripts/write-sanity-services.mts",
     "admin:secret": "node scripts/generate-admin-secret.mts",
     "summarize:contact-failures": "node scripts/summarize-contact-failures.mts",
