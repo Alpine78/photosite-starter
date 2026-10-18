@@ -3830,6 +3830,15 @@ conflicts after #395's status fix and pass 6,121 tests, lint, build and all 415 
 legacy rows with the new direct Blog alias. ZIP support, actual final Production
 checks/recovery, coordinated key replacement and owner acceptance remain open.
 
+**DNS input follow-up, 2026-10-18 (AB#361, Active):** the offline comparator now
+refuses non-regular opened descriptors before its existing 4 MiB bounded reads,
+preventing a writerless FIFO from blocking the command. All three input positions
+have actual-CLI refusal regressions; regular files/symlinks, strict UTF-8,
+comparison policy and count/digest-only output are preserved. Files remain
+sequential reads, not an atomic DNS snapshot. No DNS lookup/write, mail test or
+deployment occurred. AB#200's historical closure and AB#18's open release gates
+remain separate; this follow-up awaits owner review and merge.
+
 **Offline web DNS guard, 2026-10-06 (AB#200, Active):** an owner-run normalized
 snapshot comparator preserves full protected-record multisets and refuses CNAME
 conflicts. It emits counts/digests only. Current zone export, live propagation and

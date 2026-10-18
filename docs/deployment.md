@@ -2196,7 +2196,12 @@ adding spaces. CNAME targets are absolute names, with an optional terminal dot.
 
 Supply a second proposed snapshot and a JSON array of explicit web owners, e.g.
 `["@","www"]`, to `npm run check:dns-cutover -- before.json after.json web-hosts.json`.
-Each file is limited to 4 MiB. Exit 0 means the protected record multisets agree and
+Each input must be an ordinary file (a symlink to a regular file is accepted),
+limited to 4 MiB and decoded as strict UTF-8. Save generated input to a file first;
+FIFOs, devices and process substitution such as `<(...)` are refused with exit 2.
+The three files are read sequentially, not as an atomic snapshot: use stable local
+copies. The opened descriptor is closed in `finally` on every read/stat outcome.
+Exit 0 means the protected record multisets agree and
 there is no proposed CNAME conflict; 1 means a protected change or conflict; 2 means
 invalid input. Output contains counts and digests, never record values. TTL, priority
 and duplicate occurrences count. Only allowlisted A/AAAA/CNAME records may change;
