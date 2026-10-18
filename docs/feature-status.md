@@ -249,6 +249,8 @@ AB#255 authenticated check, 2026-10-13: [Windows/WSL Studio FI/EN verification](
 
 AB#273 current release evidence, 2026-10-13: [Fresh recovery, provider and dependency observations](audits/ab273-current-launch-acceptance-evidence-2026-10-13.md) confirm the raw dataset still matches the preserved complete local recovery baseline. Current Production remains source `14b1af0` with dirty metadata; the prior exact Preview remains available with unknown cleanliness. Both source gates refuse. Root npm audit reports zero; Studio reports eight moderate dependency nodes for the unpatched sprintf-js advisory, with exposure/residual-risk acceptance still unresolved. Four independent release follow-ups prepare source attestation, guarded copy publication, all 415 legacy classifications and final acceptance ordering. No promotion, rollback, DNS/CMS mutation or final security/privacy acceptance. AB#273 and parent AB#18 remain Active.
 
+AB#19 canonical-host follow-up, 2026-10-18: [current Production verification](audits/ab19-canonical-production-verification-2026-10-18.md) binds the passing 415-row canonical-host report to before/after provider source-identity guards for `33cb41a` and four JavaScript-free FI/EN Chromium/WebKit fallback-notice checks. The complete report is attached to AB#19 and read back as equivalent JSON. This later pass completes the canonical-host/report steps left open by the earlier October 18 status correction; it does not claim artifact-byte verification or launch approval. AB#137's predecessor gate and owner acceptance remain open, so AB#19 remains Active. No mapping, CMS, DNS, configuration or deployment changed.
+
 AB#20 storage foundation, 2026-10-18 (AB#362, Active): owner accepted 90-day browser-local article/locale/chapter/time retention, direct-anchor/native-history precedence and clear/disable controls. The [reading-position policy](article-reading-position.md) now records the accepted boundary. A deterministic injected storage module implements validation, expiry, bounded eviction, clear/disable and failure handling with Node-only tests. No browser call site uses it yet: restoration, localized controls, disclosure and production-build journeys remain under AB#20. No content, CMS, URL behavior or server storage changed.
 
 This is a running implementation history and a starting point for finding relevant
@@ -2498,6 +2500,14 @@ owner-run public GET probe enforces total timeout/body limits and semantic marke
 Synthetic fetch tests need no live service. AB#158 monitoring/notification setup stays
 open; cached content success does not prove live CMS reads or mail delivery.
 
+**AB#359 follow-up, 2026-10-18:** the availability CLI validates its opened
+configuration descriptor before parsing or probing. Nonregular and oversized
+inputs are refused; POSIX nonblocking open avoids waiting for a FIFO writer.
+Regular files/symlinks, the 64 KiB/UTF-8 bounds and existing probe decisions stay
+intact. Actual CLI regressions use only an owned loopback HTTP fixture and verify
+zero GETs for refused inputs. This correction remains Active pending review/merge;
+AB#158's live monitor and notification acceptance remain separate.
+
 **Clean Preview readback, 2026-10-13 (AB#277, Active):** [Build 941's exact candidate](audits/ab277-clean-preview-candidate-2026-10-13.md) passes current provider source identity for merged `c32d1e8` with `gitDirty=0`, expected project/team and READY status. Independent protection/noindex checks pass (unauthorized 302, authorized 200/noindex); two newly published service routes return 200 and still-empty English Blog returns 404. CI task logs bind the immutable deployment ID/URL. Artifact bytes, complete rendered route behavior, future #387/article integration, Production promotion and actual rollback/acceptance remain unverified. No provider mutation. AB#277 remains Active pending PR merge; AB#18 stays open. AB#268/AB#272 are verified Closed; entries below describe their original preparation.
 
 **Clean checkout release source, 2026-10-13 (AB#272, Active):** CI now validates
@@ -2618,6 +2628,13 @@ AB#160's operational acceptance remain open.
 npm v2 reader validates the reference graph and separates affected package entries
 from unique numeric advisories. No dependency fixes or residual-risk acceptance
 are implied; AB#160/186 remain open.
+
+**AB#358 follow-up, 2026-10-18:** saved audit summaries now inspect the opened
+descriptor and refuse nonregular or oversized input before reading. POSIX
+nonblocking open avoids waiting for a FIFO writer; ordinary-file symlinks,
+UTF-8/byte limits, redacted output and exit statuses are preserved. Actual CLI
+tests use synthetic saved reports without registry calls. This correction is
+Active pending review/merge; AB#160's operational acceptance remains open.
 
 **Merged dependency verification, 2026-10-07 (AB#186, Closed):** owner-reviewed
 PR #281 merged and exact main CI #655 passed quality gates and the real protected
@@ -3832,6 +3849,15 @@ conflicts after #395's status fix and pass 6,121 tests, lint, build and all 415 
 legacy rows with the new direct Blog alias. ZIP support, actual final Production
 checks/recovery, coordinated key replacement and owner acceptance remain open.
 
+**DNS input follow-up, 2026-10-18 (AB#361, Active):** the offline comparator now
+refuses non-regular opened descriptors before its existing 4 MiB bounded reads,
+preventing a writerless FIFO from blocking the command. All three input positions
+have actual-CLI refusal regressions; regular files/symlinks, strict UTF-8,
+comparison policy and count/digest-only output are preserved. Files remain
+sequential reads, not an atomic DNS snapshot. No DNS lookup/write, mail test or
+deployment occurred. AB#200's historical closure and AB#18's open release gates
+remain separate; this follow-up awaits owner review and merge.
+
 **Offline web DNS guard, 2026-10-06 (AB#200, Active):** an owner-run normalized
 snapshot comparator preserves full protected-record multisets and refuses CNAME
 conflicts. It emits counts/digests only. Current zone export, live propagation and
@@ -4236,6 +4262,15 @@ Service, category and foundation writer CLIs use fixed role-specific errors for 
 Malformed audit pages, rows, field values and pagination cursor IDs are no longer serialized into errors. Fixed field/page diagnostics retain useful locations. Counts require nonnegative safe integers and every non-null projected dimension requires a positive safe integer, including metadata on non-asset rows; null still represents absent dimensions. Synthetic response/cursor redaction and numeric-boundary tests retain the successful presence-only report. Operator configuration diagnostics and the existing count-only consistency limitation remain outside this response-only repair. No live audit or CMS change was performed.
 
 ### AB#246 — delivery summary completeness
+
+**AB#357 follow-up, 2026-10-18:** the offline failure-summary CLI inspects the
+opened file descriptor and rejects nonregular targets before reading. POSIX
+nonblocking open prevents waiting for a FIFO writer. Ordinary snapshots retain
+their byte/UTF-8 bounds, redacted aggregates and complete/failure/incomplete exit
+statuses; symlinks to ordinary files remain supported. Actual subprocess tests
+cover writerless and populated FIFOs, symlink targets and invalid inputs. This
+operator-only correction remains Active pending review/merge; parent AB#159's
+live notification and controlled-failure acceptance remain separate.
 
 The offline contact/enquiry summary flags both missing delivery terminal events and delivery terminals missing their accepted event. The actual contact and enquiry emitters were read to verify that delivery paths emit accepted first. Out-of-order complete logs and rejection-only refusals remain valid; duplicate/invalid precedence and redacted counts remain. An orphan delivery failure now returns incomplete evidence (CLI exit 2) while retaining its failure count. This is log-window evidence, not a live delivery or alert verification.
 
@@ -6176,3 +6211,7 @@ The earlier count-test focus preparation in AB#338 is separate from this runtime
 repair. Owner review/merge and deployment acceptance remain pending.
 
 AB#19 status correction, 2026-10-18: the registry has no pending decisions. The report counts 415 distinct paths as 232 redirects, 179 justified `410` responses, three excluded error paths and one already-live root; the final 37 pending decisions were resolved by AB#271 on 2026-10-13 after earlier slices had reduced 48 to 37, so earlier pending counts are historical. An anonymous `verify:legacy-redirects -- check https://photosite-starter.vercel.app https://www.ilkansivu.net` run passed all 415 rows with no issues (first run without the canonical origin reported only `target-canonical-mismatch` on the 232 redirects, because that deployment declares `https://www.ilkansivu.net`). This is the current public deployment, not the launch candidate: The final check on the canonical production host, its attached report and owner acceptance remain open. AB#19 remains Active; no application code, redirect decision, CMS content or deployment changed.
+
+AB#132 recheck, 2026-10-18: a production build of main `0295671` on Next.js 16.4.2 (npm `latest`) still returns the empty `__next_error__` shell without JavaScript for an unknown public URL and a refused gallery cursor in desktop Chromium and mobile WebKit; the two probe definitions × two browsers (four executions) still hit their expected-failure markers. Upstream #62228, #99287, #99793 and the candidate fixes #98455/#98583 are open. The October 7 owner acceptance's review date (October 8) has passed and remains unrenewed, so a new explicit owner decision or a released fix is still required before AB#18. Recorded in [ADR-0007](adr/0007-proxy-request-path-boundary.md#scriptless-404-recheck--2026-10-18-ab132). AB#132 remains Active; no code changed.
+
+README currency check, 2026-10-18: the site-search item is marked done to match AB#299 (Closed, merged 2026-10-15; ADR-0033 is still Proposed), and the two passages that said home and contact still use the default locale now match the localized home/contact routes described in Getting started (AB#255, ADR-0029). AB#255 remains Active for the other page families. The AB#19 redirect figures are corrected on the separate `fix/19-legacy-redirect-status-and-check` branch. No code changed.
