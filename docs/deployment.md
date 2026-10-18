@@ -92,6 +92,13 @@ the source inventory and undecided/excluded/already-live classifications live be
 The reusable engine rejects invalid sources, duplicate decisions, self-redirects, and
 targets that are other legacy sources. No target is inferred from a legacy slug.
 
+**2026-10-18 canonical-host checkpoint:** all 415 rows passed on the current
+Production host with before/after source-identity guards; four JavaScript-free
+FI/EN Chromium/WebKit cases verified the visible localized fallback notice and
+metadata. [The dated audit](audits/ab19-canonical-production-verification-2026-10-18.md)
+records the identified release, attached report, timing and limits. AB#137 and
+owner acceptance remain open; this does not approve launch or change mappings.
+
 Export its complete, offline JSON report with:
 
 ```bash
@@ -105,12 +112,13 @@ decisions, three excluded error paths, and one already-live root. A duplicate, u
 or non-inventory source fails report generation. Successful export proves bookkeeping;
 it does not prove target availability or approve launch.
 
-The 2026-10-09 service slice adds twelve direct rows for ADR-0021's seven approved
+At the 2026-10-09 checkpoint, the service slice added twelve direct rows for ADR-0021's seven approved
 wedding-service sources and their redundant Finnish aliases. All seven targets answered
 200 with the expected language and canonical metadata on the activated renderer; the
 fresh Joomla backup binds each source to its published menu identity. These rows are
-prepared in this branch and are not yet deployed. Other package/service decisions and
-post-import content rows remain open. See the [service redirect audit](audits/ab19-service-redirects-2026-10-09.md).
+prepared and not yet deployed at that checkpoint; other package/service decisions
+and post-import rows were still open then. The October 18 checkpoint above records
+today's full registry result. See the [service redirect audit](audits/ab19-service-redirects-2026-10-09.md).
 
 Check a production build or candidate with the intended locale configuration and content:
 
