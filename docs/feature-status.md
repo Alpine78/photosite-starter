@@ -5388,6 +5388,16 @@ generation/cache wiring, legacy-write guard, maintenance, operational writer/
 receipts and named rehearsal/Production operations remain separate gates.
 No CMS, asset, credential, restore or deployment operation was performed.
 
+### AB#360 — Article-end section decision proposal (2026-10-18, Active)
+
+[ADR-0036](adr/0036-article-end-section-filtering-proposal.md) proposes a bounded
+article-end section extension for AB#321's verified 41-item exact star-filter use
+case under AB#27. It stays Proposed: current accepted article-end exclusions
+remain in force. Source membership is already evidenced; owner acceptance, exact
+source/current placement binding and full image/title/review-text parity remain
+gates before dependent implementation. No schema, route, filter, content write or
+deployment changed. AB#27/321 remain Active.
+
 ### AB#340 — Curated enquiry identity compatibility (2026-10-17, Active)
 
 The existing pinned alias loader now serves the public curated-enquiry backend.

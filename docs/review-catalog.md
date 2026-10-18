@@ -39,3 +39,14 @@ no specific brand, category or photographer is built into the model.
 No proposal above is prioritized by this worksheet. Existing public media rules
 remain in [AGENTS.md](../AGENTS.md); content routing is recorded in
 [ADR-0003](adr/0003-public-content-tree-and-url-structure.md).
+
+## Bounded source-backed use case — 2026-10-18
+
+AB#321 separately prioritizes one retained article's exact author-assigned star
+filter. Its original 41-item membership and one-exact-group-or-All interaction
+were verified on October 17; missing original star data is no longer the blocker.
+[ADR-0036](adr/0036-article-end-section-filtering-proposal.md) (AB#360) proposes
+optional generic article-end sections as a scoped alternative to a new catalog
+variant. It remains **Proposed**: owner acceptance, exact current identity binding
+and full review-text parity are required before dependent implementation.
+It does not settle the broader K1–K10 register or complete AB#27.
