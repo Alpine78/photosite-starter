@@ -2261,6 +2261,10 @@ policy; this is not a transaction-wide deadline or live protection/ownership pro
 
 Stable Preview alias assignment and reconciliation outcomes now withhold arbitrary transport exceptions rather than echoing their message or serializing thrown values. Known project-owned VercelApiError diagnostics remain available. Probe retry errors were already fixed messages; those retries, revision/ownership gates and post-assignment restore outcomes remain unchanged. These are local injected-transport checks, not a live alias mutation.
 
+### AB#351 — standalone alias verification diagnostics
+
+The read-only `verify:preview-alias` command also withholds arbitrary alias-configuration, identity-lookup and header-probe exception details. Fixed phase messages name the relevant settings; project-owned `VercelApiError` diagnostics remain available. Inspect those settings locally rather than copying credentials into logs. Ownership and non-production checks still precede the two ordered unauthenticated/bypass probes, and successful output and semantic verification details are unchanged. This is local synthetic verification of diagnostic handling, not live alias assignment or production acceptance.
+
 ### AB#238 — operator verification behavior
 
 The legacy verifier probes each exact declared target URL once per invocation, retaining both successful and failed attempts. Source requests remain independent and every affected row keeps its source status and fixed probe-failed result. Failed target timeouts therefore accumulate per distinct target rather than per alias row; source timeouts still apply separately. A fresh invocation retries naturally. Pending paths remain blockers, and a timeout remains an operational failure, never a new 410 or missing-content decision.
