@@ -142,9 +142,12 @@ test("article loose photographs open individually and retain caption, zoom, focu
       await expect(dialog.getByRole("button", { name: labels.next, exact: true })).toBeHidden();
       await expect(dialog.getByRole("button", { name: labels.previous, exact: true })).toBeHidden();
       await expect(dialog.locator(".pswp__counter")).toBeHidden();
+      await expect(dialog.getByRole("status")).toBeEmpty();
+      await expect(dialog.getByText(labels.lastImage, { exact: true })).toHaveCount(0);
       await expect(dialog.locator('a[href*="enquire="]')).toHaveCount(0);
       for (const key of ["ArrowRight", "ArrowLeft", "ArrowRight"]) await page.keyboard.press(key);
       await expect.poll(async () => (await presentedImage(dialog))?.alt).toBe(alt);
+      await expect(dialog.getByRole("status")).toBeEmpty();
       const caption = dialog.locator("[data-gallery-caption]");
       if (ARTICLE.captions[index].length > 0) {
         await expect(caption.locator(":scope > p")).toHaveText([...ARTICLE.captions[index]]);
@@ -215,6 +218,10 @@ test("repeated loose photographs across mini-galleries retain their own focus an
       await openLightbox(dialog, () => trigger.click());
       await expect(dialog.locator(".pswp__counter")).toBeHidden();
       await expect(dialog.getByRole("button", { name: localLabels.next, exact: true })).toBeHidden();
+      await expect(dialog.getByRole("status")).toBeEmpty();
+      await expect(dialog.getByText(localLabels.lastImage, { exact: true })).toHaveCount(0);
+      await page.keyboard.press("ArrowRight");
+      await expect(dialog.getByRole("status")).toBeEmpty();
       const caption = dialog.locator("[data-gallery-caption]");
       if (index === 1) {
         await expect(caption).toBeHidden();

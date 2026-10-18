@@ -621,6 +621,15 @@ public derivatives and scriptless plain figures remain. The dated ADR-0003 amend
 supersedes only the article sequence clauses of AB#147/24. AB#323 stays Active
 pending owner review/merge; the rest of parent AB#321 is separate.
 
+AB#356 owner refinement, 2026-10-18: standalone article-body image viewers omit
+the redundant “Last image” status in both interface languages. The shared
+viewer's default sequence-end message and continuation loading/failure/retry
+states remain available to grouped body, mini- and end-gallery viewers. Captions,
+zoom and focus return keep their existing behavior. AB#323 is Closed; this small
+follow-up remains Active pending review and merge under parent AB#321. Lint,
+TypeScript and all 7,984 browser-free tests pass, together with a fresh
+production build and 99 Chromium/WebKit journeys (desktop/mobile, FI/EN).
+
 Before/after image comparisons (AB#23, ADR-0019) are the tenth shared body-block
 kind, available in both article and gallery bodies: two public images and authored
 side labels, native range interaction after hydration and successful image loads,

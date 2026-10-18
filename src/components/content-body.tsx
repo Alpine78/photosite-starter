@@ -182,6 +182,7 @@ export function ContentBody({
                 key={block.key ?? index}
                 slides={[slides[bodyImage.index]]}
                 labels={labels.lightbox}
+                showLastImageMessage={false}
               >
                 {figure}
               </GalleryLightbox>
