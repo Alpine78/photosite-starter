@@ -3973,6 +3973,19 @@ Preview verification no longer prints arbitrary identity/probe exception message
 
 This independent work item is Closed after its owner-approved sequential PR merge on 2026-10-08; the launch parent remains open.
 
+### AB#350 — Bound header-only Preview probes (2026-10-18)
+
+Header-only generated-deployment and stable-alias GETs use one
+original monotonic twenty-second deadline per request. Unused bodies are cancelled
+without reading or awaiting cancellation, including responses arriving after a timed-out
+injected fetch. Fast completion removes the owned timer; an owned timeout has the fixed
+`Preview probe timed out` diagnostic, while ordinary transport causes stay withheld.
+Empty or already-locked bodies receive best-effort cleanup without taking another
+reader. The two alias requests retain their separate budgets and existing retry/recovery
+policy; this is not a transaction-wide deadline or live protection/ownership proof.
+AB#350 is Active pending its reviewed PR and owner acceptance; the production parent
+AB#18 remains open.
+
 ### AB#237 — Redact arbitrary failures during stable Preview alias reconciliation (2026-10-08)
 
 Stable Preview alias assignment and reconciliation outcomes now withhold arbitrary transport exceptions rather than echoing their message or serializing thrown values. Known project-owned VercelApiError diagnostics remain available. Probe retry errors were already fixed messages; those retries, revision/ownership gates and post-assignment restore outcomes remain unchanged. These are local injected-transport checks, not a live alias mutation.

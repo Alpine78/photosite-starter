@@ -61,6 +61,7 @@ import {
   type PreviewCheck,
   type PreviewProbes,
 } from "./preview-verification.mts";
+import { probePreviewDeployment } from "./preview-probe.mts";
 
 const DEFAULT_MAX_ATTEMPTS = 4;
 const DEFAULT_RETRY_DELAY_MS = 3_000;
@@ -388,7 +389,6 @@ export async function repointAndVerifyPreviewAlias(
 
 /** The provider's documented header for Protection Bypass for Automation. */
 const BYPASS_HEADER = "x-vercel-protection-bypass";
-const PROBE_TIMEOUT_MS = 20_000;
 
 /**
  * The one IO helper in this module. The orchestrator above is pure and takes a
@@ -401,25 +401,14 @@ export function createAliasProbe(
   bypassSecret: string,
   fetcher: typeof fetch = fetch,
 ): AliasProbe {
-  const request = async (
-    aliasUrl: URL,
-    headers: Record<string, string>,
-  ): Promise<Response> =>
-    fetcher(aliasUrl, {
-      headers,
-      redirect: "manual",
-      cache: "no-store",
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-    });
-
   return async (aliasUrl: URL): Promise<PreviewProbes> => {
-    const unauthenticated = await request(aliasUrl, {});
-    const bypassed = await request(aliasUrl, { [BYPASS_HEADER]: bypassSecret });
+    const unauthenticated = await probePreviewDeployment(aliasUrl, {}, fetcher);
+    const bypassed = await probePreviewDeployment(aliasUrl, { [BYPASS_HEADER]: bypassSecret }, fetcher);
     return {
       protectionStatus: unauthenticated.status,
-      protectionLocation: unauthenticated.headers.get("location"),
+      protectionLocation: unauthenticated.location,
       bypassStatus: bypassed.status,
-      robotsTag: bypassed.headers.get("x-robots-tag"),
+      robotsTag: bypassed.robotsTag,
     };
   };
 }
