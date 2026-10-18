@@ -6172,3 +6172,5 @@ preventing an animation from becoming a false scroll correction. The existing
 URL, selected state, counts, cursor reset and no-JavaScript links are preserved.
 The earlier count-test focus preparation in AB#338 is separate from this runtime
 repair. Owner review/merge and deployment acceptance remain pending.
+
+README currency check, 2026-10-18: the site-search item is marked done to match AB#299 (Closed, merged 2026-10-15; ADR-0033 is still Proposed), and the two passages that said home and contact still use the default locale now match the localized home/contact routes described in Getting started (AB#255, ADR-0029). AB#255 remains Active for the other page families. The AB#19 redirect figures are corrected on the separate `fix/19-legacy-redirect-status-and-check` branch. No code changed.
