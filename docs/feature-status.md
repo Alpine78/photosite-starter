@@ -1,5 +1,15 @@
 # Feature implementation status
 
+Production refresh, 2026-10-18 — AB#18/117/137 remain **Active**:
+[the site and Studio publication audit](audits/ab18-production-refresh-2026-10-18.md)
+records accepted main `33cb41a` deployed to the existing production site and
+Studio after full exact-source CI #1230 passed. Provider aliases, artifact bytes,
+FI/EN HTTP/security/cache checks and desktop/phone-size browser smoke passed.
+This supersedes earlier notes that the hosted Studio was still on October 11.
+Authenticated Studio editing, a physical iPhone check and broader launch and
+recovery acceptance remain. The new client-gallery reader stays default-off;
+no S3 service or legacy-gallery content change was introduced.
+
 Merged integration checkpoint, 2026-10-17 — AB#302–312 **Closed**: the owner
 accepted PRs [#453](https://github.com/Alpine78/photosite-starter/pull/453),
 [#454](https://github.com/Alpine78/photosite-starter/pull/454),
