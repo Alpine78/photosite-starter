@@ -433,7 +433,9 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   per-locale labels and content trees, category branches in every configured locale space
   with `hreflang`/`x-default` links, the identity-based language switch, localized service
   listings and detail routes, shared locale-aware navigation, and per-language site names
-  done; localized home/contact routes and the remaining shared settings copy pending*
+  done; localized home and contact routes done (AB#255, ADR-0029); the remaining page
+  families (historical content, client/administrator pages, Studio) are tracked in
+  [the coverage inventory](docs/bilingual-page-coverage.md) under AB#255, which stays Active*
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
   and optional long-form body content — *shared bounded result contract, the canonical
   gallery route inside the content tree with breadcrumbs, metadata, and a deterministic
@@ -480,13 +482,13 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   (AB#60) is a separate story*
   - Contact email subjects show the selected published service and optional preferred
     date; Other uses the localized generic contact label (AB#188).
-- [ ] Site search (AB#299) — *free-text search of published stories and services in the
+- [x] Site search (AB#299, merged 2026-10-15) — *free-text search of published stories and services in the
   visitor's own language: a header control that opens an accessible dialog (native modal
   `<dialog>`, `POST /api/search`) and upgrades a server-rendered, no-JavaScript results page
   at the locale's search route (`/haku`, `/en/search`). Matching runs in memory over a cached,
   webhook-invalidated story index, so keystrokes make no CMS request and a search term never
   reaches the CMS ([data flow](docs/search-data-flow.md)); results are `noindex` and thumbnails
-  keep their native ratio. [ADR-0033](docs/adr/0033-unified-site-search.md) is proposed and
+  keep their native ratio. [ADR-0033](docs/adr/0033-unified-site-search.md) is still proposed and
   decides how this shares its route with the keyword-gallery contract of ADR-0012. Image and
   keyword search wait for the taxonomy chain (AB#55 and its dependants)*
 - [x] Basic SEO (metadata, sitemap, robots.txt) — *settings-driven titles, descriptions,
@@ -731,8 +733,8 @@ with the shared `GALLERY_CURSOR_SIGNING_KEY`, on its own indexable self-canonica
 link that works with no JavaScript, with a compact continuation page and an invalid-cursor
 404 that links back to the branch. That 404 heading and return link still need JavaScript
 to render (AB#132); valid continuation pages work without it. The story root still serves
-only its bounded first page. Service routes and header branding are localized; home,
-contact, and the remaining shared SiteSettings copy still use the default locale.
+only its bounded first page. Service routes, header branding, home and contact are
+localized (AB#255); the remaining page families are still being covered.
 The Sanity connection, its published-perspective query client, and the
 enforced data-access boundary are in place, as are every schema and adapter — media,
 category, site settings, home page, article, service, and gallery — and every route-facing
