@@ -5788,6 +5788,20 @@ files and whole packages are unchanged. See [the audit workflow](jpeg-export-aud
 AB#327 is Active pending owner review/merge; AB#29's publication/provider gates
 and Proposed ADR-0035 remain open.
 
+### AB#344 — private metadata-envelope inventory for selected JPEG exports
+
+An explicit private processed-JPEG set can now be inventoried for fixed
+APP/COM header-prefix counts and payload-byte totals, with neutral ordered
+byte/SHA256 evidence. It shares the accepted decoder's strict marker walker,
+private input verification, TSV format and exclusive private report writer;
+original JPEG/metadata bytes and whole packages remain unchanged. Real baseline
+and progressive JPEGs, opaque/unknown/repeated segments, scan/entropy boundaries,
+private CLI refusals and interruption have synthetic regression coverage.
+A prefix match is not validated metadata; zero counts are not privacy clearance.
+No metadata values, new public-file policy, upload or publication are added.
+AB#344 is Active; parent AB#29 metadata approval and Proposed ADR-0035 gates remain
+open. See [the inventory command](jpeg-export-audit.md#inventory-metadata-envelopes-without-reading-their-values-ab344).
+
 ### AB#305 — Native Studio customer-link handoff (2026-10-17, Active)
 
 New client-delivery documents now offer an optional published-only URL action.

@@ -11,7 +11,7 @@ export function jpegAbortCode(signal: AbortSignal) {
 }
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 /** A narrow, single-image DCT JPEG envelope. APP contents, including thumbnails, stay opaque. */
-export function assertSingleJpeg(bytes: Uint8Array): void {
+export function walkSingleJpegSegments(bytes: Uint8Array, visit?: (marker: number, payloadStart: number, payloadBytes: number) => void): void {
   const b = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (b.length < 4 || b.length > JPEG_AUDIT_LIMITS.bytes || b[0] !== 255 || b[1] !== 216) failJpeg("INVALID_JPEG");
   let at = 2, frame = false, scans = 0, segments = 0;
@@ -30,6 +30,7 @@ export function assertSingleJpeg(bytes: Uint8Array): void {
       frame = true;
     }
     if (marker === 226 && b.subarray(at + 2, at + 6).equals(Buffer.from("MPF\0"))) failJpeg("MULTIPICTURE_JPEG");
+    visit?.(marker, at + 2, length - 2);
     at = end;
     if (marker === 218) {
       if (!frame) failJpeg("INVALID_JPEG"); scans++;
@@ -44,6 +45,10 @@ export function assertSingleJpeg(bytes: Uint8Array): void {
     }
   }
   failJpeg("INVALID_JPEG");
+}
+export function assertSingleJpeg(bytes: Uint8Array): void { walkSingleJpegSegments(bytes); }
+export function jpegAuditManifest(images: readonly Readonly<{ name: string; bytes: number; sha256: string }>[]): string {
+  return ["delivery-zip-v1", ...images.map(image => `${image.name}\t${image.bytes}\t${image.sha256}`)].join("\n") + "\n";
 }
 export async function decodeProcessedJpeg(bytes: Uint8Array) {
   assertSingleJpeg(bytes);
@@ -89,7 +94,7 @@ export async function auditJpegExports(sources: readonly JpegSource[], selection
     try { return await Promise.race([Promise.resolve().then(() => { if (controller.signal.aborted) cancellation(); return call(); }), stopped]); }
     finally { controller.signal.removeEventListener("abort", abort); }
   }
-  const images: { name: string; bytes: number; sha256: string; width: number; height: number }[] = [], rows = ["delivery-zip-v1"];
+  const images: { name: string; bytes: number; sha256: string; width: number; height: number }[] = [];
   try {
     for (const [index, source] of sources.entries()) {
       await bounded(() => source.unchanged());
@@ -103,11 +108,11 @@ export async function auditJpegExports(sources: readonly JpegSource[], selection
       const dimensions = await bounded(() => (options.decode ?? decodeProcessedJpeg)(bytes));
       await bounded(() => source.unchanged());
       const name = `image-${String(index + 1).padStart(4, "0")}.jpg`, sha256 = hash(bytes);
-      images.push({ name, bytes: bytes.length, sha256, ...dimensions }); rows.push(`${name}\t${bytes.length}\t${sha256}`);
+      images.push({ name, bytes: bytes.length, sha256, ...dimensions });
     }
     for (const source of sources) await bounded(() => source.unchanged());
     if (controller.signal.aborted) cancellation();
-    const manifest = rows.join("\n") + "\n";
+    const manifest = jpegAuditManifest(images);
     return { manifest, receipt: { version: 1, status: "decoded-selected-jpegs-offline", count: images.length, sourceBytes: total, selectionSha256: hash(selectionSnapshot), manifestSha256: hash(Buffer.from(manifest)), images,
       readyToUpload: false, published: false, checks: { jpegDecoding: "verified-for-contained-image-data", processedExportProvenance: "owner-asserted-not-verified", metadataSuitability: "unproven", intendedSetApproval: "not-established", provider: "not-contacted" } } } as const;
   } catch (error) { if (error instanceof JpegAuditError) throw error; failJpeg("LOCAL_INPUT_FAILED"); }
