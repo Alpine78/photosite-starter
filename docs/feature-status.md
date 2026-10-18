@@ -2617,6 +2617,13 @@ npm v2 reader validates the reference graph and separates affected package entri
 from unique numeric advisories. No dependency fixes or residual-risk acceptance
 are implied; AB#160/186 remain open.
 
+**AB#358 follow-up, 2026-10-18:** saved audit summaries now inspect the opened
+descriptor and refuse nonregular or oversized input before reading. POSIX
+nonblocking open avoids waiting for a FIFO writer; ordinary-file symlinks,
+UTF-8/byte limits, redacted output and exit statuses are preserved. Actual CLI
+tests use synthetic saved reports without registry calls. This correction is
+Active pending review/merge; AB#160's operational acceptance remains open.
+
 **Merged dependency verification, 2026-10-07 (AB#186, Closed):** owner-reviewed
 PR #281 merged and exact main CI #655 passed quality gates and the real protected
 Preview deployment with the remediated CLI tree. AB#186 was explicitly moved
