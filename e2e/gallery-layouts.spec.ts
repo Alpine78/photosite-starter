@@ -25,11 +25,13 @@ async function boxes(main: Locator) {
     const root = items[0].parentElement!.getBoundingClientRect();
     return items.map((item) => {
       const img = item.querySelector("img")!;
+      const trigger = item.querySelector("[data-item-id]")!.getBoundingClientRect();
       const rect = img.getBoundingClientRect();
       return { id: item.querySelector("[data-item-id]")!.getAttribute("data-item-id"),
         x: rect.x - root.x, y: rect.y - root.y, width: rect.width, height: rect.height,
         ratio: Number(img.getAttribute("width")) / Number(img.getAttribute("height")),
         sizes: img.sizes,
+        trigger: { x: trigger.x - root.x, y: trigger.y - root.y, width: trigger.width, height: trigger.height },
       };
     });
   });
@@ -49,9 +51,17 @@ for (const fixture of cases) {
     test("image loading and hydration preserve the server-rendered boxes", async ({ page }) => {
       let release!: () => void;
       const gate = new Promise<void>((resolve) => { release = resolve; });
+      let releaseImages!: () => void;
+      const imagesGate = new Promise<void>((resolve) => { releaseImages = resolve; });
       const delayed = async (route: import("@playwright/test").Route) => { await gate; await route.continue(); };
       await page.route("**/_next/static/**/*.js", delayed);
-      await page.route("**/_next/image?*", delayed);
+      await page.route("**/_next/image?*", async route => { await imagesGate; await route.continue(); });
+      const imageRequests = new Map<string, number>();
+      page.on("request", request => {
+        if (new URL(request.url()).pathname === "/_next/image") {
+          imageRequests.set(request.url(), (imageRequests.get(request.url()) ?? 0) + 1);
+        }
+      });
       try {
         await page.goto(path(fixture.id), { waitUntil: "commit" });
         const main = page.getByRole("main");
@@ -64,22 +74,52 @@ for (const fixture of cases) {
         // (fonts finished loading before boxes are measured) without depending
         // on whatever else WebKit ties that promise's settlement to.
         await page.waitForFunction(() => document.fonts.status === "loaded");
+        const passive = main.locator("#gallery [data-item-id]:not([popovertarget])");
+        expect(await passive.count(), "a genuine captionless/native-action-free occurrence is required").toBeGreaterThan(0);
+        await expect(passive.first()).toHaveJSProperty("tagName", "DIV");
+        await expect(passive.first()).not.toHaveAttribute("aria-haspopup", /.+/);
+        const itemId = await passive.first().getAttribute("data-item-id");
+        const picture = passive.first().locator("img");
+        await picture.scrollIntoViewIfNeeded();
         const before = await boxes(main);
         const listBefore = await galleryItems(main).first().evaluate((item) => item.parentElement!.getBoundingClientRect().toJSON());
+        releaseImages();
+        await expect.poll(() => picture.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+        const sourceBefore = await picture.evaluate((image: HTMLImageElement) => ({
+          currentSrc: image.currentSrc, sizes: image.sizes,
+          width: image.getAttribute("width"), height: image.getAttribute("height"),
+        }));
+        expect(sourceBefore.currentSrc).not.toBe("");
+        const requestsBefore = imageRequests.get(sourceBefore.currentSrc);
+        expect(requestsBefore).toBeGreaterThan(0);
         release();
         // Prove the page has hydrated rather than merely receiving its scripts.
         const dialog = page.getByRole("dialog");
-        await openLightbox(dialog, () => main.locator("#gallery [data-item-id]").first().click());
+        const enhanced = main.locator(`#gallery button[data-item-id="${itemId}"]`);
+        // One actual first activation, without retrying a click on a not-ready
+        // viewer, proves the earliest enhanced control has a real action.
+        await expect(enhanced).toBeVisible();
+        await enhanced.click();
+        await expect(dialog).toBeVisible();
+        await expect.poll(() => dialog.evaluate(node => node.contains(document.activeElement))).toBe(true);
         await page.keyboard.press("Escape");
+        await expect(enhanced).toBeFocused();
+        await expect.poll(() => enhanced.locator("img").evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+        expect(await enhanced.locator("img").evaluate((image: HTMLImageElement) => ({
+          currentSrc: image.currentSrc, sizes: image.sizes,
+          width: image.getAttribute("width"), height: image.getAttribute("height"),
+        }))).toEqual(sourceBefore);
+        expect(imageRequests.get(sourceBefore.currentSrc), "enhancement must not refetch the same thumbnail").toBe(requestsBefore);
         const after = await boxes(main);
         for (let i = 0; i < before.length; i += 1) {
           for (const key of ["x", "y", "width", "height"] as const) {
             expect(Math.abs(after[i][key] - before[i][key])).toBeLessThan(0.1);
+            expect(Math.abs(after[i].trigger[key] - before[i].trigger[key])).toBeLessThan(0.1);
           }
         }
         const heightAfter = await galleryItems(main).first().evaluate((item) => item.parentElement!.getBoundingClientRect().height);
         expect(Math.abs(heightAfter - listBefore.height)).toBeLessThan(0.1);
-      } finally { release(); }
+      } finally { releaseImages(); release(); }
     });
 
     for (const javaScriptEnabled of [false, true]) {
@@ -105,7 +145,8 @@ for (const fixture of cases) {
             }
             expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
             if (javaScriptEnabled && browserName === "chromium") {
-              const triggers = main.locator("#gallery [data-item-id]");
+              const triggers = main.locator("#gallery button[data-item-id]");
+              await expect(triggers).toHaveCount(24);
               await triggers.first().focus();
               for (let i = 1; i < 4; i += 1) {
                 await page.keyboard.press("Tab");

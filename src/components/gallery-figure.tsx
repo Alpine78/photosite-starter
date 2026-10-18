@@ -30,6 +30,7 @@ export function GalleryFigure({ item, index, captionPlacement, boundedBelow = fa
   return (
     <figure className={`gallery-figure rounded-sm bg-surface-muted${bounded && media.caption ? " gallery-figure--bounded" : ""}`}>
       <GalleryLightboxTrigger itemId={item.itemId} index={index}
+        deferUntilEnhanced
         captionPopoverId={hasPopover && media.caption ? captionId : undefined}
         label={media.alt.length > 0 ? undefined : labels.lightbox.openImage}>
         <Image src={media.rendition.src} alt={media.alt}
