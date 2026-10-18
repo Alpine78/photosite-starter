@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
 import { ContentBody } from "@/components/content-body";
-import { ContentPageJumpNav } from "@/components/content-page-jump-nav";
+import { ContentReadingLayout } from "@/components/content-reading-layout";
 import { GallerySectionControls } from "@/components/gallery-section-controls";
 import { GallerySectionIntro } from "@/components/gallery-section-intro";
 import { GalleryGrid } from "@/components/gallery-grid";
@@ -250,27 +250,24 @@ export function ContentGallery({
             rest of the editorial framing. A gallery with no long body renders
             neither wrapper — `ContentPageJumpNav` renders nothing without a
             leading link or headings, and the body itself is only mounted when
-            there is one. Nav and body share one `max-w-3xl` column — this
-            `<main>` is wider than an article's own, for the grid, so the
-            reading column has to be pinned here rather than inherited from it.
+            there is one. The shared reading layout retains the 48rem body
+            measure; only a sufficiently wide container gains a contents
+            sidebar. The section controls and full-width grid stay outside it.
           */}
           {!isContinuation && page.body.length > 0 && (
-            <div className="max-w-3xl">
-              <ContentPageJumpNav
-                label={labels.contentTree.onThisPage}
-                headings={headings}
-                leadingLink={{ href: "#gallery", label: labels.gallery.jumpToImages }}
+            <ContentReadingLayout
+              label={labels.contentTree.onThisPage}
+              headings={headings}
+              leadingLink={{ href: "#gallery", label: labels.gallery.jumpToImages }}
+            >
+              <ContentBody
+                blocks={page.body}
+                labels={labels}
+                sizes={imageRenderProfiles.galleryBody.sizes}
+                miniGallerySizes={imageRenderProfiles.galleryMiniGallery.sizes}
+                miniGalleryLayout={presentation.layout}
               />
-              <div className="mt-10">
-                <ContentBody
-                  blocks={page.body}
-                  labels={labels}
-                  sizes={imageRenderProfiles.galleryBody.sizes}
-                  miniGallerySizes={imageRenderProfiles.galleryMiniGallery.sizes}
-                  miniGalleryLayout={presentation.layout}
-                />
-              </div>
-            </div>
+            </ContentReadingLayout>
           )}
 
           <section

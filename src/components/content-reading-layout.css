@@ -1,0 +1,69 @@
+/* Only the navigation column is a query container. Editorial headings retain
+   their existing native fragment/hydration boundary outside containment. */
+.content-reading-intro,
+.content-reading-body,
+.content-reading-nav-column > .content-reading-nav {
+  min-inline-size: 0;
+  max-inline-size: 48rem;
+}
+
+.content-reading-body {
+  margin-block-start: 2.5rem;
+}
+
+.content-reading-layout--centered > .content-reading-intro,
+.content-reading-layout--centered .content-reading-body,
+.content-reading-layout--centered .content-reading-nav-column > .content-reading-nav {
+  margin-inline: auto;
+}
+
+/* 14rem + 2rem + 48rem fit together only with 64rem of actual room.
+   Wrapping lets enlarged text use the same inline fallback without a
+   viewport-only breakpoint or another client-side layout observer. */
+.content-reading-row--with-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  max-inline-size: 64rem;
+  margin-inline: auto;
+  margin-block-start: 2rem;
+  gap: 2.5rem 2rem;
+}
+
+.content-reading-layout--centered > .content-reading-row--with-nav {
+  justify-content: center;
+}
+
+.content-reading-nav-column {
+  container: content-reading-nav / inline-size;
+  flex: 1 1 14rem;
+  min-inline-size: 0;
+}
+
+.content-reading-nav-column > .content-reading-nav {
+  margin-block-start: 0;
+}
+
+.content-reading-row--with-nav > .content-reading-body {
+  flex: 999 1 48rem;
+  margin-block-start: 0;
+}
+
+/* A wrapped navigation fills its own row (at least 16rem at this viewport
+   guard), while a fitting two-column row gives it 14rem. Very short windows
+   keep the entire list in natural page flow instead of pinning a tiny pane. */
+@media (width >= 64rem) and (height >= 30rem) {
+  @container content-reading-nav (width >= 14rem) and (width < 16rem) {
+    /* Keep cold/scriptless navigation in natural flow until the existing
+       header has measured and enabled its own sticky enhancement. */
+    body:has(.site-header.sticky) .content-reading-nav-column > .content-reading-nav {
+      position: sticky;
+      top: calc(var(--site-header-offset, 0px) + 1rem);
+      max-block-size: calc(100svh - var(--site-header-offset, 0px) - 2rem);
+      overflow: auto;
+      padding-block: 0.5rem;
+      padding-inline-end: 0.5rem;
+      scroll-padding-block: 0.5rem;
+    }
+  }
+}

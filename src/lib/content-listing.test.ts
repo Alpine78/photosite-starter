@@ -174,6 +174,7 @@ describe("listCategoryContentIds", () => {
       "content-capture-sequence",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
+      "content-field-guide",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
       "content-ended-gallery",
@@ -220,7 +221,7 @@ describe("buildCategoryListing", () => {
   });
 
   it("lists recent routed content across the tree at the story root", () => {
-    // The story root is bounded to one page: the eleven newest routed pages
+    // The story root is bounded to one page: the twelve newest routed pages
     // by *effective event date* (AB#150, ADR-0017) — `content-reading-coastal-
     // light` (eventDate 2025-03-15) and `content-polar-night-sessions`
     // (eventDate 2024-01-15) sort by that authored date rather than their
@@ -239,7 +240,8 @@ describe("buildCategoryListing", () => {
       "content-awaiting-selection",
       "content-large-archive",
       "content-shuffled-showcase",
-      ...FIELDNOTE_IDS.slice(0, MAX_CONTENT_LISTING_PAGE_SIZE - 11),
+      "content-field-guide",
+      ...FIELDNOTE_IDS.slice(0, MAX_CONTENT_LISTING_PAGE_SIZE - 12),
     ]);
   });
 
@@ -496,6 +498,7 @@ describe("buildContentListingQuery", () => {
       "content-capture-sequence",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
+      "content-field-guide",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
       "content-ended-gallery",
@@ -633,6 +636,7 @@ describe("buildAdjacentContentQuery", () => {
       "content-reading-coastal-light",
       "content-choosing-a-telephoto-lens",
       "content-understanding-exposure-triangle",
+      "content-field-guide",
       "content-packing-for-a-photo-trip",
       "content-shooting-in-low-light",
       "content-ended-article",
@@ -702,10 +706,10 @@ describe("adjacent content", () => {
         contentId: "content-packing-for-a-photo-trip",
         path: ["travel", "packing-for-a-photo-trip"],
       }),
-      // The newest field note (Jan 2023) is now the older neighbour.
+      // The separate long-contents fixture (Jan 2024) is the older neighbour.
       next: expect.objectContaining({
-        contentId: fieldnoteContentId(1),
-        path: ["gear", "fieldnote-01"],
+        contentId: "content-field-guide",
+        path: ["technique", "field-guide"],
       }),
     });
   });

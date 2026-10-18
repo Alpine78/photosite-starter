@@ -878,6 +878,21 @@ AB#193 prepares AB#20's [reading-position worksheet](article-reading-position.md
 Browser-local persistence and restoration decisions remain open; no reading-position
 restoration feature is implemented.
 
+**Desktop contents, 2026-10-18 (AB#354, parent AB#321):** the existing
+three-level article/gallery contents list gains a sticky sidebar when the actual
+reading row fits a 48rem body, 14rem navigation and 2rem gap. The article
+introduction retains its centered reading measure. Narrow containers and
+enlarged text retain one inline list in its original document order; very short
+windows retain natural page flow. Sticky enhancement follows the existing
+header enhancement; scriptless navigation stays in natural flow with native
+anchors. The sidebar uses the header's measured visible offset and bounds an
+overflowing list to the remaining viewport with room for keyboard focus
+outlines. Gallery controls, full-frame images and the fullscreen
+viewer remain outside this reading layout. No mobile disclosure, storage,
+restoration, rating filters, new URLs or screenshot-based design are introduced.
+A separate generic long article exercises the real overflowing three-level list.
+AB#354 is Active during validation/review; parent AB#321 remains open.
+
 **Reading address, 2026-10-17 (AB#330, parent AB#321):** deliberate reading scroll
 can follow the existing shared H2–H4 body anchors in the address bar, using one
 bounded timer and `replaceState` with the current history state and raw path/query

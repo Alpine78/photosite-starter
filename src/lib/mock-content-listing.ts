@@ -199,6 +199,11 @@ const englishRecords: readonly AuthoredContentRecord[] = [
     cover: englishImages.coastalLandscape,
   },
   {
+    contentId: "content-field-guide",
+    title: "A field guide to observing light",
+    publishedAt: "2024-01-01",
+  },
+  {
     // No cover on purpose, like the polar night gallery above: a card and a
     // detail page both have to work without one.
     contentId: "content-packing-for-a-photo-trip",
