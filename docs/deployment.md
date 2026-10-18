@@ -92,6 +92,13 @@ the source inventory and undecided/excluded/already-live classifications live be
 The reusable engine rejects invalid sources, duplicate decisions, self-redirects, and
 targets that are other legacy sources. No target is inferred from a legacy slug.
 
+**2026-10-18 canonical-host checkpoint:** all 415 rows passed on the current
+Production host with before/after source-identity guards; four JavaScript-free
+FI/EN Chromium/WebKit cases verified the visible localized fallback notice and
+metadata. [The dated audit](audits/ab19-canonical-production-verification-2026-10-18.md)
+records the identified release, attached report, timing and limits. AB#137 and
+owner acceptance remain open; this does not approve launch or change mappings.
+
 Export its complete, offline JSON report with:
 
 ```bash
@@ -105,12 +112,13 @@ decisions, three excluded error paths, and one already-live root. A duplicate, u
 or non-inventory source fails report generation. Successful export proves bookkeeping;
 it does not prove target availability or approve launch.
 
-The 2026-10-09 service slice adds twelve direct rows for ADR-0021's seven approved
+At the 2026-10-09 checkpoint, the service slice added twelve direct rows for ADR-0021's seven approved
 wedding-service sources and their redundant Finnish aliases. All seven targets answered
 200 with the expected language and canonical metadata on the activated renderer; the
 fresh Joomla backup binds each source to its published menu identity. These rows are
-prepared in this branch and are not yet deployed. Other package/service decisions and
-post-import content rows remain open. See the [service redirect audit](audits/ab19-service-redirects-2026-10-09.md).
+prepared and not yet deployed at that checkpoint; other package/service decisions
+and post-import rows were still open then. The October 18 checkpoint above records
+today's full registry result. See the [service redirect audit](audits/ab19-service-redirects-2026-10-09.md).
 
 Check a production build or candidate with the intended locale configuration and content:
 
@@ -2003,10 +2011,12 @@ exists"); that does not complete AB#18.
 
 The owner accepted [AB#132's temporary scriptless-404 residual](adr/0007-proxy-request-path-boundary.md#2026-10-07-owner-accepted-temporary-residual-risk-ab132)
 on 2026-10-07; AB#132 comment `59465` records impact, reason, review date and
-follow-up, and AB#18 comment `59466` links that decision. Review on 2026-10-08
-before go/no-go or any earlier promotion and retest the exact candidate. Scriptless
-probes remain known semantic failures; acceptance does not make them passing
-journeys. AB#132 stays Active for a verified fix.
+follow-up, and AB#18 comment `59466` links that decision. Its 2026-10-08 review date
+has passed. The [2026-10-18 recheck](adr/0007-proxy-request-path-boundary.md#scriptless-404-recheck--2026-10-18-ab132)
+does not renew acceptance: before AB#18 promotion, obtain a new explicit owner
+decision with impact, reason, review date and follow-up, or a verified fix, and
+retest the exact candidate. Scriptless probes remain known semantic failures;
+acceptance does not make them passing journeys. AB#132 stays Active.
 
 AB#186's dependency gate is Closed: zero full and production-only audit findings
 and a passed exact-main CI #655 authenticated protected Preview with the patched
@@ -2196,7 +2206,12 @@ adding spaces. CNAME targets are absolute names, with an optional terminal dot.
 
 Supply a second proposed snapshot and a JSON array of explicit web owners, e.g.
 `["@","www"]`, to `npm run check:dns-cutover -- before.json after.json web-hosts.json`.
-Each file is limited to 4 MiB. Exit 0 means the protected record multisets agree and
+Each input must be an ordinary file (a symlink to a regular file is accepted),
+limited to 4 MiB and decoded as strict UTF-8. Save generated input to a file first;
+FIFOs, devices and process substitution such as `<(...)` are refused with exit 2.
+The three files are read sequentially, not as an atomic snapshot: use stable local
+copies. The opened descriptor is closed in `finally` on every read/stat outcome.
+Exit 0 means the protected record multisets agree and
 there is no proposed CNAME conflict; 1 means a protected change or conflict; 2 means
 invalid input. Output contains counts and digests, never record values. TTL, priority
 and duplicate occurrences count. Only allowlisted A/AAAA/CNAME records may change;

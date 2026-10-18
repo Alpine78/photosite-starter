@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18, 2026-09-19, 2026-10-12, 2026-10-15, 2026-10-17 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18, 2026-09-19, 2026-10-12, 2026-10-15, 2026-10-17, 2026-10-18 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -225,6 +225,9 @@ choice, owner-approved temporary reveal occlusion, complete-image fallback,
 media contract, and approval-bound Joomla conversion.
 
 ### 2026-09-15 — An article may own one bounded end-gallery result (AB#161)
+
+**Later scoped amendment:** the [accepted October 18 article-end section decision](#accepted-amendment-2026-10-18--optional-article-end-sections-ab360--ab321)
+extends the sections/filtering exclusion below. Other AB#161 boundaries remain.
 
 Decision 1 originally says that an article owns an editorial sequence and does not
 implicitly acquire a gallery result from media in that sequence. That separation remains:
@@ -2417,3 +2420,31 @@ list and per-occurrence focus identity, an independent viewer per block, no join
 with loose body images or article-end/curated results, no enquiry or pagination,
 and no new media projection or CMS mutation. Category overview cards and production
 content acceptance are outside this source amendment. AB#321 remains open.
+
+
+## Accepted amendment, 2026-10-18 — optional article-end sections (AB#360 / AB#321)
+
+The owner explicitly accepted [ADR-0036](0036-article-end-section-filtering-proposal.md)
+as the implementation basis for the retained source-backed article filter. This
+amends only AB#161's exclusion of article-end sections/filtering: an article may
+have a bounded generic section catalog and single-section placement membership,
+with filtering across the collection before the manual 24-item window. The
+article variant, body and stable media/placement identities remain intact.
+
+ADR-0036 records the complete adopted storage, locale, immutable ID/slug,
+selected URL, indexing, cursor and progressive-interaction contract. In
+particular, existing All cursor context stays compatible, selected context uses
+the digest of the end-gallery/section tuple, and every selected/continuation
+view remains noindex with the parameter-free article canonical and no hreflang.
+
+This decision permits reviewed code slices; it does not authorize a production
+CMS write, publish ratings, invent translations or accept rendered content.
+The verified 41-item hash/text binding preflight is separate from the still
+required revision-bound content-change approval and real-content acceptance.
+The broader AB#27 catalog register and remaining AB#321 criteria stay open.
+
+**Sections affected:** decision 1's optional article-end result and the September
+15 AB#161 exclusion of sections/filtering; decision 3's article end-gallery
+controls and indexing; decision 8's section selection, query and pagination
+contract, scoped only to optional article-end results. Existing standalone
+curated-gallery and body mini-gallery rules remain unchanged.
