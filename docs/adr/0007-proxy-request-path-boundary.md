@@ -485,15 +485,20 @@ verified semantic fix remain separate; AB#132 stays Active.
 ## Scriptless 404 recheck — 2026-10-18 (AB#132)
 
 A production build of main at `0295671` on Next.js 16.4.2 (the npm `latest` tag; the
-`canary` tag, 16.5.0-canary.17, was not built) ran the four marked AB#132 probes in
+`canary` tag, 16.5.0-canary.17, was not built) ran the two marked AB#132 probe
+definitions in
 `e2e/gallery-continuation.spec.ts` in desktop Chromium and mobile WebKit with
-JavaScript disabled. All four still hit the expected-failure marker: the unknown path
+JavaScript disabled (four executions). All four still hit the expected-failure
+marker: the unknown path
 and the refused gallery cursor return the known empty `__next_error__` shell with no
 rendered h1 or return link. These are not passing accessibility journeys.
 
 Upstream on 2026-10-18: issue #62228 and the later reports #99287 and #99793 are open,
-and the candidate fixes #98455 and #98583 are open and unmerged. No supported remedy
-exists, so none was applied; the O(1) Proxy is unchanged.
+and the candidate fixes #98455 and #98583 are open and unmerged. No supported,
+bounded local remedy has been established within the retained O(1),
+adapter-read-free Proxy contract. The known rewrite-to-unmatched-path workaround
+changes that boundary and has not been accepted; none was applied. The Proxy is
+unchanged.
 
 The October 8 review date of the October 7 owner acceptance has passed and this check
 does not renew it. A new owner decision with impact, reason, review date and follow-up
