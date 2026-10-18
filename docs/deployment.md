@@ -2246,6 +2246,17 @@ Preview verification no longer prints arbitrary identity/probe exception message
 
 This deliberately also withholds ordinary validation `Error` messages during identity lookup. Those errors share the catch boundary with transport failures, whose contents are not trusted; the fixed phase diagnostic identifies where verification stopped. Only the explicit project-owned `VercelApiError` class may supply additional detail. Inspect the URL, expected deployment ID and required Vercel settings locally when that phase fails.
 
+### AB#350 — Bound header-only Preview probes (2026-10-18)
+
+Header-only generated-deployment and stable-alias GETs use one
+original monotonic twenty-second deadline per request. Unused bodies are cancelled
+without reading or awaiting cancellation, including responses arriving after a timed-out
+injected fetch. Fast completion removes the owned timer; an owned timeout has the fixed
+`Preview probe timed out` diagnostic, while ordinary transport causes stay withheld.
+Empty or already-locked bodies receive best-effort cleanup without taking another
+reader. The two alias requests retain their separate budgets and existing retry/recovery
+policy; this is not a transaction-wide deadline or live protection/ownership proof.
+
 ### AB#237 — operator verification behavior
 
 Stable Preview alias assignment and reconciliation outcomes now withhold arbitrary transport exceptions rather than echoing their message or serializing thrown values. Known project-owned VercelApiError diagnostics remain available. Probe retry errors were already fixed messages; those retries, revision/ownership gates and post-assignment restore outcomes remain unchanged. These are local injected-transport checks, not a live alias mutation.
