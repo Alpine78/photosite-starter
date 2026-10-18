@@ -23,7 +23,8 @@
  *   URL, request body, or log line;
  * - sets `redirect: "error"`, so a redirect response throws instead of being
  *   silently followed to a host that would then receive the header too;
- * - is bounded by `READ_REQUEST_TIMEOUT_MS` via `AbortSignal.timeout`;
+ * - is bounded through headers and JSON body by `READ_REQUEST_TIMEOUT_MS`;
+ * - refuses JSON responses above the local `MAX_READ_RESPONSE_BYTES` budget;
  * - surfaces a non-2xx response as `SanityReadHttpError`, carrying the status
  *   and a short, token-redacted message — never Sanity's raw response body,
  *   which could itself echo a request value back.
@@ -34,6 +35,62 @@ const DATASET_PATTERN = /^(?=.{1,64}$)[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$/;
 const API_VERSION_PATTERN = /^v(\d{4})-(\d{2})-(\d{2})$/;
 
 export const READ_REQUEST_TIMEOUT_MS = 20_000;
+/** Local CLI engineering budget, not a provider or dataset-size limit. */
+export const MAX_READ_RESPONSE_BYTES = 16 * 1024 * 1024;
+type ReadAttempt = { readonly signal: AbortSignal; readonly expiresAt: number };
+const responseAttempts = new WeakMap<Response, ReadAttempt>();
+
+function createReadAttempt(): ReadAttempt {
+  const expiresAt = performance.now() + READ_REQUEST_TIMEOUT_MS;
+  return { signal: AbortSignal.timeout(READ_REQUEST_TIMEOUT_MS), expiresAt };
+}
+
+function observeCleanup(cleanup: () => unknown): void {
+  try { void Promise.resolve(cleanup()).catch(() => {}); }
+  catch { /* Cleanup cannot replace a classified outcome. */ }
+}
+
+/** Unused responses only; never await an uncooperative provider's cleanup. */
+export function cancelSanityResponse(response: Response): void {
+  observeCleanup(() => response.body?.cancel());
+}
+
+/** Each pending operation owns one removable listener, not a shared timeout promise. */
+function waitForOperation<T>(operation: () => Promise<T>, attempt: ReadAttempt, onLateValue?: (value: T) => void): Promise<T> {
+  const { signal, expiresAt } = attempt;
+  // Immediate reads can keep the microtask queue busy without letting the native
+  // timeout callback run. The monotonic deadline also bounds that case.
+  const expired = () => signal.aborted || performance.now() >= expiresAt;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = () => { settled = true; signal.removeEventListener("abort", abort); };
+    const abort = () => {
+      if (settled) return;
+      finish(); reject(new DOMException("Request timed out", "TimeoutError"));
+    };
+    if (expired()) { abort(); return; }
+    signal.addEventListener("abort", abort, { once: true });
+    try {
+      void operation().then(value => {
+        if (settled) { observeCleanup(() => onLateValue?.(value)); return; }
+        if (expired()) { abort(); observeCleanup(() => onLateValue?.(value)); return; }
+        finish(); resolve(value);
+      }, cause => {
+        if (settled) return;
+        if (expired()) { abort(); return; }
+        finish(); reject(cause);
+      });
+    } catch (cause) {
+      if (settled) return;
+      if (expired()) { abort(); return; }
+      finish(); reject(cause);
+    }
+  });
+}
+
+function isTimeout(cause: unknown): boolean {
+  return cause instanceof DOMException && (cause.name === "TimeoutError" || cause.name === "AbortError");
+}
 
 export class SanityReadConfigurationError extends Error {
   constructor(message: string) {
@@ -171,36 +228,70 @@ export async function sendSanityHttpRequest(
   options: RequestOptions | undefined,
 ): Promise<Response> {
   const send = options?.fetchImplementation ?? fetch;
+  const attempt = createReadAttempt();
   let response: Response;
   try {
-    response = await send(url, {
+    response = await waitForOperation(() => send(url, {
       ...init,
       redirect: "error",
-      signal: AbortSignal.timeout(READ_REQUEST_TIMEOUT_MS),
-    });
+      signal: attempt.signal,
+    }), attempt, cancelSanityResponse);
   } catch (cause) {
-    const timedOut =
-      cause instanceof DOMException && (cause.name === "TimeoutError" || cause.name === "AbortError");
     throw new SanityReadHttpError(
-      timedOut ? "Request timed out" : "Request failed before receiving a response",
+      isTimeout(cause) ? "Request timed out" : "Request failed before receiving a response",
     );
   }
+  // Preserve the original deadline through headers and body. A direct/clone
+  // Response passed to the reader instead gets its own standalone deadline.
+  responseAttempts.set(response, attempt);
   return response;
 }
 
 /** Exported for the same reason as `sendSanityHttpRequest`: shared by the mutate/upload paths in `sanity-seed-http.mts`. */
 export async function readSanityJsonResponse(response: Response, context: string): Promise<unknown> {
   if (!response.ok) {
+    cancelSanityResponse(response);
     throw new SanityReadHttpError(
       `${context} failed with HTTP ${response.status}`,
       response.status,
     );
   }
+  const attempt = responseAttempts.get(response) ?? createReadAttempt();
+  const declared = response.headers.get("content-length");
+  if (declared !== null && /^\d+$/.test(declared) && Number(declared) > MAX_READ_RESPONSE_BYTES) {
+    cancelSanityResponse(response);
+    throw new SanityReadHttpError(`${context} exceeded the response byte limit`);
+  }
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let complete = false;
   try {
-    const bytes = await response.arrayBuffer();
-    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-  } catch {
+    reader = response.body?.getReader();
+    const activeReader = reader;
+    let bytes = new Uint8Array(0), length = 0;
+    if (activeReader) for (;;) {
+      const chunk = await waitForOperation(() => activeReader.read(), attempt);
+      if (chunk.done) { complete = true; break; }
+      if (chunk.value.byteLength > MAX_READ_RESPONSE_BYTES - length) {
+        throw new SanityReadHttpError(`${context} exceeded the response byte limit`);
+      }
+      const nextLength = length + chunk.value.byteLength;
+      if (nextLength > bytes.byteLength) {
+        const next = new Uint8Array(Math.min(MAX_READ_RESPONSE_BYTES, Math.max(64 * 1024, bytes.byteLength * 2, nextLength)));
+        next.set(bytes.subarray(0, length)); bytes = next;
+      }
+      bytes.set(chunk.value, length); length = nextLength;
+    }
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, length)));
+  } catch (cause) {
+    if (cause instanceof SanityReadHttpError) throw cause;
+    if (isTimeout(cause)) throw new SanityReadHttpError("Request timed out");
     throw new SanityReadHttpError(`${context} returned a non-JSON response`);
+  } finally {
+    const activeReader = reader;
+    if (activeReader) {
+      if (!complete) observeCleanup(() => activeReader.cancel());
+      observeCleanup(() => activeReader.releaseLock());
+    }
   }
 }
 

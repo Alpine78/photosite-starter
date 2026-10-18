@@ -2324,6 +2324,21 @@ coincidence). **Run this tool against a quiet dataset** — no concurrent
 authoring or another process seeding it — the same operational expectation
 the seed script's own live-verification step already carries.
 
+### CLI response budgets and failures (AB#345)
+
+The shared CLI HTTP transport also limits each JSON response to **16 MiB** and
+uses one **20-second** deadline across headers and body reads (AB#345). These are
+local engineering budgets, not Sanity limits or proof that an arbitrary dataset
+fits a single response. The audit retains its 200-row projected pages; other
+tools reading full documents may need narrower batches or projections when a
+response exceeds the budget. A larger budget needs a separately reviewed change.
+Malformed UTF-8/JSON, oversized responses and timeouts fail with redacted errors.
+Unused error and seed-mutation bodies receive nonblocking best-effort cleanup.
+A response-read failure after a write or upload does **not** prove that nothing
+was committed and does not authorize a retry: reconcile the actual target using
+the relevant writer's recovery procedure. No live audit or write is established
+by the offline transport tests.
+
 ### Required credential
 
 `SANITY_AUDIT_TOKEN` — environment-only, like `SANITY_SEED_TOKEN`, and never

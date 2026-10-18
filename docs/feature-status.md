@@ -3893,6 +3893,19 @@ Stream failures retain the existing non-JSON class.
 It does not change the runtime app, exact-byte plan files or live verification.
 No real CMS request or write was performed for this slice.
 
+### AB#345 — bounded shared Sanity CLI responses (Active)
+
+The owner-run read/seed HTTP transport now enforces a local 16 MiB JSON-response
+budget and one original 20-second deadline through headers and body reads,
+including abort-ignoring injected transports. It retains fatal UTF-8 decoding,
+query perspectives and redacted errors. Unused, oversized, timed-out and late
+responses receive observed nonblocking cleanup; seed mutation status and batch
+order remain unchanged. Cleanup grants no retry or certainty about a submitted
+write/upload. This is separate from AB#320's runtime client correction.
+Synthetic fixtures cover the boundary and existing audit/writer contracts;
+arbitrary production response capacity, live audits, guard-record policy and
+AB#137's operational acceptance remain unproven. No CMS operation was performed.
+
 ### AB#228 — Vercel metadata UTF-8
 
 Deployment lookup, alias lookup and alias-assignment confirmation reject malformed
