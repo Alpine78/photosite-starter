@@ -3,7 +3,7 @@
 Refinement worksheet for AB#193, under rough story AB#20 and Feature AB#91.
 The initial worksheet below is preserved as refinement history. On 2026-10-18
 the owner accepted the bounded policy below. AB#362 implements its storage
-foundation; public restoration and visitor controls remain pending.
+foundation; AB#364 integrates public restoration and visitor controls.
 
 AB#321 subsequently prioritized a reading address following existing body
 headings through H4. AB#330 implements that separate, nonpersistent enhancement:
@@ -66,11 +66,65 @@ accurately rather than claiming a successful persistent clear/disable.
 Expiry is enforced on next use, not while the browser is closed. This feature
 must attempt continuity across browser restarts, but cannot guarantee browser
 retention: private mode, eviction, quota and denied storage may prevent it.
-The caller must acquire `window.localStorage` in a try/catch. Browser integration
-still needs navigation precedence, heading readiness, layout/scroll handling,
-unchanged focus, localized settings and failure feedback, local-data disclosure,
-and production-build Chromium/WebKit restart/anchor/history/denied-storage
-journeys. No public call site uses this foundation yet; AB#20 remains Active.
+The browser integration acquires `window.localStorage` in a try/catch.
+
+### Article integration (AB#364)
+
+Only article variants pass content identity and locale to the existing reading
+address observer. Accepted deliberate reading input saves an H2/H3/H4 chapter;
+intro, outside-body and modal movement does not save. The observer accepts at
+most one update every 500 ms. A newly accepted chapter is saved immediately;
+only same-chapter timestamp refreshes are limited to once per minute. This is
+not a minute-long debounce that could lose an accepted H4 on leaving the page.
+
+A fresh, visible, top-of-page visit without a fragment gets one bounded restore
+attempt after hydration. The current chapter is scrolled into view instantly,
+with native scroll padding/margin and no focus, query, URL or history-state
+change. Existing fragment links, native history/bfcache, an already scrolled
+page, modal state, unknown initial navigation and new input take priority.
+A missing/expired chapter leaves that eligible fresh visit at the top. Two
+animation frames defer the initial attempt. A temporary observer of the body
+compensates actual later layout changes (for example comparison images switching
+from their full-image fallback) while that automatic anchor is still current.
+It makes no style/layout writes or polling loop and stops on any reader gesture,
+settings change, explicit navigation, hidden page, modal or unmount. The initial
+fresh `pageshow` locks chapter tracking without cancelling restoration; a
+persisted `pageshow` remains authoritative history and cancels it. The root observer keeps history/input context across in-app
+article transitions, with symmetric listeners and module state across shell
+remounts. A fresh same-tab local link can restore after its actual destination
+arrives; a cancelled, modified, download or new-tab click cannot release the
+current page's protection. Unsupported/ambiguous cases conservatively retain
+the current place. Existing gallery bodies keep their nonpersistent address.
+
+Settings inside each article provide Finnish/English controls for remembering
+positions and clearing all saved positions, including on articles without a
+heading list. The checkbox shows the effective state, a polite status reports
+success/failure, and the disclosure explains device-only retention and eviction.
+Controls render after hydration; a no-script explanation preserves ordinary
+reading without inert checkboxes. Settings and observer share a browser-only
+store instance so failed-clear suppression survives between their calls.
+Settings changes cancel pending restoration and lock saving until new deliberate
+input. Cross-tab disable/clear events also lock the observer; last-writer-wins
+storage remains best effort. No data is transmitted to a server or third party.
+
+Verification uses the production harness and synthetic content, including
+Chromium/WebKit desktop/mobile emulation, delayed-script scrolling, real
+keyboard/wheel input, actual native Back, FI/EN isolation, image/font layout,
+missing/expired entries, denied acquisition/mutations and no-script reading.
+An additional isolated persistent-profile journey closes the browser process,
+relaunches it and checks saved bytes/restoration in desktop Chromium/WebKit.
+It installs the same origin guard and synthetic client-address header as the
+project fixture; it uses no daily browser profile. Separate-page reopening is
+identified separately from that process restart. Physical devices and real
+bfcache lifecycle are not claimed by these automated tests. AB#20 remains Active
+until owner acceptance and merge; no Production deployment is implied.
+
+Browser contracts were checked against
+[Navigation Timing's document navigation types](https://www.w3.org/TR/navigation-timing-2/#dom-performancenavigationtiming-type),
+[HTML's persisted pageshow event](https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-pagetransitionevent-interface)
+and [Playwright persistent contexts](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context).
+A two-engine operator probe also confirmed that `replaceState` does not change
+CSS `:target`; restoration does not rely on that selector.
 
 ## Verified requirement and current boundary
 

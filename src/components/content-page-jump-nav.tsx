@@ -11,6 +11,8 @@ export type ContentPageJumpNavProps = {
   label: string;
   /** The body's headings (levels 2-4), already carrying their anchor ids. */
   headings: readonly ContentHeading[];
+  /** Only article variants opt into the owner-accepted local reading continuity. */
+  readingPosition?: { readonly contentId: string; readonly locale: string };
   /**
    * An additional link rendered before the heading list. The gallery variant
    * uses this for its link to the image grid (ADR-0003 decision 3); the
@@ -73,6 +75,7 @@ export function ContentPageJumpNav({
   label,
   headings,
   leadingLink,
+  readingPosition,
 }: ContentPageJumpNavProps) {
   if (!hasContentPageJumpNav(headings, leadingLink)) return null;
 
@@ -80,7 +83,7 @@ export function ContentPageJumpNav({
 
   return (
     <>
-      <ContentReadingAddress headingIds={headings.map(({ id }) => id)} />
+      <ContentReadingAddress headingIds={headings.map(({ id }) => id)} readingPosition={readingPosition} />
       <nav
         aria-label={label}
         className="content-reading-nav mt-8 border-l-2 border-border pl-4"
