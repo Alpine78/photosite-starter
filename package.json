@@ -59,6 +59,7 @@
     "audit:publication-locales": "node scripts/audit-publication-locales.mts",
     "plan:locale-publication": "node scripts/plan-locale-publication.mts",
     "write:locale-publication": "node scripts/write-locale-publication.mts",
+    "inventory:jpeg-metadata-envelopes": "node scripts/inventory-jpeg-metadata.mts",
     "verify:legacy-candidate": "node scripts/verify-legacy-candidate.mts",
     "verify:legacy-delivery-assets": "node scripts/verify-legacy-delivery-assets.mts",
     "verify:delivery-zip-remote": "node scripts/verify-delivery-zip-remote.mts",
