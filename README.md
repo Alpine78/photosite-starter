@@ -600,9 +600,11 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - [ ] Redirects for important legacy URLs (first implementation) — *the registry decides all
   415 inventoried paths: 232 direct redirects, 179 justified `410` responses, three
   excluded error paths and one already-live root; none is pending (AB#271 resolved the
-  last 37). On 2026-10-18 the anonymous `check` passed all 415 rows with no issues against
-  the public production deployment (canonical origin `https://www.ilkansivu.net`). The
-  final check on the launch deployment and owner acceptance remain under AB#19.
+  last 37). On 2026-10-18 the canonical-host `check` passed all 415 rows with no
+  issues, with before/after source-identity guards and four FI/EN browser notice
+  checks. [The Production verification](docs/audits/ab19-canonical-production-verification-2026-10-18.md)
+  records the report and limits. AB#137's predecessor gate and owner acceptance
+  remain open under AB#19; this is not full launch approval.
   `npm run verify:legacy-redirects -- report` exports the complete mapping;
   `report --csv` exports pending paths as a blank owner-review worksheet (empty now).
   `check <origin> [<canonical-origin>]` checks decided responses and canonical target
