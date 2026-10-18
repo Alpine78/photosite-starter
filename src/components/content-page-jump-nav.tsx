@@ -1,4 +1,5 @@
 import { ContentFragmentLink } from "@/components/content-fragment-link";
+import { ContentReadingAddress } from "@/components/content-reading-address";
 import {
   nestContentHeadings,
   type ContentHeading,
@@ -70,25 +71,28 @@ export function ContentPageJumpNav({
   const tree = nestContentHeadings(headings);
 
   return (
-    <nav
-      aria-label={label}
-      className="mt-8 border-l-2 border-border pl-4"
-    >
-      <p className="text-xs font-medium uppercase tracking-wider text-muted">
-        {label}
-      </p>
-      <ol className="mt-2 space-y-1 text-sm">
-        {leadingLink && (
-          <li>
-            <ContentFragmentLink href={leadingLink.href} className={linkClassName}>
-              {leadingLink.label}
-            </ContentFragmentLink>
-          </li>
-        )}
-        {tree.map((node) => (
-          <ContentHeadingEntry key={node.id} node={node} />
-        ))}
-      </ol>
-    </nav>
+    <>
+      <ContentReadingAddress headingIds={headings.map(({ id }) => id)} />
+      <nav
+        aria-label={label}
+        className="mt-8 border-l-2 border-border pl-4"
+      >
+        <p className="text-xs font-medium uppercase tracking-wider text-muted">
+          {label}
+        </p>
+        <ol className="mt-2 space-y-1 text-sm">
+          {leadingLink && (
+            <li>
+              <ContentFragmentLink href={leadingLink.href} className={linkClassName}>
+                {leadingLink.label}
+              </ContentFragmentLink>
+            </li>
+          )}
+          {tree.map((node) => (
+            <ContentHeadingEntry key={node.id} node={node} />
+          ))}
+        </ol>
+      </nav>
+    </>
   );
 }

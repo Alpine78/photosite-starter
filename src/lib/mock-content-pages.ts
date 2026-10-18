@@ -40,6 +40,7 @@ import { mockAuthoredContentRecords } from "@/lib/mock-content-listing";
 import { FIELDNOTE_NUMBERS, fieldnoteContentId } from "@/lib/mock-fieldnotes";
 import { getMockImages, mockImages } from "@/lib/mock-media";
 import { mockGalleryEnquiryPermission } from "@/lib/mock-enquiry-policy";
+import { miniGalleryBoundaryBlock } from "@/lib/mock-mini-gallery-boundaries";
 
 /** What a page adds to the record a card already carries. */
 type AuthoredPage = GalleryPresentationFields & {
@@ -55,6 +56,32 @@ type AuthoredPage = GalleryPresentationFields & {
   readonly tags?: readonly string[];
   readonly body: readonly ContentBlock[];
 };
+
+/** Bounded bilingual tables demonstrate two independent progressive layout transitions. */
+function tabHydrationFixtures(language: "en" | "fi"): readonly ContentBlock[] {
+  const fi = language === "fi";
+  const group = (key: string): ContentBlock => ({
+    type: "tab-group", key,
+    tabs: [
+      { key: "first", label: fi ? "Ensimmäinen sarja" : "First series" },
+      { key: "second", label: fi ? "Toinen sarja" : "Second series" },
+    ].map((tab) => ({ ...tab, table: {
+      headers: fi ? ["Kohta", "Arvo"] : ["Item", "Value"],
+      rows: Array.from({ length: 12 }, (_, index) => [String(index + 1), fi ? "Paikkamerkki" : "Placeholder"]),
+    } })),
+  });
+  return [
+    { type: "heading", level: 2, text: fi ? "Vertailun valmistelu" : "Preparing the comparison" },
+    group("reading-first"),
+    { type: "heading", level: 3, text: fi ? "Sarjojen vertailu" : "Comparing the series" },
+    { type: "paragraph", text: fi ? "Vertaile taulukoita samassa järjestyksessä. Paikkamerkkiteksti." : "Compare the tables in the same order. Placeholder copy." },
+    group("reading-second"),
+    { type: "heading", level: 4, text: fi ? "Vertailun tulos" : "Comparison result" },
+    { type: "paragraph", text: Array.from({ length: 12 }, () => fi
+      ? "Tarkista tulos ja tee muistiinpanot. Tämä on testisisältöä, joka korvataan CMS:n sisällöllä."
+      : "Check the result and record your observations. This is fixture copy, replaced with CMS content.").join(" ") },
+  ];
+}
 
 /**
  * Minimal bodies for the generated Gear field notes — see `mock-fieldnotes.ts`.
@@ -243,6 +270,8 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
     body: [],
   },
   "content-large-archive": {
+    // This pagination/layout fixture explicitly exercises grid/below.
+    galleryLayout: "grid",
     variant: "gallery",
     // Deliberately minimal: this gallery's own job is exercising pagination
     // at scale (AB#114/AB#134), not editorial content. A short body still
@@ -563,6 +592,7 @@ const englishPages: Readonly<Record<string, AuthoredPage>> = {
         type: "blockquote",
         text: "A slightly noisy, sharp image beats a noise-free, blurry one every time.",
       },
+      ...tabHydrationFixtures("en"),
     ],
   },
 };
@@ -695,6 +725,8 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
     body: [],
   },
   "content-large-archive": {
+    // This pagination/layout fixture explicitly exercises grid/below.
+    galleryLayout: "grid",
     variant: "gallery",
     body: [
       {
@@ -850,6 +882,7 @@ const finnishPages: Readonly<Record<string, AuthoredPage>> = {
           "Nosta herkkyyttä ennen kuin pidennät valotusaikaa liikaa",
         ],
       },
+      ...tabHydrationFixtures("fi"),
     ],
   },
 };
@@ -889,11 +922,17 @@ function compose(
         { media: { ...images.openMarsh, alt: "" } },
         { media: images.forestStream },
       ];
-      const body: readonly ContentBlock[] = contentId === "content-reading-coastal-light"
+      const body: readonly ContentBlock[] = ["content-grid-overlay", "content-masonry-below", "content-justified-below"].includes(contentId)
+        || contentId === fieldnoteContentId(FIELDNOTE_NUMBERS.at(-1)!)
+        ? [...page.body, miniGalleryBoundaryBlock(language)]
+        : contentId === "content-reading-coastal-light"
         ? [...page.body,
-          { type: "media", media: images.forestStream },
+          { type: "media", media: miniItems[0].media },
           { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems },
           { type: "mini-gallery", title: language === "fi" ? "Yksityiskohtia" : "Details", items: miniItems.slice(0, 2) },
+          // AB#323: the same loose photograph on both sides of mini-galleries
+          // has two independent controls; this occurrence has no description.
+          { type: "media", key: "standalone-repeat", media: { ...images.forestStream, caption: undefined, credit: undefined } },
           // AB#262: the authored heading must follow the complete body,
           // including these independently viewed inline media fixtures.
           { type: "heading", level: language === "fi" ? 2 : 3, text: language === "fi" ? "Galleria" : "Gallery" },

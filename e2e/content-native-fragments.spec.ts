@@ -81,6 +81,15 @@ for (const language of locales) {
     await ready(page, gallery.labels.theme.darkTheme);
     await page.getByRole("navigation", { name: gallery.labels.contentTree.onThisPage }).locator(`a[href='#${next.id}']`).click();
     await expectAddress(page, gallery.path, next.id);
+    // The site header hides after the fragment scroll. Reveal it with native
+    // reading input before leaving: actionability scrolling a hidden brand
+    // link into view can otherwise change the departure position to page top.
+    await page.keyboard.press("ArrowUp");
+    await expect.poll(() => page.getByRole("banner").evaluate(header =>
+      !header.classList.contains("-translate-y-full") &&
+      header.getBoundingClientRect().top >= -0.5,
+    )).toBe(true);
+    await expectAddress(page, gallery.path, next.id);
     await page.locator("header a").first().click();
     await expect(page.locator(`[id='${next.id}']`)).toHaveCount(0);
     await expect(page).not.toHaveURL(`${HARNESS_BASE_URL}${gallery.path}${query}#${next.id}`);

@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-29
-**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18, 2026-09-19, 2026-10-12, 2026-10-15 — see Amendments
+**Amended:** 2026-08-10, 2026-08-27, 2026-08-30, 2026-09-04, 2026-09-12, 2026-09-13, 2026-09-15, 2026-09-18, 2026-09-19, 2026-10-12, 2026-10-15, 2026-10-17 — see Amendments
 **Deciders:** Project owner (Ilkka Rytkönen)
 **Work item:** AB#102
 
@@ -12,6 +12,68 @@ This broad record remains accepted as a whole. A scoped clause is amended in pla
 when implementation produces evidence the original text did not have, and each partial
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
+
+### 2026-10-17 — Loose article photographs open individually (AB#321 / AB#323)
+
+The owner explicitly selected “Kaikki artikkelikuvat avautuvat yksin” when asked
+whether this change should apply to every article or only travel stories. All
+`article` variants, including blogs, now open each standalone body photograph in
+its own one-slide viewer. No arrow, keyboard or horizontal swipe can advance to
+another photograph; unnecessary arrows and the one-slide counter are hidden by
+the existing viewer. Zoom, captions, close, per-occurrence focus and reading
+position return remain. The same photograph placed twice retains two occurrence
+identities and two opening controls.
+
+This supersedes only the article loose-image grouping in the **2026-09-04 AB#147**
+body-wide sequence clause and the **2026-09-12 AB#24** clause keeping loose images
+on both sides of a mini-gallery in one sequence. A `gallery` variant's loose body
+images still share their source-ordered sequence across mini-galleries. Every
+mini-gallery keeps its own group and the article end gallery keeps its independent
+ordered result and continuation. Neither gains an article's loose photographs.
+The historical clauses below remain evidence of the earlier decisions.
+
+**Sections affected:** decision 2's article loose-image viewer grouping and the
+two named amendments. No content/occurrence identity, source order, route, CMS
+model, enquiry permission, cursor or media-delivery contract changes. Covers and
+authored links keep their existing behavior; images remain full frame and plain
+figures without JavaScript. Decisions 1 and 3–9 otherwise remain unchanged.
+
+### 2026-10-17 — A reading address follows existing body headings (AB#321 / AB#330)
+
+Decision 3 and the AB#21 amendment derive native links to stable H2–H4 body
+headings. The original implementation deliberately excluded client-side scroll
+tracking. The owner's AB#321 request now adds one progressive enhancement on
+article and gallery first pages: deliberate reading scroll updates the current
+address to the latest existing heading crossing its native-fragment reading
+line (the root scroll padding plus that heading’s scroll margin), including H4.
+It replaces the current history entry, preserving its state,
+pathname and query bytes. It neither scrolls, moves focus, fetches content nor
+adds entries to history. Heading ids, native links, server rendering and thin
+cursor continuations are unchanged. No CMS field or new fragment identity is added.
+
+An initial deep link, a same-document link (also to the already-current hash),
+Back/Forward and browser page restoration take priority. Tracking resumes only
+after new deliberate wheel, touch, scroll-key or root-scrollbar input. Keyboard
+input consumed by a control and Space activating a native button do not resume
+reading tracking. Input in an active modal viewer locks tracking again. Outside the editorial body the
+current address is left alone. Before its first heading, only an address this
+mounted reader itself wrote may be cleared. A body with no headings is inert;
+a body with only H2/H3 uses those existing targets. A short final section that
+never reaches the reading line does not acquire a guessed bottom-of-page rule.
+
+Ownership of an automatic fragment exists only in memory. After reload that
+fragment is indistinguishable from a supplied direct link, so this enhancement
+does not clear it at the introduction. Once the visitor deliberately resumes
+reading inside the body, its current heading may replace a previously supplied
+non-heading fragment too. Assistive scrolling or overlay-scrollbar input that
+does not produce a recognized intent event safely leaves the URL unchanged.
+Denied History API access disables the enhancement without interrupting reading.
+
+This scoped change affects decision 3's progressive reading navigation only.
+It does not decide AB#20's local-storage key, retention, clear/disable controls,
+or restart-restoration policy, nor the still-unaccepted mobile contents design
+or a sticky sidebar. In particular the auto-fragment/direct-link distinction
+needed for persistent restoration remains an AB#20 decision.
 
 ### 2026-10-15 — Search namespace also serves free-text search (AB#299)
 
@@ -292,6 +354,24 @@ are extended by this amendment; decision 3's page-jump navigation paragraphs are
 extended from a flat level-2 list to a nested three-level list. Decisions 1, 4, 5, 6, 7,
 8, and 9 are unchanged: no variant, category, placement, locale, slug, cursor, or
 legacy-redirect behavior is affected.
+
+### 2026-10-17 — Preserve a native heading target through tab enhancement (AB#335)
+
+The shared editorial body's H2–H4 fragment links keep their existing identity.
+When the first progressive tab enhancement collapses its stacked fallback tables,
+it preserves a currently visible native target after that group in the same body.
+The correction measures the same React commit before and after DOM mutation and
+is bounded by the group's own height decrease. Multiple groups use the remaining
+viewport displacement; native anchoring that already kept the target needs no
+correction. A target outside the viewport is left to native navigation/restoration.
+
+This repairs the initial layout transition only. It adds no history entry, address
+write, focus move, listener, timer, storage, ongoing restoration, reserved gap or
+new CMS field. Browser end-of-document clamping remains; later image/CMS changes,
+in-progress touch momentum and client-render recovery are not promised. All
+labelled tables remain readable when JavaScript is absent or unavailable.
+ADR-0020 remains Proposed and AB#20's persistence decision remains open. AB#335
+and its parent AB#321 still require owner review and real-content acceptance.
 
 ### 2026-09-12 — Inline mini-galleries join the shared body-block set (AB#24)
 
@@ -2298,3 +2378,42 @@ allowing literal category paths (which become stale on moves and translations),
 and avoids hardcoding a Blog category into a clonable template. The field is
 navigation-only; home actions and home sections retain their existing targets.
 Publishing a particular menu remains a revision-bound site-settings operation.
+
+
+## Scoped amendment — 2026-10-17: justified inline mini-galleries (AB#334 / AB#321)
+
+The owner's AB#321 request to use the existing justified presentation for narrative
+picture sets extends the 2026-09-12 AB#24 amendment's **one/two-column grid** clause
+only. Both article and gallery body mini-galleries now use justified rows when their
+existing resolved presentation is `justified`: an article inherits `SiteSettings`;
+a gallery's explicit layout wins over those settings. No new authored field, content
+variant, identity, URL or section model is introduced. Grid retains the old one/two
+columns. Masonry deliberately retains that same inline grid; this amendment does
+not promise masonry mini-galleries or change the curated masonry renderer.
+
+The existing native-ratio justified grouping and CSS compositor are shared, with
+bounded inline fitting for the complete captions that remain below each photograph.
+Below 34rem of container width, each photograph has its own row. Wider bands may
+hold more than two photographs. An image whose native height is below 512px gets
+its own row before grouping, so a tiny panorama cannot shrink its neighbours.
+Any remaining multi-image row whose narrow-band endpoint would give a photograph
+less than 3rem of width becomes ordered single-image rows. The 512px bound reserves
+the existing 16rem row cap for root font sizes up to **32px**; it is an engineering
+bound, not an assumption that every visitor's browser default is 16px. CSS also
+caps rows at their smallest native rendition height beyond that bound. A singleton's
+picture is capped at its intrinsic width and 12rem native-ratio height, while its
+caption uses the complete row. Very small authored images can consequently remain
+very small lightbox targets; the renderer does not upscale the source to enlarge them.
+
+Captions and credits remain complete ordinary text, wrap long words, and never
+inherit curated overlay, clamping or popover behavior. The shared compositor's
+curated defaults and continuation behavior are unchanged. Justified mini-galleries
+use the existing viewport-bounded responsive source-size profile. Per-occurrence CSS
+retains the declared native aspect ratio even when optimizer integer rounding changes
+an extremely thin derivative's intrinsic ratio. SSR and hydration use identical geometry, with plain images when scripts are unavailable.
+
+All other AB#24 boundaries remain: 1–12 images, authored order, separate accessible
+list and per-occurrence focus identity, an independent viewer per block, no joins
+with loose body images or article-end/curated results, no enquiry or pagination,
+and no new media projection or CMS mutation. Category overview cards and production
+content acceptance are outside this source amendment. AB#321 remains open.

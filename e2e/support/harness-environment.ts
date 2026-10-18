@@ -123,6 +123,8 @@ export const appUnderTestEnvironment: Record<string, string> = {
   // below is refused outright in one, because accepting a message and sending
   // nothing is silent data loss there.
   SITE_DEPLOYMENT_STAGE: "development",
+  SITE_MAINTENANCE_MODE: "off",
+  NEXT_PUBLIC_SITE_MAINTENANCE_MODE: "",
   VERCEL_ENV: "",
   LEGACY_GALLERY_ADAPTER: "fixture",
   CLIENT_GALLERY_ADAPTER: "fixture",
@@ -146,6 +148,18 @@ export const appUnderTestEnvironment: Record<string, string> = {
   // is a real choice the application reads, and `mock` is refused in a
   // production deployment, which the stage above says this is not.
   SITE_CONTENT_SOURCE: "mock",
+  // Enquiry aliasing is deployment-owned. Keep both build and server isolated
+  // from ambient active-mode settings, even when the content source is mock.
+  SITE_IDENTITY_ALIAS_MODE: "legacy",
+  SITE_IDENTITY_ALIAS_DOCUMENT_ID: "",
+  SITE_IDENTITY_ALIAS_SOURCE_MAP_SHA256: "",
+  SITE_IDENTITY_ALIAS_PAYLOAD_SHA256: "",
+  SITE_IDENTITY_ALIAS_ROW_COUNT: "",
+  NEXT_PUBLIC_SITE_IDENTITY_ALIAS_MODE: "",
+  NEXT_PUBLIC_SITE_IDENTITY_ALIAS_DOCUMENT_ID: "",
+  NEXT_PUBLIC_SITE_IDENTITY_ALIAS_SOURCE_MAP_SHA256: "",
+  NEXT_PUBLIC_SITE_IDENTITY_ALIAS_PAYLOAD_SHA256: "",
+  NEXT_PUBLIC_SITE_IDENTITY_ALIAS_ROW_COUNT: "",
   // Signs the continuation cursors a gallery larger than one page issues. Fixed
   // rather than generated, because a cursor has to stay valid between the
   // request that issued it and the one that spends it, and because a suite that

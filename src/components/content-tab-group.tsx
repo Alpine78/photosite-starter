@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { ContentTabFragment } from "@/components/content-tab-fragment";
 import type { TabGroupBlock } from "@/lib/content-tab-group";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 
@@ -101,19 +102,19 @@ export function ContentTabGroup({ block, labels, tableLabel }: ContentTabGroupPr
 
   if (!hydrated) {
     return (
-      <div className="space-y-6">
+      <ContentTabFragment enhanced={hydrated}>
         {block.tabs.map((tab, index) => (
           <div key={tab.key ?? index} className="space-y-2">
             <p className="font-semibold text-foreground">{tab.label}</p>
             <TableRegion table={tab.table} label={tableLabel} />
           </div>
         ))}
-      </div>
+      </ContentTabFragment>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <ContentTabFragment enhanced={hydrated}>
       <div role="tablist" aria-label={labels.label} className="flex flex-wrap gap-2 border-b border-border-control">
         {block.tabs.map((tab, index) => (
           <button
@@ -141,6 +142,6 @@ export function ContentTabGroup({ block, labels, tableLabel }: ContentTabGroupPr
           <TableRegion table={tab.table} label={tableLabel} />
         </div>
       ))}
-    </div>
+    </ContentTabFragment>
   );
 }

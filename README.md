@@ -379,9 +379,11 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   (AB#162; voting requires JavaScript, results do not)
 - [x] Blog / article content type (supports long story articles) — *articles are the
   `article` variant of the shared content page and live in the content tree; the
-  pre-launch `/blog` scaffold routes are gone. A photograph placed in an article or
-  gallery body opens the fullscreen lightbox in its own sequence (AB#147), separate
-  from a gallery's curated grid. An article's or curated gallery's explicit cover now
+  pre-launch `/blog` scaffold routes are gone. Each loose article-body photograph
+  opens alone (AB#323); gallery-body photographs
+  share their own source-ordered viewer (AB#147). Mini-galleries and article-end
+  galleries keep their groups, separate from loose photographs and the curated grid.
+  An article's or curated gallery's explicit cover now
   renders as a full-bleed, fold-safe hero with the title (and, for a gallery, the lead
   description) overlaid (AB#149); long hero text grows downward on a guaranteed
   contrast surface without cropping the image or truncating copy (AB#155). No authored
@@ -435,15 +437,16 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
 - [ ] Curated public galleries with shared pagination, fullscreen lightbox, optional sections,
   and optional long-form body content — *shared bounded result contract, the canonical
   gallery route inside the content tree with breadcrumbs, metadata, and a deterministic
-  cover, the default row-major grid that reads in the gallery's own order at one, two, and three
-  columns, the fullscreen lightbox (open, close, navigate, caption and credit)
+  cover, the gallery layouts that preserve the gallery's own order and native image frames,
+  the fullscreen lightbox (open, close, navigate, caption and credit)
   ([ADR-0001](docs/adr/0001-lightbox-library.md)), and server-rendered cursor
   continuation — a real `href` that pages through a large gallery with no JavaScript —
   and the in-place append — the same link enhanced to bring the next slice into the
   page, with the lightbox continuing past the items it was opened from — and an
   optional lead and long-form body sharing the article variant's own block set and
   content-derived page-jump navigation (AB#106), inline mini-galleries on both variants
-  (AB#24: 1–12 uncropped images, up to two columns, a distinct accessible list name and
+  (AB#24 / AB#334: 1–12 uncropped images, inherited justified rows or the existing
+  one/two-column inline grid, complete captions, a distinct accessible list name and
   independent viewer per block, plain images without JavaScript, no pagination), and click/tap/keyboard zoom with
   bounded pan, a state-announcing zoom control, and a caption that steps aside while
   zoomed (AB#78), and an optional per-gallery seeded-random ordering rule — a
@@ -733,7 +736,8 @@ seam now dispatches on `SITE_CONTENT_SOURCE`, so a deployment reads consistently
 source and never mixes them on one page.
 Gallery presentation offers `grid`, `masonry`, and `justified` layouts with `below` or
 `overlay` captions, authored site-wide and independently overridable per gallery (AB#157).
-The default remains the row-major grid. Every layout keeps the result's DOM, keyboard,
+The default is justified rows (AB#322); explicit grid and masonry settings remain
+available. Every layout keeps the result's DOM, keyboard,
 and lightbox order under its documented visual progression, and every frame keeps its
 native aspect ratio uncropped. It opens a fullscreen lightbox that navigates the loaded
 result by keyboard, control, and gesture, loads the next bounded page before reaching the

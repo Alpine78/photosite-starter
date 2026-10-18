@@ -267,6 +267,7 @@ export function ContentGallery({
                   labels={labels}
                   sizes={imageRenderProfiles.galleryBody.sizes}
                   miniGallerySizes={imageRenderProfiles.galleryMiniGallery.sizes}
+                  miniGalleryLayout={presentation.layout}
                 />
               </div>
             </div>
@@ -288,6 +289,12 @@ export function ContentGallery({
               activeSlug={activeSection?.slug}
               galleryPath={galleryPath}
               labels={labels}
+              resultSummary={[
+                activeSection?.label ?? labels.gallery.allSections,
+                slice.items.length === 0 ? labels.gallery.empty
+                  : photoCount === undefined ? undefined
+                  : `${new Intl.NumberFormat(locale).format(photoCount)} ${photoCount === 1 ? labels.gallery.photoSingular : labels.gallery.photoPlural}`,
+              ].filter(Boolean).join(". ")}
             />
             {sections.length > 0 && !isContinuation && (
               <GallerySectionIntro

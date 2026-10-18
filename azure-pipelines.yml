@@ -132,10 +132,24 @@ stages:
               testRunTitle: "Playwright smoke tests"
               failTaskOnFailedTests: false
 
+          # A failure before Playwright starts produces no browser report. Discover
+          # it in the artifact task's own base directory without creating a report.
+          - bash: |
+              set -eu
+              if [ -d playwright-report ]; then
+                echo '##vso[task.setvariable variable=browserDiagnosticsAvailable]true'
+              else
+                echo '##vso[task.setvariable variable=browserDiagnosticsAvailable]false'
+                echo 'No browser report directory was produced; diagnostic publication is skipped.'
+              fi
+            condition: failed()
+            displayName: "Discover end-to-end failure diagnostics"
+            workingDirectory: "$(System.DefaultWorkingDirectory)"
+
           # Traces, screenshots, and server logs for a failed run only. They contain
           # mock content and harness settings, never credentials or personal data.
           - task: PublishPipelineArtifact@1
-            condition: failed()
+            condition: and(failed(), eq(variables['browserDiagnosticsAvailable'], 'true'))
             displayName: "Publish end-to-end failure diagnostics"
             inputs:
               targetPath: "playwright-report"
@@ -177,6 +191,8 @@ stages:
     jobs:
       - job: Audit
         displayName: "Audit committed npm dependency tree"
+        variables:
+          dependencyAuditReady: "false"
         # No repository or deployment secret is passed to this job. npm audit
         # reads package-lock.json and queries the configured advisory registry;
         # it does not install packages or run their scripts.
@@ -187,13 +203,18 @@ stages:
               version: $(nodeVersion)
             displayName: "Use pinned Node.js"
 
+          # One capture checks both trees after ordinary findings/tool errors.
+          # Raw provider bytes never enter logs or the published artifact.
           - script: |
-              npm audit --include=prod --include=dev --audit-level=low
-            displayName: "Report production and development vulnerabilities"
-          - script: |
-              npm audit --prefix studio --include=prod --include=dev --audit-level=low
-            condition: succeededOrFailed()
-            displayName: "Report standalone Studio vulnerabilities"
+              npm run --silent capture:audit
+            displayName: "Capture lockfile-bound root and Studio audit evidence"
+
+          - task: PublishPipelineArtifact@1
+            condition: and(succeededOrFailed(), eq(variables['dependencyAuditReady'], 'true'))
+            displayName: "Publish current redacted dependency audit"
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/dependency-audit-$(Build.BuildId)-$(System.JobAttempt)'
+              artifact: 'dependency-audit-$(System.JobAttempt)'
 
   - stage: DeployPreview
     displayName: "Preview release candidate"

@@ -23,7 +23,8 @@ function pathFor(contentId: string) {
   return `${STORY_ROOT}/${segments.join("/")}`;
 }
 
-const triggers = (page: Page) => page.getByRole("main").locator("[data-item-id]");
+// Inline mini-galleries own separate sequences and never enter curated pagination.
+const triggers = (page: Page) => page.getByRole("main").locator("#gallery [data-item-id]");
 const nextButton = (dialog: Locator) => dialog.getByRole("button", { name: labels.lightbox.next, exact: true });
 
 async function expectPosition(dialog: Locator, position: number, total: number) {

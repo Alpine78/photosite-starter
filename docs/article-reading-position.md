@@ -1,8 +1,16 @@
 # Article reading-position requirements
 
 Refinement worksheet for AB#193, under rough story AB#20 and Feature AB#91.
-This records questions and unapproved options; no reading-position feature or
-storage contract has been accepted or implemented.
+This records questions and unapproved options for persistent restoration; no
+browser-storage contract has been accepted or implemented.
+
+AB#321 subsequently prioritized a reading address following existing body
+headings through H4. AB#330 implements that separate, nonpersistent enhancement:
+deliberate reading scroll replaces the current URL fragment without adding
+history entries, scrolling or moving focus. Direct fragment links and native
+history navigation remain authoritative. It uses no browser storage and does
+not restore a saved position. The owner accepted H4-section precision for the
+future restoration; the remaining choices below still require resolution.
 
 ## Verified requirement and current boundary
 

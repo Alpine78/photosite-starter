@@ -10,26 +10,33 @@ see the Documentation table in `AGENTS.md`.
 
 Two independent, optional fields:
 
-- **Layout** — `grid` (the default), `masonry`, or `justified`.
+- **Layout** — `grid`, `masonry`, or `justified` (the default).
 - **Caption placement** — `below` (the default) or `overlay`.
 
 Both are authored site-wide on `SiteSettings` and may be overridden per
 gallery. Clearing a gallery's override restores inheritance for that field
 alone — the two fields never travel together. An absent site-wide value falls
-back to `grid` / `below`. All six combinations are offered; nothing about the
+back to `justified` / `below`. All six combinations are offered; nothing about the
 resolution is layout-specific, so a future seventh layout only has to extend
 `GALLERY_LAYOUTS`.
 
 `src/lib/gallery-presentation.ts` is the one resolution seam:
 `effectiveGalleryPresentation(gallery, settings)` composes the two
 `GalleryPresentationFields` (`gallery.galleryLayout ?? settings.galleryLayout
-?? "grid"`, and the same shape for caption placement) so the mock fixture
+?? "justified"`, and the same shape for caption placement) so the mock fixture
 layer and the Sanity adapters read one identical rule. An unknown stored
 value is rejected as malformed content at the adapter boundary
 (`readGalleryPresentationFields`'s `reject` callback), never silently
 downgraded to a default or passed through as an unrecognized CSS class —
 that would hide a real authoring mistake or a schema/runtime drift as if the
 gallery had simply been left unstyled.
+
+AB#321 / AB#322 supersede AB#157's original grid fallback: absent settings now
+use justified rows. Explicit stored grid or masonry choices remain authoritative;
+this source change does not rewrite production settings or gallery overrides.
+Article-end galleries inherit both site settings on their first page and direct
+continuation, with the same resolved presentation retained during an append.
+They have no per-article presentation field.
 
 Presentation is **purely a rendering choice** over an existing, unchanged
 result: it never enters the curated result set, a cursor's scope, a section
@@ -167,6 +174,31 @@ wider image than a default-zoom column strictly needs. That is the
 deliberate trade: AGENTS.md ranks image quality above bandwidth, and a
 masonry or justified thumbnail is a moderate download at any of these
 widths.
+
+## Inline mini-galleries (AB#334)
+
+Article body mini-galleries inherit the site's resolved layout. Gallery body
+mini-galleries use the gallery's resolved layout, including an explicit per-page
+override. These are the existing presentation fields; an article need not have an
+end gallery to inherit its site's layout. `justified` uses the shared native-ratio
+row compositor. `grid` and, deliberately, `masonry` retain the existing inline
+one/two-column grid. Curated masonry remains unchanged.
+
+These small sets always render whole, in authored order, with their own viewer.
+Their complete captions and credits stay below, without the curated caption clamp,
+overlay or popover. Long words wrap. Small native renditions get a separate row
+before grouping; a multi-image row that cannot reserve 3rem per picture at its
+band's narrow edge becomes ordered single-image rows. A singleton's caption can
+use the whole row even when its photograph is very narrow. The fitting policy is
+bounded to a root font of 32px; CSS native-size caps still prevent upscaling above
+that bound. Tiny source photographs can remain tiny viewer targets.
+
+Justified inline sets share the `calc(100vw - 32px)` source-size bound and preserve
+SSR geometry through hydration and image loading: each occurrence retains its source
+aspect ratio even if an optimized tiny image has integer-rounded dimensions. The
+old mini-gallery source-size profiles remain for the grid fallback. No layout changes the 12-image maximum, placement identity,
+viewer isolation, media contract, CMS content, or URL. See ADR-0003's dated AB#334
+amendment for the exact replacement of the historical AB#24 grid clause.
 
 ## Out of scope
 

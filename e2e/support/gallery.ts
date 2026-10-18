@@ -7,6 +7,7 @@ import { createHmacGalleryCursorCodec } from "../../src/lib/gallery-pagination";
 import { getMockGalleryResult } from "../../src/lib/mock-gallery";
 import { mockContentPages } from "../../src/lib/mock-content-pages";
 import { mockContentTreeInputs } from "../../src/lib/mock-content-tree";
+import type { GalleryLayout } from "../../src/lib/gallery-presentation";
 import { appUnderTestEnvironment, DEFAULT_STORY_NAMESPACE } from "./harness-environment";
 
 /**
@@ -48,12 +49,15 @@ function defaultLocaleTree() {
  * A curated gallery whose first page has two or more items and more than one
  * aspect ratio among them — enough to navigate between, and enough differently
  * shaped frames to prove the layout and the lightbox never crop or reorder.
+ * A geometry-specific journey can require an explicitly authored layout;
+ * changing the site default must not change that journey's fixture contract.
  */
-export async function firstMixedRatioGalleryPath(): Promise<string> {
+export async function firstMixedRatioGalleryPath(requiredAuthoredLayout?: GalleryLayout): Promise<string> {
   const { language, tree } = defaultLocaleTree();
 
   for (const [contentId, page] of mockContentPages[language] ?? []) {
     if (page.variant !== "gallery") continue;
+    if (requiredAuthoredLayout !== undefined && page.galleryLayout !== requiredAuthoredLayout) continue;
 
     const path = getCanonicalContentPath(tree, contentId);
     // The codec is passed even though the target is a small gallery: a
@@ -163,10 +167,11 @@ export async function galleryImageAlts(triggers: Locator): Promise<string[]> {
  *
  * A gallery page carries other lists — the breadcrumb trail, the language
  * switch, the tags — so "every list item in main" would mix them in. The grid's
- * list is the one whose items open images.
+ * list belongs to `#gallery`; inline body mini-galleries have their own lists.
  */
 export function galleryItems(main: Locator): Locator {
   return main
+    .locator("#gallery")
     .getByRole("list")
     .filter({ has: main.page().getByRole("button") })
     .first()

@@ -48,7 +48,7 @@ export function SiteFooter({
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border">
+    <footer className="border-t border-border [overflow-wrap:anywhere]">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:pt-16">
         {/* The proposal's footer brand: the mark beside the name and the
             site's address. The mark is decorative, as in the header. */}

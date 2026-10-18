@@ -214,6 +214,23 @@ test("?enquire= combined with a cursor is a 404", async ({ page }) => {
 
 
 for (const [locale, prefix, namespace] of [["en-GB", "", DEFAULT_STORY_NAMESPACE], ["fi", "/fi", "tarinat"]] as const) {
+  test(`legacy-mode ordinary enquiry submits in the selected locale (${locale})`, async ({ page }) => {
+    const language = new Intl.Locale(locale).language;
+    const path = getCanonicalContentPath(buildContentTree(mockContentTreeInputs[language]), "content-selected-work");
+    expect(path).not.toBeNull();
+    const galleryPath = `${prefix}/${namespace}/${path!.join("/")}`;
+    const localized = getBuiltInLabels(locale);
+    await page.goto(`${galleryPath}?enquire=${FIRST_ITEM}`);
+    await expect(page.getByRole("heading", { name: localized.enquiry.pageTitle })).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+    const sent = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/enquiry" && response.request().method() === "POST");
+    await fillAndSubmit(page);
+    const response = await sent;
+    expect(response.status()).toBe(200);
+    expect(response.request().postDataJSON()).toMatchObject({ kind: "curated", locale, contentId: "content-selected-work", itemId: FIRST_ITEM });
+    await expect(outcome(page)).toContainText(localized.contact.successTitle);
+  });
+
   test(`a disabled gallery hides enquiries and refuses a crafted request (${locale})`, async ({ page, request }) => {
     const language = new Intl.Locale(locale).language;
     const path = getCanonicalContentPath(buildContentTree(mockContentTreeInputs[language]), "content-layout-single");

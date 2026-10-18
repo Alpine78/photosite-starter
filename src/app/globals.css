@@ -294,3 +294,30 @@ body {
   background: var(--color-background);
   color: var(--color-foreground);
 }
+
+/* AB#338: keep full brand words beside the controls where they fit, and let
+   either group take its own line when enlarged text needs more space. A lone
+   unbroken name may wrap within its line instead of exceeding the viewport. */
+@layer components {
+  .site-header-brand {
+    flex: 0 1 auto;
+    overflow-wrap: break-word;
+  }
+}
+
+@layer utilities {
+  /* The existing measured bar determines this fallback. Retain a positioned
+     ancestor for wide disclosures, but let an unusually tall header scroll
+     rather than pinning unreachable controls above the viewport. */
+  .site-header[data-header-flow] {
+    position: relative;
+    transform: none;
+    translate: none;
+  }
+
+  /* A floor is needed only when the bar itself must scroll. The ordinary
+     sticky panel must still fit the exact remaining viewport height. */
+  .site-header[data-header-flow] .site-header-panel {
+    max-height: max(8rem, min(70svh, calc(100svh - var(--site-header-bar-height, 0px))));
+  }
+}

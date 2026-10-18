@@ -11,13 +11,13 @@ type PreparedSchema = SchemaTypeDefinition & { preview?: {
 } };
 
 /** React media is supported by preview.prepare, including document-list previews. */
-export function FullFrameMedia({ assetId }: { assetId: string }) {
+export function FullFrameMedia({ assetId, lazy = false }: { assetId: string; lazy?: boolean }) {
   const client = useClient({ apiVersion: STUDIO_VALIDATION_API_VERSION });
   const src = createImageUrlBuilder(client).image(assetId).width(320).height(320).fit("max").auto("format").url();
   const dimensions = /-(\d+)x(\d+)-[^-]+$/.exec(assetId);
   // This standalone Studio does not use the public Next.js image optimizer.
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" width={Number(dimensions?.[1])} height={Number(dimensions?.[2])}
+  return <img src={src} alt="" loading={lazy ? "lazy" : undefined} width={Number(dimensions?.[1])} height={Number(dimensions?.[2])}
     style={{ width: "100%", height: "100%", objectFit: "contain" }} />;
 }
 

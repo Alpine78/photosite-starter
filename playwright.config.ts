@@ -159,6 +159,10 @@ export default defineConfig({
   // Firefox is left out deliberately: it shares no rendering behaviour that the
   // other two would miss here, and it would cost install time on every run.
   projects: [
+    { name: "desktop-webkit-body-images", use: { ...devices["Desktop Safari"] }, testMatch: "**/content-body-lightbox.spec.ts" },
+    { name: "mobile-chromium-body-images", use: { ...devices["Pixel 7"] }, testMatch: "**/content-body-lightbox.spec.ts" },
+    { name: "desktop-webkit-tab-fragment", use: { ...devices["Desktop Safari"] }, testMatch: "**/content-tab-fragment.spec.ts" },
+    { name: "mobile-chromium-tab-fragment", use: { ...devices["Pixel 7"] }, testMatch: "**/content-tab-fragment.spec.ts" },
     {
       name: "desktop-chromium",
       use: { ...devices["Desktop Chrome"] },
@@ -166,6 +170,16 @@ export default defineConfig({
     {
       name: "mobile-webkit",
       use: { ...devices["iPhone 15"] },
+    },
+    {
+      name: "desktop-webkit-reading-address",
+      testMatch: "**/content-reading-address.spec.ts",
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "mobile-chromium-reading-address",
+      testMatch: "**/content-reading-address.spec.ts",
+      use: { ...devices["Pixel 7"] },
     },
     {
       // AB#291 verifies a real native touch drag in Blink as well as WebKit's
