@@ -114,6 +114,19 @@ function comparisonFixtures(language: string): readonly ContentBlock[] {
 
 const englishPages: Readonly<Record<string, AuthoredPage>> = {
   ...fieldnotePages,
+  "content-field-guide": {
+    variant: "article",
+    // AB#354: an authored, bounded long list, including all three levels.
+    // The body also gives the sticky list a genuine editorial scroll range.
+    body: Array.from({ length: 12 }, (_, index): readonly ContentBlock[] => [
+      { type: "heading", level: 2, text: `Observation ${index + 1}: noticing the light` },
+      { type: "paragraph", text: "Take time to observe the scene before choosing a composition. Notice how the light changes the relationship between the foreground and the background. This is generic fixture copy, replaced with authored CMS content." },
+      { type: "heading", level: 3, text: `Observation ${index + 1}: choosing a viewpoint` },
+      { type: "paragraph", text: "Compare the available viewpoints and keep your own notes. Look for a clear visual relationship without leaving the place where it can be observed safely. This is generic fixture copy." },
+      { type: "heading", level: 4, text: `Observation ${index + 1}: recording the result` },
+      { type: "paragraph", text: "Review the result and record what changed. Return to the same observation later and compare the conditions. This is generic fixture copy, replaced with authored CMS content." },
+    ]).flat(),
+  },
   "content-selected-work": {
     variant: "gallery",
     body: [],
