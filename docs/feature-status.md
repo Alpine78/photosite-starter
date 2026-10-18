@@ -4719,6 +4719,20 @@ translation acceptance occurred. [Evidence](audits/ab269-publication-locale-cens
 
 ### AB#255 — Finnish and English on every page (2026-10-11, Active)
 
+**AB#352 enquiry privacy locale correction, 2026-10-18:** the gallery-item
+enquiry now reuses the contact page's requested-locale settings loader. Previously,
+the form labels followed the route language but its four authored privacy
+statements came from the deployment default. Both default-language directions
+are covered by actual-component rendering tests; the production journey compares
+the complete enquiry notice with the same-language contact page without JavaScript.
+Missing additional-language settings retain the contact loader's unavailable
+policy, so an untranslated notice does not silently appear in another language.
+That classified failure is tested at the deterministic seam, not against the
+mock production source; an enquiry entry may therefore lead to unavailable
+content until that language's notice is authored. Default and unrelated settings
+errors still propagate. AB#352 is Active pending review and merge; AB#255/60/289
+acceptance and live authored-content verification remain separate.
+
 The owner confirmed coverage includes historical articles/galleries and customer/
 administrator pages, and requested home/contact as the first slice. The story
 moved New → Active before the first edit. The owner committed the first slice

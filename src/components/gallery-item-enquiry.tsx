@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
 import { EnquiryForm } from "@/components/enquiry-form";
 import type { BuiltInLabels } from "@/lib/deployment-config";
-import { getSiteSettings } from "@/lib/site-settings";
+import { getStaticPageData } from "@/lib/static-pages";
 
 /**
  * The `?enquire=<itemId>` view of a gallery route (AB#60, ADR-0003 §8's
@@ -39,7 +40,9 @@ export async function GalleryItemEnquiry({
   breadcrumbs: readonly BreadcrumbStep[];
   labels: BuiltInLabels;
 }) {
-  const settings = await getSiteSettings();
+  const data = await getStaticPageData("contact", locale);
+  if (data === undefined) notFound();
+  const { settings } = data;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
