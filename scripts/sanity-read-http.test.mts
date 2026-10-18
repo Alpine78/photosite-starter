@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readSanityJsonResponse, SanityReadHttpError } from "./sanity-read-http.mts";
 const read = (response: Response) => readSanityJsonResponse(response, "Synthetic query");
 const message = "[sanity-read-http] Synthetic query returned a non-JSON response";
@@ -26,9 +26,10 @@ describe("strict shared Sanity JSON response", () => {
     expect(result).toBeInstanceOf(SanityReadHttpError); expect(result).toMatchObject({ message });
     expect(result).not.toHaveProperty("cause"); expect((result as Error).stack).not.toContain("synthetic-provider-detail");
   });
-  it("rejects HTTP status before consuming the body", async () => {
-    const response = new Response("synthetic-provider-detail", { status: 403 });
+  it("rejects HTTP status without reading the body and cancels it once", async () => {
+    const pull = vi.fn(), cancel = vi.fn();
+    const response = new Response(new ReadableStream({ pull, cancel }, { highWaterMark: 0 }), { status: 403 });
     await expect(read(response)).rejects.toMatchObject({ name: "SanityReadHttpError", status: 403, message: "[sanity-read-http] Synthetic query failed with HTTP 403" });
-    expect(response.bodyUsed).toBe(false);
+    expect(pull).not.toHaveBeenCalled(); expect(cancel).toHaveBeenCalledTimes(1);
   });
 });

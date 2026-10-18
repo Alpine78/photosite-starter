@@ -38,6 +38,7 @@
 
 import {
   parseReadConnection,
+  cancelSanityResponse,
   type ReadConnection,
   readSanityJsonResponse,
   runReadQuery,
@@ -136,9 +137,10 @@ export async function runSeedMutationBatches(
       },
       options,
     );
+    cancelSanityResponse(response);
     if (!response.ok) {
       throw new SanityReadHttpError(
-        `Mutation batch ${index + 1}/${batches.length} failed with HTTP ${response.status}. Every earlier batch already succeeded and is safe to leave as-is — fix the cause and re-run the whole command.`,
+        `Mutation batch ${index + 1}/${batches.length} failed with HTTP ${response.status}. Earlier batches already succeeded; reconcile current target state before considering a retry.`,
         response.status,
       );
     }
