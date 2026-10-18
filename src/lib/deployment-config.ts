@@ -569,6 +569,16 @@ export type BuiltInLabels = {
     /** Shown when `/api/enquiry` answers `404 item-unavailable`. */
     readonly unavailable: string;
   };
+  readonly readingPosition: {
+    readonly heading: string;
+    readonly description: string;
+    readonly remember: string;
+    readonly clear: string;
+    readonly cleared: string;
+    readonly updated: string;
+    readonly failure: string;
+    readonly javascript: string;
+  };
   /**
    * The article content-page variant only (AB#151) — a curated gallery has no
    * per-page byline field.
@@ -1050,6 +1060,16 @@ const englishLabels = {
       "A reference to the photograph you are asking about is sent with your message.",
     unavailable: "This photograph is not available for enquiries.",
   },
+  readingPosition: {
+    heading: "Reading preferences",
+    description: "Remember the article, language, chapter and save time on this device for up to 90 days. Nothing is synchronized; your browser may clear saved places sooner.",
+    remember: "Remember my reading position",
+    clear: "Clear saved reading positions",
+    cleared: "Saved reading positions cleared.",
+    updated: "Reading preference updated.",
+    failure: "Your browser could not save this change. Check the option shown here; saved places or settings may return after reopening.",
+    javascript: "Reading preferences require JavaScript. You can read the article without it.",
+  },
   article: {
     byline: "By {author}",
     endGallery: "Gallery",
@@ -1461,6 +1481,16 @@ const finnishLabels = {
     itemContextNotice:
       "Viestisi mukana lähetetään viittaus valokuvaan, josta kysyt.",
     unavailable: "Tästä valokuvasta ei voi tehdä tiedustelua.",
+  },
+  readingPosition: {
+    heading: "Lukemisen asetukset",
+    description: "Artikkeli, kieli, luku ja tallennusaika muistetaan tällä laitteella enintään 90 päivää. Tietoja ei synkronoida; selaimesi voi poistaa tallennetut paikat aiemmin.",
+    remember: "Muista lukupaikkani",
+    clear: "Tyhjennä tallennetut lukupaikat",
+    cleared: "Tallennetut lukupaikat tyhjennetty.",
+    updated: "Lukemisen asetus päivitetty.",
+    failure: "Selaimesi ei voinut tallentaa muutosta. Tarkista tässä näkyvä asetus; tallennetut paikat tai asetukset voivat palata uudelleen avattaessa.",
+    javascript: "Lukemisen asetukset tarvitsevat JavaScriptin. Voit lukea artikkelin ilmankin.",
   },
   article: {
     byline: "Kirjoittanut {author}",
