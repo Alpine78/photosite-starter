@@ -197,12 +197,14 @@ These helper modules do not establish a completed live migration. Preserve the
 historical import plans and recovery records. New readable identifiers must still
 be minted once and remain stable after later title, slug or translation edits.
 
-The application-registry read on 2026-10-16 reports an active Studio deployment
-from 2026-10-11 (6.18.0), before [PR #339](https://github.com/Alpine78/photosite-starter/pull/339)
-merged the existing readable placement/category previews on 2026-10-12.
-Updating repository code alone cannot update that hosted editor: a separately
-reviewed Studio publication and authenticated list/header/picker/creation check
-remain necessary. This branch performs neither publication nor a CMS write.
+The 2026-10-18 [publication audit](../docs/audits/ab18-production-refresh-2026-10-18.md)
+confirms the existing hosted app was updated from accepted main `33cb41a` after
+full CI. Its active deployment is `g7gul7gnkadxlna70rzgr7ah` (6.18.0), replacing
+the October 11 deployment observed on October 16. Registry identity, the fresh
+hosted manifest and versioned JavaScript/CSS bytes were verified. The existing
+entry redirects to Sanity Dashboard authentication; authenticated
+list/header/picker/creation checks still require owner testing. This publication
+does not rename stored identifiers or establish the live identity migration.
 
 Upload only prepared public web derivatives, at most 2048 pixels on the longest
 edge. Assets have public URLs from upload, including in a private dataset. Never
@@ -343,8 +345,10 @@ only in their authored language; alternative text falls back to the site's
 language and then the first authored entry. Missing titles use a generic label.
 Neither the page nor Studio invents translations. Pausing/unpublishing or passing
 the deadline removes the page on fresh reads; it does not remove files.
-The currently hosted Studio is not changed by this source PR. Real editor,
-keyboard, permission and deployment verification remain open under AB#145.
+The hosted Studio was not changed by the AB#305 source PR; the later
+[2026-10-18 publication audit](../docs/audits/ab18-production-refresh-2026-10-18.md)
+records its update. Real editor, keyboard and permission verification remain
+open under AB#145.
 
 AB#305 source validation covers URL/locale/identity guards, clipboard result
 handling and Studio SDK type/schema/build compatibility. Actual hosted login,

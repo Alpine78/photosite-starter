@@ -2217,9 +2217,37 @@ never as a flag, and a short editing freeze in Studio while it runs. It:
   applied, pending, or unexpected in `intro-summary-reconciliation.json`. It also reports
   any draft that appeared during the run.
 
-If the write's outcome is uncertain, for example after a timeout, rerun the same command.
-It reconciles against the saved record first. If everything was applied it stops. If
-nothing was, it writes again under the same checks.
+If the write's outcome is uncertain, diagnose it **without sending another transaction**:
+
+```bash
+npm run reconcile:joomla-intro -- --out <existing recovery folder> --approved-digest <digest>
+```
+
+This separate command needs the current `SANITY_PROJECT_ID`, `SANITY_DATASET` and
+`SANITY_API_VERSION` (or the same public target flags as the writer) and a Viewer-role
+`SANITY_AUDIT_TOKEN`. It never reads a migration/seed credential and its runtime imports
+have no mutate or upload capability. It checks the exact saved approval digest and target,
+then makes one raw GET for published documents, drafts and release versions. It accepts
+no `--yes`, category filter or write/credential flags. Invalid flags are refused before
+record/configuration/provider access.
+
+Each diagnosis creates a new exclusive mode-0600
+`intro-summary-readonly-<digest-prefix>-<uuid>.json` report in the existing recovery
+folder. It preserves old evidence and records the read times, target, raw perspective,
+planner version, applied/pending/unexpected state and conflicting versions. It does not
+change the folder's permissions; use the private recovery directory the writer created.
+Exit 0 means all planned results were observed and no version conflicts were observed.
+Exit 2 means a valid diagnosis needs attention (pending, partial/unexpected state or a
+version conflict); `npm run` also prints a failure banner for this nonzero status.
+Exit 1 means configuration, recovery, provider read or report IO failed. No exit status
+claims parent acceptance, a complete backup, or a stable future CMS state.
+
+A pending result is **not retry authorization**: an earlier request might still commit
+later. Do not automatically rerun the writer, discard/publish a draft or roll back.
+The existing write command retains its original behavior: a deliberate `--yes` rerun
+reconciles first and stops when everything was applied, but sends a new guarded
+transaction if nothing was. Revision guards prevent the same approved paragraph from
+being applied twice; they do not make that command read-only.
 
 **Rollback** is manual, one page at a time, from the recovery record. First check the page
 still has the planned result: the planned `summary`, the flag `true`, and body equal to

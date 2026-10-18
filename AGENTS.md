@@ -313,6 +313,7 @@ npm run write:rally -- --plan <plan.json> --folder <rally folder> --out <dir> --
 npm run plan:rally-conversion -- --gallery <contentId> --folder <renamed copy> --artifacts <dir> --out <dir> # owner-run: plan converting a published rally gallery, read-only
 npm run write:rally-conversion -- --plan <plan.json> --folder <renamed copy> --out <dir> --approved-digest <hash> --backup-archive <path> # owner-run: write an approved rally gallery conversion to Sanity, dry-run by default
 npm run fix:joomla-intro -- --out <dir> [--approved-digest <hash> --yes] # owner-run: move imported Joomla intros into listing-only leads, plan-only by default
+npm run reconcile:joomla-intro -- --out <recovery-dir> --approved-digest <hash> # read-only diagnosis after an intro write; never retries CMS mutations
 npm run reconcile:identities -- --map <map.json> --approval <approval.json> --baseline <original.ndjson> --snapshot <current.ndjson> --approved-digest <hash> --out <private-dir> # offline identity reconciliation; report only, never writes CMS
 npm run plan:identity-changes -- --map <map.json> --approval <approval.json> --baseline <original.ndjson> --snapshot <current.ndjson> --approved-digest <hash> --out <private-dir> # offline revision-bound change batches; never writes CMS
 npm run admin:secret # owner-run: generate the private-gallery administrator credential (ADR-0015 §4)

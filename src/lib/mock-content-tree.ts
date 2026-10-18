@@ -202,6 +202,15 @@ const englishContentTree: ContentTreeInput = {
       canonicalCategoryId: "cat-technique",
     },
     {
+      // AB#354: a separate long editorial fixture exercises a real overflowing
+      // three-level contents list without changing existing articles' bodies.
+      contentId: "content-field-guide",
+      variant: "article",
+      slug: "field-guide",
+      published: true,
+      canonicalCategoryId: "cat-technique",
+    },
+    {
       // Was filed under Travel and Behind the scenes, so it is the article that
       // exercises a secondary listing linking to one canonical detail route.
       contentId: "content-packing-for-a-photo-trip",

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
 import { ContentBody } from "@/components/content-body";
-import { ContentPageJumpNav } from "@/components/content-page-jump-nav";
+import { ContentReadingLayout } from "@/components/content-reading-layout";
 import { CONTENT_HERO_TITLE_CLASSNAME, HeroOverlay } from "@/components/hero-overlay";
 import { ArticleEndGallery } from "@/components/article-end-gallery";
 import {
@@ -133,52 +133,51 @@ export function ContentArticle({
         />
       )}
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <div className="mx-auto max-w-3xl">
-          <Breadcrumbs label={labels.navigation.breadcrumb} steps={breadcrumbs} />
-        </div>
         <article>
-          <div className="mx-auto max-w-3xl">
-            {page.cover ? (
-              <header className="mt-6">
-                <LanguageSwitch
-                  label={labels.contentTree.languages}
-                  links={languages}
-                />
-              </header>
-            ) : (
-              <header className="mt-6">
-                <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-                  {page.title}
-                </h1>
-                <p className="mt-2 text-sm text-subtle">{byline}</p>
-                <time
-                  dateTime={eventDate}
-                  className="mt-1 block text-sm text-subtle"
-                >
-                  {formatDate(eventDate, locale)}
-                </time>
-                <LanguageSwitch
-                  label={labels.contentTree.languages}
-                  links={languages}
-                />
-              </header>
-            )}
+          <ContentReadingLayout
+            label={labels.contentTree.onThisPage}
+            headings={headings}
+            centered
+            intro={
+              <>
+                <Breadcrumbs label={labels.navigation.breadcrumb} steps={breadcrumbs} />
+                {page.cover ? (
+                  <header className="mt-6">
+                    <LanguageSwitch
+                      label={labels.contentTree.languages}
+                      links={languages}
+                    />
+                  </header>
+                ) : (
+                  <header className="mt-6">
+                    <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+                      {page.title}
+                    </h1>
+                    <p className="mt-2 text-sm text-subtle">{byline}</p>
+                    <time
+                      dateTime={eventDate}
+                      className="mt-1 block text-sm text-subtle"
+                    >
+                      {formatDate(eventDate, locale)}
+                    </time>
+                    <LanguageSwitch
+                      label={labels.contentTree.languages}
+                      links={languages}
+                    />
+                  </header>
+                )}
 
-            {leadSummary && (
-              <p className="mt-8 text-xl leading-8 text-body">
-                {leadSummary}
-              </p>
-            )}
+                {leadSummary && (
+                  <p className="mt-8 text-xl leading-8 text-body">
+                    {leadSummary}
+                  </p>
+                )}
 
-            <ContentPageJumpNav
-              label={labels.contentTree.onThisPage}
-              headings={headings}
-            />
-
-            <div className="mt-10">
-              <ContentBody blocks={page.body} labels={labels} miniGalleryLayout={miniGalleryLayout} standaloneImages />
-            </div>
-          </div>
+              </>
+            }
+          >
+            <ContentBody blocks={page.body} labels={labels} miniGalleryLayout={miniGalleryLayout} standaloneImages />
+          </ContentReadingLayout>
           {endGallery !== undefined && (
             <ArticleEndGallery
               articlePath={endGallery.articlePath}

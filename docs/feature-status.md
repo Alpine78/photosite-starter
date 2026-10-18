@@ -1,5 +1,15 @@
 # Feature implementation status
 
+Production refresh, 2026-10-18 — AB#18/117/137 remain **Active**:
+[the site and Studio publication audit](audits/ab18-production-refresh-2026-10-18.md)
+records accepted main `33cb41a` deployed to the existing production site and
+Studio after full exact-source CI #1230 passed. Provider aliases, artifact bytes,
+FI/EN HTTP/security/cache checks and desktop/phone-size browser smoke passed.
+This supersedes earlier notes that the hosted Studio was still on October 11.
+Authenticated Studio editing, a physical iPhone check and broader launch and
+recovery acceptance remain. The new client-gallery reader stays default-off;
+no S3 service or legacy-gallery content change was introduced.
+
 Merged integration checkpoint, 2026-10-17 — AB#302–312 **Closed**: the owner
 accepted PRs [#453](https://github.com/Alpine78/photosite-starter/pull/453),
 [#454](https://github.com/Alpine78/photosite-starter/pull/454),
@@ -877,6 +887,21 @@ like this one, so nothing it states changes.
 AB#193 prepares AB#20's [reading-position worksheet](article-reading-position.md).
 Browser-local persistence and restoration decisions remain open; no reading-position
 restoration feature is implemented.
+
+**Desktop contents, 2026-10-18 (AB#354, parent AB#321):** the existing
+three-level article/gallery contents list gains a sticky sidebar when the actual
+reading row fits a 48rem body, 14rem navigation and 2rem gap. The article
+introduction retains its centered reading measure. Narrow containers and
+enlarged text retain one inline list in its original document order; very short
+windows retain natural page flow. Sticky enhancement follows the existing
+header enhancement; scriptless navigation stays in natural flow with native
+anchors. The sidebar uses the header's measured visible offset and bounds an
+overflowing list to the remaining viewport with room for keyboard focus
+outlines. Gallery controls, full-frame images and the fullscreen
+viewer remain outside this reading layout. No mobile disclosure, storage,
+restoration, rating filters, new URLs or screenshot-based design are introduced.
+A separate generic long article exercises the real overflowing three-level list.
+AB#354 is Active during validation/review; parent AB#321 remains open.
 
 **Reading address, 2026-10-17 (AB#330, parent AB#321):** deliberate reading scroll
 can follow the existing shared H2–H4 body anchors in the address bar, using one
@@ -3476,6 +3501,16 @@ Synthetic planner-to-writer tests cover both locales, missing/blank summaries, t
 approval digest and malformed or stale plans. Production writes and post-import
 listing/page verification remain owner-run under AB#137; this code slice does not
 close the migration story or change AB#172's Resolved state.
+
+**Read-only intro diagnosis (AB#355):** `reconcile:joomla-intro` reads an approved
+recovery record and current raw document/version state using a Viewer credential;
+its runtime import path has no mutate/upload capability. Pending changes never
+trigger a resend. It refuses write flags, mismatched targets and invalid recovery
+records, preserves existing evidence with an exclusive private report, and reports
+observed applied/pending/unexpected states separately from read failures. The existing
+writer's explicit retry, approval, revision and recovery contracts remain unchanged.
+This tooling slice performs no CMS write and establishes no AB#172/137 operational
+acceptance; content operations and owner acceptance are tracked separately.
 
 **Approved intro completion, 2026-10-18 (AB#172, Active):** the owner-approved
 remaining 12 articles were corrected in one revision-guarded Production

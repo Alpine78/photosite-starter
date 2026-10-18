@@ -6,7 +6,7 @@ import {
   type ContentHeadingNode,
 } from "@/lib/content-headings";
 
-type ContentPageJumpNavProps = {
+export type ContentPageJumpNavProps = {
   /** Accessible name of the nav landmark, and its own visible heading. */
   label: string;
   /** The body's headings (levels 2-4), already carrying their anchor ids. */
@@ -18,6 +18,14 @@ type ContentPageJumpNavProps = {
    */
   leadingLink?: { readonly href: `#${string}`; readonly label: string };
 };
+
+/** The layout and navigation share the same empty/leading-link rule. */
+export function hasContentPageJumpNav(
+  headings: ContentPageJumpNavProps["headings"],
+  leadingLink?: ContentPageJumpNavProps["leadingLink"],
+) {
+  return headings.length > 0 || leadingLink !== undefined;
+}
 
 const linkClassName =
   "text-muted underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
@@ -66,7 +74,7 @@ export function ContentPageJumpNav({
   headings,
   leadingLink,
 }: ContentPageJumpNavProps) {
-  if (headings.length === 0 && leadingLink === undefined) return null;
+  if (!hasContentPageJumpNav(headings, leadingLink)) return null;
 
   const tree = nestContentHeadings(headings);
 
@@ -75,7 +83,7 @@ export function ContentPageJumpNav({
       <ContentReadingAddress headingIds={headings.map(({ id }) => id)} />
       <nav
         aria-label={label}
-        className="mt-8 border-l-2 border-border pl-4"
+        className="content-reading-nav mt-8 border-l-2 border-border pl-4"
       >
         <p className="text-xs font-medium uppercase tracking-wider text-muted">
           {label}
