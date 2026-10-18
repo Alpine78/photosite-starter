@@ -2003,10 +2003,12 @@ exists"); that does not complete AB#18.
 
 The owner accepted [AB#132's temporary scriptless-404 residual](adr/0007-proxy-request-path-boundary.md#2026-10-07-owner-accepted-temporary-residual-risk-ab132)
 on 2026-10-07; AB#132 comment `59465` records impact, reason, review date and
-follow-up, and AB#18 comment `59466` links that decision. Review on 2026-10-08
-before go/no-go or any earlier promotion and retest the exact candidate. Scriptless
-probes remain known semantic failures; acceptance does not make them passing
-journeys. AB#132 stays Active for a verified fix.
+follow-up, and AB#18 comment `59466` links that decision. Its 2026-10-08 review date
+has passed. The [2026-10-18 recheck](adr/0007-proxy-request-path-boundary.md#scriptless-404-recheck--2026-10-18-ab132)
+does not renew acceptance: before AB#18 promotion, obtain a new explicit owner
+decision with impact, reason, review date and follow-up, or a verified fix, and
+retest the exact candidate. Scriptless probes remain known semantic failures;
+acceptance does not make them passing journeys. AB#132 stays Active.
 
 AB#186's dependency gate is Closed: zero full and production-only audit findings
 and a passed exact-main CI #655 authenticated protected Preview with the patched
