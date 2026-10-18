@@ -185,6 +185,11 @@ restoring availability does not resolve that exposure.
 
 Run `npm run summarize:contact-failures -- <emitter.ndjson>` on privately saved bare
 application-emitter JSON lines for `contact.submission` and `enquiry.submission`.
+Save the snapshot to an ordinary file first. The CLI checks the opened target
+before reading: directories and special files (including FIFOs and pipe-backed
+`/dev/stdin` or shell process substitution) are refused. POSIX nonblocking open
+prevents waiting for a FIFO writer; this is not a general filesystem IO timeout.
+A symlink to an ordinary file retains its existing behavior.
 Provider log wrappers are not accepted. Each line must end in a newline; input is
 limited to 4 MiB, 64 KiB per record, 40,000 records and 10,000 family/correlation keys.
 No live logs are fetched. Output contains fixed state/class counts only, never IDs,

@@ -100,7 +100,7 @@ npm run --silent verify:legacy-redirects -- report > /tmp/legacy-mapping.json
 
 The report distinguishes the full crawl's 442 URL records (the AB#19 attachment) from the
 415 path/status observations committed here. Counts and classifications are calculated
-from the mapping: currently 189 redirects, 174 justified `410` responses, 48 pending
+from the mapping: currently 232 redirects, 179 justified `410` responses, no pending
 decisions, three excluded error paths, and one already-live root. A duplicate, unaccounted,
 or non-inventory source fails report generation. Successful export proves bookkeeping;
 it does not prove target availability or approve launch.
@@ -146,7 +146,7 @@ fragments remain browser-held state and are not sent in these HTTP requests.
 
 AB#19 remains **Active**. AB#137's migration and reviewed same-language target/fallback
 decisions must precede final production-target verification. This tooling slice is not
-evidence that the 48 pending paths meet AB#19's acceptance criteria or that a phased launch
+evidence that the decided paths meet AB#19's acceptance criteria or that a phased launch
 manifest has been approved. Attach the final check report to AB#19 after migration, before
 AB#117/AB#18's launch gates.
 
@@ -2003,10 +2003,12 @@ exists"); that does not complete AB#18.
 
 The owner accepted [AB#132's temporary scriptless-404 residual](adr/0007-proxy-request-path-boundary.md#2026-10-07-owner-accepted-temporary-residual-risk-ab132)
 on 2026-10-07; AB#132 comment `59465` records impact, reason, review date and
-follow-up, and AB#18 comment `59466` links that decision. Review on 2026-10-08
-before go/no-go or any earlier promotion and retest the exact candidate. Scriptless
-probes remain known semantic failures; acceptance does not make them passing
-journeys. AB#132 stays Active for a verified fix.
+follow-up, and AB#18 comment `59466` links that decision. Its 2026-10-08 review date
+has passed. The [2026-10-18 recheck](adr/0007-proxy-request-path-boundary.md#scriptless-404-recheck--2026-10-18-ab132)
+does not renew acceptance: before AB#18 promotion, obtain a new explicit owner
+decision with impact, reason, review date and follow-up, or a verified fix, and
+retest the exact candidate. Scriptless probes remain known semantic failures;
+acceptance does not make them passing journeys. AB#132 stays Active.
 
 AB#186's dependency gate is Closed: zero full and production-only audit findings
 and a passed exact-main CI #655 authenticated protected Preview with the patched

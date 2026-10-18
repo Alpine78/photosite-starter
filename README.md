@@ -469,10 +469,11 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   pinch/pan check that ADR-0001 records as an outstanding gap*
 - [ ] Scriptless 404 recovery (AB#132) — Next.js 16.4.2
   still needs JavaScript to show the 404 heading and invalid-continuation return
-  link. [ADR-0007](docs/adr/0007-proxy-request-path-boundary.md#2026-10-05-merged-release-build-check-ab132)
-  records the checks and the owner-accepted temporary residual on 2026-10-07,
-  with review due 2026-10-08 and a fix still pending; known-failure probes
-  keep it visible without declaring the journey fixed.
+  link. [ADR-0007](docs/adr/0007-proxy-request-path-boundary.md#scriptless-404-recheck--2026-10-18-ab132)
+  records the October 18 recheck and the October 7 temporary acceptance. Its
+  October 8 review date has passed; the recheck does not renew that acceptance.
+  A new owner decision or verified fix is required before AB#18 promotion;
+  known-failure probes keep the unresolved behavior visible.
 - [x] Contact form — *accessible `/contact` page and bounded `POST /api/contact`
   handler, a replaceable delivery adapter (Resend over its HTTP API, plus a sink adapter
   for development, CI, and Preview), abuse controls, and operational events carrying no
@@ -596,11 +597,14 @@ without a Vercel project still gets a green pipeline. See [deployment](docs/depl
   checks all ran against a real release-candidate URL
   ([deployment](docs/deployment.md)). Production promotion and exercised rollback remain
   pending under AB#18 and AB#118*
-- [ ] Redirects for important legacy URLs (first implementation) — *the registry has
-  189 direct redirects (including twelve service rows) and 174 justified `410`
-  responses; 48 of the 415 inventoried paths still await reviewed content targets or fallbacks after AB#137's migration.
+- [ ] Redirects for important legacy URLs (first implementation) — *the registry decides all
+  415 inventoried paths: 232 direct redirects, 179 justified `410` responses, three
+  excluded error paths and one already-live root; none is pending (AB#271 resolved the
+  last 37). On 2026-10-18 the anonymous `check` passed all 415 rows with no issues against
+  the public production deployment (canonical origin `https://www.ilkansivu.net`). The
+  final check on the launch deployment and owner acceptance remain under AB#19.
   `npm run verify:legacy-redirects -- report` exports the complete mapping;
-  `report --csv` exports pending paths as a blank owner-review worksheet.
+  `report --csv` exports pending paths as a blank owner-review worksheet (empty now).
   `check <origin> [<canonical-origin>]` checks decided responses and canonical target
   availability against a production build. Pending decisions prevent a passing check.
   See [deployment verification](docs/deployment.md#legacy-url-mapping-verification-ab19)*
