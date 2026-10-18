@@ -41,6 +41,20 @@ a dependency update automatically.
   UI schedule. The 2026-10-02 scheduled-run example is recorded below;
   failure-notification delivery remains unverified.
 
+## Offline saved-audit summary (AB#204, AB#358)
+
+`npm run summarize:audit -- <saved-audit.json>` validates a saved npm audit v2
+report and emits redacted counts and advisory identifiers. It makes no registry
+request or dependency update. Exit codes are 0 (clean), 1 (findings) and 2
+(invalid input or IO). This summary is separate from lockfile-bound triage and
+scheduled capture below; it does not establish capture provenance or freshness.
+
+Save input to an ordinary file first (at most 4 MiB, strict UTF-8). The opened
+target must be a regular file; regular-target symlinks remain supported.
+Directories, devices, FIFOs and pipe-backed process substitution are refused.
+POSIX nonblocking open prevents waiting for a FIFO writer, but adds no general
+filesystem IO timeout. Refusals retain the fixed error without input paths or text.
+
 ## Lockfile-bound scheduled evidence (AB#331)
 
 Each scheduled invocation brackets one JSON audit per target with SHA-256 hashes
