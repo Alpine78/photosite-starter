@@ -3953,6 +3953,19 @@ A failed lookup cannot proceed to deletion. Assignment has already issued its PO
 when its response is read: a corrupt response leaves remote state unknown and calls
 for manual alias verification. Coverage uses synthetic responses, not provider changes.
 
+### AB#347 — bounded Vercel release API responses (Active)
+
+The provider-specific release client owns each fetch and required JSON read under
+one original 20-second monotonic deadline and a local 16 MiB decoded-byte budget.
+Unused HTTP404/error/alias-deletion bodies and late responses receive observed,
+nonblocking cleanup. Alias-mismatch diagnostics contain static text rather than
+provider prose. Ownership, generated URLs, exact deployment-deletion receipts,
+current-main and monotonic guards, and existing conditional alias recovery remain
+unchanged; an unverified mutation acknowledgement grants no resubmission or claim
+that nothing happened. Tests use synthetic responses only. Arbitrary metadata
+capacity and live release/security acceptance remain unproven; no provider request,
+deployment, alias change or deletion was performed for this slice.
+
 ### AB#229 — early calendar years and public-reader bounds
 
 Generic calendar checks now validate written years 0000–0099 without Date.UTC's

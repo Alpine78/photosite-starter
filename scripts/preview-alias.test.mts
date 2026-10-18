@@ -95,6 +95,8 @@ function json(value: unknown, status = 200): Response {
  * points at (null when unassigned).
  */
 type FakeOptions = {
+  /** First assignment applies but its acknowledgement echoes untrusted prose. */
+  readonly assignmentAlias?: string;
   /** POST /aliases applies the change to state, then throws (lost response). */
   readonly assignThrowsAfterApply?: boolean;
   readonly assignmentFailure?: unknown;
@@ -172,7 +174,7 @@ function createFakeVercel(
       const body = JSON.parse(String(init?.body)) as { alias: string };
       return json({
         uid: "al_fake",
-        alias: body.alias,
+        alias: id === OUR_ID ? options.assignmentAlias ?? body.alias : body.alias,
         ...(previous ? { oldDeploymentId: previous } : {}),
       });
     }
@@ -650,6 +652,24 @@ describe("repointAndVerifyPreviewAlias", () => {
 });
 
 describe("alias reconciliation error redaction", () => {
+  it("withholds a provider alias mismatch while retaining fresh-read conditional recovery", async () => {
+    const fake = createFakeVercel(OLD_ID, { assignmentAlias: "provider-private-canary\nextra detail" });
+    const probe = vi.fn<AliasProbe>();
+    const outcome = await run(probe, fake).promise;
+    expect(outcome).toMatchObject({ kind: "restored", restoredTo: OLD_ID, checks: [{
+      name: "alias assignment", ok: false,
+      detail: "Vercel alias assignment returned a different alias; outcome unverified",
+    }] });
+    expect(JSON.stringify(outcome)).not.toContain("provider-private-canary");
+    expect(fake.state.aliasTarget).toBe(OLD_ID);
+    expect(probe).not.toHaveBeenCalled();
+    const assignment = fake.calls.findIndex(call => call.method === "POST");
+    const after = fake.calls.slice(assignment + 1);
+    const freshRead = after.findIndex(call => call.method === "GET" && call.pathname.startsWith("/v4/aliases/"));
+    const restore = after.findIndex(call => call.method === "POST" && call.pathname.includes(OLD_ID));
+    expect(freshRead).toBeGreaterThanOrEqual(0);
+    expect(restore).toBeGreaterThan(freshRead);
+  });
   it.each(["read", "restore", "delete"])("withholds %s failures when the alias remains unreconciled", async phase => {
     const secret = "fixture-secret\ninvalid";
     let cause: unknown;

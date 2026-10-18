@@ -250,7 +250,7 @@ describe("stable Preview alias assignment", () => {
 
     await expect(
       assignPreviewAlias(DEPLOYMENT.id, ALIAS, SETTINGS, fetcher),
-    ).rejects.toThrow(/expected "acme-photosite-preview\.vercel\.app"/);
+    ).rejects.toThrow("Vercel alias assignment returned a different alias; outcome unverified");
   });
 
   it("rejects a malformed oldDeploymentId rather than passing it on", async () => {
