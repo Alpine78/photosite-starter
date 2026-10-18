@@ -33,4 +33,3 @@ export async function readRecoveryRecord(outDir: string, digest: string): Promis
     fail("The intro recovery record is invalid or unreadable; restore it before continuing");
   }
 }
-
