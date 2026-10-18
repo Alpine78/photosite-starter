@@ -12,6 +12,8 @@
  * removes the alias, so it is safe to run by hand after a rollback, a rotation,
  * or during owner handoff.
  */
+import { fileURLToPath } from "node:url";
+import { describePreviewFailure } from "./preview-probe.mts";
 import { createAliasProbe } from "./preview-alias.mts";
 import {
   parsePreviewAliasHost,
@@ -25,50 +27,57 @@ import {
 const BYPASS_SECRET_SETTING = "VERCEL_AUTOMATION_BYPASS_SECRET";
 const ALIAS_SETTING = "PREVIEW_STABLE_ALIAS";
 
-function fail(message: string): never {
+function fail(message: string): 1 {
   console.error(`Preview alias verification failed: ${message}`);
-  process.exit(1);
+  return 1;
 }
 
-async function main(): Promise<void> {
+export async function main(
+  environment: NodeJS.ProcessEnv = process.env,
+  fetcher: typeof fetch = fetch,
+): Promise<number> {
   let aliasHost: string;
   try {
-    aliasHost = parsePreviewAliasHost(process.env[ALIAS_SETTING] ?? "");
+    aliasHost = parsePreviewAliasHost(environment[ALIAS_SETTING] ?? "");
   } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause));
+    return fail(
+      `${ALIAS_SETTING} must be a dedicated bare non-production *.vercel.app host; ${describePreviewFailure(cause)}. See docs/deployment.md.`,
+    );
   }
 
-  const bypassSecret = process.env[BYPASS_SECRET_SETTING]?.trim();
+  const bypassSecret = environment[BYPASS_SECRET_SETTING]?.trim();
   if (!bypassSecret) {
-    fail(`${BYPASS_SECRET_SETTING} is not set.`);
+    return fail(`${BYPASS_SECRET_SETTING} is not set.`);
   }
 
   let target: Awaited<ReturnType<typeof readAliasCurrentTarget>>;
   try {
-    const settings = readVercelPreviewApiSettings();
-    target = await readAliasCurrentTarget(aliasHost, settings);
+    const settings = readVercelPreviewApiSettings(environment);
+    target = await readAliasCurrentTarget(aliasHost, settings, fetcher);
   } catch (cause) {
-    fail(cause instanceof Error ? cause.message : String(cause));
+    return fail(
+      `the alias identity could not be verified (VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID): ${describePreviewFailure(cause)}`,
+    );
   }
 
   if (!target) {
-    fail(
+    return fail(
       `${aliasHost} is not assigned to a deployment in this project. Run the pipeline (or npm run repoint:preview) to assign it.`,
     );
   }
 
   if (target.isProductionTarget) {
-    fail(
+    return fail(
       `${aliasHost} resolves to a production deployment (${target.deploymentId}). PREVIEW_STABLE_ALIAS must be a dedicated non-production *.vercel.app host — see docs/deployment.md.`,
     );
   }
 
   let probes;
   try {
-    probes = await createAliasProbe(bypassSecret)(new URL(`https://${aliasHost}/`));
+    probes = await createAliasProbe(bypassSecret, fetcher)(new URL(`https://${aliasHost}/`));
   } catch (cause) {
-    fail(
-      `the alias host could not be reached: ${cause instanceof Error ? cause.message : String(cause)}`,
+    return fail(
+      `the alias host could not be reached: ${describePreviewFailure(cause)}`,
     );
   }
 
@@ -79,10 +88,14 @@ async function main(): Promise<void> {
   }
 
   if (!verification.ok) {
-    fail("the alias is not access-protected and non-indexable. See the checks above.");
+    return fail("the alias is not access-protected and non-indexable. See the checks above.");
   }
 
   console.log("Access protection and noindex both verified on the alias host.");
+  return 0;
 }
 
-await main();
+if (import.meta.main || process.argv[1] === fileURLToPath(import.meta.url)) {
+  const status = await main().catch(() => fail("verification failed; details withheld"));
+  if (status !== 0) process.exit(status);
+}

@@ -3997,6 +3997,10 @@ Stable Preview alias assignment and reconciliation outcomes now withhold arbitra
 
 This independent work item is Closed after its owner-approved sequential PR merge on 2026-10-08; the launch parent remains open.
 
+### AB#351 — redact standalone alias verifier exceptions (2026-10-18)
+
+The standalone read-only alias verifier now shares the existing safe failure formatter. Real Node child tests first reproduced token, bypass, provider-identity and malformed-alias disclosure, then verify fixed diagnostics, import safety and relative/symlink entry execution. Synthetic transport tests retain ownership-before-bypass, production/unassigned refusals, exact success output, ordered GET probes and trusted HTTP diagnostics. No shared transport, alias mutation or live provider operation changed. AB#351 remains Active pending review/merge; AB#117 and AB#18 retain their launch gates.
+
 ### AB#238 — Probe each declared legacy redirect target once per verification run (2026-10-08)
 
 The legacy verifier probes each exact declared target URL once per invocation, retaining both successful and failed attempts. Source requests remain independent and every affected row keeps its source status and fixed probe-failed result. Failed target timeouts therefore accumulate per distinct target rather than per alias row; source timeouts still apply separately. A fresh invocation retries naturally. Pending paths remain blockers, and a timeout remains an operational failure, never a new 410 or missing-content decision.
