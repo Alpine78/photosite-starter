@@ -1,6 +1,6 @@
 # ADR-0036: Optional article-end section filtering
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-18
 **Deciders:** Project owner
 **Work item:** AB#360 under AB#27; bounded use case AB#321
@@ -24,16 +24,26 @@ The private normalized mapping records the source body SHA-256
 `fc871a6d3b90ed95fda60199d13fb32055440918eb0021e6b2cd7314766fbcdf`.
 Item-level source material stays outside Git.
 
-A bounded published Viewer read established that the current content is an
+At the proposal checkpoint, a bounded published Viewer read established that the current content is an
 article with 41 visible end-gallery placements and no classifications. That
 metadata read does **not** prove an exact source-item-to-current-placement/media
 binding or parity of product titles and review texts. The source has both titles
 and descriptions; the current placement model offers plain caption overrides.
-Content parity and suitability of that text contract remain a preflight gate.
+A subsequent read-only preflight on October 18 bound all 41 original source
+JPEGs by SHA-256 through retained import-verification evidence to the current
+placements/media. Current asset references also match the retained post-import
+snapshot. All original titles, short descriptions and full review texts occur
+on the correctly bound current media after HTML decoding and NFC/whitespace
+normalization preserving punctuation. The source files are separately retained
+local images; they are not claimed to be inside the database/code backup ZIP.
+The private preflight is recorded in AB#321 discussion `66410`, and the owner
+acceptance in discussion `66425` (original membership evidence: `66008`). This proves the
+bounded identity/text preflight, not rendered-layout acceptance or a current
+CDN-byte audit. Item-level proof remains outside Git.
 
-[ADR-0003's accepted AB#161 amendment](0003-public-content-tree-and-url-structure.md)
-explicitly excludes sections and filtering from article end galleries. Current
-code follows it: `article.endGalleryId`, separate ordered placements, a 24-item
+[ADR-0003's original AB#161 amendment](0003-public-content-tree-and-url-structure.md)
+excluded sections and filtering from article end galleries. Current code still
+follows that earlier exclusion: `article.endGalleryId`, separate ordered placements, a 24-item
 manual keyset, and authenticated cursors; no end-gallery catalog or section query.
 Standalone galleries already have a bounded generic section catalog. Their
 indexing policy differs: article continuations always canonicalize to the
@@ -41,14 +51,15 @@ parameter-free article and are not indexable.
 
 ## Decision
 
-**Recommendation for owner acceptance:** extend only the optional article-end
+**Owner-accepted decision, 2026-10-18:** extend only the optional article-end
 gallery with generic single-section membership. Keep the article variant and
 its body, identity, media bindings and manual occurrence order. Do not introduce
 an independent review item, item detail route, numeric-rating system or poll.
-This is a scoped proposed amendment to ADR-0003's exclusion of end-gallery
-sections/filtering. Until explicitly accepted, that accepted exclusion remains
-in force. Merging this Proposed record alone does not accept the amendment or
-close AB#27/321.
+This is a scoped accepted amendment to ADR-0003's exclusion of end-gallery
+sections/filtering, recorded there in the dated October 18 addendum. The owner
+explicitly accepted PR#516's decision as the implementation basis. This
+acceptance authorizes reviewed implementation slices, not a CMS content write,
+publication, broader catalog decision or closure of AB#27/321.
 
 ### Storage and editorial ownership
 
@@ -78,7 +89,7 @@ close AB#27/321.
   with current Studio/runtime enforcement. A different slug needs a new section,
   checked membership changes and removal only after references are cleared; old
   selected links then 404. ADR-0003 describes a warned-change policy, but that
-  action is not implemented today and is not added by this proposal. First
+  action is not implemented today and is not added by this bounded implementation decision. First
   adoption also makes formerly incidental `section` values meaningful on that
   article; undeclared selectors can then return 404. Include these compatibility
   effects in the concrete content-change approval.
@@ -187,9 +198,9 @@ work than client filtering but are required to cover the entire collection with 
 ## Consequences
 
 No application, schema, Studio, CMS content, provider, dependency or deployment
-changes result from this proposal. Existing D2 diagrams continue to describe the
-running system; no external or layer boundary changes are proposed. Acceptance
-would authorize subsequent small reviewed implementation slices, not a content
+changes result from this decision record. Existing D2 diagrams continue to describe the
+running system; no external or layer boundary changes are proposed. The owner acceptance
+authorizes subsequent small reviewed implementation slices, not a content
 write, automatic publication, invented translation or parent-story closure.
 
 If exact source/current identity binding or complete image/title/review-text
@@ -200,11 +211,12 @@ text. Do not classify by filename, current order or caption guesses.
 
 ## Action Items
 
-1. Owner accepts, changes or rejects this scoped ADR-0003 amendment. Keep it
-   Proposed until that decision is recorded explicitly.
-2. Before dependent implementation, bind every one of the 41 source items to its
-   exact current placement/media using retained identity evidence. Check full
-   titles, review text, pictures and approved labels; stop on ambiguity or loss.
+1. **Complete, 2026-10-18:** the owner accepted this scoped ADR-0003 amendment
+   and the decision is recorded in both ADRs.
+2. **Identity/text preflight complete, 2026-10-18:** all 41 source images have
+   exact retained-hash/current-placement bindings and complete title/review-text
+   parity as described above. Review concrete localized labels and rendered
+   layout in the content-change plan; stop on ambiguity or loss.
 3. After the decision and preflight, deliver storage/editor validation plus
    projection/query/cursor tests as one bounded slice. Include absent catalogs,
    unassigned items, malformed selectors, cross-section/stale cursors, locale

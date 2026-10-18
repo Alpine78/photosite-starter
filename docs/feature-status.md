@@ -5388,7 +5388,17 @@ generation/cache wiring, legacy-write guard, maintenance, operational writer/
 receipts and named rehearsal/Production operations remain separate gates.
 No CMS, asset, credential, restore or deployment operation was performed.
 
-### AB#360 — Article-end section decision proposal (2026-10-18, Active)
+### AB#360 — Owner decision accepted (2026-10-18, Active pending PR merge)
+
+The owner accepted [ADR-0036](adr/0036-article-end-section-filtering-proposal.md)
+as AB#321's implementation basis. ADR-0003 now carries the dated scoped amendment.
+The full 41-item source-image hash/current-placement and title/review-text parity
+preflight passed; private item-level evidence stays outside Git. This acceptance
+permits reviewed implementation slices. It does not authorize a CMS write or
+publish classifications, and rendered-layout/content acceptance remains open.
+AB#27/321 stay Active. The earlier proposal checkpoint below is historical.
+
+### AB#360 — Historical proposal checkpoint (superseded by owner acceptance above)
 
 [ADR-0036](adr/0036-article-end-section-filtering-proposal.md) proposes a bounded
 article-end section extension for AB#321's verified 41-item exact star-filter use
