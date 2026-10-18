@@ -1,5 +1,10 @@
 /** Studio interface copy only; English keys and stored content are unchanged. */
 export const schemaFinnish = {
+  "End-gallery sections": "Loppugallerian osiot",
+  "End-gallery filter heading": "Loppugallerian suodattimen otsikko",
+  "Optional ordered sections of the end gallery. Publish the catalog before assigning placements; coordinate shared multilingual changes in a checked batch.": "Loppugallerian valinnaiset järjestetyt osiot. Julkaise osioluettelo ennen kuvasijoitusten luokittelua. Tee yhteisten kieliversioiden muutokset tarkistetussa sisältömuutoserässä.",
+  "Required with sections. Describe what these groups mean in this article's language.": "Pakollinen osioiden kanssa. Kuvaile ryhmien merkitys artikkelin kielellä.",
+  "Optional ID declared by the published containing article. Leave empty for an unassigned image.": "Julkaistussa artikkelissa määritetty valinnainen osion tunniste. Jätä tyhjäksi, jos kuva ei kuulu osioon.",
   "Unlisted public delivery": "Piilotettu julkinen kuvatoimitus",
   "Media type": "Median tyyppi",
   "Client gallery image": "Asiakasgallerian kuva",
