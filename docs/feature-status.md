@@ -4369,6 +4369,10 @@ The operator contract and remaining support/baseline/usage/recovery/notice/appro
 gates are documented in [sanity-seeding](sanity-seeding.md#offline-legacy-delivery-plan-ab250).
 This is an offline preparation slice: no CMS payload, asset upload, public
 activation or old-link mapping is implemented here. AB#250/18/117 remain Active.
+AB#353 makes the existing nonprivate-output test independent of the invoking
+process's umask by explicitly applying mode 0755 after fixture creation. The same
+21 tests pass under isolated child masks 0077 and 0022; production permissions
+and the strict rejection assertion are unchanged.
 The owner-local run verified all 21 retained galleries, 1,792 browse-image
 placements, 12 whole ZIPs and the original backup against the source plan;
 seven exclusions and nine absent packages are preserved. Validation: 58 focused

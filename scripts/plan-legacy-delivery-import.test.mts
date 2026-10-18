@@ -106,6 +106,7 @@ describe("offline source byte verification", () => {
     await writeFile(options.input, JSON.stringify(source())); await chmod(options.input, 0o644);
     await expect(runLegacyPlanner(options, () => now)).rejects.toThrow("PRIVATE_PERMISSIONS");
     await chmod(options.input, 0o600); await mkdir(options.out, { mode: 0o755 });
+    await chmod(options.out, 0o755);
     await expect(runLegacyPlanner(options, () => now)).rejects.toThrow("PRIVATE_PERMISSIONS");
   });
   it("requires repository-local artifacts to be untracked and ignored", async () => {
