@@ -48,6 +48,7 @@
  */
 
 import "server-only";
+import { ARTICLE_END_CATALOG_PROJECTION, projectArticleEndGalleryCatalog } from "@/lib/article-end-gallery-catalog";
 
 import { getDeploymentConfig } from "@/lib/deployment-config";
 import {
@@ -127,6 +128,8 @@ export const PROJECTED_ARTICLE_DETAIL_FIELDS = [
   "summaryListingOnly",
   "author",
   "endGalleryId",
+  "endGallerySections",
+  "endGallerySectionHeading",
   "publishedAt",
   "eventDate",
   "endDate",
@@ -177,6 +180,7 @@ export const ARTICLE_DETAIL_PROJECTION = `{
   summaryListingOnly,
   author,
   endGalleryId,
+  ${ARTICLE_END_CATALOG_PROJECTION},
   publishedAt,
   eventDate,
   endDate,
@@ -253,6 +257,8 @@ export type RawArticleDetailDocument = RawArticleListingDocument & {
   /** AB#172: the lead is a listing excerpt only. */
   readonly summaryListingOnly?: unknown;
   readonly endGalleryId?: unknown;
+  readonly endGallerySections?: unknown;
+  readonly endGallerySectionHeading?: unknown;
   readonly tags?: unknown;
   readonly body?: unknown;
 };
@@ -865,6 +871,13 @@ export function projectArticleContentPage(
     throw new SanityArticleError("incomplete-document", "invalid end-gallery identity", contentId);
   }
 
+  let catalog;
+  try {
+    catalog = projectArticleEndGalleryCatalog(document.endGallerySections, document.endGallerySectionHeading, endGalleryId);
+  } catch {
+    throw new SanityArticleError("incomplete-document", "invalid article-end section catalog", contentId);
+  }
+
   const summary = readString(document.summary);
   if (
     document.summaryListingOnly != null &&
@@ -904,6 +917,7 @@ export function projectArticleContentPage(
     ...(endDate === undefined ? {} : { endDate }),
     ...(author === undefined ? {} : { author }),
     ...(endGalleryId === undefined ? {} : { endGalleryId }),
+    ...catalog,
     ...(summary === undefined ? {} : { summary }),
     ...(document.summaryListingOnly === true ? { summaryListingOnly: true } : {}),
     ...(cover === undefined ? {} : { cover }),

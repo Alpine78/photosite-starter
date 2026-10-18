@@ -1,5 +1,6 @@
 import type { ContentInlineSpan } from "./content-inline";
 import type { GalleryPresentationFields } from "@/lib/gallery-presentation";
+import type { GallerySectionSummary } from "@/lib/gallery-sections";
 /**
  * The public content page itself: one gallery or article, as the route layer
  * and its renderers see it.
@@ -213,6 +214,9 @@ export type ArticleContentPage = ContentPageBase & {
    * mini-galleries retain their own viewer sequences.
    */
   readonly endGalleryId?: string;
+  /** Optional generic filter catalog, without section introductions (ADR-0036). */
+  readonly endGallerySections?: readonly GallerySectionSummary[];
+  readonly endGallerySectionHeading?: string;
   /**
    * The article's own byline, overriding the site-wide photographer name for
    * this one page (AB#151). Article-only — a curated gallery is credited to

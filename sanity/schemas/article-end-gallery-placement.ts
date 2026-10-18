@@ -1,6 +1,8 @@
 /** One separately queryable placement in an article's optional end gallery. */
 
 import { ARTICLE_TYPE_NAME } from "./article";
+import { validateArticleEndMembership } from "./article-end-sections";
+import { MAX_SECTION_ID_LENGTH } from "./gallery";
 import {
   GALLERY_PLACEMENT_TYPE_NAME,
   MAX_PLACEMENT_ID_LENGTH,
@@ -222,13 +224,22 @@ const fields: readonly SchemaFieldDefinition[] = [
   },
   { name: "altOverride", title: "Alt text override", type: "string" },
   { name: "captionOverride", title: "Caption override", type: "string" },
+  {
+    name: "sectionId", title: "Section ID", type: "string",
+    description: "Optional ID declared by the published containing article. Leave empty for an unassigned image.",
+    validation: (rule) => rule.max(MAX_SECTION_ID_LENGTH),
+  },
 ];
 
 export const articleEndGalleryPlacementType: SchemaTypeDefinition = {
   name: ARTICLE_END_GALLERY_PLACEMENT_TYPE_NAME,
   title: "Article end-gallery placement",
   type: "document",
-  validation: (rule) => rule.custom<Readonly<Record<string, unknown>>>((value) => validateLocalizationReview(value)),
+  validation: (rule) => [
+    rule.custom<Readonly<Record<string, unknown>>>((value) => validateLocalizationReview(value)),
+    rule.custom<Readonly<Record<string, unknown>>>((value, context) =>
+      validateArticleEndMembership(value ?? context.document, context)),
+  ],
   description:
     "One ordered photograph occurrence in the large gallery after an article body (AB#161).",
   fields,

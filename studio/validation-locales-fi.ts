@@ -1,5 +1,14 @@
 /** {{pN}} placeholders retain the original validation values verbatim. */
 export const validationFinnish = {
+  "The article-end section data is invalid. Check the catalog, heading, and gallery ID.": "Loppugallerian osiotiedoissa on virhe. Tarkista osioluettelo, otsikko ja gallerian tunniste.",
+  "The published section consistency check could not be completed. Retry before publishing.": "Julkaistujen osiotietojen yhtenäisyyttä ei voitu tarkistaa. Yritä uudelleen ennen julkaisua.",
+  "Published section IDs and path segments cannot be changed in place. Create a new section instead.": "Julkaistun osion tunnistetta tai polkuosaa ei voi muuttaa suoraan. Luo uusi osio.",
+  "Clear or reassign every referencing placement before removing a section, including hidden placements.": "Poista tai vaihda kaikkien osioon viittaavien kuvasijoitusten luokittelu ennen osion poistamista. Tämä koskee myös piilotettuja kuvasijoituksia.",
+  "Catalogued language versions must declare the same section IDs. Use a checked batch for coordinated changes.": "Osioluettelon sisältävien kieliversioiden on käytettävä samoja osiotunnisteita. Tee yhteensovitetut muutokset tarkistetussa sisältömuutoserässä.",
+  "Shared placements must have matching sections in catalogued language versions. Use a checked batch for adoption.": "Yhteisten kuvasijoitusten osioiden on vastattava toisiaan osioluettelon sisältävissä kieliversioissa. Ota luokittelu käyttöön tarkistetussa sisältömuutoserässä.",
+  "The containing article and its catalog must be published before assigning a section.": "Artikkeli ja sen osioluettelo on julkaistava ennen kuvasijoituksen luokittelua.",
+  "Select a section declared by the published containing article.": "Valitse julkaistun artikkelin osioluettelossa määritetty osio.",
+  "Shared placements must have matching sections in catalogued language versions.": "Yhteisten kuvasijoitusten osioiden on vastattava toisiaan osioluettelon sisältävissä kieliversioissa.",
   "This gallery is too large. Use shorter texts or fewer images.": "Galleria on liian suuri. Lyhennä tekstejä tai vähennä kuvia.",
   "Check the client gallery fields, image order and alternative texts.": "Tarkista asiakasgallerian kentät, kuvajärjestys ja vaihtoehtoiset tekstit.",
   "The gallery link is missing, already used or different from the published link.": "Gallerian linkki puuttuu, on jo käytössä tai eroaa julkaistusta linkistä.",

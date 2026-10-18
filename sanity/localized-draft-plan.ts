@@ -13,7 +13,7 @@ const LANGUAGE = /^[a-z]{2,3}$/;
 const TEXT_FIELDS = new Set([
   "title", "summary", "author", "text", "attribution", "caption", "label",
   "firstLabel", "secondLabel", "altOverride", "captionOverride", "headers",
-  "cells", "items", "href",
+  "cells", "items", "href", "endGallerySectionHeading",
 ]);
 
 function record(value: unknown): value is Document {
@@ -139,9 +139,10 @@ export function createLocalizedDraftPlan(input: LocalizedDraftInput, crypto: Dra
   const reviewPaths: string[] = [];
   textPaths(draft, "", reviewPaths);
   if (typeof draft.slug === "string" && draft.slug) reviewPaths.push("slug");
-  if (type === "gallery" && Array.isArray(draft.sections)) {
-    draft.sections.forEach((section, index) => {
-      if (record(section) && typeof section.slug === "string" && section.slug) reviewPaths.push(`sections[${index}].slug`);
+  const sectionField = type === "gallery" ? "sections" : "endGallerySections";
+  if (Array.isArray(draft[sectionField])) {
+    draft[sectionField].forEach((section, index) => {
+      if (record(section) && typeof section.slug === "string" && section.slug) reviewPaths.push(`${sectionField}[${index}].slug`);
     });
   }
   const notices: string[] = [];

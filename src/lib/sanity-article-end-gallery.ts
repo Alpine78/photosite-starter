@@ -1,6 +1,9 @@
 /** Bounded Sanity adapter for an article's optional end gallery (AB#161). */
 
 import "server-only";
+import { ARTICLE_END_CATALOG_PROJECTION, projectArticleEndGalleryCatalog } from "@/lib/article-end-gallery-catalog";
+import type { GallerySectionSummary } from "@/lib/gallery-sections";
+import { UnknownGallerySectionError } from "@/lib/gallery-sections";
 
 import {
   ARTICLE_END_GALLERY_PAGE_SIZE,
@@ -54,12 +57,15 @@ const ARTICLE_FILTER = `_type == "article" && language == $language && contentId
 
 const BASICS_QUERY = `*[${ARTICLE_FILTER}][0...2]{
   _id,
-  endGalleryId
+  endGalleryId,
+  ${ARTICLE_END_CATALOG_PROJECTION}
 }`;
 
 type RawBasics = {
   readonly _id?: unknown;
   readonly endGalleryId?: unknown;
+  readonly endGallerySections?: unknown;
+  readonly endGallerySectionHeading?: unknown;
 };
 
 function readBasics(raw: unknown): RawBasics | undefined {
@@ -91,13 +97,15 @@ function readRows(raw: unknown): readonly RawGalleryPlacementItem[] {
 
 const placementFilter = `_type == "${ARTICLE_END_GALLERY_PLACEMENT_DOCUMENT_TYPE}" && article._ref == $articleDocumentId && visible == true && media->publiclyRenderable == true && (media->privateOnly == false || !defined(media->privateOnly))`;
 
-function windowQuery(window: GalleryWindowRequest): string {
+function windowQuery(window: GalleryWindowRequest, catalog: boolean, sectionId?: string): string {
+  const filter = placementFilter + (sectionId === undefined ? "" : " && sectionId == $sectionId");
+  const projection = catalog ? ITEM_PROJECTION.replace("{\n", "{\n  sectionId,\n") : ITEM_PROJECTION;
   if (window.after === undefined) {
-    return `*[${placementFilter}] | order(order asc, placementId asc) [0...$candidateLimit]${ITEM_PROJECTION}`;
+    return `*[${filter}] | order(order asc, placementId asc) [0...$candidateLimit]${projection}`;
   }
   return `{
-    "boundary": *[${placementFilter} && placementId == $afterPlacementId][0]${ITEM_PROJECTION},
-    "candidates": *[${placementFilter} && (order > $afterOrder || (order == $afterOrder && placementId > $afterPlacementId))] | order(order asc, placementId asc) [0...$candidateLimit]${ITEM_PROJECTION}
+    "boundary": *[${filter} && placementId == $afterPlacementId][0]${projection},
+    "candidates": *[${filter} && (order > $afterOrder || (order == $afterOrder && placementId > $afterPlacementId))] | order(order asc, placementId asc) [0...$candidateLimit]${projection}
   }`;
 }
 
@@ -107,6 +115,8 @@ async function readWindow(
   articleDocumentId: string,
   locale: string,
   window: GalleryWindowRequest,
+  sections: readonly GallerySectionSummary[],
+  sectionId?: string,
 ) {
   const after = window.after;
   if (after !== undefined && (after.pinnedTier !== 0 || typeof after.key !== "number")) {
@@ -116,10 +126,11 @@ async function readWindow(
     );
   }
   const raw = await client.query({
-    query: windowQuery(window),
+    query: windowQuery(window, sections.length > 0, sectionId),
     params: {
       articleDocumentId,
       candidateLimit: window.candidateLimit,
+      ...(sectionId === undefined ? {} : { sectionId }),
       ...(after === undefined
         ? {}
         : { afterOrder: after.key, afterPlacementId: after.placementId }),
@@ -163,7 +174,13 @@ async function readWindow(
         !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.placementId)) {
       throw new SanityArticleEndGalleryError("malformed-result", "invalid placement identity");
     }
-    const placement = projectGalleryPlacement(row, projectionOptions);
+    const member = row.sectionId;
+    if (sections.length > 0 && member != null &&
+        (typeof member !== "string" || !sections.some((section) => section.sectionId === member))) {
+      throw new SanityArticleEndGalleryError("malformed-result", "a placement references an undeclared section");
+    }
+    // Legacy uncatalogued queries do not request membership; keep their old shape.
+    const placement = projectGalleryPlacement(sections.length > 0 ? row : { ...row, sectionId: undefined }, projectionOptions);
     if (placement === undefined) {
       throw new SanityArticleEndGalleryError(
         "malformed-result",
@@ -173,6 +190,7 @@ async function readWindow(
     return placement;
   };
   return {
+    ...(sectionId === undefined ? {} : { appliedSectionId: sectionId }),
     ...(rawBoundary === undefined ? {} : { boundary: project(rawBoundary) }),
     candidates: rawCandidates.map(project),
   };
@@ -216,10 +234,21 @@ export async function readSanityArticleEndGalleryPage({
     return undefined;
   }
 
+  let catalog;
+  try {
+    catalog = projectArticleEndGalleryCatalog(basics.endGallerySections, basics.endGallerySectionHeading, endGalleryId);
+  } catch {
+    throw new SanityArticleEndGalleryError("malformed-result", "invalid article-end section catalog");
+  }
+  const sections = catalog.endGallerySections ?? [];
+  if (query.sectionId !== undefined && !sections.some((section) => section.sectionId === query.sectionId)) {
+    throw new UnknownGallerySectionError(query.sectionId);
+  }
+
   return readArticleEndGalleryPage({
     query: { ...query, pageSize: query.pageSize ?? ARTICLE_END_GALLERY_PAGE_SIZE },
     cursorCodec,
-    source: async ({ window }) =>
-      readWindow(client, config, articleDocumentId, query.locale, window),
+    source: async ({ window, sectionId }) =>
+      readWindow(client, config, articleDocumentId, query.locale, window, sections, sectionId),
   });
 }

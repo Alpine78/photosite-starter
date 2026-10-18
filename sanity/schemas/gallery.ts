@@ -268,7 +268,7 @@ function validatesOrderingSeed(
     : "orderingSeed is only used while orderingRule is seeded-random";
 }
 
-const sectionsField: SchemaFieldDefinition = {
+export const sectionsField: SchemaFieldDefinition = {
   name: "sections",
   title: "Sections",
   type: "array",
