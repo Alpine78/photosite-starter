@@ -4235,6 +4235,15 @@ Malformed audit pages, rows, field values and pagination cursor IDs are no longe
 
 ### AB#246 — delivery summary completeness
 
+**AB#357 follow-up, 2026-10-18:** the offline failure-summary CLI inspects the
+opened file descriptor and rejects nonregular targets before reading. POSIX
+nonblocking open prevents waiting for a FIFO writer. Ordinary snapshots retain
+their byte/UTF-8 bounds, redacted aggregates and complete/failure/incomplete exit
+statuses; symlinks to ordinary files remain supported. Actual subprocess tests
+cover writerless and populated FIFOs, symlink targets and invalid inputs. This
+operator-only correction remains Active pending review/merge; parent AB#159's
+live notification and controlled-failure acceptance remain separate.
+
 The offline contact/enquiry summary flags both missing delivery terminal events and delivery terminals missing their accepted event. The actual contact and enquiry emitters were read to verify that delivery paths emit accepted first. Out-of-order complete logs and rejection-only refusals remain valid; duplicate/invalid precedence and redacted counts remain. An orphan delivery failure now returns incomplete evidence (CLI exit 2) while retaining its failure count. This is log-window evidence, not a live delivery or alert verification.
 
 ### AB#247 — private curated-plan output
