@@ -124,11 +124,14 @@ export function GalleryLightbox({
   labels,
   continuation,
   enquiryBasePath,
+  showLastImageMessage = true,
   children,
 }: {
   /** Ordered by the shared gallery result, never by grid layout order. */
   readonly slides: readonly LightboxSlide[];
   readonly labels: GalleryLightboxLabels;
+  /** Standalone editorial photographs have no sequence-end message. */
+  readonly showLastImageMessage?: boolean;
   /**
    * This gallery's canonical, parameter-free path. When present, the viewer
    * shows an "Enquire about this photograph" control whose `href` is
@@ -272,7 +275,7 @@ export function GalleryLightbox({
       const message = !atEnd ? ""
         : loading ? current?.loadingLabel ?? ""
         : failed ? current?.failedLabel ?? ""
-        : current === undefined ? lastImage : "";
+        : current === undefined && showLastImageMessage ? lastImage : "";
       const showRetry = atEnd && failed && !loading;
 
       // The library hides a disabled arrow. Move its focus before its own
@@ -760,6 +763,7 @@ export function GalleryLightbox({
     loadError,
     enquire,
     lastImage,
+    showLastImageMessage,
     // A stable string within one gallery; a different gallery remounts the grid.
     enquiryBasePath,
   ]);
