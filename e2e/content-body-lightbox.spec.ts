@@ -9,6 +9,7 @@ import { mockContentTreeInputs } from "../src/lib/mock-content-tree";
 import {
   appUnderTestEnvironment,
   DEFAULT_STORY_NAMESPACE,
+  PREFIXED_LOCALE,
 } from "./support/harness-environment";
 import { expect, test } from "./support/fixtures";
 import { OPEN_ACTION_TIMEOUT } from "./support/gallery";
@@ -18,7 +19,8 @@ import { openLightbox, presentedImage } from "./support/lightbox";
  * A photograph placed in a content body opens the same fullscreen viewer the
  * curated gallery grid uses (AB#147).
  *
- * The body sequence is its own: ADR-0003 decision 2 keeps a body media block
+ * Each article loose photograph opens alone (AB#323). A gallery body keeps its
+ * own sequence: ADR-0003 decision 2 keeps a body media block
  * out of a gallery variant's curated grid, sections, and pagination, so this
  * journey proves the two viewers on one gallery page are separate — one walks
  * the body's own images, the other walks the curated result — and that a
@@ -68,9 +70,9 @@ function bodyImageAlts(contentId: string): readonly string[] {
 /** One default-locale article whose body places more than one photograph, with
  * a non-image block among them, so navigation has a real sequence to walk and
  * the excluded block is provable. */
-function articleWithBodyGallery(): { path: string; alts: readonly string[] } {
+function articleWithBodyGallery(): { path: string; alts: readonly string[]; captions: readonly (readonly string[])[] } {
   for (const [contentId, page] of mockContentPages[defaultLanguage] ?? []) {
-    if (page.variant !== "article") continue;
+    if (page.variant !== "article" || page.endGalleryId !== undefined) continue;
     const imageCount = page.body.filter(
       (block) => block.type === "media" && block.media.type === "image",
     ).length;
@@ -78,7 +80,12 @@ function articleWithBodyGallery(): { path: string; alts: readonly string[] } {
       (block) => block.type !== "media" || block.media.type !== "image",
     );
     if (imageCount >= 2 && hasOther) {
-      return { path: canonicalPath(contentId), alts: bodyImageAlts(contentId) };
+      return {
+        path: canonicalPath(contentId), alts: bodyImageAlts(contentId),
+        captions: page.body.flatMap(block => block.type === "media" && block.media.type === "image"
+          ? [[block.caption ?? block.media.caption, block.media.credit].filter((text): text is string => Boolean(text))]
+          : []),
+      };
     }
   }
   throw new Error(
@@ -107,117 +114,138 @@ const GALLERY = galleryWithBodyImage();
 /** The body's own lightbox triggers, in source order — every hydrated body
  * figure carries the DOM-visible half of its occurrence identity. */
 function bodyTriggers(page: Page) {
-  return page.getByRole("main").locator("article [data-item-id]:not([data-mini-gallery] [data-item-id])");
+  return page.getByRole("main").locator("article [data-item-id]:not([data-mini-gallery] [data-item-id]):not([data-article-end-gallery] [data-item-id])");
 }
 
-test("an article body photograph opens the viewer, walks its own images, and returns focus where it ended", async ({
-  page,
-  externalRequests,
-}) => {
+test("article loose photographs open individually and retain caption, zoom, focus and reading position", async ({ page, externalRequests }) => {
   await page.goto(ARTICLE.path, { waitUntil: "load" });
-
   const triggers = bodyTriggers(page);
   const dialog = page.getByRole("dialog");
+  await expect(triggers).toHaveCount(ARTICLE.alts.length);
+  expect(ARTICLE.alts.length).toBeGreaterThan(1);
+  const ids = await triggers.evaluateAll(nodes => nodes.map(node => node.getAttribute("data-item-id")));
+  expect(new Set(ids).size).toBe(ids.length);
 
-  await test.step("every body photograph is a real, named control once hydrated", async () => {
-    await expect(triggers).toHaveCount(ARTICLE.alts.length);
-    // The article also carries a cover figure and a YouTube block; neither is a
-    // trigger, which is what this count proves.
-    expect(ARTICLE.alts.length).toBeGreaterThan(1);
-
-    await expect(triggers.first()).toHaveAttribute("aria-haspopup", "dialog");
-    await expect(triggers.first()).toHaveAccessibleName(ARTICLE.alts[0]);
-
-    const itemIds = await triggers.evaluateAll((nodes) =>
-      nodes.map((node) => node.getAttribute("data-item-id")),
-    );
-    expect(itemIds.every((id): id is string => Boolean(id))).toBe(true);
-    expect(new Set(itemIds).size).toBe(itemIds.length);
-  });
-
-  await test.step("a pointer opens the shared fullscreen dialog on that photograph", async () => {
-    await openLightbox(dialog, () =>
-      triggers.first().click({ timeout: OPEN_ACTION_TIMEOUT }),
-    );
-
-    await expect(dialog).toHaveAccessibleName(labels.viewer);
-    await expect(dialog).toHaveAttribute("aria-modal", "true");
-    await expect
-      .poll(async () => (await presentedImage(dialog))?.alt)
-      .toBe(ARTICLE.alts[0]);
-
-    // A body photograph is not a curated placement, so the viewer offers no
-    // "Enquire about this photograph" control (AB#60 was not extended here).
-    await expect(
-      dialog.getByRole("link", { name: labels.enquire }),
-    ).toHaveCount(0);
-  });
-
-  await test.step("navigation steps through the body images and nothing else", async () => {
-    // Forward to the last body image.
-    for (let index = 1; index < ARTICLE.alts.length; index += 1) {
-      await page.keyboard.press("ArrowRight");
-      await expect
-        .poll(async () => (await presentedImage(dialog))?.alt)
-        .toBe(ARTICLE.alts[index]);
+  // Every occurrence, including first/middle/last, keeps its own one-image
+  // boundary. Reopen by keyboard as well as pointer to exercise registrations.
+  for (const [index, alt] of ARTICLE.alts.entries()) {
+    const trigger = triggers.nth(index);
+    await expect(trigger).toHaveAccessibleName(alt);
+    await trigger.evaluate(node => node.scrollIntoView({ block: "center", behavior: "instant" }));
+    await trigger.focus();
+    const before = await page.evaluate(() => window.scrollY);
+    for (const keyboard of [false, true]) {
+      await openLightbox(dialog, () => keyboard ? trigger.press("Enter") : trigger.click());
+      await expect(dialog).toHaveAccessibleName(labels.viewer);
+      await expect(dialog).toHaveAttribute("aria-modal", "true");
+      await expect.poll(async () => (await presentedImage(dialog))?.alt).toBe(alt);
+      await expect(dialog.getByRole("button", { name: labels.next, exact: true })).toBeHidden();
+      await expect(dialog.getByRole("button", { name: labels.previous, exact: true })).toBeHidden();
+      await expect(dialog.locator(".pswp__counter")).toBeHidden();
+      await expect(dialog.locator('a[href*="enquire="]')).toHaveCount(0);
+      for (const key of ["ArrowRight", "ArrowLeft", "ArrowRight"]) await page.keyboard.press(key);
+      await expect.poll(async () => (await presentedImage(dialog))?.alt).toBe(alt);
+      const caption = dialog.locator("[data-gallery-caption]");
+      if (ARTICLE.captions[index].length > 0) {
+        await expect(caption.locator(":scope > p")).toHaveText([...ARTICLE.captions[index]]);
+        expect((await presentedImage(dialog))?.describedBy).toBe(await caption.getAttribute("id"));
+      } else {
+        await expect(caption).toBeHidden();
+        expect((await presentedImage(dialog))?.describedBy).toBeNull();
+      }
+      const zoom = dialog.getByRole("button", { name: labels.zoom, exact: true });
+      await expect(zoom).toHaveAttribute("aria-pressed", "false");
+      await zoom.click();
+      await expect(zoom).toHaveAttribute("aria-pressed", "true");
+      await zoom.click();
+      await expect(zoom).toHaveAttribute("aria-pressed", "false");
+      await page.keyboard.press("Escape");
+      await expect(dialog).toHaveCount(0);
+      await expect(trigger).toBeFocused();
+      await expect.poll(async () => Math.abs(await page.evaluate(() => window.scrollY) - before)).toBeLessThanOrEqual(8);
     }
-
-    // One more stays at the true end (AB#251). The YouTube block between the
-    // photographs is not a slide.
-    await page.keyboard.press("ArrowRight");
-    await expect
-      .poll(async () => (await presentedImage(dialog))?.alt)
-      .toBe(ARTICLE.alts.at(-1));
-    await expect(dialog.getByRole("status")).toHaveText(labels.lastImage);
-    for (let index = ARTICLE.alts.length - 2; index >= 0; index -= 1) {
-      await page.keyboard.press("ArrowLeft");
-      await expect.poll(async () => (await presentedImage(dialog))?.alt).toBe(ARTICLE.alts[index]);
-    }
-
-    // And no slide is ever a broken video embed.
-    await expect(dialog.locator("iframe")).toHaveCount(0);
-  });
-
-  await test.step("the active photograph carries its own caption for assistive technology", async () => {
-    const caption = dialog.locator("[data-gallery-caption]");
-    const captionId = await caption.getAttribute("id");
-    expect(captionId).toBeTruthy();
-
-    // Returned to the first image above; its figure names the caption.
-    const presented = await presentedImage(dialog);
-    expect(presented?.alt).toBe(ARTICLE.alts[0]);
-    if ((await caption.locator(":scope > p").count()) > 0) {
-      expect(presented?.describedBy).toBe(captionId);
-      await expect(caption).toHaveText(/\S/);
-    }
-  });
-
-  await test.step("Escape closes it and focus lands on the occurrence it ended on", async () => {
-    await page.keyboard.press("ArrowRight");
-    await expect
-      .poll(async () => (await presentedImage(dialog))?.alt)
-      .toBe(ARTICLE.alts[1]);
-
-    await page.keyboard.press("Escape");
-    await expect(dialog).toHaveCount(0);
-    await expect(triggers.nth(1)).toBeFocused();
-  });
-
-  await test.step("the keyboard opens it too, and focus returns to that same control", async () => {
-    await openLightbox(dialog, async () => {
-      await triggers.first().focus({ timeout: OPEN_ACTION_TIMEOUT });
-      await page.keyboard.press("Enter");
-    });
-    await expect
-      .poll(async () => (await presentedImage(dialog))?.alt)
-      .toBe(ARTICLE.alts[0]);
-
-    await page.keyboard.press("Escape");
-    await expect(dialog).toHaveCount(0);
-    await expect(triggers.first()).toBeFocused();
-  });
-
+  }
   expect(externalRequests).toEqual([]);
+});
+
+test("horizontal pointer swipes cannot leave an article's standalone photograph", async ({ page }) => {
+  await page.goto(ARTICLE.path);
+  const trigger = bodyTriggers(page).first();
+  const dialog = page.getByRole("dialog");
+  await openLightbox(dialog, () => trigger.click());
+  const initial = await presentedImage(dialog);
+  expect(initial).not.toBeNull();
+  const box = (await dialog.boundingBox())!;
+  // The same trusted pointer-drag path as the existing gallery swipe journey.
+  // Physical touch/pinch hardware remains a manual check, not a harness claim.
+  for (const direction of [1, -1]) {
+    const start = box.x + box.width * (direction === 1 ? 0.85 : 0.15);
+    const end = box.x + box.width - (start - box.x);
+    const y = box.y + box.height / 2;
+    await page.mouse.move(start, y);
+    await page.mouse.down();
+    for (let step = 1; step <= 12; step++) {
+      await page.mouse.move(start + (end - start) * step / 12, y);
+      await page.waitForTimeout(16);
+    }
+    await page.mouse.up();
+    await expect.poll(async () => (await presentedImage(dialog))?.alt).toBe(initial!.alt);
+    await expect.poll(async () => (await presentedImage(dialog))?.currentSrc).toBe(initial!.currentSrc);
+  }
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
+test("repeated loose photographs across mini-galleries retain their own focus and caption in both locales", async ({ page }) => {
+  for (const locale of [appUnderTestEnvironment.SITE_LOCALE, PREFIXED_LOCALE.prefix]) {
+    const language = new Intl.Locale(locale).language;
+    const tree = buildContentTree(mockContentTreeInputs[language]);
+    const segments = getCanonicalContentPath(tree, "content-reading-coastal-light")!;
+    const prefix = locale === appUnderTestEnvironment.SITE_LOCALE
+      ? STORY_ROOT : `/${PREFIXED_LOCALE.prefix}/${PREFIXED_LOCALE.storyNamespace}`;
+    const localLabels = getBuiltInLabels(locale).lightbox;
+    await page.goto(`${prefix}/${segments.join("/")}`);
+    const triggers = bodyTriggers(page);
+    await expect(triggers).toHaveCount(2);
+    expect(await triggers.first().locator("img").getAttribute("src")).toBe(await triggers.last().locator("img").getAttribute("src"));
+    const dialog = page.getByRole("dialog", { name: localLabels.viewer });
+    for (const index of [0, 1, 0]) {
+      const trigger = triggers.nth(index);
+      await openLightbox(dialog, () => trigger.click());
+      await expect(dialog.locator(".pswp__counter")).toBeHidden();
+      await expect(dialog.getByRole("button", { name: localLabels.next, exact: true })).toBeHidden();
+      const caption = dialog.locator("[data-gallery-caption]");
+      if (index === 1) {
+        await expect(caption).toBeHidden();
+        expect((await presentedImage(dialog))?.describedBy).toBeNull();
+      } else {
+        await expect(caption).toBeVisible();
+        expect((await presentedImage(dialog))?.describedBy).toBe(await caption.getAttribute("id"));
+      }
+      await page.keyboard.press("Escape");
+      await expect(dialog).toHaveCount(0);
+      await expect(trigger).toBeFocused();
+    }
+    await expect(page.locator("[data-mini-gallery]")).toHaveCount(2);
+    await expect(page.locator("[data-article-end-gallery] [data-item-id]").first()).toBeAttached();
+  }
+});
+
+test.describe("reduced motion", () => {
+  test.use({ reducedMotion: "reduce" });
+  test("a standalone viewer still isolates its image and returns keyboard focus", async ({ page }) => {
+    await page.goto(ARTICLE.path);
+    const trigger = bodyTriggers(page).last();
+    const dialog = page.getByRole("dialog");
+    await openLightbox(dialog, () => trigger.press("Enter"));
+    await page.keyboard.press("ArrowLeft");
+    await expect.poll(async () => (await presentedImage(dialog))?.alt).toBe(ARTICLE.alts.at(-1));
+    await expect(dialog.locator(".pswp__counter")).toBeHidden();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
 });
 
 test("the lightbox shows the whole body photograph, uncropped, from the public rendition", async ({

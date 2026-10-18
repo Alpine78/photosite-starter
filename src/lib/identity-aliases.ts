@@ -2,8 +2,8 @@
  * Node-only, in-memory identity compatibility (ADR-0031, AB#261).
  *
  * Accepts an already decoded ID-only payload, not a raw CMS document or JSON
- * transport. A future bounded adapter must validate those boundaries separately.
- * Construct once per pinned generation; no request path uses this module yet.
+ * transport. The bounded adapter validates those boundaries separately.
+ * Construct once per pinned generation; the curated enquiry facade owns its instance.
  * Resolution grants no authorization and must never receive media IDs or cursors.
  */
 import "server-only";

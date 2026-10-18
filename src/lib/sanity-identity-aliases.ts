@@ -1,4 +1,4 @@
-/** Unconnected, Node-only published alias loading (ADR-0031, AB#263). */
+/** Node-only published alias loading (ADR-0031, AB#263). */
 import "server-only";
 
 import { isProxy } from "node:util/types";
@@ -163,7 +163,7 @@ function buildLoader(configuration: SanityIdentityAliasConfiguration): SanityIde
   });
 }
 
-/** IO is lazy; configuration validation is synchronous. No runtime caller yet. */
+/** IO is lazy; configuration validation is synchronous. The enquiry facade owns its generation lifetime. */
 export function createSanityIdentityAliasLoader(
   configuration: SanityIdentityAliasConfiguration = { mode: "legacy" },
 ): SanityIdentityAliasLoader {

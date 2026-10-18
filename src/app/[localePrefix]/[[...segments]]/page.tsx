@@ -1043,6 +1043,7 @@ export default async function LocalePrefixPage(props: LocalePrefixPageProps) {
           locale={locale}
           page={article}
           authorName={authorName}
+          miniGalleryLayout={effectiveGalleryPresentation({}, settings).layout}
           breadcrumbs={buildBreadcrumbs(
             config,
             tree,

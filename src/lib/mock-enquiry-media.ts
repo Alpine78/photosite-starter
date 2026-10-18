@@ -30,6 +30,7 @@ import {
   isMockCaptureSequenceGallery,
 } from "@/lib/mock-gallery";
 import { findMockImageByMediaId } from "@/lib/mock-media";
+import type { IdentityAliasResolver } from "@/lib/identity-aliases";
 
 type MockEnquiryRecord = {
   readonly enquiryEligible: boolean;
@@ -102,6 +103,7 @@ function eligibilityOf(mediaId: string): MockEnquiryRecord {
 export function resolveMockEnquiryTarget(
   request: EnquiryTargetRequest,
   language: string,
+  identityAliases?: IdentityAliasResolver,
 ): ResolvedEnquiryTarget {
   if (request.kind === "dynamic") {
     const media = findMockImageByMediaId(language, request.itemId);
@@ -136,10 +138,16 @@ export function resolveMockEnquiryTarget(
     throw new EnquiryResolutionError("not-enquirable");
   }
 
+  // Identify the container before deciding whether itemId is a placement.
+  const captureSequence =
+    isMockCaptureSequenceGallery(language, request.contentId) === true;
+  const itemId = captureSequence
+    ? request.itemId
+    : (identityAliases?.("placementId", request.itemId) ?? request.itemId);
   const placement = findMockCuratedPlacement(
     language,
     request.contentId,
-    request.itemId,
+    itemId,
   );
   // The caller already resolved `contentId` to a supported public gallery route,
   // so a missing placement means either an unknown occurrence id or a fixture
@@ -166,9 +174,6 @@ export function resolveMockEnquiryTarget(
 
   // ADR-0022 §5: in a capture-sequence gallery the fixture row's identity slot
   // is the photograph's own `mediaId`, so there is no placement to report.
-  const captureSequence =
-    isMockCaptureSequenceGallery(language, request.contentId) === true;
-
   return {
     kind: "curated",
     mediaId,

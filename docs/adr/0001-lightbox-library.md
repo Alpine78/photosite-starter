@@ -371,3 +371,14 @@ along unchanged.
 - **Video** body blocks still render nothing and are filtered out before slides are
   built, so `buildLightboxSlides`' "reject media the viewer cannot present" throw is
   never reached from this path.
+
+### 2026-10-17 — Single-image article viewers (AB#323)
+
+The owner's all-article decision now gives each loose article-body photograph a
+separate one-slide mount of the same wrapper. Gallery-body photographs retain
+one body sequence; mini-galleries and article-end results retain their own groups.
+The public derivative projector, occurrence IDs, zoom/focus behavior and lazy
+PhotoSwipe core loading are unchanged. The provider emits no HTML wrapper and
+mounting it does not request image bytes; the viewer's existing one-slide CSS
+hides arrows and the counter. The dated ADR-0003 amendment supersedes only the
+article grouping previously described in the AB#147/24 implementation notes.

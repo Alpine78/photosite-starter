@@ -61,6 +61,7 @@ import {
   type EnquiryTargetRequest,
   type ResolvedEnquiryTarget,
 } from "@/lib/enquiry-media";
+import type { IdentityAliasResolver } from "@/lib/identity-aliases";
 import { getSanityClient, type SanityClient } from "@/lib/sanity-client";
 import { getSanityConfig, type SanityConfig } from "@/lib/sanity-config";
 import {
@@ -155,6 +156,8 @@ type RawEnquiryPlacement = {
 };
 
 export type SanityEnquiryReadOptions = {
+  /** The same captured resolver that authorized the canonical content identity. */
+  readonly identityAliases?: IdentityAliasResolver;
   /** Injected in tests; production resolves the deployment's own client. */
   readonly client?: SanityClient;
   /** Injected in tests; production resolves the deployment's own config. */
@@ -332,17 +335,18 @@ export async function resolveSanityEnquiryTarget(
     };
   }
 
+  const itemId = options.identityAliases?.("placementId", request.itemId) ?? request.itemId;
   const placement = readSingleRow(
     readRows(
       await client.query({
         query: PLACEMENT_QUERY,
-        params: { galleryId: gallery.id, itemId: request.itemId },
+        params: { galleryId: gallery.id, itemId },
         tag: "enquiry.placement",
       }),
     ),
   ) as RawEnquiryPlacement;
   const placementId = readString(placement.placementId);
-  if (placementId === undefined || placementId !== request.itemId) {
+  if (placementId === undefined || placementId !== itemId) {
     throw new EnquiryResolutionError("malformed-source");
   }
   if (placement.visible !== true) {

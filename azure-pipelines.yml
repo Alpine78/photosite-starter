@@ -191,6 +191,8 @@ stages:
     jobs:
       - job: Audit
         displayName: "Audit committed npm dependency tree"
+        variables:
+          dependencyAuditReady: "false"
         # No repository or deployment secret is passed to this job. npm audit
         # reads package-lock.json and queries the configured advisory registry;
         # it does not install packages or run their scripts.
@@ -201,13 +203,18 @@ stages:
               version: $(nodeVersion)
             displayName: "Use pinned Node.js"
 
+          # One capture checks both trees after ordinary findings/tool errors.
+          # Raw provider bytes never enter logs or the published artifact.
           - script: |
-              npm audit --include=prod --include=dev --audit-level=low
-            displayName: "Report production and development vulnerabilities"
-          - script: |
-              npm audit --prefix studio --include=prod --include=dev --audit-level=low
-            condition: succeededOrFailed()
-            displayName: "Report standalone Studio vulnerabilities"
+              npm run --silent capture:audit
+            displayName: "Capture lockfile-bound root and Studio audit evidence"
+
+          - task: PublishPipelineArtifact@1
+            condition: and(succeededOrFailed(), eq(variables['dependencyAuditReady'], 'true'))
+            displayName: "Publish current redacted dependency audit"
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/dependency-audit-$(Build.BuildId)-$(System.JobAttempt)'
+              artifact: 'dependency-audit-$(System.JobAttempt)'
 
   - stage: DeployPreview
     displayName: "Preview release candidate"

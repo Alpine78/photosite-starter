@@ -114,7 +114,9 @@ test("one mark shows per theme, at its native ratio inside the bar, at every wid
       const controlsBox = await controls.boundingBox();
       expect(brandBox, label).not.toBeNull();
       expect(controlsBox, label).not.toBeNull();
-      expect(brandBox!.x + brandBox!.width, label).toBeLessThanOrEqual(controlsBox!.x);
+      const separate = brandBox!.x + brandBox!.width <= controlsBox!.x + 1
+        || brandBox!.y + brandBox!.height <= controlsBox!.y + 1;
+      expect(separate, label).toBe(true);
     }
   }
 

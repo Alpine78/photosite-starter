@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { REQUEST_UI_LOCALE_HEADER, restrictedLocaleFromSearch } from "@/lib/restricted-page-locale";
 import { getDeploymentConfig } from "@/lib/deployment-config";
+import { isContentMetadataPath, isStaticAssetCandidate, MAINTENANCE_FALLBACK_HEADER } from "@/lib/maintenance-routing";
+import { MAINTENANCE_HYGIENE_HEADERS, readSiteMaintenanceMode, siteMaintenanceResponse } from "@/lib/site-maintenance";
 import {
   buildLegacyGoneHtml,
   legacyRedirectDestinationSearch,
@@ -120,6 +122,32 @@ let warnedInvalidRetainedRedirects = false;
 export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const { pathname } = request.nextUrl;
+  // This must precede even normal deployment configuration. A broken content
+  // source must not prevent the maintenance response. Clients cannot select a
+  // bypass: their marker is always removed or replaced by this request's fact.
+  requestHeaders.delete(MAINTENANCE_FALLBACK_HEADER);
+  const assetCandidate = isStaticAssetCandidate(pathname);
+  if (readSiteMaintenanceMode(process.env) !== "off") {
+    if (!assetCandidate || isContentMetadataPath(pathname)) {
+      // Negotiation only changes the fixed failure representation, never access.
+      // This also serves JSON clients behind custom reserved private prefixes.
+      const json = pathname === "/api" || pathname.startsWith("/api/") ||
+        request.headers.get("accept")?.includes("application/json") === true ||
+        request.headers.get("content-type")?.includes("application/json") === true;
+      return siteMaintenanceResponse(request.method, json);
+    }
+    // Let Next serve actual static bytes. If the candidate is missing, the
+    // afterFiles rewrite terminates before the dynamic content catch-all.
+    requestHeaders.set(MAINTENANCE_FALLBACK_HEADER, "1");
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    // A later Route Handler cannot replace existing next.config response
+    // headers. Override here so a missing versioned asset cannot cache a503.
+    // Real static bytes remain200, with conservative hygiene during maintenance.
+    for (const [name, value] of Object.entries(MAINTENANCE_HYGIENE_HEADERS)) response.headers.set(name, value);
+    return response;
+  }
+  // Preserve the old matcher exclusions' ordinary behavior, including metadata.
+  if (assetCandidate) return NextResponse.next({ request: { headers: requestHeaders } });
   const hasCursor = request.nextUrl.searchParams.has("cursor");
   const hasSection = request.nextUrl.searchParams.has("section");
   const hasTrailingSlash = pathname.length > 1 && pathname.endsWith("/");
@@ -373,43 +401,13 @@ export function proxy(request: NextRequest) {
 }
 
 /**
- * Routes that need the request boundary, restored slash normalization, or a
- * private-namespace response header (ADR-0014 §6).
+ * Match every path so dynamic metadata and missing file-shaped paths cannot
+ * escape maintenance. With the mode off, the old excluded asset paths return
+ * immediately before normal configuration or route logic. With it on, exact
+ * static files still pass through; afterFiles handles only missing candidates
+ * before the dynamic catch-all. See maintenance-routing.ts and next.config.ts.
  *
- * The negative lookahead excludes exactly the paths that need none of those:
- *
- * - `_next/` — Next's own build output and optimizer.
- * - `gallery/` — the only directory in `public/`; every real URL under it is a
- *   versioned image derivative served as a static file (`next.config.ts`).
- * - `[^/]+\.[^/]+$` — a **root-level** file with an extension (`favicon.ico`,
- *   `robots.txt`, `sitemap.xml`). The bound is deliberately a single segment:
- *   an earlier form excluded *any* dotted last segment, which also skipped a
- *   deep path like `/<private-prefix>/<handle>/preview.jpg` and left it without
- *   §6's headers. A Next.js matcher value must be a build-time constant, so the
- *   configurable `PRIVATE_GALLERY_ROUTE_PREFIX` cannot be named here; making the
- *   pattern prefix-independent — it matches every deep dotted path, then
- *   `isPrivateRequestPath` classifies it at request time — covers a custom
- *   prefix as well as the default.
- *
- * The widening only adds the Proxy's O(1) pass to deep dotted paths the
- * application defines no route for (they 404 either way); `public/` has no such
- * files. API routes stay matched so disabling Next's built-in slash redirect
- * does not turn `/api/x/` from a 308 into a 404.
- *
- * **Framework limitation, not this slice's:** a URL with a repeated separator
- * (`/private//handle`, `//private/x`) gets a bare `308` to the collapsed form
- * from `resolveRoutes` in Next 16.3.2 *before* the Proxy or this matcher runs,
- * so that one redirect carries neither §6's headers nor the site-wide security
- * headers. It is not decoratable at the application layer (`skipMiddlewareUrlNormalize`
- * does not move it, verified). The impact is bounded: the target is the clean,
- * fully-protected private URL, and `robots.txt`'s `Disallow: /<prefix>/` still
- * covers the malformed form. `/api/contact` — the existing endpoint that
- * handles PII, has the identical property today, so this is a project-wide
- * item, not a private-namespace regression. The concrete future fix is an
- * edge-level `vercel.json` `headers` rule (a different layer that also decorates
- * framework redirects), decided with the live-edge verification a later slice
- * runs (ADR-0011 §, ADR-0014 §6).
+ * Next's repeated/backslash-separator canonicalization may still precede Proxy;
+ * its redirect destination must be gated too (production journey coverage).
  */
-export const config = {
-  matcher: ["/((?!_next/|gallery/|[^/]+\\.[^/]+$).*)"],
-};
+export const config = { matcher: ["/:path*"] };

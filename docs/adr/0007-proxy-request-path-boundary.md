@@ -480,3 +480,37 @@ The O(1), adapter-read-free Proxy is unchanged. The October 7 temporary residual
 acceptance's October 8 review date has passed; this evidence does not renew it
 or claim an unrecorded later owner decision. Exact-candidate acceptance and a
 verified semantic fix remain separate; AB#132 stays Active.
+
+
+## 2026-10-18 maintenance matcher amendment (AB#341)
+
+This scoped amendment implements [ADR-0031's accepted maintenance policy](0031-identity-migration-operational-plan.md#4-rehearsal-and-production-sequence).
+It replaces the matcher scope in Decision constraint 5 and the excluded-path
+explanation in constraint 4; it preserves the original text as history. The O(1),
+content/adapter-read-free boundary and validation of every request fact remain.
+This does not change AB#132's separate scriptless-404 limitation or acceptance.
+
+The old matcher excluded actual static files and missing file-shaped paths alike,
+including dynamic metadata. A fresh Next.js 16.4.2 production build demonstrated
+that missing candidates could reach the content catch-all and metadata could read
+content before a later fallback. A matcher exclusion therefore cannot establish
+the accepted maintenance boundary.
+
+The replacement matches every path. With maintenance disabled, the previous
+asset-shaped exclusions return immediately before normal configuration or route
+logic. With it enabled, application pages, APIs and metadata return the fixed
+maintenance response; actual static files remain available. A server-overwritten
+request-only marker selects an afterFiles fallback for missing candidates after
+Next's filesystem check and before the content catch-all. Metadata comparison
+uses the filesystem lookup's single percent-decoding step. Readers still validate
+all request facts; traversing Proxy is never authentication or proof of content.
+
+**Cost:** deploying this source adds a Proxy invocation to each asset request,
+including `/_next/static`, `/gallery/` and root files, even with maintenance off.
+Immediate pass-through preserves the disabled response/cache behavior but does
+not remove that invocation. Exact hosted latency and any billing effect have not
+been measured by the local production journeys and must be considered when
+reviewing deployment of this source, independently of later flag activation.
+Hosted routing/cache verification and an approved maintenance operation remain
+separate prerequisites; this amendment records neither activation nor a measured
+outage window.

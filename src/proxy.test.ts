@@ -18,6 +18,8 @@ const BASE_ENV: Record<string, string> = {
   SITE_DEFAULT_SOCIAL_IMAGE_HEIGHT: "1024",
   SITE_CONTENT_SOURCE: "mock",
   SITE_DEPLOYMENT_STAGE: "development",
+  SITE_MAINTENANCE_MODE: "off",
+  NEXT_PUBLIC_SITE_MAINTENANCE_MODE: "",
 };
 
 const HYGIENE = {

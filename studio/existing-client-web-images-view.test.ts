@@ -18,7 +18,7 @@ describe("actual native picker control semantics", () => {
     const props = existingImageViewFixture("en", { phase: "closed" }), html = renderToStaticMarkup(createElement(ExistingClientWebImagesView, props));
     expect(html).toContain('aria-expanded="false"'); expect(html).not.toContain('type="checkbox"'); expect(html).not.toContain('role="status"');
   });
-  it.each(["load", "permission", "changed", "capacity", "keys"] as const)("renders fixed %s feedback and native retry", error => {
+  it.each(["load", "permission", "changed", "capacity", "keys", "cutoff"] as const)("renders fixed %s feedback and native retry", error => {
     const props = existingImageViewFixture("fi", { phase: "error", error }), html = renderToStaticMarkup(createElement(ExistingClientWebImagesView, props));
     expect(html).toContain('role="alert"'); expect(html).toContain(existingImageText("fi").errors[error]); expect(html).toContain(existingImageText("fi").retry);
   });
@@ -108,5 +108,35 @@ describe("picker focus anchors across state changes", () => {
       expect(next.path).toEqual(before.path); expect(next.props.disabled).not.toBe(true); expect(next.props["aria-disabled"]).toBe(true);
       next.props.onClick?.(); expect(more).toHaveBeenCalledOnce();
     }
+  });
+});
+
+
+describe("native UTC cutoff binding", () => {
+  type ElementProps = { children?: ReactNode; ref?: { current: unknown }; onClick?: () => void; onChange?: (event: unknown) => void; readOnly?: boolean; value?: string; defaultValue?: string; "aria-invalid"?: boolean };
+  function elements(node: ReactNode): { type: unknown; props: ElementProps }[] {
+    if (!isValidElement<ElementProps>(node)) return [];
+    return [{ type: node.type, props: node.props }, ...(Array.isArray(node.props.children) ? node.props.children : [node.props.children]).flatMap(elements)];
+  }
+  it.each(["fi-FI", "en-GB"])("labels %s UTC input, actual effective filter, cleared/error and filtered empty states", locale => {
+    const text = existingImageText(locale), props = existingImageViewFixture(locale, { cutoff: "2025-03-01T12:30", rows: [] });
+    const html = renderToStaticMarkup(createElement(ExistingClientWebImagesView, props));
+    expect(html).toContain('type="datetime-local"'); expect(html).toContain(text.cutoff); expect(html).toContain(text.cutoffHelp);
+    expect(html).toContain(text.before(props.state.cutoff)); expect(html).toContain(text.emptyBefore);
+    const idle = renderToStaticMarkup(createElement(ExistingClientWebImagesView, { ...props, state: { ...props.state, phase: "idle", error: "cutoff", badInput: true, selectionCleared: true } }));
+    expect(idle).toContain('aria-invalid="true"'); expect(idle).toContain(text.errors.cutoff); expect(idle).toContain(text.cleared); expect(idle).not.toContain(text.emptyBefore);
+  });
+  it("keeps partial native fields uncontrolled, checks actual badInput again on Search and preserves focus while adding", () => {
+    const props = existingImageViewFixture("en"), change = vi.fn(), search = vi.fn(); props.onCutoffChange = change; props.onSearch = search;
+    const all = elements(ExistingClientWebImagesView(props)), input = all.find(x => x.type === "input" && x.props.defaultValue !== undefined)!.props;
+    expect(input).not.toHaveProperty("value"); expect(input.readOnly).toBe(false);
+    const native = { value: "", validity: { badInput: true } }; input.ref!.current = native;
+    input.onChange?.({ currentTarget: native }); expect(change).toHaveBeenLastCalledWith("", true);
+    const button = all.find(x => x.type === "button" && x.props.children === existingImageText("en").search)!.props;
+    button.onClick?.(); expect(change).toHaveBeenLastCalledWith("", true); expect(search).toHaveBeenCalledOnce();
+    const pending = elements(ExistingClientWebImagesView({ ...props, state: { ...props.state, phase: "adding" } }));
+    const locked = pending.find(x => x.type === "input" && x.props.defaultValue !== undefined)!.props;
+    expect(locked.readOnly).toBe(true); expect(locked).not.toHaveProperty("disabled");
+    pending.find(x => x.type === "button" && x.props.children === existingImageText("en").search)!.props.onClick?.(); expect(search).toHaveBeenCalledOnce();
   });
 });

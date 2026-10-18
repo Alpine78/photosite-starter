@@ -347,8 +347,19 @@ mutation is performed by this source change.
 In **Client gallery images**, choose **Choose existing web images / Valitse
 valmiita verkkokuvia** to load already uploaded eligible web-image assets. This
 control uploads nothing. It shows at most the newest 256 assets, initially 64
-thumbnails; use **Show more / Näytä lisää** or the unchanged native editor for
-older assets. Portfolio and other gallery images can appear: technical
+thumbnails; use **Show more / Näytä lisää** to reveal the rest of that result.
+For an older batch, optionally enter **Uploaded before / Ladattu ennen** and
+choose **Search images / Hae kuvat** (AB#343). Enter a complete date and time in
+**UTC**, to the minute; the boundary is exclusive. Clearing the field and searching
+returns the newest images. Editing the boundary immediately clears the prior
+selection/results and cancels the previous search, but performs no new request.
+The results state the applied UTC boundary. Incomplete/invalid input is refused;
+cutoff edits are locked while selected images are being added.
+
+Every search still retains at most 256 eligible images and reveals 64 at a time;
+no automatic archive walk or growing list is performed. More than 256 uploads
+within one minute cannot be separated by this filter. Use the unchanged native
+editor for those images or any images outside the displayed result. Portfolio and other gallery images can appear: technical
 eligibility is not approval to reuse or publish any image.
 
 Select images in the intended order, then choose **Add selected images / Lisää
@@ -367,6 +378,10 @@ action does not disable or remove its focus anchor. The FI/EN native-control
 keyboard fixture verifies Tab/Space, distinct names and these unavailable
 anchors in Chromium/WebKit.
 It does not hydrate React or prove controlled-state updates, close-focus return or hosted Studio authorization.
+The UTC extension adds native labelled date/time and search controls, visible
+cleared/invalid feedback, deterministic controller tests, and actual GROQ query
+fixtures including strictly earlier timestamps and older-image appends. Those
+fixtures do not constitute live Content Lake/query or hosted Studio acceptance.
 Those authenticated editor/role/keyboard checks remain under AB#145. No hosted
 Studio deployment, content publication or CMS write occurs during this change.
 

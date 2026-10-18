@@ -402,13 +402,17 @@ describe.each(languages)("mock content pages (%s)", (language) => {
     // an accident of having nothing to omit), and separately again the
     // three-level fixture AB#21 needs (see `content-headings.ts`'s AC7) —
     // through the same shared block set an article uses — and leaves every
-    // other gallery's body empty, proving absence is a normal, unstubbed
+    // other non-presentation-fixture gallery's body empty, proving absence is a normal, unstubbed
     // state rather than a defect, and that neither authored body drifted
     // onto (or got duplicated across) an unrelated gallery.
     const AUTHORED_GALLERY_BODY_IDS: ReadonlySet<string> = new Set([
       "content-coastal-mornings",
       "content-large-archive",
       "content-polar-night-sessions",
+      // AB#334 exercises the existing layout variants with real narrative sets.
+      "content-grid-overlay",
+      "content-masonry-below",
+      "content-justified-below",
     ]);
 
     for (const placement of galleries) {

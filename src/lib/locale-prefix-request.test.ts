@@ -1466,6 +1466,22 @@ describe("resolveLocalePrefixRequest", () => {
       });
     });
 
+    it.each(["legacy-coastal-photo", ITEM])("carries either alias spelling %s without reading a gallery result", async (itemId) => {
+      const galleryCursorNamesASlice = vi.fn();
+      const gallerySectionExists = vi.fn();
+      await expect(resolveLocalePrefixRequest({
+        config, trees, redirects, prefix: "tarinat", segments: GALLERY_SEGMENTS,
+        searchParams: { enquire: itemId }, defaultLocaleRouteExists: missing(),
+        galleryCursorNamesASlice, gallerySectionExists,
+      })).resolves.toMatchObject({ kind: "story", enquire: itemId });
+      expect(galleryCursorNamesASlice).not.toHaveBeenCalled();
+      expect(gallerySectionExists).not.toHaveBeenCalled();
+      for (const conflict of [{ cursor: "AnOpaque-Token_v1" }, { section: "early" }]) {
+        await expect(call(GALLERY_SEGMENTS, { enquire: itemId, ...conflict })).resolves.toEqual({ kind: "not-found" });
+      }
+      await expect(call(GALLERY_SEGMENTS, { enquire: [itemId, ITEM] })).resolves.not.toHaveProperty("enquire");
+    });
+
     it("carries ?enquire= through a casing-normalization redirect, unchanged", async () => {
       await expect(
         call(["Maisemat", "Rannikko", "Rannikon-Aamut"], { enquire: ITEM }),

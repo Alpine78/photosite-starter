@@ -190,8 +190,29 @@ test("gallery controls and header stack, remain clickable and have independent f
 
   // The existing gallery contract retains any focus; the header retains
   // keyboard focus only. A section can stay visible while the header hides.
-  await sections.getByRole("link").first().focus();
-  await page.evaluate(() => window.scrollTo(0, 1200));
+  await sections.getByRole("link").first().evaluate((element) =>
+    (element as HTMLElement).focus({ preventScroll: true }),
+  );
+  // A section commit or native focus can leave the document well past 1200px.
+  // Start inside the current document, then prove a real downward scroll;
+  // scrolling upward correctly reveals the header and cannot test this pin.
+  const startY = await page.evaluate(() => {
+    const maximum = document.documentElement.scrollHeight - window.innerHeight;
+    const start = Math.floor(maximum / 2);
+    window.scrollTo(0, start);
+    return start;
+  });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(startY);
+  await page.evaluate(() => new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  ));
+  const before = await page.evaluate(() => ({
+    y: window.scrollY,
+    maximum: document.documentElement.scrollHeight - window.innerHeight,
+  }));
+  expect(before.maximum - before.y).toBeGreaterThan(100);
+  await page.evaluate((target) => window.scrollTo(0, target), Math.min(before.y + 400, before.maximum));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before.y);
   await hidden(page);
   await expect.poll(async () => Math.abs((await bounds(sections)).top)).toBeLessThan(1);
   await page.keyboard.press("Tab");

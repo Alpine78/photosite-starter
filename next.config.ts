@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { MAINTENANCE_FALLBACK_HEADER, MAINTENANCE_FALLBACK_PATH } from "@/lib/maintenance-routing";
 import {
   YOUTUBE_EMBED_ALLOW_FEATURES,
   YOUTUBE_NOCOOKIE_ORIGIN,
@@ -369,6 +370,17 @@ const nextConfig: NextConfig = {
     imageSizes: [256, 384],
     minimumCacheTTL: 2_678_400,
     qualities: [75],
+  },
+  async rewrites() {
+    return {
+      beforeFiles: [],
+      afterFiles: [{
+        source: "/:path*",
+        has: [{ type: "header" as const, key: MAINTENANCE_FALLBACK_HEADER, value: "1" }],
+        destination: MAINTENANCE_FALLBACK_PATH,
+      }],
+      fallback: [],
+    };
   },
   async headers() {
     return [

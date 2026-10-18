@@ -1,0 +1,11 @@
+/* Each item's inherited variables belong to its own mini-gallery occurrence. */
+.mini-gallery-justified__picture { width: var(--j-single-image-width); }
+/* Optimizer integer rounding must not replace the original frame's ratio. */
+.content-mini-gallery img { aspect-ratio: var(--mini-image-ratio); }
+.content-mini-gallery figcaption { overflow-wrap: anywhere; }
+@container (min-width: 34rem) {
+  .mini-gallery-justified__picture { width: var(--j2-image-width); }
+}
+@container (min-width: 56rem) {
+  .mini-gallery-justified__picture { width: var(--j3-image-width); }
+}

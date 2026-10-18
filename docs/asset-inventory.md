@@ -311,6 +311,25 @@ They follow this repository's license and commercial-use terms; no additional
 attribution or third-party license applies. Each filename includes its content
 hash, and `src/lib/mock-gallery-boundaries.ts` records its true dimensions.
 
+## Original inline-gallery boundary fixtures (AB#334)
+
+These three project-authored neutral geometric WebP files were generated locally
+with the existing `sharp` development dependency for inline-layout verification:
+
+| File | True dimensions |
+| --- | --- |
+| `public/gallery/mini-thin-portrait.e0b40512718c.webp` | 1×2048 |
+| `public/gallery/mini-thin-panorama.23e65e382727.webp` | 2048×1 |
+| `public/gallery/mini-small.fb8f76548441.webp` | 32×24 |
+
+They contain no third-party imagery, watermark, signature, branding, URL or
+identifying metadata. Their source and author are the project itself; the project
+MIT license permits commercial use, with no additional attribution or third-party
+license requirement. Filenames carry their content hashes and
+`src/lib/mock-mini-gallery-boundaries.ts` records the verified intrinsic dimensions.
+The seven demo photographs counted above remain seven; these three technical
+fixtures are separate original work, like the AB#157 boundary images.
+
 ## Synthetic legacy delivery ZIP (AB#250)
 
 `public/gallery/legacy-fixture.09eadd90911d.zip` is a deterministic, project-authored

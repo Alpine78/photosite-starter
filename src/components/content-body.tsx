@@ -13,6 +13,7 @@ import type { ContentBlock } from "@/lib/content-page";
 import type { BuiltInLabels } from "@/lib/deployment-config";
 import { imageRenderProfiles } from "@/lib/image-delivery";
 import { YoutubeEmbed } from "@/components/youtube-embed";
+import type { GalleryLayout } from "@/lib/gallery-presentation";
 
 type ContentBodyProps = {
   blocks: readonly ContentBlock[];
@@ -32,6 +33,10 @@ type ContentBodyProps = {
    */
   sizes?: string;
   miniGallerySizes?: string;
+  /** The page's already-resolved presentation; no CMS read per block. */
+  miniGalleryLayout: GalleryLayout;
+  /** Article loose photographs open individually; gallery bodies keep their sequence. */
+  standaloneImages?: boolean;
 };
 
 /**
@@ -41,9 +46,9 @@ type ContentBodyProps = {
  *
  * A media block here is a content placement, never a gallery item: on a gallery
  * variant page it does not enter the curated grid, its sections, or its
- * pagination, and its lightbox sequence is its own — a separate provider
- * instance mounted here, ordered by the body's own image blocks and nothing
- * else. An image placement opens that fullscreen viewer once its script has
+ * pagination. Gallery bodies share one provider ordered by their loose image
+ * blocks; article callers select one provider per loose image (AB#323).
+ * Mini-galleries always keep their own groups. An image opens its viewer once its script has
  * run (`ContentBodyFigure`); a video placement still renders nothing and never
  * becomes a slide.
  *
@@ -56,6 +61,8 @@ export function ContentBody({
   labels,
   sizes = imageRenderProfiles.contentBody.sizes,
   miniGallerySizes = imageRenderProfiles.contentMiniGallery.sizes,
+  miniGalleryLayout,
+  standaloneImages = false,
 }: ContentBodyProps) {
   const galleryNames = miniGalleryNames(blocks, labels.miniGallery.label);
   const headingIds = buildHeadingIds(blocks);
@@ -85,7 +92,8 @@ export function ContentBody({
                 block={block}
                 labels={labels}
                 name={galleryNames.get(index)!}
-                sizes={miniGallerySizes}
+                layout={miniGalleryLayout}
+                sizes={miniGalleryLayout === "justified" ? imageRenderProfiles.galleryJustified.sizes : miniGallerySizes}
               />
             );
           case "paragraph":
@@ -158,17 +166,26 @@ export function ContentBody({
             // Unreachable: `bodyImages` is derived from these same blocks with
             // the same image predicate. The guard keeps the type honest.
             if (bodyImage === undefined) return null;
-            return (
+            const figure = (
               <ContentBodyFigure
                 key={block.key ?? index}
                 image={block.media}
                 caption={block.caption}
                 sizes={sizes}
-                index={bodyImage.index}
+                index={standaloneImages ? 0 : bodyImage.index}
                 itemId={bodyImage.itemId}
                 openLabel={labels.lightbox.openImage}
               />
             );
+            return standaloneImages ? (
+              <GalleryLightbox
+                key={block.key ?? index}
+                slides={[slides[bodyImage.index]]}
+                labels={labels.lightbox}
+              >
+                {figure}
+              </GalleryLightbox>
+            ) : figure;
           }
 
           case "list":
@@ -283,8 +300,9 @@ export function ContentBody({
     </div>
   );
 
-  // No image placements: no viewer, no trigger context, nothing to hydrate.
-  if (slides.length === 0) return body;
+  // Single-image providers are already mounted at their figures above. Empty
+  // bodies need no viewer or trigger context.
+  if (standaloneImages || slides.length === 0) return body;
 
   // The body's own lightbox sequence. A gallery variant page also mounts a
   // second, entirely separate `GalleryLightbox` for its curated grid; the two

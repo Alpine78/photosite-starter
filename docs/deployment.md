@@ -19,6 +19,72 @@ The reference host and the reasoning behind it are
 [ADR-0004](adr/0004-reference-production-host-and-ownership-boundary.md). This document
 is the operational half: what to create, what to set, and what the pipeline does with it.
 
+## Application maintenance boundary (AB#341)
+
+`SITE_MAINTENANCE_MODE` is a server-only deployment-generation setting. Absent,
+empty or `off` preserves normal operation; `on` enables the boundary. A nonempty
+unknown value or a populated `NEXT_PUBLIC_SITE_MAINTENANCE_MODE` fails closed with
+the same generic response. Do not publish a browser mirror. Changing a deployed
+generation requires the host's verified deployment/restart procedure; there is
+no CMS switch, public toggle, bypass cookie, bypass query or bypass header.
+
+The boundary returns `503`, `Cache-Control: no-store`, `Retry-After: 60`, no cookies,
+and the existing security headers before ordinary configuration/content reads or
+API handlers. Pages have bounded, scriptless Finnish/English recovery text; APIs
+retain `{ "status": "failed", "retryable": true }`. Responses also use
+`noindex, nofollow` and `no-referrer`, covering custom reserved namespaces without
+reading their normal configuration. Existing legacy redirects and dynamic
+metadata temporarily return the same maintenance response. Monitors also see
+503; this setting has no timer and never automatically reopens the site.
+
+Actual static files, the public image optimizer, direct Sanity/CDN URLs and bytes
+already delivered to a browser remain available. This is no privacy or revocation
+mechanism. While enabled, application-served static files and missing candidates receive
+no-store/noindex/no-referrer; their bytes remain unchanged. This temporary
+conservative policy prevents missing versioned asset paths inheriting immutable
+cache headers before the fallback503. It does not evict previously cached bytes.
+Ordinary disabled operation preserves the existing asset cache policy. The public
+image optimizer retains its own cache policy; it is outside the content gate.
+Deploying this source adds a Proxy invocation for every asset request even when
+maintenance is off; immediate pass-through preserves responses and cache behavior,
+not invocation count. Exact hosted latency and any billing effect are unmeasured
+and belong in the deployment review, independently of later maintenance activation.
+See the [dated matcher amendment](adr/0007-proxy-request-path-boundary.md#2026-10-18-maintenance-matcher-amendment-ab341).
+Proxy matches every path but lets file-shaped candidates proceed to
+Next's exact static-file check. A private request marker, always removed/replaced
+by Proxy, selects an `afterFiles` rewrite for missing candidates before the dynamic
+catch-all. Metadata names are compared after the same single percent-decoding as
+Next's filesystem lookup, so encoded spellings cannot evade the early response.
+The tiny fallback handler reads no content. This closes the distinction
+between an actual static file and a missing `/gallery/…`, `/_next/…` or root file
+that would otherwise execute the content fallback. Normal operation preserves
+the old asset exclusions' pass-through behavior.
+
+Source implementation is not operational approval. Before any separately approved
+window, verify the exact hosted routing adapter, CDN and real content-cache layers,
+all application and old Preview generations, old write clients, routing/metadata
+variants and response headers. Some framework canonicalization redirects precede
+Proxy; verify that their destinations are gated without content or write work.
+Local `next start` cannot prove a hosting adapter's rewrite or cache ordering.
+
+Follow [ADR-0031](adr/0031-identity-migration-operational-plan.md): accept the writer
+freeze, rehearsal, measured rollback reserve and actual window separately. Verify
+the coherent reader generation and all-public cache invalidation **before** reopening.
+The public `/api/revalidate` endpoint is itself gated; verify an out-of-band or new
+generation invalidation procedure rather than adding a public bypass. That actual
+host procedure remains an activation prerequisite. On an uncertain/failed migration,
+keep maintenance active until a verified unchanged state or guarded rollback and
+compatible reader have been established. Reopening requires the explicit operator
+checkpoint; changing the flag to `off` is not proof of dataset or cache coherence.
+
+The production journey restarts one unchanged build with harness-owned settings:
+it warms generated `robots.txt`, proves an off-state prepared poll write, then
+checks the enabled generation's page/API/metadata responses and absence of the
+poll-handler log. An invalid content-source control catches fallback reader entry;
+actual static bytes remain equal with the enabled conservative cache policy. This establishes the tested local
+generated-response boundary, not Sanity Data Cache/CDN invalidation or an actual
+15-minute outage window. No source change activates a deployment or CMS operation.
+
 ## Legacy URL mapping verification (AB#19)
 
 The first-site mapping is deployment configuration in `src/lib/legacy-redirects-data.ts`;
@@ -1620,6 +1686,54 @@ say nothing about deployed bundle inclusion, request reachability or
 exploitability. A suggested version, including a major downgrade, remains an
 unverified proposal. AB#160's notification and live maintenance acceptance remain
 open; this tool neither approves risk nor changes dependency versions.
+
+### Scheduled audit capture and safe artifacts (AB#331)
+
+The scheduled `DependencyAudit` job now invokes `npm run --silent capture:audit`.
+The Node 24 POSIX wrapper executes the same npm CLI supplied by `npm_execpath`
+with `shell:false`, explicit `--prefix .` / `--prefix studio`, the existing
+`--include=prod --include=dev --audit-level=low` flags and `--json`. Explicit
+prefixes bind the command to the lockfile being hashed even if a prefix was
+inherited; registry and npm fetch/retry configuration are inherited unchanged.
+There is one invocation per target, no wrapper retry, install or automatic fix.
+Both fixed targets run after ordinary first-target findings or tool errors.
+
+`Agent.TempDirectory`, `Build.ArtifactStagingDirectory`, `Build.BuildId` and
+`System.JobAttempt` supply the CI-owned paths/identity. Raw paired envelopes go
+only to a private mkdtemp directory outside both checkout and artifact trees.
+Only the exact newly created `dependency-audit-<BuildId>-<JobAttempt>` leaf can
+be published as `dependency-audit-<JobAttempt>`. The two safe triage files are
+written exclusively, then the summary manifest is committed last. A false-by-
+default readiness variable becomes true only when current output and private
+cleanup complete. The artifact task additionally requires
+`succeededOrFailed()`, which excludes cancellation. Azure's documented
+[step variables and conditions](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/conditions?view=azure-devops#step-variables-used-in-subsequent-step-conditions)
+and [job-attempt identity](https://learn.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops)
+provide this wiring; actual committed service execution remains to be checked.
+
+Limits: stdout 4 MiB minus 512 bytes of envelope allowance, stderr 64 KiB,
+lockfile 8 MiB, each projected report at AB#329's 16 MiB bound, and a deliberate
+120-second deadline per audit plus at most two seconds of kill/pipe settlement.
+The raw cap also counts pretty-printing whitespace, so it is conservatively
+stricter than the triage helper's compact-JSON cap. Native process-group cleanup
+is POSIX-only; Windows refuses. Lockfiles must be regular non-symlink files;
+a symlinked Studio directory or alternate `npm-shrinkwrap.json` / `yarn.lock`
+profile is explicitly unsupported. This is not a claim about npm precedence.
+
+Gate exits preserve `--audit-level=low`: 0 for clean or info-only findings,
+1 for low-or-higher findings, 2 for tooling/input failure. The triage report's
+`findings` status remains independent; info-only is never relabelled clean.
+Safe manifests can record tooling failures without inventing target reports.
+No raw provider output is streamed, and errors use fixed classes only. Local
+same-operation digest bracketing preserves AB#329's false provenance/runtime
+flags. It does not prove registry attestation, capture beyond the local command,
+no lockfile ABA race, package reachability or that a suggested fix is safe.
+
+Synthetic tests verify wrapper-level cancellation, not actual forwarding by
+npm/Azure or queued-stage evaluation. First committed scheduled capture,
+publication/privacy/retention and cancellation evidence remain outstanding.
+The [dependency response process](dependency-security.md) retains AB#160's
+notification and operational acceptance checks.
 
 ### Cancelling a run
 

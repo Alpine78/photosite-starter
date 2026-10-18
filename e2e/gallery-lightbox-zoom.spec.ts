@@ -42,6 +42,43 @@ async function gotoGallery(page: Page): Promise<void> {
   await page.goto(GALLERY_PATH, { waitUntil: "load" });
 }
 
+function pageChrome(page: Page) {
+  return page.evaluate(() => {
+    const style = document.documentElement.style;
+    return {
+      htmlClass: document.documentElement.className,
+      bodyClass: document.body.className,
+      htmlStyle: Array.from(style).filter((name) => name !== "--site-header-offset").sort()
+        .map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)]),
+      bodyStyle: document.body.getAttribute("style"),
+      htmlOverflow: getComputedStyle(document.documentElement).overflow,
+      bodyOverflow: getComputedStyle(document.body).overflow,
+    };
+  });
+}
+
+type PageChrome = Awaited<ReturnType<typeof pageChrome>>;
+function expectRestoredPageChrome(after: PageChrome, baseline: PageChrome) {
+  const height = (chrome: PageChrome) => {
+    const entries = chrome.htmlStyle.filter(([name]) => name === "--site-header-height");
+    expect(entries).toHaveLength(1);
+    const [, value, priority] = entries[0];
+    expect(value).toMatch(/^(?:\d+(?:\.\d+)?|\.\d+)px$/u);
+    const pixels = Number(value.slice(0, -2));
+    expect(Number.isFinite(pixels) && pixels >= 0).toBe(true);
+    return { pixels, priority };
+  };
+  const beforeHeight = height(baseline), afterHeight = height(after);
+  expect(afterHeight.priority).toBe(beforeHeight.priority);
+  // WebKit's translated-header BCR can differ by 0.000007629 CSS px even
+  // before the viewer opens. Only that derived measurement gets a tolerance.
+  expect(Math.abs(afterHeight.pixels - beforeHeight.pixels)).toBeLessThan(0.0001);
+  const exact = (chrome: PageChrome) => ({ ...chrome,
+    htmlStyle: chrome.htmlStyle.filter(([name]) => name !== "--site-header-height"),
+  });
+  expect(exact(after)).toEqual(exact(baseline));
+}
+
 /** The zoom control, addressed by its accessible name rather than a class. */
 function zoomControl(dialog: Locator) {
   return dialog.getByRole("button", { name: labels.zoom });
@@ -453,6 +490,55 @@ test("a pointer drag starting over the hidden caption still pans the photograph"
   expect(await caption.evaluate((el) => el.scrollTop)).toBe(0);
 });
 
+test("page cleanup comparison accepts only tiny derived header-height noise", async ({ page }) => {
+  // Native style serialization/priority/computed overflow, without application
+  // hydration changing the controls while deliberate leaks are injected.
+  await page.setContent("<p>Page chrome comparison control</p>");
+  const reset = () => page.evaluate(() => {
+    document.documentElement.className = "baseline-html";
+    document.body.className = "baseline-body";
+    document.documentElement.style.cssText = "--site-header-height:77px;--site-header-offset:0px;--cleanup-sentinel:unchanged";
+    document.body.style.cssText = "margin:0px";
+    document.querySelectorAll("style[data-cleanup-control]").forEach((element) => element.remove());
+  });
+  await reset();
+  const baseline = await pageChrome(page);
+  for (const value of ["77.00000762939453px", "76.99999237060547px"]) {
+    await reset();
+    await page.evaluate((height) => document.documentElement.style.setProperty("--site-header-height", height), value);
+    const noisy = await pageChrome(page);
+    expect(() => expectRestoredPageChrome(noisy, baseline)).not.toThrow();
+  }
+  const mutations = [
+    () => document.documentElement.style.setProperty("--site-header-height", "77.01px"),
+    () => document.documentElement.style.setProperty("--site-header-height", "78px"),
+    () => document.documentElement.style.removeProperty("--site-header-height"),
+    () => document.documentElement.style.setProperty("--site-header-height", "77rem"),
+    () => document.documentElement.style.setProperty("--site-header-height", "-1px"),
+    () => document.documentElement.style.setProperty("--site-header-height", "NaNpx"),
+    () => document.documentElement.style.setProperty("--site-header-height", "Infinitypx"),
+    () => document.documentElement.style.setProperty("--site-header-height", "77px", "important"),
+    () => document.documentElement.style.setProperty("--cleanup-sentinel", "changed"),
+    () => document.documentElement.style.setProperty("--cleanup-sentinel", "unchanged", "important"),
+    () => { document.documentElement.className += " leaked"; },
+    () => { document.body.className += " leaked"; },
+    () => { document.body.style.margin = "1px"; },
+    () => {
+      const style = document.createElement("style"); style.dataset.cleanupControl = "";
+      style.textContent = "html { overflow:hidden }"; document.head.append(style);
+    },
+    () => {
+      const style = document.createElement("style"); style.dataset.cleanupControl = "";
+      style.textContent = "body { overflow:hidden }"; document.head.append(style);
+    },
+  ];
+  for (const mutate of mutations) {
+    await reset(); await page.evaluate(mutate);
+    const changed = await pageChrome(page);
+    expect(() => expectRestoredPageChrome(changed, baseline)).toThrow();
+  }
+});
+
 test("closing the zoomed viewer leaves the page behind interactive and unlocked", async ({
   page,
 }) => {
@@ -472,19 +558,7 @@ test("closing the zoomed viewer leaves the page behind interactive and unlocked"
   // Opening a trigger scrolls the page and can hide the shared header. Its
   // visible offset may change legitimately; retain every other declaration,
   // including overflow, so this still detects a leaked viewer scroll lock.
-  const pageChrome = () => page.evaluate(() => {
-    const style = document.documentElement.style;
-    return {
-      htmlClass: document.documentElement.className,
-      bodyClass: document.body.className,
-      htmlStyle: Array.from(style).filter((name) => name !== "--site-header-offset").sort()
-        .map((name) => [name, style.getPropertyValue(name), style.getPropertyPriority(name)]),
-      bodyStyle: document.body.getAttribute("style"),
-      htmlOverflow: getComputedStyle(document.documentElement).overflow,
-      bodyOverflow: getComputedStyle(document.body).overflow,
-    };
-  });
-  const baseline = await pageChrome();
+  const baseline = await pageChrome(page);
 
   await openLightbox(dialog, () =>
     triggers.first().click({ timeout: OPEN_ACTION_TIMEOUT }),
@@ -500,9 +574,9 @@ test("closing the zoomed viewer leaves the page behind interactive and unlocked"
   // Nothing of the viewer is left in the document.
   expect(await page.locator(".pswp").count()).toBe(0);
 
-  // The page chrome is exactly as it was before the viewer opened.
-  const after = await pageChrome();
-  expect(after).toEqual(baseline);
+  // Every cleanup value stays exact except the bounded derived measurement.
+  const after = await pageChrome(page);
+  expectRestoredPageChrome(after, baseline);
 
   // And it genuinely responds again: the page scrolls...
   await page.evaluate(() => window.scrollTo(0, 400));

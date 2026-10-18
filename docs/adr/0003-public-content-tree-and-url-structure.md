@@ -13,6 +13,31 @@ when implementation produces evidence the original text did not have, and each p
 amendment preserves the old rule and records its date, reason, replacement, and affected
 sections as required by the ADR convention.
 
+### 2026-10-17 — Loose article photographs open individually (AB#321 / AB#323)
+
+The owner explicitly selected “Kaikki artikkelikuvat avautuvat yksin” when asked
+whether this change should apply to every article or only travel stories. All
+`article` variants, including blogs, now open each standalone body photograph in
+its own one-slide viewer. No arrow, keyboard or horizontal swipe can advance to
+another photograph; unnecessary arrows and the one-slide counter are hidden by
+the existing viewer. Zoom, captions, close, per-occurrence focus and reading
+position return remain. The same photograph placed twice retains two occurrence
+identities and two opening controls.
+
+This supersedes only the article loose-image grouping in the **2026-09-04 AB#147**
+body-wide sequence clause and the **2026-09-12 AB#24** clause keeping loose images
+on both sides of a mini-gallery in one sequence. A `gallery` variant's loose body
+images still share their source-ordered sequence across mini-galleries. Every
+mini-gallery keeps its own group and the article end gallery keeps its independent
+ordered result and continuation. Neither gains an article's loose photographs.
+The historical clauses below remain evidence of the earlier decisions.
+
+**Sections affected:** decision 2's article loose-image viewer grouping and the
+two named amendments. No content/occurrence identity, source order, route, CMS
+model, enquiry permission, cursor or media-delivery contract changes. Covers and
+authored links keep their existing behavior; images remain full frame and plain
+figures without JavaScript. Decisions 1 and 3–9 otherwise remain unchanged.
+
 ### 2026-10-17 — A reading address follows existing body headings (AB#321 / AB#330)
 
 Decision 3 and the AB#21 amendment derive native links to stable H2–H4 body
@@ -2353,3 +2378,42 @@ allowing literal category paths (which become stale on moves and translations),
 and avoids hardcoding a Blog category into a clonable template. The field is
 navigation-only; home actions and home sections retain their existing targets.
 Publishing a particular menu remains a revision-bound site-settings operation.
+
+
+## Scoped amendment — 2026-10-17: justified inline mini-galleries (AB#334 / AB#321)
+
+The owner's AB#321 request to use the existing justified presentation for narrative
+picture sets extends the 2026-09-12 AB#24 amendment's **one/two-column grid** clause
+only. Both article and gallery body mini-galleries now use justified rows when their
+existing resolved presentation is `justified`: an article inherits `SiteSettings`;
+a gallery's explicit layout wins over those settings. No new authored field, content
+variant, identity, URL or section model is introduced. Grid retains the old one/two
+columns. Masonry deliberately retains that same inline grid; this amendment does
+not promise masonry mini-galleries or change the curated masonry renderer.
+
+The existing native-ratio justified grouping and CSS compositor are shared, with
+bounded inline fitting for the complete captions that remain below each photograph.
+Below 34rem of container width, each photograph has its own row. Wider bands may
+hold more than two photographs. An image whose native height is below 512px gets
+its own row before grouping, so a tiny panorama cannot shrink its neighbours.
+Any remaining multi-image row whose narrow-band endpoint would give a photograph
+less than 3rem of width becomes ordered single-image rows. The 512px bound reserves
+the existing 16rem row cap for root font sizes up to **32px**; it is an engineering
+bound, not an assumption that every visitor's browser default is 16px. CSS also
+caps rows at their smallest native rendition height beyond that bound. A singleton's
+picture is capped at its intrinsic width and 12rem native-ratio height, while its
+caption uses the complete row. Very small authored images can consequently remain
+very small lightbox targets; the renderer does not upscale the source to enlarge them.
+
+Captions and credits remain complete ordinary text, wrap long words, and never
+inherit curated overlay, clamping or popover behavior. The shared compositor's
+curated defaults and continuation behavior are unchanged. Justified mini-galleries
+use the existing viewport-bounded responsive source-size profile. Per-occurrence CSS
+retains the declared native aspect ratio even when optimizer integer rounding changes
+an extremely thin derivative's intrinsic ratio. SSR and hydration use identical geometry, with plain images when scripts are unavailable.
+
+All other AB#24 boundaries remain: 1–12 images, authored order, separate accessible
+list and per-occurrence focus identity, an independent viewer per block, no joins
+with loose body images or article-end/curated results, no enquiry or pagination,
+and no new media projection or CMS mutation. Category overview cards and production
+content acceptance are outside this source amendment. AB#321 remains open.
