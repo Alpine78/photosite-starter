@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Breadcrumbs, type BreadcrumbStep } from "@/components/breadcrumbs";
 import { ContentBody } from "@/components/content-body";
 import { ContentReadingLayout } from "@/components/content-reading-layout";
+import { ReadingPositionSettings } from "@/components/reading-position-settings";
 import { CONTENT_HERO_TITLE_CLASSNAME, HeroOverlay } from "@/components/hero-overlay";
 import { ArticleEndGallery } from "@/components/article-end-gallery";
 import {
@@ -137,6 +138,7 @@ export function ContentArticle({
           <ContentReadingLayout
             label={labels.contentTree.onThisPage}
             headings={headings}
+            readingPosition={{ contentId: page.contentId, locale }}
             centered
             intro={
               <>
@@ -172,6 +174,8 @@ export function ContentArticle({
                     {leadSummary}
                   </p>
                 )}
+
+                <ReadingPositionSettings labels={labels.readingPosition} />
 
               </>
             }

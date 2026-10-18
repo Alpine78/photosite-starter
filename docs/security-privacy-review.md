@@ -1074,3 +1074,26 @@ live-infrastructure check.
   review's provider checklist.
 - Manual keyboard and screen-reader passes, and a hosted check of `/haku` after
   the owner updates `SITE_LOCALE_ROUTES`, are still to be recorded.
+
+
+## Browser-local article continuity — 2026-10-18 (AB#20 / AB#362 / AB#364)
+
+The owner explicitly accepted device-local reading continuity: stable article
+identity, locale, existing chapter anchor and save timestamp, retained for up to
+90 days. The versioned storage port validates exact fields, age, count and
+serialized bounds; it touches only its positions and disabled-preference keys.
+No article title, full URL, image, pixel offset, visitor identity, request or
+external processor is added. Local article identifiers can still reveal reading
+history to someone with access to the same browser profile. Article settings
+explain device-only retention and offer disable/clear; persistence failures are
+reported honestly, with session suppression and no promise that denied removals
+revoke bytes across a restart. Expiry cleanup runs on next use.
+
+The browser integration preserves explicit fragments and native history, avoids
+focus/history/URL mutation during restoration, and saves only accepted deliberate
+article reading. Settings/observer share browser-only state; server rendering
+never acquires storage or shares reader data between requests. Gallery bodies,
+CSP, cookies, contact processing and CMS/media projections remain unchanged.
+The [policy and verification boundary](article-reading-position.md) distinguishes
+automated process restart from physical devices/bfcache. This is a functional
+and data-flow review, not a new legal conclusion or launch approval.
