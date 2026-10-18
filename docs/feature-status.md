@@ -5930,3 +5930,19 @@ AB#338 moved New → Active before implementation and awaits owner review/merge.
 The branch includes the accepted AB#322 and AB#332 main updates; its tests use
 the existing synthetic harness rather than any live CMS data. No deployment is
 claimed.
+
+### AB#334 — Justified inline mini-gallery inheritance (2026-10-17, Active)
+
+Article and gallery body mini-galleries now reuse the existing justified row
+compositor when the site's/page's resolved layout selects it, including articles
+without an end gallery. Explicit gallery overrides remain authoritative. Grid and
+masonry retain the existing one/two-column inline grid. Complete captions and
+credits remain below each picture; small/extreme native frames receive bounded
+single-image rows without shrinking their neighbours. SSR retains plain images,
+authored order, the 12-image bound and independent viewers. No CMS content was
+changed. ADR-0003 records the scoped historical grid-rule amendment. One plan review
+and the bounded final reviews are complete; the CI1164 continuity correction keeps
+inline triggers outside the curated sequence. Prerequisite PR#475 is now accepted
+on main. Current-main integration and its checks are tracked in PR#482; AB#334 stays
+Active pending accepted merge. Parent AB#321's actual content/design acceptance
+remains open.

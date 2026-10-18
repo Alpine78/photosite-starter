@@ -18,6 +18,8 @@ type ContentBodyFigureProps = {
   itemId: string;
   /** Used only when the image has no alt text to name the control by. */
   openLabel: string;
+  /** A layout-specific picture slot; captions remain outside its width cap. */
+  pictureClassName?: string;
 };
 
 /** No external store to read; the two snapshots are the whole signal. */
@@ -46,6 +48,7 @@ export function ContentBodyFigure({
   index,
   itemId,
   openLabel,
+  pictureClassName,
 }: ContentBodyFigureProps) {
   const enhanced = useSyncExternalStore(
     subscribeToNothing,
@@ -67,19 +70,20 @@ export function ContentBodyFigure({
     />
   );
 
+  const interactivePicture = enhanced ? (
+    <GalleryLightboxTrigger
+      itemId={itemId}
+      index={index}
+      label={image.alt.length > 0 ? undefined : openLabel}
+    >
+      {picture}
+    </GalleryLightboxTrigger>
+  ) : picture;
+
   return (
     <figure>
-      {enhanced ? (
-        <GalleryLightboxTrigger
-          itemId={itemId}
-          index={index}
-          label={image.alt.length > 0 ? undefined : openLabel}
-        >
-          {picture}
-        </GalleryLightboxTrigger>
-      ) : (
-        picture
-      )}
+      {pictureClassName === undefined ? interactivePicture
+        : <div className={pictureClassName}>{interactivePicture}</div>}
       {(caption || credit) && (
         <figcaption className="mt-2 text-sm text-subtle">
           {caption}

@@ -379,7 +379,7 @@ for (const { contentId, captionPlacement } of MASONRY_GALLERIES) {
         browserName,
       }) => {
         const main = await openAtWidth(page, path, 1280);
-        const triggers = main.locator("[data-item-id]");
+        const triggers = main.locator("#gallery [data-item-id]");
         const focusedItemId = () =>
           page.evaluate(() => document.activeElement?.getAttribute("data-item-id") ?? null);
 
