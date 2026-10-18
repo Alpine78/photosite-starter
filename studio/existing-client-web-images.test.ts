@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { evaluate, parse } from "groq-js/1";
 import { CLIENT_DELIVERY_ERRORS, isClientDeliveryAsset, validateClientDeliveryGallery } from "../sanity/schemas/client-delivery-gallery";
-import { createExistingImageController, EXISTING_IMAGES_QUERY, SELECTED_EXISTING_IMAGES_QUERY, existingImageCapacity, existingImageReferences, makeExistingClientItems, parseExistingClientImages, type ExistingClientImage, type ExistingImageRequest, type ExistingImageScope } from "./existing-client-web-images";
+import { createExistingImageController, existingImageCutoff, EXISTING_IMAGES_BEFORE_QUERY, EXISTING_IMAGES_QUERY, SELECTED_EXISTING_IMAGES_QUERY, existingImageCapacity, existingImageReferences, makeExistingClientItems, parseExistingClientImages, type ExistingClientImage, type ExistingImageRequest, type ExistingImageScope } from "./existing-client-web-images";
 function asset(n = 1) {
   const sha1hash = n.toString(16).padStart(40, "0");
   return { _id: `image-${sha1hash}-1600x1000-webp`, _type: "sanity.imageAsset", sha1hash, extension: "webp", mimeType: "image/webp",
@@ -138,5 +138,91 @@ describe("native picker asynchronous controller", () => {
   });
   it("never loads or patches readOnly/malformed scopes", async () => {
     const h = harness(); h.change({ readOnly: true }); await h.controller.open(); expect(h.requests).not.toHaveBeenCalled(); h.change({ readOnly: false, value: {} }); await h.controller.open(); expect(h.requests).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("explicit older-image UTC search", () => {
+  it("parses minute fields without machine-local time or the Date.UTC year0..99 adjustment", () => {
+    const before = process.env.TZ;
+    try {
+      for (const tz of ["Pacific/Kiritimati", "America/Los_Angeles"]) {
+        process.env.TZ = tz;
+        for (const value of ["0001-01-01T00:00", "0099-12-31T23:59", "2024-02-29T00:00", "9999-12-31T23:59"]) expect(existingImageCutoff(value)).toBe(`${value}:00.000Z`);
+        expect(existingImageCutoff("")).toBeUndefined();
+        for (const bad of ["2026-02-29T00:00", "2026-02-31T00:00", "2026-01-01T24:00", "2026-01-01T00:60", "0000-01-01T00:00", "2026-13-01T00:00", "2026-01-00T00:00", "2026-01-01T00:00Z", "2026-01-01T00:00:00", " 2026-01-01T00:00", "2026-01-01T00:00\n", "+100000-01-01T00:00", "２０２６-01-01T00:00", "x".repeat(1000)]) expect(() => existingImageCutoff(bad)).toThrow("invalid-cutoff");
+      }
+    } finally { if (before === undefined) delete process.env.TZ; else process.env.TZ = before; }
+  });
+  it("executes the real fixed GROQ with strict instant boundaries, mixed precision, eligibility and257-row bound", async () => {
+    const before = "2026-01-01T12:00:00.000Z";
+    const older = Array.from({ length: 260 }, (_, i) => ({ ...asset(i + 1), _createdAt: "2026-01-01T11:59:00Z" }));
+    const mixed = [{ ...asset(400), _createdAt: "2026-01-01T11:59:00.999Z" }, { ...asset(401), _createdAt: "2026-01-01T11:59:00.000Z" }];
+    const dataset = [...older, ...mixed, { ...asset(500), _createdAt: before }, { ...asset(501), _createdAt: "2026-01-01T12:00:00Z" },
+      { _id: "drafts.restricted", _type: "media", privateOnly: true, image: { asset: { _ref: asset(1)._id } } }];
+    const result = parseExistingClientImages(await query(dataset, EXISTING_IMAGES_BEFORE_QUERY, { before }), 257, true);
+    expect(result).toHaveLength(257); expect(result[0]._id).toBe(asset(400)._id);
+    expect(result.map(x => x._id)).not.toContain(asset(1)._id); expect(result.every(x => Date.parse(x._createdAt) < Date.parse(before))).toBe(true);
+    expect(JSON.stringify(result)).not.toMatch(/never-project|never-fetch|originalFilename/);
+  });
+  it("selects an older alreadyexisting set through the actual query and appends its chosen order once", async () => {
+    const old = [1, 2].map(n => ({ ...asset(n), _createdAt: "2025-01-01T00:00:00Z" }));
+    const dataset = [...old, ...Array.from({ length: 300 }, (_, i) => asset(1000 + i))];
+    const h = harness([], request => query(dataset, request.query, request.ids ? { ids: request.ids } : request.before ? { before: request.before } : {}));
+    expect(h.requests).not.toHaveBeenCalled(); await h.controller.open();
+    expect(h.controller.getSnapshot().rows.map(x => x._id)).not.toContain(asset(1)._id);
+    h.controller.toggle(h.controller.getSnapshot().rows[0]._id);
+    h.controller.changeCutoff("2026-01-01T00:00");
+    expect(h.controller.getSnapshot()).toMatchObject({ phase: "idle", cutoff: "2026-01-01T00:00", selected: [], rows: [], selectionCleared: true });
+    expect(h.requests).toHaveBeenCalledTimes(1);
+    await h.controller.open(); expect(h.requests.mock.calls[1][0]).toMatchObject({ query: EXISTING_IMAGES_BEFORE_QUERY, before: "2026-01-01T00:00:00.000Z" });
+    expect(h.controller.getSnapshot().rows.map(x => x._id)).toEqual(old.map(x => x._id));
+    h.controller.toggle(asset(2)._id); h.controller.toggle(asset(1)._id); await h.controller.add();
+    expect(h.append).toHaveBeenCalledOnce(); expect(h.append.mock.calls[0][0].map((x: { image: { asset: { _ref: string } } }) => x.image.asset._ref)).toEqual([asset(2)._id, asset(1)._id]);
+    expect(h.requests.mock.calls.at(-1)![0]).toMatchObject({ query: SELECTED_EXISTING_IMAGES_QUERY, ids: [asset(2)._id, asset(1)._id] });
+    expect(h.requests.mock.calls.at(-1)![0]).not.toHaveProperty("before");
+  });
+  it("refuses malformed and partial-native input before IO and restores newest search when explicitly cleared", async () => {
+    const h = harness(); await h.controller.open();
+    for (const [value, partial] of [["2026-02-30T00:00", false], ["", true], ["2026", false], ["x".repeat(1000), false]] as const) {
+      h.controller.changeCutoff(value, partial); await h.controller.open();
+      expect(h.requests).toHaveBeenCalledTimes(1); expect(h.controller.getSnapshot()).toMatchObject({ phase: "idle", error: "cutoff", rows: [], selected: [] });
+      expect(h.controller.getSnapshot().cutoff.length).toBeLessThanOrEqual(17);
+    }
+    h.controller.changeCutoff(""); await h.controller.open();
+    expect(h.requests).toHaveBeenCalledTimes(2); expect(h.requests.mock.calls[1][0].query).toBe(EXISTING_IMAGES_QUERY); expect(h.requests.mock.calls[1][0]).not.toHaveProperty("before");
+  });
+  it("cancels loading on an edited cutoff and discards out-of-order results without extra reads", async () => {
+    const first = deferred<unknown>(), second = deferred<unknown>(); let n = 0;
+    const h = harness([], () => ++n === 1 ? first.promise : second.promise);
+    const initial = h.controller.open(), signal = h.requests.mock.calls[0][0].signal;
+    h.controller.changeCutoff("2026-01-01T00:00"); expect(signal.aborted).toBe(true); expect(h.requests).toHaveBeenCalledTimes(1);
+    const next = h.controller.open(), latest = h.requests.mock.calls[1][0].signal;
+    h.controller.changeCutoff("2026-01-01T00:00"); expect(latest.aborted).toBe(false); // Duplicate input events cannot cancel an active query.
+    second.resolve([{ ...row(2), _createdAt: "2025-12-31T23:59:59.999Z" }]); await next;
+    first.resolve([row(1)]); await initial; expect(h.controller.getSnapshot().rows[0]._id).toBe(row(2)._id);
+    expect(h.controller.getSnapshot().cutoff).toBe("2026-01-01T00:00");
+  });
+  it("locks cutoff changes during adding and preserves fresh native scope/capacity checks", async () => {
+    const pending = deferred<unknown>(), h = harness([row()], request => request.ids ? pending.promise : Promise.resolve([row()]));
+    await h.controller.open(); h.controller.toggle(row()._id); const added = h.controller.add();
+    h.controller.changeCutoff("2025-01-01T00:00"); expect(h.controller.getSnapshot()).toMatchObject({ phase: "adding", cutoff: "", selected: [row()._id] });
+    h.change({ readOnly: true }); pending.resolve([row()]); await added; expect(h.append).not.toHaveBeenCalled(); expect(h.controller.getSnapshot().phase).toBe("closed");
+  });
+  it.each([{ documentId: "replacement" }, { readOnly: true }, { path: "other-dataset" }])("discards an older-batch response after scope changes %#", async change => {
+    const pending = deferred<unknown>(), h = harness([], request => request.before ? pending.promise : Promise.resolve([]));
+    await h.controller.open(); h.controller.changeCutoff("2026-01-01T00:00"); const loaded = h.controller.open();
+    h.change(change); expect(h.requests.mock.calls[1][0].signal.aborted).toBe(true);
+    pending.resolve([{ ...row(), _createdAt: "2025-01-01T00:00:00Z" }]); await loaded;
+    expect(h.controller.getSnapshot()).toMatchObject({ phase: "closed", rows: [], selected: [], cutoff: "" }); expect(h.append).not.toHaveBeenCalled();
+  });
+  it("fails closed for a stub provider ignoring the cutoff, retries the same cutoff and bounds replacement batches", async () => {
+    let broken = true;
+    const h = harness([], async () => broken ? [row()] : Array.from({ length: 257 }, (_, i) => ({ ...row(i + 1), _createdAt: "2025-01-01T00:00:00Z" })));
+    await h.controller.open(); h.controller.changeCutoff("2026-01-01T00:00"); await h.controller.open();
+    expect(h.controller.getSnapshot()).toMatchObject({ phase: "error", error: "load", cutoff: "2026-01-01T00:00", rows: [] });
+    broken = false; await h.controller.open(); expect(h.controller.getSnapshot()).toMatchObject({ phase: "ready", truncated: true }); expect(h.controller.getSnapshot().rows).toHaveLength(256);
+    h.controller.changeCutoff("2026-02-01T00:00"); expect(h.controller.getSnapshot().rows).toEqual([]); await h.controller.open(); expect(h.controller.getSnapshot().rows).toHaveLength(256);
+    expect(h.requests.mock.calls.slice(1).every(([r]) => r.query === EXISTING_IMAGES_BEFORE_QUERY && r.before !== undefined)).toBe(true);
   });
 });

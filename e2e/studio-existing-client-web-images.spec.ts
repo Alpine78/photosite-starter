@@ -6,7 +6,7 @@ import { existingImageViewFixture } from "../test-support/existing-client-web-im
 
 let server: ViteDevServer;
 let view: ComponentType<ReturnType<typeof existingImageViewFixture>>;
-let copy: (locale: string) => { opener: string; close: string; clear: string; add: string; retry: string; more: string; image: (i: number, n: number, row: ReturnType<typeof existingImageViewFixture>["state"]["rows"][number]) => string };
+let copy: (locale: string) => { opener: string; close: string; clear: string; add: string; retry: string; more: string; cutoff: string; cutoffHelp: string; search: string; cleared: string; image: (i: number, n: number, row: ReturnType<typeof existingImageViewFixture>["state"]["rows"][number]) => string };
 test.beforeAll(async () => {
   // The installed Vitest toolchain already includes Vite. Its real SSR loader
   // avoids Playwright turning TSX nodes into component-testing descriptors.
@@ -26,6 +26,14 @@ for (const locale of ["fi-FI", "en-GB"]) {
     await expect(boxes.nth(1)).toHaveAccessibleName(text.image(2, 2, props.state.rows[1]));
     await expect(opener).toHaveAttribute("aria-expanded", "true"); await expect(page.getByRole("status")).toHaveCount(1);
     await opener.focus(); await page.keyboard.press("Tab");
+    const cutoff = page.getByLabel(text.cutoff, { exact: true });
+    await expect(cutoff).toBeFocused(); await expect(cutoff).toHaveAccessibleDescription(text.cutoffHelp);
+    await cutoff.fill("2025-03-01T12:30"); await expect(cutoff).toHaveValue("2025-03-01T12:30");
+    expect(await cutoff.evaluate(input => (input as HTMLInputElement).validity.badInput)).toBe(false);
+    const search = page.getByRole("button", { name: text.search, exact: true });
+    await search.focus(); await expect(search).toBeFocused(); await expect(search).toHaveAttribute("aria-disabled", "false");
+    await page.keyboard.press("Space"); // Native button activation; no React-hydration claim.
+    await page.keyboard.press("Tab");
     const retry = page.getByRole("button", { name: text.retry, exact: true });
     await expect(retry).toBeFocused(); await expect(retry).toHaveAttribute("aria-disabled", "true");
     await page.keyboard.press("Tab"); await expect(boxes.nth(0)).toBeFocused();
@@ -42,5 +50,17 @@ for (const locale of ["fi-FI", "en-GB"]) {
     await page.keyboard.press("Tab"); await expect(clear).toBeFocused();
     await page.keyboard.press("Tab"); await expect(page.getByRole("button", { name: text.close, exact: true })).toBeFocused();
     await page.keyboard.press("Tab"); await expect(add).toBeFocused();
+  });
+}
+
+for (const locale of ["fi-FI", "en-GB"]) {
+  test(`existing Studio cutoff keeps invalid/cleared feedback accessible ${locale}`, async ({ page }) => {
+    const props = existingImageViewFixture(locale, { phase: "idle", rows: [], cutoff: "", badInput: true, selectionCleared: true, error: "cutoff" }), text = copy(locale);
+    await page.setContent(`<!doctype html><html lang="${locale}"><body>${renderToStaticMarkup(createElement(view, props))}</body></html>`);
+    const cutoff = page.getByLabel(text.cutoff, { exact: true });
+    await expect(cutoff).toHaveAttribute("aria-invalid", "true"); await expect(page.getByRole("alert")).toBeVisible();
+    await expect(cutoff).toHaveAccessibleDescription(new RegExp("UTC")); await expect(page.getByRole("status")).toHaveText(text.cleared);
+    await cutoff.focus(); await expect(cutoff).toBeFocused();
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
   });
 }

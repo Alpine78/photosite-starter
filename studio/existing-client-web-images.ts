@@ -6,30 +6,41 @@ export const EXISTING_IMAGE_LIMIT = 256;
 const projection = `{_id, _type, sha1hash, extension, mimeType, _createdAt,
   "width": metadata.dimensions.width, "height": metadata.dimensions.height,
   "restricted": count(*[_type == "media" && image.asset._ref == ^._id && defined(privateOnly) && privateOnly != false]) > 0}`;
-export const EXISTING_IMAGES_QUERY = `*[_type == "sanity.imageAsset" &&
+const existingImagesFilter = `*[_type == "sanity.imageAsset" &&
   metadata.dimensions.width > 0 && metadata.dimensions.width <= ${MAX_PUBLIC_DELIVERY_DIMENSION} &&
   metadata.dimensions.height > 0 && metadata.dimensions.height <= ${MAX_PUBLIC_DELIVERY_DIMENSION} &&
   extension in ${JSON.stringify(Object.keys(PUBLIC_DELIVERY_FORMATS))} &&
-  count(*[_type == "media" && image.asset._ref == ^._id && defined(privateOnly) && privateOnly != false]) == 0]
+  count(*[_type == "media" && image.asset._ref == ^._id && defined(privateOnly) && privateOnly != false]) == 0`;
+export const EXISTING_IMAGES_QUERY = `${existingImagesFilter}]
   | order(_createdAt desc, _id asc)[0...257]${projection}`;
+export const EXISTING_IMAGES_BEFORE_QUERY = `${existingImagesFilter} && dateTime(_createdAt) < dateTime($before)]
+  | order(dateTime(_createdAt) desc, _id asc)[0...257]${projection}`;
 export const SELECTED_EXISTING_IMAGES_QUERY = `*[_id in $ids]${projection}`;
+/** Native minute-resolution fields are interpreted as UTC, never machine local time. */
+export function existingImageCutoff(value: string): string | undefined {
+  if (value === "") return undefined;
+  if (!/^(?!0000)\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/u.test(value)) throw Error("invalid-cutoff");
+  const canonical = `${value}:00.000Z`, time = Date.parse(canonical);
+  if (!Number.isFinite(time) || new Date(time).toISOString() !== canonical) throw Error("invalid-cutoff");
+  return canonical;
+}
 export type ExistingClientImage = ClientDeliveryAsset & Readonly<{ _createdAt: string }>;
 export type NewClientItem = Readonly<{
   _key: string; _type: "clientDeliveryItem"; mediaType: "image";
   image: { _type: "image"; asset: { _type: "reference"; _ref: string } };
 }>;
-export type PickerError = "load" | "permission" | "changed" | "capacity" | "keys";
+export type PickerError = "load" | "permission" | "changed" | "capacity" | "keys" | "cutoff";
 export type ExistingImageState = Readonly<{
-  phase: "closed" | "loading" | "ready" | "adding" | "error";
+  phase: "closed" | "idle" | "loading" | "ready" | "adding" | "error";
   rows: readonly ExistingClientImage[]; selected: readonly string[]; visible: number;
-  truncated: boolean; error?: PickerError;
+  truncated: boolean; error?: PickerError; cutoff: string; badInput: boolean; selectionCleared: boolean;
 }>;
 export type ExistingImageScope = Readonly<{
   documentId: string; path: string; readOnly: boolean; value: unknown;
   append(items: readonly NewClientItem[]): void;
 }>;
-export type ExistingImageRequest = Readonly<{ query: string; ids?: readonly string[]; signal: AbortSignal }>;
-const closedState = (): ExistingImageState => ({ phase: "closed", rows: [], selected: [], visible: EXISTING_IMAGE_PAGE_SIZE, truncated: false });
+export type ExistingImageRequest = Readonly<{ query: string; ids?: readonly string[]; before?: string; signal: AbortSignal }>;
+const closedState = (): ExistingImageState => ({ phase: "closed", rows: [], selected: [], visible: EXISTING_IMAGE_PAGE_SIZE, truncated: false, cutoff: "", badInput: false, selectionCleared: false });
 const fields = ["_id", "_type", "sha1hash", "extension", "mimeType", "_createdAt", "width", "height", "restricted"];
 const order = (a: ExistingClientImage, b: ExistingClientImage) => Date.parse(b._createdAt) - Date.parse(a._createdAt) || (a._id < b._id ? -1 : a._id > b._id ? 1 : 0);
 function invalid(): never { throw Error("invalid-existing-image-response"); }
@@ -106,16 +117,28 @@ export function createExistingImageController(options: Partial<ExistingImageBind
     dispose() { generation++; active?.abort(); active = undefined; listeners.clear(); },
     bind(next: ExistingImageBinding) { binding = next; },
     scopeChanged() { if (state.phase !== "closed" && (!usable(getScope()) || keyOf(getScope()) !== scopeKey)) close(); },
+    changeCutoff(value: string, badInput = false) {
+      if (state.phase === "closed" || state.phase === "adding" || !current(generation)) return;
+      const cutoff = value.slice(0, 17);
+      if (cutoff === state.cutoff && badInput === state.badInput) return;
+      generation++; active?.abort(); active = undefined;
+      emit({ ...closedState(), phase: "idle", cutoff, badInput, selectionCleared: true });
+    },
     async open() {
       const scope = getScope(); if (!usable(scope) || state.phase === "loading" || state.phase === "adding") return;
+      const cutoff = state.cutoff, badInput = state.badInput;
+      let before: string | undefined;
+      try { if (badInput) throw Error("invalid-cutoff"); before = existingImageCutoff(cutoff); }
+      catch { emit({ ...state, phase: "idle", error: "cutoff" }); return; }
       active?.abort(); active = new AbortController(); const signal = active.signal, token = ++generation; scopeKey = keyOf(scope);
-      emit({ ...closedState(), phase: "loading" });
+      emit({ ...closedState(), phase: "loading", cutoff, badInput });
       try {
-        const result = await read({ query: EXISTING_IMAGES_QUERY, signal });
+        const result = await read({ query: before ? EXISTING_IMAGES_BEFORE_QUERY : EXISTING_IMAGES_QUERY, ...(before ? { before } : {}), signal });
         if (!current(token)) return;
         const rows = parseExistingClientImages(result, EXISTING_IMAGE_LIMIT + 1, true);
-        emit({ ...closedState(), phase: "ready", rows: rows.slice(0, EXISTING_IMAGE_LIMIT), truncated: rows.length > EXISTING_IMAGE_LIMIT });
-      } catch (error) { if (current(token)) emit({ ...closedState(), phase: "error", error: failure(error, "load") }); }
+        if (before && rows.some(row => Date.parse(row._createdAt) >= Date.parse(before))) invalid();
+        emit({ ...closedState(), phase: "ready", cutoff, rows: rows.slice(0, EXISTING_IMAGE_LIMIT), truncated: rows.length > EXISTING_IMAGE_LIMIT });
+      } catch (error) { if (current(token)) emit({ ...closedState(), phase: "error", cutoff, error: failure(error, "load") }); }
     },
     showMore() { if (state.phase === "ready" && current(generation)) emit({ ...state, visible: Math.min(state.rows.length, state.visible + EXISTING_IMAGE_PAGE_SIZE) }); },
     clear() { if (state.phase === "ready" && current(generation)) emit({ ...state, selected: [], error: undefined }); },
