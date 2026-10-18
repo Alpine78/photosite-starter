@@ -251,6 +251,8 @@ AB#273 current release evidence, 2026-10-13: [Fresh recovery, provider and depen
 
 AB#19 canonical-host follow-up, 2026-10-18: [current Production verification](audits/ab19-canonical-production-verification-2026-10-18.md) binds the passing 415-row canonical-host report to before/after provider source-identity guards for `33cb41a` and four JavaScript-free FI/EN Chromium/WebKit fallback-notice checks. The complete report is attached to AB#19 and read back as equivalent JSON. This later pass completes the canonical-host/report steps left open by the earlier October 18 status correction; it does not claim artifact-byte verification or launch approval. AB#137's predecessor gate and owner acceptance remain open, so AB#19 remains Active. No mapping, CMS, DNS, configuration or deployment changed.
 
+AB#20 storage foundation, 2026-10-18 (AB#362, Active): owner accepted 90-day browser-local article/locale/chapter/time retention, direct-anchor/native-history precedence and clear/disable controls. The [reading-position policy](article-reading-position.md) now records the accepted boundary. A deterministic injected storage module implements validation, expiry, bounded eviction, clear/disable and failure handling with Node-only tests. No browser call site uses it yet: restoration, localized controls, disclosure and production-build journeys remain under AB#20. No content, CMS, URL behavior or server storage changed.
+
 This is a running implementation history and a starting point for finding relevant
 code and decisions. Read the part relevant to the task; the current code and the
 Azure Boards work item are authoritative for scope, acceptance criteria and state.
