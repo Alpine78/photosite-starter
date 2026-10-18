@@ -111,7 +111,7 @@ export function ContentArticle({
   const byline = labels.article.byline.replace("{author}", authorName);
 
   return (
-    <main>
+    <main className="wrap-anywhere [&_table]:wrap-normal">
       {/* AB#149/ADR-0016: the lead photograph, when one is authored, renders
           full-bleed ahead of the reading column below rather than inside
           it — a true edge-to-edge hero needs to sit outside this page's
