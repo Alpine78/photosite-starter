@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ContentFragmentLink } from "@/components/content-fragment-link";
 import { ContentReadingAddress } from "@/components/content-reading-address";
 import {
   nestContentHeadings,
@@ -16,7 +16,7 @@ type ContentPageJumpNavProps = {
    * uses this for its link to the image grid (ADR-0003 decision 3); the
    * article variant, which has no grid to jump to, omits it.
    */
-  leadingLink?: { readonly href: string; readonly label: string };
+  leadingLink?: { readonly href: `#${string}`; readonly label: string };
 };
 
 const linkClassName =
@@ -30,9 +30,9 @@ const linkClassName =
 function ContentHeadingEntry({ node }: { node: ContentHeadingNode }) {
   return (
     <li>
-      <Link href={`#${node.id}`} className={linkClassName}>
+      <ContentFragmentLink href={`#${node.id}`} className={linkClassName}>
         {node.text}
-      </Link>
+      </ContentFragmentLink>
       {node.children.length > 0 && <ContentHeadingList nodes={node.children} />}
     </li>
   );
@@ -83,9 +83,9 @@ export function ContentPageJumpNav({
         <ol className="mt-2 space-y-1 text-sm">
           {leadingLink && (
             <li>
-              <Link href={leadingLink.href} className={linkClassName}>
+              <ContentFragmentLink href={leadingLink.href} className={linkClassName}>
                 {leadingLink.label}
-              </Link>
+              </ContentFragmentLink>
             </li>
           )}
           {tree.map((node) => (

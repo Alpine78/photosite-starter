@@ -656,6 +656,24 @@ boundary; the query reads one row and column past the bound so overflow arrives 
 overflow rather than silently truncated. Render-only: no sorting, filtering, or column
 resizing. The ADR-0003 2026-09-13 amendment records the boundary.
 A three-level nested table of contents (AB#21) shipped in PR #156.
+AB#337 (Active, awaiting review) corrects cold-fragment TOC navigation.
+A fresh H4 address followed by a TOC selection reproduced an initial-plus-new
+fragment in all four production browser projects with pinned Next.js 16.4.2;
+its route-cache URL concatenation retained the initial fragment. Plain native
+anchors alone exposed a second framework limit: a null-state fragment entry
+could restore the correct URL but leave the wrong page after client-route Back.
+The shared fragment anchor now registers a changed fragment through Next's
+[documented History API integration](https://nextjs.org/docs/app/getting-started/linking-and-navigating#native-history-api)
+before leaving the native anchor action unprevented. The existing history state
+passes through opaquely, without reading or writing framework fields; the
+browser owns scrolling and focus progression. Repeating the same hash adds no
+entry. If history registration fails, ordinary navigation remains available.
+Both nested heading links and the gallery's leading link retain their IDs,
+hierarchy, labels and focus styling; the type enforces a fragment href.
+Native WebKit Back can restore the saved TOC scroll position rather than force
+the old hash target into view; an independent offline HTTP control reproduces
+that behavior. This adds no automatic reading tracking, stored restoration,
+dependency, cross-route link or CMS policy change.
 The home hero's overlaid site name, tagline, and call to action are now fold-safe
 (AB#148, [ADR-0016](adr/0016-hero-fold-safe-overlay.md)): the photograph itself
 still renders full native size, uncapped and never cropped, exactly as the hero
