@@ -3477,6 +3477,18 @@ approval digest and malformed or stale plans. Production writes and post-import
 listing/page verification remain owner-run under AB#137; this code slice does not
 close the migration story or change AB#172's Resolved state.
 
+**Approved intro completion, 2026-10-18 (AB#172, Active):** the owner-approved
+remaining 12 articles were corrected in one revision-guarded Production
+transaction after a complete document/asset recovery baseline. Independent
+readback found 12 applied, zero pending/unexpected and all 108 other page
+documents unchanged; the earlier 56-page correction stayed intact. The temporary
+writers were revoked and their keys returned HTTP 401. All 12 automatic
+Production webhook deliveries succeeded, and 22 anonymous detail/listing/meta
+checks passed after cache expiry. No runtime code changed. The
+[operation audit](audits/ab172-approved-intro-completion-2026-10-18.md) records the
+full baseline, credential lifecycle, verification and limits. AB#172 remains
+Active pending evidence acceptance/merge; AB#137 remains Active.
+
 **Rally conversion plan integrity, 2026-10-07 (AB#218):** `write:rally-conversion`
 rejects malformed UTF-8 before parsing, backup inspection or credential resolution.
 Valid localized caption text retains its exact approved digest and existing JSON BOM
