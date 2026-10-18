@@ -166,7 +166,7 @@ export function ContentGallery({
   const leadSummary = onPageSummary(page);
 
   return (
-    <main>
+    <main className="wrap-anywhere [&_table]:wrap-normal">
       {/* AB#149/ADR-0016: full-bleed, ahead of the max-w-6xl column below,
           for the same reason the article hero is — a true edge-to-edge hero
           cannot live inside a width-constrained container. The gallery's

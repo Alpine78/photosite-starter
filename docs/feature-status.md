@@ -5324,6 +5324,24 @@ PR #355 subsequently merged as `4382537b6be57fa903dfdb39e9e2c4fec87b438e`;
 AB#262's Active → Closed transition was verified before the follow-up below.
 The other agent's original checkout remains untouched.
 
+### AB#346 — story text at narrow enlarged widths (2026-10-18, Active)
+
+Article, public-gallery and article-end continuation text now wraps inside its
+own column, including no-cover titles, prose, headings, tags and adjacent links.
+The three existing main elements use Tailwind emergency wrapping; tables retain
+normal wrapping and their own keyboard-scroll regions. Controlled existing
+poll-result text still overflowed with `break-word` in both browser engines,
+which is why this correction also allows intrinsic shrinking with `anywhere`.
+Without the table exception, existing normal-size table widths changed.
+
+Complete text, typography, native image frames, hero treatment, independent
+viewers, tab behavior and route contracts stay unchanged. Old-source production
+negatives and corrected Finnish/English Chromium/WebKit coverage include
+320/390/768/1280px, 16/32px root text, scriptless links and continuations.
+The two-column adjacent navigation can still break long words into short pieces
+at enlarged narrow widths; its accepted layout is preserved. AB#346 remains
+Active pending owner review and merge; no CMS or deployment change was made.
+
 ### AB#265 — Offline canonical identity alias plan (2026-10-12, Closed)
 
 The owner requested identity and gallery continuation in separate worktrees.
