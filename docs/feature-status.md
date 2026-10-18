@@ -251,6 +251,8 @@ AB#273 current release evidence, 2026-10-13: [Fresh recovery, provider and depen
 
 AB#20 storage foundation, 2026-10-18 (AB#362, Active): owner accepted 90-day browser-local article/locale/chapter/time retention, direct-anchor/native-history precedence and clear/disable controls. The [reading-position policy](article-reading-position.md) now records the accepted boundary. A deterministic injected storage module implements validation, expiry, bounded eviction, clear/disable and failure handling with Node-only tests. No browser call site uses it yet: restoration, localized controls, disclosure and production-build journeys remain under AB#20. No content, CMS, URL behavior or server storage changed.
 
+AB#20 article continuity integration, 2026-10-18 (AB#364, Active): the owner-accepted local reading-position policy now connects the storage foundation to article-only deliberate chapter tracking, a bounded navigation-aware restore and localized clear/disable controls. Direct fragments, native history and new reader input retain priority; restoring adds no URL/history/focus change. [The policy](article-reading-position.md) and [privacy review](security-privacy-review.md#browser-local-article-continuity--2026-10-18-ab20--ab362--ab364) document device-local fields, retention/denial limits and the browser verification boundary. Gallery bodies remain nonpersistent. Owner acceptance/merge and deployment are separate; AB#20 remains Active.
+
 This is a running implementation history and a starting point for finding relevant
 code and decisions. Read the part relevant to the task; the current code and the
 Azure Boards work item are authoritative for scope, acceptance criteria and state.

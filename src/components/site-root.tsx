@@ -21,6 +21,7 @@ import { getStaticPageData } from "@/lib/static-pages";
 import { DocumentRoot } from "@/components/document-root";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { ReadingNavigationObserver } from "@/components/reading-navigation-observer";
 
 /** This locale's descriptor with the name it sits beside, or nothing. */
 function brandDescriptorProps(settings: SiteSettings, locale: string) {
@@ -71,6 +72,7 @@ export async function SiteRoot({ children, locale }: SiteRootProps) {
 
   return (
     <DocumentRoot locale={locale}>
+      <ReadingNavigationObserver />
       <SiteHeader
         siteName={siteName}
         {...(settings.logo === undefined ? {} : { logo: settings.logo.rendition })}
