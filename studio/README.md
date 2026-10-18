@@ -164,6 +164,16 @@ the subtitle names the language actually used and retains any credit. Missing
 descriptions are marked explicitly. Filenames and internal identifiers never
 become substitute titles. This changes no image bytes or authored text.
 
+Body-image rows use their own authored placement caption when present, otherwise
+the shared media's existing caption/alternative-text preference above (AB#349).
+The **Kuvakohtainen kuvateksti / Placement caption** subtitle identifies a plain
+caption's source without inventing a content language. Missing references and
+missing descriptions share an explicit localized fallback; full-frame thumbnails
+use the same public image. Compiled synthetic tests cover the actual Studio
+configuration and selected paths. Loading caption/alt arrays through references
+in the hosted preview store still needs an authenticated check after publication;
+offline hydrated fixtures do not establish that hosted behavior.
+
 Permanent identifiers live at the end of the form in the native **Tekniset
 tunnisteet / Technical identifiers** group. It starts expanded because new
 documents need manually entered identifiers; existing-content editors can

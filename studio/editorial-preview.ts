@@ -77,6 +77,18 @@ export function mediaEditorialPreview(selection: Selection, locale = "en-US"): P
   };
 }
 
+/** A plain placement caption has no language tag; only UI fallback text is translated. */
+export function bodyMediaEditorialPreview(selection: Selection, locale = "en-US", translate = (value: string) => value): PreviewValue {
+  const caption = text(selection.placementCaption);
+  if (caption) return { title: caption, subtitle: translate("Placement caption"), media: selection.media };
+  const selected = selectMediaDescription(selection, locale);
+  return {
+    title: selected?.value ?? translate("Media description missing"),
+    subtitle: selected ? selected.language ? language(selected.language) : translate("Language missing") : "",
+    media: selection.media,
+  };
+}
+
 /** Studio-only labels: stored identities and the dependency-free canonical schemas stay intact. */
 export const EDITORIAL_PREVIEWS: Readonly<Partial<Record<string, EditorialPreview>>> = {
   clientDeliveryGallery: {
@@ -93,6 +105,10 @@ export const EDITORIAL_PREVIEWS: Readonly<Partial<Record<string, EditorialPrevie
   media: {
     select: { captions: "caption", alternatives: "alt", credit: "credit", media: "image" },
     prepare: (selection) => mediaEditorialPreview(selection),
+  },
+  contentMediaBlock: {
+    select: { placementCaption: "caption", captions: "media.caption", alternatives: "media.alt", media: "media.image" },
+    prepare: (selection) => bodyMediaEditorialPreview(selection),
   },
   category: {
     select: { labels: "label" },
@@ -113,7 +129,8 @@ export const EDITORIAL_PREVIEWS: Readonly<Partial<Record<string, EditorialPrevie
 
 /** Preserve all fields, validators and non-overridden preview configurations. */
 export function withEditorialPreview(schema: SchemaTypeDefinition): StudioSchema {
-  const preview = schema.type === "document" && Object.hasOwn(EDITORIAL_PREVIEWS, schema.name)
+  const eligible = schema.type === "document" || schema.type === "object" && schema.name === "contentMediaBlock";
+  const preview = eligible && Object.hasOwn(EDITORIAL_PREVIEWS, schema.name)
     ? EDITORIAL_PREVIEWS[schema.name] : undefined;
   return preview ? { ...schema, preview } : schema;
 }
