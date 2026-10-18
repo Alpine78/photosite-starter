@@ -1,5 +1,6 @@
 /** Strict canonical article target resolution for the AB#161 append endpoint. */
 
+import type { GallerySectionSummary } from "@/lib/gallery-sections";
 import { getContentPage, getContentRedirects, getContentTrees } from "@/lib/content";
 import { asArticlePage, type ContentPageSource } from "@/lib/content-page";
 import { getStoryRoutePath } from "@/lib/content-routes";
@@ -20,6 +21,7 @@ export type ArticleEndGalleryRequestTarget = {
   readonly locale: string;
   readonly contentId: string;
   readonly endGalleryId: string;
+  readonly sections?: readonly GallerySectionSummary[];
 };
 
 export type ArticleEndGalleryRequestSources = {
@@ -68,7 +70,8 @@ export async function resolveArticleEndGalleryRequestTargetFromSources(
     await sources.contentPageSource(locale, route.contentId, "article"),
   );
   if (page?.endGalleryId === undefined) return undefined;
-  return { locale, contentId: route.contentId, endGalleryId: page.endGalleryId };
+  return { locale, contentId: route.contentId, endGalleryId: page.endGalleryId,
+    ...(page.endGallerySections === undefined ? {} : { sections: page.endGallerySections }) };
 }
 
 export async function resolveArticleEndGalleryRequestTarget(

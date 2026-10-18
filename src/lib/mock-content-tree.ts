@@ -127,6 +127,13 @@ const englishContentTree: ContentTreeInput = {
       canonicalCategoryId: "cat-landscape",
     },
     {
+      contentId: "content-filtered-image-notes",
+      variant: "article",
+      slug: "image-notes",
+      published: true,
+      canonicalCategoryId: "cat-landscape",
+    },
+    {
       contentId: "content-polar-night-sessions",
       variant: "gallery",
       slug: "polar-night-sessions",
@@ -320,6 +327,13 @@ const finnishContentTree: ContentTreeInput = {
       contentId: "content-reading-coastal-light",
       variant: "article",
       slug: "rannikon-valon-lukeminen",
+      published: true,
+      canonicalCategoryId: "cat-landscape",
+    },
+    {
+      contentId: "content-filtered-image-notes",
+      variant: "article",
+      slug: "kuvamuistiinpanot",
       published: true,
       canonicalCategoryId: "cat-landscape",
     },

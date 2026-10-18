@@ -37,11 +37,13 @@ type GalleryGridProps = {
   /** Resolved layout and caption placement (AB#157). */
   presentation: GalleryPresentation;
   labels: BuiltInLabels;
-} & (
-  // Only curated results accept a named section or offer placement enquiries.
-  | { continuationKind?: "curated-gallery"; activeSection?: string }
-  | { continuationKind: "article-end-gallery"; activeSection?: never }
-);
+  continuationKind?: "curated-gallery" | "article-end-gallery";
+  activeSection?: string;
+  /** Article controls own the single persistent live region across grid resets. */
+  onResultChange?: (result: GalleryGridResult) => void;
+};
+export type GalleryGridResult = { readonly count: number; readonly hasMore: boolean; readonly state: "idle" | "loading" | "failed" };
+
 
 type ContinuationState = "idle" | "loading" | "failed";
 
@@ -108,6 +110,7 @@ export function GalleryGrid({
   galleryPath,
   activeSection,
   continuationKind = "curated-gallery",
+  onResultChange,
   presentation,
   labels,
 }: GalleryGridProps) {
@@ -118,6 +121,9 @@ export function GalleryGrid({
   const [focusRequest, setFocusRequest] = useState<{
     readonly target: "control" | "completion";
   } | null>(null);
+  useEffect(() => {
+    onResultChange?.({ count: slice.items.length, hasMore: slice.nextCursor !== null, state });
+  }, [slice.items.length, slice.nextCursor, state, onResultChange]);
   const continueRef = useRef<HTMLAnchorElement | null>(null);
   const completionRef = useRef<HTMLParagraphElement | null>(null);
   // The request callback reads and advances the current slice synchronously.
@@ -436,7 +442,7 @@ export function GalleryGrid({
         <p
           id={statusId}
           ref={completionRef}
-          role="status"
+          role={onResultChange === undefined ? "status" : undefined}
           tabIndex={-1}
           className={
             hasFailed

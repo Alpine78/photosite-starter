@@ -708,8 +708,8 @@ and label; it has no section introduction. A nonempty catalog needs an end-galle
 ID and a nonblank, content-authored heading of at most 160 characters. Heading and
 labels describe the author's chosen categories, with no built-in rating scale.
 The Studio field labels, help and custom errors support Finnish and English.
-The actual article filter controls and route/API selector integration are a later
-slice; these fields alone do not activate a visible filter.
+AB367 adds the [public controls and route/API integration](#article-end-filter-controls-ab367).
+An article without a published catalog keeps its existing behavior.
 
 `articleEndGalleryPlacement.sectionId` is optional free text, validated against the
 **published containing article**, not its draft. An unassigned image belongs to All.
@@ -757,3 +757,42 @@ edit can yield a refused stale/malformed result; no atomic-snapshot guarantee is
 Offline tests evaluate the actual queries using the Studio's existing `groq-js/1`
 dependency and synthetic published fixtures. They prove query and projection semantics,
 not a live provider perspective, ACL, CDN freshness or production content classification.
+
+
+## Article-end filter controls (AB367)
+
+An article declaring `endGallerySections` uses its authored
+`endGallerySectionHeading` to name real All/section links. The optional catalog
+reuses the gallery controls, including a single section plus All; it does not
+introduce a numeric rating model. FI/EN application copy reports the selected
+label, actually loaded images and whether more are available, with an explicit
+empty state. No collection-wide totals are queried or promised.
+
+Selected first pages and every continuation remain `noindex`, canonicalize to
+the parameter-free article and omit hreflang. The visible language switch opens
+the translated first article without section/cursor state. Unknown or repeated
+selectors on catalogued articles return404 before path normalization or window
+reads. Articles without catalogs retain incidental section-query behavior.
+`section=all` and an empty selector normalize to All on the page; the strict
+append API accepts only a named slug or omission, with a mandatory cursor.
+A stale catalog-selected ID returns404 when the source no longer declares it;
+malformed CMS/source acknowledgements remain server defects, never All fallback.
+
+Filter links clear continuation state and carry unrelated query values, including
+repeated values. Hydrated links also follow the current article fragment, including
+updates made by the reading-address observer. JavaScript-free links navigate to
+real bounded server pages. Hydrated selection preserves the controls' viewport
+and focus through grid replacement, including a continuation-to-initial transition.
+A browser-only pending intent expires after8seconds and is cancelled by reader
+input/history events; it is never persisted or populated by server rendering.
+Article filter navigation takes priority over automatic saved-position restore.
+The ordinary back-to-article link remains a fresh reading visit and may restore.
+No localStorage schema or application-owned history.state field is added.
+
+The selected viewer contains only loaded selected placements; body photographs
+and minigalleries keep their independent groups. Catalog and placement reads remain
+separate, as described above. Mock-mode journeys use a separate bilingual synthetic
+article with interleaved selected/unassigned occurrences, leaving the earlier
+reading fixture intact. They do not classify the actual retained41-item collection.
+That collection still needs its reviewed heading/labels, rendered-image/text approval
+and a concrete revision-bound content plan with owner approval before any CMS write.

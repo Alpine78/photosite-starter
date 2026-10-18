@@ -7,6 +7,7 @@ let initialDocumentHref: string | undefined;
 let initialNavigationType: string | undefined;
 let historyDestination: string | undefined;
 let freshLinkDestination: string | undefined;
+let filterNavigationDestination: string | undefined;
 let lastInputHref: string | undefined;
 let inputGeneration = 0;
 
@@ -47,6 +48,11 @@ export function observeReadingNavigation(): () => void {
         (destination.pathname === window.location.pathname && destination.search === window.location.search)) return;
     // A cancelled click cannot release history/input protection on the current URL.
     freshLinkDestination = destination.href;
+    // Filter controls retain their viewport across a query change. The ordinary
+    // back-to-article link is instead a fresh reading visit and may restore.
+    filterNavigationDestination = anchor.closest("[data-article-section-controls]") !== null
+      && destination.pathname === window.location.pathname
+      && destination.search !== window.location.search ? destination.href : undefined;
   };
   window.addEventListener("popstate", history, true);
   window.addEventListener("pageshow", pageshow);
@@ -74,7 +80,7 @@ export function readingRestorationAllowed(initialHref: string): boolean {
     initialHref, currentHref,
     hasFragment: window.location.hash !== "", historyDestination: freshLink ? undefined : historyDestination,
     initialDocumentHref: initialDocumentHref!, initialNavigationType,
-    freshLinkDestination, interacted: lastInputHref === currentHref, scrollY: window.scrollY,
+    freshLinkDestination, interacted: lastInputHref === currentHref || filterNavigationDestination === currentHref, scrollY: window.scrollY,
     modalOpen: document.querySelector("dialog[open], [aria-modal='true']") !== null,
     visible: document.visibilityState === "visible",
   });

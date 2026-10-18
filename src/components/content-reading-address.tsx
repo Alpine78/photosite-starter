@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { currentReadingChapter } from "@/lib/content-reading-address";
+import { currentReadingChapter, CONTENT_READING_ADDRESS_EVENT } from "@/lib/content-reading-address";
 import { browserReadingStore, readingInputGeneration, readingRestorationAllowed, READING_SETTINGS_EVENT } from "@/lib/browser-reading-position";
 import { READING_DISABLED_KEY, READING_POSITIONS_KEY } from "@/lib/reading-position-store";
 
@@ -112,6 +112,7 @@ export function ContentReadingAddress({ headingIds, readingPosition }: {
       if (hash === window.location.hash) return;
       try {
         window.history.replaceState(window.history.state, "", pathname + search + hash);
+        window.dispatchEvent(new Event(CONTENT_READING_ADDRESS_EVENT));
         ownedId = chapter.kind === "heading" ? chapter.id : undefined;
       } catch {
         // A denied/throttled History API must never interrupt reading.

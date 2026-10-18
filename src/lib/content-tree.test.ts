@@ -907,7 +907,7 @@ describe("moves, renames, and removal", () => {
 
     expect(getCategoryDependants(tree, "cat-landscape")).toEqual({
       childCategoryIds: ["cat-coastal"],
-      canonicalContentIds: ["content-reading-coastal-light"],
+      canonicalContentIds: ["content-reading-coastal-light", "content-filtered-image-notes"],
     });
     expect(getCategoryDependants(tree, "cat-events")).toEqual({
       childCategoryIds: [],

@@ -1,3 +1,5 @@
+import { ArticleEndGalleryPanel } from "@/components/article-end-gallery-panel";
+import type { GallerySectionSummary } from "@/lib/gallery-sections";
 import Link from "next/link";
 import { GalleryGrid } from "@/components/gallery-grid";
 import { LanguageSwitch, type LanguageLink } from "@/components/language-switch";
@@ -12,6 +14,10 @@ type SharedProps = {
   readonly initialSliceKey: string;
   readonly labels: BuiltInLabels;
   readonly presentation: GalleryPresentation;
+  readonly sections?: readonly GallerySectionSummary[];
+  readonly sectionHeading?: string;
+  readonly activeSection?: string;
+  readonly carriedQuery?: Readonly<Record<string, string | readonly string[] | undefined>>;
 };
 
 export function ArticleEndGallery({
@@ -21,6 +27,10 @@ export function ArticleEndGallery({
   initialSliceKey,
   labels,
   presentation,
+  sections,
+  sectionHeading,
+  activeSection,
+  carriedQuery,
   headingId,
 }: SharedProps & {
   /** An existing terminal body heading names this region instead of a generated h2. */
@@ -38,7 +48,20 @@ export function ArticleEndGallery({
           {labels.article.endGallery}
         </h2>
       )}
-      {slice.items.length === 0 ? (
+      {sections?.length && sectionHeading ? (
+        <ArticleEndGalleryPanel
+          articlePath={articlePath}
+          articleTitle={articleTitle}
+          slice={slice}
+          initialSliceKey={initialSliceKey}
+          labels={labels}
+          presentation={presentation}
+          sections={sections}
+          heading={sectionHeading}
+          activeSection={activeSection}
+          carriedQuery={carriedQuery}
+        />
+      ) : slice.items.length === 0 ? (
         <p className="mt-6 text-muted">{labels.gallery.empty}</p>
       ) : (
         <div className={headingId === undefined ? "mt-6" : undefined}>
@@ -65,6 +88,10 @@ export function ArticleEndGalleryContinuation({
   languages,
   labels,
   presentation,
+  sections,
+  sectionHeading,
+  activeSection,
+  carriedQuery,
 }: SharedProps & { readonly languages: readonly LanguageLink[] }) {
   return (
     <main className="mx-auto max-w-6xl px-4 py-16 wrap-anywhere sm:px-6 [&_table]:wrap-normal">
@@ -72,8 +99,22 @@ export function ArticleEndGalleryContinuation({
         {articleTitle} — {labels.gallery.continued}
       </h1>
       <LanguageSwitch label={labels.contentTree.languages} links={languages} />
-      <section aria-label={`${articleTitle}: ${labels.article.endGallery}`} className="mt-10">
-        {slice.items.length === 0 ? (
+      <section data-article-end-gallery="" aria-label={`${articleTitle}: ${labels.article.endGallery}`} className="mt-10">
+        {sections?.length && sectionHeading ? (
+          <ArticleEndGalleryPanel
+            articlePath={articlePath}
+            articleTitle={articleTitle}
+            slice={slice}
+            initialSliceKey={initialSliceKey}
+            labels={labels}
+            presentation={presentation}
+            sections={sections}
+            heading={sectionHeading}
+            activeSection={activeSection}
+            carriedQuery={carriedQuery}
+            isContinuation
+          />
+        ) : slice.items.length === 0 ? (
           <p className="text-muted">{labels.gallery.empty}</p>
         ) : (
           <GalleryGrid

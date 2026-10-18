@@ -492,6 +492,8 @@ export type BuiltInLabels = {
     readonly allLoaded: string;
     /** Accessible name of the section-controls landmark. */
     readonly sectionsNav: string;
+    readonly loadedSummary: string;
+    readonly moreAvailable: string;
     /** Visible label of the unfiltered `All` section filter. */
     readonly allSections: string;
     /** Singular and plural labels for an exact section photograph count. */
@@ -1017,6 +1019,8 @@ const englishLabels = {
     retry: "Try again",
     allLoaded: "All images in this gallery are loaded.",
     sectionsNav: "Gallery sections",
+    loadedSummary: "{count} images loaded",
+    moreAvailable: "More images are available.",
     allSections: "All",
     photoSingular: "photo",
     photoPlural: "photos",
@@ -1438,6 +1442,8 @@ const finnishLabels = {
     retry: "Yritä uudelleen",
     allLoaded: "Gallerian kaikki kuvat on ladattu.",
     sectionsNav: "Gallerian osiot",
+    loadedSummary: "{count} kuvaa ladattu",
+    moreAvailable: "Lisää kuvia on saatavilla.",
     allSections: "Kaikki",
     photoSingular: "kuva",
     photoPlural: "kuvaa",

@@ -114,6 +114,7 @@ const englishRecords: readonly AuthoredContentRecord[] = [
     eventDate: "2025-03-15",
     cover: englishImages.mistyBirch,
   },
+  { contentId: "content-filtered-image-notes", title: "Image notes", publishedAt: "2010-01-01" },
   {
     // AB#150/ADR-0017 reorder fixture (gallery): the polar night of early
     // 2024, edited and published nearly a year later. Publish order puts it
@@ -274,6 +275,7 @@ const finnishRecords: readonly AuthoredContentRecord[] = [
     eventDate: "2025-03-15",
     cover: finnishImages.mistyBirch,
   },
+  { contentId: "content-filtered-image-notes", title: "Kuvamuistiinpanot", publishedAt: "2010-01-01" },
   {
     contentId: "content-polar-night-sessions",
     title: "Kaamoskuvaukset",
