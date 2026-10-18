@@ -38,7 +38,11 @@ The document does not claim that monitoring is active. Its criteria need the rea
 
 `npm run check:availability -- <config.json>` performs ordinary anonymous GETs only
 when explicitly invoked. It provisions no account, schedule, telemetry or alerts.
-Keep operator configuration private (64 KiB maximum), for example:
+Keep operator configuration private (64 KiB maximum) and save it to an ordinary
+file before running the command. The opened target must be a regular file;
+regular-target symlinks work, but directories, devices, FIFOs and pipe-backed
+process substitution are refused before probing. POSIX nonblocking open avoids
+waiting for a FIFO writer; it is not a general filesystem IO timeout. Example:
 
 ```json
 {"checks":[{"url":"https://example.test/","heading":"Photographs"},{"url":"https://example.test/stories/example","heading":"Example","link":{"text":"Stories","href":"/stories"}}],"timeoutMs":10000,"maxBytes":1048576}

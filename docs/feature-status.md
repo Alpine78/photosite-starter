@@ -2496,6 +2496,14 @@ owner-run public GET probe enforces total timeout/body limits and semantic marke
 Synthetic fetch tests need no live service. AB#158 monitoring/notification setup stays
 open; cached content success does not prove live CMS reads or mail delivery.
 
+**AB#359 follow-up, 2026-10-18:** the availability CLI validates its opened
+configuration descriptor before parsing or probing. Nonregular and oversized
+inputs are refused; POSIX nonblocking open avoids waiting for a FIFO writer.
+Regular files/symlinks, the 64 KiB/UTF-8 bounds and existing probe decisions stay
+intact. Actual CLI regressions use only an owned loopback HTTP fixture and verify
+zero GETs for refused inputs. This correction remains Active pending review/merge;
+AB#158's live monitor and notification acceptance remain separate.
+
 **Clean Preview readback, 2026-10-13 (AB#277, Active):** [Build 941's exact candidate](audits/ab277-clean-preview-candidate-2026-10-13.md) passes current provider source identity for merged `c32d1e8` with `gitDirty=0`, expected project/team and READY status. Independent protection/noindex checks pass (unauthorized 302, authorized 200/noindex); two newly published service routes return 200 and still-empty English Blog returns 404. CI task logs bind the immutable deployment ID/URL. Artifact bytes, complete rendered route behavior, future #387/article integration, Production promotion and actual rollback/acceptance remain unverified. No provider mutation. AB#277 remains Active pending PR merge; AB#18 stays open. AB#268/AB#272 are verified Closed; entries below describe their original preparation.
 
 **Clean checkout release source, 2026-10-13 (AB#272, Active):** CI now validates

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { open } from "node:fs/promises";
+import { constants } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { htmlHasMarkers, parseAvailabilityConfig, type AvailabilityCheck } from "./availability-probe.mts";
 type Failure = "timeout" | "request-failed" | "unexpected-redirect" | "not-200" | "not-html" | "body-too-large" | "body-invalid" | "body-failed" | "missing-marker";
@@ -60,8 +61,11 @@ export async function probeAvailability(check: AvailabilityCheck, options: { fet
 }
 async function main() {
   const args = process.argv.slice(2); if (args.length !== 1) throw new Error();
-  const file = await open(args[0], "r"); let raw: string;
+  const flags = constants.O_RDONLY | (constants.O_NONBLOCK ?? 0) | (constants.O_NOCTTY ?? 0);
+  const file = await open(args[0], flags); let raw: string;
   try {
+    const stat = await file.stat();
+    if (!stat.isFile() || stat.size > 65_536) throw new Error();
     const bytes = Buffer.alloc(65_537); let length = 0;
     while (length < bytes.length) { const part = await file.read(bytes, length, bytes.length - length); if (!part.bytesRead) break; length += part.bytesRead; }
     if (length > 65_536) throw new Error(); raw = new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, length));
