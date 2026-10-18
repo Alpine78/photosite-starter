@@ -20,6 +20,7 @@ export const schemaFinnish = {
   "Media identifier": "Median pysyvä tunniste",
   "Image occurrence identifier": "Kuvasijoituksen pysyvä tunniste",
   "Media description missing": "Median kuvaus puuttuu",
+  "Placement caption": "Kuvakohtainen kuvateksti",
   "Allow photograph enquiries": "Salli valokuvatiedustelut",
   "Allow enquiries from this public gallery. Each photograph must also be opted in. Client galleries never use this action.": "Salli tiedustelut tästä julkisesta galleriasta. Myös kunkin valokuvan tiedustelujen on oltava sallittuja. Asiakasgallerioissa tätä toimintoa ei ole.",
 

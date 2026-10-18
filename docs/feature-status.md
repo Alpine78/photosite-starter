@@ -5014,6 +5014,28 @@ reviewed source as `6aed214978e6da5e2d76bcf577a453b0178162f5` and approved the m
 Verify and Studio gate. AB#256's Active → Closed transition was confirmed after
 merge. Studio deployment and the authenticated editor checks above remain separate.
 
+### AB#349 — Readable body-image previews (2026-10-18, Active)
+
+AB#349 moved New → Active before editing its published worktree. The remaining
+ordinary body-image preview used a technical media identity despite an authored
+caption. A compiled regression reproduced that failure on the accepted base.
+Studio now prefers the placement caption, then existing localized media
+captions/alternative text; it preserves the selected description's actual
+language without assigning one to an untagged placement caption. Missing
+references/descriptions have an explicit FI/EN fallback. The existing full-frame
+public-image preview, canonical fields, validators, stored identities, ordering,
+public URLs and other preview/plugin behavior stay intact.
+
+Synthetic composed-schema and focused preview tests cover these paths. Local
+validation passed: all 7,818 unit tests, 55 focused preview tests, full lint,
+root/Studio strict typechecks, zero-error schema validation, Studio static build
+and a synthetic Next.js production build. Final-head CI and owner acceptance
+remain pending. Hosted preview-store
+reference-array loading and authenticated editor acceptance remain separate from
+offline hydrated fixtures. This changes no architecture boundary or diagram;
+AB#301 stays Active for deployed-editor acceptance and actual identity retirement
+under accepted ADR-0030/0031. No CMS write or Studio publication is performed.
+
 ### AB#257 — Legacy identity retirement discovery (2026-10-12, Closed)
 
 AB#257 moved New → Active after PR #339 merged and before the first change on

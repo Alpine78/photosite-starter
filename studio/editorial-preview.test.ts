@@ -99,7 +99,7 @@ describe("Studio adapter and selection boundary", () => {
   it("resolves every overridden name and selected field path against canonical fields and references", () => {
     for (const [name, preview] of Object.entries(EDITORIAL_PREVIEWS)) {
       const schema = schemas.find((schema) => schema.name === name);
-      expect(schema?.type).toBe("document");
+      expect(schema?.type).toBe(name === "contentMediaBlock" ? "object" : "document");
       for (const path of Object.values(preview!.select)) {
         let fields: readonly SchemaFieldDefinition[] = schema!.fields;
         let arrayMembers: readonly SchemaArrayMemberDefinition[] | undefined;

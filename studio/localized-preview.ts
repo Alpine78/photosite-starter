@@ -1,4 +1,4 @@
-import { EDITORIAL_PREVIEWS, mediaEditorialPreview, selectMediaDescription } from "./editorial-preview";
+import { EDITORIAL_PREVIEWS, bodyMediaEditorialPreview, mediaEditorialPreview, selectMediaDescription } from "./editorial-preview";
 import { studioInterfaceText } from "./interface-locales";
 import type { SchemaTypeDefinition } from "../sanity/schemas/schema-types";
 
@@ -10,6 +10,7 @@ type EditorialSchema = SchemaTypeDefinition & { preview?: { select: Readonly<Rec
 export function localizedEditorialPreview(type: string, selection: Selection, locale: string): Preview | undefined {
   const prepare = EDITORIAL_PREVIEWS[type]?.prepare;
   if (!prepare) return undefined;
+  if (type === "contentMediaBlock") return bodyMediaEditorialPreview(selection, locale, (value) => studioInterfaceText(value, locale) ?? value);
   const original = type === "media" ? mediaEditorialPreview(selection, locale) : prepare(selection);
   if (!/^fi(?:-|$)/.test(locale)) return original;
   const translate = (value: string) => studioInterfaceText(value, locale) ?? value;
