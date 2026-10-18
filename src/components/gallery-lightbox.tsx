@@ -13,6 +13,7 @@ import {
   useId,
   useMemo,
   useRef,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import type { BuiltInLabels } from "@/lib/deployment-config";
@@ -49,7 +50,9 @@ const captionPartClassNames: Record<LightboxCaptionPart["kind"], string> = {
 };
 
 type GalleryLightboxApi = {
-  readonly open: (index: number) => void;
+  /** False until an initialized viewer and the requested slide are available. */
+  readonly open: (index: number) => boolean;
+  readonly enhanced: boolean;
   readonly registerTrigger: (
     itemId: string,
     node: HTMLButtonElement | null,
@@ -57,6 +60,9 @@ type GalleryLightboxApi = {
 };
 
 const GalleryLightboxContext = createContext<GalleryLightboxApi | null>(null);
+
+/** The server/initial hydration pass keeps only genuine native controls. */
+const subscribeToNothing = () => () => {};
 
 /**
  * The declared-slot zoom cap (ADR-0005), read off a PhotoSwipe zoom level.
@@ -152,6 +158,7 @@ export function GalleryLightbox({
   };
   readonly children: ReactNode;
 }) {
+  const enhanced = useSyncExternalStore(subscribeToNothing, () => true, () => false);
   const lightboxRef = useRef<PhotoSwipeLightbox | null>(null);
   const triggersRef = useRef(new Map<string, HTMLButtonElement>());
   const slidesRef = useRef(slides);
@@ -762,7 +769,7 @@ export function GalleryLightbox({
     const slides = slidesRef.current;
     const slide = slides[index];
     if (!lightbox || !slide) {
-      return;
+      return false;
     }
 
     if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
@@ -780,6 +787,7 @@ export function GalleryLightbox({
     // one would leave focus on the trigger behind an open dialog until the
     // visitor pressed Tab.
     lightbox.loadAndOpen(index, dataSource);
+    return true;
   }, []);
 
   const registerTrigger = useCallback(
@@ -794,8 +802,8 @@ export function GalleryLightbox({
   );
 
   const api = useMemo<GalleryLightboxApi>(
-    () => ({ open, registerTrigger }),
-    [open, registerTrigger],
+    () => ({ open, registerTrigger, enhanced }),
+    [open, registerTrigger, enhanced],
   );
 
   return (
@@ -820,8 +828,9 @@ function useGalleryLightbox(): GalleryLightboxApi {
 /**
  * The control that opens one result item.
  *
- * A real button, so the grid is reachable and operable by keyboard without the
- * component reimplementing what a button already does. `index` addresses the
+ * An enhanced photograph uses a real keyboard-operable button. A curated image
+ * without a native caption action stays passive before enhancement; an existing
+ * native caption button remains useful without scripts. `index` addresses the
  * shared result list; `itemId` is what focus comes back to.
  */
 export function GalleryLightboxTrigger({
@@ -829,6 +838,7 @@ export function GalleryLightboxTrigger({
   index,
   label,
   captionPopoverId,
+  deferUntilEnhanced = false,
   children,
 }: {
   readonly itemId: string;
@@ -837,9 +847,11 @@ export function GalleryLightboxTrigger({
   readonly label?: string;
   /** Native caption fallback for a scriptless curated image trigger (AB#157). */
   readonly captionPopoverId?: string;
+  /** Curated photographs without a native caption action stay passive on SSR. */
+  readonly deferUntilEnhanced?: boolean;
   readonly children: ReactNode;
 }) {
-  const { open, registerTrigger } = useGalleryLightbox();
+  const { open, registerTrigger, enhanced } = useGalleryLightbox();
 
   const trackNode = useCallback(
     (node: HTMLButtonElement) => {
@@ -849,20 +861,28 @@ export function GalleryLightboxTrigger({
     [registerTrigger, itemId],
   );
 
+  if (deferUntilEnhanced && !enhanced && !captionPopoverId) {
+    return (
+      <div data-item-id={itemId} className="block w-full overflow-hidden rounded-sm">
+        {children}
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
       ref={trackNode}
       popoverTarget={captionPopoverId}
       onClick={(event) => {
-        // Hydration enhances the native caption action into the existing viewer.
-        // No viewer ordering or navigation behaviour changes.
+        // Keep a native caption usable if setup has not installed the viewer
+        // yet; never cancel the only action this photograph currently offers.
+        if (!open(index)) return;
         event.preventDefault();
         if (captionPopoverId) {
           const caption = document.getElementById(captionPopoverId);
           if (caption?.matches(":popover-open")) caption.hidePopover();
         }
-        open(index);
       }}
       aria-haspopup="dialog"
       aria-label={label}

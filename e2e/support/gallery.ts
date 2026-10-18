@@ -173,7 +173,7 @@ export function galleryItems(main: Locator): Locator {
   return main
     .locator("#gallery")
     .getByRole("list")
-    .filter({ has: main.page().getByRole("button") })
+    .filter({ has: main.page().locator("[data-item-id]") })
     .first()
     .getByRole("listitem");
 }

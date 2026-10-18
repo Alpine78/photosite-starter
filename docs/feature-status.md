@@ -2853,6 +2853,19 @@ shape: greedy rows closed as soon as they would fill the band's width at a fixed
 height, prefix-stable by construction (a closed row's boundary never depends on what comes
 after it), with the identical `resume`-and-reuse contract for its own append case.
 
+**Curated-image progressive enhancement, 2026-10-18 (AB#348, Active):**
+A curated photograph without a native caption action stays a passive full-frame
+image before hydration and without JavaScript. Existing native full-caption
+popover buttons remain keyboard-operable; their existing credit contract elsewhere
+is unchanged. Enhancement restores the current real-button lightbox trigger, and
+an activation never cancels the native caption action while the viewer is unavailable.
+Body and mini-gallery figures keep their separate existing enhancement contract.
+The curated test helper follows occurrence identities within `#gallery`, including
+passive images, while retaining exact result order and continuation boundaries.
+Enhanced end-gallery row measurements wait for all 24 real image controls before
+sampling; scriptless rendering and exact geometry/append assertions stay intact.
+Implementation is in review; this does not close the parent gallery work.
+
 Both new layouts, and `grid`'s new `overlay` caption option, share one figure component
 (`GalleryFigure`, `src/components/gallery-figure.tsx`) rather than three independent
 caption implementations. A caption always renders `below` regardless of the authored

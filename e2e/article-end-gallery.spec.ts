@@ -121,6 +121,7 @@ test("justified end-gallery rows preserve full frames and closed rows on append"
     return { x: rect.x - root.x, y: rect.y - root.y, width: rect.width, height: rect.height,
       ratio: Number(image.getAttribute("width")) / Number(image.getAttribute("height")) };
   }));
+  await expect(gallery.locator("button[data-item-id]")).toHaveCount(24);
   const before = await boxes();
   expect(before).toHaveLength(24);
   for (const box of before) expect(box.width / box.height).toBeCloseTo(box.ratio, 1);

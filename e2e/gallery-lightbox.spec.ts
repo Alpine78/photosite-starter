@@ -226,6 +226,7 @@ test("data-item-id stays distinct from mediaId, matches the source's own order, 
   // no repeated photograph, both would mint the same, all-distinct values.
   // This journey uses a gallery where they provably would not.
   await page.goto(REPEATED_MEDIA_GALLERY.path, { waitUntil: "load" });
+  await waitForGalleryButtons(page);
 
   const main = page.getByRole("main");
   const triggers = main.getByRole("button");
@@ -245,6 +246,7 @@ test("data-item-id stays distinct from mediaId, matches the source's own order, 
 
   await test.step("identity survives a reload rather than being minted fresh per render", async () => {
     await page.reload({ waitUntil: "load" });
+    await waitForGalleryButtons(page);
     expect(await readItemIds()).toEqual(REPEATED_MEDIA_GALLERY.expectedItemIds);
   });
 
@@ -738,6 +740,7 @@ test("the grid reads in the same order the lightbox navigates, at every column c
     ).toBe(expectedColumns);
 
     // And that order is the one the lightbox will navigate.
+    await waitForGalleryButtons(page);
     expect(await galleryImageAlts(main.getByRole("button"))).toEqual(
       boxes.map((box) => box.alt),
     );
@@ -754,4 +757,14 @@ test("the grid reads in the same order the lightbox navigates, at every column c
  */
 async function gotoGallery(page: Page): Promise<void> {
   await page.goto(GALLERY_PATH, { waitUntil: "load" });
+  await waitForGalleryButtons(page);
+}
+
+/** A completed document load does not imply that all image controls exist yet. */
+async function waitForGalleryButtons(page: Page): Promise<void> {
+  const main = page.getByRole("main");
+  const occurrences = main.locator("#gallery [data-item-id]");
+  const count = await occurrences.count();
+  expect(count, "the gallery must expose its server-rendered occurrences").toBeGreaterThan(0);
+  await expect(main.locator("#gallery button[data-item-id]")).toHaveCount(count);
 }
